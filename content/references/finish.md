@@ -1,4 +1,4 @@
-<!-- file: order=19 -->
+<!-- file: order=18 -->
 <!-- unit: skill-finish-cycle kinds=finish class=triggering -->
 Once no ordinary live leaf is left, bare `grove` appends one driver-owned
 `finish` leaf at the grove root and mandates it under the `finish` session kind;

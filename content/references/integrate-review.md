@@ -1,4 +1,4 @@
-<!-- file: order=16 -->
+<!-- file: order=15 -->
 <!-- unit: task-integrate-review-kinds kinds="integrate-review-requirements integrate-review-design integrate-review-planning integrate-review-prototype integrate-review-impl" class=triggering -->
 **integrate-review-\*** (all AFK) — triage one review's findings and apply the
 real ones. Shared discipline: verify each finding rather than performatively

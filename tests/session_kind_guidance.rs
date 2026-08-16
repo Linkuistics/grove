@@ -891,240 +891,31 @@ fn the_flag_sweep_indexes_by_the_verb_the_line_names() {
 }
 
 // ---------------------------------------------------------------------------
-// Every kind's mandate states exactly one session ending
-
-/// The **declared ending set**: the units that state a session's ending.
-///
-/// A *set of ids* rather than a per-kind mapping, and that is the whole economy
-/// of this guard. A mapping would restate every ending unit's `kinds=` scope a
-/// second time, away from the prose it scopes — the *classify in a manifest
-/// beside `content/`* shape
-/// `docs/adr/mandate-delivers-the-methodology.md` rejects. A set needs nothing
-/// but the closed kind set: *for every kind, exactly one of these appears*, and
-/// a twentieth kind admitted by neither scope counts zero and fails by name
-/// (`docs/specs/mandate-delivered-methodology.md`, *Every kind's mandate states
-/// exactly one session ending*).
-///
-/// What the set therefore cannot see is the **mirror** hazard — a *new* ending
-/// unit nobody named here, which leaves the declared one present and still
-/// counting one. [`the_completion_verb_is_named_only_by_a_declared_ending`] is
-/// what converts that, and it converts it only as far as an operable
-/// restatement goes: one that names the verb fails, one phrased around it
-/// escapes to the classification review, where the requirement already puts it.
-const ENDING_UNITS: [&str; 2] = ["skill-signal", "skill-finish-endings"];
-
-/// The unit stating that a session never discovers a grove is finished — the
-/// negative trigger, and the one fragment of the finish story that stays
-/// `kinds=*`. Withhold it and a session that retires the last live leaf holds
-/// no statement about what it is looking at, with an unasked question attached
-/// to a destructive action.
-const NEGATIVE_TRIGGER: &str = "skill-finish";
-
-/// The completion verb as a mandate spells it. The bare word `complete` is
-/// ordinary English in this corpus — *complete finish cycle*, *complete as
-/// delivered* — so the token has to carry the binary's name to mean the verb.
-const COMPLETION_VERB: &str = "grove-llm complete";
-
-/// The stop flag. Only a `finish` session has an ending that takes it, and the
-/// eighteen are told nothing about it, because the exception is not about them.
-const STOP_FLAG: &str = "--done";
+// The two ending units, and what still holds them
+//
+// **The per-kind ending claims left this file with the mandate.** They asked
+// what a *composed mandate* carried — exactly one declared ending, `--done`
+// nowhere but `finish`, the relaunch ending composing last, no second unit
+// naming the completion verb — and a composed mandate is what this workstream
+// deleted. The corpus now reaches a session whole, as a provisioned skill, so
+// "the `impl` mandate carries one ending" has no referent: every session can
+// read every ending, and which one applies is what the reference files say.
+//
+// The claims that survive moved to the seam that still makes a per-kind
+// selection, `tests/prompt.rs`: eighteen kinds' prompts end on
+// `content/SIGNAL.md`'s own bytes, `finish` states no ending because two of its
+// three outcomes would make a fixed one wrong, and no prompt restates a rule the
+// skill owns. What stays here is the **drift pin** below, which is not a claim
+// about delivery at all — and which matters more now, since one of the two units
+// it pins is inlined into every session's prompt byte-exact.
 
 /// The real embed, parsed and whole-embed checked.
 fn embedded_units() -> Vec<Unit> {
     methodology::units().expect("the real embed must parse and pass its whole-embed checks")
 }
 
-/// The declared ending units a mandate actually carries.
-///
-/// Located by the unit's **own source bytes**, as every other claim over a
-/// composed mandate is: a marker-shaped line inside a slice's body is prose (the
-/// methodology documents its own grammar), so scanning the output for markers
-/// would report units that are not there.
-fn declared_endings_in(units: &[Unit], mandate: &str) -> Vec<String> {
-    units
-        .iter()
-        .filter(|unit| ENDING_UNITS.contains(&unit.id.as_str()))
-        .filter(|unit| mandate.contains(unit.source.as_str()))
-        .map(|unit| unit.id.clone())
-        .collect()
-}
-
-/// Every unit in `mandate` that names the completion verb without being a
-/// declared ending. Empty is the passing verdict.
-fn verb_named_outside_the_declared_set(units: &[Unit], mandate: &str) -> Vec<String> {
-    units
-        .iter()
-        .filter(|unit| mandate.contains(unit.source.as_str()))
-        .filter(|unit| unit.source.contains(COMPLETION_VERB))
-        .filter(|unit| !ENDING_UNITS.contains(&unit.id.as_str()))
-        .map(|unit| unit.id.clone())
-        .collect()
-}
-
-/// **The claim the whole specialisation rests on**: a session is told one
-/// ending, and it is told one.
-///
-/// The failure this exists for is not a wrong ending but *no* ending — a kind
-/// whose sessions are launched with nothing telling them to signal, so each one
-/// ends silently and stops the loop, one session at a time, with nothing
-/// non-zero anywhere. Generated from [`Kind::ALL`] so that is a red test rather
-/// than an operator's discovery.
-#[test]
-fn every_kind_is_told_exactly_one_session_ending() {
-    let units = embedded_units();
-    for kind in Kind::ALL {
-        let mandate = methodology::compose(&units, kind);
-        let carried = declared_endings_in(&units, &mandate);
-        assert_eq!(
-            carried.len(),
-            1,
-            "the `{}` mandate carries {} of the declared ending units ({:?}), not one. \
-             At zero, a session of this kind is never told to signal, so the loop \
-             stops on every one of them; above one, it is handed a branch the \
-             driver had already resolved.",
-            kind.label(),
-            carried.len(),
-            carried
-        );
-    }
-}
-
-/// The eighteen are told **nothing** about `--done`, and `finish` is told about
-/// it. Half a claim each way: absence is what makes the eighteen's mandate
-/// exception-free, presence is what stops the specialisation from having taken
-/// the ending away from the one kind that needs it.
-#[test]
-fn only_the_finish_mandate_carries_the_stop_flag() {
-    let units = embedded_units();
-    for kind in Kind::ALL {
-        let carries = methodology::compose(&units, kind).contains(STOP_FLAG);
-        assert_eq!(
-            carries,
-            kind == Kind::Finish,
-            "the `{}` mandate {} `{STOP_FLAG}`; only the `finish` mandate may, \
-             because an ending stated as an exception to another kind's rule is \
-             the branch this specialisation removes",
-            kind.label(),
-            if carries { "names" } else { "does not name" },
-        );
-    }
-}
-
-/// **The relaunch ending composes last**, and `content/SIGNAL.md` is the whole
-/// mechanism: composition order is a file's position then a unit's position
-/// within it, so a unit's only lever on where it lands is which file carries it,
-/// and the final position is what holds this one at the end.
-///
-/// What this pins is **recency**, which no other guard here does —
-/// [`every_kind_is_told_exactly_one_session_ending`] settles presence and stops
-/// there. Delivered from inside `content/SKILL.md` the instruction was followed
-/// by seven whole files, the majority of what a session reads at launch, between
-/// the sentence saying *your last action* and the moment it applied; sessions
-/// were finishing their work correctly and then not signalling, which under an
-/// interactive harness stalls the loop rather than stopping it. Both ways back
-/// into that — a file added past `content/SIGNAL.md`'s position, or the unit
-/// folded back in beside `skill-commit` — fail here by name.
-///
-/// Asked of whichever mandates **carry** the unit rather than of a spelled kind
-/// list, so it stays one claim about placement and borrows the scope from the
-/// marker rather than restating it. Located by source bytes, for the reason
-/// [`declared_endings_in`] gives.
-#[test]
-fn the_relaunch_ending_composes_last() {
-    let units = embedded_units();
-    let relaunch = ENDING_UNITS[0];
-    let mut carrying = 0;
-
-    for kind in Kind::ALL {
-        let mandate = methodology::compose(&units, kind);
-        let mut placed: Vec<(usize, &str)> = units
-            .iter()
-            .filter_map(|unit| {
-                mandate
-                    .find(unit.source.as_str())
-                    .map(|at| (at, unit.id.as_str()))
-            })
-            .collect();
-        placed.sort();
-
-        if !placed.iter().any(|(_, id)| *id == relaunch) {
-            continue;
-        }
-        carrying += 1;
-        let (_, last) = *placed.last().expect("a carried unit is a placed one");
-        assert_eq!(
-            last,
-            relaunch,
-            "the `{}` mandate ends on `{last}`, not on `{relaunch}`. The \
-             instruction a session performs after everything else it was told \
-             has to be the last thing it reads, and only `content/SIGNAL.md`'s \
-             final file position holds it there.",
-            kind.label(),
-        );
-    }
-
-    assert_eq!(
-        carrying,
-        Kind::ALL.len() - 1,
-        "every kind but `finish` must carry the relaunch ending, so a guard that \
-         skips the mandates without it must have skipped exactly one"
-    );
-}
-
-/// **The complement sweep**, and the reason it is a separate claim from the
-/// count above: a second unit that also states an ending leaves the declared one
-/// present and still counting one, so membership alone cannot see it. This is
-/// the duplicate-prose blind spot the design admits when it reduces the
-/// launcher — the completeness invariant checks that every unit reaches its
-/// kinds, never that no unit says what another already said.
-#[test]
-fn the_completion_verb_is_named_only_by_a_declared_ending() {
-    let units = embedded_units();
-    for kind in Kind::ALL {
-        let mandate = methodology::compose(&units, kind);
-        let strays = verb_named_outside_the_declared_set(&units, &mandate);
-        assert!(
-            strays.is_empty(),
-            "the `{}` mandate names `{COMPLETION_VERB}` in {strays:?}, which the \
-             declared ending set does not name. Either the unit is a second \
-             ending — in which case the session is being told its ending twice, \
-             with nothing holding the two in step — or it is the new ending and \
-             `ENDING_UNITS` has not been told.",
-            kind.label()
-        );
-    }
-}
-
-/// The negative trigger reaches all nineteen, `finish` included — it reads the
-/// same sentence as a true statement of how it came to be launched, which is why
-/// its scope is `*` rather than a second spelling of the eighteen.
-#[test]
-fn every_kind_is_told_that_finishing_is_not_its_call() {
-    let units = embedded_units();
-    let trigger = units
-        .iter()
-        .find(|unit| unit.id == NEGATIVE_TRIGGER)
-        .unwrap_or_else(|| panic!("`{NEGATIVE_TRIGGER}` must exist"));
-
-    for kind in Kind::ALL {
-        assert!(
-            methodology::compose(&units, kind).contains(trigger.source.as_str()),
-            "the `{}` mandate does not carry `{NEGATIVE_TRIGGER}`. A session that \
-             retires the last live leaf would then hold no statement about what it \
-             is looking at — an unasked question attached to a destructive action",
-            kind.label()
-        );
-    }
-}
-
-// -- Both controls ----------------------------------------------------------
-//
-// A sweep that cannot fail is worth nothing, which is this file's own rule. The
-// two guards above fail in different ways, so each is shown failing on the shape
-// it exists to catch.
-
 /// A [`Unit`] built by hand, for the shapes the real embed must not contain.
-/// Constructed rather than parsed because the point is to hold a mandate the
+/// Constructed rather than parsed because the point is to hold a set the
 /// grammar would never produce.
 fn synthetic_unit(id: &str, source: &str) -> Unit {
     Unit {
@@ -1138,94 +929,6 @@ fn synthetic_unit(id: &str, source: &str) -> Unit {
         offset: 0,
         source: source.to_string(),
     }
-}
-
-/// The membership control: withdraw one kind from an ending unit's scope, which
-/// is what *adding* a twentieth kind does from the other side, and the count for
-/// that kind goes to zero while every other kind still holds one.
-#[test]
-fn the_ending_count_fails_for_a_kind_no_ending_unit_admits() {
-    let withdrawn = Kind::Impl;
-    let narrowed: Vec<Unit> = embedded_units()
-        .into_iter()
-        .map(|mut unit| {
-            if unit.id == "skill-signal" {
-                if let Some(Scope::Kinds(kinds)) = unit.scope.as_mut() {
-                    kinds.retain(|kind| *kind != withdrawn);
-                }
-            }
-            unit
-        })
-        .collect();
-
-    for kind in Kind::ALL {
-        let mandate = methodology::compose(&narrowed, kind);
-        let expected = usize::from(kind != withdrawn);
-        assert_eq!(
-            declared_endings_in(&narrowed, &mandate).len(),
-            expected,
-            "with `{}` withdrawn from the relaunch ending's scope, only that kind \
-             may lose its ending; `{}` disagreed",
-            withdrawn.label(),
-            kind.label()
-        );
-    }
-}
-
-/// The complement control: a mandate naming the verb outside the declared set is
-/// named, and one that does not is clean. Both halves, because a sweep that
-/// reports everything is as useless as one that reports nothing.
-///
-/// The third assertion is the **boundary**, and it asserts a non-detection: a
-/// unit restating an ending *without* naming the verb is not reported, and cannot
-/// be by anything that is not a phrase heuristic. That escape is where
-/// *Every kind's mandate states exactly one session ending* puts the second prose
-/// limb, and it is pinned here rather than left to a comment because this is the
-/// function a later reader edits when they decide the sweep should catch more —
-/// a red line here makes widening it into a heuristic a deliberate act.
-#[test]
-fn the_verb_sweep_finds_a_second_unit_stating_an_ending() {
-    let declared = synthetic_unit(
-        ENDING_UNITS[0],
-        "run `grove-llm complete` as your last action\n",
-    );
-    let stray = synthetic_unit(
-        "skill-somewhere-else",
-        "and afterwards `grove-llm complete`\n",
-    );
-    let quiet = synthetic_unit("skill-quiet", "retire the leaf and commit\n");
-    let phrased = synthetic_unit(
-        "skill-phrased-around-the-verb",
-        "sessions relaunch only after a completion signal; any other exit stops \
-         the loop\n",
-    );
-
-    let all = vec![declared.clone(), stray.clone(), quiet.clone()];
-    let with_stray = format!("{}\n{}\n{}", declared.source, stray.source, quiet.source);
-    assert_eq!(
-        verb_named_outside_the_declared_set(&all, &with_stray),
-        ["skill-somewhere-else"],
-        "a unit naming the completion verb without being a declared ending must \
-         be reported — this is the shape the membership count cannot see"
-    );
-
-    let clean = vec![declared.clone(), quiet.clone()];
-    let without_stray = format!("{}\n{}", declared.source, quiet.source);
-    assert!(
-        verb_named_outside_the_declared_set(&clean, &without_stray).is_empty(),
-        "a mandate whose only completion verb is its declared ending's is clean"
-    );
-
-    let escaping = vec![declared.clone(), phrased.clone()];
-    let with_phrased = format!("{}\n{}", declared.source, phrased.source);
-    assert!(
-        verb_named_outside_the_declared_set(&escaping, &with_phrased).is_empty(),
-        "the recorded boundary: a unit restating an ending in words naming \
-         neither `{COMPLETION_VERB}` nor `{STOP_FLAG}` is *not* reported, and \
-         nothing mechanical reports it. That limb belongs to the classification \
-         review. If this assertion is what you came to change, you are widening \
-         the sweep into a phrase heuristic — say so in the spec first"
-    );
 }
 
 // -- The drift pin ----------------------------------------------------------

@@ -298,7 +298,7 @@ the set it does reach is derived from a kind set declared elsewhere and re-reads
 itself whenever that set changes. Recovering a per-kind guarantee then means
 writing each kind's ending down a second time, in a test, away from the prose —
 which is the *classify in a manifest beside `content/`* shape
-[the mandate delivers the methodology](../adr/mandate-delivers-the-methodology.md)
+[the mandate delivers the methodology](../adr/skill-delivers-the-methodology.md)
 already rejects, for the same reason: two statements of one classification, with
 nothing holding them in step.
 
@@ -1047,7 +1047,7 @@ Composition lands first and provisioning retires after it, so the mandate is
 proven working before the fallback is removed. Sessions therefore receive both a
 mandate and a provisioned skill for one increment. That state is a **transient
 and never a resting state**: two delivery paths that can disagree is the shape
-[the mandate delivers the methodology](../adr/mandate-delivers-the-methodology.md)
+[the mandate delivers the methodology](../adr/skill-delivers-the-methodology.md)
 rejects outright, and the only reason it is admitted at all is that the reverse
 order removes the fallback before anything has replaced it.
 

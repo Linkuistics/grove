@@ -151,6 +151,42 @@ everything a golden would and says it by name.
 The core ships, every check above is green with its control, both records are
 reworked in place, and no link to the renamed ADR dangles.
 
+## Running log
+
+- **`finish` takes no ending part — the leaf's "fixed three-part template" has one
+  exception, decided here.** `content/SIGNAL.md` is scoped to eighteen kinds and
+  says *run `grove-llm complete`*; `references/finish.md` gives a `finish` session
+  three endings keyed by what it did. Inlining the former for `finish` would put
+  the wrong one last in the prompt of the one session that may have just deleted
+  the task tree — bare `complete` relaunches the loop, which then re-scaffolds a
+  torn-down grove. Delivering nothing is safe (no signal stops the loop, leaf stays
+  live and resumable), so the third part is present for eighteen and absent for
+  one. The spec's *three parts, in order* scenario is amended in place rather than
+  departed from silently, and both the exception and its reason are asserted.
+- **The size numbers moved and the spec is corrected rather than met.** Measured
+  `impl` prompt is 2,307 bytes against the design's ~1,969 estimate; ~390 of the
+  difference is `SIGNAL.md`'s unit marker line, which dies at
+  `mandate-machinery-k10`. Headroom against the 4 KiB alarm is ~43%, not "better
+  than half", and the spec now says so. The alarm's control was rewritten to drive
+  a real composition past the line rather than assert the headroom, because
+  headroom is not a control.
+- **`content/MANDATE.md` deleted here, per `corpus-rewrite-k7`'s brief** (*"the
+  mandate framing, which dies at the cutover, not here"*). Leaving it would ship a
+  file into every provisioned skill directory saying *what follows is your mandate,
+  sliced for this session's kind* — false the moment this leaf lands. The `order=`
+  directives renumber 1..26; `grove-llm methodology` leaves `INSTRUCTED_VERBS`
+  with it, since nothing in the corpus reaches for the verb any more.
+- **`methodology::compose` deleted, the composition golden with it.** The readers,
+  the unit model and the build gate stay — `build.rs` and `grove-llm methodology`
+  still need them until `mandate-machinery-k10`. `tests/session_kind_guidance.rs`'s
+  per-kind ending section went with the mandate it asked about; the claims that
+  survive moved to `tests/prompt.rs`, and its drift pin on the two ending units'
+  prose stays and matters more, since one of them is now inlined byte-exact.
+- **The closure's absence is asserted at both ends.** Checking only that the
+  prompt no longer says *do not probe* cannot tell a rule that moved from a rule
+  that was deleted, so `tests/prompt.rs` also asserts `content/SKILL.md` still
+  declares `skill-do-not-pick-again` and `skill-stated-vcs-is-definitive`.
+
 ## Notes
 
 This leaf is large and load-bearing. Its natural review is `review-impl` on the

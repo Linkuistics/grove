@@ -1210,13 +1210,13 @@ Global skill provisioning survives but no longer selects or implies a launch
 harness. The binary still sweeps embedded `content/` to each installed known
 personal skill directory. That delivery registry is independent of the opaque
 configured commands and never contributes arguments or target identity. The
-launcher surface is gone entirely: `start.md` and `retire.md` disappear with
-their human lifecycle verbs, and the one that outlived them became
-`content/MANDATE.md`, a framing unit carrying no instructions. `${prompt}` is
-composed from the embed's marked units for the selected kind
-([mandate-delivered methodology](mandate-delivered-methodology.md)), so the
-provisioned skill is no longer a prerequisite of a configured target and a
-target that never exposes it still receives the whole methodology. Because target
+launcher surface is gone entirely: `start.md`, `retire.md` and `continue.md`
+disappeared with the human lifecycle verbs, and nothing in the embed is launcher
+prose. `${prompt}` is the driver-authored **guaranteed core** for the selected
+kind ([skill-delivered methodology](skill-delivered-methodology.md)), which
+points at the provisioned skill by absolute path — so the provisioned skill *is*
+a prerequisite of a configured target again, and a target that never exposes it
+is the unsupported shape that design names rather than defends. Because target
 identity is opaque, Grove still proves nothing about what an arbitrary wrapper
 exposes; a target that fails is a configured session that receives the
 exit-status diagnostic rather than a guessed harness-specific provisioning

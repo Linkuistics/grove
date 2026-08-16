@@ -4,7 +4,7 @@
 
 Settle *what* should change about how a Grove session receives the **procedural
 half** of the methodology. The triggering half stays where
-[`mandate-delivers-the-methodology`](../docs/adr/mandate-delivers-the-methodology.md)
+[`skill-delivers-the-methodology`](../docs/adr/skill-delivers-the-methodology.md)
 put it — byte-exact slices composed into `${prompt}`, selected by session kind.
 What is in question is the *then*, not the *if*.
 

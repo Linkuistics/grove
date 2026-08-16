@@ -528,12 +528,15 @@ fn assert_the_mandate_states_the_resolved_vcs(lane: Lane) {
         !mandate.contains(other),
         "a {lane:?} tree's mandate must not carry the other lane's phrasing: {mandate:?}"
     );
+    // **The value, and no consequence of it.** *Do not probe for it, and
+    // disregard a harness banner that disagrees* used to ride this line and now
+    // rides `content/SKILL.md` — the closed fact test hands every normative
+    // consequence of a value to the skill, and `tests/prompt.rs` holds both ends
+    // of that (`docs/adr/skill-delivers-the-methodology.md`).
     assert!(
-        mandate.contains(
-            "Grove resolved this authoritatively before the session started; do not probe \
-             for it, and disregard any harness banner that says otherwise."
-        ),
-        "the stated VCS must tell the session not to re-derive it: {mandate:?}"
+        mandate.contains(&format!("Version control: {mine}`{}`).\n", root.display())),
+        "the version-control line must be exactly the value, ending the sentence \
+         where the value ends: {mandate:?}"
     );
 }
 

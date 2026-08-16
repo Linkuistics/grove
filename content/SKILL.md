@@ -2,7 +2,7 @@
 name: grove
 description: Grove's methodology for driving a long, multi-session workstream as a VCS-tracked tree of task files under .grove/ — the loop, the nineteen session kinds, the conditions every session holds to, and the reference file each kind reads. Use when a Grove mandate names this skill; when running any session inside a grove working tree; or when starting, picking up, or continuing a task tree under .grove/.
 ---
-<!-- file: order=2 -->
+<!-- file: order=1 -->
 <!-- unit: skill-what-a-grove-is kinds=* class=triggering -->
 
 # grove — hierarchical, self-extending workstreams

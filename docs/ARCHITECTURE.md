@@ -319,12 +319,15 @@ serves readiness, the launch diagnostic line, template selection, and the
 mandate, with no second tree read. It is a fact, not a routing forecast, and it
 is not recomputed immediately before spawn.
 
-`${prompt}` carries the methodology composed for that selected kind, then the two
-facts Grove resolved at runtime: the stable handle as an explicit mandate, and the
-[version control](#symmetric-vcs-rule) Grove resolved for the working tree.
-Everything before those two is a byte-exact slice of the binary's own `content/`,
-joined by a blank line and introduced by nothing, so the driver authors no
-sentence of methodology. No hidden leaf environment variable accompanies it. At Bootstrap the
+`${prompt}` carries the **guaranteed core** and nothing else: an instruction to
+load the provisioned skill and this kind's reference file by path, then the two
+facts Grove resolved at runtime — the stable handle as an explicit mandate, and
+the [version control](#symmetric-vcs-rule) Grove resolved for the working tree —
+then the session-ending text, which is the embed's own `SIGNAL.md` inlined
+byte-exact. The order is the session's own timeline, and the methodology itself
+arrives as the provisioned skill rather than in argv
+([the skill delivers the methodology](adr/skill-delivers-the-methodology.md)). No
+hidden leaf environment variable accompanies it. At Bootstrap the
 session resolves the handle with `grove-llm resolve`, rejects a missing,
 ambiguous, terminal, or non-leaf result, reads the glossary, cited decision
 records, brief chain, and task, and executes it without calling `grove-llm
@@ -625,9 +628,11 @@ Git for commits. This preserves Jujutsu's operation log and avoids mutating the
 Git index behind a colocated repository.
 
 Grove resolves that marker before a session exists and **states** the result in
-the mandate, which is why sessions do not probe: every launch is told whether its
-working tree is jj-enabled or plain Git, which root Grove resolved for it, and
-not to re-derive the answer. The driver already owns this fact and every
+`${prompt}`, which is why sessions do not probe: every launch is told whether its
+working tree is jj-enabled or plain Git and which root Grove resolved for it.
+*Not to re-derive the answer* is the skill's to say, not the prompt's — the core
+carries a launch-varying **value**, and every normative consequence of a value
+stays in `content/`. The driver already owns this fact and every
 tree-mutation verb already branches on it; only the session was working it out
 again, and working it out badly. A harness banner computed from `.git` alone
 reads a native Jujutsu workspace as no repository at all
@@ -654,15 +659,17 @@ template may request.
 <a id="self-extension-core-and-methodology"></a>
 ## Embedded methodology
 
-**This section describes the delivery path as built. It is decided to go.**
-[The mandate delivers the
-methodology](adr/mandate-delivers-the-methodology.md) settles that `${prompt}`
-becomes the sole delivery path, composed from kind-selected byte-exact slices of
-the driver's own embed, and that provisioning — the sweep, the stamps, the shared
-directory, and the harness registry — retires with it.
+**Provisioning is the delivery path.** [The skill delivers the
+methodology](adr/skill-delivers-the-methodology.md) settles that the sweep, the
+stamps, the shared directory and the harness registry all stay, and that
+`${prompt}` carries only a short guaranteed core pointing at what they wrote;
+[`docs/specs/skill-delivered-methodology.md`](specs/skill-delivered-methodology.md)
+carries the design. **The mandate machinery below is decided to go** — the
+composer is already deleted, and the marker grammar, the two readers, the build
+gate and `grove-llm methodology` follow in the next increment;
 [`docs/specs/mandate-delivered-methodology.md`](specs/mandate-delivered-methodology.md)
-carries the design. The **build boundary** below is unchanged by that decision
-and survives it intact; what changes is only how the embed reaches a session.
+describes it while it still runs. The **build boundary** at the end of this
+section is unchanged by either decision.
 
 `build.rs` embeds `content/` into **both** binaries — `grove` to extract it, and
 `grove-llm` to serve units out of it. On every bare `grove`, `provision` sweeps
@@ -733,17 +740,13 @@ which is a different traversal of what the gate saw on disk.
 Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is
 refreshed, so whichever one the command lands in already carries the current
-methodology. A session no longer depends on reaching it, because the mandate now
-carries the methodology itself: `content/MANDATE.md` holds one framing unit
-saying what the composed text is and how `grove-llm methodology` serves a
-deferred body, and it leads every mandate by declaring the first file position
-rather than by any rule in the composer. `content/SIGNAL.md` is the mirror of
-that at the other end: one unit, the last file position, so the instruction to
-run `grove-llm complete` as the session's last action is the last methodology a
-session reads rather than something it read most of a mandate earlier. Both delivery paths are live for this
-increment — the sweep still runs, and a session receives a provisioned skill as
-well as a mandate — which the design admits as a transient so that composition is
-proven before its fallback is removed, never as a resting state.
+methodology. **A session depends on reaching it**, which is what the core's
+wording and the absent-destination report exist for: nothing else teaches a
+session the loop, the kinds, or which verbs exist. `content/SIGNAL.md` is the one
+file that travels both channels — provisioned like every other, and inlined into
+`${prompt}` byte-exact as its last part, so the instruction a session performs
+after everything else is the last thing it reads. One source, two deliveries, and
+no build boundary between them.
 
 The binary refuses to overwrite an unstamped foreign directory and replaces an
 old symlink as a link rather than following it. `content/` is the canonical
@@ -847,8 +850,9 @@ prescribing one command.
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
-| `methodology` | The embed itself: the two readers `build.rs` shares — per file, and across the whole embed — the markdown corpus and unit set they produce, the per-kind composition a mandate is projected from, and the build's methodology identity. |
-| `provision` | Embedded methodology installation. |
+| `methodology` | The embed itself and the build's methodology identity — plus, until the mandate machinery is deleted, the two readers `build.rs` shares and the unit set they produce. Nothing about composition. |
+| `prompt` | The guaranteed core: the whole of `${prompt}`, the kind→reference-file map, and the too-late test the core's contents are admitted by. Depends on `methodology` for the embed. |
+| `provision` | Embedded methodology installation, and the provisioned locations the core names. |
 
 The modules are intentionally file-sized rather than wrapped in another
 service layer. The task tree, subprocess boundary, and VCS adapter are the

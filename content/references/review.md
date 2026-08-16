@@ -1,4 +1,4 @@
-<!-- file: order=15 -->
+<!-- file: order=14 -->
 <!-- unit: task-review-kinds kinds="review-requirements review-design review-planning review-prototype review-impl" class=triggering -->
 **review-\*** (all AFK) — an inspection-only, fresh-context adversarial read of
 *one* artifact. Inspect the producer's committed changes, source, requirements

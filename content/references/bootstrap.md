@@ -1,4 +1,4 @@
-<!-- file: order=22 -->
+<!-- file: order=21 -->
 <!-- unit: skill-what-bootstrap-reads class=procedural -->
 ## What Bootstrap reads, in order
 

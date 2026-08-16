@@ -1,4 +1,4 @@
-<!-- file: order=6 -->
+<!-- file: order=5 -->
 <!-- unit: adr-placement-note class=procedural defers="adr-where-adrs-live adr-why-the-set-stays-minimal" -->
 # ADR placement — a grove note
 

@@ -125,10 +125,9 @@ fn write_complete_config(home: &Path, template: &str) {
 /// The driver-authored sentence naming the leaf selected for one session.
 ///
 /// It has **one home in this binary** for the same reason it has one home in the
-/// driver: it is the only mandate prose the driver writes about the selected
-/// leaf, and every other byte of `${prompt}` is a byte-exact slice of `content/`
-/// whose wording no fixture pins (`docs/specs/mandate-delivered-methodology.md`,
-/// *The driver authors mandate prose only for facts it resolves at runtime*).
+/// driver: it is the whole of what `${prompt}` says about the selected leaf — a
+/// value, with every normative consequence of it left to the skill
+/// (`docs/adr/skill-delivers-the-methodology.md`).
 fn mandate_naming(handle: &str) -> String {
     format!("Grove mandate: the leaf selected for this session is `{handle}`")
 }
@@ -261,12 +260,12 @@ exit 0
         "{log:?}"
     );
     assert!(log.contains("argc=<3>\narg=<--before>\n"), "{log:?}");
-    // The mandate argument carries composed methodology, so it is asserted on a
-    // **unit marker** rather than on a sentence: a marker is what a slice is
-    // delivered with, and the id is pinned in `tests/methodology.rs`, where prose
-    // inside the slice deliberately is not.
+    // The prompt argument carries the guaranteed core, so it is asserted on the
+    // **load instruction's first clause** rather than on a slice of methodology:
+    // that clause is what reaches a session first, and the core's shape and
+    // wording are pinned whole in `tests/prompt.rs`.
     assert!(
-        log.contains("<!-- unit: mandate-framing kinds=* class=triggering -->"),
+        log.contains("arg=<**Load the `grove` skill now, and read its `references/impl.md`.**"),
         "{log:?}"
     );
     assert!(log.contains(&mandate_naming("selected-work-k7")), "{log:?}");

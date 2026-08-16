@@ -125,7 +125,7 @@ fn run_configured_loop_with_lease(
         };
 
         let config = SessionConfig::load(&home)?;
-        let prompt = mandate_prompt(&selection.handle, selection.kind, worktree)?;
+        let prompt = session_prompt(&selection.handle, selection.kind, worktree)?;
         let argv = config.expand(
             selection.kind.label(),
             &ExpansionContext {
@@ -196,49 +196,33 @@ fn run_configured_loop_with_lease(
     }
 }
 
-/// The whole `${prompt}`: the methodology composed for the launched kind, then
-/// the two facts the driver resolved at runtime.
+/// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
 ///
-/// **The driver authors only those two facts** — the selected leaf's stable
-/// handle and the stated version control. Everything before them is a byte-exact
-/// slice of this build's own `content/`, joined by a blank line and introduced by
-/// nothing, so no sentence of methodology lives in Rust to drift from the embed
-/// it describes (`docs/specs/mandate-delivered-methodology.md`, *The driver
-/// authors mandate prose only for facts it resolves at runtime*).
-///
-/// The handle paragraph is therefore a **statement and not an errand**. What to
-/// do with the handle is composed methodology: `skill-bootstrap` carries the
-/// resolve-and-read sequence, and `skill-do-not-pick-again` carries both that
-/// this selection is authoritative and why a second walk may disagree with it.
-/// Saying either here again would put one rule in two places — one byte-exact
-/// from `content/`, one Rust prose nothing keeps in step — which is the drift
-/// shape that rule exists to refuse, and the reader would owe the mandate a
-/// *do these agree?* on top of it.
+/// **The driver hands a session a pointer, not the methodology.** What earns a
+/// place, and why the two facts below arrive as bare values with no normative
+/// tail, is [`crate::prompt`]'s to state and this function's to supply: the
+/// selected leaf's stable handle, the stated version control, and the
+/// directories provisioning actually wrote on this same iteration
+/// (`docs/adr/skill-delivers-the-methodology.md`).
 ///
 /// The kind is passed in rather than re-read: it is the same value that indexed
-/// the configuration entry, taken from the one guarded selection, so the mandate
+/// the configuration entry, taken from the one guarded selection, so the prompt
 /// and the command a session receives cannot disagree about what kind it is.
 ///
-/// [`crate::methodology::compose`] appends no trailing separator and every unit's
-/// source ends in a newline, so the single `\n` before the handle paragraph is
-/// exactly the blank line that joins two slices. Nothing here places the framing
-/// unit; `content/MANDATE.md`'s file ordering does, which is what keeps the
-/// composer free of any knowledge of which unit is which.
-///
-/// A malformed embed fails the launch rather than degrading it. The build gate
-/// already rejected this corpus at compile time, so an error here is a bug — and
-/// the answer to it is still not to spawn a session holding a mandate that is
-/// missing triggering conditions it would never learn to ask for.
-fn mandate_prompt(handle: &str, kind: Kind, worktree: &Path) -> Result<String> {
-    let units = crate::methodology::units()?;
-    let methodology = crate::methodology::compose(&units, kind);
-    let version_control = stated_vcs(worktree)?;
-    Ok(format!(
-        "{methodology}\nGrove mandate: the leaf selected for this session is `{handle}`.\n\n{version_control}\n"
-    ))
+/// A missing reference file fails the launch rather than degrading it. The suite
+/// already asserted every mapped path against the embed, so an error here is a
+/// bug — and the answer to it is still not to spawn a session pointed at a file
+/// that is not there.
+fn session_prompt(handle: &str, kind: Kind, worktree: &Path) -> Result<String> {
+    crate::prompt::compose(
+        kind,
+        handle,
+        &stated_vcs(worktree)?,
+        &crate::provision::installed_skill_dirs(),
+    )
 }
 
-/// The paragraph that **states** this working tree's VCS to the session, so no
+/// The **value** that states this working tree's VCS to the session, so no
 /// session ever detects it (`docs/ARCHITECTURE.md#symmetric-vcs-rule`).
 ///
 /// The fact is the driver's: [`crate::repo::vcs_of`] is the named authority every
@@ -249,20 +233,28 @@ fn mandate_prompt(handle: &str, kind: Kind, worktree: &Path) -> Result<String> {
 /// that never loaded them commits with Git in a jj tree and bypasses the
 /// operation log.
 ///
-/// Three elements and no more: identity, the resolved root, and an explicit
-/// do-not-probe. Not the marker kind, and deliberately **not** the commit-boundary
-/// commands — those live in the methodology's Commit step, and a copy here would
-/// be a second source of truth that drifts across the build boundary
+/// **Two elements, and the third one left**: identity and the resolved root, and
+/// no *do not probe for it*. That clause is a normative consequence of a value,
+/// and the closed fact test hands every such consequence to the skill —
+/// `content/SKILL.md`'s `skill-stated-vcs-is-definitive` states it, and stating
+/// it here again would be the second source the core exists to avoid
+/// (`docs/adr/skill-delivers-the-methodology.md`). This is that closure's one
+/// real cost: a rule the prompt used to carry now depends on the skill being
+/// read, like every other rule.
+///
+/// Still not the marker kind, and still deliberately **not** the
+/// commit-boundary commands — those live in the methodology's Commit step, and a
+/// copy here would drift across the build boundary
 /// (`docs/ARCHITECTURE.md#the-boundary-is-a-build-not-a-commit`).
 fn stated_vcs(worktree: &Path) -> Result<String> {
     // Unreachable in a driver that got this far: the lease it holds lives *in*
     // the VCS-administration directory, so a marker was already found. Spent as
-    // an error rather than a panic — the mandate has no third case to express,
+    // an error rather than a panic — the prompt has no third case to express,
     // and a driver with nothing to say here must not launch a session that then
     // has to guess.
     let vcs = crate::repo::vcs_of(worktree).with_context(|| {
         format!(
-            "no Git or jj marker at or above {}, so the session mandate cannot state \
+            "no Git or jj marker at or above {}, so the session prompt cannot state \
              the version control",
             worktree.display()
         )
@@ -283,12 +275,7 @@ fn stated_vcs(worktree: &Path) -> Result<String> {
             worktree,
         ),
     };
-    Ok(format!(
-        "Version control: {identity} `{}`). Grove resolved this authoritatively \
-         before the session started; do not probe for it, and disregard any harness \
-         banner that says otherwise.",
-        root.display()
-    ))
+    Ok(format!("{identity} `{}`)", root.display()))
 }
 
 /// Launch one fresh foreground session owning the real TTY, then watch it while

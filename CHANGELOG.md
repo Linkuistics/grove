@@ -51,6 +51,53 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`${prompt}` carries a guaranteed core, and the provisioned skill delivers the
+  methodology again.** A session no longer receives ~49 KiB of sliced
+  methodology; it receives about 2.3 KiB — an instruction to load the `grove`
+  skill and this kind's reference file, named by path, with the provisioned
+  directories given as absolute paths; the two facts the driver resolved (the
+  selected handle and the working tree's version control); and the session-ending
+  text, which is `content/SIGNAL.md`'s own bytes inlined byte-exact. The order is
+  the session's own timeline. Both failures this sits between are **measured**,
+  not argued: the wall degrades behaviour (sessions finish and fail to signal,
+  stalling the loop), and the skill alone was demonstrably not read. What earns a
+  place is settled by the **too-late test** — a sentence rides `${prompt}` only if
+  its failure mode is one the skill cannot repair — closed on the word *fact*, so
+  the runtime facts arrive as bare values and every normative consequence of them
+  (*the pick is authoritative*, *do not probe for the version control*) stays in
+  `content/SKILL.md`, which now states both. The load instruction's wording is the
+  micro-test's winning arm verbatim, ablated to the three elements that arm
+  measured ([`wording-micro-test`](docs/research/wording-micro-test.md)).
+  [The skill delivers the methodology](docs/adr/skill-delivers-the-methodology.md)
+  is that decision, reworked in place from the record it reverses.
+
+- **`finish` takes no ending part, and that is the one exception to the shape.**
+  Eighteen kinds end exactly one way. A `finish` session has three, chosen by what
+  it did, so a fixed *run `grove-llm complete`* last in its prompt would relaunch
+  the loop onto a grove it had just torn down — which the driver then
+  re-scaffolds. Its ending rides `content/references/finish.md`, which the load
+  instruction names first and by path.
+
+- **New `prompt` module seam; `methodology` narrows to the embed and the
+  identity.** `methodology::compose` and the per-kind composition golden are
+  deleted with the mandate they built, as is `content/MANDATE.md` — the framing
+  unit that told a session what a composed mandate was. `prompt` **depends on**
+  `methodology` rather than absorbing it, so provisioning's supplier never sits
+  behind a prompt-composition seam. The kind→reference-file map is an exhaustive
+  `match` over the kind enum in the driver, so a twentieth kind fails to compile
+  until someone classifies it, and every path it yields is asserted against the
+  embed. The 4 KiB size alarm lives in the suite rather than the build, for the
+  reason the old classification alarm did, and every generated claim carries a
+  control.
+
+- **`one-build-owns-a-session` gets its original skew back.** The shared mutable
+  directory returns with provisioning, so a mismatched pair is two copies of a
+  whole methodology rather than a split-brain inside one rule — and it is **quiet**
+  rather than loud, which is precisely what the pre-launch pairing report and the
+  per-verb stamp warning exist for. The record's substance is untouched; the
+  compile-time methodology-identity constant stays deleted, because `grove-llm`
+  links the embed for a second surviving reason.
+
 ## v18.3.1
 
 - **`leaf-retire` and `leaf-prune` name the session's two remaining steps.**
@@ -218,7 +265,7 @@ stood at the graft — a closed record, not part of the versioned sequence above
   **carries**, not yet what a session can reach, and this increment is therefore
   verified by the composed mandates themselves rather than by watching a session
   behave differently. Retiring provisioning is the next increment, and
-  [mandate delivers the methodology](docs/adr/mandate-delivers-the-methodology.md)
+  [skill delivers the methodology](docs/adr/skill-delivers-the-methodology.md)
   sequences it that way.
 - **Each kind's mandate states exactly one session ending, and eighteen of the
   nineteen never see `--done`.** The methodology told every session both endings
@@ -294,8 +341,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
   no working tree, so it answers from anywhere — including the environments a
   tree verb is refused in. This is an **inspection tool**: under provisioning a
   session still receives whole documents, and nothing consumes a unit yet
-  ([mandate delivers the
-  methodology](docs/adr/mandate-delivers-the-methodology.md)).
+  ([skill delivers the
+  methodology](docs/adr/skill-delivers-the-methodology.md)).
 - **A malformed embed fails `cargo build`.** Every embedded markdown file must
   be fully classified — units partition its body, the marker grammar is fixed,
   and a runaway fence or an unclosed leading `---` block is an error — reported

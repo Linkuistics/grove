@@ -1,4 +1,4 @@
-<!-- file: order=26 -->
+<!-- file: order=25 -->
 <!-- unit: skill-commit-boundary-in-git-and-jj class=procedural -->
 ## Where the boundary falls, in git and in jj
 

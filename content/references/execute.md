@@ -1,4 +1,4 @@
-<!-- file: order=23 -->
+<!-- file: order=22 -->
 <!-- unit: skill-what-each-kind-produces class=procedural defers=grilling-interrogate -->
 ## What each kind produces
 

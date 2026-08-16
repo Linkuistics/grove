@@ -16,7 +16,7 @@ weakened:
   the loop still stalls.
 
 Neither alone clears this. It is the same check
-`mandate-delivers-the-methodology` itself nominated — *the next real Grove run
+`skill-delivers-the-methodology` itself nominated — *the next real Grove run
 after the change lands, with a human watching* — which is why the design accepts
 it rather than proposing a softer one.
 

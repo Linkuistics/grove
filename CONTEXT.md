@@ -13,28 +13,23 @@ The `grove` binary's per-invocation sweep of its embedded `content/` into
 **every installed harness's** personal global skill directory, before it tries
 to own a working tree — every one, because an opaque configured command cannot
 be traced to a single harness. `content/` stays canonical and the binary is the
-only writer of these directories. **Nothing a session is told depends on the
-result**: the methodology reaches it as [[Mandate slice]]s in `${prompt}`, so the
-provisioned skill stopped being a target prerequisite Grove cannot itself verify
-and the sweep is now a second delivery path with no consumer. The directories are global, so a
+only writer of these directories. **It is the delivery path**: the methodology
+reaches a session as the provisioned skill, and `${prompt}` carries only the
+[[Guaranteed core]] pointing at it by absolute path
+(`docs/adr/skill-delivers-the-methodology.md`). The directories are global, so a
 directory is owned by whichever build wrote it last; the loop therefore
 re-verifies each stamp before every launch and restores its own embed when
 another build has taken one ([[Build pairing]]).
-**The term is live and its retirement is cancelled.** It still names code, and
-`docs/adr/mandate-delivers-the-methodology.md` had settled that it goes — but
-that record is now superseded and awaits rework in place. Mandate delivery was
-measured against a real Grove run with a human watching, which is the check that
-record itself nominated, and it came back negative: a ~49 KiB `${prompt}` degrades
-session behaviour, most visibly as sessions that finish their work and fail to
-signal. Provisioning therefore becomes the **sole** delivery path rather than a
-consumerless second one, and the sweep, the stamp and the shared directory all
-stay. What does not come back is `continue.md` under that name: the launcher
-returns, but as a short pointer to the provisioned skill plus the facts the
-driver resolves at runtime.
-_Avoid_: naming `start.md` or `retire.md` — those launcher prompts disappeared
-with their lifecycle verbs, and `continue.md` was the last survivor. It is now
-`content/MANDATE.md`, an ordinary [[Methodology unit]] carrying framing and no
-instructions, and `content/prompts/` went with it. There is no launcher.
+**Its retirement was settled and is cancelled.** Mandate delivery was measured
+against a real Grove run with a human watching — the check that record itself
+nominated — and came back negative: a ~49 KiB `${prompt}` degrades session
+behaviour, most visibly as sessions that finish their work and fail to signal.
+So the sweep, the stamp and the shared directory all stay, and the two failures
+this term sits between are named in [[Guaranteed core]].
+_Avoid_: naming `start.md`, `retire.md` or `continue.md` — those launcher prompts
+disappeared with their lifecycle verbs. There is no launcher and no launcher
+prose in the embed: `content/MANDATE.md` framed the mandate and went with it, and
+what the driver writes is the [[Guaranteed core]], in Rust, under a rule.
 _Avoid_: reading "current" as "as committed". What is swept is the
 [[Embedded methodology]] — the copy compiled into the *running* binary — so a
 sweep is current with respect to that build and to nothing else.
@@ -83,15 +78,11 @@ The invariant that the methodology a session reads and the `grove-llm` it
 invokes come from one `grove` build. Which CLI a session resolves is reported and
 never enforced, because an opaque configured command's environment is not the
 driver's to observe. `docs/adr/one-build-owns-a-session.md` has the checks and
-the trade-offs. Under [[Global skill provisioning]] the second operand is a
-shared directory Grove repairs; once the mandate is the delivery path that
-directory is gone, and what remains is **sharper**: a rule's [[Triggering unit]]
-reaches the session from the *driver's* embed while its procedural body comes
-from the session's own `grove-llm`, so a mismatched pair is a split-brain inside
-one rule rather than two copies of one document. Its likeliest form is loud
-*because the deferral is declared* — the slice names the id it wants, so a
-`grove-llm` lacking that id errors by name — and the pre-launch report covers the
-quiet half, one id with different bytes behind it.
+the trade-offs. The second operand is a **shared directory Grove
+repairs**, and the skew this term was written for is the original one: two copies
+of a whole methodology, the provisioned skill and the resolved CLI. That skew is
+**quiet** — nothing errors, the two simply disagree — which is what the
+pre-launch report and the per-verb stamp warning exist for.
 _Avoid_: checking the sibling of the running `grove` — the driver never invokes
 `grove-llm`, so the sibling agrees with it by construction while the binary the
 session runs goes unchecked.
@@ -164,9 +155,15 @@ renumber every later one, in one-character edits the gate localises by name.
 _Avoid_: reading it as preamble. The preamble is the unread `---` block *before*
 the body; this is read, and it is body.
 
-**Mandate slice**:
-A byte-exact projection of a [[Methodology unit]] into one session's
-`${prompt}` — the unit out of which a 100%-specific mandate is composed. The
+**Mandate slice** *(retired)*:
+A byte-exact projection of a [[Methodology unit]] into one session's `${prompt}`
+— the unit out of which a 100%-specific mandate was composed. **The composer is
+deleted and nothing projects one any more**: the methodology reaches a session as
+the provisioned skill, and `${prompt}` is the [[Guaranteed core]]
+(`docs/adr/skill-delivers-the-methodology.md`). The term is kept as a definition
+rather than dropped because the argument that survives it is load-bearing — one
+file still travels both channels, and it is inlined byte-exact for exactly the
+reason below. What it named: the
 driver selects units by the launched [[Session kind]] and inlines their source
 bytes; it never paraphrases, because driver-composed prose would make `content/`
 non-canonical, and a slice cannot contradict what it copies. Which units a kind
@@ -181,13 +178,14 @@ session straight to the right content rather than a substitute for it. The drive
 authors mandate prose **only** for facts it resolves at runtime — today the
 selected handle and the [[Stated VCS]] — and joins slices with nothing but a
 blank line.
-_Avoid_: reading a slice as a **pointer**. Naming a location leaves the session
-reading the whole section and performing the selection itself, which is the
-reasoning cost the slice exists to remove — and grove's content is not addressable
-at that granularity anyway (a kind's discipline is one bullet inside a
-nineteen-bullet section).
-_Avoid_: treating a slice as a summary or a paraphrase. It is the source bytes,
-or it is a second source of truth.
+_Avoid_: reviving it. The granularity objection to pointing at a location — *a
+kind's discipline is one bullet inside a nineteen-bullet section* — was that
+record's own stated reopen condition, and the corpus restructure satisfied it: a
+kind's discipline is now a whole [[Kind reference file]] the driver names by path,
+so the session performs no selection.
+_Avoid_: treating the surviving inline — `content/SIGNAL.md` in the
+[[Guaranteed core]] — as a summary or a paraphrase. It is the source bytes, or it
+is a second source of truth, and that reason never depended on selection.
 _Avoid_: reading specificity as removing **every** branch from a mandate. It
 removes a branch on the [[Session kind]] — a fact the driver resolved before the
 session existed, so shipping the `if` makes the session re-derive it. It cannot
@@ -216,6 +214,10 @@ or short. Importance is unbounded and is what builds a wall; frequency is not
 timing; size is a consequence of the rule and never a criterion.
 _Avoid_: reading the core as an abridged methodology a session may work from. It
 is three facts and one instruction, and it teaches nothing.
+_Avoid_: reading "three parts" as unconditional. `finish` takes **no** ending
+part: its session has three endings chosen by what it did, so a fixed sentence
+would be wrong for two of them — and the one it would state relaunches the loop
+onto a torn-down grove. `content/references/finish.md` states all three together.
 _Avoid_: reading its 4 KiB assertion as a budget the design was fitted to — it is
 an alarm on the test, and nothing legitimate approaches it.
 
@@ -259,8 +261,12 @@ because a directory a session cannot hold in mind stops being disclosure and
 starts being a second corpus to search.
 
 **Triggering unit** / **procedural unit**:
-The classification deciding what every [[Mandate slice]] must carry. Every rule
-in the methodology is a conditional. Its **condition** — *that a situation exists
+The classification the retired [[Mandate slice]] was selected by, and — until the
+markers are deleted with the rest of the mandate machinery — still the corpus's
+own record of which prose is an `if` and which a `then`. That record is what the
+progressive-disclosure rewrite was cut against: a condition in `SKILL.md`, its
+procedure in the [[Kind reference file]] or one of the shared reference files it
+routes to. Every rule in the methodology is a conditional. Its **condition** — *that a situation exists
 calling for something other than what this session is doing* — is **triggering**
 and ships in **every** kind's mandate. Its **body** — how to act once that is
 decided — is **procedural** and is deferred to `grove-llm methodology`. Keep the
@@ -678,9 +684,9 @@ policy has one home.
 How the self-driving loop launches the [[Leaf]] selected by one authoritative
 driver-side [[Pick]]. The driver reads the session kind from that leaf's
 filename, obtains its complete session target from [[Grove configuration]],
-composes that kind's [[Mandate slice]]s into `${prompt}`, and embeds the selected
-stable handle there as the launched session's mandate, alongside the
-[[Stated VCS]]. The session first validates its [[Session epoch]], then resolves that
+composes that kind's [[Guaranteed core]] into `${prompt}` — including its
+[[Kind reference file]] by path — and embeds the selected stable handle there as
+the launched session's mandate, alongside the [[Stated VCS]]. The session first validates its [[Session epoch]], then resolves that
 handle to its current path, rejects an unavailable or non-live result,
 Bootstraps the resolved leaf, and does not pick again. A session started outside bare
 `grove` has no mandate and is not a Grove loop session; Grove executes the
@@ -689,9 +695,9 @@ _Avoid_: describing environment variables, a harness stamp, `--harness`, or a
 leaf-level `**Harness:**` declaration as configuration fallbacks. Grove has one
 configuration source.
 _Avoid_: recovering the kind from `${prompt}`. The kind is the routing *key* and
-the mandate is the *payload*, so every substring test is indirect and unsound: the
-composed methodology names `finish-k<key>` in its own prose, and even the driver's
-sentence naming the selected leaf identifies only a handle whose slug is `finish`
+the core is the *payload*, so every substring test is indirect and unsound: the
+core names a reference file a whole family shares, and the driver's sentence
+naming the selected leaf identifies only a handle whose slug is `finish`
 — which `validate_slug` permits, since it reserves `BRIEF` and `DONE` and no kind
 label. Anything needing to know which kind ran asks the per-kind configured
 template, which is where the routing decision was actually made.

@@ -18,7 +18,7 @@ the reversal does not walk back into the failure the mandate was built to fix.
   `loop_driver.rs` seam it never left.
 - The mandate machinery is gone: composer, marker grammar, fence-state parser,
   build gate, `grove-llm methodology`.
-- `mandate-delivers-the-methodology` and `mandate-delivered-methodology` are
+- `skill-delivers-the-methodology` and `mandate-delivered-methodology` are
   **reworked in place** — the ADR/spec sets are current-state, so no superseding
   record is appended.
 - A real Grove run, with a human watching, shows sessions both **ending** and
@@ -48,7 +48,7 @@ and no flag**. `07-corpus-rewrite-k7/BRIEF.md` carries the working.
 ## Pointers
 
 - ADRs a session here must read:
-  [`mandate-delivers-the-methodology`](../docs/adr/mandate-delivers-the-methodology.md)
+  [`skill-delivers-the-methodology`](../docs/adr/skill-delivers-the-methodology.md)
   (superseded, awaiting rework),
   [`one-build-owns-a-session`](../docs/adr/one-build-owns-a-session.md)
   (its pairing story changes back — provisioning survives, so the shared mutable

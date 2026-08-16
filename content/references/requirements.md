@@ -1,4 +1,4 @@
-<!-- file: order=10 -->
+<!-- file: order=9 -->
 <!-- unit: task-producer-requirements kinds=requirements class=triggering defers=grilling-interrogate -->
 - **requirements** (HITL) — establish *what* should be built. This is where the
   grilling lives (`grilling.md`): interview one question at a time, propose a

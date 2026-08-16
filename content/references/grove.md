@@ -1,4 +1,4 @@
-<!-- file: order=20 -->
+<!-- file: order=19 -->
 <!-- unit: skill-the-spine-in-full class=procedural -->
 ## The seven constraints, argued
 

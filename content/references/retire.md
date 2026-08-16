@@ -1,4 +1,4 @@
-<!-- file: order=25 -->
+<!-- file: order=24 -->
 <!-- unit: skill-leaf-retire-mechanics class=procedural -->
 ## Harvesting a done leaf
 

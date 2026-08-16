@@ -1,4 +1,4 @@
-<!-- file: order=7 -->
+<!-- file: order=6 -->
 <!-- unit: spec-set-is-current-state class=procedural -->
 <!-- grove reference file — the spec shape -->
 

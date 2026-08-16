@@ -110,6 +110,30 @@ pub fn warn_on_foreign_skill_dirs() {
     });
 }
 
+/// Every *installed* harness's skill directory, in registry order — the
+/// absolute paths the guaranteed core names to a session
+/// (`crate::prompt::compose`).
+///
+/// **This is the same walk that writes them**, which is what closes the
+/// core-to-disk coupling by construction rather than by assertion: a location
+/// the prompt names is a location [`provision_installed`] visited on the same
+/// iteration. Deriving the list independently — from the registry alone, say —
+/// would reintroduce exactly the disagreement the shared walk removes.
+///
+/// A home this process cannot locate yields an empty list rather than an error,
+/// for the reason [`warn_on_foreign_skill_dirs`] is silent about one: nothing
+/// can be said about roots that cannot be named, and a launch is not the place
+/// to refuse over it. The core says so in the sentence it renders, and
+/// [`report_absent_skill_destination`] has already reported the case loudly.
+pub fn installed_skill_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    let _ = each_installed_skill_dir(|_, destination| {
+        dirs.push(destination.to_path_buf());
+        Ok(())
+    });
+    dirs
+}
+
 /// Report — before every launch — that this machine has **no known harness root
 /// at all**, so nothing was provisioned and a session's core points at a skill
 /// that is not there. A total failure that is otherwise entirely silent.

@@ -1,4 +1,4 @@
-<!-- file: order=18 -->
+<!-- file: order=17 -->
 <!-- unit: task-combine-research kinds=combine-research class=triggering defers="task-research-write-paths driving-the-combine-step" -->
 - **combine-research** (AFK) — union two surveys' coverage and flag every
   disagreement. This kind, not either producer, carries the **adversarial** move:

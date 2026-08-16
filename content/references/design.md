@@ -1,4 +1,4 @@
-<!-- file: order=11 -->
+<!-- file: order=10 -->
 <!-- unit: task-producer-design kinds=design class=triggering -->
 - **design** (AFK) — given requirements, establish *how*. The deliverable is a
   spec, an ADR set, or both. A `design` session that finds itself cutting

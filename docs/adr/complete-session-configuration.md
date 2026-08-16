@@ -49,8 +49,8 @@ redirect lifecycle mutations.
 - **Inline the complete Grove methodology into every `${prompt}`.** Rejected on
   specificity rather than size: a session handed all of `content/` performs
   exactly the selection a mandate exists to have already made for it. What
-  `${prompt}` does carry is the kind-selected slice set settled by [the mandate
-  delivers the methodology](mandate-delivers-the-methodology.md), which is a
+  `${prompt}` does carry is the kind-selected slice set settled by [the skill
+  delivers the methodology](skill-delivers-the-methodology.md), which is a
   decision about delivery and classification and not about launch policy —
   nothing about it asks Grove to infer a harness, a model, or a default. Reopen
   never; the complete inline is refused there, and the partial one is that

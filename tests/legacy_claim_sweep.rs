@@ -210,23 +210,16 @@ const LIVE_ENVIRONMENT: &[(&str, &str)] = &[
 /// after it stopped doing so. Distinguishing that from a legitimate naming needs
 /// a reader, not a matcher; the table's job is to force one to have looked.
 const REFUTATIONS: &[(&str, &str)] = &[
+    // Requoted at the cutover, when the three tokens collapsed into one denial.
+    // `continue.md` used to need a second entry of its own — the glossary said
+    // the launcher "does not come back *under that name*", which denied the file
+    // and not the surface — and there is no launcher of any name now: the driver
+    // authors the guaranteed core in Rust, under the too-late test. One sentence
+    // denies all three, so one entry does.
     (
         "CONTEXT.md",
-        "_Avoid_: naming `start.md` or `retire.md` — those launcher prompts \
-         disappeared with their lifecycle verbs",
-    ),
-    // The same `_Avoid_` sentence, one token further on. Two entries rather than
-    // one widened quotation, because the occurrence is the unit: each token has
-    // to be denied by prose a reader committed to, and a quotation stretched to
-    // cover a neighbour would exempt it on the strength of the first denial.
-    ("CONTEXT.md", "`continue.md` was the last survivor"),
-    // Requoted, not deleted: the glossary now records that the sweep, the stamp
-    // and the shared directory all *stay* — provisioning becomes the sole
-    // delivery path rather than a removed one — so `continue.md` is the only
-    // token this sentence still has to answer for.
-    (
-        "CONTEXT.md",
-        "What does not come back is `continue.md` under that name",
+        "_Avoid_: naming `start.md`, `retire.md` or `continue.md` — those \
+         launcher prompts disappeared with their lifecycle verbs",
     ),
     (
         "CONTEXT.md",
@@ -326,7 +319,8 @@ const REFUTATIONS: &[(&str, &str)] = &[
     ),
     (
         "docs/specs/config-driven-sessions.md",
-        "`start.md` and `retire.md` disappear with their human lifecycle verbs",
+        "`start.md`, `retire.md` and `continue.md` disappeared with the human \
+         lifecycle verbs",
     ),
     (
         "docs/specs/mandate-delivered-methodology.md",

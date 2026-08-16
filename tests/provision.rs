@@ -211,16 +211,19 @@ fn extract_fresh_writes_the_full_content_tree() {
     let extracted = provision_into(dest.path()).unwrap();
 
     assert!(extracted, "a fresh dir must be extracted into");
-    // The skill entrypoint, the mandate's framing file, and a top-level format
-    // guide all travel — i.e. the *whole* tree, nested dirs included.
+    // The skill entrypoint, a kind's reference file and a top-level format guide
+    // all travel — i.e. the *whole* tree, nested dirs included. `references/` is
+    // asserted here rather than only in the routing checks because it is what
+    // makes the extraction recursive over a directory that carries methodology,
+    // which `LICENSES/` below cannot say.
     assert!(dest.path().join("SKILL.md").is_file());
-    assert!(dest.path().join("MANDATE.md").is_file());
+    assert!(dest.path().join("references/impl.md").is_file());
     assert!(dest.path().join("driving.md").is_file());
     // Recursion to the leaves, asserted on a nested **file** rather than on the
     // directory holding it: extraction creates directories on its way down, so a
     // `LICENSES/` that exists proves only that the walk reached the name. It is
-    // now the embed's one nested file — `prompts/` went with the launcher — so
-    // the weaker claim would leave recursion unasserted altogether.
+    // a nested file the unit grammar does not govern, so it says something
+    // `references/` above cannot: the walk copies non-markdown leaves too.
     assert!(dest.path().join("LICENSES/openspec.LICENSE").is_file());
     // The stamp is written so the next launch can detect a warm dir.
     assert!(dest.path().join(STAMP_FILE).is_file());
@@ -231,20 +234,21 @@ fn extract_fresh_writes_the_full_content_tree() {
 //
 // It read `prompts/` back out of a fresh extraction and asserted one entry, so
 // that a third launcher failed here rather than shipping unnoticed. There is no
-// launcher now: `content/prompts/continue.md` became `content/MANDATE.md`, which
-// carries framing and no instructions, and a session's mandate is composed from
-// units instead of prefixed with a file. The successor guard is stronger than the
-// directory listing was and lives in `tests/methodology.rs` — every embedded file
-// must declare at least one unit, and `EMBEDDED_UNITS` pins the whole id set, so a
-// launcher file added anywhere under `content/` fails there until a human names
-// its unit.
+// launcher now, and no launcher prose in the embed at all: `content/MANDATE.md`
+// framed the mandate and went with it, and what the driver writes is the
+// guaranteed core, in Rust, under the too-late test. The successor guard is
+// stronger than the directory listing was and lives in `tests/methodology.rs` —
+// every embedded file must declare at least one unit, and `EMBEDDED_UNITS` pins
+// the whole id set, so a launcher file added anywhere under `content/` fails
+// there until a human names its unit.
 //
 // Its second half compared the provisioned bytes with the ones the driver put in
-// front of every mandate. That comparison had an operand to lose the day
-// `provision::continue_prompt` went: nothing reads a whole embedded file into a
-// prompt any more, and the sweep and the composer now project the same embed —
-// `provision_into` extracting it verbatim, `methodology::compose` slicing it
-// byte-exact — so a drift between the two is no longer expressible.
+// front of every mandate. One embedded file is read into a prompt again —
+// `content/SIGNAL.md`, inlined byte-exact as the core's last part — so that
+// comparison has operands once more and lives in `tests/prompt.rs`, where the
+// claim is that the ending *is* the embed's bytes rather than a Rust copy of
+// them. Both paths still project the same embed: `provision_into` extracts it
+// verbatim, and `prompt::compose` inlines one file of it unmodified.
 
 // The two claims that used to sit here — the embedded methodology instructing no
 // `grove-llm` verb the embedded CLI lacks, and the flat-verb-surface pin that

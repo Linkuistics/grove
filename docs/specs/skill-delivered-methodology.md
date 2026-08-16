@@ -6,7 +6,7 @@ Two ways of delivering Grove's methodology to a session have now been tried, and
 **both have been measured failing** — in opposite directions. Neither failure is
 theorised; each was observed on a real Grove run with a human watching, which is
 the check [the mandate delivers the
-methodology](../adr/mandate-delivers-the-methodology.md) itself nominated.
+methodology](../adr/skill-delivers-the-methodology.md) itself nominated.
 
 | delivered by | observed failure |
 |---|---|
@@ -258,12 +258,15 @@ reader's *do these agree?* because the answer is mechanically yes.
 honestly as what it is: an alarm on the too-late test, not a budget the design was
 fitted to.
 
-Measured composition, from the wording the micro-test settled: the session-ending
-prose is ~1,113 bytes, the two runtime facts are ~165 bytes now that their
-normative tails have left the core, and the load instruction is 689 bytes. That
-is ~1,969 bytes for the arm actually run, so 4 KiB leaves better than half in
-hand. The figure the design was written against was ~2.7 KiB; the alarm is
-unchanged, because it was never a budget the prose was fitted to.
+**Measured on the built composition**, against one provisioned location: an
+`impl` prompt is **2,307 bytes** and the largest of the nineteen is 2,318, so 4
+KiB leaves about 43% in hand. The design's own estimate was ~1,969, and the
+difference is bookkeeping rather than prose: `content/SIGNAL.md` is 1,499 bytes
+of which ~390 is the unit marker line listing eighteen kind labels, and that line
+dies with the mandate machinery. A real machine with three installed harnesses
+adds roughly 80 bytes of location list. The alarm is unchanged, because it was
+never a budget the prose was fitted to — and the honest reading of these numbers
+is that headroom is *comfortable*, not that it is *large*.
 
 The number is a choice rather than a derivation, and what makes it the right kind
 of choice is that **nothing legitimate approaches it**. A core that reaches 4 KiB
@@ -493,7 +496,7 @@ yet written would be over-specification.
 
 ### What the reworked records say
 
-**`mandate-delivers-the-methodology` is reworked in place and renamed
+**`skill-delivers-the-methodology` is reworked in place and renamed
 `skill-delivers-the-methodology`.** The slug is the identity, so a slug that says
 the mandate delivers the methodology cannot survive the mandate not delivering
 it; and `mandate-` → `skill-` keeps the citation reconciliation mechanical. It
@@ -683,15 +686,38 @@ two measured failures.
 
 ### Requirement: `${prompt}` carries the guaranteed core and nothing else
 
-The driver SHALL compose `${prompt}` from exactly three parts in order — the load
+The driver SHALL compose `${prompt}` from three parts in order — the load
 instruction with the provisioned locations and this kind's reference file, the
 runtime facts, and the session-ending text — and SHALL include no other
-methodology prose.
+methodology prose. The third part SHALL be present for every kind whose ending is
+one fixed instruction, and SHALL be absent for `finish`.
 
 #### Scenario: the three parts, in order
-- **WHEN** a session of any kind is launched
+- **WHEN** a session of any kind but `finish` is launched
 - **THEN** `${prompt}` contains the load instruction, then the selected handle and
   the stated version control, then the session-ending text, and nothing else
+
+#### Scenario: a `finish` session takes no fixed ending
+- **WHEN** a `finish` session is launched
+- **THEN** `${prompt}` ends at the runtime facts, and names no completion verb
+- **AND** the reference file it names states all three of that session's endings
+
+**This is the one exception to the three-part shape, and it is a correctness
+exception rather than a tidiness one.** Eighteen kinds end exactly one way and
+`content/SIGNAL.md` says so. A `finish` session has three endings chosen by what
+it did — `complete --done` after teardown, bare `complete` if it externalised work
+instead, and no signal at all if the human declined or was absent. Inlining
+`SIGNAL.md` for it would put *run `grove-llm complete`* last in the prompt of the
+one session that may have just deleted the task tree, relaunching the loop onto a
+torn-down grove which the driver then re-scaffolds. The too-late test admits *the
+session's last action*; it does not license stating the wrong one. A `finish`
+session's ending rides its reference file, which the load instruction names first
+and by path.
+
+#### Scenario: no prompt states an ending outside its ending
+- **WHEN** `${prompt}` is composed for each member of the closed kind set
+- **THEN** no part before the session-ending text names the completion verb, and
+  no prompt of any kind names `--done`
 
 #### Scenario: the ending is embedded content, not a copy
 - **WHEN** the session-ending text is compared with the embedded corpus's signal
@@ -825,7 +851,16 @@ The checks it carries:
   design's trigger-strength section. Recording where the automated boundary stops
   is the same discipline the ending guard it replaces followed.
 - **The ending is the embedded file's bytes**, so a driver-side copy cannot
-  reappear as a Rust literal without failing.
+  reappear as a Rust literal without failing — and its complement, that no part
+  before it names the completion verb and no prompt names `--done`. The
+  mandate-era version of that complement asked what a *composed mandate* carried
+  and went with the mandate; asked of the prompt it is narrower and sharper,
+  because the prompt is the channel a session cannot skip.
+- **Both ends of the closed fact test.** The prompt carries none of the four
+  phrases the retired normative tails used, *and* `content/SKILL.md` still
+  declares the two conditions that replaced them. An absence asserted alone is
+  indistinguishable from a rule deleted rather than moved, which is the closure's
+  one real cost going unpaid.
 - **The two couplings not closed by construction**: the skill name the core
   states against the embedded `SKILL.md`'s own `name:`, and every mapped reference
   path against the embed. Both fail by name, which is what keeps "the prose drift
@@ -850,7 +885,7 @@ The checks it carries:
 
 **Golden per-kind prompt snapshots are dropped**, and the reasoning is the
 composition golden's own: the ids-not-bytes golden existed because nineteen ~48 kB
-mandates could not be held as bytes. Nineteen ~2.7 KiB prompts differ only in one
+mandates could not be held as bytes. Nineteen ~2.3 KiB prompts differ only in one
 path and one handle, so the mapping check above says everything a golden would and
 says it by name.
 

@@ -19,12 +19,10 @@
 //!   verb is refused in.
 
 use clap::CommandFactory;
-use grove::leaf::Kind;
-use grove::methodology::{self, Class, Unit};
+use grove::methodology::{self, Unit};
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Output};
 use tempfile::TempDir;
 
@@ -337,7 +335,7 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// page and procedures into `content/references/`, and an id that travelled
 /// keeps its spelling so the composition golden's diff stays a relocation
 /// rather than a rename.
-const EMBEDDED_UNITS: [&str; 165] = [
+const EMBEDDED_UNITS: [&str; 164] = [
     "adr-placement-note",
     "adr-where-adrs-live",
     "adr-why-the-set-stays-minimal",
@@ -390,7 +388,6 @@ const EMBEDDED_UNITS: [&str; 165] = [
     "grilling-offer-adrs-sparingly",
     "grilling-sharpen-fuzzy-language",
     "grilling-update-context-inline",
-    "mandate-framing",
     "skill-adrs-and-specs",
     "skill-artifacts",
     "skill-bare-grove-dispatch",
@@ -553,213 +550,6 @@ fn the_linked_embed_passes_the_whole_embed_gate() {
     );
 }
 
-// -- Composition, over the corpus that actually ships -----------------------
-//
-// The composer's *semantics* are pinned beside it in `src/methodology.rs`,
-// against fixtures: selection, byte-exactness, order, and the empty selection.
-// What needs this door instead is everything only the real embed can say — that
-// the completeness invariant holds over the shipped corpus, what each kind
-// actually receives, and whether any of it has grown past the classification
-// alarm.
-
-/// **The completeness invariant, over the embed that ships.**
-///
-/// Two claims, and the second is the one a `contains` sweep alone cannot make.
-/// Membership says every unit that should be in this mandate is; the **length**
-/// says nothing else is — no driver-authored introduction, no repeated slice,
-/// no separator beyond the single blank line between adjacent pairs. Together
-/// they pin the projection exactly, without this test re-deriving the selection
-/// it is checking in a second implementation that could go green on its own bug.
-#[test]
-fn every_triggering_unit_reaches_exactly_the_kinds_its_scope_admits() {
-    let units = methodology::units().expect("the real embed must parse and check");
-
-    for kind in Kind::ALL {
-        let mandate = methodology::compose(&units, kind);
-        let mut expected_bytes = 0usize;
-        let mut selected = 0usize;
-
-        for unit in &units {
-            let admitted = unit.class == Class::Triggering
-                && unit.scope.as_ref().is_some_and(|scope| scope.admits(kind));
-            assert_eq!(
-                mandate.contains(unit.source.as_str()),
-                admitted,
-                "`{}` ({}, scope {}) is {} the `{}` mandate and should be {}",
-                unit.id,
-                unit.class.label(),
-                unit.scope
-                    .as_ref()
-                    .map(grove::methodology::Scope::render)
-                    .unwrap_or_else(|| "-".to_string()),
-                if admitted {
-                    "absent from"
-                } else {
-                    "present in"
-                },
-                kind.label(),
-                if admitted { "present" } else { "absent" },
-            );
-            if admitted {
-                expected_bytes += unit.source.len();
-                selected += 1;
-            }
-        }
-
-        assert!(
-            selected > 0,
-            "no unit reaches the `{}` mandate, which would satisfy every \
-             membership claim above without asserting anything",
-            kind.label()
-        );
-        // Exact given the guard above; `saturating_sub` rather than `- 1` so
-        // that a future edit reordering the two fails on the claim rather than
-        // on an unsigned overflow that says nothing about the mandate.
-        let separators = selected.saturating_sub(1);
-        assert_eq!(
-            mandate.len(),
-            expected_bytes + separators,
-            "the `{}` mandate is not exactly its {selected} slices and the \
-             {separators} blank lines joining them — something else is in it, or \
-             a slice appears twice",
-            kind.label(),
-        );
-    }
-}
-
-/// The framing unit leads every mandate, and it does so **without the composer
-/// knowing which unit it is** — the file ordering places it, which is the
-/// property that keeps composition free of any per-unit special case.
-///
-/// Pinned by **unit id rather than by filename**, and the rename that has since
-/// landed is what that bought: `content/prompts/continue.md` became
-/// `content/MANDATE.md` and this assertion did not move, because the unit's
-/// position is declared by its file's `<!-- file: order= -->` and not by where the
-/// file sits. A rename that had *also* moved the position would have failed here,
-/// which is exactly the accident worth catching.
-#[test]
-fn the_framing_unit_leads_every_composed_mandate() {
-    let units = methodology::units().unwrap();
-    let framing = units
-        .iter()
-        .find(|unit| unit.id == "mandate-framing")
-        .expect("the framing unit must exist");
-
-    for kind in Kind::ALL {
-        assert!(
-            methodology::compose(&units, kind).starts_with(framing.source.as_str()),
-            "the `{}` mandate does not open with the framing unit; a session \
-             would meet a wall of sliced methodology with nothing saying what it is",
-            kind.label()
-        );
-    }
-}
-
-/// **The classification alarm, framed honestly as what it is.**
-///
-/// Not a limit on argv — `ARG_MAX` is 1 MiB and this is about 6% of it. A
-/// composed mandate approaching the whole of `SKILL.md` means procedural bodies
-/// have been classified as triggering, and that is worth failing on long before
-/// anything is at risk (`docs/specs/mandate-delivered-methodology.md`, *Mandate
-/// size is a fact, not a design constraint*).
-///
-/// What is counted is exactly the composer's return: the driver's runtime facts
-/// are excluded, because they vary per session with the selected handle and are
-/// the two things in a mandate that cannot be misclassified.
-#[test]
-fn every_kinds_mandate_stays_under_the_classification_alarm() {
-    const ALARM: usize = 64 * 1024;
-    let units = methodology::units().unwrap();
-
-    for kind in Kind::ALL {
-        let size = methodology::compose(&units, kind).len();
-        assert!(
-            size <= ALARM,
-            "the `{}` mandate is {size} bytes, past the {ALARM}-byte alarm. This \
-             is a classification signal, not an argv limit: something the size of \
-             a whole document has been marked `class=triggering` when its body \
-             belongs behind a `defers=`.",
-            kind.label()
-        );
-    }
-}
-
-/// **The golden, and it holds unit ids rather than bytes.** That is a
-/// deliberate narrowing of "snapshot", and the reason is what a golden is *for*:
-/// saying loudly that something moved.
-///
-/// A byte-level golden of nineteen ~48 kB mandates would move on **every prose
-/// edit under `content/`** — which, in this repository, is most commits. A
-/// golden regenerated every session is a golden nobody reads, and it would bury
-/// the signal it exists to carry. What cannot be seen anywhere else is
-/// *composition* drift, and this holds all four of its shapes: a unit gained or
-/// lost, a scope widened or narrowed, a file reordered, and a unit moved within
-/// its file. Prose edits touch none of them.
-///
-/// The ids are recovered from the composer's **own output** rather than
-/// re-derived, so this cannot go green on a selection bug it shares.
-/// [`every_triggering_unit_reaches_exactly_the_kinds_its_scope_admits`] is what
-/// says the bytes between those ids are the units' own.
-#[test]
-fn the_per_kind_composition_matches_its_golden() {
-    let units = methodology::units().unwrap();
-    let mut rendered = String::from(GOLDEN_HEADER);
-    for kind in Kind::ALL {
-        for id in composed_ids(&units, kind) {
-            writeln!(rendered, "{}\t{id}", kind.label()).unwrap();
-        }
-    }
-
-    let path = golden_path();
-    if std::env::var_os("GROVE_TEST_UPDATE_GOLDENS").is_some() {
-        fs::write(&path, &rendered).expect("the golden must be writable");
-        return;
-    }
-
-    let recorded = fs::read_to_string(&path).unwrap_or_default();
-    assert_eq!(
-        rendered, recorded,
-        "the per-kind composition moved. Read the diff — a row is one unit \
-         reaching one kind — and confirm each change is one you meant: a unit \
-         added or removed, a `kinds=` scope widened or narrowed, a file's \
-         `<!-- file: order= -->` changed, or a unit moved within its file. Then \
-         regenerate with `GROVE_TEST_UPDATE_GOLDENS=1 cargo test --test methodology`."
-    );
-}
-
-const GOLDEN_HEADER: &str = "\
-# The ordered unit ids each session kind's composed mandate carries.
-#
-# One row per (kind, unit), in mandate order: file position, then position
-# within the file. Regenerate after confirming a change with
-# `GROVE_TEST_UPDATE_GOLDENS=1 cargo test --test methodology`.
-";
-
-fn golden_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/goldens/composed-mandates.tsv")
-}
-
-/// The unit ids of a composed mandate, in the order the composer emitted them.
-///
-/// Located by **searching the output for each unit's own source bytes** rather
-/// than by scanning the text for marker-shaped lines. A slice's body may itself
-/// contain a marker-shaped line — the methodology documents its own grammar —
-/// and a scanner would report those as units. A source's whole bytes cannot be
-/// mistaken that way, and its position in the output is the order asked for.
-fn composed_ids(units: &[Unit], kind: Kind) -> Vec<String> {
-    let mandate = methodology::compose(units, kind);
-    let mut located: Vec<(usize, String)> = units
-        .iter()
-        .filter_map(|unit| {
-            mandate
-                .find(unit.source.as_str())
-                .map(|at| (at, unit.id.clone()))
-        })
-        .collect();
-    located.sort();
-    located.into_iter().map(|(_, id)| id).collect()
-}
-
 /// **Marking `content/SKILL.md` must not stop it being a skill.**
 ///
 /// Its leading `---` block is what every harness reads to discover the
@@ -792,10 +582,10 @@ fn the_skill_frontmatter_survives_marking_and_provisioning() {
             lines.next(),
             lines.next().map(|line| line.starts_with("<!-- unit:"))
         ),
-        (Some("<!-- file: order=2 -->"), Some(true)),
+        (Some("<!-- file: order=1 -->"), Some(true)),
         "and the body must begin with the file directive and then a unit \
-         marker — the block belongs to no unit, and the position it precedes is \
-         the one `content/MANDATE.md` keeps at the rename"
+         marker — the block belongs to no unit. `SKILL.md` leads the corpus now \
+         that `content/MANDATE.md` has gone with the mandate it framed"
     );
 }
 
@@ -1175,15 +965,15 @@ fn the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks() {
 /// the corpus is pinned rather than merely floored — see the completeness
 /// control in [`the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks`].
 ///
-/// **Twelve**, and `methodology` is the one that just joined — on the day
-/// `content/MANDATE.md` landed, which is exactly where the eleven-verb note
-/// predicted it. The framing unit tells a session that a marker naming
-/// `defers=<id>` has a body `grove-llm methodology <id>` will serve, so the verb
-/// stopped being a surface nothing in `content/` reaches and became the one the
-/// deferral half of the design rests on: withholding a procedural body is only
-/// safe while the session can fetch it, and this is the check that the fetch it is
-/// pointed at exists in the CLI beside it.
-const INSTRUCTED_VERBS: [&str; 12] = [
+/// **Eleven**, and `methodology` is the one that just left — with
+/// `content/MANDATE.md`, the framing unit that told a session a `defers=<id>`
+/// marker had a body `grove-llm methodology <id>` would serve. The verb is still
+/// on the CLI and dies with the rest of the mandate machinery; what changed is
+/// that nothing in `content/` reaches for it any more, because the corpus routes
+/// by **path** now — a condition names the reference file carrying its procedure,
+/// and a session opens it. This check gets *more* load-bearing as that lands: the
+/// skill is once again the only thing teaching a session which verbs exist.
+const INSTRUCTED_VERBS: [&str; 11] = [
     "brief-chain",
     "complete",
     "finish-commit",
@@ -1193,7 +983,6 @@ const INSTRUCTED_VERBS: [&str; 12] = [
     "leaf-insert",
     "leaf-prune",
     "leaf-retire",
-    "methodology",
     "pick",
     "resolve",
 ];

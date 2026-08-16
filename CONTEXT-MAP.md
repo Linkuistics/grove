@@ -32,16 +32,15 @@ lockstep, which is why they live together — see
   disjoint — but the namespace is shared, so any future decision to have one
   context provision the other's content is a question about precedence and
   double-provisioning, not a local change. Contention *within* the `grove` entry
-  — two `grove` builds writing it — is a separate, grove-owned question, and it
-  was going to be **removed rather than settled** — but that removal is
-  cancelled. [`mandate-delivers-the-methodology`](docs/adr/mandate-delivers-the-methodology.md)
-  is superseded and awaits rework in place: the mandate is being retired in
-  favour of the provisioned skill, so the `grove` half of this shared target
-  stays and the contention question stays open alongside the `linkuistics`
-  symlinks.
-  [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md) is what
-  survives that removal, and it is about which `grove-llm` a session resolves —
-  not about who wrote a directory.
+  — two `grove` builds writing it — is a separate, grove-owned question, settled
+  by [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md): the
+  directory is owned by whichever build wrote it last, and the driver re-verifies
+  the stamp before every launch.
+  [`skill-delivers-the-methodology`](docs/adr/skill-delivers-the-methodology.md)
+  is why the `grove` half of this shared target exists at all — the provisioned
+  skill is the delivery path, so the entry stays and the precedence question
+  stays open alongside the `linkuistics` symlinks. What reopens it is one context
+  provisioning the other's content, which no part of either design does.
 
 - **A durable record has one owner.** Every record under `docs/adr/` and
   `docs/specs/` has a repo-wide unique slug and a maintaining context recorded
@@ -53,7 +52,7 @@ lockstep, which is why they live together — see
   context, never both. The **grove** context owns
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
-  [`mandate-delivers-the-methodology`](docs/adr/mandate-delivers-the-methodology.md),
+  [`skill-delivers-the-methodology`](docs/adr/skill-delivers-the-methodology.md),
   [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`supported-workspace-layouts`](docs/adr/supported-workspace-layouts.md),

@@ -1,4 +1,4 @@
-<!-- file: order=12 -->
+<!-- file: order=11 -->
 <!-- unit: task-producer-planning kinds=planning class=triggering defers="driving-find-working-increments driving-what-a-good-child-leaf-looks-like" -->
 - **planning** (AFK) — given the design, first find the **smallest independently
   useful working increments** and order them by dependency. Create a separate

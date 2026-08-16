@@ -32,6 +32,12 @@ pub(crate) mod loop_driver;
 // seams*). It also outlives `provision` — the embed survives the retirement of
 // the directory it is currently also swept into.
 pub mod methodology;
+// `prompt` owns the guaranteed core — the whole of `${prompt}`, and the only
+// place driver-authored prose about a session's own conduct lives. `pub` for
+// the same reason `methodology` is: every interesting check runs through this
+// seam against the *real* embed, and the alternative door is a spawned driver
+// per claim (`docs/specs/skill-delivered-methodology.md`, *Test seams*).
+pub mod prompt;
 pub mod provision;
 pub mod repo;
 pub mod session_config;

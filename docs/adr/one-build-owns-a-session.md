@@ -6,35 +6,31 @@ the remainder unsupported rather than defending it. No check refuses a launch
 over it: which `grove-llm` a session reaches is not a fact the driver can
 establish about a process it has not yet started.
 
-Since [the mandate delivers the methodology](mandate-delivers-the-methodology.md)
-there is no shared directory left to clobber — the methodology arrives in argv
-from the driver that composed it, and nothing on the machine can overwrite it.
-What remains is narrower and sharper than what it replaced. A rule's **triggering
-condition** reaches the session in a mandate composed from the *driver's* embed,
-while its deferred **procedural body** is served by `grove-llm methodology` from
-whichever binary the session's `PATH` resolves. A mismatched pair is therefore a
-split-brain *inside a single rule*, not two copies of one document. That is a
-worse failure than the one it replaced, and it is the reason this decision
-outlives the provisioning it was originally written for.
+The skew is the one this record was written for. [The skill delivers the
+methodology](skill-delivers-the-methodology.md), so a **shared mutable
+directory** is where a session's methodology comes from: the driver sweeps its
+own embed into every installed harness's personal skill directory, those
+directories are global while the driver lease is per working tree, and nothing
+serializes two builds writing one. The mismatched pair is therefore **two copies
+of a whole methodology** — the provisioned skill and the resolved CLI — and the
+session reads the first while every verb it runs comes from the second.
 
-It is also, in its most likely form, **loud** — and it is loud because the
-deferral is *declared*. A triggering unit's marker names the procedural unit it
-defers to, and the marker line is part of the unit's source, so the id travels
-into the mandate with the slice. A session reaching for the procedure therefore
-asks for a specific id, and a `grove-llm` from another build that does not have it
-answers with an error naming it, at the moment it matters, which is strictly
-better than a silent divergence. Had the design left the session to work out which
-id held the deferred half, there would be nothing here to raise. The report below
-exists for the quieter half: a unit id that exists in both builds with different
-bytes behind it.
+**That skew is quiet**, and its quietness is what the two reports exist for.
+Nothing errors: a session handed one build's methodology and another build's CLI
+simply proceeds, and what it does wrong depends on where the two disagree, which
+is not something either binary can notice from where it stands. So the driver
+reports the pairing before every launch, and `grove-llm` warns per verb when a
+skill directory it can see is stamped with a methodology other than its own. The
+per-verb warning is the one a clobber landing *after* launch can still reach.
 
 A build's **methodology identity** is the content hash of its embedded `content/`
 **file payload** — every embedded file's path and bytes. It is the identity rather
 than the crate version because the version does not move between a released
 binary and an edited checkout at that same version, which is precisely the
 pairing that has to be detectable and precisely the case a version comparison
-cannot see. Both binaries link the embed now — `grove` to compose mandates,
-`grove-llm` to serve units — so both compute the identity from the embed itself
+cannot see. Both binaries link the embed now — `grove` to provision it and to inline the
+session-ending file into the guaranteed core, `grove-llm` to serve units and to
+name a foreign skill directory — so both compute the identity from the embed itself
 through one implementation, and there is no second traversal that could drift
 from it. An empty directory is not part of the payload, which is uninteresting
 rather than a trade-off: a directory with no files in it carries no methodology.
@@ -110,7 +106,7 @@ whole remedy.
 What remains is unsupported and now says so. Dogfooding is the constraint seen
 from inside this repository: `cargo run --bin grove` drives a checkout's embed
 while the session's `PATH` still reaches the installed `grove-llm`, and it is the
-obvious next move for anyone who has just read why a mandate looked stale. That
+obvious next move for anyone who has just read why the skill looked stale. That
 pairing is announced before the launch, and it is still not prevented, which is
 the honest limit of a design that cannot see into an opaque target. The supported
 way to run a build is to make it the installed one that a session's `PATH`
@@ -131,14 +127,16 @@ resolves first.
   reason, making the pair unupgradable from inside the loop. Reopen if a
   configured target ever exposes its effective environment or its resolved tool
   paths to the driver, which would turn the proxy into an observation.
-- **Drop the probe and rely on the unknown-unit-id error alone.** Rejected
-  because that error only fires for the half of the failure that is loud: a unit
-  id present in both builds with different bytes behind it produces no error at
-  all, and the session acts on a procedure its mandate did not describe. The
-  probe's line also lands between sessions, in scrollback nothing overwrites,
-  where a human watching the loop reliably sees it. Reopen if every deferred
-  fetch is ever made to carry enough provenance for the session to detect the
-  quiet case itself.
+- **Drop the driver-side probe and rely on the stamp warning alone.** Rejected
+  because the stamp warning speaks from inside the *session's* `grove-llm`, so it
+  is silent about exactly the case where that binary is the wrong one: a session
+  whose CLI predates the driver warns about nothing while reading a methodology
+  the driver just wrote. The probe's line also lands **between** sessions, in
+  scrollback nothing overwrites, where a human watching the loop reliably sees
+  it. The two are complementary rather than redundant — one is checked before a
+  launch, the other on every verb, which is the only one a clobber landing after
+  the launch can reach. Reopen if a session's environment is ever observable to
+  the driver, which would collapse the two into one.
 - **Prefer the sibling of the running executable.** Rejected because the driver
   discards the binary it resolves, so the sibling is checked and the session's
   `PATH` binary is run — and because the sibling is what hides the motivating
@@ -162,15 +160,16 @@ resolves first.
 - **Carry the driver's methodology identity in the session environment and have
   `grove-llm` compare against it.** Rejected because it duplicates what the
   driver-side probe already reports while adding a second place the answer can be
-  wrong, and because it arrives after the session has read its mandate — the
+  wrong, and because it arrives after the session has read its methodology — the
   human who can act on a mismatch is the one watching between sessions. The cost
   is not that Grove may set no variable — it already grants a fresh signal
   path — but that this one carries an answer the probe gives earlier. Reopen if
   the driver-side probe is ever shown to be unobservable in a shape where the
   session's own comparison would not be.
-- **Ship the deferred procedural bodies in the mandate too, removing the second
-  build from the picture.** Rejected because it is the whole-methodology inline
-  that [the mandate delivers the
-  methodology](mandate-delivers-the-methodology.md) rejects on specificity
-  grounds, and it would trade a reported pairing risk for the reasoning cost the
-  design exists to remove. Reopen never; the split is the decision.
+- **Deliver the whole methodology in `${prompt}`, removing the second copy from
+  the picture.** This *would* close the pairing question — argv cannot be
+  clobbered by another build — and it was tried: it is the mandate, and [the
+  skill delivers the methodology](skill-delivers-the-methodology.md) reversed it
+  on a measured behavioural cost. So the pairing risk is knowingly re-accepted,
+  which is what makes it worth reporting twice. Reopen only together with that
+  decision; pairing is not a reason to revisit delivery on its own.

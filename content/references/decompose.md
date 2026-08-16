@@ -1,4 +1,4 @@
-<!-- file: order=24 -->
+<!-- file: order=23 -->
 <!-- unit: skill-two-triggers-two-verbs class=procedural defers="driving-externalizing-surfaced-work brief-the-node-briefing driving-what-a-good-child-leaf-looks-like skill-directory-tree-and-grow-verbs" -->
 ## Two triggers, two verbs
 

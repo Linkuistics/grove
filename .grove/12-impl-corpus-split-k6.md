@@ -32,7 +32,18 @@ conduct. So:
 
 - The spec's **relocation table** names every surviving imperative and its new
   owner. Delete the file only once **every** row is discharged, most of them by
-  `loop-step-references-k11` before you run.
+  `loop-step-references-k11` before you run. `rule-ownership-k15` added the row the
+  table was missing — `steps-share-the-producers-stem`, the *give every step the
+  producer's bare stem* imperative at `driving.md:469-479`, which sat between two
+  listed rules under a listed section. Read the table as a list of **rules**, and if
+  an imperative in the file resolves to no row, that is a finding, not a residue to
+  delete.
+- **`TASK-FORMAT.md:21-22` states two rules that are not format grammar** — *one
+  task is one session* and *pruning is HITL*. Shed both: the first to `SKILL.md`'s
+  `one-task-is-one-session` (`own`), the second as a procedure-register duplicate of
+  `references/retire.md`'s `pruning-is-hitl`. Both owners state them before you run.
+  What stays is `convention-not-grammar`, widened to cover the shared stem and the
+  relative ordering as well as the two declaration lines.
 - **Eight `SKILL.md` conditions point at `driving.md` today.** Every one must name
   its rule's new owner instead. A trigger sentence naming a deleted file is exactly
   the reachability failure this grove exists to remove, and it would ship silently.

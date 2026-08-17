@@ -787,8 +787,10 @@ already one unit.
 [`corpus-rule-ownership`](specs/corpus-rule-ownership.md), under
 [every normative rule has one owner](adr/corpus-rules-have-one-owner.md): a rule
 is filed by **when a session meets it** — the pair *which kinds must obey it* and
-*at what moment*, resolved by an ordered first-match rule — and a `SKILL.md`
-restatement declares one of three classes (`own`, a ≤25-word `trigger`, or
+*at which moments*, resolved by an ordered first-match rule over a set of
+occasions. Under [a restatement declares its
+class](adr/restatement-declares-its-class.md) a `SKILL.md` restatement declares one
+of three classes (`own`, a ≤25-word `trigger`, or
 `none`). That spec also carries the inventory of every rule with its owner, class,
 load predicate and test, and it is where the condition/procedure split above stops
 being a description of the corpus and becomes the rule that governs edits to it.

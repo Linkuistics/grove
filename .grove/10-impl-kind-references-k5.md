@@ -26,6 +26,15 @@ human gate, if any, is unique to it. `review.md`'s inspection-only permission an
 `finish.md`'s human confirmation are the model — each is a real delta. Anything
 true of every kind belongs upstream, once.
 
+**Two `finish.md` rules gained rows and must survive your pass.**
+`finish-promotes-before-teardown` (`:18-20`) and `declined-finish-stays-live`
+(`:75-78`) were absent from the inventory until `rule-ownership-k15` audited the
+file sentence by sentence. Both are `{finish}`-bound session conduct — a judgement
+about which brief material is durable, and the rule that makes a later resume
+legitimate — so neither is CLI mechanics and neither is derivable from the
+confirmation gate. They read like mechanics beside `grove-llm finish-commit`; they
+are not.
+
 **The contradiction to resolve.** `requirements` **always** establishes *what* is
 wanted; the full one-question-at-a-time grilling procedure runs **only** when
 three or more interdependent questions are open. Today `references/requirements.md`

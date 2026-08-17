@@ -11,12 +11,16 @@ conclusions are the settled requirements recorded here and are not reopened.
 
 ## Done when
 
-- `content/SKILL.md` is a compact session protocol/router of roughly **700–900
-  words** (from 3,152) that still carries: the authoritative mandate; no second
+- `content/SKILL.md` is a compact session protocol/router of **600–900 words**
+  (from 3,152) that still carries: the authoritative mandate; no second
   pick; the driver's VCS statement as definitive; stale-launch handling;
   bootstrap order; the execution/decomposition boundary; human-only pruning;
   retire-before-commit; the commit boundary; and finish ownership with the
-  terminal-signal distinction.
+  terminal-signal distinction. The range was *roughly* `700–900` until
+  `rule-ownership-k15` wrote the 24 canonical trigger sentences and measured them:
+  the file's real content is ~613 words, so a 700-word floor would have been an
+  instruction to pad. The floor's job is to catch a silently dropped row, and 600
+  does that.
 - Each session-kind reference is **incremental** — its deliverable, its
   permissions, its special verification, and its unique human gate, and nothing a
   sibling reference already carries.
@@ -98,7 +102,19 @@ find the rules it needs already homed.
   cell, so what the leaves execute against is a design no reviewer has seen. The
   first review of the first design found four P1s, which is the evidence that this
   artifact is worth the cycle; `k13` spent no in-session reviewer so the budget
-  went here.
+  went here. **Done** — four P1s and one P2, all confirmed against the corpus.
+- `rule-ownership-k15` (integrate-review-design) — the second repair. **Done** —
+  `Occasion` is a set with an earliest-step tie-break and a `context` value;
+  reachability is an asserted **edge** rather than a loadable file; four missing
+  rules got rows and the `own` set is eight; the 24 canonical trigger sentences are
+  written and measured; the ADR split in two by reversibility.
+- `rule-ownership-k16` (review-design) — a **third** read, inserted ahead of the
+  executing leaves like `k12` and `k14`, and **scoped to `k15`'s delta**. The
+  justification is the pattern rather than a rule: each repair has been structural,
+  and each structural repair has so far carried new P1s, so a design whose input
+  model changed twice has not demonstrated convergence. It is the last review before
+  execution; the chain's laziness is its exit, so a P2-or-below outcome cuts no
+  integration leaf.
 - `behavior-evals-k3` (impl) — behavioural coverage for the lifecycle invariants
   that this refactor must not change. Written against **current** behaviour so it
   passes before and after; it is the net the rewrites fall into.
@@ -133,7 +149,21 @@ find the rules it needs already homed.
 every leaf below executes against; this section carries only the part that dies
 with `.grove/` — which leaf makes which edit.
 
-**What the repair changed for the leaves below.** Placement now takes a pair,
+**What `rule-ownership-k15` changed on top of that.** `Occasion` is a **set** —
+`escalation-names-the-tradeoff` records three steps and the earliest wins — and it
+gained a `context` value that owns `references/grove.md`, whose three rows were
+previously `step:Execute` cells the function never derived. Reachability is an
+asserted **edge**: the triggering file must literally name the owner's path and
+every non-static owner needs an incoming sentence, which is what gave
+`references/driver.md` its trigger (its first two rows had claimed `mirror = none`
+*and* a `SKILL.md` trigger). Four rules gained rows —
+`one-task-is-one-session` (`SKILL.md`, `own`), `steps-share-the-producers-stem`
+(`decompose.md`), `finish-promotes-before-teardown` and `declined-finish-stays-live`
+(`finish.md`) — and `declaration-lines-are-convention` widened to
+`convention-not-grammar`. The trigger set is written out and measured rather than
+multiplied. The ADR became two records.
+
+**What the earlier repair changed for the leaves below.** Placement now takes a pair,
 `Bound(R)` **and** `Occasion(R)`, resolved by an ordered first-match rule, so
 some owners moved: an artifact rule beats a loop-step rule, `records-are-current-state`
 splits across the two format files, `glossary-is-the-forcing-function` belongs to
@@ -160,9 +190,9 @@ loop-step files — which is where most of the design's redistribution lands. So
 `corpus-split` moves rationale *out of the way of* must already have their homes)
 and not folded into it (`corpus-split` already faces ~11,800 words of source).
 
-And `rule-ownership-k12` reviews the design **before** the leaves that execute
-against it, rather than landing at the tree's end where a plain `leaf-add` would
-have put it. A `review-*` step normally re-derives and so may land anywhere, but
+And `rule-ownership-k12` — like `k14` and `k16` after it — reviews the design
+**before** the leaves that execute against it, rather than landing at the tree's end
+where a plain `leaf-add` would have put it. A `review-*` step normally re-derives and so may land anywhere, but
 that claim is about citation staleness, not dependency: here every subsequent leaf
 rewrites the corpus this design governs, which is exactly the case the rule marks
 as *narrower than free*.
@@ -179,15 +209,18 @@ as *narrower than free*.
   assertions can only go green *after* the rewrite that homes each rule, so
   handing one here would charter this leaf to fail.
 - `skill-router-k4` — `SKILL.md` is the **condition register**, and every
-  restatement declares a class. It **owns** seven rows outright (the routing
-  table, the numbered spine, the bootstrap order, the mandate, no second pick, the
-  stated VCS, the HITL/AFK mark) because each one's whole content is its trigger;
-  it carries **19 `trigger` sentences** for 27 rows owned elsewhere, each one
-  sentence of ≤25 words naming its owner's path; and it says nothing at all about
-  a rule whose Bound is one kind or one family. That last class is most of what the
-  file carries today and most of why it shrinks. Lands the budget assertion — total
-  in 700–900 words, at most 19 trigger sentences, each ≤25 words, seven `own` rows
-  present.
+  restatement declares a class. It **owns** eight rows outright (the routing
+  table, the numbered spine, one-task-is-one-session, the bootstrap order, the
+  mandate, no second pick, the stated VCS, the HITL/AFK mark) because each one's
+  whole content is its trigger; it carries the **24 canonical `trigger`
+  sentences** — written out verbatim in the spec's *The trigger sentences*, one
+  per situation, five of them covering two rows each — for 29 rows owned
+  elsewhere; and it says nothing at all about a rule whose Bound is one kind or
+  one family. That last class is most of what the file carries today and most of
+  why it shrinks. Lands the budget assertion — total in 600–900 words, **exactly**
+  24 trigger sentences, each ≤25 words, eight `own` rows present. It may reword a
+  trigger within the grammar; it may not add or drop one, because the set is the
+  reachability graph's edge list out of `SKILL.md`.
 - `kind-references-k5` — "incremental" now reads mechanically: state what is true
   of this kind and no sibling, and nothing a loop-step or format file owns. Lands
   the grilling threshold in `references/requirements.md` (stated **once** — the
@@ -203,7 +236,8 @@ as *narrower than free*.
 - `loop-step-references-k11` — deletes `references/execute.md`'s *What each kind
   produces* entirely; takes `fog-or-ticket`, `vertical-slice`,
   `wide-refactor-expand-contract`, `prior-art-research-is-its-own-leaf`,
-  `research-brief-names-downstream-questions`, `diversity-is-the-configs` and the
+  `research-brief-names-downstream-questions`, `diversity-is-the-configs`,
+  `steps-share-the-producers-stem` and the
   review-chain habits into `decompose.md`; `triage-picks-the-verb` and
   `prune-scopes-to-the-whole-path` into `retire.md`; and the repo-claim,
   decision-log, escalation and doubt-pass rules into `execute.md`. Replaces
@@ -219,7 +253,11 @@ as *narrower than free*.
 - `corpus-split-k6` — `TASK-FORMAT.md` sheds its policy (composition shapes, doubt
   budget table, kind disciplines, *a leaf never names a harness*) to the owners
   above and keeps the name grammar, the kind list, the body shape — including the
-  running log's *section* — and the two declaration lines. Splits
+  running log's *section* — and `convention-not-grammar`, which now covers the
+  shared stem and the relative ordering alongside the two declaration lines. It
+  also sheds the two global rules in its opening (`:21-22`): *one task is one
+  session* to `SKILL.md`'s `own` row and the human-only-pruning duplicate to
+  `references/retire.md`, both already stated by then. Splits
   `records-are-current-state` into `ADR-FORMAT.md` and `SPEC-FORMAT.md` and
   removes `execute.md`'s statement in the same commit; moves
   `glossary-is-the-forcing-function` and `challenge-and-sharpen-terms` into
@@ -235,11 +273,13 @@ as *narrower than free*.
   when every deferring sentence states what binds without the plugin.
 - `loaded-path-budgets-k10` — consumes the load-predicate column. Its static half
   is computable from `src/prompt.rs`'s existing exhaustive `reference_file` match,
-  so the seam costs no new production code. Two cheap assertions ride with it: a
-  row claiming `static(K)` whose owner is not `SKILL.md` or `reference_file(k)`
-  fails, and every `on(…) @ <file>` chain must terminate at a static path with no
-  cycles — the check that would have caught `impl`'s two rules sitting in a file
-  no `impl` session is routed to.
+  so the seam costs no new production code. Three assertions ride with it: a row
+  claiming `static(K)` whose owner is not `SKILL.md` or `reference_file(k)` fails;
+  every `on(…) @ F` chain must terminate at a static path with no cycles; and **`F`
+  must literally name the owner's path**, with every non-static owner carrying at
+  least one incoming edge. The third is the one a loadability check cannot make —
+  without it a row naming a loadable file that says nothing about the rule passes,
+  which is how `references/driver.md` came to have no incoming sentence at all.
 
 **Unchanged and reaffirmed:** `content/SIGNAL.md` and `content/SIGNAL-FINISH.md`
 are out of scope for every leaf. `src/prompt.rs` is out of scope for every leaf.
@@ -256,8 +296,10 @@ no review creates nothing.
   placement function, the rule inventory, the two contradiction resolutions and
   the deferral policy. Every leaf below executes against it.
 - ADRs a session here must read:
-  - `docs/adr/corpus-rules-have-one-owner.md` — file a rule by its load
-    predicate; a mirror is a condition only.
+  - `docs/adr/corpus-rules-have-one-owner.md` — the pair, the ordered owner
+    function, and reachability as an asserted edge.
+  - `docs/adr/restatement-declares-its-class.md` — `own` / `trigger` / `none`, the
+    ≤25-word grammar, and when two rows may share one sentence.
   - `docs/adr/skill-delivers-the-methodology.md` — why the provisioned skill *is*
     the delivery path, and why `${prompt}` is only the guaranteed core.
   - `docs/adr/one-build-owns-a-session.md` — the build boundary and the stamp;

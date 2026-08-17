@@ -3,7 +3,7 @@
 ## Goal
 
 Rewrite `content/SKILL.md` from 3,152 words into a compact session
-protocol/router of roughly **700–900 words**, retaining every lifecycle invariant
+protocol/router of **600–900 words**, retaining every lifecycle invariant
 it is the canonical source for and routing the rest.
 
 ## Context
@@ -13,7 +13,7 @@ lever on what a session pays to read. It is currently a page of conditions that
 has re-grown into a partial retelling of the methodology.
 
 These must survive the rewrite as rules a session holds — but **"holds" now has
-two shapes, and the inventory says which each one gets**. Seven rows are `own`
+two shapes, and the inventory says which each one gets**. Eight rows are `own`
 class: `SKILL.md` *is* their canonical source, because their whole content is
 their trigger and no procedure remains to defer. The rest are one `trigger`
 sentence of ≤25 words — the situation, a single-clause obligation, and the owner
@@ -43,16 +43,21 @@ knows to make, withholding a condition yields an unasked question.
 
 ## Done when
 
-- `content/SKILL.md`'s body is roughly 700–900 words, and the number is a
-  consequence of the routing discipline rather than a target hit by compression.
+- `content/SKILL.md`'s body is 600–900 words, and the number is a consequence of
+  the routing discipline rather than a target hit by compression. The floor is 600
+  because the canonical content measures ~613; padding to 700 would be the opposite
+  of this leaf's job.
 - Every rule listed above appears in the class the inventory assigns it — `own`
-  for the seven, one `trigger` sentence for the rest — and no rule the inventory
+  for the eight, one `trigger` sentence for the rest — and no rule the inventory
   marks `none` appears at all.
-- The budget is **asserted**, not achieved and forgotten: total words in range, at
-  most **19** `trigger` sentences, each ≤25 words, and the seven `own` rows
+- The budget is **asserted**, not achieved and forgotten: total words in range,
+  **exactly 24** `trigger` sentences, each ≤25 words, and the eight `own` rows
   present. The spec's *What `SKILL.md` can hold, arithmetically* table is the
-  contract, including which trigger rows share a sentence.
-- The spine is `own` here, as **one** row rather than seven — six corpus files cite
+  contract, and its *The trigger sentences* table is the canonical wording —
+  reword within the grammar if you must, but do not add or drop a sentence: the set
+  is the reachability graph's edge list out of this file, and a missing sentence
+  silently unreaches a rule.
+- The spine is `own` here, as **one** row rather than seven constraints — six corpus files cite
   the constraints by number and none of them is on a static path. Carry
   constraint 4's *just-in-time, not few* clause with it.
 - Every routed rule names the reference file carrying it, and every named path

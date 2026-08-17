@@ -49,11 +49,28 @@ Beyond the brief chain:
   command fact owned by `--help`. The *when* to reach for it stays.
 - **`retire.md` gains** `triage-picks-the-verb` (the prune / reorder / issue
   triage) and `prune-scopes-to-the-whole-path` from `driving.md`.
+- **`decompose.md` also gains `steps-share-the-producers-stem`** — every step of a
+  composed shape carries the producer's bare stem as its whole slug. It is
+  `driving.md:469-479`'s imperative, and `rule-ownership-k15` gave it the row the
+  inventory was missing; without a statement here, `corpus-split-k6` deletes the
+  rule when it deletes the file. The grammar half — that a stem is convention and
+  nothing parses it — stays `TASK-FORMAT.md`'s.
+- **`references/driver.md` gains a `SKILL.md` trigger it did not have** (sentence 1,
+  shared by `pick-walk-order` and `one-configuration`). That is leaf 4's sentence to
+  write, but this leaf owns the file it points into: after the rewrite the seven
+  driver rows chain from that one edge, so do not leave the file without the rows it
+  is now the declared owner of.
 - **`grove.md`'s *Specs* section** collapses to a pointer; `spec-membership-test`
   and `spec-grain-rule` are `SPEC-FORMAT.md`'s. Its plugin paragraph states what
   binds without each deferred skill.
 - **`grove.md` keeps three rows and sheds its argument.** It owns
-  `durable-artifact-set`, `plugin-prerequisite` and `build-boundary-is-the-binary`.
+  `durable-artifact-set`, `plugin-prerequisite` and `build-boundary-is-the-binary`
+  — all three at `Occasion = context`, the value `rule-ownership-k15` added so the
+  placement function actually derives this file. They were `step:Execute` cells,
+  which rule 6 maps to `execute.md`; do not carry that reading forward. The first
+  two take **one `SKILL.md` trigger each** (sentences 18 and 19), not a shared one:
+  *deciding where a durable artifact belongs* and *meeting a plugin citation* are
+  two situations.
   *The seven constraints, argued* and *Why the glossary is the forcing function*
   **relocate to `docs/ARCHITECTURE.md`** — they are argument, so `Occasion = none`
   and `docs/` is a legal home. The normative statements are `SKILL.md`'s

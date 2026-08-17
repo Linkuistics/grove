@@ -39,8 +39,15 @@ needed rather than extras:
   whose owner is not `SKILL.md` or `reference_file(k)` for every `k ∈ K` fails.
   The superseded inventory labelled loop-step rows `always(19)`, which
   `src/prompt.rs` contradicts; this check is what would not have survived it.
-- **Every `on(…) @ <file>` chain must terminate at a static path, with no cycles.**
-  That is the reachability property, and it is what would have caught `impl`'s two
+- **Reachability is an edge, and the edge is what you assert.** For a row
+  `on(t) @ F` with owner `O`: the chain from `F` terminates at a static path with no
+  cycles, **`F` literally names `O`'s path**, and every non-static owner file has at
+  least one incoming edge. The chain-termination half alone is not the property — it
+  passes for a row whose `F` is loadable and silent about `O`, which is how
+  `references/driver.md` came to own seven rows with nothing anywhere pointing at
+  it. Two schema checks come free: a row whose `@` file is `SKILL.md` must be class
+  `trigger` or share one, and every `trigger` row's sentence number must exist in
+  the spec's canonical set. Together they are what would have caught `impl`'s two
   disciplines sitting in a file no `impl` session is ever routed to — present in
   `content/` and deleted in effect.
 

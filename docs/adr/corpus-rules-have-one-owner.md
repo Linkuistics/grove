@@ -1,35 +1,45 @@
-# Every normative rule has one owner, and a restatement declares its class
+# Every normative rule has one owner
 
 A rule in the embedded corpus is filed by **when a session meets it**, not by
 what it is about. Two facts are recorded per rule: `Bound(R)`, the set of session
-kinds that must obey it, and `Occasion(R)`, the moment at which it applies —
-`orientation`, `launch`, `step:<loop step>`, `artifact:<artifact>`, or `none`.
-Placement is then an **ordered** decision, first match winning:
+kinds that must obey it, and `Occasion(R)`, a **non-empty set** of moments at
+which it applies, drawn from `orientation`, `launch`, `context`,
+`step:<loop step>`, `artifact:<artifact>`, and `none`. Placement is then an
+**ordered** decision, first match winning:
 
-1. `Bound(R) = ∅` or `Occasion(R) = none` → not normative; leaves `content/`.
+1. `Bound(R) = ∅` or `Occasion(R) = {none}` → not normative; leaves `content/`.
 2. `Bound(R)` is one kind or one family → that kind reference.
-3. `Occasion(R) = artifact:A` → A's format file.
-4. `Occasion(R) = launch` → `references/driver.md`.
-5. `Occasion(R) = step:S` → the loop-step reference for S.
-6. `Occasion(R) = orientation` → `content/SKILL.md`.
+3. `artifact:A ∈ Occasion(R)` → A's format file.
+4. `launch ∈ Occasion(R)` → `references/driver.md`.
+5. `context ∈ Occasion(R)` → `references/grove.md`.
+6. `step:S ∈ Occasion(R)` → the loop-step reference for the **earliest** such S
+   in loop order.
+7. `Occasion(R) = {orientation}` → `content/SKILL.md`.
 
 No other file states R, and the ordering **is** the tie-break: a rule with two
 plausible homes has exactly one, decided by which rule fires first.
 
-`content/SKILL.md`'s relationship to a rule is one of three declared classes, and
-every inventory row states which. **`own`** — `SKILL.md` is the canonical source,
-legal only at `Occasion = orientation`, where the rule's whole content is its
-trigger and no procedure remains to defer. **`trigger`** — one sentence of at
-most 25 words: the situation, a single-clause obligation, and the owner file's
-path; never a threshold, a branch, an enumeration or steps. **`none`** — no
-`SKILL.md` statement at all, mandatory whenever `Bound(R)` is one kind or one
-family. Any statement of a rule outside its owner and its declared class is a
-defect, and a second statement in a *procedure* file is a defect even while the
-two agree.
+**`Occasion` is a set because real rules cross moments.** Handing a question back
+to a human happens at Execute, Retire and Finish; recording one of the three and
+letting precedence compute from it moves the ambiguity into the input instead of
+removing it. Several artifacts make R one row per artifact; several steps make R one
+row owned by the earliest, because a rule must be held from the first moment it can
+apply. The `artifact:` domain is exactly the artifacts a `*-FORMAT.md` file exists
+for, since rule 3 has a format file to name and nothing else. `context` and `launch`
+are twins: `references/grove.md` and `references/driver.md` sit either side of the
+loop, so no `step:S` reaches either, and without a value of its own a rule belonging
+to one of them is a hand-assignment wearing a derivation's clothes.
 
-`docs/specs/corpus-rule-ownership.md` carries the function's derivation, the
-inventory of every normative rule with its owner, class, load predicate and test,
-and the per-rule enforcement.
+**Reachability is an edge, and both ends are asserted.** `src/prompt.rs` fixes
+each kind's static path; every other rule records the file whose sentence triggers
+it, and that file must **actually name the owner's path**. A test that asks only
+whether the recorded file can be loaded certifies the failure it exists to catch.
+
+What the condition register may say about a rule it does not own is a separate
+decision: [a restatement declares its
+class](restatement-declares-its-class.md). `docs/specs/corpus-rule-ownership.md`
+carries this function's derivation, the inventory of every normative rule with its
+owner, class, load predicate and test, and the per-rule enforcement.
 
 ## Why filing by topic cannot work
 
@@ -74,21 +84,18 @@ crosses it.
 **Reachability becomes checkable rather than assumed.** `src/prompt.rs` fixes
 each kind's static path — the guaranteed core, `SKILL.md`, and
 `reference_file(kind)` — and nothing else can be static. Every other rule states
-the file whose sentence triggers it, and those references form a chain that must
-terminate at a static path. A rule whose chain does not terminate is present in
-`content/` and deleted in effect, which is what `driving.md` does today to
-`impl`'s source-citation and repo-claim disciplines: they sit in a file no `impl`
-session is ever routed to.
+the file whose sentence triggers it, and those references form a graph of edges
+that must terminate at a static path. A rule whose chain does not terminate is
+present in `content/` and deleted in effect, which is what `driving.md` does today
+to `impl`'s source-citation and repo-claim disciplines: they sit in a file no
+`impl` session is ever routed to.
 
-**Per-kind rules lose their `SKILL.md` statement entirely.** The driver resolves
-the kind before the session exists and names that kind's reference file in
-`${prompt}`, so the session performs no selection and there is nothing to trigger
-it into. This is most of what `SKILL.md` carries today, and it is why the file
-shrinks without anything being deleted from the corpus.
-
-**Paraphrase becomes visibly illegal.** "ADRs are raised sparingly" reads as a
-condition and is a *looser test*. Naming the file instead is what a `trigger` is
-allowed to be, and it is what would have prevented the AND/OR split.
+**The edge is the assertion, not the file.** Recording *the file whose sentence
+triggers R* is only worth something if that sentence is checked to exist: a row
+naming a loadable file that says nothing about R passes a loadability test while
+leaving R unreachable, and a file may own rows while nothing anywhere points at it.
+So the graph asserts that the source names the owner's path, and that every
+non-static owner has an incoming edge.
 
 ## The residue, named rather than argued away
 
@@ -100,18 +107,19 @@ methodology](skill-delivers-the-methodology.md) settles applies here one channel
 further in — a withheld procedure costs a lookup the session knows to make, while
 a withheld *condition* yields an unasked question. So conditions may be restated
 and procedures may not, which is exactly the asymmetry, applied to files instead
-of channels.
+of channels; [a restatement declares its
+class](restatement-declares-its-class.md) is where that permission is bounded.
 
 That record decides what crosses the `${prompt}`/skill boundary under the
 too-late test; this one decides what goes where **inside** the corpus. They share
 the asymmetry and nothing else, and they reopen on different conditions.
 
-The second residue is the `own` class. It concedes that some rules have no
-procedure to defer — the numbered spine, the bootstrap order — so the condition
-register is their canonical source rather than a mirror of one. That is not a
-hole in the two-register split; it is the split's degenerate case, and naming it
-is what stops `SKILL.md` from being forbidden to carry a rule the requirements
-independently require it to carry.
+The second residue is that `Occasion(R)` is judged rather than derived, and a
+reader can only check it by asking whether a session really meets R at that moment.
+Recording it as a set narrows what a wrong answer can be — a rule that crosses
+moments records all of them, so the failure mode is a *missing* member rather than a
+silently arbitrary choice — but a rule with no honest occasion at all would still be
+placeable by writing a dishonest one. Nothing detects that, and nothing pretends to.
 
 ## Considered options
 
@@ -125,14 +133,14 @@ independently require it to carry.
   narrowest file every bound session already opens" sends every all-nineteen rule
   to `SKILL.md`, because loop-step references are not on any static path. Reopen
   only if `src/prompt.rs` ever puts the loop-step references on the static path,
-  which would make `Bound` sufficient and this record's rules 4–6 redundant.
-- **Make each file self-contained, so a session never needs a second read.**
-  Rejected because it *is* the current design and it produced the six-way
-  restatement and both contradictions. Self-containment is a real property, but
-  it is bought with duplication, and duplication in a corpus nothing validates
-  (constraint 3) has no mechanism that keeps the copies equal. Reopen only if the
-  corpus gains a generator, so that one source can *emit* the copies — which
-  would make self-containment free rather than merely desirable.
+  which would make `Bound` sufficient and this record's rules 4–7 redundant.
+- **Keep `Occasion(R)` single-valued and record the moment a rule *mainly*
+  applies.** Rejected because "mainly" is the unrecorded judgement this record
+  exists to remove, one layer down: a rule triggered at three steps has no
+  principal one, two readers pick differently, and neither can be shown wrong. The
+  set form costs a tie-break rule and buys a checkable input. Reopen if a rule
+  appears whose occasions are genuinely alternatives rather than a conjunction,
+  which would make the set the wrong structure rather than an under-specified one.
 - **Enforce ownership with in-corpus markers and a gate**, as the mandate's 140
   unit markers and build gate did. Rejected: that machinery was scaffolding for
   the delivery rewrite, it did its work, and it was deleted along with the
@@ -163,7 +171,7 @@ independently require it to carry.
   audience appears that is neither.
 - **Keep `content/driving.md` as an embedded habits file.** Rejected on the
   function's output rather than on its size: every rule in it has a narrower
-  owner under rules 2–5, and two of them (`impl`'s source-citation and repo-claim
+  owner under rules 2–6, and two of them (`impl`'s source-citation and repo-claim
   disciplines) sit in a file no `impl` session is ever routed to, which is the
   reachability failure inside `content/` rather than at its edge. A file most of
   whose bytes no session's path reaches is the shape the *loaded path* measure

@@ -228,6 +228,57 @@ trade-off per record.
 - `content/SIGNAL.md`, `content/SIGNAL-FINISH.md`, and `src/prompt.rs` remain
   unchanged.
 
+## Decisions (running log)
+
+- **All five findings verified against the corpus before repair, none refuted.**
+  `artifact:research doc` at the two cited rows, the `mirror = none` / `@ SKILL.md`
+  pair at `:352-353`, `TASK-FORMAT.md:21-22`, `driving.md:469-479`,
+  `references/finish.md:18-20` and `:75-78`, and the 19/18/27 disagreement all
+  reproduce as described.
+- **A sixth defect surfaced while checking finding 1, and is repaired with it.**
+  `durable-artifact-set`, `plugin-prerequisite` and `build-boundary-is-the-binary`
+  were `19 · step:Execute` while owned by `references/grove.md`, which rule 5 (now 6)
+  never produces — the function derived *no* owner that was `grove.md`. Fixed by the
+  `context` occasion, symmetric with `launch` → `driver.md`. Recorded as part of
+  finding 1 rather than separately: same cause, an input model that cannot express a
+  real rule.
+- **`Occasion` becomes a set, not a sixth enum member.** A cross-step trigger has no
+  principal step, so recording one is the unrecorded judgement the pair exists to
+  remove. Tie-break is *earliest step in loop order*, justified by the same argument
+  that puts `bootstrap-order` at `orientation`: a rule must be held from the first
+  moment it can apply.
+- **The artifact domain stays five, and is closed by what format files exist.** A
+  research doc is durable but has no format file, so rule 3 has nothing to name.
+  Rule 2 was masking the invalid value for both affected rows, which is why the
+  owners were right while the schema was not.
+- **Reachability records an edge and asserts both ends.** The old form asked only
+  whether the `@` file loads. Added: the source must literally name the owner's path,
+  and every non-static owner needs an incoming edge. Two schema checks fall out —
+  `@ SKILL.md` implies class `trigger`, and every `trigger` row's sentence number
+  must exist. Verified mechanically: 29 `@ SKILL.md` rows, 29 `trigger` rows, the
+  same 29.
+- **The 24 canonical trigger sentences are written into the design and measured**,
+  rather than a ceiling multiplied by a guessed count. Five pairs share a sentence
+  (same situation *and* same owner file); four superseded pairings split because they
+  spanned two files or two situations. Measured 281 words; two of my own hand counts
+  were off by one and a script caught them.
+- **The word floor drops 700 → 600, and the brief records it.** The canonical
+  content measures ~613. Asserting a 700 floor over it would be an instruction to
+  pad, which inverts the workstream's purpose; 600 still catches a dropped row.
+- **The ADR split by reversibility, not by length.** `corpus-rules-have-one-owner`
+  keeps the placement input and ordered function; `restatement-declares-its-class`
+  takes the three classes, the ≤25-word grammar and the new sharing test. Each
+  carries its own rejected alternatives, and the spec cites both instead of
+  restating either.
+- **No in-session reviewer was spent** — the session's harness instructions forbid
+  dispatching subagents, so the verification was done directly and mechanically.
+- **A third `review-design` leaf was cut** (`rule-ownership-k16`), inserted ahead of
+  `behavior-evals-k3` and scoped to this repair's delta. Reasoning: two structural
+  repairs, eight P1s, and this one changed the input model again — by the brief's own
+  standard for cutting `k14`, the leaves would otherwise execute against an unread
+  design. Bounded by scope and by the chain's laziness rather than by a promise to
+  stop.
+
 ## Notes
 
 - Treat the line citations as anchors to the reviewed `rule-ownership-k13`

@@ -215,10 +215,13 @@ it is one of **three declared classes** — `own` (`SKILL.md` *is* the canonical
 source, for a rule whose whole content is its trigger and which therefore has no
 procedure left to defer), `trigger` (one sentence of ≤25 words naming the owner's
 path), or `none` (nothing at all, mandatory for a rule bound to one kind or one
-family). Which file owns a rule is decided by **when a session meets it** — the
-pair `Bound` and `Occasion`, resolved by an ordered first-match rule — rather
-than by its topic (`docs/specs/corpus-rule-ownership.md`; ADR
-*corpus-rules-have-one-owner*).
+family), and two rows may share one sentence only when their situation **and**
+their owner file are the same. Which file owns a rule is decided by **when a
+session meets it** — the pair `Bound` and `Occasion`, resolved by an ordered
+first-match rule — rather than by its topic
+(`docs/specs/corpus-rule-ownership.md`; ADRs *corpus-rules-have-one-owner* for
+the owner function and *restatement-declares-its-class* for the three classes —
+two records, because either is reversible without the other).
 _Avoid_: a `trigger` that carries a test, a threshold, a branch or steps. That is
 a second statement wearing a condition's clothes, and "ADRs are raised sparingly"
 — a paraphrase of a three-part AND test — is how the corpus came to state that
@@ -259,10 +262,15 @@ That is also what files a rule, though **not by narrowness alone**: only
 `SKILL.md` and `reference_file(kind)` are ever static, so "the narrowest file
 every bound session already opens" would send every all-nineteen rule to
 `SKILL.md`. What decides is the pair `Bound` and `Occasion` under an ordered
-first-match rule (ADR *corpus-rules-have-one-owner*), and a conditionally reached
-owner must name the file that triggers it — a chain terminating at a static path.
-So the static half is what a budget test walks, and the conditional half is what a
-`load predicate` column has to state per rule.
+first-match rule (ADR *corpus-rules-have-one-owner*), where `Occasion` is a **set**
+of moments so a rule that crosses steps records all of them and the earliest wins.
+Reachability is an **edge**, not a loadable file: the triggering file must actually
+name the owner's path, and every non-static owner must have at least one sentence
+pointing at it. So the static half is what a budget test walks, and the conditional
+half is what a `load predicate` column has to state per rule.
+_Avoid_: reading "the trigger file is reachable" as "the rule is reachable". A file
+that loads while saying nothing about the rule leaves it exactly as deleted as an
+unreachable file would, and a loadability-only test certifies that state.
 _Avoid_: treating a rule in `content/` as reachable because the file is embedded.
 A file no condition names is off every path, which is the failure that left two
 `impl` disciplines in a file no `impl` session is routed to — deleted in effect

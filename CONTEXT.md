@@ -225,6 +225,21 @@ was checkable — never that a session notices the situation a condition describ
 That noticing was always the session's, and it is the whole of what the delivery
 change is judged on.
 
+**Loaded path**:
+The bytes one session actually **reads** on its normal path for its kind — the
+[[Guaranteed core]] in `${prompt}`, the provisioned `SKILL.md`, that kind's
+[[Kind reference file]], and whatever a condition it meets sends it to. It is the
+unit the corpus is measured and budgeted in, and it is per-kind: nineteen kinds
+share ten reference files, so nineteen paths run through one corpus.
+_Avoid_: equating it with the size of `content/`. Most of the [[Embedded
+methodology]] is off every normal path, so shrinking a file no session loads
+improves no session's path — the two move independently and only one of them is
+what a session pays for.
+_Avoid_: reading "normal" as "maximum". A [[Loop-step reference file]] is on the
+path only once the condition naming it fires, so a session that meets more
+conditions legitimately reads more; a budget states the ordinary case and is not
+a ceiling on a session that needed a procedure.
+
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:
 (1) promote durable artifacts from the briefs; (2) delete `.grove/` in a focused

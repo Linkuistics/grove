@@ -783,6 +783,19 @@ that arrived by description match rather than by a Grove mandate still lands in
 its own reference file. Ten rows serve nineteen kinds, because each family is
 already one unit.
 
+**Which file states a given rule** is decided by
+[`corpus-rule-ownership`](specs/corpus-rule-ownership.md), under
+[every normative rule has one owner](adr/corpus-rules-have-one-owner.md): a rule
+is filed by its **load predicate** — the narrowest file every session bound by it
+already opens — and the only permitted restatement is a `SKILL.md` condition
+naming the file with the procedure. That spec also carries the inventory of every
+rule with its owner, and it is where the condition/procedure split above stops
+being a description of the corpus and becomes the rule that governs edits to it.
+One consequence belongs here rather than there: because only `content/` is
+provisioned, a rule moved into `docs/` is unreachable to every session outside
+this repository, so *normative material stays embedded* is the placement
+function's own fourth case rather than a separate boundary.
+
 Three numeric measures stand over that shape. All three are **alarms rather than
 budgets**, each set well above what the corpus needs, so crossing one means
 growth has become visible — not that prose was fitted to a limit:
@@ -799,10 +812,13 @@ reproduce is an assertion with no verification boundary.
 
 What none of the three establishes is the semantic limb, *no procedure in
 `SKILL.md`*. That classification lost its classifier when the unit markers were
-deleted, so it is a **review obligation** — discharged per section, against the
-reference file that section routes to, which is where the corresponding procedure
-must be found — and never a passing test. A budget test going green says nothing
-about it.
+deleted, so it is a **review obligation** — discharged per section against
+[`corpus-rule-ownership`](specs/corpus-rule-ownership.md)'s inventory, which names
+the file each rule's procedure must be found in — and never a passing test. A
+budget test going green says nothing about it. Reviving a marker grammar to make
+it checkable is rejected there: enforcement is per rule, by the instrument that
+fits that rule, because whether a page of conditions is *right* was never
+gateable.
 
 ### The boundary is a build, not a commit
 

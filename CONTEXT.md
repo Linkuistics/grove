@@ -209,6 +209,18 @@ withholding a condition yields an **unasked question** — silent, and grove's
 primary failure mode (a session quietly absorbing work that should have been its
 own leaf). The same asymmetry chooses what rides the [[Guaranteed core]] one
 channel further in, under the sharper too-late test.
+**The two are also registers, and that is what governs restatement**: a rule has
+one **procedure**-register file and no other, while its **condition** may be
+mirrored in `SKILL.md` — one sentence naming that file
+(`docs/specs/corpus-rule-ownership.md`; ADR *corpus-rules-have-one-owner*). Which
+file owns a rule is decided by its [[Loaded path]] rather than by its topic.
+_Avoid_: a mirror that carries a test, a threshold, a list or a procedure. That is
+a second statement wearing a condition's clothes, and "ADRs are raised sparingly"
+— a paraphrase of a three-part AND test — is how the corpus came to state that
+test two incompatible ways.
+_Avoid_: mirroring a rule whose condition binds one kind or one family. The driver
+resolved the kind before the session existed and named that kind's [[Kind
+reference file]], so there is nothing to trigger the session into.
 _Avoid_: classifying by size, or by how often a rule is needed. Frequency is not
 the test; whether the session could know to *ask* for it is.
 _Avoid_: reading it as a checkable partition. It **was** one: 140 HTML-comment
@@ -231,6 +243,16 @@ The bytes one session actually **reads** on its normal path for its kind — the
 [[Kind reference file]], and whatever a condition it meets sends it to. It is the
 unit the corpus is measured and budgeted in, and it is per-kind: nineteen kinds
 share ten reference files, so nineteen paths run through one corpus.
+**It has a static half and a conditional half**, and only the static half is
+computable: the core, `SKILL.md` and `reference_file(kind)` are fixed by
+`src/prompt.rs`, while everything else is on the path because a condition fired.
+That is also what files a rule: a rule's canonical source is the narrowest file
+every session bound by it already opens (ADR *corpus-rules-have-one-owner*), so
+the static half is what a budget test walks and the conditional half is what a
+`load predicate` column has to state per rule.
+_Avoid_: reading a `docs/` path as reachable. Only `content/` is swept into the
+skill directories, so a rule relocated to `docs/` is unreachable to every session
+outside this repository — deleted rather than rehomed.
 _Avoid_: equating it with the size of `content/`. Most of the [[Embedded
 methodology]] is off every normal path, so shrinking a file no session loads
 improves no session's path — the two move independently and only one of them is

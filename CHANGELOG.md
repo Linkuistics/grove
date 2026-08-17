@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v18.4.0
+
 - **`${prompt}` carries a guaranteed core, and the provisioned skill delivers the
   methodology again.** A session no longer receives ~49 KiB of sliced
   methodology; it receives about 1.9 KiB — an instruction to load the `grove`

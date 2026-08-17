@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v19.0.0
+
 - **Breaking. The v1-flat task-tree layout is no longer migrated either, and
   migration is now a rename in place.** With the `NNN-slug/` layout already
   withdrawn (below), `<position>-[<key>]-<slug>[.BRIEF|.DONE].md` was the second

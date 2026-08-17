@@ -6,6 +6,14 @@ A **spec** is the human-facing, team-shareable design of an area of the system.
 The flow it sits in is: grill (`requirements`) → spec, review & agree (`design`)
 → decompose (`planning`) → execute (`impl`).
 
+## When one is written
+
+A spec is written by a `design` task at a **genuine agreement point** and nowhere
+else — the point where a human signs off on the design's shape before
+decomposition turns it into `impl` leaves. **Most increments write none**
+(constraint 4): if nobody has to agree to anything before the work is cut up,
+there is no agreement point and the design belongs in the node's `BRIEF.md`.
+
 ## The set is current-state
 
 `docs/specs/` is a **minimum coherent set describing the design's current

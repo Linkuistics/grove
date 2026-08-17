@@ -93,6 +93,44 @@ them, and make the interview-threshold evaluation reject the wrong rule.
   rule assigned to an already-populated upstream owner.
 - Relevant post-fix verification is run by this integration session.
 
+## Decisions (running log)
+
+All four findings triaged as **real issues** and fixed; nothing was reclassified
+as noise or accepted as a trade-off.
+
+- **1–2 are one failure, not three.** Reachability is an asserted *edge*: the
+  triggering file must name the owner's path **and** the owner must state the
+  rule. `k5` removed mirrors while three owners were still silent, so sentences
+  24, 20 and 22 all terminated at files saying nothing about their rule. Fixed
+  additively — `glossary-is-the-forcing-function` (inline, never batched) into
+  `CONTEXT-FORMAT.md`, the AND-form `adr-when-to-write` into `ADR-FORMAT.md`,
+  `spec-at-an-agreement-point` into `SPEC-FORMAT.md`. Nothing was deleted: the
+  surviving statements in `grilling.md` and `references/grove.md` are transient
+  duplicates that `loop-step-references-k11` and `corpus-split-k6` own, and
+  removing them here would violate *no rule is homeless between two commits* in
+  the other direction.
+- **`adr-when-to-write` is now stated locally rather than cited.** The inventory
+  row requires it, and it doubles as the Grove-local fallback the deferral policy
+  wants; `linkuistics:decision-records` still owns philosophy, format and
+  template.
+- **3.** `finish.md`'s *never asks `pick`* clause restated an `own` row of
+  `SKILL.md`, and its step 3 re-tabulated two of the three endings whose sole
+  source is `SIGNAL-FINISH.md` (byte-frozen and inlined into `${prompt}`). Both
+  reduced to what is genuinely finish-bound — that the signal comes last, and
+  where it is run from. `finish-is-the-drivers-to-discover` was left where it is;
+  that atomic move is `loop-step-references-k11`'s.
+- **4.** Both loose matchers were topic matches rather than direction matches.
+  `only above three` dropped from the group and added to `without` alongside
+  `more than three`; the unconditional claim now requires the *interview is not*
+  clause, with the reversal as its `near_miss`. Added
+  `the_threshold_claims_reject_the_off_by_one_and_the_reversal`, which pins both
+  named counterexamples as fixtures — a `near_miss` controls one wording per
+  claim, and there are two. `references/requirements.md:30` now reads *When the
+  threshold is met*, so the prose no longer carries the same off-by-one.
+
+Verification: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
+and the full `cargo test` suite, all green.
+
 ## Notes
 
 This review was inspection-only. It ran no test, build, lint or format command

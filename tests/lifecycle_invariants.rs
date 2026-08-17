@@ -796,14 +796,15 @@ const INVARIANTS: &[Invariant] = &[
                        questions",
                 groups: &[
                     &["grilling"],
-                    &[
-                        "only when three or more",
-                        "only at three or more",
-                        "only above three",
-                    ],
+                    &["only when three or more", "only at three or more"],
                     &["interdepend"],
                 ],
-                without: &[],
+                // Exactly three is *inside* the threshold. "Above three" and
+                // "more than three" are the off-by-one that reads as the same
+                // rule and is not, so they disqualify the paragraph rather than
+                // satisfying it — the superseded group admitted the first of
+                // them as a synonym.
+                without: &["above three", "more than three"],
                 // The always-form bullet the file carried twice. It is the whole
                 // reason this claim exists, so it is the fixture: on topic, and
                 // silent about when the interview is owed.
@@ -830,11 +831,23 @@ const INVARIANTS: &[Invariant] = &[
                 // could quietly eat: `requirements` **always** establishes what
                 // is wanted, whatever the question count does to the interview.
                 what: "establishing what is wanted is unconditional while the interview is not",
-                groups: &[&["unconditional"], &["interview"]],
-                without: &[],
+                // Both halves, and which half is which. The superseded groups
+                // asked only for the two words `unconditional` and `interview`
+                // in one paragraph, which is a topic match: *requirements is an
+                // unconditional interview kind* satisfied it while stating the
+                // reversal the resolution rejects.
+                groups: &[
+                    &["unconditional"],
+                    &[
+                        "the interview below is not",
+                        "the interview is not",
+                        "the interview, however, is not",
+                    ],
+                ],
+                without: &["unconditional interview", "interview is unconditional"],
                 near_miss: "**requirements** (HITL) — establish *what* should be built, in the \
-                            human's own words. This is where the grilling lives: interview one \
-                            question at a time.",
+                            human's own words. The interview is what is unconditional here, and \
+                            what gets built follows from it.",
             },
         ],
     },
@@ -1041,6 +1054,51 @@ fn a_disqualifying_wording_rejects_a_paragraph_that_meets_every_group() {
     assert!(
         claim_sites(&teardown, &claim).is_empty(),
         "a paragraph teaching the teardown ending must not read as teaching the ordinary one"
+    );
+}
+
+/// **The threshold claims reject the off-by-one and the reversal.**
+///
+/// Both are wordings a rewrite could plausibly produce while believing it had
+/// kept the rule, and both were accepted when this invariant first landed. The
+/// three-or-more group listed *only above three* as a synonym, which is four or
+/// more and leaves exactly three — the canonical boundary — below the line; and
+/// the unconditional claim asked only for the words `unconditional` and
+/// `interview` in one paragraph, so a corpus making the *interview* the
+/// unconditional half satisfied the check that exists to forbid exactly that.
+///
+/// A `near_miss` controls one wording per claim. These are the two the review
+/// named, pinned as fixtures so a later loosening of either group turns red
+/// here rather than passing quietly.
+#[test]
+fn the_threshold_claims_reject_the_off_by_one_and_the_reversal() {
+    let threshold = INVARIANTS
+        .iter()
+        .find(|invariant| invariant.rule == "grilling-threshold")
+        .expect("the grilling-threshold invariant is in the table");
+
+    let off_by_one = vec![(
+        "references/requirements.md".to_owned(),
+        "The full one-question-at-a-time grilling procedure runs only above three of this \
+         leaf's open questions with interdependent answers.\n"
+            .to_owned(),
+    )];
+    assert!(
+        claim_sites(&off_by_one, &threshold.claims[0]).is_empty(),
+        "exactly three interdependent questions is inside the threshold, so `only above three` \
+         is a different rule rather than a rewording of this one"
+    );
+
+    let reversal = vec![(
+        "references/requirements.md".to_owned(),
+        "**requirements** (HITL) — requirements is an unconditional interview kind, so the \
+         grilling runs whatever the open question count turns out to be.\n"
+            .to_owned(),
+    )];
+    assert!(
+        claim_sites(&reversal, &threshold.claims[2]).is_empty(),
+        "what is unconditional is establishing what should be built; the interview is the half \
+         the threshold gates, and a paragraph swapping the two states the opposite rule"
     );
 }
 

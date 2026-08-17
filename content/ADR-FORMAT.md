@@ -1,8 +1,21 @@
 # ADR placement — a grove note
 
-For the ADR **philosophy, format, minimal template, and the when-to-write test**,
-use the `linkuistics:decision-records` skill. This note keeps only grove's
-placement conventions.
+For the ADR **philosophy, format and minimal template**, use the
+`linkuistics:decision-records` skill. The when-to-write test is stated here, so
+that a session without that plugin still applies the same test; the rest of this
+note is grove's placement conventions.
+
+## When a decision earns a record
+
+Write one only when **all three** hold:
+
+- it is **hard to reverse**, and
+- it is **surprising without context**, and
+- it is the result of a **real trade-off** — a rejected alternative exists.
+
+All three, not any one. A decision that fails any of them is recorded where it
+lands — in the code, the spec, or the commit — and needs no ADR. This is an AND
+test, and any looser paraphrase of it ("raise ADRs sparingly") is not the test.
 
 ## Where ADRs live
 

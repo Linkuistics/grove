@@ -1,6 +1,6 @@
 Once no ordinary live leaf is left, bare `grove` appends one driver-owned
 `finish` leaf at the grove root and mandates it under the `finish` session kind;
-that mandate *is* the signal, so a finish session never asks `pick` anything.
+that mandate *is* the signal that no ordinary work is left.
 The leaf is a real, **resumable** task: it carries its own stable handle
 (`finish-k<key>`, which step 2 needs), and it is created once and reused, never
 duplicated. Ordinary work inserted ahead of it (`leaf-insert`) makes the driver
@@ -36,18 +36,15 @@ deliveries of it, and neither can drift from the other. On confirmation, run:
    two operator exits (restore the recorded start to roll back, or make the
    exact teardown result immediate to finish forward). Grove never rewrites
    history to clear it, and neither should you.
-3. **End the loop cleanly**: run **`grove-llm complete --done`** as the **very
-   last** action, then do nothing else. This signals the self-driving loop to
-   *stop* (vs the per-task `complete`, which relaunches), so a clean finish is
-   distinct from a crash or Ctrl-C. It must come last: like the per-task signal
-   it ends this session after a short grace (applied by the loop driver, which
-   is watching for the signal file — not this verb), so running it any earlier
-   would cut teardown short. It writes only the launch's randomly named loop
-   signal file in the workspace's VCS-administration control directory —
-   nothing in the working tree. It still resolves the current directory to
-   verify the live session epoch, so run it from inside that session's working
-   tree (which remains valid after `.grove/` is deleted).
-   Outside a `grove` loop (no loop to stop) it is a safe no-op: just exit.
+3. **End on the row that matches what this session did** — the endings and which
+   one each outcome takes are `SIGNAL-FINISH.md`'s, and the signal is the **very
+   last** action. It must come last: the loop driver is watching for the signal
+   file and ends this session after a short grace, so signalling any earlier
+   would cut teardown short. Run it from inside this session's working tree —
+   the verb resolves the current directory to verify the live session epoch,
+   which stays valid after `.grove/` is deleted, and it writes only the launch's
+   randomly named signal file in the workspace's VCS-administration control
+   directory, nothing in the working tree.
 
 Nothing after: integrating the grove's branch and tearing down the working tree
 are **not** grove workflow — both belong to plain git/gh or jj, or the user's

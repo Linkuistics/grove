@@ -27,7 +27,7 @@ already know the answer and only want it executed, record it and move on. If the
 brief's questions are *all* pre-decided, say so — the work standing behind them
 is an `impl` leaf.
 
-Above the threshold, `grilling.md` is the procedure, and one move makes that
+When the threshold is met, `grilling.md` is the procedure, and one move makes that
 interview productive rather than ceremonial. **Never put two questions in one
 prompt**, even closely related ones: the answers conflate. Where two truly
 interdepend, ask the *foundational* one first, wait, and carry its answer into

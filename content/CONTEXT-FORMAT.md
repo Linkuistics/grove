@@ -8,6 +8,17 @@
 
 # CONTEXT.md Format
 
+## Record a term inline, never batched
+
+The acute failure mode of multi-session work is terminology drift: a later
+session, with no memory of an earlier one, reinvents a term under a new name or
+reuses the words with a shifted meaning. `CONTEXT.md` is the forcing function
+against that, and it works only if it is written **as terms are resolved**.
+
+When a term is resolved, write it into `CONTEXT.md` right there. Never batch a
+session's terms for the end — a term resolved and not written down is a term the
+next session re-resolves differently, which is the drift itself.
+
 ## Structure
 
 ```md

@@ -419,6 +419,42 @@ lookup you could do by eye". A proxy the methodology tells sessions they may ski
 reports on the methodology, not on the session. Reopen if a launch target ever
 exposes which skills a session loaded.
 
+**The acceptance run has happened, and it was accepted on a narrower base than
+the grove's `Done when` named.** It ran against **v18.4.0 installed through the
+real distribution channel** — cut, tagged, published and `brew upgrade`d — rather
+than a shadowed dev build, so the session under test resolved the same two
+binaries any user would, and the build-pairing check had nothing to forgive. Two
+things were established mechanically:
+
+- **The cutover reaches a session.** The composed `${prompt}` was captured
+  verbatim from a live launch: the load instruction naming the skill and this
+  kind's reference file, the two runtime facts as bare values with no normative
+  tail, and the kind's signal file inlined last. About 2 KiB, against the
+  mandate's ~49 KiB.
+- **Provisioning re-ran on the first launch under the new build**, moving all
+  three harness directories from the pre-cutover stamp to the new one, with
+  `MANDATE.md` gone and `references/` present. That is the idempotence rule doing
+  its ordinary work, not a cutover special case.
+
+The **reading limb** was then judged by the human on a live session, and
+accepted. Its limits are recorded here because the leaf's own bar was *both*
+limbs: one session, on the `claude` target only, so the `codex` target that every
+review kind launches went unexercised; and the session did not reach its ending,
+so **the ending limb was not observed in this run**. That limb currently rests on
+the argument that the wall the first failure was measured against no longer
+exists — reasoning, not measurement. It needs no dedicated experiment: the next
+unattended multi-session loop produces the evidence as a by-product, and a loop
+that stalls says so by stalling.
+
+**A grove of Grove cannot host its own acceptance run, and the reason is
+structural.** `.grove/` is committed, so *every* workspace based on a commit
+where the tree is live carries that same tree — including its live leaf. Moving a
+second workspace onto `main` to give it current code therefore hands it this
+grove's own task file, and `pick` correctly selects the leaf already being
+worked, launching a duplicate session against the shared store. The venue for an
+independent run is another repository, or a commit with no `.grove/`; it is not a
+sibling workspace.
+
 ### The skill's layout is recovered, not invented
 
 **The per-kind reference files are recovered from the existing narrowed marker

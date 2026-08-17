@@ -23,6 +23,14 @@ process ownership, a task-tree data model, and three fail-closed transactions.
 | Relationship between Grove and the skill plugins | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
 | Methodology executed by agents | [`content/SKILL.md`](../content/SKILL.md) and its adjacent format guides |
 | Skill-plugin operation | [`plugins/README.md`](../plugins/README.md) |
+| Scoping notes for work not yet started | `TODO.<subject>.md` at the repository root |
+
+A `TODO.<subject>.md` is a **scoping note with an expiry**: measurements and open
+questions for work a future grove will grill, written so the evidence is not
+re-gathered, and deleted when the work lands or the question is settled in an
+ADR. It is not a plan, not a backlog, and never the canonical description of
+anything that exists — those rows are above.
+[`TODO.finish_process.md`](../TODO.finish_process.md) is the current one.
 
 The four files under `docs/` are the maintained project guides. This is not a
 ban on durable artifacts produced by future Grove work: when a real decision,

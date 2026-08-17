@@ -8,6 +8,17 @@ loaded path the runtime actually composes (`src/prompt.rs`'s guaranteed core,
 `content/SKILL.md`, `reference_file(kind)`, and the transitive closure of the
 corpus files those name by path), and it runs on every `cargo test`.
 
+**Reachable means reached by *this rule's* condition.** The walk is file-grained,
+because that is what the owner record says an edge reaches — a file, whose in-file
+conditions are then all available. Delivery is not: a rule counts as delivered
+only when it is stated on the **static** path, which needs no condition, or when a
+paragraph on the path states **that rule's situation** and the procedure sits in
+that paragraph's own file or in a file it names by path. Following any mention of
+the owner file instead would certify the case the owner record calls deleted in
+effect — two conditions name one file, one of them is dropped, and the procedure
+for the dropped one still reads as delivered to a session that has nothing telling
+it to look.
+
 **What binds is the boundary, stated rather than blurred.** The assertion covers
 *the session was told, on a path it opens for its own kind*. It does not cover
 *the session obeyed*, and no green run is evidence of obedience. That gap is the
@@ -62,7 +73,14 @@ eval *beside* these assertions rather than instead of them.
   because a rewrite is licensed to reword, so an exact pin turns every legitimate
   edit red and trains a reader to re-point the test rather than read it. The
   groups name each rule's load-bearing clause and accept any wording carrying it;
-  what keeps that from degenerating into a topic match is a per-rule **near-miss**
-  fixture — a plausible rewrite that keeps the subject and drops the force, and
-  must fail. Reopen for a rule whose wording is frozen: the two signal files are
-  byte-frozen for this workstream, so their phrases are pinned exactly.
+  what keeps that from degenerating into a topic match is a **near-miss fixture per
+  claim** — a plausible rewrite that keeps the rule's subject and drops *that
+  claim's* force, and must fail. Per claim rather than per rule, because one
+  fixture controls only the claim it fails: the rest are then free to be two common
+  words, or to accept the rule's inverse, while the invariant still goes red on a
+  sibling. Where co-occurrence cannot express the clause — a required conjunction
+  that a sentence may name while deferring one term, or an instruction that
+  contains another as a substring (`complete` inside `complete --done`) — a claim
+  also names the wordings that **disqualify** a paragraph. Reopen for a rule whose
+  wording is frozen: the two signal files are byte-frozen for this workstream, so
+  their phrases are pinned exactly.

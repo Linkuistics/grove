@@ -134,9 +134,69 @@ alternatives without weakening the required conjunctions described above.
 - The suite's deterministic delivery boundary and the ADR remain unchanged in
   meaning; no model-in-the-loop standing gate is added.
 
+## Log
+
+- All five findings verified against the artifact and confirmed **real issues**;
+  none was noise or a contract stated unclearly. `content/` was not touched, so
+  every fix is in `tests/lifecycle_invariants.rs` plus the ADR sentences that
+  describe the instrument.
+- **P1 delivery (finding 1) — two modes, not a stricter walk.** The walk stays
+  file-grained, because `corpus-rule-ownership.md`'s *Cross-file rows only* says an
+  edge reaches a **file** whose in-file conditions are then all available; making
+  the walk rule-specific would have contradicted the design it enforces. What
+  became rule-specific is *delivery*: a claim counts only when stated on the static
+  path (no condition needed — how an `own` row and an inlined signal file deliver)
+  or when a paragraph states **that rule's own situation** and the procedure is in
+  that paragraph's file or one it names. Each invariant therefore carries a
+  `situation`, worded from its canonical trigger sentence; `own` and byte-frozen
+  rows carry none, so they must be static or fail.
+- Consequence accepted deliberately: an **in-file** condition in a reachable owner
+  still delivers (`execute.md`'s *Review ownership inside a picked leaf* survives
+  the loss of trigger 3). That is assertion 4's carve-out, not a hole — a file with
+  an incoming edge makes every in-file condition available. The net now
+  additionally requires that *some* statement of the situation exists, which is the
+  defect the review named.
+- **P1 controls (finding 2) — per claim, with on-topic measured per rule.** A claim
+  whose group is one distinctive phrase can have no fixture that is both on topic
+  for it and failing it, so the fixture must fail *its* claim while sharing wording
+  with the *rule*. Groups tightened: `bigger-than-brief` gained an affirmative
+  becomes-a-node group (rejecting "stays a leaf, not a node"), `review-budget`
+  claim 2 now requires *adopted the mandate* (the generic Bootstrap paragraph is its
+  own near miss), and `one-focused-commit` split its one alternatives group into
+  four required groups.
+- **A conjunction cannot express deferral, so `without` was added.** "One focused
+  commit carries the artifact and the rename; the grow-verb writes land in a later
+  commit" names all four terms and states the opposite rule; likewise `complete`
+  is a substring of `complete --done`. Disqualifying wordings are the honest tool
+  for both, and they are what makes finding 4's absence assertion meaningful.
+- **P1 review-budget (finding 3)** — added the starred row's second half (a second
+  need becomes a `review-*` leaf). Claim 2 stays and is annotated as the adjoining
+  unstarred predicate row rather than promoted to a thirteenth pinned rule: the
+  review confirmed the twelve are exactly the B★ set.
+- **P1 signal scope (finding 4)** — every claim of the foreign ending rule must now
+  be absent. `references/finish.md` step 3 is static for `finish` and says *run
+  `grove-llm complete --done` as the very last action*, which met the eighteen-kind
+  claim on a substring; the `without` wording is what separates them.
+- **P2 (finding 5)** — `terminal leaf` and *one task's commit … together* are
+  accepted, and asserted positively in
+  `the_canonical_rewordings_pass_without_admitting_the_incomplete_forms`, alongside
+  the split-commit form that must still fail.
+- Verified: `cargo test` (whole suite, 0 failed), `cargo clippy --all-targets -D
+  warnings`, `cargo fmt --check`. A throwaway probe (not committed) confirmed the
+  new model bites where the old one could not: shedding `SKILL.md`'s statement
+  turns `one-focused-commit` and `stale-launch-stops` red, which is the rewrite
+  constraint the net is for.
+
 ## Notes
 
 - `content/SIGNAL.md`, `content/SIGNAL-FINISH.md`, and `src/prompt.rs` remain out
   of scope and byte-unchanged.
 - Re-run the producer's recorded test, clippy, and format verification only after
   the fixes land; the review itself ran none of them.
+- `tests/retire_guidance.rs` still belongs to `skill-router-k4`, as the review
+  confirmed; untouched here.
+- The two verbatim `SKILL.md` pins this file now carries — the excised pruning
+  condition in `a_rule_whose_own_condition_went_is_not_delivered_by_a_sibling_edge`
+  and the routing-table heading — both fail loudly with a re-point instruction when
+  `skill-router-k4` rewrites the page. That is the intended coupling: a control
+  that silently excises nothing passes for the wrong reason.

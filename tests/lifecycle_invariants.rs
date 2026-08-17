@@ -26,10 +26,22 @@
 //!   `finish-three-endings` on the one kind that chooses between three — and each
 //!   is asserted *absent* from the other's path.
 //!
-//! **Every claim carries a control.** The matcher is shown rejecting a plausible
-//! rewrite that keeps a rule's subject and drops its force; the reachability walk
-//! is shown following a named path, stopping when the naming sentence goes, and
-//! refusing to reach a file nothing names.
+//! **Being on the path is necessary and not sufficient: delivery goes through the
+//! rule's own trigger** ([`delivery_site`]). What a session has to be *holding* is
+//! the rule's condition — it cannot look up a procedure it does not know applies —
+//! so a rule counts as delivered exactly two ways: it is stated on the **static**
+//! path (`${prompt}`, `SKILL.md`, this kind's reference file), which needs no
+//! trigger; or a paragraph on the path states **this rule's situation** and the
+//! procedure is in that paragraph's own file or in a file it names by path. A file
+//! reached by some *other* condition, carrying the procedure for a condition that
+//! is gone, is the deleted-in-effect state this file exists to reject.
+//!
+//! **Every claim carries its own control.** Each claim names a plausible rewrite
+//! that keeps the rule's subject and drops *that claim's* force, and is shown
+//! failing; the reachability walk is shown following a named path, stopping when
+//! the naming sentence goes, refusing to reach a file nothing names, and refusing
+//! to deliver a rule whose own condition was deleted while a sibling condition
+//! still opens its owner.
 //!
 //! Scope is the eight **B★** areas of `docs/specs/corpus-rule-ownership.md`.
 //! The ninth required area — the requirements interview threshold — is a
@@ -54,6 +66,11 @@ type Loaded = (String, String);
 /// is on the path of every session because `${prompt}` is the one channel a
 /// session cannot skip.
 const CORE: &str = "${prompt}";
+
+/// How many leading members of a [`loaded_path`] are **static** — the only three
+/// things `src/prompt.rs` puts on a path unconditionally, and therefore the only
+/// places a rule can be stated with no condition sending a session there.
+const STATIC_MEMBERS: usize = 3;
 
 fn corpus() -> Corpus {
     methodology::markdown_files()
@@ -84,10 +101,13 @@ fn core(kind: Kind) -> String {
 /// reaches them: the composed core, `SKILL.md`, that kind's reference file, then
 /// the transitive closure of the corpus files those name.
 ///
-/// The first three are the *static* half — the only three things
-/// `src/prompt.rs` puts on a path unconditionally — and the closure is the
+/// The first [`STATIC_MEMBERS`] are the *static* half, and the closure is the
 /// conditional half, reached because a sentence a session read named a file by
-/// path.
+/// path. The walk is deliberately file-grained: what an edge reaches is a **file**,
+/// so once one condition lands a session in `decompose.md` every in-file condition
+/// there is available to it (`docs/specs/corpus-rule-ownership.md`, *Cross-file
+/// rows only*). Which *rule* that edge delivers is a separate question, and
+/// [`delivery_site`] is where it is answered.
 fn loaded_path(corpus: &Corpus, kind: Kind) -> Vec<Loaded> {
     let mut path: Vec<Loaded> = vec![(CORE.to_owned(), core(kind))];
     for statik in ["SKILL.md", prompt::reference_file(kind)] {
@@ -96,6 +116,12 @@ fn loaded_path(corpus: &Corpus, kind: Kind) -> Vec<Loaded> {
         });
         path.push((statik.to_owned(), text.clone()));
     }
+    assert_eq!(
+        path.len(),
+        STATIC_MEMBERS,
+        "the static half of a loaded path is the core, SKILL.md and reference_file(kind); \
+         STATIC_MEMBERS is what every delivery check slices by"
+    );
 
     let mut reached: BTreeSet<String> = path.iter().map(|(name, _)| name.clone()).collect();
     let mut next = 0;
@@ -167,7 +193,7 @@ fn citing_region(source: &str, text: &str) -> String {
 
 /// One alternative wording group. A group is met by **any** of its members, which
 /// is what lets a rewrite reword a rule without going red; what stops that from
-/// degenerating into a topic match is each invariant's near-miss fixture.
+/// degenerating into a topic match is each claim's own near-miss fixture.
 type Group = &'static [&'static str];
 
 /// One statement a rule must make. Every group must occur in a **single
@@ -175,7 +201,21 @@ type Group = &'static [&'static str];
 /// not count as the rule being stated.
 struct Claim {
     what: &'static str,
+    /// Required, all of them, in one paragraph.
     groups: &'static [Group],
+    /// Wordings that **disqualify** the paragraph even when every group is met.
+    /// This is how a claim keeps its polarity or its scope where the two endings
+    /// differ by a suffix: *run `grove-llm complete` as your last action* and *run
+    /// `grove-llm complete --done` as your last action* are different
+    /// instructions, and the second must not read as the first.
+    without: &'static [&'static str],
+    /// A plausible rewrite that keeps the **rule's** subject and drops *this
+    /// claim's* force. Asserted to fail this claim, which is what shows the check
+    /// is sensitive to its own load-bearing clause rather than to the topic. One
+    /// per claim, because an invariant-wide fixture leaves every other claim
+    /// uncontrolled — a claim can then be a topic match, or accept the opposite
+    /// rule, while the invariant still fails on a sibling.
+    near_miss: &'static str,
 }
 
 /// Which kinds a rule binds, and therefore whose loaded paths must carry it.
@@ -195,11 +235,16 @@ struct Invariant {
     /// The required area it serves, from the eight this leaf owns.
     area: &'static str,
     binds: Binds,
+    /// **The rule's own situation** — its `Occasion`, in the words the canonical
+    /// trigger sentence and the corpus statement share. A conditional rule is
+    /// delivered only through a paragraph that states *this* situation, so a
+    /// sibling condition naming the same owner file cannot stand in for it.
+    ///
+    /// Empty for a rule the inventory classes `own` or byte-frozen-and-inlined:
+    /// those are stated on the static path or nowhere, and admitting a trigger
+    /// for them would weaken that.
+    situation: &'static [Group],
     claims: &'static [Claim],
-    /// A plausible rewrite that keeps the rule's subject and drops its force.
-    /// Asserted to fail, which is what shows the check is sensitive to the
-    /// load-bearing clause rather than to the topic.
-    near_miss: &'static str,
 }
 
 impl Binds {
@@ -215,56 +260,113 @@ impl Binds {
     }
 }
 
-/// A file's paragraphs, normalised: emphasis markers dropped and whitespace
-/// collapsed, so a rule wrapped across lines or carrying `**bold**` reads the
-/// same as one written flat. Matching is case-insensitive.
+/// One text, normalised for matching: emphasis and code markers dropped,
+/// whitespace collapsed, lowercased — so a rule wrapped across lines, carrying
+/// `**bold**`, or written as `` `review-*` leaf `` reads the same as one written
+/// flat. Applied to the corpus **and** to every wording a claim asks for, so a
+/// group member can be written the way the corpus writes it.
 ///
 /// Underscores are deliberately **not** stripped — `GROVE_SIGNAL_FILE` is a name
-/// a claim may need to match, and emphasis in this corpus is written with
-/// asterisks.
+/// a claim may need to match.
+fn normalise(text: &str) -> String {
+    text.replace(['*', '`'], "")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+/// A file's paragraphs, normalised.
 fn paragraphs(text: &str) -> Vec<String> {
     text.split("\n\n")
-        .map(|block| {
-            block
-                .replace('*', "")
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ")
-                .to_lowercase()
-        })
+        .map(normalise)
         .filter(|block| !block.is_empty())
         .collect()
 }
 
-fn paragraph_meets(paragraph: &str, claim: &Claim) -> bool {
-    claim.groups.iter().all(|group| {
+fn meets_all(paragraph: &str, groups: &[Group]) -> bool {
+    groups.iter().all(|group| {
         group
             .iter()
-            .any(|wording| paragraph.contains(&wording.to_lowercase()))
+            .any(|wording| paragraph.contains(&normalise(wording)))
     })
 }
 
-/// The loaded-path members that state `claim`, in path order.
+fn paragraph_meets(paragraph: &str, claim: &Claim) -> bool {
+    meets_all(paragraph, claim.groups)
+        && !claim
+            .without
+            .iter()
+            .any(|wording| paragraph.contains(&normalise(wording)))
+}
+
+/// The loaded-path members that state `claim`, in path order. This is *presence*,
+/// not delivery: [`delivery_site`] is what decides whether a session is told.
 fn claim_sites(path: &[Loaded], claim: &Claim) -> Vec<String> {
     let mut sites = Vec::new();
     for (name, text) in path {
-        if paragraphs(text)
-            .iter()
-            .any(|paragraph| paragraph_meets(paragraph, claim))
-            && !sites.contains(name)
-        {
+        if states(text, claim) && !sites.contains(name) {
             sites.push(name.clone());
         }
     }
     sites
 }
 
-/// The claims of `invariant` that nothing on `path` states.
+fn states(text: &str, claim: &Claim) -> bool {
+    paragraphs(text)
+        .iter()
+        .any(|paragraph| paragraph_meets(paragraph, claim))
+}
+
+/// **Where, and how, a session of this kind is told `claim`** — or `None`.
+///
+/// Two modes, and no third:
+///
+/// 1. **Static.** A paragraph of `${prompt}`, `SKILL.md` or this kind's reference
+///    file states it. Nothing has to send the session there, so no trigger is
+///    involved. This is how an `own` row and an inlined signal file deliver.
+/// 2. **Through its own condition.** A paragraph somewhere on the path states the
+///    rule's `situation`, and the procedure is either in that paragraph's own file
+///    or in a file that paragraph names by path.
+///
+/// What the second mode refuses is the case the walk alone cannot see: the owner
+/// file is on the path because a *different* condition names it, and the condition
+/// for *this* rule is gone. The procedure is then present and unreachable — a
+/// session that meets the situation has nothing telling it to open the file — which
+/// is exactly what `docs/specs/corpus-rule-ownership.md` calls deleted in effect.
+fn delivery_site(path: &[Loaded], invariant: &Invariant, claim: &Claim) -> Option<String> {
+    if let Some((name, _)) = path
+        .iter()
+        .take(STATIC_MEMBERS)
+        .find(|(_, text)| states(text, claim))
+    {
+        return Some(name.clone());
+    }
+    if invariant.situation.is_empty() {
+        return None;
+    }
+    for (name, text) in path {
+        for paragraph in paragraphs(&citing_region(name, text)) {
+            if !meets_all(&paragraph, invariant.situation) {
+                continue;
+            }
+            for (target, target_text) in path {
+                let reached = target == name || paragraph.contains(&target.to_lowercase());
+                if reached && states(target_text, claim) {
+                    return Some(format!("{name} -> {target}"));
+                }
+            }
+        }
+    }
+    None
+}
+
+/// The claims of `invariant` that nothing on `path` delivers.
 fn unmet<'a>(path: &[Loaded], invariant: &'a Invariant) -> Vec<&'a str> {
     invariant
         .claims
         .iter()
-        .filter(|claim| claim_sites(path, claim).is_empty())
+        .filter(|claim| delivery_site(path, invariant, claim).is_none())
         .map(|claim| claim.what)
         .collect()
 }
@@ -287,6 +389,7 @@ const INVARIANTS: &[Invariant] = &[
         rule: "mandate-is-authoritative",
         area: "no second pick",
         binds: Binds::EveryKind,
+        situation: &[],
         claims: &[Claim {
             what: "the driver's single pre-session pick is the mandate, and nothing modulates it",
             groups: &[
@@ -294,14 +397,16 @@ const INVARIANTS: &[Invariant] = &[
                 &["pick"],
                 &["mandate", "selected leaf"],
             ],
+            without: &[],
+            near_miss: "The driver makes a pick before the session exists and hands you the \
+                        selected leaf as your mandate; a second walk normally agrees with it.",
         }],
-        near_miss: "The driver makes a pick before the session exists and hands you the \
-                    selected leaf as your mandate; a second walk normally agrees with it.",
     },
     Invariant {
         rule: "no-second-pick",
         area: "no second pick",
         binds: Binds::EveryKind,
+        situation: &[],
         claims: &[Claim {
             what: "`grove-llm pick` is a diagnostic, and on disagreement the mandate wins",
             groups: &[
@@ -309,14 +414,16 @@ const INVARIANTS: &[Invariant] = &[
                 &["diagnostic"],
                 &["the mandate wins", "not this session's dispatcher"],
             ],
+            without: &[],
+            near_miss: "Run `grove-llm pick` to confirm the mandate you were given; if the two \
+                        disagree, take the one that fits the tree.",
         }],
-        near_miss: "Run `grove-llm pick` to confirm the mandate you were given; if the two \
-                    disagree, take the one that fits the tree.",
     },
     Invariant {
         rule: "stated-vcs-is-definitive",
         area: "no VCS reprobe",
         binds: Binds::EveryKind,
+        situation: &[],
         claims: &[Claim {
             what: "the stated version control is definitive, is not re-derived, and beats a \
                    harness banner",
@@ -325,72 +432,110 @@ const INVARIANTS: &[Invariant] = &[
                 &["re-derive", "probe"],
                 &["harness banner"],
             ],
+            without: &[],
+            near_miss: "The driver states this working tree's version control. A harness banner \
+                        may disagree with it, so check the working tree when the two differ.",
         }],
-        near_miss: "The driver states this working tree's version control. A harness banner \
-                    may disagree with it, so check the working tree when the two differ.",
     },
     Invariant {
         rule: "stale-launch-stops",
         area: "stale launch",
         binds: Binds::EveryKind,
+        // Canonical trigger 2: *when the mandated handle resolves to nothing or
+        // to a terminal leaf*.
+        situation: &[&[
+            "resolves to nothing",
+            "resolving to nothing",
+            "does not resolve",
+        ]],
         claims: &[Claim {
             what: "a handle resolving to nothing or to a terminal leaf is a stale launch, not \
                    work to redo",
+            // "terminal leaf" is the abstraction the inventory and the canonical
+            // trigger both use, so a rewrite that stops spelling out both
+            // terminal states is licensed rather than red.
             groups: &[
                 &["resolves to nothing", "resolving to nothing"],
-                &["abandoned"],
-                &["not work to redo"],
+                &["abandoned", "terminal leaf", "terminal task", "is terminal"],
+                &["not work to redo", "rather than work to redo"],
             ],
+            without: &[],
+            near_miss: "If the handle resolves to nothing, or to a terminal leaf, the tree has \
+                        moved on: redo the work against the leaf that is live now.",
         }],
-        near_miss: "If the handle resolves to nothing, or to a DONE or ABANDONED leaf, the \
-                    tree has moved on: redo the work against the leaf that is live now.",
     },
     Invariant {
         rule: "externalize-by-default",
         area: "the decomposition boundary",
         binds: Binds::EveryKind,
+        // Canonical trigger 7: *when work surfaces that does not serve this
+        // leaf's goal*.
+        situation: &[&["does not serve", "not serve"]],
         claims: &[
             Claim {
                 what: "work that does not serve this leaf's stated goal goes to the tree",
                 groups: &[
                     &["does not serve", "not serve"],
-                    &["stated goal", "leaf's goal"],
+                    &["stated goal", "leaf's goal", "this goal"],
                     &["the tree", "externalis", "externaliz", "leaf-add"],
                 ],
+                without: &[],
+                near_miss: "Work that surfaces mid-session and does not serve this leaf's stated \
+                            goal may be absorbed here when you already hold the context for it.",
             },
             Claim {
                 what: "the bar for continuing inline is \"fits this session\"",
                 groups: &[&["fits this session"]],
+                without: &[],
+                near_miss: "Absorb the work inline whenever you already hold the context, rather \
+                            than externalising it with `leaf-add` — the bar is whether you can \
+                            finish it.",
             },
         ],
-        near_miss: "Work that surfaces mid-session and does not serve this leaf's stated goal \
-                    may be absorbed here when you already hold the context for it.",
     },
     Invariant {
         rule: "bigger-than-brief-decomposes",
         area: "the decomposition boundary",
         binds: Binds::EveryKind,
+        // Canonical trigger 8: *when this leaf proves bigger than its brief*.
+        situation: &[&["proves bigger", "proved bigger", "bigger than its brief"]],
         claims: &[
             Claim {
                 what: "a leaf that proves bigger than its brief becomes a node",
+                // The second group carries the polarity: "stays a leaf, not a
+                // node" mentions a node and states the opposite rule.
                 groups: &[
                     &["proves bigger", "proved bigger", "bigger than its brief"],
-                    &["node", "leaf-decompose"],
+                    &[
+                        "becomes a node",
+                        "is a node",
+                        "into a node",
+                        "leaf-decompose",
+                        "decompose it",
+                    ],
                 ],
+                without: &[],
+                near_miss: "A leaf that proves bigger than its brief stays a leaf, not a node: \
+                            keep going and let the session run as long as it needs.",
             },
             Claim {
                 what: "the decomposing session does only the first child",
                 groups: &[&["only the first child"]],
+                without: &[],
+                near_miss: "A leaf that proves bigger than its brief assumed becomes a node with \
+                            `grove-llm leaf-decompose`; work through as many of its children as \
+                            the session has room for.",
             },
         ],
-        near_miss: "A leaf that proves bigger than its brief assumed becomes a node with \
-                    `grove-llm leaf-decompose`; work through as many of its children as the \
-                    session has room for.",
     },
     Invariant {
         rule: "pruning-is-hitl",
         area: "human-only pruning",
         binds: Binds::EveryKind,
+        // Canonical trigger 13: *when this leaf's path looks decided against*.
+        // Deliberately **not** the word "prune": the situation is the session's,
+        // and the sentence that names the verb is the one being looked up.
+        situation: &[&["decided against", "abandonment decision"]],
         claims: &[
             Claim {
                 what: "an agent never prunes on its own",
@@ -398,6 +543,10 @@ const INVARIANTS: &[Invariant] = &[
                     &["prun"],
                     &["never prunes on its own", "an agent never prunes"],
                 ],
+                without: &[],
+                near_miss: "Pruning marks a path decided against with an ABANDONED infix rather \
+                            than deleting it: run `grove-llm leaf-prune <path>` once the path is \
+                            closed.",
             },
             Claim {
                 what: "the session stops and asks rather than deciding the abandonment itself",
@@ -409,15 +558,18 @@ const INVARIANTS: &[Invariant] = &[
                         "says so and stops",
                     ],
                 ],
+                without: &[],
+                near_miss: "Pruning is the agent's call once a path is clearly closed: an AFK \
+                            session marks the leaf ABANDONED and moves on to the next one.",
             },
         ],
-        near_miss: "Pruning marks a path decided against with an ABANDONED infix rather than \
-                    deleting it: run `grove-llm leaf-prune <path>` once the path is closed.",
     },
     Invariant {
         rule: "retire-before-commit",
         area: "retire -> commit -> complete",
         binds: Binds::EveryKind,
+        // Canonical trigger 12: *when the work is done*, retire before committing.
+        situation: &[&["the work is done", "before you commit", "before committ"]],
         claims: &[
             Claim {
                 what: "retirement precedes the commit",
@@ -429,6 +581,10 @@ const INVARIANTS: &[Invariant] = &[
                         "retire precedes commit",
                     ],
                 ],
+                without: &[],
+                near_miss: "Retire the just-finished leaf by running `grove-llm leaf-retire \
+                            <leaf-path>`, which adds a DONE infix in place; commit the task \
+                            whenever the work is ready.",
             },
             Claim {
                 what: "the rename lands inside that one commit",
@@ -436,104 +592,193 @@ const INVARIANTS: &[Invariant] = &[
                     &["rename"],
                     &["land inside", "lands in it", "landing inside"],
                 ],
+                without: &[],
+                near_miss: "Retire before you commit; the DONE rename can be committed on its \
+                            own once the parent-chain cascade has settled.",
             },
         ],
-        near_miss: "Retire the just-finished leaf by running `grove-llm leaf-retire \
-                    <leaf-path>`, which adds a DONE infix in place; commit the task whenever \
-                    the work is ready.",
     },
     Invariant {
         rule: "one-focused-commit",
         area: "retire -> commit -> complete",
         binds: Binds::EveryKind,
+        // Canonical trigger 16: *when the leaf is retired*, commit it.
+        situation: &[&["the leaf is retired", "once retired", "one focused commit"]],
         claims: &[Claim {
-            what: "one task is one focused commit carrying the artifact, the grow-verb writes \
-                   and the rename",
+            what: "one task's commit carries the artifact, the grow-verb writes and the rename \
+                   together",
+            // Four required groups, not one group of alternatives: the rule is
+            // the conjunction, so a commit carrying the artifact while the
+            // rename rides along later must fail. The first group is the
+            // togetherness clause, which the canonical row states as "together"
+            // rather than as the phrase "one focused commit".
             groups: &[
-                &["one focused commit"],
+                &["one focused commit", "one task's commit", "together"],
+                &["artifact"],
+                &["grow verb", "grow-verb"],
                 &["rename"],
-                &["artifact", "grow verb", "grow-verb"],
             ],
+            // Co-occurrence alone cannot tell "these three together" from "two of
+            // them together, the third later" — both name all three. So the
+            // deferral is disqualified explicitly.
+            without: &[
+                "a later commit",
+                "a second commit",
+                "land later",
+                "ride along",
+            ],
+            near_miss: "One focused commit carries the artifact and the DONE rename; whatever \
+                        the grow verbs wrote can land in a later commit once the cascade has \
+                        settled.",
         }],
-        near_miss: "Commit the artifact and whatever the grow verbs wrote; the DONE rename can \
-                    ride along in a later commit once the cascade has settled.",
     },
     Invariant {
         rule: "signal-is-the-last-action",
         area: "retire -> commit -> complete",
         binds: Binds::EveryKindButFinish,
+        situation: &[],
         claims: &[
             Claim {
                 what: "`grove-llm complete` is the session's last action",
                 groups: &[&["grove-llm complete"], &["last action"]],
+                // `complete --done` is the *other* kind set's ending and contains
+                // this one as a substring, so a paragraph teaching teardown must
+                // not read as teaching the ordinary ending. Without this, a
+                // `finish` path carrying step 3 of the teardown satisfies the
+                // eighteen-kind rule.
+                without: &["complete --done"],
+                near_miss: "Once the task is retired and committed, run `grove-llm complete`: it \
+                            writes the relaunch flag to the loop's signal file and returns.",
             },
             Claim {
                 what: "ending without signalling stops the loop",
                 groups: &[&["ending without signalling stops the loop"]],
+                without: &[],
+                near_miss: "Run `grove-llm complete` as your last action; the loop driver takes \
+                            care of everything after that.",
             },
         ],
-        near_miss: "Once the task is retired and committed, run `grove-llm complete`: it \
-                    writes the relaunch flag to the loop's signal file and returns.",
     },
     Invariant {
         rule: "review-budget",
         area: "the review budget",
         binds: Binds::EveryKind,
+        // Canonical trigger 3: *when considering an in-session reviewer*.
+        situation: &[&[
+            "in-session review",
+            "in-session doubt",
+            "considering a review",
+            "review ownership",
+        ]],
         claims: &[
             Claim {
                 what: "at most one in-session reviewer",
                 groups: &[&["at most one"], &["review"]],
+                without: &[],
+                near_miss: "A picked plain producer may materialise fresh-context reviewers as \
+                            the work needs; keep the number small.",
             },
             Claim {
                 what: "the allowance is spent across the whole picked leaf",
                 groups: &[&["whole picked leaf", "whole leaf", "leaf-wide"]],
+                without: &[],
+                near_miss: "A plain producer may materialise at most one reviewer per artifact, \
+                            so a second artifact in the same session earns its own.",
             },
             Claim {
+                // The adjoining `review-budget-predicate` row of the same
+                // inventory group. It rides here rather than as a thirteenth
+                // pinned rule because the twelve are the B* set exactly.
                 what: "the allowance belongs to a mandated session that adopted the mandate by \
                        running Bootstrap",
-                groups: &[&["bootstrap"], &["mandate"]],
+                groups: &[
+                    &["bootstrap"],
+                    &[
+                        "adopted the mandate",
+                        "adopted that mandate",
+                        "adopted the driver's mandate",
+                    ],
+                ],
+                without: &[],
+                // The corpus's own generic Bootstrap paragraph, which carries
+                // both of the two common words the superseded groups asked for
+                // and none of the predicate.
+                near_miss: "Bootstrap. A session's mandate is assembled by reading — the \
+                            glossary, the cited ADRs, the BRIEF.md chain root to leaf, the task \
+                            file — and that is the whole of it.",
+            },
+            Claim {
+                // The starred row's second half, which the suite previously
+                // left uncovered: a rewrite could keep the cap and delete what
+                // to do once it is spent.
+                what: "a second review need becomes a `review-*` leaf rather than another \
+                       in-session reviewer",
+                groups: &[
+                    &[
+                        "a second need",
+                        "a second review",
+                        "beyond it",
+                        "once spent",
+                    ],
+                    &[
+                        "leaf rather than another reviewer",
+                        "a `review-*` leaf",
+                        "a review-<producer> leaf",
+                        "tree-sized",
+                    ],
+                ],
+                without: &[],
+                near_miss: "The allowance is leaf-wide rather than per artifact, so a second \
+                            review need in the same leaf simply has to wait its turn.",
             },
         ],
-        near_miss: "Review ownership inside a picked leaf applies once the driver mandated this \
-                    session and Bootstrap adopted that mandate: a plain producer may \
-                    materialise reviewers across the whole picked leaf as the work needs.",
     },
     Invariant {
         rule: "finish-three-endings",
         area: "all three finish-signal outcomes",
         binds: Binds::OnlyFinish,
+        situation: &[],
         claims: &[
             Claim {
                 what: "teardown ends with `complete --done` and the loop stops",
                 groups: &[&["teardown"], &["complete --done"], &["the loop stops"]],
+                without: &[],
+                near_miss: "When teardown completed, run `grove-llm complete --done`; the loop \
+                            driver takes it from there.",
             },
             Claim {
                 what: "externalised work ends with a bare `complete` and the loop relaunches",
                 groups: &[&["externalised work", "externalized work"], &["relaunch"]],
+                without: &[],
+                near_miss: "If you externalised work instead of tearing down, signal in the \
+                            ordinary way and let the driver decide what happens next.",
             },
             Claim {
                 what: "declining sends no signal and leaves the leaf live",
                 groups: &[&["no signal"], &["stays live", "resumable"]],
+                without: &[],
+                near_miss: "If you decline, or find no human to ask, send no signal and stop.",
             },
         ],
-        near_miss: "How this session ends is decided by what it did: when teardown completed, \
-                    run `grove-llm complete --done` and the loop stops.",
     },
 ];
 
 // -- The claim ---------------------------------------------------------------
 
-/// **Every starred invariant is on the loaded path of every kind it binds.**
+/// **Every starred invariant is delivered on the loaded path of every kind it
+/// binds.**
 ///
 /// The whole point of driving this per kind rather than over the corpus is that a
-/// rule stated only in a file that kind's path never reaches fails here.
+/// rule stated only in a file that kind's path never reaches fails here — and,
+/// since [`delivery_site`], so does a rule whose own condition is gone while its
+/// owner file stays reachable through a sibling one.
 ///
 /// **One complaint per unmet claim, not per kind.** A rule dropped from a file
 /// every kind loads fails for all nineteen at once, and nineteen copies of one
 /// sentence — each printing a seventeen-file path — buries the one fact a reader
 /// needs. So the kinds are gathered onto the complaint, and it also carries where
-/// the rule's *other* claims still live: the first question on a red run is always
-/// whether the rule moved or went.
+/// the rule's *other* claims are delivered from: the first question on a red run
+/// is always whether the rule moved, lost its trigger, or went.
 #[test]
 fn every_lifecycle_invariant_is_on_the_loaded_path_of_every_kind_it_binds() {
     let corpus = corpus();
@@ -545,24 +790,36 @@ fn every_lifecycle_invariant_is_on_the_loaded_path_of_every_kind_it_binds() {
             let mut elsewhere: Vec<String> = Vec::new();
             for kind in invariant.binds.kinds() {
                 let path = loaded_path(&corpus, kind);
-                if claim_sites(&path, claim).is_empty() {
+                if delivery_site(&path, invariant, claim).is_none() {
                     if failing.is_empty() {
                         elsewhere = invariant
                             .claims
                             .iter()
                             .filter(|other| !std::ptr::eq(*other, claim))
                             .map(|other| {
-                                format!("{:?} at {:?}", other.what, claim_sites(&path, other))
+                                format!(
+                                    "{:?} delivered at {:?}, stated at {:?}",
+                                    other.what,
+                                    delivery_site(&path, invariant, other),
+                                    claim_sites(&path, other)
+                                )
                             })
                             .collect();
+                        // Where this claim is *stated* even though nothing
+                        // delivers it: the difference between "the rule went"
+                        // and "its condition went".
+                        elsewhere.push(format!(
+                            "this claim is stated at {:?}",
+                            claim_sites(&path, claim)
+                        ));
                     }
                     failing.push(kind.label());
                 }
             }
             if !failing.is_empty() {
                 complaints.push(format!(
-                    "{} ({}): no paragraph on the loaded path of {:?} states {:?}. The rule's \
-                     other claims are still at: {elsewhere:?}",
+                    "{} ({}): nothing on the loaded path of {:?} delivers {:?}. Context: \
+                     {elsewhere:?}",
                     invariant.rule, invariant.area, failing, claim.what,
                 ));
             }
@@ -572,9 +829,10 @@ fn every_lifecycle_invariant_is_on_the_loaded_path_of_every_kind_it_binds() {
     assert_eq!(
         complaints,
         Vec::<String>::new(),
-        "a lifecycle invariant this refactor must not change is no longer reachable by a \
+        "a lifecycle invariant this refactor must not change is no longer delivered to a \
          session of a kind it binds. Either the rule was dropped, or it was rehomed into a \
-         file nothing on that kind's path names — the second is deleted in effect while \
+         file nothing on that kind's path names, or its own condition went while its owner \
+         file stayed reachable through another one — all three are deleted in effect while \
          sitting in content/. {} complaint(s).",
         complaints.len()
     );
@@ -626,43 +884,149 @@ fn the_table_covers_the_eight_required_areas_and_no_others() {
 
 // -- The controls on the matcher ----------------------------------------------
 
-/// **The control on every invariant: a plausible rewrite that keeps the subject
-/// and drops the force must fail.**
+/// **The control on every claim: a plausible rewrite that keeps the rule's
+/// subject and drops *that claim's* force must fail it.**
 ///
-/// This is what separates these checks from a topic match. Each fixture is prose
-/// a rewriting session could genuinely produce — the vocabulary of the rule
-/// without the clause that binds — and is asserted to be *on topic* (it meets at
-/// least one group) and *insufficient* (the invariant is unmet).
+/// This is what separates these checks from a topic match, and it is **per
+/// claim** rather than per invariant. An invariant-wide fixture proves only that
+/// *some* claim binds: the others are then free to be two common words, or to
+/// accept the opposite rule, because a sibling claim carries the failure.
+///
+/// Each fixture is prose a rewriting session could genuinely produce — the
+/// vocabulary of the rule without the clause that binds. It is asserted to be *on
+/// topic* for the rule (it meets at least one group of some claim, so the fixture
+/// is about this rule rather than about nothing) and *insufficient* for its own
+/// claim. On-topic is measured against the rule rather than the claim because a
+/// claim whose group is one distinctive phrase can have no fixture that is both
+/// on topic for it and failing it.
 #[test]
-fn a_rewrite_that_keeps_the_subject_and_drops_the_force_fails() {
+fn a_rewrite_that_keeps_the_subject_and_drops_the_force_fails_the_claim_it_controls() {
     for invariant in INVARIANTS {
-        let path = vec![("NEAR-MISS.md".to_owned(), invariant.near_miss.to_owned())];
+        for claim in invariant.claims {
+            let fixture = paragraphs(claim.near_miss);
+            assert!(
+                !fixture
+                    .iter()
+                    .any(|paragraph| paragraph_meets(paragraph, claim)),
+                "{}'s near-miss fixture for {:?} states the claim, so it is not a near miss and \
+                 the check it controls is unproven:\n{}",
+                invariant.rule,
+                claim.what,
+                claim.near_miss
+            );
 
-        let unmet = unmet(&path, invariant);
-        assert!(
-            !unmet.is_empty(),
-            "{}'s near-miss fixture satisfies the whole invariant, so it is not a near miss \
-             and the check it is meant to control is unproven:\n{}",
-            invariant.rule,
-            invariant.near_miss
-        );
-
-        let on_topic = invariant.claims.iter().any(|claim| {
-            claim.groups.iter().any(|group| {
-                paragraphs(invariant.near_miss).iter().any(|paragraph| {
-                    group
-                        .iter()
-                        .any(|wording| paragraph.contains(&wording.to_lowercase()))
+            let on_topic = invariant.claims.iter().any(|other| {
+                other.groups.iter().any(|group| {
+                    fixture.iter().any(|paragraph| {
+                        group
+                            .iter()
+                            .any(|wording| paragraph.contains(&normalise(wording)))
+                    })
                 })
-            })
-        });
-        assert!(
-            on_topic,
-            "{}'s near-miss fixture shares no wording with the rule at all, so it shows only \
-             that the matcher rejects unrelated prose:\n{}",
-            invariant.rule, invariant.near_miss
-        );
+            });
+            assert!(
+                on_topic,
+                "{}'s near-miss fixture for {:?} shares no wording with the rule at all, so it \
+                 shows only that the matcher rejects unrelated prose:\n{}",
+                invariant.rule, claim.what, claim.near_miss
+            );
+        }
     }
+}
+
+/// **A `without` wording disqualifies a paragraph that meets every group.**
+///
+/// The shape it exists for is real and asymmetric: `complete --done` contains
+/// `grove-llm complete`, so the teardown instruction would otherwise read as the
+/// ordinary ending and the two endings' scopes would silently overlap.
+#[test]
+fn a_disqualifying_wording_rejects_a_paragraph_that_meets_every_group() {
+    let claim = Claim {
+        what: "the ordinary ending",
+        groups: &[&["grove-llm complete"], &["last action"]],
+        without: &["complete --done"],
+        near_miss: "unused here",
+    };
+
+    let ordinary = vec![(
+        "ORDINARY.md".to_owned(),
+        "Run `grove-llm complete` as your last action.\n".to_owned(),
+    )];
+    assert_eq!(claim_sites(&ordinary, &claim), vec!["ORDINARY.md"]);
+
+    let teardown = vec![(
+        "TEARDOWN.md".to_owned(),
+        "Run `grove-llm complete --done` as the very last action.\n".to_owned(),
+    )];
+    assert!(
+        claim_sites(&teardown, &claim).is_empty(),
+        "a paragraph teaching the teardown ending must not read as teaching the ordinary one"
+    );
+}
+
+/// **The rewordings the rewrite is licensed to make pass, and the incomplete
+/// forms beside them do not.**
+///
+/// The near-miss fixtures show the matcher rejecting prose that drops a rule's
+/// force. This is the other direction, and it is the one that blocks a leaf rather
+/// than losing a rule: eight rewrites are *licensed to reword*, so a group with no
+/// alternative for the canonical wording turns an intended edit red and trains a
+/// reader to re-point the test instead of reading it.
+///
+/// The two pinned here are the ones whose canonical wording differs from the
+/// corpus's current wording: the inventory and canonical trigger both abstract
+/// `DONE`/`ABANDONED` to *a terminal leaf*, and the commit row states its contract
+/// as the four kinds of change landing *together* rather than as the phrase "one
+/// focused commit".
+#[test]
+fn the_canonical_rewordings_pass_without_admitting_the_incomplete_forms() {
+    let stale = &INVARIANTS
+        .iter()
+        .find(|invariant| invariant.rule == "stale-launch-stops")
+        .expect("the table carries stale-launch-stops")
+        .claims[0];
+    let terminal = vec![(
+        "REWRITTEN.md".to_owned(),
+        "A mandated handle that resolves to nothing, or to a terminal leaf, is a stale launch \
+         and not work to redo.\n"
+            .to_owned(),
+    )];
+    assert_eq!(
+        claim_sites(&terminal, stale),
+        vec!["REWRITTEN.md"],
+        "the abstraction the inventory and trigger 2 both use must not go red"
+    );
+
+    let commit = &INVARIANTS
+        .iter()
+        .find(|invariant| invariant.rule == "one-focused-commit")
+        .expect("the table carries one-focused-commit")
+        .claims[0];
+    let together = vec![(
+        "REWRITTEN.md".to_owned(),
+        "One task's commit carries the artifact, the grow-verb writes, the `DONE` rename and \
+         whatever the cascade promoted, together, named by handle.\n"
+            .to_owned(),
+    )];
+    assert_eq!(
+        claim_sites(&together, commit),
+        vec!["REWRITTEN.md"],
+        "the canonical commit row's own wording must not go red"
+    );
+
+    // And the licence does not extend to splitting the commit: the same four
+    // classes of change, named in the same sentence, with one of them deferred.
+    let split = vec![(
+        "SPLIT.md".to_owned(),
+        "One task's commit carries the artifact and the `DONE` rename together; whatever the \
+         grow verbs wrote can land in a later commit.\n"
+            .to_owned(),
+    )];
+    assert!(
+        claim_sites(&split, commit).is_empty(),
+        "a commit that defers one of the four classes is not this rule, however many of them \
+         the sentence names"
+    );
 }
 
 /// **A conjunction assembled out of two paragraphs is not a statement of the
@@ -673,6 +1037,8 @@ fn groups_split_across_paragraphs_do_not_meet_a_claim() {
     let claim = Claim {
         what: "a two-group claim",
         groups: &[&["first half"], &["second half"]],
+        without: &[],
+        near_miss: "unused here",
     };
 
     let together = vec![(
@@ -693,15 +1059,18 @@ fn groups_split_across_paragraphs_do_not_meet_a_claim() {
 
 /// **Normalisation earns its place on the shapes the corpus really uses.**
 ///
-/// Both were live holes rather than hypotheticals: the corpus writes *Retire
-/// **before** you commit* with the emphasis inside the phrase, and wraps that
-/// phrase across a line break. An unnormalised matcher misses both silently,
-/// which is the fail-open direction.
+/// All three were live holes rather than hypotheticals: the corpus writes *Retire
+/// **before** you commit* with the emphasis inside the phrase, wraps that phrase
+/// across a line break, and writes the over-budget outcome as `` `review-*` leaf
+/// `` with two markers inside one noun phrase. An unnormalised matcher misses all
+/// three silently, which is the fail-open direction.
 #[test]
-fn emphasis_and_line_wrapping_are_normalised_away() {
+fn emphasis_code_markers_and_line_wrapping_are_normalised_away() {
     let claim = Claim {
         what: "retirement precedes the commit",
         groups: &[&["retire before you commit"]],
+        without: &[],
+        near_miss: "unused here",
     };
     let wrapped = vec![(
         "WRAPPED.md".to_owned(),
@@ -714,6 +1083,21 @@ fn emphasis_and_line_wrapping_are_normalised_away() {
         claim_sites(&absent, &claim).is_empty(),
         "the normaliser must not make unrelated prose match"
     );
+
+    // A group member written the way the corpus writes it, matched against text
+    // carrying the same markers — the needle is normalised too, so neither side
+    // has to spell the other's punctuation.
+    let backticked = Claim {
+        what: "the over-budget outcome",
+        groups: &[&["a `review-*` leaf"]],
+        without: &[],
+        near_miss: "unused here",
+    };
+    let corpus_shape = vec![(
+        "SHAPE.md".to_owned(),
+        "beyond it the answer is a `review-*` leaf rather than another reviewer\n".to_owned(),
+    )];
+    assert_eq!(claim_sites(&corpus_shape, &backticked), vec!["SHAPE.md"]);
 }
 
 // -- The controls on the reachability walk ------------------------------------
@@ -726,6 +1110,8 @@ fn probe() -> Claim {
     Claim {
         what: "a phrase stated only in references/retire.md",
         groups: &[&[DOWNSTREAM_ONLY]],
+        without: &[],
+        near_miss: "unused here",
     }
 }
 
@@ -802,6 +1188,68 @@ fn a_rule_only_in_an_unnamed_file_is_off_every_loaded_path() {
     );
 }
 
+/// **A rule is delivered by its own condition, not by a sibling condition that
+/// happens to open the same file.**
+///
+/// This is the failure the file-grained walk cannot see on its own. Two canonical
+/// triggers name `references/retire.md` — *when the work is done, retire* and
+/// *when this leaf's path looks decided against, stop and ask*. Delete the second
+/// and the walk still lands every session in `retire.md`, whose pruning prose is
+/// untouched; a session whose path looks decided against nonetheless has nothing
+/// telling it to look. So the mutant keeps the owner file, its prose, and one
+/// edge to it, and removes only the condition — and `pruning-is-hitl` must go red
+/// even though its wording is still sitting on the path.
+#[test]
+fn a_rule_whose_own_condition_went_is_not_delivered_by_a_sibling_edge() {
+    const PRUNING_CONDITION: &str = "Pruning is **HITL — an agent never prunes on its own**: an \
+                                     AFK session that\nfinds its leaf's path decided against \
+                                     says so and stops. The loop stalling on an\nabandonment \
+                                     decision is the system working, not a fault \
+                                     (`references/retire.md`).";
+
+    let mut mutant = corpus();
+    let skill = mutant
+        .get_mut("SKILL.md")
+        .expect("the corpus carries SKILL.md");
+    assert!(
+        skill.contains(PRUNING_CONDITION),
+        "content/SKILL.md no longer carries the pruning condition this control excises \
+         verbatim. Re-point it at the current wording; excising nothing would make the \
+         control pass for the wrong reason."
+    );
+    *skill = skill.replace(PRUNING_CONDITION, "");
+
+    let pruning = INVARIANTS
+        .iter()
+        .find(|invariant| invariant.rule == "pruning-is-hitl")
+        .expect("the table carries pruning-is-hitl");
+    let asks = &pruning.claims[1];
+    let path = loaded_path(&mutant, Kind::Impl);
+
+    // The owner file is still there, still reached, and still says it. Nothing
+    // about reachability has changed — which is what makes the next assertion a
+    // statement about triggers rather than about the walk.
+    assert!(
+        claim_sites(&path, asks).contains(&"references/retire.md".to_owned()),
+        "the mutant must leave content/references/retire.md on the path and its pruning prose \
+         intact, or this control is testing unreachability again"
+    );
+
+    assert!(
+        unmet(&path, pruning).contains(&asks.what),
+        "with its own condition deleted, pruning-is-hitl must not count as delivered — the \
+         procedure is present and no session meeting the situation is told to open it. If \
+         this passes, delivery is following any mention of the owner file and a rewrite may \
+         silently drop a trigger sentence."
+    );
+    assert_eq!(
+        unmet(&path, pruning).len(),
+        pruning.claims.len(),
+        "and every claim of the rule goes with the condition, not just the one this control \
+         reads first"
+    );
+}
+
 /// **The routing table is a selector, not an edge.**
 ///
 /// It names all ten reference files so a session that arrived without a mandate
@@ -855,13 +1303,21 @@ fn the_routing_table_is_a_selector_rather_than_an_edge() {
     );
 }
 
-/// **The two per-kind endings do not leak into each other's paths.**
+/// **The two per-kind endings do not leak into each other's paths — not even
+/// partly.**
 ///
 /// `content/SIGNAL.md` is named by no corpus file at all: it reaches a session
 /// only because the core inlines its bytes for the eighteen kinds that end one
 /// way. `content/SIGNAL-FINISH.md` reaches `finish` the same way. So the two
 /// rules genuinely bind different kind sets, and asserting the absence is what
 /// makes the positive claim about delivery rather than about the corpus.
+///
+/// **Every claim of the foreign rule must be absent, not merely one of them.**
+/// Either partial leak is already the dangerous wrong action: a `finish` path
+/// that acquires *run bare `grove-llm complete` as your last action* relaunches
+/// the loop onto a torn-down grove, and an ordinary path that acquires
+/// `complete --done` stops the loop with work still live. Asserting only that
+/// something is missing would pass both.
 #[test]
 fn each_endings_rule_is_absent_from_the_other_kinds_path() {
     let corpus = corpus();
@@ -882,14 +1338,22 @@ fn each_endings_rule_is_absent_from_the_other_kinds_path() {
         } else {
             three_endings
         };
-        assert!(
-            !unmet(&path, invariant).is_empty(),
-            "`{}`'s loaded path states the whole of {}, which binds the other kind set. \
-             Either a signal file's scope moved or one of them became reachable as prose — \
-             and a `{}` session told the wrong last action is the failure the split exists \
-             to prevent.",
+        let absent = unmet(&path, invariant);
+        assert_eq!(
+            absent.len(),
+            invariant.claims.len(),
+            "`{}`'s loaded path delivers part of {}, which binds the other kind set: {:?} \
+             reached it. Either a signal file's scope moved or one of its instructions became \
+             reachable as prose — and a `{}` session told any part of the wrong ending is the \
+             failure the split exists to prevent.",
             kind.label(),
             invariant.rule,
+            invariant
+                .claims
+                .iter()
+                .map(|claim| claim.what)
+                .filter(|what| !absent.contains(what))
+                .collect::<Vec<_>>(),
             kind.label()
         );
     }

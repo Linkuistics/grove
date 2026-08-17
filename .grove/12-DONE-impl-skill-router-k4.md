@@ -86,7 +86,58 @@ knows to make, withholding a condition yields an unasked question.
 - The 500-line ceiling in `tests/methodology.rs` still exists at this point and
   will pass trivially. It is replaced in `loaded-path-budgets-k10`, not here —
   do not delete it early and leave the corpus unmeasured in between.
-- Cut the `review-impl` step as this leaf's last act. A 75% reduction of the file
+- Cut the `review-impl` step as this leaf's last act — **done**, as
+  `skill-router-k20`. A 75% reduction of the file
   every session reads is exactly the load-bearing artifact the review chain exists
   for, and the specific doubt to write into that leaf's body is *which retained
   rule got quietly weakened into a pointer*.
+
+## Running log
+
+**Measured, not projected.** `content/SKILL.md`'s body is **796 words** (from
+3,152), 113 lines, 26 trigger sentences, longest 16 words, mean 11.6. The spec
+projected 500–620; the difference is the three parts nobody had drafted when that
+projection was made — the intro, the section headings, the routing table's cells,
+and the eighth `own` body. The number is recorded in the test's own doc comment
+and here, and it is a measurement: the ceiling of 900 is what binds, and there is
+no floor to write to.
+
+**The budget assertion** is `tests/methodology.rs::the_skill_holds_its_condition_register_budget`
+— ≤900 words, exactly 26 triggers, each ≤25 words, and the eight `own` rows named
+one at a time so a failure says which row left. The 500-line ceiling beside it is
+untouched and now passes trivially; `loaded-path-budgets-k10` replaces it.
+
+**Four rules were stated in `SKILL.md` and nowhere else in `content/`**, so
+removing them would have deleted them outright rather than rehoming them. The
+spec's *later leaf performs the move* convention assumes the earlier leaf may
+keep its copy, and this leaf's contract forbids that, so this leaf performed the
+whole move: `one-focused-commit`'s scope and the Retire-first reason into
+`references/commit.md`; `node-close-is-implicit` plus *the close asks the human
+nothing*, and `pruning-is-hitl`'s *an agent never prunes on its own*, into
+`references/retire.md`. Every other rule's owner already stated it. The inventory
+was right about the owners; what it could not say is which owners were not yet
+carrying their rule, and that gap is now recorded in the spec.
+
+**A procedure register must not restate the condition.** The pruning move first
+landed in `retire.md` in the trigger's own words (*finds its leaf's path decided
+against*), which made `SKILL.md`'s sentence 13 redundant to a delivery check —
+`tests/lifecycle_invariants.rs`'s condition-severing control caught it, which is
+the k3 net doing exactly what it was built for. Reworded to state the obligation
+without the situation.
+
+**Several triggers name an owner that does not yet carry the rule** — the repo-claim,
+decision-log, escalation, fog, prior-art, triage and shape-selection rules are
+still in `driving.md` until `loop-step-references-k11` and `corpus-split-k6` move
+them. Not homelessness (they are stated in `content/`), and not this leaf's to
+fix: the canonical trigger set is the design's, and repointing it at `driving.md`
+would name a file those leaves delete. Recorded so the window is deliberate
+rather than discovered.
+
+**Five test files were repointed**, not relaxed: `commit_guidance` (commit scope
+→ `commit.md`; Retire-before-Commit now asserted over the two trigger sentences'
+order), `composition_guidance` (the re-derives/consumes asymmetry →
+`decompose.md`; *no launch metadata* → `TASK-FORMAT.md`), `lifecycle_invariants`
+(the condition-severing control's excised text → trigger 13), `prompt` (the VCS
+condition's opener), `retire_guidance` (node close and pruning → `retire.md`,
+with the two `SKILL.md` triggers asserted alongside). Full suite: 948 passing,
+clippy clean.

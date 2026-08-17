@@ -21,10 +21,16 @@ fn node_close_matches_the_confirmation_boundary() {
 
     // The loop overview diagram stated this a second time as a picture, and went
     // with the rest of the file-reader narrative; the prose below is now the only
-    // statement of it.
+    // statement of it. It moved to the Retire reference with the rest of the
+    // node-close procedure: `SKILL.md` keeps the situation — *a node has no live
+    // leaf left* — and this file says what the close is.
     assert!(
-        skill.contains("The close asks the human nothing"),
+        retire.contains("The close asks the human nothing"),
         "a node close must stay unconfirmed — it infers done-ness rather than deciding it"
+    );
+    assert!(
+        skill.contains("When a node has no live leaf left"),
+        "and the page every session reads must still send it here when a node empties"
     );
     // *That* it closes without a gate is the condition, so it stays above; *how*
     // the closing session discharges it — check the `Done when`, then report the
@@ -42,12 +48,16 @@ fn node_close_matches_the_confirmation_boundary() {
     // reintroduce a per-species branch: a close that skips its `Done when`
     // rollup because a node "is the other kind" silently drops a real check.
     assert!(
-        !skill.contains("Brief-less node"),
+        !skill.contains("Brief-less node") && !retire.contains("Brief-less node"),
         "the node close must not restore the two-species discriminator"
     );
     assert!(
-        skill.contains("an agent never prunes on its own"),
-        "pruning must stay HITL on the page every session reads"
+        retire.contains("agent never prunes on its own"),
+        "pruning must stay HITL where the prune verb is"
+    );
+    assert!(
+        skill.contains("When this leaf's path looks decided against, stop and ask"),
+        "and the page every session reads must stop it before it reaches for the verb"
     );
     assert!(
         retire.contains("Only on explicit human confirmation, run"),

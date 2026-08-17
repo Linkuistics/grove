@@ -449,6 +449,35 @@ leaves the old statement in place and untouched. A rule with no statement in
 `content/` between two commits is deleted for every session launched in that
 window, and in a meta-grove that window is real sessions.
 
+**The later-leaf convention yields when the earlier leaf cannot keep its copy.**
+It assumes the earlier leaf is free to leave the old statement where it is, and
+`skill-router-k4` is not: its own contract is a `SKILL.md` of eight `own` rows,
+26 trigger sentences and nothing else, so every procedure it holds has to go in
+that commit whether or not the owner is ready for it. Where the owner file
+already stated the rule the removal is free — which was true of most of them, the
+duplication being what this design exists to remove. Where it did not, **the
+earlier leaf performs the whole move**: the invariant is the point and the
+convention is only the cheapest way to satisfy it.
+
+Four rules were in that position, each stated in `SKILL.md` and nowhere else in
+`content/`, and `skill-router-k4` landed all four in their owners:
+`one-focused-commit`'s scope (the artifact, the grow-verb writes, the `DONE`
+rename and the cascade's promotions, and why Retire precedes) →
+`references/commit.md`; `node-close-is-implicit` and the close's *asks the human
+nothing* clause → `references/retire.md`; and `pruning-is-hitl`'s agent-side
+half — *an agent never prunes on its own*, which the file gated on human
+confirmation without ever forbidding — → `references/retire.md`. Each owner cell
+was right; what the inventory could not say is that four owners named a file
+which did not yet carry the rule.
+
+**A procedure register states the rule, not the condition.** The pruning move
+first landed in `references/retire.md` in the condition's own words — *finds its
+leaf's path decided against* — which put the situation and the procedure in one
+file and made `SKILL.md`'s trigger redundant to a delivery check. That is the
+duplication in miniature, and `tests/lifecycle_invariants.rs`'s
+condition-severing control caught it: an owner file that restates the situation
+cannot fail when its trigger is deleted.
+
 ---
 
 ### The inventory

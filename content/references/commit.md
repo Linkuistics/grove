@@ -1,3 +1,10 @@
+## What one commit contains
+
+One task is **one focused commit**: the artifact, whatever the grow verbs wrote,
+and the `DONE` rename that retires the leaf, together with anything the cascade
+above promoted or added. Everything in that list is written by Retire, which is
+why Retire comes first — the message cannot name a node you have not yet closed.
+
 ## Where the boundary falls, in git and in jj
 
 That commit is also the boundary the *next* session starts from, and git and jj

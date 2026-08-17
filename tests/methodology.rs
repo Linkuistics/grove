@@ -258,6 +258,215 @@ fn the_skill_body_fits_the_progressive_disclosure_ceiling() {
     assert_eq!(body_lines("no frontmatter here\n"), None);
 }
 
+/// **The condition register's budget, asserted as four exact claims.**
+///
+/// `content/SKILL.md` is on every session's static loaded path, so it is the
+/// single largest lever on what a session pays to read
+/// (`docs/specs/corpus-rule-ownership.md`, *What `SKILL.md` can hold,
+/// arithmetically*). The design states the budget as a **ceiling of 900 words**
+/// plus three exact counts, and deliberately gives it **no floor**: a floor could
+/// only be derived from a measurement nobody had taken, and it would be
+/// discharged by writing words to reach it.
+///
+/// The exact counts are what a word count cannot do. A silently dropped
+/// `trigger` sentence is a rule that stops being reachable from this file — the
+/// failure the whole ownership design exists to prevent — and it makes the file
+/// *smaller*, so a ceiling alone reports success. `=26` rather than `<=26` for
+/// the same reason, and the eight `own` rows are checked by name so a failure
+/// says **which** row left rather than that the total moved.
+///
+/// The rewrite that landed this measured **796 words**, 26 triggers, longest 16.
+/// The spec projected 500–620 on the drafted parts; the difference is the intro,
+/// the headings, the routing table's cells and the eighth `own` body, none of
+/// which had been written when that projection was made. It is recorded here as a
+/// measurement, not as a target — the ceiling is what binds.
+#[test]
+fn the_skill_holds_its_condition_register_budget() {
+    const WORD_CEILING: usize = 900;
+    const TRIGGERS: usize = 26;
+    const TRIGGER_WORDS: usize = 25;
+
+    let skill = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("content/SKILL.md"))
+        .expect("content/SKILL.md must be readable");
+    let body = body_text(&skill).expect("content/SKILL.md must have YAML frontmatter");
+
+    let words = body.split_whitespace().count();
+    assert!(
+        words <= WORD_CEILING,
+        "content/SKILL.md's body is {words} words against a ceiling of \
+         {WORD_CEILING}. Route a procedure to the reference file its condition \
+         names rather than raising the ceiling."
+    );
+
+    let triggers = trigger_sentences(body);
+    assert_eq!(
+        triggers.len(),
+        TRIGGERS,
+        "content/SKILL.md must carry exactly the {TRIGGERS} canonical trigger \
+         sentences of docs/specs/corpus-rule-ownership.md, *The trigger \
+         sentences* — they are this file's whole edge list, so a missing one \
+         leaves its rule unreachable and an extra one is a rule stated twice. \
+         Found: {triggers:#?}"
+    );
+    let overlong: Vec<(usize, usize)> = triggers
+        .iter()
+        .enumerate()
+        .map(|(index, sentence)| (index + 1, sentence.split_whitespace().count()))
+        .filter(|(_, count)| *count > TRIGGER_WORDS)
+        .collect();
+    assert!(
+        overlong.is_empty(),
+        "a trigger is one sentence of at most {TRIGGER_WORDS} words — the \
+         situation, a single-clause obligation, and the owner file's path. These \
+         (1-based index, words) have outgrown that and are becoming procedures: \
+         {overlong:?}"
+    );
+
+    let absent: Vec<String> = OWN_ROWS
+        .iter()
+        .flat_map(|(rule, phrases)| {
+            missing_phrases(body, phrases)
+                .into_iter()
+                .map(move |phrase| format!("{rule}: {phrase:?}"))
+        })
+        .collect();
+    assert!(
+        absent.is_empty(),
+        "content/SKILL.md is the canonical source for eight rules — the ones \
+         whose whole content is their trigger, so no procedure remains to defer. \
+         Each of these is missing wording it is supposed to carry: {absent:#?}"
+    );
+
+    // The controls. Each measure has to be able to fail, and the two that read
+    // structure have to fail on the shape they would otherwise lose silently.
+    let synthetic = "- When a wrapped bullet runs on, it\n  still counts once.\n\
+                     - Retire the leaf as `references/retire.md` directs.\n\
+                     \nWhen a paragraph opens this way it is not a bullet.\n";
+    let control = trigger_sentences(synthetic);
+    assert_eq!(
+        control.len(),
+        1,
+        "only a list item opening `When` is a trigger, and a wrapped one is one \
+         sentence: {control:?}"
+    );
+    assert_eq!(control[0].split_whitespace().count(), 10);
+    assert_eq!(
+        missing_phrases("the spine is here", &["the spine", "the mandate"]),
+        vec!["the mandate"]
+    );
+    assert!(body_text("no frontmatter here\n").is_none());
+}
+
+/// The eight rules `content/SKILL.md` **owns** — `Occasion = orientation`, whole
+/// content is the trigger, nothing left to defer — each with wording that has to
+/// survive a rewrite (`docs/specs/corpus-rule-ownership.md`, *the condition
+/// register*).
+///
+/// Phrases rather than whole sentences, and several per row where the row is a
+/// list: the claim is that the row is *present*, not that it is worded to the
+/// letter, and a rewrite is free to re-say it. What it is not free to do is drop
+/// one — which is what these name, one row at a time.
+///
+/// The routing table's own rows are pinned by
+/// [`the_skills_routing_table_names_a_reference_file_that_exists`]; what is
+/// checked here is the instruction over it, which is the part that makes it a
+/// rule rather than a listing.
+const OWN_ROWS: [(&str, &[&str]); 8] = [
+    ("kind-routing-table", &["open the one row your kind names"]),
+    (
+        "spine-seven-constraints",
+        &[
+            "Artifacts, not state.",
+            "Read, don't run.",
+            "Suggested shape, not enforced schema.",
+            "Lazy and optional.",
+            "grove guides, it does not gate.",
+            "Walk-away-able.",
+            "One page of rules.",
+            "just-in-time, not few",
+        ],
+    ),
+    ("one-task-is-one-session", &["One task is one session."]),
+    (
+        "bootstrap-order",
+        &[
+            "Resolve the mandated handle",
+            "the glossary",
+            "the ADRs the briefs cite",
+            "`BRIEF.md` chain root→leaf",
+            "the task file",
+            "Nothing else by reflex",
+        ],
+    ),
+    ("mandate-is-authoritative", &["mandate is authoritative"]),
+    ("no-second-pick", &["Do not pick again", "the mandate wins"]),
+    (
+        "stated-vcs-is-definitive",
+        &[
+            "stated VCS is definitive",
+            "Do not re-derive",
+            "disregard a harness banner",
+        ],
+    ),
+    (
+        "hitl-afk-mark-predicts",
+        &[
+            "mark predicts, it does not permit",
+            "any kind may stop and ask",
+        ],
+    ),
+];
+
+/// Every `trigger` sentence in the body: a list item opening `When`, with its
+/// continuation lines rejoined.
+///
+/// **Rejoining is the whole reader**, and it fails in the direction that matters
+/// if it is left out: the sentences wrap at the file's column, so a line-based
+/// count would see the right number of items while measuring each at a fraction
+/// of its length, and the per-sentence ceiling would pass on a sentence that had
+/// grown into a paragraph.
+fn trigger_sentences(body: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut open = false;
+    for line in body.lines() {
+        if let Some(item) = line.strip_prefix("- ") {
+            open = item.starts_with("When ");
+            if open {
+                out.push(item.trim().to_owned());
+            }
+        } else if open && line.starts_with("  ") && !line.trim().is_empty() {
+            let sentence = out.last_mut().expect("an open item was pushed");
+            sentence.push(' ');
+            sentence.push_str(line.trim());
+        } else {
+            open = false;
+        }
+    }
+    out
+}
+
+/// Which of `phrases` `text` does not carry, comparing on whitespace-collapsed
+/// text so that a phrase spanning a line break still matches — the corpus wraps,
+/// and a needle that silently missed a wrapped match would report a present row
+/// as absent.
+fn missing_phrases(text: &str, phrases: &[&str]) -> Vec<String> {
+    let flattened = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    phrases
+        .iter()
+        .filter(|phrase| !flattened.contains(**phrase))
+        .map(|phrase| (*phrase).to_owned())
+        .collect()
+}
+
+/// The body of a frontmatter document — everything after the closing `---`.
+/// `None` when the document does not open with frontmatter, so a stripped header
+/// fails rather than measuring the whole file as prose.
+fn body_text(text: &str) -> Option<&str> {
+    let rest = text.strip_prefix("---\n")?;
+    let end = rest.find("\n---\n")?;
+    Some(&rest[end + "\n---\n".len()..])
+}
+
 /// Lines after the closing `---` of YAML frontmatter. `None` when the document
 /// does not open with frontmatter, so a stripped header fails rather than
 /// measuring the whole file.

@@ -1201,11 +1201,8 @@ fn a_rule_only_in_an_unnamed_file_is_off_every_loaded_path() {
 /// even though its wording is still sitting on the path.
 #[test]
 fn a_rule_whose_own_condition_went_is_not_delivered_by_a_sibling_edge() {
-    const PRUNING_CONDITION: &str = "Pruning is **HITL — an agent never prunes on its own**: an \
-                                     AFK session that\nfinds its leaf's path decided against \
-                                     says so and stops. The loop stalling on an\nabandonment \
-                                     decision is the system working, not a fault \
-                                     (`references/retire.md`).";
+    const PRUNING_CONDITION: &str = "- When this leaf's path looks decided against, stop and ask, \
+                                     as\n  `references/retire.md` directs.\n";
 
     let mut mutant = corpus();
     let skill = mutant

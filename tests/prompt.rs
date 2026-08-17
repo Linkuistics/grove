@@ -235,9 +235,9 @@ fn the_skill_carries_the_two_rules_the_core_sheds() {
             ["`grove-llm pick`", "the mandate wins"],
         ),
         (
-            "**The version control the driver states is definitive.**",
+            "**The stated VCS is definitive.**",
             "that the driver's stated version control is definitive and is not re-derived",
-            ["definitive", "do not re-derive it"],
+            ["definitive", "Do not re-derive"],
         ),
     ] {
         let start = skill.find(opener).unwrap_or_else(|| {

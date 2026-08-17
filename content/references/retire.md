@@ -14,6 +14,10 @@ bookkeeping, no need to ask.
 
 ## Pruning an abandoned one
 
+**An agent never prunes on its own.** An AFK session that has reached this point
+says so and stops rather than making the call; the loop stalling there is the
+system working, not a fault.
+
 Only on explicit human confirmation, run `grove-llm leaf-prune <path>` (a leaf
 or a node — given a node it marks every live leaf in the subtree, leaving `DONE`
 ones alone, and refuses the grove root) to mark it `ABANDONED` in place.
@@ -32,7 +36,10 @@ clears the when-to-write bar; otherwise the mark and the commit message suffice
 
 ## Closing a node: the four steps
 
-Every node carries a `BRIEF.md`
+A node is **never marked**: its done-ness *is* the absence of a live leaf
+anywhere in its subtree, so a close is work in the parent chain rather than a
+write to the node. **The close asks the human nothing** — it infers done-ness
+rather than deciding it. Every node carries a `BRIEF.md`
 — it is a leaf that proved bigger, and the charter is what those extra sessions
 needed — so every close has the same four steps:
 

@@ -192,8 +192,12 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
 /// inverted pair is banned outright.
 #[test]
 fn guidance_binds_re_derivation_to_review_and_consumption_to_integration() {
+    // `content/references/decompose.md` stands where `content/SKILL.md` used to.
+    // The asymmetry is a *placement* rule — which hop needs protecting when a
+    // step is cut — and the condition register keeps only the situation and this
+    // path (`docs/specs/corpus-rule-ownership.md`, `integration-placement`).
     for (surface, text) in [
-        ("content/SKILL.md", GROVE_SKILL),
+        ("content/references/decompose.md", DECOMPOSE_REFERENCE),
         ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("CONTEXT.md", CONTEXT),
@@ -714,13 +718,14 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
             DRIVING,
             "it compares nothing, records nothing about how the producer ran, and raises no notice either way",
         ),
-        // The claim is unchanged; only its home moved. *Nothing in a body is
-        // metadata* is a condition, so it states itself on the loop page now
-        // rather than in the task-file format document.
+        // The claim is unchanged; its home moved back. *Nothing in a body is
+        // metadata* is body **grammar**, and the condition register says nothing
+        // about a rule a format file owns — so the task-file format document is
+        // where a session reads it, and where it is proved.
         (
-            "content/SKILL.md",
-            GROVE_SKILL,
-            "never a note the producer left behind about how its own session ran",
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "no record of how any past session ran",
         ),
         (
             "doubt-driven-development/SKILL.md",

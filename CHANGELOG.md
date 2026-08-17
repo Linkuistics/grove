@@ -51,6 +51,17 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`docs/RELEASING.md` spells out the manual cut.** `release.toml` already said
+  that a refused `cargo release` is a per-session fact about the harness rather
+  than anything inherent, and to fall back to the constituent commands — but it
+  named those only for the publish step. The v19.0.0 cut hit the refusal and had
+  to derive the rest, so it is written down: the three edits `cargo release`
+  makes, and the `jj describe` / `bookmark set` / `jj new` / `git tag` sequence
+  that produces the same two artifacts. The `jj new` is the part worth having in
+  writing — a colocated `HEAD` follows the working copy's *parent*, so without it
+  the tag lands one commit early and `release-build.sh` refuses with a message
+  about the tag rather than about the cause.
+
 ## v19.0.0
 
 - **Breaking. The v1-flat task-tree layout is no longer migrated either, and

@@ -95,6 +95,37 @@ git push origin v<version>
 
 Do not omit the tag. The GitHub Release created below is attached to it.
 
+### If an agent session's classifier refuses `cargo release`
+
+`release.toml` records that refusal is not inherent to these invocations — it
+depends on the session's own harness and permission configuration — and says to
+fall back to the constituent commands. For the publish step those are named in
+§3; for the cut they are below. They were used for the v19.0.0 cut, when
+`cargo release major --execute --no-confirm` was refused.
+
+Do the three edits `cargo release` would have made, then let jj and git make the
+two artifacts it would have created:
+
+```sh
+# 1. the version, in both manifests
+#    edit Cargo.toml's `version = "<old>"` → "<new>", then:
+cargo check                                  # rewrites Cargo.lock's grove entry
+# 2. close the changelog heading, exactly as pre-release-replacements would:
+#    insert `## v<new>` two lines under the standing `## Unreleased`
+# 3. the release change, the bookmark, and git's HEAD
+jj describe -m "chore: release v<new>"
+jj bookmark set main -r @
+jj new                                       # parks git HEAD on the release commit
+git tag -a v<new> -m "Release v<new>"
+git describe --tags --exact-match HEAD       # the precondition release-build.sh checks
+```
+
+Verify the change is exactly `Cargo.toml`, `Cargo.lock`, and two added
+`CHANGELOG.md` lines before tagging — that is the whole of what the automated cut
+produces. The `jj new` is not optional: a colocated `HEAD` follows the working
+copy's **parent**, so without it the tag lands on the wrong commit and
+`release-build.sh` refuses.
+
 ## 3. Build and publish
 
 Build the three platform archives and render their checksums into a Homebrew

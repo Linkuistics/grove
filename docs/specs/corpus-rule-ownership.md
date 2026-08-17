@@ -40,98 +40,57 @@ that points.
 
 **File a rule by when a session meets it, not by what it is about.**
 
-Two ADRs bind this area, and this spec cites rather than restates them:
-[every normative rule has one owner](../adr/corpus-rules-have-one-owner.md) decides
-the placement input and the ordered owner function, and [a restatement declares its
-class](../adr/restatement-declares-its-class.md) decides what the condition register
-may say about a rule it does not own. They are two records because either can change
-without the other: the function can gain occasion values or a new precedence while
-`own` / `trigger` / `none` stands, and the restatement classes can be relaxed — or
-made free by a generator — while every canonical owner stays put. What follows is
-the derivation, the inventory and the enforcement.
+**Two ADRs hold the normative statements this area rests on, and this spec states
+neither of them.** [Every normative rule has one
+owner](../adr/corpus-rules-have-one-owner.md) is the canonical source for the
+recorded pair `Bound(R)` · `Occasion(R)`, the closed occasion domain, the seven
+ordered placement rules and the reachability edge. [A restatement declares its
+class](../adr/restatement-declares-its-class.md) is the canonical source for the
+`own` / `trigger` / `none` classes, the trigger grammar and the sharing test.
+**Read both before using the inventory below** — the rule numbers, occasion values
+and class names used throughout this spec are theirs, and are not reproduced here.
+They are two records because either can change without the other: the function can
+gain occasion values or a new precedence while the classes stand, and the classes
+can be relaxed — or made free by a generator — while every canonical owner stays
+put.
 
-Two facts are recorded per rule, and together they decide its home.
+What this spec owns is everything downstream of those two decisions: the
+**derivation for particular rows**, the **inventory**, the **canonical trigger
+sentences**, the **budget arithmetic**, the **contradiction resolutions**, the
+**deferral policy**, the **relocation table**, and the **enforcement seams**. Where
+a row's owner is surprising, the derivation is stated at the row.
 
-- **Bound(R)** — the set of session kinds that must obey R.
-- **Occasion(R)** — *when* in a session's work R applies. A **non-empty set**
-  drawn from the closed domain below; most rules take a single value, and the
-  cases that do not are what the set is for.
-  - `orientation` — R must already be held when the session opens the skill;
-    there is no earlier moment at which a condition could send it anywhere.
-  - `launch` — R is about how this session was launched, picked and configured.
-  - `context` — R is a standing fact about the grove itself: what a grove is,
-    which artifact sets outlive it, what the toolchain around it requires. A
-    session meets it while orienting *inside* the work rather than at any one
-    loop step, and it is more than its own trigger, so `orientation` is wrong
-    for it.
-  - `step:<S>` — R applies at a step of the loop: `Bootstrap`, `Execute`,
-    `Decompose`, `Retire`, `Commit`, `Finish`, in that order.
-  - `artifact:<A>` — R applies when the session is about to write or change one
-    durable artifact **that has a format file**: `task`, `brief`, `adr`, `spec`,
-    `glossary`. The domain is exactly those five, because rule 3 below names a
-    format file and there is no sixth to name.
-  - `none` — R constrains no session's conduct at any moment. Legal only as the
-    whole set.
+### Row-level consequences of the ordering
 
-> **The placement function.** Apply these in order; **the first match wins**, and
-> that ordering is the tie-break.
->
-> 1. `Bound(R) = ∅` or `Occasion(R) = {none}` → **not normative.** Leaves
->    `content/`.
-> 2. `Bound(R)` is one kind or one kind family → that **kind reference**.
-> 3. `artifact:A ∈ Occasion(R)` → **A's format file**.
-> 4. `launch ∈ Occasion(R)` → **`references/driver.md`**.
-> 5. `context ∈ Occasion(R)` → **`references/grove.md`**.
-> 6. `step:S ∈ Occasion(R)` → the **loop-step reference for the earliest such S
->    in loop order**.
-> 7. `Occasion(R) = {orientation}` → **`content/SKILL.md`**.
->
-> No other file states R.
+Three consequences of the ordered function decide rows the superseded design got
+wrong, and each is recorded here rather than re-argued:
 
-**Two occasions of the same kind do not tie, and neither is dropped.** Several
-`artifact:A` values make R **one row per artifact**, each owned by that
-artifact's format file — which is what splits `records-are-current-state` in two.
-Several `step:S` values make R **one row**, owned by the earliest step's
-reference, because a rule must be held from the first moment it can apply: a
-session that read it at its earliest occasion still holds it at every later one,
-whereas filing it at the latest leaves the earlier occasion unserved. That is the
-same argument that puts `bootstrap-order` at `orientation`.
-
-So `escalation-names-the-tradeoff` records
-`{step:Execute, step:Retire, step:Finish}` — handing back to a human happens at
-all three — and rule 6 derives `references/execute.md` from the set rather than
-from a chosen member. Recording one arbitrary step and letting precedence compute
-from it would move the original ambiguity into the input instead of removing it.
-
-**Rules 4 and 5 are twins, and they are why the domain is not step-only.**
-`references/driver.md` and `references/grove.md` sit either side of the loop:
-neither is the reference for any step, so no `step:S` can reach them and a rule
-whose home is one of them needs its own occasion value. Without rule 5 the
-function derives no owner that is `grove.md`, and the three rows that name it
-would be hand-assignments wearing a derivation's clothes.
+- **`escalation-names-the-tradeoff` records `{step:Execute, step:Retire,
+  step:Finish}`** — handing a question back to a human happens at all three — and
+  the earliest-step rule derives `references/execute.md`.
+- **`finish-is-the-drivers-to-discover` records `{step:Retire, step:Finish}`.**
+  Its trigger is *the last live leaf retires*, which is an event in Retire; Finish
+  is what the driver may launch afterwards. The earliest-step rule therefore
+  derives `references/retire.md`, and the rule is **not** the `finish` kind's.
+  Filing it at Finish left the eighteen non-finish kinds — the only kinds that can
+  commit the error it forbids — pointed at a file they are never routed to.
+- **`records-are-current-state` splits in two.** Several `artifact:A` values make
+  one row per artifact, so it becomes `adr-set-is-minimum-coherent` and
+  `spec-set-is-current-state`, owned by the two format files, and
+  `references/execute.md` states neither.
 
 ### Why the input had to change
 
 The predecessor of this function took `Bound(R)` alone and mapped "all nineteen
-kinds" to *the loop-step reference for the step R governs*. That is not a
-function of its stated input twice over, and both failures were load-bearing.
-
-**It hid a second input.** *Which step does R govern?* is a judgement, and it is
-the same kind of judgement as *which topic does R belong to* — the thing the
-function was introduced to remove. Recording it as `Occasion(R)` does not make
-the judgement disappear; it makes it **one judgement per rule, stated in the
-row, and checkable by a reader** — *does a session actually meet this at that
-moment?* That is the honest claim, and it is weaker than the claim the
-superseded text made. What is genuinely computed is the *consequence*: given the
-pair, the owner follows with no further argument.
+kinds" to *the loop-step reference for the step R governs*. The ADR rejects that
+input; two of its concrete failures are inventory facts and belong here.
 
 **It contradicted itself on the ADR test.** `adr-when-to-write` binds all
 nineteen kinds, so the old table sent it to a loop-step reference; the design's
 own resolution put it in `ADR-FORMAT.md`, an artifact format file. Under the
-ordering above, rule 3 fires before rule 6 and the answer is `ADR-FORMAT.md` with
-nothing left to decide. The same ordering resolves the twin case:
-`records-are-current-state` is `artifact:adr` and `artifact:spec`, so it is **two
-rows owned by the two format files**, and `references/execute.md` states neither.
+ordered function, rule 3 fires before rule 6 and the answer is `ADR-FORMAT.md` with
+nothing left to decide — the same ordering that splits `records-are-current-state`
+above.
 
 **And it was inconsistent with the fixed runtime.** `always(K)` was defined as a
 *static* path whose file is `SKILL.md` or `reference_file(k)`, while rows owned by
@@ -152,97 +111,85 @@ they are.
 - `on(<trigger>) @ <file>` — conditional. `<file>` is the file whose sentence
   fires the trigger, and it is part of the predicate, not a note.
 
-**Reachability is an edge, not a loadable file.** The weaker form of this rule —
-*the `@` file must be static or itself reachable* — certifies the exact failure it
-exists to prevent, because it asks only whether the source file can be loaded and
-never whether that file **says anything that sends the session onward**. Under it,
-`@ SKILL.md` passes for a rule `SKILL.md` does not mention. So the predicate
-records an **edge**, and both ends are asserted:
+**The `@` column carries two relations, and only one of them is an edge.** Where
+`<file>` is *not* the row's owner, it records **what sends a session to another
+file** — a transition, and the thing reachability is about. Where `<file>` **is**
+the owner, it records **which condition inside an already-open file applies** — an
+in-file condition, which moves the session nowhere. 45 of the inventory's 92
+conditional rows are the second kind, including every follow-on row in
+`references/driver.md`, `execute.md`, `decompose.md`, `retire.md` and the format
+files. Reading those as edges makes each a self-loop and the graph uniformly
+cyclic, which would condemn the ordinary case.
 
-> For a conditional row with `on(t) @ F` and owner `O`, the pointer graph carries
-> the edge `F → O`, realised by a sentence **in F that names O's path**. The
-> assertions are: (1) `F` is static or is the owner of a reachable row; (2) `F`
-> actually names `O`; (3) every chain terminates at a static path with no cycles;
-> and (4) **every owner file that is not static has at least one incoming edge**.
+> **Cross-file rows only.** For a conditional row with `on(t) @ F` and owner `O`
+> where **`F ≠ O`**, the pointer graph carries the edge `F → O`, realised by a
+> sentence **in F that names O's path**. The assertions are: (1) `F` is static or
+> is the owner of a reachable row; (2) `F` actually names `O`; (3) every chain
+> terminates at a static path with no cycles; and (4) **every owner file that is
+> not static has at least one incoming edge**.
+>
+> **A row with `F = O` records no edge and is asserted only on its face**: `F` must
+> equal the grouping heading. It contributes nothing to the graph, cannot create a
+> cycle, and cannot discharge assertion 4 for its own file.
 
 Assertion 2 is what a file-loadability test cannot express, and assertion 4 is
 what catches an owner nothing points at even when every individual row's `@`
-resolves. `BRIEF-FORMAT.md` is legitimately reached from `decompose.md` rather
-than from `SKILL.md`, and the chain is what keeps `SKILL.md` a page. A row whose
-chain does not terminate — or whose source file names no path to it — is an
-**unreachable rule**: present in `content/`, deleted in effect. That failure is
-what `driving.md` already does to two `impl` rules today, inside `content/`
-rather than at its edge.
+resolves. Assertion 4 is also what makes the reflexive carve-out safe: **what is
+reached is a file, not a rule**, so once one cross-file edge lands a session in
+`decompose.md`, every in-file condition there is available to it — and a file with
+*no* incoming edge fails assertion 4 no matter how many reflexive rows it carries.
+`BRIEF-FORMAT.md` is legitimately reached from `decompose.md` rather than from
+`SKILL.md`, and the chain is what keeps `SKILL.md` a page. A row whose chain does
+not terminate — or whose source file names no path to it — is an **unreachable
+rule**: present in `content/`, deleted in effect. That failure is what `driving.md`
+already does to two `impl` rules today, inside `content/` rather than at its edge.
 
-**`@ SKILL.md` and `mirror = none` are contradictory, and the schema now says
-so.** The sentence realising an edge out of `SKILL.md` *is* a `trigger`, so a row
-whose `@` file is `SKILL.md` must declare `trigger` or share another row's trigger
-sentence. `mirror = none` is legal only when the row's `@` file is some other
-file — and mandatory when `Bound(R)` is one kind or one family. That pairing is
-what left `references/driver.md` with no incoming sentence at all: two of its rows
-claimed a `SKILL.md` trigger while declaring that `SKILL.md` says nothing.
+**The cross-file graph is fourteen edges, realised by 47 rows.** Ten run out of
+`SKILL.md` — to `references/grove.md`, `driver.md`, `bootstrap.md`, `execute.md`,
+`decompose.md`, `retire.md`, `commit.md`, and to `ADR-FORMAT.md`, `SPEC-FORMAT.md`
+and `CONTEXT-FORMAT.md` — and four do not: `references/requirements.md` →
+`grilling.md`, `references/decompose.md` → `TASK-FORMAT.md` and → `BRIEF-FORMAT.md`,
+and `references/retire.md` → `BRIEF-FORMAT.md`. Every chain terminates at a static
+path — `SKILL.md` and `references/requirements.md` are static, and `decompose.md`
+and `retire.md` are themselves reached from `SKILL.md` — and none revisits a file.
+Every non-static owner appears as a target. `references/finish.md` and
+`content/SIGNAL.md` need no incoming edge: both are static for the kinds their
+remaining rows bind, which is what the move of
+`finish-is-the-drivers-to-discover` out of `finish.md` leaves behind.
 
-### Reachability, and why the hard boundary needs no separate rule
+The `@` file and the declared class constrain each other; *How this inventory
+records the three classes* below states how.
 
-`docs/` is not provisioned. A `docs/` path is therefore reachable **only** to a
-session working inside this repository, and to no session on any other project.
-So the hard boundary — *normative material stays embedded* — is not an extra rule
-to remember; it is the placement function's first case read backwards:
+### Where the hard boundary is applied
 
-> A rule may move to `docs/` **iff** `Bound(R) = ∅` or `Occasion(R) = none`. If
-> any session must obey it at any moment, `docs/` is not a home.
+`docs/` is not provisioned, so *normative material stays embedded* needs no rule of
+its own: it is placement rule 1 read backwards, which the owner ADR settles. What
+this spec does with it is **apply it per relocation**. Every move authorised below
+names the rule it is moving, states why that rule's `Bound` is empty or its
+`Occasion` is `none`, and is refused otherwise; the discharge is in *What moves,
+and where*, and in the `Relocate →` notes under the inventory's file groups.
 
-Every relocation this design authorises is checked against that test, and the
-test is stated per relocation in *What moves, and where* below.
+### How this inventory records the three classes
 
-### The two registers, and the three mirror classes
+The two registers, the `own` / `trigger` / `none` classes, the ≤25-word trigger
+grammar and the same-situation-same-owner sharing test are [the restatement
+record](../adr/restatement-declares-its-class.md)'s and are not restated here.
+What the inventory adds is the per-row application, and three facts about it are
+worth stating once:
 
-The corpus already has a condition/procedure split. This design promotes it from
-a description of the corpus into the rule that governs restatement.
-
-- The **procedure register** — reference files, format files — carries how to act
-  once a rule applies. **Exactly one file per rule. Never mirrored.**
-- The **condition register** — `content/SKILL.md` alone — carries *that a
-  situation exists calling for something other than what this session is doing*.
-
-A single "a mirror is one sentence naming a file" rule does not survive contact
-with the corpus, and the superseded text proved it: the same document forbade a
-mirror carrying "a test, a threshold, a list, or a procedure" and then permitted
-the seven-item spine list, the bootstrap order, the one-reviewer allowance, the
-integration-placement test and the triage mapping in `SKILL.md`. The requirements
-independently ask `SKILL.md` to *carry* the bootstrap order, which a pointer
-cannot do.
-
-The defect was treating `SKILL.md`'s relationship to a rule as one thing. It is
-three, and **every inventory row states which**:
-
-| class | what `SKILL.md` carries | when it is legal |
-|---|---|---|
-| **`own`** | the whole rule; `SKILL.md` is the canonical source | `Occasion(R) = orientation` — the rule's whole content *is* its trigger, and no procedure remains to defer. A procedure file may explain it; none may restate it. |
-| **`trigger`** | **one sentence, ≤25 words**: the situation, a single-clause obligation, and the owner file's path | `Bound(R)` is all nineteen and `Occasion(R)` is a step, an artifact, `launch` or `context`. May not carry a threshold, a branch, an enumeration or steps. **Required** whenever the row's `@` file is `SKILL.md`. |
-| **`none`** | nothing at all | mandatory whenever `Bound(R)` is one kind or one family (the driver already named that kind's reference, so there is nothing to trigger the session into); otherwise legal only when the row's `@` file is not `SKILL.md`, so the edge into the owner comes from another conditional file. |
-
-**When two rows may share one sentence.** Only when they have the **same
-situation** and the **same owner file** — the merged sentence then still names one
-situation, one obligation and one path, which is the whole of the grammar. Two
-rows with different owner files cannot share, because one sentence would have to
-name two paths; two rows with different situations cannot share, because one
-sentence would have to enumerate two conditions. Both were being done: the
-superseded count paired the ADR test with the spec agreement point (two files) and
-the durable artifacts with the plugin prerequisite (two situations), and each pair
-only fitted 25 words by using the branch the class forbids. Where two rows do
-share, the inventory states the shared sentence's name in **both** rows, and the
-canonical wording is in *The trigger sentences* below.
-
-Any statement of a rule outside its owner and its declared class is a defect, and
-a second *procedure-register* statement is a defect even when the two currently
-agree.
-
-**Two corollaries survive from the superseded text, unchanged.** A per-kind rule
-gets no `SKILL.md` presence at all — which is most of what the file carries today
-and most of why it shrinks. And a paraphrased test is never a legal `trigger`:
-"ADRs are raised sparingly" reads as a condition and *is* a looser test, which is
-how the AND/OR contradiction was born.
+- **Every row declares a class**, in the `mirror` column, and the declaration is
+  checkable against the row's own `@` file. A row whose `@` file is `SKILL.md` must
+  declare `trigger` or share another row's sentence, because the sentence realising
+  that edge *is* a trigger; `none` is legal only when the `@` file is some other
+  file. That pairing is what left `references/driver.md` with no incoming sentence
+  at all — two of its rows claimed a `SKILL.md` trigger while declaring that
+  `SKILL.md` says nothing.
+- **Where two rows share a sentence, the inventory names it in both rows**, and the
+  canonical wording is in *The trigger sentences* below. Four superseded pairings
+  fail the sharing test and are split there.
+- **Per-kind rows carry `none` by construction.** That is most of what `SKILL.md`
+  states today, and most of why the file shrinks without anything leaving the
+  corpus.
 
 ### What `SKILL.md` can hold, arithmetically
 
@@ -256,29 +203,35 @@ an assertion.
 
 | part | measured | budget |
 |---|---|---|
-| frontmatter `description`, title, intro, section headings | — | ≤120 words |
-| the **8 `own` rows** (routing table, spine, one-task-one-session, bootstrap order, mandate, no second pick, stated VCS, HITL/AFK mark) | ~212 | ≤240 words |
-| the **24 `trigger` sentences** below, each ≤25 words | 281 | ≤480 words |
-| **total** | ~613 | **600–900 words** |
+| frontmatter `description`, title, intro, section headings | not drafted | ≤120 words |
+| the **8 `own` rows** (routing table, spine, one-task-one-session, bootstrap order, mandate, no second pick, stated VCS, HITL/AFK mark) | 192 for seven; the eighth not drafted | ≤240 words |
+| the **26 `trigger` sentences** below, each ≤25 words | 302 | ≤480 words |
+| **total** | 494 drafted, two parts outstanding | **at most 900 words** |
 
-The two budgets bind differently and both are asserted. The per-sentence ceiling
-of 25 words is a *shape* rule keeping a trigger from growing into a procedure; the
-total is the file's size, and the parts' ceilings now sum to 840 rather than over
-the top of the range, so no part can be spent to the ceiling and still break the
-total.
+**There is no floor, and the reason is that nothing has measured one.** The
+superseded arithmetic reported a total of "~613" and derived a 600-word floor from
+it — but 613 is `120 + 212 + 281`, and the 120 is this table's *ceiling* on a part
+nobody had written. Adding a budget to two measurements does not produce a
+measurement, and a floor asserted over the sum can only be discharged by writing
+words to reach it. That is the padding the previous correction was trying to
+prevent, one layer down.
 
-**The measured file lands below the requirements' "roughly 700–900".** Twenty-four
-triggers written to the grammar measure 281 words, and the seven `own` bodies
-drafted during review measured 192; the eighth adds about 20. Nothing in that is
-padding-shaped, and the honest consequence is a **floor of 600, not 700**: a
-700-word floor asserted over this content would be an instruction to write filler,
-which is the opposite of what the workstream is for. The floor's job is to catch a
-file that has silently *dropped* a row, and 600 does that. The root brief records
-the corrected range.
+What a floor was for is caught directly and better by the three exact assertions
+below: **exactly 26 trigger sentences**, each ≤25 words, and the **eight `own` rows
+present**. A silently dropped row fails one of those by name, and says which. A
+word count could only report that the file is smaller than expected, and would
+pass a file that dropped a row and gained a paragraph of prose.
 
-**Twenty-nine `trigger` rows resolve to twenty-four sentences.** Four sentences
-cover two rows each, and each pair passes the sharing test above — same situation,
-same owner file:
+So the budget is a **ceiling of 900 words** plus the three exact assertions. The
+per-sentence ceiling of 25 words binds differently: it is a *shape* rule keeping a
+trigger from growing into a procedure. The parts' ceilings sum to 840, so no part
+can be spent to its own limit and still break the total. On the drafted content the
+file should land near 500–620 words; that is a **projection, not an assertion**,
+and `skill-router-k4` records what it actually measured.
+
+**Thirty-one `trigger` rows resolve to twenty-six sentences.** Five sentences
+cover two rows each, and each pair is recorded here because it passes the
+restatement record's sharing test:
 
 - `retire-before-commit` + `retirement-is-filename-only` (retire.md)
 - `triage-picks-the-verb` + `no-fourth-status` (retire.md) — *not*
@@ -291,7 +244,7 @@ same owner file:
 - `pick-walk-order` + `one-configuration` (driver.md) — the pair that gives
   `references/driver.md` its incoming edge
 
-That is five pairs, so 29 rows − 5 shared = 24 sentences. Four superseded pairings
+That is five pairs, so 31 rows − 5 shared = 26 sentences. Four superseded pairings
 are **split** rather than kept: the durable artifacts from the plugin prerequisite
 (two situations), the ADR test from the spec agreement point (two files), the ADR
 set's current-state rule from the spec set's (two files), and
@@ -305,7 +258,7 @@ above is measured over them.
 
 | # | sentence | words | rows |
 |---|---|---|---|
-| 1 | When how this session was launched, picked or configured matters, read `references/driver.md`. | 12 | `pick-walk-order`, `one-configuration` |
+| 1 | When how this session was launched matters, read `references/driver.md`. | 9 | `pick-walk-order`, `one-configuration` |
 | 2 | When the mandated handle resolves to nothing or to a terminal leaf, stop as `references/bootstrap.md` directs. | 16 | `stale-launch-stops` |
 | 3 | When considering an in-session reviewer, apply the budget in `references/execute.md`. | 10 | `review-budget` |
 | 4 | When about to make a repo-wide claim, verify it as `references/execute.md` requires. | 12 | `verify-repo-claims-with-controls` |
@@ -321,7 +274,7 @@ above is measured over them.
 | 14 | When a leaf's place is in doubt, choose the verb `references/retire.md` names. | 12 | `triage-picks-the-verb`, `no-fourth-status` |
 | 15 | When a node has no live leaf left, close it as `references/retire.md` directs. | 13 | `node-close-is-implicit`, `cascade-is-silent` |
 | 16 | When the leaf is retired, commit it as `references/commit.md` directs. | 10 | `one-focused-commit`, `name-by-handle` |
-| 17 | When the last live leaf retires, leave finishing to the driver, as `references/finish.md` directs. | 14 | `finish-is-the-drivers-to-discover` |
+| 17 | When the last live leaf retires, leave finishing to the driver, as `references/retire.md` directs. | 14 | `finish-is-the-drivers-to-discover` |
 | 18 | When deciding where a durable artifact belongs, follow `references/grove.md`. | 9 | `durable-artifact-set` |
 | 19 | When a rule cites the `linkuistics` plugin, read what binds without it in `references/grove.md`. | 14 | `plugin-prerequisite` |
 | 20 | When considering an ADR, apply the test in `ADR-FORMAT.md`. | 9 | `adr-when-to-write` |
@@ -329,11 +282,30 @@ above is measured over them.
 | 22 | When this increment may be an agreement point, consult `SPEC-FORMAT.md`. | 10 | `spec-at-an-agreement-point` |
 | 23 | When changing a spec, keep its set current as `SPEC-FORMAT.md` directs. | 11 | `spec-set-is-current-state` |
 | 24 | When a term is resolved, record it as `CONTEXT-FORMAT.md` directs. | 10 | `glossary-is-the-forcing-function` |
+| 25 | When an artifact may need review, decide it as `references/decompose.md` directs. | 11 | `review-chain-when-load-bearing` |
+| 26 | When a question may need two independent surveys, decide it as `references/decompose.md` directs. | 13 | `vendor-pair-when-load-bearing` |
 
-Longest is 16 words, mean 11.7, and none carries a threshold, a branch, an
+Total 302 words, longest 16, mean 11.6, and none carries a threshold, a branch, an
 enumeration or a step. `skill-router-k4` may reword within the grammar; it may not
 change the set without a design change, because the set **is** the reachability
 graph's edge list out of `SKILL.md`.
+
+**Sentence 1 states one situation and does not enumerate it.** Its superseded
+wording — *launched, picked or configured* — listed the three members of the
+`launch` occasion, which the trigger grammar forbids exactly because a list is how a
+condition grows back into a test. `launch` is one occasion by the placement
+function's own account, so the situation has a name and the sentence uses it; the
+two rows still share it legitimately, on one situation and one owner file.
+
+**Sentences 25 and 26 are new, and they close a reachability gap the inventory had
+left open.** `chain-is-lazy` and `pair-is-eager` say how the steps of each shape
+land once the shape is chosen, and both are reached from inside
+`references/decompose.md`. Nothing said **when a session should reach for either
+shape in the first place** — and none of sentences 7–11 fires for *my artifact is
+load-bearing and finished*, so a producer holding no such condition never opens the
+file and never asks. That is the unasked question the condition register exists to
+prevent, and it costs 24 words. Both sentences name the situation and defer the
+criterion, as sentence 3 does for the reviewer budget.
 
 The superseded inventory carried 39 `SKILL.md` mirror rows whose rule text alone
 ran to about 670 words before any router prose. That is what the classes bought,
@@ -395,6 +367,30 @@ decline rules). A section-level audit cannot see any of them, because in each ca
 the section it belongs to was already accounted for. So a file is complete only when
 **every imperative sentence in it** has been dispositioned, and the count of rows a
 file had before the audit is not evidence about the count it should have after.
+
+**The audit was promised and then not re-run, so it was re-run.** Announcing the
+sentence-level rule and continuing to work from the section list is how a
+methodology change becomes decorative; the second pass over the three nominated
+files — `content/driving.md`, `content/TASK-FORMAT.md`,
+`content/references/finish.md` — found five more rules with no row, every one of
+them the same shape as the three that motivated the rule:
+
+| rule | source sentence | why no row existed |
+|---|---|---|
+| `review-chain-when-load-bearing` | `driving.md:399-402` | its section was in the relocation table with six other rules under it |
+| `vendor-pair-when-load-bearing` | `driving.md:92-94` | as above, with four |
+| `sweep-scope-is-the-claim` | `driving.md:330-336` | three named narrowing failures, inside a section whose four other rules were listed |
+| `no-kind-prefix-in-commit-subject` | `TASK-FORMAT.md:237-239` | a **Commit**-step imperative inside a *filename-grammar* file's argument for the bare stem |
+| `finish-resume-reruns-the-same-command` | `finish.md:32-38`, `:57-73` | reads as mechanics beside `finish-commit`, and its negative half is a *different* rule (`absent-tree-proves-nothing`) |
+
+Two of the five are **selection** rules whose construction counterpart *was*
+inventoried — `chain-is-lazy` says how a chain's steps land, `pair-is-eager` says
+how a pair's three do, and neither says when a session should reach for the shape.
+Following the inventory as a worklist would have deleted the criteria with
+`driving.md` while leaving the unowned duplicates in `decompose.md:93-96` and
+`:115-118` standing. The generalisation worth keeping is that **a construction rule
+and a selection rule over the same shape are two rules**, and finding one is no
+evidence of having found the other.
 
 ### Every row carries five columns, in every table
 
@@ -570,6 +566,7 @@ the session to its own.
 | `escalated-review-routes-through-config` — once review is a leaf, grove owns the route; do not add a competing in-session reviewer | 19 · step:Execute | `none` | `on(a review leaf exists) @ references/execute.md` | B |
 | `verify-repo-claims-with-controls` — a repo-wide claim needs a positive **and** a cross-tree control; clean-here alone proves nothing | 19 · step:Execute | `trigger` (sentence 4) | `on(about to make a repo-wide claim) @ SKILL.md` | B |
 | `enumerate-then-classify` — extract every candidate from the whole surface and classify each; never sweep a pattern list | 19 · step:Execute | `none` | `on(making a repo-wide claim) @ references/execute.md` | B |
+| `sweep-scope-is-the-claim` — grep the claim, not a file list; a path-or-directory scope goes stale and never reaches a file in no tree; a finding against a section does not reach the summary layer | 19 · step:Execute | `none` | `on(making a repo-wide claim) @ references/execute.md` | B |
 | `no-self-invalidating-count` — never document a claim with a count of itself; state the structural fact | 19 · step:Execute | `none` | `on(making a repo-wide claim) @ references/execute.md` | B |
 | `check-the-rescued-clause` — before deleting a false clause, check whether the true one beside it only reads as true in its company | 19 · step:Execute | `none` | `on(deleting prose) @ references/execute.md` | B |
 | `decisions-land-as-they-settle` — append each settled decision to the task file's running log as it settles; never reconstruct them at the end, in a summary file or in the commit message | 19 · step:Execute | `trigger` (sentence 5) | `on(a decision settles) @ SKILL.md` | B |
@@ -583,7 +580,9 @@ the session to its own.
 | `bigger-than-brief-decomposes` — a leaf that proves bigger becomes a node; do only the first child | 19 · step:Decompose | `trigger` (sentence 8) | `on(the leaf is bigger than its brief) @ SKILL.md` | B★ |
 | `vertical-slice` — a child leaf cuts a narrow complete path, demoable without waiting on a sibling | 19 · step:Decompose | `none` | `on(cutting children) @ references/decompose.md` | B |
 | `wide-refactor-expand-contract` — a fan-out refactor sequences expand → migrate → contract, one leaf per stage | 19 · step:Decompose | `none` | `on(cutting children) @ references/decompose.md` | B |
+| `review-chain-when-load-bearing` — an artifact others will build on — a landed spec, a decomposition, a subsystem — earns a review chain; artifact size and vendor preference are not the test | 19 · step:Decompose | `trigger` (sentence 25) | `on(an artifact may need review) @ SKILL.md` | B |
 | `chain-is-lazy` — each step of a review chain is cut by the session before it, only if required, and decided at that session's end | 19 · step:Decompose | `none` | `on(an artifact may need review) @ references/decompose.md` | B |
+| `vendor-pair-when-load-bearing` — a question earns a vendor pair only when it is load-bearing enough to pay for two corpora; one survey is the default | 19 · step:Decompose | `trigger` (sentence 26) | `on(a question may need two surveys) @ SKILL.md` | B |
 | `pair-is-eager` — a vendor pair lands in one call or not at all | 19 · step:Decompose | `none` | `on(a question needs two corpora) @ references/decompose.md` | B |
 | `creating-session-writes-the-body` — the session that knows why a step is needed writes its body | 19 · step:Decompose | `none` | `on(cutting a step) @ references/decompose.md` | B |
 | `name-step-kind-off-the-producer` — `review-<producer>` for the producer that actually ran | 19 · step:Decompose | `none` | `on(cutting a step) @ references/decompose.md` | B |
@@ -633,6 +632,7 @@ creates, gates and prints. `Bound ≠ ∅` for *when* to run them, so the when s
 | `cascade-is-silent` — the close recurses upward without stopping | 19 · step:Retire | `trigger` (shares sentence 15) | `on(a node has no live leaf left) @ SKILL.md` | B |
 | `node-close-four-steps` — check `Done when`, `leaf-add` the named gap, escalate an unnameable one, promote and report; skip step 1 for an uncharted node | 19 · step:Retire | `none` | `on(a node has no live leaf left) @ references/retire.md` | B |
 | `reconcile-records-at-retire` — retirement is where the record sets are reworked and every dangling citation is fixed | 19 · step:Retire | `none` | `on(retiring) @ references/retire.md` | B |
+| `finish-is-the-drivers-to-discover` — retiring the last live leaf is an ordinary retirement; a session never concludes the grove is finished, and the driver says so by launching `finish` | 19 · {step:Retire, step:Finish} | `trigger` (sentence 17) | `on(the last live leaf retires) @ SKILL.md` | B |
 
 #### `content/references/commit.md` — the task boundary
 
@@ -640,19 +640,20 @@ creates, gates and prints. `Bound ≠ ∅` for *when* to run them, so the when s
 |---|---|---|---|---|
 | `one-focused-commit` — artifact + grow-verb writes + `DONE` rename + whatever the cascade promoted, together, named by handle | 19 · step:Commit | `trigger` (sentence 16) | `on(the leaf is retired) @ SKILL.md` | B★ |
 | `name-by-handle` — name the work item, and each closed node, by `<slug>-k<key>`, never by position or path | 19 · step:Commit | `trigger` (shares sentence 16) | `on(the leaf is retired) @ SKILL.md` | B |
+| `no-kind-prefix-in-commit-subject` — do not compensate for the bare stem with a `review:` / `impl:` subject convention; the kind-bearing filename is already in the diff forever | 19 · step:Commit | `none` | `on(writing the commit subject) @ references/commit.md` | B |
 | `jj-seal` — in a jj tree, `jj new` **after** describing, once the rename has landed; this is sufficient without the plugin | 19 · step:Commit | `none` | `on(the stated VCS is jj) @ references/commit.md` | B |
 
 #### `content/references/finish.md` and `content/SIGNAL-FINISH.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
-| `finish-is-the-drivers-to-discover` — a session never concludes the grove is finished; the driver says so by launching `finish` | 19 · step:Finish | `trigger` (sentence 17) | `on(the last live leaf retires) @ SKILL.md` | B |
 | `finish-confirmation-gate` — propose, and wait for explicit human confirmation before any teardown; with no human, report the plan | {finish} · step:Finish | `none` | `static({finish})` | B |
 | `finish-promotes-before-teardown` — promote everything in the briefs that should outlive the grove — ADRs, docs, glossary entries — as working-tree edits, **before** teardown; a near no-op when decisions landed inline | {finish} · step:Finish | `none` | `static({finish})` | B |
 | `teardown-via-finish-commit` — never delete `.grove/` by hand; `grove-llm finish-commit <handle>` | {finish} · step:Finish | `none` | `static({finish})` | B |
 | `declined-finish-stays-live` — a declined finish leaves its leaf live for a later resume; no session retires the `finish` leaf | {finish} · step:Finish | `none` | `static({finish})` | B |
 | `absent-tree-proves-nothing` — an absent `.grove/` never proves teardown succeeded | {finish} · step:Finish | `none` | `static({finish})` | B |
 | `recovery-pending-stops` — hand a `Recovery pending` diagnostic to the human; never rewrite history to clear it | {finish} · step:Finish | `none` | `static({finish})` | B |
+| `finish-resume-reruns-the-same-command` — if step 2's result is lost, rerun `finish-commit` with the same handle and let the repository answer; a refusal means teardown did not complete, and a no-signal stop after step 2 leaves nothing to resume | {finish} · step:Finish | `none` | `static({finish})` | B |
 | `nothing-after-finish` — branch integration and worktree teardown are not grove workflow | {finish} · step:Finish | `none` | `static({finish})` | B+S |
 | `finish-three-endings` — teardown → `complete --done`; externalised work → `complete`; declined → no signal | {finish} · step:Finish | **none — byte-frozen and inlined into `${prompt}`** | `static({finish})` | B★ |
 
@@ -662,15 +663,31 @@ creates, gates and prints. `Bound ≠ ∅` for *when* to run them, so the when s
 |---|---|---|---|---|
 | `signal-is-the-last-action` — `grove-llm complete` last, then nothing else; ending without signalling stops the loop | 18 · step:Commit | **none — byte-frozen and inlined into `${prompt}`** | `static(18)` | B★ |
 
-`finish-promotes-before-teardown` (`content/references/finish.md:18-20`) and
-`declined-finish-stays-live` (`:75-78`) were absent from the superseded seven rows.
-Both are **session conduct**, not CLI mechanics: promotion is a judgement about
-which brief material is durable, and what a decline leaves behind is the rule that
-makes a later resume legitimate rather than a lapse. Neither is derivable from
+**`finish-is-the-drivers-to-discover` is not this file's, and never was.** It is
+tabulated with `references/retire.md` above. Its occasion is `{step:Retire,
+step:Finish}` — its trigger is *the last live leaf retires*, an event in Retire,
+with Finish being what the driver may launch afterwards — so the earliest-step rule
+derives `retire.md`. Filing it at Finish inverted its audience: the rule forbids an
+error only the **eighteen non-finish kinds** can commit, and it pointed them at the
+one reference file none of them is ever routed to. A `finish` session, which is the
+only kind `references/finish.md` is static for, is the one session that cannot
+violate it. The row's `SKILL.md` trigger already sent every kind to the right place
+in principle; it named the wrong file, and did so for both channels at once.
+
+`finish-promotes-before-teardown` (`content/references/finish.md:18-20`),
+`declined-finish-stays-live` (`:75-78`) and
+`finish-resume-reruns-the-same-command` (`:32-38`, `:57-73`) were absent from the
+superseded seven rows.
+All three are **session conduct**, not CLI mechanics: promotion is a judgement
+about which brief material is durable, what a decline leaves behind is the rule
+that makes a later resume legitimate rather than a lapse, and recovery is what a
+session does when it cannot see whether teardown landed. None is derivable from
 `finish-confirmation-gate` or `teardown-via-finish-commit`, and a `finish` session
 that skipped promotion would destroy the briefs' durable residue in a commit that
 cannot be partially undone. `nothing-after-finish` is the boundary *after*
-teardown and says nothing about either.
+teardown and says nothing about any of them, and `absent-tree-proves-nothing`
+forbids the wrong *inference* while saying nothing about the right *action* — which
+is the third row.
 
 Both signal files are **out of scope for every rewriting leaf**. They are the one
 surface where a wording change is unrecoverable mid-loop, and the guaranteed core
@@ -799,7 +816,15 @@ Its rows are tabulated above with `SIGNAL-FINISH.md`; the file doubles as the
 **`TASK-FORMAT.md` sheds its policy.** It is format grammar, so the composition
 shapes, the doubt budget table, the kind disciplines and *A leaf never names a
 harness* leave it for `decompose.md`, `execute.md`, the kind references and
-`driver.md` respectively. What remains is what constrains bytes on disk.
+`driver.md` respectively. Two smaller passengers leave with them, both found by the
+re-run audit: the research **output-path table** (`:69-81`) is
+`references/research.md`'s `research-output-path-per-kind`, and the
+**commit-subject** imperative (`:237-239`) is `references/commit.md`'s
+`no-kind-prefix-in-commit-subject` — a Commit-step rule that reached a
+filename-grammar file by riding inside the argument for the bare stem.
+`leaf-decompose`'s first-child kind inheritance (`:83-86`) and the `work`
+legacy-spelling paragraph (`:88-92`) are **command facts, relocate → CLI**. What
+remains is what constrains bytes on disk.
 `suggested-body-shape` is where the running log's *section* is described; the
 obligation to append to it as decisions settle is `execute.md`'s
 `decisions-land-as-they-settle`, and the split is deliberate — grammar here,
@@ -940,7 +965,7 @@ reverse **and** surprising without context **and** the result of a real
 trade-off.
 
 - **Canonical source:** `content/ADR-FORMAT.md`, as `adr-when-to-write`. Rule 3
-  fires on `artifact:adr` **before** rule 5 could send it to a loop-step file —
+  fires on `artifact:adr` **before** rule 6 could send it to a loop-step file —
   which is the ambiguity the superseded text left open and this ordering closes.
 - **Load predicate:** `on(considering an ADR) @ SKILL.md`.
 - **Mirror class:** `trigger`, naming the file and never paraphrasing the test.
@@ -1000,29 +1025,35 @@ inspection found eight sections still carrying imperatives that alter session
 conduct, so the file's deletion is conditional on each one landing an embedded,
 reachable owner first. This table is that condition, discharged row by row.
 
-**It is a condition only while it is complete**, and it was not: the *review chain*
-section's bare-stem imperative (`content/driving.md:469-479`) had no row, so the
-table authorised a deletion that would have taken a live rule with it. The lesson is
-the sentence-level audit above — the section *was* in the table, with five other
-rules under it, and the missing one sat between two that were listed. Every row
-below is a **rule**, not a section, and a section appearing here is not evidence
-that everything in it is accounted for.
+**It is a condition only while it is complete**, and twice it was not. The *review
+chain* section's bare-stem imperative (`content/driving.md:469-479`) had no row,
+and then the same section's selection criterion (`:399-402`) and route-through-config
+sentence (`:501-508`) had none either, alongside the vendor pair's selection
+criterion (`:92-94`) and three sweep-narrowing rules (`:330-336`). Each time the
+table authorised a deletion that would have taken a live rule with it, and each time
+the section *was* listed with several rules under it. The lesson is the
+sentence-level audit above, and the second failure is why it is now recorded as
+having been re-run rather than promised. Every row below is a **rule**, not a
+section; a section appearing here is not evidence that everything in it is
+accounted for, and a *count* of rules under a section is not evidence either.
 
 | `driving.md` section | rule | new owner |
 |---|---|---|
 | When to commission prior-art research | `prior-art-research-is-its-own-leaf` | `references/decompose.md` |
 | How to write a research leaf brief | `research-brief-names-downstream-questions` | `references/decompose.md` |
 | ” | `walk-away-check-per-system`, `citation-per-failure-mode-claim`, `silence-is-a-finding` | `references/research.md` |
-| Running the vendor pair | `pair-is-eager`, `both-researchers-get-one-brief`, `researchers-are-not-adversarial`, `research-output-path-per-kind` | `decompose.md`, `research.md` |
+| Running the vendor pair | `vendor-pair-when-load-bearing`, `pair-is-eager`, `both-researchers-get-one-brief`, `researchers-are-not-adversarial`, `research-output-path-per-kind` | `decompose.md`, `research.md` |
 | Name the trade-off you want input on | `escalation-names-the-tradeoff` | `references/execute.md` |
 | Record decisions inline | `decisions-land-as-they-settle` (+ `suggested-body-shape`) | `references/execute.md` (+ `TASK-FORMAT.md`) |
 | Retiring research into ADRs | `research-to-adr-bridge` | `content/ADR-FORMAT.md` |
 | Reworking ADRs and briefs | `adr-set-is-minimum-coherent`, `reconcile-records-at-retire` | `ADR-FORMAT.md`, `references/retire.md` |
 | Verifying framework decisions against the source | `cite-framework-decisions-to-source` | `references/impl.md` |
-| Verifying a claim about the repo itself | `verify-repo-claims-with-controls`, `enumerate-then-classify`, `no-self-invalidating-count`, `check-the-rescued-clause` | `references/execute.md` |
+| Verifying a claim about the repo itself | `verify-repo-claims-with-controls`, `enumerate-then-classify`, `sweep-scope-is-the-claim`, `no-self-invalidating-count`, `check-the-rescued-clause` | `references/execute.md` |
 | Doubting inside a picked Grove leaf | `review-budget`, `review-budget-predicate`, `review-budget-by-kind`, `doubt-pass-procedure` | `references/execute.md` |
-| The review chain | `chain-is-lazy`, `creating-session-writes-the-body`, `name-step-kind-off-the-producer`, `integration-placement`, `no-adjacency-exception`, `diversity-is-the-configs` | `references/decompose.md` |
+| The review chain | `review-chain-when-load-bearing`, `chain-is-lazy`, `creating-session-writes-the-body`, `name-step-kind-off-the-producer`, `integration-placement`, `no-adjacency-exception`, `diversity-is-the-configs` | `references/decompose.md` |
 | ” | `steps-share-the-producers-stem` | `references/decompose.md` |
+| ” | `escalated-review-routes-through-config` (`:501-508`) | `references/execute.md` |
+| ” | `retirement-is-filename-only` (`:484-486`) | `references/retire.md` |
 | ” | `review-is-inspection-only`, `review-output-is-findings-only` | `references/review.md` |
 | ” | `triage-four-ways`, `integration-escalates-redesign` | `references/integrate-review.md` |
 | Externalizing surfaced work | `externalize-by-default`, `bigger-than-brief-decomposes` | `references/decompose.md` |
@@ -1061,25 +1092,33 @@ and it would ship silently.
   `reference_file(kind)` is already an exhaustive match, and a per-kind budget
   test walks it. That is the seam `loaded-path-budgets-k10` builds on, and it
   costs no new production code.
-- **Reachability is an edge test, not a loadability test.** For every
-  `on(<trigger>) @ F` row with owner `O`: `F` is static or the owner of a reachable
-  row; **`F` contains a literal reference to `O`'s path**; every chain terminates at
-  a static path with no cycles; and every non-static owner file has at least one
-  incoming edge. The middle assertion is the one a loadability check cannot make,
-  and the last is what catches an owner nothing points at — the state
-  `references/driver.md` was left in. Two schema checks ride along: a row whose `@`
-  file is `SKILL.md` must declare `trigger` or share one, and every `trigger` row's
-  sentence number must exist in *The trigger sentences*.
+- **Reachability is an edge test over cross-file rows, not a loadability test.**
+  Partition the conditional rows first: a row whose `@` file **is** its owner is an
+  in-file condition and is asserted only to agree with its grouping heading. For
+  every remaining `on(<trigger>) @ F` row with owner `O` (`F ≠ O`): `F` is static or
+  the owner of a reachable row; **`F` contains a literal reference to `O`'s path**;
+  every chain terminates at a static path with no cycles; and every non-static owner
+  file has at least one incoming edge. The middle assertion is the one a loadability
+  check cannot make, and the last is what catches an owner nothing points at — the
+  state `references/driver.md` was left in. **Running the cycle check over the
+  unpartitioned set fails on roughly half the inventory**, every reflexive row being
+  a self-loop, so the partition is part of the test rather than a reading of it. Two
+  schema checks ride along: a row whose `@` file is `SKILL.md` must declare `trigger`
+  or share one, and every `trigger` row's sentence number must exist in *The trigger
+  sentences*.
 - **`static(...)` is asserted against the runtime.** A row claiming `static(K)`
   whose owner is not `SKILL.md` or `reference_file(k)` for every `k ∈ K` fails.
   That single check is what the `always(19)` labelling would not have survived.
-- **The `SKILL.md` budget is asserted, not hoped for.** Total words 600–900,
-  exactly the **24** `trigger` sentences of the canonical set, each at most 25
-  words, and the eight `own` rows present. Owned by `skill-router-k4`. The count is
-  `=24` rather than `≤`, because a *missing* trigger is a rule that stops being
-  reachable and is the failure this design exists to prevent; the reachability
-  assertion above catches it from the other direction, and the two agree by
-  construction only if both name the same number.
+- **The `SKILL.md` budget is asserted, not hoped for — and it has no floor.**
+  Total words **at most 900**, exactly the **26** `trigger` sentences of the
+  canonical set, each at most 25 words, and the eight `own` rows present. Owned by
+  `skill-router-k4`. The count is `=26` rather than `≤`, because a *missing* trigger
+  is a rule that stops being reachable and is the failure this design exists to
+  prevent; the reachability assertion above catches it from the other direction, and
+  the two agree by construction only if both name the same number. A lower bound is
+  deliberately absent: it would have to be derived from a measurement nobody has
+  taken, and the three exact assertions detect a dropped row **by name**, which a
+  word count cannot.
 - **Single-source assertions are phrase-scoped, with controls.** A rule whose
   wording is distinctive gets a normalised sweep (emphasis stripped, whitespace
   collapsed) asserting exactly one procedure-register file states it — with a

@@ -3,7 +3,7 @@
 ## Goal
 
 Rewrite `content/SKILL.md` from 3,152 words into a compact session
-protocol/router of **600–900 words**, retaining every lifecycle invariant
+protocol/router of **at most 900 words**, retaining every lifecycle invariant
 it is the canonical source for and routing the rest.
 
 ## Context
@@ -43,20 +43,29 @@ knows to make, withholding a condition yields an unasked question.
 
 ## Done when
 
-- `content/SKILL.md`'s body is 600–900 words, and the number is a consequence of
-  the routing discipline rather than a target hit by compression. The floor is 600
-  because the canonical content measures ~613; padding to 700 would be the opposite
-  of this leaf's job.
+- `content/SKILL.md`'s body is **at most 900 words**, and the number is a
+  consequence of the routing discipline rather than a target hit by compression.
+  **There is no floor, and you must not write to one.** The drafted content —
+  26 triggers at 302 words, seven `own` bodies at 192 — projects a file near
+  500–620, but that is a projection: the intro, headings and the eighth `own` body
+  are yours to write and nobody has measured them. **Record what you actually
+  measured**, in the leaf's running log and in the test's own documentation.
 - Every rule listed above appears in the class the inventory assigns it — `own`
   for the eight, one `trigger` sentence for the rest — and no rule the inventory
   marks `none` appears at all.
-- The budget is **asserted**, not achieved and forgotten: total words in range,
-  **exactly 24** `trigger` sentences, each ≤25 words, and the eight `own` rows
-  present. The spec's *What `SKILL.md` can hold, arithmetically* table is the
-  contract, and its *The trigger sentences* table is the canonical wording —
-  reword within the grammar if you must, but do not add or drop a sentence: the set
-  is the reachability graph's edge list out of this file, and a missing sentence
-  silently unreaches a rule.
+- The budget is **asserted**, not achieved and forgotten: total words ≤900,
+  **exactly 26** `trigger` sentences, each ≤25 words, and the eight `own` rows
+  present. Those three exact assertions are what detect a dropped row — by name,
+  which is why a word floor was removed rather than lowered again. The spec's *What
+  `SKILL.md` can hold, arithmetically* table is the contract, and its *The trigger
+  sentences* table is the canonical wording — reword within the grammar if you must,
+  but do not add or drop a sentence: the set is the reachability graph's edge list
+  out of this file, and a missing sentence silently unreaches a rule.
+- **Sentences 25 and 26 are load-bearing and new.** They are the only conditions
+  that send a session to `references/decompose.md` to decide whether its artifact
+  earns a review chain or its question earns a vendor pair. Without them a producer
+  holding neither condition never opens the file and never asks — none of sentences
+  7–11 fires for *my artifact is load-bearing and finished*.
 - The spine is `own` here, as **one** row rather than seven constraints — six corpus files cite
   the constraints by number and none of them is on a static path. Carry
   constraint 4's *just-in-time, not few* clause with it.

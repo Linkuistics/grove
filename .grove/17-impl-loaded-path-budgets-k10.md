@@ -39,15 +39,28 @@ needed rather than extras:
   whose owner is not `SKILL.md` or `reference_file(k)` for every `k ∈ K` fails.
   The superseded inventory labelled loop-step rows `always(19)`, which
   `src/prompt.rs` contradicts; this check is what would not have survived it.
-- **Reachability is an edge, and the edge is what you assert.** For a row
-  `on(t) @ F` with owner `O`: the chain from `F` terminates at a static path with no
-  cycles, **`F` literally names `O`'s path**, and every non-static owner file has at
-  least one incoming edge. The chain-termination half alone is not the property — it
-  passes for a row whose `F` is loadable and silent about `O`, which is how
-  `references/driver.md` came to own seven rows with nothing anywhere pointing at
-  it. Two schema checks come free: a row whose `@` file is `SKILL.md` must be class
-  `trigger` or share one, and every `trigger` row's sentence number must exist in
-  the spec's canonical set. Together they are what would have caught `impl`'s two
+- **Reachability is an edge, and the edge is what you assert — but only across
+  files.** **Partition the conditional rows first.** A row whose `@` file *is* its
+  own owner records an **in-file condition**, not a transition: the session has
+  already opened that file, and the record says which part applies. 45 of the
+  inventory's 92 conditional rows are that kind, so running a cycle check over the
+  unpartitioned set makes every one of them a self-loop and fails on half the
+  design. Such a row is asserted only to agree with its grouping heading, and it
+  contributes nothing to the graph.
+  For a **cross-file** row `on(t) @ F` with owner `O` (`F ≠ O`): the chain from `F`
+  terminates at a static path with no cycles, **`F` literally names `O`'s path**,
+  and every non-static owner file has at least one incoming edge. The
+  chain-termination half alone is not the property — it passes for a row whose `F`
+  is loadable and silent about `O`, which is how `references/driver.md` came to own
+  seven rows with nothing anywhere pointing at it. The incoming-edge check is what
+  makes the carve-out safe: **what is reached is a file, not a rule**, so one edge
+  into `decompose.md` makes every in-file condition there available, and a file with
+  no edge fails however many reflexive rows it has.
+  The current graph is **14 edges realised by 47 rows**, every non-static owner a
+  target, no cycles — recompute it rather than trusting that count. Two schema
+  checks come free: a row whose `@` file is `SKILL.md` must be class `trigger` or
+  share one, and every `trigger` row's sentence number must exist in the spec's
+  canonical set of **26**. Together they are what would have caught `impl`'s two
   disciplines sitting in a file no `impl` session is ever routed to — present in
   `content/` and deleted in effect.
 

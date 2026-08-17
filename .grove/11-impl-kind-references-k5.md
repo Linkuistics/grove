@@ -26,14 +26,26 @@ human gate, if any, is unique to it. `review.md`'s inspection-only permission an
 `finish.md`'s human confirmation are the model — each is a real delta. Anything
 true of every kind belongs upstream, once.
 
-**Two `finish.md` rules gained rows and must survive your pass.**
+**Three `finish.md` rules gained rows and must survive your pass.**
 `finish-promotes-before-teardown` (`:18-20`) and `declined-finish-stays-live`
 (`:75-78`) were absent from the inventory until `rule-ownership-k15` audited the
-file sentence by sentence. Both are `{finish}`-bound session conduct — a judgement
-about which brief material is durable, and the rule that makes a later resume
-legitimate — so neither is CLI mechanics and neither is derivable from the
-confirmation gate. They read like mechanics beside `grove-llm finish-commit`; they
-are not.
+file sentence by sentence; `finish-resume-reruns-the-same-command` (`:32-38`,
+`:57-73`) was still absent after that, and `rule-ownership-k17` found it on the
+re-run. All three are `{finish}`-bound session conduct — a judgement about which
+brief material is durable, the rule that makes a later resume legitimate, and what
+a session does when it cannot see whether teardown landed — so none is CLI
+mechanics and none is derivable from the confirmation gate. They read like
+mechanics beside `grove-llm finish-commit`; they are not. Note that
+`absent-tree-proves-nothing` forbids the wrong *inference* and says nothing about
+the right *action*, which is why the third is its own rule and not that one's tail.
+
+**One rule leaves `finish.md`, and it is not yours to remove.**
+`finish-is-the-drivers-to-discover` is `references/retire.md`'s under
+earliest-step-wins — its trigger is *the last live leaf retires*, and it forbids an
+error only the eighteen non-finish kinds can commit. `loop-step-references-k11`
+adds the `retire.md` statement and removes this file's in the same commit. **Leave
+it in place and untouched here**, so the rule is never homeless between two
+commits.
 
 **The contradiction to resolve.** `requirements` **always** establishes *what* is
 wanted; the full one-question-at-a-time grilling procedure runs **only** when

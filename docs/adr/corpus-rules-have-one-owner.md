@@ -32,8 +32,18 @@ to one of them is a hand-assignment wearing a derivation's clothes.
 
 **Reachability is an edge, and both ends are asserted.** `src/prompt.rs` fixes
 each kind's static path; every other rule records the file whose sentence triggers
-it, and that file must **actually name the owner's path**. A test that asks only
-whether the recorded file can be loaded certifies the failure it exists to catch.
+it, and where that file is **not** the owner it must **actually name the owner's
+path**. A test that asks only whether the recorded file can be loaded certifies
+the failure it exists to catch.
+
+**A rule triggered from inside its own owner records no edge.** Roughly half the
+conditional rules are reached by a condition in the file that owns them — the
+session has already opened it, and what the record names is *which part applies*,
+not what sent it there. Reading those as edges makes every one of them a self-loop
+and the graph uniformly cyclic, so the acyclicity law would forbid the ordinary
+case. The graph is therefore over **cross-file transitions only**, and a
+same-file record is an in-file condition that reachability neither needs nor
+checks.
 
 What the condition register may say about a rule it does not own is a separate
 decision: [a restatement declares its
@@ -84,8 +94,8 @@ crosses it.
 **Reachability becomes checkable rather than assumed.** `src/prompt.rs` fixes
 each kind's static path — the guaranteed core, `SKILL.md`, and
 `reference_file(kind)` — and nothing else can be static. Every other rule states
-the file whose sentence triggers it, and those references form a graph of edges
-that must terminate at a static path. A rule whose chain does not terminate is
+the file whose sentence triggers it, and the **cross-file** ones form a graph of
+edges that must terminate at a static path. A rule whose chain does not terminate is
 present in `content/` and deleted in effect, which is what `driving.md` does today
 to `impl`'s source-citation and repo-claim disciplines: they sit in a file no
 `impl` session is ever routed to.
@@ -95,7 +105,10 @@ triggers R* is only worth something if that sentence is checked to exist: a row
 naming a loadable file that says nothing about R passes a loadability test while
 leaving R unreachable, and a file may own rows while nothing anywhere points at it.
 So the graph asserts that the source names the owner's path, and that every
-non-static owner has an incoming edge.
+non-static owner has an incoming edge. **What carries the property is the file, not
+the rule**: once a session has opened the owner, every rule in it is reached, which
+is why an in-file record asserts nothing and why the incoming-edge check is stated
+per owner file rather than per row.
 
 ## The residue, named rather than argued away
 

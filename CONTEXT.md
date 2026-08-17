@@ -266,11 +266,18 @@ first-match rule (ADR *corpus-rules-have-one-owner*), where `Occasion` is a **se
 of moments so a rule that crosses steps records all of them and the earliest wins.
 Reachability is an **edge**, not a loadable file: the triggering file must actually
 name the owner's path, and every non-static owner must have at least one sentence
-pointing at it. So the static half is what a budget test walks, and the conditional
-half is what a `load predicate` column has to state per rule.
+pointing at it. The graph is over **cross-file transitions only** — where the
+triggering file *is* the owner, the record is an in-file condition saying which part
+of an already-open file applies, and it is no edge at all. So the static half is
+what a budget test walks, and the conditional half is what a `load predicate`
+column has to state per rule.
 _Avoid_: reading "the trigger file is reachable" as "the rule is reachable". A file
 that loads while saying nothing about the rule leaves it exactly as deleted as an
 unreachable file would, and a loadability-only test certifies that state.
+_Avoid_: reading a rule triggered from inside its own owner as a self-edge. What is
+reached is a **file**, not a rule — once one cross-file edge lands the session
+there, every in-file condition is available — so the acyclicity law applies to the
+cross-file graph and would otherwise condemn roughly half the inventory.
 _Avoid_: treating a rule in `content/` as reachable because the file is embedded.
 A file no condition names is off every path, which is the failure that left two
 `impl` disciplines in a file no `impl` session is routed to — deleted in effect

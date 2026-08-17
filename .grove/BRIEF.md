@@ -11,16 +11,18 @@ conclusions are the settled requirements recorded here and are not reopened.
 
 ## Done when
 
-- `content/SKILL.md` is a compact session protocol/router of **600–900 words**
+- `content/SKILL.md` is a compact session protocol/router of **at most 900 words**
   (from 3,152) that still carries: the authoritative mandate; no second
   pick; the driver's VCS statement as definitive; stale-launch handling;
   bootstrap order; the execution/decomposition boundary; human-only pruning;
   retire-before-commit; the commit boundary; and finish ownership with the
-  terminal-signal distinction. The range was *roughly* `700–900` until
-  `rule-ownership-k15` wrote the 24 canonical trigger sentences and measured them:
-  the file's real content is ~613 words, so a 700-word floor would have been an
-  instruction to pad. The floor's job is to catch a silently dropped row, and 600
-  does that.
+  terminal-signal distinction. The requirements said *roughly* `700–900`;
+  `rule-ownership-k15` lowered the floor to 600 and `rule-ownership-k17` removed it.
+  A floor can only be set from a measurement of the finished file, and no such
+  measurement exists — the "~613" it was derived from was two measured parts plus
+  this table's *ceiling* on an undrafted third. What a floor was for is done
+  directly by three exact assertions: exactly 26 trigger sentences, each ≤25 words,
+  and the eight `own` rows present. Those name the dropped row; a word count cannot.
 - Each session-kind reference is **incremental** — its deliverable, its
   permissions, its special verification, and its unique human gate, and nothing a
   sibling reference already carries.
@@ -106,7 +108,7 @@ find the rules it needs already homed.
 - `rule-ownership-k15` (integrate-review-design) — the second repair. **Done** —
   `Occasion` is a set with an earliest-step tie-break and a `context` value;
   reachability is an asserted **edge** rather than a loadable file; four missing
-  rules got rows and the `own` set is eight; the 24 canonical trigger sentences are
+  rules got rows and the `own` set is eight; the canonical trigger sentences are
   written and measured; the ADR split in two by reversibility.
 - `rule-ownership-k16` (review-design) — a **third** read, inserted ahead of the
   executing leaves like `k12` and `k14`, and **scoped to `k15`'s delta**. The
@@ -114,7 +116,17 @@ find the rules it needs already homed.
   and each structural repair has so far carried new P1s, so a design whose input
   model changed twice has not demonstrated convergence. It is the last review before
   execution; the chain's laziness is its exit, so a P2-or-below outcome cuts no
-  integration leaf.
+  integration leaf. **Done** — five P1s and one P2, all confirmed against the corpus.
+- `rule-ownership-k17` (integrate-review-design) — the third repair, and the last
+  leaf before execution. **Done** — `finish-is-the-drivers-to-discover` moves to
+  `references/retire.md` under earliest-step-wins; the reachability graph is over
+  cross-file rows only, so the 45 reflexive rows are in-file conditions rather than
+  self-loops; `SKILL.md`'s word floor is removed as underived; the spec cites the
+  two ADRs instead of restating the placement function and the restatement classes;
+  and the promised sentence-level audit was actually re-run, adding five rows and
+  two trigger sentences. It cut no fourth review: every P1 was a defect *in* the
+  design rather than in the input model, the model itself was confirmed on all five
+  axes the review checked, and the chain is lazy.
 - `behavior-evals-k3` (impl) — behavioural coverage for the lifecycle invariants
   that this refactor must not change. Written against **current** behaviour so it
   passes before and after; it is the net the rewrites fall into.
@@ -162,6 +174,24 @@ every non-static owner needs an incoming sentence, which is what gave
 (`finish.md`) — and `declaration-lines-are-convention` widened to
 `convention-not-grammar`. The trigger set is written out and measured rather than
 multiplied. The ADR became two records.
+
+**What `rule-ownership-k17` changed on top of that.** Four things move a cell a
+leaf below executes against. (1) `finish-is-the-drivers-to-discover` is
+`references/retire.md`'s, not `references/finish.md`'s — its occasion is
+`{step:Retire, step:Finish}` and the earliest wins, so `loop-step-references-k11`
+lands it in `retire.md` and removes it from `finish.md` in the same commit, and
+trigger sentence 17 names `retire.md`. (2) Reachability is a graph over
+**cross-file** rows only; a row whose `@` file is its own owner records an in-file
+condition and no edge, so `loaded-path-budgets-k10` partitions before it walks —
+otherwise the cycle check fails on 45 of 92 conditional rows. (3) `SKILL.md` has a
+**ceiling of 900 words and no floor**; the exact-count assertions are what detect a
+dropped row. (4) Five rules gained rows and the trigger set is **26** sentences:
+`review-chain-when-load-bearing` and `vendor-pair-when-load-bearing` (sentences 25
+and 26, `decompose.md`), `sweep-scope-is-the-claim` (`execute.md`),
+`no-kind-prefix-in-commit-subject` (`commit.md`) and
+`finish-resume-reruns-the-same-command` (`finish.md`). The spec now cites the two
+ADRs for the placement function and the restatement classes rather than restating
+them, so a leaf executing against it **reads all three documents**.
 
 **What the earlier repair changed for the leaves below.** Placement now takes a pair,
 `Bound(R)` **and** `Occasion(R)`, resolved by an ordered first-match rule, so
@@ -212,13 +242,14 @@ as *narrower than free*.
   restatement declares a class. It **owns** eight rows outright (the routing
   table, the numbered spine, one-task-is-one-session, the bootstrap order, the
   mandate, no second pick, the stated VCS, the HITL/AFK mark) because each one's
-  whole content is its trigger; it carries the **24 canonical `trigger`
+  whole content is its trigger; it carries the **26 canonical `trigger`
   sentences** — written out verbatim in the spec's *The trigger sentences*, one
-  per situation, five of them covering two rows each — for 29 rows owned
+  per situation, five of them covering two rows each — for 31 rows owned
   elsewhere; and it says nothing at all about a rule whose Bound is one kind or
   one family. That last class is most of what the file carries today and most of
-  why it shrinks. Lands the budget assertion — total in 600–900 words, **exactly**
-  24 trigger sentences, each ≤25 words, eight `own` rows present. It may reword a
+  why it shrinks. Lands the budget assertion — total **at most 900 words**,
+  **exactly 26** trigger sentences, each ≤25 words, eight `own` rows present, and
+  **no lower bound**. It may reword a
   trigger within the grammar; it may not add or drop one, because the set is the
   reachability graph's edge list out of `SKILL.md`.
 - `kind-references-k5` — "incremental" now reads mechanically: state what is true

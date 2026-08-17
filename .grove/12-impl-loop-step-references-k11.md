@@ -28,13 +28,17 @@ Beyond the brief chain:
 
 - **`execute.md`'s *What each kind produces* section is gone.** It is a
   nineteen-kind summary of material the ten kind references own, and the driver
-  already routed the session to its own. What `execute.md` keeps is the **eleven**
+  already routed the session to its own. What `execute.md` keeps is the **twelve**
   rows the inventory gives it: the review budget with its predicate, per-kind
   table and doubt-pass procedure, `escalated-review-routes-through-config`, the
-  four repo-claim disciplines (`verify-repo-claims-with-controls`,
-  `enumerate-then-classify`, `no-self-invalidating-count`,
-  `check-the-rescued-clause`), `decisions-land-as-they-settle` and
-  `escalation-names-the-tradeoff`.
+  five repo-claim disciplines (`verify-repo-claims-with-controls`,
+  `enumerate-then-classify`, `sweep-scope-is-the-claim`,
+  `no-self-invalidating-count`, `check-the-rescued-clause`),
+  `decisions-land-as-they-settle` and `escalation-names-the-tradeoff`.
+  `sweep-scope-is-the-claim` is `driving.md:330-336`'s three named narrowing
+  failures — grep the claim not a file list, a path scope goes stale and misses the
+  files in no tree, and a finding against a section does not reach the summary
+  layer. It is a rule a session can obey both controls and still violate.
   **It keeps neither record rule.** `records-are-current-state` and the two
   record-raising conditions are **not** `execute.md`'s under the corrected map: an
   artifact Occasion outranks a loop-step one, so they belong to `ADR-FORMAT.md` and
@@ -49,6 +53,30 @@ Beyond the brief chain:
   command fact owned by `--help`. The *when* to reach for it stays.
 - **`retire.md` gains** `triage-picks-the-verb` (the prune / reorder / issue
   triage) and `prune-scopes-to-the-whole-path` from `driving.md`.
+- **`retire.md` also gains `finish-is-the-drivers-to-discover`, and `finish.md`
+  loses it in the same commit.** Its occasion is `{step:Retire, step:Finish}` and
+  the earliest wins: the rule's trigger is *the last live leaf retires*, an event in
+  Retire, and Finish is what the driver may launch afterwards. Filing it at Finish
+  inverted its audience — it forbids an error only the eighteen **non**-finish kinds
+  can commit, and pointed them at the one reference file none of them is routed to.
+  Trigger sentence 17 names `references/retire.md`. This is the one row in this
+  leaf's list whose old home belongs to `kind-references-k5`; take it as a move so
+  the rule is never homeless, and do not leave a copy behind.
+- **`commit.md` gains `no-kind-prefix-in-commit-subject`** — do not compensate for
+  the bare stem with a `review:` / `impl:` subject convention. It is
+  `TASK-FORMAT.md:237-239`'s imperative, a Commit-step rule that reached a
+  filename-grammar file by riding inside the argument for the bare stem;
+  `corpus-split-k6` removes it there once this leaf has landed it here.
+- **`decompose.md` gains the two shape-*selection* rules, which are not the
+  construction rules it already has.** `review-chain-when-load-bearing`
+  (`driving.md:399-402`) says an artifact others will build on earns a chain, and
+  artifact size and vendor preference are not the test;
+  `vendor-pair-when-load-bearing` (`:92-94`) says a question earns two corpora only
+  when it is load-bearing enough to pay for them. `chain-is-lazy` and `pair-is-eager`
+  say how the steps *land* once the shape is chosen and say nothing about choosing
+  it. Both criteria are already duplicated, unowned, at
+  `content/references/decompose.md:93-96` and `:115-118` — state each **once**, and
+  land its **S** sweep. They are the targets of new trigger sentences 25 and 26.
 - **`decompose.md` also gains `steps-share-the-producers-stem`** — every step of a
   composed shape carries the producer's bare stem as its whole slug. It is
   `driving.md:469-479`'s imperative, and `rule-ownership-k15` gave it the row the

@@ -148,9 +148,9 @@ fn disagreements(
 ///
 /// The opening routes rather than introduces: a session that arrived by
 /// description match rather than by a mandate still lands in its kind's
-/// reference file (`docs/specs/skill-delivered-methodology.md`, *How `SKILL.md`
-/// opens*). A row naming a file that is not there sends exactly that session
-/// nowhere, and prose cannot notice.
+/// reference file (`docs/ARCHITECTURE.md`, *The corpus's shape*). A row naming a
+/// file that is not there sends exactly that session nowhere, and prose cannot
+/// notice.
 ///
 /// Ten rows for nineteen kinds, because the corpus already treats each family as
 /// one unit — the five `review-*` kinds share a file, as do the five
@@ -220,17 +220,17 @@ fn the_skills_routing_table_names_a_reference_file_that_exists() {
 
 /// **The house progressive-disclosure ceiling, on the body rather than the file.**
 ///
-/// The spec measures `SKILL.md`'s *body* — the frontmatter is a routing header a
+/// The measure is `SKILL.md`'s *body* — the frontmatter is a routing header a
 /// harness reads, not guidance a session reads, and counting it would let a
-/// description rewrite eat into the ceiling
-/// (`docs/specs/skill-delivered-methodology.md`, *Scenario: body budget*).
+/// description rewrite eat into the ceiling (`docs/ARCHITECTURE.md`, *The
+/// corpus's shape*).
 ///
 /// 500 is a **ceiling**, not the rewrite's target: the corpus rewrite estimates
 /// ~200 lines, so a body approaching this number has re-grown procedure that the
 /// split moved out. Like the loop-section alarm below, it establishes nothing
 /// semantic — *no procedure in `SKILL.md`* has no classifier now that the unit
-/// markers are deleted, and is a review obligation with its own scenario. **This
-/// passing is not evidence for it.**
+/// markers are deleted, and is a review obligation. **This passing is not
+/// evidence for it.**
 ///
 /// It is also, with the routing check above, what the deleted **build gate**
 /// bought: a corpus malformation caught by the suite instead of by `cargo
@@ -271,19 +271,17 @@ fn body_lines(text: &str) -> Option<usize> {
 
 /// **Constraint 7 made checkable**, and the measure is the whole claim.
 ///
-/// "One page of rules" is unmeasurable as written, so the spec fixes a measure a
-/// reader can recompute: the lines from a section's heading to the next heading
-/// of the same level, blank lines included
-/// (`docs/specs/skill-delivered-methodology.md`, *Scenario: the loop section fits
-/// a page*). 100 is the **alarm** on a narrative the rewrite estimates at ~80,
+/// "One page of rules" is unmeasurable as written, so the design fixes a measure
+/// a reader can recompute: the lines from a section's heading to the next heading
+/// of the same level, blank lines included (`docs/ARCHITECTURE.md`, *The corpus's
+/// shape*). 100 is the **alarm** on a narrative the rewrite estimates at ~80,
 /// not a budget the prose was fitted to — a loop section that reaches it has
 /// grown a third of a page since the split, which is the point at which growth
 /// has become visible.
 ///
 /// It establishes nothing semantic. That `SKILL.md` states conditions and no
 /// procedure has no classifier now that the unit markers are deleted, and is a
-/// review obligation with its own scenario; a line count passing says nothing
-/// about it.
+/// review obligation; a line count passing says nothing about it.
 #[test]
 fn the_loop_section_of_the_skill_fits_a_page() {
     const LIMIT: usize = 100;

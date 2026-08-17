@@ -29,7 +29,7 @@ pub(crate) mod loop_driver;
 // kind's reference file exists, that the methodology instructs no `grove-llm`
 // verb the CLI lacks — and production's own door onto that corpus is
 // `include_dir`, which a test cannot open without making a runtime dependency a
-// dev one as well (`docs/specs/skill-delivered-methodology.md`, *Test seams*).
+// dev one as well (`docs/ARCHITECTURE.md`, *the embed test seam*).
 // It also outlives `provision` — the embed survives the retirement of the
 // directory it is currently also swept into.
 pub mod methodology;
@@ -37,7 +37,7 @@ pub mod methodology;
 // place driver-authored prose about a session's own conduct lives. `pub` for
 // the same reason `methodology` is: every interesting check runs through this
 // seam against the *real* embed, and the alternative door is a spawned driver
-// per claim (`docs/specs/skill-delivered-methodology.md`, *Test seams*).
+// per claim (`docs/ARCHITECTURE.md`, *the embed test seam*).
 pub mod prompt;
 pub mod provision;
 pub mod repo;
@@ -63,13 +63,17 @@ pub mod tree_format;
 // name, and the only correct use of it was the one nobody had. They now live in
 // this module's `mod tests`, which is what they always were.
 //
-// Two kinds of surface are exempt, and after this pass they are the *only* two
-// the sweep still reports, each argued where it lives:
+// Two kinds of surface are exempt, and every item the sweep still reports falls
+// under one of them, each argued where it lives:
 //
 //   * **a genuine seam** — production reaches the same behaviour through a door
 //     a test cannot open. `tree_lifecycle::transition_to_current` keeps its
 //     `pub` on exactly that ground; its `pub(crate)` driver twin also reaps
 //     finish artifacts, so it cannot stand in for the classification.
+//     `methodology::markdown_files` keeps its `pub` on the same ground and is
+//     argued in its own doc comment: production's door onto the embed is
+//     `include_dir`, which a test cannot open without making a runtime
+//     dependency a dev one as well.
 //   * **a frozen grammar kept whole** — `leaf_id`, the v1-flat parser, is
 //     deliberately not trimmed to what the one-time migration happens to call
 //     (see its header). Trimming a parser to its current caller is how the next

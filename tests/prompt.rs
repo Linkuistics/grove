@@ -1,7 +1,7 @@
 //! The **guaranteed core**, against the real embed.
 //!
 //! Every interesting check runs through the `prompt` seam
-//! (`docs/specs/skill-delivered-methodology.md`, *Test seams*). The driver's
+//! (`docs/ARCHITECTURE.md`, *the embed test seam*). The driver's
 //! launch path is a thin wrapper covered by the existing loop-driver seam, so
 //! nothing here spawns one.
 //!

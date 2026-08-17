@@ -627,7 +627,7 @@ fn the_citation_check_distinguishes_a_record_kind_from_prose() {
         "an architecture anchor cited as an ADR must be reported"
     );
     assert!(
-        miscited_reason("config-driven-sessions", &adrs, &specs, &architecture)
+        miscited_reason("doubt-grove-review-mechanics", &adrs, &specs, &architecture)
             .is_some_and(|reason| reason.contains("spec")),
         "a spec cited as an ADR must be reported"
     );

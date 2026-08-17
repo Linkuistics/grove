@@ -161,8 +161,10 @@ counts and the limitations.
 
 Provisioning returns unchanged, and with it the shared mutable directory and the
 build-pairing story [`one-build-owns-a-session`](one-build-owns-a-session.md)
-prices. `docs/specs/skill-delivered-methodology.md` carries the requirements, the
-skill's layout, and the agreed test seams.
+prices. The corpus's condition/procedure layout, the three size alarms over it,
+and the seam this is tested through are in
+[`ARCHITECTURE.md`](../ARCHITECTURE.md#corpus-shape); what this record's
+requirements asked for is now discharged as tests.
 
 ## Considered options
 

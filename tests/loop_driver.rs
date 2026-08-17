@@ -137,7 +137,7 @@ fn write_config_only(home: &Path, command: &Path) {
 /// and the stated version control — and everything else in `${prompt}` is either
 /// the fixed load instruction or a byte-exact slice of `content/`, whose prose
 /// names handle-shaped strings of its own that a looser marker would find
-/// (`docs/specs/skill-delivered-methodology.md`, *The core rule*).
+/// (ADR *skill-delivers-the-methodology*, *The core rule*).
 const MANDATED_LEAF: &str = "Grove mandate: the leaf selected for this session is `";
 
 /// Plant a minimal current-format tree with one live leaf.

@@ -57,14 +57,17 @@ lockstep, which is why they live together — see
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`supported-workspace-layouts`](docs/adr/supported-workspace-layouts.md),
   [`task-tree-transactions-fail-closed`](docs/adr/task-tree-transactions-fail-closed.md),
-  [`config-driven-sessions`](docs/specs/config-driven-sessions.md),
-  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
-  and [`skill-delivered-methodology`](docs/specs/skill-delivered-methodology.md)
-  — the last describing how the methodology reaches a session. Its predecessor,
-  `mandate-delivered-methodology`, went with the machinery it described.
-  The doubt skill participates in the review-ownership and promotion contracts,
-  but the mandate, task tree, review routing, and lifecycle are Grove's
-  maintaining seam.
+  and [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
+  — the last being the one spec, because it describes a composition **between**
+  two contexts and so outlives the increment that wrote it. The doubt skill
+  participates in the review-ownership and promotion contracts, but the mandate,
+  task tree, review routing, and lifecycle are Grove's maintaining seam.
+
+  A spec that only ever described one shipped increment of Grove's own runtime is
+  not a durable record; it is `docs/ARCHITECTURE.md`'s subject written twice.
+  `config-driven-sessions` and `skill-delivered-methodology` were folded there on
+  those grounds, as `mandate-delivered-methodology` went with the machinery it
+  described.
 
 ## Choosing a context
 

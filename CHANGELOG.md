@@ -51,6 +51,55 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The repository carried two current-state design corpora, and now carries
+  one.** `docs/specs/config-driven-sessions.md` and
+  `docs/specs/skill-delivered-methodology.md` were the design records for the
+  v17 and v18 increments. Both shipped, and both went on describing the same
+  running system as `docs/ARCHITECTURE.md` — one grain finer, in parallel prose,
+  with no rule saying which one a reader should believe when they disagreed. Two
+  owners for one subject is the drift risk, and it does not need a measured
+  disagreement to be worth closing. Everything still binding already had a home:
+  the too-late test is a section of ADR *skill-delivers-the-methodology*, the
+  leaf grammar's non-prefix invariant and the reserved-not-blocking finish rule
+  are in the task-tree data model, and the specs' `## Requirements` were long
+  since discharged as the tests that cite them. What only the specs carried moves
+  to the architecture guide: the corpus's condition/procedure split and why the
+  routing table opens the skill (*The corpus's shape*), the three size alarms —
+  500-line body, 100-line loop section, 4 KiB prompt — and the argument that each
+  is an alarm rather than a budget, and the embed test seam that explains why
+  `methodology` and `prompt` are `pub`. Their `## Problem` narratives and
+  `## Removed surfaces` inventories are history, which this file already holds.
+  `docs/specs/doubt-grove-review-mechanics.md` stays: it describes a composition
+  *between* two contexts and so outlives the increment that wrote it, which is
+  what `CONTEXT-MAP.md` now records as the membership rule for the set.
+
+- **The documentation prose sweep is deleted.** `tests/legacy_claim_sweep.rs`
+  enumerated every occurrence of the removed launch vocabulary across the docs
+  and required each to sit inside a committed quotation judging it a refutation
+  rather than a claim. That was the right shape while the removal was landing.
+  Two releases later what it still bought was a build that breaks when the
+  *wording* of a documentation sentence changes — the table hard-coded some thirty
+  sentences, which is why the fold above would otherwise have been a test
+  failure rather than an edit. The behavioural half of the same claim stays and
+  is where the value always was: `tests/removed_surface.rs` drives a real bare
+  `grove` launch with the whole legacy environment set to values that would be
+  catastrophic if read, in a Git worktree and a jj workspace, and asserts the
+  launch is byte-identical to a clean run. Its `GROVE_SESSION_TARGET` row went
+  with the sweep, reported by its own stale-entry check — the name reached that
+  table only because the sweep had to spell it.
+
+- **The module-visibility exemption list said two and the sweep reports three.**
+  `src/lib.rs` and `docs/ARCHITECTURE.md` both stated that, after the visibility
+  pass, exactly two surfaces survive the production reachability check. Running
+  the technique they document — copy `src/` to a scratch crate, make every module
+  private but `cli` and `llm_cli`, read the compiler's warnings — reports
+  `leaf_id`, `tree_lifecycle::transition_to_current`, **and**
+  `methodology::markdown_files`. The third was never unargued; its own doc
+  comment claims the seam exemption by name, and it was simply missing from the
+  two tallies. Both now say *two kinds of surface*, with every reported item
+  falling under one — which is the claim that was always true and the one that
+  survives the next module joining the list.
+
 ## v18.4.0
 
 - **`${prompt}` carries a guaranteed core, and the provisioned skill delivers the

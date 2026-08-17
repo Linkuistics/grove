@@ -314,8 +314,8 @@ resolve by handle. Its close now goes through the ordinary path, which looks for
 a `Done when` it will not find and reports nothing to promote.
 
 Current-format filenames are required, as everywhere else. Legacy body kinds are
-handled by the automatic session-kind migration in
-[config-driven-sessions](config-driven-sessions.md).
+handled by the automatic session-kind migration described in
+[`ARCHITECTURE.md`](../ARCHITECTURE.md#legacy-migration).
 
 `PROMOTING-*` is no longer reserved. A directory left by an interrupted
 promotion under an older binary is now an ordinary foreign entry: unpositioned

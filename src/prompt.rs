@@ -2,7 +2,7 @@
 //!
 //! A session receives a couple of KiB pointing at the provisioned skill, not the
 //! methodology itself. What earns a place here is settled by the **too-late
-//! test** (`docs/specs/skill-delivered-methodology.md`, *The core rule*): a
+//! test** (ADR *skill-delivers-the-methodology*, *The core rule*): a
 //! sentence rides `${prompt}` only if its failure mode is one the skill cannot
 //! repair, because by the time the skill could speak the moment has passed.
 //! Three shapes pass — a fact only the driver holds, the instruction to open the

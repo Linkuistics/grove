@@ -303,8 +303,13 @@ Picking is a stateless depth-first pre-order walk over numeric sibling
 positions. It returns the first live leaf and skips terminal entries. The one
 eligibility rule beyond terminal filtering is the driver-owned `finish` leaf:
 while any non-finish leaf is live the walk skips finish, which becomes eligible
-only as the sole remaining work. More than one live finish leaf is malformed and
-stops selection rather than letting eligibility depend on encounter order.
+only as the sole remaining work. Finish is therefore **reserved, not blocking**,
+and both halves matter. `leaf-insert` sequences work ahead of it, and ordinary
+`leaf-add` may also *append* work behind it — the case that bites, since the
+finish leaf keeps the earlier position and nothing but the skip rule stops
+teardown being proposed while live work sits after it. More than one live finish
+leaf is malformed and stops selection rather than letting eligibility depend on
+encounter order.
 `grove-llm pick` applies the same rule, so its diagnostic answer can never
 disagree with the driver. Grove encodes no dependencies, priorities, or
 scheduler outside this order.
@@ -663,10 +668,10 @@ template may request.
 
 **Provisioning is the delivery path.** [The skill delivers the
 methodology](adr/skill-delivers-the-methodology.md) settles that the sweep, the
-stamps, the shared directory and the harness registry all stay, and that
-`${prompt}` carries only a short guaranteed core pointing at what they wrote;
-[`docs/specs/skill-delivered-methodology.md`](specs/skill-delivered-methodology.md)
-carries the design. **The mandate machinery is gone** — the composer, the unit
+stamps, the shared directory and the harness registry all stay, that `${prompt}`
+carries only a short guaranteed core pointing at what they wrote, and the
+too-late test that decides what may join that core. **The mandate machinery is
+gone** — the composer, the unit
 markers and the file directives, the two readers over them, the build gate, and
 `grove-llm methodology`. `content/` is plain markdown a harness reads as a skill,
 with no grammar over it and no grain finer than a file. The **build boundary** at
@@ -742,6 +747,40 @@ thing it reads. One source, two deliveries, and no build boundary between them.
 The binary refuses to overwrite an unstamped foreign directory and replaces an
 old symlink as a link rather than following it. `content/` is the canonical
 source; repository-local or hand-edited copies are not supported.
+
+<a id="corpus-shape"></a>
+### The corpus's shape, and the three alarms over it
+
+`SKILL.md` states **conditions** and routes; `references/` states the
+**procedures**. That split is the whole of what makes the skill progressively
+disclosed — a session reads one page of conditions and opens the single row its
+kind names. It is also why the opening screen *routes* rather than introduces: an
+opening that summarises the workflow becomes a shortcut a session takes instead
+of reading the body, and a routing table gives every kind a row, so a session
+that arrived by description match rather than by a Grove mandate still lands in
+its own reference file. Ten rows serve nineteen kinds, because each family is
+already one unit.
+
+Three numeric measures stand over that shape. All three are **alarms rather than
+budgets**, each set well above what the corpus needs, so crossing one means
+growth has become visible — not that prose was fitted to a limit:
+
+| Measure | Alarm | Held by |
+|---|---|---|
+| `SKILL.md`'s body — the frontmatter is a routing header a harness reads, so counting it would let a description rewrite eat the ceiling | 500 lines | `tests/methodology.rs` |
+| The loop section, from its heading to the next heading of the same level, blank lines included | 100 lines | `tests/methodology.rs` |
+| Each kind's composed `${prompt}` | 4 KiB | `tests/prompt.rs` |
+
+The loop-section measure is constraint 7 — *one page of rules* — made
+recomputable: "a page" is otherwise unmeasurable, and a limit no reader can
+reproduce is an assertion with no verification boundary.
+
+What none of the three establishes is the semantic limb, *no procedure in
+`SKILL.md`*. That classification lost its classifier when the unit markers were
+deleted, so it is a **review obligation** — discharged per section, against the
+reference file that section routes to, which is where the corresponding procedure
+must be found — and never a passing test. A budget test going green says nothing
+about it.
 
 ### The boundary is a build, not a commit
 
@@ -857,12 +896,13 @@ Module visibility is load-bearing rather than incidental: a `pub` item in a
 module stays `pub` only while something outside the crate genuinely calls into
 it. A public item whose only callers are tests therefore stops being module
 API — deleted where a test can assert on what production reads, demoted into
-that module's `mod tests` where the test still needs the convenience. Two
-surfaces are exempt and argued where they live: a **seam**, where production
-reaches the same behaviour through a door a test cannot open
-(`tree_lifecycle::transition_to_current`), and a **frozen grammar kept whole**
-(`leaf_id`, the v1-flat parser, deliberately not trimmed to what the one-time
-migration happens to call). The list is reproduced by copying `src/` to a
+that module's `mod tests` where the test still needs the convenience. Two *kinds*
+of surface are exempt and every item the sweep reports falls under one of them,
+argued where it lives: a **seam**, where production reaches the same behaviour
+through a door a test cannot open (`tree_lifecycle::transition_to_current`, and
+`methodology::markdown_files` — see [the embed test seam](#embed-test-seam)), and
+a **frozen grammar kept whole** (`leaf_id`, the v1-flat parser, deliberately not
+trimmed to what the one-time migration happens to call). The list is reproduced by copying `src/` to a
 scratch crate, making every module private except `cli` and `llm_cli`, and
 reading the compiler's reachability warnings.
 
@@ -882,3 +922,22 @@ jj, and colocated jj worktrees, with isolated home directories, a real
 and the real `grove-llm` binary. Clocks, wait policy, lock backends, and kill
 graces are injected through internal module seams, never through supported
 process configuration.
+
+<a id="embed-test-seam"></a>
+Two claims cannot be reached that way, and they have a seam of their own. Every
+assertion about the **real embedded corpus** — that each kind's reference file
+exists, that the methodology instructs no `grove-llm` verb the CLI lacks, that
+the composed core is what the design admits — runs through `methodology` and
+`prompt` rather than through a spawned driver. Production's own door onto the
+embed is `include_dir`, which a test cannot open without making a runtime
+dependency a dev dependency as well, and a driver spawned per claim would pay a
+process for each. Those two modules are `pub` on exactly that ground; the rule
+that otherwise governs module visibility is under [main module
+seams](#main-module-seams).
+
+What is mechanically checkable here is narrower than what the design claims, and
+the boundary is stated rather than blurred: the core's three-part shape, its
+ending's bytes, its two open couplings and the size alarm are checkable; whether
+the wording actually gets a session to read the skill is not, and is carried by
+[`wording-micro-test`](research/wording-micro-test.md) and by the human-watched
+acceptance run.

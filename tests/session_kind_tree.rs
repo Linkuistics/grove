@@ -64,7 +64,7 @@ fn filename_kind_is_unambiguous_and_body_routing_metadata_is_ignored() {
 }
 
 /// The kind set maintains a non-prefix invariant — no label plus `-` prefixes
-/// another (`docs/specs/config-driven-sessions.md`, "the current leaf grammar").
+/// another (`docs/ARCHITECTURE.md`, *task-tree-scheme*).
 /// `src/leaf.rs` pins that over the *set*; what the set cannot pin is that the
 /// parser honours the `-` boundary. Without it `01-designer-notes-k1.md` reads
 /// as kind `design` plus slug `er-notes` and launches a session no human wrote —
@@ -414,10 +414,10 @@ fn non_finish_work_can_be_inserted_before_a_reserved_finish_leaf() {
     assert!(grove.join("02-finish-finish-k1.md").exists());
 }
 
-/// Finish is *reserved*, not *blocking*, and the spec states both halves:
-/// `leaf-insert` sequences work ahead of it, and "ordinary `leaf-add` may also
-/// append later work because finish selection cannot starve it"
-/// (`docs/specs/config-driven-sessions.md`). The appended shape is the one that
+/// Finish is *reserved*, not *blocking*, and the design states both halves:
+/// `leaf-insert` sequences work ahead of it, and ordinary `leaf-add` may also
+/// append later work because finish selection cannot starve it
+/// (`docs/ARCHITECTURE.md`, *task-tree-scheme*). The appended shape is the one that
 /// bites — the finish leaf keeps the *earlier* position, so nothing but the skip
 /// rule stops teardown being proposed while live work sits behind it.
 #[test]

@@ -137,7 +137,8 @@ kind's embedded signal file inlined verbatim, so the **prose** drift surface is 
 bytes — what the channels share is four structural couplings (the skill's name,
 the reference path, the signal path, the provisioned locations), two closed by
 construction and two by assertion.
-Design: `docs/specs/skill-delivered-methodology.md`.
+Design: ADR `skill-delivers-the-methodology`, and `docs/ARCHITECTURE.md`,
+*Embedded methodology*.
 _Avoid_: admitting a sentence because it is **important**, needed every session,
 or short. Importance is unbounded and is what builds a wall; frequency is not
 timing; size is a consequence of the rule and never a criterion.

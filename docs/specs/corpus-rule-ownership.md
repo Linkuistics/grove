@@ -459,16 +459,26 @@ duplication being what this design exists to remove. Where it did not, **the
 earlier leaf performs the whole move**: the invariant is the point and the
 convention is only the cheapest way to satisfy it.
 
-Four rules were in that position, each stated in `SKILL.md` and nowhere else in
-`content/`, and `skill-router-k4` landed all four in their owners:
+**Five** rules were in that position, each stated in `SKILL.md` and nowhere else
+in `content/`. `skill-router-k4` landed four of them in their owners:
 `one-focused-commit`'s scope (the artifact, the grow-verb writes, the `DONE`
 rename and the cascade's promotions, and why Retire precedes) →
 `references/commit.md`; `node-close-is-implicit` and the close's *asks the human
 nothing* clause → `references/retire.md`; and `pruning-is-hitl`'s agent-side
 half — *an agent never prunes on its own*, which the file gated on human
 confirmation without ever forbidding — → `references/retire.md`. Each owner cell
-was right; what the inventory could not say is that four owners named a file
+was right; what the inventory could not say is that five owners named a file
 which did not yet carry the rule.
+
+The fifth was `durable-artifact-set`, and it was **not** landed: `SKILL.md`'s
+artifact table was the corpus's only statement of the four members and of which
+of them outlive the grove, and `references/grove.md` — the owner sentence 18
+names — argued the constraints, the glossary and the spec grain without ever
+listing them. `skill-router-k20` found it and `skill-router-k21` repaired it,
+adding *The four artifacts, and which of them outlive the grove* to
+`references/grove.md`. The gap is the reason this section's audit is now stated
+as an exact count rather than a summary: a rule whose owner does not carry it is
+indistinguishable, from inside `SKILL.md`, from one whose owner does.
 
 **A procedure register states the rule, not the condition.** The pruning move
 first landed in `references/retire.md` in the condition's own words — *finds its

@@ -275,6 +275,17 @@ fn the_skill_body_fits_the_progressive_disclosure_ceiling() {
 /// the same reason, and the eight `own` rows are checked by name so a failure
 /// says **which** row left rather than that the total moved.
 ///
+/// **A count is not an identity, and the count alone was the hole.** Twenty-six
+/// short `When` bullets satisfy `=26` whether or not they are the twenty-six
+/// canonical situations, so a rewrite that replaced one sentence with a second
+/// copy of another stayed green while its rule became unreachable — which is the
+/// same failure as deleting the sentence, minus the arithmetic that would have
+/// caught it. So the set is matched **row by row** against
+/// [`CANONICAL_TRIGGERS`]: every row claims exactly one sentence and every
+/// sentence is claimed by exactly one row. The rows identify a sentence by its
+/// owner path plus a situation word with alternatives, never by its wording, so
+/// the design's licence to reword within the trigger grammar survives.
+///
 /// The rewrite that landed this measured **796 words**, 26 triggers, longest 16.
 /// The spec projected 500–620 on the drafted parts; the difference is the intro,
 /// the headings, the routing table's cells and the eighth `own` body, none of
@@ -322,22 +333,36 @@ fn the_skill_holds_its_condition_register_budget() {
          {overlong:?}"
     );
 
+    let audit = audit_triggers(&triggers);
+    assert!(
+        audit.is_clean(),
+        "content/SKILL.md's trigger set must be exactly the 26 canonical rows of \
+         docs/specs/corpus-rule-ownership.md, *The trigger sentences* — one \
+         sentence per situation, each naming its owner's path. A row with no \
+         sentence is a rule no session can reach; a row claiming two is a \
+         situation stated twice; a sentence no row claims is an edge the design \
+         does not have. {audit}"
+    );
+
     let absent: Vec<String> = OWN_ROWS
         .iter()
-        .flat_map(|(rule, phrases)| {
-            missing_phrases(body, phrases)
+        .flat_map(|row| {
+            unmet_beats(body, row)
                 .into_iter()
-                .map(move |phrase| format!("{rule}: {phrase:?}"))
+                .map(|beat| format!("{}: {beat}", row.rule))
         })
         .collect();
     assert!(
         absent.is_empty(),
         "content/SKILL.md is the canonical source for eight rules — the ones \
          whose whole content is their trigger, so no procedure remains to defer. \
-         Each of these is missing wording it is supposed to carry: {absent:#?}"
+         Each of these has lost wording or structure it is supposed to carry. \
+         Any listed alternative satisfies its beat, so reword freely; what is \
+         not free is dropping a beat, or — where the row is ordered — moving \
+         one: {absent:#?}"
     );
 
-    // The controls. Each measure has to be able to fail, and the two that read
+    // The controls. Each measure has to be able to fail, and the three that read
     // structure have to fail on the shape they would otherwise lose silently.
     let synthetic = "- When a wrapped bullet runs on, it\n  still counts once.\n\
                      - Retire the leaf as `references/retire.md` directs.\n\
@@ -350,11 +375,273 @@ fn the_skill_holds_its_condition_register_budget() {
          sentence: {control:?}"
     );
     assert_eq!(control[0].split_whitespace().count(), 10);
-    assert_eq!(
-        missing_phrases("the spine is here", &["the spine", "the mandate"]),
-        vec!["the mandate"]
+
+    // Substitution, not deletion: sentence 18 is replaced by a second copy of
+    // sentence 19, so the count stays 26 and the file stays under the ceiling.
+    // This is the shape the old count-only assertion could not see.
+    let substituted: Vec<String> = triggers
+        .iter()
+        .map(|sentence| {
+            if sentence.contains("durable artifact") {
+                triggers
+                    .iter()
+                    .find(|other| other.contains("`linkuistics` plugin"))
+                    .expect("sentence 19 is in the corpus")
+                    .clone()
+            } else {
+                sentence.clone()
+            }
+        })
+        .collect();
+    assert_eq!(substituted.len(), TRIGGERS);
+    let substituted = audit_triggers(&substituted);
+    assert_eq!(substituted.missing, vec!["durable-artifact-set"]);
+    assert_eq!(substituted.duplicated, vec!["plugin-prerequisite"]);
+
+    // Reordering Bootstrap's reads keeps every phrase in the body and breaks the
+    // rule, which is exactly what an unordered presence check cannot report.
+    let reordered = body.replace(
+        "the glossary, the ADRs the briefs cite,\nthe `BRIEF.md` chain root→leaf, and the task file.",
+        "the task file, the glossary, the ADRs\nthe briefs cite, and the `BRIEF.md` chain root→leaf.",
     );
+    assert_ne!(
+        reordered, body,
+        "the Bootstrap section must be worded as the control assumes"
+    );
+    let bootstrap = OWN_ROWS
+        .iter()
+        .find(|row| row.rule == "bootstrap-order")
+        .expect("bootstrap-order is an own row");
+    assert_eq!(unmet_beats(&reordered, bootstrap).len(), 1);
+
+    // Dropping the routing row's before-work clause leaves the table, the
+    // instruction over it, and the no-selection clause all intact.
+    let untimed = body.replace(", before you act", "");
+    assert_ne!(
+        untimed, body,
+        "the routing instruction must carry a timing clause"
+    );
+    let routing = OWN_ROWS
+        .iter()
+        .find(|row| row.rule == "kind-routing-table")
+        .expect("kind-routing-table is an own row");
+    assert_eq!(unmet_beats(&untimed, routing).len(), 1);
+
     assert!(body_text("no frontmatter here\n").is_none());
+}
+
+/// The 26 canonical trigger rows of `docs/specs/corpus-rule-ownership.md`,
+/// *The trigger sentences* — the whole edge list out of `content/SKILL.md`.
+///
+/// A row identifies its sentence by two things a rewording cannot move: the
+/// **owner path**, which is the edge itself, and one **situation word** from
+/// `situation`, any of which will do. Nothing here pins a sentence's wording,
+/// because the design licenses `SKILL.md` to reword within the trigger grammar;
+/// what it forbids is changing the set, and that is what a row failing to claim
+/// exactly one sentence reports.
+///
+/// Five sentences carry two rows each. Both rows name the same owner and the
+/// same situation, so each claims that one sentence and the bijection holds at
+/// the level of sentences rather than rows.
+const CANONICAL_TRIGGERS: [TriggerRow; 31] = [
+    row("pick-walk-order", "references/driver.md", &["launched"]),
+    row("one-configuration", "references/driver.md", &["launched"]),
+    row(
+        "stale-launch-stops",
+        "references/bootstrap.md",
+        &["terminal"],
+    ),
+    row("review-budget", "references/execute.md", &["reviewer"]),
+    row(
+        "verify-repo-claims-with-controls",
+        "references/execute.md",
+        &["repo-wide"],
+    ),
+    row(
+        "decisions-land-as-they-settle",
+        "references/execute.md",
+        &["decision"],
+    ),
+    row(
+        "escalation-names-the-tradeoff",
+        "references/execute.md",
+        &["human"],
+    ),
+    row(
+        "externalize-by-default",
+        "references/decompose.md",
+        &["does not serve"],
+    ),
+    row(
+        "bigger-than-brief-decomposes",
+        "references/decompose.md",
+        &["bigger"],
+    ),
+    row(
+        "integration-placement",
+        "references/decompose.md",
+        &["integration"],
+    ),
+    row("fog-or-ticket", "references/decompose.md", &["foresee"]),
+    row(
+        "prior-art-research-is-its-own-leaf",
+        "references/decompose.md",
+        &["lessons"],
+    ),
+    row(
+        "review-chain-when-load-bearing",
+        "references/decompose.md",
+        &["may need review"],
+    ),
+    row(
+        "vendor-pair-when-load-bearing",
+        "references/decompose.md",
+        &["surveys"],
+    ),
+    row(
+        "retire-before-commit",
+        "references/retire.md",
+        &["work is done"],
+    ),
+    row(
+        "retirement-is-filename-only",
+        "references/retire.md",
+        &["work is done"],
+    ),
+    row(
+        "pruning-is-hitl",
+        "references/retire.md",
+        &["decided against"],
+    ),
+    row(
+        "triage-picks-the-verb",
+        "references/retire.md",
+        &["in doubt"],
+    ),
+    row("no-fourth-status", "references/retire.md", &["in doubt"]),
+    row("node-close-is-implicit", "references/retire.md", &["node"]),
+    row("cascade-is-silent", "references/retire.md", &["node"]),
+    row(
+        "finish-is-the-drivers-to-discover",
+        "references/retire.md",
+        &["finishing"],
+    ),
+    row("one-focused-commit", "references/commit.md", &["retired"]),
+    row("name-by-handle", "references/commit.md", &["retired"]),
+    row(
+        "durable-artifact-set",
+        "references/grove.md",
+        &["durable artifact"],
+    ),
+    row("plugin-prerequisite", "references/grove.md", &["plugin"]),
+    row("adr-when-to-write", "ADR-FORMAT.md", &["considering"]),
+    row(
+        "adr-set-is-minimum-coherent",
+        "ADR-FORMAT.md",
+        &["recorded decision"],
+    ),
+    row(
+        "spec-at-an-agreement-point",
+        "SPEC-FORMAT.md",
+        &["agreement point"],
+    ),
+    row(
+        "spec-set-is-current-state",
+        "SPEC-FORMAT.md",
+        &["changing a spec"],
+    ),
+    row(
+        "glossary-is-the-forcing-function",
+        "CONTEXT-FORMAT.md",
+        &["term"],
+    ),
+];
+
+/// One canonical trigger row. `situation` is an any-of list, so a rewording has
+/// somewhere to land without the row losing its grip on the sentence.
+struct TriggerRow {
+    rule: &'static str,
+    owner: &'static str,
+    situation: &'static [&'static str],
+}
+
+const fn row(
+    rule: &'static str,
+    owner: &'static str,
+    situation: &'static [&'static str],
+) -> TriggerRow {
+    TriggerRow {
+        rule,
+        owner,
+        situation,
+    }
+}
+
+/// What the canonical set and the corpus's sentences disagree about.
+#[derive(Debug, Default)]
+struct TriggerAudit {
+    /// Rows no sentence claims — each one a rule `SKILL.md` no longer reaches.
+    missing: Vec<&'static str>,
+    /// Rows claiming more than one sentence — a situation stated twice.
+    duplicated: Vec<&'static str>,
+    /// Sentences no row claims — an edge the design does not have.
+    unrecognised: Vec<String>,
+}
+
+impl TriggerAudit {
+    fn is_clean(&self) -> bool {
+        self.missing.is_empty() && self.duplicated.is_empty() && self.unrecognised.is_empty()
+    }
+}
+
+impl std::fmt::Display for TriggerAudit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "rules with no trigger sentence: {:?}; rules whose situation is \
+             stated twice: {:?}; sentences matching no canonical row: {:#?}",
+            self.missing, self.duplicated, self.unrecognised
+        )
+    }
+}
+
+/// Match every canonical row against `triggers`, both ways.
+///
+/// Both directions matter and they fail on different edits. Row → sentence
+/// catches a rule that lost its edge; sentence → row catches a bullet that
+/// gained one the inventory does not license. Substituting one canonical
+/// sentence for another trips both.
+fn audit_triggers(triggers: &[String]) -> TriggerAudit {
+    let mut audit = TriggerAudit::default();
+    let mut claimed = vec![false; triggers.len()];
+    for row in &CANONICAL_TRIGGERS {
+        let hits: Vec<usize> = triggers
+            .iter()
+            .enumerate()
+            .filter(|(_, sentence)| {
+                sentence.contains(row.owner)
+                    && row.situation.iter().any(|word| sentence.contains(word))
+            })
+            .map(|(index, _)| index)
+            .collect();
+        match hits.len() {
+            0 => audit.missing.push(row.rule),
+            1 => claimed[hits[0]] = true,
+            _ => {
+                audit.duplicated.push(row.rule);
+                for hit in hits {
+                    claimed[hit] = true;
+                }
+            }
+        }
+    }
+    audit.unrecognised = triggers
+        .iter()
+        .zip(&claimed)
+        .filter(|(_, claimed)| !**claimed)
+        .map(|(sentence, _)| sentence.clone())
+        .collect();
+    audit
 }
 
 /// The eight rules `content/SKILL.md` **owns** — `Occasion = orientation`, whole
@@ -362,60 +649,152 @@ fn the_skill_holds_its_condition_register_budget() {
 /// survive a rewrite (`docs/specs/corpus-rule-ownership.md`, *the condition
 /// register*).
 ///
-/// Phrases rather than whole sentences, and several per row where the row is a
-/// list: the claim is that the row is *present*, not that it is worded to the
-/// letter, and a rewrite is free to re-say it. What it is not free to do is drop
-/// one — which is what these name, one row at a time.
+/// A row is a list of **beats**, and each beat is an any-of list of wordings:
+/// the claim is that the beat is *there*, not that it is said to the letter, so
+/// a rewrite is free to re-say it and an alternative can be added when it does.
+/// What a rewrite is not free to do is drop a beat.
 ///
-/// The routing table's own rows are pinned by
-/// [`the_skills_routing_table_names_a_reference_file_that_exists`]; what is
-/// checked here is the instruction over it, which is the part that makes it a
-/// rule rather than a listing.
-const OWN_ROWS: [(&str, &[&str]); 8] = [
-    ("kind-routing-table", &["open the one row your kind names"]),
-    (
-        "spine-seven-constraints",
-        &[
-            "Artifacts, not state.",
-            "Read, don't run.",
-            "Suggested shape, not enforced schema.",
-            "Lazy and optional.",
-            "grove guides, it does not gate.",
-            "Walk-away-able.",
-            "One page of rules.",
-            "just-in-time, not few",
+/// **Two rows are ordered, and that is the finding this shape answers.** A
+/// flattened, unordered presence check reads the body as a bag of phrases, so it
+/// passes on a rewrite that keeps every word and destroys the rule: Bootstrap
+/// reading the task file before the glossary and the cited ADRs — which is a
+/// session taking unqualified task prose as its mandate — or the spine's
+/// constraints renumbered, which silently repoints every "constraint 4" citation
+/// in the corpus. Neither is a wording change, so neither belongs to the licence
+/// to reword; both are the structure that makes the row a rule.
+///
+/// `kind-routing-table` is unordered and gains its two missing clauses instead.
+/// The table alone is a listing; what makes it a rule is *before you act* (a
+/// session that starts work first has applied no kind discipline to it) and
+/// *select nothing here* (a session that chooses re-derives a fact the driver
+/// already resolved). The rows of the table itself are pinned by
+/// [`the_skills_routing_table_names_a_reference_file_that_exists`].
+const OWN_ROWS: [OwnRow; 8] = [
+    OwnRow {
+        rule: "kind-routing-table",
+        ordered: false,
+        beats: &[
+            &[
+                "open the one row your kind names",
+                "read the one row your kind names",
+            ],
+            &[
+                "before you act",
+                "before you begin",
+                "before doing anything",
+            ],
+            &[
+                "select nothing here",
+                "nothing for you to select",
+                "you make no selection",
+            ],
         ],
-    ),
-    ("one-task-is-one-session", &["One task is one session."]),
-    (
-        "bootstrap-order",
-        &[
-            "Resolve the mandated handle",
-            "the glossary",
-            "the ADRs the briefs cite",
-            "`BRIEF.md` chain root→leaf",
-            "the task file",
-            "Nothing else by reflex",
+    },
+    OwnRow {
+        rule: "spine-seven-constraints",
+        ordered: true,
+        beats: &[
+            &["Artifacts, not state."],
+            &["Read, don't run."],
+            &["Suggested shape, not enforced schema."],
+            &["Lazy and optional."],
+            &["just-in-time, not few"],
+            &["grove guides, it does not gate."],
+            &["Walk-away-able."],
+            &["One page of rules."],
         ],
-    ),
-    ("mandate-is-authoritative", &["mandate is authoritative"]),
-    ("no-second-pick", &["Do not pick again", "the mandate wins"]),
-    (
-        "stated-vcs-is-definitive",
-        &[
-            "stated VCS is definitive",
-            "Do not re-derive",
-            "disregard a harness banner",
+    },
+    OwnRow {
+        rule: "one-task-is-one-session",
+        ordered: false,
+        beats: &[&["One task is one session."]],
+    },
+    OwnRow {
+        rule: "bootstrap-order",
+        ordered: true,
+        beats: &[
+            &["Resolve the mandated handle", "Resolve the handle"],
+            &["the glossary"],
+            &["the ADRs the briefs cite", "the cited ADRs"],
+            &["`BRIEF.md` chain root→leaf", "brief chain root→leaf"],
+            &["the task file"],
+            &["Nothing else by reflex", "nothing else by reflex"],
         ],
-    ),
-    (
-        "hitl-afk-mark-predicts",
-        &[
-            "mark predicts, it does not permit",
-            "any kind may stop and ask",
+    },
+    OwnRow {
+        rule: "mandate-is-authoritative",
+        ordered: false,
+        beats: &[&["mandate is authoritative"]],
+    },
+    OwnRow {
+        rule: "no-second-pick",
+        ordered: false,
+        beats: &[&["Do not pick again"], &["the mandate wins"]],
+    },
+    OwnRow {
+        rule: "stated-vcs-is-definitive",
+        ordered: false,
+        beats: &[
+            &["stated VCS is definitive"],
+            &["Do not re-derive"],
+            &["disregard a harness banner"],
         ],
-    ),
+    },
+    OwnRow {
+        rule: "hitl-afk-mark-predicts",
+        ordered: false,
+        beats: &[
+            &["mark predicts, it does not permit"],
+            &["any kind may stop and ask"],
+        ],
+    },
 ];
+
+/// One `own` row: its rule, whether its beats have to appear in the body in the
+/// order given, and the beats.
+struct OwnRow {
+    rule: &'static str,
+    ordered: bool,
+    beats: &'static [&'static [&'static str]],
+}
+
+/// Which of `row`'s beats `text` does not satisfy, one report per beat.
+///
+/// Matching is on whitespace-collapsed text, because the corpus wraps and a
+/// needle that missed a wrapped match would report a present beat as absent.
+///
+/// For an ordered row the search carries a cursor: each beat must occur *after*
+/// the match that satisfied the previous one, so the assertion is that some
+/// in-order occurrence exists. That is the permissive reading on purpose — a
+/// phrase repeated elsewhere in the file does not fail the row — while the edit
+/// it exists to catch, a list whose items have been moved, has one occurrence
+/// each and fails.
+fn unmet_beats(text: &str, row: &OwnRow) -> Vec<String> {
+    let flattened = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut unmet = Vec::new();
+    let mut cursor = 0;
+    for (index, beat) in row.beats.iter().enumerate() {
+        let found = beat
+            .iter()
+            .filter_map(|wording| {
+                flattened[cursor..]
+                    .find(wording)
+                    .map(|at| cursor + at + wording.len())
+            })
+            .min();
+        match found {
+            Some(end) if row.ordered => cursor = end,
+            Some(_) => {}
+            None if row.ordered => unmet.push(format!(
+                "beat {} is absent, or is out of order — none of {beat:?} occurs \
+                 after the beat before it",
+                index + 1
+            )),
+            None => unmet.push(format!("beat {}: none of {beat:?}", index + 1)),
+        }
+    }
+    unmet
+}
 
 /// Every `trigger` sentence in the body: a list item opening `When`, with its
 /// continuation lines rejoined.
@@ -443,19 +822,6 @@ fn trigger_sentences(body: &str) -> Vec<String> {
         }
     }
     out
-}
-
-/// Which of `phrases` `text` does not carry, comparing on whitespace-collapsed
-/// text so that a phrase spanning a line break still matches — the corpus wraps,
-/// and a needle that silently missed a wrapped match would report a present row
-/// as absent.
-fn missing_phrases(text: &str, phrases: &[&str]) -> Vec<String> {
-    let flattened = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    phrases
-        .iter()
-        .filter(|phrase| !flattened.contains(**phrase))
-        .map(|phrase| (*phrase).to_owned())
-        .collect()
 }
 
 /// The body of a frontmatter document — everything after the closing `---`.

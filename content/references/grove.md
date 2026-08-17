@@ -28,6 +28,31 @@ These seven rules are non-negotiable; everything else is subordinate to them.
 7. **One page of rules.** If the loop does not fit on a page, it is too
    complex — cut until it does.
 
+## The four artifacts, and which of them outlive the grove
+
+A grove's output lands in four artifacts, and only one of them is grove-specific.
+
+| Artifact | Path | Role |
+|---|---|---|
+| Glossary | `CONTEXT.md` (+ `CONTEXT-MAP.md`) | the Ubiquitous Language — read every session, appended inline |
+| ADR set | `docs/adr/<slug>.md` | one decision and its trade-off each, slug-named, edited in place |
+| Spec set | `docs/specs/<slug>.md` | how an area works — the human-facing agreement point |
+| Task tree | `.grove/`, inside the grove's working tree | the process: the self-extending decomposition of work |
+
+The first three **outlive the grove** (constraint 6): they are ordinary
+team-readable markdown in the repository, and a reader needs neither this skill
+nor `.grove/` to use them. The task tree is the **only ephemeral** one — the
+finish cycle deletes `.grove/` wholesale, so everything under it is destroyed
+with it, `BRIEF.md` charters included. That is what a brief is for: process
+context that is meant to die with the process. A finding, a decision, a term or
+an agreed design is not, and lands in one of the other three while the grove is
+still running.
+
+Briefs and the glossary partition on orthogonal axes, so neither substitutes for
+the other: a bounded context is a *domain* partition and the glossary is
+per-bounded-context, while a task-tree node is a *process* partition and carries
+a `BRIEF.md` rather than a glossary of its own.
+
 ## Why the glossary is the forcing function
 
 The acute failure mode of multi-session work is terminology drift: a later

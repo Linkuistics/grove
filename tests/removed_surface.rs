@@ -40,7 +40,11 @@
 //! prose. Those are documentation surfaces contracted by the methodology and
 //! durable-docs work, and pulling them in here would mean either failing on
 //! another task's declared scope or writing an exception that misstates who
-//! owns them.
+//! owns them. A companion sweep over the documentation surfaces existed and was
+//! deleted: policing which sentences may name a removed token froze the wording
+//! of every guide, and the CHANGELOG already records what was removed and when.
+//! The claim kept here is the behavioural one — the launch ignores the
+//! environment — which no amount of prose drift can falsify.
 
 mod support;
 
@@ -96,13 +100,14 @@ const ROLES: &[(&str, Role)] = &[
     // mistake one notch quieter.
     ("GROVE_HARNESS_PID", Role::RemovedLaunchPolicy),
     ("GROVE_CLAUDE_PID", Role::RemovedLaunchPolicy),
-    // Exported session-target metadata, deleted with target comparison. It
-    // reached this tree only when `tests/legacy_claim_sweep.rs` began sweeping
-    // the documentation surfaces for it — that sweep has to spell the name to
-    // assert the docs merely refute it. Production names it nowhere, which is
-    // what [`no_removed_launch_policy_is_named_outside_the_scrub_module`] holds
-    // it to.
-    ("GROVE_SESSION_TARGET", Role::RemovedLaunchPolicy),
+    // `GROVE_SESSION_TARGET` — exported session-target metadata, deleted with
+    // target comparison — is deliberately absent. It reached this table only
+    // because the documentation prose sweep that used to live beside this file
+    // had to spell the name in order to assert the docs merely refute it; with
+    // that sweep gone the name occurs nowhere under these roots, and
+    // [`the_classification_table_carries_no_stale_entry`] is what removed it.
+    // Reintroducing the name anywhere in the tree fails classification, which is
+    // the containment that mattered.
     ("GROVE_LLM_BIN", Role::RemovedLaunchPolicy),
     ("GROVE_SKILL_DIR", Role::RemovedLaunchPolicy),
     ("GROVE_KILL_GRACE", Role::RemovedLaunchPolicy),

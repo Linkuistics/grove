@@ -11,13 +11,11 @@ discipline and its HITL/AFK mark, and each kind's own reference file under
 here, and the only kind that grows the tree generatively:
 
 - Every other kind **produces an artifact** and differs in discipline, not in
-  what the loop does with it. `requirements` opens with a **grilling session**
-  (`grilling.md`): interview the user one question at a time, propose a
-  recommended answer for each, walk down the design tree until shared
-  understanding is reached, updating `CONTEXT.md` *inline* as terms resolve.
-  `design` turns that into a spec or an ADR set; `impl` produces code, docs, or
-  tests; the `review-*` kinds produce findings and the `integrate-review-*` kinds
-  apply them.
+  what the loop does with it. `requirements` settles *what* is wanted — on the
+  threshold and procedure its own reference file states, which is **not** an
+  interview every time; `design` turns that into a spec or an ADR set; `impl`
+  produces code, docs, or tests; the `review-*` kinds produce findings and the
+  `integrate-review-*` kinds apply them.
 - A `review-*` session is **inspection-only**: inspect the producer's committed
   changes, source, requirements or specifications, and recorded verification
   evidence. Do not run test, build, lint, or format commands, edit production or

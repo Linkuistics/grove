@@ -17,13 +17,14 @@ every file that owns one of those topics — and it has. It is stated at length 
 `CONTEXT.md`: six statements of one rule, each carrying its own reasoning, each
 free to drift.
 
-The same shape produces the corpus's live contradictions. `references/design.md`
-says an ADR is raised for a decision "hard to reverse, surprising, **or** a real
-trade-off"; `grilling.md` says all three must hold. Nothing decides between them
-because nothing says which file owns the test. And `references/planning.md`
-states the working-increments rule **twice in its own body**, with
-`references/execute.md` stating it a third time — a file duplicating itself is
-what "no placement rule" looks like at its clearest.
+The same shape produced the corpus's live contradictions. As the corpus stood
+when this design was written, `references/design.md` said an ADR is raised for a
+decision "hard to reverse, surprising, **or** a real trade-off" while
+`grilling.md` said all three must hold, and nothing decided between them because
+nothing said which file owned the test. `references/planning.md` stated the
+working-increments rule **twice in its own body**, with `references/execute.md`
+stating it a third time — a file duplicating itself is what "no placement rule"
+looks like at its clearest.
 
 The only shape check standing over any of this is a 500-line ceiling on
 `SKILL.md` whose own doc comment concedes it "establishes nothing semantic".
@@ -427,13 +428,15 @@ retire → commit → complete, the review budget, all three finish-signal outco
 An area may span several rows — *retire → commit → complete* is three — and only
 the rows inside an area are starred.
 
-**The ninth area is the exception, and it has to be.** *The interview threshold*
+**The ninth area is the exception, and it had to be.** *The interview threshold*
 is `grilling-threshold`, and it is a contradiction being resolved rather than a
-behaviour being preserved: the corpus states both forms today, so a test for the
-threshold is **red until `kind-references-k5` lands the fix**. Giving it to `k3`
-would charter a green-before-and-after leaf to ship red across three leaves. It is
-therefore marked **B (k5)** and lands with its fix, which is the disposition
-`k3`'s own task file already reasons to.
+behaviour being preserved: while the corpus stated both forms, a test for the
+threshold was **red until `kind-references-k5` landed the fix**. Giving it to `k3`
+would have chartered a green-before-and-after leaf to ship red across three
+leaves. It is therefore marked **B (k5)**, and `k5` landed it — as a ninth area
+in `tests/lifecycle_invariants.rs`, beside the eight, pinning the *resolution*:
+the deliverable is unconditional, the interview is not, and below three
+interdependent open questions the session records the decisions and proceeds.
 
 Every other **B** row is landed by the leaf that rewrites its owner file, with
 the rewrite it describes. Handing `k3` the whole B set would balloon it; handing
@@ -993,9 +996,11 @@ over settled ground costs a human's attention and returns nothing.
   `grilling-threshold`. Rule 2 fires — `Bound = {requirements}`.
 - **Load predicate:** `static({requirements})`.
 - **Mirror class:** `none`. The driver already routed that kind to this file.
-- **Stated once.** The file currently carries the always-form bullet and the
-  three-question trigger as two independent statements — and the always-form
-  bullet twice. One statement survives; `S` asserts it.
+- **Stated once.** The file carried the always-form bullet and the three-question
+  trigger as two independent statements — and the always-form bullet twice.
+  `kind-references-k5` left one statement, which subordinates the procedure to
+  the threshold while keeping the deliverable unconditional, and removed
+  `references/execute.md`'s always-form restatement in the same commit.
 
 #### 2. The ADR test
 
@@ -1174,9 +1179,9 @@ and it would ship silently.
   the eight **B★** areas: *no second pick*, *no VCS reprobe*, *stale launch
   stops*, *the decomposition boundary*, *human-only pruning*,
   *retire → commit → complete*, *the review budget*, *all three finish-signal
-  outcomes*. The ninth required area, *the interview threshold*, lands with
-  `kind-references-k5` because it cannot be green before that fix. Every other
-  **B** row lands with its own rewrite.
+  outcomes*. The ninth required area, *the interview threshold*, landed with
+  `kind-references-k5` because it could not be green before that fix, in the same
+  table and on the same terms. Every other **B** row lands with its own rewrite.
 - **The two signal files are asserted byte-identical** to their state at this
   grove's start, for the whole workstream.
 - **The existing embed checks stay as they are** — the linked embed matching

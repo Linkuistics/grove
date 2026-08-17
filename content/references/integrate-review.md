@@ -10,3 +10,8 @@ session may change** — `integrate-review-impl` edits code freely;
 decides what the prototype *taught* and normally discards it;
 `integrate-review-requirements` edits what was asked for, which it cannot always
 do alone — the kind most likely to stop and ask.
+
+**Substantial redesign is not this session's work.** A finding that is real but
+demands the artifact be rethought rather than repaired becomes a new producer
+review chain beside the leaf being integrated; fixing it here would put an
+unreviewed redesign into the tree under a leaf chartered to apply findings.

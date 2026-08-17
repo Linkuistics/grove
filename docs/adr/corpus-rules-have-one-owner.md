@@ -62,14 +62,14 @@ full-length statements across `SKILL.md`, `references/decompose.md`,
 `driving.md`, `TASK-FORMAT.md`, `CONTEXT.md` and a spec.
 
 The failure is not that this is long. It is that nothing decides which one is
-right when they disagree, and two of them already do. `references/design.md`
-raises an ADR for a decision "hard to reverse, surprising, **or** a real
-trade-off" while `grilling.md` requires all three; `references/requirements.md`
-states the grilling procedure as unconditional in one paragraph and as
-three-questions-gated in another. `references/planning.md` states the
-working-increments rule **twice in its own body**, with `references/execute.md`
-stating it a third time. A file that duplicates itself is what an absent
-placement rule looks like at its clearest.
+right when they disagree, and two of them already did. As the corpus stood when
+this record was written, `references/design.md` raised an ADR for a decision
+"hard to reverse, surprising, **or** a real trade-off" while `grilling.md`
+required all three; `references/requirements.md` stated the grilling procedure
+as unconditional in one paragraph and as three-questions-gated in another; and
+`references/planning.md` stated the working-increments rule **twice in its own
+body**, with `references/execute.md` stating it a third time. A file that
+duplicates itself is what an absent placement rule looks like at its clearest.
 
 ## What the pair buys, and what it does not claim
 

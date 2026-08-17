@@ -43,10 +43,14 @@
 //! to deliver a rule whose own condition was deleted while a sibling condition
 //! still opens its owner.
 //!
-//! Scope is the eight **B★** areas of `docs/specs/corpus-rule-ownership.md`.
-//! The ninth required area — the requirements interview threshold — is a
-//! contradiction being resolved rather than a behaviour being preserved, so its
-//! test is red until `kind-references-k5` lands the fix and belongs to that leaf.
+//! Scope is the **nine** required areas of
+//! `docs/specs/corpus-rule-ownership.md`. Eight of them are the **B★** set, and
+//! they were written here by `behavior-evals-k3` against the corpus as it stood.
+//! The ninth — the requirements interview threshold — could not be: it is a
+//! contradiction being *resolved* rather than a behaviour being preserved, so it
+//! was red until `kind-references-k5` stated the threshold once, and it joined
+//! this table with that fix. It is green from that commit onward, on the same
+//! terms as the other eight.
 
 use grove::leaf::Kind;
 use grove::{methodology, prompt};
@@ -227,12 +231,19 @@ enum Binds {
     EveryKindButFinish,
     /// `finish` alone — `content/SIGNAL-FINISH.md`'s scope.
     OnlyFinish,
+    /// `requirements` alone. A rule the inventory binds to **one kind** is
+    /// `static({requirements})` by construction — rule 2 sends it to that kind's
+    /// own reference file, and `SKILL.md` says nothing at all about it — so
+    /// binding it here is what asserts it stayed in `references/requirements.md`
+    /// rather than drifting into a file the driver never routes a `requirements`
+    /// session to.
+    OnlyRequirements,
 }
 
 struct Invariant {
     /// The rule's id in `docs/specs/corpus-rule-ownership.md`'s inventory.
     rule: &'static str,
-    /// The required area it serves, from the eight this leaf owns.
+    /// The required area it serves, from the nine the requirements name.
     area: &'static str,
     binds: Binds,
     /// **The rule's own situation** — its `Occasion`, in the words the canonical
@@ -255,6 +266,7 @@ impl Binds {
                 Binds::EveryKind => true,
                 Binds::EveryKindButFinish => *kind != Kind::Finish,
                 Binds::OnlyFinish => *kind == Kind::Finish,
+                Binds::OnlyRequirements => *kind == Kind::Requirements,
             })
             .collect()
     }
@@ -371,9 +383,9 @@ fn unmet<'a>(path: &[Loaded], invariant: &'a Invariant) -> Vec<&'a str> {
         .collect()
 }
 
-// -- The eight areas, and the twelve rules inside them ------------------------
+// -- The nine areas, and the thirteen rules inside them -----------------------
 
-const AREAS: [&str; 8] = [
+const AREAS: [&str; 9] = [
     "no second pick",
     "no VCS reprobe",
     "stale launch",
@@ -382,6 +394,7 @@ const AREAS: [&str; 8] = [
     "retire -> commit -> complete",
     "the review budget",
     "all three finish-signal outcomes",
+    "the interview threshold",
 ];
 
 const INVARIANTS: &[Invariant] = &[
@@ -761,6 +774,70 @@ const INVARIANTS: &[Invariant] = &[
             },
         ],
     },
+    Invariant {
+        // The ninth area, and the one rule that could not be written against the
+        // corpus as it stood: `references/requirements.md` carried the
+        // always-form and the three-question trigger as two unreconciled
+        // statements, and `references/execute.md` carried the always-form alone,
+        // so a session reading either in isolation got a different rule. What is
+        // pinned here is the *resolution* — the deliverable is unconditional, the
+        // procedure is not — because a check for the threshold alone would pass a
+        // corpus that had resolved the contradiction the other way, by deleting
+        // the always-form and making `requirements` an interview kind.
+        rule: "grilling-threshold",
+        area: "the interview threshold",
+        // `static({requirements})` — so no `situation`, and the delivery check
+        // holds the rule to that kind's own reference file.
+        binds: Binds::OnlyRequirements,
+        situation: &[],
+        claims: &[
+            Claim {
+                what: "the full procedure runs only at three or more interdependent open \
+                       questions",
+                groups: &[
+                    &["grilling"],
+                    &[
+                        "only when three or more",
+                        "only at three or more",
+                        "only above three",
+                    ],
+                    &["interdepend"],
+                ],
+                without: &[],
+                // The always-form bullet the file carried twice. It is the whole
+                // reason this claim exists, so it is the fixture: on topic, and
+                // silent about when the interview is owed.
+                near_miss: "This is where the grilling lives (`grilling.md`): interview one \
+                            question at a time, propose a recommended answer for each, and walk \
+                            the design tree until shared understanding is reached.",
+            },
+            Claim {
+                // Half a threshold is not a threshold. A rule that says when the
+                // interview runs and not what happens below it leaves the session
+                // to invent the other branch, which is what a session reading
+                // "three or more" as advice already does.
+                what: "below the threshold the session records the decisions and proceeds",
+                groups: &[
+                    &["below that threshold", "below it", "below that"],
+                    &["record the decisions", "records the decisions"],
+                ],
+                without: &[],
+                near_miss: "The full one-question-at-a-time procedure runs only when three or \
+                            more of this leaf's open questions have interdependent answers.",
+            },
+            Claim {
+                // The other half of the contradiction, and the half a threshold
+                // could quietly eat: `requirements` **always** establishes what
+                // is wanted, whatever the question count does to the interview.
+                what: "establishing what is wanted is unconditional while the interview is not",
+                groups: &[&["unconditional"], &["interview"]],
+                without: &[],
+                near_miss: "**requirements** (HITL) — establish *what* should be built, in the \
+                            human's own words. This is where the grilling lives: interview one \
+                            question at a time.",
+            },
+        ],
+    },
 ];
 
 // -- The claim ---------------------------------------------------------------
@@ -841,18 +918,19 @@ fn every_lifecycle_invariant_is_on_the_loaded_path_of_every_kind_it_binds() {
 /// **The coverage table is the claim, so losing a row must fail by name.**
 ///
 /// A word-count or a row count could only report that the file got smaller. This
-/// pins the eight required areas and the twelve inventory rules inside them, so a
-/// deleted invariant fails saying which one, and an area with no invariant fails
-/// saying which area.
+/// pins the nine required areas and the thirteen inventory rules inside them, so
+/// a deleted invariant fails saying which one, and an area with no invariant
+/// fails saying which area.
 #[test]
-fn the_table_covers_the_eight_required_areas_and_no_others() {
+fn the_table_covers_the_nine_required_areas_and_no_others() {
     let covered: BTreeSet<&str> = INVARIANTS.iter().map(|invariant| invariant.area).collect();
     assert_eq!(
         covered,
         BTreeSet::from(AREAS),
-        "the areas this leaf owns are exactly the eight B* areas of \
-         docs/specs/corpus-rule-ownership.md; the ninth (the requirements interview \
-         threshold) lands with kind-references-k5 because it cannot be green before that fix"
+        "these are the nine areas docs/specs/corpus-rule-ownership.md requires behavioural \
+         coverage for: the eight B* areas behavior-evals-k3 wrote against the corpus as it \
+         stood, and the interview threshold, which kind-references-k5 added with the fix that \
+         made it green"
     );
 
     let rules: Vec<&str> = INVARIANTS.iter().map(|invariant| invariant.rule).collect();
@@ -867,6 +945,7 @@ fn the_table_covers_the_eight_required_areas_and_no_others() {
             "bigger-than-brief-decomposes",
             "externalize-by-default",
             "finish-three-endings",
+            "grilling-threshold",
             "mandate-is-authoritative",
             "no-second-pick",
             "one-focused-commit",
@@ -877,8 +956,9 @@ fn the_table_covers_the_eight_required_areas_and_no_others() {
             "stated-vcs-is-definitive",
             "stale-launch-stops",
         ]),
-        "the twelve B* rows of the inventory's eight areas. A row leaving here is coverage \
-         leaving the suite, so it fails by name rather than by count."
+        "the thirteen inventory rows inside the nine required areas — twelve B* and \
+         grilling-threshold. A row leaving here is coverage leaving the suite, so it fails by \
+         name rather than by count."
     );
 }
 

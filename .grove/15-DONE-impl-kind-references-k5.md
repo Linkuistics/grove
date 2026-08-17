@@ -99,3 +99,52 @@ session's loaded path carries the threshold and not merely the always-form.
 - Consider whether this artifact warrants review. Ten files each holding one
   kind's whole discipline is load-bearing; if you finish with genuine doubt about
   a family's delta, cut `review-impl` with that specific doubt written into it.
+
+## Decisions (running log)
+
+- **The contradiction is resolved by subordination, not by deletion.**
+  `requirements` still establishes *what* unconditionally — that is the
+  deliverable line — and the **procedure** is what the threshold gates. Stated
+  once, in `references/requirements.md`, with the always-form removed from
+  `references/execute.md`'s bullet in the same commit so no session can read the
+  two files and get different rules.
+- **The threshold test landed as a ninth area in
+  `tests/lifecycle_invariants.rs`**, beside `behavior-evals-k3`'s eight, rather
+  than in a file of its own: the requirements name nine areas, and the coverage
+  table is the claim. `Binds` gained `OnlyRequirements`, which is what holds a
+  `static({requirements})` rule inside that kind's own reference file. Verified
+  non-vacuous by running the new invariant against the pre-fix
+  `references/requirements.md`: all three claims red, all three green after.
+- **Three claims, not one.** The threshold alone would pass a corpus that
+  resolved the contradiction the *other* way — deleting the always-form and
+  making `requirements` an interview kind — so the reconciliation
+  (*unconditional deliverable, conditional interview*) and the below-threshold
+  branch (*record the decisions and proceed*) are pinned too.
+- **Rows moved in early rather than late.** `research.md`'s six rows,
+  `integrate-review.md`'s `integration-escalates-redesign` and
+  `requirements.md`'s seam and sequencing rows are added here while
+  `driving.md` / `TASK-FORMAT.md` / `grilling.md` / `driver.md` still state
+  them; `k11` and `k6` own the removals. The later-leaf convention is about who
+  performs a *move*; adding early is a transient duplicate, and only removing
+  early makes a rule homeless.
+- **`references/finish.md` is untouched.** Every rule in it is `{finish}`-bound
+  session conduct, including the three the audit added late, and
+  `finish-is-the-drivers-to-discover` is left in place for `k11` to move under
+  earliest-step-wins.
+- **`references/review.md` is untouched**, as already exactly its three rows.
+  `design.md` lost the OR-form ADR test with no replacement; `planning.md`'s
+  working-increments rule went from twice to once; `combine-research.md`'s
+  red-flag rule from twice to once and it gained the union output path.
+- **One deletion left a rule leaning on a file its trigger does not name.**
+  `glossary-is-the-forcing-function` is `CONTEXT-FORMAT.md`'s by the inventory
+  and `SKILL.md`'s trigger 24 names that file, but the rule is still stated in
+  `references/grove.md` and `grilling.md` and **not** in `CONTEXT-FORMAT.md` —
+  `corpus-split-k6` performs that move. Deleting the two mirrors here leaves the
+  rule delivered through `grove.md` (trigger 18) and, above the threshold,
+  `grilling.md`; the gap in trigger 24's own edge predates this leaf and is
+  `k6`'s to close. Written into the review leaf as doubt 2.
+- **Cut `review-impl` as `kind-references-k22`, by `leaf-insert` ahead of
+  `k11`**, not `leaf-add` at the end: `k11` and `k6` remove the statements this
+  leaf duplicated, so a review landing after them would reconcile a historical
+  diff against a corpus that had moved on exactly the disputed material. No
+  in-session reviewer was spent.

@@ -433,21 +433,31 @@ fn leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree() {
     );
 }
 
-/// Lay down the older `NNN-slug/` + `done/` layout — the shape furthest from
-/// current, so the conversion exercises node-directory creation, the `done/`
-/// mirror, and fresh key assignment in one fixture.
-fn build_old_nnn_grove(repo: &Path) {
+/// Lay down the **v1-flat** layout — the one pre-v2 shape still migrated, so the
+/// conversion exercises node-directory creation and header rewriting in one
+/// fixture. Flat by construction: the node is a `.BRIEF.md` *file* here and a
+/// directory afterwards, which is the move that makes this a real conversion
+/// rather than a rename in place.
+///
+/// It replaced an `NNN-slug/` + `done/` fixture when that layout stopped being
+/// migrated. The one property that went with it is fresh key assignment — v1-flat
+/// carries permanent keys, so `k1`/`k2`/`k3` below are the fixture's own rather
+/// than allocated in DFS pre-order.
+fn build_v1_flat_grove(repo: &Path) {
     let g = repo.join(".grove");
     touch(&g.join("BRIEF.md"), "# proj — brief\n");
-    touch(&g.join("done/010-first.md"), "# 010-first\n\nbody one\n");
-    touch(&g.join("020-second/BRIEF.md"), "# 020-second — brief\n");
     touch(
-        &g.join("020-second/010-child.md"),
-        "# 010-child\n\nchild body\n",
+        &g.join("1-[1]-first.DONE.md"),
+        "# 1-[1]-first\n\nbody one\n",
+    );
+    touch(&g.join("2-[2]-second.BRIEF.md"), "# 2-[2]-second — brief\n");
+    touch(
+        &g.join("2.1-[3]-child.md"),
+        "# 2.1-[3]-child\n\nchild body\n",
     );
 }
 
-/// The current-format shape `build_old_nnn_grove` must lower to: v2 directories
+/// The current-format shape `build_v1_flat_grove` must lower to: v2 directories
 /// *and* session-kind filenames, in one transition. The legacy bodies carry no
 /// `**Kind:**` marker, so every leaf takes the read-side default `impl`.
 fn expected_migrated_tree() -> Vec<String> {
@@ -464,7 +474,7 @@ fn expected_migrated_tree() -> Vec<String> {
 }
 
 #[test]
-fn the_lifecycle_transition_migrates_an_old_tree_in_a_jj_native_tree() {
+fn the_lifecycle_transition_migrates_a_legacy_tree_in_a_jj_native_tree() {
     // The pre-v2 layout conversion, in a tree with no git anywhere — so a git
     // fallback in the rename seam or the commit seam fails outright rather than
     // quietly working. This is the same claim the other cases in this file make
@@ -472,7 +482,7 @@ fn the_lifecycle_transition_migrates_an_old_tree_in_a_jj_native_tree() {
     // before it selects anything.
     let tmp = jj_native();
     let repo = tmp.path();
-    build_old_nnn_grove(repo);
+    build_v1_flat_grove(repo);
 
     assert_eq!(
         grove::tree_lifecycle::transition_to_current(repo).unwrap(),
@@ -600,7 +610,7 @@ fn the_lifecycle_transition_in_a_colocated_tree_leaves_the_git_index_alone() {
     // half of the same claim — that a colocated jj commit leaves git's index
     // where the user left it — is `tests/migration_commit.rs`'s subject; here
     // the index is the fixture's own, staged before the transition runs.
-    let tmp = colocated(build_old_nnn_grove);
+    let tmp = colocated(build_v1_flat_grove);
     let repo = tmp.path();
     let before = git_index(repo);
 

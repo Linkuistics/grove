@@ -1608,24 +1608,19 @@ fn a_v1_flat_tree_is_adopted_migrated_and_routed_by_its_migrated_filename() {
     adopted.assert_routed_launch("design", "draft-k3");
 }
 
-/// The older **`NNN-slug/`** grammar carried all the way to a routed session by
-/// one bare `grove`.
+/// The older **`NNN-slug/`** grammar is refused by one bare `grove`, and the
+/// refusal is the whole of what happens.
 ///
-/// Its distinguishing structure is the parallel **`done/` mirror**: a retired
-/// leaf lives at `done/<chain>/NNN-slug.md`, physically outside the node it
-/// logically belongs to. So `scoping` and `draft` are siblings under one node
-/// while sitting in two different directory trees, and adoption has to merge
-/// those walks by `NNN-slug` *before* it can assign per-level positions — which
-/// is why they land at `01` and `02` of the same node here. A flat fixture
-/// cannot exercise that merge at all.
-///
-/// This grammar carries no keys, so every key is assigned fresh in DFS
-/// pre-order; the exact listing below is what pins that assignment. It also
-/// pins the one legacy kind that is not carried across verbatim: standalone
-/// `research` resolves to `research-a`, the vendor pair's first configured
-/// survey kind.
+/// It used to migrate, `done/` mirror and all. What replaces that coverage is the
+/// property that matters now the reader is gone: the shape is still **classified**
+/// rather than falling through as an unrecognisable tree. That distinction is not
+/// cosmetic — a tree of this shape that classified as empty would be stamped with
+/// a current-format witness, after which every entry in it is foreign and `pick`
+/// reports a finished grove. So this asserts the refusal *and* that the tree is
+/// byte-identical afterwards, which is the claim a silent misclassification would
+/// break while an error message alone would not.
 #[test]
-fn an_nnn_slug_tree_with_a_done_mirror_is_adopted_migrated_and_routed() {
+fn an_nnn_slug_tree_is_refused_without_touching_the_tree() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -1664,25 +1659,60 @@ fn an_nnn_slug_tree_with_a_done_mirror_is_adopted_migrated_and_routed() {
     run_command("git", &worktree, &["add", "-A"]);
     run_command("git", &worktree, &["commit", "-q", "-m", "seed NNN-slug"]);
 
-    let adopted = adopt_with_bare_grove(fixture.path(), &home, &worktree);
+    let before = tree_snapshot(&grove);
+    let seeded_subjects = git_subjects(&worktree);
 
-    assert_eq!(
-        adopted.entries,
-        [
-            "01-DONE-impl-groundwork-k1.md",
-            "02-spec-k2",
-            "02-spec-k2/01-DONE-research-a-scoping-k3.md",
-            "02-spec-k2/02-design-draft-k4.md",
-            "02-spec-k2/BRIEF.md",
-            "03-impl-ship-k5.md",
-            "BRIEF.md",
-            "FORMAT",
-        ],
-        "the `done/` mirror must be folded in and its directory removed"
+    let launched = fixture.path().join("launched.log");
+    let configured = fixture.path().join("configured.sh");
+    write_executable(
+        &configured,
+        &format!(
+            "#!/bin/sh\nprintf 'launched\\n' >> {}\nexit 0\n",
+            shell_quote(&launched)
+        ),
     );
-    adopted.assert_reached_current_format();
-    adopted.assert_one_migration_commit("nnn-slug-worktree");
-    adopted.assert_routed_launch("design", "draft-k4");
+    write_complete_config(
+        &home,
+        &format!("{} '${{prompt}}'", shell_quote(&configured)),
+    );
+
+    let output = run_grove(&home, &worktree);
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+
+    assert!(
+        !output.status.success(),
+        "bare grove must stop on an unmigratable tree; stderr was {stderr}"
+    );
+    assert!(
+        stderr.contains("no longer migrates") && stderr.contains("NNN-slug"),
+        "the refusal must name the layout: {stderr}"
+    );
+    assert!(
+        stderr.contains("020-spec") && stderr.contains("030-ship.md"),
+        "the refusal must name the entries that classified the tree: {stderr}"
+    );
+    assert!(
+        !launched.exists(),
+        "no session may be launched over a tree Grove refused to bring current"
+    );
+    assert_eq!(
+        tree_snapshot(&grove),
+        before,
+        "a refused tree is byte-identical afterwards"
+    );
+    assert!(
+        !grove.join("FORMAT").exists(),
+        "no current-format witness may be installed over a tree that was not migrated"
+    );
+    assert!(
+        !grove.join("MIGRATING-session-kinds").exists(),
+        "a refusal happens before the transaction witness exists"
+    );
+    assert_eq!(
+        git_subjects(&worktree),
+        seeded_subjects,
+        "a refusal commits nothing"
+    );
 }
 
 #[test]

@@ -12,8 +12,8 @@
 // `finish-commit`)
 // speak the **v2 directory scheme** (task-tree-scheme): they dispatch to the
 // directory-based modules `tree_read` / `tree_grow` / `tree_lifecycle`. There is
-// no transitional dual-format reader — `grove migrate` (`tree_migrate`) is the
-// only thing that reads an old (v1-flat or `NNN-slug`) tree, once, on adoption.
+// no transitional dual-format reader — `tree_migrate` is the only thing that
+// reads a v1-flat tree, once, on adoption.
 
 use crate::complete;
 use crate::driver_lease;

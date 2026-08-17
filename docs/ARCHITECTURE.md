@@ -520,9 +520,9 @@ and VCS already say what completed, and a later `grove` continues from there.
 ### Legacy migration
 
 Migration is automatic inside bare `grove`; there is no human-facing migrate
-command. One planning pass lowers both older directory layouts — the original
-`NNN-slug/` tree and the v1 flat dotted-decimal tree — and current-layout trees
-whose leaves lack filename kinds, into the current grammar, mapping each legacy
+command. One planning pass lowers the v1 flat dotted-decimal tree, and
+current-layout trees whose leaves lack filename kinds, into the current grammar,
+mapping each legacy
 body's `**Kind:**` to a filename kind (absent defaults to `impl`; `work` maps to
 `impl`; the two children of an unambiguous legacy vendor pair map to `research-a`
 and `research-b`, and a standalone legacy `research` maps to `research-a`,
@@ -531,6 +531,14 @@ membership in a pair). It strips every `**Kind:**`, `**Harness:**`, and
 `**Producer launch:**` line while preserving all other bytes, including the
 composition relationships. An ambiguous pair or unknown marker stops migration
 with exact paths rather than guessing a target.
+
+**The original `NNN-slug/` + `done/` layout is classified and refused**, with the
+same exact-paths diagnostic and no mutation. Classification is the load-bearing
+part and is why the shape is still recognised at all: a tree Grove could not
+classify would read as having no task entries, and migration would then install
+the format witness over it, after which every entry is foreign and picking
+reports a finished grove. Refusing costs a prefix recogniser
+(`leaf::split_prefix`); the alternative cost a workstream.
 
 Directory and kind migration are planned together, so no successful invocation
 exposes an intermediate layout as current. Landing runs beneath a reserved
@@ -876,7 +884,7 @@ prescribing one command.
 | `harness` | The provisioning-target registry — delivery destinations only. |
 | `repo`, `tree_rename` | Git/Jujutsu detection, scoped commits, and the mutation seam. |
 | `tree_id`, `tree_read`, `tree_grow`, `tree_lifecycle`, `tree_access`, `tree_format` | Filesystem task-tree model, lock, and format witness. |
-| `tree_migrate`, `tree_migration_transaction`, `leaf_id` | Legacy planning, its fail-closed mutation owner, and the v1-flat name parser. |
+| `tree_migrate`, `tree_migration_transaction`, `leaf_id` | Legacy planning and admission, its fail-closed mutation owner, and the v1-flat name parser. |
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |

@@ -1,31 +1,36 @@
 // The **migration** (task-tree-scheme): the one-time, in-place conversion of a task
 // tree to the v2 **directory** scheme — `NN-<slug>-k<key>/` node dirs holding a
 // `BRIEF.md` + numbered children, leaves `NN-[DONE-]<slug>-k<key>.md`. It runs on
-// adoption, from the bare driver's lifecycle transition, and it accepts **two**
-// superseded source formats:
+// adoption, from the bare driver's lifecycle transition, and it accepts **one**
+// superseded source format, **v1-flat**
+// (`<dotted>-[<key>]-<slug>[.BRIEF|.DONE].md`), plus a v2-shaped tree whose leaves
+// predate filename kinds.
 //
-//   * **v1-flat** (`<dotted>-[<key>]-<slug>[.BRIEF|.DONE].md`) — the primary case;
-//   * the **older `NNN-slug/` + `done/`** directory tree — for any grove that never
-//     opened during the v1-flat generation, converted straight across with no
-//     way-station.
+// **The original `NNN-slug/` + `done/` layout is recognised and refused**, and
+// the recognition is the load-bearing half. Reading that shape cost a whole
+// unified-forest walk — the `done/` mirror merged into the live tree by logical
+// path, then fresh keys assigned in DFS pre-order, because that format carries
+// none — and no tree in scope still wears it. But deleting the *detection* with
+// the reader would let such a tree classify as `Empty`, whereupon migration
+// writes a `FORMAT` witness over a tree whose every entry is then foreign and
+// `pick` reports a finished grove. So the shape still classifies, and refuses
+// before any mutation, naming the paths it found. `split_prefix` survives in
+// `leaf` for exactly that recognition and reads nothing.
 //
 // Per task-tree-scheme §5 a task file's first-line header is the **position-free
 // handle** `# <slug>-k<key>` (`# … — brief` for a node), so the migration rewrites
-// every old header (`# <dotted>-[<key>]-<slug>` or `# NNN-slug`) down to that handle
-// while preserving any ` — brief` tail.
+// every old header (`# <dotted>-[<key>]-<slug>`) down to that handle while
+// preserving any ` — brief` tail.
 //
 // **Structure: planning only.** Everything here is pure — it reads the directory
 // shape and source bytes and mutates nothing, which is what makes the whole
-// order/position/key mapping unit-testable without a repository. Both source
-// readers lower to one intermediate — `Logical` (a `LeafId`-shaped id + the
+// order/position/key mapping unit-testable without a repository. The source
+// reader lowers to one intermediate — `Logical` (a `LeafId`-shaped id + the
 // source path + the old header token) — and a single `render` maps that to
-// directory destinations. So the only format-specific code is the two readers;
-// the placement rules live in exactly one place.
+// directory destinations, so the placement rules live in exactly one place.
 //
-// **Keys.** v1-flat already carries permanent keys → preserved verbatim. The
-// `NNN-slug` format has none → keys are assigned fresh in **DFS pre-order** (a
-// node's brief takes its key before its children), starting at `1` — deterministic
-// and re-runnable, so the fixtures below pin exact output.
+// **Keys.** v1-flat already carries permanent keys → preserved verbatim, which is
+// why the fixtures below can pin exact output.
 //
 // `plan_current` is the single authoritative entry point: it lowers a legacy tree
 // of either shape *directly* into the current filename-kind grammar, and
@@ -53,6 +58,11 @@ enum Format {
     /// v1-flat — a `<dotted>-[<key>]-<slug>` keyed file.
     V1Flat,
     /// Old — a `done/` dir, an `NNN-slug/` node dir, or an `NNN-slug.md` leaf.
+    ///
+    /// **No longer migrated.** The variant survives the removal of its reader so
+    /// that such a tree refuses rather than falling through to [`Format::Empty`],
+    /// which would let migration stamp `FORMAT` over a tree whose every entry is
+    /// then foreign.
     OldNnn,
     /// Neither — only the root brief and/or foreign files; nothing to migrate.
     Empty,
@@ -111,7 +121,7 @@ fn plan(grove_root: &Path) -> Result<Plan> {
     let format = detect(grove_root)?;
     let logicals = match format {
         Format::V1Flat => read_v1flat(grove_root)?,
-        Format::OldNnn => read_old(grove_root)?,
+        Format::OldNnn => bail!("{}", unsupported_old_layout_message(grove_root, &[])),
         Format::V2 | Format::Empty => Vec::new(),
     };
     let moves = render(grove_root, &logicals)?;
@@ -127,16 +137,22 @@ pub(crate) fn plan_current(grove_root: &Path) -> Result<CurrentPlan> {
         return Ok(CurrentPlan { files: Vec::new() });
     }
 
-    require_unambiguous_legacy_layout(grove_root)?;
+    require_supported_legacy_layout(grove_root)?;
     let legacy_plan = plan(grove_root)?;
     let mut files = Vec::new();
     match legacy_plan.format {
         Format::V2 => {
             plan_legacy_v2_node(grove_root, Path::new(""), &mut files)?;
         }
-        Format::V1Flat | Format::OldNnn => {
+        Format::V1Flat => {
             plan_pre_v2_current(grove_root, &legacy_plan.moves, &mut files)?;
         }
+        // Unreachable: `require_supported_legacy_layout` above refuses this
+        // shape with its full path list, and `plan` refuses it again. Spelled
+        // out rather than folded into a catch-all so that adding a format to
+        // `Format` is a compile error here, which is the whole reason the enum
+        // is matched exhaustively.
+        Format::OldNnn => bail!("{}", unsupported_old_layout_message(grove_root, &[])),
         Format::Empty => {}
     }
     validate_current_plan(grove_root, &files)?;
@@ -144,7 +160,14 @@ pub(crate) fn plan_current(grove_root: &Path) -> Result<CurrentPlan> {
     Ok(CurrentPlan { files })
 }
 
-fn require_unambiguous_legacy_layout(grove_root: &Path) -> Result<()> {
+/// Admit a legacy tree for migration, or refuse it before anything mutates.
+///
+/// Two refusals, and the order between them is deliberate. **Ambiguity first**: a
+/// tree carrying markers of more than one format is refused whatever those
+/// formats are, because the diagnostic a reader needs there is the full marker
+/// list, not a verdict on one shape. Only a tree that is unambiguously the
+/// original `NNN-slug/` layout gets the second, narrower refusal.
+fn require_supported_legacy_layout(grove_root: &Path) -> Result<()> {
     let mut v2 = Vec::new();
     let mut v1 = Vec::new();
     let mut old = Vec::new();
@@ -158,14 +181,48 @@ fn require_unambiguous_legacy_layout(grove_root: &Path) -> Result<()> {
         bail!(
             "ambiguous legacy tree layout in {}: {}",
             grove_root.display(),
-            markers
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
+            join_paths(&markers)
         );
     }
+    if !old.is_empty() {
+        old.sort();
+        bail!("{}", unsupported_old_layout_message(grove_root, &old));
+    }
     Ok(())
+}
+
+/// The refusal for the original `NNN-slug/` + `done/` layout.
+///
+/// It names the paths when the caller has them, because "this tree is the wrong
+/// shape" is unactionable without knowing which entries said so — the same
+/// standard the ambiguity refusal above and the unknown-kind refusal below hold
+/// themselves to. It also says what *is* still read, so the message distinguishes
+/// "Grove cannot migrate any more" from "Grove cannot migrate this".
+fn unsupported_old_layout_message(grove_root: &Path, markers: &[PathBuf]) -> String {
+    let mut message = format!(
+        "the task tree in {} is in the original `NNN-slug/` + `done/` layout, \
+         which Grove no longer migrates",
+        grove_root.display()
+    );
+    if !markers.is_empty() {
+        message.push_str(&format!(
+            "\n  entries in that layout: {}",
+            join_paths(markers)
+        ));
+    }
+    message.push_str(
+        "\n  nothing has been changed. The v1-flat layout and v2 trees whose leaves \
+         predate filename kinds still migrate automatically.",
+    );
+    message
+}
+
+fn join_paths(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn collect_legacy_layout_markers(
@@ -592,9 +649,10 @@ fn parse_legacy_kind(value: &str) -> Option<LegacyKind> {
 
 /// Classify a `.grove/` tree by scanning its top level (see [`Format`]). Precedence
 /// is V2 > V1Flat > OldNnn: a v2 marker means the tree is already migrated (never
-/// touched), then the v1-flat scheme this grove rode, then the old format for an
-/// un-opened tree. A v1-flat tree is *flat* (its only directories are foreign), so
-/// a directory is only ever a v2 node dir, an old `NNN-slug/` node, or `done/`.
+/// touched), then the v1-flat scheme this grove rode, then the original layout —
+/// classified last and only so it can be refused by name. A v1-flat tree is *flat*
+/// (its only directories are foreign), so a directory is only ever a v2 node dir,
+/// an old `NNN-slug/` node, or `done/`.
 fn detect(grove_root: &Path) -> Result<Format> {
     if grove_root.join("FORMAT").exists() {
         crate::tree_format::require_current(grove_root)?;
@@ -695,18 +753,6 @@ fn v1flat_token(id: &LeafId) -> String {
     )
 }
 
-/// Read an **old `NNN-slug/` + `done/`** tree into the common `Logical` shape:
-/// build the unified forest (live + `done/` mirror merged by logical path), then
-/// walk it DFS pre-order assigning each entity its position (1-based sibling index)
-/// and a fresh key.
-fn read_old(grove_root: &Path) -> Result<Vec<Logical>> {
-    let forest = collect_level(grove_root, Path::new(""))?;
-    let mut logicals = Vec::new();
-    let mut next_key = 1u32;
-    assign_old(&forest, &[], &mut next_key, &mut logicals);
-    Ok(logicals)
-}
-
 /// Lower a list of [`Logical`] entities to v2 directory moves. First indexes every
 /// node (a brief with a non-empty position) by its position vector to recover its
 /// v2 directory name; then, for each entity, walks its ancestor positions through
@@ -792,197 +838,6 @@ fn node_dir_name(id: &LeafId) -> String {
         key: id.key.expect("a node is always keyed"),
     }
     .name()
-}
-
-// --- old `NNN-slug/` + `done/` forest reader ---------------------------------
-
-/// One node/leaf in the **unified** old tree (live and `done/` mirrors merged by
-/// logical path). `nnn` is the old zero-padded numeric prefix (the level's sort
-/// key); `slug` is the text after `NNN-`.
-enum Entity {
-    Leaf {
-        nnn: u32,
-        slug: String,
-        done: bool,
-        from_abs: PathBuf,
-    },
-    Node {
-        nnn: u32,
-        slug: String,
-        brief_abs: Option<PathBuf>,
-        children: Vec<Entity>,
-    },
-}
-
-impl Entity {
-    fn nnn(&self) -> u32 {
-        match self {
-            Entity::Leaf { nnn, .. } | Entity::Node { nnn, .. } => *nnn,
-        }
-    }
-}
-
-/// Collect one logical level of the unified old tree. `chain` is the path of
-/// `NNN-slug` directory components from the grove root to this level (empty at the
-/// root). The level's children are read from both its live directory and its
-/// `done/` mirror and merged by `NNN-slug` name, so a partially-retired node's live
-/// and retired children land in one subtree. Returns the level's entities by `NNN`.
-fn collect_level(grove_root: &Path, chain: &Path) -> Result<Vec<Entity>> {
-    let live_dir = if chain.as_os_str().is_empty() {
-        grove_root.to_path_buf()
-    } else {
-        grove_root.join(chain)
-    };
-    let done_dir = grove_root.join("done").join(chain);
-
-    struct LeafAcc {
-        nnn: u32,
-        slug: String,
-        done: bool,
-        from_abs: PathBuf,
-    }
-    struct NodeAcc {
-        nnn: u32,
-        slug: String,
-    }
-    let mut leaves: BTreeMap<String, LeafAcc> = BTreeMap::new();
-    let mut nodes: BTreeMap<String, NodeAcc> = BTreeMap::new();
-
-    for (dir, in_done) in [(live_dir.as_path(), false), (done_dir.as_path(), true)] {
-        if !dir.is_dir() {
-            continue;
-        }
-        for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
-            let entry = entry?;
-            let name = entry.file_name().to_string_lossy().into_owned();
-            let ft = entry.file_type()?;
-            if ft.is_dir() {
-                // The top-level `done/` mirror is scanned via `done_dir`; it is
-                // never descended as if it were a child node of the live root.
-                if !in_done && name == "done" {
-                    continue;
-                }
-                if let Some((nnn, slug)) = split_prefix(&name) {
-                    nodes.entry(name.clone()).or_insert(NodeAcc {
-                        nnn,
-                        slug: slug.to_string(),
-                    });
-                }
-            } else if ft.is_file() {
-                if name == "BRIEF.md" {
-                    continue; // a node's brief, attached to the node at this level
-                }
-                if let Some((nnn, slug)) = name.strip_suffix(".md").and_then(split_prefix) {
-                    leaves.insert(
-                        name.clone(),
-                        LeafAcc {
-                            nnn,
-                            slug: slug.to_string(),
-                            done: in_done,
-                            from_abs: dir.join(&name),
-                        },
-                    );
-                }
-            }
-        }
-    }
-
-    let mut entities: Vec<Entity> = Vec::new();
-    for (_name, l) in leaves {
-        entities.push(Entity::Leaf {
-            nnn: l.nnn,
-            slug: l.slug,
-            done: l.done,
-            from_abs: l.from_abs,
-        });
-    }
-    for (dirname, n) in nodes {
-        let child_chain = chain.join(&dirname);
-        let children = collect_level(grove_root, &child_chain)?;
-        // A partially-retired node keeps its brief live; a fully-retired node's
-        // brief lives in the `done/` mirror. Prefer live, else done, else none.
-        let live_brief = grove_root.join(&child_chain).join("BRIEF.md");
-        let done_brief = grove_root.join("done").join(&child_chain).join("BRIEF.md");
-        let brief_abs = if live_brief.is_file() {
-            Some(live_brief)
-        } else if done_brief.is_file() {
-            Some(done_brief)
-        } else {
-            None
-        };
-        entities.push(Entity::Node {
-            nnn: n.nnn,
-            slug: n.slug,
-            brief_abs,
-            children,
-        });
-    }
-    entities.sort_by_key(Entity::nnn);
-    Ok(entities)
-}
-
-/// Walk the unified old tree in DFS pre-order, lowering each entity to a
-/// [`Logical`] with its position (1-based sibling index appended to the parent's)
-/// and the next fresh key (a node's brief takes its key before its children). A
-/// brief-less node consumes a position slot but emits no `Logical` (no file to
-/// move); its children then have no v2 directory to land in, which `render` reports
-/// as an orphan — the same degenerate case v1 tolerated only because flat needed no
-/// parent directory.
-fn assign_old(entities: &[Entity], parent_pos: &[u32], next_key: &mut u32, out: &mut Vec<Logical>) {
-    for (i, e) in entities.iter().enumerate() {
-        let mut pos = parent_pos.to_vec();
-        pos.push(i as u32 + 1);
-        match e {
-            Entity::Leaf {
-                nnn,
-                slug,
-                done,
-                from_abs,
-            } => {
-                let key = take_key(next_key);
-                out.push(Logical {
-                    id: LeafId {
-                        position: pos,
-                        key: Some(key),
-                        slug: slug.clone(),
-                        is_brief: false,
-                        is_done: *done,
-                    },
-                    from_abs: from_abs.clone(),
-                    old_token: format!("{nnn:03}-{slug}"),
-                });
-            }
-            Entity::Node {
-                nnn,
-                slug,
-                brief_abs,
-                children,
-            } => {
-                if let Some(brief_abs) = brief_abs {
-                    let key = take_key(next_key);
-                    out.push(Logical {
-                        id: LeafId {
-                            position: pos.clone(),
-                            key: Some(key),
-                            slug: slug.clone(),
-                            is_brief: true,
-                            is_done: false,
-                        },
-                        from_abs: brief_abs.clone(),
-                        old_token: format!("{nnn:03}-{slug}"),
-                    });
-                }
-                assign_old(children, &pos, next_key, out);
-            }
-        }
-    }
-}
-
-/// Consume and return the next permanent key.
-fn take_key(next_key: &mut u32) -> u32 {
-    let key = *next_key;
-    *next_key += 1;
-    key
 }
 
 // ---------------------------------------------------------------------------
@@ -1465,8 +1320,14 @@ mod tests {
         );
     }
 
+    /// The `NNN-slug/` layout is refused, and the refusal names every entry that
+    /// put the tree in that class.
+    ///
+    /// Naming them is the difference between an actionable message and a bare
+    /// verdict: an operator has to find the tree's legacy entries to do anything
+    /// about it, and a single stray directory is enough to classify a tree old.
     #[test]
-    fn current_plan_maps_old_nnn_directly_to_kind_filenames() {
+    fn current_plan_refuses_the_old_nnn_layout_and_names_its_entries() {
         let (_t, g) = grove();
         write(&g, "BRIEF.md", "# demo — brief\n");
         write(
@@ -1480,30 +1341,61 @@ mod tests {
             "# 020-task\n\n**Producer launch:** stale\n## Goal\nBuild.\n",
         );
 
-        let plan = plan_current(&g).unwrap();
+        let error = match plan_current(&g) {
+            Ok(_) => panic!("the old `NNN-slug/` layout must be refused"),
+            Err(error) => format!("{error:#}"),
+        };
 
-        assert_eq!(
-            plan.files
-                .iter()
-                .map(|file| (
-                    file.from_rel.to_string_lossy().into_owned(),
-                    file.to_rel.to_string_lossy().into_owned(),
-                    String::from_utf8(file.body.clone()).unwrap(),
-                ))
-                .collect::<Vec<_>>(),
-            vec![
-                (
-                    "010-node/020-task.md".into(),
-                    "01-node-k1/01-impl-task-k2.md".into(),
-                    "# task-k2\n\n## Goal\nBuild.\n".into(),
-                ),
-                (
-                    "010-node/BRIEF.md".into(),
-                    "01-node-k1/BRIEF.md".into(),
-                    "# node-k1 — brief\n\n## Goal\nGroup.\n".into(),
-                ),
-            ]
+        assert!(
+            error.contains("no longer migrates"),
+            "the refusal must say the layout is not migrated: {error}"
         );
+        assert!(
+            error.contains("010-node") && error.contains("020-task.md"),
+            "the refusal must name the offending entries: {error}"
+        );
+        assert!(
+            error.contains("v1-flat"),
+            "the refusal must distinguish itself from a total loss of migration: {error}"
+        );
+    }
+
+    /// The refusal writes nothing — the tree is exactly as the operator left it,
+    /// which is what makes a re-run after a manual conversion safe, and what
+    /// separates this from the `Empty` misclassification the variant survives to
+    /// prevent.
+    #[test]
+    fn refusing_the_old_nnn_layout_writes_nothing() {
+        let (_t, g) = grove();
+        write(&g, "BRIEF.md", "# demo — brief\n");
+        write(&g, "done/010-plan.md", "# 010-plan\n");
+
+        let before = tree_snapshot(&g);
+        assert!(plan_current(&g).is_err());
+
+        assert_eq!(tree_snapshot(&g), before);
+        assert!(!g.join("FORMAT").exists(), "no format witness is installed");
+    }
+
+    /// Every file under `grove_root` with its bytes, sorted — enough to catch a
+    /// stray witness, a rewritten body, or a moved entry.
+    fn tree_snapshot(grove_root: &Path) -> Vec<(String, Vec<u8>)> {
+        fn walk(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) {
+            for entry in fs::read_dir(dir).unwrap() {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if entry.file_type().unwrap().is_dir() {
+                    walk(root, &path, out);
+                } else {
+                    let relative = path.strip_prefix(root).unwrap().display().to_string();
+                    out.push((relative, fs::read(&path).unwrap()));
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(grove_root, grove_root, &mut out);
+        out.sort();
+        out
     }
 
     #[test]
@@ -1894,136 +1786,6 @@ mod tests {
         assert!(plan.moves.is_empty());
     }
 
-    // ---- plan: old `NNN-slug/` → v2 directly --------------------------------
-
-    #[test]
-    fn plan_old_nnn_golden_tree_converts_straight_to_v2() {
-        // An un-opened old-format grove: retired root leaves, a fully-retired node
-        // (brief in done/), a partially-retired node (brief live + one done child +
-        // two live children), trailing live leaves. Keys assigned fresh DFS pre-order.
-        let (_t, g) = grove();
-        build(
-            &g,
-            &[
-                "BRIEF.md",
-                "done/010-plan.md",
-                "done/020-loop-substrate-spike.md",
-                "done/030-substrate-decision.md",
-                "done/040-substrate-wiring.md",
-                "done/050-dotted-decimal-numbering/BRIEF.md",
-                "done/050-dotted-decimal-numbering/010-id-model.md",
-                "done/050-dotted-decimal-numbering/020-read-verbs.md",
-                "done/050-dotted-decimal-numbering/030-grow-verbs-renumber.md",
-                "done/050-dotted-decimal-numbering/040-lifecycle-verbs.md",
-                "done/060-backwards-compat-migration/010-verbs-live.md",
-                "060-backwards-compat-migration/BRIEF.md",
-                "060-backwards-compat-migration/020-grove-migrate.md",
-                "060-backwards-compat-migration/030-migrate-on-adoption.md",
-                "070-global-skill-homebrew-distribution.md",
-                "080-shed-tui.md",
-                "090-shed-inbox-and-install-machinery.md",
-                "100-complete-terminate-signal.md",
-            ],
-        );
-        let plan = plan(&g).unwrap();
-        assert_eq!(plan.format, Format::OldNnn);
-        assert_eq!(
-            moves_of(&plan),
-            vec![
-                ("done/010-plan.md".into(), "01-DONE-plan-k1.md".into()),
-                (
-                    "done/020-loop-substrate-spike.md".into(),
-                    "02-DONE-loop-substrate-spike-k2.md".into()
-                ),
-                (
-                    "done/030-substrate-decision.md".into(),
-                    "03-DONE-substrate-decision-k3.md".into()
-                ),
-                (
-                    "done/040-substrate-wiring.md".into(),
-                    "04-DONE-substrate-wiring-k4.md".into()
-                ),
-                (
-                    "done/050-dotted-decimal-numbering/BRIEF.md".into(),
-                    "05-dotted-decimal-numbering-k5/BRIEF.md".into()
-                ),
-                (
-                    "done/050-dotted-decimal-numbering/010-id-model.md".into(),
-                    "05-dotted-decimal-numbering-k5/01-DONE-id-model-k6.md".into()
-                ),
-                (
-                    "done/050-dotted-decimal-numbering/020-read-verbs.md".into(),
-                    "05-dotted-decimal-numbering-k5/02-DONE-read-verbs-k7.md".into()
-                ),
-                (
-                    "done/050-dotted-decimal-numbering/030-grow-verbs-renumber.md".into(),
-                    "05-dotted-decimal-numbering-k5/03-DONE-grow-verbs-renumber-k8.md".into()
-                ),
-                (
-                    "done/050-dotted-decimal-numbering/040-lifecycle-verbs.md".into(),
-                    "05-dotted-decimal-numbering-k5/04-DONE-lifecycle-verbs-k9.md".into()
-                ),
-                (
-                    "060-backwards-compat-migration/BRIEF.md".into(),
-                    "06-backwards-compat-migration-k10/BRIEF.md".into()
-                ),
-                (
-                    "done/060-backwards-compat-migration/010-verbs-live.md".into(),
-                    "06-backwards-compat-migration-k10/01-DONE-verbs-live-k11.md".into()
-                ),
-                (
-                    "060-backwards-compat-migration/020-grove-migrate.md".into(),
-                    "06-backwards-compat-migration-k10/02-grove-migrate-k12.md".into()
-                ),
-                (
-                    "060-backwards-compat-migration/030-migrate-on-adoption.md".into(),
-                    "06-backwards-compat-migration-k10/03-migrate-on-adoption-k13.md".into()
-                ),
-                (
-                    "070-global-skill-homebrew-distribution.md".into(),
-                    "07-global-skill-homebrew-distribution-k14.md".into()
-                ),
-                ("080-shed-tui.md".into(), "08-shed-tui-k15.md".into()),
-                (
-                    "090-shed-inbox-and-install-machinery.md".into(),
-                    "09-shed-inbox-and-install-machinery-k16.md".into()
-                ),
-                (
-                    "100-complete-terminate-signal.md".into(),
-                    "10-complete-terminate-signal-k17.md".into()
-                ),
-            ]
-        );
-    }
-
-    #[test]
-    fn plan_old_partially_retired_node_merges_live_and_done_children() {
-        let (_t, g) = grove();
-        build(
-            &g,
-            &[
-                "BRIEF.md",
-                "010-node/BRIEF.md",
-                "010-node/020-live-child.md",
-                "done/010-node/010-done-child.md",
-            ],
-        );
-        assert_eq!(
-            moves_of(&plan(&g).unwrap()),
-            vec![
-                ("010-node/BRIEF.md".into(), "01-node-k1/BRIEF.md".into()),
-                (
-                    "done/010-node/010-done-child.md".into(),
-                    "01-node-k1/01-DONE-done-child-k2.md".into()
-                ),
-                (
-                    "010-node/020-live-child.md".into(),
-                    "01-node-k1/02-live-child-k3.md".into()
-                ),
-            ]
-        );
-    }
-
     // ---- header rewrite -----------------------------------------------------
 
     #[test]
@@ -2047,14 +1809,6 @@ mod tests {
                 "scheme-v2-directories-k23"
             ),
             Some("# scheme-v2-directories-k23 — brief".to_string())
-        );
-    }
-
-    #[test]
-    fn rewrite_old_nnn_header_to_handle() {
-        assert_eq!(
-            rewrite_header_line("# 010-plan", "010-plan", "plan-k1"),
-            Some("# plan-k1".to_string())
         );
     }
 

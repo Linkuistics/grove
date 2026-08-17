@@ -13,12 +13,13 @@ pub mod harness;
 // `dead_code` says nothing about one. Crate-private, the compiler enumerates
 // the next dead launch function for us instead of it needing to be hunted.
 pub(crate) mod launch;
-// `leaf` holds `Kind`, which is live everywhere, plus the old `NNN-slug`
-// `split_prefix`; `leaf_id` is the v1-flat reader. Those two *parsers* survive
-// solely as `tree_migrate`'s one-time migration inputs (task-tree-scheme). The v1
-// verb path — `leaf_read` / `leaf_grow` / `leaf_lifecycle` / `migrate` — was swept
-// when `llm_cli` / `cli` / `launch` flipped to the `tree_*` modules
-// (task-tree-scheme, the install-and-reflip-v2 leaf).
+// `leaf` holds `Kind`, which is live everywhere, plus `split_prefix` — now only a
+// *recogniser* for the `NNN-slug/` layout, which is refused rather than migrated.
+// `leaf_id` is the v1-flat reader and the one of the two that still feeds a
+// migration (task-tree-scheme). The v1 verb path — `leaf_read` / `leaf_grow` /
+// `leaf_lifecycle` / `migrate` — was swept when `llm_cli` / `cli` / `launch`
+// flipped to the `tree_*` modules (task-tree-scheme, the install-and-reflip-v2
+// leaf).
 pub mod leaf;
 pub mod leaf_id;
 pub mod llm_cli;

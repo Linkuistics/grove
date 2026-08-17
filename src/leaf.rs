@@ -7,9 +7,12 @@
 //     current task filename. Live: the grow/lifecycle verbs (`tree_grow` /
 //     `tree_lifecycle`) and the `grove-llm` CLI surface (`llm_cli`) parse and
 //     carry it.
-//   * `split_prefix` — the old-format `NNN-slug` prefix parser. Per task-tree-scheme the
-//     *only* surviving consumer of the old format is `grove migrate`, which
-//     reads an old tree exactly once on adoption; this is the reader it leans on.
+//   * `split_prefix` — the `NNN-slug` prefix **recogniser**. The original
+//     `NNN-slug/` + `done/` layout is no longer migrated, and this is all that
+//     is left of reading it: `tree_migrate` uses it to *classify* such a tree so
+//     the tree can be refused by name instead of falling through as an
+//     unrecognisable one. It parses a prefix and nothing consumes the result as
+//     tree content.
 //
 // Everything else this module once held — the `NNN-slug` / `done/` reader and
 // grower (`add`, `insert`, header rewriting, cross-ref surfacing) — was the old
@@ -202,10 +205,13 @@ impl Kind {
     }
 }
 
-/// Split `NNN-rest` (NNN exactly three ASCII digits) into `(NNN, rest)`. The
-/// old-format prefix parser; `pub(crate)` so `grove migrate` (`tree_migrate`) can reuse
-/// it read-only to consume an old `NNN-slug` tree (it is the *only* surviving
-/// consumer of the old format — task-tree-scheme).
+/// Split `NNN-rest` (NNN exactly three ASCII digits) into `(NNN, rest)`.
+///
+/// `pub(crate)` for `tree_migrate`, which uses it to **recognise** the original
+/// `NNN-slug/` layout, not to read one — that layout is refused rather than
+/// migrated. Deleting this would not delete the recognition; it would make an
+/// old tree classify as empty, which is the one outcome that loses work
+/// (task-tree-scheme).
 pub(crate) fn split_prefix(name: &str) -> Option<(u32, &str)> {
     if name.len() < 4 {
         return None;

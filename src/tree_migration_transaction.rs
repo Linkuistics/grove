@@ -34,7 +34,6 @@ enum Transition {
     IncompleteWitnessRemoved,
     SourceMoved(PathBuf),
     DestinationLanded(PathBuf),
-    SourceDirectoryRemoved(PathBuf),
     FinalTreeVerified,
     FormatWritten,
     CommitCompleted,
@@ -345,13 +344,15 @@ fn land(
             )?;
         }
     }
-    remove_empty_directories(
-        grove_root,
-        manifest.files.iter().map(|file| file.source.clone()),
-        "legacy migration",
-        Transition::SourceDirectoryRemoved,
-        observer,
-    )?;
+    // No forward source-directory sweep. It existed for the original `NNN-slug/`
+    // layout, whose `done/` mirror and `NNN-slug/` nodes were the only *sources*
+    // that were ever directories; that layout is no longer migrated. Every
+    // remaining input has flat sources — v1-flat is flat by construction, and a
+    // kind-less v2 tree renames leaves inside node directories that keep their
+    // `BRIEF.md` — so the sweep could only ever have found nothing. The rollback
+    // path still sweeps, over *destinations*, which are directories in both
+    // remaining inputs; that is the caller `remove_empty_directories` is written
+    // for and the one its coverage rests on.
     verify_final_tree(grove_root, manifest)?;
     observer(&Transition::FinalTreeVerified)?;
     Ok(())
@@ -654,15 +655,23 @@ mod tests {
         (worktree, grove_root)
     }
 
-    fn old_nnn_tree() -> (tempfile::TempDir, std::path::PathBuf) {
+    /// A **v1-flat** tree carrying one retired leaf, one node brief and that
+    /// node's child — the pre-v2 fixture, chosen because its destinations include
+    /// a node *directory* the transaction has to create, land into, and unwind.
+    /// Flat by construction: every source is a top-level file, which is why the
+    /// forward pass has no source directories to sweep.
+    fn v1_flat_tree() -> (tempfile::TempDir, std::path::PathBuf) {
         let worktree = tempfile::tempdir().unwrap();
         let grove_root = worktree.path().join(".grove");
-        fs::create_dir_all(grove_root.join("done")).unwrap();
-        fs::create_dir_all(grove_root.join("020-node")).unwrap();
+        fs::create_dir(&grove_root).unwrap();
         fs::write(grove_root.join("BRIEF.md"), "# demo — brief\n").unwrap();
-        fs::write(grove_root.join("done/010-old.md"), "# 010-old\n").unwrap();
-        fs::write(grove_root.join("020-node/BRIEF.md"), "# 020-node — brief\n").unwrap();
-        fs::write(grove_root.join("020-node/010-child.md"), "# 010-child\n").unwrap();
+        fs::write(grove_root.join("1-[1]-old.DONE.md"), "# 1-[1]-old\n").unwrap();
+        fs::write(
+            grove_root.join("2-[2]-node.BRIEF.md"),
+            "# 2-[2]-node — brief\n",
+        )
+        .unwrap();
+        fs::write(grove_root.join("2.1-[3]-child.md"), "# 2.1-[3]-child\n").unwrap();
         (worktree, grove_root)
     }
 
@@ -688,12 +697,13 @@ mod tests {
         (worktree, grove_root)
     }
 
-    fn assert_old_nnn_tree_is_current(grove_root: &Path) {
+    fn assert_v1_flat_tree_is_current(grove_root: &Path) {
         assert!(grove_root.join("01-DONE-impl-old-k1.md").is_file());
         assert!(grove_root.join("02-node-k2/BRIEF.md").is_file());
         assert!(grove_root.join("02-node-k2/01-impl-child-k3.md").is_file());
-        assert!(!grove_root.join("done").exists());
-        assert!(!grove_root.join("020-node").exists());
+        assert!(!grove_root.join("1-[1]-old.DONE.md").exists());
+        assert!(!grove_root.join("2-[2]-node.BRIEF.md").exists());
+        assert!(!grove_root.join("2.1-[3]-child.md").exists());
     }
 
     fn assert_legacy_v2_node_tree_is_current(grove_root: &Path) {
@@ -1099,23 +1109,31 @@ mod tests {
         assert!(!grove_root.join("MIGRATING-session-kinds").exists());
     }
 
+    /// The transaction creates the destination node directory and leaves no
+    /// source behind.
+    ///
+    /// This replaces a test that asserted the forward pass *removed* emptied
+    /// source directories. That claim had one subject — the original `NNN-slug/`
+    /// layout, whose `done/` mirror and node directories were the only sources
+    /// that were ever directories — and it went with that layout. Rewriting the
+    /// old assertions against a flat fixture would have left two `!exists()`
+    /// checks on paths the fixture never created: green forever, testing nothing.
+    /// What is still worth pinning is the direction that remains — a flat tree in,
+    /// a directory-shaped tree out.
     #[test]
-    fn transaction_removes_empty_legacy_source_directories() {
-        let (_worktree, grove_root) = old_nnn_tree();
+    fn transaction_lands_a_flat_legacy_tree_into_node_directories() {
+        let (_worktree, grove_root) = v1_flat_tree();
 
         run(&grove_root, || Ok(())).unwrap();
 
-        assert!(!grove_root.join("done").exists());
-        assert!(!grove_root.join("020-node").exists());
-        assert!(grove_root.join("01-DONE-impl-old-k1.md").is_file());
-        assert!(grove_root.join("02-node-k2/BRIEF.md").is_file());
-        assert!(grove_root.join("02-node-k2/01-impl-child-k3.md").is_file());
+        assert_v1_flat_tree_is_current(&grove_root);
+        assert!(grove_root.join("02-node-k2").is_dir());
     }
 
     #[test]
     fn every_transaction_transition_boundary_recovers_after_interruption() {
         let fixtures: [MigrationFixture; 2] = [
-            (old_nnn_tree, assert_old_nnn_tree_is_current),
+            (v1_flat_tree, assert_v1_flat_tree_is_current),
             (legacy_v2_node_tree, assert_legacy_v2_node_tree_is_current),
         ];
 
@@ -1184,7 +1202,7 @@ mod tests {
         }
 
         let fixtures: [MigrationFixture; 2] = [
-            (old_nnn_tree, assert_old_nnn_tree_is_current),
+            (v1_flat_tree, assert_v1_flat_tree_is_current),
             (legacy_v2_node_tree, assert_legacy_v2_node_tree_is_current),
         ];
 
@@ -1284,7 +1302,7 @@ mod tests {
 
     #[test]
     fn reported_precommit_failure_restores_the_exact_legacy_tree_shape() {
-        let (_worktree, grove_root) = old_nnn_tree();
+        let (_worktree, grove_root) = v1_flat_tree();
 
         let error = run_observed(
             &grove_root,
@@ -1302,16 +1320,16 @@ mod tests {
             .to_string()
             .contains("injected failure after complete landing"));
         assert_eq!(
-            fs::read_to_string(grove_root.join("done/010-old.md")).unwrap(),
-            "# 010-old\n"
+            fs::read_to_string(grove_root.join("1-[1]-old.DONE.md")).unwrap(),
+            "# 1-[1]-old\n"
         );
         assert_eq!(
-            fs::read_to_string(grove_root.join("020-node/BRIEF.md")).unwrap(),
-            "# 020-node — brief\n"
+            fs::read_to_string(grove_root.join("2-[2]-node.BRIEF.md")).unwrap(),
+            "# 2-[2]-node — brief\n"
         );
         assert_eq!(
-            fs::read_to_string(grove_root.join("020-node/010-child.md")).unwrap(),
-            "# 010-child\n"
+            fs::read_to_string(grove_root.join("2.1-[3]-child.md")).unwrap(),
+            "# 2.1-[3]-child\n"
         );
         assert!(!grove_root.join("01-DONE-impl-old-k1.md").exists());
         assert!(!grove_root.join("02-node-k2").exists());

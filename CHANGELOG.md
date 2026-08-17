@@ -51,6 +51,36 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **Breaking. The original `NNN-slug/` + `done/` task-tree layout is no longer
+  migrated.** It was the most expensive of the three legacy readers and the one
+  furthest from anything in use: converting it meant building a unified forest —
+  merging the parallel `done/` mirror into the live tree by logical path, since a
+  retired leaf lived physically outside the node it belonged to — and then
+  assigning every key fresh in DFS pre-order, because that layout carries none.
+  Roughly 200 lines of reader, plus the fixtures that pinned its exact key
+  assignment. **v1-flat and kind-less v2 trees migrate exactly as before**; only
+  this one input is withdrawn.
+
+  **The shape is still recognised, and that is the change rather than a
+  leftover.** Deleting the detection along with the reader would have let such a
+  tree classify as having nothing to migrate, whereupon migration installs the
+  `.grove/FORMAT` witness over it — and every entry in that tree is then foreign,
+  so `pick` reports a finished grove and a workstream is silently gone. So bare
+  `grove` classifies the layout, refuses before any mutation, and names the
+  entries that put the tree in that class, in the same shape as the existing
+  ambiguous-layout and unknown-kind refusals. What survives of the reader is
+  `leaf::split_prefix`, a prefix recogniser whose result nothing consumes as tree
+  content. Converting an affected tree by hand and re-running is safe: the
+  refusal writes nothing, commits nothing, and launches nothing.
+
+  One further removal follows from it rather than being bundled with it: the
+  migration transaction's *forward* sweep for emptied source directories is gone,
+  because that layout's `done/` mirror and `NNN-slug/` nodes were the only
+  sources that were ever directories. Every remaining input has flat sources, so
+  the sweep could find nothing. The rollback sweep — over *destinations*, which
+  are directories in both remaining inputs — is untouched and is where
+  `remove_empty_directories` keeps its coverage.
+
 - **The repository carried two current-state design corpora, and now carries
   one.** `docs/specs/config-driven-sessions.md` and
   `docs/specs/skill-delivered-methodology.md` were the design records for the

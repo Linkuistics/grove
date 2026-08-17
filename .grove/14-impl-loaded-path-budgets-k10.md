@@ -26,9 +26,23 @@ already resolves a kind to its reference file and composes the core — rather t
 by re-implementing the composition in the test. A budget computed by a second,
 parallel notion of what a session reads will drift from the real one and then lie.
 
-The **load predicate** column of `rule-ownership-k2`'s inventory is the input: it
-says which rules are on which paths, and therefore which files a kind's budget
-must include.
+The **load predicate** column of the inventory is the input: it says which rules
+are on which paths, and therefore which files a kind's budget must include. Its
+notation distinguishes the two halves explicitly — `static(K)` for a rule on every
+K-kind's fixed path, and `on(<trigger>) @ <file>` for one reached because a
+condition in `<file>` fired.
+
+Two cheap assertions ride with the budget, and both are corrections the design
+needed rather than extras:
+
+- **`static(...)` is checked against the runtime.** A row claiming `static(K)`
+  whose owner is not `SKILL.md` or `reference_file(k)` for every `k ∈ K` fails.
+  The superseded inventory labelled loop-step rows `always(19)`, which
+  `src/prompt.rs` contradicts; this check is what would not have survived it.
+- **Every `on(…) @ <file>` chain must terminate at a static path, with no cycles.**
+  That is the reachability property, and it is what would have caught `impl`'s two
+  disciplines sitting in a file no `impl` session is ever routed to — present in
+  `content/` and deleted in effect.
 
 Baseline for comparison, at the start of this grove: `content/` totalled 23,532
 words; `SKILL.md` 3,152; the ten kind references 2,133 combined. The normal loaded

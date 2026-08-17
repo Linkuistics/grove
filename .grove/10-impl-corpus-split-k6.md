@@ -23,9 +23,30 @@ start of this grove:
 | `content/ADR-FORMAT.md` | 317 | format grammar + placement policy |
 
 `driving.md` is the largest single file in the corpus and is on no session's
-normal loaded path — it is reached only when a condition names it. Whether it
-survives as an embedded file at all, or becomes a non-normative doc with its few
-genuinely operational rules rehomed, is this leaf's call.
+normal loaded path — it is reached only when a condition names it. **Whether it
+survives is settled and no longer this leaf's call: it does not.** What *is* this
+leaf's work is the condition on that deletion, and it is not a formality — the
+design's first pass claimed the residue was non-normative and direct inspection
+refuted it, finding eight sections still carrying imperatives that alter session
+conduct. So:
+
+- The spec's **relocation table** names every surviving imperative and its new
+  owner. Delete the file only once **every** row is discharged, most of them by
+  `loop-step-references-k11` before you run.
+- **Eight `SKILL.md` conditions point at `driving.md` today.** Every one must name
+  its rule's new owner instead. A trigger sentence naming a deleted file is exactly
+  the reachability failure this grove exists to remove, and it would ship silently.
+- Two sections are addressed to the **human** driving a grove, not to a session —
+  *Ask the LLM "WDYT"* and *Ask for pushback* — so a session cannot obey either.
+  Their session-facing residue is already `escalation-names-the-tradeoff` and
+  `grilling-procedure`; the operator half goes to **`docs/USAGE.md`**, which
+  already exists for that audience.
+- The rest is argument, worked example and provenance, and it is **deleted rather
+  than relocated**. The worked examples are anchored on the sync-semantics grove
+  and cite a work item that resolves nowhere — which the glossary's own handle rule
+  forbids in provisioned content — and the arguments that still bind are in the
+  ADRs. `docs/` earns a relocation only where a human-facing document already wants
+  the material.
 
 **The hard constraint, restated because this is the leaf most likely to breach
 it:** moving a normative operational rule into `docs/` deletes it. An installed
@@ -35,10 +56,30 @@ argument — move freely) or it stays under `content/` and something on a loaded
 path reaches it. "A future maintainer can find it in the repo" is not
 reachability.
 
-`ADR-FORMAT.md` is the likely home of the **ADR AND-test** canonical statement if
-the inventory put it in a format file rather than a kind reference — check, and
-make sure it is stated once across `ADR-FORMAT.md`, `grilling.md`,
-`references/execute.md` and `references/retire.md`, which today say it four ways.
+**`ADR-FORMAT.md` is the settled home of the ADR AND-test**, stated locally rather
+than cited to the plugin. Make it stated once across `ADR-FORMAT.md`,
+`grilling.md`, `references/execute.md`, `references/design.md` and
+`references/retire.md`, which today say it four ways including one OR-form.
+
+Two more moves are this leaf's under the corrected map, both because an artifact
+Occasion outranks a loop-step one:
+
+- **`records-are-current-state` splits.** It becomes
+  `adr-set-is-minimum-coherent` in `ADR-FORMAT.md` and `spec-set-is-current-state`
+  in `SPEC-FORMAT.md`. `references/execute.md` states neither afterwards — and
+  because `loop-step-references-k11` deliberately leaves its copy alone, **you
+  remove it in the same commit that lands the two format-file statements**, so the
+  rule is never homeless between two commits.
+- **`glossary-is-the-forcing-function` and `challenge-and-sharpen-terms` land in
+  `CONTEXT-FORMAT.md`**, which is the file every session about to write a glossary
+  entry opens. `grilling.md`'s statements of them, and of
+  `glossary-is-only-a-glossary`, are procedure-register duplicates and become
+  pointers. `research-to-adr-bridge` lands in `ADR-FORMAT.md`.
+
+`grilling.md` sheds four duplicate sections this way and keeps three rows —
+`grilling-procedure`, `no-writes-before-shared-understanding` (inside the
+byte-intact `<what-to-do>` block, so the bundled sentence *is* the canonical
+statement) and `probe-with-concrete-scenarios`.
 
 ## Done when
 

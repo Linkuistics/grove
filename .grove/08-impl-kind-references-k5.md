@@ -59,9 +59,22 @@ session's loaded path carries the threshold and not merely the always-form.
 - The five `review-*` kinds share one file, as do the five `integrate-review-*`
   and the two research producers. A delta that is real for one member of a family
   and not the others is a signal worth surfacing, not something to average away.
-- The **ADR AND-test** contradiction is the other one this grove resolves; if the
-  inventory assigned its canonical statement to a kind reference rather than to a
-  format file, it lands here too.
+- The **ADR AND-test** contradiction is the other one this grove resolves, and it
+  is **settled: `content/ADR-FORMAT.md` owns it**, so it does not land here. What
+  lands here is the *deletion* of `references/design.md`'s OR-form, with no
+  replacement statement — a kind reference may not restate a format file's rule.
+- **`verify-repo-claims-with-controls` is not yours.** The superseded inventory
+  sent it to `impl.md`; the corrected map does not, because a `review-*` session
+  re-running a producer's sweep, a `design` session counting occurrences and a
+  `combine-research` session checking a claim are all bound by it. It is
+  `references/execute.md`'s, and `loop-step-references-k11` lands it. Take only
+  `cite-framework-decisions-to-source`, which is genuinely `{impl}`-bound.
+- `references/requirements.md` gains four rows beyond the threshold —
+  `sequence-interdependent-questions`, `agree-the-seams-during-grilling`,
+  `small-workstream-may-fuse-the-three` (from `driver.md`, which states it as
+  session instructions it should not carry), and `probe-with-concrete-scenarios`
+  (from `grilling.md`'s duplicated sections). Its two near-duplicate opening
+  bullets collapse to one.
 - Consider whether this artifact warrants review. Ten files each holding one
   kind's whole discipline is load-bearing; if you finish with genuine doubt about
   a family's delta, cut `review-impl` with that specific doubt written into it.

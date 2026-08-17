@@ -786,15 +786,19 @@ already one unit.
 **Which file states a given rule** is decided by
 [`corpus-rule-ownership`](specs/corpus-rule-ownership.md), under
 [every normative rule has one owner](adr/corpus-rules-have-one-owner.md): a rule
-is filed by its **load predicate** — the narrowest file every session bound by it
-already opens — and the only permitted restatement is a `SKILL.md` condition
-naming the file with the procedure. That spec also carries the inventory of every
-rule with its owner, and it is where the condition/procedure split above stops
+is filed by **when a session meets it** — the pair *which kinds must obey it* and
+*at what moment*, resolved by an ordered first-match rule — and a `SKILL.md`
+restatement declares one of three classes (`own`, a ≤25-word `trigger`, or
+`none`). That spec also carries the inventory of every rule with its owner, class,
+load predicate and test, and it is where the condition/procedure split above stops
 being a description of the corpus and becomes the rule that governs edits to it.
 One consequence belongs here rather than there: because only `content/` is
 provisioned, a rule moved into `docs/` is unreachable to every session outside
 this repository, so *normative material stays embedded* is the placement
-function's own fourth case rather than a separate boundary.
+function's own first case read backwards rather than a separate boundary. A
+second: only `SKILL.md` and `reference_file(kind)` are ever on a static path, so a
+rule owned by any other file states the file whose sentence triggers it, and those
+references form a chain that must terminate at a static path.
 
 Three numeric measures stand over that shape. All three are **alarms rather than
 budgets**, each set well above what the corpus needs, so crossing one means

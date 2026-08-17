@@ -1,19 +1,35 @@
-# Every normative rule has one owner, and a mirror is a condition only
+# Every normative rule has one owner, and a restatement declares its class
 
-A rule in the embedded corpus is filed by its **load predicate**, not by its
-topic. Let `Bound(R)` be the set of session kinds that must obey R; R's canonical
-source is the narrowest file every session in `Bound(R)` already opens, and no
-other file states R.
+A rule in the embedded corpus is filed by **when a session meets it**, not by
+what it is about. Two facts are recorded per rule: `Bound(R)`, the set of session
+kinds that must obey it, and `Occasion(R)`, the moment at which it applies —
+`orientation`, `launch`, `step:<loop step>`, `artifact:<artifact>`, or `none`.
+Placement is then an **ordered** decision, first match winning:
 
-The only permitted restatement is a **condition** in `content/SKILL.md` — one
-sentence saying that a situation exists calling for something other than what
-this session is doing, and naming the file with the procedure. A condition may
-not carry a test, a threshold, a list, or a procedure. Any third statement of a
-rule is a defect, and a second statement in a *procedure* file is a defect even
-while the two agree.
+1. `Bound(R) = ∅` or `Occasion(R) = none` → not normative; leaves `content/`.
+2. `Bound(R)` is one kind or one family → that kind reference.
+3. `Occasion(R) = artifact:A` → A's format file.
+4. `Occasion(R) = launch` → `references/driver.md`.
+5. `Occasion(R) = step:S` → the loop-step reference for S.
+6. `Occasion(R) = orientation` → `content/SKILL.md`.
 
-`docs/specs/corpus-rule-ownership.md` carries the placement function, the
-inventory of every normative rule with its owner, and the per-rule enforcement.
+No other file states R, and the ordering **is** the tie-break: a rule with two
+plausible homes has exactly one, decided by which rule fires first.
+
+`content/SKILL.md`'s relationship to a rule is one of three declared classes, and
+every inventory row states which. **`own`** — `SKILL.md` is the canonical source,
+legal only at `Occasion = orientation`, where the rule's whole content is its
+trigger and no procedure remains to defer. **`trigger`** — one sentence of at
+most 25 words: the situation, a single-clause obligation, and the owner file's
+path; never a threshold, a branch, an enumeration or steps. **`none`** — no
+`SKILL.md` statement at all, mandatory whenever `Bound(R)` is one kind or one
+family. Any statement of a rule outside its owner and its declared class is a
+defect, and a second statement in a *procedure* file is a defect even while the
+two agree.
+
+`docs/specs/corpus-rule-ownership.md` carries the function's derivation, the
+inventory of every normative rule with its owner, class, load predicate and test,
+and the per-rule enforcement.
 
 ## Why filing by topic cannot work
 
@@ -35,29 +51,43 @@ working-increments rule **twice in its own body**, with `references/execute.md`
 stating it a third time. A file that duplicates itself is what an absent
 placement rule looks like at its clearest.
 
-Load predicate is the axis that has one answer, because it is a fact about the
-runtime rather than a judgement about subject matter. `src/prompt.rs` fixes each
-kind's static path — the guaranteed core, `SKILL.md`, and `reference_file(kind)`
-— so "the narrowest file every bound session opens" is computed, not argued.
+## What the pair buys, and what it does not claim
 
-## What the rule buys beyond de-duplication
+**The consequence is computed; the input is judged once.** Choosing
+`Occasion(R)` is a judgement — but it is *one* judgement per rule, recorded in
+the row, and checkable by a reader against a single question: does a session
+actually meet this at that moment? Given the pair, the owner follows with no
+further argument. That is strictly less judgement than filing by topic, which
+demands a fresh, unrecorded and uncheckable choice among four axes from every
+session that touches the rule. It is not the stronger claim that placement needs
+no judgement at all; `Bound(R)` alone cannot decide a home, and a design that
+says otherwise ends up smuggling the second input in unstated.
 
 **The embedding boundary stops being a second rule.** Only `content/` is
 provisioned into harness skill directories, so a `docs/` path is reachable to a
 session inside this repository and to no session anywhere else. *Normative
-material stays embedded* is then the placement function's fourth case read
-backwards: a rule may move to `docs/` iff `Bound(R)` is empty. There is no
-separate boundary to remember and no judgement about whether a given move
+material stays embedded* is then the function's first case read backwards: a rule
+may move to `docs/` iff its `Bound` is empty or its `Occasion` is `none`. There
+is no separate boundary to remember and no judgement about whether a given move
 crosses it.
 
-**Per-kind rules lose their `SKILL.md` mirror entirely.** The driver resolves the
-kind before the session exists and names that kind's reference file in
+**Reachability becomes checkable rather than assumed.** `src/prompt.rs` fixes
+each kind's static path — the guaranteed core, `SKILL.md`, and
+`reference_file(kind)` — and nothing else can be static. Every other rule states
+the file whose sentence triggers it, and those references form a chain that must
+terminate at a static path. A rule whose chain does not terminate is present in
+`content/` and deleted in effect, which is what `driving.md` does today to
+`impl`'s source-citation and repo-claim disciplines: they sit in a file no `impl`
+session is ever routed to.
+
+**Per-kind rules lose their `SKILL.md` statement entirely.** The driver resolves
+the kind before the session exists and names that kind's reference file in
 `${prompt}`, so the session performs no selection and there is nothing to trigger
 it into. This is most of what `SKILL.md` carries today, and it is why the file
 shrinks without anything being deleted from the corpus.
 
 **Paraphrase becomes visibly illegal.** "ADRs are raised sparingly" reads as a
-condition and is a *looser test*. Naming the file instead is what a mirror is
+condition and is a *looser test*. Naming the file instead is what a `trigger` is
 allowed to be, and it is what would have prevented the AND/OR split.
 
 ## The residue, named rather than argued away
@@ -68,7 +98,7 @@ the corpus has now, where the second read is avoided and the two copies drift.
 The `if`/`then` asymmetry [the skill delivers the
 methodology](skill-delivers-the-methodology.md) settles applies here one channel
 further in — a withheld procedure costs a lookup the session knows to make, while
-a withheld *condition* yields an unasked question. So conditions may be mirrored
+a withheld *condition* yields an unasked question. So conditions may be restated
 and procedures may not, which is exactly the asymmetry, applied to files instead
 of channels.
 
@@ -76,8 +106,26 @@ That record decides what crosses the `${prompt}`/skill boundary under the
 too-late test; this one decides what goes where **inside** the corpus. They share
 the asymmetry and nothing else, and they reopen on different conditions.
 
+The second residue is the `own` class. It concedes that some rules have no
+procedure to defer — the numbered spine, the bootstrap order — so the condition
+register is their canonical source rather than a mirror of one. That is not a
+hole in the two-register split; it is the split's degenerate case, and naming it
+is what stops `SKILL.md` from being forbidden to carry a rule the requirements
+independently require it to carry.
+
 ## Considered options
 
+- **Take `Bound(R)` alone, mapping "all nineteen kinds" to the loop-step
+  reference for the step the rule governs.** Rejected because it is not a
+  function of its stated input. *Which step does it govern* is a second input,
+  and leaving it unstated produces two failures rather than one: the rule reads
+  as judgement-free while still requiring a judgement, and the judgement is
+  unrecorded, so two readers file the same rule differently and neither can be
+  shown wrong. It also mislabels the load predicate — read literally, "the
+  narrowest file every bound session already opens" sends every all-nineteen rule
+  to `SKILL.md`, because loop-step references are not on any static path. Reopen
+  only if `src/prompt.rs` ever puts the loop-step references on the static path,
+  which would make `Bound` sufficient and this record's rules 4–6 redundant.
 - **Make each file self-contained, so a session never needs a second read.**
   Rejected because it *is* the current design and it produced the six-way
   restatement and both contradictions. Self-containment is a real property, but
@@ -92,15 +140,14 @@ the asymmetry and nothing else, and they reopen on different conditions.
   total; whether a page of conditions is *right* was never gateable, and the
   inventory's own record concedes as much. Enforcement is therefore per rule, by
   the instrument that fits it — a behavioural eval for conduct, a phrase-scoped
-  sweep for distinctive wording, a budget for a loaded path. Reopen only if
-  someone shows a checkable property a universal parser could decide that these
-  cannot.
+  sweep for distinctive wording, a budget for a loaded path, a reachability
+  assertion over the `@` chains. Reopen only if someone shows a checkable
+  property a universal parser could decide that these cannot.
 - **File by topic and nominate an owner per topic by hand.** Rejected because it
   answers the symptom and leaves the cause: a rule with four topics still needs a
   judgement per rule, made again by every future session, with no way to check
-  the answer. The load predicate is the axis on which the question has one
-  computable answer. Reopen never — a hand-maintained owner list is what the
-  inventory would degrade into if the function were dropped.
+  the answer. Reopen never — a hand-maintained owner list is what the inventory
+  would degrade into if the function were dropped.
 - **Let the specs under `docs/` hold the normative statements and have
   `content/` cite them.** Rejected because it deletes the rules rather than
   rehoming them: `docs/` is not provisioned, so a session on any other repository
@@ -110,16 +157,19 @@ the asymmetry and nothing else, and they reopen on different conditions.
   make it a second `content/` and raise a different question.
 - **Split the corpus by audience — one tree for sessions, one for
   contributors — and drop the four separations.** Rejected as the same decision
-  under a coarser name: sessions and contributors are what `Bound(R)` non-empty
-  and `Bound(R)` empty already distinguish, and the four separations are what
-  fall out of the function rather than an extra scheme laid over it. Reopen if a
-  third audience appears that is neither.
+  under a coarser name: sessions and contributors are what a non-empty and an
+  empty `Bound` already distinguish, and the four separations are what fall out
+  of the function rather than an extra scheme laid over it. Reopen if a third
+  audience appears that is neither.
 - **Keep `content/driving.md` as an embedded habits file.** Rejected on the
-  function's own output rather than on its size: every normative rule in it has
-  an owner elsewhere, two of them (`impl`'s source-citation and repo-claim
-  disciplines) sit in a file no `impl` session is ever routed to, and what remains
-  has `Bound(R)` empty. A file most of whose bytes no session's path reaches is
-  the shape the *loaded path* measure exists to make visible. Reopen if a rule is
-  found whose Bound is non-empty and whose narrowest owner is genuinely a habits
-  file — which would mean the function had produced it, not that the file was
-  kept.
+  function's output rather than on its size: every rule in it has a narrower
+  owner under rules 2–5, and two of them (`impl`'s source-citation and repo-claim
+  disciplines) sit in a file no `impl` session is ever routed to, which is the
+  reachability failure inside `content/` rather than at its edge. A file most of
+  whose bytes no session's path reaches is the shape the *loaded path* measure
+  exists to make visible. **Its deletion is conditional, not immediate**: the
+  spec's relocation table names every surviving imperative and its new owner, and
+  the file goes only once each one is stated there and each `SKILL.md` sentence
+  pointing at it has been repointed. Reopen if a rule is found whose owner is
+  genuinely a habits file — which would mean the function had produced one, not
+  that the file was kept.

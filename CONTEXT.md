@@ -210,14 +210,23 @@ primary failure mode (a session quietly absorbing work that should have been its
 own leaf). The same asymmetry chooses what rides the [[Guaranteed core]] one
 channel further in, under the sharper too-late test.
 **The two are also registers, and that is what governs restatement**: a rule has
-one **procedure**-register file and no other, while its **condition** may be
-mirrored in `SKILL.md` — one sentence naming that file
-(`docs/specs/corpus-rule-ownership.md`; ADR *corpus-rules-have-one-owner*). Which
-file owns a rule is decided by its [[Loaded path]] rather than by its topic.
-_Avoid_: a mirror that carries a test, a threshold, a list or a procedure. That is
+one **procedure**-register file and no other, while `SKILL.md`'s relationship to
+it is one of **three declared classes** — `own` (`SKILL.md` *is* the canonical
+source, for a rule whose whole content is its trigger and which therefore has no
+procedure left to defer), `trigger` (one sentence of ≤25 words naming the owner's
+path), or `none` (nothing at all, mandatory for a rule bound to one kind or one
+family). Which file owns a rule is decided by **when a session meets it** — the
+pair `Bound` and `Occasion`, resolved by an ordered first-match rule — rather
+than by its topic (`docs/specs/corpus-rule-ownership.md`; ADR
+*corpus-rules-have-one-owner*).
+_Avoid_: a `trigger` that carries a test, a threshold, a branch or steps. That is
 a second statement wearing a condition's clothes, and "ADRs are raised sparingly"
 — a paraphrase of a three-part AND test — is how the corpus came to state that
 test two incompatible ways.
+_Avoid_: reading `own` as a licence to keep anything short in `SKILL.md`. It is
+the degenerate case of the split, not an exemption from it: the test is that no
+procedure remains, which is true of the numbered spine and the bootstrap order and
+of almost nothing else.
 _Avoid_: mirroring a rule whose condition binds one kind or one family. The driver
 resolved the kind before the session existed and named that kind's [[Kind
 reference file]], so there is nothing to trigger the session into.
@@ -246,10 +255,18 @@ share ten reference files, so nineteen paths run through one corpus.
 **It has a static half and a conditional half**, and only the static half is
 computable: the core, `SKILL.md` and `reference_file(kind)` are fixed by
 `src/prompt.rs`, while everything else is on the path because a condition fired.
-That is also what files a rule: a rule's canonical source is the narrowest file
-every session bound by it already opens (ADR *corpus-rules-have-one-owner*), so
-the static half is what a budget test walks and the conditional half is what a
+That is also what files a rule, though **not by narrowness alone**: only
+`SKILL.md` and `reference_file(kind)` are ever static, so "the narrowest file
+every bound session already opens" would send every all-nineteen rule to
+`SKILL.md`. What decides is the pair `Bound` and `Occasion` under an ordered
+first-match rule (ADR *corpus-rules-have-one-owner*), and a conditionally reached
+owner must name the file that triggers it — a chain terminating at a static path.
+So the static half is what a budget test walks, and the conditional half is what a
 `load predicate` column has to state per rule.
+_Avoid_: treating a rule in `content/` as reachable because the file is embedded.
+A file no condition names is off every path, which is the failure that left two
+`impl` disciplines in a file no `impl` session is routed to — deleted in effect
+while sitting in the corpus.
 _Avoid_: reading a `docs/` path as reachable. Only `content/` is swept into the
 skill directories, so a rule relocated to `docs/` is unreachable to every session
 outside this repository — deleted rather than rehomed.

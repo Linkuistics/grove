@@ -84,7 +84,21 @@ find the rules it needs already homed.
   **Done** — `docs/specs/corpus-rule-ownership.md` and ADR
   `corpus-rules-have-one-owner`.
 - `rule-ownership-k12` (review-design) — the adversarial read of that design,
-  sequenced **ahead** of every leaf that executes against it.
+  sequenced **ahead** of every leaf that executes against it. **Done** — five
+  actionable defects, four of them P1.
+- `rule-ownership-k13` (integrate-review-design) — the repair. **Done** — the
+  placement function takes a pair and resolves by ordered first match; the
+  inventory is five-column and audited file by file; `SKILL.md`'s three
+  restatement classes and word budget are stated arithmetically; `driving.md`'s
+  every surviving imperative has an embedded owner and its deletion is
+  conditional on that table.
+- `rule-ownership-k14` (review-design) — a **second** adversarial read, inserted
+  ahead of the executing leaves for the same reason `k12` was. The repair was not
+  a patch: it replaced the placement function's input and recomputed every owner
+  cell, so what the leaves execute against is a design no reviewer has seen. The
+  first review of the first design found four P1s, which is the evidence that this
+  artifact is worth the cycle; `k13` spent no in-session reviewer so the budget
+  went here.
 - `behavior-evals-k3` (impl) — behavioural coverage for the lifecycle invariants
   that this refactor must not change. Written against **current** behaviour so it
   passes before and after; it is the net the rewrites fall into.
@@ -114,9 +128,28 @@ find the rules it needs already homed.
 
 ## The design's work order
 
-`rule-ownership-k2` has landed. `docs/specs/corpus-rule-ownership.md` is what
+`rule-ownership-k2` has landed and `rule-ownership-k13` has repaired it against
+`rule-ownership-k12`'s findings. `docs/specs/corpus-rule-ownership.md` is what
 every leaf below executes against; this section carries only the part that dies
 with `.grove/` — which leaf makes which edit.
+
+**What the repair changed for the leaves below.** Placement now takes a pair,
+`Bound(R)` **and** `Occasion(R)`, resolved by an ordered first-match rule, so
+some owners moved: an artifact rule beats a loop-step rule, `records-are-current-state`
+splits across the two format files, `glossary-is-the-forcing-function` belongs to
+`CONTEXT-FORMAT.md`, and `verify-repo-claims-with-controls` is `execute.md`'s
+rather than `impl.md`'s. A `SKILL.md` restatement now declares one of three
+classes — `own`, `trigger`, `none` — and the file's word budget is stated
+arithmetically rather than assumed. Every inventory row carries five columns.
+`driving.md`'s deletion is **conditional** on the spec's relocation table being
+discharged first.
+
+**No rule is homeless between two commits.** When a rule's owner changes and the
+two files belong to two leaves, the move belongs to the **later** leaf: it adds
+the new statement and removes the old one in the same commit, and the earlier
+leaf leaves the old statement untouched. A rule with no statement in `content/`
+between two commits is deleted for every session launched in that window, and in
+a meta-grove that window is real sessions.
 
 **The two tree changes.** The seven loop-step reference files (~5,400 words,
 holding the corpus's worst duplication) had **no leaf**: `skill-router-k4`,
@@ -136,45 +169,77 @@ as *narrower than free*.
 
 **Per leaf:**
 
-- `behavior-evals-k3` — scope is the inventory's **B** rows only. The **S** rows
-  (single-source and budget assertions) can only go green *after* the rewrite that
-  homes each rule, so each rewriting leaf lands its own. Handing them here would
-  charter this leaf to fail.
-- `skill-router-k4` — `SKILL.md` is the **condition register**. A condition is one
-  sentence naming the file with the procedure, and may not carry a test, a
-  threshold, a list or a procedure. Rules whose Bound is one kind or one family
-  lose their `SKILL.md` mirror outright; that is most of what the file carries
-  today and most of why it shrinks.
+- `behavior-evals-k3` — scope is the **B★ rows** the spec marks: eight of the nine
+  areas this brief's *Done when* names. The ninth, the interview threshold, is a
+  contradiction being resolved rather than a behaviour being preserved, so its test
+  is red until `kind-references-k5` lands the fix and belongs to that leaf — which
+  is what `k3`'s own task file already says. Not the whole **B** set:
+  every other behavioural row lands with the rewrite that homes its rule, or this
+  leaf balloons. No **S** row belongs here at all — single-source and budget
+  assertions can only go green *after* the rewrite that homes each rule, so
+  handing one here would charter this leaf to fail.
+- `skill-router-k4` — `SKILL.md` is the **condition register**, and every
+  restatement declares a class. It **owns** seven rows outright (the routing
+  table, the numbered spine, the bootstrap order, the mandate, no second pick, the
+  stated VCS, the HITL/AFK mark) because each one's whole content is its trigger;
+  it carries **19 `trigger` sentences** for 27 rows owned elsewhere, each one
+  sentence of ≤25 words naming its owner's path; and it says nothing at all about
+  a rule whose Bound is one kind or one family. That last class is most of what the
+  file carries today and most of why it shrinks. Lands the budget assertion — total
+  in 700–900 words, at most 19 trigger sentences, each ≤25 words, seven `own` rows
+  present.
 - `kind-references-k5` — "incremental" now reads mechanically: state what is true
   of this kind and no sibling, and nothing a loop-step or format file owns. Lands
   the grilling threshold in `references/requirements.md` (stated **once** — the
-  file currently carries the always-form bullet and the three-question trigger as
-  two independent statements) and deletes `references/design.md`'s OR-form ADR
-  test. Takes `cite-framework-decisions-to-source` and
-  `verify-repo-claims-with-controls` into `references/impl.md` from `driving.md`.
+  file currently carries the always-form bullet twice *and* the three-question
+  trigger separately) and deletes `references/design.md`'s OR-form ADR test.
+  Takes `cite-framework-decisions-to-source` into `references/impl.md` — and
+  **only** that one: `verify-repo-claims-with-controls` binds `review-*`,
+  `design` and the research kinds too, so it is `execute.md`'s. Also takes
+  `small-workstream-may-fuse-the-three` from `driver.md`,
+  `agree-the-seams-during-grilling` and `probe-with-concrete-scenarios` from
+  `grilling.md` and `SPEC-FORMAT.md`, and `sequence-interdependent-questions`
+  into `requirements.md`.
 - `loop-step-references-k11` — deletes `references/execute.md`'s *What each kind
   produces* entirely; takes `fog-or-ticket`, `vertical-slice`,
-  `wide-refactor-expand-contract` and the review-chain habits into
-  `decompose.md`, and `triage-picks-the-verb` into `retire.md`; replaces
+  `wide-refactor-expand-contract`, `prior-art-research-is-its-own-leaf`,
+  `research-brief-names-downstream-questions`, `diversity-is-the-configs` and the
+  review-chain habits into `decompose.md`; `triage-picks-the-verb` and
+  `prune-scopes-to-the-whole-path` into `retire.md`; and the repo-claim,
+  decision-log, escalation and doubt-pass rules into `execute.md`. Replaces
   "sparingly" with the pointer to `ADR-FORMAT.md`'s test in `execute.md` and
   `grove.md`; collapses `grove.md`'s restatement of the spec membership and grain
-  rules into a pointer. **Also reworks `docs/specs/doubt-grove-review-mechanics.md`
-  in place** — it restates `review-budget`, `integration-placement` and
-  `no-adjacency-exception` in full, and under the grain rule a spec cites rather
-  than restates; it keeps the ownership predicate's rationale, the task-tree access
-  seam, and its test seams.
+  rules into a pointer. **Relocates `grove.md`'s argued spine and glossary
+  rationale to `docs/ARCHITECTURE.md`** — argument, `Occasion = none`; the
+  normative statements are `SKILL.md`'s and `CONTEXT-FORMAT.md`'s. **Also reworks
+  `docs/specs/doubt-grove-review-mechanics.md` in place** — it restates
+  `review-budget`, `integration-placement` and `no-adjacency-exception` in full,
+  and under the grain rule a spec cites rather than restates; it keeps the
+  ownership predicate's rationale, the task-tree access seam, and its test seams.
 - `corpus-split-k6` — `TASK-FORMAT.md` sheds its policy (composition shapes, doubt
   budget table, kind disciplines, *a leaf never names a harness*) to the owners
-  above and keeps the name grammar, the kind list, the body shape and the two
-  declaration lines. `grilling.md` gains a Grove-authored entry condition above the
-  bundled `<what-to-do>` block — the bundled body stays byte-intact. **The
-  `driving.md` question is answered**, not left here: it does not survive as an
-  embedded file. This leaf performs the move.
+  above and keeps the name grammar, the kind list, the body shape — including the
+  running log's *section* — and the two declaration lines. Splits
+  `records-are-current-state` into `ADR-FORMAT.md` and `SPEC-FORMAT.md` and
+  removes `execute.md`'s statement in the same commit; moves
+  `glossary-is-the-forcing-function` and `challenge-and-sharpen-terms` into
+  `CONTEXT-FORMAT.md`; lands `research-to-adr-bridge` in `ADR-FORMAT.md`.
+  `grilling.md` gains a Grove-authored entry condition above the bundled
+  `<what-to-do>` block — the bundled body stays byte-intact — and sheds its four
+  duplicate sections to their owners. **`driving.md` does not survive as an
+  embedded file, and this leaf performs the move** — but only after every row of
+  the spec's relocation table is discharged and every `SKILL.md` sentence pointing
+  at it has been repointed. Two human-operator habits go to `docs/USAGE.md`; the
+  rest of the residue is deleted rather than relocated.
 - `plugin-fallback-k9` — executes the spec's 14-row deferral table. Discharged
   when every deferring sentence states what binds without the plugin.
 - `loaded-path-budgets-k10` — consumes the load-predicate column. Its static half
   is computable from `src/prompt.rs`'s existing exhaustive `reference_file` match,
-  so the seam costs no new production code.
+  so the seam costs no new production code. Two cheap assertions ride with it: a
+  row claiming `static(K)` whose owner is not `SKILL.md` or `reference_file(k)`
+  fails, and every `on(…) @ <file>` chain must terminate at a static path with no
+  cycles — the check that would have caught `impl`'s two rules sitting in a file
+  no `impl` session is routed to.
 
 **Unchanged and reaffirmed:** `content/SIGNAL.md` and `content/SIGNAL-FINISH.md`
 are out of scope for every leaf. `src/prompt.rs` is out of scope for every leaf.

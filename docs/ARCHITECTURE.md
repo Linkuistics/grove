@@ -520,9 +520,8 @@ and VCS already say what completed, and a later `grove` continues from there.
 ### Legacy migration
 
 Migration is automatic inside bare `grove`; there is no human-facing migrate
-command. One planning pass lowers the v1 flat dotted-decimal tree, and
-current-layout trees whose leaves lack filename kinds, into the current grammar,
-mapping each legacy
+command. **One** legacy shape is still converted: a current-layout tree whose
+leaves lack filename kinds. One planning pass maps each legacy
 body's `**Kind:**` to a filename kind (absent defaults to `impl`; `work` maps to
 `impl`; the two children of an unambiguous legacy vendor pair map to `research-a`
 and `research-b`, and a standalone legacy `research` maps to `research-a`,
@@ -532,13 +531,20 @@ membership in a pair). It strips every `**Kind:**`, `**Harness:**`, and
 composition relationships. An ambiguous pair or unknown marker stops migration
 with exact paths rather than guessing a target.
 
-**The original `NNN-slug/` + `done/` layout is classified and refused**, with the
-same exact-paths diagnostic and no mutation. Classification is the load-bearing
-part and is why the shape is still recognised at all: a tree Grove could not
-classify would read as having no task entries, and migration would then install
-the format witness over it, after which every entry is foreign and picking
-reports a finished grove. Refusing costs a prefix recogniser
-(`leaf::split_prefix`); the alternative cost a workstream.
+**Two layouts are classified and refused**: the original `NNN-slug/` + `done/`
+tree, and the v1 flat dotted-decimal tree. Each gets the same exact-paths
+diagnostic and no mutation. Classification is the load-bearing part and is why
+those shapes are still recognised at all: a tree Grove could not classify would
+read as having no task entries, and migration would then install the format
+witness over it, after which every entry is foreign and picking reports a
+finished grove. Recognition costs a private name matcher per layout; the
+alternative costs a workstream.
+
+Because both withdrawn layouts were the ones that **relocated** entries — the
+`done/` mirror folded in, flat files becoming node directories — what remains
+never creates or removes a directory. Every planned move keeps its parent, which
+is the assumption the migration transaction's remaining directory handling rests
+on.
 
 Directory and kind migration are planned together, so no successful invocation
 exposes an intermediate layout as current. Landing runs beneath a reserved
@@ -884,7 +890,7 @@ prescribing one command.
 | `harness` | The provisioning-target registry — delivery destinations only. |
 | `repo`, `tree_rename` | Git/Jujutsu detection, scoped commits, and the mutation seam. |
 | `tree_id`, `tree_read`, `tree_grow`, `tree_lifecycle`, `tree_access`, `tree_format` | Filesystem task-tree model, lock, and format witness. |
-| `tree_migrate`, `tree_migration_transaction`, `leaf_id` | Legacy planning and admission, its fail-closed mutation owner, and the v1-flat name parser. |
+| `tree_migrate`, `tree_migration_transaction` | Legacy classification, planning and admission, and its fail-closed mutation owner. |
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
@@ -909,8 +915,9 @@ of surface are exempt and every item the sweep reports falls under one of them,
 argued where it lives: a **seam**, where production reaches the same behaviour
 through a door a test cannot open (`tree_lifecycle::transition_to_current`, and
 `methodology::markdown_files` — see [the embed test seam](#embed-test-seam)), and
-a **frozen grammar kept whole** (`leaf_id`, the v1-flat parser, deliberately not
-trimmed to what the one-time migration happens to call). The list is reproduced by copying `src/` to a
+and nothing else — a second exemption for **a frozen grammar kept whole** covered
+`leaf_id`, the v1-flat parser, and retired with it when that layout stopped being
+read. The list is reproduced by copying `src/` to a
 scratch crate, making every module private except `cli` and `llm_cli`, and
 reading the compiler's reachability warnings.
 

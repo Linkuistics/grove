@@ -48,8 +48,13 @@
 // unambiguous because the key is mandatory and always rendered last — parse takes
 // the terminal `-k<digits>`, so `05-impl-task-k9-k3.md` is slug `task-k9`, key `3`.
 //
-// **`leaf_id` is not a second opinion on any of this.** It parses the superseded
-// *v1-flat* names (`<dotted>-[<key>]-<slug>`) and survives only as `tree_migrate`'s
+// **There is no second opinion on any of this.** `leaf_id`, which parsed the
+// superseded *v1-flat* names (`<dotted>-[<key>]-<slug>`), is gone: that layout is
+// no longer migrated, and what recognises it now is a private matcher in
+// `tree_migrate`. The paragraph below survives as a warning about the trap it
+// was written for — two modules exporting `parse` / `sort_key` / `next_key` /
+// `validate_slug` for different grammars — because the same trap reappears the
+// moment a second name grammar does. Historically it was `tree_migrate`'s
 // one-time migration input; every live verb reads names through here. The two
 // modules export the same four function names — `parse`, `sort_key`, `next_key`,
 // `validate_slug` — for different grammars, so read a call site's `use` line before

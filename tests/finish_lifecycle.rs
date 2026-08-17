@@ -45,7 +45,7 @@ const SESSION_KINDS: &[&str] = &[
 /// methodology names `finish-k<key>` in the prose explaining the sentinel. Even
 /// the driver's own sentence naming the **selected** leaf only identifies a
 /// handle whose slug is `finish`: `validate_slug` reserves `BRIEF` and `DONE` and
-/// not `finish` (`src/leaf_id.rs`), so an ordinary `NN-impl-finish-k42.md` is a
+/// not `finish` (`src/tree_id.rs`), so an ordinary `NN-impl-finish-k42.md` is a
 /// legal leaf whose mandate would send a non-`finish` configured session down the
 /// teardown branch.
 const FINISH_ROUTE: &str = "route=finish";

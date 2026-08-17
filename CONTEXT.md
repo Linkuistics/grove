@@ -405,9 +405,9 @@ _Avoid_: plain `research` — a vendor pair uses the independently configurable
 
 **Session-kind migration**:
 The one-time, fail-closed conversion bare `grove` applies before ordinary
-selection to a **migratable** legacy task-tree shape — the v1 flat
-dotted-decimal layout, and current-layout leaves that still carry body markers —
-landing as one recoverable
+selection to the one **migratable** legacy task-tree shape — current-layout
+leaves that still carry body markers rather than a filename kind — landing as one
+recoverable
 transaction and one focused commit, never as a runnable mixed grammar. It
 renames every deterministic leaf, live or terminal, and removes the obsolete
 `**Kind:**`, `**Harness:**`, and `**Producer launch:**` lines while
@@ -415,8 +415,10 @@ preserving `Reviews` and `Integrates`. The positive `.grove/FORMAT` value is the
 only legacy/current discriminator, and an unknown kind or structurally ambiguous
 pair stops before mutation rather than guessing a configured target.
 _Avoid_: reading "legacy" as "migratable". The original `NNN-slug/` + `done/`
-layout is legacy and is **refused** — still classified, so it is named rather
-than mistaken for a tree with no work in it, but not converted.
+layout and the v1 flat dotted-decimal layout are both legacy and both **refused**
+— still classified, so each is named rather than mistaken for a tree with no work
+in it, but neither is converted. Both were the layouts that *relocated* entries,
+so what migration still does never creates or removes a directory.
 
 **Review chain** / **vendor pair**:
 The two composition patterns over the [[Session kind]] set. The **review chain**

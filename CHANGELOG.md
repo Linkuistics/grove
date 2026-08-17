@@ -51,6 +51,42 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **Breaking. The v1-flat task-tree layout is no longer migrated either, and
+  migration is now a rename in place.** With the `NNN-slug/` layout already
+  withdrawn (below), `<position>-[<key>]-<slug>[.BRIEF|.DONE].md` was the second
+  of three legacy inputs and the other one that **relocated** entries: its flat
+  keyed files became node directories, and every `# <dotted>-[<key>]-<slug>`
+  header was rewritten down to the position-free handle. Withdrawing it takes the
+  reader, the renderer that placed entities into directories, the header
+  rewriter, and the whole `src/leaf_id.rs` module — the v1 name parser, which was
+  deliberately *kept whole* under a rule that a frozen grammar is not trimmed to
+  what its one caller happens to use. That rule was right while something read
+  the grammar; once nothing did, keeping a 500-line parser to answer a yes/no
+  question was the reverse of what it argued for. Same treatment as before: the
+  shape is still **classified**, so bare `grove` names it and refuses rather than
+  reading it as a tree with nothing in it, and what survives of each withdrawn
+  reader is a private name matcher in `tree_migrate`.
+
+  **One legacy input remains** — a tree already in v2 directories whose leaves
+  predate filename kinds. It is the shape the migration was always going to end
+  at, and it needs no relocation: each leaf is renamed *inside its own directory*
+  to gain the kind its body's `**Kind:**` marker declared, and the marker lines
+  come out of the body. So **no migration creates or removes a directory** any
+  more. That is now an asserted property rather than an implicit one, because two
+  successive versions of the same transaction test — one asserting directory
+  removal, one asserting directory creation — each went vacuous as its layout was
+  withdrawn.
+
+  The migration transaction keeps its rollback destination-directory sweep even
+  though nothing this build plans can trigger it. The asymmetry with the forward
+  sweep removed below is deliberate: recovery runs off the manifest, never off a
+  fresh plan, so a witness left by an older, relocating build can still be
+  finished or rolled back by this one — and what each sweep would leave behind
+  differs in kind. An unswept *source* directory is `done/` or `020-node`, which
+  no reader parses, so it is inert litter; an unswept *destination* directory is
+  `NN-<slug>-k<key>/`, which every reader parses, and an empty one is a node with
+  no brief and no children — a malformed tree.
+
 - **Breaking. The original `NNN-slug/` + `done/` task-tree layout is no longer
   migrated.** It was the most expensive of the three legacy readers and the one
   furthest from anything in use: converting it meant building a unified forest —

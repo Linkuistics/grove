@@ -13,15 +13,14 @@ pub mod harness;
 // `dead_code` says nothing about one. Crate-private, the compiler enumerates
 // the next dead launch function for us instead of it needing to be hunted.
 pub(crate) mod launch;
-// `leaf` holds `Kind`, which is live everywhere, plus `split_prefix` — now only a
-// *recogniser* for the `NNN-slug/` layout, which is refused rather than migrated.
-// `leaf_id` is the v1-flat reader and the one of the two that still feeds a
-// migration (task-tree-scheme). The v1 verb path — `leaf_read` / `leaf_grow` /
-// `leaf_lifecycle` / `migrate` — was swept when `llm_cli` / `cli` / `launch`
-// flipped to the `tree_*` modules (task-tree-scheme, the install-and-reflip-v2
-// leaf).
+// `leaf` holds `Kind` and nothing else now — it is live everywhere. Its legacy
+// lodgers are gone with the readers they served: the `NNN-slug` prefix parser and
+// the whole `leaf_id` v1-flat module, both of which now exist only as name
+// *recognisers* inside `tree_migrate`, where their one caller is. The v1 verb
+// path — `leaf_read` / `leaf_grow` / `leaf_lifecycle` / `migrate` — was swept
+// when `llm_cli` / `cli` / `launch` flipped to the `tree_*` modules
+// (task-tree-scheme, the install-and-reflip-v2 leaf).
 pub mod leaf;
-pub mod leaf_id;
 pub mod llm_cli;
 pub(crate) mod loop_driver;
 // `methodology` owns the embed itself — the `include_dir!` static and the
@@ -64,21 +63,23 @@ pub mod tree_format;
 // name, and the only correct use of it was the one nobody had. They now live in
 // this module's `mod tests`, which is what they always were.
 //
-// Two kinds of surface are exempt, and every item the sweep still reports falls
-// under one of them, each argued where it lives:
+// **One** kind of surface is exempt, and every item the sweep still reports falls
+// under it: **a genuine seam** — production reaches the same behaviour through a
+// door a test cannot open. `tree_lifecycle::transition_to_current` keeps its
+// `pub` on exactly that ground; its `pub(crate)` driver twin also reaps finish
+// artifacts, so it cannot stand in for the classification.
+// `methodology::markdown_files` keeps its `pub` on the same ground and is argued
+// in its own doc comment: production's door onto the embed is `include_dir`,
+// which a test cannot open without making a runtime dependency a dev one as well.
 //
-//   * **a genuine seam** — production reaches the same behaviour through a door
-//     a test cannot open. `tree_lifecycle::transition_to_current` keeps its
-//     `pub` on exactly that ground; its `pub(crate)` driver twin also reaps
-//     finish artifacts, so it cannot stand in for the classification.
-//     `methodology::markdown_files` keeps its `pub` on the same ground and is
-//     argued in its own doc comment: production's door onto the embed is
-//     `include_dir`, which a test cannot open without making a runtime
-//     dependency a dev one as well.
-//   * **a frozen grammar kept whole** — `leaf_id`, the v1-flat parser, is
-//     deliberately not trimmed to what the one-time migration happens to call
-//     (see its header). Trimming a parser to its current caller is how the next
-//     legacy tree becomes unreadable.
+// A second exemption stood here until the legacy readers were withdrawn — **a
+// frozen grammar kept whole**, which is why `leaf_id` was not trimmed to what the
+// one-time migration happened to call. That rule was right while something read
+// the grammar. Once nothing did, keeping a whole parser to answer a yes/no
+// question was the reverse of what it argued for, and the grammar itself is in
+// the VCS. What survives is the *recognition* — a private matcher per withdrawn
+// layout in `tree_migrate` — because that is the part whose absence loses a
+// workstream rather than a lookup (see `tree_migrate`'s `Format`).
 //
 // The technique that produces that list: copy `src/` to a scratch crate, make
 // every module private except `cli` and `llm_cli`, and read the compiler's

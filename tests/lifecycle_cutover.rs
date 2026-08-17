@@ -1543,51 +1543,56 @@ impl AdoptedTree {
     }
 }
 
-/// The **v1-flat** grammar (`<dotted>-[<key>]-<slug>[.BRIEF|.DONE].md`) carried
-/// all the way to a routed session by one bare `grove`.
+/// A **kind-less v2** tree carried all the way to a routed session by one bare
+/// `grove` — the one legacy shape still migrated.
 ///
 /// Two things about this fixture are load-bearing rather than decorative. It
-/// carries a **node brief** (`2-[2]-spec.BRIEF.md`), so the run has to build a
-/// directory and place a child inside it — a flat one-leaf tree exercises the
-/// rename and nothing else. And its permanent keys are **already assigned**, so
-/// `draft-k3` in the mandate is the seeded key surviving adoption, not a counter
-/// that happened to land on the same number.
+/// carries a **node directory** with a child, so the run has to rename inside a
+/// subtree rather than only at the root. And its permanent keys are **already
+/// assigned**, so `draft-k3` in the mandate is the seeded key surviving adoption,
+/// not a counter that happened to land on the same number.
 ///
 /// The routed kind is `design`, deliberately not the `impl` a lost kind would
-/// fall back to.
+/// fall back to — and it comes from the body marker, since a kind-less leaf
+/// filename cannot carry it. That is the whole of what this migration does:
+/// promote each body's `**Kind:**` into the filename and drop the marker.
 #[test]
-fn a_v1_flat_tree_is_adopted_migrated_and_routed_by_its_migrated_filename() {
+fn a_kindless_v2_tree_is_adopted_migrated_and_routed_by_its_migrated_filename() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
-    let worktree = fixture.path().join("v1-flat-worktree");
+    let worktree = fixture.path().join("kindless-v2-worktree");
     init_git_worktree(&worktree);
     configure_git_identity(&worktree);
     let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# v1-flat-worktree — brief\n").unwrap();
+    fs::create_dir_all(grove.join("02-spec-k2")).unwrap();
+    fs::write(grove.join("BRIEF.md"), "# kindless-v2-worktree — brief\n").unwrap();
     fs::write(
-        grove.join("1-[1]-groundwork.DONE.md"),
-        "# 1-[1]-groundwork\n\n**Kind:** impl\n\n## Goal\nAlready done.\n",
+        grove.join("01-DONE-groundwork-k1.md"),
+        "# groundwork-k1\n\n**Kind:** impl\n\n## Goal\nAlready done.\n",
     )
     .unwrap();
     fs::write(
-        grove.join("2-[2]-spec.BRIEF.md"),
-        "# 2-[2]-spec — brief\n\n## Goal\nSpec it.\n",
+        grove.join("02-spec-k2/BRIEF.md"),
+        "# spec-k2 — brief\n\n## Goal\nSpec it.\n",
     )
     .unwrap();
     fs::write(
-        grove.join("2.1-[3]-draft.md"),
-        "# 2.1-[3]-draft\n\n**Kind:** design\n\n## Goal\nDraft.\n",
+        grove.join("02-spec-k2/01-draft-k3.md"),
+        "# draft-k3\n\n**Kind:** design\n\n## Goal\nDraft.\n",
     )
     .unwrap();
     fs::write(
-        grove.join("3-[4]-ship.md"),
-        "# 3-[4]-ship\n\n**Kind:** impl\n\n## Goal\nShip.\n",
+        grove.join("03-ship-k4.md"),
+        "# ship-k4\n\n**Kind:** impl\n\n## Goal\nShip.\n",
     )
     .unwrap();
     run_command("git", &worktree, &["add", "-A"]);
-    run_command("git", &worktree, &["commit", "-q", "-m", "seed v1-flat"]);
+    run_command(
+        "git",
+        &worktree,
+        &["commit", "-q", "-m", "seed kind-less v2"],
+    );
 
     let adopted = adopt_with_bare_grove(fixture.path(), &home, &worktree);
 
@@ -1604,115 +1609,142 @@ fn a_v1_flat_tree_is_adopted_migrated_and_routed_by_its_migrated_filename() {
         ]
     );
     adopted.assert_reached_current_format();
-    adopted.assert_one_migration_commit("v1-flat-worktree");
+    adopted.assert_one_migration_commit("kindless-v2-worktree");
     adopted.assert_routed_launch("design", "draft-k3");
 }
 
-/// The older **`NNN-slug/`** grammar is refused by one bare `grove`, and the
-/// refusal is the whole of what happens.
+/// Each **withdrawn** layout is refused by one bare `grove`, and the refusal is
+/// the whole of what happens.
 ///
-/// It used to migrate, `done/` mirror and all. What replaces that coverage is the
-/// property that matters now the reader is gone: the shape is still **classified**
-/// rather than falling through as an unrecognisable tree. That distinction is not
-/// cosmetic — a tree of this shape that classified as empty would be stamped with
-/// a current-format witness, after which every entry in it is foreign and `pick`
+/// Both used to migrate. What replaces that coverage is the property that matters
+/// now their readers are gone: the shape is still **classified** rather than
+/// falling through as a tree with nothing in it. That distinction is not
+/// cosmetic — a tree that classified as empty would be stamped with a
+/// current-format witness, after which every entry in it is foreign and `pick`
 /// reports a finished grove. So this asserts the refusal *and* that the tree is
 /// byte-identical afterwards, which is the claim a silent misclassification would
 /// break while an error message alone would not.
 #[test]
-fn an_nnn_slug_tree_is_refused_without_touching_the_tree() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    let worktree = fixture.path().join("nnn-slug-worktree");
-    init_git_worktree(&worktree);
-    configure_git_identity(&worktree);
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(grove.join("020-spec")).unwrap();
-    fs::create_dir_all(grove.join("done/020-spec")).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# nnn-slug-worktree — brief\n").unwrap();
-    fs::write(
-        grove.join("done/010-groundwork.md"),
-        "# 010-groundwork\n\n**Kind:** impl\n\n## Goal\nAlready done.\n",
-    )
-    .unwrap();
-    fs::write(
-        grove.join("020-spec/BRIEF.md"),
-        "# 020-spec — brief\n\n## Goal\nSpec it.\n",
-    )
-    .unwrap();
-    fs::write(
-        grove.join("done/020-spec/005-scoping.md"),
-        "# 005-scoping\n\n**Kind:** research\n\n## Goal\nSurvey.\n",
-    )
-    .unwrap();
-    fs::write(
-        grove.join("020-spec/010-draft.md"),
-        "# 010-draft\n\n**Kind:** design\n\n## Goal\nDraft.\n",
-    )
-    .unwrap();
-    fs::write(
-        grove.join("030-ship.md"),
-        "# 030-ship\n\n**Kind:** impl\n\n## Goal\nShip.\n",
-    )
-    .unwrap();
-    run_command("git", &worktree, &["add", "-A"]);
-    run_command("git", &worktree, &["commit", "-q", "-m", "seed NNN-slug"]);
+fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
+    /// Worktree name, seeded files, the layout the refusal must name, and the
+    /// entries it must list.
+    type Case = (
+        &'static str,
+        &'static [(&'static str, &'static str)],
+        &'static str,
+        &'static [&'static str],
+    );
 
-    let before = tree_snapshot(&grove);
-    let seeded_subjects = git_subjects(&worktree);
-
-    let launched = fixture.path().join("launched.log");
-    let configured = fixture.path().join("configured.sh");
-    write_executable(
-        &configured,
-        &format!(
-            "#!/bin/sh\nprintf 'launched\\n' >> {}\nexit 0\n",
-            shell_quote(&launched)
+    let cases: [Case; 2] = [
+        (
+            "nnn-slug-worktree",
+            &[
+                (
+                    "done/010-groundwork.md",
+                    "# 010-groundwork\n\n**Kind:** impl\n\n## Goal\nDone.\n",
+                ),
+                ("020-spec/BRIEF.md", "# 020-spec — brief\n"),
+                (
+                    "020-spec/010-draft.md",
+                    "# 010-draft\n\n**Kind:** design\n\n## Goal\nDraft.\n",
+                ),
+                ("030-ship.md", "# 030-ship\n\n## Goal\nShip.\n"),
+            ],
+            "NNN-slug",
+            &["020-spec", "030-ship.md"],
         ),
-    );
-    write_complete_config(
-        &home,
-        &format!("{} '${{prompt}}'", shell_quote(&configured)),
-    );
+        (
+            "v1-flat-worktree",
+            &[
+                (
+                    "1-[1]-groundwork.DONE.md",
+                    "# 1-[1]-groundwork\n\n**Kind:** impl\n\n## Goal\nDone.\n",
+                ),
+                ("2-[2]-spec.BRIEF.md", "# 2-[2]-spec — brief\n"),
+                (
+                    "2.1-[3]-draft.md",
+                    "# 2.1-[3]-draft\n\n**Kind:** design\n\n## Goal\nDraft.\n",
+                ),
+            ],
+            "v1-flat",
+            &["1-[1]-groundwork.DONE.md", "2.1-[3]-draft.md"],
+        ),
+    ];
 
-    let output = run_grove(&home, &worktree);
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    for (name, files, layout, entries) in cases {
+        let fixture = TempDir::new().unwrap();
+        let home = fixture.path().join("home");
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        let worktree = fixture.path().join(name);
+        init_git_worktree(&worktree);
+        configure_git_identity(&worktree);
+        let grove = worktree.join(".grove");
+        fs::create_dir_all(&grove).unwrap();
+        for (relative, body) in files {
+            let path = grove.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, body).unwrap();
+        }
+        run_command("git", &worktree, &["add", "-A"]);
+        run_command("git", &worktree, &["commit", "-q", "-m", "seed legacy"]);
 
-    assert!(
-        !output.status.success(),
-        "bare grove must stop on an unmigratable tree; stderr was {stderr}"
-    );
-    assert!(
-        stderr.contains("no longer migrates") && stderr.contains("NNN-slug"),
-        "the refusal must name the layout: {stderr}"
-    );
-    assert!(
-        stderr.contains("020-spec") && stderr.contains("030-ship.md"),
-        "the refusal must name the entries that classified the tree: {stderr}"
-    );
-    assert!(
-        !launched.exists(),
-        "no session may be launched over a tree Grove refused to bring current"
-    );
-    assert_eq!(
-        tree_snapshot(&grove),
-        before,
-        "a refused tree is byte-identical afterwards"
-    );
-    assert!(
-        !grove.join("FORMAT").exists(),
-        "no current-format witness may be installed over a tree that was not migrated"
-    );
-    assert!(
-        !grove.join("MIGRATING-session-kinds").exists(),
-        "a refusal happens before the transaction witness exists"
-    );
-    assert_eq!(
-        git_subjects(&worktree),
-        seeded_subjects,
-        "a refusal commits nothing"
-    );
+        let before = tree_snapshot(&grove);
+        let seeded_subjects = git_subjects(&worktree);
+
+        let launched = fixture.path().join("launched.log");
+        let configured = fixture.path().join("configured.sh");
+        write_executable(
+            &configured,
+            &format!(
+                "#!/bin/sh\nprintf 'launched\\n' >> {}\nexit 0\n",
+                shell_quote(&launched)
+            ),
+        );
+        write_complete_config(
+            &home,
+            &format!("{} '${{prompt}}'", shell_quote(&configured)),
+        );
+
+        let output = run_grove(&home, &worktree);
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+
+        assert!(
+            !output.status.success(),
+            "bare grove must stop on a {layout} tree; stderr was {stderr}"
+        );
+        assert!(
+            stderr.contains("no longer migrates") && stderr.contains(layout),
+            "the refusal must name the layout: {stderr}"
+        );
+        for entry in entries {
+            assert!(
+                stderr.contains(entry),
+                "the refusal must name {entry:?}: {stderr}"
+            );
+        }
+        assert!(
+            !launched.exists(),
+            "no session may be launched over a tree Grove refused to bring current"
+        );
+        assert_eq!(
+            tree_snapshot(&grove),
+            before,
+            "a refused {layout} tree is byte-identical afterwards"
+        );
+        assert!(
+            !grove.join("FORMAT").exists(),
+            "no current-format witness may be installed over a tree that was not migrated"
+        );
+        assert!(
+            !grove.join("MIGRATING-session-kinds").exists(),
+            "a refusal happens before the transaction witness exists"
+        );
+        assert_eq!(
+            git_subjects(&worktree),
+            seeded_subjects,
+            "a refusal commits nothing"
+        );
+    }
 }
 
 #[test]

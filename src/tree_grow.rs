@@ -6,7 +6,7 @@
 // key; insert shifts the occupant + later siblings up by one) with the mechanics
 // the filesystem's shape allows:
 //
-//   * the superseded v1-flat scheme baked the whole dotted path into every
+//   * the superseded v1-flat scheme (now refused, not read) baked the whole dotted path into every
 //     filename, so inserting at `2.2` rewrote `2.2.1`→`2.3.1`… across the **whole
 //     subtree** — O(subtree) filename + header rewrites.
 //   * directories carry the hierarchy instead (a node is a *directory* holding its

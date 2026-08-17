@@ -344,15 +344,23 @@ fn land(
             )?;
         }
     }
-    // No forward source-directory sweep. It existed for the original `NNN-slug/`
-    // layout, whose `done/` mirror and `NNN-slug/` nodes were the only *sources*
-    // that were ever directories; that layout is no longer migrated. Every
-    // remaining input has flat sources — v1-flat is flat by construction, and a
-    // kind-less v2 tree renames leaves inside node directories that keep their
-    // `BRIEF.md` — so the sweep could only ever have found nothing. The rollback
-    // path still sweeps, over *destinations*, which are directories in both
-    // remaining inputs; that is the caller `remove_empty_directories` is written
-    // for and the one its coverage rests on.
+    // No forward source-directory sweep. It existed for the layouts that needed
+    // *relocation* — the original `NNN-slug/` tree, whose `done/` mirror and node
+    // directories were the only migration sources that were ever directories, and
+    // v1-flat, whose flat files became node directories. Both are withdrawn, and
+    // the one remaining input renames leaves inside directories that keep their
+    // `BRIEF.md`, so this could only ever find nothing now
+    // (`tree_migrate::PlannedFile`: source and destination share a parent).
+    //
+    // The *rollback* sweep is kept, and the asymmetry is deliberate rather than an
+    // oversight. Recovery runs off the manifest, never off a fresh plan, so a
+    // witness written by an older build — one that still relocated — can be
+    // finished or rolled back by this one. What each sweep would leave behind in
+    // that case differs in kind: an unswept *source* directory is `done/` or
+    // `020-node`, which no reader parses, so it is inert litter; an unswept
+    // *destination* directory is `NN-<slug>-k<key>/`, which every reader parses —
+    // an empty one is a node with no brief and no children, and that is a
+    // malformed tree rather than litter.
     verify_final_tree(grove_root, manifest)?;
     observer(&Transition::FinalTreeVerified)?;
     Ok(())
@@ -448,6 +456,9 @@ fn rollback(
             ))?;
         }
     }
+    // Unreachable for anything this build plans (see the note in
+    // `finish_transaction` above) and kept for a manifest an older, relocating
+    // build left behind.
     remove_empty_directories(
         grove_root,
         manifest.files.iter().map(|file| file.destination.clone()),
@@ -655,26 +666,6 @@ mod tests {
         (worktree, grove_root)
     }
 
-    /// A **v1-flat** tree carrying one retired leaf, one node brief and that
-    /// node's child — the pre-v2 fixture, chosen because its destinations include
-    /// a node *directory* the transaction has to create, land into, and unwind.
-    /// Flat by construction: every source is a top-level file, which is why the
-    /// forward pass has no source directories to sweep.
-    fn v1_flat_tree() -> (tempfile::TempDir, std::path::PathBuf) {
-        let worktree = tempfile::tempdir().unwrap();
-        let grove_root = worktree.path().join(".grove");
-        fs::create_dir(&grove_root).unwrap();
-        fs::write(grove_root.join("BRIEF.md"), "# demo — brief\n").unwrap();
-        fs::write(grove_root.join("1-[1]-old.DONE.md"), "# 1-[1]-old\n").unwrap();
-        fs::write(
-            grove_root.join("2-[2]-node.BRIEF.md"),
-            "# 2-[2]-node — brief\n",
-        )
-        .unwrap();
-        fs::write(grove_root.join("2.1-[3]-child.md"), "# 2.1-[3]-child\n").unwrap();
-        (worktree, grove_root)
-    }
-
     fn legacy_v2_node_tree() -> (tempfile::TempDir, std::path::PathBuf) {
         let worktree = tempfile::tempdir().unwrap();
         let grove_root = worktree.path().join(".grove");
@@ -697,13 +688,9 @@ mod tests {
         (worktree, grove_root)
     }
 
-    fn assert_v1_flat_tree_is_current(grove_root: &Path) {
-        assert!(grove_root.join("01-DONE-impl-old-k1.md").is_file());
-        assert!(grove_root.join("02-node-k2/BRIEF.md").is_file());
-        assert!(grove_root.join("02-node-k2/01-impl-child-k3.md").is_file());
-        assert!(!grove_root.join("1-[1]-old.DONE.md").exists());
-        assert!(!grove_root.join("2-[2]-node.BRIEF.md").exists());
-        assert!(!grove_root.join("2.1-[3]-child.md").exists());
+    fn assert_legacy_tree_is_current(grove_root: &Path) {
+        assert!(grove_root.join("01-impl-task-k1.md").is_file());
+        assert!(!grove_root.join("01-task-k1.md").exists());
     }
 
     fn assert_legacy_v2_node_tree_is_current(grove_root: &Path) {
@@ -1109,31 +1096,54 @@ mod tests {
         assert!(!grove_root.join("MIGRATING-session-kinds").exists());
     }
 
-    /// The transaction creates the destination node directory and leaves no
-    /// source behind.
+    /// **Every move stays inside its own directory**, and the transaction creates
+    /// and destroys no directory at all.
     ///
-    /// This replaces a test that asserted the forward pass *removed* emptied
-    /// source directories. That claim had one subject — the original `NNN-slug/`
-    /// layout, whose `done/` mirror and node directories were the only sources
-    /// that were ever directories — and it went with that layout. Rewriting the
-    /// old assertions against a flat fixture would have left two `!exists()`
-    /// checks on paths the fixture never created: green forever, testing nothing.
-    /// What is still worth pinning is the direction that remains — a flat tree in,
-    /// a directory-shaped tree out.
+    /// This is what migration became once the two layouts that needed
+    /// *relocation* were withdrawn: a kind-less v2 tree already has its directory
+    /// shape, and all that is left is renaming each leaf into its kind segment and
+    /// rewriting its body. The property is worth an explicit test rather than an
+    /// implicit one, because it is what the transaction's remaining directory
+    /// handling is now allowed to assume — and because two earlier versions of
+    /// this test asserted directory *removal* and directory *creation* in turn,
+    /// each becoming vacuous when its layout went.
     #[test]
-    fn transaction_lands_a_flat_legacy_tree_into_node_directories() {
-        let (_worktree, grove_root) = v1_flat_tree();
+    fn every_migration_move_stays_inside_its_own_directory() {
+        let (_worktree, grove_root) = legacy_v2_node_tree();
+        let before = directories_under(&grove_root);
 
         run(&grove_root, || Ok(())).unwrap();
 
-        assert_v1_flat_tree_is_current(&grove_root);
-        assert!(grove_root.join("02-node-k2").is_dir());
+        assert_legacy_v2_node_tree_is_current(&grove_root);
+        assert_eq!(
+            directories_under(&grove_root),
+            before,
+            "no directory is created or removed by a migration"
+        );
+    }
+
+    /// Every directory under `grove_root`, relative and sorted.
+    fn directories_under(grove_root: &Path) -> Vec<String> {
+        fn walk(root: &Path, dir: &Path, out: &mut Vec<String>) {
+            for entry in fs::read_dir(dir).unwrap() {
+                let entry = entry.unwrap();
+                if entry.file_type().unwrap().is_dir() {
+                    let path = entry.path();
+                    out.push(path.strip_prefix(root).unwrap().display().to_string());
+                    walk(root, &path, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(grove_root, grove_root, &mut out);
+        out.sort();
+        out
     }
 
     #[test]
     fn every_transaction_transition_boundary_recovers_after_interruption() {
         let fixtures: [MigrationFixture; 2] = [
-            (v1_flat_tree, assert_v1_flat_tree_is_current),
+            (legacy_tree, assert_legacy_tree_is_current),
             (legacy_v2_node_tree, assert_legacy_v2_node_tree_is_current),
         ];
 
@@ -1202,7 +1212,7 @@ mod tests {
         }
 
         let fixtures: [MigrationFixture; 2] = [
-            (v1_flat_tree, assert_v1_flat_tree_is_current),
+            (legacy_tree, assert_legacy_tree_is_current),
             (legacy_v2_node_tree, assert_legacy_v2_node_tree_is_current),
         ];
 
@@ -1302,7 +1312,7 @@ mod tests {
 
     #[test]
     fn reported_precommit_failure_restores_the_exact_legacy_tree_shape() {
-        let (_worktree, grove_root) = v1_flat_tree();
+        let (_worktree, grove_root) = legacy_v2_node_tree();
 
         let error = run_observed(
             &grove_root,
@@ -1320,19 +1330,16 @@ mod tests {
             .to_string()
             .contains("injected failure after complete landing"));
         assert_eq!(
-            fs::read_to_string(grove_root.join("1-[1]-old.DONE.md")).unwrap(),
-            "# 1-[1]-old\n"
+            fs::read_to_string(grove_root.join("01-feature-k10/BRIEF.md")).unwrap(),
+            "# feature-k10 — brief\n\n**Kind:** impl\n"
         );
         assert_eq!(
-            fs::read_to_string(grove_root.join("2-[2]-node.BRIEF.md")).unwrap(),
-            "# 2-[2]-node — brief\n"
+            fs::read_to_string(grove_root.join("01-feature-k10/01-child-k11.md")).unwrap(),
+            "# child-k11\n\n**Kind:** impl\n"
         );
-        assert_eq!(
-            fs::read_to_string(grove_root.join("2.1-[3]-child.md")).unwrap(),
-            "# 2.1-[3]-child\n"
-        );
-        assert!(!grove_root.join("01-DONE-impl-old-k1.md").exists());
-        assert!(!grove_root.join("02-node-k2").exists());
+        assert!(!grove_root
+            .join("01-feature-k10/01-impl-child-k11.md")
+            .exists());
         assert!(!grove_root.join("FORMAT").exists());
         assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
     }

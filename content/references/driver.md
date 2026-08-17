@@ -6,13 +6,14 @@ subcommand, no flags. That is the whole human surface *and* the sole lifecycle
 entry: it inspects the state on disk and dispatches. No `.grove/` yet → it
 scaffolds the tree and launches its first `requirements` leaf; a live tree → the
 next leaf; no ordinary work left → it appends one `finish` leaf and launches
-that. If the tree is in an older format — the v1 flat dotted-decimal scheme, or
-the pre-session-kind filenames — the first bare `grove` **migrates it** before
-driving, as one recoverable transaction and one focused, reviewable commit;
-migration is idempotent once a tree is current-format, and there is **no**
-transitional dual-format reader (task-tree-scheme). The original `NNN-slug/`
-directory layout is no longer migrated: bare `grove` recognises it, refuses,
-names the entries and changes nothing.
+that. If the tree is in the one older format still converted — v2 directories
+whose leaves carry no session kind in their filenames — the first bare `grove`
+**migrates it** before driving, as one recoverable transaction and one focused,
+reviewable commit; migration is idempotent once a tree is current-format, and
+there is **no** transitional dual-format reader (task-tree-scheme). The two
+earlier layouts — the original `NNN-slug/` directories and the v1 flat
+dotted-decimal scheme — are no longer migrated: bare `grove` recognises either,
+refuses, names the entries and changes nothing.
 
 ## The loop is stateless, which is why restart ≡ continuation
 

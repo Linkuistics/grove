@@ -1,22 +1,17 @@
-// Shared leaf vocabulary that outlived the old-format reader/grower. Two items
-// survive:
-//
-//   * `Kind` — the leaf-kind enum, a **closed, parameterised set of nineteen**
-//     (five producers, each with its own `review-` and `integrate-review-` step,
-//     two research producers, their combine step, and finish) written into a
-//     current task filename. Live: the grow/lifecycle verbs (`tree_grow` /
-//     `tree_lifecycle`) and the `grove-llm` CLI surface (`llm_cli`) parse and
-//     carry it.
-//   * `split_prefix` — the `NNN-slug` prefix **recogniser**. The original
-//     `NNN-slug/` + `done/` layout is no longer migrated, and this is all that
-//     is left of reading it: `tree_migrate` uses it to *classify* such a tree so
-//     the tree can be refused by name instead of falling through as an
-//     unrecognisable one. It parses a prefix and nothing consumes the result as
-//     tree content.
+// Shared leaf vocabulary that outlived the old-format reader/grower. **One** item
+// survives: `Kind`, the leaf-kind enum — a **closed, parameterised set of
+// nineteen** (five producers, each with its own `review-` and
+// `integrate-review-` step, two research producers, their combine step, and
+// finish) written into a current task filename. Live: the grow/lifecycle verbs
+// (`tree_grow` / `tree_lifecycle`) and the `grove-llm` CLI surface (`llm_cli`)
+// parse and carry it.
 //
 // Everything else this module once held — the `NNN-slug` / `done/` reader and
 // grower (`add`, `insert`, header rewriting, cross-ref surfacing) — was the old
-// verb path, made dead by the migration and deleted with it.
+// verb path, made dead by the migration and deleted with it. Its last lodger,
+// the `NNN-slug` prefix parser, went when that layout stopped being migrated:
+// what recognises a withdrawn layout now is a private matcher beside its refusal
+// in `tree_migrate`, which is where the only caller is.
 
 use anyhow::{bail, Result};
 
@@ -205,44 +200,9 @@ impl Kind {
     }
 }
 
-/// Split `NNN-rest` (NNN exactly three ASCII digits) into `(NNN, rest)`.
-///
-/// `pub(crate)` for `tree_migrate`, which uses it to **recognise** the original
-/// `NNN-slug/` layout, not to read one — that layout is refused rather than
-/// migrated. Deleting this would not delete the recognition; it would make an
-/// old tree classify as empty, which is the one outcome that loses work
-/// (task-tree-scheme).
-pub(crate) fn split_prefix(name: &str) -> Option<(u32, &str)> {
-    if name.len() < 4 {
-        return None;
-    }
-    let (head, tail) = name.split_at(3);
-    if !head.chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-    if !tail.starts_with('-') {
-        return None;
-    }
-    head.parse::<u32>().ok().map(|n| (n, &tail[1..]))
-}
-
 #[cfg(test)]
 mod inline_tests {
     use super::*;
-
-    #[test]
-    fn split_prefix_accepts_three_digits_then_dash() {
-        assert_eq!(split_prefix("010-foo"), Some((10, "foo")));
-        assert_eq!(split_prefix("990-x-y"), Some((990, "x-y")));
-    }
-
-    #[test]
-    fn split_prefix_rejects_wrong_shapes() {
-        assert!(split_prefix("BRIEF.md").is_none());
-        assert!(split_prefix("01-foo").is_none()); // two digits, not three
-        assert!(split_prefix("0100-foo").is_none()); // four-digit prefix
-        assert!(split_prefix("010_foo").is_none()); // wrong separator
-    }
 
     /// Each kind's own slot in [`Kind::ALL`] — the witness that `ALL` holds
     /// **every** variant, and the reason a twentieth kind cannot reach the rest

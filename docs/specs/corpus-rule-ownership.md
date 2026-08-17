@@ -1126,7 +1126,12 @@ and it would ship silently.
   cross-tree control that it still finds the class where it legitimately lives.
   An unnormalised sweep silently misses a wrapped or emphasised match; that
   failure was reproduced while writing this spec.
-- **Behavioural evals assert conduct, not contents.** `behavior-evals-k3` owns
+- **Behavioural evals assert conduct, not contents** — and what a `cargo test` can
+  actually assert about conduct is settled by [a behavioural rule is covered by
+  asserting its delivery](../adr/behavioural-coverage-asserts-delivery.md): the
+  rule is present and reachable on the composed loaded path of every kind it
+  binds, deterministically, with a near-miss fixture per rule.
+  `behavior-evals-k3` owns
   the eight **B★** areas: *no second pick*, *no VCS reprobe*, *stale launch
   stops*, *the decomposition boundary*, *human-only pruning*,
   *retire → commit → complete*, *the review budget*, *all three finish-signal

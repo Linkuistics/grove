@@ -57,9 +57,16 @@ lockstep, which is why they live together — see
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`supported-workspace-layouts`](docs/adr/supported-workspace-layouts.md),
   [`task-tree-transactions-fail-closed`](docs/adr/task-tree-transactions-fail-closed.md),
-  and [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
-  — the last being the one spec, because it describes a composition **between**
-  two contexts and so outlives the increment that wrote it. The doubt skill
+  [`corpus-rules-have-one-owner`](docs/adr/corpus-rules-have-one-owner.md),
+  [`restatement-declares-its-class`](docs/adr/restatement-declares-its-class.md),
+  [`behavioural-coverage-asserts-delivery`](docs/adr/behavioural-coverage-asserts-delivery.md),
+  and the two specs
+  [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md) and
+  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md).
+  Each spec earns its place the same way: the first describes how the embedded
+  corpus files its rules, an area no single increment finishes, and the second a
+  composition **between** two contexts — so both outlive the increment that wrote
+  them. The doubt skill
   participates in the review-ownership and promotion contracts, but the mandate,
   task tree, review routing, and lifecycle are Grove's maintaining seam.
 

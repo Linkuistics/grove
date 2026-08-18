@@ -1,6 +1,7 @@
 ---
 name: authoring-conventions
 description: House authoring conventions for this marketplace's skills — a thin delta over superpowers' writing-skills covering our description-shape rule (capability + "Use when", overriding upstream's when-only), the user/model-invoked lever, source-citation, and progressive-disclosure thresholds. Use when authoring, auditing, or reshaping a SKILL.md in this repo; user-invoked, run it by hand.
+harnesses: [any]
 disable-model-invocation: true
 ---
 
@@ -122,6 +123,34 @@ hand-only skills exist and when to reach for one. At two hand-only skills (this 
 easy to remember is a **router skill** — one user-invoked skill that names the others
 and when to reach for each, never firing them itself (a user-invoked skill has no
 description, so nothing but the human can reach it).
+
+## House requirement: declare the harnesses
+
+Every `SKILL.md` in this repo carries a `harnesses:` key — a YAML flow list, on one
+line. `install.sh` reads it to decide which harnesses a skill is symlinked into, and
+`install.test.sh` fails if a bundled skill omits it.
+
+```yaml
+harnesses: [any]            # nothing here depends on a particular harness
+harnesses: [claude-code]    # only a Claude Code session can act on this
+```
+
+Decide it by one question: **can a session on that harness follow these
+instructions?** `any` is a claim about the skill, not an enumeration of today's
+harnesses, so a harness added later inherits it. Reach for an allowlist when the
+skill's *mechanism* is harness-specific — `guardrail` is `[claude-code]` because a
+frontmatter `PreToolUse` hook, `${CLAUDE_PLUGIN_ROOT}` and `/guardrail` invocation
+are all Claude Code's. Describing a Claude Code affordance is not itself a reason:
+`using-codebase-memory` names `ToolSearch` in one aside and is otherwise portable.
+
+Omitting the key installs the skill **nowhere** off Claude Code, with a note naming
+it. That is deliberate — the safe direction is cheap to correct, and the note is
+what keeps it from being silent.
+
+Add `assumes-personal-setup: true` when the content names your own models,
+subscriptions, or machine configuration, so it is correct here and misleading for
+anyone else. It does not filter the install; it makes the install report the skill.
+`doubt-driven-development` carries it for `references/harness-spawns.md`.
 
 ## House convention: cite sources, flag the unverified
 

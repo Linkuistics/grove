@@ -32,7 +32,7 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else — command surface and the git→jj mapping in `references/` |
 | `using-codebase-memory` | by description | query a codebase knowledge graph from any shell via the `codebase-memory-mcp` CLI; the silent failure modes are in `references/` |
 | `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
-| `guardrail` | by hand (`/guardrail`, user-invoked) | session-scoped `PreToolUse` gate — pauses for confirmation before destructive shell commands or edits outside the project ("freeze") |
+| `guardrail` | by hand (`/guardrail`, user-invoked) | session-scoped `PreToolUse` gate — pauses for confirmation before destructive shell commands or edits outside the project ("freeze"). **Claude Code only** (`harnesses: [claude-code]`) |
 
 The six language skills are the whole of the coding-standard coverage: there is
 no language-neutral coding skill, so a language without one here — Go, Java, C —
@@ -80,21 +80,45 @@ cd grove
 ./plugins/install.sh
 ```
 
-[`install.sh`](install.sh) symlinks each `linkuistics` skill directory into
-`~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/` (only for
-harnesses that are installed). Because the targets are symlinks, `git pull`
-refreshes the content in place — re-run the script only when skills are added
-or removed.
+[`install.sh`](install.sh) symlinks each **eligible** skill directory — from both
+plugins — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
+(only for harnesses that are installed). Because the targets are symlinks,
+`git pull` refreshes the content in place — re-run the script only when skills are
+added, removed, or change which harnesses they declare.
 
-A **removed** skill needs one extra step. The script links what exists and never
-unlinks what doesn't, so the link for a deleted or renamed skill survives a
-re-run, pointing at nothing. A dangling link reads as "skill not installed"
-rather than as an error, so nothing reports it. Delete those by hand after
-pulling a removal:
+**Which harnesses a skill reaches is the skill's own declaration.** Every
+`SKILL.md` carries a `harnesses:` frontmatter key — either `[any]`, meaning
+nothing in it depends on a particular harness's affordances, or an explicit
+allowlist such as `[claude-code]`. `guardrail` declares `[claude-code]`, because
+its whole mechanism is a Claude Code `PreToolUse` hook and a codex or pi session
+loading it would read instructions it cannot act on. Every skip is printed with
+the declaration that caused it:
 
 ```
-find ~/.codex/skills ~/.gemini/skills ~/.pi/agent/skills -maxdepth 1 -type l ! -exec test -e {} \; -print
+skip   codex  guardrail  (harnesses: claude-code)
 ```
+
+A skill with **no** `harnesses:` key is installed nowhere and named in a note —
+the safe direction, plus the report that makes it observable. Silence either way
+would have been wrong: 15 of the 16 bundled skills are portable, so
+install-everywhere would mis-install the one that cannot work and Claude-Code-only
+would withhold the other 15.
+
+A skill may also declare `assumes-personal-setup: true` — its content names the
+author's own models, subscriptions, or machine configuration, so it is correct
+here and misleading elsewhere. It still installs; the script reports it so you can
+review it before relying on it. Only `doubt-driven-development` carries it.
+
+**A re-run reconciles, it does not only add.** Every symlink pointing into a
+checkout of this repo is the script's to manage, so one whose skill was deleted,
+renamed, or made ineligible for that harness is removed and reported:
+
+```
+unlink codex  old-skill  (no longer eligible here)
+```
+
+Symlinks the script did not place are never touched. (This replaces the old
+advice to hunt dangling links by hand.)
 
 **Run it from the repo's main checkout.** The script links from whichever tree it
 lives in and re-links every skill unconditionally, so running it from a linked
@@ -105,8 +129,11 @@ as an error. It detects that and refuses. Pass `--force` when linking from a sid
 tree is what you actually want (testing an unmerged skill against a live
 harness), and re-run from the main checkout afterwards to repair the links.
 
-`testanyware` is **not** covered by `install.sh`; it ships through the
-marketplace only, so it is Claude Code only today.
+`install.sh` covers `testanyware` too. It is one skill, `using-testanyware`, and
+it is a wrapper over a CLI — nothing in it depends on a particular harness, so it
+declares `[any]` and installs everywhere like the portable `linkuistics` skills.
+Its exclusion until now was an artefact of the script scanning one plugin
+directory, not a judgement about the skill.
 
 This is a separate install path from grove's own. The `grove` binary provisions
 *grove's* methodology to `~/.claude/skills/grove/` (and the codex and pi

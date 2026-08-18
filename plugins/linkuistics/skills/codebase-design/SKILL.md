@@ -1,6 +1,7 @@
 ---
 name: codebase-design
 description: Shared vocabulary and checkable principles for designing deep modules — a lot of behaviour behind a small interface, placed at a clean seam, testable through it (Ousterhout depth + Feathers seams), language-neutral. Use when designing or restructuring a module's interface, deciding where a seam goes, judging whether an abstraction earns its place, or making code more testable.
+harnesses: [any]
 ---
 
 # Codebase Design

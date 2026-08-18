@@ -1,6 +1,7 @@
 ---
 name: coding-style-python
 description: Python coding standards — Ruff, pyright strict, type hints, asyncio, uv, pytest. Use when writing or refactoring Python code.
+harnesses: [any]
 paths: "**/*.py"
 ---
 

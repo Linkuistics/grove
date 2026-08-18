@@ -1,6 +1,7 @@
 ---
 name: coding-style-rust
 description: Rust coding standards — rustfmt settings, thiserror/anyhow error handling, Tokio async, test-first testing, workspace dependencies. Use when writing or refactoring Rust code.
+harnesses: [any]
 paths: "**/*.rs"
 ---
 

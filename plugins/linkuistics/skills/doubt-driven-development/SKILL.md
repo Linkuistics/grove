@@ -1,6 +1,8 @@
 ---
 name: doubt-driven-development
 description: In-flight adversarial verify for non-trivial decisions — materialise a fresh-context reviewer biased to *disprove* a decision before it stands, instead of a post-hoc gate on finished work. Use when about to commit non-trivial code, make an architectural call under uncertainty, assert a property the compiler can't check (thread-safety, idempotence, ordering, an invariant), or work in unfamiliar code — any time a confident output would be cheaper to verify now than to debug later.
+harnesses: [any]
+assumes-personal-setup: true
 ---
 
 # Doubt-Driven Development

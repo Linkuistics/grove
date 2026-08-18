@@ -1,6 +1,7 @@
 ---
 name: coding-style-bash
 description: Bash coding standards — strict mode, shellcheck/shfmt, quoting, local-scoped functions, bats-core testing. Use when writing or refactoring Bash scripts.
+harnesses: [any]
 paths:
   - "**/*.sh"
   - "**/*.bash"

@@ -1,6 +1,7 @@
 ---
 name: coding-style-elixir
 description: Elixir coding standards — mix format, Credo, OTP supervision, tagged-tuple error handling, ExUnit, Phoenix. Use when writing or refactoring Elixir code.
+harnesses: [any]
 paths:
   - "**/*.ex"
   - "**/*.exs"

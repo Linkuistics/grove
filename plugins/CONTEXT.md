@@ -103,10 +103,67 @@ plugin's own content, when it identifies the repo's.
 
 **Symlink install** (`plugins/install.sh`):
 The delivery path for harnesses that read `SKILL.md` but have no [[Plugin]]
-mechanism: symlink each skill directory into that harness's personal skills folder
-(`~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills`). Because the targets are links, a `git pull`
-updates content in place — re-run only when skills are added or removed.
-_Avoid_: running it for Claude Code, which installs by [[Marketplace]].
+mechanism: symlink each **eligible** skill directory into that harness's personal
+skills folder (`~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills`).
+Because the targets are links, a `git pull` updates content in place — re-run only
+when skills are added, removed, or change their [[Harness eligibility]]. It scans
+**both** bundled plugins: which harnesses a skill reaches is the skill's own
+declaration, not a property of the directory it ships in.
+_Avoid_: running it for Claude Code, which installs by [[Marketplace]]; reading it
+as append-only — a re-run also **reconciles** (see [[Link reconciliation]]).
+
+**Harness eligibility** (`harnesses:`):
+The frontmatter key by which a [[Skill]] declares which harnesses it can be
+installed into — a YAML flow list, either the single claim `[any]` or an explicit
+allowlist of harness ids (`claude-code`, `codex`, `gemini`, `pi`). It answers one
+question: *can a session on this harness follow these instructions?* `guardrail`
+declares `[claude-code]` because its whole mechanism is a Claude Code
+[[Hook-carrying skill]] frontmatter block; every other bundled skill declares
+`[any]`. Frontmatter is a safe carrier because a conforming loader parses the
+block into a map and reads only the keys it knows — verified by reading pi's
+`core/skills.js`, and already relied on by `paths:` and `hooks:` reaching codex
+today. Gemini CLI is the one target not checked directly (it is not installed
+here, so nothing is symlinked there either); the standard's own extension keys
+are the precedent it would be violating.
+_Avoid_: reading `any` as an enumeration of today's harnesses — it is a claim
+about the *skill*, that nothing in it depends on a particular harness's
+affordances, so a harness added later inherits it correctly.
+
+**Skip-loudly default**:
+What [[Symlink install]] does with a [[Skill]] carrying no `harnesses:` key: install
+it nowhere, and print a note naming it. Chosen from a measurement rather than by
+instinct — 15 of the 16 bundled skills are portable and 1 is Claude-only, so a
+silent *install everywhere* would mis-install exactly the skill that cannot work,
+while a silent *Claude Code only* would withhold the other 15. Skipping never
+mis-installs and the note removes the silence; since every bundled skill declares a
+key, it fires only on a newly authored one. The install still exits 0 — one
+under-annotated skill must not block the rest — and the hard assertion that every
+bundled skill declares a key lives in `install.test.sh`.
+_Avoid_: calling it a conservative *default*; it is a conservative default plus the
+report that makes the default observable, and the report is the half that was
+missing.
+
+**Personal-setup assumption** (`assumes-personal-setup: true`):
+The frontmatter key by which a [[Skill]] declares that its content names the
+author's own models, subscriptions, or machine configuration — so it is correct
+here and misleading for anyone else. Orthogonal to [[Harness eligibility]]: it does
+not filter the install (on the author's own machine the assumption holds), it makes
+the install **report** the skill. Only `doubt-driven-development` carries it, for
+`references/harness-spawns.md`.
+_Avoid_: overloading it onto a skill that merely needs a tool installed — a missing
+`testanyware` or `codebase-memory-mcp` binary is a dependency, not a private
+assumption.
+
+**Link reconciliation**:
+[[Symlink install]]'s removal half: on every run it drops each symlink of its own
+that the run will not re-create, so a skill deleted, renamed, or newly ineligible
+for that harness leaves nothing behind. Ownership is decided by the link's stored
+target matching `…/plugins/<plugin>/skills/…` for a plugin this repo ships — the
+**plugin** segment, not the skill name, because a deleted skill's name is by
+definition no longer shipped and keying on it would disown exactly the links most
+in need of reclaiming.
+_Avoid_: expecting it to touch a symlink this script did not place; and the older
+advice to delete dangling links by hand, which this replaces.
 
 **Workspace guard**:
 `plugins/install.sh`'s refusal to run from anywhere but the repo's **main checkout**,
@@ -144,3 +201,13 @@ skill" when the distinction matters; see `CONTEXT-MAP.md`.
 > auto-activation extension the Agent Skills spec doesn't define, so on codex,
 > where it arrives by *symlink install*, the description is the only trigger.
 > That's why the *description shape* rule keeps the capability clause.
+> **Dev:** So `guardrail` was symlinked into codex all along, doing nothing?
+> **Expert:** Worse than nothing — a codex session that loaded it read
+> instructions about `${CLAUDE_PLUGIN_ROOT}` and `/guardrail` it had no way to
+> act on. It now declares *harness eligibility* `[claude-code]` and the symlink
+> install skips it, out loud.
+> **Dev:** And a new skill I write without the key just goes everywhere?
+> **Expert:** Nowhere, and you get told — the *skip-loudly default*. Silent
+> either way would have been wrong: 15 of our 16 are portable, so
+> install-everywhere would have mis-installed the one that matters and
+> Claude-only would have withheld the fifteen that don't.

@@ -51,8 +51,10 @@ For Codex, Gemini CLI, and Pi, clone this repository and run:
 ./plugins/install.sh
 ```
 
-That script installs the portable Linkuistics skills by symlink. Testanyware is
-currently distributed through the Claude Code marketplace only. See
+That script installs, by symlink, every bundled skill whose `harnesses:`
+frontmatter key declares it installable there — both plugins are scanned, and a
+skill that cannot work off Claude Code (`guardrail`, whose mechanism is a Claude
+Code hook) is skipped and reported rather than linked. See
 [`plugins/README.md`](plugins/README.md) for the complete plugin catalogue and
 installation behavior.
 

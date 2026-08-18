@@ -1,6 +1,7 @@
 ---
 name: simplify-project
 description: Contract-preserving project simplification — consolidate current-state documentation, remove proven-dead code and artifacts, shrink dependency and directory surface, and reconcile every consumer. Use when a mature repository has accumulated duplicate docs, historical plans, stale experiments, compatibility scaffolding, or structure that no longer earns its maintenance cost.
+harnesses: [any]
 ---
 
 # Simplify Project

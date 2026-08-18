@@ -1,6 +1,7 @@
 ---
 name: coding-style-typescript
 description: TypeScript coding standards — Biome, strict tsconfig, no any, Result types, async hygiene, vitest. Use when writing or refactoring TypeScript code.
+harnesses: [any]
 paths:
   - "**/*.ts"
   - "**/*.tsx"

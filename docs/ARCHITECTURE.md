@@ -52,7 +52,7 @@ The repository contains two independently installed products:
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI and methodology | `src/`, `content/`, `build.rs` | Homebrew installs `grove` and `grove-llm`; bare `grove` provisions the embedded methodology. |
-| Agent skill plugins | `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace or `plugins/install.sh` for portable Linkuistics skills. |
+| Agent skill plugins | `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for the skills whose `harnesses:` key declares them installable off Claude Code. |
 
 Grove and the skill plugins share a repository because their documented
 interfaces evolve together, but they do not install one another.

@@ -1,6 +1,7 @@
 ---
 name: using-jujutsu
 description: Drive version control through Jujutsu (jj) natively when the repo is jj-enabled (a .jj/ directory exists) — working-copy-as-commit, jj new/describe, bookmarks, op-log undo, and a git→jj command and concept mapping — and through git, silently, everywhere else. Use when about to commit, branch, merge, rebase, push, stash, tag, resolve conflicts, open a PR, run any git or version-control command, or translate a specific git command or concept to jj — and especially when HEAD is detached or a .jj/ directory is visible (a jj repo seen through git eyes).
+harnesses: [any]
 ---
 
 # Using Jujutsu

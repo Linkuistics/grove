@@ -1,6 +1,7 @@
 ---
 name: decision-records
 description: Decision records (ADRs) as a minimum coherent set describing the design's current state — current-state over changelog, edit/merge/split/delete in place, identity by slug not number, the when-to-write test, a minimal template. Use when writing, revising, pruning, citing, or reviewing ADRs / decision records under docs/adr/.
+harnesses: [any]
 ---
 
 # Decision Records

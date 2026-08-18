@@ -1,6 +1,7 @@
 ---
 name: cli-tool-design
 description: Guidelines for designing LLM-friendly command-line tools — structured output, help text with examples, actionable errors, exit codes, consistent flags. Use when designing, writing, auditing, or refactoring a CLI tool.
+harnesses: [any]
 ---
 
 # CLI Design Guidelines for LLM Agents

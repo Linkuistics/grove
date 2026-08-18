@@ -1,6 +1,7 @@
 ---
 name: using-codebase-memory
 description: Query a codebase knowledge graph from any shell via the codebase-memory-mcp CLI — search_graph, query_graph (Cypher), trace_path, get_code_snippet — and the silent failure modes that make its output lie. Use when finding symbols by pattern, tracing callers or callees, assessing the blast radius of a change, hunting dead code or high fan-in, composing several graph queries into one answer, or working in a harness that has no MCP.
+harnesses: [any]
 ---
 
 # Using codebase-memory from the shell

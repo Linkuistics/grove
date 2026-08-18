@@ -1,6 +1,7 @@
 ---
 name: coding-style-swift
 description: Swift coding standards — swift-format, typed throws, structured concurrency, SwiftPM, swift-testing. Use when writing or refactoring Swift code.
+harnesses: [any]
 paths: "**/*.swift"
 ---
 

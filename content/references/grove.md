@@ -32,11 +32,17 @@ writing at all, and the membership and grain tests that keep the set honest.
 
 `content/` is compiled into the `grove` binary at **build** time, so editing it
 changes nothing any session receives until the binary is rebuilt and installed.
-The boundary is that build, not a commit: in a grove *of* grove, the methodology
-you are reading and the `grove-llm` verbs on your `PATH` both come from the
-binary that launched you, and the corpus you are editing reaches the next session
-only after an install. Verify such work by reading the files and the tests, never
-by expecting the next session in the same loop to behave differently.
+The boundary is that build, not a commit: in a grove *of* grove, the corpus you
+are editing reaches the next session only after an install. Verify such work by
+reading the files and the tests, never by expecting the next session in the same
+loop to behave differently.
+
+The methodology you are reading and the `grove-llm` verbs on your `PATH` are two
+copies, and grove **reports** their pairing rather than enforcing it — which
+`grove-llm` a session resolves is not a fact the driver can establish about a
+process it has not yet started (`docs/adr/one-build-owns-a-session.md`). So a
+skew diagnostic, before the launch or from a verb, is a real finding about this
+session and not noise to read past.
 
 ## What the `linkuistics` plugin carries, and why it is separate
 

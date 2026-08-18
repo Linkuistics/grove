@@ -145,10 +145,10 @@ minimum coherent set, and nothing downstream detects the mismatch.
 **Give every step of a composed shape the producer's bare stem as its whole
 slug** — no `-review` or `-a` suffix, and no leading kind word. The kind field
 beside it already says which step you are looking at, and the slug's job is to
-name the artifact. One consequence to expect: `grove-llm resolve <stem>` on a
-chain is ambiguous and lists every step with its path, so name a specific step by
-its `<slug>-k<key>` handle or its key — and do the same for a `leaf-insert`
-target, which refuses an ambiguous stem rather than listing.
+name the artifact. One consequence to expect: a bare stem stops naming one leaf,
+so name a specific step by its `<slug>-k<key>` handle or its key — in a reference
+you write, and as a `leaf-insert` target. What each verb does with an ambiguous
+stem is the CLI's to state; read `--help`.
 
 **Diversity is the configuration's, not the tree's.** Whether a `review-*` or
 `research-b` template reaches a different harness or model from its producer's is

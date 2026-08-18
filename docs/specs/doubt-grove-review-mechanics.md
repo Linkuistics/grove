@@ -94,12 +94,11 @@ a key or a path and is unaffected; the bare slug that `leaf-add` and `leaf-inser
 also accept for a target is the exception, and there the ambiguity is a refusal
 naming the matching keys.
 
-Here nothing later in the directory still holds live work, so the next free
-position *is* the slot beside the review and `leaf-add` puts the integration
-where it belongs. When that is not so — a live leaf, or a node directory with a
-live leaf beneath it, already sits at 07 or beyond — the integration is cut with
-`leaf-insert` at the first such **sibling entry** instead, for the reason in
-*What the flat shape gives up, deliberately* below.
+The example takes the simple case: nothing later in the directory still holds
+live work, so the next free position *is* the slot beside the review. Which verb
+places the integration when that is not so — and the condition selecting its
+target — is `content/references/decompose.md`'s rule and is not restated here.
+What this spec carries is the walk that rule is true of, below.
 
 The **shape of that body** is what this spec pins, because it is what the verb
 guarantees and a test can assert: the freshly created leaf is the bare template —
@@ -147,35 +146,39 @@ blocking-sibling condition, and why there is no exception to check — is
 `content/references/decompose.md`'s, and this spec cites it rather than carrying a
 second full statement of it.
 
-What belongs here is the **implementation** that condition is true of.
-`collect_live_leaf_entries` in `src/tree_read.rs` is the walk the wording tracks,
-and three of its properties are what make the loose form (*the first live leaf
-after it*) wrong:
+What belongs here is the **implementation** that condition is true of. The seam
+is `select_unlocked` in `src/tree_read.rs`, which is a **composition**: the
+recursive `collect_live_leaf_entries` walk gathers live entries, and
+`select_unlocked` applies the `finish`-sentinel rule over the result. Three
+properties of that composition are what make the loose form (*the first live leaf
+after it*) wrong, and they do not all come from the same half:
 
-- It quantifies over **entries**, not leaves. The walk reads a level in position
+- **The walk quantifies over entries, not leaves.** It reads a level in position
   order and recurses into a node *in place*, so a later sibling node with a live
   leaf anywhere beneath it runs before anything appended after that node.
-- Terminal entries are exempt — a later `DONE` or `ABANDONED` leaf, a node whose
-  subtree is wholly terminal, and the driver's `finish` sentinel, which is
-  skipped while any ordinary leaf is live.
-- It is **directory-local**. Pre-order finishes the review's own directory,
+- **Terminal entries never enter the collection at all** — a later `DONE` or
+  `ABANDONED` leaf, and a node whose subtree is wholly terminal, are simply not
+  live. The driver's `finish` sentinel is different in kind: the collector pushes
+  it like any other live leaf without inspecting the kind, and it is
+  `select_unlocked` that takes the first live **non-`finish`** entry and falls
+  back to the sentinel only when no ordinary work is left. A test seam aimed at
+  the collector alone cannot see that property.
+- **The walk is directory-local.** Pre-order finishes the review's own directory,
   including a leaf just appended to its end, before it visits any later sibling
   of an *ancestor*.
 
 A change to any of the three changes the guidance, which is why the sweep and the
-behavioural pins under *Test seams* are stated against this walk rather than
-against filename adjacency.
+behavioural pins under *Test seams* are stated against this selection seam rather
+than against filename adjacency.
 
-**That there is no exception is a decision rather than an omission**, and the
-rejected alternative is what this spec records. An earlier form allowed departing
-from adjacency when the intervening work **provably touches no file the findings
-cite**. Rejected as unperformable: at the moment a review cuts its integration the
-intervening leaf has not run, and Grove makes no leaf's eventual file set part of
-its contract, so a goal or pointer list cannot establish what it will touch.
-Retaining a check no session can perform buys a licence that reads as a judgement
-call — the exact failure the narrowing replaced. Departure remains possible,
-because none of this is enforced; making it a *mechanism* would be a separate
-decision, with its own ADR.
+**The rejected alternative is what this spec records** — that there is no
+exception, and why the check cannot be performed, are
+`content/references/decompose.md`'s. An earlier form allowed departing from
+adjacency when the intervening work **provably touches no file the findings
+cite**, and it is kept here so a reader who proposes it again finds why it went:
+it buys a licence that reads as a judgement call, which is the exact failure the
+narrowing replaced. Making departure a *mechanism* rather than the unenforced
+possibility it already is would be a separate decision, with its own ADR.
 
 Neither composition shape gets a node directory. A node means *this work proved
 bigger than one session* and carries the `BRIEF.md` those extra sessions need;
@@ -250,7 +253,10 @@ the review leaf and selects its complete command from personal configuration.
   ban the inverted pair outright. **The sweep is over one surface because the rule
   has one owner**; the surfaces that merely *record* it — this spec, the glossary,
   the architecture — are checked for the binding and for citing the owner, never
-  for a second full statement. `CHANGELOG.md` is out of scope entirely: it records
+  for a second full statement. For this spec that check is **negative and
+  explicit**: assert the blocking-sibling condition is absent from it, so a
+  citation quietly regrowing back into a procedure fails rather than passing by
+  omission from the full-rule list. `CHANGELOG.md` is out of scope entirely: it records
   what changed and when, so a current-state claim has no well-defined scope in it.
 - Pin the placement rule **behaviourally**, by asking `pick` what runs next
   rather than asserting filename adjacency: a later direct live leaf (insert

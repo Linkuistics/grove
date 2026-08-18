@@ -276,6 +276,30 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
         assert_contains(surface, text, "the drift is **silent**");
     }
 
+    // The spec is checked from the other direction, and explicitly. Dropping it
+    // from the list above only says nothing *asserts* it restates the rule; it is
+    // the absence below that says it does not. The spec cites the owner and keeps
+    // the walk the condition is true of, so the condition's own noun phrase
+    // reappearing there is a citation regrowing into a second procedure — the
+    // failure that left two current-state statements standing while one test
+    // certified one.
+    // Three absences rather than one, widening from the exact condition to the
+    // vocabulary any restatement of it would need: a paraphrase that dropped the
+    // full noun phrase would still have to name the entry it targets and the
+    // verb it targets it with.
+    assert_absent("review mechanics spec", SPEC, CONDITION);
+    assert_absent(
+        "review mechanics spec",
+        SPEC,
+        "never the live leaf inside it",
+    );
+    assert_absent("review mechanics spec", SPEC, "sibling entry");
+    assert_contains(
+        "review mechanics spec",
+        SPEC,
+        "`content/references/decompose.md`'s rule and is not restated here",
+    );
+
     // …and the surfaces that only *record* it still carry the verb and the exact
     // condition, so a reader reconciling the glossary or the architecture against
     // the methodology finds one rule rather than two.

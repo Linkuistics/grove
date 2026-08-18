@@ -51,6 +51,96 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`content/SKILL.md` is a condition register, not a methodology.** It drops
+  from 3,152 words to 867: eight rules it owns outright — the routing table, the
+  numbered spine, one-task-is-one-session, the bootstrap order, the mandate, no
+  second pick, the stated VCS statement, the HITL mark — plus 26 canonical
+  trigger sentences of at most 25 words each, and nothing else. A rule bound to
+  one kind or one family now has no statement here at all, which is most of the
+  drop and deletes nothing from the corpus: every such rule is stated by the file
+  the ownership inventory assigns it, and reached by a trigger. Four rules that
+  had lived only in `SKILL.md` moved to their owners rather than being orphaned —
+  the one-focused-commit scope and the Retire-first reason to
+  `references/commit.md`, node-close-is-implicit and pruning-is-HITL's agent-side
+  half to `references/retire.md`. The budget is asserted rather than intended:
+  a 900-word ceiling with no floor, exactly 26 triggers matched against the 31
+  canonical rows both ways (every row claims one sentence, every sentence is
+  claimed by one row), and the eight owned rows named individually — so a
+  dropped rule fails the suite even when the word count still looks healthy.
+
+- **The ten session-kind references are incremental.** Each states its
+  deliverable, its permissions, its special verification and its unique human
+  gate, and nothing a sibling, loop-step or format file already carries.
+  `requirements.md` sheds the glossary-inline mirror and a duplicated always-form
+  bullet; `design.md` loses the OR-form ADR test outright, because
+  `ADR-FORMAT.md` owns that test; `planning.md` and `combine-research.md` each
+  state a rule once where they had stated it twice; `research.md`, `impl.md`,
+  `integrate-review.md` and `prototype.md` gain the rows they were missing.
+  `review.md` and `finish.md` needed no change.
+
+- **The requirements interview threshold is resolved, and the resolution is
+  subordination rather than a compromise.** A `requirements` session always
+  establishes *what* — that is unconditional and stays so — but the full
+  one-question-at-a-time grilling procedure runs only for three or more
+  interdependent open questions; below it, record the decisions and proceed.
+  Stated once, in `content/references/requirements.md`, with `execute.md`'s
+  always-form restatement removed in the same commit. Its behavioural test pins
+  the off-by-one ("only above three") and the reversal as named counterexamples,
+  because a topic match on this rule passes for both.
+
+- **The seven loop-step references are rehomed onto the ownership map.**
+  `execute.md` loses *What each kind produces* entirely — a nineteen-kind summary
+  of material the kind references own, written for a session the driver has
+  already routed — and gains the repo-claim disciplines, decisions-land-as-they-
+  settle, escalation-names-the-trade-off and the review budget's predicate and
+  per-kind table. `decompose.md` gains fog-or-ticket, vertical-slice,
+  expand-contract, the prior-art-research rules and the two shape-selection
+  rules, each stated once in place of unowned duplicates. `retire.md` takes
+  triage-picks-the-verb, prune-scopes-to-the-whole-path and
+  finish-is-the-drivers-to-discover, whose occasion set makes Retire the earlier
+  step. `grove.md`'s argued spine and glossary rationale move to
+  `docs/ARCHITECTURE.md`, and its build-pairing section now separates the build
+  boundary — real, and enforced — from the pairing, which Grove reports and
+  cannot enforce, so a skew diagnostic reads as a finding rather than as a
+  contradiction of `one-build-owns-a-session`.
+
+- **The lifecycle invariants are held by behavioural tests rather than by prose
+  bulk.** `tests/lifecycle_invariants.rs` asserts the inventory's behavioural
+  rules across nine areas — no second pick, no VCS reprobe, stale launch, the
+  decomposition boundary, human-only pruning, retire → commit → complete, the
+  review budget, all three finish-signal outcomes, and the interview threshold —
+  over the loaded path a session of each kind actually opens, composed from
+  `src/prompt.rs` rather than enumerated beside it. What "behavioural" means for
+  a `cargo test` is decided rather than left open: it asserts *delivery*, not
+  conduct, recorded in `docs/adr/behavioural-coverage-asserts-delivery.md`. A
+  claim counts as delivered only when it is stated on the static path or in a
+  paragraph that states that rule's own situation, so two triggers naming one
+  owner no longer stand in for each other; every claim carries its own near-miss
+  control, verified red against the pre-fix file.
+
+- **`plugins/install.sh` honours declared harness compatibility.** Every bundled
+  `SKILL.md` declares `harnesses:` — `[any]` for the fifteen portable skills,
+  `[claude-code]` for `guardrail`, whose whole mechanism is a Claude Code
+  `PreToolUse` hook that a codex or pi session cannot act on. The installer scans
+  both plugins rather than `linkuistics` alone and reports every skip with the
+  declaration that caused it. Absent metadata installs nowhere and says so: 15 of
+  16 skills are portable, so installing everywhere would mis-install exactly the
+  one that cannot work, and installing Claude-Code-only would withhold the other
+  fifteen. A re-run now reconciles rather than only adding — a link whose skill
+  was deleted, renamed, or made ineligible for that harness is removed and
+  reported.
+
+- **No Grove rule defers silently to the optional `linkuistics` plugin.** The
+  audit was re-derived against the corpus as it now stands rather than executed
+  from the design's table: the rewrites above took 14 citations across 9 files
+  down to 6 across 4, discharging four of them on the way. Two sites were
+  genuinely open, and both failed the same way — `references/commit.md` said
+  Grove states "only where its boundary falls" and `SPEC-FORMAT.md` said it "only
+  says where the agreement gets recorded", while both already carried the
+  complete operative rule. A reader could not tell a complete statement from a
+  teaser, which is a silent dependency in its purest form; the repair is the
+  sentence rather than new content.
+
 - **`linkuistics`: the skill corpus is rationalised — two skills gone, two turned
   into routers, three compressed.** The loaded path is what was too large, not the
   corpus, so the cuts fall where a skill was paying standing context for detail a

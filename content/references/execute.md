@@ -1,14 +1,3 @@
-## Raising records, and keeping each set minimal
-
-Whichever kind is running: raise ADRs *sparingly* (`ADR-FORMAT.md` for
-placement; the `linkuistics:decision-records` skill for the philosophy, format,
-and when-to-write test), and write a spec only at a genuine agreement point
-(`SPEC-FORMAT.md`). Treat the ADR set as a **minimum coherent set describing the
-current design**: when a session *changes* a decision an ADR already records,
-**rework the set in place** — merge / split / delete — and reconcile the briefs
-that cite it; never append a superseding ADR (the VCS holds the history). The
-same rule governs `docs/specs/`, one grain coarser.
-
 ## Review ownership inside a picked leaf
 
 **The allowance is a picked leaf's, and only a picked leaf's.** It applies after

@@ -187,7 +187,9 @@ So an integration is cut **where `pick` reaches it next**, and the condition is
 mechanical and **directory-local**. Read the review's *own parent* directory at
 the entries after the review's position, and find **the first sibling entry after
 the review whose subtree still holds live work** — leaf file or node directory,
-whichever comes first. That entry is the `leaf-insert` target.
+whichever comes first. That entry is the target:
+
+    grove-llm leaf-insert <target> <stem> --kind integrate-review-<producer>
 
 Three things that condition gets right where "the first live leaf after it" does
 not:

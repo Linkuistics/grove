@@ -221,7 +221,7 @@ fn extract_fresh_writes_the_full_content_tree() {
     // which `LICENSES/` below cannot say.
     assert!(dest.path().join("SKILL.md").is_file());
     assert!(dest.path().join("references/impl.md").is_file());
-    assert!(dest.path().join("driving.md").is_file());
+    assert!(dest.path().join("TASK-FORMAT.md").is_file());
     // Recursion to the leaves, asserted on a nested **file** rather than on the
     // directory holding it: extraction creates directories on its way down, so a
     // `LICENSES/` that exists proves only that the walk reached the name. It is

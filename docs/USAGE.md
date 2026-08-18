@@ -182,6 +182,34 @@ steps. It is available for diagnostics — `grove-llm pick`, `grove-llm resolve`
 `grove-llm brief-chain` — but it is not a human workflow, and running a session
 outside bare `grove` gives it no mandate.
 
+## Two habits for the human in the loop
+
+Both are yours rather than the session's — a session *is* the LLM and cannot
+perform either on itself. The session-facing counterparts are already in the
+methodology: naming the trade-off you want input on
+([`content/references/execute.md`](../content/references/execute.md)) and giving
+a recommended answer per question
+([`content/grilling.md`](../content/grilling.md)).
+
+**Ask the LLM "WDYT" before committing.** When a question feels close to
+settled, the easy default is to nod and move on. Don't — ask what it thinks,
+explicitly, including when you already hold a strong view. Two things happen.
+It produces a recommendation it would otherwise suppress out of deference,
+informed by the bootstrap context (glossary, briefs, decision records,
+research), which is exactly the evidence base you want surfaced before you
+commit. And where its recommendation diverges from yours, that divergence is
+the cheapest signal available that the question still has something to teach —
+interrogate it rather than dismissing it.
+
+**Ask for pushback when the LLM agrees too easily.** Models default to
+agreement under social pressure. When one agrees with your proposal without
+surfacing trade-offs, push back yourself: "what would push you toward the other
+option?", "what breaks if we do it this way?", or simply "pushback please". The
+grilling format is built around recommended-answers-with-evidence precisely to
+make pushback structural rather than personal — when the recommendation cites
+primary evidence, the pushback is a debate about that evidence rather than
+about whose preference wins.
+
 ## Review composition and escalation
 
 A session that Grove launched, and that adopted its mandate, may use at most

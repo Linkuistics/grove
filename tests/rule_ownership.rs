@@ -7,14 +7,12 @@
 //! situations rather than procedures, so it is swept too, from the other
 //! direction: none of the phrases below may appear there.
 //!
-//! Scope is every markdown file under `content/` **except `driving.md`**, and the
-//! exclusion is derived rather than chosen. Only `SKILL.md` and
-//! `reference_file(kind)` are ever on a static path, so a corpus file is reachable
-//! only if some file names it — and no file under `content/` names `driving.md`
-//! any more. A rule surviving only there is already deleted in effect, which is
-//! the state the relocation table in the spec exists to end.
-//! [`the_excluded_file_is_unreachable_and_the_exclusion_is_not_vacuous`] holds
-//! both halves, and `corpus-split-k6` deletes it along with the file.
+//! Scope is every markdown file under `content/`. There is no longer an
+//! excluded one: `driving.md` was the file no other corpus file named, so
+//! nothing reached it and a rule surviving only there was already deleted in
+//! effect. `corpus-split-k6` moved its surviving rules to the owners below and
+//! deleted the file, which is what the relocation table in the spec existed to
+//! reach.
 //!
 //! **The sweeps are phrase-scoped, and that bounds what they prove.** Each row
 //! names its rule's canonical wording, normalised — emphasis and code markers
@@ -22,23 +20,16 @@
 //! misses a wrapped or bolded occurrence, which is the fail-open direction.
 //!
 //! What a phrase sweep cannot see is a **paraphrase**: a second current-state
-//! statement of the same rule, in other words, reads clean. So the duplication a
-//! later leaf still has to remove is declared in two kinds of row, and the
-//! difference between them is the wording rather than the intent:
-//!
-//! - `transient` — the duplicate is in these *same* words, so the canonical
-//!   phrase finds it and it is an expected extra site.
-//! - `restated` — the duplicate is in *other* words, so the canonical phrase is
-//!   blind to it and the row carries a second phrase, distinctive to that
-//!   statement, to pin it.
-//!
-//! Both are asserted still present, so neither declaration can outlive the
-//! duplication it excuses, and every one of them is `corpus-split-k6`'s to
-//! remove. **Neither list is a claim of completeness.** Nothing here can prove no
-//! *undeclared* paraphrase exists anywhere in the corpus — that is the blind spot
+//! statement of the same rule, in other words, reads clean. While the rewrites
+//! were in flight, each known duplicate carried a declaration of its own — the
+//! same wording, or a second phrase pinning a paraphrase — so that none could be
+//! removed silently and no declaration could outlive the duplication it excused.
+//! Every one of them has now been removed with the section that carried it, so
+//! the rows below claim single-source outright. **That is still not a
+//! completeness claim.** Nothing here can prove no *undeclared* paraphrase
+//! exists anywhere in the corpus — the blind spot
 //! [`the_canonical_phrase_alone_is_blind_to_a_paraphrase`] exhibits rather than
-//! papers over — so what these rows assert is that each *known* duplicate is
-//! pinned, not that the corpus holds no other.
+//! papers over.
 //!
 //! Three controls stand over the matcher, and they are the ones
 //! `docs/specs/corpus-rule-ownership.md` names for an **S** row: a positive
@@ -52,10 +43,6 @@ use std::collections::BTreeMap;
 /// The condition register. It carries situations and paths, never a procedure, so
 /// every phrase below must be absent from it.
 const CONDITION_REGISTER: &str = "SKILL.md";
-
-/// The one corpus file no other corpus file names, and therefore the one that is
-/// on no session's loaded path. Out of scope for that reason and no other.
-const UNREACHED: &str = "driving.md";
 
 /// Emphasis and code markers stripped, whitespace collapsed. The corpus wraps
 /// prose at 80 columns and marks up mid-phrase, so a raw `contains` misses real
@@ -87,29 +74,6 @@ struct Homed {
     owner: &'static str,
     /// The rule's canonical wording, distinctive enough to identify it.
     phrase: &'static str,
-    /// Files that state the rule in *these words* and are a later leaf's to
-    /// strip. Asserted present, so a stale entry fails rather than lingering.
-    transient: &'static [&'static str],
-    /// Files that state the rule in *other* words. `phrase` above is blind to
-    /// these, which is why each carries its own wording.
-    restated: &'static [Restated],
-}
-
-/// A second current-state statement of one rule, **in other words**, in a file
-/// whose split belongs to a later leaf.
-///
-/// It is declared rather than detected: the canonical phrase does not match it,
-/// so nothing in this file would have noticed it. Pinning it by its own wording
-/// buys the two properties `transient` already has — it cannot be removed
-/// silently, and the declaration cannot outlive the duplication — and buys them
-/// for the paraphrases that were previously invisible.
-struct Restated {
-    /// The file carrying the second statement.
-    file: &'static str,
-    /// Wording distinctive to *this* statement. Asserted present in `file`, and
-    /// asserted to be a genuine paraphrase: if the canonical phrase also matched
-    /// there, the site would belong in `transient` instead.
-    phrase: &'static str,
 }
 
 /// Every rule `loop-step-references-k11` landed in one of the seven loop-step
@@ -120,489 +84,366 @@ const HOMED: &[Homed] = &[
         rule: "review-budget",
         owner: "references/execute.md",
         phrase: "at most one in-session reviewer across the whole picked leaf",
-        transient: &[],
-        restated: &[Restated {
-            file: "TASK-FORMAT.md",
-            // The doubt-budget table restates the whole allowance in table voice.
-            phrase: "at most one; every independently materialised reviewer counts",
-        }],
     },
     Homed {
         rule: "review-budget-predicate",
         owner: "references/execute.md",
         phrase: "adopted that mandate by running Bootstrap",
-        transient: &[],
-        restated: &[Restated {
-            file: "TASK-FORMAT.md",
-            // Same predicate, named rather than spelled out.
-            phrase: "Outside that Bootstrap-and-mandate predicate",
-        }],
     },
     Homed {
         rule: "review-budget-by-kind",
         owner: "references/execute.md",
         phrase: "spend **none** — the pair supplies independent corpora",
-        transient: &[],
-        restated: &[Restated {
-            file: "TASK-FORMAT.md",
-            // The per-kind rows of the same table.
-            phrase: "none; the pair and combiner own breadth and doubt",
-        }],
     },
     Homed {
         rule: "doubt-pass-procedure",
         owner: "references/execute.md",
         phrase: "stripping the conclusion",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "escalated-review-routes-through-config",
         owner: "references/execute.md",
         phrase: "Once review is escalated to the tree, grove owns the route",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "verify-repo-claims-with-controls",
         owner: "references/execute.md",
         phrase: "clean-here plus dirty-there cannot be produced by a broken instrument",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "enumerate-then-classify",
         owner: "references/execute.md",
         phrase: "Enumerate, then classify. Do not sweep a pattern list",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "sweep-scope-is-the-claim",
         owner: "references/execute.md",
         phrase: "The sweep's scope is the claim's scope",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "no-self-invalidating-count",
         owner: "references/execute.md",
         phrase: "Never document a claim with a count of itself",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "check-the-rescued-clause",
         owner: "references/execute.md",
         phrase: "A clause rescued by its neighbour is not correct",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "decisions-land-as-they-settle",
         owner: "references/execute.md",
         phrase: "Never reconstruct a session's decisions at the end of it",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "escalation-names-the-tradeoff",
         owner: "references/execute.md",
         phrase: "name the trade-off you want input on",
-        transient: &[],
-        restated: &[],
     },
     // -- content/references/decompose.md ----------------------------------
     Homed {
         rule: "externalize-by-default",
         owner: "references/decompose.md",
         phrase: "the bar is *\"fits this session,\"* not \"I can finish it.\"",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "bigger-than-brief-decomposes",
         owner: "references/decompose.md",
         phrase: "doing **only the first child** this session",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "vertical-slice",
         owner: "references/decompose.md",
         phrase: "A good child leaf is a **vertical slice**",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "wide-refactor-expand-contract",
         owner: "references/decompose.md",
         phrase: "Sequence it **expand → migrate → contract** instead, one leaf per stage",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "fog-or-ticket",
         owner: "references/decompose.md",
         phrase: "a speculative leaf is the wrong shape for fog",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "prior-art-research-is-its-own-leaf",
         owner: "references/decompose.md",
         phrase: "a research leaf of its own, cut ahead of the leaf that needs it",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "research-brief-names-downstream-questions",
         owner: "references/decompose.md",
         phrase: "The research leaf's brief names the downstream questions",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "review-chain-when-load-bearing",
         owner: "references/decompose.md",
         phrase: "artifact size and vendor preference are not the test",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "vendor-pair-when-load-bearing",
         owner: "references/decompose.md",
         phrase: "is earned by a question load-bearing enough to pay for two corpora",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "chain-is-lazy",
         owner: "references/decompose.md",
         phrase: "only if it has findings worth acting on",
-        // `TASK-FORMAT.md` states the composition shapes as policy; that section
-        // is `corpus-split-k6`'s to shed.
-        transient: &["TASK-FORMAT.md"],
-        restated: &[],
     },
     Homed {
         rule: "pair-is-eager",
         owner: "references/decompose.md",
         phrase: "it lands in one call or not at all",
-        transient: &[],
-        restated: &[Restated {
-            file: "TASK-FORMAT.md",
-            // All-or-nothing said as a property of the shape.
-            phrase: "The whole shape lands or none of it does",
-        }],
     },
     Homed {
         rule: "creating-session-writes-the-body",
         owner: "references/decompose.md",
         phrase: "The creating session writes the new leaf's body",
-        transient: &["TASK-FORMAT.md"],
-        restated: &[],
     },
     Homed {
         rule: "name-step-kind-off-the-producer",
         owner: "references/decompose.md",
         phrase: "Name a chain step's kind off the producer that actually ran",
-        transient: &[],
-        restated: &[Restated {
-            file: "TASK-FORMAT.md",
-            // Second person instead of imperative.
-            phrase: "You name the step kind yourself",
-        }],
     },
     Homed {
         rule: "steps-share-the-producers-stem",
         owner: "references/decompose.md",
         phrase: "Give every step of a composed shape the producer's bare stem as its whole slug",
-        transient: &[],
-        restated: &[Restated {
-            file: "TASK-FORMAT.md",
-            // Stated as what the slug is rather than what to do.
-            phrase: "The slug is the bare stem, and it does not restate the kind",
-        }],
     },
     Homed {
         rule: "diversity-is-the-configs",
         owner: "references/decompose.md",
         phrase: "Diversity is the configuration's, not the tree's",
-        transient: &[],
-        restated: &[Restated {
-            file: "TASK-FORMAT.md",
-            // Stated of the vendor pair specifically, in the harness section.
-            phrase: "is the configuration owner's policy, which grove can neither infer",
-        }],
     },
     Homed {
         rule: "integration-placement",
         owner: "references/decompose.md",
         phrase: "the first sibling entry after the review whose subtree still holds live work",
-        transient: &["TASK-FORMAT.md"],
-        restated: &[],
     },
     Homed {
         rule: "no-adjacency-exception",
         owner: "references/decompose.md",
         phrase: "A session that departs anyway owns the drift",
-        transient: &[],
-        restated: &[Restated {
-            file: "TASK-FORMAT.md",
-            // The conclusion without the owner's reasoning.
-            phrase: "There is no exception to check",
-        }],
     },
     // -- content/references/retire.md -------------------------------------
     Homed {
         rule: "retirement-is-filename-only",
         owner: "references/retire.md",
         phrase: "Retirement touches one filename and nothing else",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "finish-is-the-drivers-to-discover",
         owner: "references/retire.md",
         phrase: "You do not discover that a grove is finished",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "triage-picks-the-verb",
         owner: "references/retire.md",
         phrase: "name which of the three sentences is actually true before reaching for the CLI",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "no-fourth-status",
         owner: "references/retire.md",
         phrase: "There is no fourth state",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "prune-scopes-to-the-whole-path",
         owner: "references/retire.md",
         phrase: "prune each of its live steps",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "node-close-is-implicit",
         owner: "references/retire.md",
         phrase: "The close asks the human nothing",
-        transient: &[],
-        restated: &[],
     },
     // -- content/references/commit.md -------------------------------------
     Homed {
         rule: "one-focused-commit",
         owner: "references/commit.md",
         phrase: "One task is **one focused commit**",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "name-by-handle",
         owner: "references/commit.md",
         phrase: "Name each node the cascade closed the same way",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "no-kind-prefix-in-commit-subject",
         owner: "references/commit.md",
         phrase: "Do not compensate for the bare stem with a subject convention",
-        transient: &[],
-        restated: &[Restated {
-            file: "TASK-FORMAT.md",
-            // Same instruction, shorter, beside the bare-stem argument.
-            phrase: "Do not compensate with a commit-subject convention",
-        }],
     },
     Homed {
         rule: "jj-seal",
         owner: "references/commit.md",
         phrase: "`jj new` after describing, once the rename has landed",
-        transient: &[],
-        restated: &[],
     },
     // -- content/references/grove.md --------------------------------------
     Homed {
         rule: "durable-artifact-set",
         owner: "references/grove.md",
         phrase: "The first three **outlive the grove**",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "plugin-prerequisite",
         owner: "references/grove.md",
         phrase: "each citation states what binds in the plugin's absence",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "build-boundary-is-the-binary",
         owner: "references/grove.md",
         phrase: "changes nothing any session receives until the binary is rebuilt and installed",
-        transient: &[],
-        restated: &[],
     },
     // -- content/references/driver.md -------------------------------------
     Homed {
         rule: "pick-walk-order",
         owner: "references/driver.md",
         phrase: "first live leaf in a depth-first **pre-order** walk",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "one-configuration",
         owner: "references/driver.md",
         phrase: "**Nothing else routes a session**",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "restart-equals-continuation",
         owner: "references/driver.md",
         phrase: "**restart ≡ continuation**",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "scaffold-is-the-drivers",
         owner: "references/driver.md",
         phrase: "a session **never scaffolds the tree itself**",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "session-name-suggested-once",
         owner: "references/driver.md",
         phrase: "suggest `/rename",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "migration-is-the-drivers",
         owner: "references/driver.md",
         phrase: "Neither conversion is yours to perform by hand",
-        transient: &[],
-        restated: &[],
     },
     // -- content/references/bootstrap.md ----------------------------------
     Homed {
         rule: "stale-launch-stops",
         owner: "references/bootstrap.md",
         phrase: "is a stale or hand-edited launch — not work to redo",
-        transient: &[],
-        restated: &[],
     },
     Homed {
         rule: "brief-chain-tolerates-gaps",
         owner: "references/bootstrap.md",
         phrase: "A level with no brief is skipped silently",
-        transient: &[],
-        restated: &[],
+    },
+    // -- content/TASK-FORMAT.md -------------------------------------------
+    Homed {
+        rule: "leaf-name-grammar",
+        owner: "TASK-FORMAT.md",
+        phrase: "Five fields, all parsed",
+    },
+    Homed {
+        rule: "convention-not-grammar",
+        owner: "TASK-FORMAT.md",
+        phrase: "What is convention rather than grammar",
+    },
+    Homed {
+        rule: "body-carries-no-launch-metadata",
+        owner: "TASK-FORMAT.md",
+        phrase: "The body carries no launch metadata at all",
+    },
+    Homed {
+        rule: "suggested-body-shape",
+        owner: "TASK-FORMAT.md",
+        // The running log's *section* is grammar and lives here; *when* to
+        // append to it is `references/execute.md`'s, which is why the phrase
+        // pinned is the section's introduction and not its name.
+        phrase: "A sixth section appears when a session is keeping one",
+    },
+    // -- content/ADR-FORMAT.md --------------------------------------------
+    Homed {
+        rule: "adr-when-to-write",
+        owner: "ADR-FORMAT.md",
+        phrase: "All three, not any one",
+    },
+    Homed {
+        rule: "adr-set-is-minimum-coherent",
+        owner: "ADR-FORMAT.md",
+        phrase: "never appends a superseding record",
+    },
+    Homed {
+        rule: "research-to-adr-bridge",
+        owner: "ADR-FORMAT.md",
+        phrase: "bridge pointing both ways",
+    },
+    // -- content/SPEC-FORMAT.md -------------------------------------------
+    Homed {
+        rule: "spec-set-is-current-state",
+        owner: "SPEC-FORMAT.md",
+        phrase: "never append a superseding spec",
+    },
+    // -- content/CONTEXT-FORMAT.md ----------------------------------------
+    Homed {
+        rule: "glossary-is-the-forcing-function",
+        owner: "CONTEXT-FORMAT.md",
+        phrase: "Never batch a session's terms for the end",
+    },
+    Homed {
+        rule: "challenge-and-sharpen-terms",
+        owner: "CONTEXT-FORMAT.md",
+        phrase: "Propose a precise canonical term for a fuzzy one",
+    },
+    // -- content/grilling.md ----------------------------------------------
+    Homed {
+        rule: "probe-with-concrete-scenarios",
+        owner: "grilling.md",
+        phrase: "stress-test them with specific scenarios",
     },
 ];
 
-/// Every swept file stating `phrase`, in path order. `SKILL.md` and the
-/// unreachable file are out of the sweep; each has its own check.
+/// Every swept file stating `phrase`, in path order. `SKILL.md` is out of the
+/// sweep and has its own check.
 fn sites(corpus: &BTreeMap<String, String>, phrase: &str) -> Vec<String> {
     let needle = normalised(phrase);
     corpus
         .iter()
-        .filter(|(path, _)| path.as_str() != CONDITION_REGISTER && path.as_str() != UNREACHED)
+        .filter(|(path, _)| path.as_str() != CONDITION_REGISTER)
         .filter(|(_, text)| text.contains(&needle))
         .map(|(path, _)| path.clone())
         .collect()
 }
 
 /// **The single-source claim itself**: each rule is stated by its owner, and by
-/// no other procedure register except the transient sites it declares.
+/// no other procedure register at all.
 #[test]
 fn every_rule_homed_here_is_stated_by_its_owner_and_by_no_other_procedure_register() {
     let corpus = corpus();
 
     for homed in HOMED {
-        let mut expected = vec![homed.owner.to_owned()];
-        expected.extend(homed.transient.iter().map(|path| (*path).to_owned()));
-        expected.sort();
-
         assert_eq!(
             sites(&corpus, homed.phrase),
-            expected,
-            "{}: content/{} must state it, and no other procedure register may — declared \
-             transient sites {:?}. A missing owner is a rule deleted by the rewrite that was \
-             supposed to home it; an extra site is the duplication \
-             docs/specs/corpus-rule-ownership.md exists to remove.",
+            vec![homed.owner.to_owned()],
+            "{}: content/{} must state it, and no other procedure register may. A missing \
+             owner is a rule deleted by the rewrite that was supposed to home it; an extra \
+             site is the duplication docs/specs/corpus-rule-ownership.md exists to remove.",
             homed.rule,
             homed.owner,
-            homed.transient,
         );
     }
 }
 
-/// **Every declared paraphrase is real, still there, and genuinely a paraphrase.**
+/// **The standing control on what the sweep cannot see.** A paraphrase is
+/// invisible to the canonical phrase, so a clean sweep is evidence of
+/// single-source only for the *wording* each row names.
 ///
-/// Three properties, and each one closes a different way this declaration could
-/// go quietly wrong. *Present*: the duplication a row excuses must still exist,
-/// or the row is stale licence — the same discipline `transient` already gets.
-/// *Not the owner*: a paraphrase declared against the owner's own file would
-/// excuse nothing. *Genuinely differently worded*: the canonical phrase must
-/// **not** match in that file, because if it did the site belongs in `transient`,
-/// where the main sweep already accounts for it — and a row claiming a blind spot
-/// the sweep does not actually have would misdescribe what is left to do.
-#[test]
-fn every_declared_paraphrase_is_present_and_is_not_reachable_by_the_canonical_phrase() {
-    let corpus = corpus();
-
-    for homed in HOMED {
-        for restated in homed.restated {
-            let text = corpus
-                .get(restated.file)
-                .unwrap_or_else(|| panic!("the corpus carries content/{}", restated.file));
-
-            assert_ne!(
-                restated.file, homed.owner,
-                "{}: a paraphrase declared against its own owner excuses nothing",
-                homed.rule,
-            );
-            assert!(
-                text.contains(&normalised(restated.phrase)),
-                "{}: content/{} no longer states it in these words — the duplication this row \
-                 excuses is gone, so drop the row rather than leaving a licence behind",
-                homed.rule,
-                restated.file,
-            );
-            assert!(
-                !text.contains(&normalised(homed.phrase)),
-                "{}: content/{} states the *canonical* wording, so the main sweep sees it — \
-                 declare it under `transient`, not `restated`",
-                homed.rule,
-                restated.file,
-            );
-        }
-    }
-}
-
-/// **The control on the declaration**: a paraphrase really is invisible to the
-/// canonical phrase, so `restated` is closing a live gap rather than restating
-/// what `transient` already covers.
-///
-/// Without this, the row above proves only that two strings are present. What it
-/// has to establish is the *reason* they are both needed: pointed at a corpus
-/// where a non-owner states a rule in other words, the canonical-phrase sweep
-/// returns the owner alone — a clean result, indistinguishable from single-source
-/// — while the declared wording finds the duplicate. That gap is the whole
-/// argument for enumerating paraphrases by hand, and it is why the module's list
-/// is *known duplicates pinned* rather than *all duplicates found*.
+/// This is the instrument's blind spot exhibited rather than papered over, and it
+/// is why the rows above are read as "no file states this rule in these words"
+/// rather than as "no file states this rule". Pointed at a corpus where a
+/// non-owner restates a rule in other words, the sweep returns the owner alone —
+/// a clean result, indistinguishable from single-source — while the second
+/// wording finds the duplicate. The fixture is the corpus as it stood before
+/// `corpus-split-k6` shed `TASK-FORMAT.md`'s doubt-budget table, which is the
+/// real case this blindness was found on.
 #[test]
 fn the_canonical_phrase_alone_is_blind_to_a_paraphrase() {
     let canonical = "at most one in-session reviewer across the whole picked leaf";
@@ -626,13 +467,13 @@ fn the_canonical_phrase_alone_is_blind_to_a_paraphrase() {
     assert_eq!(
         sites(&corpus, canonical),
         vec!["references/execute.md".to_owned()],
-        "the canonical-phrase sweep must read clean over the paraphrase — if it did not, \
-         `restated` would be redundant and this whole mechanism unnecessary"
+        "the canonical-phrase sweep must read clean over the paraphrase — the blind spot \
+         this control exists to exhibit"
     );
     assert_eq!(
         sites(&corpus, paraphrase),
         vec!["TASK-FORMAT.md".to_owned()],
-        "and the declared wording must be what finds the duplicate the sweep missed"
+        "and only the second wording finds the duplicate the canonical sweep missed"
     );
 }
 
@@ -654,45 +495,6 @@ fn the_condition_register_states_none_of_these_procedures() {
             homed.rule,
         );
     }
-}
-
-/// **The excluded file is excluded because nothing reaches it, and the exclusion
-/// is doing real work.**
-///
-/// Both halves are asserted because either alone is worthless. Without the first,
-/// the exclusion is a hand-waved convenience that could hide a live duplicate;
-/// without the second, it could be excluding an empty file and every row above
-/// would be passing for the wrong reason. `corpus-split-k6` deletes
-/// `content/driving.md`, and this test goes with it.
-#[test]
-fn the_excluded_file_is_unreachable_and_the_exclusion_is_not_vacuous() {
-    let corpus = corpus();
-    assert!(
-        corpus.contains_key(UNREACHED),
-        "content/{UNREACHED} is gone, so this control and the exclusion in `sites` have both \
-         outlived their reason — delete them"
-    );
-
-    for (path, text) in &corpus {
-        if path == UNREACHED {
-            continue;
-        }
-        assert!(
-            !text.contains(UNREACHED),
-            "content/{path} names content/{UNREACHED}, which puts it back on a loaded path — \
-             the sweep above would then be excluding a file a session really opens"
-        );
-    }
-
-    let duplicated = HOMED
-        .iter()
-        .filter(|homed| corpus[UNREACHED].contains(&normalised(homed.phrase)))
-        .count();
-    assert!(
-        duplicated > 0,
-        "content/{UNREACHED} states none of these rules, so excluding it proves nothing — \
-         the sweep should be widened to it rather than left with a dead exclusion"
-    );
 }
 
 // -- The three controls on the matcher ----------------------------------------

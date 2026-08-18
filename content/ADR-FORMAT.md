@@ -1,9 +1,9 @@
 # ADR placement — a grove note
 
-For the ADR **philosophy, format and minimal template**, use the
-`linkuistics:decision-records` skill. The when-to-write test is stated here, so
-that a session without that plugin still applies the same test; the rest of this
-note is grove's placement conventions.
+This note carries grove's own ADR rules: when a decision earns a record, where
+records live, and what keeps the set honest. The
+`linkuistics:decision-records` skill deepens the philosophy and the template;
+what binds without it is stated here.
 
 ## When a decision earns a record
 
@@ -16,6 +16,12 @@ Write one only when **all three** hold:
 All three, not any one. A decision that fails any of them is recorded where it
 lands — in the code, the spec, or the commit — and needs no ADR. This is an AND
 test, and any looser paraphrase of it ("raise ADRs sparingly") is not the test.
+
+## The minimal record
+
+A slug title, the decision in a sentence or two, the trade-off it settles, and
+the alternative that was rejected and why. No status line, no date, no number,
+no template sections that carry nothing.
 
 ## Where ADRs live
 
@@ -41,11 +47,34 @@ Choose on the evidence, not the letter. The point of a split is a partition a
 reader can trust; a split that leaves the root directory still mixed has bought a
 second search path for nothing.
 
-## Why the set stays minimal
+## The set is a minimum coherent set
 
-A grove session reads only the ADRs its brief chain cites — three ADRs, not fifty.
-That curation works only when `docs/adr/` is a **minimum coherent set describing
-the current design**, not an append-only chronology. Keeping the set small and
-current-state — edit in place; merge / split / delete as understanding shifts — is
-what `linkuistics:decision-records` governs; this note just fixes *where* the files
-go.
+A grove session reads only the ADRs its brief chain cites — three ADRs, not
+fifty. That curation works only when `docs/adr/` is a **minimum coherent set
+describing the current design**, not an append-only chronology.
+
+So a session that *changes* a decision an ADR already records **reworks the set
+in place** and **never appends a superseding record**:
+
+- **Edit in place.** Rewrite the affected record to state what *now* binds and
+  why. Merge two whose decisions converged; split one that turned out to cover
+  two independent calls; delete one whose decision no longer holds. No
+  `superseded by`, no status line — the artifacts hold the present and the VCS
+  holds the past (constraint 1).
+- **Keep the set minimal.** After the edit it should be the fewest records that
+  coherently explain the current design. A rework leaving both the old record
+  *and* a new one live has failed the test.
+- **Reconcile every citation.** A merged or deleted record leaves dangling
+  references behind: find its slug across the briefs, the other records and
+  `docs/`, and fix or drop each pointer. A dangling citation is a defect, not
+  acceptable collateral.
+
+## Retiring research into the set
+
+An adopted research finding gets a **bridge pointing both ways**: the survey
+under `docs/research/` gains a section naming the ADRs its findings landed in,
+and each of those ADRs cites the survey by primary source in its rationale. A
+finding left only in `docs/research/` binds nothing, and a reader of either
+artifact can then trace the chain without re-doing the research. A finding that
+overturns a recorded decision rewrites that record under the rule above rather
+than spawning a superseding one.

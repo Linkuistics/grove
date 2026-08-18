@@ -1061,16 +1061,20 @@ already there.
 what binds without the plugin. A citation that leaves that unstated is the
 silent dependency, whichever way the row was decided.
 
-### What moves, and where: `content/driving.md`
+### Where `content/driving.md`'s rules went
 
-The function's sharpest output concerns `content/driving.md`, the largest file in
-the corpus. **Its rules do not all have owners elsewhere, and the superseded
-text's claim that the remainder has `Bound(R) = ∅` was false.** Direct
-inspection found eight sections still carrying imperatives that alter session
-conduct, so the file's deletion is conditional on each one landing an embedded,
-reachable owner first. This table is that condition, discharged row by row.
+The function's sharpest output concerned `content/driving.md`, the largest file
+in the corpus and the one no other corpus file named. **Its rules did not all
+have owners elsewhere, and the superseded text's claim that the remainder had
+`Bound(R) = ∅` was false.** Direct inspection found eight sections still
+carrying imperatives that alter session conduct, so the file's deletion was made
+conditional on each one landing an embedded, reachable owner first. This table
+was that condition. It is **discharged**: `loop-step-references-k11` landed the
+loop-step rows and `corpus-split-k6` landed the format-file rows, repointed the
+`SKILL.md` conditions and deleted the file. The table stays as the map from a
+rule to the owner that now carries it.
 
-**It is a condition only while it is complete**, and twice it was not. The *review
+**It was a condition only while it was complete**, and twice it was not. The *review
 chain* section's bare-stem imperative (`content/driving.md:469-479`) had no row,
 and then the same section's selection criterion (`:399-402`) and route-through-config
 sentence (`:501-508`) had none either, alongside the vendor pair's selection
@@ -1106,16 +1110,16 @@ accounted for, and a *count* of rules under a section is not evidence either.
 | Recording fog without pre-slicing it | `fog-or-ticket`, `horizon-note-shape` | `decompose.md`, `BRIEF-FORMAT.md` |
 | Prune, reorder, or file an issue | `triage-picks-the-verb`, `no-fourth-status`, `prune-scopes-to-the-whole-path` | `references/retire.md` |
 
-**What genuinely has `Occasion = none`, and where it goes.** Two sections are
+**What genuinely had `Occasion = none`, and where it went.** Two sections were
 addressed to the *human* driving a grove rather than to a session — *Ask the LLM
 "WDYT" before committing* and *Ask for pushback when the LLM agrees too easily*.
 A session is the LLM; it cannot obey either. Their session-facing residue is
 already `escalation-names-the-tradeoff` (never withhold a recommendation out of
 deference) and `grilling-procedure` (a recommended answer per question), so what
-remains is operator guidance, and the human-facing home already exists:
-**relocate → `docs/USAGE.md`**.
+remained is operator guidance, and the human-facing home already existed:
+**relocated → `docs/USAGE.md`**, as *Two habits for the human in the loop*.
 
-Everything else left over is argument, worked example and provenance. **It is
+Everything else left over was argument, worked example and provenance. **It was
 deleted, not relocated.** A worked example anchored on the sync-semantics grove
 cites a work item that resolves nowhere — which the glossary's own handle rule
 forbids in provisioned content — and the arguments that are still binding are in
@@ -1123,10 +1127,10 @@ the ADRs. The VCS holds the rest. `docs/` earns a relocation only where a real
 human-facing document already wants the material, which is the `USAGE.md` case
 and nothing else here.
 
-**And eight conditions in `SKILL.md` point at `driving.md` today.** Every one is
-repointed by the same leaf that lands its rule's new owner; a `trigger` sentence
-naming a deleted file is the reachability failure this design exists to prevent,
-and it would ship silently.
+**And eight conditions in `SKILL.md` pointed at `driving.md`.** Every one was
+repointed by `skill-router-k4` when it wrote the canonical trigger set; a
+`trigger` sentence naming a deleted file is the reachability failure this design
+exists to prevent, and it would have shipped silently.
 
 ## Test seams
 

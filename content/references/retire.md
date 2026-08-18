@@ -100,11 +100,9 @@ If you meet a node whose charter was never written, do steps 2–4 and skip step
 1: there is no `Done when` to check and nothing to promote. That is a lapse in
 the tree, not a second species — grove writes no brief-less node.
 
-Retirement is also the moment to **reconcile the ADR set**
-with what the finished work established: edit it in place to keep it a minimum
-coherent set (merge / split / delete), and fix any citation the rework leaves
-dangling — in the briefs, the other ADRs, or `docs/`; never append a superseding
-ADR (`linkuistics:decision-records`). That may leave the next ancestor with no
+Retirement is also the moment to **reconcile the ADR set** with what the
+finished work established — `ADR-FORMAT.md` carries how a set is reworked and
+its citations chased. That may leave the next ancestor with no
 live leaf either; re-check and recurse, until a node still has a live
 leaf or you reach the grove root — silently, so an unattended run crosses a whole
 chain of closes without stopping. Terminal branches stay in the tree, marked in

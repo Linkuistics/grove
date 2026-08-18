@@ -69,7 +69,6 @@ const SKILL: &str = include_str!("../content/SKILL.md");
 /// kinds a summarising surface must spell out rather than derive lives in the
 /// file that condition routes to.
 const EXECUTE_REFERENCE: &str = include_str!("../content/references/execute.md");
-const DRIVING: &str = include_str!("../content/driving.md");
 const DOUBT_SKILL: &str =
     include_str!("../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
 
@@ -172,11 +171,6 @@ fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
             ["research-a", "research-b", "combine-research", "finish"].as_slice(),
         ),
         (
-            "content/driving.md",
-            DRIVING,
-            ["research-a", "research-b", "combine-research"].as_slice(),
-        ),
-        (
             "doubt-driven-development/SKILL.md",
             DOUBT_SKILL,
             ["research-a", "research-b", "combine-research"].as_slice(),
@@ -218,7 +212,6 @@ fn the_guidance_counts_the_kind_set_correctly() {
     for (surface, text) in [
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("content/SKILL.md", SKILL),
-        ("content/driving.md", DRIVING),
     ] {
         let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
         for (count, stale) in CARDINALS {

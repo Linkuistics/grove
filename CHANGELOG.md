@@ -51,6 +51,36 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`content/driving.md` is gone, and the supporting corpus is split along
+  grammar / policy / rationale.** The habits file was the corpus's largest (5,817
+  words) and on **no session's loaded path** — nothing under `content/` named it,
+  so only `SKILL.md` and the ten kind reference files are ever reached statically
+  and a rule surviving only there was already deleted in effect. Its surviving
+  imperatives were rehomed first, row by row, against
+  `docs/specs/corpus-rule-ownership.md`'s relocation table; the two sections
+  addressed to the **human** driving a grove — *ask the LLM "WDYT"*, *ask for
+  pushback* — moved to `docs/USAGE.md`, which already has that audience; the rest
+  was argument, worked example and provenance, and is in the VCS.
+
+  `TASK-FORMAT.md` (3,012 → 935 words) keeps only what constrains bytes on disk:
+  the five-field name grammar, the nineteen kinds, the body shape and
+  *convention-not-grammar*. The composition shapes, the doubt-budget table, the
+  kind disciplines, *a leaf never names a harness*, the research output-path table
+  and the commit-subject imperative each state a rule some other file owns, and
+  each left for it. Two global rules that were never format grammar left with
+  them — *one task is one session* to `SKILL.md`, and the pruning duplicate to
+  `references/retire.md`.
+
+  The **ADR when-to-write test now has exactly one statement in the corpus**, in
+  `ADR-FORMAT.md`, which also takes the minimum-coherent-set discipline and the
+  research→ADR bridge locally rather than by citation — a test that is only cited
+  is no bar of Grove's own, and the AND/OR contradiction this workstream opened on
+  is what a cited-only test produced. `CONTEXT-FORMAT.md` takes the
+  glossary-sharpening rules, and `grilling.md` becomes the interrogation procedure
+  plus a Grove-authored entry condition, its bundled `<what-to-do>` block
+  byte-intact and its four duplicate sections pointing at their owners rather than
+  restating them.
+
 - **`docs/RELEASING.md` spells out the manual cut.** `release.toml` already said
   that a refused `cargo release` is a per-session fact about the harness rather
   than anything inherent, and to fall back to the constituent commands — but it

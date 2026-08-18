@@ -477,8 +477,8 @@ fn wrapped_slug(text: &str) -> Option<&str> {
 
 /// Whether a wrapped word after "ADR" is a citation rather than emphasis.
 ///
-/// The wrapper is not enough on its own: `ADR *and*` — real prose in
-/// `content/driving.md`, where "and" is emphasised mid-sentence — is
+/// The wrapper is not enough on its own: `ADR *and*` — the shape real corpus
+/// prose takes wherever "and" is emphasised right after "ADR" — is
 /// syntactically identical to `ADR *pruning*`. A slug earns the reading if it
 /// is **hyphenated** (no English word emphasised after "ADR" is) or if it
 /// **names a record this repository actually has**, which is what makes the

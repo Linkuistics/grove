@@ -1294,9 +1294,10 @@ fn the_walk_follows_a_named_path_and_stops_when_the_name_goes() {
 }
 
 /// **A rule surviving only in a file nothing names is not on any loaded path** —
-/// present in `content/`, deleted in effect. This is the failure `driving.md`
-/// already commits against two `impl` disciplines, and the one a
-/// whole-corpus sweep certifies as fine.
+/// present in `content/`, deleted in effect. `content/driving.md` was the corpus
+/// file in exactly that state, which is why `corpus-split-k6` rehomed its rules
+/// before deleting it; this is the failure a whole-corpus sweep certifies as
+/// fine.
 #[test]
 fn a_rule_only_in_an_unnamed_file_is_off_every_loaded_path() {
     let mut relocated = corpus();

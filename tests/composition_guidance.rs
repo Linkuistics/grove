@@ -2,7 +2,6 @@ use assert_cmd::Command;
 
 const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
 const CONTEXT: &str = include_str!("../CONTEXT.md");
-const DRIVING: &str = include_str!("../content/driving.md");
 const TASK_FORMAT: &str = include_str!("../content/TASK-FORMAT.md");
 const PLANNING_REFERENCE: &str = include_str!("../content/references/planning.md");
 // The universal reference files the loop page's conditions defer to. A claim
@@ -40,49 +39,32 @@ fn assert_absent(surface: &str, text: &str, rejected: &str) {
 
 #[test]
 fn grove_guidance_replaces_the_old_in_session_review_loop() {
-    for (surface, text) in [
-        ("content/references/execute.md", EXECUTE_REFERENCE),
-        ("content/driving.md", DRIVING),
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
-    ] {
-        assert_contains(surface, text, "whole picked leaf");
-        // Escalation is one ordinary append now, so the surfaces must name the
-        // verb *and* the kind to spell — a session that reads only "cut a review
-        // leaf" has to guess `--kind`, which is the one wrong-but-well-formed
-        // mistake nothing downstream catches.
-        assert_contains(surface, text, "review-<producer>");
-    }
+    // One surface, and that is the claim now: the allowance is
+    // `references/execute.md`'s alone, and the two files that used to restate it
+    // — `driving.md` and `TASK-FORMAT.md`'s doubt-budget table — have shed it
+    // (`docs/specs/corpus-rule-ownership.md`, `review-budget`).
+    const OWNER: &str = "content/references/execute.md";
+    assert_contains(OWNER, EXECUTE_REFERENCE, "whole picked leaf");
+    // Escalation is one ordinary append now, so the owner must name the verb
+    // *and* the kind to spell — a session that reads only "cut a review leaf" has
+    // to guess `--kind`, which is the one wrong-but-well-formed mistake nothing
+    // downstream catches.
+    assert_contains(OWNER, EXECUTE_REFERENCE, "review-<producer>");
+    assert_contains(
+        OWNER,
+        EXECUTE_REFERENCE,
+        "substantial redesign as a new producer review chain beside the leaf it is integrating",
+    );
 
-    for (surface, text, integration_rule) in [
-        (
-            "content/references/execute.md",
-            EXECUTE_REFERENCE,
-            "substantial redesign as a new producer review chain beside the leaf it is integrating",
-        ),
-        (
-            "content/driving.md",
-            DRIVING,
-            "new producer review chain beside the leaf being integrated",
-        ),
-        (
-            "content/TASK-FORMAT.md",
-            TASK_FORMAT,
-            "`integrate-review-*` | at most one narrow reviewer | add a new producer review chain beside the leaf being integrated",
-        ),
-    ] {
-        assert_contains(surface, text, integration_rule);
-    }
-
-    assert_absent("content/driving.md", DRIVING, "after three rounds");
     assert_absent(
-        "content/driving.md",
-        DRIVING,
-        "big enough that a subagent cannot hold it",
+        "content/references/execute.md",
+        EXECUTE_REFERENCE,
+        "after three rounds",
     );
     assert_absent(
-        "content/driving.md",
-        DRIVING,
-        "Either retrofit is the one case you still transcribe the kinds by hand",
+        "content/references/execute.md",
+        EXECUTE_REFERENCE,
+        "big enough that a subagent cannot hold it",
     );
     assert_absent(
         "content/TASK-FORMAT.md",
@@ -114,7 +96,6 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
         ("content/references/execute.md", EXECUTE_REFERENCE),
         ("content/references/decompose.md", DECOMPOSE_REFERENCE),
         ("content/references/retire.md", RETIRE_REFERENCE),
-        ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("content/BRIEF-FORMAT.md", BRIEF_FORMAT),
         ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
@@ -131,11 +112,6 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
             "content/references/decompose.md",
             DECOMPOSE_REFERENCE,
             "grove-llm leaf-add <parent> <stem> --kind review-<producer>",
-        ),
-        (
-            "content/TASK-FORMAT.md",
-            TASK_FORMAT,
-            "each session cuts the next step",
         ),
         (
             "content/BRIEF-FORMAT.md",
@@ -198,8 +174,6 @@ fn guidance_binds_re_derivation_to_review_and_consumption_to_integration() {
     // path (`docs/specs/corpus-rule-ownership.md`, `integration-placement`).
     for (surface, text) in [
         ("content/references/decompose.md", DECOMPOSE_REFERENCE),
-        ("content/driving.md", DRIVING),
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("CONTEXT.md", CONTEXT),
         ("docs/USAGE.md", USAGE),
         ("review mechanics spec", SPEC),
@@ -219,8 +193,6 @@ fn guidance_binds_re_derivation_to_review_and_consumption_to_integration() {
     // account of how it finds one.
     for (surface, text) in [
         ("content/references/decompose.md", DECOMPOSE_REFERENCE),
-        ("content/driving.md", DRIVING),
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("CONTEXT.md", CONTEXT),
         ("docs/USAGE.md", USAGE),
     ] {
@@ -263,8 +235,6 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
     // condition is true of, which is what its own seams are pinned against.
     for (surface, text) in [
         ("content/references/decompose.md", DECOMPOSE_REFERENCE),
-        ("content/driving.md", DRIVING),
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("docs/USAGE.md", USAGE),
     ] {
         assert_contains(surface, text, "leaf-insert");
@@ -317,7 +287,6 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
     // the loop entirely, for the reason recorded above the first test.
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
-        ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("CONTEXT.md", CONTEXT),
         ("docs/USAGE.md", USAGE),
@@ -337,7 +306,6 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
     // record exist precisely to name a withdrawn rule and say it is withdrawn.
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
-        ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("docs/USAGE.md", USAGE),
         ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
@@ -350,7 +318,6 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
     // about the tree rather than about the session cutting the leaf is wrong.
     for (surface, text) in [
         ("content/references/decompose.md", DECOMPOSE_REFERENCE),
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("review mechanics spec", SPEC),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
     ] {
@@ -363,23 +330,24 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
 /// rule lives nowhere else: no verb enforces it and no filename records it.
 #[test]
 fn guidance_states_that_each_step_is_created_only_when_required() {
-    for (surface, text) in [
-        ("content/references/decompose.md", DECOMPOSE_REFERENCE),
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
-    ] {
-        assert_contains(surface, text, "only if it has findings worth acting on");
-        assert_contains(
-            surface,
-            text,
-            "A review that finds nothing creates nothing and simply retires",
-        );
-    }
+    // `content/TASK-FORMAT.md` stated the chain's laziness too, until
+    // `corpus-split-k6` shed the composition shapes to the file that owns them.
+    const CHAIN_OWNER: &str = "content/references/decompose.md";
+    assert_contains(
+        CHAIN_OWNER,
+        DECOMPOSE_REFERENCE,
+        "only if it has findings worth acting on",
+    );
+    assert_contains(
+        CHAIN_OWNER,
+        DECOMPOSE_REFERENCE,
+        "A review that finds nothing creates nothing and simply retires",
+    );
 
     // …and the counterpart: the pair is eager, and the reason is stated rather
     // than left as an inconsistency for a later session to "fix".
     for (surface, text) in [
         ("content/references/decompose.md", DECOMPOSE_REFERENCE),
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
     ] {
         assert_contains(surface, text, "inherit");
@@ -412,8 +380,6 @@ fn guidance_states_that_each_step_is_created_only_when_required() {
 #[test]
 fn every_ambiguity_cost_statement_matches_resolves_pick_style_contract() {
     for (surface, text) in [
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
-        ("content/driving.md", DRIVING),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
         ("review mechanics spec", SPEC),
     ] {
@@ -434,18 +400,6 @@ fn every_ambiguity_cost_statement_matches_resolves_pick_style_contract() {
     // carry is that the bare slug/stem *also* reaches a grow verb, and that the
     // grow verb refuses rather than lists.
     for (surface, text, refusal) in [
-        (
-            "content/TASK-FORMAT.md",
-            TASK_FORMAT,
-            "`leaf-add`'s `<parent>` and `leaf-insert`'s `<target>` *also* accept a bare slug as a \
-             convenience, and there the same ambiguity is a **refusal**",
-        ),
-        (
-            "content/driving.md",
-            DRIVING,
-            "do the same for a `leaf-insert` target: the bare stem is ambiguous there too, and that \
-             verb refuses rather than listing",
-        ),
         (
             "docs/ARCHITECTURE.md",
             ARCHITECTURE,
@@ -729,7 +683,6 @@ fn llm_help_teaches_the_lazy_review_chain_on_the_verb_that_builds_it() {
 fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
-        ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
     ] {
@@ -760,11 +713,6 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
             "content/references/retire.md",
             RETIRE_REFERENCE,
             "**Retirement touches one filename and nothing else**",
-        ),
-        (
-            "content/driving.md",
-            DRIVING,
-            "it compares nothing, records nothing about how the producer ran, and raises no notice either way",
         ),
         // The claim is unchanged; its home moved back. *Nothing in a body is
         // metadata* is body **grammar**, and the condition register says nothing
@@ -798,8 +746,6 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
 fn grove_and_doubt_state_one_mandate_based_ownership_predicate() {
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
-        ("content/driving.md", DRIVING),
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
     ] {
         assert_contains(surface, text, "mandate");

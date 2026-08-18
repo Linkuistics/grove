@@ -850,11 +850,13 @@ One consequence belongs here rather than there: because only `content/` is
 provisioned, a rule moved into `docs/` is unreachable to every session outside
 this repository, so *normative material stays embedded* is the placement
 function's own first case read backwards rather than a separate boundary. A
-second: only `SKILL.md` and `reference_file(kind)` are ever on a static path, so a
-rule owned by any other file states the file whose sentence triggers it, and those
-references form a chain that must terminate at a static path.
+second: exactly three files are ever on a static path — `SKILL.md`,
+`reference_file(kind)`, and the **signal file** the guaranteed core inlines
+(`content/SIGNAL.md` for eighteen kinds, `content/SIGNAL-FINISH.md` for `finish`)
+— so a rule owned by any other file states the file whose sentence triggers it,
+and those references form a chain that must terminate at a static path.
 
-Four numeric measures stand over that shape. All four are **budgets fitted to a
+Five numeric measures stand over that shape. All five are **budgets fitted to a
 measurement** rather than alarms set well clear of one — `SKILL.md`'s 900 against
 a measured 796 is 13% of headroom, the same order as the loaded paths' 10%, so
 calling one an alarm and the other a budget would be a distinction the numbers do
@@ -863,9 +865,17 @@ not support:
 | Measure | Limit | Held by |
 |---|---|---|
 | `SKILL.md`'s body — the frontmatter is a routing header a harness reads, so counting it would let a description rewrite eat the ceiling | 900 words, and exactly 26 trigger sentences | `tests/methodology.rs` |
+| `SKILL.md`'s `## The loop` section — the unit constraint 7 actually names | 275 words, and trigger bullets only | `tests/methodology.rs` |
 | Each kind's composed `${prompt}` | 4 KiB | `tests/prompt.rs` |
-| Each kind's **static** loaded path — the guaranteed core, `SKILL.md`, and `reference_file(kind)` | per kind, measurement + 10% | `tests/loaded_path_budgets.rs` |
-| Each kind's **reachable** loaded path — the static path plus the transitive closure of the pointer graph | per kind, measurement + 10% | `tests/loaded_path_budgets.rs` |
+| Each kind's **static** loaded path — the guaranteed core, `SKILL.md`, and `reference_file(kind)` | per kind, the recorded measurement + 10%, held within +25% of the current one | `tests/loaded_path_budgets.rs` |
+| Each kind's **reachable** loaded path — the static path plus the transitive closure of the pointer graph | per kind, the recorded measurement + 10%, held within +25% of the current one | `tests/loaded_path_budgets.rs` |
+
+Each loaded-path row records **the measurement it was fitted to**, beside the
+ceiling and in the same table, so the +10% is a comparison a test makes rather
+than a convention a comment describes. Without it the only checked interval was
+`measurement ≤ ceiling ≤ measurement + 25%`, which admits a ceiling sitting
+exactly on today's measurement — the zero-width fit the band exists to prevent —
+and a ceiling raised straight to the far edge without ever being fitted.
 
 `SKILL.md`'s word ceiling is constraint 7 — *one page of rules* — made
 recomputable: "a page" is otherwise unmeasurable, and a limit no reader can
@@ -882,13 +892,20 @@ prose about 3.9× and 2.8× sparser respectively. Both are density arguments, an
 they differ in degree rather than in kind.
 
 The ground for deleting them is therefore not domination. It is that a **line**
-is not a unit anyone reads, and a **section** is not a unit anyone loads. A
-section budget is discharged by moving prose across a heading, which costs a
-reader nothing and buys one nothing; a line budget is discharged by rewrapping.
-Both were also the pair whose own doc comments conceded they established nothing
-semantic, and what they were reaching for — is this still one page, is the loop
-still small — is answered better by a measure of *words on a path a session
-actually reads*, which is what replaced them.
+is not a unit anyone reads: a line budget is discharged by rewrapping, which
+changes nothing a session pays. That argument retires the *unit*, and it is the
+whole of what was wrong with the loop alarm.
+
+**It does not retire the scope, and treating it as though it did was an
+overreach.** Constraint 7 is specifically that *the loop* fit a page. A
+loaded-path budget sees the whole body as one number and is indifferent to where
+inside it the words sit, so prose moved out of *Artifacts* into *The loop* leaves
+the body ceiling, every static path and every reachable path exactly as they
+were while the section constraint 7 names grows without limit. The section is
+therefore measured again, in words rather than lines, and with a structural claim
+beside the number — the section is `- When …` items and nothing else — because a
+word ceiling cannot distinguish a condition arriving from a paragraph of summary
+arriving, and it is the summary that constraint 7 forbids.
 
 The routing check stayed, and on different grounds again: it is not a shape
 measure at all — it asserts ten kind→file pairs resolve, which is a reachability
@@ -945,7 +962,9 @@ sides are `SKILL.md`'s body plus the kind reference in both.
 | `finish` | 1,938 | 12,530 | 1,585 | 3,944 | 0.40 |
 
 **Every kind's unconditional read is between a quarter and two-fifths of what it
-was**, and the ratio is stated per kind because the aggregate hides the spread.
+was**, with `finish` a shade over the upper end — `1585/3944` is 0.4019, and the
+column rounds it to 0.40. The ratio is stated per kind because the aggregate
+hides the spread.
 `finish` is the largest and `design` the smallest, which is the intended shape: a
 kind reference now states what is true of that kind and no sibling, so a kind
 with little of its own has little to read — and `finish`, which has the most, is

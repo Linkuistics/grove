@@ -258,10 +258,11 @@ share ten reference files, so nineteen paths run through one corpus.
 **It has a static half and a conditional half**, and only the static half is
 computable: the core, `SKILL.md` and `reference_file(kind)` are fixed by
 `src/prompt.rs`, while everything else is on the path because a condition fired.
-That is also what files a rule, though **not by narrowness alone**: only
-`SKILL.md` and `reference_file(kind)` are ever static, so "the narrowest file
-every bound session already opens" would send every all-nineteen rule to
-`SKILL.md`. What decides is the pair `Bound` and `Occasion` under an ordered
+That is also what files a rule, though **not by narrowness alone**: exactly three
+files are ever static — `SKILL.md`, `reference_file(kind)`, and the **signal file**
+the core inlines (`SIGNAL.md` for eighteen kinds, `SIGNAL-FINISH.md` for `finish`)
+— so "the narrowest file every bound session already opens" would send every
+all-nineteen rule to `SKILL.md`. What decides is the pair `Bound` and `Occasion` under an ordered
 first-match rule (ADR *corpus-rules-have-one-owner*), where `Occasion` is a **set**
 of moments so a rule that crosses steps records all of them and the earliest wins.
 Reachability is an **edge**, not a loadable file: the triggering file must actually
@@ -274,6 +275,11 @@ column has to state per rule.
 _Avoid_: reading "the trigger file is reachable" as "the rule is reachable". A file
 that loads while saying nothing about the rule leaves it exactly as deleted as an
 unreachable file would, and a loadability-only test certifies that state.
+_Avoid_: reading "the triggering file names the path" as sufficient either. A
+provenance note, a worked example and a sentence about a file's own history all
+carry the path, so the realising sentence must state the **situation** as well —
+otherwise the conditional sentence can be deleted, the path re-added elsewhere,
+and the reader is told where to go and never when.
 _Avoid_: reading a rule triggered from inside its own owner as a self-edge. What is
 reached is a **file**, not a rule — once one cross-file edge lands the session
 there, every in-file condition is available — so the acyclicity law applies to the

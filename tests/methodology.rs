@@ -390,6 +390,81 @@ fn the_skill_holds_its_condition_register_budget() {
     assert!(body_text("no frontmatter here\n").is_none());
 }
 
+/// **Constraint 7 is about the loop, so the loop is measured — not just the
+/// file.**
+///
+/// A whole-body word ceiling and the loaded-path budgets both see
+/// `content/SKILL.md` as one number, and every one of them is indifferent to
+/// where inside it the words are. Moving prose out of *Artifacts* and into *The
+/// loop* leaves the body count, every static path and every reachable path
+/// exactly as they were, while the section constraint 7 actually names grows
+/// without limit. The 100-line alarm that used to stand here would have caught
+/// that redistribution; retiring it retired the **scope** along with the line
+/// unit, and only the unit deserved retiring — rewrapping is not growth, but
+/// moving prose across a heading is not shrinking either.
+///
+/// So the guard is scoped and is two claims, because either alone is evadable.
+/// The **word ceiling** is fitted the way the loaded paths are — the measurement
+/// plus 10%, rounded up to 25 — and catches prose arriving as bullets. The
+/// **structure** claim is that the section is trigger bullets and nothing else,
+/// and catches prose arriving as prose, which no word ceiling reports as
+/// anything but a number.
+#[test]
+fn the_loop_section_is_the_scope_constraint_seven_names() {
+    /// The section measured 247 words when this landed; 247 + 10% rounds to 275.
+    const LOOP_WORDS: usize = 275;
+
+    let skill = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("content/SKILL.md"))
+        .expect("content/SKILL.md must be readable");
+    let body = body_text(&skill).expect("content/SKILL.md must have YAML frontmatter");
+    let loop_section = section(body, "## The loop").expect(
+        "content/SKILL.md must carry a `## The loop` section — it is the unit constraint 7 \
+         names, and a measure of it cannot be scoped to a heading that is not there",
+    );
+
+    let words = loop_section.split_whitespace().count();
+    assert!(
+        words <= LOOP_WORDS,
+        "content/SKILL.md's `## The loop` is {words} words against {LOOP_WORDS}. \
+         Constraint 7 is that *the loop* fits a page, and the body ceiling cannot see \
+         this: prose moved here from another section leaves every other measure \
+         unchanged. Route a procedure to the reference file its condition names."
+    );
+
+    let intrusions: Vec<&str> = loop_section
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .filter(|line| !(line.starts_with("- When ") || line.starts_with("  ")))
+        .collect();
+    assert!(
+        intrusions.is_empty(),
+        "`## The loop` is a register of conditions — one `- When …` item per condition, \
+         wrapped continuations indented — and nothing else. These lines are neither: \
+         {intrusions:#?}"
+    );
+
+    // The control. Both claims have to be able to fail, and the structural one
+    // fails on the edit the word ceiling is blind to: a paragraph, not a bullet.
+    let with_prose = format!("{loop_section}\nA sentence of summary sits here.\n");
+    assert!(
+        with_prose
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .any(|line| !(line.starts_with("- When ") || line.starts_with("  "))),
+        "the structure claim must fail on a paragraph added to the section",
+    );
+    assert!(section(body, "## No Such Heading").is_none());
+}
+
+/// A markdown section's body — everything under `heading` up to the next `## `.
+fn section<'a>(body: &'a str, heading: &str) -> Option<&'a str> {
+    let after = body.split_once(&format!("\n{heading}\n"))?.1;
+    Some(match after.split_once("\n## ") {
+        Some((section, _)) => section,
+        None => after,
+    })
+}
+
 /// The 26 canonical trigger rows of `docs/specs/corpus-rule-ownership.md`,
 /// *The trigger sentences* — the whole edge list out of `content/SKILL.md`.
 ///

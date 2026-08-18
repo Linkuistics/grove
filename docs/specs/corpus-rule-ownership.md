@@ -131,7 +131,13 @@ they are.
   unrecognised one resolves to the empty set, which would assert the row against
   nothing.
 - `on(<trigger>) @ <file>` — conditional. `<file>` is the file whose sentence
-  fires the trigger, and it is part of the predicate, not a note.
+  fires the trigger, and it is part of the predicate, not a note. **`<trigger>` is
+  non-empty and is parsed, not skipped**: for an in-file row it *is* the whole
+  predicate — which condition inside an open file applies — and for a cross-file
+  row it names the situation the realising sentence has to state. A reader that
+  looked only for ` @ ` accepted `anything @ F` and `on() @ F` alike and kept the
+  suffix, which deletes the trigger silently. The notation is closed: a value that
+  is neither form is refused rather than coerced into one.
 
 **The `@` column carries two relations, and only one of them is an edge.** Where
 `<file>` is *not* the row's owner, it records **what sends a session to another
@@ -199,7 +205,16 @@ record](../adr/restatement-declares-its-class.md)'s and are not restated here.
 What the inventory adds is the per-row application, and three facts about it are
 worth stating once:
 
-- **Every row declares a class**, in the `mirror` column, and the declaration is
+- **Every row declares a class**, in the `mirror` column, and the cell is the
+  whole declaration — `` `own` ``, `` `none` ``, or `` `trigger` `` followed by
+  exactly one parenthesised citation, `(sentence N)` or `(shares sentence N)`,
+  either optionally carrying a trailing `— <note>` inside the parentheses. The two
+  byte-frozen signal rows spell `none` as prose and are the one exception. **The
+  grammar is closed and is parsed whole**, because a substring test for the word
+  `trigger` accepts `not-trigger` and any prose containing it; and the **plural is
+  not in the grammar**, because a reader that half-read `(sentences 1 and 999)`
+  declared a citation of 1 and hid an invalid citation of 999 behind it. Admitting
+  a plural is a change to the sharing rule, made here first. The declaration is
   checkable against the row's own `@` file. A row whose `@` file is `SKILL.md` must
   declare `trigger` or share another row's sentence, because the sentence realising
   that edge *is* a trigger; `none` is legal only when the `@` file is some other
@@ -424,6 +439,29 @@ name list — which left roughly half the named rules with no mirror class, no l
 predicate and no test class at all. **Every table below carries the full record.**
 Canonical source is the grouping heading; the four remaining columns are `rule`,
 `Bound · Occasion`, `mirror`, `load`, `test`.
+
+#### The inventory's shape, stated exactly
+
+The reader over these tables asserts the totals below as **equalities**, and this
+table is where it reads them. They were a floor and two lower bounds in the test
+itself, which is a control that gains permanent slack: `corpus-split-k30`
+legitimately added a static row, so the inventory rose above the floor and
+deleting some *other* static row returned it to the old count with no edge
+changed and nothing red. A floor cannot distinguish a row added from a row
+swapped.
+
+| total rows | `static(K)` | conditional, in-file | conditional, cross-file |
+|---|---|---|---|
+| 140 | 48 | 45 | 47 |
+
+Adding, removing or repointing a row therefore edits this table in the same
+commit. That is the cost of the equality, and it is the point of it: the number
+is a claim about the inventory that a reviewer can check by counting, rather than
+a bound that quietly stops meaning anything.
+
+Rule IDs are unique across the whole inventory. A duplicate is invisible to every
+assertion over the graph — edge sets deduplicate — so it is refused at the reader
+instead.
 
 ### Test class
 
@@ -1267,11 +1305,19 @@ exists to prevent, and it would have shipped silently.
   every session of a kind reads unconditionally — core, `SKILL.md`,
   `reference_file(kind)`; the **reachable** path adds the transitive closure of
   the pointer graph below, which is the worst case if every condition fires. Both
-  are asserted from **both sides**: the corpus stays under the ceiling, and the
-  ceiling stays within the headroom (measurement + 10%, rounded up to 25 words) of
-  what the corpus measures — so a ceiling nothing approaches fails as loudly as a
-  path that outgrew one, which is what the superseded 500-line ceiling could not
-  do. Words rather than tokens: a reproducible token count needs a vendored
+  are asserted from **both sides**, and the two sides are different numbers. A
+  ceiling is **set** at the measurement it is fitted to plus 10%, rounded up to 25
+  words — and each row records that measurement beside the ceiling, so the set
+  point is an equality a test checks rather than a convention a comment states. A
+  ceiling is **allowed to stand** while it is within +25% of what the corpus
+  measures now, which is what lets the corpus move without re-fitting 38 numbers,
+  and it fails once the corpus has shrunk ~12% below the measurement it was
+  fitted to (`1 - 1.10/1.25`). So a ceiling nothing approaches fails as loudly as
+  a path that outgrew one, which is what the superseded 500-line ceiling could
+  not do. **A single number for both was a defect and so was a band with only an
+  outer edge**: with no set point checked, a ceiling could be fitted at zero width
+  — failing on the next word — or raised straight to the outer edge without ever
+  being fitted. Words rather than tokens: a reproducible token count needs a vendored
   tokenizer, and a budget that needs a download stops running. The limit is
   stated rather than hidden — a word count cannot price a register change, so the
   reading is "this path grew", never "this path costs N tokens".
@@ -1283,14 +1329,26 @@ exists to prevent, and it would have shipped silently.
   every chain terminates at a static path with no cycles; and every non-static owner
   file has at least one incoming edge. The middle assertion is the one a loadability
   check cannot make, and the last is what catches an owner nothing points at — the
-  state `references/driver.md` was left in. **Running the cycle check over the
+  state `references/driver.md` was left in. **A path in `F` is necessary and not
+  sufficient**, because a provenance note, a worked example or a sentence about the
+  file's own history all contain the path. The sufficient half is split by source:
+  `SKILL.md`'s 26 edges are pinned to their situations by the canonical trigger
+  audit, and the four edges out of other files — `requirements.md` → `grilling.md`,
+  `decompose.md` → `TASK-FORMAT.md` and → `BRIEF-FORMAT.md`, `retire.md` →
+  `BRIEF-FORMAT.md` — are pinned by requiring the sentence carrying the path to
+  carry the row's situation as well. Without that second half those four edges had
+  no sufficient check at all, and deleting the conditional sentence while naming
+  the same file in an unrelated one left every assertion green. **Running the cycle check over the
   unpartitioned set fails on roughly half the inventory**, every reflexive row being
   a self-loop, so the partition is part of the test rather than a reading of it. Two
   schema checks ride along: a row whose `@` file is `SKILL.md` must declare `trigger`
   or share one, and every `trigger` row's sentence number must exist in *The trigger
   sentences*.
 - **`static(...)` is asserted against the runtime.** A row claiming `static(K)`
-  whose owner is not on `k`'s static path, for every `k ∈ K`, fails. That single
+  fails unless **every** file its grouping heading names is on `k`'s static path,
+  for every `k ∈ K`. Every, not any: the one heading that names two files claims
+  both are static, and an existential reading would let it name a file that does
+  not exist while its real neighbour discharged the check for every row under it. That single
   check is what the `always(19)` labelling would not have survived.
   **Three files can be static, not two**: `SKILL.md`, `reference_file(k)`, and
   the **signal file the guaranteed core inlines** — `content/SIGNAL.md` for the

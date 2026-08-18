@@ -805,8 +805,8 @@ how Grove drives long work *without* becoming brittle, constraining machinery.
    what makes adopting Grove reversible, and it is why the ephemeral task tree is
    the only grove-specific artifact.
 7. **One page of rules.** If the loop does not fit on a page it is too complex,
-   and the cut is to the rules rather than to the page. The loop-section line
-   alarm below is this constraint made recomputable.
+   and the cut is to the rules rather than to the page. `SKILL.md`'s word ceiling
+   below is this constraint made recomputable.
 
 ### Why the glossary is the forcing function
 
@@ -823,7 +823,7 @@ in which that happens. The normative rule is `content/CONTEXT-FORMAT.md`'s; what
 this section records is why the corpus spends a static-path condition on it.
 
 <a id="corpus-shape"></a>
-### The corpus's shape, and the three alarms over it
+### The corpus's shape, and what is measured over it
 
 `SKILL.md` states **conditions** and routes; `references/` states the
 **procedures**. That split is the whole of what makes the skill progressively
@@ -854,21 +854,117 @@ second: only `SKILL.md` and `reference_file(kind)` are ever on a static path, so
 rule owned by any other file states the file whose sentence triggers it, and those
 references form a chain that must terminate at a static path.
 
-Three numeric measures stand over that shape. All three are **alarms rather than
-budgets**, each set well above what the corpus needs, so crossing one means
-growth has become visible — not that prose was fitted to a limit:
+Four numeric measures stand over that shape. All four are **budgets fitted to a
+measurement** rather than alarms set well clear of one — `SKILL.md`'s 900 against
+a measured 796 is 13% of headroom, the same order as the loaded paths' 10%, so
+calling one an alarm and the other a budget would be a distinction the numbers do
+not support:
 
-| Measure | Alarm | Held by |
+| Measure | Limit | Held by |
 |---|---|---|
-| `SKILL.md`'s body — the frontmatter is a routing header a harness reads, so counting it would let a description rewrite eat the ceiling | 500 lines | `tests/methodology.rs` |
-| The loop section, from its heading to the next heading of the same level, blank lines included | 100 lines | `tests/methodology.rs` |
+| `SKILL.md`'s body — the frontmatter is a routing header a harness reads, so counting it would let a description rewrite eat the ceiling | 900 words, and exactly 26 trigger sentences | `tests/methodology.rs` |
 | Each kind's composed `${prompt}` | 4 KiB | `tests/prompt.rs` |
+| Each kind's **static** loaded path — the guaranteed core, `SKILL.md`, and `reference_file(kind)` | per kind, measurement + 10% | `tests/loaded_path_budgets.rs` |
+| Each kind's **reachable** loaded path — the static path plus the transitive closure of the pointer graph | per kind, measurement + 10% | `tests/loaded_path_budgets.rs` |
 
-The loop-section measure is constraint 7 — *one page of rules* — made
+`SKILL.md`'s word ceiling is constraint 7 — *one page of rules* — made
 recomputable: "a page" is otherwise unmeasurable, and a limit no reader can
-reproduce is an assertion with no verification boundary.
+reproduce is an assertion with no verification boundary. It replaced a 500-line
+ceiling on the same body, and a 100-line alarm on the loop section beside it.
 
-What none of the three establishes is the semantic limb, *no procedure in
+**Neither was dominated, and it would be convenient but wrong to say so.** A word
+ceiling puts no upper bound on lines at all — blank lines cost nothing and short
+lines cost one word — so a 900-word body could in principle run to 900 lines and
+fail both line measures while passing the word one. What is true is narrower and
+is a claim about *density*: the body measures 7.1 words per line and the loop
+section 6.9, and reaching the line limits under a 900-word ceiling would need
+prose about 3.9× and 2.8× sparser respectively. Both are density arguments, and
+they differ in degree rather than in kind.
+
+The ground for deleting them is therefore not domination. It is that a **line**
+is not a unit anyone reads, and a **section** is not a unit anyone loads. A
+section budget is discharged by moving prose across a heading, which costs a
+reader nothing and buys one nothing; a line budget is discharged by rewrapping.
+Both were also the pair whose own doc comments conceded they established nothing
+semantic, and what they were reaching for — is this still one page, is the loop
+still small — is answered better by a measure of *words on a path a session
+actually reads*, which is what replaced them.
+
+The routing check stayed, and on different grounds again: it is not a shape
+measure at all — it asserts ten kind→file pairs resolve, which is a reachability
+claim about the first screen, and the only thing standing over the table a
+session that arrived without a mandate actually reads.
+
+**The two loaded-path budgets are the shape measure this corpus is actually held
+to**, and they are the reason a per-file line count was not worth keeping: a file
+is not what a session reads. A kind reads the core, one page of conditions and
+one reference file, and the budget measures exactly that, **through
+`prompt::compose` and `prompt::reference_file`** rather than through a second
+notion of composition that would drift from the runtime and then lie. They are
+asserted from both sides: the corpus must stay under the ceiling, and the ceiling
+must stay within the stated headroom of the corpus, so a limit nothing approaches
+fails as loudly as a path that outgrew one.
+
+The budgets are in **words**, not tokens. Tokens are what a session pays and are
+model-specific; a reproducible token count needs a vendored tokenizer and
+vocabulary, and a budget that needs a download is a budget that stops running.
+Words track tokens monotonically across prose in one voice, which is what a
+*growth* alarm needs — and the honest limit is that a word count cannot price a
+register change, so the reading is always "this path grew", never "this path
+costs N tokens".
+
+#### What the loaded paths measure, before and after
+
+The corpus rewrite's acceptance, recorded as the comparison rather than as a
+claim. *Before* is the start of the workstream that produced this section
+(`b6ecdbd0`): `content/` totalled 23,532 words and `SKILL.md` 3,152, its body
+3,081. *After*, `content/` totals 14,741 words and `SKILL.md`'s body 796.
+
+The before figures are **recomputed here, per kind, and they correct the range
+the workstream carried**. Its brief estimated the old static path at "roughly
+3,200–3,700 words"; measured, it was **3,108–3,944** — `SKILL.md`'s body plus
+that kind's reference file. The estimate was wrong at both ends, so every ratio
+below is computed per kind against its own measured before-figure rather than
+against a range — which is also why the ratios can be stated at all.
+
+The *static* column includes the guaranteed core (314 words, 353 for `finish`),
+which no *before* figure had; the *like-for-like* column strips it, so the two
+sides are `SKILL.md`'s body plus the kind reference in both.
+
+| Kind | Static | Reachable | Like-for-like | Before | Ratio |
+|---|---|---|---|---|---|
+| `design` | 1,149 | 11,741 | 835 | 3,153 | 0.27 |
+| `prototype` | 1,169 | 11,761 | 855 | 3,108 | 0.28 |
+| `combine-research` | 1,225 | 11,817 | 911 | 3,225 | 0.28 |
+| the five `review-*` | 1,260 | 11,852 | 946 | 3,231 | 0.29 |
+| the five `integrate-review-*` | 1,280 | 11,872 | 966 | 3,201 | 0.30 |
+| `planning` | 1,317 | 11,909 | 1,003 | 3,378 | 0.30 |
+| `impl` | 1,334 | 11,926 | 1,020 | 3,125 | 0.33 |
+| `research-a`, `research-b` | 1,383 | 11,975 | 1,069 | 3,153 | 0.34 |
+| `requirements` | 1,562 | 12,533 | 1,248 | 3,655 | 0.34 |
+| `finish` | 1,938 | 12,530 | 1,585 | 3,944 | 0.40 |
+
+**Every kind's unconditional read is between a quarter and two-fifths of what it
+was**, and the ratio is stated per kind because the aggregate hides the spread.
+`finish` is the largest and `design` the smallest, which is the intended shape: a
+kind reference now states what is true of that kind and no sibling, so a kind
+with little of its own has little to read — and `finish`, which has the most, is
+also the one that shrank least.
+
+The *reachable* column barely varies, and that is a property of the design rather
+than a defect in the measure: ten of the pointer graph's fourteen edges leave
+`SKILL.md`, so almost the whole conditional corpus hangs off every path. What a
+session pays is the static column; the reachable column is what it can be sent
+into, and its near-constancy is the price of `SKILL.md` being a router.
+
+**What none of this establishes is that the paths still carry the rules.** A
+budget says the path is small; the behavioural coverage in
+`tests/lifecycle_invariants.rs` says it still delivers each rule, and
+`tests/rule_ownership.rs` says exactly one file states each. Neither is evidence
+for the other, and a green budget over a corpus that lost a rule is a smaller
+path that teaches less.
+
+What none of them establishes is the semantic limb, *no procedure in
 `SKILL.md`*. That classification lost its classifier when the unit markers were
 deleted, so it is a **review obligation** — discharged per section against
 [`corpus-rule-ownership`](specs/corpus-rule-ownership.md)'s inventory, which names

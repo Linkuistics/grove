@@ -139,6 +139,70 @@ stood at the graft — a closed record, not part of the versioned sequence above
   byte-intact and its four duplicate sections pointing at their owners rather than
   restating them.
 
+- **The corpus is held to per-kind loaded-path budgets, and two prose-shape
+  alarms are gone.** `tests/methodology.rs`'s 500-line ceiling on `SKILL.md`'s body
+  and its 100-line alarm on the loop section are deleted; `tests/loaded_path_budgets.rs`
+  measures what a session actually reads instead. Neither was *dominated* by the
+  900-word ceiling that survives — a word limit bounds no line count — so the
+  ground for deleting them is that a **line** is not a unit anyone reads and a
+  **section** is not a unit anyone loads: a section budget is discharged by moving
+  prose across a heading, a line budget by rewrapping. A **loaded path** is per-kind and
+  has two halves: the *static* path — the guaranteed core, `SKILL.md`, and that
+  kind's reference file, read unconditionally — and the *reachable* path, which adds
+  the transitive closure of the pointer graph the rule-ownership inventory records.
+  Nineteen kinds share ten reference files, so the budget is a table of nineteen
+  rows rather than a number.
+
+  **It measures through the runtime, not beside it.** The core comes from
+  `prompt::compose` and the reference file from `prompt::reference_file`, so a
+  budget cannot drift from the prompt a session is actually handed; the kind's
+  signal file is identified by matching `prompt::ending_of`'s bytes against the
+  embed, which reads that seam without widening it (`src/prompt.rs` is unchanged).
+  Each budget is asserted from **both** sides — the corpus stays under the ceiling,
+  and the ceiling stays within measurement + 25% — so a limit nothing approaches
+  fails as loudly as a path that outgrew one. That two-sidedness is the specific
+  thing the 500-line ceiling could not do: it sat at 500 over a body the rewrite
+  had estimated at ~200 lines, and passing it was evidence of nothing. The band
+  has real width on purpose: set at +10% and allowed to +25%, a ceiling tolerates
+  ordinary editing in both directions, where a band with no width made the two
+  checks contradict each other — the over-budget failure says "move a procedure
+  out", and doing so shrank the measurement and tripped the other one.
+
+  Budgets are in **words**, not tokens, and the reason is stated rather than
+  implied: a reproducible token count needs a vendored tokenizer and vocabulary,
+  and a budget that needs a download stops running. The limit is stated too — a
+  word count cannot price a register change, so the reading is always "this path
+  grew".
+
+  Four assertions over the inventory's **load-predicate** column ride with it.
+  `static(K)` is checked against the runtime, so a row claiming a session reads a
+  file unconditionally that the runtime never puts in front of it fails — the check
+  the superseded `always(19)` labelling would not have survived. Reachability is
+  asserted as an **edge**: the triggering file must literally name the owner's path,
+  every chain must terminate at a static path without a cycle, and every non-static
+  owner must have at least one incoming edge — which is what catches an owner
+  nothing points at, the state `content/references/driver.md` was left in. The
+  conditional rows are **partitioned first**: 45 of the 92 record an in-file
+  condition rather than a transition, and running the cycle check over the
+  unpartitioned set would make each a self-loop and fail on half the design. Two
+  schema checks come free — a row reached from `SKILL.md` declares the `trigger`
+  class, and every cited trigger sentence number exists in the canonical 26.
+
+  **The acceptance comparison is recorded in `docs/ARCHITECTURE.md`**, which now
+  carries the before/after table per kind rather than a claim about it. Every
+  kind's unconditional read is between a quarter and two-fifths of what it was —
+  835–1,585 words excluding the guaranteed core, against a measured 3,108–3,944.
+  That before-range is itself a correction: the workstream's brief carried
+  "roughly 3,200–3,700", which is wrong at both ends, so the ratios are computed
+  per kind against measured figures rather than against an estimate. What none of
+  it establishes is that the paths still carry the rules: that is the behavioural
+  coverage's job, and a green budget over a corpus that lost a rule is a smaller
+  path that teaches less.
+
+  The routing-table check stays, on grounds the other two did not have: it is not a
+  shape measure but a reachability claim about the first screen, asserting that ten
+  kind→file pairs resolve.
+
 - **`docs/RELEASING.md` spells out the manual cut.** `release.toml` already said
   that a refused `cargo release` is a per-session fact about the harness rather
   than anything inherent, and to fall back to the constituent commands — but it

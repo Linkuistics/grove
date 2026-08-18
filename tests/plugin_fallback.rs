@@ -295,14 +295,34 @@ fn an_ordinary_task_completes_without_reading_a_plugin_skill() {
             "grove-llm brief-chain",
         ),
         // Produce — the ADR when-to-write test is stated locally, in AND form.
-        ("produce (adr)", "ADR-FORMAT.md", "write one only when all three hold"),
+        (
+            "produce (adr)",
+            "ADR-FORMAT.md",
+            "write one only when all three hold",
+        ),
         // Produce — the operative seam rules are grove's own.
-        ("produce (seams)", "SPEC-FORMAT.md", "prefer existing seams to new ones"),
+        (
+            "produce (seams)",
+            "SPEC-FORMAT.md",
+            "prefer existing seams to new ones",
+        ),
         // Retire — never append a superseding record.
-        ("retire", "references/retire.md", "adr-format.md carries how a set is reworked"),
+        (
+            "retire",
+            "references/retire.md",
+            "adr-format.md carries how a set is reworked",
+        ),
         // Commit — both lanes, complete without the plugin.
-        ("commit (git)", "references/commit.md", "one git commit, taken once the rename has landed"),
-        ("commit (jj)", "references/commit.md", "jj new after describing, once the rename has landed"),
+        (
+            "commit (git)",
+            "references/commit.md",
+            "one git commit, taken once the rename has landed",
+        ),
+        (
+            "commit (jj)",
+            "references/commit.md",
+            "jj new after describing, once the rename has landed",
+        ),
         (
             "commit (sufficiency)",
             "references/commit.md",
@@ -319,7 +339,12 @@ fn an_ordinary_task_completes_without_reading_a_plugin_skill() {
     // The steps that must name no skill at all: reading one there would be a
     // dependency no binding sentence could discharge, because the session is
     // past the point of choosing.
-    for path in ["references/bootstrap.md", "references/retire.md", "SIGNAL.md", "SIGNAL-FINISH.md"] {
+    for path in [
+        "references/bootstrap.md",
+        "references/retire.md",
+        "SIGNAL.md",
+        "SIGNAL-FINISH.md",
+    ] {
         assert!(
             cited_skills(&text(path)).is_empty(),
             "content/{path} must cite no plugin skill: {:?}",

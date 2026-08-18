@@ -26,8 +26,10 @@ working-increments rule **twice in its own body**, with `references/execute.md`
 stating it a third time — a file duplicating itself is what "no placement rule"
 looks like at its clearest.
 
-The only shape check standing over any of this is a 500-line ceiling on
-`SKILL.md` whose own doc comment concedes it "establishes nothing semantic".
+The only shape check standing over any of this, when this design was written, was
+a 500-line ceiling on `SKILL.md` whose own doc comment conceded it "establishes
+nothing semantic". *Test seams* below replaces it with per-kind loaded-path
+budgets, which is the measure a rule-ownership design can actually be held to.
 
 Two constraints bound any answer. Normative operational material must stay
 **embedded under `content/` and reachable by an installed session** — only
@@ -107,8 +109,27 @@ they are.
 ### Load predicate notation
 
 - `static(K)` — on the static loaded path of every kind in `K`. **Only three
-  things can be static**: the guaranteed core, `SKILL.md`, and
-  `reference_file(k)`. Nothing else may carry this value.
+  things can be static**: the guaranteed core — whose one embedded part is the
+  kind's signal file — `SKILL.md`, and `reference_file(k)`. Nothing else may carry
+  this value.
+
+  **`K` is written one of six ways, and the list is closed.** A test asserting
+  `static(K)` against the runtime has to resolve `K` to a kind set, and a
+  notation whose only definition is that resolver is a second source of truth
+  hiding in a test:
+
+  | spelling | the kinds it names |
+  |---|---|
+  | `19` | all nineteen |
+  | `18` | all except `finish` — the eighteen whose ending is `content/SIGNAL.md` |
+  | `{<label>}` | the one kind with that label, e.g. `{impl}` |
+  | `research` | `research-a` and `research-b` |
+  | `review-*` | the five `review-<producer>` kinds |
+  | `integrate-review-*` | the five `integrate-review-<producer>` kinds |
+
+  A seventh spelling is a change to this table, not a free coinage: an
+  unrecognised one resolves to the empty set, which would assert the row against
+  nothing.
 - `on(<trigger>) @ <file>` — conditional. `<file>` is the file whose sentence
   fires the trigger, and it is part of the predicate, not a note.
 
@@ -1227,10 +1248,25 @@ exists to prevent, and it would have shipped silently.
 - **Per-rule, never universal.** No parser over the corpus and no marker grammar.
   Each rule's instrument is named in its row and lands with the rewrite that
   homes it.
-- **The static loaded path is computed from `src/prompt.rs`**, not transcribed:
-  `reference_file(kind)` is already an exhaustive match, and a per-kind budget
-  test walks it. That is the seam `loaded-path-budgets-k10` builds on, and it
-  costs no new production code.
+- **The loaded path is computed from `src/prompt.rs`**, not transcribed. The
+  guaranteed core comes from `prompt::compose` and the reference file from
+  `prompt::reference_file`, both already exhaustive over the kind set; a budget
+  computed by a second notion of what a session reads drifts from the real one
+  and then lies. It costs no new production code: the kind's **signal file** is
+  identified by matching `prompt::ending_of`'s bytes against the embed, so the
+  seam is read rather than widened.
+- **The budget is a table of two halves, in words.** The **static** path is what
+  every session of a kind reads unconditionally — core, `SKILL.md`,
+  `reference_file(kind)`; the **reachable** path adds the transitive closure of
+  the pointer graph below, which is the worst case if every condition fires. Both
+  are asserted from **both sides**: the corpus stays under the ceiling, and the
+  ceiling stays within the headroom (measurement + 10%, rounded up to 25 words) of
+  what the corpus measures — so a ceiling nothing approaches fails as loudly as a
+  path that outgrew one, which is what the superseded 500-line ceiling could not
+  do. Words rather than tokens: a reproducible token count needs a vendored
+  tokenizer, and a budget that needs a download stops running. The limit is
+  stated rather than hidden — a word count cannot price a register change, so the
+  reading is "this path grew", never "this path costs N tokens".
 - **Reachability is an edge test over cross-file rows, not a loadability test.**
   Partition the conditional rows first: a row whose `@` file **is** its owner is an
   in-file condition and is asserted only to agree with its grouping heading. For
@@ -1246,8 +1282,14 @@ exists to prevent, and it would have shipped silently.
   or share one, and every `trigger` row's sentence number must exist in *The trigger
   sentences*.
 - **`static(...)` is asserted against the runtime.** A row claiming `static(K)`
-  whose owner is not `SKILL.md` or `reference_file(k)` for every `k ∈ K` fails.
-  That single check is what the `always(19)` labelling would not have survived.
+  whose owner is not on `k`'s static path, for every `k ∈ K`, fails. That single
+  check is what the `always(19)` labelling would not have survived.
+  **Three files can be static, not two**: `SKILL.md`, `reference_file(k)`, and
+  the **signal file the guaranteed core inlines** — `content/SIGNAL.md` for the
+  eighteen, `content/SIGNAL-FINISH.md` for `finish`. The third is why
+  `signal-is-the-last-action`'s `static(18)` is a correct predicate and not a
+  violation: the core *is* part of the loaded path, and its one embedded part is
+  that file.
 - **The `SKILL.md` budget is asserted, not hoped for — and it has no floor.**
   Total words **at most 900**, exactly the **26** `trigger` sentences of the
   canonical set, each at most 25 words, and the eight `own` rows present. Owned by

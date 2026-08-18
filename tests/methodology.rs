@@ -218,46 +218,6 @@ fn the_skills_routing_table_names_a_reference_file_that_exists() {
     }
 }
 
-/// **The house progressive-disclosure ceiling, on the body rather than the file.**
-///
-/// The measure is `SKILL.md`'s *body* — the frontmatter is a routing header a
-/// harness reads, not guidance a session reads, and counting it would let a
-/// description rewrite eat into the ceiling (`docs/ARCHITECTURE.md`, *The
-/// corpus's shape*).
-///
-/// 500 is a **ceiling**, not the rewrite's target: the corpus rewrite estimates
-/// ~200 lines, so a body approaching this number has re-grown procedure that the
-/// split moved out. Like the loop-section alarm below, it establishes nothing
-/// semantic — *no procedure in `SKILL.md`* has no classifier now that the unit
-/// markers are deleted, and is a review obligation. **This passing is not
-/// evidence for it.**
-///
-/// It is also, with the routing check above, what the deleted **build gate**
-/// bought: a corpus malformation caught by the suite instead of by `cargo
-/// build`. That is a weaker instrument by design — a contributor sees it at
-/// `cargo test` rather than at compile — and it is the right one for a claim
-/// about prose, which was never what a grammar gate could decide.
-#[test]
-fn the_skill_body_fits_the_progressive_disclosure_ceiling() {
-    const LIMIT: usize = 500;
-    let skill = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("content/SKILL.md"))
-        .expect("content/SKILL.md must be readable");
-
-    let measured = body_lines(&skill).expect("content/SKILL.md must have YAML frontmatter");
-    assert!(
-        measured <= LIMIT,
-        "content/SKILL.md's body is {measured} lines against a ceiling of {LIMIT}. \
-         Move a procedure into the reference file its condition names rather than \
-         raising the ceiling."
-    );
-
-    // The control. A measure that cannot fail is worth nothing, and one that
-    // silently returned zero on an unrecognised header would pass forever.
-    let oversized = format!("---\nname: x\n---\n{}", "x\n".repeat(LIMIT));
-    assert_eq!(body_lines(&oversized), Some(LIMIT));
-    assert_eq!(body_lines("no frontmatter here\n"), None);
-}
-
 /// **The condition register's budget, asserted as four exact claims.**
 ///
 /// `content/SKILL.md` is on every session's static loaded path, so it is the
@@ -832,72 +792,6 @@ fn body_text(text: &str) -> Option<&str> {
     let end = rest.find("\n---\n")?;
     Some(&rest[end + "\n---\n".len()..])
 }
-
-/// Lines after the closing `---` of YAML frontmatter. `None` when the document
-/// does not open with frontmatter, so a stripped header fails rather than
-/// measuring the whole file.
-fn body_lines(text: &str) -> Option<usize> {
-    let mut lines = text.lines();
-    (lines.next()? == "---").then_some(())?;
-    let mut lines = lines.skip_while(|line| *line != "---");
-    lines.next()?;
-    Some(lines.count())
-}
-
-/// **Constraint 7 made checkable**, and the measure is the whole claim.
-///
-/// "One page of rules" is unmeasurable as written, so the design fixes a measure
-/// a reader can recompute: the lines from a section's heading to the next heading
-/// of the same level, blank lines included (`docs/ARCHITECTURE.md`, *The corpus's
-/// shape*). 100 is the **alarm** on a narrative the rewrite estimates at ~80,
-/// not a budget the prose was fitted to — a loop section that reaches it has
-/// grown a third of a page since the split, which is the point at which growth
-/// has become visible.
-///
-/// It establishes nothing semantic. That `SKILL.md` states conditions and no
-/// procedure has no classifier now that the unit markers are deleted, and is a
-/// review obligation; a line count passing says nothing about it.
-#[test]
-fn the_loop_section_of_the_skill_fits_a_page() {
-    const LIMIT: usize = 100;
-    let skill = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("content/SKILL.md"))
-        .expect("content/SKILL.md must be readable");
-
-    let measured =
-        section_lines(&skill, "## The loop").expect("content/SKILL.md must have a loop section");
-    assert!(
-        measured <= LIMIT,
-        "content/SKILL.md's loop section is {measured} lines against an alarm of \
-         {LIMIT}. Move a procedure into the reference file its condition names \
-         rather than trimming the alarm."
-    );
-
-    // The control. A measure that cannot fail is worth nothing, and this one
-    // would silently pass on any heading it failed to find if it returned zero.
-    let oversized = format!("## The loop\n{}## Artifacts\n", "x\n".repeat(LIMIT));
-    assert_eq!(section_lines(&oversized, "## The loop"), Some(LIMIT + 1));
-    assert_eq!(section_lines("# nothing here\n", "## The loop"), None);
-}
-
-/// Lines from `heading` to the line before the next heading of the same level,
-/// or to end of text. `None` when the heading is absent, so a renamed section
-/// fails rather than measuring zero.
-fn section_lines(text: &str, heading: &str) -> Option<usize> {
-    let level = heading
-        .chars()
-        .take_while(|character| *character == '#')
-        .count();
-    let opener = format!("{} ", "#".repeat(level));
-    let mut lines = text.lines().skip_while(|line| *line != heading).peekable();
-    lines.peek()?;
-    Some(
-        1 + lines
-            .skip(1)
-            .take_while(|line| !line.starts_with(&opener))
-            .count(),
-    )
-}
-
 /// Every Markdown file under `dir`, keyed by its path relative to `root` and
 /// carrying its bytes — the disk side of the embed comparison, gathered by
 /// `fs::read_dir` so that it shares no code with `include_dir`'s walk.

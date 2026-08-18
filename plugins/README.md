@@ -34,6 +34,12 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
 | `guardrail` | by hand (`/guardrail`, user-invoked) | session-scoped `PreToolUse` gate — pauses for confirmation before destructive shell commands or edits outside the project ("freeze") |
 
+The six language skills are the whole of the coding-standard coverage: there is
+no language-neutral coding skill, so a language without one here — Go, Java, C —
+triggers no linkuistics standard at all, test-first included. Adding a language
+means adding its skill; the cross-language rules that survive on their own are the
+design ones in `codebase-design`.
+
 Each skill's one-line `description` is the only standing context cost; the body
 loads on demand, and a `references/` file only when the body sends you there. In Claude Code the `paths:` frontmatter makes the language
 skills auto-load deterministically by file type. Other harnesses ignore `paths:`

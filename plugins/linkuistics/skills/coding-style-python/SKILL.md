@@ -40,6 +40,7 @@ paths: "**/*.py"
 - Use `pyproject.toml` exclusively; no `setup.py` or `requirements.txt` in new projects
 
 ## Testing
+- **Write the test first.** A new behaviour or a bugfix starts as a failing test; implement until it passes.
 - **pytest**, never `unittest`
 - Use fixtures (not setUp/tearDown); prefer narrow function-scoped fixtures
 - One assertion concept per test; use `pytest.mark.parametrize` for variants

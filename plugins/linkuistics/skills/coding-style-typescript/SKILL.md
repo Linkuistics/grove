@@ -45,6 +45,7 @@ paths:
 - Avoid `@types/*` packages when the library ships its own types
 
 ## Testing
+- **Write the test first.** A new behaviour or a bugfix starts as a failing test; implement until it passes.
 - **vitest** for new projects; jest is acceptable in existing repos
 - Co-locate tests as `*.test.ts` next to source
 - Prefer dependency injection over module-resolution mocking

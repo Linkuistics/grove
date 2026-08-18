@@ -55,18 +55,21 @@ stood at the graft — a closed record, not part of the versioned sequence above
   into routers, three compressed.** The loaded path is what was too large, not the
   corpus, so the cuts fall where a skill was paying standing context for detail a
   session rarely needs. `using-jujutsu` (1,908) and `git-to-jj-mapping` (1,421)
-  become **one** skill of 1,120 words over two reference files: the body keeps only
+  become **one** skill of 1,214 words over two reference files: the body keeps only
   what decides behaviour — which interface the repo picks, working-copy-as-commit,
-  the describe-early lane, non-interactive discipline, the human-gated list, and
-  the colocated git-read-only policy — and the command surface plus the whole
-  git→jj lookup table move to `references/`. `using-codebase-memory` (2,609 → 826 +
+  the describe-early lane, that a bookmark never advances onto a sealed change and
+  must be repointed before a push, non-interactive discipline, the human-gated list,
+  and the colocated git-read-only policy — and the command surface plus the whole
+  git→jj lookup table move to `references/`. The split is by *what a session would
+  do differently*, not by topic: a fact that decides an action stays in the body
+  even where its commands live in the reference. `using-codebase-memory` (2,609 → 849 +
   a reference) keeps the mechanics of making a *correct* call (which surface, the
   required `project`, `jq -n` argument building, the `cm` guard wrapper) and routes
   the failure-mode catalogue, which is detail you read when a result looks
   surprising rather than context you carry all session.
 
-  `codebase-design` (1,536 → 953), `decision-records` (1,345 → 935) and
-  `simplify-project` (1,191 → 1,116) are compressed by deleting passages, not by
+  `codebase-design` (1,536 → 992), `decision-records` (1,345 → 935) and
+  `simplify-project` (1,191 → 1,155) are compressed by deleting passages, not by
   paraphrasing them smaller — two ASCII diagrams, a *Relationships* section that
   restated the glossary above it, and two *Rejected framings* lists whose entries
   each restated a rule already stated. Both bodies grove's methodology defers to
@@ -78,9 +81,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
   Generic **`coding-style` is deleted**. It carried `paths: "**/*"`, so it was the
   one skill auto-loading on every file in Claude Code, and its content was either
   advice a model already follows ("use descriptive names", "keep files small") or
-  overlap with the six language skills. Its one non-obvious rule — name one concept
-  one way across a codebase — is now a `codebase-design` principle, where naming
-  *is* interface surface. Each language skill gains a leading sentence making the
+  overlap with the six language skills — with two exceptions, both rehomed rather
+  than dropped. Naming one concept one way across a codebase is now a
+  `codebase-design` principle, where naming *is* interface surface; **test-first**
+  was not overlap at all (no language skill stated it) and is now the first line of
+  each of the six language skills' *Testing* sections — Rust gained the section it
+  had never had. The consequence for a language with no skill here — Go, Java, C —
+  is that it triggers no linkuistics coding standard at all, which
+  `plugins/README.md` now says outright rather than leaving a deleted universal
+  skill to imply otherwise. Each language skill gains a leading sentence making the
   **repo's own configuration the authority**, naming that language's real config
   files, with the house defaults demoted to the fallback for a repo that has not
   decided; asserting them unconditionally was wrong in any repo that had.

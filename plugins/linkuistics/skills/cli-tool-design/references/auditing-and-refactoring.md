@@ -74,7 +74,13 @@ Each remaining "no" is a finding.
 
 ## When refactoring an existing tool
 
-Order of operations:
+Scope this sequence through the same applicability decision the audit used. A step
+whose guideline the tool's shape, audience or established convention excused is
+excused here too — a single-purpose status script does not acquire `--json` and a
+stable schema because a refactor reached step 1. Settle the three first, then walk
+only the steps that survive.
+
+Order of operations, for the steps in scope:
 
 1. Add `--json` everywhere it's missing. Don't change defaults.
 2. Stabilise and document the JSON schema.

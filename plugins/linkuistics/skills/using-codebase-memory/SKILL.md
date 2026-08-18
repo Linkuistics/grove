@@ -14,10 +14,11 @@ shell, and lets one question become one script instead of a round-trip per call.
 > truncation rules against a newer build before trusting a script to them.
 
 **Read [`references/reading-the-graph.md`](references/reading-the-graph.md) before
-treating any output as an answer about the codebase.** Every failure mode of this
-tool is silent — a truncated page, an ignored filter, an unresolved name and a
-capped traversal all return well-formed JSON and exit `0`, and each one reads
-exactly like a smaller true answer. That file carries the fourteen tools, the
+treating any output as an answer about the codebase.** The failure modes that
+corrupt an *answer* are all silent — a truncated page, an ignored filter, an
+unresolved name and a capped traversal all return well-formed JSON and exit `0`,
+and each one reads exactly like a smaller true answer. (A call that fails outright
+is loud: empty stdout, an error on stderr, exit `1` — guard for it as below.) That file carries the fourteen tools, the
 search modes and which of them silently override the others, the two truncation
 caps, the Cypher rules, and how to compose several calls into one script.
 

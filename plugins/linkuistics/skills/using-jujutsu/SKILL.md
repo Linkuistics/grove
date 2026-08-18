@@ -77,6 +77,13 @@ jj new                      # seal the change; opens the next one
 Describe *early*: an undescribed change cannot be pushed, and the description is
 cheap to replace (`jj describe -m` again).
 
+**A bookmark never advances onto the change you just sealed.** Bookmarks follow
+*rewrites* of the change they point at — describe, squash, rebase need no
+re-pointing — but `jj new` leaves the bookmark where it was. So before any push,
+point it at the sealed change (`jj bookmark set <name> -r @-`); a push that skips
+that step succeeds, and silently publishes everything except the work you meant to
+share. The push commands themselves are in the reference.
+
 **One logical step = one change.** Implement, test, document = three
 `new`/`describe` cycles, not one flattened commit — squash-flattening multi-step
 work is the documented way agents destroy useful history.

@@ -43,6 +43,7 @@ paths:
 - Phoenix Contexts wrap business logic; controllers and LiveViews stay thin
 
 ## Testing
+- **Write the test first.** A new behaviour or a bugfix starts as a failing test; implement until it passes.
 - **ExUnit** with `async: true` by default; opt out only when shared mutable state requires it
 - Use `Mox` for behaviour-based mocking; avoid runtime monkey-patching
 - Property-based tests via **StreamData** for parsing and validation logic

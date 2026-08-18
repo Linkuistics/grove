@@ -1,6 +1,6 @@
 ---
 name: coding-style-rust
-description: Rust coding standards — rustfmt settings, thiserror/anyhow error handling, Tokio async, workspace dependencies. Use when writing or refactoring Rust code.
+description: Rust coding standards — rustfmt settings, thiserror/anyhow error handling, Tokio async, test-first testing, workspace dependencies. Use when writing or refactoring Rust code.
 paths: "**/*.rs"
 ---
 
@@ -28,6 +28,10 @@ paths: "**/*.rs"
 - Use Tokio runtime
 - Prefer bounded channels over unbounded
 - Avoid blocking operations in async contexts
+
+## Testing
+- **Write the test first.** A new behaviour or a bugfix starts as a failing test; implement until it passes.
+- Unit tests in a `#[cfg(test)] mod tests` beside the code; integration tests under `tests/`
 
 ## Dependencies
 - Use workspace dependency versions to maintain consistency

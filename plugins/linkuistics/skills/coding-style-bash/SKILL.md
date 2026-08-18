@@ -37,6 +37,7 @@ paths:
 - Write user-facing errors to stderr (`>&2`) and exit with a non-zero code
 
 ## Testing
+- **Write the test first.** A new behaviour or a bugfix starts as a failing test; implement until it passes.
 - Use **bats-core** for any script with non-trivial logic
 - Trivial one-liners do not need tests
 

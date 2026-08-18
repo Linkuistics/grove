@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "linkuistics",
-  "description": "Linkuistics engineering-practice skills — universal coding standards, per-language style guides, CLI and deep-module design, current-state decision records, contract-preserving project simplification, in-flight adversarial verification, Jujutsu-native version control with an on-demand git→jj reference, shell-first codebase-graph queries, and a user-invoked destructive-operation guardrail.",
+  "description": "Linkuistics engineering-practice skills — per-language style guides for Rust, Python, Elixir, TypeScript, Swift and Bash, CLI and deep-module design, current-state decision records, contract-preserving project simplification, in-flight adversarial verification, Jujutsu-native version control with an on-demand git→jj reference, shell-first codebase-graph queries, and a user-invoked destructive-operation guardrail.",
   "author": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"

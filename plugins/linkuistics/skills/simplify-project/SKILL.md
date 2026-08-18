@@ -45,8 +45,9 @@ published paths where the project exposes them.
 
 **No search depth or deprecation duration proves an external consumer absent.**
 Set the exit criterion from the project's support policy and an authorized
-contract owner — do not assume the requester holds that authority. Where authority
-or evidence is unavailable, classify the removal as **Defer**. Replace an old
+contract owner — do not assume the requester holds that authority. Ask them when
+their answer would change a removal's disposition; **Defer** is for where the
+authority or the evidence is genuinely unavailable, not for an unasked question. Replace an old
 implementation with a thin compatibility shim only when the shim preserves its
 complete public interface; otherwise retain it.
 
@@ -116,8 +117,9 @@ run the relevant checks after each rather than deferring all feedback to the end
   against the operator's real home or live configuration.
 - Search for every removed name, path, slug, anchor, package, and dependency,
   classifying intentional history-only hits such as changelog entries.
-- Check documentation links, anchors, navigation, and contradictions between
-  canonical guides.
+- Check documentation links, anchors, navigation, ownership statements, and
+  contradictions between canonical guides. Every link can resolve while the prose
+  still names an owner, a package or an install path that no longer exists.
 - Inspect the final diff and VCS status for unrelated files and tool-generated
   residue.
 

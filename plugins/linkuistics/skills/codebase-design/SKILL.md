@@ -103,9 +103,12 @@ entry points, one maximising flexibility, one optimising the most common caller.
 Compare on **depth**, **locality**, and **seam placement**, then pick
 deliberately or compose a hybrid. (After Ousterhout's "design it twice".)
 
-For a candidate substantial enough to warrant it, run the alternatives as
-**parallel sub-agents** — each given the module's constraints, its dependency
-categories, and one divergent design pressure. Each returns an interface, a usage
+For a candidate substantial enough to warrant it, run the alternatives as **3–4
+parallel sub-agents** — each given the module's constraints, its dependency
+categories, and one divergent design pressure: the three above, plus a fourth
+designed around a real ports-and-adapters seam whenever one is in play. That
+fourth is the point of the exercise when a seam is load-bearing; three generic
+interface variants will not probe it. Each returns an interface, a usage
 example, what it hides, its dependency strategy, and its trade-offs. Present them
 sequentially, then compare and recommend — be opinionated; the point is a strong
 read, not a menu (`mattpocock/skills` `codebase-design/DESIGN-IT-TWICE.md`).

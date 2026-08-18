@@ -36,6 +36,7 @@ paths: "**/*.swift"
 - Justify any deviation from existing project pins
 
 ## Testing
+- **Write the test first.** A new behaviour or a bugfix starts as a failing test; implement until it passes.
 - Use **swift-testing** (`@Test`, `#expect`) for new code
 - XCTest is acceptable in legacy targets; do not mix frameworks in the same test target
 - Tests must be parallelizable; avoid shared mutable global state

@@ -393,11 +393,53 @@ const HOMED: &[Homed] = &[
         owner: "CONTEXT-FORMAT.md",
         phrase: "Propose a precise canonical term for a fuzzy one",
     },
+    // -- content/references/impl.md ----------------------------------------
+    Homed {
+        rule: "cite-framework-decisions-to-source",
+        owner: "references/impl.md",
+        phrase: "Cite at the decision site",
+    },
+    Homed {
+        rule: "hard-to-reverse-pairs-with-doubt",
+        owner: "references/impl.md",
+        phrase: "cite the source *and* have a fresh context try to break it",
+    },
     // -- content/grilling.md ----------------------------------------------
     Homed {
         rule: "probe-with-concrete-scenarios",
         owner: "grilling.md",
         phrase: "stress-test them with specific scenarios",
+    },
+];
+
+/// The paraphrases `corpus-split-k30` removed, each with the owner whose rule it
+/// was a second statement of. Pinned by their own wording because that is the
+/// only thing a phrase sweep can see: the canonical phrases above read clean
+/// over every one of them, which is how all three shipped.
+struct Paraphrase {
+    /// The rule the removed wording restated.
+    rule: &'static str,
+    /// The file the paraphrase was in.
+    site: &'static str,
+    /// The removed wording. Must now appear in **no** procedure register.
+    phrase: &'static str,
+}
+
+const REMOVED_PARAPHRASES: &[Paraphrase] = &[
+    Paraphrase {
+        rule: "glossary-is-the-forcing-function",
+        site: "references/grove.md",
+        phrase: "the Ubiquitous Language — read every session, appended inline",
+    },
+    Paraphrase {
+        rule: "adr-set-is-minimum-coherent",
+        site: "references/grove.md",
+        phrase: "one decision and its trade-off each, slug-named, edited in place",
+    },
+    Paraphrase {
+        rule: "adr-set-is-minimum-coherent",
+        site: "references/integrate-review.md",
+        phrase: "merge / split / delete, never a superseding record",
     },
 ];
 
@@ -428,6 +470,27 @@ fn every_rule_homed_here_is_stated_by_its_owner_and_by_no_other_procedure_regist
              site is the duplication docs/specs/corpus-rule-ownership.md exists to remove.",
             homed.rule,
             homed.owner,
+        );
+    }
+}
+
+/// **The paraphrases already found, kept out.** Each wording below was a second
+/// statement of a rule another file owns, invisible to that rule's canonical
+/// phrase, and each is now removed. The canonical rows cannot detect their
+/// return — that is the blind spot the control below exhibits — so the wordings
+/// themselves are pinned. This closes three known holes; it claims nothing about
+/// a fourth.
+#[test]
+fn no_removed_paraphrase_has_returned_to_the_corpus() {
+    let corpus = corpus();
+
+    for paraphrase in REMOVED_PARAPHRASES {
+        assert_eq!(
+            sites(&corpus, paraphrase.phrase),
+            Vec::<String>::new(),
+            "{}: content/{} restated it in these words and no longer may — the owner states              it, and this file points at the owner",
+            paraphrase.rule,
+            paraphrase.site,
         );
     }
 }

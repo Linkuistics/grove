@@ -4,8 +4,8 @@ A grove's output lands in four artifacts, and only one of them is grove-specific
 
 | Artifact | Path | Role |
 |---|---|---|
-| Glossary | `CONTEXT.md` (+ `CONTEXT-MAP.md`) | the Ubiquitous Language — read every session, appended inline |
-| ADR set | `docs/adr/<slug>.md` | one decision and its trade-off each, slug-named, edited in place |
+| Glossary | `CONTEXT.md` (+ `CONTEXT-MAP.md`) | the Ubiquitous Language — the terms this repo's sessions share |
+| ADR set | `docs/adr/<slug>.md` | one decision and its trade-off each |
 | Spec set | `docs/specs/<slug>.md` | how an area works — the human-facing agreement point |
 | Task tree | `.grove/`, inside the grove's working tree | the process: the self-extending decomposition of work |
 

@@ -763,7 +763,7 @@ Incremental by construction under rule 2: a kind reference states what is true o
 **that kind and no sibling**, states nothing a loop-step or format file owns, and
 gets **no `SKILL.md` presence at all**.
 
-##### `references/requirements.md`
+##### `content/references/requirements.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
@@ -775,7 +775,7 @@ gets **no `SKILL.md` presence at all**.
 | `small-workstream-may-fuse-the-three` — a bootstrap session may resolve requirements, design and planning in one leaf, or add a `planning` leaf instead | {requirements} · step:Execute | `none` | `static({requirements})` | B |
 | `when-not-to-start-a-grove` — no session-to-session fog means do the work directly; the scaffold's existence is not the signal | {requirements} · step:Execute | `none` | `static({requirements})` | B |
 
-##### `references/design.md`
+##### `content/references/design.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
@@ -785,7 +785,7 @@ gets **no `SKILL.md` presence at all**.
 The OR-form ADR test currently in this file is **deleted**, not rehomed:
 `adr-when-to-write` is `ADR-FORMAT.md`'s, and this file may not restate it.
 
-##### `references/planning.md`
+##### `content/references/planning.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
@@ -793,18 +793,19 @@ The OR-form ADR test currently in this file is **deleted**, not rehomed:
 | `working-increments-before-slices` — find the smallest independently useful working increments and order them by dependency before slicing; stated **once** | {planning} · step:Execute | `none` | `static({planning})` | B+S |
 | `planning-writes-the-briefs` — the child briefs and ordered leaf files for any node it grows | {planning} · step:Execute | `none` | `static({planning})` | B |
 
-##### `references/prototype.md`
+##### `content/references/prototype.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
 | `prototype-is-throwaway` — the reaction is the deliverable; polish is a defect | {prototype} · step:Execute | `none` | `static({prototype})` | B |
 
-##### `references/impl.md`
+##### `content/references/impl.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
 | `impl-ships` — the deliverable is code, docs or tests that ship | {impl} · step:Execute | `none` | `static({impl})` | B |
-| `cite-framework-decisions-to-source` — read the manifest, fetch the official source, cite at the decision site, flag what you could not verify; version-invariant logic, renames and plumbing are exempt | {impl} · step:Execute | `none` | `static({impl})` | B |
+| `cite-framework-decisions-to-source` — read the manifest, fetch the official source, cite at the decision site, flag what you could not verify; version-invariant logic, renames and plumbing are exempt | {impl} · step:Execute | `none` | `static({impl})` | B+S |
+| `hard-to-reverse-pairs-with-doubt` — where such a decision is also hard to reverse, cite the source **and** spend the leaf's review allowance on a fresh context trying to break it | {impl} · step:Execute | `none` | `static({impl})` | B+S |
 
 `verify-repo-claims-with-controls` does **not** belong here, and the superseded
 inventory placed it wrongly. A `review-*` session re-running a producer's sweep, a
@@ -813,7 +814,7 @@ claim are all bound by it, so `Bound` is all nineteen and rule 2 does not fire.
 It is `execute.md`'s. Only the framework-source discipline is genuinely
 `{impl}`-bound.
 
-##### `references/review.md`
+##### `content/references/review.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
@@ -821,7 +822,7 @@ It is `execute.md`'s. Only the framework-source discipline is genuinely
 | `review-output-is-findings-only` — the paired integration owns every fix and all post-fix verification | review-\* family · step:Execute | `none` | `static(review-*)` | B |
 | `the-five-reads-differ` — what each of the five reads looks for | review-\* family · step:Execute | `none` | `static(review-*)` | B |
 
-##### `references/integrate-review.md`
+##### `content/references/integrate-review.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
@@ -829,7 +830,7 @@ It is `execute.md`'s. Only the framework-source discipline is genuinely
 | `what-each-integration-may-change` — the five differ only in what the session may edit | integrate-review-\* family · step:Execute | `none` | `static(integrate-review-*)` | B |
 | `integration-escalates-redesign` — substantial redesign is a new producer review chain beside the leaf being integrated, not this session's work | integrate-review-\* family · step:Execute | `none` | `static(integrate-review-*)` | B |
 
-##### `references/research.md`
+##### `content/references/research.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
@@ -850,14 +851,14 @@ the domain gains a sixth member and these rows are recomputed — the domain is
 closed by *what format files exist*, which makes it checkable rather than a list to
 remember.
 
-##### `references/combine-research.md`
+##### `content/references/combine-research.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
 | `agreement-without-independent-primary-sourcing-is-a-red-flag` — union the coverage, flag every disagreement, and ask whether an agreed claim reached the two surveys through *different* primary sources; stated **once** | {combine-research} · step:Execute | `none` | `static({combine-research})` | B+S |
 | `combine-writes-the-union` — the unadorned `docs/research/<slug>.md` is the union | {combine-research} · step:Execute | `none` | `static({combine-research})` | B |
 
-##### `references/finish.md`
+##### `content/references/finish.md`
 
 Its rows are tabulated above with `SIGNAL-FINISH.md`; the file doubles as the
 `finish` kind's own reference.
@@ -1185,15 +1186,21 @@ loop-step rows and `corpus-split-k6` landed the format-file rows, repointed the
 `SKILL.md` conditions and deleted the file. The table stays as the map from a
 rule to the owner that now carries it.
 
-**It was a condition only while it was complete**, and twice it was not. The *review
+**It was a condition only while it was complete**, and three times it was not. The *review
 chain* section's bare-stem imperative (`content/driving.md:469-479`) had no row,
 and then the same section's selection criterion (`:399-402`) and route-through-config
 sentence (`:501-508`) had none either, alongside the vendor pair's selection
-criterion (`:92-94`) and three sweep-narrowing rules (`:330-336`). Each time the
+criterion (`:92-94`) and three sweep-narrowing rules (`:330-336`). The third gap
+survived the deletion itself and was found by `corpus-split-k6`'s review:
+`hard-to-reverse-pairs-with-doubt` (`:284-285`), the trailing paragraph under
+*Verifying framework decisions against the source*, went with the file and reached
+`references/impl.md` in neither the table nor the corpus. Each time the
 table authorised a deletion that would have taken a live rule with it, and each time
 the section *was* listed with several rules under it. The lesson is the
 sentence-level audit above, and the second failure is why it is now recorded as
-having been re-run rather than promised. Every row below is a **rule**, not a
+having been re-run rather than promised — the third says the re-run was still
+section-anchored where a section's rules were a list *plus* the sentence after it.
+Every row below is a **rule**, not a
 section; a section appearing here is not evidence that everything in it is
 accounted for, and a *count* of rules under a section is not evidence either.
 
@@ -1208,6 +1215,7 @@ accounted for, and a *count* of rules under a section is not evidence either.
 | Retiring research into ADRs | `research-to-adr-bridge` | `content/ADR-FORMAT.md` |
 | Reworking ADRs and briefs | `adr-set-is-minimum-coherent`, `reconcile-records-at-retire` | `ADR-FORMAT.md`, `references/retire.md` |
 | Verifying framework decisions against the source | `cite-framework-decisions-to-source` | `references/impl.md` |
+| ” | `hard-to-reverse-pairs-with-doubt` (`:284-285`) | `references/impl.md` |
 | Verifying a claim about the repo itself | `verify-repo-claims-with-controls`, `enumerate-then-classify`, `sweep-scope-is-the-claim`, `no-self-invalidating-count`, `check-the-rescued-clause` | `references/execute.md` |
 | Doubting inside a picked Grove leaf | `review-budget`, `review-budget-predicate`, `review-budget-by-kind`, `doubt-pass-procedure` | `references/execute.md` |
 | The review chain | `review-chain-when-load-bearing`, `chain-is-lazy`, `creating-session-writes-the-body`, `name-step-kind-off-the-producer`, `integration-placement`, `no-adjacency-exception`, `diversity-is-the-configs` | `references/decompose.md` |

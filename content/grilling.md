@@ -1,7 +1,7 @@
 <!-- bundled in grove from mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3 (skills/productivity/grilling/SKILL.md + skills/engineering/domain-modeling/SKILL.md) — MIT licensed; see LICENSES/mattpocock-skills.LICENSE -->
 <!-- intentionally fused — upstream split them; grove has no skill-to-skill invocation, so the split would be cosmetic -->
 <!-- upstream's `<supporting-info>` wrapper is dropped: it spanned eight units, so every unit it wrapped shipped inside an unclosed tag. `<what-to-do>` is kept — it sits wholly inside `grilling-interrogate` and delivers intact -->
-<!-- the glossary, ADR-placement and test-seam sections upstream carried here were second statements of rules grove owns elsewhere; they now live in CONTEXT-FORMAT.md, ADR-FORMAT.md and references/requirements.md, and this file points rather than restates -->
+<!-- the glossary, ADR-placement and test-seam sections upstream carried here were second statements of rules grove owns elsewhere; the glossary rules now live in CONTEXT-FORMAT.md, ADR placement in ADR-FORMAT.md, and the test-seam section splits — its grilling-timing half in references/requirements.md, the rest (what a seam is, and where the agreement is recorded) in SPEC-FORMAT.md. This file points rather than restates -->
 
 # Grilling — the `requirements`-task interrogation procedure
 

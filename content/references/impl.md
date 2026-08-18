@@ -25,3 +25,9 @@ ago. Version-invariant logic, renames and plumbing are exempt; for the rest —
 - **Flag what you could not verify.** "No official source found; based on
   training data, verify before relying on it" beats false confidence, and the
   absence is itself a finding.
+
+**When the decision is also hard to reverse, cite the source *and* have a fresh
+context try to break it.** That is one of the occasions the leaf-wide review
+allowance in `references/execute.md` exists for; the citation says what the API
+is, the doubt pass says whether the call built on it survives an adversarial
+read.

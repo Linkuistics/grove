@@ -5,10 +5,12 @@
      pre-trim superset. One rule below is a further deliberate addition past
      that pin, from mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
      (skills/productivity/teach/GLOSSARY-FORMAT.md). *Keeping the language
-     sharp* below is from the same later pin's
+     sharp* below, and the *Rules* list's "It is a glossary and nothing else"
+     bullet, are from the same later pin's
      skills/engineering/domain-modeling/SKILL.md, and reached this file from
      grove's own `grilling.md`, which bundled that skill and stated the rules a
-     second time. -->
+     second time; the bullet is a paraphrase of grilling.md's sentence rather
+     than a quotation of it. -->
 
 # CONTEXT.md Format
 

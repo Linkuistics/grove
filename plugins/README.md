@@ -18,8 +18,7 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 
 | Skill | Loads when | Notes |
 |-------|-----------|-------|
-| `coding-style` | any file (`paths: "**/*"`) | universal principles — TDD, naming, simplicity |
-| `coding-style-rust` | `*.rs` | extends `coding-style` |
+| `coding-style-rust` | `*.rs` | |
 | `coding-style-python` | `*.py` | |
 | `coding-style-elixir` | `*.ex`, `*.exs` | |
 | `coding-style-bash` | `*.sh`, `*.bash` | |
@@ -29,14 +28,14 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | `codebase-design` | by description | deep-module design vocabulary — Ousterhout depth + Feathers seams, language-neutral |
 | `decision-records` | by description | ADRs as a minimum coherent set describing the design's current state — current-state over changelog, identity by slug not number |
 | `doubt-driven-development` | by description | in-flight adversarial verify — spawn a fresh-context reviewer to disprove a non-trivial decision before it stands |
-| `git-to-jj-mapping` | by description | on-demand git→jj reference — command and concept translation, loaded only when a specific translation is needed |
 | `simplify-project` | by description | contract-preserving repository simplification — consolidate current-state docs, remove proven-dead artifacts, reconcile every consumer |
-| `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else |
+| `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else — command surface and the git→jj mapping in `references/` |
+| `using-codebase-memory` | by description | query a codebase knowledge graph from any shell via the `codebase-memory-mcp` CLI; the silent failure modes are in `references/` |
 | `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
 | `guardrail` | by hand (`/guardrail`, user-invoked) | session-scoped `PreToolUse` gate — pauses for confirmation before destructive shell commands or edits outside the project ("freeze") |
 
 Each skill's one-line `description` is the only standing context cost; the body
-loads on demand. In Claude Code the `paths:` frontmatter makes the language
+loads on demand, and a `references/` file only when the body sends you there. In Claude Code the `paths:` frontmatter makes the language
 skills auto-load deterministically by file type. Other harnesses ignore `paths:`
 and fall back to the `description`.
 
@@ -80,6 +79,16 @@ cd grove
 harnesses that are installed). Because the targets are symlinks, `git pull`
 refreshes the content in place — re-run the script only when skills are added
 or removed.
+
+A **removed** skill needs one extra step. The script links what exists and never
+unlinks what doesn't, so the link for a deleted or renamed skill survives a
+re-run, pointing at nothing. A dangling link reads as "skill not installed"
+rather than as an error, so nothing reports it. Delete those by hand after
+pulling a removal:
+
+```
+find ~/.codex/skills ~/.gemini/skills ~/.pi/agent/skills -maxdepth 1 -type l ! -exec test -e {} \; -print
+```
 
 **Run it from the repo's main checkout.** The script links from whichever tree it
 lives in and re-links every skill unconditionally, so running it from a linked

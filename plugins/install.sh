@@ -15,6 +15,10 @@
 # are symlinks, a later `git pull` in this repo updates the content in place —
 # no need to re-run this script unless skills are added or removed.
 #
+# It links what exists and never unlinks what doesn't: the link for a skill that
+# has been deleted or renamed upstream survives a re-run and dangles. Delete
+# those by hand (see plugins/README.md).
+#
 # Usage: ./plugins/install.sh [--force]
 
 set -euo pipefail

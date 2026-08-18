@@ -89,9 +89,10 @@ our house position.
   **body under ~500 lines**; a reference file over **~300 lines gets a table of
   contents**; references stay **one level deep**; and **never `@path` links** — `@`
   force-loads the file immediately, burning context before it is needed. Cross-reference
-  other skills by **name**, not path. Today every one of our skills is correctly
-  self-contained (only `cli-tool-design` splits a `references/` file, one level deep);
-  this is the playbook for when one outgrows a single file.
+  other skills by **name**, not path. Four skills now split a
+  `references/` file, one level deep — `cli-tool-design`, `doubt-driven-development`,
+  `using-jujutsu` and `using-codebase-memory`; each keeps the rules that decide
+  behaviour in the body and routes only the detail.
 - **Hunt no-ops sentence by sentence, not just line by line** (`mattpocock/skills`
   `aa7ed40`). Run the no-op test — does this change behaviour versus the
   no-skill default? — on each *sentence* in isolation; when one fails, delete the
@@ -101,7 +102,7 @@ our house position.
 ## House lever: user-invoked vs model-invoked
 
 A skill is **model-invoked** by default — its `description` sits in context every session
-so the agent can auto-fire it on a match. Eleven of our thirteen shipped skills are
+so the agent can auto-fire it on a match. Thirteen of our fifteen shipped skills are
 model-invoked, which is **correct**: they are reference/style guides that *should*
 auto-fire on a language or task match (`mattpocock-S3`).
 

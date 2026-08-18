@@ -51,6 +51,55 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`linkuistics`: the skill corpus is rationalised — two skills gone, two turned
+  into routers, three compressed.** The loaded path is what was too large, not the
+  corpus, so the cuts fall where a skill was paying standing context for detail a
+  session rarely needs. `using-jujutsu` (1,908) and `git-to-jj-mapping` (1,421)
+  become **one** skill of 1,120 words over two reference files: the body keeps only
+  what decides behaviour — which interface the repo picks, working-copy-as-commit,
+  the describe-early lane, non-interactive discipline, the human-gated list, and
+  the colocated git-read-only policy — and the command surface plus the whole
+  git→jj lookup table move to `references/`. `using-codebase-memory` (2,609 → 826 +
+  a reference) keeps the mechanics of making a *correct* call (which surface, the
+  required `project`, `jq -n` argument building, the `cm` guard wrapper) and routes
+  the failure-mode catalogue, which is detail you read when a result looks
+  surprising rather than context you carry all session.
+
+  `codebase-design` (1,536 → 953), `decision-records` (1,345 → 935) and
+  `simplify-project` (1,191 → 1,116) are compressed by deleting passages, not by
+  paraphrasing them smaller — two ASCII diagrams, a *Relationships* section that
+  restated the glossary above it, and two *Rejected framings* lists whose entries
+  each restated a rule already stated. Both bodies grove's methodology defers to
+  survive intact: the ADR **AND** test and the minimum-coherent-set discipline in
+  `decision-records`, and what a seam is and how to judge one — the deletion test,
+  two-adapters-mean-a-real-seam, and the dependency-category table — in
+  `codebase-design`.
+
+  Generic **`coding-style` is deleted**. It carried `paths: "**/*"`, so it was the
+  one skill auto-loading on every file in Claude Code, and its content was either
+  advice a model already follows ("use descriptive names", "keep files small") or
+  overlap with the six language skills. Its one non-obvious rule — name one concept
+  one way across a codebase — is now a `codebase-design` principle, where naming
+  *is* interface surface. Each language skill gains a leading sentence making the
+  **repo's own configuration the authority**, naming that language's real config
+  files, with the house defaults demoted to the fallback for a repo that has not
+  decided; asserting them unconditionally was wrong in any repo that had.
+
+  `cli-tool-design` gains an **Applicability** section instead of losing words
+  (1,403 → 1,675): a rule asserted for every tool in every language is either
+  trivially true or frequently wrong, so the checklist now names the three things
+  that excuse a line — the tool's shape, its audience, and an established
+  convention it already follows — and the mandates state what they apply to. The
+  audit reference is scoped the same way, because a finding against a guideline the
+  tool was never bound by is noise.
+
+  Two consequences for anyone with the symlink install. The set is now **15
+  skills**, so `./plugins/install.sh` should be re-run; and because it links what
+  exists and never unlinks what doesn't, the links for `coding-style` and
+  `git-to-jj-mapping` survive that re-run pointing at nothing. A dangling link
+  reads as "skill not installed" rather than as an error, so nothing reports it —
+  `plugins/README.md` now carries the one-line `find` that lists them.
+
 - **`content/driving.md` is gone, and the supporting corpus is split along
   grammar / policy / rationale.** The habits file was the corpus's largest (5,817
   words) and on **no session's loaded path** — nothing under `content/` named it,

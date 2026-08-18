@@ -5,20 +5,26 @@ existing CLI, flagging anti-patterns, or planning a refactor.
 
 ## Audit checklist
 
-When auditing an existing CLI, walk this list. Each "no" is a finding.
+Scope the list before walking it. `cli-tool-design`'s *Applicability* section
+names what excuses a line — the tool's shape, its audience, and an established
+convention it already follows — so settle those first and strike the lines they
+excuse. A finding against a guideline the tool was never bound by is noise, and
+it teaches the reader to discount the rest.
+
+Each remaining "no" is a finding.
 
 **Output**
 
-- [ ] Every data-producing command supports `--json` (or equivalent).
+- [ ] Every command whose output a caller parses supports `--json` (or equivalent).
 - [ ] JSON schema is documented and stable.
 - [ ] Errors in JSON mode are also JSON, with a stable `code` field.
-- [ ] List commands have a sensible default limit and indicate truncation.
+- [ ] List commands with unbounded results have a default limit and indicate truncation.
 - [ ] No ANSI colour or progress animation in non-TTY output.
 
 **Help**
 
 - [ ] Top-level `--help` lists all subcommands with one-line descriptions.
-- [ ] Every subcommand `--help` includes at least two concrete examples.
+- [ ] Every subcommand an agent invokes directly has concrete examples in `--help`.
 - [ ] Help text states which output formats are stable and which are not.
 - [ ] Exit codes are documented if non-trivial.
 

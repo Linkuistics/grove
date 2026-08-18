@@ -6,6 +6,8 @@ paths: "**/*.swift"
 
 # Swift Coding Style Guidelines
 
+**The repo's own configuration wins.** `.swift-format`, `.swiftlint.yml`, `Package.swift`'s tools version and pins, `.editorconfig`, and the checks CI actually runs are the authority wherever they exist. What follows is the default for a repo that has not decided.
+
 ## Formatting
 - **Formatter:** swift-format (Apple's official tool)
 - **Linter:** SwiftLint with project `.swiftlint.yml`

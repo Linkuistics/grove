@@ -8,6 +8,8 @@ paths:
 
 # TypeScript Coding Style Guidelines
 
+**The repo's own configuration wins.** `biome.json`, `.eslintrc*`, `.prettierrc*`, `tsconfig.json`, the `packageManager` field and lockfile, and the lint flags CI actually runs are the authority wherever they exist. What follows is the default for a repo that has not decided.
+
 ## Formatting & Linting
 - **Tool:** Biome (single tool for format + lint); fall back to Prettier + ESLint in repos already using them
 - **Modules:** ESM only; no CommonJS in new code

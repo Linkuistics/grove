@@ -8,6 +8,8 @@ paths:
 
 # Bash Coding Style Guidelines
 
+**The repo's own configuration wins.** `.shellcheckrc`, `.editorconfig`, an `shfmt` invocation in CI or a `Makefile`, and the existing scripts' own shebang and strict-mode conventions are the authority wherever they exist. What follows is the default for a repo that has not decided.
+
 ## Header
 - **Shebang:** `#!/usr/bin/env bash` — bash 4+ assumed; do not target POSIX sh
 - **Strict mode:** every script begins with `set -euo pipefail` and `IFS=$'\n\t'`

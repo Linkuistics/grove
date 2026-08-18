@@ -8,6 +8,8 @@ paths:
 
 # Elixir Coding Style Guidelines
 
+**The repo's own configuration wins.** `.formatter.exs`, `.credo.exs`, the `mix.exs` aliases, and the checks CI actually runs are the authority wherever they exist. What follows is the default for a repo that has not decided.
+
 ## Formatting & Linting
 - **Formatter:** `mix format` — gate in CI
 - **Linter:** Credo with `--strict`

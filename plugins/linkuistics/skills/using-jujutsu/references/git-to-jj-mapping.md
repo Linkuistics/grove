@@ -1,14 +1,9 @@
----
-name: git-to-jj-mapping
-description: git→jj command and concept mapping — staging/index, stash, branch vs bookmark, HEAD, detached HEAD, rebase, cherry-pick, worktrees, and per-command equivalents. Use when translating a specific git command or concept to jj.
----
-
 # Git → jj mapping
 
-One direction: you arrive knowing the git verb and need the jj one. Behaviour
-and workflow — when to describe, bookmark discipline before pushing, the
-colocated-repo policy, what stays human-gated — live in the `using-jujutsu`
-skill; this is the lookup table.
+One direction: you arrive knowing the git verb and need the jj one. Behaviour and
+workflow — when to describe, bookmark discipline before pushing, the
+colocated-repo policy, what stays human-gated — are in `using-jujutsu`'s
+`SKILL.md`; this is the lookup table.
 
 > Seeded from jaredramirez/codex-jj-plugin's jj-guide (MIT) and cross-checked
 > against mtaran/jj-guide (MIT), with independent notes. Every row verified
@@ -123,8 +118,3 @@ Where a jj column says `<fileset>`, any fileset works — a path, `glob:src/**`,
 | — | `jj workspace update-stale` | after another workspace rewrote this one's `@` |
 | `git rev-parse --show-toplevel` | `jj workspace root` | `jj root` works too |
 
-## Still git
-
-`git submodule` and `git lfs` have no jj equivalent — those operations still
-run through git even in a colocated repo (the narrow exception to
-`using-jujutsu`'s git-read-only rule there).

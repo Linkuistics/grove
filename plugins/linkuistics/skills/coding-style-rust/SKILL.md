@@ -6,6 +6,8 @@ paths: "**/*.rs"
 
 # Rust Coding Style Guidelines
 
+**The repo's own configuration wins.** `rustfmt.toml`, `clippy.toml`, the workspace `Cargo.toml`, `.editorconfig`, and the lint flags CI actually runs are the authority wherever they exist. What follows is the default for a repo that has not decided.
+
 ## Formatting (rustfmt)
 - **Edition:** 2021
 - **Import Grouping:** Group imports as StdExternalCrate (stdlib, external crates, then local)

@@ -6,6 +6,8 @@ paths: "**/*.py"
 
 # Python Coding Style Guidelines
 
+**The repo's own configuration wins.** `pyproject.toml` (`[tool.ruff]`, `[tool.pyright]`, `[tool.pytest]`), `setup.cfg`, `.editorconfig`, and the lint flags CI actually runs are the authority wherever they exist. What follows is the default for a repo that has not decided.
+
 ## Formatting & Linting
 - **Formatter & Linter:** Ruff (replaces black, isort, flake8)
 - **Type checker:** pyright in strict mode for new code; mypy is acceptable in existing projects

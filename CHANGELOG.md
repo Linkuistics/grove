@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v19.1.0
+
 - **`content/SKILL.md` is a condition register, not a methodology.** It drops
   from 3,152 words to 867: eight rules it owns outright — the routing table, the
   numbered spine, one-task-is-one-session, the bootstrap order, the mandate, no

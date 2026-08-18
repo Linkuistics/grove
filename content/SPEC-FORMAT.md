@@ -110,9 +110,10 @@ Sketch the seams the feature will be tested through, and **check with the human
 that they match expectations** — that check is a grilling move, made before the
 spec is written, not after. Prefer existing seams to new ones; propose any new
 seam at the highest point you can; the fewer seams across the codebase the
-better, and the ideal number is one. For what a seam *is* and how to judge one,
-use the `linkuistics:codebase-design` skill — this note only says where the
-agreement gets recorded.
+better, and the ideal number is one. **Those three rules are grove's own and bind
+without the plugin**; the `linkuistics:codebase-design` skill deepens what a seam
+*is* and how to judge one, and `references/grove.md` carries the gloss that stands
+in its absence.
 
 When the increment covers code that will be tested but writes **no** spec — the
 common case — record the agreed seams in the node's `BRIEF.md` instead. The brief

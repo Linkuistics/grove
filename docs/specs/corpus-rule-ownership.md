@@ -1024,8 +1024,12 @@ trade-off.
 
 Grove requires the `linkuistics` plugin and does not provision it, so a corpus
 that cites it without saying what binds in its absence depends on it
-**silently**. The corpus carries **14 distinct (file, skill) deferrals across 9
-files** — enumerated below, and the requirements' "7 files" is a miscount.
+**silently**. At the time this policy was written the corpus carried **14
+distinct (file, skill) deferrals across 9 files** — enumerated below, and the
+requirements' "7 files" is a miscount. The rewrites since have reduced that to
+**6 across 4 files**; the count that binds is the audit under *What
+`plugin-fallback-k9` found*, and this table is its reasoning rather than its
+inventory.
 
 The generating question is per deferral and has one form: **does the absence
 change what a session writes, or only how well it writes it?** Absence that
@@ -1060,6 +1064,92 @@ already there.
 **The discharge test for `plugin-fallback-k9`:** every deferring sentence states
 what binds without the plugin. A citation that leaves that unstated is the
 silent dependency, whichever way the row was decided.
+
+#### What `plugin-fallback-k9` found, and how it discharged
+
+**The table above is superseded as an inventory and kept as the reasoning.** The
+audit is re-derived against the corpus as it stands, per the leaf's own charter,
+and the corpus moved underneath the table: `loop-step-references-k11` and
+`corpus-split-k6` repointed four citations at grove-local files, so
+`references/execute.md`, `references/retire.md` and `grilling.md` no longer name
+the plugin at all. **Rows 9, 11, 13 and 14 discharged themselves** as a side
+effect of homing their rules — which is the placement function doing what it is
+for, not a coincidence.
+
+What the corpus carries is **6 distinct `(file, skill)` citations across 4
+files**, enumerated in `tests/plugin_fallback.rs` as `CITATIONS`:
+
+| file | skill | what binds without it |
+|---|---|---|
+| `ADR-FORMAT.md` | `decision-records` | "what binds without it is stated here" — the AND test, the minimal record and placement, all local |
+| `SPEC-FORMAT.md` | `codebase-design` | the three operative seam rules are grove's own; `references/grove.md` carries the gloss |
+| `references/commit.md` | `using-jujutsu` | the boundary above is the whole of what a session needs, on either lane |
+| `references/grove.md` | `decision-records` | `ADR-FORMAT.md` |
+| `references/grove.md` | `codebase-design` | the seam gloss, plus `SPEC-FORMAT.md`'s operative rules |
+| `references/grove.md` | `using-jujutsu` | `references/commit.md` |
+
+Rows 3–5 have no successor because `SKILL.md` no longer cites a skill: it carries
+**trigger sentence 19**, which routes a session meeting any citation to
+`references/grove.md`. That is the structural change the design's table predates,
+and it changes the answer for rows 4 and 12.
+
+**The two rows that were genuinely open, and why neither took a mirror.** Both
+`references/commit.md` and `SPEC-FORMAT.md` failed the discharge test the same
+way: their deferring sentences **understated their own file**. `commit.md` said
+grove states "only where its boundary falls" and `SPEC-FORMAT.md` said it "only
+says where the agreement gets recorded" — while both files carried the complete
+operative rules already. A reader could not tell a complete statement from a
+teaser, which is the silent dependency in its purest form. The fix in each case
+is the sentence, not new content.
+
+Row 12's prescribed "one-line local gloss" is therefore **not taken**. With the
+hub in `references/grove.md` and trigger 19 reaching it from the always-loaded
+condition register, a gloss in `SPEC-FORMAT.md` would be a second statement of
+`plugin-prerequisite`'s content — the duplication this spec exists to remove, and
+the failure the leaf's charter names ("a *fallback* that restates the whole plugin
+skill locally makes the plugin pointless"). The deferring sentence names the hub
+instead.
+
+**Permitted mirrors, with their reasons.** The mirror ledger for this policy has
+exactly one class of entry — a rule grove states locally that
+`linkuistics:decision-records` or `linkuistics:codebase-design` also states — and
+each is admitted only because absence changes *what* a session writes:
+
+| local statement | owner in `content/` | mirrored from | why it is admitted |
+|---|---|---|---|
+| the ADR when-to-write AND test | `ADR-FORMAT.md` (`adr-when-to-write`) | `linkuistics:decision-records` | a cited-only test is no bar of grove's own; this is the defect that let the OR-form survive |
+| minimum-coherent-set discipline | `ADR-FORMAT.md`, `SPEC-FORMAT.md` (`records-are-current-state`) | `linkuistics:decision-records` | it decides whether a session appends or reworks — a *what*, and unrecoverable once appended |
+| the seam gloss (a seam is a place behaviour can be replaced without editing the code under test) | `references/grove.md` (`plugin-prerequisite`) | `linkuistics:codebase-design` | one sentence, stated **once**, so a session can apply the operative rules that are already grove's |
+| the jj commit lane (`jj describe` then `jj new`) | `references/commit.md` (`jj-seal`) | `linkuistics:using-jujutsu` | a session that cannot commit cannot end, and git-in-a-jj-tree bypasses the operation log |
+
+Everything else about those skills stays deferred. **No row needed explicit
+provisioning verification instead of a fallback.** The requirement offered that
+as the alternative where a fallback cannot stand in, and no citation turned out
+to be such a case: each of the three deferred capabilities has a part whose
+absence changes *what* a session writes, and that part is small enough to state.
+The nearest thing to a verification is the hub itself, which tells a session
+plainly that the plugin is required and separately installed — legible, and not a
+dangling reference stepped over silently.
+
+The standing decision is recorded as
+`docs/adr/grove-binds-without-the-plugin.md`, which clears the AND
+test: reversing it means revisiting every citation and either install-enforcing a
+context the binary does not own or dropping the local statements; the mirrors are
+surprising against this spec's own thesis without the reason; and the rejected
+alternatives are real — a hard install dependency, and pure deferral, which is the
+prior state that produced the OR-form.
+
+**Enforcement.** `tests/plugin_fallback.rs` asserts both halves. Each citation's
+binding sentence must be present in its file, and the registry must be
+**exhaustive** over a sweep of the embedded corpus — so a citation added later
+without a binding sentence fails there rather than reaching a session. The sweep
+runs over normalised text and carries a positive, a normalisation and a negative
+control, because every way it can break produces a clean-looking result.
+`an_ordinary_task_completes_without_reading_a_plugin_skill` is the acceptance
+test the brief names: bootstrap, produce, retire, commit and signal each assert
+the grove-local statement they need, and the four files a session cannot choose
+to leave (`bootstrap.md`, `retire.md`, and both signal files) must cite no skill
+at all.
 
 ### Where `content/driving.md`'s rules went
 

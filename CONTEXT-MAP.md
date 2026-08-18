@@ -13,13 +13,22 @@ lockstep, which is why they live together — see
 
 ## Relationships
 
-- **grove → skills, a documentation-level prerequisite.** grove's methodology
-  defers decision-record philosophy to `linkuistics:decision-records` and seam
-  judgement to `linkuistics:codebase-design`, keeping only its own placement
-  conventions (`content/ADR-FORMAT.md`, `content/SPEC-FORMAT.md`). The dependency
-  is now intra-repo but is still **not install-enforced**: the `grove` binary
-  provisions its own methodology and nothing else, so the plugins remain a
-  separate install.
+- **grove → skills, a documentation-level prerequisite that binds without the
+  install.** grove's methodology cites `linkuistics:decision-records` for ADR
+  philosophy and `linkuistics:codebase-design` for seam judgement, and the
+  dependency is **not install-enforced** — the `grove` binary provisions its own
+  methodology and nothing else, so the plugins remain a separate install. It is
+  no longer **silent**: every citation states what binds in the plugin's absence,
+  and grove owns locally the part whose absence would change *what* a session
+  writes — the ADR when-to-write test and minimum-coherent-set discipline
+  (`content/ADR-FORMAT.md`), the operative seam rules
+  (`content/SPEC-FORMAT.md`), and the commit boundary on both lanes
+  (`content/references/commit.md`). `content/references/grove.md` is the hub that
+  states this once per skill; `content/SKILL.md` routes any citation there. So a
+  checkout without the plugin runs an ordinary task end to end, and absence
+  changes how *well* these artifacts are written, never *what* is obliged.
+  Decision: `docs/adr/grove-binds-without-the-plugin.md`; enforcement:
+  `tests/plugin_fallback.rs`.
 
 - **Shared target: the personal skill directory.** Both contexts write into the
   same per-harness namespace. The `grove` binary sweeps `content/` to

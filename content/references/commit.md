@@ -21,8 +21,10 @@ reason Retire precedes it: a `jj new` taken early puts every later edit —
 the rename, a promoted ADR, a `leaf-add` — into the *next* task's change. An
 unsealed change is expensive to unpick afterwards:
 `jj split <fileset>` cannot separate a file both tasks touched, leaving the
-operation log as the only way back. The lane itself belongs to
-`linkuistics:using-jujutsu`; grove states only where its boundary falls.
+operation log as the only way back. **The boundary above is the whole of what a
+grove session needs, on either lane, and it binds on its own** — the
+`linkuistics:using-jujutsu` skill deepens the jj lane rather than completing this
+rule, so a checkout without the plugin commits correctly from this file alone.
 
 Which lane you are on is not yours to re-derive: the driver states this working
 tree's version control, and that statement is definitive.

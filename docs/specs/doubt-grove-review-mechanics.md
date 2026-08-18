@@ -16,38 +16,41 @@ Grove's guide-not-gate posture.
 ## Solution
 
 The [Grove owns escalated review](../adr/grove-owns-escalated-review.md)
-decision assigns the orchestration boundary. A session activates Grove
-ownership only when its prompt visibly mandates a stable work-item handle and
-its Bootstrap resolves and adopts that live leaf. Merely finding `.grove/` or
-inheriting Grove control environment does not activate the rule.
+decision assigns the orchestration boundary.
 
-A mandated plain producer may spend one in-session fresh-context reviewer
-across the whole leaf. One reviewer means one independently materialised
-context: a diverse-lens pass with N subagents spends N reviewers, while one
-reviewer asked to inspect several named axes still spends one. If the work needs
-a second reviewer, or a substantive non-mechanical fix needs another review,
-the producer cuts a Grove `review-*` leaf. The producer finishes only
-to a coherent reviewable boundary; the scheduled `review-*` session performs
-the next adversarial pass.
+**The allowance itself is stated in the corpus, not here.**
+`content/references/execute.md` is the canonical source for the review budget —
+the ownership predicate, the leaf-wide one-reviewer allowance and what spends it,
+the per-kind allowances, the four-step doubt pass, and the rule that an escalated
+review's route belongs to configuration. A spec describes how an area works and
+**cites** the rules in its area rather than restating them
+(`docs/specs/corpus-rule-ownership.md`), and this one predates that map: it
+carried the budget, the per-kind table and the diversity rule at full length,
+which is one source of truth too many for a rule that changes.
 
-Trivial findings, noise, a visible accepted trade-off, or a fix conclusively
-covered through an executable test seam do not create a second review need.
+What this spec still owns is **why the ownership predicate is drawn where it
+is**, and what the composition would otherwise cost.
 
-### Behavior by session kind
+### Why the predicate is a resolved mandate, and not a task tree
 
-| Session | In-session doubt | If more review is needed |
-|---|---|---|
-| Mandated plain `requirements`, `design`, `planning`, `prototype`, or `impl` producer | At most one fresh-context reviewer for the entire leaf. | `leaf-add` a `review-<producer>` leaf beside it. |
-| Producer whose `review-*` leaf already exists | None; its review is already scheduled. | Finish to the scheduled review boundary. |
-| `review-*` | None; this session is the adversarial read and produces findings, not fixes. | Record findings for integration. |
-| `integrate-review-*` | At most one narrow reviewer. | Externalise substantial redesign as a new producer review chain beside the leaf being integrated. |
-| `research-a`, `research-b`, or `combine-research` | None; the pair supplies independent corpora and the combiner supplies the adversarial move. | Put a load-bearing derived decision in its own reviewed producer chain. |
-| Any session without a resolved prompt mandate | Standalone doubt behavior is unchanged. | Grove has no ownership merely because the checkout contains a tree. |
+Doubt-driven development and Grove both materialise fresh-context adversarial
+review, so the composition needs an owner rather than a preference. The predicate
+is that the prompt visibly mandates a stable work-item handle **and** Bootstrap
+resolved and adopted that live leaf — deliberately narrower than *there is a
+`.grove/` here*, in both directions:
 
-Review diversity is personal configuration policy. Grove schedules a fresh
-session of the appropriate `review-*` kind but does not record producer targets,
-compare harnesses or models, inject review warnings, or add a competing doubt
-reviewer.
+- **A checkout is not a mandate.** A session that merely finds a task tree, or
+  inherits Grove control environment, was not scheduled by the loop and has no
+  `review-*` leaf available to escalate into. Binding it to Grove's budget would
+  cap a standalone session's doubt while offering it nothing in exchange.
+- **The mandate is what makes escalation possible.** Only a session that resolved
+  its own leaf can name the parent to cut a sibling under, so the predicate and
+  the escape hatch are the same fact.
+
+Both directions are observable at the seam Grove already has, which is why the
+rule is testable rather than aspirational: a normal launch, a checkout-only
+session, a nested Grove, and a missing or terminal mandate are four distinguishable
+states of the same predicate.
 
 ## Escalation is one `leaf-add`
 
@@ -58,10 +61,10 @@ grove-llm leaf-add <parent> <stem> --kind review-<producer>
 ```
 
 `<producer>` is the kind in the mandated leaf's own filename, and the session
-reads it there. Nothing derives it, so naming it off some *other* producer is a
-well-formed mistake nothing downstream catches — `--kind review-impl` beside a
-`design` producer buys a reviewer reading for correctness, security and tests
-where it should be asking whether the ADRs are a minimum coherent set.
+reads it there. The conduct rules governing that call — naming the step kind off
+the producer that actually ran, giving every step the producer's bare stem, and
+cutting each step as the previous session's last act — are
+`content/references/decompose.md`'s, and are not restated here.
 
 The new leaf is an ordinary **flat sibling** at the parent's next free position,
 with a fresh tree-wide key. Nothing about the producer's own leaf changes: its
@@ -81,11 +84,9 @@ and, if that review finds something worth acting on, its own last act produces:
 07-integrate-review-design-sync-design-k22.md
 ```
 
-**All three carry the same slug**, and that is the naming rule rather than an
-elision in the example: the kind field is the canonical statement of a step's
-role, so the slug names the artifact and does not restate it
-(`content/TASK-FORMAT.md`). The steps stay distinct by key, and their handles —
-`sync-design-k12`, `-k21`, `-k22` — stay unique because keys are unique
+**All three carry the same slug**, which is the shared-stem rule applied rather
+than an elision in the example. The steps stay distinct by key, and their
+handles — `sync-design-k12`, `-k21`, `-k22` — stay unique because keys are unique
 tree-wide. What it costs is that `resolve sync-design` is ambiguous and lists all
 three with their kind-bearing paths — pick-style, so empty stdout, the diagnostic
 on stderr and **exit zero**. Every reference this spec recommends names a handle,
@@ -100,12 +101,12 @@ live leaf beneath it, already sits at 07 or beyond — the integration is cut wi
 `leaf-insert` at the first such **sibling entry** instead, for the reason in
 *What the flat shape gives up, deliberately* below.
 
-**The creating session writes the new leaf's body**, and that is the reason to
-create it late rather than up front. A review leaf can name the exact claim the
-producer could not establish; an integrate leaf can carry the findings verbatim.
-A constructor knows only a stem and a kind, so it could only ever render a
-generic goal sentence — strictly less than the session that just discovered the
-doubt can supply.
+The **shape of that body** is what this spec pins, because it is what the verb
+guarantees and a test can assert: the freshly created leaf is the bare template —
+a stable handle and empty sections — carrying no rendered goal, no relationship
+line and no launch metadata, so the creating session has nothing to edit around.
+Why the creating session is the right author is
+`content/references/decompose.md`'s.
 
 The body also carries the composition relationship, written by hand:
 
@@ -138,64 +139,43 @@ cross-leaf grammar and `pick` is a walk rather than a scheduler, so contiguity
 was always a convention rather than an enforced unit, and it stays one: nothing
 here is enforced.
 
-**The two hops are not equally exposed, and the difference decides the verb.**
-It is a property of what the next step consumes, not of how far apart the leaves
-sit:
+**The two hops are not equally exposed, and the difference decides the verb** —
+a `review-*` step re-derives from its producer's stable handle, an
+`integrate-review-*` step consumes `path:line` citations an intervening edit
+moves silently. The rule that follows from it — where each step is cut, the
+blocking-sibling condition, and why there is no exception to check — is
+`content/references/decompose.md`'s, and this spec cites it rather than carrying a
+second full statement of it.
 
-- A `review-*` step re-derives, and its handoff is the **stable handle**: the
-  review body names the producer under `**Reviews:**`, task commits name their
-  work item by that handle (*task-tree-scheme* §5), so the review locates the
-  producer's commit from the handle and reads that diff against the current
-  source. Nothing it consumes had been written down for intervening work to
-  stale, so plain `leaf-add` is correct wherever it lands. The claim is *fresh
-  re-derivation*, not a cost-free gap: intervening work that rewrote the reviewed
-  artifact, its requirements or its recorded evidence leaves the reviewer
-  reconciling a historical diff against a moved tree — visible work, done
-  deliberately, which is precisely what the other hop does not get.
-- An `integrate-review-*` step consumes. Its input is the set of citations the
-  review already froze into prose, resolved against a working tree that has since
-  moved. An intervening edit to a cited file shifts those lines and the drift is
-  **silent** — nothing errors, the finding points somewhere slightly wrong, and
-  the integrating session must re-derive the reviewer's intent from a codebase the
-  reviewer never saw.
-
-So an integration is cut **where `pick` reaches it next**, and the condition is
-mechanical and **directory-local**: `leaf-insert` at **the first sibling entry
-after the review whose subtree still holds live work**.
-
-```text
-grove-llm leaf-insert <first blocking sibling entry> <stem> --kind integrate-review-<producer>
-```
-
-Three properties of the walk (`collect_live_leaf_entries` in `src/tree_read.rs`)
-fix that wording, and a looser one is wrong on each:
+What belongs here is the **implementation** that condition is true of.
+`collect_live_leaf_entries` in `src/tree_read.rs` is the walk the wording tracks,
+and three of its properties are what make the loose form (*the first live leaf
+after it*) wrong:
 
 - It quantifies over **entries**, not leaves. The walk reads a level in position
   order and recurses into a node *in place*, so a later sibling node with a live
-  leaf anywhere beneath it runs before anything appended after that node. The
-  **node directory** is therefore the insert target, never the live leaf inside
-  it: targeting the descendant inserts one level down, inside a node whose brief
-  does not charter the integration.
-- Terminal entries are exempt — a later `DONE` or `ABANDONED` leaf, **a node
-  whose subtree is wholly terminal**, and the driver's `finish` sentinel, which
-  is skipped while any ordinary leaf is live.
+  leaf anywhere beneath it runs before anything appended after that node.
+- Terminal entries are exempt — a later `DONE` or `ABANDONED` leaf, a node whose
+  subtree is wholly terminal, and the driver's `finish` sentinel, which is
+  skipped while any ordinary leaf is live.
 - It is **directory-local**. Pre-order finishes the review's own directory,
   including a leaf just appended to its end, before it visits any later sibling
-  of an *ancestor*, so live work in an outer sibling node cannot intervene and
-  needs no defending against. When nothing in the directory blocks, `leaf-add` is
-  exactly right.
+  of an *ancestor*.
 
-**There is no exception, and that is a decision rather than an omission.** The
-earlier form of this rule allowed departing from adjacency when the intervening
-work **provably touches no file the findings cite**. Rejected as unperformable:
-at the moment a review cuts its integration the intervening leaf has not run, and
-Grove makes no leaf's eventual file set part of its contract, so a goal or
-pointer list cannot establish what it will touch. Retaining a check no session
-can perform buys a licence that reads as a judgement call — the exact failure the
-narrowing replaced. Departure remains possible, because none of this is enforced;
-it simply has no sanctioned test. This is guidance for the session cutting the
-leaf and nothing more; making it a *mechanism* would be a separate decision, with
-its own ADR.
+A change to any of the three changes the guidance, which is why the sweep and the
+behavioural pins under *Test seams* are stated against this walk rather than
+against filename adjacency.
+
+**That there is no exception is a decision rather than an omission**, and the
+rejected alternative is what this spec records. An earlier form allowed departing
+from adjacency when the intervening work **provably touches no file the findings
+cite**. Rejected as unperformable: at the moment a review cuts its integration the
+intervening leaf has not run, and Grove makes no leaf's eventual file set part of
+its contract, so a goal or pointer list cannot establish what it will touch.
+Retaining a check no session can perform buys a licence that reads as a judgement
+call — the exact failure the narrowing replaced. Departure remains possible,
+because none of this is enforced; making it a *mechanism* would be a separate
+decision, with its own ADR.
 
 Neither composition shape gets a node directory. A node means *this work proved
 bigger than one session* and carries the `BRIEF.md` those extra sessions need;
@@ -244,17 +224,14 @@ After cutting the review leaf, the producer session:
    the producer's handle; and
 4. runs `grove-llm complete` last.
 
-**Retirement precedes the commit**, which is the task boundary Grove's own
-methodology states. The `DONE` rename is part of the task, so a commit taken
-before it either leaves the rename uncommitted (Git) or seals it into the *next*
-task's working-copy commit (jj), where separating it again costs an operation-log
-rewind.
-
-Retirement applies only the filename `DONE` transition. It does not write a
-target receipt or alter the review leaf, which reads the committed artifact
-rather than anything about the session that produced it. The next driver
-iteration picks the review leaf and selects its complete command from personal
-configuration.
+Steps 2 and 3 are in that order because the task boundary is, and both rules are
+the corpus's: `content/references/retire.md` for retire-before-commit and for
+retirement being a filename transition and nothing else,
+`content/references/commit.md` for what the boundary contains. What this spec
+adds is the consequence for *this* shape — the review leaf beside the producer is
+byte-identical after the producer retires, so escalation needs no receipt, no
+producer-target record and no recovery protocol. The next driver iteration picks
+the review leaf and selects its complete command from personal configuration.
 
 ## Test seams
 
@@ -263,16 +240,18 @@ configuration.
   as contiguous flat siblings with consecutive fresh keys, no node directory, and
   an untouched producer. Cover a review step cut after unrelated work, which
   lands after that work rather than beside its producer.
-- Sweep every guidance surface for the **per-hop** placement rule, since no verb
-  can carry it: the `review → integrate` hop names `leaf-insert` and the exact
-  blocking-sibling condition, the `producer → review` hop claims fresh
-  re-derivation via the stable handle. Bind each property **to its hop in one
-  assertion** — `` `review-*` step re-derives ``, `` `integrate-review-*` step
-  consumes `` — rather than checking the two verbs independently against the
-  whole document, which an inverted surface passes. Ban the inverted pair
-  outright, and scope `CHANGELOG.md` to its live `## Unreleased` section so a
-  frozen release stays historical while the superseded formulation cannot return
-  to the section still being written.
+- Sweep the **owner** for the per-hop placement rule, since no verb can carry it:
+  `content/references/decompose.md` names `leaf-insert` and the exact
+  blocking-sibling condition for the `review → integrate` hop, and claims fresh
+  re-derivation via the stable handle for the `producer → review` hop. Bind each
+  property **to its hop in one assertion** — `` `review-*` step re-derives ``,
+  `` `integrate-review-*` step consumes `` — rather than checking the two verbs
+  independently against a whole document, which an inverted surface passes, and
+  ban the inverted pair outright. **The sweep is over one surface because the rule
+  has one owner**; the surfaces that merely *record* it — this spec, the glossary,
+  the architecture — are checked for the binding and for citing the owner, never
+  for a second full statement. `CHANGELOG.md` is out of scope entirely: it records
+  what changed and when, so a current-state claim has no well-defined scope in it.
 - Pin the placement rule **behaviourally**, by asking `pick` what runs next
   rather than asserting filename adjacency: a later direct live leaf (insert
   before it); a later sibling **node** with a live descendant (insert before the

@@ -1,7 +1,6 @@
-Once no ordinary live leaf is left, bare `grove` appends one driver-owned
-`finish` leaf at the grove root and mandates it under the `finish` session kind;
-that mandate *is* the signal that no ordinary work is left.
-The leaf is a real, **resumable** task: it carries its own stable handle
+Your leaf is the driver-owned `finish` sentinel at the grove root, mandated under
+the `finish` session kind.
+It is a real, **resumable** task: it carries its own stable handle
 (`finish-k<key>`, which step 2 needs), and it is created once and reused, never
 duplicated. Ordinary work inserted ahead of it (`leaf-insert`) makes the driver
 pass it over until that work is terminal, so the sentinel can neither starve nor
@@ -69,7 +68,7 @@ never reads a deleted `.grove/` as the `--done` you did not send. Nothing is
 lost — the teardown commit is already in history — and nothing is pending: there
 is no half-finished grove to resume, only a working tree without one.
 
-**finish** (HITL, driver-reserved) — the whole-grove teardown session the driver
-appends once no ordinary work is live. It proposes the complete finish cycle and
-waits for explicit human confirmation before any teardown; declining leaves the
-leaf live for a later resume. No session creates one, and none is ever retired.
+**finish** (HITL, driver-reserved) — the whole-grove teardown session. It
+proposes the complete finish cycle and waits for explicit human confirmation
+before any teardown; declining leaves the leaf live for a later resume, and a
+`finish` leaf is never retired.

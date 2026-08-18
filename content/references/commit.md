@@ -36,3 +36,10 @@ reused. So a commit message naming the work item by its handle stays meaningful
 after restructures, and one naming `04-impl-extract` names a coordinate that may
 already belong to something else (task-tree-scheme §5). Name each node the
 cascade closed the same way, alongside the leaf's own.
+
+**Do not compensate for the bare stem with a subject convention.** A `review:` or
+`impl:` prefix would restate, unvalidated, the kind the leaf's own filename
+carries — and that filename survives in the diff forever, because Retire-then-Commit
+puts the `DONE` rename in the task's own commit and teardown removes `.grove/`
+from the tip rather than from history. `git show --stat <commit>` names it
+whether or not rename detection fires.

@@ -6,158 +6,163 @@ low-context sessions, and that value is lost the moment a session quietly grows
 to cover work that should have been its own leaf.
 
 - **A new concern** — the human raises it, or a tangent appears that does not
-  serve *this leaf's stated goal* — goes to the tree with `leaf-add` (or
-  `leaf-insert` when it must sequence ahead of live leaves), **never** inline.
+  serve *this leaf's stated goal* — goes to the tree with `grove-llm leaf-add`
+  (or `leaf-insert` when it must sequence ahead of live leaves), **never** inline.
 - **The current item proves bigger** than its brief assumed — turn the leaf into
-  a node (a brief, `BRIEF-FORMAT.md`, and ordered child leaves) with
-  `leaf-decompose`, doing **only the first child** this session, each child
-  shaped as a vertical slice that stands demoable on its own (`driving.md`).
+  a node with `grove-llm leaf-decompose`, doing **only the first child** this
+  session. The remaining children are leaves a later session picks up fresh.
 
 Continue inline **only** while the work still serves this leaf's stated goal
 *and* fits one focused, low-context session — the bar is *"fits this session,"
-not "I can finish it."* Decomposition stays lazy (constraint 4): grow the tree
-just-in-time, at the genuine seam, never speculatively.
+not "I can finish it."* You almost always *can* finish it; that is the trap that
+grows a runaway session. Decomposition stays lazy (constraint 4): grow the tree
+just-in-time, at the genuine seam, never speculatively. Externalizing is cheap,
+so spend it freely — a permanent key never moves, a renumber rewrites zero file
+contents, and `leaf-insert` exists precisely so a late-surfacing concern can slot
+ahead of queued work without disturbing it.
 
-The tree is a real **directory tree** under `.grove/`: a node is a **directory**
-`NN-<slug>-k<key>/` holding its numbered children (`01-…`, `02-…`), headed by a
-`BRIEF.md` charter — a node is always a leaf that *decomposed*, so it always has
-one; the filesystem carries the hierarchy, and `.grove/` is
-itself the root node. Convert the leaf by running `grove-llm leaf-decompose <leaf-path>
-<first-child-slug>`: the verb moves the leaf file
-`NN-<session-kind>-<slug>-k<key>.md`
-(`git mv`; a plain rename in a jj-enabled tree, where jj snapshots the working
-copy) into a new directory `NN-<slug>-k<key>/` as its `BRIEF.md` (**keeping its permanent
-key `-k<key>`** — the leaf that was `k<key>` becomes the *node* `k<key>`, same
-position and slug, and **dropping the kind**, which a node has no use for),
-retitles the brief's position-free `# <slug>-k<key>` header
-with ` — brief`, and atomically grows the node's first child
-`01-<session-kind>-<first-child-slug>-k<new>.md` (a node is never childless). Reshape the brief
-body afterwards if needed (that part is judgement; the verb only does the
-mechanical move). Grow the node further by running `grove-llm leaf-add <parent>
-<slug>` (parent `.` for the grove root, or a node by its key or path) to append
-a leaf at the node's next free child position with a fresh key (the common
-case), or `grove-llm leaf-insert <target> <slug>` when a new concern must
-sequence *ahead* of existing leaves — the insert verb shifts the target and
-every later sibling up one position. Because the hierarchy lives in directories,
-that shift is a single move of each sibling **directory** (`git mv`, or a plain
-rename under jj) and the whole
-subtree — child names *and* keys — rides along untouched; in-file `# …` headers
-are position-free, so the renumber rewrites **zero file contents**. The verb
-surfaces any stray **position-prefixed** cross-reference (`05-mid-k14`) on
-stderr for the operator to review (it does not auto-rewrite — references may be
-intentional historical pointers). Prefer the **permanent key** for any durable
-cross-reference: a key never moves under renumber or a slug edit, and `grove-llm
-resolve <ref>` turns a key (`[n]` / `n`), a bare slug, or the full
-`<slug>-k<key>` handle back into the current file path. Every grow verb is a
-working-tree change only; the enclosing task's commit folds them in.
+Every grow verb is a working-tree change only; the enclosing task's commit folds
+it in. What each verb *does* — what it moves, retitles, creates, gates and
+prints — is the CLI's to state, so read `--help` rather than a transcription that
+ages against the binary. What a cut leaf's name and body must look like, and what
+a new node's charter must carry, are `TASK-FORMAT.md`'s and `BRIEF-FORMAT.md`'s.
 
-**`--kind <kind>` appears on the grow verbs whose kind is a free choice**, and
-every one that accepts it gates on it: an unrecognised value errors and lists the
-nineteen, and driver-reserved `finish` is refused, because a human is present at
-authoring time. `grove-llm leaf-add <parent> <slug> --kind <kind>` and
-`grove-llm leaf-insert <target> <slug> --kind <kind>` take it with the `impl`
-default — and since a review chain is now cut one `leaf-add` at a time, `--kind`
-is where you name `review-<producer>` and `integrate-review-<producer>`
-yourself, off the producer that actually ran. `leaf-decompose` takes it as an
-*override* of the kind it otherwise inherits from the leaf being decomposed — the
-node directory it creates carries none — so a `research-a` leaf that proves
-bigger keeps producing `research-a` work in its first child. **`leaf-add-pair`
-takes no `--kind` at all**: its three kinds (`research-a`, `research-b`,
-`combine-research`) are fixed by the shape, so there is nothing to choose.
-**Reading is strict too**: every task-shaped leaf
-filename, live or terminal, must carry a known kind, and a missing or unknown one
-stops tree operations naming the path and the valid set rather than degrading to
-`impl` — the kind is a configuration key, and a kind grove cannot spell is a
-session it cannot launch. No grow verb
-selects a harness, a model, or anything else about the launch: the kind is the
-whole routing input, and configuration maps it to one command.
+## What a good child leaf looks like
 
-**Cut the next step, when it is needed.** When more than one leaf serves *one*
-artifact, two shapes are the habitual answer — reach for them by default, and
-argue yourself *out* of one rather than into it. They are built in **opposite**
-ways, and the asymmetry is the design:
+A good child leaf is a **vertical slice**: it cuts a narrow but complete path
+through everything its goal touches, rather than a horizontal layer that sits
+dead until its siblings land. The test is independence — can this leaf's work be
+demoed or verified on its own, without waiting on a sibling? A leaf that fails
+that test needs its lines redrawn even if it still fits one session. This is a
+second axis alongside *fits this session*, not a replacement for it.
 
-- **The review chain** — `X` → `review-X` → `integrate-review-X`: a fresh
-  context asked to *disprove*, then a leaf licensed to act on what it found. Its
-  steps are **ordinary flat siblings**, and **each session creates the next, only
-  when it is required**:
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
+     (skills/engineering/to-tickets/SKILL.md, the wide-refactor
+     expand-contract exception) — MIT licensed; see
+     LICENSES/mattpocock-skills.LICENSE. -->
 
-      grove-llm leaf-add <parent> <stem> --kind review-<producer>
-      grove-llm leaf-add <parent> <stem> --kind integrate-review-<producer>
+**Wide refactors are the exception.** A mechanical change whose blast radius fans
+across the whole codebase — rename a shared column, retype a symbol every caller
+touches — breaks too many call sites at once for any vertical slice to land
+green. Sequence it **expand → migrate → contract** instead, one leaf per stage,
+added in order: a leaf that adds the new form beside the old so nothing breaks;
+then a leaf per migration batch, sized by blast radius, each keeping CI green
+because the old form still exists alongside the new; finally a leaf that deletes
+the old form once no caller remains.
 
-  The **last act of a producer session** is to decide whether review is required
-  and, if so, cut the `review-<producer>` leaf itself. The **last act of a review
-  session** is to cut the `integrate-review-<producer>` leaf — **only if it has
-  findings worth acting on**. A review that finds nothing creates nothing and
-  simply retires; that empty session is the one this shape exists to remove.
-  Decide for review when the artifact is load-bearing — a spec, a decomposition
-  you will build on for months, a subsystem. One narrow, unexpected doubt in a
-  picked plain producer may use its single in-session reviewer instead
-  (`driving.md`).
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
+     (skills/engineering/wayfinder/SKILL.md, "Fog of war" / "Not yet
+     specified") — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. -->
 
-  **You write the new leaf's body, and that is the payoff.** Because the leaf is
-  cut by the session that knows why it is needed, it can carry **specific
-  instructions, findings and data** — a review leaf naming the exact case its
-  producer could not cover, an integrate leaf carrying the findings verbatim.
-  That is strictly more than the generic template a constructor could write up
-  front, and it is why the creating session is the right author. The template
-  you get is bare on purpose: a handle and empty sections, nothing to edit
-  around.
+## Work you can see coming but cannot yet shape
 
-  You name the step kind yourself, so **name it off the producer**:
-  `review-<producer>` and `integrate-review-<producer>`, for the producer that
-  actually ran. `--kind review-impl` beside a `design` producer is a perfectly
-  valid invocation that silently gives the reviewer the wrong discipline, and
-  nothing will catch it. Each step resolves its own `review-` /
-  `integrate-review-` configuration entry, so the kind is the whole routing
-  decision.
+Which of the two a dim thought earns is the **fog-or-ticket test**: can you state
+the question precisely *right now* — not whether you can answer it. A question
+you can already phrase precisely earns a leaf immediately, even if it is blocked
+and unanswerable today. One still too dim to phrase stays an **On the horizon**
+note in the nearest brief (`BRIEF-FORMAT.md`) until a later session sharpens it
+enough to graduate. There is no third option: laziness means a leaf either exists
+or it does not, so a speculative leaf is the wrong shape for fog and the dim view
+is otherwise simply lost.
 
-- **The vendor pair** — `research-a` → `research-b` → `combine-research`, the two
-  surveys differing *only* by which configured target runs them. Cut it when the
-  question is load-bearing enough to pay for two corpora. **This one is still
-  one eager call**, and the whole shape lands or none does:
+## Commissioning prior-art research
 
-      grove-llm leaf-add-pair <parent> <stem>
+A leaf whose design depends on lessons prior tools learned the hard way — and
+that the current codebase cannot show — is under-served by grilling alone, which
+would rediscover those failure modes from scratch. That is a **research leaf of
+its own, cut ahead of the leaf that needs it**, never a tangent inside it. The
+signs: the leaf sits in an architectural neighbourhood with well-known prior art;
+several downstream `requirements` / `design` leaves share one evidence base; or
+the grilling surfaces *"has anyone tried this before, and what happened to
+them?"* — that question is itself the signal. Place it *after* the design
+questions are visible and *before* the leaves that need the answers.
 
-  **Laziness would be wrong here, which is why the pair kept its verb.** If
-  `research-a` cut `research-b` at the end of its own session, `b` would inherit
-  `a`'s framing and corpus — destroying the independence the pair is run for.
-  Eagerness is the point for a pair; it is not for a chain. The two producers are
-  **separate session kinds**, so each resolves its own configuration entry and
-  neither task file carries routing metadata. The tree guarantees two independent
-  sessions and the combine discipline; whether they reach two genuinely different
-  vendors is the configuration owner's policy, not something grove can recover
-  from an opaque command template.
+**The research leaf's brief names the downstream questions**, leaf by leaf, so
+the researcher does not have to guess what is load-bearing: name the audience by
+subject rather than by position, list the concrete questions each downstream leaf
+needs answered, and ask for the output to be structured around them. **Bias the
+search** while you are there — *"what's already been tried"* produces broad,
+shallow surveys, while *"what went wrong after years of real use"* produces
+post-mortems, and naming the obvious candidate as the fallback to beat keeps the
+survey off it.
 
-**When a picked producer needs fresh review**, the answer is the same
-`leaf-add`. Finish to a reviewable boundary, cut the `review-<producer>` leaf
-with the specific doubt written into its body, retire the producer, and commit
-the artifact plus that leaf plus the retirement under the producer's handle —
-the Retire-then-Commit order. Retiring it is the filename `DONE` transition
-and nothing else, and it leaves the review byte-identical, because the review
-needs no record of how its producer ran. The next loop iteration picks that
-review and resolves its command from the `review-*` entry in configuration.
+## Choosing a composition shape
 
-## Why the stem is bare
+When more than one leaf serves *one* artifact, two shapes are the habitual
+answer. Both are **flat siblings** — neither gets a node directory, because a
+node means *this work proved bigger than one session* and a composed shape is
+neither.
 
-**The kind field is the canonical statement of a leaf's role; the slug names the
-artifact and does not restate the kind.** A step marker in the slug was a 1:1
-restatement of the kind sitting right beside it — a second, *unvalidated* source
-of truth for a fact grove already parses and routes on. Nothing stops `leaf-add
-<parent> foo-review --kind impl`, and when the two disagree the slug lies while
-the filename tells the truth. So a chain reads `<stem>` / `<stem>` / `<stem>`,
-three leaves differing only by kind and key, and `grove-llm resolve <stem>`
-prints the whole chain with each step's role spelled out in its path. Both
-spellings remain legal filenames, the grammar is unchanged, and **no existing
-tree is invalidated** — an older suffixed slug you meet is fine and stays as it
-is (`TASK-FORMAT.md` carries the full reasoning).
+**A review chain — `X` → `review-X` → `integrate-review-X` — is earned by a
+load-bearing artifact**: a landed spec, a decomposition others will build on for
+months, a subsystem. That is an orchestration boundary, and **artifact size and
+vendor preference are not the test**. Reactively, a picked plain producer that
+reaches its second-review boundary has earned one too (`references/execute.md`).
+
+**A vendor pair — `research-a` → `research-b` → `combine-research` — is earned by
+a question load-bearing enough to pay for two corpora.** One survey is one
+vendor's corpus and one vendor's blind spots; one survey is also the default, and
+two is a cost you argue yourself into.
+
+## The two shapes are built in opposite ways
+
+**A chain is lazy**, and each step is an ordinary `leaf-add` cut as the **last
+act** of the session before it:
+
+    grove-llm leaf-add <parent> <stem> --kind review-<producer>
+    grove-llm leaf-add <parent> <stem> --kind integrate-review-<producer>
+
+A producer cuts the first only once its artifact exists and it judges an
+adversarial read necessary; a review cuts the second **only if it has findings
+worth acting on**. A review that finds nothing creates nothing and simply
+retires — that empty session is what the laziness exists to remove, and deciding
+against review is a normal outcome at either step.
+
+**A pair is eager**: it lands in one call or not at all.
+
+    grove-llm leaf-add-pair <parent> <stem>
+
+Cutting `research-b` lazily at the end of `research-a`'s session would let `b`
+inherit `a`'s framing and corpus, destroying the independence the pair is run
+for.
+
+**The creating session writes the new leaf's body, and that is the payoff.**
+Because the leaf is cut by the session that knows *why* it is needed, it can
+carry the specific case its producer could not cover, or the findings verbatim —
+strictly more than a generic goal sentence a constructor could render from a stem
+and a kind. The template you get is bare on purpose: a handle and empty sections,
+nothing to edit around.
+
+**Name a chain step's kind off the producer that actually ran** —
+`review-<producer>`, then `integrate-review-<producer>`. Nothing derives it, so
+this is the one place to be careful: `--kind review-impl` beside a `design`
+producer is a perfectly valid invocation that buys a reviewer reading for
+correctness, security and tests where it should be asking whether the ADRs are a
+minimum coherent set, and nothing downstream detects the mismatch.
+
+**Give every step of a composed shape the producer's bare stem as its whole
+slug** — no `-review` or `-a` suffix, and no leading kind word. The kind field
+beside it already says which step you are looking at, and the slug's job is to
+name the artifact. One consequence to expect: `grove-llm resolve <stem>` on a
+chain is ambiguous and lists every step with its path, so name a specific step by
+its `<slug>-k<key>` handle or its key — and do the same for a `leaf-insert`
+target, which refuses an ambiguous stem rather than listing.
+
+**Diversity is the configuration's, not the tree's.** Whether a `review-*` or
+`research-b` template reaches a different harness or model from its producer's is
+a property of two entries in `~/.config/grove/config.kdl`. Grove cannot recover a
+target from an opaque command string, so it records nothing about how the
+producer ran, compares nothing, and warns about nothing. If the axis matters,
+read the two entries before you pay for the second leaf.
 
 ## Which hop a gap costs
 
 Steps are appended at the parent's next free position, so a step cut after some
 unrelated leaf already exists lands *after* that leaf, and a later `leaf-insert`
-can split a chain that was contiguous. Grove refuses none of it — it validates
-no cross-leaf grammar, `pick` is a walk and not a scheduler, and contiguity was
+can split a chain that was contiguous. Grove refuses none of it — it validates no
+cross-leaf grammar, `pick` is a walk and not a scheduler, and contiguity was
 never an enforced unit. What decides whether a gap costs anything is **what the
 next step consumes**:
 
@@ -165,9 +170,9 @@ next step consumes**:
   handoff is the producer's **stable handle**: the review's own body names it
   under `**Reviews:**`, every task commit message names the work item by that
   handle, so the reviewer finds the producer's commit from the handle and reads
-  that diff against the current source. Nothing had been written down for
-  intervening work to stale. That is narrower than *free* — work that rewrote the
-  reviewed artifact, its requirements, or its recorded evidence leaves the
+  that diff against the current source. Nothing it consumes had been written down
+  for intervening work to stale. That is narrower than *free* — work that rewrote
+  the reviewed artifact, its requirements, or its recorded evidence leaves the
   reviewer reconciling a historical diff with a tree that has moved — but the
   reconciliation is visible, and the reviewer performs it deliberately.
 - **An `integrate-review-*` step consumes, so a gap corrupts.** A review's
@@ -178,16 +183,11 @@ next step consumes**:
   session has to re-derive what the reviewer meant from a codebase the reviewer
   never saw.
 
-So an integration is cut **where `pick` reaches it next**, and the condition for
-that is mechanical and **directory-local**. Read the review's *own parent*
-directory at the entries after the review's position, and find **the first
-sibling entry after the review whose subtree still holds live work** — leaf file
-or node directory, whichever comes first. That entry is what blocks, and it is
-the insert target:
-
-```text
-grove-llm leaf-insert <first blocking sibling entry> <stem> --kind integrate-review-<producer>
-```
+So an integration is cut **where `pick` reaches it next**, and the condition is
+mechanical and **directory-local**. Read the review's *own parent* directory at
+the entries after the review's position, and find **the first sibling entry after
+the review whose subtree still holds live work** — leaf file or node directory,
+whichever comes first. That entry is the `leaf-insert` target.
 
 Three things that condition gets right where "the first live leaf after it" does
 not:

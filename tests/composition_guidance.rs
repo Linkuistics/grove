@@ -223,11 +223,15 @@ fn guidance_binds_re_derivation_to_review_and_consumption_to_integration() {
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("CONTEXT.md", CONTEXT),
         ("docs/USAGE.md", USAGE),
-        ("review mechanics spec", SPEC),
     ] {
         assert_contains(surface, text, "stable handle");
         assert_contains(surface, text, "producer's commit");
     }
+    // The spec keeps the *binding* above — which hop re-derives and which
+    // consumes is what its walk-level seams are stated against — but no longer
+    // spells out how re-derivation works, because that is
+    // `content/references/decompose.md`'s and a spec cites rather than restates.
+    assert_contains("review mechanics spec", SPEC, "stable handle");
 }
 
 /// Where a chain's steps *land* is the one thing no verb can carry: `leaf-add`
@@ -253,13 +257,15 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
     const CONDITION: &str =
         "the first sibling entry after the review whose subtree still holds live work";
 
-    // The surfaces that instruct a session on the placement, in full.
+    // The surfaces that instruct a session on the placement, in full. The review
+    // mechanics spec left this list when it stopped restating the rule: it cites
+    // `content/references/decompose.md` as canonical and keeps the *walk* the
+    // condition is true of, which is what its own seams are pinned against.
     for (surface, text) in [
         ("content/references/decompose.md", DECOMPOSE_REFERENCE),
         ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("docs/USAGE.md", USAGE),
-        ("review mechanics spec", SPEC),
     ] {
         assert_contains(surface, text, "leaf-insert");
         assert_contains(surface, text, CONDITION);
@@ -433,27 +439,37 @@ fn every_ambiguity_cost_statement_matches_resolves_pick_style_contract() {
     }
 }
 
+/// One surface, and that is now the claim. `working-increments-before-slices`
+/// binds `planning` alone, so rule 2 of the placement function sends it to that
+/// kind's own reference file and `references/execute.md` — which a session of
+/// every kind reads — states none of it
+/// (`docs/specs/corpus-rule-ownership.md`). The prose that used to sit in
+/// `driving.md`, `TASK-FORMAT.md` and `execute.md` is gone from all three; no
+/// claim moved with it.
 #[test]
 fn planning_guidance_prefers_dependency_ordered_working_increments() {
-    // Two surfaces rather than three, and no claim has moved with them: the
-    // `planning`-narrowed prose that used to sit in `driving.md` and
-    // `TASK-FORMAT.md` now sits together in the `planning` reference file, which
-    // is one surface carrying what two carried.
+    const SURFACE: &str = "content/references/planning.md";
+    for expected in [
+        "smallest independently useful working increments",
+        "order them by dependency",
+        "separate grove",
+        "cannot independently leave the product working",
+    ] {
+        assert_contains(SURFACE, PLANNING_REFERENCE, expected);
+    }
+
+    // …and nowhere else. The rule binds one kind, so a second statement in a file
+    // every kind reads is a mirror the placement function forbids — which is what
+    // `references/execute.md` carried until this leaf removed it.
     for (surface, text) in [
         ("content/references/execute.md", EXECUTE_REFERENCE),
-        ("content/references/planning.md", PLANNING_REFERENCE),
+        ("content/references/decompose.md", DECOMPOSE_REFERENCE),
+        ("content/SKILL.md", GROVE_SKILL),
     ] {
-        assert_contains(
+        assert_absent(
             surface,
             text,
             "smallest independently useful working increments",
-        );
-        assert_contains(surface, text, "order them by dependency");
-        assert_contains(surface, text, "separate grove");
-        assert_contains(
-            surface,
-            text,
-            "cannot independently leave the product working",
         );
     }
 }
@@ -500,13 +516,15 @@ fn passage(surface: &str, text: &str, start: &str, end: &str) -> String {
 /// commit.
 #[test]
 fn every_handoff_passage_retires_before_it_commits() {
+    // `content/references/decompose.md` is deliberately not among them any more.
+    // It used to close with a producer-handoff paragraph that walked the whole
+    // finish-to-commit sequence, which restated `retire-before-commit` and
+    // `one-focused-commit` in a file that owns neither
+    // (`docs/specs/corpus-rule-ownership.md`). The ordering is asserted where it
+    // is owned — `tests/commit_guidance.rs` over the two trigger sentences and
+    // `content/references/commit.md`, and `tests/retire_guidance.rs` over the
+    // Retire step — so what this removal drops is a duplicate, not a check.
     for (surface, text, start, end) in [
-        (
-            "content/references/decompose.md",
-            DECOMPOSE_REFERENCE,
-            "When a picked producer needs fresh review",
-            "## Why the stem is bare",
-        ),
         (
             "docs/USAGE.md",
             USAGE,
@@ -703,15 +721,21 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
     }
 
     for (surface, text, replacement) in [
-        (
-            "content/references/execute.md",
-            EXECUTE_REFERENCE,
-            "grove records no producer target, compares none, and warns about none",
-        ),
+        // `diversity-is-the-configs` is `references/decompose.md`'s — it is a
+        // judgement made while *cutting* a review step, not while executing one —
+        // and `retirement-is-filename-only` is `references/retire.md`'s. Both
+        // anchors follow their rules; neither claim changed
+        // (`docs/specs/corpus-rule-ownership.md`).
         (
             "content/references/decompose.md",
             DECOMPOSE_REFERENCE,
-            "Retiring it is the filename `DONE` transition and nothing else",
+            "it records nothing about how the producer ran, compares nothing, and warns about \
+             nothing",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "**Retirement touches one filename and nothing else**",
         ),
         (
             "content/driving.md",
@@ -780,10 +804,16 @@ fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
         ),
         ("review mechanics spec", SPEC, "**Reviews:**"),
         ("review mechanics spec", SPEC, "**Integrates:**"),
+        // The per-kind allowances moved out of the spec's table and into the file
+        // that owns `review-budget-by-kind`. The spec cites rather than restates,
+        // under the grain rule it is itself subject to
+        // (`docs/specs/corpus-rule-ownership.md`), so the research trio's row is
+        // proved where a session now reads it.
         (
-            "review mechanics spec",
-            SPEC,
-            "`research-a`, `research-b`, or `combine-research` | None; the pair supplies independent corpora and the combiner supplies the adversarial move",
+            "content/references/execute.md",
+            EXECUTE_REFERENCE,
+            "`research-a`, `research-b` and `combine-research` spend **none** — the pair supplies \
+             independent corpora and the combiner supplies the adversarial move",
         ),
         (
             "content/references/retire.md",

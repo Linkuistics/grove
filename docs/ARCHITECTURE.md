@@ -770,6 +770,58 @@ The binary refuses to overwrite an unstamped foreign directory and replaces an
 old symlink as a link rather than following it. `content/` is the canonical
 source; repository-local or hand-edited copies are not supported.
 
+### The seven constraints, argued
+
+[`content/SKILL.md`](../content/SKILL.md) carries the numbered spine itself, and
+carries it as the corpus's canonical statement because six other corpus files
+cite the constraints **by number** while only `SKILL.md` is on every kind's
+static path. What belongs here is the argument for each — why a rule the
+methodology treats as non-negotiable earns that status. The subject throughout is
+how Grove drives long work *without* becoming brittle, constraining machinery.
+
+1. **Artifacts, not state.** A phase file, a session log or a status file is a
+   second source of truth about where the work is, maintained by hand across
+   fresh-context sessions that cannot see each other. The directory tree under
+   `.grove/` is derivable by eye and by `find`, and the VCS already holds the
+   history a status file would be reinventing.
+2. **Read, don't run.** A session that must execute something before it can begin
+   is a session that can fail to begin. Bootstrap is reading markdown; the one
+   command a session runs, `grove-llm resolve <handle>`, is a lookup it could do
+   by eye, because the handle is in the filename.
+3. **Suggested shape, not enforced schema.** Task files and briefs are freeform
+   markdown and the format files are guides. A schema over prose buys validation
+   of the half that never fails and forbids the improvisation that makes a leaf
+   body useful.
+4. **Lazy and optional.** Every artifact — brief, ADR, spec, glossary entry — is
+   created only when it earns its place, never because a step demands it. Lazy
+   means *just-in-time, not few*: a tree that keeps sprouting small, concrete
+   leaves is healthy, and rationing leaves to keep it tidy is the failure this
+   constraint names.
+5. **Grove guides, it does not gate.** Grove never refuses to proceed. A task may
+   be done by hand, reordered or skipped, because a methodology that can block a
+   human is one they route around entirely.
+6. **Walk-away-able.** Delete the skill and `.grove/` is still a legible folder
+   of notes; every durable output is standard, team-readable markdown. This is
+   what makes adopting Grove reversible, and it is why the ephemeral task tree is
+   the only grove-specific artifact.
+7. **One page of rules.** If the loop does not fit on a page it is too complex,
+   and the cut is to the rules rather than to the page. The loop-section line
+   alarm below is this constraint made recomputable.
+
+### Why the glossary is the forcing function
+
+The acute failure mode of multi-session work is terminology drift: a later
+session, with no memory of an earlier one, reinvents its predecessor's term under
+a new name, or reuses the same words with a shifted meaning. Neither is visible
+in a diff, and both compound.
+
+`CONTEXT.md` — read every session, and appended *inline* whenever a term is
+resolved — is the one forcing function against that. Inline rather than batched
+is the whole of it: a term resolved and not written down is a term the next
+session re-resolves differently, and the batching interval is exactly the window
+in which that happens. The normative rule is `content/CONTEXT-FORMAT.md`'s; what
+this section records is why the corpus spends a static-path condition on it.
+
 <a id="corpus-shape"></a>
 ### The corpus's shape, and the three alarms over it
 

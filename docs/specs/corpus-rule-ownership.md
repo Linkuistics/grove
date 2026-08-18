@@ -951,8 +951,9 @@ across the four rows, and the measured total absorbs it with room to spare.
 
 `glossary-is-the-forcing-function` moves here from `references/grove.md`. Rule 3
 fires on `artifact:glossary`, and the file every session about to write a glossary
-entry opens is this one; `grove.md` keeps the argument only until that argument
-relocates to `docs/ARCHITECTURE.md`. `challenge-and-sharpen-terms` moves here from
+entry opens is this one; the argument for it has relocated to
+`docs/ARCHITECTURE.md` and `grove.md` keeps neither half.
+`challenge-and-sharpen-terms` moves here from
 `grilling.md`, whose statements of it and of `glossary-is-only-a-glossary` are
 procedure-register duplicates.
 

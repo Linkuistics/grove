@@ -8,9 +8,20 @@ place** by adding a `DONE` infix (`NN-<session-kind>-<slug>-k<key>.md` →
 `NN-DONE-<session-kind>-<slug>-k<key>.md`, the infix sitting right after the
 position so the kind stays where every reader looks for it); there is no `done/`
 directory, and the leaf keeps
-its position and key in its directory. The infix is filename-only — the file's
-contents (including its `# <slug>-k<key>` header) are untouched. Mechanical
-bookkeeping, no need to ask.
+its position and key in its directory. Mechanical bookkeeping, no need to ask.
+
+**Retirement touches one filename and nothing else** — not the leaf's own body
+(its `# <slug>-k<key>` header included), not a sibling, not an ancestor. A review
+leaf waiting beside the producer is no exception: it reads the committed
+artifact, and needs no record of how the session that produced it ran.
+
+## Retiring the last live leaf is still an ordinary retirement
+
+**You do not discover that a grove is finished — the driver does**, and it says
+so by launching a `finish` session. So retiring the last live leaf in the tree is
+the same filename transition as any other, never a cue to promote artifacts,
+delete `.grove/`, or tear anything down. That work belongs to the one kind
+chartered for it, on explicit human confirmation.
 
 ## Pruning an abandoned one
 
@@ -34,6 +45,33 @@ goes to the **ADR set**, the positive fact the abandonment establishes, if it
 clears the when-to-write bar; otherwise the mark and the commit message suffice
 (pruning).
 
+## When a leaf's place is in doubt, the sentence picks the verb
+
+Doubt about whether a leaf still belongs — surfacing new, or already sitting
+there under a doubted premise — always resolves to one of three mechanisms the
+tree already has:
+
+- **Not now, but still ours** → a **reorder**. The work is good and belongs in
+  this tree, just not next: leave the leaf live and `leaf-insert` something ahead
+  of it, or reorder by hand. Nothing has been rejected; `pick` returns it in its
+  turn.
+- **Not ours at all** → a **GitHub issue**, not a leaf. Work belonging to a
+  different repo, owner or workstream is filed and dropped rather than grown into
+  this tree. If it already has a leaf here, prune it once the issue is filed.
+- **Considered on its merits and rejected** → a **prune**, above.
+
+Misfiling any of the three corrupts the tree in a different way: reordering a
+rejected leaf keeps a dead end reading as *still coming*; pruning a not-yet-due
+leaf erases work nobody rejected; leafing a not-ours concern grows the tree with
+work this grove will never do. So name which of the three sentences is actually
+true before reaching for the CLI.
+
+**There is no fourth state.** A leaf whose place is in doubt gets no status
+word — no `blocked`, no `deferred`, no `superseded`. `blocked` is expressed by
+ordering and is *live* work, so a `pick` that skipped it would break the finish
+trigger; `deferred` is a reorder or an issue; `superseded` differs only in
+*reason*, which is prose for the ADR set and never a filename.
+
 ## Closing a node: the four steps
 
 A node is **never marked**: its done-ness *is* the absence of a live leaf
@@ -52,9 +90,11 @@ needed — so every close has the same four steps:
 4. **Promote** anything still relevant from the brief upward — to the parent
    brief, an ADR, or the glossary — so it stays in the brief chain of future
    siblings; and **report** the close by naming the node's `<slug>-k<key>` handle
-   in the commit message alongside the leaf's own. The human reviews the close
-   after the fact, in the diff. The brief and its now-terminal leaves stay
-   exactly where they are (nothing moves).
+   in the commit message alongside the leaf's own. A brief is context rather than
+   a task, so it is never marked done and promotion is what a close does with it
+   (`BRIEF-FORMAT.md`). The human reviews the close after the fact, in the diff.
+   The brief and its now-terminal leaves stay exactly where they are (nothing
+   moves).
 
 If you meet a node whose charter was never written, do steps 2–4 and skip step
 1: there is no `Done when` to check and nothing to promote. That is a lapse in

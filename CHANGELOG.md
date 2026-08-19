@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v19.2.0
+
 - **A project may override personal launch policy per session kind, with an
   untracked `.grove.kdl` configuration delta.** It is searched at the worktree
   root and then the main repository root — the two paths `${worktree}` and

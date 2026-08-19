@@ -20,17 +20,17 @@ mandate wins, and the inserted leaf is simply the next iteration's work.
 
 ## What the one configuration carries
 
-Every session is launched by `~/.config/grove/config.kdl`, which gives each
-session kind exactly one complete command template. That template chooses the
-executable or wrapper and every user-controlled argument — harness, model,
-reasoning effort, approval, permission and sandbox policy — and grove neither
-knows nor infers which harness it eventually reaches: it reads the selected
-leaf's kind from the filename, looks that one kind up, expands its own
-substitutions, and executes the result directly (no shell). `${prompt}` carries
-what grove has to say to the session, and `${session_name}`, `${worktree}` and
-`${repo}` are the only others. **Nothing else routes a session** — no
-environment variable, no command-line flag, no repository stamp, no field in a
-task file, and no default, family or fallback.
+Every session is launched from personal configuration — it lives at
+`~/.config/grove/config.kdl` — which gives each session kind exactly one
+complete command template. That template chooses the executable or wrapper and
+every user-controlled argument — harness, model, reasoning effort, approval,
+permission and sandbox policy — and grove neither knows nor infers which harness
+it eventually reaches: it reads the selected leaf's kind from the filename,
+looks that one kind up, expands its own substitutions, and executes the result
+directly (no shell). `${prompt}` carries what grove has to say to the session,
+and `${session_name}`, `${worktree}` and `${repo}` are the only others.
+**Nothing else routes a session** — no environment variable, no command-line
+flag, no field in a task file, and no default, family or inheritance.
 
 Grove never creates or edits that file, because it cannot choose personal model
 or wrapper policy, and it re-validates the whole file before every tree mutation

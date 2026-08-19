@@ -90,3 +90,74 @@ finish — they describe behaviour for users and land with the code in
 `local-config-kdl-k3`. Touch them here only where a *citation* of the reworked
 ADR has gone stale. Resist the pull to document the feature early; documentation
 that describes unbuilt behaviour is the same lie as a glossary entry for it.
+
+## Decisions (running log)
+
+**The ADR is reworked in place under its existing slug, and not split.** The
+rework leaves `complete-session-configuration` carrying what looks like two
+decisions — the template is one opaque complete string Grove executes directly,
+and that string resolves from at most two files — but they are one claim seen
+from two sides: the resolution rule is safe *because* every kind's command is
+still read whole from one file, and the completeness rule that makes a partial
+delta safe is the same completeness the record already defended. Splitting would
+produce two records neither of which can be understood without the other, which
+is what `linkuistics:decision-records` calls one ADR pretending to be two. The
+environment paragraph stays for the same reason it was already there: it is a
+consequence of opacity, not a separate call. Keeping the slug also keeps every
+citation valid — `CONTEXT-MAP.md`, `docs/ARCHITECTURE.md` and
+`one-build-owns-a-session` (twice) all cite by slug, and all four citations were
+re-read and still hold, since what they lean on is opacity and the
+whole-template rule rather than the file count.
+
+**`content/references/driver.md` is edited subtractively, and describes no
+`.grove.kdl`.** Two claims in §"What the one configuration carries" are
+falsified on different clocks. *"No repository stamp"* routes a session is a
+claim about the design's shape, so the reworked ADR falsifies it now; it is
+deleted. *"Every session is launched by `~/.config/grove/config.kdl`"* is a
+claim about behaviour and stays true until the code lands, so it is not replaced
+by a description of the delta — it is weakened to "launched from personal
+configuration — it lives at `~/.config/grove/config.kdl`", which is true both
+before and after `local-config-kdl-k3` and states nothing unbuilt. The canonical
+phrase **Nothing else routes a session** is untouched, as
+`tests/rule_ownership.rs` requires of the `one-configuration` row.
+
+**"No default, family or fallback" becomes "…or inheritance."** The clause was
+rescued by its neighbour in the sense `references/execute.md` warns about: with
+*repository stamp* removed, *fallback* is the word left carrying a falsehood,
+because requirement 6's "worktree root, failing that the repository root" is
+literally a fallback in search order and a kind the delta omits literally falls
+back to the personal file. *Inheritance* is the word the ADR and
+`docs/ARCHITECTURE.md` already use for the thing actually forbidden — deriving
+one kind's target from another's — and it stays true after the delta lands.
+
+**Two reconciliations nobody owned are handed to `local-config-kdl-k3` through
+the brief.** `CONTEXT.md`'s **Grove configuration** entry ("the sole source",
+"repository-local stamps … neither override nor supplement this file",
+`_Avoid_: a fallback chain`, `_Avoid_: … user policy has one home`) and
+`content/references/decompose.md`'s "a property of two entries in
+`~/.config/grove/config.kdl`" are both falsified when the behaviour lands, not
+now — so neither is this leaf's to write. But `k3`'s own `Done when` named only
+`docs/CONFIGURATION.md` and `docs/ARCHITECTURE.md`, and the brief mentioned
+`CONTEXT.md` only as a term to *add*, which understates the larger half. Both
+are now named in the brief's `Done when` and `Pointers`, where the session that
+lands the behaviour will read them. Nothing was written into `k3`'s body: a
+sibling leaf's body belongs to the session that cut it.
+
+**A `review-design` leaf is cut, and inserted ahead of the implementation.** The
+leaf asked to be argued out of it, and the argument that came closest was that
+the six requirements were already settled with a human and the task file
+pre-argued three of the four revised options, leaving only prose quality at
+risk — which `local-config-kdl-k3` would notice anyway, since its own body names
+this record as its contract. That fails on who is reading and why: a session
+implementing to a contract is the reader least likely to notice that the
+contract's *rationale* is incoherent, because an incoherent rationale blocks no
+code. And what is most at risk here is exactly the rationale — whether the
+record honestly distinguishes what was rejected from what was adopted, which the
+leaf was explicitly warned a skimming reader will get wrong. Two further calls
+were made without a second reader and are the project's for months: not
+splitting the record, and taking *Considered options* from six entries to ten.
+`leaf-insert` rather than `leaf-add` because a review appended after
+`local-config-kdl-k3` would arrive once code already depended on the record —
+the expensive order the brief exists to avoid. No `integrate-review-design` leaf
+is cut: a review that finds nothing creates nothing. No in-session reviewer was
+spent, here or earlier in the session.

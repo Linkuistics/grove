@@ -21,8 +21,11 @@ the motivating case being deliberate balancing of account usage across vendors
 - `docs/adr/complete-session-configuration.md` describes the design as it then
   stands, reworked **in place**; no superseding ADR is appended.
 - Every current-state claim that this change falsifies is reconciled — including
-  `content/references/driver.md`'s "no repository stamp" clause, `docs/CONFIGURATION.md`
-  and `docs/ARCHITECTURE.md`.
+  `content/references/driver.md`'s "no repository stamp" clause,
+  `docs/CONFIGURATION.md`, `docs/ARCHITECTURE.md`, `CONTEXT.md`'s **Grove
+  configuration** entry together with its `_Avoid_` lines, and
+  `content/references/decompose.md`'s "two entries in
+  `~/.config/grove/config.kdl`".
 - `docs/CONFIGURATION.md` names the `.gitignore` line a reader must add. Grove
   itself writes no ignore rule and creates or edits no configuration file, as
   today.
@@ -70,15 +73,22 @@ whole out of a single file. That — not the count of files — is what
 
 ## Decomposition
 
-- `02-design-config-resolution-k2` — the recorded decision. Rework the ADR set in
-  place and reconcile the corpus, so the documented design and the design agree
-  before code exists to disagree with either.
-- `03-impl-local-config-kdl-k3` — the resolution itself, its fail-closed
+Named by handle, not position — an insert renumbers positions and rewrites no
+file contents, so a position-prefixed name here goes stale silently.
+
+- `config-resolution-k2` (`design`) — the recorded decision. Rework the ADR set
+  in place and reconcile the corpus, so the documented design and the design
+  agree before code exists to disagree with either.
+- `config-resolution-k4` (`review-design`) — the adversarial read of that
+  record, cut by `k2` and sequenced ahead of the implementation. Its own body
+  carries the specific doubts.
+- `local-config-kdl-k3` (`impl`) — the resolution itself, its fail-closed
   diagnostics, its unit tests, and the user-facing reference documentation.
 
 Design precedes implementation because the ADR is what the implementation is
 checked against, and because reworking a binding decision after code depends on
-it is the expensive order.
+it is the expensive order. The review sits between them for the same reason: a
+finding against the record is cheap until code depends on it.
 
 ## Pointers
 
@@ -94,17 +104,22 @@ it is the expensive order.
 - Current-state documentation in play: `docs/CONFIGURATION.md` (the whole file is
   about this), `docs/ARCHITECTURE.md` (its session-configuration section and its
   module table), `content/references/driver.md` (§"What the one configuration
-  carries").
+  carries"), `content/references/decompose.md` (§"The two shapes are built in
+  opposite ways", the *Diversity is the configuration's* paragraph, which names
+  the personal file as where the two compared entries live), and `CONTEXT.md`'s
+  **Grove configuration** entry — whose "sole source", "one exact lookup" and
+  "one home" claims are the glossary's, not the ADR's, and so land with the code.
 - Code: `src/session_config.rs` is the entire seam — load, validate, expand.
   `src/loop_driver.rs` holds both load points, pre-mutation and pre-launch.
   `tests/session_config.rs` is the existing unit-test seam.
 - Corpus constraints that bite when editing `content/`:
   `docs/specs/corpus-rule-ownership.md` with `tests/rule_ownership.rs`, and the
   per-kind word budgets in `tests/loaded_path_budgets.rs`.
-- Glossary term to add to `CONTEXT.md` **when the behaviour lands, not before**:
-  **configuration delta** — the `.grove.kdl` partial. Deliberately withheld here;
-  `CONTEXT.md` states the design as it is, and an entry for unbuilt behaviour
-  would make the glossary lie.
+- Glossary work for `CONTEXT.md` **when the behaviour lands, not before**: add
+  **configuration delta** — the `.grove.kdl` partial — and rework the existing
+  **Grove configuration** entry, which is the larger half. Deliberately withheld
+  here; `CONTEXT.md` states the design as it is, and an entry for unbuilt
+  behaviour would make the glossary lie.
 
 ## Notes
 

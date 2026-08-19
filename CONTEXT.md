@@ -636,8 +636,8 @@ wizard anti-pattern *in-session-finish-cycle* already rejects, and it terminated
 into that cycle's own confirmation, giving up to four questions about one fact.
 
 **Grove configuration** (`~/.config/grove/config.kdl`):
-The sole source of Grove's user configuration: a flat document assigning each of
-the nineteen [[Session kind]]s one complete command-template string, which
+The complete source of Grove's user configuration: a flat document assigning each
+of the nineteen [[Session kind]]s one complete command-template string, which
 chooses the executable or wrapper and every user-controlled argument — harness,
 model, reasoning effort, approval, permission, and sandbox policy included.
 Templates use POSIX shell-word quoting but Grove invokes no shell: it parses the
@@ -646,20 +646,45 @@ in any position after a literal word-zero executable, plus optional
 `${session_name}`, `${worktree}`, and `${repo}`), and executes the result
 directly, adding no hidden harness-specific argv fragments. A launch has no
 precedence lattice, no defaults, families, profiles, or inheritance, and no
-user-settable `GROVE_*` environment configuration — task files, flags,
-repository-local stamps, and variables neither override nor supplement this
-file, and there is no `GROVE_LLM_BIN` override. Grove never creates or edits it
-because it cannot choose personal policy, and fully validates it before **any**
-task-tree mutation and again before every launch, so a validation failure
-launches nothing and leaves an existing selected leaf live and resumable.
+user-settable `GROVE_*` environment configuration — task files, flags, and
+variables neither override nor supplement it, and there is no `GROVE_LLM_BIN`
+override. The one thing that may replace an entry is a [[Configuration delta]],
+which supplies a kind's *whole* template or nothing. Grove never creates or edits
+either file because it cannot choose personal policy, and fully validates this
+one — completeness included, whatever a delta says — before **any** task-tree
+mutation and again before every launch, so a validation failure launches nothing
+and leaves an existing selected leaf live and resumable.
 _Avoid_: "primary harness" — harness selection is a property of each session kind,
 not of the grove as a whole.
 _Avoid_: "thinking effort" — use **reasoning effort**, the launch-policy term.
-_Avoid_: a fallback chain — target resolution is one exact lookup.
+_Avoid_: a fallback chain — a kind resolves from one file or the other, and the
+two are never merged within a kind.
 _Avoid_: executing the template with `sh -c` or an interactive login shell — the
 configured process remains Grove's direct foreground child.
-_Avoid_: describing a diagnostic environment override as configuration; user
-policy has one home.
+_Avoid_: describing a diagnostic environment override as configuration; a
+delta is the only second source, and it is still personal policy.
+
+**Configuration delta** (`.grove.kdl`):
+The untracked, worktree-local partial that overrides [[Grove configuration]] per
+[[Session kind]]. Searched at the worktree root and then the main repository root
+— the two paths `${worktree}` and `${repo}` expand to — with the first file found
+taken as *the* delta and the other left unread; the two are never merged with
+each other, so resolution stays two deep and flat. Each kind it declares wins
+outright and every kind it omits falls through untouched, which is what lets the
+personal file stay mandatorily complete. Grove **enforces** its untrackedness
+rather than asking for it: a candidate the owning VCS reports as tracked is
+refused, because the file names a program to execute and a tracked one would let
+a repository choose what Grove spawns in any checkout of it. Unreadable,
+unparseable, invalid, or unanswerable-by-probe all fail closed at both load
+points, with aggregate diagnostics carrying the delta's own path and location.
+It sits *beside* `.grove/`, so the [[Finish transaction]] neither commits nor
+deletes it.
+_Avoid_: "project configuration" — it is untracked personal policy that happens
+to be scoped to a checkout, and no clone reproduces it.
+_Avoid_: treating a tracked delta as absent and falling back; the refusal is what
+reaches the person who can fix it.
+_Avoid_: reading the ignore rule instead of the index — a file already committed
+stays tracked after a `.gitignore` line is added.
 
 **Kind routing**:
 How the self-driving loop launches the [[Leaf]] selected by one authoritative

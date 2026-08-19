@@ -152,10 +152,12 @@ stem is the CLI's to state; read `--help`.
 
 **Diversity is the configuration's, not the tree's.** Whether a `review-*` or
 `research-b` template reaches a different harness or model from its producer's is
-a property of two entries in `~/.config/grove/config.kdl`. Grove cannot recover a
-target from an opaque command string, so it records nothing about how the
-producer ran, compares nothing, and warns about nothing. If the axis matters,
-read the two entries before you pay for the second leaf.
+a property of two entries in your configuration — in
+`~/.config/grove/config.kdl`, or in whichever of them an untracked `.grove.kdl`
+delta overrides. Grove cannot recover a target from an opaque command string, so
+it records nothing about how the producer ran, compares nothing, and warns about
+nothing. If the axis matters, read the two effective entries before you pay for
+the second leaf.
 
 ## Which hop a gap costs
 

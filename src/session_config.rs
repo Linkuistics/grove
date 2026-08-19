@@ -3,12 +3,15 @@ use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs;
 use std::io::ErrorKind;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use kdl::{KdlDocument, KdlNode};
 
 const CONFIG_PATH: &str = ".config/grove/config.kdl";
+/// The configuration delta's fixed name, searched at the two roots
+/// [`DeltaRoots`] carries (`docs/adr/untracked-configuration-delta.md`).
+pub const DELTA_FILE_NAME: &str = ".grove.kdl";
 // This is the expand-side kind set. Once filename kinds replace the legacy
 // leaf grammar, derive it from `leaf::Kind::ALL` so adding a kind invalidates
 // every old complete configuration by construction.
@@ -41,8 +44,35 @@ pub struct ExpansionContext<'a> {
     pub repository: &'a Path,
 }
 
+/// The two roots the [configuration delta](`DELTA_FILE_NAME`) is searched at,
+/// **in that order** — the same two `${worktree}` and `${repo}` expand to.
+///
+/// They are *taken*, never re-derived here. A second notion of "the repository
+/// root" computed inside this module is exactly the drift that would let the
+/// search order disagree with what `${repo}` expands to in the very template it
+/// selected; `crate::repo::main_repo_of` is the one derivation, and its result
+/// arrives through this struct. Naming both fields also makes a caller-side swap
+/// of two same-typed paths impossible.
+pub struct DeltaRoots<'a> {
+    pub worktree: &'a Path,
+    pub repository: &'a Path,
+}
+
 pub struct SessionConfig {
-    templates: HashMap<String, Vec<TemplateWord>>,
+    templates: HashMap<String, Template>,
+}
+
+/// One kind's compiled template together with **the file it was read from**.
+///
+/// Carried per kind rather than once per config, because after a delta resolves
+/// there is no single answer: one kind's launch may come from the delta while
+/// its neighbour's comes from the personal file. Every diagnostic that names a
+/// file — the aggregate validation report, and the spawn failure — has to name
+/// the one that actually supplied the failing kind, or it points a reader at a
+/// file that never contained the template.
+struct Template {
+    words: Vec<TemplateWord>,
+    source: PathBuf,
 }
 
 #[derive(Debug)]
@@ -52,6 +82,30 @@ enum TemplateWord {
     SessionName,
     Worktree,
     Repository,
+}
+
+/// Which document is being validated, and so which rules bind it.
+///
+/// The delta is a **partial**: it may declare any subset of the nineteen, and
+/// every kind it omits falls through untouched. Completeness stays the personal
+/// file's rule alone (`docs/adr/complete-session-configuration.md`) — that is
+/// what keeps a newly added session kind failing visibly in every stale personal
+/// config instead of being silently supplied by a source that never mentions it.
+/// Everything else — unknown kinds, duplicates, node shape, every template rule
+/// — binds both.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DocumentRole {
+    Personal,
+    Delta,
+}
+
+impl DocumentRole {
+    fn noun(self) -> &'static str {
+        match self {
+            Self::Personal => "Grove configuration",
+            Self::Delta => "Grove configuration delta",
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -73,25 +127,49 @@ struct NodeValidation {
 }
 
 impl SessionConfig {
-    pub fn path(home: &Path) -> std::path::PathBuf {
+    pub fn path(home: &Path) -> PathBuf {
         home.join(CONFIG_PATH)
     }
 
-    pub fn load(home: &Path) -> Result<Self> {
+    /// Where the delta is looked for, in search order: the worktree root, then
+    /// the main repository root. The two coincide in a single-worktree
+    /// repository, which is harmless — the first candidate found wins outright.
+    pub fn delta_candidates(roots: &DeltaRoots<'_>) -> [PathBuf; 2] {
+        [
+            roots.worktree.join(DELTA_FILE_NAME),
+            roots.repository.join(DELTA_FILE_NAME),
+        ]
+    }
+
+    /// The personal file, then at most one delta laid over it per kind.
+    ///
+    /// All-or-nothing in both halves: the personal file is read and fully
+    /// validated whatever a delta says, and an unreadable, unparseable, invalid
+    /// or **tracked** delta fails the load rather than falling back to the very
+    /// policy its owner was moving work away from.
+    pub fn load(home: &Path, roots: &DeltaRoots<'_>) -> Result<Self> {
         let path = Self::path(home);
         let source = read_source(&path)?;
-        let document: KdlDocument = source.parse().map_err(|error: kdl::KdlError| {
-            let location = source_location(&source, error.span.offset());
-            anyhow!(
-                "{}:{}:{}: KDL syntax error: {}",
-                path.display(),
-                location.line,
-                location.column,
-                error
-            )
-        })?;
+        let mut templates = parse_and_validate(&path, &source, DocumentRole::Personal)?;
 
-        validate_document(&path, &source, &document)
+        if let Some(delta_path) = find_delta(roots) {
+            let delta_source = read_delta_source(&delta_path)?;
+            let delta = parse_and_validate(&delta_path, &delta_source, DocumentRole::Delta)?;
+            // Each declared kind wins outright: one whole template replaces one
+            // whole template, so no rule has to decide which *words* of a launch
+            // come from where.
+            templates.extend(delta);
+        }
+
+        Ok(SessionConfig { templates })
+    }
+
+    /// The file the resolved template for `kind` was read from — the personal
+    /// file, or the delta that overrode it.
+    pub fn source(&self, kind: &str) -> Option<&Path> {
+        self.templates
+            .get(kind)
+            .map(|template| template.source.as_path())
     }
 
     pub fn expand(&self, kind: &str, context: &ExpansionContext<'_>) -> Result<Vec<OsString>> {
@@ -100,7 +178,7 @@ impl SessionConfig {
         })?;
         let mut argv = Vec::new();
 
-        for word in template {
+        for word in &template.words {
             match word {
                 TemplateWord::Literal(value) => argv.push(OsString::from(value)),
                 TemplateWord::Prompt => argv.push(OsString::from(context.prompt)),
@@ -112,6 +190,18 @@ impl SessionConfig {
 
         Ok(argv)
     }
+}
+
+/// The first of the two searched paths that **holds anything at all**; the other
+/// is not read, and the two are never merged with each other.
+///
+/// `symlink_metadata` rather than `is_file`, so a broken symlink or a directory
+/// at the searched path is a candidate that then fails closed on read, not an
+/// absence that silently resolves to the personal file.
+fn find_delta(roots: &DeltaRoots<'_>) -> Option<PathBuf> {
+    SessionConfig::delta_candidates(roots)
+        .into_iter()
+        .find(|candidate| fs::symlink_metadata(candidate).is_ok())
 }
 
 fn read_source(path: &Path) -> Result<String> {
@@ -127,7 +217,63 @@ fn read_source(path: &Path) -> Result<String> {
     }
 }
 
-fn validate_document(path: &Path, source: &str, document: &KdlDocument) -> Result<SessionConfig> {
+/// Read the selected delta, refusing a **tracked** one first.
+///
+/// Trackedness is validated on the delta the search already selected, never used
+/// to select it: a tracked file at the worktree root is a refusal, not a reason
+/// to read the repository root. The probe runs only because a candidate file
+/// exists, so a checkout with no delta pays nothing for it, and a probe that
+/// cannot be completed fails closed like any other unresolved validation.
+fn read_delta_source(path: &Path) -> Result<String> {
+    let tracked = crate::repo::path_is_tracked(path).with_context(|| {
+        format!(
+            "checking whether the Grove configuration delta at {} is tracked",
+            path.display()
+        )
+    })?;
+    if tracked {
+        bail!(
+            "refusing the Grove configuration delta at {path}: it is tracked in version control, \
+             and a tracked delta lets a repository choose what Grove executes in every checkout \
+             of it.\n  Untrack it (`git rm --cached {name}`, or drop it from the jj working-copy \
+             commit) and add `/{name}` to `.gitignore`.",
+            path = path.display(),
+            name = DELTA_FILE_NAME
+        );
+    }
+    fs::read_to_string(path).with_context(|| {
+        format!(
+            "failed to read the Grove configuration delta at {}",
+            path.display()
+        )
+    })
+}
+
+fn parse_and_validate(
+    path: &Path,
+    source: &str,
+    role: DocumentRole,
+) -> Result<HashMap<String, Template>> {
+    let document: KdlDocument = source.parse().map_err(|error: kdl::KdlError| {
+        let location = source_location(source, error.span.offset());
+        anyhow!(
+            "{}:{}:{}: KDL syntax error: {}",
+            path.display(),
+            location.line,
+            location.column,
+            error
+        )
+    })?;
+
+    validate_document(path, source, &document, role)
+}
+
+fn validate_document(
+    path: &Path,
+    source: &str,
+    document: &KdlDocument,
+    role: DocumentRole,
+) -> Result<HashMap<String, Template>> {
     let mut validations = Vec::new();
     let mut occurrences: HashMap<String, Vec<SourceLocation>> = HashMap::new();
 
@@ -141,16 +287,18 @@ fn validate_document(path: &Path, source: &str, document: &KdlDocument) -> Resul
     }
 
     let mut diagnostics = Vec::new();
-    let missing = REQUIRED_KINDS
-        .iter()
-        .filter(|kind| !occurrences.contains_key(**kind))
-        .copied()
-        .collect::<Vec<_>>();
-    if !missing.is_empty() {
-        diagnostics.push(ValidationDiagnostic {
-            location: None,
-            message: format!("missing session kinds: {}", missing.join(", ")),
-        });
+    if role == DocumentRole::Personal {
+        let missing = REQUIRED_KINDS
+            .iter()
+            .filter(|kind| !occurrences.contains_key(**kind))
+            .copied()
+            .collect::<Vec<_>>();
+        if !missing.is_empty() {
+            diagnostics.push(ValidationDiagnostic {
+                location: None,
+                message: format!("missing session kinds: {}", missing.join(", ")),
+            });
+        }
     }
 
     let mut duplicate_kinds = REQUIRED_KINDS
@@ -192,16 +340,22 @@ fn validate_document(path: &Path, source: &str, document: &KdlDocument) -> Resul
             });
         }
         diagnostics.extend(validation.diagnostics);
-        if let Some(template) = validation.template {
-            templates.insert(validation.kind, template);
+        if let Some(words) = validation.template {
+            templates.insert(
+                validation.kind,
+                Template {
+                    words,
+                    source: path.to_path_buf(),
+                },
+            );
         }
     }
 
     if !diagnostics.is_empty() {
-        return Err(anyhow!(render_diagnostics(path, diagnostics)));
+        return Err(anyhow!(render_diagnostics(path, role, diagnostics)));
     }
 
-    Ok(SessionConfig { templates })
+    Ok(templates)
 }
 
 fn validate_node(source: &str, node: &KdlNode) -> NodeValidation {
@@ -428,8 +582,12 @@ fn at_template(location: SourceLocation, kind: &str, message: String) -> Validat
     at_node(location, format!("session kind `{kind}`: {message}"))
 }
 
-fn render_diagnostics(path: &Path, diagnostics: Vec<ValidationDiagnostic>) -> String {
-    let mut rendered = format!("invalid Grove configuration at {}:", path.display());
+fn render_diagnostics(
+    path: &Path,
+    role: DocumentRole,
+    diagnostics: Vec<ValidationDiagnostic>,
+) -> String {
+    let mut rendered = format!("invalid {} at {}:", role.noun(), path.display());
     for diagnostic in diagnostics {
         rendered.push_str("\n  - ");
         if let Some(location) = diagnostic.location {

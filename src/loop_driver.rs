@@ -52,7 +52,7 @@
 use crate::complete::{self, Disposition};
 use crate::driver_lease::DriverLease;
 use crate::leaf::Kind;
-use crate::session_config::{ExpansionContext, SessionConfig};
+use crate::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
 use anyhow::{Context, Result};
 use std::ffi::OsString;
 use std::io::Write;
@@ -98,6 +98,15 @@ fn run_configured_loop_with_lease(
         .map(PathBuf::from)
         .context("$HOME is not set; cannot locate ~/.config/grove/config.kdl")?;
     let config_path = SessionConfig::path(&home);
+    // The two roots the configuration delta is searched at, taken from the
+    // resolution that already happened rather than recomputed here: `repo_path`
+    // is `repo::main_repo_of`'s answer and the very value `${repo}` expands to,
+    // so the search order cannot drift from the template it selects
+    // (`docs/adr/untracked-configuration-delta.md`).
+    let delta_roots = DeltaRoots {
+        worktree,
+        repository: repo_path,
+    };
     let repo_name = repo_path
         .file_name()
         .map(|value| value.to_string_lossy().into_owned())
@@ -116,7 +125,7 @@ fn run_configured_loop_with_lease(
         crate::provision::reverify_installed()?;
         crate::provision::report_absent_skill_destination();
         report_build_pairing(worktree);
-        let _pre_transition_config = SessionConfig::load(&home)?;
+        let _pre_transition_config = SessionConfig::load(&home, &delta_roots)?;
 
         crate::tree_lifecycle::transition_driver_to_current(worktree)?;
         let selection = match crate::tree_read::select(&worktree.join(".grove"))? {
@@ -124,7 +133,15 @@ fn run_configured_loop_with_lease(
             None => crate::tree_lifecycle::materialize_finish(worktree)?,
         };
 
-        let config = SessionConfig::load(&home)?;
+        let config = SessionConfig::load(&home, &delta_roots)?;
+        // The file this kind actually resolved from — the personal file, or the
+        // delta that overrode it. Every diagnostic below names *that*, because
+        // naming the personal file for a delta-supplied kind points a reader at
+        // a file which never held the failing template.
+        let resolved_source = config
+            .source(selection.kind.label())
+            .unwrap_or(config_path.as_path())
+            .to_path_buf();
         let prompt = session_prompt(&selection.handle, selection.kind, worktree)?;
         let argv = config.expand(
             selection.kind.label(),
@@ -145,7 +162,7 @@ fn run_configured_loop_with_lease(
         let ended = launch_configured_session(
             &argv,
             &selection,
-            &config_path,
+            &resolved_source,
             worktree,
             signal_channel.path(),
             driver_lease,
@@ -187,7 +204,7 @@ fn run_configured_loop_with_lease(
                         "       configured session kind `{}` failed via {:?} from {}.",
                         selection.kind.label(),
                         argv[0],
-                        config_path.display()
+                        resolved_source.display()
                     );
                 }
                 return Ok(LoopOutcome::Stopped);
@@ -292,10 +309,15 @@ fn stated_vcs(worktree: &Path) -> Result<String> {
 /// handle. That line is the only durable record of what each session in a loop
 /// was working on, so it names the **stable handle** rather than a path, which
 /// moves under `leaf-insert`.
+///
+/// A spawn failure names `resolved_source` — the file this kind's template was
+/// actually read from, personal or delta — rather than the personal path
+/// unconditionally, which would name a file that never held the failing
+/// template (`docs/adr/untracked-configuration-delta.md`).
 fn launch_configured_session(
     argv: &[OsString],
     selection: &crate::tree_read::SelectedLeaf,
-    config_path: &Path,
+    resolved_source: &Path,
     worktree: &Path,
     signal_file: &Path,
     driver_lease: &DriverLease,
@@ -322,7 +344,7 @@ fn launch_configured_session(
             "launching configured session kind `{}` via {:?} from {}",
             selection.kind.label(),
             executable,
-            config_path.display()
+            resolved_source.display()
         )
     })?;
     wait_with_watcher_result(child, signal_file, (DEFAULT_GRACE, DEFAULT_KILL_GRACE))

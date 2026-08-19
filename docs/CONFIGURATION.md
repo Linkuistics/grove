@@ -1,18 +1,24 @@
 # Grove Configuration
 
-One personal file, `~/.config/grove/config.kdl`, is the entirety of Grove's user
-configuration. It gives each of the nineteen session kinds one complete command
-template. Grove parses a template into arguments, expands its own substitutions,
-and executes the result directly as its foreground child.
+One personal file, `~/.config/grove/config.kdl`, gives each of the nineteen
+session kinds one complete command template. Grove parses a template into
+arguments, expands its own substitutions, and executes the result directly as its
+foreground child.
 
 Grove neither knows nor infers which agent harness a template runs. Executable,
 model, reasoning effort, approval, permission, and sandbox policy all live in the
 template, where you can read the whole launch in one line.
 
-There is no other configuration source. Task files, command-line flags,
-repository-local stamps, and environment variables neither override nor
-supplement this file, and Grove never creates or edits it — it cannot choose your
-model or approval policy for you.
+Exactly one other source may take part: an untracked, worktree-local
+[configuration delta](#the-configuration-delta) named `.grove.kdl`, which
+replaces the whole template of any subset of the kinds. Nothing else does — task
+files, command-line flags, and environment variables neither override nor
+supplement your configuration, and Grove never creates or edits either file. It
+cannot choose your model or approval policy for you.
+
+Whichever of the two supplies a kind, the property that matters is unchanged:
+that kind's launch is **one complete template string, read whole out of one
+file**. Nothing is ever assembled from two.
 
 ## The file
 
@@ -79,6 +85,76 @@ There are no defaults, families, profiles, or inheritance. Each kind's target is
 complete when read on its own — nothing is assembled from a precedence chain.
 The disciplines behind these names are in
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
+
+## The configuration delta
+
+Launch policy is personal, and sometimes it has to differ *per checkout* —
+sending one project's `impl` sessions to a different harness than your usual one,
+say, to balance usage across vendors. A **configuration delta** does that without
+touching the personal file.
+
+It is a KDL file named `.grove.kdl`, in exactly the grammar above, declaring
+**any subset** of the nineteen kinds:
+
+```kdl
+impl "claude --model opus ${prompt}"
+review-impl "codex exec --model gpt-5 ${prompt}"
+```
+
+Grove looks for it at two paths, in this order:
+
+1. the worktree root — the directory holding `.grove/`, what `${worktree}`
+   expands to;
+2. the main repository root — what `${repo}` expands to.
+
+**The first of the two that holds a file is *the* delta.** The other is not read,
+and the two are never merged with each other. The roots coincide in a
+single-worktree repository; they differ for a linked Git worktree or a secondary
+jj workspace, which is what makes a delta at the repository root apply to every
+workspace of that project while one in a workspace's own worktree shadows it for
+a one-off.
+
+Each kind the delta declares wins outright — one whole template replaces one
+whole template. Every kind it does not declare comes from the personal file
+untouched, and the personal file must still declare all nineteen exactly once and
+is still fully validated whatever the delta says. So adding a session kind still
+fails visibly in a stale personal config and can never be silently supplied by a
+delta.
+
+It sits **beside** `.grove/`, not inside it: `finish` commits and then deletes
+that directory wholesale, and your launch policy belongs to the checkout rather
+than to one workstream.
+
+### It must be untracked, and Grove enforces it
+
+A delta names a program to execute. A tracked one would let a repository — one
+you merely cloned to read — choose what Grove spawns in your checkout. So Grove
+asks the VCS that owns the file whether it is tracked, and **refuses to launch**
+if it is. An ignore rule cannot substitute for that check: in Git a file already
+committed stays tracked after a `.gitignore` line is added.
+
+Add the ignore line yourself — Grove writes no ignore rule:
+
+```gitignore
+/.grove.kdl
+```
+
+The same line serves both lanes, and it is a genuine requirement in a jj-enabled
+tree rather than hygiene: jj snapshots the working copy on any ordinary command,
+so an unignored delta joins the working-copy commit within seconds and is refused
+from then on. Ignored, it is tracked by neither VCS.
+
+If a delta was committed by accident, untrack it (`git rm --cached .grove.kdl`,
+or drop it from the jj working-copy commit) as well as ignoring it.
+
+### An invalid delta fails closed
+
+Unreadable, unparseable, tracked, or invalid in any way the personal file could
+be — an unknown kind name, a duplicate kind, a node with properties or children
+or the wrong argument count, a template breaking any rule below — and Grove
+launches nothing, at both read points, exactly as for the personal file. There is
+no warn-and-fall-back: falling back would run the session on precisely the policy
+you were moving work away from, and say so only afterwards.
 
 ## Command templates
 
@@ -187,6 +263,10 @@ every missing kind, every unknown kind, every duplicate with all of its source
 locations, every malformed node, and every invalid template with its kind and
 location.
 
+A delta gets the same aggregate report, reported against its own path, line and
+column — never the personal file's — minus the completeness rule, which is not
+its.
+
 ```text
 invalid Grove configuration at ~/.config/grove/config.kdl:
   - missing session kinds: research-b, finish
@@ -200,8 +280,9 @@ No diagnostic silently fills a target or falls back to another kind.
 
 Validation does not try to identify the configured program or understand its
 arguments. If the literal executable cannot be resolved or spawned, that is a
-launch error naming the selected kind and the executable; a wrapper's own
-failures stay opaque by design.
+launch error naming the selected kind, the executable, and **the file that kind's
+template was actually read from** — the personal file, or the delta that
+overrode it; a wrapper's own failures stay opaque by design.
 
 When a session ends without a completion signal, Grove reports the child's exit
 status and elapsed time. A nonzero status additionally names the session kind,
@@ -214,15 +295,16 @@ grove: session ended without a completion signal — status exit status: 127, el
 
 ### When configuration is read
 
-Grove reads and fully validates the whole file before **every** task-tree
-mutation — root initialization, legacy migration, and finish-leaf
-materialization — and again immediately before every launch. Nothing is cached
-between loop iterations, so editing the file affects the next session.
+Grove reads and fully validates the whole file — and resolves the delta, if there
+is one — before **every** task-tree mutation (root initialization, legacy
+migration, and finish-leaf materialization) and again immediately before every
+launch. Nothing is cached between loop iterations, so editing either file affects
+the next session.
 
 A failed pre-mutation read leaves a rootless, legacy, or pending-migration tree
-byte-identical. If the file becomes invalid after a mutation but before the launch
-read, that mutation stays as resumable tree state and no session launches. Either
-way an existing selected leaf remains live and resumable.
+byte-identical. If either file becomes invalid after a mutation but before the
+launch read, that mutation stays as resumable tree state and no session launches.
+Either way an existing selected leaf remains live and resumable.
 
 Adding a session kind is an intentional breaking schema change: a release
 announces the new entry, and complete configs fail validation until their owner

@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use grove::session_config::{ExpansionContext, SessionConfig};
+use grove::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
 use tempfile::TempDir;
 
 const SESSION_KINDS: &[&str] = &[
@@ -52,8 +52,49 @@ fn write_raw_config(home: &Path, document: &str) -> PathBuf {
     path
 }
 
+/// Load with two delta roots that hold no `.grove.kdl`, which is every
+/// pre-delta case: resolution must land exactly where it did before the search
+/// existed. A bare temp directory is deliberate — with no candidate file the
+/// trackedness probe never runs, so no VCS fixture is needed to assert it.
+fn load(home: &Path) -> anyhow::Result<SessionConfig> {
+    let empty = TempDir::new().unwrap();
+    load_from(home, empty.path(), empty.path())
+}
+
+fn load_from(home: &Path, worktree: &Path, repository: &Path) -> anyhow::Result<SessionConfig> {
+    SessionConfig::load(
+        home,
+        &DeltaRoots {
+            worktree,
+            repository,
+        },
+    )
+}
+
 fn load_error(home: &Path) -> String {
-    SessionConfig::load(home).err().unwrap().to_string()
+    load(home).err().unwrap().to_string()
+}
+
+fn load_error_from(home: &Path, worktree: &Path, repository: &Path) -> String {
+    load_from(home, worktree, repository)
+        .err()
+        .unwrap()
+        .to_string()
+}
+
+fn write_delta(root: &Path, document: &str) -> PathBuf {
+    let path = root.join(".grove.kdl");
+    fs::write(&path, document).unwrap();
+    path
+}
+
+fn context<'a>(prompt: &'a str) -> ExpansionContext<'a> {
+    ExpansionContext {
+        prompt,
+        session_name: "session",
+        worktree: Path::new("/worktree"),
+        repository: Path::new("/repo"),
+    }
 }
 
 #[test]
@@ -64,7 +105,7 @@ fn load_and_expand_preserve_argument_boundaries_and_prompt_position() {
         "env RUN_MODE=review wrapper --before '${prompt}' --tree '${worktree}' --after",
     );
 
-    let config = SessionConfig::load(home.path()).unwrap();
+    let config = load(home.path()).unwrap();
     let worktree = Path::new("/worktrees/config with spaces; touch nope");
     let repository = Path::new("/repos/grove");
     let context = ExpansionContext {
@@ -103,7 +144,7 @@ fn raw_kdl_strings_are_valid_command_templates() {
     }
     write_raw_config(home.path(), &document);
 
-    let config = SessionConfig::load(home.path()).unwrap();
+    let config = load(home.path()).unwrap();
     let context = ExpansionContext {
         prompt: "mandate",
         session_name: "session",
@@ -121,7 +162,7 @@ fn raw_kdl_strings_are_valid_command_templates() {
 fn scalar_substitutions_each_expand_to_one_argument() {
     let home = TempDir::new().unwrap();
     write_config(home.path(), "runner ${session_name} ${repo} ${prompt}");
-    let config = SessionConfig::load(home.path()).unwrap();
+    let config = load(home.path()).unwrap();
     let context = ExpansionContext {
         prompt: "mandate",
         session_name: "grove repo: config grove",
@@ -297,7 +338,7 @@ fn empty_word_zero_reports_one_diagnostic() {
 fn shell_metacharacters_remain_literal_arguments() {
     let home = TempDir::new().unwrap();
     write_config(home.path(), "runner '$(touch nope)' '*' '>' '${prompt}'");
-    let config = SessionConfig::load(home.path()).unwrap();
+    let config = load(home.path()).unwrap();
     let context = ExpansionContext {
         prompt: "mandate",
         session_name: "session",
@@ -338,7 +379,7 @@ fn quoted_escaped_and_midword_hashes_remain_literal_arguments() {
     ] {
         let home = TempDir::new().unwrap();
         write_config(home.path(), template);
-        let config = SessionConfig::load(home.path()).unwrap();
+        let config = load(home.path()).unwrap();
         let context = ExpansionContext {
             prompt: "mandate",
             session_name: "session",
@@ -377,5 +418,373 @@ fn duplicate_unknown_nodes_report_every_declaration_location() {
     assert!(
         error.contains(&format!("{}:21:1", path.display())),
         "{error}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// The configuration delta (`docs/adr/untracked-configuration-delta.md`)
+//
+// Everything here is asserted at `SessionConfig::load`, the one seam the delta
+// lives behind, and no test spawns a configured command. The trackedness cases
+// need real VCS fixtures rather than a bare temp directory, because the property
+// under test is what a VCS says about a path; that widens the fixture, not the
+// boundary.
+
+/// A git checkout with a `.grove.kdl` — committed (so git's index holds it) or
+/// merely present.
+fn git_checkout_with_delta(document: &str, commit: bool) -> TempDir {
+    let tmp = TempDir::new().unwrap();
+    run("git", tmp.path(), &["init", "-q", "."]);
+    run(
+        "git",
+        tmp.path(),
+        &["config", "user.email", "t@example.com"],
+    );
+    run("git", tmp.path(), &["config", "user.name", "Grove Test"]);
+    run(
+        "git",
+        tmp.path(),
+        &["config", "core.hooksPath", "/dev/null"],
+    );
+    write_delta(tmp.path(), document);
+    if commit {
+        run("git", tmp.path(), &["add", "-A"]);
+        run("git", tmp.path(), &["commit", "-q", "-m", "delta"]);
+    }
+    tmp
+}
+
+/// A jj working tree with a `.grove.kdl`. `colocate` picks the second jj shape —
+/// a `.git` beside the `.jj`, where jj-first is a choice rather than the only
+/// option. `ignored` writes the ignore line the refusal names, which is what
+/// keeps the file out of the working-copy commit across the snapshot below.
+fn jj_tree_with_delta(document: &str, colocate: bool, ignored: bool) -> TempDir {
+    let tmp = TempDir::new().unwrap();
+    let colocation = if colocate {
+        "git.colocate=true"
+    } else {
+        "git.colocate=false"
+    };
+    run_jj(
+        tmp.path(),
+        &["--config", colocation, "git", "init", "--quiet", "."],
+    );
+    if ignored {
+        fs::write(tmp.path().join(".gitignore"), "/.grove.kdl\n").unwrap();
+    }
+    write_delta(tmp.path(), document);
+    // jj snapshots the working copy on any ordinary command, which is exactly
+    // the moment an unignored delta becomes tracked.
+    run_jj(tmp.path(), &["status"]);
+    tmp
+}
+
+fn run(bin: &str, dir: &Path, args: &[&str]) -> String {
+    let out = std::process::Command::new(bin)
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap_or_else(|error| panic!("running {bin} {args:?}: {error} (is {bin} installed?)"));
+    assert!(
+        out.status.success(),
+        "{bin} {args:?} failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+fn run_jj(dir: &Path, args: &[&str]) -> String {
+    let mut full = vec![
+        "--config",
+        "user.name=Test",
+        "--config",
+        "user.email=t@example.com",
+    ];
+    full.extend_from_slice(args);
+    run("jj", dir, &full)
+}
+
+#[test]
+fn a_delta_overrides_only_the_kinds_it_declares() {
+    let home = TempDir::new().unwrap();
+    let worktree = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    write_delta(worktree.path(), "impl \"other --model opus ${prompt}\"\n");
+
+    let config = load_from(home.path(), worktree.path(), worktree.path()).unwrap();
+
+    assert_eq!(
+        config.expand("impl", &context("mandate")).unwrap(),
+        vec!["other", "--model", "opus", "mandate"],
+        "the declared kind must come from the delta"
+    );
+    assert_eq!(
+        config.expand("design", &context("mandate")).unwrap(),
+        vec!["runner", "mandate"],
+        "an undeclared kind must fall through to the personal file untouched"
+    );
+}
+
+#[test]
+fn each_kind_reports_the_file_it_resolved_from() {
+    let home = TempDir::new().unwrap();
+    let worktree = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    let delta_path = write_delta(worktree.path(), "impl \"other ${prompt}\"\n");
+
+    let config = load_from(home.path(), worktree.path(), worktree.path()).unwrap();
+
+    assert_eq!(config.source("impl"), Some(delta_path.as_path()));
+    assert_eq!(
+        config.source("design"),
+        Some(home.path().join(".config/grove/config.kdl").as_path())
+    );
+}
+
+#[test]
+fn the_worktree_delta_shadows_the_repository_root_and_the_loser_is_not_read() {
+    let home = TempDir::new().unwrap();
+    let worktree = TempDir::new().unwrap();
+    let repository = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    write_delta(worktree.path(), "impl \"chosen ${prompt}\"\n");
+    // Unparseable, and never merged or even opened: a load that reads it fails.
+    write_delta(repository.path(), "impl 1.\n");
+
+    let config = load_from(home.path(), worktree.path(), repository.path()).unwrap();
+
+    assert_eq!(
+        config.expand("impl", &context("mandate")).unwrap(),
+        vec!["chosen", "mandate"]
+    );
+}
+
+#[test]
+fn a_repository_root_delta_is_read_when_the_worktree_has_none() {
+    let home = TempDir::new().unwrap();
+    let worktree = TempDir::new().unwrap();
+    let repository = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    write_delta(repository.path(), "impl \"inherited ${prompt}\"\n");
+
+    let config = load_from(home.path(), worktree.path(), repository.path()).unwrap();
+
+    assert_eq!(
+        config.expand("impl", &context("mandate")).unwrap(),
+        vec!["inherited", "mandate"]
+    );
+}
+
+#[test]
+fn a_delta_relaxes_nothing_about_the_personal_file() {
+    let home = TempDir::new().unwrap();
+    let worktree = TempDir::new().unwrap();
+    let mut document = complete_document("runner ${prompt}");
+    document = document.replace("impl \"runner ${prompt}\"\n", "");
+    write_raw_config(home.path(), &document);
+    write_delta(worktree.path(), "impl \"other ${prompt}\"\n");
+
+    let error = load_error_from(home.path(), worktree.path(), worktree.path());
+
+    assert!(
+        error.contains("missing session kinds: impl"),
+        "the personal file must still declare all nineteen, whatever a delta says:\n{error}"
+    );
+}
+
+#[test]
+fn delta_diagnostics_are_aggregated_against_the_deltas_own_path_and_location() {
+    let home = TempDir::new().unwrap();
+    let worktree = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    let delta_path = write_delta(
+        worktree.path(),
+        concat!(
+            "mystery \"runner ${prompt}\"\n",
+            "impl \"runner ${prompt}\"\n",
+            "impl \"other ${prompt}\"\n",
+            "design \"runner ${prompt}\" property=true { child; }\n",
+            "planning \"runner ${prompt}\" \"extra\"\n",
+            "finish \"runner\"\n",
+        ),
+    );
+
+    let error = load_error_from(home.path(), worktree.path(), worktree.path());
+    let display_path = delta_path.display().to_string();
+
+    assert!(
+        error.contains(&format!(
+            "invalid Grove configuration delta at {display_path}"
+        )),
+        "{error}"
+    );
+    assert!(
+        error.contains(&format!(
+            "{display_path}:1:1: unknown session kind `mystery`"
+        )),
+        "{error}"
+    );
+    assert!(error.contains("duplicate session kind `impl`"), "{error}");
+    assert!(error.contains(&format!("{display_path}:2:1")), "{error}");
+    assert!(error.contains(&format!("{display_path}:3:1")), "{error}");
+    assert!(
+        error.contains("properties and child blocks are not allowed"),
+        "{error}"
+    );
+    assert!(error.contains("exactly one positional argument"), "{error}");
+    assert!(
+        error.contains("must contain `${prompt}` exactly once"),
+        "{error}"
+    );
+    assert!(
+        !error.contains("missing session kinds"),
+        "a delta is a partial; completeness is not its rule:\n{error}"
+    );
+}
+
+#[test]
+fn an_unparseable_delta_names_its_own_source_location() {
+    let home = TempDir::new().unwrap();
+    let worktree = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    let delta_path = write_delta(worktree.path(), "impl \"runner ${prompt}\"\ndesign 1.\n");
+
+    let error = load_error_from(home.path(), worktree.path(), worktree.path());
+
+    assert!(
+        error.contains(&format!("{}:2:", delta_path.display())),
+        "{error}"
+    );
+    assert!(error.contains("KDL syntax error"), "{error}");
+}
+
+#[test]
+fn an_unreadable_delta_fails_closed() {
+    let home = TempDir::new().unwrap();
+    let worktree = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    // A directory at the searched path: present, so it is *the* delta, and
+    // unreadable, so the load fails rather than resolving to the personal file.
+    fs::create_dir(worktree.path().join(".grove.kdl")).unwrap();
+
+    let error = load_error_from(home.path(), worktree.path(), worktree.path());
+
+    assert!(
+        error.contains("failed to read the Grove configuration delta"),
+        "{error}"
+    );
+}
+
+#[test]
+fn every_delta_template_rule_still_binds() {
+    for (template, expected) in [
+        ("runner", "must contain `${prompt}` exactly once"),
+        ("${prompt} runner", "word zero must be a literal executable"),
+        (
+            "runner ${unknown} ${prompt}",
+            "unknown substitution `${unknown}`",
+        ),
+        (
+            "runner ${worktree} ${worktree} ${prompt}",
+            "`${worktree}` may appear at most once",
+        ),
+        (
+            "runner --color #ff0000 ${prompt}",
+            "`#` starts a comment in a command template",
+        ),
+    ] {
+        let home = TempDir::new().unwrap();
+        let worktree = TempDir::new().unwrap();
+        write_config(home.path(), "runner ${prompt}");
+        write_delta(worktree.path(), &format!("impl {template:?}\n"));
+
+        let error = load_error_from(home.path(), worktree.path(), worktree.path());
+
+        assert!(
+            error.contains(expected),
+            "expected {expected:?} for delta template {template:?}, got:\n{error}"
+        );
+    }
+}
+
+#[test]
+fn a_git_tracked_delta_is_refused_and_the_refusal_names_the_ignore_line() {
+    let home = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    let tree = git_checkout_with_delta("impl \"other ${prompt}\"\n", true);
+
+    let error = load_error_from(home.path(), tree.path(), tree.path());
+
+    assert!(
+        error.contains(&tree.path().join(".grove.kdl").display().to_string()),
+        "{error}"
+    );
+    assert!(error.contains("tracked"), "{error}");
+    assert!(error.contains("/.grove.kdl"), "{error}");
+}
+
+#[test]
+fn a_git_untracked_delta_is_read() {
+    let home = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    let tree = git_checkout_with_delta("impl \"other ${prompt}\"\n", false);
+
+    let config = load_from(home.path(), tree.path(), tree.path()).unwrap();
+
+    assert_eq!(
+        config.expand("impl", &context("mandate")).unwrap(),
+        vec!["other", "mandate"]
+    );
+}
+
+#[test]
+fn a_snapshotted_jj_delta_is_refused_in_both_jj_shapes() {
+    for colocate in [false, true] {
+        let home = TempDir::new().unwrap();
+        write_config(home.path(), "runner ${prompt}");
+        let tree = jj_tree_with_delta("impl \"other ${prompt}\"\n", colocate, false);
+
+        let error = load_error_from(home.path(), tree.path(), tree.path());
+
+        assert!(
+            error.contains("tracked"),
+            "an unignored delta is in the working-copy commit after one jj command \
+             (colocate={colocate}):\n{error}"
+        );
+    }
+}
+
+#[test]
+fn an_ignored_jj_delta_is_read_in_both_jj_shapes() {
+    for colocate in [false, true] {
+        let home = TempDir::new().unwrap();
+        write_config(home.path(), "runner ${prompt}");
+        let tree = jj_tree_with_delta("impl \"other ${prompt}\"\n", colocate, true);
+
+        let config = load_from(home.path(), tree.path(), tree.path()).unwrap();
+
+        assert_eq!(
+            config.expand("impl", &context("mandate")).unwrap(),
+            vec!["other", "mandate"],
+            "colocate={colocate}"
+        );
+    }
+}
+
+#[test]
+fn a_trackedness_probe_that_cannot_be_completed_fails_closed() {
+    let home = TempDir::new().unwrap();
+    let worktree = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    // A worktree marker naming a gitdir that is not there: a Git tree by every
+    // test Grove applies, and one no probe can answer about.
+    fs::write(worktree.path().join(".git"), "gitdir: ./absent-gitdir\n").unwrap();
+    write_delta(worktree.path(), "impl \"other ${prompt}\"\n");
+
+    let error = load_error_from(home.path(), worktree.path(), worktree.path());
+
+    assert!(
+        error.contains("is tracked"),
+        "an unanswerable probe must fail the load, not resolve to the personal file:\n{error}"
     );
 }

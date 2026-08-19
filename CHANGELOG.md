@@ -51,6 +51,35 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **A project may override personal launch policy per session kind, with an
+  untracked `.grove.kdl` configuration delta.** It is searched at the worktree
+  root and then the main repository root — the two paths `${worktree}` and
+  `${repo}` expand to — the first one found is *the* delta, and the two are never
+  merged with each other. It declares any subset of the nineteen kinds and each
+  one it declares replaces the personal file's entry outright, so a kind's launch
+  is still one complete template string read whole out of one file; every kind it
+  omits falls through, and `~/.config/grove/config.kdl` stays mandatorily
+  complete and fully validated. The motivating case is balancing account usage
+  across vendors within one workstream
+  ([#10](https://github.com/Linkuistics/grove/issues/10)). Decisions:
+  `docs/adr/untracked-configuration-delta.md`, and the rework of
+  `docs/adr/complete-session-configuration.md` it split from.
+
+- **A tracked delta is refused rather than trusted to an ignore rule.** The file
+  names a program to execute, so a repository that could ship one would choose
+  what Grove spawns in any checkout of it; Grove asks the VCS owning the
+  candidate one read-only question, jj-first and `--ignore-working-copy`, and
+  only when a candidate file exists. Unreadable, unparseable, invalid, tracked,
+  or unanswerable-by-probe all fail closed at **both** load points — before every
+  tree mutation and again before every launch — with the same aggregate
+  diagnostics the personal file gets, reported against the delta's own path, line
+  and column. Grove still writes no ignore rule and creates or edits no
+  configuration file; `docs/CONFIGURATION.md` names the `/.grove.kdl` line to add.
+
+- **Fixed: a spawn failure named the personal config path unconditionally.** It
+  now names the file the failing kind actually resolved from, which after a delta
+  need not be the personal one.
+
 ## v19.1.0
 
 - **`content/SKILL.md` is a condition register, not a methodology.** It drops

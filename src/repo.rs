@@ -423,3 +423,89 @@ pub fn git_common_dir(cwd: &Path) -> Result<PathBuf> {
         Ok(worktree.join(common))
     }
 }
+
+/// Is `path` **tracked** by the VCS that owns the tree `path` itself sits in?
+///
+/// The one read-only question [`crate::session_config`] asks a VCS, and the
+/// enforcement behind [the untracked configuration
+/// delta](../docs/adr/untracked-configuration-delta.md): a delta names a program
+/// to execute, so a repository that could ship one would choose what Grove
+/// spawns in any checkout of it. Documentation cannot establish that boundary
+/// and neither can an ignore rule — a file already committed stays tracked when
+/// a `.gitignore` line is added.
+///
+/// Anchored to the candidate's **own** directory rather than to the leased
+/// worktree, because the two searched roots may live in different trees (a
+/// linked worktree, a secondary jj workspace) and the tree that owns the file is
+/// the one whose index or working-copy commit can hold it. Lane chosen jj-first
+/// by [`vcs_of`], Git anchored by [`anchor_git_worktree_environment`], jj kept
+/// read-only by `--ignore-working-copy` — the same three idioms every other
+/// probe here follows.
+///
+/// No VCS marker at all answers `false` rather than failing: nothing owns the
+/// file, so nothing tracks it, and the hostile repository this guards against
+/// has a marker by definition. A probe that cannot be *completed* — the binary
+/// missing, the command failing — is an error, and its caller fails closed.
+pub(crate) fn path_is_tracked(path: &Path) -> Result<bool> {
+    let directory = path
+        .parent()
+        .with_context(|| format!("candidate path has no parent directory: {}", path.display()))?;
+    let name = path
+        .file_name()
+        .with_context(|| format!("candidate path has no file name: {}", path.display()))?;
+    match vcs_of(directory) {
+        Some(Vcs::Jj { .. }) => jj_path_is_tracked(directory, Path::new(name)),
+        Some(Vcs::Git) => git_path_is_tracked(directory, Path::new(name)),
+        None => Ok(false),
+    }
+}
+
+/// `jj file list --ignore-working-copy <name>` in the candidate's own directory:
+/// non-empty stdout means the working-copy commit holds it.
+///
+/// `--ignore-working-copy` is what keeps the probe read-only, and it has a
+/// consequence worth knowing rather than smoothing over: jj snapshots
+/// automatically, so an *unignored* delta reads untracked until the next
+/// snapshot and refused after it. That is the design forcing the ignore line.
+fn jj_path_is_tracked(directory: &Path, name: &Path) -> Result<bool> {
+    let out = Command::new("jj")
+        .arg("file")
+        .arg("list")
+        .arg("--ignore-working-copy")
+        .arg(name)
+        .current_dir(directory)
+        .output()
+        .context("running jj file list --ignore-working-copy")?;
+    if !out.status.success() {
+        bail!(
+            "jj file list --ignore-working-copy failed in {}: {}",
+            directory.display(),
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    Ok(!out.stdout.is_empty())
+}
+
+/// `git ls-files -- <name>` in the candidate's own directory: it prints the path
+/// when the index holds it and nothing when it does not, so trackedness is the
+/// emptiness of stdout rather than an exit status (`--error-unmatch` would make
+/// "untracked" indistinguishable from "the probe broke").
+fn git_path_is_tracked(directory: &Path, name: &Path) -> Result<bool> {
+    let worktree = workspace_control(directory)?.worktree_root().to_path_buf();
+    let mut command = Command::new("git");
+    command
+        .arg("ls-files")
+        .arg("--")
+        .arg(name)
+        .current_dir(directory);
+    anchor_git_worktree_environment(&mut command, &worktree);
+    let out = command.output().context("running git ls-files")?;
+    if !out.status.success() {
+        bail!(
+            "git ls-files failed in {}: {}",
+            directory.display(),
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    Ok(!out.stdout.is_empty())
+}

@@ -70,7 +70,8 @@ human: grove
              ├─ revalidate the lease
              ├─ re-verify each skill dir's stamp; restore a clobbered one
              ├─ identity-check the grove-llm the session will resolve
-             ├─ load and fully validate ~/.config/grove/config.kdl
+             ├─ load and fully validate ~/.config/grove/config.kdl, then
+             │    resolve any untracked .grove.kdl delta over it
              ├─ reap orphaned finish quarantine, then recover or perform the one
              │    lifecycle transition (root-init, migration, or nothing)
              ├─ one authoritative pick — or materialize the finish leaf
@@ -143,15 +144,35 @@ owns the human grammar; `src/llm_cli.rs` owns the agent grammar.
 
 ## Session configuration
 
-`~/.config/grove/config.kdl` is the entirety of user launch policy: a flat map
-of all nineteen session kinds to one complete command-template string each, with
-no defaults, families, or inheritance. The configuration module loads that one
-file into a total kind-to-template map and expands one selected template from a
+`~/.config/grove/config.kdl` carries user launch policy: a flat map of all
+nineteen session kinds to one complete command-template string each, with no
+defaults, families, or inheritance. The configuration module loads that one file
+into a total kind-to-template map and expands one selected template from a
 context of prompt, session name, worktree, and repository root. It hides KDL
 handling, aggregate schema diagnostics, POSIX shell-word splitting, substitution
 validation, and argv construction; callers cannot ask it for a default, family,
 harness, or model. The user-facing grammar and diagnostics are in
 [CONFIGURATION.md](CONFIGURATION.md).
+
+At most one second file takes part: an untracked `.grove.kdl` **configuration
+delta**, searched at the worktree root and then the main repository root, the
+first one found selected outright and the two never merged. It declares any
+subset of the kinds and each declared kind's whole template replaces the personal
+file's, while the personal file stays mandatorily complete and fully validated.
+Resolution is therefore two deep and flat rather than a precedence lattice, and a
+kind's launch remains one complete string read whole out of one file — which is
+why this leaves [complete session
+configuration](adr/complete-session-configuration.md) intact. The module takes
+both roots from the driver rather than deriving them, so the search order cannot
+disagree with what `${repo}` expands to in the template it selected.
+
+That gives the module its one non-filesystem dependency: because a delta names a
+program to execute, a **tracked** candidate is refused rather than trusted to an
+ignore rule, so `session_config` asks `repo` one read-only question about one
+path — and only when a candidate file exists. An unreadable, unparseable,
+invalid, or tracked delta fails the load at both read points, with the same
+aggregate diagnostics attributed to the delta's own path and location. See [the
+untracked configuration delta](adr/untracked-configuration-delta.md).
 
 Grove executes the expanded argv directly — no shell, no proxy, no router
 service, and no harness-specific argument or environment injection. Because a
@@ -491,8 +512,8 @@ deleting it.
 
 Bare `grove` is the sole start/continue/finish entry. Each iteration performs at
 most one lifecycle transition, and full configuration validation precedes every
-one of them, so a missing or malformed `config.kdl` leaves the working tree
-byte-identical:
+one of them, so a missing or malformed `config.kdl` — or an invalid or tracked
+`.grove.kdl` delta — leaves the working tree byte-identical:
 
 | Observed state | Transition |
 |---|---|
@@ -1081,11 +1102,11 @@ prescribing one command.
 | Module | Responsibility |
 |---|---|
 | `launch` | Provisioning, lease acquisition, and child-environment scrubbing rules. |
-| `session_config` | The whole personal configuration: load, validate, expand one template to argv. |
+| `session_config` | The whole of launch configuration: load and validate the personal file, resolve at most one untracked delta over it per kind, expand one template to argv. Asks `repo` whether a delta candidate is tracked; nothing else leaves the filesystem. |
 | `loop_driver` | Foreground iteration, selection, child lifecycle, and completion signals. |
 | `driver_lease` | Driver lease, session epoch, signal-channel allocation, and ambient-session validation. |
 | `harness` | The provisioning-target registry — delivery destinations only. |
-| `repo`, `tree_rename` | Git/Jujutsu detection, scoped commits, and the mutation seam. |
+| `repo`, `tree_rename` | Git/Jujutsu detection, scoped commits, the read-only trackedness probe, and the mutation seam. |
 | `tree_id`, `tree_read`, `tree_grow`, `tree_lifecycle`, `tree_access`, `tree_format` | Filesystem task-tree model, lock, and format witness. |
 | `tree_migrate`, `tree_migration_transaction` | Legacy classification, planning and admission, and its fail-closed mutation owner. |
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |

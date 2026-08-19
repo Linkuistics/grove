@@ -60,6 +60,7 @@ lockstep, which is why they live together — see
   root set is appropriate. A term is defined in the glossary of its owning
   context, never both. The **grove** context owns
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
+  [`untracked-configuration-delta`](docs/adr/untracked-configuration-delta.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
   [`skill-delivers-the-methodology`](docs/adr/skill-delivers-the-methodology.md),
   [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md),

@@ -18,8 +18,14 @@ the motivating case being deliberate balancing of account usage across vendors
 - An unreadable, unparseable, or invalid delta **fails closed** at both existing
   load points, with the same aggregate (not first-error) diagnostics the
   personal file gets, reported against the delta's own path and location.
-- `docs/adr/complete-session-configuration.md` describes the design as it then
-  stands, reworked **in place**; no superseding ADR is appended.
+- The ADR set describes the design as it then stands, reworked **in place**; no
+  superseding ADR is appended. `config-resolution-k5` split it at one-decision
+  grain: `docs/adr/complete-session-configuration.md` keeps the opaque complete
+  launch value and the personal file's completeness, and
+  `docs/adr/untracked-configuration-delta.md` owns the delta's lookup, per-kind
+  selection, enforced untrackedness, fail-closed validation and placement.
+- The delta's untrackedness is **enforced at the seam**, not asked for: a tracked
+  candidate at a searched path fails closed, in both VCS lanes.
 - Every current-state claim that this change falsifies is reconciled — including
   `content/references/driver.md`'s "no repository stamp" clause,
   `docs/CONFIGURATION.md`, `docs/ARCHITECTURE.md`, `CONTEXT.md`'s **Grove
@@ -93,12 +99,20 @@ finding against the record is cheap until code depends on it.
 ## Pointers
 
 - ADRs a session here must read:
+  - `docs/adr/untracked-configuration-delta.md` — where launch policy may come
+    from: the two searched roots, per-kind selection, the enforced untrackedness
+    and what it refuses, fail-closed validation, and why the file sits beside
+    `.grove/`. This is the contract `local-config-kdl-k3` implements.
   - `docs/adr/complete-session-configuration.md` — the decision this workstream
-    changes. Read its *Considered options* especially: layered overrides and
-    repository-local policy were both weighed and rejected, and the rework has to
-    say honestly what is different now rather than pretend they were not.
-  - `docs/adr/supported-workspace-layouts.md` — what `${worktree}` and `${repo}`
-    mean, which is what makes requirement 6 well-defined.
+    changes, and what survived the split: one kind resolves to one complete
+    template read whole, the personal file stays complete, Grove infers nothing.
+    Read its *Considered options* especially: layered overrides were weighed and
+    rejected, and the rework has to say honestly what is different now rather
+    than pretend they were not.
+  - `docs/adr/supported-workspace-layouts.md` — the layouts in which the worktree
+    root and the main repository root differ, which is what gives requirement 6
+    something to search. It does not define the `${worktree}` / `${repo}`
+    substitutions themselves; `src/repo.rs` and the delta record do.
   - `docs/adr/task-tree-transactions-fail-closed.md` — the posture requirement 4
     follows.
 - Current-state documentation in play: `docs/CONFIGURATION.md` (the whole file is

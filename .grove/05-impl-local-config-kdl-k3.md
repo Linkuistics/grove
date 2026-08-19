@@ -9,7 +9,8 @@ Implement `.grove.kdl` resolution and its fail-closed diagnostics behind
 ## Context
 
 The brief carries the six requirements and the file pointers. What is specific to
-this leaf is the seam and the two hazards below.
+this leaf is the seam — in two parts, since `config-resolution-k5` widened it —
+and the two hazards.
 
 **The seam is the signature.** `SessionConfig::load` takes only `home` today, and
 that is exactly why "the personal file is the entirety of configuration" was
@@ -29,6 +30,21 @@ Correcting it to name the file the failing kind actually resolved from is part o
 this leaf: it is a defect this change introduces, not scope beyond it. The same
 applies to the aggregate validation report, which must attribute each diagnostic
 to the file and location it came from.
+
+**The seam is now VCS-aware, and that is deliberate.**
+`config-resolution-k5` resolved the review's F1 by enforcing the delta's
+untrackedness rather than documenting it: a candidate that the VCS owning its own
+tree reports as tracked fails closed. So `SessionConfig::load` gains not only the
+worktree but the ability to ask a VCS one read-only question about one path, and
+`docs/adr/untracked-configuration-delta.md` is where the *why* lives. Two things
+keep this from becoming a second VCS layer: the probe runs **only when a
+candidate file exists**, and it reuses `src/repo.rs`'s established idioms —
+lane chosen jj-first by `vcs_of`, git anchored with
+`anchor_git_worktree_environment`, jj kept read-only with
+`--ignore-working-copy`. The consequence of that last flag is worth knowing
+before you meet it: an unignored delta in a jj tree reads untracked until the
+next snapshot and refused after it, which is the design forcing the ignore line
+rather than a bug to smooth over.
 
 **Hazard two — `${repo}` must not be re-derived here.** Requirement 6's second
 search location is the main repository root, and grove already knows how to
@@ -51,13 +67,24 @@ the kind of drift that makes the search order behave differently from what
   kind, a node with properties or children or the wrong argument count, and a
   template failing any existing rule (executable in word zero, one `${prompt}`,
   no repeated optional substitution, the unquoted-`#` rule).
+- A delta that is **tracked** in the VCS owning its own tree fails closed at both
+  load points, with a diagnostic naming the path, the fact that it is tracked,
+  and the ignore line that fixes it. Trackedness is validated on the delta the
+  search selected — never used to select it, so a tracked file at the worktree
+  root is a refusal and not a reason to read the repository root. A probe that
+  cannot be completed fails closed too.
 - A spawn failure and every validation diagnostic name the file the affected kind
   actually resolved from.
 - Covered at `SessionConfig::load`, extending `tests/session_config.rs` in the
   style already there (temp `$HOME`, temp worktree, no process spawn): absence
   resolves as today; a delta wins per kind while unnamed kinds fall through;
   worktree shadows repository root and the losing file is not read; each invalid
-  form fails closed with its own path and location in the report.
+  form fails closed with its own path and location in the report. The trackedness
+  cases need real fixtures rather than a bare temp directory — a git checkout
+  with the delta committed, a git checkout with it merely present, and both jj
+  shapes — in the style of `tests/jj_tree_verbs.rs`, which already builds
+  jj-native and colocated trees. That widens the fixture, not the boundary:
+  still `SessionConfig::load`, still no process spawn of a configured command.
   **No end-to-end driver test and no inspection verb** — requirement 5, taken
   deliberately with its cost stated. Do not quietly add either; if you come to
   believe the boundary is wrong, say so to the human rather than widen it.
@@ -68,7 +95,17 @@ the kind of drift that makes the search order behave differently from what
   user configuration, and stop saying repository-local stamps neither override
   nor supplement it.
 - `docs/ARCHITECTURE.md` agrees — its session-configuration section and the
-  `session_config` row of its module table.
+  `session_config` row of its module table. The module row must stop implying
+  that `session_config` asks the filesystem and nothing else, since it now asks a
+  VCS one question.
+- `content/references/driver.md`'s §"What the one configuration carries" is
+  reconciled here and cannot be left stale. Its "launched from personal
+  configuration — it lives at `~/.config/grove/config.kdl`" is true only while
+  the delta is unbuilt; once this leaf lands, personal launch policy has two
+  possible homes and the paragraph must say so without turning into a second copy
+  of `docs/CONFIGURATION.md`. `config-resolution-k4` F4 is the finding; the
+  corpus constraints in the brief (rule ownership, per-kind word budgets) bite
+  here.
 - Grove still creates or edits **no** configuration file and writes **no** ignore
   rule.
 - `cargo test` green; `cargo fmt` and `cargo clippy` clean.
@@ -80,9 +117,10 @@ the kind of drift that makes the search order behave differently from what
 
 ## Notes
 
-Read `docs/adr/complete-session-configuration.md` as reworked by
-`config-resolution-k2`, not as it stands today; that rework is this leaf's
-contract.
+This leaf's contract is `docs/adr/untracked-configuration-delta.md` — written by
+`config-resolution-k5` when it split the record — read together with what
+survived in `docs/adr/complete-session-configuration.md`. Neither says what it
+said when this leaf was cut.
 
 Ordering within the session: seam first, then resolution, then diagnostics, then
 documentation. Writing the documentation last is what keeps it a description of

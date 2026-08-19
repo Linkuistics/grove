@@ -152,7 +152,7 @@ impl SessionConfig {
         let source = read_source(&path)?;
         let mut templates = parse_and_validate(&path, &source, DocumentRole::Personal)?;
 
-        if let Some(delta_path) = find_delta(roots) {
+        if let Some(delta_path) = find_delta(roots)? {
             let delta_source = read_delta_source(&delta_path)?;
             let delta = parse_and_validate(&delta_path, &delta_source, DocumentRole::Delta)?;
             // Each declared kind wins outright: one whole template replaces one
@@ -198,10 +198,31 @@ impl SessionConfig {
 /// `symlink_metadata` rather than `is_file`, so a broken symlink or a directory
 /// at the searched path is a candidate that then fails closed on read, not an
 /// absence that silently resolves to the personal file.
-fn find_delta(roots: &DeltaRoots<'_>) -> Option<PathBuf> {
-    SessionConfig::delta_candidates(roots)
-        .into_iter()
-        .find(|candidate| fs::symlink_metadata(candidate).is_ok())
+///
+/// **Only `NotFound` is absence.** Any other error means this candidate's state
+/// could not be established, and the two things a caller would otherwise do with
+/// it are both wrong: at the worktree root it would move on and read the
+/// repository root, inverting the search precedence requirement 6 fixes, and at
+/// the repository root it would fall through to the very personal file the delta
+/// exists to move work away from. An unresolvable candidate is therefore the
+/// same refusal an unreadable delta already is, reported against the path whose
+/// state is unknown.
+fn find_delta(roots: &DeltaRoots<'_>) -> Result<Option<PathBuf>> {
+    for candidate in SessionConfig::delta_candidates(roots) {
+        match fs::symlink_metadata(&candidate) {
+            Ok(_) => return Ok(Some(candidate)),
+            Err(error) if error.kind() == ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!(
+                        "failed to determine whether a Grove configuration delta is present at {}",
+                        candidate.display()
+                    )
+                })
+            }
+        }
+    }
+    Ok(None)
 }
 
 fn read_source(path: &Path) -> Result<String> {

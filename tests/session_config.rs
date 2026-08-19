@@ -479,10 +479,18 @@ fn jj_tree_with_delta(document: &str, colocate: bool, ignored: bool) -> TempDir 
     tmp
 }
 
+/// Fixture commands must describe the tree they are pointed at and nothing else.
+/// A `Command` inherits the parent's environment whether or not the parent meant
+/// it to, and one case below deliberately runs under a hostile `GIT_INDEX_FILE`
+/// — which would otherwise send this fixture's own `git add` to the wrong index.
 fn run(bin: &str, dir: &Path, args: &[&str]) -> String {
     let out = std::process::Command::new(bin)
         .current_dir(dir)
         .args(args)
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_COMMON_DIR")
+        .env_remove("GIT_INDEX_FILE")
         .output()
         .unwrap_or_else(|error| panic!("running {bin} {args:?}: {error} (is {bin} installed?)"));
     assert!(
@@ -786,5 +794,126 @@ fn a_trackedness_probe_that_cannot_be_completed_fails_closed() {
     assert!(
         error.contains("is tracked"),
         "an unanswerable probe must fail the load, not resolve to the personal file:\n{error}"
+    );
+}
+
+// A process-global variable cannot be set in-process here: the sibling cases
+// above drive real `git` and `jj` fixtures in parallel inside this one test
+// binary. The body therefore re-runs in a child copy of the binary that was
+// spawned with the variable already installed, and the parent only asserts the
+// child passed.
+const ISOLATED_AMBIENT_ENVIRONMENT: &str = "GROVE_TEST_ISOLATED_AMBIENT_ENVIRONMENT";
+
+fn this_test_name() -> String {
+    std::thread::current()
+        .name()
+        .expect("the Rust test harness names every test thread")
+        .to_string()
+}
+
+fn running_in_the_prepared_child() -> bool {
+    std::env::var_os(ISOLATED_AMBIENT_ENVIRONMENT).is_some()
+}
+
+fn rerun_this_test_with(variables: &[(&str, &Path)]) {
+    let name = this_test_name();
+    let mut command =
+        std::process::Command::new(std::env::current_exe().expect("locating the unit-test binary"));
+    command
+        .args(["--exact", &name, "--nocapture"])
+        .env(ISOLATED_AMBIENT_ENVIRONMENT, &name);
+    for (key, value) in variables {
+        command.env(key, value);
+    }
+    let output = command.output().expect("launching the isolated child test");
+    assert!(
+        output.status.success(),
+        "isolated test {name} failed with {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+/// The trackedness probe answers about the repository Grove selected, not about
+/// an index the process that launched Grove chose. `GIT_INDEX_FILE` selects an
+/// index independently of the worktree, so anchoring the worktree does not
+/// dislodge it: without scrubbing, `git ls-files` consults the inherited
+/// alternate index, reports a committed delta as untracked, and Grove executes
+/// the repository-controlled launch template the seam exists to refuse.
+#[test]
+fn a_tracked_delta_is_refused_under_an_inherited_alternate_git_index() {
+    if !running_in_the_prepared_child() {
+        let scratch = git_checkout_with_delta("impl \"other ${prompt}\"\n", true);
+        let alternate = TempDir::new().unwrap();
+        let index = alternate.path().join("alternate-index");
+        // A *valid* empty index, not a missing file: the bypass must not turn on
+        // git tolerating a broken path.
+        let out = std::process::Command::new("git")
+            .current_dir(scratch.path())
+            .args(["read-tree", "--empty"])
+            .env("GIT_INDEX_FILE", &index)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "preparing the alternate index");
+        assert!(index.is_file(), "the alternate index must exist");
+
+        rerun_this_test_with(&[("GIT_INDEX_FILE", &index)]);
+        return;
+    }
+
+    let home = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    let tree = git_checkout_with_delta("impl \"other ${prompt}\"\n", true);
+
+    let error = load_from(home.path(), tree.path(), tree.path())
+        .err()
+        .expect(
+            "a tracked delta must be refused whatever index the ambient environment names, \
+             and the load accepted it",
+        )
+        .to_string();
+
+    assert!(
+        error.contains("tracked"),
+        "an inherited alternate index must not make a tracked delta readable:\n{error}"
+    );
+}
+
+/// Absence is `NotFound` and nothing else. A candidate whose state cannot be
+/// established is neither present nor absent, and treating it as absent breaks
+/// both halves of the search: at the worktree root it hands the decision to the
+/// repository root, and at the repository root it hands it back to the personal
+/// file.
+#[cfg(unix)]
+#[test]
+fn a_candidate_grove_cannot_stat_fails_closed_instead_of_reading_the_next_one() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    let tmp = TempDir::new().unwrap();
+    let worktree = tmp.path().join("worktree");
+    let repository = tmp.path().join("repository");
+    fs::create_dir(&worktree).unwrap();
+    fs::create_dir(&repository).unwrap();
+    // The delta that must not be reached: it is second in the search order, and
+    // the first candidate did not answer "absent".
+    write_delta(&repository, "impl \"repository ${prompt}\"\n");
+    fs::set_permissions(&worktree, fs::Permissions::from_mode(0o000)).unwrap();
+
+    let outcome = load_from(home.path(), &worktree, &repository);
+
+    // Restored before asserting, so a failing assertion still leaves the
+    // temporary directory removable.
+    fs::set_permissions(&worktree, fs::Permissions::from_mode(0o755)).unwrap();
+
+    let error = outcome
+        .err()
+        .expect("an unresolvable candidate must fail the load")
+        .to_string();
+    assert!(
+        error.contains(&worktree.join(".grove.kdl").display().to_string()),
+        "the refusal must name the candidate whose state is unknown:\n{error}"
     );
 }

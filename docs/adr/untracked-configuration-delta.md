@@ -26,6 +26,15 @@ only when a candidate file exists, so a checkout with no delta pays nothing for
 it. A probe Grove cannot complete fails closed like any other unresolved
 validation.
 
+The probe is spawned as a **driver-internal child**: it scrubs the loop controls
+and the repository selectors before anchoring, rather than anchoring alone.
+Anchoring names the worktree, and one selector does not follow from it —
+`GIT_INDEX_FILE` chooses an index directly — so an anchored-but-unscrubbed
+`git ls-files` would answer about whatever index the process that launched Grove
+named. That is not a hygiene point but the seam itself: the ambient environment
+would otherwise decide the answer to the one question standing between an
+untrusted repository and arbitrary code execution.
+
 That enforcement is what makes the ignore line the documentation names a
 requirement rather than hygiene, and it lands differently on the two lanes. Git
 leaves an unignored delta untracked until someone adds it. jj snapshots the
@@ -39,7 +48,12 @@ at both load points, before every tree mutation and again before every launch,
 with the same aggregate rather than first-error diagnostics the personal file
 gets, reported against the delta's own path and location. Trackedness is
 validated on the delta, never used to choose it: a tracked file at the first
-searched path is a refusal, not a reason to read the second path.
+searched path is a refusal, not a reason to read the second path. Selection is
+held to the same rule one step earlier: only a candidate Grove positively
+establishes to be **absent** lets the search move on, so a candidate whose state
+cannot be determined at all is a refusal naming that path — never an absence
+that hands the decision to the second path, or from there back to the personal
+file.
 
 The delta sits **beside `.grove/` rather than inside it**, because two
 wholesale-scoped mechanisms owned by [task-tree transactions fail

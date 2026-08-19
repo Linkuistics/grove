@@ -343,10 +343,17 @@ pub fn main_repo_of(cwd: &Path) -> Result<PathBuf> {
 /// Make one subprocess resolve Git operations against the exact on-disk
 /// worktree Grove already selected.
 ///
-/// Removing repository selectors prevents an inherited Git context from
+/// Removing the *discovery* selectors prevents an inherited Git context from
 /// choosing a foreign repository. Setting `GIT_WORK_TREE` also overrides a
 /// hostile `core.worktree` while leaving Git to discover the selected root's
 /// own `.git` marker.
+///
+/// This is **anchoring, not scrubbing**, and the remaining selector is the
+/// reason to say so: `GIT_INDEX_FILE` names an index rather than a repository,
+/// so nothing here removes it. A call site whose answer depends on the index —
+/// [`git_path_is_tracked`] is the one — must scrub the internal child
+/// environment first via [`vcs_probe`]; anchoring alone leaves it reading
+/// whatever index the launching process chose.
 pub(crate) fn anchor_git_worktree_environment(command: &mut Command, worktree: &Path) {
     command
         .env_remove("GIT_DIR")
@@ -438,9 +445,9 @@ pub fn git_common_dir(cwd: &Path) -> Result<PathBuf> {
 /// worktree, because the two searched roots may live in different trees (a
 /// linked worktree, a secondary jj workspace) and the tree that owns the file is
 /// the one whose index or working-copy commit can hold it. Lane chosen jj-first
-/// by [`vcs_of`], Git anchored by [`anchor_git_worktree_environment`], jj kept
-/// read-only by `--ignore-working-copy` — the same three idioms every other
-/// probe here follows.
+/// by [`vcs_of`], both probes spawned as internal children by [`vcs_probe`],
+/// Git then anchored by [`anchor_git_worktree_environment`], jj kept read-only
+/// by `--ignore-working-copy`.
 ///
 /// No VCS marker at all answers `false` rather than failing: nothing owns the
 /// file, so nothing tracks it, and the hostile repository this guards against
@@ -460,6 +467,26 @@ pub(crate) fn path_is_tracked(path: &Path) -> Result<bool> {
     }
 }
 
+/// One read-only VCS probe, spawned as an **internal child**: it must answer
+/// about the tree Grove selected, not about whatever repository — or whatever
+/// index — the process that launched Grove had selected for itself.
+///
+/// [`crate::launch::scrub_internal_child_env`] first, lane-specific anchoring
+/// after. The order matters and the split does too: anchoring re-establishes the
+/// selectors Grove *does* want (`GIT_WORK_TREE`), while scrubbing removes the
+/// ones it never does. `GIT_INDEX_FILE` is the case that makes the distinction
+/// load-bearing here — it selects the index independently of the worktree, so an
+/// anchored-but-unscrubbed `git ls-files` reads an inherited alternate index and
+/// reports a tracked delta as untracked, defeating the whole seam. Routing both
+/// probes through one constructor is what stops the next one being written
+/// without it.
+fn vcs_probe(program: &str, directory: &Path) -> Command {
+    let mut command = Command::new(program);
+    command.current_dir(directory);
+    crate::launch::scrub_internal_child_env(&mut command);
+    command
+}
+
 /// `jj file list --ignore-working-copy <name>` in the candidate's own directory:
 /// non-empty stdout means the working-copy commit holds it.
 ///
@@ -468,12 +495,11 @@ pub(crate) fn path_is_tracked(path: &Path) -> Result<bool> {
 /// automatically, so an *unignored* delta reads untracked until the next
 /// snapshot and refused after it. That is the design forcing the ignore line.
 fn jj_path_is_tracked(directory: &Path, name: &Path) -> Result<bool> {
-    let out = Command::new("jj")
+    let out = vcs_probe("jj", directory)
         .arg("file")
         .arg("list")
         .arg("--ignore-working-copy")
         .arg(name)
-        .current_dir(directory)
         .output()
         .context("running jj file list --ignore-working-copy")?;
     if !out.status.success() {
@@ -492,12 +518,8 @@ fn jj_path_is_tracked(directory: &Path, name: &Path) -> Result<bool> {
 /// "untracked" indistinguishable from "the probe broke").
 fn git_path_is_tracked(directory: &Path, name: &Path) -> Result<bool> {
     let worktree = workspace_control(directory)?.worktree_root().to_path_buf();
-    let mut command = Command::new("git");
-    command
-        .arg("ls-files")
-        .arg("--")
-        .arg(name)
-        .current_dir(directory);
+    let mut command = vcs_probe("git", directory);
+    command.arg("ls-files").arg("--").arg(name);
     anchor_git_worktree_environment(&mut command, &worktree);
     let out = command.output().context("running git ls-files")?;
     if !out.status.success() {

@@ -916,11 +916,26 @@ differs only in *reason*, which is prose and belongs in the ADR, not the filenam
 4. The **repo** `Linkuistics/grove`, which holds two products — Grove and the
    `linkuistics` / `testanyware` plugins under `plugins/` (see
    [repository products](docs/ARCHITECTURE.md#skills-monorepo)). So "Grove's
-   README / CHANGELOG / docs" names artifacts shared with a second bounded
-   context; this glossary covers only senses 1–3, and `CONTEXT-MAP.md` routes
-   the rest.
+   README / CHANGELOG / docs" names artifacts shared with the repo's other
+   bounded contexts; this glossary covers only senses 1–3, and `CONTEXT-MAP.md`
+   routes the rest.
 
 When usage is ambiguous, qualify: "grove CLI", "grove methodology", "this grove", "the grove repo".
+
+**"leaf" and "node" mean something else one directory away.** `ordinal-fs-tree`
+is a third bounded context in this repo, and its
+[glossary](docs/ordinal-fs-tree/CONTEXT.md) defines a *leaf* as any regular-file
+entry and a *node* as any directory of children — no session kind, no outcome
+infix, no charter, no lifecycle. This glossary's [[Leaf]] and [[Node directory]]
+are the grove senses and are not the library's. Its *ordinal* is this glossary's
+[[Position]] and its *key* is this glossary's [[Permanent key]] — same concepts,
+different words, deliberately.
+
+The collision is why the two are separate contexts rather than one, so it is not
+a defect to resolve by renaming. Qualify when a sentence could be read either
+way ("a grove leaf", "a tree entry"), and never carry a definition across:
+`ordinal-fs-tree` is domain-independent precisely because none of grove's
+vocabulary reaches it.
 
 **"chain"** carries two unrelated senses, and one of them is already a verb name:
 

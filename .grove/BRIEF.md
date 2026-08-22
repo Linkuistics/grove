@@ -148,12 +148,6 @@ and has nothing to do with tree invariants.
   that stays an article of faith. This is H3 in the findings log and the least
   certain of the three hypotheses; it needs a deliberate test, not an impression
   gathered in passing.
-- Whether `ordinal-fs-tree` becomes a **third bounded context** with its own
-  glossary. It has a deliberately separate vocabulary — entry, ordinal, key,
-  distinguished child — that shares no term with grove's, which is exactly what
-  `CONTEXT-MAP.md` uses to tell contexts apart. Still open, but no longer
-  free-floating: it now blocks filing two records, so it is `records-k5`'s
-  question and that leaf carries the evidence both ways.
 - Splitting the crate into separately-modellable units.
 
 ## Settled since this brief was written
@@ -182,3 +176,27 @@ alone:
 
 **The operation set is fixed**, which is what the implementation leaves were
 waiting for. `library-k6` cuts them.
+
+**`ordinal-fs-tree` is a third bounded context, and the two records are filed.**
+`records-k5` closed the question this brief had left on the horizon. The evidence
+this brief offered for it was wrong and the real evidence is stronger: the
+vocabularies do not merely differ, they **collide** — grove's `CONTEXT.md`
+defines **Leaf** and **Node directory** in session terms while the library's
+*leaf* and *node* are any regular file and any directory of children, and
+`CONTEXT-FORMAT.md` forbids one term living in two glossaries. Three facts a
+later session needs:
+
+- **Placement and ownership were two questions, and only one was open.**
+  `docs/adr/` stays flat, exactly as `ADR-FORMAT.md`'s split rule requires while
+  grove occupies the repo root; the third context changes who *maintains* two
+  records, not where any record lives.
+- **The context is declared on vocabulary, not delivery.** It has a glossary at
+  `docs/ordinal-fs-tree/CONTEXT.md` and no crate. `CONTEXT-MAP.md` now says a
+  context is a language boundary rather than a shipping path, so `library-k6`'s
+  answer about where the crate lands changes a path in that map and no ownership.
+- **The rejected alternatives were unfiled and `.grove/` is deleted at the
+  finish.** `docs/ordinal-fs-tree/ARCHITECTURE.md` names rejected shapes for the
+  plan/interpreter split and for nothing else; the `Domain` trait, the two-trait
+  split by layer and the non-derived key source lived only in
+  `02-architecture-k2/BRIEF.md`. That, and the reversal cost, is what the two
+  records carry that the document does not.

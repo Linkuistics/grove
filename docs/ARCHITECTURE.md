@@ -20,7 +20,8 @@ process ownership, a task-tree data model, and three fail-closed transactions.
 | Cutting and publishing a release | [`RELEASING.md`](RELEASING.md) |
 | Runtime and repository design | this document |
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
-| Relationship between Grove and the skill plugins | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
+| Relationships between this repository's bounded contexts | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
+| `ordinal-fs-tree` design and vocabulary | [`ordinal-fs-tree/ARCHITECTURE.md`](ordinal-fs-tree/ARCHITECTURE.md) and [`ordinal-fs-tree/CONTEXT.md`](ordinal-fs-tree/CONTEXT.md) |
 | Methodology executed by agents | [`content/SKILL.md`](../content/SKILL.md) and its adjacent format guides |
 | Skill-plugin operation | [`plugins/README.md`](../plugins/README.md) |
 | Scoping notes for work not yet started | `TODO.<subject>.md` at the repository root |
@@ -32,10 +33,13 @@ ADR. It is not a plan, not a backlog, and never the canonical description of
 anything that exists — those rows are above.
 [`TODO.finish_process.md`](../TODO.finish_process.md) is the current one.
 
-The four files under `docs/` are the maintained project guides. This is not a
-ban on durable artifacts produced by future Grove work: when a real decision,
-specification, or research result earns a repository record, the methodology
-may create focused files under `docs/adr/`, `docs/specs/`, or `docs/research/`.
+The four files directly under `docs/` are the maintained project guides. This is
+not a ban on durable artifacts produced by future Grove work: when a real
+decision, specification, or research result earns a repository record, the
+methodology may create focused files under `docs/adr/`, `docs/specs/`, or
+`docs/research/`. A subdirectory such as `docs/ordinal-fs-tree/` holds the
+guides of a bounded context that does not yet ship by its own path, and travels
+with that context's code when it does.
 Those sets describe current state and should be merged or deleted when they no
 longer do; VCS holds their history.
 

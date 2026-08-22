@@ -204,6 +204,27 @@ changes what a leaf may assume or must test:
   that named *neither*, which a count of two kinds cannot see. When a leaf states
   its own account, count the tests too, not only the two labels.
 
+**`promote` was reviewed and its finding integrated at `promote-k26`.** Two
+facts the five remaining leaves need:
+
+- **Name identity is the view *and* the species, and it has a name:
+  `EntryNameExt::same_name`.** A `Parts` equality coarser than the domain's own
+  species is lawful — nothing in the seam forbids it — so `view() == view()` is
+  not *the same name*, and a promotion, whose new name deliberately reuses the
+  leaf's ordinal and key, was refused as `DestinationOccupied` in exactly such a
+  domain. Any later code asking whether two names collide uses `same_name`; a
+  leaf citing an occupancy that compares views is quoting a superseded rule. The
+  obligation count is unchanged at seven, five checked: the congruence was
+  deliberately **not** made an eighth, because no sample of parts can exercise
+  one and the kit reports an unexercised obligation as a finding.
+- **Both models are silent here by construction, not by omission.**
+  `structure.als` compares `Parts` atoms and `operations.qnt` compares ints, so
+  *equal parts imply equal species* is free in both. `docs/formalism-findings.md`
+  entry 015 generalises it: an opaque sort in a model is compared by identity,
+  and the target language compares it by whatever bound the interface states.
+  Worth applying to `Key` and to the parts a `rewrite` compares before trusting
+  either.
+
 ## On the horizon
 
 - **Whether the crate wants its own `CHANGELOG`, version and release lane.**

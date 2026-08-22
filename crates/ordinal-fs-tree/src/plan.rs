@@ -187,12 +187,20 @@ impl<N: EntryName> Plan<N> {
 /// Whether `name` is already taken in `level`, given the effects that have
 /// already been folded in.
 ///
-/// Names are compared by [`view`](EntryName::view) and never by rendering, which
-/// is what *the library holds no strings* means in practice. Two names with
-/// equal views are one filename, because the grammar is canonical — that
-/// obligation is exactly what makes this comparison sound, and
+/// Names are compared by [`same_name`](EntryNameExt::same_name) and never by
+/// rendering, which is what *the library holds no strings* means in practice.
+/// Two names that answer `true` there are one filename, because the grammar is
+/// canonical — that obligation is exactly what makes this comparison sound, and
 /// `structure.als`'s `witness_two_filenames_name_one_entry` is the picture of a
 /// domain that broke it.
+///
+/// The comparison is `same_name` and not `view() == view()` because a domain's
+/// `Parts` equality may be coarser than its rendering: see that method, and
+/// `promote-k25`, which found a lawful domain whose leaf and node parts compare
+/// equal and whose every valid promotion was therefore refused as
+/// [`Refusal::DestinationOccupied`]. Both comparisons below take the same rule,
+/// so an arrived effect and a snapshot entry cannot disagree about what one
+/// name is.
 fn occupied<N: EntryName>(
     snapshot: &Snapshot<N>,
     arrived: &[(Level, &N)],
@@ -211,15 +219,13 @@ fn occupied<N: EntryName>(
             .flat_map(|container| container.children())
             .any(|child| {
                 let index = child.index();
-                Some(index) != mover
-                    && !vacated.contains(&index)
-                    && child.name().view() == name.view()
+                Some(index) != mover && !vacated.contains(&index) && child.name().same_name(name)
             }),
     };
     already
         || arrived
             .iter()
-            .any(|(at, taken)| *at == level && taken.view() == name.view())
+            .any(|(at, taken)| *at == level && taken.same_name(name))
 }
 
 /// What the algebra returns for every input: a plan to apply, or a refusal.

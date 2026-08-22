@@ -395,6 +395,18 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// for a `Parts`, which is why `promote` takes the promoted node's parts
     /// from its caller rather than deriving them
     /// (`witness_promote_cannot_name_its_output`).
+    ///
+    /// # What `Eq` here does *not* promise
+    ///
+    /// Any lawful equivalence relation, including one **coarser** than the
+    /// domain's own rendering: two parts that compare equal may still render as
+    /// two filenames, and may still name different species. Both models make the
+    /// opposite assumption for free — `structure.als` compares `Parts` atoms and
+    /// `operations.qnt` compares ints, so in each of them equal parts are the
+    /// *same* parts — and neither can pose a coarser one. So the library does
+    /// not derive name identity from parts equality alone:
+    /// [`EntryNameExt::same_name`] is where that is decided, and it is what
+    /// occupancy compares.
     type Parts: Clone + Eq;
 
     /// The domain's own error, so a refusal can carry recovery advice.
@@ -504,6 +516,19 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// the ordinal would make a shift able to turn a leaf into a node — a
     /// rename of a file into a directory, with the subtree that implies.
     ///
+    /// # What the discharge covers, and what it does not
+    ///
+    /// It makes the species **definable** from the parts and from nothing else.
+    /// It does not make it a function of the parts' *equivalence class*: the
+    /// bound on [`Parts`](EntryName::Parts) is `Eq` and not "equality as fine as
+    /// this function", so `a == b` with differing species is lawful and breaks
+    /// no obligation. That is a real domain — `promote-k25` wrote one — and the
+    /// library meets it by comparing the species itself wherever two names are
+    /// asked to be one; see [`EntryNameExt::same_name`]. Requiring the
+    /// congruence of a domain instead was the alternative, and it was rejected:
+    /// no sample of parts can exercise it, so [`crate::conformance`] could only
+    /// ever report it untested.
+    ///
     /// A discharge claim is a proof nobody wrote down, so here is the control.
     /// The domain below wants its species to depend on where the entry sits,
     /// and does not compile — there is no `self` to ask:
@@ -605,6 +630,42 @@ pub trait EntryNameExt: EntryName + sealed::Sealed {
         match self.view() {
             NameView::Positioned(triple) => Self::positioned_species(triple.parts).species(),
             NameView::Distinguished => Species::Distinguished,
+        }
+    }
+
+    /// Whether these two names are **one name** — the comparison every
+    /// occupancy decision makes.
+    ///
+    /// The whole [`NameView`] *and the species*, and the second half is the
+    /// part that is not obvious. [`Parts`](EntryName::Parts) is bounded by
+    /// `Clone + Eq` and by nothing else, so a domain's equality may be any
+    /// lawful equivalence — including one coarser than its own rendering.
+    /// [`positioned_species`](EntryName::positioned_species) is a function of
+    /// the parts *value* and not of its equivalence class, so two parts that
+    /// compare equal may name different species. Nothing in the seam forbids
+    /// that, and a domain doing it breaks no obligation.
+    ///
+    /// A promotion is where it becomes visible, because it is the one
+    /// operation whose new name deliberately reuses the old one's ordinal and
+    /// key: the parts are then all that is left to tell leaf from node, and
+    /// under a coarse equality they say nothing. Comparing views alone finds
+    /// the promoted node's destination occupied by the very leaf it replaces
+    /// and refuses a valid promotion — `promote-k25`'s finding, and the reason
+    /// this is a named reading rather than `view() == view()` spelled at each
+    /// site.
+    ///
+    /// Two names this answers `false` for are two filenames. A domain whose
+    /// leaf and node spellings coincided would fail the canonicity check in
+    /// [`crate::conformance`], which reparses every composed name and compares
+    /// the species that comes back.
+    fn same_name(&self, other: &Self) -> bool {
+        match (self.view(), other.view()) {
+            (NameView::Positioned(a), NameView::Positioned(b)) => {
+                a == b && Self::positioned_species(a.parts) == Self::positioned_species(b.parts)
+            }
+            (NameView::Distinguished, NameView::Distinguished) => true,
+            (NameView::Positioned(_), NameView::Distinguished)
+            | (NameView::Distinguished, NameView::Positioned(_)) => false,
         }
     }
 }

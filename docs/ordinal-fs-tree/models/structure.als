@@ -119,6 +119,18 @@ fact ByConstruction {
    that until `seam-k17` found that a shift could then turn a leaf into a node
    while `ComposeLawful` still held.  See `docs/formalism-findings.md` entry
    005. */
+/* WHAT THIS PREDICATE DOES NOT SAY.  `Parts` are opaque ATOMS, so equality here
+   is atom identity and `pSpecies` is a function of it: equal parts imply equal
+   species, for free and unasserted.  Rust bounds `Parts` by `Eq` alone — any
+   lawful equivalence — so a domain may compare a leaf's parts equal to a node's
+   while `positioned_species` still distinguishes them, and it breaks no
+   obligation.  This model cannot pose that domain: expressing it would take a
+   second, coarser relation over Parts, which is a property of the target
+   language rather than of the design.  `promote-k25` found it in Rust instead,
+   where a promotion — the one operation whose new name reuses the old one's
+   ordinal and key — had nothing but the parts left to tell the two names apart.
+   Name identity in the library is now the view AND the species
+   (`EntryNameExt::same_name`).  See `docs/formalism-findings.md` entry 015. */
 pred SpeciesFromParts {
   all n: Name | some n.nParts implies n.nSpecies = n.nParts.pSpecies
   all n: Name | no   n.nParts implies n.nSpecies = DistS

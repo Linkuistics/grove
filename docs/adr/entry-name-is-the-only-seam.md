@@ -17,6 +17,16 @@ triple and its species are read off `view` and `positioned_species` — and a
 provided method on `EntryName` could be overridden, which would hand back the
 two defects the shape was chosen to remove.
 
+It carries one further reading for the same reason. `same_name` — the view and
+the species together — is what every occupancy check compares, and it is derived
+rather than obliged because `Parts: Eq` admits an equality coarser than the
+domain's own species: a domain may compare a leaf's parts equal to a node's
+without breaking anything. Requiring the congruence of the domain instead was
+rejected, and the reason is that a test kit cannot exercise it — see
+`docs/formalism-findings.md` entry 015. Overridable, it would let a domain
+redefine when two names collide; obliged, it would widen the seam to cover a
+case the library can settle for itself.
+
 [`docs/ordinal-fs-tree/ARCHITECTURE.md`](../ordinal-fs-tree/ARCHITECTURE.md)
 carries the trait itself, the seven obligations an implementation must meet, and
 the name/`(ordinal, key, parts)` isomorphism the seam rests on. This record

@@ -1617,6 +1617,104 @@ was the arithmetic, and the one paragraph of prose inside `operations.qnt` did.
 Second standing habit, from the same place: when a model records a state as rare,
 that is a fact about its simulator, not about your test.
 
+### 015 — Integrating the `promote` review (`ordinal-fs-tree`)
+
+**Situation.** `promote-k26` applied `promote-k25`'s one finding. The trait
+bounds `EntryName::Parts` by `Clone + Eq` and nothing more, so a domain may
+compare a leaf's parts equal to a node's while `positioned_species` still tells
+them apart — a lawful equivalence, breaking no obligation and passing every
+conformance check. Occupancy compared whole `NameView`s, and a promotion is the
+one operation whose new name deliberately reuses the old one's ordinal and key,
+so for such a domain the promoted node's destination looked occupied by the very
+leaf it replaces and every valid promotion was refused as
+`DestinationOccupied`. The review's other five doubts were settled in the
+implementation's favour and left alone.
+
+**Formalism.** Both suites re-run as controls: Alloy 20/20, Quint 148 claim
+results across all eight instances, every witness reached. **Neither model
+changed except in its comments**, and that is the entry's whole shape — not
+because nothing contradicted a claim, but because *neither model can pose the
+domain that does*. `structure.als` makes `Parts` an opaque atom and
+`operations.qnt` makes it an `int`; in both, equality is identity, so *equal
+parts imply equal species* is true by construction and asserted nowhere. The
+instrument that found it was an adversarial reader holding the trait's stated
+bound (`Eq`) against the model's representation of the same type (an atom) —
+entry 005's shape, one level down: not a claim checked weakly, but a claim the
+model gets for free from a representation the target language does not share.
+
+**Caught.** One, and the correction is at the seam rather than in `promote`.
+
+- **Name identity is the view *and* the species.** `EntryNameExt::same_name` is
+  a new derived reading beside `triple` and `species` — sealed and blanket, so
+  no domain can override it — and both halves of the occupancy fold now use it:
+  the snapshot's children and the destinations earlier effects in this plan have
+  already taken. The alternative was an eighth obligation on the domain (`a == b`
+  implies equal species) and it was rejected on the conformance kit's own
+  discipline: no sample of parts can *exercise* a congruence, because the parts
+  that would demonstrate it exist only in a domain that violates it. The kit
+  reports an unexercised obligation as a finding, so every well-behaved domain
+  would have failed conformance in order to state a property only a misbehaving
+  one can show. An obligation a test kit can never mark as reached is a comment
+  with a `pub` in front of it.
+- **The false claim it invalidates was a comment in the implementation.**
+  `ops::promote` said the first destination cannot collide "because the node's
+  parts differ from the leaf's". They differ as *values*; the guard compared
+  them under the domain's `Eq`. The comment now names what actually separates
+  them and what compares it.
+
+**Missed.** The conformance kit does not detect the domain — deliberately, and
+the reasoning is above — so the only instrument that reaches it is a test with
+an adversarial domain in it. Nothing generalises that: the kit's samples are
+values, and this is a property of an equivalence *relation* over values that a
+finite sample cannot distinguish from identity. What the kit does guarantee is
+the other end: a domain whose leaf and node spellings coincided fails
+canonicity, which is what makes *not the same name* mean *two filenames*.
+
+**The measurement.** Two tests, both saying they name no model claim, and both
+saying why — neither model can pose the domain. That puts `promote`'s account at
+twenty-four tests: seventeen naming a claim, seven saying they have none.
+
+**The mutation controls.** Two, because the fix has two halves and a single
+control cannot tell which one the test reached:
+
+| mutation | tests failed |
+|---|---|
+| (a) drop the species from `same_name`, leaving the view | 2 — both new tests, nothing else |
+| (b) `same_name` correct, occupancy back to `view() == view()` | 1 — the on-disk promotion only |
+
+(b) is the one worth keeping. It proves the on-disk test reaches the *wiring* and
+not merely the new method, which is the failure mode a mechanism-shaped fix
+invites: a correct helper nothing calls passes any test written against the
+helper.
+
+**Cost.** Well under a session. The fix is roughly fifteen lines; the adversarial
+domain is ninety, and writing it *was* the verification — a reference domain
+cannot host this defect, so there was no cheaper reproduction. Reconciliation
+across `name.rs`, `plan.rs`, `ops.rs`, `conformance.rs`, `ARCHITECTURE.md`, both
+models' comments and this log was the bulk of it. Alloy about twenty seconds,
+Quint about four minutes, both bought by comment edits rather than by any doubt
+about the claims.
+
+**Counterfactual.** **An opaque sort in a model is compared by identity; the
+target language compares it by whatever bound the interface states.** Every
+model in this workstream has such sorts — `Parts`, `Key`, `Label`, `Attrs` — and
+each one silently promises the implementation a congruence it never asked the
+domain for. The free check, costing no formalism and no run, is to list the
+model's opaque atoms beside the trait bounds on the types they stand for, and
+ask of each: *is the language's comparison as fine as the model's?* `Eq` is an
+equivalence relation, `Ord` a total preorder, `Hash` neither — none of them is
+identity, and the model's is. That check applied when the seam was written would
+have caught this before `promote` existed, and it is the structural sibling of
+011's *the exclusion list is the worklist*: what a model represents as
+structureless is exactly where the implementation carries structure the model
+cannot see.
+
+**Verdict.** Yes to the adversarial reader on a trait bound, and a standing habit
+for this workstream: when a model's abstraction and the language's bound differ
+in *strength*, the implementation must close the gap itself rather than push it
+onto the consumer — a check the consumer cannot be tested against is not an
+obligation.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -1658,4 +1756,5 @@ guesses are not.
 | a state a model reports as rare — "will this be expensive to test?" | no — ask what steers into it, not what stumbles into it | 014: the failed-rollback duplicate key is reached in 0.07% of traces and needed its own sample budget (003); reaching it in the implementation is one line of the internal fault seam. Rarity measures the simulator, not the test |
 | an order that looks like a rule — "could it have been the other way?" | look for the model's counterfactual instance; its absence is the answer | 014: `insert`'s shift order has `lowest_first` and `promote`'s has nothing, because the second effect lands in the level the first creates. A forced order is a consequence, and the test should assert the forcing rather than the order |
 | a recovery instruction — "does the advice describe the state it will be read in?" | drive the state, assert each clause against disk, then follow the advice | 014: three clauses of `FailedPartiallyRolledBack`'s promotion advice, three assertions about a real directory, and the remedy executed. Turns 013's review habit into a test |
+| an opaque sort — "what does the model assume about comparing this?" | none — read each atom against the target language's bound | 015: `Parts` is an atom in Alloy and an `int` in Quint, so *equal parts imply equal species* is free in both; Rust bounds it by `Eq`, which is any lawful equivalence. A conforming domain lost every promotion to a `DestinationOccupied` refusal. `Eq`/`Ord`/`Hash` are all coarser than a model's identity |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |

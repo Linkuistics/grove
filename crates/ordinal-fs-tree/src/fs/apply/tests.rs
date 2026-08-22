@@ -816,7 +816,9 @@ fn a_promotion_whose_rollback_fails_leaves_a_duplicate_key_and_says_how_to_resol
     fs::remove_dir(root.join("01-first-i1")).expect("removing the empty node");
     let tree = crate::fs::read::<SyllabusName>(&root).expect("a tree that reads again");
     assert_eq!(
-        tree.walk().map(|e| e.name().to_string()).collect::<Vec<_>>(),
+        tree.walk()
+            .map(|e| e.name().to_string())
+            .collect::<Vec<_>>(),
         ["01-draft-first-i1.md", "02-draft-second-i2.md"]
     );
 }

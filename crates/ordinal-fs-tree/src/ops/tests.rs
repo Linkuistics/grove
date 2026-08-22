@@ -981,7 +981,9 @@ fn landings_by_kind(plan: &Plan<SyllabusName>) -> Vec<(&'static str, Level, Stri
 #[test]
 fn a_promotion_keeps_the_leafs_own_ordinal_and_key() {
     let snapshot = documents_tree();
-    let leaf = snapshot.by_key(Key::new(1)).expect("the orientation lesson");
+    let leaf = snapshot
+        .by_key(Key::new(1))
+        .expect("the orientation lesson");
     let plan = plan(promote(&snapshot, Key::new(1), topic("orientation"), None));
 
     assert_eq!(
@@ -1017,7 +1019,9 @@ fn a_promotion_keeps_the_leafs_own_ordinal_and_key() {
 #[test]
 fn a_promotion_passes_through_a_state_where_the_leaf_and_the_node_share_an_ordinal_and_a_key() {
     let snapshot = documents_tree();
-    let leaf = snapshot.by_key(Key::new(1)).expect("the orientation lesson");
+    let leaf = snapshot
+        .by_key(Key::new(1))
+        .expect("the orientation lesson");
     let was = leaf.triple().expect("a positioned entry");
     let plan = plan(promote(&snapshot, Key::new(1), topic("orientation"), None));
 
@@ -1249,10 +1253,7 @@ fn promoting_with_parts_that_make_a_leaf_is_refused() {
         draft("orientation"),
         None,
     ));
-    assert_eq!(
-        refused,
-        Refusal::PromotePartsNotNode { key: Key::new(1) }
-    );
+    assert_eq!(refused, Refusal::PromotePartsNotNode { key: Key::new(1) });
 }
 
 /// **No model claim** — the model has no notion of *first*, since a refusal is

@@ -209,6 +209,10 @@ pub trait EntryName: Sized + Clone + fmt::Display {
 pub trait EntryNameExt: EntryName {
     fn triple(&self) -> Option<Triple<'_, Self::Parts>>;
     fn species(&self) -> Species;
+
+    /// Whether these two names are one name: the view *and* the species. What
+    /// every occupancy check compares — see the species obligation below.
+    fn same_name(&self, other: &Self) -> bool;
 }
 
 pub struct Triple<'a, P> { pub ordinal: Ordinal, pub key: Key, pub parts: &'a P }
@@ -264,6 +268,25 @@ parts)`, so a species free to vary with the ordinal would let a shift turn a lea
 into a node, which on disk is a file renamed into a directory. `seam-k17` found
 the trait exposing `fn species(&self)` independently, where an implementation
 could do exactly that and pass every check the kit made.
+
+What the signature discharges is that the species is **definable** from the
+parts and from nothing else. It does not make the species a function of the
+parts' *equivalence class*, and the difference is not academic. `Parts` is
+bounded by `Eq`, which is any lawful equivalence — a domain may compare two
+parts equal while `positioned_species` calls one a leaf and the other a node,
+and it breaks no obligation by doing so. Both models assume the congruence for
+free, because `structure.als` compares `Parts` atoms and `operations.qnt`
+compares ints, and neither can pose an equality coarser than identity. So the
+library does not conclude *same name* from *same view*: name identity is the
+view **and** the species, which is `EntryNameExt::same_name`, and it is what
+every occupancy check compares. `promote-k25` found this the expensive way —
+before it, a domain of exactly that shape lost every valid promotion to a
+`DestinationOccupied` refusal, since a promotion is the one operation whose new
+name deliberately reuses the old one's ordinal and key. Requiring the congruence
+of the domain instead was the alternative, and it was rejected because no sample
+of parts can exercise it: the kit reports an obligation it cannot reach as
+untested, so every well-behaved domain would have failed conformance to state a
+property only a misbehaving one can demonstrate.
 
 Both are `docs/formalism-findings.md` entry 002's own counterfactual applied to
 the implementation: **before modelling a structural property, ask whether the
@@ -644,6 +667,13 @@ and none is left undefined.
   assumption. Occupancy excludes the object being *moved*, or a `rewrite` whose
   new parts equal the old — a rename onto itself — would refuse its own no-op.
 
+  Two names are one name when their views and their **species** agree —
+  `EntryNameExt::same_name`, and not a view comparison, for the reason the
+  species obligation above gives. The same rule decides an entry already in the
+  snapshot and a destination an earlier effect in this plan has already taken,
+  so the two halves of an occupancy check cannot disagree about what one name
+  is.
+
   Two things narrow this refusal, and neither weakens it. A **foreign** name can
   never occupy a destination: the grammar is canonical, so a filename that
   formats a producible name parses as `Entry`, and one the consumer disclaims
@@ -894,12 +924,17 @@ that *reaches* it, never as an invariant expected to fail.
 | `failures` | Effects fail. Where atomicity and rollback are checked. |
 | `rollback_fails` | Rollback itself fails. The only instance that does not claim key uniqueness at rest, because this is what breaks it. |
 
-Three things the behavioural model does **not** reach, recorded here rather than
+Four things the behavioural model does **not** reach, recorded here rather than
 left to be assumed: the filesystem beneath the interpreter (a rename carrying
 its subtree is an assumption), walk *order* (reachability is modelled, the
 ordering is not, so `by_key`'s tie-break on a duplicate-key tree is unchecked),
-and concurrent hand edits *during* an apply — which is exactly the case the
-interpreter's own occupancy check exists for.
+concurrent hand edits *during* an apply — which is exactly the case the
+interpreter's own occupancy check exists for — and **parts equality**, which is
+`int` equality here and `Parts` atom identity in the structural model. Neither
+model can pose the coarser equality Rust's `Eq` admits, so *equal parts imply
+equal species* is true in both by construction and assumed in neither; it is
+`promote-k25`'s finding, and the library compares the species itself rather than
+relying on it.
 
 ---
 

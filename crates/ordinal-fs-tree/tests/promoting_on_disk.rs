@@ -17,7 +17,8 @@ use std::path::{Path, PathBuf};
 
 use ordinal_fs_tree::reference::{Label, Parts, Status, SyllabusError, SyllabusName};
 use ordinal_fs_tree::{
-    Error, EntryName, Found, Key, NameView, NewEntry, Ordinal, PositionedSpecies, Refusal, Verdict,
+    EntryName, EntryNameExt, Error, Found, Key, NameView, NewEntry, Ordinal, PositionedSpecies,
+    Refusal, Triple, Verdict,
 };
 use tempfile::TempDir;
 
@@ -100,7 +101,10 @@ fn a_promoted_leaf_becomes_a_node_holding_its_own_content() {
         "the leaf's ordinal and key are the node's, so nothing else moved"
     );
     let node = root.join("01-orientation-i1");
-    assert!(node.is_dir(), "a promotion makes a directory where a file was");
+    assert!(
+        node.is_dir(),
+        "a promotion makes a directory where a file was"
+    );
     assert_eq!(
         fs::read_to_string(node.join("OVERVIEW.md")).expect("the distinguished child"),
         "orientation",
@@ -153,7 +157,11 @@ fn a_promotion_with_a_first_child_lands_all_three_in_the_plans_order() {
     );
     assert_eq!(
         walk(&root)[1..4],
-        ["01-orientation-i1", "OVERVIEW.md", "01-draft-welcome-i10.md"],
+        [
+            "01-orientation-i1",
+            "OVERVIEW.md",
+            "01-draft-welcome-i10.md"
+        ],
         "the distinguished child comes first within the level, then the children \
          by ordinal"
     );
@@ -327,4 +335,217 @@ impl EntryName for Contentless {
     fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
         SyllabusName::positioned_species(parts)
     }
+}
+
+// ---------------------------------------------------------------------------
+// The domain whose `Parts` equality is coarser than its species
+//
+// `promote-k25`'s finding, as a domain rather than as an argument. Everything
+// below exists to put one question to the public surface: when a lawful `Eq`
+// makes a leaf's parts and its promoted node's parts compare **equal**, does
+// the promotion still happen?
+//
+// The node deliberately reuses the leaf's ordinal and key — that is what a
+// promotion *is* — so parts are the only thing left to tell the two names
+// apart, and this domain has given that up. What remains is the species, and
+// the library compares it: see `EntryNameExt::same_name`.
+// ---------------------------------------------------------------------------
+
+/// The reference domain's parts, compared by **label alone**.
+///
+/// A lawful equivalence relation — reflexive, symmetric, transitive — and
+/// coarser than the rendering: a lesson and a module sharing a label compare
+/// equal here while rendering as `01-draft-vectors-i1.md` and `01-vectors-i1`.
+/// The trait asks only for `Clone + Eq`, so nothing in the seam forbids it, and
+/// `positioned_species` still answers honestly for each value.
+#[derive(Clone, Debug)]
+struct LabelOnly(Parts);
+
+impl PartialEq for LabelOnly {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.label() == other.0.label()
+    }
+}
+
+impl Eq for LabelOnly {}
+
+/// A domain that renders exactly as the reference domain does and compares its
+/// parts more coarsely than it renders them.
+#[derive(Clone)]
+enum Blind {
+    Positioned {
+        ordinal: Ordinal,
+        key: Key,
+        parts: LabelOnly,
+    },
+    Overview,
+}
+
+impl Blind {
+    /// The reference name this one renders as. The two grammars are the same
+    /// grammar — only the equality differs — so `Display` and `parse` are the
+    /// reference domain's, and the adversarial half is `LabelOnly` alone.
+    fn reference(&self) -> SyllabusName {
+        match self {
+            Self::Overview => SyllabusName::Overview,
+            Self::Positioned {
+                ordinal,
+                key,
+                parts,
+            } => SyllabusName::compose(*ordinal, *key, parts.0.clone()),
+        }
+    }
+}
+
+impl fmt::Display for Blind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.reference(), f)
+    }
+}
+
+impl EntryName for Blind {
+    type Parts = LabelOnly;
+    type Err = SyllabusError;
+
+    fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
+        match SyllabusName::parse(name, found) {
+            Verdict::Entry(inner) => Verdict::Entry(match inner.view() {
+                NameView::Distinguished => Self::Overview,
+                NameView::Positioned(triple) => Self::Positioned {
+                    ordinal: triple.ordinal,
+                    key: triple.key,
+                    parts: LabelOnly(triple.parts.clone()),
+                },
+            }),
+            Verdict::Foreign => Verdict::Foreign,
+            Verdict::Malformed(e) => Verdict::Malformed(e),
+            Verdict::Reserved(e) => Verdict::Reserved(e),
+        }
+    }
+
+    fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
+        Self::Positioned {
+            ordinal,
+            key,
+            parts,
+        }
+    }
+
+    fn distinguished() -> Option<Self> {
+        Some(Self::Overview)
+    }
+
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        match self {
+            Self::Overview => NameView::Distinguished,
+            Self::Positioned {
+                ordinal,
+                key,
+                parts,
+            } => NameView::Positioned(Triple {
+                ordinal: *ordinal,
+                key: *key,
+                parts,
+            }),
+        }
+    }
+
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        parts.0.species()
+    }
+}
+
+/// **No model claim, and neither model can pose one**: `structure.als` compares
+/// `Parts` atoms and `operations.qnt` compares ints, so in both of them equal
+/// parts are the *same* parts and this domain does not exist.
+///
+/// This is the mutation control for the test below, and it is a control in both
+/// directions. It proves the domain is genuinely adversarial — the two names
+/// have equal [`NameView`]s, so a `same_name` that compared views alone would
+/// call the promotion's destination occupied — and it proves that what
+/// separates them is the species and nothing else. Revert
+/// `EntryNameExt::same_name` to a view comparison and this test fails on its
+/// last assertion while the promotion below fails with `DestinationOccupied`.
+#[test]
+fn a_coarser_parts_equality_makes_two_species_share_one_view() {
+    let leaf = Blind::compose(
+        Ordinal::new(1),
+        Key::new(1),
+        LabelOnly(draft("orientation")),
+    );
+    let node = Blind::compose(
+        Ordinal::new(1),
+        Key::new(1),
+        LabelOnly(topic("orientation")),
+    );
+
+    assert_eq!(
+        leaf.view(),
+        node.view(),
+        "the ordinal and the key are the promotion's own, and this domain's \
+         parts equality ignores the rest"
+    );
+    assert_ne!(
+        leaf.to_string(),
+        node.to_string(),
+        "and yet they are two different filenames, which is what makes an \
+         occupancy decided on the view alone wrong"
+    );
+    assert_eq!(
+        Blind::positioned_species(&LabelOnly(draft("orientation"))),
+        PositionedSpecies::Leaf
+    );
+    assert_eq!(
+        Blind::positioned_species(&LabelOnly(topic("orientation"))),
+        PositionedSpecies::Node
+    );
+    assert!(
+        !leaf.same_name(&node),
+        "so they are not the same name: identity includes the species"
+    );
+}
+
+/// **No model claim**, for the reason the control above gives. This is
+/// `promote-k25`'s finding at the public on-disk surface: the domain conforms,
+/// and the promotion its contract promises goes through.
+#[test]
+fn a_domain_whose_parts_equality_ignores_the_species_conforms_and_can_promote() {
+    let report = ordinal_fs_tree::conformance::check::<Blind>(
+        &[
+            ("OVERVIEW.md", Found::File),
+            ("01-published-orientation-i1.md", Found::File),
+            ("02-linear-algebra-i2", Found::Dir),
+            ("README.md", Found::File),
+        ],
+        &[
+            (
+                Ordinal::new(1),
+                Key::new(1),
+                LabelOnly(draft("orientation")),
+            ),
+            (
+                Ordinal::new(1),
+                Key::new(1),
+                LabelOnly(topic("orientation")),
+            ),
+        ],
+    );
+    report.assert_conforming();
+
+    let (_temporary, root) = documents_tree();
+    ordinal_fs_tree::fs::write::<Blind>(&root)
+        .expect("a well-formed tree")
+        .promote(Key::new(1), LabelOnly(topic("orientation")), None)
+        .expect("a lawful domain does not lose its promotion to its own equality");
+
+    let node = root.join("01-orientation-i1");
+    assert!(
+        node.is_dir(),
+        "a promotion makes a directory where a file was"
+    );
+    assert_eq!(
+        fs::read_to_string(node.join("OVERVIEW.md")).expect("the distinguished child"),
+        "orientation",
+        "and the leaf's bytes moved verbatim, as in any other domain"
+    );
 }

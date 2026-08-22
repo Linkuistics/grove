@@ -168,7 +168,11 @@ pub const DISCHARGED_BY_THE_TYPE_SYSTEM: &[Discharged] = &[
               `self`, no ordinal, no key. A species that varied with an entry's position \
               cannot be written, so a sibling shift — which is a `compose` with a new \
               ordinal — cannot turn a leaf into a node. `structure.als` assumes it as \
-              `SpeciesFromParts` and every derived operation rests on it.",
+              `SpeciesFromParts` and every derived operation rests on it. What is \
+              discharged is that the species is *definable* from the parts alone; a \
+              `Parts` equality coarser than the species is still lawful, and the library \
+              handles that itself rather than asking for it — occupancy compares \
+              `EntryNameExt::same_name`, which is the view and the species together.",
     },
 ];
 

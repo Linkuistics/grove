@@ -1321,6 +1321,19 @@ module rollback_fails {
 //     action.
 //   * Content.  Bytes are not modelled; `promote` moves an object, and what is
 //     inside it is out of scope by the same boundary that excludes I/O.
+//   * PARTS EQUALITY.  A parts atom is an `int` here, so `p == q` is identity
+//     and `speciesOfParts` is a function of it: *equal parts imply equal
+//     species* is true in this model by construction and therefore asserted
+//     nowhere.  Rust bounds `Parts` by `Eq` alone, which is any lawful
+//     equivalence, so a domain may compare a leaf's parts equal to a node's
+//     while its `positioned_species` still tells them apart.  `occupied` below
+//     compares whole names, which in THIS model settles the species with them;
+//     an implementation reading it as a view comparison refuses every valid
+//     promotion in such a domain.  That is `promote-k25`'s finding, and the
+//     library now compares the species explicitly (`EntryNameExt::same_name`).
+//     Widening the model to a coarse equality would need a second parts
+//     relation and would check a property of the target language, not of the
+//     design; the note is here instead.
 //
 // WHEN TO UPDATE IT
 //

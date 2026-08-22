@@ -367,11 +367,20 @@ pub(crate) fn promote<N: EntryName>(
             content: child.content,
         });
     }
-    // Guarded like every other plan. Nothing a promotion builds can reach the
-    // refusal on a tree the library built — the node's name differs from the
-    // leaf's in its parts, and the two later destinations are in a directory
-    // this plan has just created — but a tree a failed rollback already damaged
-    // can, which is `wit_damagedTreeStrandsALaterOperation`.
+    // Guarded like every other plan. The first effect is the delicate one: its
+    // destination is checked while the leaf is *still there*, unvacated, at the
+    // leaf's own ordinal and key. What separates the two names is the species —
+    // a leaf's parts and a node's — and occupancy compares the species, so this
+    // holds for every conforming domain and not only for one whose `Parts`
+    // equality happens to distinguish them. It did not hold before
+    // `promote-k25`: the comparison was the `NameView` alone, and a lawful
+    // domain whose equality is coarser than its rendering lost every promotion
+    // to `DestinationOccupied`. See `EntryNameExt::same_name`.
+    //
+    // The two later destinations are in a directory this plan has just created,
+    // so nothing a promotion builds can reach the refusal on a tree the library
+    // built — but a tree a failed rollback already damaged can, which is
+    // `wit_damagedTreeStrandsALaterOperation`.
     Plan::of(effects).guarded(snapshot)
 }
 

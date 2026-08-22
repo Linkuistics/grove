@@ -47,8 +47,16 @@ _Avoid_: "default child", "index", "self file"; and _avoid_ calling it a
 Traversal of a tree from a **node** downward, visiting **entries**. It descends
 into nodes and never into a **distinguished child**.
 
+**Level**:
+A **root** or a **node**, seen as the thing that holds children: the unit a
+**walk** orders within, and the element type of an **ancestor chain**. It exists
+as its own word because the root is not an **entry**, so a sequence of levels
+cannot be a sequence of entries.
+_Avoid_: "directory" (that is the filesystem's word for it), "parent", "level" as
+a synonym for **depth**.
+
 **Ancestor chain**:
-The sequence from an **entry** up to and including the **root**.
+The sequence of **levels** from an **entry** up to and including the **root**.
 
 ### What a name carries
 

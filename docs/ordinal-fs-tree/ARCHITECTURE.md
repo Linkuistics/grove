@@ -455,6 +455,19 @@ already promises survives, so it is the one the operations take.
 | `ancestors` | An entry's containing nodes, root-first. The chain ends at the tree root, which is a node and not an entry, so its element type is not the entry type. |
 | `distinguished_chain` | The distinguished child of each of an entry's ancestors, root-first, skipping levels that have none. |
 
+A directory listing arrives in whatever order the filesystem chose, so walk
+order is computed from the names and never from the order they were read in.
+Within a level that is: the distinguished child, then ordinal, then — for a level
+a hand edit has left carrying a **duplicate** ordinal, which every invariant here
+only ever *preserves* — key, and then the rendered name, which is total because
+one directory cannot hold two entries of one name. The tie-breaks are not
+decoration: without a total order over a level, *the first in walk order* would
+name a different entry on two machines holding byte-identical trees, and `by_key`
+on a damaged tree would answer differently on each. None of this is checked by
+either model — `operations.qnt` models reachability and resolves `by_key` by
+least internal id, and says so — so it rests on this paragraph and on the tests
+named for it.
+
 There is no built-in notion of which entry is "next", "current" or "interesting",
 and **no lookup by label**. Those are questions about the consumer's attributes,
 and a predicate passed to `find` answers them without the library ever learning
@@ -565,6 +578,21 @@ and none is left undefined.
   halts at the snapshot, before any destination is computed. What remains is a
   tree carrying a duplicated key, a tree damaged by a failed rollback, and a
   neighbour that ignores the advisory lock.
+
+- A filename that is not valid text is refused, and it halts exactly as
+  `Malformed` does. `parse` takes a string, so there is no verdict to be had and
+  no domain error to carry: the refusal is the library's own, and it carries its
+  own recovery advice. It halts rather than being skipped because a name that
+  cannot be *read* cannot be disclaimed either — one mangled byte in a real name
+  produces exactly this, and skipping the directory spelling of it would take the
+  subtree. The cost is that genuinely foreign junk with such a name freezes the
+  tree too; that is the same blast radius the next refusal states, arriving by
+  one more road. Neither model can pose the case, because both hold no strings by
+  design.
+
+- A tree root with no containing directory — a filesystem root — is refused
+  before anything is read. The lock goes on the directory *containing* the root,
+  and there is not one.
 
 - A name the consumer recognises and cannot parse halts every mutation, not only
   one touching its own level. Snapshot scope is the whole tree, so a single

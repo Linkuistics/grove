@@ -4,7 +4,7 @@
 
 Decide what the CLI *is*, now that there is a library for it to expose. The
 deliverable is a design — a section of `ARCHITECTURE.md`, or a document beside
-it, plus an ADR if the choice earns one — not code. `11-impl-cli-k16.md` builds
+it, plus an ADR if the choice earns one — not code. `cli-k16` builds
 whatever this leaf settles.
 
 ## Context
@@ -59,7 +59,7 @@ Beyond the brief chain:
 ## Notes
 
 **Do not cut implementation leaves.** A `design` session that finds itself
-cutting `impl` leaves has drifted into planning's job. `11-impl-cli-k16.md`
+cutting `impl` leaves has drifted into planning's job. `cli-k16`
 already exists for the build; if this design turns out to need *more* than one
 implementation session, decompose that leaf rather than growing this one.
 

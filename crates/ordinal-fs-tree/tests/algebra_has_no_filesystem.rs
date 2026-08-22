@@ -7,10 +7,27 @@
 //! makes it one, and it is what keeps a later split of the crate into
 //! separately-modellable units mechanical.
 //!
-//! The rule it holds: **`src/fs/` may name the filesystem and no other module
-//! may.** A new module is inside the algebra by default, which is the direction
-//! that fails safe — a later leaf that adds a pure module gets the guarantee
-//! without having to remember to ask for it.
+//! The rule it holds: **`src/fs/` may name the filesystem, and no other module
+//! may do anything with it but declare it.** A new module is inside the algebra
+//! by default, which is the direction that fails safe — a later leaf that adds a
+//! pure module gets the guarantee without having to remember to ask for it.
+//!
+//! # The one carve-out, and why it makes the rule stronger
+//!
+//! Something has to write `pub mod fs;`, and under the rule as `seam-k8` stated
+//! it that line was the crate root's own violation: the promised path could not
+//! be declared at all. `reading-k9` met that as the first leaf to need the
+//! module. So [`declares_the_filesystem_module`] exempts exactly the declaration
+//! — `mod fs;` with an optional visibility, matched as a whole line — and
+//! nothing else.
+//!
+//! A *re-export* stays a violation, and that is the part worth reading twice.
+//! `pub use fs::ReadGuard;` in `lib.rs` would let an algebra module write
+//! `use crate::ReadGuard;` and reach the filesystem through an alias this scan
+//! cannot see, which is the hole the header below still names as a known limit.
+//! Refusing the re-export closes it: the guards live at
+//! `ordinal_fs_tree::fs::{read, write}` and nowhere else, so there is no
+//! crate-root alias to launder anything through.
 //!
 //! # This instrument reports clean when it is broken
 //!
@@ -24,12 +41,17 @@
 //!    on synthetic sources, so the detector is known to be able to say no.
 //! 2. [`the_scan_reaches_the_sources`] — the coverage control, so a scan that
 //!    walked nothing fails rather than passes.
-//! 3. [`the_exemption_is_the_promised_path_and_nothing_else`] — because a
-//!    scan that skips a file reports what a scan that clears it reports, and
-//!    the exemption is where files get skipped.
+//! 3. [`the_exemption_is_the_promised_path_and_nothing_else`] and
+//!    [`the_carve_out_is_the_declaration_and_nothing_else`] — because a scan
+//!    that skips a file, or a line, reports what a scan that clears it reports,
+//!    and those two are where things get skipped.
 //! 4. A violation added by hand to a real module, watched failing, and removed.
-//!    That was done when this test was written and again when `seam-k18`
-//!    changed the detector; redo it if the mechanism changes again.
+//!    That was done when this test was written, again when `seam-k18` changed
+//!    the detector, and again at `reading-k9` — where the pair run was
+//!    `use std::{fs, path::Path};` in `src/snapshot.rs` (caught) and
+//!    `pub use fs::ReadGuard;` in `src/lib.rs` (caught, which is the evidence
+//!    for the re-export claim above rather than an assertion of it). Redo both
+//!    if the mechanism changes again.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -156,12 +178,34 @@ fn without_comments(source: &str) -> String {
     out
 }
 
+/// Whether a line is the declaration of the filesystem module and nothing else.
+///
+/// The crate root has to say `pub mod fs;` for `src/fs/` to exist at all, and a
+/// declaration grants the declaring file nothing: no path is imported, no item
+/// is named, and every later *use* still fires. Matched as a whole line and by
+/// shape, so `use crate::fs::read;` — and a line that declares the module and
+/// then does something else — are untouched.
+fn declares_the_filesystem_module(line: &str) -> bool {
+    let mut rest = line.trim();
+    if let Some(after) = rest.strip_prefix("pub") {
+        rest = after.trim_start();
+        // `pub(crate)`, `pub(super)`, `pub(in path)`.
+        if let Some(scope) = rest.strip_prefix('(') {
+            let Some(close) = scope.find(')') else {
+                return false;
+            };
+            rest = scope[close + 1..].trim_start();
+        }
+    }
+    rest == format!("mod {FILESYSTEM_MODULE};")
+}
+
 /// The lines of `source` that name the filesystem, one-indexed.
 fn violations(source: &str) -> Vec<(usize, String)> {
     without_comments(source)
         .lines()
         .enumerate()
-        .filter(|(_, line)| names_the_filesystem(line))
+        .filter(|(_, line)| names_the_filesystem(line) && !declares_the_filesystem_module(line))
         .map(|(n, line)| (n + 1, line.trim().to_string()))
         .collect()
 }
@@ -185,6 +229,44 @@ fn the_detector_fires_on_a_deliberate_violation() {
         assert!(
             !violations(source).is_empty(),
             "the detector missed: {source}"
+        );
+    }
+}
+
+/// The carve-out is the declaration and nothing else. A test that only checked
+/// the exempted shape would pass while the exemption swallowed every `use`, so
+/// both halves are here: what it must exempt, and what it must still catch.
+#[test]
+fn the_carve_out_is_the_declaration_and_nothing_else() {
+    for exempt in [
+        "mod fs;",
+        "pub mod fs;",
+        "pub(crate) mod fs;",
+        "pub(super) mod fs;",
+        "pub(in crate::algebra) mod fs;",
+        "    pub mod fs;   ",
+    ] {
+        assert!(
+            violations(&format!("{exempt}\n")).is_empty(),
+            "the declaration should be exempt: {exempt}"
+        );
+    }
+    for caught in [
+        // A re-export is not a declaration, and refusing it is what keeps an
+        // algebra module from reaching the filesystem through a crate-root
+        // alias this scan cannot see.
+        "pub use fs::ReadGuard;",
+        "pub use crate::fs::read;",
+        "use crate::fs::read;",
+        "    let guard = fs::read(root)?;",
+        // Both on one line: the exemption is whole-line and exact, so this is
+        // not the declaration and does not get its pass.
+        "mod fs; use std::fs;",
+        "mod fs2;\nuse std::fs;",
+    ] {
+        assert!(
+            !violations(&format!("{caught}\n")).is_empty(),
+            "the detector missed: {caught}"
         );
     }
 }
@@ -242,7 +324,14 @@ fn the_scan_reaches_the_sources() {
         "the scan found {} source file(s); the crate has more than that",
         sources.len()
     );
-    for expected in ["lib.rs", "name.rs", "conformance.rs", "reference.rs"] {
+    for expected in [
+        "lib.rs",
+        "name.rs",
+        "conformance.rs",
+        "reference.rs",
+        "snapshot.rs",
+        "error.rs",
+    ] {
         assert!(
             sources.iter().any(|p| p.as_os_str() == expected),
             "the scan missed {expected}"

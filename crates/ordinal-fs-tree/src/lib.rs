@@ -30,7 +30,7 @@
 //!
 //! # Where the filesystem lives
 //!
-//! In `src/fs/`, and nowhere else. Every other module in this crate is the
+//! In [`fs`], and nowhere else. Every other module in this crate is the
 //! algebra: pure, testable without a directory, and modellable without an
 //! abstraction of one. That boundary is what makes a later split of this crate
 //! into separately-modellable units mechanical rather than archaeological, and
@@ -66,10 +66,21 @@
 //! architecture document uses for every one of its examples.
 
 pub mod conformance;
+mod error;
+// The one line in this crate, outside `src/fs/` itself, that names the
+// filesystem module — and `tests/algebra_has_no_filesystem.rs` exempts exactly
+// this shape and nothing else. A *re-export* of anything under it stays a
+// violation, deliberately: an algebra module could then reach the filesystem
+// through a crate-root alias that a textual scan cannot see. So the guards live
+// at `ordinal_fs_tree::fs::{read, write}` and are not lifted to the crate root.
+pub mod fs;
 mod name;
 pub mod reference;
+mod snapshot;
 
+pub use error::Error;
 pub use name::{
     EntryName, EntryNameExt, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Triple,
     Verdict,
 };
+pub use snapshot::{Builder, Container, Entry, Place, Snapshot, Walk};

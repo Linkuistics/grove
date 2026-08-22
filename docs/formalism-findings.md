@@ -683,6 +683,123 @@ attack one judgement. And treat *the language discharges this* like any model
 claim: it is a proof you did not write down, so state what it does **not**
 cover, or split it until every part is either forbidden or checked.
 
+### 006 — Implementing the first leaf the models barely reach (`ordinal-fs-tree`'s reading layer)
+
+**Situation.** The lock, the snapshot, and the five reading operations — the
+first leaf of the library that touches a filesystem. Two checked models and a
+reconciled architecture document already existed. Unlike `seam-k8`, almost none
+of this leaf's subject is *in* either model: `operations.qnt` models mutations,
+and its handoff block records walk **order** as explicitly unmodelled.
+
+**Formalism.** None written. Both suites re-run first — Alloy 20/20, Quint every
+claim across all eight instances, every witness reached in a non-zero number of
+traces — about five minutes, no friction. Three instruments did the work, and
+only the first has appeared in this log before: the models read as a
+specification, the type system, and **deliberate mutation of the implementation
+to watch the tests fail**.
+
+**Caught.** Four.
+
+- **The model's recorded *miss* was the whole worklist, and reading it first is
+  what made the leaf tractable.** Entry 004's verdict was *read the witnesses
+  first — they are the test suite*. Its sibling is sharper: **read the misses
+  first — they are the specification of what you have to get right unaided.**
+  `operations.qnt` says walk order is unmodelled and that it resolves `by_key`
+  by least internal id; that one sentence located every line of prose this leaf
+  had to write and defend, before any code existed.
+- **A tie-break the document never stated, found by composing two things the
+  models state separately.** Walk order within a level was written as
+  *distinguished child first, then children by ordinal* — total only if ordinals
+  are distinct. But every invariant in this design is **preservation, not
+  establishment** (both models are explicit), so a hand-edited level carrying a
+  duplicate ordinal is a tree the library must still traverse; and a directory
+  listing arrives in whatever order the filesystem chose. Together: `by_key`'s
+  documented *first in walk order* would have named a **different entry on two
+  machines holding byte-identical trees**. Neither model could have found it —
+  both hold no strings and neither models a listing — but both supplied the
+  premise, and the composition is free.
+- **An instrument that made its own promised path undeclarable.** `seam-k8`'s
+  `std::fs` guard scans every source outside `src/fs/` for the word `fs`, so
+  `mod fs;` in `lib.rs` was a violation of the rule the guard exists to hold: the
+  module could not be declared at all. The repair — exempt the declaration shape
+  and nothing else — also closes the hole the guard's own header names as a known
+  limit, because a *re-export* stays a violation and there is now no crate-root
+  alias to launder a filesystem item through. The defect was invisible for two
+  leaves because nothing had yet needed the module to exist.
+- **A refusal neither model can pose: a filename that is not text.**
+  `parse` takes a `&str`, so there is no verdict to be had and no domain error to
+  carry — the library needs a refusal of its own, and it must **halt**, by the
+  trichotomy's own argument: a name that cannot be read cannot be disclaimed
+  either, and one mangled byte in a real name produces exactly this. Both models
+  hold no strings *by design*, and that simplification — recorded in 002 and 003
+  as a saving — has a cost this leaf paid: the entire class *the name is not a
+  string* is outside what either can state.
+
+**Missed.** Three.
+
+- **The models had almost nothing to say about this leaf's code, and that was
+  predictable in advance.** One definition was directly reusable —
+  `structure.als`'s `descendable`/`visited` (descend into the root and into
+  recognised nodes; not into a foreign name, not into a distinguished child), and
+  transcribing it is exactly what the snapshot reader does. Beyond that: **five of
+  this leaf's twenty-three behaviour tests name a model claim, and eighteen say
+  they have none.** That is not a complaint — it is the measurement, and the H3
+  probe wants it.
+- **A branch that cannot be exercised on the machine it was written on.** APFS
+  validates filenames as UTF-8 and refuses to create a non-UTF-8 one, so the halt
+  above is unreachable on a stock macOS checkout. No model, tool or test found
+  this: the *filesystem* did, by refusing the fixture. The test now asserts
+  whichever fact is true on the host — the platform refused the name, or the
+  library halted on it — because a skipped test reports what a passing one
+  reports, which is this log's recurring instrument failure in its fourth dress.
+- **Nothing still checks that the code matches the model.** Entry 004's first
+  miss, unchanged. The compensating discipline is naming the claim in each test's
+  comment, and 005 sharpened it to *quote the predicate, not the name* — which
+  helps only where a claim exists at all. For eighteen of twenty-three tests here
+  there is no claim to quote, and the discipline degrades to a sentence saying so.
+
+**Cost.** One session. The models were five minutes. The mutation controls were
+about fifteen: six deliberate breakages — the distinguished-first rule inverted,
+`Malformed` skipped instead of halting, `flock` stubbed out, the listing made to
+follow symbolic links, an import added to a real algebra module, a filesystem
+item re-exported from the crate root — each rebuilt and run, each firing exactly
+the tests it should and no others.
+
+**Counterfactual.** Three, and the first is a new row.
+
+- **Mutation controls are the instrument that answers *does this test test
+  anything*, and they cost minutes.** Every test in this leaf passed the first
+  time it ran, which is the state in which a suite is least trustworthy: a test
+  that has never been seen failing is an assertion about the author's confidence.
+  Six mutations turned "all green" into evidence, and two of them (the lock stub,
+  the re-export) were the only proof that claims made in *prose* — "dropping the
+  guard releases it", "a re-export stays a violation" — were true of the code.
+  Not a formalism, cheaper than one, and applicable to any suite.
+- **The order tie-break wanted a property-based test, and would have been
+  positive evidence for a row this log opened empty.** `walk(shuffle(listing)) ==
+  walk(listing)` over generated levels is the instrument that fits — the same
+  shape entry 004 named for the grammar (`format(parse(f)) == f`) and had no
+  evidence for. Two independent leaves have now reached for it and neither has
+  run it; that pattern is itself the finding.
+- **The undeclarable-module defect would have been caught by writing the guard's
+  control from the consumer's side.** The question *what does the file that
+  declares this module look like?* costs nothing and was never asked, because the
+  guard was tested against synthetic source strings and never against the shape
+  its own repository would take. A guard validated only on fixtures has not met
+  its subject.
+
+**On H2 — evidence for, of a kind the earlier entries did not produce.** The
+model earned its keep here by **stating what it does not cover**. Nothing it
+checked was used; the sentence recording its own limit is what directed the
+session's attention to the only genuinely undecided question in the leaf. A model
+that documents its misses is doing work even where it has no claims.
+
+**Verdict.** Read a model's recorded **misses** before its claims — they are the
+worklist, as its witnesses are the test suite. And before believing a green
+suite, break the implementation six ways and watch it go red: it is minutes, it
+is not a formalism, and it is the only thing that distinguishes a suite that
+holds from one that was written to pass.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -706,4 +823,8 @@ guesses are not.
 | model-claim-to-test — "does this test still say what the claim said?" | quote the claim's predicate beside the assertion | 005: two tests named a claim and checked a weaker property — `v.seen = n` became string equality, `Malformed` became *not an entry* — and both drifted toward the property that was easier to observe |
 | partial discharge — "the language forbids some of this obligation" | split it into two named obligations | 005: the qualification survived in the file that made the claim and in none of the three artifacts that repeated it; the unqualified half was a real defect |
 | a written law nobody holds the code against | an adversarial reader briefed to attack one judgement | 005: five of six findings, including both trait-shape defects, which neither model could reach; the models supplied the law and a reader supplied the comparison |
+| does this test test anything? — "the suite is green, but was it ever red?" | deliberate mutation of the implementation | 006: six breakages, each firing exactly the expected tests; the only evidence for two claims made in prose (dropping a guard releases the lock, a re-export stays a violation). Minutes, no tooling, any suite |
+| order stability — "does this answer depend on the order the input arrived in?" | property-based testing over permutations *(untested)* | 006: `by_key`'s documented tie-break was machine-dependent on a hand-edited tree, because listing order is arbitrary and ordinal distinctness is only preserved. Found by composing two model premises; `walk(shuffle(l)) == walk(l)` is what would have found it directly, and is the second leaf running to name this instrument without using it |
+| what do I have to get right unaided? | the model's own recorded misses | 006: the handoff block's *walk order is unmodelled* located every line of undefended prose in the leaf before any code existed. The mirror of 004's *witnesses are the test suite* |
+| a case the platform makes untestable — "the branch exists and the host cannot reach it" | assert which fact is true on the host, never skip | 006: APFS refuses non-UTF-8 filenames, so a halting branch is unreachable on macOS; a skipped test reports what a passing one reports |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |

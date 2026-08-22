@@ -11,13 +11,26 @@ repository = "https://github.com/Linkuistics/grove"
 # promises more than the workspace can deliver promises nothing.
 rust-version = "1.85"
 
-# No dependencies. The library is `std` and nothing else, deliberately: it is
-# published for reuse, and every dependency it takes it imposes on grove and on
-# every later consumer. Errors are the consumer's own type (`EntryName::Err`), so
-# there is no error-handling crate to pull in either.
+# One dependency, and the bar it had to clear is that `std` cannot do the job at
+# all. The library is published for reuse, so every dependency it takes it
+# imposes on grove and on every later consumer — errors, for instance, are the
+# consumer's own type (`EntryName::Err`), so no error-handling crate is pulled in
+# for them.
+#
+# `libc` is here for `flock`, which has no `std` equivalent. The alternative was
+# a hand-written `extern "C"` declaration beside hard-coded `LOCK_SH`/`LOCK_EX`
+# constants: that compiles everywhere and is silently wrong on any platform whose
+# values differ, because a lock taken in the wrong mode still reports success.
+# The constants belong to the platform, and this is how a Rust program asks the
+# platform for them. It costs grove nothing — the workspace already locks it.
 [dependencies]
+libc = "0.2"
 
+# `tempfile` is a *dev*-dependency, so no consumer inherits it. The filesystem
+# tests need a directory that is unique per run and removed afterwards, and
+# hand-rolling that is a worse version of a crate this workspace already uses.
 [dev-dependencies]
+tempfile = "3.10"
 
 [lints]
 workspace = true

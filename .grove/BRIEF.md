@@ -135,9 +135,8 @@ and has nothing to do with tree invariants.
 
 ## On the horizon
 
-- Implementing the operations, each modelled first. Cannot be leafed until the
-  design lands, because the operation set is what the design settles.
-- The CLI's own shape, once there is a library for it to expose.
+- The CLI's own shape, once there is a library for it to expose. Whether it
+  belongs to increment 1's decomposition or its own is `library-k6`'s to decide.
 - The grove flip.
 - **Distilling `docs/formalism-findings.md` into a `linkuistics` skill.** The
   question is precisely stateable already; its *scope* is not, because it depends
@@ -149,18 +148,37 @@ and has nothing to do with tree invariants.
   that stays an article of faith. This is H3 in the findings log and the least
   certain of the three hypotheses; it needs a deliberate test, not an impression
   gathered in passing.
-- Whether any of this earns an ADR. The design has now landed in draft, so the
-  test is due for re-application at the `architecture-k2` close — in particular
-  the single-trait seam, which was intent when the test was last run and is now a
-  settled decision with a written rationale.
 - Whether `ordinal-fs-tree` becomes a **third bounded context** with its own
   glossary. It has a deliberately separate vocabulary — entry, ordinal, key,
   distinguished child — that shares no term with grove's, which is exactly what
-  `CONTEXT-MAP.md` uses to tell contexts apart. Not settled here; the question is
-  recorded rather than answered.
+  `CONTEXT-MAP.md` uses to tell contexts apart. Still open, but no longer
+  free-floating: it now blocks filing two records, so it is `records-k5`'s
+  question and that leaf carries the evidence both ways.
 - Splitting the crate into separately-modellable units.
 
-Settled since this brief was written: the library does **not** inherit grove's
-Unix-only assumption in its *interface* — locking is entirely internal, so the
-build is Unix-only today and gaining another platform later changes no signature
-and no caller.
+## Settled since this brief was written
+
+**The library does not inherit grove's Unix-only assumption in its
+*interface*.** Locking is entirely internal, so the build is Unix-only today and
+gaining another platform later changes no signature and no caller.
+
+**The architecture has landed and is checked.** `architecture-k2` closed with
+`docs/ordinal-fs-tree/ARCHITECTURE.md` reconciled against two models that both
+run green. Three facts a later session needs and cannot get from the document
+alone:
+
+- **The models are re-runnable, and that is deliberate.** `models/run-alloy.sh`
+  and `models/run-quint.sh` each report pass/fail per claim. Both exist because
+  both tools report *found nothing* with exit code 0 — a model whose result
+  cannot be read is not a checked model, and this cost was paid twice.
+- **The models lead, so read their misses before trusting them.** Each records
+  what it does *not* establish, in its own file and in `docs/formalism-findings.md`.
+  Two matter most downstream: a rename carrying its subtree is assumed rather
+  than checked, and walk *order* is unmodelled, so `by_key`'s tie-break on a
+  duplicate-key tree rests on prose.
+- **The ADR test was re-applied and two decisions now pass it** — the
+  single-trait seam and no-removal. Filing them is `records-k5`, blocked only on
+  which context maintains them.
+
+**The operation set is fixed**, which is what the implementation leaves were
+waiting for. `library-k6` cuts them.

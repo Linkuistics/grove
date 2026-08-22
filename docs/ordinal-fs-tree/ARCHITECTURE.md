@@ -307,8 +307,27 @@ flowchart LR
 ```
 
 This is internal structure, not interface — a consumer calls
-`tree.insert(...)` and receives a report. But the split is what makes the
-library's claims checkable:
+`tree.insert(...)` and receives a report of what happened, never a plan to
+apply. **Snapshot scope is internal too**: whole-tree today, and narrowing it
+later would be an invisible refinement. It is load-bearing in one visible way,
+which the *Refusals* section states — a name the consumer cannot parse halts
+every mutation, wherever in the tree it sits.
+
+Two other shapes were considered and rejected, and both are worth naming because
+each is what a reader would otherwise reach for:
+
+- **Pure functions over name lists** — the shape the code being replaced has. It
+  leaves the shift-ordering rule inside filesystem code, where nothing can model
+  it and nothing can test it. Everything the section below says about that
+  ordering is only sayable because the plan is a value.
+- **Read, transform, diff** — compute the desired tree and derive the effects.
+  That makes the diff a second thing to get right, and the plan's order becomes
+  an output of a diffing algorithm rather than a stated property.
+
+The plan shape also gives every operation *one* rollback rather than each
+hand-rolling its own, which is what stops them drifting apart.
+
+But the split is what makes the library's claims checkable:
 
 - **The algebra cannot reach the filesystem.** Every decision — which siblings
   move, in what order, what each is renamed to — is a pure function of the
@@ -320,16 +339,59 @@ library's claims checkable:
   hand-rolling its own, and they cannot drift apart.
 - **The promise is bounded and stated.** Rollback covers *reported* errors.
   A process killed mid-apply is not recoverable, and the library says so rather
-  than implying otherwise.
+  than implying otherwise. It does not cover a rollback that *itself* fails —
+  see *When rollback fails* below, which is the one case where the library can
+  damage a tree it was handed.
 
-Ordering within a plan is load-bearing. A sibling shift renames
-highest-ordinal-first, so every destination is vacated before it is needed —
-which is a property of the plan, checkable by reading it, rather than an
-accident of a loop's direction.
+### The plan is checked against itself, in order
+
+The algebra decides whether a plan can run by folding it through the snapshot,
+so it meets each destination in the state the interpreter will meet it. Checking
+every destination against the *snapshot* instead — the obvious reading of "a
+pure function of the snapshot" — is not merely stricter. It refuses correct
+inserts, and it makes the ordering rule below buy nothing at all, because under
+it the two orders are refused in exactly the same cases.
+
+Sequencing the check is also what makes the interpreter's own exclusive create
+unreachable in ordinary use: the algebra already knows what every effect will
+find. What keeps that check in the code is that the lock is **advisory** — a
+writer that does not take it can occupy a destination between the snapshot and
+the apply. It guards against an uncooperative neighbour, not against the plan.
+
+### Why the shift runs highest-first
+
+A sibling shift renames highest-ordinal-first. The rule is real, but not for the
+reason it first appears, and the difference is worth stating because it decides
+what an *interrupted* operation leaves behind.
+
+**Collision is not the usual reason.** A name embeds a tree-unique key, so two
+siblings never want the same filename and no destination is occupied whatever
+order the renames run in. The order matters for collision only on a tree that
+already violates key uniqueness — two siblings sharing a key *and* its parts at
+adjacent ordinals, which a hand edit can produce (`cp 01-foo-k5.md
+02-foo-k5.md`) and the library never checks for. There, highest-first succeeds
+and lowest-first is refused.
+
+**The reason that applies to every tree is the intermediate state.**
+Highest-first vacates each destination before it is needed, so ordinals stay
+distinct at *every* step of the apply: an operation interrupted halfway leaves a
+level that is merely **gapped**, which this design admits everywhere. Run the
+other way, the same shift passes through a state with a **duplicate ordinal** —
+which it does not. Since a process killed mid-apply is unrecoverable by the
+paragraph above, the order is what decides which of those two a crash leaves.
+
+That is a property of the plan, checkable by reading it, rather than an accident
+of a loop's direction.
 
 ---
 
 ## Operations
+
+Every operation names its target **by key**, and the tree root by a variant of
+its own, since the root is not an entry and has no key. Nothing else would do:
+an ordinal is stale the moment anything is inserted before it, and a path is
+stale the moment anything is renamed. The key is the one handle the design
+already promises survives, so it is the one the operations take.
 
 ### Reading
 
@@ -361,8 +423,37 @@ trait and a label is not.
 | `append` | Add a child at the end of a node: the next free ordinal, a fresh key. |
 | `append_many` | Add several children at consecutive ordinals with consecutive keys, planned from one snapshot and applied as a unit. Either the whole run lands or none of it does. |
 | `insert` | Add a child at an occupied ordinal, shifting the occupant and every later sibling up by one. Each shift is one rename; a shifted node carries its whole subtree. |
-| `promote` | Turn a leaf into a node, **with the node's parts supplied by the caller**. The leaf's content moves verbatim into the new node's distinguished child, keeping the same ordinal and the same key — the entity is unchanged, only its shape. Optionally creates a first child in the same unit, for consumers that want both atomically. |
+| `promote` | Turn a leaf into a node, **with the node's parts supplied by the caller**. The leaf's content moves verbatim into the new node's distinguished child, keeping the same ordinal and the same key — the entity is unchanged, only its shape. Optionally creates a first child in the same unit, for consumers that want both atomically. It is the one operation whose intermediate state breaks an invariant; see below. |
 | `rewrite` | Replace an entry's parts, keeping its ordinal, key and species. This is how an attribute changes: the entry keeps its identity and its place, and only the opaque remainder of its name moves. Parts implying a *different* species are refused — a file cannot be renamed into a directory. |
+
+### Promotion is not atomic against the invariants
+
+A promotion creates the node before it can move the leaf's content into it, and
+the node carries the leaf's own ordinal and key — that is what identity
+preservation means. So between its two effects **both are on disk**, sharing an
+ordinal and a key. There is no ordering that avoids it: the library has no name
+for a temporary, and a node with any other ordinal or key would not be the same
+entry.
+
+The consequence is that the invariants below hold of **quiescent** trees — trees
+between operations — and not of every state the filesystem passes through. The
+lock is what makes that distinction safe, since no cooperating reader observes
+an intermediate state.
+
+### When rollback fails
+
+Rollback unwinds the effects a run applied, in reverse. If an unwind step itself
+fails, the operation reports it and stops, and the tree is left in neither the
+state it was found in nor the one intended.
+
+On the promotion path that is worse than untidy: the single undo is *remove the
+node just created*, so a rollback failing there leaves the leaf and the node
+both in place, sharing an ordinal and a key. **This is the one path by which the
+library creates a duplicate key in a tree it was handed** — everywhere else a
+duplicate key is a defect the library inherits rather than causes. Recovery is
+mechanical and worth stating to the consumer: a node and a leaf sharing an
+ordinal and a key, with the node holding no distinguished child, is an
+interrupted promotion, and either half can be removed to resolve it.
 
 `rewrite` is the general form of every "mark this entry" operation a consumer
 might want. Because attributes are opaque, the library neither knows nor cares
@@ -387,10 +478,19 @@ mapping when the honest one is often lossy.
 Every mutation is total: each states what it does when its precondition fails,
 and none is left undefined.
 
+- A key naming no entry is refused. On a tree carrying a *duplicate* key the
+  target is the first in `walk` order, with the same caveat `by_key` already
+  carries — the operation succeeds and the tree still needs repairing.
+- `append`, `append_many` and `insert` require their target to be a node. A
+  designated leaf is refused: a leaf is a regular file and holds nothing.
 - `insert` requires an existing occupant at the target ordinal. Inserting past
   the last sibling is `append`'s job and is refused rather than quietly
   redirected — the two differ in their effect on every later sibling, so
-  guessing which was meant would be guessing at intent.
+  guessing which was meant would be guessing at intent. The same refusal covers
+  a **gap** in a hand-edited level, where that rationale does not apply and no
+  operation fills the hole: a gapped ordinal can be occupied only by hand. That
+  is a consequence of density being preserved and never established, and it is
+  stated here rather than left to be discovered.
 - `promote` applies to a leaf. A node is already a node, and a distinguished
   child has no ordinal to carry across; both are refused.
 - `promote` is refused outright in a domain with no distinguished child
@@ -402,7 +502,24 @@ and none is left undefined.
 - Every mutation is refused when its destination is occupied by anything at
   all, including a symbolic link. Occupancy is decided without following links,
   and an occupancy that *cannot* be determined is a refusal rather than an
-  assumption.
+  assumption. Occupancy excludes the object being *moved*, or a `rewrite` whose
+  new parts equal the old — a rename onto itself — would refuse its own no-op.
+
+  Two things narrow this refusal, and neither weakens it. A **foreign** name can
+  never occupy a destination: the grammar is canonical, so a filename that
+  formats a producible name parses as `Entry`, and one the consumer disclaims
+  cannot collide with one it composed. A symbolic link carrying an entry's name
+  is **malformed**, not occupying — `parse` sees what the listing found, so it
+  halts at the snapshot, before any destination is computed. What remains is a
+  tree carrying a duplicated key, a tree damaged by a failed rollback, and a
+  neighbour that ignores the advisory lock.
+
+- A name the consumer recognises and cannot parse halts every mutation, not only
+  one touching its own level. Snapshot scope is the whole tree, so a single
+  `Malformed` or `Reserved` name anywhere a walk reaches freezes the tree until
+  a human resolves it. That blast radius is the point — the alternative is
+  proceeding past a name whose meaning the library cannot know — but it is
+  large, and a consumer should expect it rather than meet it.
 
 ---
 
@@ -414,6 +531,13 @@ hand is routinely one it did not build — so each invariant reads *given a tree
 that already satisfies this, every operation leaves it satisfied*. An earlier
 draft said that of ordinal density alone, which implied the others were stronger
 than they are; they are not, and the honest statement is the one above.
+
+They also hold of **quiescent** trees — trees between operations — rather than
+of every state the filesystem passes through. An operation is a sequence of
+renames and creates, and two of them pass through a state that violates a
+statement below: a promotion carries the leaf and its new node at once, and a
+shift run in the wrong order would duplicate an ordinal. The lock is what makes
+that safe, and what a crash exposes.
 
 Each is tagged with the model that owns it: **[S]** for the structural model,
 which asks whether a shape is well-formed, **[B]** for the behavioural one,
@@ -427,7 +551,17 @@ the tree, including entries a consumer considers finished — which is exactly w
 they must not be deleted. Nothing checks the precondition: a hand-edited tree
 with a repeated key satisfies everything the library can observe, and `by_key`
 then has two answers where its type admits one. This is a defect in the tree, not
-in the library, and the library's part is to not create one.
+in the library, and the library's part is to not create one — with the single
+exception of an interrupted promotion, above.
+
+*Reissued* is about **allocation, not creation**, and the distinction is
+load-bearing rather than pedantic. `promote` creates a new directory that
+carries the promoted leaf's existing key, deliberately: the entity is unchanged
+and only its shape moved. Read as *no newly created object carries a key seen
+before*, the claim is simply false. Read as *no newly allocated key was ever
+committed before*, it holds. A key a failed operation created and then rolled
+back was never committed, so allocating it again is correct — the counter
+appears to go backwards, and nothing was reissued.
 
 **Ordinal distinctness — and density only by induction.** *[S]* Within one node,
 no two children share an ordinal. Density — ordinals being exactly `1..n` — is
@@ -453,9 +587,21 @@ every attribute and every descendant of every shifted entry is bit-identical
 afterwards. A shifted node is one directory rename; nothing inside it is
 touched.
 
+Half of that is checked and half is assumed, and the halves are worth telling
+apart. That the *plan* names no descendant — one rename per shifted sibling and
+one create, and nothing else — is a property of the algebra and is checked. That
+one rename carries a whole subtree is a property of `rename(2)`, below the
+abstraction boundary the models stop at, and is assumed.
+
 **Identity preservation under promotion.** *[B]* A promoted leaf keeps its ordinal and
 its key. The entry that was a leaf *is* the node — not a new entry that replaced
 it — so every reference to it by key still resolves.
+
+That sentence is about the **entity**, not the file. The node is a new
+directory, and the leaf's own file survives inside it as the distinguished
+child: the content keeps its identity, the container acquires a new one. A
+consumer holding a path is stale either way; one holding a key is not, which is
+the whole reason the key exists.
 
 **No recognised name is silently skipped.** *[S]* Every name in a traversed directory
 is classified. Names the consumer disclaims are ignored; names it recognises
@@ -488,7 +634,8 @@ compiler.
 **Plan atomicity.** *[B]* After a mutation returns an error, either every effect
 landed or none did. Rollback removes only entries the run itself created, so it
 cannot destroy something that was already there. This covers reported errors and
-not process death.
+not process death — nor a rollback that itself fails, which is the exception
+*When rollback fails* states and the only way the library damages a tree.
 
 ---
 
@@ -500,7 +647,9 @@ and move with the crate when it is extracted.
 | | |
 |---|---|
 | `models/structure.als` | Alloy. Whether the shape is coherent: what a well-formed tree is, what the trait can name, and which of the invariants above hold of a single tree. |
-| `models/run-alloy.sh` | Runs every command and reports pass/fail. |
+| `models/operations.qnt` | Quint. Whether each operation preserves that shape from any reachable state, and what it leaves when it is interrupted. |
+| `models/run-alloy.sh` | Runs every Alloy command and reports pass/fail. |
+| `models/run-quint.sh` | Runs every Quint claim, per instance, and reports pass/fail. |
 
 The file is written so that nothing this document merely *claims* is an Alloy
 `fact`. Claims are named predicates, and every command says which it assumes —
@@ -519,8 +668,53 @@ unsatisfiable, so each bundle is shown to admit a populated tree at the scope it
 checks run under.
 
 Whether each operation preserves what it should, from any reachable state, is a
-question about *before* and *after* that this model cannot pose. It belongs to
-the behavioural model, and the **[B]** tags above are its worklist.
+question about *before* and *after* that the Alloy model cannot pose. It belongs
+to the behavioural model, and the **[B]** tags above were its worklist.
+
+### What the behavioural model adds
+
+`operations.qnt` keeps the same discipline in a different shape. Its state is a
+tree and an operation in flight; its transitions are the plan interpreter,
+applying one effect at a time and able to fail at any of them, so **every
+intermediate state is a state the invariants are evaluated at**. That is what
+lets it say things about interruption at all.
+
+- an **`inv_…`** must hold in every reachable state of the instance that claims
+  it. These are the properties above.
+- a **`wit_…`** must be *reached*. Each one exhibits a refusal that has to be
+  live, or a state the design admits, or a defect this document had before the
+  model was written. A witness reached in **no** traces is a finding in its own
+  right: that case is dead.
+
+Refusals are **transitions, not disabled actions** — an operation is enabled for
+every argument and returns an outcome — because a refusal is something the real
+API does, and a refusal modelled as an impossibility can never be shown to be
+either reachable or dead. Totality is then structural: the algebra returns a
+decision for every state and every argument, and an unmodelled case would have
+to be a missing branch the typechecker rejects.
+
+The instances are the model's variables. Each fixes one question, and a property
+that holds in one and fails in another is the point rather than a
+contradiction — so a deliberately admitted violation is written as the witness
+that *reaches* it, never as an invariant expected to fail.
+
+| instance | the question it settles |
+|---|---|
+| `pristine` | Only the library writes. Every reachable tree is one it built, so **density holds** — the `init = empty tree` answer. |
+| `hand_edited` | A human edits between operations. **Density fails**, everything else holds — the `init = arbitrary well-formed tree` answer, and the difference between these two instances is the whole of it. |
+| `corrupted` | A hand edit duplicates a key, which the library admits and never checks. Even here, highest-first neither collides nor transiently duplicates an ordinal. |
+| `lowest_first` | The same trees, shifted the other way. Both payoffs of the ordering rule are reached here and nowhere else. |
+| `no_distinguished` | A domain where `distinguished()` is `None`, so promotion is refused rather than guessed at. |
+| `unparseable` | A name the consumer recognises and cannot parse, and the whole-tree halt it causes. |
+| `failures` | Effects fail. Where atomicity and rollback are checked. |
+| `rollback_fails` | Rollback itself fails. The only instance that does not claim key uniqueness at rest, because this is what breaks it. |
+
+Three things the behavioural model does **not** reach, recorded here rather than
+left to be assumed: the filesystem beneath the interpreter (a rename carrying
+its subtree is an assumption), walk *order* (reachability is modelled, the
+ordering is not, so `by_key`'s tie-break on a duplicate-key tree is unchecked),
+and concurrent hand edits *during* an apply — which is exactly the case the
+interpreter's own occupancy check exists for.
 
 ---
 

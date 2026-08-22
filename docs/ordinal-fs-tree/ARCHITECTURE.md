@@ -632,12 +632,15 @@ and none is left undefined.
   tree carrying a duplicated key, a tree damaged by a failed rollback, and a
   neighbour that ignores the advisory lock.
 
-- **Bytes supplied for parts that make a node are refused.** `append` and
-  `append_many` take an entry's parts and its bytes; a node is a directory and
-  has nowhere to hold bytes, so supplying some is a refusal rather than a silent
-  discard. *Neither model can pose this*: content is unmodelled in both by
-  design, so it is stated here in the same position as the non-valid-text
-  refusal below — a case the library can see and no model can reach.
+- **Bytes supplied for parts that make a node are refused.** `append`,
+  `append_many` and `insert` each take an entry's parts and its bytes; a node is
+  a directory and has nowhere to hold bytes, so supplying some is a refusal
+  rather than a silent discard. It belongs to **every operation that creates an
+  entry**, and not to a list of them: the reason is a property of nodes, so an
+  operation exempt from it would be one that can put bytes in a directory.
+  *Neither model can pose this*: content is unmodelled in both by design, so it
+  is stated here in the same position as the non-valid-text refusal below — a
+  case the library can see and no model can reach.
 
 - **A tree whose greatest key, or a level whose greatest ordinal, is the
   greatest that value can be is refused.** Allocation is `max + 1`, and an

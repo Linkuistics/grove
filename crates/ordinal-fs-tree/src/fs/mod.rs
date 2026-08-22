@@ -56,7 +56,7 @@ use crate::ops::{self, NewEntry, Target};
 use crate::plan::Decision;
 use crate::report::Report;
 use crate::snapshot::Snapshot;
-use crate::{EntryName, Error};
+use crate::{EntryName, Error, Ordinal};
 
 mod apply;
 mod lock;
@@ -215,6 +215,41 @@ impl<N: EntryName> WriteGuard<N> {
         entries: Vec<NewEntry<N::Parts>>,
     ) -> Result<Report<N>, Error<N>> {
         let decision = ops::append_many(&self.snapshot, target, entries);
+        self.run(decision, apply::Faults::none())
+    }
+
+    /// **`insert`**: add a child at an occupied ordinal, shifting the occupant
+    /// and every later sibling up by one.
+    ///
+    /// The target is the **node** the child goes into, named by key or by
+    /// [`Target::Root`]; `at` is the ordinal within it. One rename per shifted
+    /// sibling and one create — and each shift is a single rename, so a shifted
+    /// node carries its whole subtree with it and nothing inside it is touched.
+    ///
+    /// The renames run highest-ordinal-first, which
+    /// [`Report::renamed`](crate::Report::renamed) shows in that order.
+    /// [`Report::paths`](crate::Report::paths) shows the plan's own landing
+    /// order instead — shifts, then the create — which for this operation is
+    /// neither species' order and is what a caller reading *what happened*
+    /// wants.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Refused`] when the target names no entry or names something
+    /// that is not a node; when **nothing occupies `at`**, which covers both
+    /// inserting past the last sibling — `append`'s job, refused rather than
+    /// quietly redirected — and inserting into a gap in a hand-edited level,
+    /// which no operation fills; or when bytes were supplied for parts that
+    /// make a node. [`Error::Failed`] when the filesystem refused and the tree
+    /// was left as it was found; [`Error::FailedPartiallyRolledBack`] when
+    /// undoing that failed too.
+    pub fn insert(
+        self,
+        target: Target,
+        at: Ordinal,
+        entry: NewEntry<N::Parts>,
+    ) -> Result<Report<N>, Error<N>> {
+        let decision = ops::insert(&self.snapshot, target, at, entry);
         self.run(decision, apply::Faults::none())
     }
 

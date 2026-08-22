@@ -8,15 +8,15 @@
 //!
 //! The specification is `docs/ordinal-fs-tree/ARCHITECTURE.md`, sections
 //! *Operations → Mutating* and *Refusals*; the model is
-//! `docs/ordinal-fs-tree/models/operations.qnt`, whose `planAppend` and
-//! `planAppendMany` these two are.
+//! `docs/ordinal-fs-tree/models/operations.qnt`, whose `planAppend`,
+//! `planAppendMany` and `planInsert` these are.
 //!
-//! The other three mutations — `insert`, `promote` and `rewrite` — join this
-//! module as their leaves land. They are what the plan shape exists for: five
-//! operations, one interpreter, one rollback.
+//! The other two mutations — `promote` and `rewrite` — join this module as
+//! their leaves land. They are what the plan shape exists for: five operations,
+//! one interpreter, one rollback.
 
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
-use crate::{Container, EntryName, Key, Ordinal, PositionedSpecies, Snapshot};
+use crate::{Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot};
 
 /// Which entry an operation is aimed at.
 ///
@@ -140,6 +140,100 @@ pub(crate) fn append_many<N: EntryName>(
     // because it belongs to *plans*, not to operations — `insert` and `promote`
     // are what make it live — and because leaving it off here would make this
     // the one operation whose plan is unchecked.
+    Plan::of(effects).guarded(snapshot)
+}
+
+/// **`insert`**: add a child at an occupied ordinal, shifting the occupant and
+/// every later sibling up by one.
+///
+/// One rename per shifted sibling and one create, in that order — and the
+/// renames run **highest-ordinal-first**, which is the whole of `planInsert`
+/// plus `shiftIds` in the model.
+///
+/// # Why highest-first, since it is not what it looks like
+///
+/// Not to avoid a collision. A name embeds a tree-unique key, so two siblings
+/// never want the same filename and *no* order collides on a well-formed tree;
+/// lowest-first is refused only where a hand edit already duplicated a key
+/// **and** its parts at adjacent ordinals, which `operations.qnt`'s `corrupted`
+/// instance is built from. `docs/formalism-findings.md` entry 003 is where the
+/// document's first stated reason was found to be wrong, and the model is what
+/// found it.
+///
+/// The reason that applies to every tree is the **intermediate state**.
+/// Highest-first vacates each destination before it is needed, so ordinals stay
+/// distinct at every step of the apply and an operation interrupted half way
+/// leaves a level that is merely *gapped* — which this design admits
+/// everywhere. Run the other way, the same shift passes through a state
+/// carrying a **duplicate ordinal**, which it does not. Since a process killed
+/// mid-apply is unrecoverable, the order is what decides which of those two a
+/// crash leaves: `inv_ordinalsDistinctThroughout`, against
+/// `wit_shiftTransientlyDuplicatesAnOrdinal` in the `lowest_first` instance.
+///
+/// That is a property of the plan, which is a value — so it is read off the
+/// plan rather than inferred from a loop's direction, and that is exactly what
+/// `ARCHITECTURE.md` says the two rejected shapes could not offer.
+pub(crate) fn insert<N: EntryName>(
+    snapshot: &Snapshot<N>,
+    target: Target,
+    at: Ordinal,
+    entry: NewEntry<N::Parts>,
+) -> Decision<N> {
+    let (level, container) = match resolve(snapshot, target) {
+        Ok(resolved) => resolved,
+        Err(refusal) => return Decision::Refuse(refusal),
+    };
+    // Every positioned sibling the insert displaces, **highest ordinal first**:
+    // `positioned()` is in walk order, which within a level is ascending, so
+    // this is the model's `reverseI(asc)` and shares its tie-break on a level a
+    // hand edit left carrying two entries at one ordinal.
+    let mut shifted: Vec<Entry<'_, N>> = container
+        .positioned()
+        .filter(|sibling| sibling.ordinal().is_some_and(|ordinal| ordinal >= at))
+        .collect();
+    shifted.reverse();
+    // `idsAtOrdinal(f, d, at).size() == 0` in the model. Both halves of the
+    // refusal are this one test: past the last sibling, and a gap in a
+    // hand-edited level. See [`Refusal::NoOccupantAtOrdinal`] for why they are
+    // one refusal and two messages.
+    if !shifted.iter().any(|sibling| sibling.ordinal() == Some(at)) {
+        return Decision::Refuse(Refusal::NoOccupantAtOrdinal {
+            ordinal: at,
+            greatest: container
+                .positioned()
+                .filter_map(|sibling| sibling.ordinal())
+                .max(),
+        });
+    }
+    if N::positioned_species(&entry.parts) == PositionedSpecies::Node && !entry.content.is_empty() {
+        return Decision::Refuse(Refusal::ContentForANode);
+    }
+    let mut effects = Vec::with_capacity(shifted.len() + 1);
+    for sibling in shifted {
+        let Some(triple) = sibling.triple() else {
+            unreachable!("`positioned` yields no distinguished child, and every other name has one")
+        };
+        let Some(next) = triple.ordinal.get().checked_add(1) else {
+            return Decision::Refuse(Refusal::OrdinalsExhausted);
+        };
+        // A shift is not an operation: it is `compose(new_ordinal, key, parts)`,
+        // derived, and therefore incapable of disturbing a key, a label or an
+        // attribute. And it is one rename of one entry — a shifted *node* is
+        // one directory rename, with nothing inside it touched.
+        effects.push(Effect::MoveTo {
+            entry: sibling.index(),
+            to: level,
+            name: N::compose(Ordinal::new(next), triple.key, triple.parts.clone()),
+        });
+    }
+    let Some(key) = greatest_key(snapshot).checked_add(1) else {
+        return Decision::Refuse(Refusal::KeysExhausted);
+    };
+    effects.push(Effect::Create {
+        at: level,
+        name: N::compose(at, Key::new(key), entry.parts),
+        content: entry.content,
+    });
     Plan::of(effects).guarded(snapshot)
 }
 

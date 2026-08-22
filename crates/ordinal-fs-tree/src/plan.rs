@@ -82,17 +82,6 @@ pub(crate) enum Effect<N> {
     /// Rename an entry already in the tree, possibly into another level. A
     /// sibling shift is this and nothing else: `compose(new_ordinal, key,
     /// parts)`, so it cannot disturb a key, a label or an attribute.
-    //
-    // Built by this crate's own tests and by no operation yet, for the reason
-    // `Level::Created` gives: `insert` and `promote` are what build it, and the
-    // rollback that puts a moved entry back is shared machinery this leaf owns.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "built by insert and promote, which are later leaves"
-        )
-    )]
     MoveTo {
         /// The entry being moved, by its position in the snapshot's arena.
         entry: usize,
@@ -305,6 +294,31 @@ pub enum Refusal {
     ///
     /// [`Error::NonUtf8Name`]: crate::Error::NonUtf8Name
     ContentForANode,
+    /// An `insert` named an ordinal no sibling occupies. `operations.qnt`'s
+    /// `RefusedNoOccupantAtOrdinal`.
+    ///
+    /// **One refusal, two situations, and the document gives a rationale for
+    /// only one of them.** Past the last sibling, inserting is `append`'s job
+    /// and is refused rather than quietly redirected — the two differ in their
+    /// effect on every later sibling, so guessing which was meant would be
+    /// guessing at intent. Into a **gap** in a hand-edited level that rationale
+    /// plainly does not apply, and the honest answer is the harder one: density
+    /// is preserved by every operation and established by none, so *no*
+    /// operation fills a gap and a gapped ordinal can be occupied only by hand.
+    /// `operations.qnt` witnesses the two separately — `wit_insertPastTheEnd`
+    /// and `wit_insertIntoAGap` — which is how the second came to be noticed at
+    /// all; `docs/formalism-findings.md` entry 003 records it.
+    ///
+    /// The level's greatest ordinal is carried so the message can tell the two
+    /// apart and give the advice that fits, rather than offering the reader a
+    /// fork.
+    NoOccupantAtOrdinal {
+        /// The ordinal that named no sibling.
+        ordinal: Ordinal,
+        /// The greatest ordinal the level holds, or `None` for a level holding
+        /// no positioned children at all.
+        greatest: Option<Ordinal>,
+    },
     /// The tree's greatest key is the greatest a key can be, so `max + 1` has
     /// nowhere to go.
     ///
@@ -354,6 +368,33 @@ impl core::fmt::Display for Refusal {
                  directory has nowhere to hold them. Supply no content, or supply \
                  parts that make it a leaf.",
             ),
+            Self::NoOccupantAtOrdinal { ordinal, greatest } => {
+                write!(
+                    f,
+                    "nothing sits at ordinal {ordinal} in that level, and \
+                           an insert shifts an occupant up rather than filling a \
+                           hole. "
+                )?;
+                match greatest {
+                    // Past the last sibling — or into a level holding no
+                    // positioned children at all, where every ordinal is past
+                    // the last sibling.
+                    Some(greatest) if ordinal <= greatest => f.write_str(
+                        "That ordinal is a gap in this level: something below it \
+                         and something above it are occupied. No operation fills \
+                         a gap — ordinal density is preserved by every operation \
+                         and established by none — so a gapped ordinal can be \
+                         occupied only by hand, with `mv`.",
+                    ),
+                    _ => f.write_str(
+                        "That ordinal is past the last sibling, which is \
+                         `append`'s job: it takes the next free ordinal and \
+                         leaves every other entry alone, where an insert would \
+                         shift them. The two differ in what they do to the rest \
+                         of the level, so call the one you meant.",
+                    ),
+                }
+            }
             Self::KeysExhausted => f.write_str(
                 "this tree's greatest key is the greatest a key can be, so there is \
                  no fresh one to allocate: a key is `max + 1` over every name in the \

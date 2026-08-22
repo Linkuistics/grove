@@ -1244,6 +1244,140 @@ moved*, and only the first is a fix. Reach for the handoff's own exclusion list
 whenever a defect is found in territory a model does not cover — it names the
 other places to look.
 
+### 012 — Implementing the operation the ordering rule was written for (`ordinal-fs-tree`'s `insert`)
+
+**Situation.** `insert-k11`: add a child at an occupied ordinal, shifting the
+occupant and every later sibling up by one. One rename per shifted sibling and
+one create. This is the operation `docs/formalism-findings.md` entry 003's two
+headline findings were *about* — the shift order's real reason, and the
+sequential destination check — so it is the first leaf where those findings had
+to be turned into code and into tests rather than into prose.
+
+**Formalism.** None written. Both suites re-run as controls first: Alloy 20/20
+in sixteen seconds, Quint every claim across all eight instances with every
+witness reached in a non-zero number of traces, in about four minutes. Nothing
+in either moved, which is what makes the run a control rather than a step. The
+instruments that did the work were `operations.qnt` read as a specification —
+two witnesses in particular — and **four mutation controls**.
+
+**The measurement.** Twenty-four tests: nineteen naming a model claim, five
+saying they have none, and none naming neither. That is close to entry 009's
+inverted ratio and for the same reason — the leaf's subject is inside the
+model's scope. `insert` is the operation `planInsert`, `shiftIds`,
+`inv_insertOnlyShifts` and four witnesses were written about, and the fraction
+of a leaf a model is worth remains legible from the handoff block before the
+leaf starts.
+
+**Caught.** Four.
+
+- **The most valuable thing the model supplied was a witness *pair*, not an
+  invariant.** `wit_insertPastTheEnd` and `wit_insertIntoAGap` are one modelled
+  outcome discriminated by a predicate — `a.at > maxOrdIn` against
+  `a.at < maxOrdIn` — and that shape is what turned one refusal into one refusal
+  carrying two pieces of advice. The document states the past-the-end rationale
+  ("`append`'s job") and gives the gap case the same sentence, where it is simply
+  false: no operation fills a gap, so the honest advice is *by hand*. The
+  implementation answer is that the refusal carries the level's greatest ordinal
+  so its message can decide which is true. `inv_insertOnlyShifts`, by contrast,
+  told the implementation nothing it did not already have from the document —
+  the invariant confirmed, the witnesses *designed*.
+- **A rule whose payoff is a state nothing observes is testable only if the model
+  named the counterfactual instance too.** Highest-first buys distinct ordinals
+  at every intermediate state; the other order passes through a duplicate. No
+  passing test observes an interruption, so a test of that rule has to reason
+  about the plan and read every state a crash could stop at off it — and it is
+  worth nothing without a control, because an implementation shifting in *any*
+  order passes a lone "every state is distinct" assertion on a well-formed tree.
+  `wit_shiftTransientlyDuplicatesAnOrdinal` is live in `lowest_first` and dead
+  everywhere else, and that is the control, named in the model: replay the same
+  landings the other way and assert some state *is* duplicated. Mutation (a)
+  below confirms the pair fires in both directions.
+- **A refusal the models exclude spread to a new operation, and the document had
+  written it as a list.** *Bytes supplied for parts that make a node are refused*
+  was stated of `append` and `append_many`, which were the only operations that
+  existed. `insert` creates an entry too, so it inherits the refusal — and the
+  bullet had to be rewritten to state the rule over a property (a node is a
+  directory and has nowhere to hold bytes, so it binds every operation that
+  creates an entry) rather than over an enumeration the next operation falls off.
+  Entry 011's routing row already says the exclusion list is the worklist; the
+  sharpening is what to *write* when it is: prose covering a modelled
+  idealisation must be quantified over the property, because there is no
+  typechecker to notice when the list goes stale.
+- **The previous leaf had already done this leaf's stated first job, because it
+  built a test for an operation that did not exist.** The task file's first
+  requirement was to fix the destination check if `interpreter-k10` had left it
+  as a snapshot check. It had not: entry 009 records that leaf building `insert`'s
+  shift plan *by hand*, in both orders, because no `append` test can tell a fold
+  from a snapshot check. So the fold, its refusing twin and the mutation control
+  behind them were all in place, and this leaf read them and moved on. H2
+  evidence of a specific shape: a leaf that spends effort on the one case its own
+  operations cannot reach pays for it in the next leaf, and the model is what
+  told it which case that was.
+
+**Missed.** Two, and the second is the more interesting.
+
+- **Subtree preservation's assumed half, again, exactly as entry 003 warned.**
+  *A shifted node is one directory rename, with nothing inside it touched* is a
+  property of `rename(2)`, below the boundary both models stop at, and
+  `operations.qnt` makes it true by construction. The only instrument that can
+  hold the library to it is a directory with something in it — one integration
+  test, `a_shifted_node_carries_its_whole_subtree_untouched`. What the model
+  bought here was not coverage but the **accurate labelling of which half is
+  which**, which is what let the checkable half (*the plan names no descendant*)
+  be named for what it is instead of borrowing the whole invariant's authority.
+- **The create being last is arranged in the model, not claimed by it.**
+  `planInsert` appends the create after the shifts, so the order lives in the
+  model's construction. `inv_ordinalsDistinctThroughout` *would* catch a
+  create-first plan — the new entry and the unshifted occupant would share an
+  ordinal in an intermediate state — but the model cannot build one, so the
+  invariant never meets it. This is entry 003's first miss in a new dress: an
+  invariant strong enough to catch a defect the model's own construction makes
+  unreachable is indistinguishable, from the outside, from one that checked it.
+  It is only detectable by mutating the *implementation*, which is what mutation
+  (b) did.
+
+**The mutation controls.** Four, run against the whole crate suite with
+`--no-fail-fast`, each restored before the next:
+
+| mutation | tests failed |
+|---|---|
+| (a) shift lowest-first | 9 |
+| (b) create first, before the shifts | 17 |
+| (c) drop the occupant check | 7 |
+| (d) shift only the occupant, not the later siblings | 11 |
+
+Every one was caught, and by tests in both halves — the pure algebra tests and
+the on-disk ones. (b) is the one worth keeping: it is the only evidence that the
+create's position is defended at all, since no model claim reaches it.
+
+**Cost.** About one session, and the model work was reading rather than writing.
+Re-running both suites was under five minutes of wall clock and produced no
+change; it is bought as the control that separates *the code is wrong* from *the
+specification moved*, and it stayed cheap because neither runner had to be
+touched.
+
+One friction worth recording for whoever writes the skill: `cargo test` stops
+after the first failing test binary, so the first pass of mutation controls
+reported only the unit half and silently omitted every integration test. The
+numbers above are from `--no-fail-fast`. It is the same failure shape entry 003's
+runners exist for — an instrument reporting less than it looked like it had — and
+it is one flag, in a tool nobody would think to distrust.
+
+**Counterfactual.** Nothing here would have been caught earlier by a *different*
+formalism. The two findings that mattered came from reading a model already
+written, three leaves earlier, at the level of its witnesses rather than its
+invariants — so the counterfactual is about *how* a model is read on the way in:
+**an implementer should read the witnesses before the invariants**. Invariants
+say what must remain true, which the document usually already says; witnesses say
+which cases are live, which distinctions are real, and — when one is reachable in
+only one instance — where the control for a test goes. Entry 004 recorded that
+four Alloy witnesses became executable tests and no `check` did; this is the
+behavioural half of the same observation, and it now has two leaves behind it.
+
+**Verdict.** Yes, and specifically: reach for the model's witness list when
+implementing an operation it covers. It is the part of a model that is written in
+the shape a test wants.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -1277,4 +1411,7 @@ guesses are not.
 | what refusal will I need that no model can name? | the model's own stated idealisations, read as a list | 009: no strings, no bytes, unbounded integers — three refusal classes, one per idealisation, and `operations.qnt` lists them itself |
 | one property, how many mechanisms? | a mutation control per mechanism, not per property | 009: *claims its destination* is `create_new` for one effect and look-then-rename for another; eight controls passed while the second was undefended |
 | an unenforced invariant hiding in plain sight | the model's explanatory comments | 009: *`Remove` never appears in a forward plan* was a comment, and became two types that make it unrepresentable |
+| how do I test a rule whose payoff is a state nothing observes? | the witness that is live in only one instance — it names the control | 012: highest-first buys distinct ordinals at every intermediate state, and a lone "every state is distinct" assertion passes under any shift order. `wit_shiftTransientlyDuplicatesAnOrdinal` is reachable only in `lowest_first`, so replaying the same landings the other way is the control the model itself points at |
+| reading a model on the way into an implementation | the witnesses before the invariants | 012: the invariants confirmed what the document already said; the witness *pair* discriminating one outcome by a predicate is what turned one refusal into two messages. The behavioural half of 004's *witnesses are the test suite* |
+| a refusal that covers a modelled idealisation | state it over the property, never over a list of operations | 012: *bytes for a node are refused* was written of the two operations that existed, and `insert` fell off the list. There is no typechecker for prose, so the quantifier is the only thing that ages well |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |

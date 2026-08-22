@@ -61,3 +61,46 @@ which is a value, and assert on its order.
 child name, no child key, no file content. A test that rebuilds a subtree, or
 walks into one to rename its children, has misread the design and should fail
 review.
+
+## Decisions (running log)
+
+**The sequential destination check was already in place, so this leaf's stated
+first job was a no-op.** `interpreter-k22` landed `Plan::guarded` as a *fold*
+through the snapshot — `src/plan.rs`'s `refusal`, with
+`a_plan_is_folded_through_the_snapshot_and_not_checked_against_it` beside it —
+rather than as a snapshot-wide check. Verified by reading both before writing
+anything, because the ordering rule buys nothing without it. Recorded so a later
+reader of this task file does not go looking for the change it asks for.
+
+**`Refusal::NoOccupantAtOrdinal` carries the level's greatest ordinal, so one
+refusal can give two pieces of advice.** The model has one outcome and two
+witnesses — `wit_insertPastTheEnd` and `wit_insertIntoAGap` — and the two want
+opposite advice: past the last sibling, call `append`; into a gap, no operation
+fills it and it can be occupied only by hand. Carrying `greatest: Option<Ordinal>`
+lets `Display` decide which is true rather than offering the reader a fork, and
+`None` (a level with no positioned children) falls to the `append` half, where
+every ordinal is past the last sibling.
+
+**The ordering rule is tested through the plan's intermediate states, not
+through a collision.** A test asserting *the other order collides* would be
+testing the architecture document's corrected predecessor — findings entry 003 is
+where the model contradicted it. So the tests fold the plan's landings over the
+level and assert every intermediate state has distinct ordinals, with the same
+landings replayed lowest-first as the control that reaches a duplicate
+(`wit_shiftTransientlyDuplicatesAnOrdinal`, live only in the `lowest_first`
+instance). An interruption is not something a passing test observes; a plan is a
+value, so every state an interruption could stop at can be read off it.
+
+**The content-for-a-node refusal belongs to `insert` too, and the document had
+named only `append` and `append_many`.** Not a model disagreement — content is
+unmodelled in both models by design — so `ARCHITECTURE.md`'s *Refusals* bullet
+was corrected to state the rule for every operation that creates an entry, with
+the reason (a node is a directory and has nowhere to hold bytes) rather than a
+list that the next operation would fall off. Recorded in
+`docs/formalism-findings.md` entry 012 as a place the models could not help.
+
+**A review chain is cut.** `promote-k12` and `rewrite-k13` both build on the
+`MoveTo` path and on the plan-ordering conventions this leaf established, and
+every impl leaf in this node so far has had a review find something. The
+in-session allowance is left unspent, as a producer with a scheduled review
+spends none.

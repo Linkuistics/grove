@@ -13,7 +13,7 @@
 use core::fmt;
 use std::path::PathBuf;
 
-use crate::EntryName;
+use crate::{EntryName, Refusal};
 
 /// Why an operation could not proceed.
 ///
@@ -51,6 +51,57 @@ pub enum Error<N: EntryName> {
         path: PathBuf,
         /// The consumer's own error, carrying the recovery advice.
         source: N::Err,
+    },
+    /// The algebra refused: a stated outcome in which the operation changed
+    /// nothing.
+    ///
+    /// A refusal is not an error thrown from inside the algebra — the algebra
+    /// *returns* it, as one of the two halves of a decision, and this variant is
+    /// where it becomes an `Err` at the filesystem boundary. Every one of them
+    /// is total and stated: `ARCHITECTURE.md`'s *Refusals* section is the list,
+    /// and [`Refusal`] carries the recovery advice.
+    Refused(Refusal),
+    /// An effect failed, and the run unwound everything it had applied.
+    ///
+    /// **The tree is as it was found**: this is *plan atomicity*, which
+    /// `operations.qnt` checks as `inv_atomicity` — after a mutation returns an
+    /// error, either every effect landed or none did. The promise covers
+    /// reported errors and nothing else; a process killed mid-apply is not
+    /// recoverable, and the library says so rather than implying otherwise.
+    Failed {
+        /// What the failing effect was acting on, in the caller's spelling.
+        path: PathBuf,
+        /// The step that failed, in the imperative.
+        doing: &'static str,
+        /// What the filesystem said.
+        source: std::io::Error,
+    },
+    /// An effect failed, and unwinding it failed too.
+    ///
+    /// **The tree is in neither the state it was found in nor the one
+    /// intended.** This is the exception *When rollback fails* states, and the
+    /// one path by which this library damages a tree it was handed — which is
+    /// why it is a variant of its own rather than an `Io` with a longer
+    /// message. On the promotion path it leaves a leaf and a node sharing an
+    /// ordinal and a key, and the `Display` below says how to resolve that,
+    /// because a consumer meeting this needs a next step and not a diagnosis.
+    ///
+    /// `operations.qnt`'s `rollback_fails` instance exists to exhibit it:
+    /// `wit_partialRollbackLeavesADuplicateKey` is reached, and that instance is
+    /// the only one that does not claim key uniqueness at rest.
+    FailedPartiallyRolledBack {
+        /// What the failing effect was acting on.
+        path: PathBuf,
+        /// The step that failed.
+        doing: &'static str,
+        /// What the filesystem said about it.
+        source: std::io::Error,
+        /// What the failing *unwind* step was acting on.
+        unwinding: PathBuf,
+        /// The unwind step that failed.
+        undoing: &'static str,
+        /// What the filesystem said about that.
+        unwind_source: std::io::Error,
     },
     /// A filename that is not UTF-8, which halts.
     ///
@@ -112,6 +163,33 @@ impl<N: EntryName> fmt::Debug for Error<N> {
                 .field("path", path)
                 .field("source", source)
                 .finish(),
+            Self::Refused(refusal) => f.debug_tuple("Refused").field(refusal).finish(),
+            Self::Failed {
+                path,
+                doing,
+                source,
+            } => f
+                .debug_struct("Failed")
+                .field("path", path)
+                .field("doing", doing)
+                .field("source", source)
+                .finish(),
+            Self::FailedPartiallyRolledBack {
+                path,
+                doing,
+                source,
+                unwinding,
+                undoing,
+                unwind_source,
+            } => f
+                .debug_struct("FailedPartiallyRolledBack")
+                .field("path", path)
+                .field("doing", doing)
+                .field("source", source)
+                .field("unwinding", unwinding)
+                .field("undoing", undoing)
+                .field("unwind_source", unwind_source)
+                .finish(),
             Self::NonUtf8Name { path } => {
                 f.debug_struct("NonUtf8Name").field("path", path).finish()
             }
@@ -139,6 +217,39 @@ impl<N: EntryName> fmt::Display for Error<N> {
             Self::Malformed { source, .. } | Self::Reserved { source, .. } => {
                 fmt::Display::fmt(source, f)
             }
+            // The refusal's own advice *is* the message, for the reason the
+            // domain's is: a second sentence in front of it pushes the
+            // actionable half off the end of a terminal line.
+            Self::Refused(refusal) => fmt::Display::fmt(refusal, f),
+            Self::Failed {
+                path,
+                doing,
+                source,
+            } => write!(
+                f,
+                "{doing} {}: {source}. Nothing was changed \u{2014} every effect this \
+                 operation had applied was undone.",
+                path.display()
+            ),
+            Self::FailedPartiallyRolledBack {
+                path,
+                doing,
+                source,
+                unwinding,
+                undoing,
+                unwind_source,
+            } => write!(
+                f,
+                "{doing} {}: {source}. Undoing what had already been applied then \
+                 failed as well \u{2014} {undoing} {}: {unwind_source} \u{2014} so this tree is \
+                 now in neither the state the operation found nor the one it \
+                 intended, and it needs a human. If a node and a leaf share an \
+                 ordinal and a key and the node holds no distinguished child, \
+                 that is an interrupted promotion: removing either half resolves \
+                 it.",
+                path.display(),
+                unwinding.display()
+            ),
             Self::NonUtf8Name { path } => write!(
                 f,
                 "the filename {} is not valid UTF-8, so it cannot be classified: \
@@ -163,7 +274,16 @@ impl<N: EntryName> std::error::Error for Error<N> {
         match self {
             Self::Io { source, .. } => Some(source),
             Self::Malformed { source, .. } | Self::Reserved { source, .. } => Some(source),
-            Self::NonUtf8Name { .. } | Self::NoContainingDirectory { .. } => None,
+            // The failing *effect*, not the failing unwind: `source` is a chain
+            // of causes and the effect is what caused the unwind to be needed.
+            // The unwind's own error is in the `Display`, where a consumer
+            // reading the message meets both.
+            Self::Failed { source, .. } | Self::FailedPartiallyRolledBack { source, .. } => {
+                Some(source)
+            }
+            Self::Refused(_) | Self::NonUtf8Name { .. } | Self::NoContainingDirectory { .. } => {
+                None
+            }
         }
     }
 }

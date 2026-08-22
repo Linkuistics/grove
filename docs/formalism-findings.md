@@ -958,6 +958,147 @@ source text, use the language's own lexer — a partial one is a second
 implementation of the hardest part of the language, maintained by whoever
 happens to touch the test.
 
+### 009 — Implementing the leaf the models were written for (`ordinal-fs-tree`'s interpreter)
+
+**Situation.** `interpreter-k10`: the plan, effect and decision types, the single
+interpreter with its exclusive create and its rollback, and the two operations
+that make both observable — `append` and `append_many`. Unlike every earlier
+implementation leaf, this one's subject is the model's subject: `operations.qnt`
+*is* a plan interpreter, and its `failures` and `rollback_fails` instances exist
+precisely to check what this code does.
+
+**Formalism.** None written. Both suites re-run as controls first — Alloy 20/20,
+Quint every claim across all eight instances with every witness reached in a
+non-zero number of traces — about seven minutes, no friction. The instruments
+that did the work were the model read as a specification, the type system, and
+**nine mutation controls**.
+
+**The measurement first, because it is this leaf's main evidence.** Entry 006
+recorded that five of the reading layer's twenty-three tests named a model claim
+and eighteen said they had none. Here it is **twenty-eight of forty-two naming a
+claim and fourteen with none** — the ratio inverted, on a leaf of comparable
+size, because the subject is inside the model rather than beside it. That is the
+cleanest H3 evidence this log has: what a checked model is worth to an
+implementation depends almost entirely on whether the model was written about
+the thing being implemented, and the answer is legible *before* the leaf starts,
+from the model's own handoff block.
+
+**Caught.** Five.
+
+- **Two of the model's comments became types, and the claims they carry stopped
+  needing to be checked.** `operations.qnt` gives `Effect` three variants and
+  then says of one: *`Remove` never appears in a forward plan — it is only ever
+  generated as the undo of a `Create`.* In Rust that is two types: a plan holds
+  `Create | MoveTo`, and the interpreter's own `Undo` holds `Remove | Restore`,
+  constructible only from an effect the run just applied. `inv_rollbackRemovesOnlyItsOwn`
+  is then structural. The same move on `Decision`: two variants and no third *is*
+  the totality the model establishes by `decide`'s return type. This is entry
+  002's counterfactual — *before modelling a structural property, ask whether the
+  target language already forbids it* — arriving for the third time, and the new
+  part is where to look for candidates: **a model's explanatory comments are
+  where its unenforced invariants hide.**
+- **Entry 003's sequential-destination finding was worth a test the operation
+  under implementation cannot reach.** Whether the algebra folds the plan through
+  the snapshot or checks every destination against it is invisible to every
+  `append` test there is: an append composes names carrying a key no entry holds,
+  so no destination it computes can be taken by anything, under either reading.
+  The discriminating case is two siblings sharing a key *and* its parts —
+  `cp 01-foo-i5.md 02-foo-i5.md` — under an `insert`'s shift, which is a later
+  leaf. So the plan `insert` will build was built by hand and folded now, in both
+  orders. A mutation control confirms the pair: replacing the fold with a
+  snapshot check turns the correct plan into a refusal and nothing else in the
+  suite notices.
+- **A whole refusal class neither model can pose, and it is not the usual one.**
+  Entry 006 found *the name is not a string* outside both models because both
+  hold no strings by design. This leaf found the arithmetic equivalent: an
+  integer in either model is **unbounded**, and a key and an ordinal are 32 bits.
+  A hand-written name carrying `u32::MAX` makes `max + 1` impossible, and the
+  choice — refuse, or wrap and re-issue a live key — is exactly the kind of
+  question the models exist to force, and cannot. Two refusals (`KeysExhausted`,
+  `OrdinalsExhausted`) and a third for content, which is unmodelled for the same
+  by-design reason bytes always were. All three are now in `ARCHITECTURE.md`,
+  which is the specification of record for what the models do not reach.
+- **A mutation control found an untested claim the model's own uniformity hides.**
+  *The interpreter claims each destination with an exclusive create* reads as one
+  rule; on a real filesystem it is two mechanisms. `create_new` and `create_dir`
+  refuse an occupied destination in one syscall — but `rename(2)` **replaces**
+  its destination silently, so a rename has to look first, unfollowed, and macOS
+  has no portable no-replace rename to do it atomically. `operations.qnt`'s
+  `effectBlocked` is one function over all effects, which is right in a model with
+  no syscalls and hides the split completely. Deleting the pre-rename look left
+  all forty-one other tests green.
+- **The model settled an API question it never mentions.** Whether a mutation
+  consumes its guard or borrows it is not in either model — there is no handle in
+  a model — but `inv_atomicity` decides it anyway: a guard that survived its own
+  mutation would either plan the next one from a stale snapshot or have to
+  re-read, and a re-read that fails after the effects landed is a mutation
+  returning an error with the tree changed, which is the precise shape atomicity
+  promises not to have. The invariant was the argument, in a place it makes no
+  claim about.
+
+**Missed.** Three.
+
+- **Nothing still checks that the code matches the model.** Entry 004's first
+  miss, unchanged and now more expensive: twenty-eight tests name a claim, and
+  what holds them to it is a comment. The compensating discipline (005: quote the
+  predicate, not the name) is followed here and is still a convention.
+- **The model's `failures` instance checks atomicity of a *modelled* interpreter,
+  and this leaf's interpreter is a different program.** They agree because the
+  same person wrote one from the other; nothing derives one from the other, and
+  no counterexample the model produced was ever replayed against the code. That
+  is the honest reading of what *the model leads* bought here: a specification and
+  a worklist, not a verified implementation.
+- **The one design question with real freedom in it was outside both models
+  again.** `Level::Created` — an effect naming a directory an earlier effect of
+  the same plan creates — is in `planPromote` by inspection, but whether the
+  implementation should carry it *now*, with no operation producing it, is a
+  judgement about leaf boundaries that nothing checked. It is kept, tested by
+  hand, and marked `#[cfg_attr(not(test), expect(dead_code))]` so that the leaf
+  which finally builds it is forced to remove the marker.
+
+**Cost.** One session. The suites were about seven minutes; the nine mutation
+controls about fifteen, scripted so each patches, runs and reverts. The reading
+was the expensive part, as at every leaf: `ARCHITECTURE.md`, the glossary, the
+1,326-line model and five prior findings entries before a line was written.
+
+**Counterfactual.** Three, and the first two are new rows.
+
+- **A control per *mechanism*, not per property.** Entry 007 sharpened mutation
+  controls to *mutate the assumption, not the happy path*; the next turn of the
+  same screw is that one property implemented by two mechanisms wants two
+  controls. *Claims its destination* is one sentence covering `create_new` and a
+  look-then-rename, and the control for the first says nothing about the second —
+  which is how eight controls could pass while a rename would have destroyed a
+  neighbour's file. Ask of every checked property: **how many different pieces of
+  machinery implement it?**
+- **A model's idealisations are enumerable in advance, and each one is a refusal
+  class.** No strings (006), no bytes, unbounded integers, no filesystem, no
+  concurrency — `operations.qnt` lists most of them in its own handoff block.
+  Reading that list as *the specification of what you must decide unaided* is
+  entry 006's verdict; reading it as *the list of places the implementation will
+  need a refusal the model cannot name* is sharper, and would have produced all
+  three of this leaf's own refusals before any code existed rather than one at a
+  time as the types demanded them.
+- **When the discriminating case for a decision belongs to a later leaf, build it
+  by hand now.** The alternative is that the decision sits untested until that
+  leaf arrives, and a regression in it is silent — which is exactly what entry
+  003 warned about when it said getting the fold wrong *makes the next leaf's
+  ordering rule vacuous, and nothing will tell you*. Hand-building the plan the
+  later operation will produce costs one fixture.
+
+**On H2 — the strongest evidence so far, and it is about coverage rather than
+quality.** The model led this leaf in the ordinary sense: the test list came off
+the witness list, the refusals came off `Outcome`, and two design decisions came
+from invariants that do not mention them. But the finding that generalises is the
+measurement, not the experience — the model's value tracked, almost exactly, the
+fraction of the leaf that was inside its scope.
+
+**Verdict.** Reach for a behavioural model when the thing being built *is* a
+state machine, and expect the payoff to be proportional to that overlap rather
+than to the model's quality. Then check the model's stated idealisations for the
+refusals it cannot name, and count the mechanisms behind each property before
+believing one control covers it.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -985,4 +1126,8 @@ guesses are not.
 | order stability — "does this answer depend on the order the input arrived in?" | property-based testing over permutations *(untested)* | 006: `by_key`'s documented tie-break was machine-dependent on a hand-edited tree, because listing order is arbitrary and ordinal distinctness is only preserved. Found by composing two model premises; `walk(shuffle(l)) == walk(l)` is what would have found it directly, and is the second leaf running to name this instrument without using it |
 | what do I have to get right unaided? | the model's own recorded misses | 006: the handoff block's *walk order is unmodelled* located every line of undefended prose in the leaf before any code existed. The mirror of 004's *witnesses are the test suite* |
 | a case the platform makes untestable — "the branch exists and the host cannot reach it" | assert which fact is true on the host, never skip | 006: APFS refuses non-UTF-8 filenames, so a halting branch is unreachable on macOS; a skipped test reports what a passing one reports |
+| how much will a model actually be worth to this leaf? | the fraction of the leaf inside the model's stated scope | 009: 5 of 23 tests named a claim where the model barely reached (006); 28 of 42 where the leaf's subject *was* the model's. Legible from the handoff block before the leaf starts |
+| what refusal will I need that no model can name? | the model's own stated idealisations, read as a list | 009: no strings, no bytes, unbounded integers — three refusal classes, one per idealisation, and `operations.qnt` lists them itself |
+| one property, how many mechanisms? | a mutation control per mechanism, not per property | 009: *claims its destination* is `create_new` for one effect and look-then-rename for another; eight controls passed while the second was undefended |
+| an unenforced invariant hiding in plain sight | the model's explanatory comments | 009: *`Remove` never appears in a forward plan* was a comment, and became two types that make it unrepresentable |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |

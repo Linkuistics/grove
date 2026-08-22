@@ -67,6 +67,8 @@
 
 pub mod conformance;
 mod error;
+#[cfg(test)]
+mod fixtures;
 // The one line in this crate, outside `src/fs/` itself, that names the
 // filesystem module — and `tests/algebra_has_no_filesystem.rs` exempts exactly
 // this shape and nothing else. A *re-export* of anything under it stays a
@@ -75,7 +77,10 @@ mod error;
 // at `ordinal_fs_tree::fs::{read, write}` and are not lifted to the crate root.
 pub mod fs;
 mod name;
+mod ops;
+mod plan;
 pub mod reference;
+mod report;
 mod snapshot;
 
 pub use error::Error;
@@ -83,4 +88,7 @@ pub use name::{
     EntryName, EntryNameExt, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Triple,
     Verdict,
 };
+pub use ops::{NewEntry, Target};
+pub use plan::Refusal;
+pub use report::{Created, Renamed, Report};
 pub use snapshot::{Container, Entry, Snapshot, Walk};

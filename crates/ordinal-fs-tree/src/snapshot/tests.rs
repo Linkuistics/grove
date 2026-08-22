@@ -22,48 +22,9 @@
 //! construction looks exactly like one that was verified.
 
 use super::{Builder, Place, Snapshot};
-use crate::reference::{Label, Parts, Status, SyllabusName};
-use crate::{EntryName, Key, Ordinal, Species};
-
-fn lesson(ordinal: u32, key: u32, status: Status, label: &str) -> SyllabusName {
-    SyllabusName::compose(
-        Ordinal::new(ordinal),
-        Key::new(key),
-        Parts::lesson(status, Label::new(label).expect("a well-formed label")),
-    )
-}
-
-fn module(ordinal: u32, key: u32, label: &str) -> SyllabusName {
-    SyllabusName::compose(
-        Ordinal::new(ordinal),
-        Key::new(key),
-        Parts::module(Label::new(label).expect("a well-formed label")),
-    )
-}
-
-fn overview() -> SyllabusName {
-    SyllabusName::distinguished().expect("this domain has a distinguished child")
-}
-
-fn rendered(snapshot: &Snapshot<SyllabusName>) -> Vec<String> {
-    snapshot.walk().map(|e| e.name().to_string()).collect()
-}
-
-/// `ARCHITECTURE.md`'s own tree, built in the order the document draws it.
-fn documents_tree() -> Snapshot<SyllabusName> {
-    let mut builder = Builder::new();
-    let root = builder.root();
-    builder.add(root, overview());
-    builder.add(root, lesson(1, 1, Status::Published, "orientation"));
-    let algebra = builder
-        .add(root, module(2, 2, "linear-algebra"))
-        .expect("a module is a node");
-    builder.add(algebra, overview());
-    builder.add(algebra, lesson(1, 5, Status::Published, "vectors"));
-    builder.add(algebra, lesson(2, 6, Status::Draft, "matrices"));
-    builder.add(root, lesson(3, 9, Status::Draft, "assessment"));
-    builder.finish()
-}
+use crate::fixtures::{documents_tree, lesson, module, overview, rendered};
+use crate::reference::{Status, SyllabusName};
+use crate::{Key, Species};
 
 const DOCUMENTS_WALK: &[&str] = &[
     "OVERVIEW.md",

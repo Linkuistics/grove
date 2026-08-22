@@ -34,6 +34,7 @@
 //! total order over a level, *the first in walk order* would name a different
 //! entry on two filesystems holding byte-identical trees.
 
+use crate::plan::Level;
 use crate::{EntryName, EntryNameExt, Key, NameView, Ordinal, Species, Triple};
 
 /// One entry as the snapshot holds it: its name, where it sits, and — when it
@@ -312,6 +313,18 @@ impl<'a, N: EntryName> Entry<'a, N> {
         &self.snapshot.entries[self.index]
     }
 
+    /// Where this entry sits in its snapshot's own arena.
+    ///
+    /// Crate-private, and the reason it exists is [`Level::Entry`]: a plan is
+    /// built before anything is applied and names levels by identity rather
+    /// than by path, because half the levels a plan mentions do not exist yet
+    /// when it is built. An index is that identity, and it is meaningless
+    /// outside the snapshot it came from — which is why it does not cross the
+    /// public surface.
+    pub(crate) fn index(&self) -> usize {
+        self.index
+    }
+
     /// The entry's name.
     #[must_use]
     pub fn name(&self) -> &'a N {
@@ -525,6 +538,37 @@ impl<N: EntryName> Snapshot<N> {
         Container {
             snapshot: self,
             of: None,
+        }
+    }
+
+    /// The entry at a position in this snapshot's arena.
+    ///
+    /// Crate-private for the reason [`Entry::index`] gives. It is a plain index
+    /// into a `Vec` the snapshot owns and never shrinks, so the only way to
+    /// hold an out-of-range one is to have taken it from a different snapshot.
+    ///
+    /// # Panics
+    ///
+    /// If the index names nothing here.
+    pub(crate) fn at(&self, index: usize) -> Entry<'_, N> {
+        assert!(
+            index < self.entries.len(),
+            "an index from another snapshot names nothing here"
+        );
+        Entry {
+            snapshot: self,
+            index,
+        }
+    }
+
+    /// The level a plan's [`Level`] names, or `None` for one the plan itself
+    /// creates — which the snapshot, read before anything ran, cannot know
+    /// about.
+    pub(crate) fn level(&self, level: Level) -> Option<Container<'_, N>> {
+        match level {
+            Level::Root => Some(self.root()),
+            Level::Entry(index) => self.at(index).contents(),
+            Level::Created(_) => None,
         }
     }
 

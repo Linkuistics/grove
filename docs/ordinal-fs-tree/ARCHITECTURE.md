@@ -371,7 +371,13 @@ flowchart LR
 
 This is internal structure, not interface — a consumer calls
 `tree.insert(...)` and receives a report of what happened, never a plan to
-apply. **Snapshot scope is internal too**: whole-tree today, and narrowing it
+apply. A mutation **consumes** the handle it is called on, and the lock is
+released with it: every operation is planned from the snapshot, so a handle that
+outlived its own mutation would plan the next one from a tree that no longer
+exists — and refreshing the snapshot instead would mean a mutation that
+succeeded returning the error of the read that followed it, which is exactly the
+shape *plan atomicity* promises not to have. Reading first is unaffected, and a
+caller wanting several entries at once has `append_many`. **Snapshot scope is internal too**: whole-tree today, and narrowing it
 later would be an invisible refinement. It is load-bearing in one visible way,
 which the *Refusals* section states — a name the consumer cannot parse halts
 every mutation, wherever in the tree it sits.
@@ -589,6 +595,21 @@ and none is left undefined.
   halts at the snapshot, before any destination is computed. What remains is a
   tree carrying a duplicated key, a tree damaged by a failed rollback, and a
   neighbour that ignores the advisory lock.
+
+- **Bytes supplied for parts that make a node are refused.** `append` and
+  `append_many` take an entry's parts and its bytes; a node is a directory and
+  has nowhere to hold bytes, so supplying some is a refusal rather than a silent
+  discard. *Neither model can pose this*: content is unmodelled in both by
+  design, so it is stated here in the same position as the non-valid-text
+  refusal below — a case the library can see and no model can reach.
+
+- **A tree whose greatest key, or a level whose greatest ordinal, is the
+  greatest that value can be is refused.** Allocation is `max + 1`, and an
+  integer in either model is unbounded while a key and an ordinal are 32 bits.
+  Nothing the library builds can reach either — a hand-written name carrying an
+  enormous key or ordinal can. Refused rather than wrapped, because a wrapped
+  allocation re-issues a key that is still referenced, which is what the whole
+  no-removal rule exists to prevent.
 
 - A filename that is not valid text is refused, and it halts exactly as
   `Malformed` does. `parse` takes a string, so there is no verdict to be had and

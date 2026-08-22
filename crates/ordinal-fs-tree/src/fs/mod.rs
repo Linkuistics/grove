@@ -52,9 +52,13 @@
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
+use crate::ops::{self, NewEntry, Target};
+use crate::plan::Decision;
+use crate::report::Report;
 use crate::snapshot::Snapshot;
 use crate::{EntryName, Error};
 
+mod apply;
 mod lock;
 mod read;
 
@@ -125,8 +129,23 @@ pub struct ReadGuard<N> {
     snapshot: Snapshot<N>,
 }
 
-/// A tree read under an exclusive lock. The mutations are added to this type by
-/// the leaves that implement them; today it reads exactly as [`ReadGuard`] does.
+/// A tree read under an exclusive lock, and the surface every mutation is on.
+///
+/// # A mutation consumes its guard
+///
+/// One guard, one mutation. The alternative — a `&mut self` that leaves the
+/// guard alive — would leave the snapshot describing a tree that no longer
+/// exists, and every operation is planned *from the snapshot*: a second
+/// `append` would compute the same fresh key as the first and collide with what
+/// the first had just written. Refreshing the snapshot instead would mean a
+/// mutation that succeeded returning the error of the re-read that followed it,
+/// which is exactly the shape *plan atomicity* promises not to have.
+///
+/// So the guard is consumed and the lock is released with it. Reading first is
+/// unaffected — the reading operations are on the guard, so
+/// `guard.by_key(k)` then `guard.append(…)` is one lock and one snapshot — and a
+/// caller wanting several entries at once has [`WriteGuard::append_many`], which
+/// is a run planned from one snapshot rather than a loop that takes several.
 pub struct WriteGuard<N> {
     _guard: File,
     root: PathBuf,
@@ -158,6 +177,58 @@ impl<N: EntryName> WriteGuard<N> {
     #[must_use]
     pub fn snapshot(&self) -> &Snapshot<N> {
         &self.snapshot
+    }
+}
+
+impl<N: EntryName> WriteGuard<N> {
+    /// **`append`**: add a child at the end of a level — the next free ordinal,
+    /// and a key that is `max + 1` over every name in the tree.
+    ///
+    /// The target is named by key, or by [`Target::Root`], because an ordinal is
+    /// stale as soon as anything is inserted before it and a path is stale as
+    /// soon as anything is renamed.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Refused`] when the target names no entry, or names something
+    /// that is not a node, or when bytes were supplied for parts that make a
+    /// node; [`Error::Failed`] when the filesystem refused and the tree was left
+    /// as it was found; [`Error::FailedPartiallyRolledBack`] when undoing that
+    /// failed too, which is the one case the tree needs a human.
+    pub fn append(self, target: Target, entry: NewEntry<N::Parts>) -> Result<Report<N>, Error<N>> {
+        let decision = ops::append(&self.snapshot, target, entry);
+        self.run(decision, apply::Faults::none())
+    }
+
+    /// **`append_many`**: add several children at consecutive ordinals with
+    /// consecutive keys, planned from one snapshot and applied as a unit.
+    ///
+    /// Either the whole run lands or none of it does. An empty run succeeds and
+    /// changes nothing.
+    ///
+    /// # Errors
+    ///
+    /// The same as [`WriteGuard::append`].
+    pub fn append_many(
+        self,
+        target: Target,
+        entries: Vec<NewEntry<N::Parts>>,
+    ) -> Result<Report<N>, Error<N>> {
+        let decision = ops::append_many(&self.snapshot, target, entries);
+        self.run(decision, apply::Faults::none())
+    }
+
+    /// Turn a decision into an outcome: refuse, or apply under the lock this
+    /// guard holds.
+    ///
+    /// The one place a [`Decision`] becomes a `Result`, which is what keeps
+    /// *every operation is total* true of the algebra while the surface stays
+    /// ordinary Rust.
+    fn run(self, decision: Decision<N>, faults: apply::Faults) -> Result<Report<N>, Error<N>> {
+        match decision {
+            Decision::Refuse(refusal) => Err(Error::Refused(refusal)),
+            Decision::Proceed(plan) => apply::apply(&self.root, &self.snapshot, &plan, faults),
+        }
     }
 }
 

@@ -110,3 +110,74 @@ one of them, and `rewrite` has not been written yet. Is the preamble's claim
 true of `rewrite` as the model has it? And does the refusal bullet's new wording
 survive the case where a domain's `parse` is *wrong* — a tree already holding a
 distinguished child at a name that also parses as positioned?
+
+## Findings
+
+### Medium — `Parts::Eq` can make every valid promotion look occupied
+
+`crates/ordinal-fs-tree/src/ops.rs:370`–375 says the first destination cannot
+collide because the node's parts differ from the leaf's, but the guard decides
+that at `src/plan.rs:216` by comparing whole `NameView`s. Their ordinals and keys
+are deliberately identical, so the decision reduces to `leaf_parts ==
+node_parts`.
+
+The trait requires only `Parts: Clone + Eq` (`src/name.rs:398`). Neither its
+seven obligations nor the conformance kit requires equality to preserve
+`positioned_species`. The signature of `positioned_species(&Parts)` prevents the
+answer varying with `self`, ordinal or key, but it does not prevent two distinct
+values in one `Eq` equivalence class from producing different species. A domain
+can therefore have leaf and node parts with the same label compare equal while
+`positioned_species` distinguishes their variants. That is a lawful equivalence
+relation, `compose` can place the exact parts it was given, and all current
+conformance checks pass — the kit compares composed parts with the same `Eq` at
+`src/conformance.rs:338` and reports species-following-from-parts as discharged.
+
+For that conforming domain, promoting a leaf with same-label node parts builds a
+node view equal to the still-present leaf view. `Plan::guarded` returns
+`Refusal::DestinationOccupied` before any effect, so the public operation cannot
+perform the promotion its contract promises. Either name identity must include
+the positioned species, or the seam needs an explicit congruence obligation
+(`a == b` implies equal positioned species) with an adversarial conformance and
+promotion control. The current reference domain's derived equality makes every
+existing test miss the case.
+
+## Doubt verdicts
+
+1. **The transient-duplicate test is sufficient.** `Effect::Create` cannot
+   vacate the leaf; the test establishes the same level, ordinal and key and
+   then establishes that the move targets the level created by effect zero. A
+   fold would replay facts already structural in the effect variants.
+2. **The first-effect occupancy argument is not sound for every conforming
+   domain.** This is the finding above.
+3. **`level_of` is sound.** `Entry::container` is the immediate containing
+   level; `None` is exactly the root and `Some(node)` is exactly
+   `Level::Entry(node.index())`. `Run::level_path` delegates that entry to
+   `entry_path`, whose root-first ancestor walk works at arbitrary depth. The
+   helper is the container counterpart of `resolve`, not a competing target
+   resolver.
+4. **The two `Contentless` implementations are justified test scaffolding.**
+   The integration test must cross the public crate boundary while the unit
+   fixture deliberately remains crate-private. Making either test-only type
+   public would widen the very seam under review; dropping the on-disk test
+   would lose the public-surface control. It is not the shared reference domain
+   the brief requires every ordinary example to use.
+5. **The refusal order is sound.** Quint's nested `if` chain does have observable
+   priority when two predicates are true, even though no separately named claim
+   states it. Treating the checked model as the specification therefore supports
+   transcription, and node-before-domain is the useful order for a call that
+   could not work even in a domain with a distinguished child.
+6. **Both architecture corrections are sound.** `TagRewrite` carries a bare key
+   in the unchanged model, and `by_key` derives its answer from a triple, so a
+   genuinely distinguished name cannot be supplied to `promote`. A broken
+   `parse` that presents the spelling as positioned has made it a positioned
+   entry from the library's perspective; that is a trait-obligation violation,
+   not a reachable distinguished-child case the refusal should enumerate.
+
+Codebase-memory had no project for this jj workspace. Indexing through both the
+CLI and MCP failed before parsing source because active-daemon coordination
+could not be verified; the only existing grove graph predates this crate and
+returned no candidate symbols. The required current-workspace coverage call was
+also unavailable under the harness's never-approve policy. This review therefore
+uses producer commit `fd5a7567`, complete direct reads of every changed source
+and test hunk, and the exact model predicates; no negative claim relies on the
+empty graph result.

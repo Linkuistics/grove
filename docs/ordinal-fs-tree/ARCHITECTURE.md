@@ -168,6 +168,9 @@ All genericity lives in one trait. There are no callbacks, no hooks, no
 registration, and no configuration objects.
 
 ```rust
+// `Display` is the one rendering the library knows about, and it must yield
+// exactly one filename — see the obligation below, the only one the library
+// enforces rather than assumes.
 pub trait EntryName: Sized + Clone + fmt::Display {
     /// Everything the library does not understand: the label, and whatever
     /// attributes the domain carries. Entirely opaque.
@@ -220,11 +223,12 @@ pub enum Found            { File, Dir, Other }
 
 ### What an implementation must guarantee
 
-Six obligations, none of which the library can check at run time. They are
-stated because the structural model found that four were missing, and that a
-design missing any one of them admits a tree the library will quietly corrupt.
-Two of the six are discharged by the Rust seam's *shape* rather than checked,
-and both are marked below.
+Seven obligations. Six the library assumes and cannot check at run time; the
+seventh it **enforces**, and the asymmetry has a reason worth stating rather
+than leaving to be noticed. They are stated because the structural model found
+that four were missing, and that a design missing any one of them admits a tree
+the library will quietly corrupt. Two of the seven are discharged by the Rust
+seam's *shape* rather than checked, and both are marked below.
 
 **Compose places what it is given.** `compose(o, k, p)` yields a name whose
 view is `Positioned` with `ordinal == o`, `key == k` and `parts == p`. Without
@@ -263,9 +267,9 @@ could do exactly that and pass every check the kit made.
 
 Both are `docs/formalism-findings.md` entry 002's own counterfactual applied to
 the implementation: **before modelling a structural property, ask whether the
-target language already forbids it.** The conformance kit checks the other four
-obligations and names these two as discharged, so a reader counting four checks
-against six obligations can see that the other two were not forgotten.
+target language already forbids it.** The conformance kit checks the other five
+obligations and names these two as discharged, so a reader counting five checks
+against seven obligations can see that the other two were not forgotten.
 
 **`distinguished()` names the only entry of its species.** `parse` yields
 species `Distinguished` for that name and for nothing else. This is what makes
@@ -280,6 +284,32 @@ my name*, and a walk skips a foreign name — and everything beneath it when it 
 a directory — without saying so. A domain that answers `Foreign` where its own
 name contradicts the listing has hidden exactly the subtree this obligation
 exists to expose.
+
+**A name renders as one path component.** `Display` yields exactly one
+filename: not the empty string, not `.` or `..`, and never anything holding a
+path separator. *This is the one obligation the library does not merely assume,
+and the reason it is different in kind is what the rest of this paragraph is
+for.* Break any of the other six and the library corrupts the tree it was
+handed; break this one and it **leaves** the tree. The rendering is what gets
+joined to a level's directory to reach an entry, so a name rendering as
+`../outside`, as `child/../../outside`, or as an absolute path makes a create, a
+rename, a rollback's removal and every reported path address outside the
+directory whose lock is the only thing covering any of it — while the algebra,
+which compares views and never renderings, sees a name that is perfectly
+canonical. That is the central proposition of this library, *one directory tree
+is the data structure*, made false by a value the algebra never looks at.
+
+Neither model can pose it, in the same position as the three refusals below that
+neither can reach: both hold no strings by design, exactly as they hold no bytes.
+So there is no witness to point at, and the check is a boundary instead. The two
+places a name becomes a path are the only two places it is needed: every name a
+snapshot admits is checked when the tree is read, and every name a plan will
+place is checked before any effect runs — so a plan carrying one changes nothing
+rather than landing what it can and unwinding. A violation is a refusal carrying
+the offending rendering and what is wrong with it. The conformance kit checks it
+as well, because a test is a cheaper place to meet it than an operation, and
+`tests/names_are_confined.rs` is the enforcement's own control: two adversarial
+domains, one per boundary, each satisfying everything the algebra looks at.
 
 ### The isomorphism this rests on
 
@@ -450,7 +480,13 @@ which it does not. Since a process killed mid-apply is unrecoverable by the
 paragraph above, the order is what decides which of those two a crash leaves.
 
 That is a property of the plan, checkable by reading it, rather than an accident
-of a loop's direction.
+of a loop's direction. It is also visible to the consumer: a report lists what
+was created and what was renamed in each species' own order — so the
+highest-first rule can be read off the renames — and lists every path it left
+behind in **exactly the order the effects landed**, which for a mixed plan is
+neither of those two. An `insert` is shifts then a create, and a promotion with
+a first child is create, move, create; a report of two species-sorted buckets
+could not state either.
 
 ---
 
@@ -610,6 +646,17 @@ and none is left undefined.
   enormous key or ordinal can. Refused rather than wrapped, because a wrapped
   allocation re-issues a key that is still referenced, which is what the whole
   no-removal rule exists to prevent.
+
+- **A name the domain renders as anything but one filename is refused**, and it
+  is refused wherever it appears: at the read, so no snapshot holds one, and
+  before a plan's first effect, so no mutation carrying one changes anything.
+  This is the seventh obligation above, and the only one the library enforces —
+  everywhere else a broken obligation corrupts the tree, and this one leaves it,
+  because the rendering is what is joined to a level's directory. *Neither model
+  can pose it*: both hold no strings by design, so this sits beside the
+  content-for-a-node and non-valid-text refusals as a case the library can see
+  and no model can reach. The refusal carries the offending rendering, what is
+  wrong with it, and the kit that would have caught it before there was a tree.
 
 - A filename that is not valid text is refused, and it halts exactly as
   `Malformed` does. `parse` takes a string, so there is no verdict to be had and

@@ -18,7 +18,7 @@ provided method on `EntryName` could be overridden, which would hand back the
 two defects the shape was chosen to remove.
 
 [`docs/ordinal-fs-tree/ARCHITECTURE.md`](../ordinal-fs-tree/ARCHITECTURE.md)
-carries the trait itself, the six obligations an implementation must meet, and
+carries the trait itself, the seven obligations an implementation must meet, and
 the name/`(ordinal, key, parts)` isomorphism the seam rests on. This record
 carries what that document does not: the shapes that were rejected on the way to
 it, and what it would cost to change course.
@@ -33,6 +33,17 @@ models under `docs/ordinal-fs-tree/models/` contain no strings at all and the
 entire grammar reduces to one round-trip law. A seam that admitted a second
 domain concern would put something in the state that neither model could
 abstract away.
+
+That claim has exactly one qualification, and it is worth stating here because
+it is where the claim is made. The *filesystem* layer does look at one string:
+the name's rendering, which is what it joins to a level's directory. So the
+seventh obligation — a name renders as one path component — is the one the
+library enforces rather than assumes, at the two boundaries where a name becomes
+a path. It is not a second seam and not a widening of this one: a domain supplies
+no more than it did, and what changed is that the library stopped trusting the
+one value it was already using. `interpreter-k21` found the hole and
+`docs/formalism-findings.md` entry 011 records why it was invisible to both
+models — a rendering that leaves the tree is not a thing either can say.
 
 **The sibling shift is derived rather than implemented.** Shifting is
 `compose(new_ordinal, key, parts)` and nothing else, so it is structurally

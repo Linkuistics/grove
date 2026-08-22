@@ -113,6 +113,17 @@ impl<N: EntryName> Effect<N> {
         }
     }
 
+    /// The name this effect places, whatever it does with it.
+    ///
+    /// The interpreter renders exactly this to reach a path, which is why the
+    /// seventh obligation is checked against it and against nothing else in a
+    /// plan.
+    pub(crate) const fn name(&self) -> &N {
+        match self {
+            Self::Create { name, .. } | Self::MoveTo { name, .. } => name,
+        }
+    }
+
     /// The entry this effect moves, which occupancy must exclude: a rewrite
     /// whose new parts equal the old is a rename onto itself, and without the
     /// exclusion the library would refuse its own no-op.

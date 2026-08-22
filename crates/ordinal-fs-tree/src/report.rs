@@ -42,6 +42,26 @@ pub struct Renamed<N> {
 pub struct Report<N> {
     created: Vec<Created<N>>,
     renamed: Vec<Renamed<N>>,
+    /// What landed, in the order it landed, as an index into one of the two
+    /// vectors above.
+    ///
+    /// The two vectors alone cannot answer *in what order* — they are two
+    /// species-sorted buckets, and a mixed plan interleaves them. An `insert` is
+    /// shifts then a create, so a creation-first reading reports the new entry
+    /// before every shift that made room for it; a promotion with a first child
+    /// is create, move, create, which no pair of buckets can reconstruct at all.
+    /// Keeping the order here rather than merging the two vectors is what lets
+    /// [`Report::created`] and [`Report::renamed`] stay in *their* own order,
+    /// which is where the highest-first shift rule is observable.
+    landed: Vec<Landing>,
+}
+
+/// One thing this operation did, by species and by its place in that species'
+/// own list.
+#[derive(Clone, Copy, Debug)]
+enum Landing {
+    Created(usize),
+    Renamed(usize),
 }
 
 impl<N: EntryName> Report<N> {
@@ -50,14 +70,17 @@ impl<N: EntryName> Report<N> {
         Self {
             created: Vec::new(),
             renamed: Vec::new(),
+            landed: Vec::new(),
         }
     }
 
     pub(crate) fn record_created(&mut self, name: N, path: PathBuf) {
+        self.landed.push(Landing::Created(self.created.len()));
         self.created.push(Created { name, path });
     }
 
     pub(crate) fn record_renamed(&mut self, name: N, from: PathBuf, to: PathBuf) {
+        self.landed.push(Landing::Renamed(self.renamed.len()));
         self.renamed.push(Renamed { name, from, to });
     }
 
@@ -83,11 +106,15 @@ impl<N: EntryName> Report<N> {
 
     /// Every path this operation left behind, created and renamed alike, in the
     /// order the effects landed.
+    ///
+    /// **Exactly the plan's own order**, and not all the creations followed by
+    /// all the renames: the two differ for every mixed plan, which is every
+    /// `insert` and every promotion carrying a first child.
     pub fn paths(&self) -> impl Iterator<Item = &Path> {
-        self.created
-            .iter()
-            .map(|created| created.path.as_path())
-            .chain(self.renamed.iter().map(|renamed| renamed.to.as_path()))
+        self.landed.iter().map(|landing| match landing {
+            Landing::Created(at) => self.created[*at].path.as_path(),
+            Landing::Renamed(at) => self.renamed[*at].to.as_path(),
+        })
     }
 }
 
@@ -119,6 +146,7 @@ impl<N: EntryName> fmt::Debug for Report<N> {
         f.debug_struct("Report")
             .field("created", &self.created)
             .field("renamed", &self.renamed)
+            .field("landed", &self.landed)
             .finish()
     }
 }

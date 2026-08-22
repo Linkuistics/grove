@@ -54,6 +54,21 @@ pub(super) fn apply<N: EntryName>(
     plan: &Plan<N>,
     faults: Faults,
 ) -> Result<Report<N>, Error<N>> {
+    // The seventh obligation, at the second of the two boundaries where a name
+    // becomes a path — and **before any effect runs**, so a plan carrying one
+    // bad name changes nothing rather than landing what it can and unwinding.
+    // The snapshot's own names were checked when it was read, so between the two
+    // checks every rendering this function will join is one path component.
+    for effect in plan.effects() {
+        let rendered = effect.name().to_string();
+        if let Some(reason) = crate::name::not_one_component(&rendered) {
+            return Err(Error::NameIsNotOneComponent {
+                root: root.to_path_buf(),
+                rendered,
+                reason,
+            });
+        }
+    }
     let mut run = Run {
         root,
         snapshot,
@@ -131,6 +146,16 @@ impl<N: EntryName> Run<'_, N> {
                             path: path.clone(),
                             species: Species::Leaf,
                         });
+                        // And this is the control on that *deliberately*. The
+                        // ordering above is a second mechanism behind atomicity,
+                        // and `strike_effect` above cannot reach it: it fires
+                        // before the create, so moving the registration below the
+                        // write leaves every whole-effect test green while a real
+                        // short write returns `Error::Failed` over a partial file
+                        // the variant promises was removed. This seam stands in
+                        // for that write, in the one interval where the file
+                        // exists and its bytes do not.
+                        self.faults.strike_content(index, &path)?;
                         file.write_all(content).map_err(|source| Failure {
                             path: path.clone(),
                             doing: "writing the leaf's content",
@@ -145,17 +170,38 @@ impl<N: EntryName> Run<'_, N> {
                 let from = self.entry_path(*entry);
                 let path = self.level_path(*to).join(name.to_string());
                 self.faults.strike_effect(index, &path)?;
-                claim_vacant(&path, "renaming onto")?;
-                fs::rename(&from, &path).map_err(|source| Failure {
-                    path: path.clone(),
-                    doing: "renaming the entry to",
-                    source,
-                })?;
-                self.undo.push(Undo::Restore {
-                    from: path.clone(),
-                    to: from.clone(),
-                });
+                // A move onto the entry's own path, which is what a `rewrite` to
+                // the parts an entry already carries plans. The algebra excludes
+                // the mover from occupancy for exactly this — `operations.qnt`'s
+                // `wit_rewriteToSameParts` says the no-op must **succeed** — and
+                // that exclusion has to be carried across the boundary or the
+                // interpreter refuses the plan the algebra just proved
+                // applicable. One property, two mechanisms; this is the second.
+                //
+                // Nothing is claimed and nothing is undone, and both follow from
+                // the same fact: the destination is the source, so it is occupied
+                // by the very entry being moved, and `rename(2)` on one path is
+                // defined to change nothing. An `Undo::Restore` here would be a
+                // rename onto an occupied path — its own — which `claim_vacant`
+                // would refuse, turning a clean unwind into
+                // `FailedPartiallyRolledBack`.
+                let noop = from == path;
+                if !noop {
+                    claim_vacant(&path, "renaming onto")?;
+                    fs::rename(&from, &path).map_err(|source| Failure {
+                        path: path.clone(),
+                        doing: "renaming the entry to",
+                        source,
+                    })?;
+                    self.undo.push(Undo::Restore {
+                        from: path.clone(),
+                        to: from.clone(),
+                    });
+                }
                 self.moved.push((*entry, path.clone()));
+                // Reported either way. The operation did place this name, and a
+                // consumer reading `renamed()` to learn where an entry now lives
+                // needs the answer whether or not the filesystem was touched.
                 self.report.record_renamed(name.clone(), from, path.clone());
                 path
             }
@@ -333,11 +379,13 @@ struct Failure {
 /// returns an error, either every effect landed or none did*, and without a way
 /// to make effect two of three fail there is no error to observe.
 ///
-/// A production build carries the two `None`s and the branch that reads them,
-/// and nothing else — the constructors below are compiled only under `cfg(test)`.
+/// A production build carries the three `None`s and the branches that read
+/// them, and nothing else — the constructors below are compiled only under
+/// `cfg(test)`.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Faults {
     effect: Option<usize>,
+    content: Option<usize>,
     unwind: Option<usize>,
 }
 
@@ -346,15 +394,34 @@ impl Faults {
     pub(crate) const fn none() -> Self {
         Self {
             effect: None,
+            content: None,
             unwind: None,
         }
     }
 
-    /// Fail the effect at this position in the plan.
+    /// Fail the effect at this position in the plan, before it has touched
+    /// anything.
     #[cfg(test)]
     pub(crate) const fn at_effect(index: usize) -> Self {
         Self {
             effect: Some(index),
+            content: None,
+            unwind: None,
+        }
+    }
+
+    /// Fail the create at this position in the plan **after** its destination
+    /// has been claimed exclusively and before its bytes are written — the one
+    /// interval in which a leaf exists on disk and its content does not.
+    ///
+    /// A whole-effect failure cannot reach it, which is the point: the
+    /// registration of the undo sits inside that interval, so it is a mechanism
+    /// with no control in front of it otherwise.
+    #[cfg(test)]
+    pub(crate) const fn at_content(index: usize) -> Self {
+        Self {
+            effect: None,
+            content: Some(index),
             unwind: None,
         }
     }
@@ -366,12 +433,17 @@ impl Faults {
     pub(crate) const fn at_effect_and_unwind(effect: usize, unwind: usize) -> Self {
         Self {
             effect: Some(effect),
+            content: None,
             unwind: Some(unwind),
         }
     }
 
     fn strike_effect(self, index: usize, path: &Path) -> Result<(), Failure> {
         Self::strike(self.effect, index, path, "applying an effect to")
+    }
+
+    fn strike_content(self, index: usize, path: &Path) -> Result<(), Failure> {
+        Self::strike(self.content, index, path, "writing the leaf's content to")
     }
 
     fn strike_unwind(self, index: usize, path: &Path) -> Result<(), Failure> {

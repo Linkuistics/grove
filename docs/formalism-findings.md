@@ -1164,6 +1164,86 @@ and test density are high. Models and mutation controls partition by their own
 abstraction boundaries; the cheapest adversarial move is to follow one promised
 predicate across the next boundary and count the mechanisms again there.
 
+### 011 — Integrating the plan interpreter's review (`ordinal-fs-tree`)
+
+**Situation.** `interpreter-k22` applied `interpreter-k21`'s five findings to the
+plan substrate before `insert`, `promote`, `rewrite` and the CLI build on it: the
+name-confinement hole, the no-op rewrite the model requires to succeed, the
+report's order promise, and the two missing mechanism-level controls for
+atomicity and destination claiming. Four architectural judgements the review had
+accepted were left alone, as were the look-then-rename race and its stated
+boundary.
+
+**Formalism.** Both suites re-run and **neither model changed** — which was the
+finding to look for first, not a formality. Alloy 20/20 and every Quint claim
+across all eight instances passed before and after, every witness reached in a
+non-zero number of traces. Nothing here was a disagreement with a model: two of
+the five findings were the code contradicting a claim that still says what it
+said (`wit_rewriteToSameParts`, `inv_atomicity`), and the other three were in
+territory both models exclude by design. So the models led by *not moving*, and
+the code moved to meet them.
+
+**Caught.** All five integrated, and each fix has a control that fails without
+it — verified by making the exact wrong change and watching exactly one test go
+red, five times.
+
+- Confinement became the **seventh obligation**, and the first one the library
+  *enforces* rather than assumes: every name a snapshot admits is rendered and
+  checked when the tree is read, and every name a plan will place is checked
+  before the first effect. `Error::NameIsNotOneComponent`, the architecture's
+  obligations and refusals, the trait docs and the conformance kit were reworked
+  as one contract, and two adversarial domains — one per boundary, each
+  satisfying everything the algebra looks at — are its control.
+- The interpreter now carries the algebra's mover exclusion across the boundary.
+  A same-path move claims nothing and registers no undo, and the second of those
+  matters more than it looks: an `Undo::Restore` for a no-op renames onto its own
+  occupied path, so a *rollback* would have turned a clean unwind into
+  `FailedPartiallyRolledBack`. The fix's own control is the negative half — a
+  genuinely different occupied destination is still refused.
+- `Report` keeps an ordered landing record beside its two species buckets, so
+  `paths()` is the plan's own order while `created()` and `renamed()` stay in
+  theirs — which is where the highest-first shift rule remains readable.
+- A failure seam now reaches the interval between a leaf's exclusive creation and
+  its content write, which is where the undo registration lives.
+- Node creation got its own uncooperative-neighbour control, with a second
+  failing effect behind it so that `create_dir_all` would be caught by the
+  *unwind* removing a neighbour's directory and not only by the missing error.
+
+**Missed.** Re-reading the forty-two tests against their predicates found three
+that named no claim at all — two the producer's, one this session's own first
+draft — which the review's count of twenty-eight naming and fourteen disclaiming
+had not separated from the honest disclaimers, because a test with no line at all
+is invisible to a count of two kinds. The account is now **forty-eight tests,
+thirty naming a claim and eighteen saying they have none**. Separately, the lib
+suite failed once, on its first run of the session, with
+`FailedPartiallyRolledBack` where `Error::Failed` was expected, and did not
+reproduce in three hundred further runs of the same binary; the assertion that
+caught it carried no diagnostic message, which is why the first thing this
+session had to do was add one. Unexplained, and recorded rather than tidied away.
+
+**Cost.** One session. The five fixes were small; the confinement one was not,
+because deciding *where* it is enforced is a contract across four artifacts and
+the wrong answer — an obligation with no enforcement — would have left the
+adversary the review described still able to leave the tree. The mutation round
+cost minutes and is the only reason any of this is evidence.
+
+**Counterfactual.** **When a model excludes a domain by design, that exclusion is
+a worklist, not a disclaimer.** `operations.qnt`'s handoff names strings, bytes
+and the filesystem as out of scope; the three findings with no model behind them
+are one from each. The exclusions were written down two leaves before the defects
+were found, and reading them as *therefore prose owns these, so say what prose
+says* would have caught all three at the point they were introduced. The second,
+cheaper move: an obligation the target language cannot make unrepresentable is
+not automatically one the *library* cannot check — ask which of the two the
+obligation is, because a cheap run-time check turns a silent corruption into a
+refusal with recovery advice.
+
+**Verdict.** Re-running an unchanged model after a code change is worth the
+wall-clock: it is what separates *the code was wrong* from *the specification
+moved*, and only the first is a fix. Reach for the handoff's own exclusion list
+whenever a defect is found in territory a model does not cover — it names the
+other places to look.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -1180,6 +1260,8 @@ guesses are not.
 | ordering — "does the order of these steps matter, and why?" | Quint | 003: the stated reason was wrong and the real one was unwritten; a model that stops halfway is the only thing that separates them |
 | dead branch — "is this refusal reachable at all?" | either, via a reachability witness | 003: the occupancy refusal fires in 0% of traces on any tree the library builds. Sampled, so evidence and not proof |
 | routing itself — "which of the two am I holding?" | count the states the property mentions | 003: one state → structural; two or more → behavioural. Mechanical, and applicable before choosing. Supersedes shape-versus-operation, which mis-sorts "no key is ever reissued" |
+| out of scope — "the model says it excludes this; what does that oblige?" | none — the exclusion list is the worklist | 011: three of five interpreter defects sat in the three domains `operations.qnt`'s handoff names as excluded (strings, bytes, the filesystem). The exclusions were written two leaves before the defects; reading them as a list of what prose must now state would have caught all three at introduction |
+| enforceable obligation — "the type system cannot forbid this, but can the library check it?" | none — ask before writing it down as an assumption | 011: six of seven `EntryName` obligations are genuinely uncheckable; the seventh costs one string test at two boundaries and turns an escape from the locked tree into a refusal with recovery advice. 002's counterfactual asks whether the *language* forbids it; this is the question after that one |
 | already arranged — "did the model check this, or make it true?" | neither — a free question | 003: subtree preservation is true by construction of the state shape, and a model that satisfies an invariant by construction is indistinguishable from one that verified it |
 | did it run at all? — "is this suite green, or dead?" | must-be-reached claims beside the must-hold ones | 003: a JVM too old made Alloy print nothing, which its runner read as thirteen unfired witnesses and seven holding checks. Only the witnesses distinguish the two, and every one failing at once is a signature no real defect produces |
 | deriving tests — "what do I actually run against the implementation?" | the model's must-be-reached witnesses | 004: four Alloy witnesses became executable broken-domain tests; not one `check` translated into anything runnable |

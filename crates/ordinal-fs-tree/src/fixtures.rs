@@ -9,10 +9,12 @@
 //! checked against must not drift apart. Test-only, so none of it reaches a
 //! consumer.
 
-use crate::snapshot::{Builder, Snapshot};
-use crate::{EntryName, Key, Ordinal};
+use core::fmt;
 
-use crate::reference::{Label, Parts, Status, SyllabusName};
+use crate::snapshot::{Builder, Snapshot};
+use crate::{EntryName, Found, Key, NameView, Ordinal, PositionedSpecies, Verdict};
+
+use crate::reference::{Label, Parts, Status, SyllabusError, SyllabusName};
 
 /// A lesson: a leaf, carrying its publication status.
 pub(crate) fn lesson(ordinal: u32, key: u32, status: Status, label: &str) -> SyllabusName {
@@ -71,4 +73,73 @@ pub(crate) fn documents_tree() -> Snapshot<SyllabusName> {
 /// Every name in a snapshot, in walk order.
 pub(crate) fn rendered(snapshot: &Snapshot<SyllabusName>) -> Vec<String> {
     snapshot.walk().map(|e| e.name().to_string()).collect()
+}
+
+/// A domain that reads a tree honestly and **composes** names that leave it.
+///
+/// The adversary the seventh obligation exists for, in the shape that can reach
+/// the interpreter's rename path: `parse` renders back exactly what it was given,
+/// so a real syllabus tree snapshots normally and there are entries to move —
+/// while every name `compose` produces renders with a leading `../`, which
+/// `Path::join` resolves *out of the tree whose containing directory is locked*.
+///
+/// It breaks canonicity as well, unavoidably: a spelling holding a separator is
+/// not one a directory listing can offer, so no domain can both read such names
+/// off a disk and render them. `tests/conformance_kit.rs`'s `Escaping` is the
+/// half that keeps canonicity by claiming only its own spellings, and it can
+/// therefore only ever be handed an empty tree. Between the two, both boundaries
+/// where a name becomes a path have an adversary in front of them.
+#[derive(Clone)]
+pub(crate) struct Sneaky {
+    inner: SyllabusName,
+    escapes: bool,
+}
+
+impl fmt::Display for Sneaky {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.escapes {
+            write!(f, "../{}", self.inner)
+        } else {
+            fmt::Display::fmt(&self.inner, f)
+        }
+    }
+}
+
+impl EntryName for Sneaky {
+    type Parts = Parts;
+    type Err = SyllabusError;
+
+    fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
+        match SyllabusName::parse(name, found) {
+            Verdict::Entry(inner) => Verdict::Entry(Self {
+                inner,
+                escapes: false,
+            }),
+            Verdict::Foreign => Verdict::Foreign,
+            Verdict::Malformed(e) => Verdict::Malformed(e),
+            Verdict::Reserved(e) => Verdict::Reserved(e),
+        }
+    }
+
+    fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
+        Self {
+            inner: SyllabusName::compose(ordinal, key, parts),
+            escapes: true,
+        }
+    }
+
+    fn distinguished() -> Option<Self> {
+        SyllabusName::distinguished().map(|inner| Self {
+            inner,
+            escapes: false,
+        })
+    }
+
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        self.inner.view()
+    }
+
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
+    }
 }

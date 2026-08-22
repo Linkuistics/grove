@@ -189,8 +189,9 @@ fn a_level_the_plan_creates_starts_empty() {
     assert_eq!(proceeds(plan.guarded(&snapshot)).effects().len(), 2);
 }
 
-/// The other half of that: a created level is not a free-for-all, and two
-/// effects placing one name in it collide like anywhere else.
+/// The other half of that, and it discharges no model claim of its own for the
+/// same reason: a created level is not a free-for-all, and two effects placing
+/// one name in it collide like anywhere else.
 #[test]
 fn a_level_the_plan_creates_still_refuses_a_collision() {
     let snapshot = documents_tree();

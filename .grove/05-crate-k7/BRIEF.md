@@ -168,6 +168,42 @@ changes how a leaf writes its tests or its code:
   own spelling. `ARCHITECTURE.md` states the property; do not reintroduce a
   lexical parent, and do not canonicalise to fix anything.
 
+**The plan interpreter was reviewed and its findings integrated at
+`interpreter-k22`.** Five facts the six remaining leaves need, because each
+changes what a leaf may assume or must test:
+
+- **`EntryName` has a seventh obligation, and it is the first one the library
+  enforces.** *A name renders as one path component* — not empty, not `.` or
+  `..`, no separator. It is checked at both boundaries where a name becomes a
+  path: every name a snapshot admits, and every name a plan will place, the
+  latter **before the first effect** so a plan carrying one changes nothing. A
+  violation is `Error::NameIsNotOneComponent`. The conformance kit now checks
+  five obligations and names two as discharged; a leaf citing *four checks
+  against six* is quoting a superseded count. Nothing a new operation writes
+  needs to repeat the check — it lives in `fs::apply` and `fs::read` — but an
+  operation that reached the filesystem by any other route would bypass it.
+- **A same-path `MoveTo` is a no-op that succeeds**, claims nothing and
+  registers no undo. `rewrite-k13` depends on this directly:
+  `wit_rewriteToSameParts` requires a rewrite to the parts an entry already
+  carries to succeed, and the interpreter used to refuse it. The undo half is the
+  subtle one — an `Undo::Restore` for a no-op renames onto its own occupied path,
+  so registering one would turn a clean rollback into
+  `FailedPartiallyRolledBack`.
+- **`Report::paths()` is now the plan's own landing order**, while `created()`
+  and `renamed()` keep each species' own order. `insert` and `promote` build the
+  first mixed plans an operation produces — shifts then a create, and create,
+  move, create — so they are where this becomes observable through the public
+  surface, and a test of it belongs with them.
+- **There is a third internal failure point: `Faults::at_content(i)`**, which
+  fires after a leaf's destination is claimed exclusively and before its bytes
+  are written. It exists because the undo registration sits in that interval and
+  `at_effect` cannot reach it. Still internal, still `cfg(test)` for its
+  constructors, and still not a second public seam.
+- **The claim account is forty-eight tests here, thirty naming a model claim and
+  eighteen saying they have none** — and re-reading the forty-two found three
+  that named *neither*, which a count of two kinds cannot see. When a leaf states
+  its own account, count the tests too, not only the two labels.
+
 ## On the horizon
 
 - **Whether the crate wants its own `CHANGELOG`, version and release lane.**

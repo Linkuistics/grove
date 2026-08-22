@@ -119,6 +119,32 @@ pub enum Error<N: EntryName> {
         /// The offending name, lossily rendered, joined to its directory.
         path: PathBuf,
     },
+    /// A name rendered as something that is not one filename.
+    ///
+    /// The seventh obligation — *a name renders as one path component* — and the
+    /// only one the library enforces rather than assumes. Everywhere else a
+    /// broken obligation is a tree the library quietly corrupts; this one would
+    /// take it **outside the tree**, because the rendering is what gets joined to
+    /// a level's directory. Occupancy compares views, so the offending name looks
+    /// perfectly canonical to the algebra and only the path betrays it.
+    ///
+    /// Checked at both boundaries where a name becomes a path: every name a
+    /// snapshot admits, and every name a plan will place — the latter before any
+    /// effect runs, so a plan carrying one changes nothing at all.
+    ///
+    /// *Neither model can pose this*, in the same position as
+    /// [`Refusal::ContentForANode`]: both models hold no strings by design, so
+    /// there is no witness behind this variant and none to look for.
+    ///
+    /// [`Refusal::ContentForANode`]: crate::Refusal::ContentForANode
+    NameIsNotOneComponent {
+        /// The tree root, in the caller's own spelling.
+        root: PathBuf,
+        /// What the domain rendered.
+        rendered: String,
+        /// Why that is not a filename.
+        reason: &'static str,
+    },
     /// The tree root has no containing directory, so there is nothing to lock.
     ///
     /// The advisory lock is taken on the directory *containing* the root — it
@@ -193,6 +219,16 @@ impl<N: EntryName> fmt::Debug for Error<N> {
             Self::NonUtf8Name { path } => {
                 f.debug_struct("NonUtf8Name").field("path", path).finish()
             }
+            Self::NameIsNotOneComponent {
+                root,
+                rendered,
+                reason,
+            } => f
+                .debug_struct("NameIsNotOneComponent")
+                .field("root", root)
+                .field("rendered", rendered)
+                .field("reason", reason)
+                .finish(),
             Self::NoContainingDirectory { root } => f
                 .debug_struct("NoContainingDirectory")
                 .field("root", root)
@@ -258,6 +294,22 @@ impl<N: EntryName> fmt::Display for Error<N> {
                  Rename it to valid UTF-8, or move it out of the tree.",
                 path.display()
             ),
+            Self::NameIsNotOneComponent {
+                root,
+                rendered,
+                reason,
+            } => write!(
+                f,
+                "this domain rendered a name as `{rendered}`, which {reason}, so it is \
+                 not one filename. A name is exactly one path component: the library \
+                 joins it to a level's directory to reach the entry, so this one would \
+                 address outside the tree {} \u{2014} whose containing directory is the \
+                 only thing the lock covers. Nothing was changed. Fix the domain's \
+                 `Display`, `compose` or `parse` so that every name it renders is one \
+                 filename, and check it with `conformance::check`, which reports this \
+                 before there is a tree.",
+                root.display()
+            ),
             Self::NoContainingDirectory { root } => write!(
                 f,
                 "the tree root {} has no containing directory to lock. \
@@ -281,9 +333,10 @@ impl<N: EntryName> std::error::Error for Error<N> {
             Self::Failed { source, .. } | Self::FailedPartiallyRolledBack { source, .. } => {
                 Some(source)
             }
-            Self::Refused(_) | Self::NonUtf8Name { .. } | Self::NoContainingDirectory { .. } => {
-                None
-            }
+            Self::Refused(_)
+            | Self::NonUtf8Name { .. }
+            | Self::NameIsNotOneComponent { .. }
+            | Self::NoContainingDirectory { .. } => None,
         }
     }
 }

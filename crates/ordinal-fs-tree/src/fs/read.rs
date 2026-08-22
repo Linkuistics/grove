@@ -44,6 +44,24 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
                 // tree, and it is a regular file — a domain holding the
                 // obligations cannot produce one that is not.
                 Verdict::Entry(parsed) => {
+                    // The seventh obligation, enforced at the first of the two
+                    // boundaries where a name becomes a path. A snapshot name is
+                    // rendered by `entry_path` to reach the entry a move starts
+                    // from, and by `level_path` to reach a node a plan writes
+                    // into, so one that is not a filename addresses outside the
+                    // tree the lock covers. The rendering costs one allocation
+                    // per entry, alongside the two the listing already makes,
+                    // and it buys the property that *every name in a snapshot is
+                    // one path component* — which is what makes both of those
+                    // functions safe without repeating the check.
+                    let rendered = parsed.to_string();
+                    if let Some(reason) = crate::name::not_one_component(&rendered) {
+                        return Err(Error::NameIsNotOneComponent {
+                            root: root.to_path_buf(),
+                            rendered,
+                            reason,
+                        });
+                    }
                     if let Some(below) = builder.add(place, parsed) {
                         descend.push((path, below));
                     }

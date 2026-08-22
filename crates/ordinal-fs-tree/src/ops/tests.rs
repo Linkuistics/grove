@@ -304,7 +304,9 @@ fn a_tree_whose_greatest_key_is_the_greatest_key_refuses_rather_than_wrapping() 
 }
 
 /// The same, for the ordinal — which is the level's and not the tree's, so a
-/// level can be exhausted while the tree is not.
+/// level can be exhausted while the tree is not. Discharges no model claim, and
+/// for the same reason the one above does not: an integer in either model is
+/// unbounded, so neither can pose exhaustion at all.
 #[test]
 fn a_level_whose_greatest_ordinal_is_the_greatest_ordinal_is_refused() {
     let mut builder = Builder::new();

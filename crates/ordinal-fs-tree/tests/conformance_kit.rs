@@ -1,10 +1,15 @@
-//! The conformance kit, and the six deliberately broken domains that prove it
+//! The conformance kit, and the seven deliberately broken domains that prove it
 //! is not reading clean while broken.
 //!
-//! Each broken domain is one of `structure.als`'s witnesses written in Rust: a
-//! shape the model produces on demand, here as an `EntryName` implementation the
-//! kit must reject. A kit that passes the reference domain and nothing else has
-//! shown only that it can say yes.
+//! Each broken domain but the last is one of `structure.als`'s witnesses written
+//! in Rust: a shape the model produces on demand, here as an `EntryName`
+//! implementation the kit must reject. A kit that passes the reference domain
+//! and nothing else has shown only that it can say yes.
+//!
+//! The last has no witness and can have none — both models hold no strings — so
+//! it is written from the obligation's statement instead, and it is the one
+//! obligation the library also enforces at run time. `tests/names_are_confined.rs`
+//! is that half.
 
 use core::fmt;
 
@@ -94,15 +99,15 @@ fn samples_that_reach_only_half_the_seam_say_so() {
 }
 
 /// The obligations Rust discharges are named rather than dropped: a consumer
-/// counting four checks against the document's six needs to see that the other
+/// counting five checks against the document's seven needs to see that the other
 /// two were not forgotten.
 #[test]
 fn the_obligation_the_type_system_discharges_is_reported() {
     assert_eq!(DISCHARGED_BY_THE_TYPE_SYSTEM.len(), 2);
     assert_eq!(
         Obligation::ALL.len() + DISCHARGED_BY_THE_TYPE_SYSTEM.len(),
-        6,
-        "the architecture document states six obligations"
+        7,
+        "the architecture document states seven obligations"
     );
     let discharged: Vec<&str> = DISCHARGED_BY_THE_TYPE_SYSTEM
         .iter()
@@ -514,5 +519,83 @@ fn a_parse_that_changes_the_key_behind_an_exact_display_is_caught() {
         violated(&report),
         vec![Obligation::TheGrammarIsCanonical],
         "{report}"
+    );
+}
+
+// ===========================================================================
+// The seventh obligation: a name renders as one path component.
+//
+// The one obligation with no `structure.als` witness behind it — both models
+// hold no strings, so neither can pose a rendering — and the one the library
+// enforces rather than assumes. This domain is the review's own adversary:
+// every other obligation holds, including canonicity, because its `parse`
+// accepts exactly the spellings its `Display` produces.
+// ===========================================================================
+
+/// A domain whose grammar spells every name with a leading `../`.
+#[derive(Clone)]
+struct Escaping(SyllabusName);
+
+impl fmt::Display for Escaping {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "../{}", self.0)
+    }
+}
+
+impl EntryName for Escaping {
+    type Parts = Parts;
+    type Err = SyllabusError;
+
+    fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
+        // Canonical: the only spellings this domain claims are the ones it
+        // renders, so `format(parse(f)) == f` holds throughout.
+        let Some(rest) = name.strip_prefix("../") else {
+            return Verdict::Foreign;
+        };
+        match SyllabusName::parse(rest, found) {
+            Verdict::Entry(n) => Verdict::Entry(Self(n)),
+            Verdict::Foreign => Verdict::Foreign,
+            Verdict::Malformed(e) => Verdict::Malformed(e),
+            Verdict::Reserved(e) => Verdict::Reserved(e),
+        }
+    }
+
+    fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
+        Self(SyllabusName::compose(ordinal, key, parts))
+    }
+
+    fn distinguished() -> Option<Self> {
+        SyllabusName::distinguished().map(Self)
+    }
+
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        self.0.view()
+    }
+
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
+    }
+}
+
+/// The samples this domain is at home in: its own spellings, which is what
+/// makes every *other* obligation exercised and held, so the kit's verdict has
+/// exactly one thing in it.
+fn escaping_listings() -> Vec<(&'static str, Found)> {
+    vec![
+        ("../OVERVIEW.md", Found::File),
+        ("../01-published-orientation-i1.md", Found::File),
+        ("../02-linear-algebra-i2", Found::Dir),
+        ("README.md", Found::File),
+    ]
+}
+
+#[test]
+fn a_name_that_renders_as_more_than_one_component_is_caught() {
+    let report = conformance::check::<Escaping>(&escaping_listings(), &triples());
+    assert_eq!(
+        violated(&report),
+        vec![Obligation::ANameRendersAsOnePathComponent],
+        "every other obligation holds — canonicity included, which is what makes \
+         this the escape the algebra cannot see: {report}"
     );
 }

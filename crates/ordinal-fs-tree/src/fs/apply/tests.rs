@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 use super::Faults;
-use crate::fixtures::{lesson, overview};
+use crate::fixtures::{lesson, module, overview, Sneaky};
 use crate::ops::{self, NewEntry, Target};
 use crate::plan::{Decision, Effect, Level, Plan};
 use crate::reference::{Label, Parts, Status, SyllabusName};
@@ -376,7 +376,11 @@ fn unwinding_a_move_puts_the_entry_back_where_it_was() {
     )
     .expect_err("the seam failed the third effect");
 
-    assert!(matches!(failed, Error::Failed { .. }));
+    assert!(
+        matches!(failed, Error::Failed { .. }),
+        "the move and the create both unwound, so this is the atomic failure and \
+         not the other one: {failed:?}"
+    );
     assert_eq!(
         listing(&root),
         before,
@@ -411,4 +415,288 @@ fn the_report_carries_the_names_and_the_paths_of_what_landed() {
         "in the caller's own spelling of the root, because nothing canonicalises"
     );
     assert!(report.renamed().is_empty());
+}
+
+// ===========================================================================
+// The five controls `interpreter-k21` found missing. Each stands in front of a
+// mechanism that was implementing a property a second mechanism already had a
+// control for — entry 010's counterfactual, applied at the boundary.
+// ===========================================================================
+
+/// Discharges `wit_rewriteToSameParts`: *a rewrite whose new parts equal the old
+/// is a rename onto itself, and it must **succeed***.
+///
+/// The algebra had this and the interpreter did not. `src/plan/tests.rs`'s
+/// `an_entry_does_not_occupy_its_own_destination` proves the plan applicable and
+/// stops there; applying it met `claim_vacant`, which saw the mover itself and
+/// returned `AlreadyExists`. One property, two mechanisms, a control in front of
+/// the first only — so this is the same plan, run to the end.
+///
+/// The whole plan matters, not only that it returns `Ok`: nothing must be
+/// undone, because a no-op registers no undo, and the entry's bytes must be
+/// exactly where they were.
+#[test]
+fn a_move_onto_an_entrys_own_path_is_the_no_op_the_model_requires() {
+    let (_temporary, root) = two_lessons();
+    let before = listing(&root);
+
+    let report = run(
+        &root,
+        |snapshot| {
+            let first = snapshot
+                .by_key(Key::new(1))
+                .expect("the first lesson")
+                .index();
+            Decision::Proceed(Plan::of(vec![Effect::MoveTo {
+                entry: first,
+                to: Level::Root,
+                // The name it already carries: `rewrite` to the parts it has.
+                name: lesson(1, 1, Status::Draft, "first"),
+            }]))
+        },
+        Faults::none(),
+    )
+    .expect("the no-op rewrite must succeed");
+
+    assert_eq!(listing(&root), before, "a no-op changes nothing");
+    assert_eq!(report.renamed().len(), 1, "and it is still reported");
+    assert_eq!(report.renamed()[0].from, report.renamed()[0].to);
+}
+
+/// Discharges `inv_interpreterNeverFindsADestinationTaken` on the case the fix
+/// above must not reach — which is what makes the exclusion *narrow* rather than
+/// a hole. A move onto a destination that is genuinely something else is still
+/// refused, and what is there is still there; `rename(2)` would have replaced it
+/// silently.
+#[test]
+fn the_no_op_exclusion_does_not_reach_a_different_occupied_destination() {
+    let (_temporary, root) = two_lessons();
+    let guard = crate::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let first = guard
+        .snapshot()
+        .by_key(Key::new(1))
+        .expect("the first lesson")
+        .index();
+    // Ordinal 2 is the *second* lesson's place, and it is occupied.
+    let decision = Decision::Proceed(Plan::of(vec![Effect::MoveTo {
+        entry: first,
+        to: Level::Root,
+        name: lesson(2, 2, Status::Draft, "second"),
+    }]));
+
+    let failed = guard
+        .run(decision, Faults::none())
+        .expect_err("the destination is another entry, not this one");
+    let Error::Failed { source, .. } = &failed else {
+        panic!("nothing had landed, so the unwind is empty and this is atomic: {failed:?}");
+    };
+    assert_eq!(source.kind(), std::io::ErrorKind::AlreadyExists);
+    assert_eq!(
+        fs::read_to_string(root.join("02-draft-second-i2.md")).expect("still there"),
+        "second"
+    );
+}
+
+/// Discharges `inv_atomicity` on the interval no whole-effect failure can reach:
+/// **after** a leaf's destination is claimed exclusively and **before** its bytes
+/// are written.
+///
+/// Atomicity has two mechanisms here — the order effects run in, and the order
+/// the undo is registered in relative to the write — and `Faults::at_effect`
+/// only ever fires before a create, so it controls the first and not the second.
+/// A real short write or a full disk lands in this interval, and
+/// `Error::Failed`'s own words are *every effect this operation had applied was
+/// undone*, which includes the partial file.
+///
+/// The mutation this catches: move `self.undo.push(…)` below `write_all`. Every
+/// other test in this crate stays green, because their writes all succeed.
+#[test]
+fn a_failure_between_claiming_a_leaf_and_writing_it_removes_the_partial_file() {
+    let (_temporary, root) = two_lessons();
+    let before = listing(&root);
+
+    let failed = run(
+        &root,
+        |snapshot| {
+            ops::append(
+                snapshot,
+                Target::Root,
+                NewEntry::new(draft("third"), b"third".to_vec()),
+            )
+        },
+        Faults::at_content(0),
+    )
+    .expect_err("the seam failed the write, not the create");
+
+    assert!(
+        matches!(failed, Error::Failed { .. }),
+        "the file the create claimed was removed, so this is the atomic failure: {failed:?}"
+    );
+    assert!(
+        !root.join("03-draft-third-i3.md").exists(),
+        "the destination was claimed before the failure and must not survive it"
+    );
+    assert_eq!(listing(&root), before);
+}
+
+/// Discharges `inv_interpreterNeverFindsADestinationTaken` on the **third**
+/// mechanism that claims a destination.
+///
+/// Entry 009 counted two — `create_new`/`create_dir` together, and the rename's
+/// look — but they are separate branches with separate syscalls, and only the
+/// file one had a control. `create_dir` refuses an occupied destination;
+/// `create_dir_all` would accept a neighbour's directory as this run's own
+/// creation, and then *register an undo that removes it*.
+///
+/// So the plan has a second effect that fails. Under the correct code the first
+/// effect refuses and the fault at effect 1 never fires; under the mutation the
+/// first effect "succeeds", the second fails, and the unwind deletes a directory
+/// this run never created — which is exactly what
+/// `inv_rollbackRemovesOnlyItsOwn` forbids. The neighbour's directory is left
+/// empty deliberately: a non-empty one would survive `remove_dir` by accident
+/// and the control would prove nothing.
+#[test]
+fn an_uncooperative_neighbour_cannot_have_its_directory_claimed_or_removed() {
+    let (_temporary, root) = two_lessons();
+    let guard = crate::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let decision = Decision::Proceed(Plan::of(vec![
+        Effect::Create {
+            at: Level::Root,
+            name: module(3, 3, "topology"),
+            content: Vec::new(),
+        },
+        Effect::Create {
+            at: Level::Root,
+            name: lesson(4, 4, Status::Draft, "fourth"),
+            content: b"fourth".to_vec(),
+        },
+    ]));
+
+    // A neighbour that never took the lock, taking the node's destination
+    // between the snapshot and the apply.
+    let taken = root.join("03-topology-i3");
+    fs::create_dir(&taken).expect("the neighbour writes");
+
+    let failed = guard
+        .run(decision, Faults::at_effect(1))
+        .expect_err("the node's destination was taken");
+    let Error::Failed { source, .. } = &failed else {
+        panic!("nothing had landed, so the unwind is empty and this is atomic: {failed:?}");
+    };
+    assert_eq!(source.kind(), std::io::ErrorKind::AlreadyExists);
+    assert!(
+        taken.is_dir(),
+        "a `create_dir` claims a destination; it never adopts one, and no unwind \
+         may remove what this run did not create"
+    );
+    assert!(
+        !root.join("04-draft-fourth-i4.md").exists(),
+        "and the effect after it never ran"
+    );
+}
+
+/// Discharges no model claim — the report is unmodelled, as bytes are. The
+/// promise `Report::paths` makes is *in the order the effects landed*, and two
+/// species-sorted buckets cannot keep it: this is `planPromote`-with-a-first-child's
+/// exact shape, create, move, create, whose middle effect no bucket ordering
+/// reproduces.
+///
+/// `created()` and `renamed()` keep their own orders, which is where the
+/// highest-first shift rule stays observable.
+#[test]
+fn the_reports_paths_are_in_the_order_the_effects_landed() {
+    let (_temporary, root) = two_lessons();
+    let report = run(
+        &root,
+        |snapshot| {
+            let first = snapshot
+                .by_key(Key::new(1))
+                .expect("the first lesson")
+                .index();
+            Decision::Proceed(Plan::of(vec![
+                Effect::Create {
+                    at: Level::Root,
+                    name: module(1, 1, "first"),
+                    content: Vec::new(),
+                },
+                Effect::MoveTo {
+                    entry: first,
+                    to: Level::Created(0),
+                    name: overview(),
+                },
+                Effect::Create {
+                    at: Level::Created(0),
+                    name: lesson(1, 3, Status::Draft, "a-first-child"),
+                    content: b"child".to_vec(),
+                },
+            ]))
+        },
+        Faults::none(),
+    )
+    .expect("all three effects land");
+
+    let node = root.join("01-first-i1");
+    assert_eq!(
+        report.paths().collect::<Vec<_>>(),
+        vec![
+            node.as_path(),
+            node.join("OVERVIEW.md").as_path(),
+            node.join("01-draft-a-first-child-i3.md").as_path(),
+        ],
+        "the move is between the two creations, which no pair of buckets can say"
+    );
+    assert_eq!(
+        report.created().len(),
+        2,
+        "and the buckets are still buckets"
+    );
+    assert_eq!(report.renamed().len(), 1);
+}
+
+/// The seventh obligation, at the boundary a hand-built plan reaches: a name
+/// that renders as more than one path component is refused **before any effect
+/// runs**, so nothing is created, nothing is moved, nothing is reported and
+/// there is nothing to roll back.
+///
+/// Discharges no model claim, and cannot: `operations.qnt` and `structure.als`
+/// both hold no strings by design, so neither can pose a rendering at all. This
+/// is prose's to own, and the prose is `ARCHITECTURE.md`'s seventh obligation.
+///
+/// [`Sneaky`] satisfies the trait everywhere the algebra looks — its `view` is
+/// the reference domain's, so occupancy sees a perfectly canonical name — and
+/// renders every composed name with a leading `../`.
+#[test]
+fn a_plan_naming_a_path_outside_the_tree_is_refused_before_anything_moves() {
+    let (_temporary, root) = two_lessons();
+    let before = listing(&root);
+    let outside = root.join("..").join("03-draft-escaped-i1.md");
+
+    let guard = crate::fs::write::<Sneaky>(&root).expect("Sneaky reads a tree honestly");
+    let first = guard
+        .snapshot()
+        .by_key(Key::new(1))
+        .expect("the first lesson")
+        .index();
+    let decision = Decision::Proceed(Plan::of(vec![Effect::MoveTo {
+        entry: first,
+        to: Level::Root,
+        name: Sneaky::compose(Ordinal::new(3), Key::new(1), draft("escaped")),
+    }]));
+
+    let failed = guard
+        .run(decision, Faults::none())
+        .expect_err("a name that is not one filename cannot be placed");
+    let Error::NameIsNotOneComponent { rendered, .. } = &failed else {
+        panic!("this is not an I/O failure and not a refusal of the algebra's: {failed:?}");
+    };
+    assert_eq!(rendered, "../03-draft-escaped-i1.md");
+    assert!(
+        failed.to_string().contains("one filename"),
+        "a consumer meeting this needs to know what is wrong with the name: {failed}"
+    );
+    assert_eq!(listing(&root), before, "and the tree is untouched");
+    assert!(
+        !outside.exists(),
+        "nothing was placed outside the tree either"
+    );
 }

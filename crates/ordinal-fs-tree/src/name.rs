@@ -352,13 +352,40 @@ impl<P: Eq> Eq for NameView<'_, P> {}
 ///
 /// # What an implementation must guarantee
 ///
-/// Six obligations, and the library can check none of them at run time. They
-/// are stated because the structural model found that four were missing, and
-/// that a design missing any one of them admits a tree the library will quietly
-/// corrupt. Each is written on the method it constrains; [`crate::conformance`]
-/// checks the four that Rust does not already make unrepresentable, and names
-/// the two it does — [`view`](EntryName::view) and
+/// Seven obligations. Six of them the library assumes and cannot check at run
+/// time; the seventh it **enforces**, and the asymmetry is stated below rather
+/// than left to be noticed. They are stated because the structural model found
+/// that four were missing, and that a design missing any one of them admits a
+/// tree the library will quietly corrupt. Each is written on the method it
+/// constrains — except the seventh, which constrains [`fmt::Display`] and is
+/// therefore written here. [`crate::conformance`] checks the five that Rust
+/// does not already make unrepresentable, and names the two it does —
+/// [`view`](EntryName::view) and
 /// [`positioned_species`](EntryName::positioned_species) carry those two.
+///
+/// # Obligation: a name renders as one path component
+///
+/// [`fmt::Display`] yields exactly one filename: not the empty string, not `.`
+/// or `..`, and never anything holding a path separator. The library joins that
+/// rendering to a level's directory to reach the entry, so a name rendering as
+/// `../outside` or as an absolute path would make a create, a rename, a
+/// rollback removal and every reported path address **outside the tree whose
+/// containing directory is the only thing locked** — which is the library's
+/// central proposition, *one directory tree is the data structure*, broken by a
+/// value the algebra never sees. Occupancy compares
+/// [`view`](EntryName::view)s, so the composed name looks perfectly canonical
+/// while the path it renders does not.
+///
+/// **This is the one obligation the library does not merely assume.** Neither
+/// model can pose it — both hold no strings by design, exactly as they hold no
+/// bytes — so there is no witness to point at and no checked claim behind it.
+/// What there is instead is a boundary: every name a snapshot admits and every
+/// name a plan will place is rendered and checked before it becomes a path, and
+/// a violation is [`Error::NameIsNotOneComponent`] rather than an escape.
+/// [`crate::conformance`] checks it too, so a cooperative domain meets it in a
+/// test rather than in an operation.
+///
+/// [`Error::NameIsNotOneComponent`]: crate::Error::NameIsNotOneComponent
 pub trait EntryName: Sized + Clone + fmt::Display {
     /// Everything the library does not understand: the label, and whatever
     /// attributes the domain carries. Entirely opaque.
@@ -583,3 +610,30 @@ pub trait EntryNameExt: EntryName + sealed::Sealed {
 }
 
 impl<N: EntryName> EntryNameExt for N {}
+
+/// Why a rendering is not one filename, or `None` when it is one.
+///
+/// The library's half of the obligation *a name renders as one path component*
+/// — the seventh, and the only one it enforces rather than assumes. A rendering
+/// that passes here is one [`std::path::Path::join`] can only place *inside* the
+/// directory it is joined to.
+///
+/// The rule is Unix's, as the whole crate is: `/` is the one separator and a NUL
+/// byte cannot appear in a filename at all. A port to a platform with a second
+/// separator extends this function and nothing else, which is the point of it
+/// being one function.
+pub(crate) fn not_one_component(rendered: &str) -> Option<&'static str> {
+    if rendered.is_empty() {
+        return Some("is empty");
+    }
+    if rendered == "." || rendered == ".." {
+        return Some("names a directory rather than something in one");
+    }
+    if rendered.contains('/') {
+        return Some("holds a path separator, so it names more than one component");
+    }
+    if rendered.contains('\0') {
+        return Some("holds a NUL byte, which no filename may");
+    }
+    None
+}

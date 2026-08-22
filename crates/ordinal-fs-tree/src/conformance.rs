@@ -1,11 +1,16 @@
 //! The conformance kit: hand it sample names and sample triples, and learn
 //! which of the trait's obligations your implementation violates.
 //!
-//! The six obligations under [`EntryName`] are the **consumer's**, and the
-//! library cannot check any of them from inside an operation — a design missing
-//! any one of them admits a tree the library will quietly corrupt, and it
-//! corrupts it silently, in a tree someone is using. This module is where a
-//! domain finds that out instead, from a test, before there is a tree.
+//! The seven obligations under [`EntryName`] are the **consumer's**, and the
+//! library can check only the last of them from inside an operation — a design
+//! missing any one of the other six admits a tree the library will quietly
+//! corrupt, and it corrupts it silently, in a tree someone is using. This module
+//! is where a domain finds that out instead, from a test, before there is a
+//! tree. The seventh is here too, because meeting it as an
+//! [`Error::NameIsNotOneComponent`] in an operation is worse than meeting it in
+//! a test, even though it is not silent.
+//!
+//! [`Error::NameIsNotOneComponent`]: crate::Error::NameIsNotOneComponent
 //!
 //! ```no_run
 //! # use ordinal_fs_tree::{conformance, reference::{SyllabusName, Parts, Status, Label}, Found, Ordinal, Key};
@@ -33,10 +38,10 @@ use crate::{EntryName, EntryNameExt, Found, NameView, Species, Verdict};
 
 /// One of the obligations this kit checks.
 ///
-/// Four, not six. The other two — *a name is positioned or distinguished, never
-/// neither* and *the species follows from the parts* — are discharged by the
-/// type system and are listed in [`DISCHARGED_BY_THE_TYPE_SYSTEM`] rather than
-/// checked here.
+/// Five, not seven. The other two — *a name is positioned or distinguished,
+/// never neither* and *the species follows from the parts* — are discharged by
+/// the type system and are listed in [`DISCHARGED_BY_THE_TYPE_SYSTEM`] rather
+/// than checked here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Obligation {
     /// `compose(o, k, p)` yields a name whose triple is `Some` and equal to
@@ -51,15 +56,24 @@ pub enum Obligation {
     /// A name declaring a species the listing contradicts is `Malformed`, never
     /// `Entry`.
     ParseRefusesWhatFoundContradicts,
+    /// Every name the domain renders is exactly one filename: not empty, not
+    /// `.` or `..`, and holding no path separator.
+    ///
+    /// The one obligation the library also enforces, so a domain that skips
+    /// this check meets it as an `Error` rather than as a corrupted tree. It is
+    /// checked here anyway, because a test is a cheaper place to meet it than
+    /// an operation.
+    ANameRendersAsOnePathComponent,
 }
 
 impl Obligation {
     /// Every obligation this kit checks.
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 5] = [
         Self::ComposePlacesWhatItIsGiven,
         Self::TheGrammarIsCanonical,
         Self::DistinguishedNamesTheOnlyEntryOfItsSpecies,
         Self::ParseRefusesWhatFoundContradicts,
+        Self::ANameRendersAsOnePathComponent,
     ];
 
     /// The obligation as the architecture document states it.
@@ -72,12 +86,18 @@ impl Obligation {
                 "distinguished() names the only entry of its species"
             }
             Self::ParseRefusesWhatFoundContradicts => "parse refuses what found contradicts",
+            Self::ANameRendersAsOnePathComponent => "a name renders as one path component",
         }
     }
 
-    /// What a tree looks like when this obligation does not hold. Every one of
-    /// these is a structure `docs/ordinal-fs-tree/models/structure.als`
-    /// produces on demand, under the named `witness_…` command.
+    /// What a tree looks like when this obligation does not hold.
+    ///
+    /// Every one of these but the last is a structure
+    /// `docs/ordinal-fs-tree/models/structure.als` produces on demand, under the
+    /// named `witness_…` command. The last has no witness and can have none:
+    /// both models hold no strings by design, so a rendering that is not a
+    /// filename is not a thing either can say — which is why it is the one
+    /// obligation the library enforces instead of assuming.
     #[must_use]
     pub const fn what_it_admits(self) -> &'static str {
         match self {
@@ -97,6 +117,13 @@ impl Obligation {
                  directory — either way an entire subtree invisible to every traversal \
                  (witness_species_mismatch_is_unclassifiable, \
                  witness_distinguished_directory_hides_a_subtree)"
+            }
+            Self::ANameRendersAsOnePathComponent => {
+                "a create, a rename, a rollback removal and a reported path addressing \
+                 outside the tree whose containing directory is the only thing locked \
+                 — the library joins this rendering to a level's directory, while the \
+                 algebra compares views and sees a perfectly canonical name (no model \
+                 witness: both models hold no strings)"
             }
         }
     }
@@ -119,8 +146,8 @@ pub struct Discharged {
 /// The obligations this kit does **not** check because Rust does not admit a
 /// violation of them.
 ///
-/// Reporting them is the point: a consumer reading four checks where the
-/// document states six needs to know that the other two were not forgotten. The
+/// Reporting them is the point: a consumer reading five checks where the
+/// document states seven needs to know that the other two were not forgotten. The
 /// finding that produced this list is `docs/formalism-findings.md` entry 002 —
 /// *before modelling a structural property, ask whether the target language
 /// already forbids it*.
@@ -407,6 +434,50 @@ pub fn check<N: EntryName>(
                 ),
             ),
         }
+    }
+
+    // --- a name renders as one path component ------------------------------
+    //
+    // No Alloy claim, and there cannot be one: `structure.als` holds no strings,
+    // so it cannot pose a rendering at all. This is the obligation the library
+    // enforces at both boundaries where a name becomes a path, and the kit
+    // checks it so that a domain meets it in a test rather than in an operation.
+    //
+    // Every name the domain can *produce* is a candidate: what it composes, what
+    // it parses out of a listing, and its distinguished child.
+    // `distinguished()` is checked like any other name but does not *count* as
+    // coverage, for the reason the found-contradicts check gives: a domain that
+    // supplies its own name would otherwise let a kit handed no samples at all
+    // report this obligation as exercised.
+    let mut rendered_any = !composed.is_empty();
+    let render_check = |name: &N, report: &mut Report| {
+        let rendered = name.to_string();
+        if let Some(reason) = crate::name::not_one_component(&rendered) {
+            report.violate(
+                Obligation::ANameRendersAsOnePathComponent,
+                format!(
+                    "`{rendered}` {reason}, so it is not one filename. The library joins \
+                     a rendering to a level's directory to reach the entry, so this one \
+                     addresses outside the tree."
+                ),
+            );
+        }
+    };
+    for name in composed.iter().chain(distinguished.as_ref()) {
+        render_check(name, &mut report);
+    }
+    for (filename, found) in listings {
+        if let Verdict::Entry(name) = N::parse(filename, *found) {
+            rendered_any = true;
+            render_check(&name, &mut report);
+        }
+    }
+    if !rendered_any {
+        report.untested(
+            Obligation::ANameRendersAsOnePathComponent,
+            "no sample yielded a name, so nothing was rendered. Supply a triple to \
+             compose, or a listing this domain recognises.",
+        );
     }
 
     // --- distinguished() names the only entry of its species ---------------

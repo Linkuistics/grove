@@ -605,10 +605,17 @@ and none is left undefined.
   the last sibling is `append`'s job and is refused rather than quietly
   redirected — the two differ in their effect on every later sibling, so
   guessing which was meant would be guessing at intent. The same refusal covers
-  a **gap** in a hand-edited level, where that rationale does not apply and no
-  operation fills the hole: a gapped ordinal can be occupied only by hand. That
-  is a consequence of density being preserved and never established, and it is
-  stated here rather than left to be discovered.
+  every **hole** at or below the level's greatest ordinal, where that rationale
+  does not apply and no operation fills the hole: such an ordinal can be
+  occupied only by hand. That is a consequence of density being preserved and
+  never established, and it is stated here rather than left to be discovered.
+  The refusal carries the **span** of ordinals the level occupies, least and
+  greatest, so its message can separate the three and say only what it can
+  prove: past the last sibling, a gap **between** two occupied ordinals, and a
+  hole **below** the first occupied one — the last of which has no lower
+  neighbour to name, since `Ordinal::FIRST` is not a floor on a hand-edited
+  level. The greatest alone separates the first from the other two; naming a
+  lower occupant needs the least.
 - `promote` applies to a leaf. A node is already a node, and a distinguished
   child has no ordinal to carry across; both are refused.
 - `promote` is refused outright in a domain with no distinguished child

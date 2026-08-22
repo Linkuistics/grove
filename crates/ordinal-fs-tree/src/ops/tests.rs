@@ -692,7 +692,7 @@ fn inserting_past_the_last_sibling_is_refused_rather_than_redirected() {
         refused,
         Refusal::NoOccupantAtOrdinal {
             ordinal: Ordinal::new(4),
-            greatest: Some(Ordinal::new(3)),
+            occupied: Some((Ordinal::FIRST, Ordinal::new(3))),
         }
     );
     assert!(
@@ -729,13 +729,62 @@ fn inserting_into_a_gap_is_refused_and_says_it_can_only_be_filled_by_hand() {
         refused,
         Refusal::NoOccupantAtOrdinal {
             ordinal: Ordinal::new(3),
-            greatest: Some(Ordinal::new(5)),
+            occupied: Some((Ordinal::FIRST, Ordinal::new(5))),
         }
     );
     let said = refused.to_string();
     assert!(
         said.contains("gap") && said.contains("by hand"),
         "the gap case has its own advice, and it is not `append`: {said}"
+    );
+    assert!(
+        said.contains("something below it"),
+        "an interior gap is the one hole that may claim a lower neighbour, \
+         because the carried least proves one: {said}"
+    );
+}
+
+/// **No model claim, and the model is why.** `wit_insertIntoAGap` discriminates
+/// the gap from the past-the-end case with `a.at < maxOrdIn` alone, which is
+/// true of an ordinal *below* every occupant as well as of one between two — so
+/// a hole under the level's first occupied ordinal is inside the modelled
+/// outcome and outside anything the model distinguishes. The distinction is the
+/// message's, and this test is its own authority.
+///
+/// A level holding only ordinal 5, asked for [`Ordinal::FIRST`], has nothing
+/// below the request. [`Ordinal::FIRST`] is not a floor the library enforces —
+/// density is preserved and never established — so this is not an unreachable
+/// arrangement, and the interior-gap sentence would be false on it.
+#[test]
+fn inserting_below_the_first_occupied_ordinal_claims_no_lower_occupant() {
+    let mut builder = Builder::new();
+    let root = builder.root();
+    builder.add(root, lesson(5, 1, Status::Draft, "fifth"));
+    let snapshot = builder.finish();
+
+    let refused = refusal(insert(
+        &snapshot,
+        Target::Root,
+        Ordinal::FIRST,
+        NewEntry::empty(draft("underneath")),
+    ));
+    assert_eq!(
+        refused,
+        Refusal::NoOccupantAtOrdinal {
+            ordinal: Ordinal::FIRST,
+            occupied: Some((Ordinal::new(5), Ordinal::new(5))),
+        },
+        "one occupied ordinal is both ends of the span"
+    );
+    let said = refused.to_string();
+    assert!(
+        !said.contains("something below it"),
+        "nothing sits below ordinal 1 here, so the refusal must not say so: {said}"
+    );
+    assert!(
+        said.contains("by hand") && !said.contains("`append`'s job"),
+        "the conclusion is still the hole's — `append` would take ordinal 6, \
+         not this one: {said}"
     );
 }
 
@@ -763,7 +812,7 @@ fn inserting_into_an_empty_level_is_refused() {
         refused,
         Refusal::NoOccupantAtOrdinal {
             ordinal: Ordinal::FIRST,
-            greatest: None,
+            occupied: None,
         },
         "a level holding only its distinguished child holds no ordinal at all"
     );

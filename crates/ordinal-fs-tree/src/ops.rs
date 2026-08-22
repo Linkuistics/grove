@@ -197,12 +197,25 @@ pub(crate) fn insert<N: EntryName>(
     // hand-edited level. See [`Refusal::NoOccupantAtOrdinal`] for why they are
     // one refusal and two messages.
     if !shifted.iter().any(|sibling| sibling.ordinal() == Some(at)) {
+        // The span of ordinals this level occupies, least and greatest, in one
+        // pass over the same immutable level the shift was collected from. Both
+        // ends are needed: the greatest separates *past the last sibling* from
+        // *at or below it*, and the least is what decides whether a hole at or
+        // below the greatest has an occupant underneath it to name. A fold
+        // rather than `min()` and `max()` so the two ends cannot be read from
+        // different traversals, and so they are present or absent together.
+        let occupied = container
+            .positioned()
+            .filter_map(|sibling| sibling.ordinal())
+            .fold(None, |span: Option<(Ordinal, Ordinal)>, ordinal| {
+                Some(match span {
+                    None => (ordinal, ordinal),
+                    Some((least, greatest)) => (least.min(ordinal), greatest.max(ordinal)),
+                })
+            });
         return Decision::Refuse(Refusal::NoOccupantAtOrdinal {
             ordinal: at,
-            greatest: container
-                .positioned()
-                .filter_map(|sibling| sibling.ordinal())
-                .max(),
+            occupied,
         });
     }
     if N::positioned_species(&entry.parts) == PositionedSpecies::Node && !entry.content.is_empty() {

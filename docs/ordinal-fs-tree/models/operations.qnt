@@ -1062,9 +1062,19 @@ module operations {
         | TagPromote(a) => false | TagRewrite(a) => false | TagHandEdit => false
       }
 
-  /// The SAME refusal, on a gap in the middle of a hand-edited level.  The
+  /// The SAME refusal, on a hole at or below the level's greatest ordinal.  The
   /// document names only the past-the-end case and gives it a rationale
-  /// ("`append`'s job") that does not fit this one: no operation fills a gap.
+  /// ("`append`'s job") that does not fit this one: no operation fills a hole.
+  ///
+  /// **This predicate discriminates and does not characterise.**  `a.at <
+  /// maxOrdIn` separates this outcome from past-the-end and says nothing more:
+  /// it is equally true of a hole *between* two occupants and of one *below
+  /// every* occupant, since density is preserved and never established and
+  /// `Ordinal::FIRST` is therefore no floor.  Prose derived from this witness
+  /// may claim an occupant *above* the request and must not claim one below.
+  /// An earlier reading of this comment as "a gap in the middle of a level"
+  /// became a refusal message asserting both neighbours;
+  /// `docs/formalism-findings.md` entry 013 records it.
   val wit_insertIntoAGap: bool =
     atRest and op.outcome == RefusedNoOccupantAtOrdinal and
       match op.tag {

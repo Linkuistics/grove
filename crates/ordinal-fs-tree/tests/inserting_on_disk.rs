@@ -288,7 +288,7 @@ fn inserting_past_the_last_sibling_is_refused_and_changes_nothing() {
         refusal(error),
         Refusal::NoOccupantAtOrdinal {
             ordinal: Ordinal::new(9),
-            greatest: Some(Ordinal::new(3)),
+            occupied: Some((Ordinal::FIRST, Ordinal::new(3))),
         }
     );
     assert_eq!(walk(&root), before, "a refusal changes nothing");
@@ -321,7 +321,7 @@ fn inserting_into_a_hand_edited_gap_is_refused_with_its_own_advice() {
         refused,
         Refusal::NoOccupantAtOrdinal {
             ordinal: Ordinal::new(3),
-            greatest: Some(Ordinal::new(5)),
+            occupied: Some((Ordinal::FIRST, Ordinal::new(5))),
         }
     );
     let said = refused.to_string();
@@ -329,6 +329,55 @@ fn inserting_into_a_hand_edited_gap_is_refused_with_its_own_advice() {
         said.contains("gap") && said.contains("by hand"),
         "no operation fills a gap, and the message has to say so: {said}"
     );
+    assert!(
+        said.contains("something below it"),
+        "ordinal 1 is occupied here, so the lower neighbour the message names \
+         really is there: {said}"
+    );
+}
+
+/// **No model claim.** `wit_insertIntoAGap`'s `a.at < maxOrdIn` is true of a
+/// hole below every occupant as well as of one between two, so the leading-hole
+/// message is the library's own distinction and this is its public-surface
+/// control.
+///
+/// The tree is what `mv 01-… 05-…` leaves: one lesson, at ordinal 5. Asking for
+/// ordinal 1 reaches the hole branch with nothing underneath the request, and
+/// the refusal must not claim otherwise.
+#[test]
+fn inserting_below_the_first_occupied_ordinal_is_refused_without_a_lower_neighbour() {
+    let temporary = TempDir::new().expect("a temporary directory");
+    let root = dir(temporary.path(), "syllabus");
+    file(&root, "05-draft-only-i1.md", "only");
+    let before = walk(&root);
+
+    let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .insert(
+            Target::Root,
+            Ordinal::FIRST,
+            NewEntry::empty(draft("underneath")),
+        )
+        .expect_err("below the first occupant");
+
+    let refused = refusal(error);
+    assert_eq!(
+        refused,
+        Refusal::NoOccupantAtOrdinal {
+            ordinal: Ordinal::FIRST,
+            occupied: Some((Ordinal::new(5), Ordinal::new(5))),
+        }
+    );
+    let said = refused.to_string();
+    assert!(
+        !said.contains("something below it"),
+        "nothing occupies an ordinal below 1 here: {said}"
+    );
+    assert!(
+        said.contains("by hand") && !said.contains("`append`'s job"),
+        "`append` would take ordinal 6, so the advice is the hole's: {said}"
+    );
+    assert_eq!(walk(&root), before, "a refusal changes nothing");
 }
 
 /// Discharges `wit_refusedTargetNotNode` for `insert`: a leaf is a regular file

@@ -1278,7 +1278,10 @@ leaf starts.
   ("`append`'s job") and gives the gap case the same sentence, where it is simply
   false: no operation fills a gap, so the honest advice is *by hand*. The
   implementation answer is that the refusal carries the level's greatest ordinal
-  so its message can decide which is true. `inv_insertOnlyShifts`, by contrast,
+  so its message can decide which is true. **Superseded by entry 013**: the
+  greatest alone decides *which of the two witnesses* is live and cannot justify
+  the sentence the gap message then wrote, so the refusal now carries the level's
+  whole occupied span. `inv_insertOnlyShifts`, by contrast,
   told the implementation nothing it did not already have from the document —
   the invariant confirmed, the witnesses *designed*.
 - **A rule whose payoff is a state nothing observes is testable only if the model
@@ -1378,6 +1381,94 @@ behavioural half of the same observation, and it now has two leaves behind it.
 implementing an operation it covers. It is the part of a model that is written in
 the shape a test wants.
 
+### 013 — Integrating the `insert` review (`ordinal-fs-tree`)
+
+**Situation.** `insert-k24` applied `insert-k23`'s one actionable finding.
+`Refusal::NoOccupantAtOrdinal` told the caller, of every unoccupied ordinal at or
+below the level's greatest, that "something below it and something above it are
+occupied". The state it carried — the greatest ordinal alone — proves only the
+second half. A hand-edited level holding only ordinal 5, asked for
+`Ordinal::FIRST`, reaches that branch with nothing beneath the request at all,
+and `Ordinal::FIRST` is not a floor the library enforces, so the level is not
+exotic. The review's four other doubts were settled in the implementation's
+favour and left alone.
+
+**Formalism.** Both suites re-run as controls. Alloy 20/20, Quint every claim
+across all eight instances holding with every witness reached in a non-zero
+number of traces — 148 claim results, no failures. **Neither model changed**, and
+that is the finding's shape: nothing here contradicted a claim. The instrument
+that did the work was `operations.qnt`'s two insert witnesses read a second time
+at the level of their **predicates** rather than their names —
+`wit_insertPastTheEnd` requires `a.at > maxOrdIn`, `wit_insertIntoAGap` requires
+`a.at < maxOrdIn`. Only the second was re-run after this leaf touched the model,
+and it touched nothing but a comment.
+
+**Caught.** One, and where it came from is worth more than the fix.
+
+- **The defect was transcribed from the model's prose, not from its predicate.**
+  `wit_insertIntoAGap`'s doc comment read "a gap in the middle of a hand-edited
+  level"; its predicate is `a.at < maxOrdIn` and nothing else, which is equally
+  true of a hole between two occupants and of one below every occupant. Entry
+  012 records the witness *pair* as the most valuable thing the model supplied,
+  and it was — the two-way discrimination is real. What travelled with it was an
+  unchecked sentence sitting inside a checked file, and the refusal message
+  inherited its authority for free. The comment is now tightened to say what its
+  predicate proves and what prose derived from it may therefore claim; that
+  edit is why the Quint suite was run twice.
+- **The fix is more carried state, not softer prose.** The refusal now carries
+  the level's whole occupied **span** — least and greatest — as one
+  `Option<(Ordinal, Ordinal)>` rather than two `Option`s that could disagree,
+  since this refusal exists precisely because state carried for a message can be
+  wrong. Three arms follow, each provable from the span: past the last sibling
+  (`append`'s job), a hole **below** the least (no lower neighbour named, same
+  by-hand conclusion, because `append` would take `greatest + 1` and not this
+  ordinal), and a gap **strictly between** the two — where both neighbours are
+  proven to exist, because an ordinal occupied by nothing is neither the least
+  nor the greatest.
+
+**Missed.** The five controls that existed could not see this, and the reason
+generalises: both gap controls *arranged* an interior hole (ordinal 1 below,
+ordinal 5 above) and then asserted only that the message contained `gap` and
+`by hand`. A fixture that satisfies the stronger prose is invisible as evidence
+for the weaker predicate — the same shape as entry 005's *a test that names a
+claim and checks a weaker property*, one level up: here the **fixture**, not the
+assertion, was doing the overstating. The insert account is now twenty-six tests,
+nineteen naming a model claim and seven saying they have none; both new tests are
+in the second group, and they say why — the model distinguishes this case from
+past-the-end and does not distinguish it from an interior gap, so the message's
+three-way split is the library's own.
+
+**The mutation control.** One, and the new tests need it more than most because
+they assert a **negative** — `!contains("something below it")` — which a typo
+would let pass forever. Disabling the leading-hole arm so a leading hole falls
+back to the gap message failed exactly the two new tests, one in each half of the
+suite, and nothing else: 66/1 in the unit binary, 9/1 on disk. That is
+simultaneously the proof that the new tests discriminate and a reproduction of
+the review's complaint about the old ones.
+
+**Cost.** Well under a session; the fix is twenty lines and the reconciliation
+across `plan.rs`, `ARCHITECTURE.md`, `operations.qnt`'s comment and this log was
+most of it. Two Quint runs at roughly four minutes each, the second bought by
+choosing to edit the model comment rather than only the code that read it.
+
+**Counterfactual.** **A message may claim only what the predicate that selected
+it proves.** Entry 012's counterfactual — *read the witnesses before the
+invariants* — stands, and this is its correction: a witness's predicate is a
+**discriminator, not a characterisation**. It tells you this case is not that
+one; it does not tell you what this case looks like, and the picture in the
+reader's head (or in the comment beside it) fills the gap silently. The free
+check, costing no formalism and no run, is to take each clause of an error
+message and name the carried value that proves it — the clause with no value
+behind it is the defect. That check applied when the message was written would
+have caught this one leaf earlier, and it is worth applying to `promote`'s and
+`rewrite`'s refusals before they are written rather than after.
+
+**Verdict.** Yes to reading witnesses, with the sharpening above. And a second,
+cheaper standing habit: prose inside a checked model file is **not checked**, so
+when an implementation transcribes a model, transcribe the predicate and read the
+comment as commentary. The tightened comment is the durable half of this fix; the
+code would have been written correctly the first time if it had been there.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -1397,6 +1488,7 @@ guesses are not.
 | out of scope — "the model says it excludes this; what does that oblige?" | none — the exclusion list is the worklist | 011: three of five interpreter defects sat in the three domains `operations.qnt`'s handoff names as excluded (strings, bytes, the filesystem). The exclusions were written two leaves before the defects; reading them as a list of what prose must now state would have caught all three at introduction |
 | enforceable obligation — "the type system cannot forbid this, but can the library check it?" | none — ask before writing it down as an assumption | 011: six of seven `EntryName` obligations are genuinely uncheckable; the seventh costs one string test at two boundaries and turns an escape from the locked tree into a refusal with recovery advice. 002's counterfactual asks whether the *language* forbids it; this is the question after that one |
 | already arranged — "did the model check this, or make it true?" | neither — a free question | 003: subtree preservation is true by construction of the state shape, and a model that satisfies an invariant by construction is indistinguishable from one that verified it |
+| a message derived from a model — "may this refusal say what it says?" | none — name the carried value behind each clause | 013: `wit_insertIntoAGap`'s predicate `a.at < maxOrdIn` discriminates the case and does not characterise it; the comment beside it did, and the refusal's message transcribed the comment. One clause, no value behind it, one wrong error message for every hand-edited level with a leading hole |
 | did it run at all? — "is this suite green, or dead?" | must-be-reached claims beside the must-hold ones | 003: a JVM too old made Alloy print nothing, which its runner read as thirteen unfired witnesses and seven holding checks. Only the witnesses distinguish the two, and every one failing at once is a signature no real defect produces |
 | deriving tests — "what do I actually run against the implementation?" | the model's must-be-reached witnesses | 004: four Alloy witnesses became executable broken-domain tests; not one `check` translated into anything runnable |
 | grammar — "can two filenames name one entry?" | property-based testing *(untested)* | 004: both models hold no strings by design, so the largest piece of the implementation had no model coverage at all. The instrument that fits is `format(parse(f)) == f` over generated names, and it was not reached for |

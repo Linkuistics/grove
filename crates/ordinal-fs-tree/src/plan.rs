@@ -309,15 +309,28 @@ pub enum Refusal {
     /// and `wit_insertIntoAGap` — which is how the second came to be noticed at
     /// all; `docs/formalism-findings.md` entry 003 records it.
     ///
-    /// The level's greatest ordinal is carried so the message can tell the two
-    /// apart and give the advice that fits, rather than offering the reader a
-    /// fork.
+    /// The **span** of ordinals the level occupies is carried so the message can
+    /// tell those apart and give the advice that fits, rather than offering the
+    /// reader a fork. The greatest alone cannot: it separates *past the last
+    /// sibling* from *at or below it*, but every message about a hole at or
+    /// below the greatest that names a lower neighbour is claiming something
+    /// `greatest` does not prove. A level holding only ordinal 5, asked for
+    /// [`Ordinal::FIRST`], has no occupant below the request at all — and
+    /// because density is preserved and never established, [`Ordinal::FIRST`]
+    /// is not a floor that would make such a level impossible. So the least is
+    /// carried too, and the interior-gap message is emitted only where both
+    /// neighbours are proven to exist.
+    ///
+    /// One field rather than two, because a level either holds positioned
+    /// children or it does not: two independent `Option`s could disagree, and
+    /// this refusal exists because state carried for a message can be wrong.
     NoOccupantAtOrdinal {
         /// The ordinal that named no sibling.
         ordinal: Ordinal,
-        /// The greatest ordinal the level holds, or `None` for a level holding
-        /// no positioned children at all.
-        greatest: Option<Ordinal>,
+        /// The least and greatest ordinals the level holds, in that order, or
+        /// `None` for a level holding no positioned children at all. They are
+        /// equal on a level holding exactly one occupied ordinal.
+        occupied: Option<(Ordinal, Ordinal)>,
     },
     /// The tree's greatest key is the greatest a key can be, so `max + 1` has
     /// nowhere to go.
@@ -368,24 +381,41 @@ impl core::fmt::Display for Refusal {
                  directory has nowhere to hold them. Supply no content, or supply \
                  parts that make it a leaf.",
             ),
-            Self::NoOccupantAtOrdinal { ordinal, greatest } => {
+            Self::NoOccupantAtOrdinal { ordinal, occupied } => {
                 write!(
                     f,
                     "nothing sits at ordinal {ordinal} in that level, and \
                            an insert shifts an occupant up rather than filling a \
                            hole. "
                 )?;
-                match greatest {
-                    // Past the last sibling — or into a level holding no
-                    // positioned children at all, where every ordinal is past
-                    // the last sibling.
-                    Some(greatest) if ordinal <= greatest => f.write_str(
+                match occupied {
+                    // Below everything this level occupies. Nothing sits under
+                    // the request, so the gap message's lower neighbour does
+                    // not exist and saying otherwise would be false — but the
+                    // conclusion is the gap case's, not `append`'s, since
+                    // `append` would take `greatest + 1` and not this ordinal.
+                    Some((least, _)) if ordinal < least => write!(
+                        f,
+                        "That ordinal is below ordinal {least}, the lowest this \
+                         level occupies, so nothing in this level sits below it. \
+                         No operation fills an unoccupied ordinal at or below the \
+                         level's greatest — ordinal density is preserved by every \
+                         operation and established by none — so it can be \
+                         occupied only by hand, with `mv`.",
+                    ),
+                    // Strictly between the least and the greatest, since it is
+                    // occupied by nothing and therefore neither of them: both
+                    // neighbours are proven to exist.
+                    Some((_, greatest)) if ordinal <= greatest => f.write_str(
                         "That ordinal is a gap in this level: something below it \
                          and something above it are occupied. No operation fills \
                          a gap — ordinal density is preserved by every operation \
                          and established by none — so a gapped ordinal can be \
                          occupied only by hand, with `mv`.",
                     ),
+                    // Past the last sibling — or into a level holding no
+                    // positioned children at all, where every ordinal is past
+                    // the last sibling.
                     _ => f.write_str(
                         "That ordinal is past the last sibling, which is \
                          `append`'s job: it takes the next free ordinal and \

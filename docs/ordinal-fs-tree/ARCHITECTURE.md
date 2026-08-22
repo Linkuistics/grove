@@ -492,11 +492,18 @@ could not state either.
 
 ## Operations
 
-Every operation names its target **by key**, and the tree root by a variant of
-its own, since the root is not an entry and has no key. Nothing else would do:
-an ordinal is stale the moment anything is inserted before it, and a path is
-stale the moment anything is renamed. The key is the one handle the design
-already promises survives, so it is the one the operations take.
+Every operation names its target **by key**. Nothing else would do: an ordinal
+is stale the moment anything is inserted before it, and a path is stale the
+moment anything is renamed. The key is the one handle the design already
+promises survives, so it is the one the operations take.
+
+The tree root takes a variant of its own, since it is not an entry and has no
+key — but only where a target is a **level** something goes into. `promote` and
+`rewrite` name an *entry* and take a bare key: the root is not an entry, so
+there is nothing for the extra variant to mean, and offering it would be
+offering a call refused by construction. The behavioural model splits them the
+same way — `TagPromote` and `TagRewrite` carry a key where `TagInsert` carries a
+target.
 
 ### Reading
 
@@ -616,8 +623,15 @@ and none is left undefined.
   neighbour to name, since `Ordinal::FIRST` is not a floor on a hand-edited
   level. The greatest alone separates the first from the other two; naming a
   lower occupant needs the least.
-- `promote` applies to a leaf. A node is already a node, and a distinguished
-  child has no ordinal to carry across; both are refused.
+- `promote` applies to a leaf, and a node is refused: it is already a node.
+  A distinguished child would be refused too — it has no ordinal to carry
+  across — but **it cannot be asked for**. An operation names its target by key,
+  a distinguished child carries none, and so neither `by_key` nor the model's
+  `idsWithKey` can answer with one. The refusal is stated over species, because
+  the species is what the check reads; saying *both are refused* without saying
+  that only one ever arrives describes a case no argument produces and no
+  witness reaches. `promote-k12` found it while implementing the check, and
+  `docs/formalism-findings.md` entry 014 carries it.
 - `promote` is refused outright in a domain with no distinguished child
   (`distinguished()` is `None`), because the leaf's content would have nowhere
   to go and discarding it silently is not an option.

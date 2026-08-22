@@ -56,7 +56,7 @@ use crate::ops::{self, NewEntry, Target};
 use crate::plan::Decision;
 use crate::report::Report;
 use crate::snapshot::Snapshot;
-use crate::{EntryName, Error, Ordinal};
+use crate::{EntryName, Error, Key, Ordinal};
 
 mod apply;
 mod lock;
@@ -250,6 +250,69 @@ impl<N: EntryName> WriteGuard<N> {
         entry: NewEntry<N::Parts>,
     ) -> Result<Report<N>, Error<N>> {
         let decision = ops::insert(&self.snapshot, target, at, entry);
+        self.run(decision, apply::Faults::none())
+    }
+
+    /// **`promote`**: turn the leaf with this key into a node, moving its bytes
+    /// verbatim into the new node's distinguished child.
+    ///
+    /// The node keeps the leaf's **own** ordinal and its **own** key: the entry
+    /// that was a leaf *is* the node, so every reference to it by key still
+    /// resolves. That is about the entity and not about the file — the node is a
+    /// new directory, and the leaf's own file survives inside it as the
+    /// distinguished child holding its content. A consumer holding a path is
+    /// stale either way; one holding a key is not, which is the whole reason the
+    /// key exists.
+    ///
+    /// `parts` are the **node's**, and they come from the caller because the
+    /// library cannot make them: `Parts` is opaque, so every value the library
+    /// can reach belongs to a name already in the tree and none of those
+    /// describes this entry as a node. `first_child` optionally creates one
+    /// child inside the new node in the same unit, at [`Ordinal::FIRST`] with
+    /// the tree's next key — for consumers that want both or neither.
+    ///
+    /// Named by [`Key`] and not by [`Target`], because a promotion's target is
+    /// an entry that has to be a leaf and the tree root is neither.
+    ///
+    /// # This is the one operation that breaks an invariant on the way through
+    ///
+    /// The node has to exist before the leaf's content can move into it, and it
+    /// carries the leaf's own ordinal and key — so **between the two effects
+    /// both are on disk, sharing an ordinal and a key**. There is no ordering
+    /// that avoids it: the library has no name for a temporary, and a node with
+    /// any other ordinal or key would not be the same entry. The library's
+    /// invariants therefore hold of **quiescent** trees — trees between
+    /// operations — and not of every state the filesystem passes through, and
+    /// the exclusive lock is what makes that safe, since no cooperating reader
+    /// observes an intermediate state. What a *crash* exposes is exactly this
+    /// state, and [`Error::FailedPartiallyRolledBack`] says how to resolve it.
+    ///
+    /// # And it is the one path by which this library damages a tree
+    ///
+    /// Rollback covers reported errors. If the unwind of the created node
+    /// *itself* fails, the leaf and the node are both left in place sharing an
+    /// ordinal and a key — a duplicate key in a tree the library built, which is
+    /// otherwise a defect it only ever inherits. Recovery is mechanical, and the
+    /// error says it: **a node and a leaf sharing an ordinal and a key, with the
+    /// node holding no distinguished child, is an interrupted promotion, and
+    /// removing either half resolves it.**
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Refused`] when the key names no entry; when it names something
+    /// that is not a leaf; when this domain has no distinguished child, so the
+    /// leaf's content would have nowhere to go; when `parts` do not imply a
+    /// node; or when bytes were supplied for a first child whose parts make a
+    /// node. [`Error::Failed`] when the filesystem refused and the tree was left
+    /// as it was found; [`Error::FailedPartiallyRolledBack`] when undoing that
+    /// failed too, which on this path is the case above.
+    pub fn promote(
+        self,
+        key: Key,
+        parts: N::Parts,
+        first_child: Option<NewEntry<N::Parts>>,
+    ) -> Result<Report<N>, Error<N>> {
+        let decision = ops::promote(&self.snapshot, key, parts, first_child);
         self.run(decision, apply::Faults::none())
     }
 

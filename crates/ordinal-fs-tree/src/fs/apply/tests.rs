@@ -700,3 +700,123 @@ fn a_plan_naming_a_path_outside_the_tree_is_refused_before_anything_moves() {
         "nothing was placed outside the tree either"
     );
 }
+
+/// Discharges `inv_atomicity` on the promotion path: *after a mutation returns
+/// an error, either every effect landed or none did*. The node is created, the
+/// move fails, the node is removed, and the tree is exactly the two lessons it
+/// was.
+///
+/// The plan is a real `promote` rather than one written by hand, because what is
+/// under test is the interaction between *that* plan's shape and the shared
+/// rollback: a create whose undo is a `remove_dir`, which succeeds only because
+/// the directory is still empty.
+#[test]
+fn a_promotion_whose_move_fails_leaves_the_tree_as_it_was() {
+    let (_temporary, root) = two_lessons();
+    let before = listing(&root);
+
+    let failed = run(
+        &root,
+        |snapshot| {
+            ops::promote(
+                snapshot,
+                Key::new(1),
+                Parts::module(Label::new("first").expect("a label")),
+                None,
+            )
+        },
+        // Effect 1 is the move of the leaf into the node effect 0 just created.
+        Faults::at_effect(1),
+    )
+    .expect_err("the seam failed the move");
+
+    let Error::Failed { .. } = &failed else {
+        panic!("a rollback that succeeds is `Failed`, not something else: {failed:?}");
+    };
+    assert_eq!(
+        listing(&root),
+        before,
+        "the node was removed and the leaf never moved"
+    );
+}
+
+/// Discharges `wit_partialRollbackLeavesADuplicateKey` and
+/// `wit_partialRollbackLeavesADuplicateOrdinal` — the model's `rollback_fails`
+/// instance, which is the only one that does not claim key uniqueness at rest,
+/// **because this operation is what breaks it**.
+///
+/// This is the single path by which this library creates a duplicate key in a
+/// tree it was handed. Everywhere else a duplicate key is a defect it inherits.
+/// The promotion's one undo is *remove the node just created*, so an unwind that
+/// fails there leaves the leaf and the node both in place, sharing an ordinal and
+/// a key, with the node holding nothing.
+///
+/// A library that can leave a tree in that state and does not say how to get out
+/// of it has told the consumer nothing useful — so the second half of this test
+/// is the **error text**, checked clause by clause against what is actually on
+/// disk. Each clause of the advice is asserted here as a fact about the tree, and
+/// the fact is asserted as a clause of the message: a recovery instruction is
+/// only worth printing if it describes the state it will be read in.
+#[test]
+fn a_promotion_whose_rollback_fails_leaves_a_duplicate_key_and_says_how_to_resolve_it() {
+    let (_temporary, root) = two_lessons();
+
+    let failed = run(
+        &root,
+        |snapshot| {
+            ops::promote(
+                snapshot,
+                Key::new(1),
+                Parts::module(Label::new("first").expect("a label")),
+                None,
+            )
+        },
+        // Fail the move, and then the only unwind step there is: removing the
+        // node the create had just made.
+        Faults::at_effect_and_unwind(1, 0),
+    )
+    .expect_err("the seam failed the move and then its undo");
+
+    let Error::FailedPartiallyRolledBack { .. } = &failed else {
+        panic!("a rollback that fails is not the same outcome as one that does not: {failed:?}");
+    };
+
+    // The damage, as the tree actually holds it: a node and a leaf at the same
+    // ordinal carrying the same key, and the node holding no distinguished
+    // child.
+    assert_eq!(
+        listing(&root),
+        [
+            "01-draft-first-i1.md = first".to_string(),
+            "01-first-i1/".to_string(),
+            "02-draft-second-i2.md = second".to_string(),
+        ],
+        "both halves of the promotion are on disk, at ordinal 1 and key 1"
+    );
+
+    // And the advice, clause by clause against exactly that.
+    let said = failed.to_string();
+    assert!(
+        said.contains("neither the state"),
+        "a consumer meeting this needs to know the tree is in neither state: {said}"
+    );
+    assert!(
+        said.contains("node and a leaf share an ordinal and a key")
+            && said.contains("no distinguished child"),
+        "the advice has to describe the state it will be read in: {said}"
+    );
+    assert!(
+        said.contains("interrupted promotion") && said.contains("removing either half"),
+        "and it has to say what to do, mechanically: {said}"
+    );
+
+    // The recovery really is mechanical: removing either half resolves it, and
+    // the tree then reads cleanly again. Removing the node is the half that
+    // restores what the operation found.
+    fs::remove_dir(root.join("01-first-i1")).expect("removing the empty node");
+    let tree = crate::fs::read::<SyllabusName>(&root).expect("a tree that reads again");
+    assert_eq!(
+        tree.walk().map(|e| e.name().to_string()).collect::<Vec<_>>(),
+        ["01-draft-first-i1.md", "02-draft-second-i2.md"]
+    );
+}

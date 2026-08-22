@@ -48,18 +48,11 @@ pub(crate) enum Level {
     Entry(usize),
     /// The node created by an earlier effect of this plan, by that effect's
     /// position in it.
-    //
-    // Built by this crate's own tests and by no operation *yet* — `promote` is
-    // what builds it for real, and the interpreter that resolves it is this
-    // leaf's, so it is exercised here or nowhere. `expect` rather than `allow`,
-    // and only where the lint actually fires: when `promote` lands, the
-    // expectation goes stale, and `unfulfilled_lint_expectations` is denied
-    // workspace-wide, so the line has to be removed rather than quietly
-    // outliving its reason.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "built by promote, which is a later leaf")
-    )]
+    ///
+    /// `promote` is what builds it: the node has to exist before the leaf's
+    /// content can move into it, and the plan is a value built before anything
+    /// has run — so the level the second effect acts in is named by the effect
+    /// that will create it.
     Created(usize),
 }
 
@@ -332,6 +325,49 @@ pub enum Refusal {
         /// equal on a level holding exactly one occupied ordinal.
         occupied: Option<(Ordinal, Ordinal)>,
     },
+    /// `promote` was aimed at something that is not a leaf.
+    /// `operations.qnt`'s `RefusedPromoteNotLeaf`.
+    ///
+    /// **The document names two cases here and only one of them is reachable.**
+    /// *A node is already a node, and a distinguished child has no ordinal to
+    /// carry across; both are refused* — but an operation names its target by
+    /// key, a distinguished child carries no key, and so neither this library
+    /// nor the model can be handed one: `by_key` yields positioned entries, and
+    /// `idsWithKey` filters on `isPositioned`. What `species` carries is
+    /// therefore what was actually found, and on every path that reaches this
+    /// today it is [`Species::Node`].
+    PromoteNotLeaf {
+        /// The key of the entry that was named.
+        key: Key,
+        /// What it turned out to be.
+        species: Species,
+    },
+    /// `promote` was called in a domain whose [`EntryName::distinguished`] is
+    /// `None`. `operations.qnt`'s `RefusedPromoteNoDistinguished`, and the whole
+    /// content of its `no_distinguished` instance.
+    ///
+    /// Refused outright rather than guessed at: promotion moves the leaf's
+    /// content into the new node's distinguished child, and a domain with no
+    /// distinguished child gives that content nowhere to go. The alternatives
+    /// are discarding it silently and inventing a name the domain never
+    /// declared, and neither is one.
+    PromoteNoDistinguished {
+        /// The key of the leaf that would have been promoted.
+        key: Key,
+    },
+    /// The parts `promote` was given do not imply species `Node`.
+    /// `operations.qnt`'s `RefusedPromotePartsNotNode` — the same check
+    /// `rewrite` makes, with the opposite verdict.
+    ///
+    /// The parts come from the caller because the library cannot make them:
+    /// `Parts` is opaque with bounds `Clone + Eq`, so every `Parts` value the
+    /// library can reach belongs to some entry already in the tree and none of
+    /// those describes *this* entry as a node. What it can do is check what it
+    /// was handed.
+    PromotePartsNotNode {
+        /// The key of the leaf that would have been promoted.
+        key: Key,
+    },
     /// The tree's greatest key is the greatest a key can be, so `max + 1` has
     /// nowhere to go.
     ///
@@ -425,6 +461,28 @@ impl core::fmt::Display for Refusal {
                     ),
                 }
             }
+            Self::PromoteNotLeaf { key, species } => write!(
+                f,
+                "the entry with key {key} is a {species}, and promotion turns a \
+                 leaf into a node. A node is already one; name a leaf, or add \
+                 children to this node directly."
+            ),
+            Self::PromoteNoDistinguished { key } => write!(
+                f,
+                "this domain has no distinguished child, so promoting the leaf \
+                 with key {key} would leave its content nowhere to go. Promotion \
+                 moves a leaf's bytes verbatim into the new node's distinguished \
+                 child; give the domain one by implementing \
+                 `EntryName::distinguished`, or create the node and move the \
+                 content yourself."
+            ),
+            Self::PromotePartsNotNode { key } => write!(
+                f,
+                "the parts supplied for promoting the leaf with key {key} make a \
+                 leaf, not a node, and a promotion has to name a directory. The \
+                 species follows from the parts and from nothing else, so supply \
+                 parts your domain composes a node from."
+            ),
             Self::KeysExhausted => f.write_str(
                 "this tree's greatest key is the greatest a key can be, so there is \
                  no fresh one to allocate: a key is `max + 1` over every name in the \

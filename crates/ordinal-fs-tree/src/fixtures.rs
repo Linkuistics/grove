@@ -143,3 +143,70 @@ impl EntryName for Sneaky {
         SyllabusName::positioned_species(parts)
     }
 }
+
+/// A domain with **no distinguished child**, which is what `operations.qnt`'s
+/// `no_distinguished` instance is.
+///
+/// `HAS_DISTINGUISHED = false` in the model; here it is
+/// [`EntryName::distinguished`] answering `None`, and the consequence is the
+/// same: promotion is refused outright, because the leaf's content would have
+/// nowhere to go.
+///
+/// It disclaims `OVERVIEW.md` rather than merely declining to name it. A domain
+/// that answered `None` here and still parsed some name as `Distinguished` would
+/// have a distinguished child the library cannot name — the obligation
+/// *`distinguished()` names the only entry of its species* read backwards — so
+/// the honest domain has none at all, and `Foreign` is how a consumer says *not
+/// mine*.
+#[derive(Clone)]
+pub(crate) struct Contentless(SyllabusName);
+
+impl fmt::Display for Contentless {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl EntryName for Contentless {
+    type Parts = Parts;
+    type Err = SyllabusError;
+
+    fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
+        match SyllabusName::parse(name, found) {
+            Verdict::Entry(inner) => match inner.view() {
+                NameView::Distinguished => Verdict::Foreign,
+                NameView::Positioned(_) => Verdict::Entry(Self(inner)),
+            },
+            Verdict::Foreign => Verdict::Foreign,
+            Verdict::Malformed(e) => Verdict::Malformed(e),
+            Verdict::Reserved(e) => Verdict::Reserved(e),
+        }
+    }
+
+    fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
+        Self(SyllabusName::compose(ordinal, key, parts))
+    }
+
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        self.0.view()
+    }
+
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
+    }
+}
+
+/// One lesson at the root, in a domain that has no distinguished child.
+pub(crate) fn contentless_tree() -> Snapshot<Contentless> {
+    let mut builder = Builder::new();
+    let root = builder.root();
+    builder.add(
+        root,
+        Contentless::compose(
+            Ordinal::FIRST,
+            Key::new(1),
+            Parts::lesson(Status::Draft, Label::new("orientation").expect("a label")),
+        ),
+    );
+    builder.finish()
+}

@@ -9,14 +9,14 @@
 //! The specification is `docs/ordinal-fs-tree/ARCHITECTURE.md`, sections
 //! *Operations → Mutating* and *Refusals*; the model is
 //! `docs/ordinal-fs-tree/models/operations.qnt`, whose `planAppend`,
-//! `planAppendMany` and `planInsert` these are.
+//! `planAppendMany`, `planInsert` and `planPromote` these are.
 //!
-//! The other two mutations — `promote` and `rewrite` — join this module as
-//! their leaves land. They are what the plan shape exists for: five operations,
-//! one interpreter, one rollback.
+//! The last mutation — `rewrite` — joins this module as its leaf lands. They
+//! are what the plan shape exists for: five operations, one interpreter, one
+//! rollback.
 
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
-use crate::{Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot};
+use crate::{Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot, Species};
 
 /// Which entry an operation is aimed at.
 ///
@@ -248,6 +248,139 @@ pub(crate) fn insert<N: EntryName>(
         content: entry.content,
     });
     Plan::of(effects).guarded(snapshot)
+}
+
+/// **`promote`**: turn a leaf into a node, with the node's parts supplied by the
+/// caller, moving the leaf's bytes verbatim into the new node's distinguished
+/// child and keeping the leaf's own ordinal and its own key.
+///
+/// Two effects, or three with a first child: create the node, move the leaf into
+/// it as the distinguished child, and — optionally — create one child inside it.
+/// That is `planPromote` exactly, and its `withChild` run is the plan the
+/// [`Level::Created`] variant exists for: the level the second effect acts in
+/// does not exist when the plan is built.
+///
+/// # Named by key, and by nothing else
+///
+/// There is no [`Target`] here. Every other mutation takes one because the tree
+/// root is a level a child can go into; a promotion's target is an *entry* that
+/// has to be a leaf, and the root is neither an entry nor a leaf. The model
+/// agrees — `TagPromote` carries a bare key where `TagInsert` carries a
+/// `Target`.
+///
+/// # It breaks an invariant on the way through, and there is no ordering that
+/// avoids it
+///
+/// The node has to exist before the leaf's content can move into it, and the
+/// node carries the leaf's **own** ordinal and key — that is what identity
+/// preservation means. So between effect one and effect two both are on disk,
+/// sharing an ordinal and a key: `wit_promoteTransientlyDuplicatesAKey` and
+/// `wit_promoteTransientlyDuplicatesAnOrdinal`, which are *reached* rather than
+/// excluded, and which `inv_ordinalsDistinctThroughout` exempts by name. The
+/// library has no name for a temporary, and a node with any other ordinal or key
+/// would not be the same entry. The invariants therefore hold of **quiescent**
+/// trees, and the lock is what makes that safe.
+///
+/// # The parts come from the caller because the library cannot make them
+///
+/// Species follows from parts, so naming the promoted node needs parts that
+/// imply `Node`. `Parts` is opaque with bounds `Clone + Eq`: the library can
+/// copy one it already holds and compare two of them, and that is all — and
+/// every `Parts` value it can reach belongs to a name already in the tree, none
+/// of which describes *this* entry as a node. A trait method mapping a leaf's
+/// parts to a node's would widen the seam to serve one operation and force every
+/// domain to declare a canonical mapping that is often lossy;
+/// `docs/adr/entry-name-is-the-only-seam.md` is the record that argues it.
+pub(crate) fn promote<N: EntryName>(
+    snapshot: &Snapshot<N>,
+    key: Key,
+    parts: N::Parts,
+    first_child: Option<NewEntry<N::Parts>>,
+) -> Decision<N> {
+    // The refusals in the model's own order, which is `planPromote`'s: missing,
+    // then not a leaf, then no distinguished child, then parts that are not a
+    // node. The order is observable — a promotion of a *node* in a domain with
+    // no distinguished child has two true refusals and reports the first — so it
+    // is transcribed rather than reinvented.
+    let Some(leaf) = snapshot.by_key(key) else {
+        return Decision::Refuse(Refusal::TargetMissing { key });
+    };
+    if leaf.species() != Species::Leaf {
+        return Decision::Refuse(Refusal::PromoteNotLeaf {
+            key,
+            species: leaf.species(),
+        });
+    }
+    // Asked before the parts are looked at, because the answer is about the
+    // *domain* and not about this call: a domain with no distinguished child can
+    // never promote anything, and saying so is more useful than complaining
+    // about the parts of a call that could not have worked.
+    let Some(distinguished) = N::distinguished() else {
+        return Decision::Refuse(Refusal::PromoteNoDistinguished { key });
+    };
+    if N::positioned_species(&parts) != PositionedSpecies::Node {
+        return Decision::Refuse(Refusal::PromotePartsNotNode { key });
+    }
+    let Some(triple) = leaf.triple() else {
+        unreachable!("`by_key` answers with positioned entries, which all have a triple")
+    };
+    let level = level_of(&leaf.container());
+    let mut effects = vec![
+        // The node is a *new* directory carrying the promoted leaf's own ordinal
+        // and key. Nothing is allocated here: `freshKey` is not consulted,
+        // because the entity is unchanged and only its shape moved — which is
+        // also why *no key is ever reissued* is a claim about allocation rather
+        // than about creation, and why the model says so at length.
+        Effect::Create {
+            at: level,
+            name: N::compose(triple.ordinal, triple.key, parts),
+            content: Vec::new(),
+        },
+        // The leaf's own file, renamed into the node it now sits in. Its bytes
+        // move because the file moves: the library has no content model, and a
+        // rename is the only thing that can carry bytes it never read.
+        Effect::MoveTo {
+            entry: leaf.index(),
+            to: Level::Created(0),
+            name: distinguished,
+        },
+    ];
+    if let Some(child) = first_child {
+        // A node is a directory and has nowhere to hold bytes. The refusal
+        // belongs to *every operation that creates an entry* rather than to a
+        // list of them — `docs/formalism-findings.md` entry 012 is where the
+        // list went stale — and this is an operation that creates an entry.
+        if N::positioned_species(&child.parts) == PositionedSpecies::Node
+            && !child.content.is_empty()
+        {
+            return Decision::Refuse(Refusal::ContentForANode);
+        }
+        // `freshKey(f)` over the snapshot the promotion was planned from. The
+        // node consumed no key, so the tree's greatest is still the leaf's own
+        // maximum and this is the model's `compose(1, freshKey(f), …)`.
+        let Some(child_key) = greatest_key(snapshot).checked_add(1) else {
+            return Decision::Refuse(Refusal::KeysExhausted);
+        };
+        effects.push(Effect::Create {
+            at: Level::Created(0),
+            name: N::compose(Ordinal::FIRST, Key::new(child_key), child.parts),
+            content: child.content,
+        });
+    }
+    // Guarded like every other plan. Nothing a promotion builds can reach the
+    // refusal on a tree the library built — the node's name differs from the
+    // leaf's in its parts, and the two later destinations are in a directory
+    // this plan has just created — but a tree a failed rollback already damaged
+    // can, which is `wit_damagedTreeStrandsALaterOperation`.
+    Plan::of(effects).guarded(snapshot)
+}
+
+/// The level a container is, as a plan names it.
+fn level_of<N: EntryName>(container: &Container<'_, N>) -> Level {
+    match container.entry() {
+        None => Level::Root,
+        Some(node) => Level::Entry(node.index()),
+    }
 }
 
 /// The level an operation's target names, and the identity a plan refers to it

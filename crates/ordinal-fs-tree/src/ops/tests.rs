@@ -1,15 +1,17 @@
-//! `append`, `append_many` and `insert`, as the algebra decides them: no
+//! `append`, `append_many`, `insert` and `promote`, as the algebra decides them: no
 //! filesystem, no directory, and every answer a pure function of a snapshot
 //! built by hand.
 //!
 //! Every test here names the model claim it discharges, or says it has none.
 
-use super::{append, append_many, insert, NewEntry, Target};
-use crate::fixtures::{documents_tree, empty_tree, lesson, module, overview};
+use super::{append, append_many, insert, promote, NewEntry, Target};
+use crate::fixtures::{
+    contentless_tree, documents_tree, empty_tree, lesson, module, overview, Contentless,
+};
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
 use crate::reference::{Label, Parts, Status, SyllabusName};
 use crate::snapshot::{Builder, Snapshot};
-use crate::{EntryNameExt, Key, Ordinal, Species};
+use crate::{EntryName, EntryNameExt, Key, Ordinal, Species};
 
 fn draft(label: &str) -> Parts {
     Parts::lesson(
@@ -946,5 +948,404 @@ fn an_insert_on_a_tree_with_a_cloned_sibling_still_proceeds() {
             "02-draft-foo-i5.md",
             "01-draft-wedge-i6.md",
         ]
+    );
+}
+
+// ===========================================================================
+// promote
+// ===========================================================================
+
+/// The names a plan places, in the plan's own order, with the level each lands
+/// in and whether it is a create or a move.
+///
+/// A promotion is the first plan whose *shape* is the claim — create, move,
+/// create — so this reads all three off the value rather than asserting the
+/// names alone.
+fn landings_by_kind(plan: &Plan<SyllabusName>) -> Vec<(&'static str, Level, String)> {
+    plan.effects()
+        .iter()
+        .map(|effect| match effect {
+            Effect::Create { at, name, .. } => ("create", *at, name.to_string()),
+            Effect::MoveTo { to, name, .. } => ("move", *to, name.to_string()),
+        })
+        .collect()
+}
+
+/// Discharges `inv_promoteKeepsIdentity`, on the half the algebra decides: the
+/// node carries the promoted leaf's **own** ordinal and its **own** key, and the
+/// leaf itself is moved in as the distinguished child.
+///
+/// The document's lesson at ordinal 1, key 1 becomes the module at ordinal 1,
+/// key 1 — *the entry that was a leaf is the node*, so every reference to it by
+/// key still resolves.
+#[test]
+fn a_promotion_keeps_the_leafs_own_ordinal_and_key() {
+    let snapshot = documents_tree();
+    let leaf = snapshot.by_key(Key::new(1)).expect("the orientation lesson");
+    let plan = plan(promote(&snapshot, Key::new(1), topic("orientation"), None));
+
+    assert_eq!(
+        landings_by_kind(&plan),
+        [
+            ("create", Level::Root, "01-orientation-i1".to_string()),
+            ("move", Level::Created(0), "OVERVIEW.md".to_string()),
+        ]
+    );
+    let Effect::MoveTo { entry, .. } = &plan.effects()[1] else {
+        panic!("the second effect moves the leaf");
+    };
+    assert_eq!(
+        *entry,
+        leaf.index(),
+        "and it is the leaf's own file that moves, which is how its bytes move \
+         without the library ever reading them"
+    );
+}
+
+/// Discharges `wit_promoteTransientlyDuplicatesAKey` and
+/// `wit_promoteTransientlyDuplicatesAnOrdinal`, which the model **reaches**
+/// rather than excludes — and which `inv_ordinalsDistinctThroughout` exempts by
+/// name, in the one place it exempts anything.
+///
+/// A test cannot observe an interruption. What it can do — because the plan is a
+/// value — is read the state a crash could stop at off the plan: after effect
+/// one and before effect two, the node exists and the leaf has not moved, so
+/// both are in the same level carrying the same ordinal and the same key. There
+/// is no ordering that avoids it, which is the other half of this test: reversing
+/// the two effects is not an alternative plan but a plan that cannot run, since
+/// the level the move lands in is the one the create makes.
+#[test]
+fn a_promotion_passes_through_a_state_where_the_leaf_and_the_node_share_an_ordinal_and_a_key() {
+    let snapshot = documents_tree();
+    let leaf = snapshot.by_key(Key::new(1)).expect("the orientation lesson");
+    let was = leaf.triple().expect("a positioned entry");
+    let plan = plan(promote(&snapshot, Key::new(1), topic("orientation"), None));
+
+    let Effect::Create { at, name, .. } = &plan.effects()[0] else {
+        panic!("a promotion creates the node first");
+    };
+    let node = name.triple().expect("a composed name is positioned");
+    assert_eq!(*at, Level::Root, "in the level the leaf sits in");
+    assert_eq!(node.ordinal, was.ordinal);
+    assert_eq!(node.key, was.key);
+    assert_eq!(
+        leaf.container().entry(),
+        None,
+        "so after effect one, and before effect two, this level holds two \
+         entries at ordinal {} carrying key {} — the leaf and the node about to \
+         hold it",
+        was.ordinal,
+        was.key
+    );
+
+    let Effect::MoveTo { to, .. } = &plan.effects()[1] else {
+        panic!("a promotion moves the leaf second");
+    };
+    assert_eq!(
+        *to,
+        Level::Created(0),
+        "and the order is forced: the move lands in the level the create makes, \
+         so there is no plan with these two effects the other way round"
+    );
+}
+
+/// Discharges `wit_promoteWithChild`: the optional first child lands **inside**
+/// the new node, at [`Ordinal::FIRST`], in the same unit as the promotion — the
+/// model's `compose(1, freshKey(f), …)` at `Level::Created(0)`.
+#[test]
+fn a_promotion_can_create_a_first_child_in_the_same_unit() {
+    let snapshot = documents_tree();
+    let plan = plan(promote(
+        &snapshot,
+        Key::new(1),
+        topic("orientation"),
+        Some(NewEntry::new(draft("welcome"), b"welcome\n".to_vec())),
+    ));
+
+    assert_eq!(
+        landings_by_kind(&plan),
+        [
+            ("create", Level::Root, "01-orientation-i1".to_string()),
+            ("move", Level::Created(0), "OVERVIEW.md".to_string()),
+            (
+                "create",
+                Level::Created(0),
+                "01-draft-welcome-i10.md".to_string()
+            ),
+        ]
+    );
+}
+
+/// Discharges `inv_freshKeysAreFresh` on the case the model's own comment is
+/// written about: *the property is about allocation, not creation*.
+///
+/// The node is a newly created object carrying key 1, which entry 1 already had
+/// — read as *no newly created object carries a key seen before*, the claim is
+/// simply false, and the model says so at length. Nothing was **allocated** for
+/// it. The first child is what allocates, and it takes `freshKey` over the whole
+/// tree, which is 10 and not 2: a promotion that had spent a key on the node
+/// would give the child 11.
+#[test]
+fn a_promotion_allocates_a_key_for_its_child_and_none_for_the_node() {
+    let snapshot = documents_tree();
+    let plan = plan(promote(
+        &snapshot,
+        Key::new(1),
+        topic("orientation"),
+        Some(NewEntry::empty(draft("welcome"))),
+    ));
+    let keys: Vec<u32> = plan
+        .effects()
+        .iter()
+        .filter_map(|effect| match effect {
+            Effect::Create { name, .. } => Some(
+                name.triple()
+                    .expect("a composed name is positioned")
+                    .key
+                    .get(),
+            ),
+            Effect::MoveTo { .. } => None,
+        })
+        .collect();
+    assert_eq!(keys, [1, 10]);
+}
+
+/// Discharges `inv_promoteKeepsIdentity`'s *nothing else moved* clause at the
+/// level below the root: the node is created in the leaf's **own** container,
+/// which is a node named by key, and no sibling is named by the plan at all.
+///
+/// A promotion is not an insert. Nothing shifts, because the node takes the
+/// ordinal the leaf is vacating in the same breath.
+#[test]
+fn a_promotion_deeper_in_the_tree_names_only_the_leaf_and_its_own_level() {
+    let snapshot = documents_tree();
+    let algebra = snapshot.by_key(Key::new(2)).expect("the module").index();
+    let plan = plan(promote(&snapshot, Key::new(6), topic("matrices"), None));
+
+    assert_eq!(
+        landings_by_kind(&plan),
+        [
+            (
+                "create",
+                Level::Entry(algebra),
+                "02-matrices-i6".to_string()
+            ),
+            ("move", Level::Created(0), "OVERVIEW.md".to_string()),
+        ],
+        "the node lands in the module the lesson sat in, at the lesson's ordinal"
+    );
+}
+
+/// Discharges `wit_refusedTargetMissing` for `promote`: an operation names its
+/// target by key, and a key naming nothing is refused.
+#[test]
+fn promoting_a_key_that_names_nothing_is_refused() {
+    assert_eq!(
+        refusal(promote(
+            &documents_tree(),
+            Key::new(99),
+            topic("nowhere"),
+            None
+        )),
+        Refusal::TargetMissing { key: Key::new(99) }
+    );
+}
+
+/// Discharges `wit_refusedPromoteNotLeaf`: a node is already a node.
+///
+/// The document says *a node is already a node, and a distinguished child has no
+/// ordinal to carry across; both are refused* — and only the first half is
+/// reachable, here and in the model alike, because a target is named by key and
+/// a distinguished child has none. The refusal carries the species it actually
+/// found, which is the only thing the predicate that selected it proves.
+#[test]
+fn promoting_a_node_is_refused() {
+    let refused = refusal(promote(
+        &documents_tree(),
+        Key::new(2),
+        topic("linear-algebra"),
+        None,
+    ));
+    assert_eq!(
+        refused,
+        Refusal::PromoteNotLeaf {
+            key: Key::new(2),
+            species: Species::Node,
+        }
+    );
+    assert!(
+        refused.to_string().contains("already"),
+        "a refusal says what to do about it: {refused}"
+    );
+}
+
+/// **No model claim, and none possible.** The model's `resolve` is
+/// `idsWithKey`, which filters on `isPositioned`, so the distinguished child is
+/// unreachable there for exactly the reason it is unreachable here — and a
+/// refusal no argument can reach has no witness to reach it.
+///
+/// This is the control on that reading: the document's example tree holds two
+/// distinguished children and `by_key` answers with neither, whatever key it is
+/// asked for. So the document's second clause describes a case that cannot
+/// arise, and `Refusal::PromoteNotLeaf` says so where a reader will meet it.
+#[test]
+fn a_distinguished_child_cannot_be_named_by_key_at_all() {
+    let snapshot = documents_tree();
+    assert!(
+        snapshot
+            .walk()
+            .any(|entry| entry.species() == Species::Distinguished),
+        "the document's tree holds distinguished children"
+    );
+    for key in 0..12 {
+        if let Some(found) = snapshot.by_key(Key::new(key)) {
+            assert_ne!(
+                found.species(),
+                Species::Distinguished,
+                "a distinguished child carries no key, so no key can name one"
+            );
+        }
+    }
+}
+
+/// Discharges `wit_refusedPromoteNoDistinguished`, and with it the whole content
+/// of the `no_distinguished` instance: a domain whose `distinguished()` is
+/// `None` cannot promote anything, because the leaf's content would have nowhere
+/// to go.
+///
+/// Refused outright rather than guessed at. The alternatives are discarding the
+/// bytes and inventing a name the domain never declared, and the library will do
+/// neither.
+#[test]
+fn promoting_in_a_domain_with_no_distinguished_child_is_refused() {
+    let snapshot = contentless_tree();
+    let decision = promote(
+        &snapshot,
+        Key::new(1),
+        Parts::module(Label::new("orientation").expect("a label")),
+        None,
+    );
+    let Decision::Refuse(refused) = decision else {
+        panic!("a domain with nowhere to put the content cannot promote");
+    };
+    assert_eq!(
+        refused,
+        Refusal::PromoteNoDistinguished { key: Key::new(1) }
+    );
+    assert!(
+        refused.to_string().contains("nowhere to go"),
+        "a refusal says why, and what to do: {refused}"
+    );
+}
+
+/// Discharges `wit_refusedPromotePartsNotNode`: the parts come from the caller,
+/// so the library checks what it was handed. Parts that make a leaf would name a
+/// regular file, and a promotion has to name a directory.
+#[test]
+fn promoting_with_parts_that_make_a_leaf_is_refused() {
+    let refused = refusal(promote(
+        &documents_tree(),
+        Key::new(1),
+        draft("orientation"),
+        None,
+    ));
+    assert_eq!(
+        refused,
+        Refusal::PromotePartsNotNode { key: Key::new(1) }
+    );
+}
+
+/// **No model claim** — the model has no notion of *first*, since a refusal is
+/// an outcome and `planPromote` is a chain of `if`s. What it does have is the
+/// chain's own order, and this transcribes it: a target that is both a node and
+/// in a domain with no distinguished child reports **not a leaf**, because that
+/// is the branch `planPromote` reaches first.
+///
+/// The order is observable, so it is transcribed rather than reinvented. It is
+/// also the useful one: *this domain can never promote anything* is a better
+/// answer than *that is a node* only when the call could otherwise have worked.
+#[test]
+fn the_refusals_are_reported_in_the_models_own_order() {
+    let mut builder = Builder::new();
+    let root = builder.root();
+    let module = builder
+        .add(
+            root,
+            Contentless::compose(
+                Ordinal::FIRST,
+                Key::new(1),
+                Parts::module(Label::new("linear-algebra").expect("a label")),
+            ),
+        )
+        .expect("a module is a node");
+    let _ = module;
+    let snapshot = builder.finish();
+
+    let Decision::Refuse(refused) = promote(
+        &snapshot,
+        Key::new(1),
+        Parts::module(Label::new("linear-algebra").expect("a label")),
+        None,
+    ) else {
+        panic!("a node is not a leaf");
+    };
+    assert_eq!(
+        refused,
+        Refusal::PromoteNotLeaf {
+            key: Key::new(1),
+            species: Species::Node,
+        },
+        "both refusals are true here, and the first branch is the one reported"
+    );
+}
+
+/// **No model claim, and none possible**: content is unmodelled in both models
+/// by design. A node is a directory and has nowhere to hold bytes, and the
+/// refusal belongs to *every operation that creates an entry* rather than to a
+/// list of them — `docs/formalism-findings.md` entry 012 is where that list went
+/// stale, and a promotion carrying a first child creates an entry.
+#[test]
+fn bytes_for_a_first_child_that_makes_a_node_are_refused() {
+    assert_eq!(
+        refusal(promote(
+            &documents_tree(),
+            Key::new(1),
+            topic("orientation"),
+            Some(NewEntry::new(topic("nested"), b"bytes".to_vec())),
+        )),
+        Refusal::ContentForANode
+    );
+}
+
+/// **No model claim**: an integer in either model is unbounded, so neither can
+/// pose exhaustion. The node allocates nothing, so a promotion *without* a first
+/// child succeeds on this tree; the child is what needs `max + 1`, and there is
+/// none.
+#[test]
+fn a_promotion_whose_child_has_no_fresh_key_is_refused_and_one_without_a_child_is_not() {
+    let mut builder = Builder::new();
+    let root = builder.root();
+    builder.add(root, lesson(1, u32::MAX, Status::Draft, "the-last-key"));
+    let snapshot = builder.finish();
+
+    assert_eq!(
+        refusal(promote(
+            &snapshot,
+            Key::new(u32::MAX),
+            topic("the-last-key"),
+            Some(NewEntry::empty(draft("child"))),
+        )),
+        Refusal::KeysExhausted
+    );
+    let plan = plan(promote(
+        &snapshot,
+        Key::new(u32::MAX),
+        topic("the-last-key"),
+        None,
+    ));
+    assert_eq!(
+        plan.effects().len(),
+        2,
+        "the node carries the leaf's own key, so it allocates nothing"
     );
 }

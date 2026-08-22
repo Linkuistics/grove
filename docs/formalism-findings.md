@@ -1469,6 +1469,154 @@ when an implementation transcribes a model, transcribe the predicate and read th
 comment as commentary. The tightened comment is the durable half of this fix; the
 code would have been written correctly the first time if it had been there.
 
+### 014 — Implementing the one operation that can damage a tree (`ordinal-fs-tree`'s `promote`)
+
+**Situation.** `promote-k12`: turn a leaf into a node, with the node's parts
+supplied by the caller, moving the leaf's bytes verbatim into the new node's
+distinguished child and keeping the leaf's own ordinal and key — optionally
+creating a first child in the same unit. It has the most that can go wrong of
+any operation here, and it is the only one by which the library can damage a
+tree it was handed: its single undo is *remove the node just created*, so a
+rollback failing there leaves a leaf and a node sharing an ordinal and a key.
+
+**Formalism.** None written. Both suites re-run as controls first: Alloy 20/20,
+Quint every claim across all eight instances with every witness reached in a
+non-zero number of traces. **Neither model changed**, and neither contradicted
+the implementation. The instruments that did the work were `operations.qnt` read
+as a specification — its `planPromote` chain, four witnesses and one long
+explanatory comment — and **six mutation controls**.
+
+**The measurement.** Twenty-two tests: seventeen naming a model claim, five
+saying they have none, and none naming neither. The ratio is entry 012's again
+and for the same reason — `promote` is squarely inside the model's scope. What
+the count hides is *where* the five sit: four of the five are refusals or
+arithmetic the models exclude by design, and the fifth is the control on a
+document sentence.
+
+**Caught.** Four.
+
+- **The document states a refusal in two halves and one half cannot be
+  asked for.** *A node is already a node, and a distinguished child has no
+  ordinal to carry across; both are refused.* But an operation names its target
+  by key and a distinguished child carries none — so `by_key` cannot answer with
+  one, and neither can the model's `resolve`, whose `idsWithKey` filters on
+  `isPositioned`. The model does not contradict the document; it declines to
+  support half of it, silently, by having **no witness** for a case no argument
+  reaches. This is entry 013's counterfactual moved one step earlier: 013 asks
+  what a message may *claim*, and this asks what a refusal may *enumerate*. The
+  fix is the same shape — state the check over what it reads (the species) and
+  say which case actually arrives — and the test that holds it is a control on
+  the document rather than on the code: the example tree holds two distinguished
+  children and `by_key` answers with neither, for any key.
+- **The model's longest explanatory comment was this leaf's hardest arithmetic.**
+  `inv_freshKeysAreFresh` carries a paragraph insisting the claim is about
+  *allocation*, not *creation*, because `promote` creates a directory carrying a
+  key that already exists. The implementation consequence is exact and easy to
+  get wrong in the invisible direction: the node consumes **no** key, so a first
+  child takes `freshKey`, not `freshKey + 1`. A promotion that had "spent" a key
+  on the node would leave a permanent hole in the key sequence and pass every
+  invariant, because a skipped key breaks nothing — it is not a duplicate, and
+  density is a property of ordinals rather than keys. Mutation (d) is the only
+  thing in the crate that fails on it. Entry 009's routing row — *an unenforced
+  invariant hiding in plain sight → the model's explanatory comments* — now has a
+  second instance, and this one is stronger: the comment did not merely explain
+  the claim, it was the only statement of the arithmetic anywhere.
+- **A forced order is not an ordering rule, and the test should assert the
+  forcing.** `insert`'s highest-first rule has a counterfactual instance
+  (`lowest_first`) that makes the alternative real and gives a test its control,
+  which is entry 012's headline. `promote` looks like the same shape — create,
+  then move, and the intermediate state is exactly what the witnesses are about
+  — but it has **no alternative**: the move lands in `Level::Created(0)`, the
+  level the create produces, so the two effects reversed is not a worse plan but
+  an unrunnable one. So the test asserts the *forcing* — that the second effect's
+  level is the first effect's product — instead of asserting an order that
+  nothing could have chosen differently. Reading the model for a counterfactual
+  instance and finding none is what made the difference visible; without that
+  question the test would have asserted the order and looked identical.
+- **A recovery instruction is worth printing only if it describes the state it
+  will be read in, and that is checkable.** `Error::FailedPartiallyRolledBack`
+  already said *a node and a leaf sharing an ordinal and a key, with the node
+  holding no distinguished child, is an interrupted promotion; removing either
+  half resolves it.* Applying entry 013's habit — name the fact behind each
+  clause — turns that into a test shape rather than a review: drive the state
+  with the fault seam, assert each clause of the advice **as a fact about the
+  directory**, then follow the advice and assert the tree reads cleanly again.
+  Three clauses, three assertions about disk, one execution of the remedy. The
+  message was already right; what was missing was anything that would notice if
+  the operation's shape drifted away from it.
+
+**Missed.** Two.
+
+- **The most consumer-visible property of this operation has no model claim at
+  all.** *The leaf's bytes move verbatim* is what a caller actually cares about,
+  and content is unmodelled in both models by design — `operations.qnt`'s handoff
+  block says so. The model can say the leaf's *object* becomes the distinguished
+  child; only a file with something in it can say the bytes survived. This is the
+  third leaf running to spend its integration tests on the excluded list, which
+  is entry 011's routing row holding up well. What is new is the ratio: for
+  `promote` the excluded property is not a corner, it is the point of the
+  operation.
+- **The model's rarest reachable state was the implementation's cheapest test,
+  and the model's own cost figure is misleading about that.** Entry 003 records
+  the failed-rollback duplicate key as reached in 0.07% of traces and needing its
+  own sample budget to find at all. Reaching it in the implementation took
+  `Faults::at_effect_and_unwind(1, 0)` — one line, deterministic, a few
+  milliseconds. Rarity under random simulation measures how hard a state is to
+  *stumble into*, and says nothing about how hard it is to *steer into* through
+  an injected fault. Reading the 0.07% as "this will be expensive to test" would
+  have been exactly wrong, and it is the kind of number that invites the
+  inference.
+
+**The mutation controls.** Six, run against the whole crate suite with
+`--no-fail-fast`, each restored before the next:
+
+| mutation | tests failed |
+|---|---|
+| (a) the node takes a fresh key instead of the leaf's | 10 |
+| (b) the node takes the level's next ordinal instead of the leaf's | 8 |
+| (c) drop the parts-imply-a-node refusal | 2 |
+| (d) the child's key steps past a key the node did not take | 3 |
+| (e) never move the leaf in — the content is silently left behind | 10 |
+| (f) report the domain refusal before the not-a-leaf one | 1 |
+
+Every one was caught. (d) and (f) are the two worth keeping: each is caught by
+tests that exist for no other reason, and both are defects that leave a tree
+every stated invariant holds of — a skipped key and a differently-ordered pair of
+true refusals. (e) is the control on the missed property above: it fails ten
+tests, and the four that matter are the on-disk ones, since the algebra tests
+notice only that an effect is absent while the integration tests notice that a
+consumer's file is gone.
+
+**Cost.** Under a session. Both suites re-run in parallel, Alloy in about twenty
+seconds and Quint in roughly four minutes, and neither moved — bought as the
+control separating *the code is wrong* from *the specification moved*. The six
+mutations were a scripted loop over one file, which is what made six affordable
+where entry 012 ran four; the loop is worth keeping, and its one trap is that
+`cargo test`'s ordinary failure line contains the word `error`, so a naive
+"did it compile?" check reads every caught mutation as a build failure. That is
+the same instrument-reporting-less-than-it-has shape as entry 012's missing
+`--no-fail-fast`, arriving in the harness this time rather than in the tool.
+
+**Counterfactual.** **Ask of every enumerated case whether an argument can
+produce it.** The document's *both are refused* was written when nothing named a
+target yet; by the time targets were keys, half of it was unreachable, and
+nothing noticed because prose has no typechecker and an unreachable refusal
+costs nothing until someone implements it. The model already carried the answer
+— no witness, because no reachable case — but a **missing** witness is invisible
+in a way a failing one is not: `run-quint.sh` reports what it was asked about,
+and nobody asks about a case they think is live. So the cheap check is the
+enumeration itself: for each case a refusal names, name the argument that reaches
+it. It costs no formalism and no run, it is the same free check as 013's
+*name the value behind each clause*, and it is the one that would have caught
+this at the time the sentence was written.
+
+**Verdict.** Yes to the model, and specifically to its **comments** for this
+kind of leaf. `promote`'s witnesses told the implementation what states to
+expect, which entry 012 already predicted; what the witnesses could not tell it
+was the arithmetic, and the one paragraph of prose inside `operations.qnt` did.
+Second standing habit, from the same place: when a model records a state as rare,
+that is a fact about its simulator, not about your test.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -1506,4 +1654,8 @@ guesses are not.
 | how do I test a rule whose payoff is a state nothing observes? | the witness that is live in only one instance — it names the control | 012: highest-first buys distinct ordinals at every intermediate state, and a lone "every state is distinct" assertion passes under any shift order. `wit_shiftTransientlyDuplicatesAnOrdinal` is reachable only in `lowest_first`, so replaying the same landings the other way is the control the model itself points at |
 | reading a model on the way into an implementation | the witnesses before the invariants | 012: the invariants confirmed what the document already said; the witness *pair* discriminating one outcome by a predicate is what turned one refusal into two messages. The behavioural half of 004's *witnesses are the test suite* |
 | a refusal that covers a modelled idealisation | state it over the property, never over a list of operations | 012: *bytes for a node are refused* was written of the two operations that existed, and `insert` fell off the list. There is no typechecker for prose, so the quantifier is the only thing that ages well |
+| an enumerated refusal — "can an argument actually produce each case it names?" | none — name the argument that reaches each case | 014: *a node and a distinguished child are both refused* was half unreachable, because a target is named by key and a distinguished child carries none. A model declines to support such a case by having **no witness**, which is invisible in a way a failing claim is not. The free check after 013's *name the value behind each clause* |
+| a state a model reports as rare — "will this be expensive to test?" | no — ask what steers into it, not what stumbles into it | 014: the failed-rollback duplicate key is reached in 0.07% of traces and needed its own sample budget (003); reaching it in the implementation is one line of the internal fault seam. Rarity measures the simulator, not the test |
+| an order that looks like a rule — "could it have been the other way?" | look for the model's counterfactual instance; its absence is the answer | 014: `insert`'s shift order has `lowest_first` and `promote`'s has nothing, because the second effect lands in the level the first creates. A forced order is a consequence, and the test should assert the forcing rather than the order |
+| a recovery instruction — "does the advice describe the state it will be read in?" | drive the state, assert each clause against disk, then follow the advice | 014: three clauses of `FailedPartiallyRolledBack`'s promotion advice, three assertions about a real directory, and the remedy executed. Turns 013's review habit into a test |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |

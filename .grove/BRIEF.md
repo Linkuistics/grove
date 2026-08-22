@@ -69,8 +69,10 @@ reserved names are variants of that type. No domain callbacks or hooks anywhere.
 **Surface: everything grove's tree modules do except migration** — the name
 grammar, the tree algebra (walk, resolve, ancestor chain, append,
 insert-with-sibling-shift, leaf-to-node promotion, attribute rewrite), its
-filesystem realisation, the version-control-aware move primitive, and the shared
-and exclusive lock guards. Migration is out entirely.
+filesystem realisation, and the shared and exclusive lock guards. Migration is
+out entirely, and so — settled since, by the architecture — is the
+version-control-aware move primitive: a rename is `rename(2)`, and the library
+detects no repository and requires no tool on `PATH`.
 
 **The model leads.** Quint, written per operation, before that operation is
 implemented. Where the model and a test disagree, the model wins and the test
@@ -112,7 +114,10 @@ Established by reading the current implementation; the extraction must preserve
 each of these:
 
 - The lock is `flock` on the working tree's directory — the *parent* of the tree
-  root, not the root. Lock scope is therefore itself a domain decision.
+  root, not the root. Settled since, by the architecture: that reasoning is
+  general — the containing directory exists before the root is created and
+  persists after it is deleted — so lock scope is the **library's** rule and not
+  a domain decision. Consumers never mention locking.
 - Paths are deliberately never canonicalised: locking follows inode identity
   through the descriptor, output preserves the caller's spelling. On macOS `/var`
   and `/private/var` name the same inode, so canonicalising would make the mere
@@ -135,8 +140,6 @@ and has nothing to do with tree invariants.
 
 ## On the horizon
 
-- The CLI's own shape, once there is a library for it to expose. Whether it
-  belongs to increment 1's decomposition or its own is `library-k6`'s to decide.
 - The grove flip.
 - **Distilling `docs/formalism-findings.md` into a `linkuistics` skill.** The
   question is precisely stateable already; its *scope* is not, because it depends
@@ -144,10 +147,6 @@ and has nothing to do with tree invariants.
   after every modelling and implementation leaf, and an append lands it before
   work not yet cut. So it stays here until the modelling is done, then earns a
   leaf.
-- Whether a checked model can be shown to drive an implementation, or whether
-  that stays an article of faith. This is H3 in the findings log and the least
-  certain of the three hypotheses; it needs a deliberate test, not an impression
-  gathered in passing.
 - Splitting the crate into separately-modellable units.
 
 ## Settled since this brief was written
@@ -175,7 +174,8 @@ alone:
   which context maintains them.
 
 **The operation set is fixed**, which is what the implementation leaves were
-waiting for. `library-k6` cuts them.
+waiting for. `library-k6` cut them: increment 1 is now the node `crate-k7`,
+nine leaves, seam through CLI.
 
 **`ordinal-fs-tree` is a third bounded context, and the two records are filed.**
 `records-k5` closed the question this brief had left on the horizon. The evidence
@@ -200,3 +200,37 @@ later session needs:
   split by layer and the non-derived key source lived only in
   `02-architecture-k2/BRIEF.md`. That, and the reversal cost, is what the two
   records carry that the document does not.
+
+**Increment 1 is cut, and the crate has a home.** `library-k6` decomposed it
+into the node `crate-k7` — nine leaves, seam → reading → interpreter → insert →
+promote → rewrite → H3 probe → CLI design → CLI. That node's `BRIEF.md` carries
+what binds inside it and is not repeated here. Three facts this brief's own
+readers need:
+
+- **The crate lands at `crates/ordinal-fs-tree/`**, a member of a workspace
+  whose root package stays `grove`, and `docs/ordinal-fs-tree/` does **not**
+  move with it while it lives in this repo — four artifacts link into that path
+  and `docs/adr/` is flat and repo-wide. `CONTEXT-MAP.md`'s open question is
+  closed accordingly; its "moves with the crate" promise is about extraction to
+  a separate repository, which is not increment 1.
+- **The CLI is inside increment 1**, as a `design` leaf and an `impl` leaf at
+  the end of `crate-k7`, because it is the only end-to-end consumer the library
+  gets before the flip.
+- **H3 is pre-registered, not left to impression.** `07-impl-h3-probe-k14.md`
+  carries the probe, the arms, the measure, a prediction and a falsification
+  condition, all written before any implementation leaf ran. The horizon item
+  that asked for a deliberate test is discharged by that leaf's existence.
+
+**What the flip inherits from dropping the version-control-aware move.**
+`src/tree_rename.rs` dispatches on trackedness today: `git mv` for a tracked
+entry so the operator's `git status` shows a clean rename, a plain `fs::rename`
+for an untracked one. The library does `rename(2)` unconditionally. Both commit
+byte-identical trees — git infers renames at diff time, by content similarity —
+so nothing is lost at the commit. What changes is the window before it: a
+tracked entry renamed through the library leaves git's index holding the old
+path, so `git status` shows a deletion plus an untracked file rather than a
+rename, and a commit naming only the old path would record the deletion alone.
+Increment 2 decides whether grove re-stages after a library rename, accepts the
+changed status output, or something else; it is an input to that decomposition
+rather than work of its own. jj is unaffected — it snapshots the working copy
+and grove already renames plainly there.

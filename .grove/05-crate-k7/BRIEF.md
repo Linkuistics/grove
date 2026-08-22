@@ -1,0 +1,139 @@
+# crate-k7 — brief
+
+## Goal
+
+Increment 1 of the root brief: `ordinal-fs-tree` and its CLI, standing alone.
+A crate that implements the design in `docs/ordinal-fs-tree/ARCHITECTURE.md`,
+whose behaviour follows the two models rather than the reverse, and a CLI that
+drives a conforming tree. No grove changes anywhere in this subtree — the flip
+is increment 2 and its regression cover is grove's own ~130 CLI-contract tests,
+which are not this increment's business.
+
+## Done when
+
+- The crate builds and tests green at `crates/ordinal-fs-tree/`, as a workspace
+  member of this repo, with `grove` still building and testing green beside it.
+- Every operation in `ARCHITECTURE.md`'s *Operations* tables exists, with its
+  stated refusals, and each test names the model claim it discharges.
+- A test — not a convention — enforces that the algebra cannot reach `std::fs`.
+- A conforming domain can check its own name type against the five trait
+  obligations without reading the architecture document.
+- The CLI drives a conforming tree end to end.
+- `docs/formalism-findings.md` carries an entry from every leaf here, including
+  the leaves that found nothing.
+
+## Read first, in this order
+
+Every leaf in this subtree reads these; no leaf body repeats them.
+
+1. `docs/ordinal-fs-tree/ARCHITECTURE.md` — the specification of record for
+   everything the models do not cover, and the explanation for everything they
+   do. Read the whole document once; a later leaf may read only its own
+   operation's rows plus *How an operation runs*, *Refusals* and *Invariants*.
+2. `docs/ordinal-fs-tree/CONTEXT.md` — this context's glossary. Its *leaf* and
+   *node* are **not** grove's, and the collision is why the library is a
+   separate bounded context. grove's words must not appear in the crate.
+3. `docs/ordinal-fs-tree/models/operations.qnt`, its closing `HANDOFF` block
+   first, then the claims your leaf's operation names; and `structure.als` for
+   anything about a single tree. `run-alloy.sh` and `run-quint.sh` report
+   pass/fail per claim.
+4. `docs/formalism-findings.md`, entries 001–003 — **the misses before the
+   hits**. They name what the models did not establish and therefore what an
+   implementation has to get right unaided.
+5. `docs/adr/entry-name-is-the-only-seam.md` and
+   `docs/adr/entries-are-never-removed.md` — the two decisions the design
+   earned, carrying the rejected alternatives the architecture document does
+   not.
+
+## Decomposition
+
+Dependency-ordered. Each leaf leaves the crate compiling and its tests green,
+and each can be verified without waiting on a sibling.
+
+1. `seam` — the crate skeleton, the name types, the `EntryName` trait, the
+   reference domain, the obligation conformance kit, the no-`std::fs` test.
+2. `reading` — the lock, the snapshot and its parse trichotomy, and the five
+   reading operations. The first leaf that touches a filesystem.
+3. `interpreter` — plan and effect types, the interpreter with its exclusive
+   create and its rollback, and the `append` family that makes both observable.
+4. `insert` — the sibling shift, the highest-first ordering rule, and the
+   sequential destination check the ordering rule depends on.
+5. `promote` — the leaf-to-node change, its unavoidable transient invariant
+   break, and the one path by which the library can damage a tree.
+6. `rewrite` — attribute change in place, and the species refusal.
+7. `h3-probe` — the pre-registered model-versus-prose experiment. Runs after
+   every mutation exists so it can fall back to a second probe.
+8. `cli-shape` — what the CLI is, given a library generic over a name type.
+9. `cli` — build it.
+
+## What binds every leaf here
+
+**The model leads, and it leads in a specific direction.** Where a model and a
+test disagree, the model wins and the test changes. Where a model and the
+implementation disagree, change the **model first**, re-run its runner, and only
+then the code — `operations.qnt`'s handoff block states this and states what
+adding an operation to the model obliges. Every such disagreement is a finding
+for `docs/formalism-findings.md`, not something to fix in passing. The working
+implementation in `src/tree_*` is **not** the reference; it may be read for
+prior art and never cited as authority.
+
+**Each test names the claim it discharges.** A test derived from a model claim
+carries that claim's name in a comment. A test with no claim behind it says so.
+This is what lets a later reader tell a checked property from an arranged one,
+and it is the H3 probe's measure — so it is not optional and not cosmetic.
+
+**Re-run a model's suite when you touch that model; run both once, early.**
+`seam` establishes that both toolchains work on this machine before anything
+depends on them. Entry 003's third instrument failure is the reason: a suite of
+must-hold claims cannot detect that it did not run, and the must-be-reached
+witnesses are the positive control. Every witness failing at once is a broken
+toolchain, never a design defect.
+
+**Append to `docs/formalism-findings.md` before retiring.** Six fields; short is
+fine, silent is not. An uneventful episode — the model and the code agreed, at
+this cost — is H2 evidence, and a log that records only disagreements is a
+survivorship sample.
+
+**The shared test seams.** One reference domain implementation of `EntryName`,
+the course-syllabus domain `ARCHITECTURE.md` uses for its examples, shared by
+every test and by the CLI — so the document's examples and the fixtures cannot
+drift apart. One internal seam for making an effect fail, which must not appear
+in the public API: a second public seam contradicts
+`docs/adr/entry-name-is-the-only-seam.md`, and if it cannot be kept private that
+is a finding that reworks the record rather than quietly widening it.
+
+**Consider review, do not schedule it.** A review chain is cut lazily, as the
+last act of the session whose artifact needs one. `seam` is the likeliest
+candidate — every later leaf is built on the trait's shape — but that is the
+seam session's call, not this brief's.
+
+## Pointers
+
+- ADRs: `docs/adr/entry-name-is-the-only-seam.md`,
+  `docs/adr/entries-are-never-removed.md`.
+- Glossary: `docs/ordinal-fs-tree/CONTEXT.md`. Terms in play throughout —
+  entry, leaf, node, root, distinguished child, ordinal, key, parts, species,
+  verdict, snapshot, algebra, decision, plan, effect, interpreter, report,
+  refusal, shift, promotion.
+- Placement: the crate is `crates/ordinal-fs-tree/`, a member of a workspace
+  whose root package stays `grove`. `docs/ordinal-fs-tree/` does not move while
+  the crate lives in this repo — the two library ADRs, `CONTEXT-MAP.md` and
+  `docs/formalism-findings.md` all link into it, and `docs/adr/` is flat and
+  repo-wide because grove occupies the repo root.
+- Build floor: `rust-version = "1.85"` and a clippy baseline of zero, both
+  stated with their evidence in the root `Cargo.toml`. A new crate inherits
+  both; `cargo clippy --all-targets` before committing.
+
+## On the horizon
+
+- **Whether the crate wants its own `CHANGELOG`, version and release lane.**
+  Precise enough to state, and it depends on an answer this increment does not
+  produce: whether the crate is ever published separately or only ever consumed
+  in-tree by grove. `release.toml` currently sets `publish = false` repo-wide.
+
+## Notes
+
+The library's Unix-only build is deliberate and invisible in the interface —
+locking is entirely internal, so gaining a platform later changes no signature
+and no caller. Do not thread a platform parameter through anything to prepare
+for it.

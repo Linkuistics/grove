@@ -800,6 +800,68 @@ suite, break the implementation six ways and watch it go red: it is minutes, it
 is not a formalism, and it is the only thing that distinguishes a suite that
 holds from one that was written to pass.
 
+### 007 — Adversarial review of the first filesystem layer (`ordinal-fs-tree`)
+
+**Situation.** `reading-k19` inspected the lock, snapshot, five reading
+operations and their tests before the four mutation leaves could build on them.
+The producer had already named five judgements to attack and recorded six
+deliberate mutations, so the review treated those mutations as claims about the
+instrument rather than rerunning them.
+
+**Formalism.** None written or run. This was the same instrument entry 005 first
+measured: a fresh adversarial reader briefed with specific judgements, reading
+the committed diff against the architecture, both models' recorded misses, the
+source and the tests. The review kind deliberately did not run test, build, lint
+or model commands. Codebase-memory could not index this jj workspace because its
+worker could not verify daemon coordination in the sandbox, so every cited file
+was read directly and negative test-coverage claims were checked over the exact
+test sources rather than inferred from an empty graph.
+
+**Caught.** Four findings, three of them claims about what the tests established
+rather than failures in the happy path.
+
+- The accepted spelling `root/child/..` reads the same tree while lexical
+  `parent()` locks `root/child`, not the directory the direct spelling locks.
+  The lock therefore fails its same-tree/same-inode claim exactly on the
+  no-canonicalisation test's own fixture. A terminal symlink has the same shape.
+- The textual no-filesystem guard strips comment delimiters without lexing
+  literals. A `"/*"` string can put it at positive comment depth and hide every
+  later filesystem use while the guard reports clean.
+- The test named for `(ordinal, key, rendered name)` aligns key order with name
+  order, so an implementation that omits the key tie-break passes it. The
+  recorded mutation inverted distinguished-first order and never exercised this
+  differently wrong comparator.
+- Public `Place` values carry only an arena index. A place from another builder
+  silently names the current builder's node when their indices coincide, despite
+  `Builder::add` promising that a foreign place panics.
+
+**Missed.** This review did not execute the producer's verification evidence,
+by design: `review-*` is an inspection-only kind, so environmental and runtime
+failures remain the producer's recorded evidence until the integration leaf
+changes code and reruns it. The non-UTF-8 trade was attacked and held: once the
+seam accepts `&str`, treating unreadable bytes as `Foreign` would be a guess.
+The walk comparator itself also held; the defect is in the fixture meant to
+protect it.
+
+**Cost.** One session. Most of the cost was reading the 1,600-line artifact and
+its specifications; the disproofs themselves were small. The graph indexing
+failure added a short fallback pass over exact sources but changed no finding.
+
+**Counterfactual.** Each finding had a cheaper executable question the producer
+could have asked. Acquire two guards for the direct and roundabout spellings and
+ask whether they contend. Put opposing key/name order in the comparator fixture.
+Feed the textual detector comment-shaped tokens inside every Rust literal form.
+Pass a same-index node place between two builders. The shared lesson is sharper
+than *mutate the implementation*: **mutate the assumption independently of the
+happy-path structure the test author chose**. A stubbed lock proves presence,
+not identity; one inverted sort key proves ordering matters, not that all later
+keys are in the stated precedence.
+
+**Verdict.** Reach for a named-judgement adversarial review before dependants
+when a layer's tests and implementation were written together. Mutation controls
+are evidence only for the semantic dimension they vary; ask which independently
+wrong implementation each control still lets through.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;

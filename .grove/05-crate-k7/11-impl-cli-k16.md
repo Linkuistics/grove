@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build the CLI that `09-design-cli-shape-k15.md` settled. This is the leaf that
+Build the CLI that `10-design-cli-shape-k15.md` settled. This is the leaf that
 closes increment 1: after it, `ordinal-fs-tree` stands alone with a driver, and
 the library has its first end-to-end consumer.
 
@@ -10,7 +10,7 @@ the library has its first end-to-end consumer.
 
 Beyond the brief chain:
 
-- Whatever `09-design-cli-shape-k15.md` produced. It is the specification for
+- Whatever `10-design-cli-shape-k15.md` produced. It is the specification for
   this leaf, the way the models are for the operation leaves.
 - `linkuistics:cli-tool-design`, again, at the point where help text, exit codes
   and error text are actually written.

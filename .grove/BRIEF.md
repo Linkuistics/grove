@@ -216,7 +216,7 @@ readers need:
 - **The CLI is inside increment 1**, as a `design` leaf and an `impl` leaf at
   the end of `crate-k7`, because it is the only end-to-end consumer the library
   gets before the flip.
-- **H3 is pre-registered, not left to impression.** `08-impl-h3-probe-k14.md`
+- **H3 is pre-registered, not left to impression.** `09-impl-h3-probe-k14.md`
   carries the probe, the arms, the measure, a prediction and a falsification
   condition, all written before any implementation leaf ran. The horizon item
   that asked for a deliberate test is discharged by that leaf's existence.

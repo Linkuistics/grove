@@ -32,6 +32,22 @@ libc = "0.2"
 [dev-dependencies]
 tempfile = "3.10"
 
+# `proc-macro2` is the Rust lexer, and `tests/algebra_has_no_filesystem.rs` is
+# where a hand-rolled one was silently wrong. That test used to strip comments
+# textually; `reading-k19` found that a `"/*"` inside a string literal left it at
+# positive comment depth, so every filesystem use after it disappeared while the
+# guard reported clean. The alternative to this dependency is a partial Rust
+# lexer maintained here — raw strings and their hash counts, byte and character
+# literals, and the `'a` lifetime that looks exactly like an unterminated
+# character literal — which is more surface than the guard itself and fails in
+# the same silent direction. Asking the real lexer instead makes the question
+# trivial: a use of the filesystem is an `Ident`, and a comment or a string
+# literal never is one.
+#
+# It is a *dev*-dependency, so no consumer inherits it, and the workspace already
+# locks this version for its own build.
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
+
 [lints]
 workspace = true
 

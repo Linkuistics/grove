@@ -8,6 +8,11 @@
 //! without a directory, and it is the boundary
 //! `tests/algebra_has_no_filesystem.rs` holds.
 //!
+//! [`Builder`] is crate-private, so those tests are in `tests.rs` beside this
+//! file rather than in `tests/`. That is the shape `reading-k20` chose over
+//! publishing the construction arena: the public surface is what a consumer
+//! needs, and a consumer reads a tree from a directory.
+//!
 //! The specification is `docs/ordinal-fs-tree/ARCHITECTURE.md`, sections
 //! *Operations → Reading* and *How an operation runs*.
 //!
@@ -77,20 +82,51 @@ pub struct Snapshot<N> {
 /// Handed out by [`Builder::add`] and by [`Builder::root`], and by nothing else,
 /// so a place naming a leaf cannot be written — a leaf is a regular file and
 /// holds nothing.
+///
+/// A place that names a node carries **which builder handed it out**, and not
+/// only where in that builder's arena the node sits. `reading-k19` found the
+/// version that carried the index alone: two builders each holding a node at
+/// arena index 0 made a place from one silently name the other's node, and the
+/// promised panic fired only when the index happened to be absent or to land on
+/// something that was not a node. A construction seam that can quietly build a
+/// different tree from the one it was asked for is worse than one that refuses.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Place(Option<usize>);
+pub(crate) struct Place(Option<(BuilderId, usize)>);
 
 impl Place {
     /// The tree root.
-    pub const ROOT: Self = Self(None);
+    ///
+    /// The one place that needs no builder identity: every builder has a root,
+    /// and *this builder's root* is the only thing a caller can mean by it.
+    pub(crate) const ROOT: Self = Self(None);
+}
+
+/// Which [`Builder`] a [`Place`] came from.
+///
+/// A counter and not a pointer: a builder moves — `finish` consumes it by value
+/// — so its address is not its identity.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct BuilderId(u64);
+
+impl BuilderId {
+    fn next() -> Self {
+        static COUNTER: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
+        Self(COUNTER.fetch_add(1, core::sync::atomic::Ordering::Relaxed))
+    }
 }
 
 /// Builds a [`Snapshot`] from names, one level at a time.
 ///
-/// This is the only way a snapshot is made, and it is public because the
-/// filesystem is not the only source of one: every test of walk order in this
-/// crate builds its trees here, without a directory.
-pub struct Builder<N> {
+/// This is the only way a snapshot is made, and it is **crate-private**. The
+/// filesystem is not the only source of one — every test of walk order in this
+/// crate builds its trees here, without a directory — but those are this crate's
+/// own tests, and a test arrangement does not earn a production interface. The
+/// pure tests of the algebra therefore live beside it, in this module, rather
+/// than the arena being published so that `tests/` can reach it. `reading-k20`
+/// made that call; it is not a decision `ARCHITECTURE.md` ever recorded, because
+/// the construction seam was never part of the specified surface.
+pub(crate) struct Builder<N> {
+    id: BuilderId,
     entries: Vec<EntryData<N>>,
     root: Directory,
 }
@@ -104,8 +140,9 @@ impl<N: EntryName> Default for Builder<N> {
 impl<N: EntryName> Builder<N> {
     /// An empty tree: a root holding nothing.
     #[must_use]
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
+            id: BuilderId::next(),
             entries: Vec::new(),
             root: Directory::default(),
         }
@@ -113,7 +150,7 @@ impl<N: EntryName> Builder<N> {
 
     /// The tree root, to add the top level's names at.
     #[must_use]
-    pub fn root(&self) -> Place {
+    pub(crate) fn root(&self) -> Place {
         Place::ROOT
     }
 
@@ -127,26 +164,49 @@ impl<N: EntryName> Builder<N> {
     ///
     /// # Panics
     ///
-    /// If `at` came from a different builder.
-    pub fn add(&mut self, at: Place, name: N) -> Option<Place> {
+    /// If `at` came from a different builder. Deterministically, on the
+    /// identity the place carries — never on the accident of an arena index
+    /// being out of range or naming something that is not a node.
+    pub(crate) fn add(&mut self, at: Place, name: N) -> Option<Place> {
         let is_node = name.species() == Species::Node;
-        let depth = match at.0 {
+        let depth = match self.node_at(at) {
             None => 1,
             Some(parent) => self.entries[parent].depth + 1,
         };
         let index = self.entries.len();
         self.entries.push(EntryData {
             name,
-            parent: at.0,
+            parent: self.node_at(at),
             contents: is_node.then(Directory::default),
             depth,
         });
         self.directory_mut(at).children.push(index);
-        is_node.then_some(Place(Some(index)))
+        is_node.then_some(Place(Some((self.id, index))))
+    }
+
+    /// The arena index a place names in *this* builder, or `None` for the root.
+    ///
+    /// # Panics
+    ///
+    /// If the place came from another builder.
+    fn node_at(&self, at: Place) -> Option<usize> {
+        match at.0 {
+            None => None,
+            Some((id, index)) => {
+                assert!(
+                    id == self.id,
+                    "a place from another builder names nothing here: places are not \
+                     interchangeable between builders, and attaching a child to whatever \
+                     this builder happens to hold at the same index would build a \
+                     different tree from the one described"
+                );
+                Some(index)
+            }
+        }
     }
 
     fn directory_mut(&mut self, at: Place) -> &mut Directory {
-        match at.0 {
+        match self.node_at(at) {
             None => &mut self.root,
             Some(index) => self.entries[index]
                 .contents
@@ -157,7 +217,7 @@ impl<N: EntryName> Builder<N> {
 
     /// Put every level into walk order and freeze the tree.
     #[must_use]
-    pub fn finish(mut self) -> Snapshot<N> {
+    pub(crate) fn finish(mut self) -> Snapshot<N> {
         let mut levels: Vec<Vec<usize>> = Vec::with_capacity(self.entries.len() + 1);
         levels.push(core::mem::take(&mut self.root.children));
         for entry in &mut self.entries {
@@ -172,7 +232,9 @@ impl<N: EntryName> Builder<N> {
         self.root.children = levels.next().expect("the root level was pushed first");
         for entry in &mut self.entries {
             if let Some(contents) = entry.contents.as_mut() {
-                contents.children = levels.next().expect("one level per node, in the same order");
+                contents.children = levels
+                    .next()
+                    .expect("one level per node, in the same order");
             }
         }
         Snapshot {
@@ -191,9 +253,7 @@ fn sort_level<N: EntryName>(level: &mut [usize], entries: &[EntryData<N>]) {
             // The distinguished child first. Two of them is a domain that broke
             // an obligation; ordering them by name keeps both visible and keeps
             // the order total.
-            (NameView::Distinguished, NameView::Distinguished) => {
-                a.to_string().cmp(&b.to_string())
-            }
+            (NameView::Distinguished, NameView::Distinguished) => a.to_string().cmp(&b.to_string()),
             (NameView::Distinguished, NameView::Positioned(_)) => core::cmp::Ordering::Less,
             (NameView::Positioned(_), NameView::Distinguished) => core::cmp::Ordering::Greater,
             (NameView::Positioned(x), NameView::Positioned(y)) => x
@@ -430,13 +490,10 @@ impl<'a, N: EntryName> Container<'a, N> {
     /// then the positioned children by ordinal.
     pub fn children(&self) -> impl Iterator<Item = Entry<'a, N>> {
         let snapshot = self.snapshot;
-        self.directory()
-            .children
-            .iter()
-            .map(move |index| Entry {
-                snapshot,
-                index: *index,
-            })
+        self.directory().children.iter().map(move |index| Entry {
+            snapshot,
+            index: *index,
+        })
     }
 
     /// This level's positioned children, by ordinal — everything
@@ -544,3 +601,6 @@ impl<'a, N: EntryName> Iterator for Walk<'a, N> {
         Some(entry)
     }
 }
+
+#[cfg(test)]
+mod tests;

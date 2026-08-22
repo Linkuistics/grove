@@ -295,7 +295,9 @@ fn the_lock_covers_the_directory_containing_the_root() {
     let (arrived, waiting) = mpsc::channel();
     let reader = thread::spawn(move || {
         let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&beta).expect("an empty tree");
-        arrived.send(tree.walk().count()).expect("the test is waiting");
+        arrived
+            .send(tree.walk().count())
+            .expect("the test is waiting");
     });
 
     assert!(
@@ -304,8 +306,83 @@ fn the_lock_covers_the_directory_containing_the_root() {
     );
     drop(held);
     assert_eq!(
-        waiting.recv_timeout(SOON).expect("the reader proceeds once the writer lets go"),
+        waiting
+            .recv_timeout(SOON)
+            .expect("the reader proceeds once the writer lets go"),
         0
+    );
+    reader.join().expect("the reader thread");
+}
+
+/// Discharges no model claim — the models do not reach the filesystem. This is
+/// `reading-k19`'s High finding, as a test: the lock has to name the **tree**,
+/// not a spelling of it. The suite already asserts that
+/// `syllabus/02-linear-algebra-i2/..` reads the same seven entries as
+/// `syllabus`, so a writer holding one must exclude a reader arriving by the
+/// other. Under a lexical `Path::parent` it did not — that spelling locked the
+/// module directory — and this is the assertion that fails when it comes back.
+#[test]
+fn a_roundabout_spelling_of_one_tree_waits_on_the_direct_one() {
+    let (_temporary, root) = documents_tree();
+    let roundabout = root.join("02-linear-algebra-i2").join("..");
+
+    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let (arrived, waiting) = mpsc::channel();
+    let reader = thread::spawn(move || {
+        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&roundabout).expect("the same tree");
+        arrived
+            .send(tree.root().to_path_buf())
+            .expect("the test is waiting");
+    });
+
+    assert!(
+        waiting.recv_timeout(A_WHILE).is_err(),
+        "two spellings of one tree must contend on one lock"
+    );
+    drop(held);
+    let reported = waiting
+        .recv_timeout(SOON)
+        .expect("the reader proceeds once the writer lets go");
+    assert_eq!(
+        reported,
+        root.join("02-linear-algebra-i2").join(".."),
+        "and the lock converging must not cost the caller its own spelling"
+    );
+    reader.join().expect("the reader thread");
+}
+
+/// Discharges no model claim. The other shape of the same finding: a symbolic
+/// link naming the root. `<root>/..` makes the kernel follow the link and then
+/// step to the directory that really contains the tree, so the link and its
+/// target reach one inode — where a lexical parent would have locked whatever
+/// directory the link itself happens to sit in.
+#[test]
+fn a_symlinked_root_waits_on_its_target() {
+    let (temporary, root) = documents_tree();
+    // Deliberately in a *different* directory from the target, so a lexical
+    // parent could not accidentally agree.
+    let elsewhere = dir(temporary.path(), "elsewhere");
+    let link = elsewhere.join("syllabus");
+    std::os::unix::fs::symlink(&root, &link).expect("creating a symbolic link");
+
+    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let (arrived, waiting) = mpsc::channel();
+    let reader = thread::spawn(move || {
+        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&link).expect("the same tree");
+        arrived
+            .send(tree.walk().count())
+            .expect("the test is waiting");
+    });
+
+    assert!(
+        waiting.recv_timeout(A_WHILE).is_err(),
+        "a link and its target are one tree and take one lock"
+    );
+    drop(held);
+    assert_eq!(
+        waiting.recv_timeout(SOON).expect("the reader proceeds"),
+        7,
+        "and it really is the same tree"
     );
     reader.join().expect("the reader thread");
 }
@@ -320,8 +397,11 @@ fn two_readers_share_the_tree() {
     let elsewhere = root.clone();
     let (arrived, waiting) = mpsc::channel();
     let reader = thread::spawn(move || {
-        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&elsewhere).expect("a well-formed tree");
-        arrived.send(tree.walk().count()).expect("the test is waiting");
+        let tree =
+            ordinal_fs_tree::fs::read::<SyllabusName>(&elsewhere).expect("a well-formed tree");
+        arrived
+            .send(tree.walk().count())
+            .expect("the test is waiting");
     });
 
     assert_eq!(
@@ -350,8 +430,11 @@ fn a_writer_excludes_a_reader_until_it_is_dropped() {
     let elsewhere = root.clone();
     let (arrived, waiting) = mpsc::channel();
     let reader = thread::spawn(move || {
-        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&elsewhere).expect("a well-formed tree");
-        arrived.send(tree.walk().count()).expect("the test is waiting");
+        let tree =
+            ordinal_fs_tree::fs::read::<SyllabusName>(&elsewhere).expect("a well-formed tree");
+        arrived
+            .send(tree.walk().count())
+            .expect("the test is waiting");
     });
 
     assert!(
@@ -360,7 +443,9 @@ fn a_writer_excludes_a_reader_until_it_is_dropped() {
     );
     drop(held);
     assert_eq!(
-        waiting.recv_timeout(SOON).expect("and proceed once it is gone"),
+        waiting
+            .recv_timeout(SOON)
+            .expect("and proceed once it is gone"),
         7
     );
     reader.join().expect("the reader thread");

@@ -74,6 +74,11 @@ pub enum Error<N: EntryName> {
     /// exists before the root is created and persists after it is deleted, so
     /// the tree's creation and destruction fall under the same lock as every
     /// ordinary operation. A filesystem root has no such directory.
+    ///
+    /// Decided on the filesystem's own identity rather than on the shape of the
+    /// path, so `/`, `/..` and a symbolic link naming `/` are refused alike: a
+    /// root that *is* its own containing directory has nothing above it to
+    /// lock.
     NoContainingDirectory {
         /// The root as the caller spelled it.
         root: PathBuf,
@@ -87,7 +92,11 @@ pub enum Error<N: EntryName> {
 impl<N: EntryName> fmt::Debug for Error<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Io { path, doing, source } => f
+            Self::Io {
+                path,
+                doing,
+                source,
+            } => f
                 .debug_struct("Io")
                 .field("path", path)
                 .field("doing", doing)
@@ -117,7 +126,11 @@ impl<N: EntryName> fmt::Debug for Error<N> {
 impl<N: EntryName> fmt::Display for Error<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Io { path, doing, source } => {
+            Self::Io {
+                path,
+                doing,
+                source,
+            } => {
                 write!(f, "{doing} {}: {source}", path.display())
             }
             // The consumer's advice *is* the message. Prefixing it with a

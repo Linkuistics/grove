@@ -12,6 +12,7 @@
 
 use std::ffi::OsString;
 use std::fs;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use crate::snapshot::{Builder, Snapshot};
@@ -103,16 +104,58 @@ fn listing<N: EntryName>(directory: &Path) -> Result<Vec<(OsString, Found)>, Err
     Ok(found)
 }
 
-/// The directory whose lock covers this tree: the one **containing** the root.
+/// The directory whose lock covers this tree: the one **containing** the root,
+/// as the *kernel* resolves it.
 ///
-/// Lexical, and deliberately so — see `lock.rs`. An empty parent is the current
-/// directory, which is what `Path::parent` reports for a bare relative name.
+/// Asked for as `<root>/..`, and that spelling is the whole of the fix
+/// `reading-k19` found necessary. A lexical `Path::parent` chops a component
+/// off a string, but `..` and symbolic links are resolved by the kernel, one
+/// component at a time, against the directory actually reached — so the
+/// accepted spelling `syllabus/02-linear-algebra-i2/..` reads the tree
+/// `syllabus` while its lexical parent is `syllabus/02-linear-algebra-i2`, a
+/// different directory from the one the direct spelling locks. Two spellings of
+/// one tree would then take two locks, and the premise that a snapshot is read
+/// under the lock covering it would be false.
+///
+/// Handing the kernel `<root>/..` makes it resolve the root — following a final
+/// symbolic link, because a component in the middle of a path is followed — and
+/// then step to that directory's real parent. Every spelling of one tree
+/// therefore reaches one inode, and nothing here canonicalises: the path is
+/// still built from the caller's own spelling, so what a refusal reports is
+/// still what went in.
 pub(super) fn containing_directory<N: EntryName>(root: &Path) -> Result<PathBuf, Error<N>> {
-    match root.parent() {
-        None => Err(Error::NoContainingDirectory {
+    // The spellings with nothing to open at all — a filesystem root, and the
+    // empty path. Refused lexically because there is no directory to ask about.
+    if root.parent().is_none() {
+        return Err(Error::NoContainingDirectory {
             root: root.to_path_buf(),
-        }),
-        Some(parent) if parent.as_os_str().is_empty() => Ok(PathBuf::from(".")),
-        Some(parent) => Ok(parent.to_path_buf()),
+        });
     }
+    let directory = root.join("..");
+    // And the spellings that *do* open and land back on the root: `/..` is `/`,
+    // and so is any symbolic link to it. The identity is the filesystem's own —
+    // device and inode — because that is the identity `flock` attaches to, and
+    // a lexical rule is exactly what was wrong before.
+    if identity(root, "reading the tree root")?
+        == identity(&directory, "reading the directory containing the tree")?
+    {
+        return Err(Error::NoContainingDirectory {
+            root: root.to_path_buf(),
+        });
+    }
+    Ok(directory)
+}
+
+/// What the filesystem calls this path: the pair `flock` attaches to.
+///
+/// `metadata` follows symbolic links, deliberately — the question is which
+/// directory the caller's spelling *names*, not what its last component is
+/// stored as.
+fn identity<N: EntryName>(path: &Path, doing: &'static str) -> Result<(u64, u64), Error<N>> {
+    let metadata = fs::metadata(path).map_err(|source| Error::<N>::Io {
+        path: path.to_path_buf(),
+        doing,
+        source,
+    })?;
+    Ok((metadata.dev(), metadata.ino()))
 }

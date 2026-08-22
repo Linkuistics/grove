@@ -17,11 +17,22 @@
 //! back in a spelling the caller never used, so merely *adding* locking would
 //! rewrite the library's output.
 //!
-//! The same argument covers the lexical `parent()` this module is handed. A root
-//! spelled `/x/y/../y` has the lexical containing directory `/x/y/..`, which the
-//! kernel resolves to the same inode as `/x` — the containing directory of
-//! `/x/y`. The resolution belongs to the kernel, so the library does not have to
-//! do it, and does not have to be right about it.
+//! # The directory is named `<root>/..`, and the kernel resolves it
+//!
+//! Not `Path::parent`. That is a lexical operation on a string, and `reading-k19`
+//! disproved the claim that it converges: the accepted spelling `x/y/..` reads
+//! the tree `x/y/..` — that is, `x` — while its lexical parent is `x/y`, which is
+//! not the directory `x`'s own spelling locks. A final-component symbolic link
+//! has the same shape. Two spellings of one tree took two locks, so a writer
+//! through one did not exclude a reader through the other, and the intermediate
+//! states a mutation is entitled to leave were observable.
+//!
+//! `read::containing_directory` therefore hands this module `<root>/..` and lets
+//! the kernel resolve it: the root's own components first, symbolic links
+//! followed, then one step to the directory that really contains it. That keeps
+//! the no-canonicalisation rule intact — the path is still built from the
+//! caller's spelling, character for character — while making the *lock* follow
+//! the tree rather than the spelling.
 
 use std::fs::File;
 use std::io;

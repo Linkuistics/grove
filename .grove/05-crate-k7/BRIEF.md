@@ -146,6 +146,28 @@ surface, so three facts they need:
   overstated what Rust guarantees. Read it before trusting a *discharged by the
   type system* note in either.
 
+**The reading layer was reviewed and its findings integrated at
+`reading-k20`.** Three facts the seven remaining leaves need, because each
+changes how a leaf writes its tests or its code:
+
+- **`Builder` and `Place` are crate-private, so a test that builds a tree by
+  hand is a unit test.** The pure algebra tests live in `src/snapshot/tests.rs`,
+  not in `tests/`. A later leaf testing a decision or a plan against a hand-built
+  snapshot puts those tests beside the module they test and reaches the builder
+  through `super`; `tests/` keeps the tests that go through the public surface —
+  which means through a real directory. A `Place` also carries which builder
+  handed it out and panics deterministically if it came from another.
+- **The no-filesystem guard is a token scan, not a text scan.** It lexes every
+  source outside `src/fs/` with `proc-macro2` and refuses the identifier `fs`;
+  the only exemption is the token sequence `mod fs ;`. A new module is still
+  inside the algebra by default, and prose about the filesystem is now free —
+  but a *binding* named `fs` is a false positive that fails loudly.
+- **The lock names the tree, not a spelling of it.** The directory locked is
+  `<root>/..`, resolved by the kernel, so `..` routes and a symbolic link naming
+  the root all reach one inode while every reported path stays in the caller's
+  own spelling. `ARCHITECTURE.md` states the property; do not reintroduce a
+  lexical parent, and do not canonicalise to fix anything.
+
 ## On the horizon
 
 - **Whether the crate wants its own `CHANGELOG`, version and release lane.**

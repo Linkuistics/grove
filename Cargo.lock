@@ -421,6 +421,7 @@ name = "ordinal-fs-tree"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "proc-macro2",
  "tempfile",
 ]
 

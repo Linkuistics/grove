@@ -83,4 +83,4 @@ pub use name::{
     EntryName, EntryNameExt, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Triple,
     Verdict,
 };
-pub use snapshot::{Builder, Container, Entry, Place, Snapshot, Walk};
+pub use snapshot::{Container, Entry, Snapshot, Walk};

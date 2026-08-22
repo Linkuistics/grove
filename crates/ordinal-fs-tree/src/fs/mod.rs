@@ -40,6 +40,14 @@
 //! macOS `/var` and `/private/var` name the same inode, so canonicalising would
 //! make the mere presence of a lock observably rewrite every path the reading
 //! operations return.
+//!
+//! The lock still has to name the **tree** rather than a spelling of it, or two
+//! accepted spellings of one root would not exclude each other. That is bought
+//! by asking the kernel instead of the string: the directory to lock is
+//! `<root>/..`, which resolves through `..` and through a symbolic link naming
+//! the root and lands on one inode however the caller wrote the path. See
+//! `read::containing_directory`, which carries the counterexample that made a
+//! lexical parent insufficient.
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -91,10 +99,7 @@ pub fn write<N: EntryName>(root: &Path) -> Result<WriteGuard<N>, Error<N>> {
     })
 }
 
-fn acquire<N: EntryName>(
-    root: &Path,
-    mode: lock::Mode,
-) -> Result<(File, Snapshot<N>), Error<N>> {
+fn acquire<N: EntryName>(root: &Path, mode: lock::Mode) -> Result<(File, Snapshot<N>), Error<N>> {
     let directory = read::containing_directory::<N>(root)?;
     let guard = lock::take(&directory, mode).map_err(|source| Error::Io {
         path: directory.clone(),

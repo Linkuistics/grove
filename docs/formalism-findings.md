@@ -862,6 +862,102 @@ when a layer's tests and implementation were written together. Mutation controls
 are evidence only for the semantic dimension they vary; ask which independently
 wrong implementation each control still lets through.
 
+### 008 — Integrating the reading layer's review (`ordinal-fs-tree`)
+
+**Situation.** `reading-k20` applied `reading-k19`'s four findings to the reading
+layer before the four mutation leaves build on it: lock identity, the textual
+no-filesystem guard, the walk-order tie-break fixture, and the public
+`Builder`/`Place` construction arena. The review changed no code and ran no
+commands, so every claim in it arrived as an assertion to be checked.
+
+**Formalism.** None written. Both suites were re-run as controls and are
+unchanged — Alloy 20/20, Quint 148 claims, witnesses reached in non-zero traces —
+because nothing here is modelled: the lock, the guard, walk *order* and the
+construction seam are all below or beside what either model states. The
+instrument this session actually used is the one entry 007 named — **mutate the
+assumption, not the happy path** — turned on the *repairs*: every fix was watched
+failing against the implementation it replaced before it was believed.
+
+**Caught.** Three findings held, one held for the wrong reason, and one further
+defect came out of testing the repair rather than the finding.
+
+- **Lock identity held, exactly as stated.** A lexical `Path::parent` does not
+  converge: `x/y/..` locks `x/y`. The repair is to name the directory `<root>/..`
+  and let the kernel resolve it — `..` and a final-component symbolic link are
+  resolved per component against the directory actually reached — which keeps the
+  no-canonicalisation rule (the path is still the caller's spelling) while making
+  the *lock* follow the tree. Both new contention tests fail against the lexical
+  version and only those two do. A filesystem root is now refused on device and
+  inode rather than on `parent().is_none()`, so `/..` is refused like `/`.
+- **The guard's literal blindness held, and was worse than a per-line problem.**
+  Ten synthetic sources, each a comment delimiter inside a different literal
+  form followed by a real filesystem use, were run against the retired stripper:
+  four were missed outright. The repair is to stop lexing by hand — the sources
+  go through `proc-macro2` and a use of the filesystem is an `Ident` equal to
+  `fs`. Comments never reach a token stream, a doc comment is a `Literal`, and
+  raw-string hash counts and the `'a`-versus-`'c'` ambiguity become the lexer's
+  problem. A hand-added violation in two real modules was watched failing, with
+  correct line numbers, and removed.
+- **The tie-break finding was real and its counterexample was false.** The
+  review said the old fixture admitted an implementation ordering by rendered
+  name alone. It does not: that mutation was run and the old fixture failed it.
+  What the old fixture *did* admit — and what the first repair of it still
+  admitted — is an implementation with **no rendered-name tie-break at all**:
+  two names comparing equal keep their arrival order under a stable sort, and
+  both fixtures happened to supply names in the order the rule prescribes. The
+  finished fixture points key and name in opposite directions *and* inserts the
+  equal-key pair in the order the tie-break must reverse.
+- **Asking the same question of the comparator's first key found an untested
+  one.** Every fixture in the file gave its entries ordinals and keys that rise
+  together, so an implementation comparing the key *before* the ordinal passed
+  all of them. One two-entry test now fails it.
+- **The foreign-place finding held, and the reassessment it asked for changed
+  more than the fix.** A `Place` now carries which builder handed it out. But
+  the arena was public only so that an integration test could build a tree
+  without a directory, and `ARCHITECTURE.md` never specified it: it is now
+  crate-private and the pure algebra tests moved into the module beside it. A
+  construction surface published for a test arrangement is production surface
+  bought with no consumer.
+
+**Missed.** Making a foreign place *unrepresentable* rather than rejected was
+considered and dropped: the shape that does it — a nested-closure builder whose
+level handle cannot escape its callback — forces recursion, and `read.rs` uses an
+explicit worklist precisely because tree depth is the user's to choose and a
+stack overflow is not a refusal a consumer can handle. So the seam is checked at
+runtime, on an identity, rather than forbidden by the type system. Nothing here
+was modelled, and nothing here suggests either model should have reached it.
+
+**Cost.** One session. The repairs were small; the confidence was the expensive
+part — six mutation runs, one throwaway harness rebuilding the retired stripper
+to measure it, and a pair run of hand-added violations. One new *dev*-dependency
+(`proc-macro2`), justified in the manifest on the same bar `libc` cleared: the
+alternative was maintaining a partial Rust lexer, which is more surface than the
+guard and fails in the same silent direction.
+
+**Counterfactual.** Two of these were cheap executable questions the producer
+could have asked, and entry 007 already named them. The two this session adds are
+sharper and both are about *controls* rather than code:
+
+- **A comparator with `k` keys wants `k` controls, and each one has to arrive out
+  of order.** A tie-break control whose fixture supplies the entries in the order
+  the rule prescribes cannot distinguish the rule from a stable sort — it is
+  satisfied by construction, which is entry 003's warning arriving in a test
+  instead of a model. Point each key against every later key, and insert the
+  equal pair backwards.
+- **A finding is a hypothesis, and running its counterexample is cheaper than
+  believing it.** The tie-break finding's stated mutation cost two minutes to run
+  and was wrong, while the real defect it pointed at was worse. An integration
+  session that agrees with its review by reading it inherits the review's
+  mistakes, including the flattering ones.
+
+**Verdict.** Reach for mutation controls on the *repair* as a matter of course:
+the fix and the test that proves it are written by one session, which is the
+condition entry 007 identified as producing controls that only vary the dimension
+their author was already thinking about. And for a boundary guard that reads
+source text, use the language's own lexer — a partial one is a second
+implementation of the hardest part of the language, maintained by whoever
+happens to touch the test.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;

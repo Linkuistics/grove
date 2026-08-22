@@ -331,6 +331,17 @@ creation and destruction fall under the same lock as every ordinary operation.
 That reasoning is general, so it is the library's rule rather than a parameter.
 Consumers never mention locking.
 
+The lock names the **tree**, not a spelling of it: every accepted spelling of one
+root — a relative path and an absolute one, a route through `..`, a symbolic link
+naming the root — takes the same lock, or a writer through one spelling would not
+exclude a reader through another and the intermediate states a mutation is
+entitled to leave would be observable. Nothing is canonicalised to achieve that.
+The library asks for the containing directory as `<root>/..` and the *kernel*
+resolves it, so the identity `flock` attaches to follows the tree while every
+path the library reports stays in the caller's own spelling. A lexical parent
+does **not** have this property, and assuming it did was the defect
+`reading-k19` found.
+
 **Version control is not a concern.** Renaming an entry is `rename(2)`. The
 library does not detect a repository, does not update an index, and does not
 require any tool on `PATH`.
@@ -590,9 +601,11 @@ and none is left undefined.
   one more road. Neither model can pose the case, because both hold no strings by
   design.
 
-- A tree root with no containing directory — a filesystem root — is refused
-  before anything is read. The lock goes on the directory *containing* the root,
-  and there is not one.
+- A tree root that is its own containing directory — a filesystem root, however
+  spelled — is refused before the tree is read. The lock goes on the directory
+  *containing* the root, and there is not one. The test is the filesystem's own
+  identity rather than the shape of the path, so `/`, `/..` and a symbolic link
+  naming `/` are refused alike.
 
 - A name the consumer recognises and cannot parse halts every mutation, not only
   one touching its own level. Snapshot scope is the whole tree, so a single

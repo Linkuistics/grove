@@ -30,7 +30,7 @@
 //! `inv_rollbackRemovesOnlyItsOwn` is then structural rather than checked — an
 //! undo naming a path the run did not create cannot be constructed.
 
-use crate::{EntryName, EntryNameExt, Key, Ordinal, Snapshot, Species};
+use crate::{EntryName, EntryNameExt, Key, Ordinal, PositionedSpecies, Snapshot, Species};
 
 /// Which level an effect acts in: the tree root, a node already in the tree, or
 /// a node this same plan creates.
@@ -374,6 +374,34 @@ pub enum Refusal {
         /// The key of the leaf that would have been promoted.
         key: Key,
     },
+    /// The parts `rewrite` was given imply a different species from the one the
+    /// entry already has. `operations.qnt`'s `RefusedRewriteSpeciesChange` —
+    /// the same check [`Refusal::PromotePartsNotNode`] makes, with the opposite
+    /// verdict: `promote` requires the parts to name a *different* species and
+    /// this requires them to name the *same* one.
+    ///
+    /// A rewrite replaces an entry's parts and keeps its ordinal, its key and
+    /// its species; changing the species would rename a regular file into a
+    /// directory, which is not a rename at all. Changing shape is
+    /// [`WriteGuard::promote`]'s job, and it goes one way only, because a node's
+    /// children have nowhere to go.
+    ///
+    /// **One species carried, not two**, for the reason
+    /// [`Refusal::NoOccupantAtOrdinal`] carries one field: a
+    /// [`PositionedSpecies`] has exactly two variants, so *the entry is a leaf*
+    /// and *the supplied parts make a node* are one fact written twice, and two
+    /// fields that restate each other are two fields that can disagree. It is
+    /// carried at all — where [`Refusal::PromotePartsNotNode`] carries only a
+    /// key — because `promote`'s expected species is the constant
+    /// [`Species::Node`] and this one's is whatever the entry happens to be.
+    ///
+    /// [`WriteGuard::promote`]: crate::fs::WriteGuard::promote
+    RewriteSpeciesChange {
+        /// The key of the entry that was named.
+        key: Key,
+        /// The species that entry has, which the supplied parts contradict.
+        species: PositionedSpecies,
+    },
     /// The tree's greatest key is the greatest a key can be, so `max + 1` has
     /// nowhere to go.
     ///
@@ -489,6 +517,38 @@ impl core::fmt::Display for Refusal {
                  species follows from the parts and from nothing else, so supply \
                  parts your domain composes a node from."
             ),
+            Self::RewriteSpeciesChange { key, species } => {
+                write!(
+                    f,
+                    "the entry with key {key} is a {species}, and the parts \
+                     supplied for rewriting it make a {other}. A rewrite \
+                     replaces an entry's parts and keeps its ordinal, its key \
+                     and its species — only the opaque remainder of the name \
+                     moves. ",
+                    other = match species {
+                        PositionedSpecies::Leaf => PositionedSpecies::Node,
+                        PositionedSpecies::Node => PositionedSpecies::Leaf,
+                    }
+                )?;
+                // The advice differs by direction because the operations do.
+                // One shape change exists and it goes one way: a leaf's content
+                // has somewhere to land, and a node's children have nowhere.
+                // Offering `promote` to whoever asked for the impossible
+                // direction would be advice that fails when taken.
+                match species {
+                    PositionedSpecies::Leaf => f.write_str(
+                        "Supply parts that make a leaf, or call `promote`, which \
+                         is the operation that turns a leaf into a node and \
+                         moves the leaf's content into the new node rather than \
+                         discarding it.",
+                    ),
+                    PositionedSpecies::Node => f.write_str(
+                        "Supply parts that make a node. Nothing turns a node \
+                         back into a leaf: its children would have nowhere to \
+                         go, and entries are never removed.",
+                    ),
+                }
+            }
             Self::KeysExhausted => f.write_str(
                 "this tree's greatest key is the greatest a key can be, so there is \
                  no fresh one to allocate: a key is `max + 1` over every name in the \

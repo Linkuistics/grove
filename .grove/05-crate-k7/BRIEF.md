@@ -225,6 +225,28 @@ facts the five remaining leaves need:
   Worth applying to `Key` and to the parts a `rewrite` compares before trusting
   either.
 
+**`rewrite` landed at `rewrite-k13`, and with it the last mutation.** Three
+facts the three remaining leaves need:
+
+- **Every operation in `ARCHITECTURE.md`'s *Operations* tables now exists**,
+  which is the precondition `h3-probe-k14` was waiting on. Neither model changed
+  and neither contradicted the code — the third leaf running — so the probe runs
+  against a complete operation set with both suites green (Alloy 20/20, Quint
+  every claim across all eight instances).
+- **State a claim account by counting, never by adding up the per-leaf
+  numbers.** `rewrite` contributed fourteen tests, ten naming a claim, four
+  saying they have none, and none naming neither — but `interpreter-k22` found
+  three tests naming *neither* only by re-reading the forty-two, which no sum of
+  two labels can see. The probe's measure is the crate-wide account, so it is
+  recomputed from the suite rather than accumulated from these notes.
+- **`Refusal::RewriteSpeciesChange` carries the entry's species and not the
+  supplied one**, because two positioned species make the second derivable and
+  two fields that restate each other can disagree. It is also the one refusal
+  whose message is *not* a function of its payload alone: the advice branches on
+  direction, since a leaf can become a node by `promote` and nothing turns a
+  node into a leaf. A CLI rendering refusals must not assume one message per
+  variant.
+
 ## On the horizon
 
 - **Whether the crate wants its own `CHANGELOG`, version and release lane.**

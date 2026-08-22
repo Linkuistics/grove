@@ -316,6 +316,52 @@ impl<N: EntryName> WriteGuard<N> {
         self.run(decision, apply::Faults::none())
     }
 
+    /// **`rewrite`**: replace the parts of the entry with this key, keeping its
+    /// ordinal, its key and its species.
+    ///
+    /// This is how an attribute changes: the entry keeps its identity and its
+    /// place, and only the opaque remainder of its name moves. One rename, and
+    /// on a node it is the directory that is renamed, so its whole subtree comes
+    /// with it untouched.
+    ///
+    /// It is the general form of every *mark this entry* operation a consumer
+    /// might want, and with no removal operation
+    /// (`docs/adr/entries-are-never-removed.md`) it is also how a domain retires
+    /// one: rewrite an attribute.
+    ///
+    /// Named by [`Key`] and not by [`Target`], like
+    /// [`promote`](WriteGuard::promote): a rewrite's target is an entry, and the
+    /// tree root is not one — it has no name to rewrite.
+    ///
+    /// # The species cannot change
+    ///
+    /// A leaf is a regular file and a node is a directory, so parts implying a
+    /// different species would ask for a rename that is not a rename. Changing
+    /// shape is [`promote`](WriteGuard::promote)'s job, and it goes one way
+    /// only: a leaf's content has somewhere to land and a node's children have
+    /// nowhere.
+    ///
+    /// # Rewriting to the parts an entry already carries succeeds
+    ///
+    /// It is a rename onto the entry's own path, and it changes nothing rather
+    /// than being refused as a collision with itself — occupancy excludes the
+    /// object being moved. The report still names it, because a caller reading
+    /// [`Report::renamed`](crate::Report::renamed) to learn where an entry lives
+    /// wants the answer whether or not the filesystem was touched.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Refused`] when the key names no entry, or when `parts` imply a
+    /// different species from the one the entry has. [`Error::Failed`] when the
+    /// filesystem refused and the tree was left as it was found;
+    /// [`Error::FailedPartiallyRolledBack`] when undoing that failed too — which
+    /// a single-effect plan reaches only through a failing unwind of its one
+    /// rename.
+    pub fn rewrite(self, key: Key, parts: N::Parts) -> Result<Report<N>, Error<N>> {
+        let decision = ops::rewrite(&self.snapshot, key, parts);
+        self.run(decision, apply::Faults::none())
+    }
+
     /// Turn a decision into an outcome: refuse, or apply under the lock this
     /// guard holds.
     ///

@@ -1,17 +1,18 @@
-//! `append`, `append_many`, `insert` and `promote`, as the algebra decides them: no
+//! `append`, `append_many`, `insert`, `promote` and `rewrite`, as the algebra
+//! decides them: no
 //! filesystem, no directory, and every answer a pure function of a snapshot
 //! built by hand.
 //!
 //! Every test here names the model claim it discharges, or says it has none.
 
-use super::{append, append_many, insert, promote, NewEntry, Target};
+use super::{append, append_many, insert, promote, rewrite, NewEntry, Target};
 use crate::fixtures::{
     contentless_tree, documents_tree, empty_tree, lesson, module, overview, Contentless,
 };
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
 use crate::reference::{Label, Parts, Status, SyllabusName};
 use crate::snapshot::{Builder, Snapshot};
-use crate::{EntryName, EntryNameExt, Key, Ordinal, Species};
+use crate::{EntryName, EntryNameExt, Key, Ordinal, PositionedSpecies, Species};
 
 fn draft(label: &str) -> Parts {
     Parts::lesson(
@@ -1348,5 +1349,226 @@ fn a_promotion_whose_child_has_no_fresh_key_is_refused_and_one_without_a_child_i
         plan.effects().len(),
         2,
         "the node carries the leaf's own key, so it allocates nothing"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// rewrite
+//
+// One effect, and every test here reads it off the plan. What makes the
+// operation worth its own section is not its size but its two edges: the
+// species that must not change, and the no-op that must not be refused.
+// ---------------------------------------------------------------------------
+
+fn published(label: &str) -> Parts {
+    Parts::lesson(
+        Status::Published,
+        Label::new(label).expect("a well-formed label"),
+    )
+}
+
+/// The one effect a rewrite plans, as `(moved entry, level, rendered name)`.
+fn only_move(decision: Decision<SyllabusName>) -> (usize, Level, String) {
+    let plan = plan(decision);
+    assert_eq!(
+        plan.effects().len(),
+        1,
+        "a rewrite is one rename and nothing else"
+    );
+    match &plan.effects()[0] {
+        Effect::MoveTo { entry, to, name } => (*entry, *to, name.to_string()),
+        Effect::Create { .. } => panic!("a rewrite creates nothing"),
+    }
+}
+
+/// Discharges `inv_rewriteKeepsPlace` on the half the algebra decides: the new
+/// name carries the entry's **own** ordinal and its **own** key, in the level it
+/// already sits in, and only the parts moved.
+///
+/// The document's draft assessment at ordinal 3, key 9 becomes published. It
+/// stays at ordinal 3 and key 9 — which is what makes this the general form of
+/// *mark this entry*, and, with no removal operation, how a domain retires one.
+#[test]
+fn a_rewrite_keeps_the_ordinal_the_key_and_the_level() {
+    let snapshot = documents_tree();
+    let entry = snapshot.by_key(Key::new(9)).expect("the draft assessment");
+
+    assert_eq!(
+        only_move(rewrite(&snapshot, Key::new(9), published("assessment"))),
+        (
+            entry.index(),
+            Level::Root,
+            "03-published-assessment-i9.md".to_string()
+        )
+    );
+}
+
+/// Discharges `inv_rewriteKeepsPlace`'s other half — *nothing else changed* —
+/// on a nested entry, where a level that is not the root can be got wrong.
+///
+/// The plan names one entry, and the level it names is the module the entry is
+/// already in. A rewrite that landed its rename in the tree root would move the
+/// entry between levels, which is the one thing this operation is not.
+#[test]
+fn a_rewrite_names_only_the_entry_it_changes_in_the_level_it_already_sits_in() {
+    let snapshot = documents_tree();
+    let matrices = snapshot.by_key(Key::new(6)).expect("the draft matrices");
+    let module = snapshot
+        .by_key(Key::new(2))
+        .expect("the linear algebra module");
+
+    assert_eq!(
+        only_move(rewrite(&snapshot, Key::new(6), published("matrices"))),
+        (
+            matrices.index(),
+            Level::Entry(module.index()),
+            "02-published-matrices-i6.md".to_string()
+        )
+    );
+}
+
+/// Discharges `wit_rewriteToSameParts`: a rewrite to the parts an entry already
+/// carries is a rename onto its own path and it must **succeed**.
+///
+/// This is what [`Effect::mover`] exists for — occupancy excludes the object
+/// being moved, so the destination the plan computes is not found taken by the
+/// very entry that is moving to it. Nothing in `rewrite` says so; it falls out
+/// of the guard, which is why this test asserts a plan rather than a branch.
+///
+/// The interpreter carries the same exclusion across the boundary by
+/// short-circuiting a same-path rename; `tests/rewriting_on_disk.rs` is where
+/// that half is observable.
+#[test]
+fn rewriting_to_the_parts_an_entry_already_carries_is_not_refused() {
+    let snapshot = documents_tree();
+    let entry = snapshot.by_key(Key::new(9)).expect("the draft assessment");
+
+    assert_eq!(
+        only_move(rewrite(&snapshot, Key::new(9), draft("assessment"))),
+        (entry.index(), Level::Root, entry.name().to_string(),),
+        "the name it plans is the name it has, and the guard does not call that \
+         a collision"
+    );
+}
+
+/// Discharges `wit_refusedRewriteSpeciesChange`: parts implying a different
+/// species are refused, because a regular file cannot be renamed into a
+/// directory.
+///
+/// Both directions, in one test, because the refusal carries **one** species and
+/// the two calls are what shows it is the entry's rather than the parts'. With
+/// exactly two positioned species, *the entry is a leaf* already says *the parts
+/// make a node*; carrying both would be two fields that can disagree.
+#[test]
+fn rewriting_across_the_species_is_refused_in_both_directions() {
+    let snapshot = documents_tree();
+
+    assert_eq!(
+        refusal(rewrite(&snapshot, Key::new(9), topic("assessment"))),
+        Refusal::RewriteSpeciesChange {
+            key: Key::new(9),
+            species: PositionedSpecies::Leaf,
+        },
+        "a lesson asked for a module's parts"
+    );
+    assert_eq!(
+        refusal(rewrite(&snapshot, Key::new(2), draft("linear-algebra"))),
+        Refusal::RewriteSpeciesChange {
+            key: Key::new(2),
+            species: PositionedSpecies::Node,
+        },
+        "and a module asked for a lesson's"
+    );
+}
+
+/// **No model claim** — a refusal's message is outside both models. It is a
+/// control on the advice rather than on the check: the two directions are not
+/// symmetric, so one message would have to be wrong for one of them.
+///
+/// A leaf can become a node, by `promote`, which moves its content rather than
+/// discarding it — so that is the advice. A node cannot become a leaf at all:
+/// its children would have nowhere to go, and entries are never removed. Advice
+/// that named `promote` in both directions would fail when taken in one of them,
+/// which is `docs/formalism-findings.md` entry 013's habit applied to a message
+/// that offers a remedy rather than an explanation.
+#[test]
+fn the_species_refusals_advice_differs_by_direction() {
+    let snapshot = documents_tree();
+
+    let leaf = refusal(rewrite(&snapshot, Key::new(9), topic("assessment"))).to_string();
+    assert!(
+        leaf.contains("`promote`"),
+        "a leaf has somewhere to go, and the message says where: {leaf}"
+    );
+
+    let node = refusal(rewrite(&snapshot, Key::new(2), draft("linear-algebra"))).to_string();
+    assert!(
+        !node.contains("`promote`"),
+        "a node has nowhere to go, and offering `promote` would be advice that \
+         fails when taken: {node}"
+    );
+    assert!(
+        node.contains("nowhere to go"),
+        "so the message says why instead: {node}"
+    );
+}
+
+/// Discharges `wit_refusedTargetMissing` on this operation: `resolve(f,
+/// ByKey(k))` answering nothing is the model's first branch of `planRewrite`,
+/// and it is reported before the species is looked at.
+#[test]
+fn rewriting_a_key_that_names_nothing_is_refused() {
+    assert_eq!(
+        refusal(rewrite(&documents_tree(), Key::new(404), draft("nothing"))),
+        Refusal::TargetMissing { key: Key::new(404) }
+    );
+}
+
+/// **No model claim, and none needed**: this is structural in both. A
+/// distinguished child carries no key, `by_key` yields positioned entries only,
+/// and the model's `idsWithKey` filters on `isPositioned` — so neither can be
+/// handed one, and `rewrite` has no *not a positioned entry* refusal to reach.
+///
+/// The control is that the example tree holds two distinguished children and no
+/// key names either. It is the same shape as `promote`'s, and it is here because
+/// `rewrite` is the operation with no species precondition at all: a reader
+/// could reasonably expect the distinguished child to arrive and be refused, and
+/// what actually happens is that it never arrives.
+#[test]
+fn a_distinguished_child_cannot_be_rewritten_because_it_cannot_be_named() {
+    let snapshot = documents_tree();
+    let distinguished = snapshot
+        .walk()
+        .filter(|entry| entry.species() == Species::Distinguished)
+        .count();
+    assert_eq!(distinguished, 2, "the root's and the module's");
+
+    for key in 0..=12 {
+        if let Some(entry) = snapshot.by_key(Key::new(key)) {
+            assert_ne!(
+                entry.species(),
+                Species::Distinguished,
+                "no key answers with a distinguished child"
+            );
+        }
+    }
+}
+
+/// **No model claim**: `Parts` is an `int` in the model, so *what changed* is
+/// not a question it can pose. What it can be checked against is the seam — a
+/// rewrite reads the parts through [`EntryName::positioned_species`] and through
+/// nothing else, so parts differing in every other respect are placed verbatim.
+///
+/// The label moves here as well as the attribute, and the plan carries it
+/// without comment. Anything that inspected the parts further would be the seam
+/// leaking.
+#[test]
+fn a_rewrite_places_whatever_parts_it_is_handed_once_the_species_agrees() {
+    let snapshot = documents_tree();
+
+    assert_eq!(
+        only_move(rewrite(&snapshot, Key::new(9), published("something-else"))).2,
+        "03-published-something-else-i9.md",
+        "the label is as opaque to the library as the attribute is"
     );
 }

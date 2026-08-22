@@ -1715,6 +1715,123 @@ in *strength*, the implementation must close the gap itself rather than push it
 onto the consumer — a check the consumer cannot be tested against is not an
 obligation.
 
+### 016 — Implementing the operation the model had already finished (`ordinal-fs-tree`'s `rewrite`)
+
+**Situation.** `rewrite-k13`: replace an entry's parts, keeping its ordinal, its
+key and its species. One rename. It is the last mutation, so its landing is what
+`h3-probe-k14` was waiting on, and — with no removal operation
+(`docs/adr/entries-are-never-removed.md`) — it is also how a domain retires an
+entry, which is why it matters more than its size suggests.
+
+**Formalism.** None written. Both suites re-run as controls: Quint, every claim
+across all eight instances with every witness reached in a non-zero number of
+traces; Alloy 20/20. **Neither model changed, and neither contradicted the
+implementation** — the third leaf running. The instruments that did the work were
+six lines of `operations.qnt` (`planRewrite`), its three claims
+(`inv_rewriteKeepsPlace`, `wit_rewriteToSameParts`,
+`wit_refusedRewriteSpeciesChange`), and **five mutation controls**.
+
+**The measurement.** Fourteen tests: ten naming a model claim, four saying they
+have none, and none naming neither. The highest claim ratio and the smallest test
+count of any leaf here, and the two go together — this operation is entirely
+inside the model's scope, so what is left over is small and is exactly the
+model's own exclusion list.
+
+**Caught.** Three, and none of them is a defect. That is the finding.
+
+- **A six-line model function settled the one question the leaf brief left
+  open.** The brief asked whether the species check would end up being *the same
+  code* as `promote`'s, and told this leaf to say why if not. `planRewrite`
+  answers structurally: `speciesOfParts(p) != speciesOf(n)` beside `planPromote`'s
+  `speciesOfParts(p) != Node`. The same comparison with a different right-hand
+  side — one a constant, one read off the target — which is why they are not
+  shared code and should not be. The only thing extractable is the trait call
+  itself, and a function wrapping `N::positioned_species(parts) == x` would be an
+  abstraction shallower than the expression it hides. The model did not decide
+  this; it made the decision one line of reading instead of one of judgement.
+- **The refusal's payload followed from the model by subtraction.**
+  `PromotePartsNotNode` carries only a key, because with two positioned species
+  *not a node* determines *is a leaf*. The same arithmetic says
+  `RewriteSpeciesChange` needs the **entry's** species and only that: the supplied
+  one is then determined, and carrying both would be two fields that can
+  disagree — `NoOccupantAtOrdinal`'s recorded lesson (entry 013) reappearing on a
+  refusal a tenth its size. The model supplies only that `speciesOf` is total over
+  a two-valued domain; the conclusion is one step from there, and mutation (e) —
+  carry the supplied species instead — is what holds it.
+- **The property this operation is named for was discharged before the operation
+  existed.** `wit_rewriteToSameParts` requires a rewrite to the parts an entry
+  already carries to succeed. Both halves were built by the interpreter leaves:
+  the algebra's — occupancy excluding the object being moved, which is why
+  `Effect::mover` exists at all — and the interpreter's — the same-path
+  short-circuit, which also registers no undo, since an `Undo::Restore` onto its
+  own occupied path would turn a clean rollback into `FailedPartiallyRolledBack`.
+  Each already had a test naming this witness. Adding `rewrite` turned two
+  anticipated properties into two live ones and required **no code**. This is the
+  clearest H2 evidence in the log so far: a specification that names an
+  operation's edge case makes the layer beneath it build for that case, and the
+  operation then lands as a rename.
+
+**Missed.** Three, and all three are on the list the model publishes about
+itself.
+
+- **The subtree assumption, and this time it is the operation's main risk.**
+  `operations.qnt`'s handoff names *a directory rename carrying its subtree* an
+  assumption rather than a property: an entry references its parent by a stable id
+  there, so it is true by construction. For `insert`'s shift the exposure is low —
+  a shift is `compose` with a new ordinal and can disturb nothing else. For
+  `rewrite` the caller hands in **new parts**, so the rename that must carry a
+  subtree is precisely the one a reader could plausibly imagine as a rebuild. Only
+  a real directory can say it did not. Fourth leaf running to spend its
+  integration tests on the excluded list.
+- **One modelled outcome, two messages, and the two directions are not
+  symmetric.** `RefusedRewriteSpeciesChange` covers leaf→node and node→leaf alike,
+  and only one has a remedy: `promote` turns a leaf into a node and moves its
+  content rather than discarding it, while *nothing* turns a node into a leaf —
+  its children would have nowhere to go, and entries are never removed. A single
+  message for the single modelled outcome would have been advice that fails when
+  taken, half the time, and no claim could notice. Entry 013's habit is what
+  caught it; the model contributed the outcome and nothing about what may be said
+  inside it.
+- **Content, again — but the instrument got sharper.** No model reaches *the bytes
+  are unchanged*, and content equality is a weak stand-in for it: bytes read and
+  written back identically compare equal. The **inode** does not. Two tests here
+  assert inode identity across the rename, for a leaf and for a node's grandchild,
+  which says the library did not read and rewrite rather than that the result
+  happened to match. It is available only because the crate is Unix-only by
+  design — the same platform assumption that is invisible in the interface is
+  visible in the test suite.
+
+**Cost.** The smallest of any implementation leaf here. Reading — the brief chain,
+the architecture's `rewrite` row and refusals, `planRewrite` and its three claims,
+and the prior leaves' settled-since notes — was the bulk of the session; the
+implementation is about forty lines of code under rather more doc comment, and
+fourteen tests. Re-running both suites as controls was the longest single step
+and found nothing, which is what a control is for. Five mutation controls, each a
+one-line edit and a test run: composing with `Ordinal::FIRST` (4 failures),
+landing the rename in the root (1), dropping the species check (2), dropping
+occupancy's mover exclusion (2, one of them a test the interpreter leaf wrote),
+and carrying the supplied species in the refusal (2). Nothing had to be learned
+first.
+
+**Counterfactual.** Nothing here would have been caught earlier, because nothing
+was caught — so the counterfactual is about the no-op instead, and it is the
+strongest one available. Had `rewrite` been implemented **before** the
+interpreter, the same-path rename would have surfaced as a defect at the boundary
+between two layers that are each correct alone: the algebra proves a plan
+applicable, and the layer applying it refuses that plan. Layer-crossing defects
+are expensive exactly because neither side looks wrong. The witness put the fix in
+both layers before either had a caller, and the ordering that did it —
+interpreter first, its operations after — was `library-k6`'s decomposition, taken
+from the model's shape rather than from the document's operation table.
+
+**Verdict.** Reach for it again, and note that the routing lesson is about *when*
+a model pays rather than whether. A model written per operation, before
+implementation, turns an operation of this size into transcription; what is left
+over is the model's own exclusions (bytes, message text) and its own assumptions
+(a directory rename carries its subtree). Three leaves running, those are where
+the tests go — which is now predictable enough to plan a leaf's test budget from
+the handoff block before writing a line.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -1757,4 +1874,8 @@ guesses are not.
 | an order that looks like a rule — "could it have been the other way?" | look for the model's counterfactual instance; its absence is the answer | 014: `insert`'s shift order has `lowest_first` and `promote`'s has nothing, because the second effect lands in the level the first creates. A forced order is a consequence, and the test should assert the forcing rather than the order |
 | a recovery instruction — "does the advice describe the state it will be read in?" | drive the state, assert each clause against disk, then follow the advice | 014: three clauses of `FailedPartiallyRolledBack`'s promotion advice, three assertions about a real directory, and the remedy executed. Turns 013's review habit into a test |
 | an opaque sort — "what does the model assume about comparing this?" | none — read each atom against the target language's bound | 015: `Parts` is an atom in Alloy and an `int` in Quint, so *equal parts imply equal species* is free in both; Rust bounds it by `Eq`, which is any lawful equivalence. A conforming domain lost every promotion to a `DestinationOccupied` refusal. `Eq`/`Ord`/`Hash` are all coarser than a model's identity |
+| a question the brief left open — "should these two checks be one piece of code?" | none — read the two model functions side by side | 016: `planRewrite` and `planPromote` differ in one operand, a constant against a value read off the target. The shared part is one trait call, and wrapping it would be an abstraction shallower than the expression. The model turned a judgement call into a reading |
+| what may a refusal carry? — "which of these fields is derivable from the others?" | count the model's variants for the sort | 016: two positioned species, so *the entry is a leaf* already says *the parts make a node*. `promote` carries none and `rewrite` carries one, and both follow from the same count. The narrow form of 013's lesson about state carried for a message |
+| an edge case the model names for an operation that does not exist yet | build it into the layer beneath, with a test naming the witness | 016: `wit_rewriteToSameParts` was discharged by the interpreter leaves in both layers; the operation it belongs to later landed with no code. Written the other way round it is a layer-crossing defect, where the algebra proves a plan applicable and the applier refuses it |
+| the bytes did not change — "how do I say that without trusting a comparison?" | the inode, not the content | 016: bytes read and written back identically compare equal; an unchanged inode says nothing read them. Available because the crate is Unix-only, which is otherwise invisible in the interface |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |

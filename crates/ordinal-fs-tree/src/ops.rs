@@ -8,12 +8,12 @@
 //!
 //! The specification is `docs/ordinal-fs-tree/ARCHITECTURE.md`, sections
 //! *Operations → Mutating* and *Refusals*; the model is
-//! `docs/ordinal-fs-tree/models/operations.qnt`, whose `planAppend`,
-//! `planAppendMany`, `planInsert` and `planPromote` these are.
+//! `docs/ordinal-fs-tree/models/operations.qnt`, whose `plan…` functions these
+//! are.
 //!
-//! The last mutation — `rewrite` — joins this module as its leaf lands. They
-//! are what the plan shape exists for: five operations, one interpreter, one
-//! rollback.
+//! `planAppend`, `planAppendMany`, `planInsert`, `planPromote` and
+//! `planRewrite` — the whole of the model's operation set. They are what the
+//! plan shape exists for: five operations, one interpreter, one rollback.
 
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
 use crate::{Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot, Species};
@@ -382,6 +382,86 @@ pub(crate) fn promote<N: EntryName>(
     // built — but a tree a failed rollback already damaged can, which is
     // `wit_damagedTreeStrandsALaterOperation`.
     Plan::of(effects).guarded(snapshot)
+}
+
+/// **`rewrite`**: replace an entry's parts, keeping its ordinal, its key and its
+/// species.
+///
+/// One effect — a rename onto the same level — and that is the whole operation:
+/// `planRewrite` in the model, which builds `MoveTo(i, parentOf(f, i),
+/// compose(ordOf(n), keyOf(n), p))` and guards it. This is how an attribute
+/// changes, and `docs/adr/entries-are-never-removed.md` is why the operation
+/// matters more than its size: with no removal, a domain retires an entry by
+/// rewriting an attribute.
+///
+/// # The library neither knows nor cares what changed
+///
+/// [`Parts`](EntryName::Parts) is opaque, so *what moved* is not a question this
+/// function can ask and not one it needs to: it verifies that the ordinal, the
+/// key and the species survived, and renames. Anything that inspected the parts
+/// beyond their species would be the seam leaking, and both models are written
+/// on the premise that it cannot — neither carries a string at all.
+///
+/// # Named by key, like `promote`, and for the same reason
+///
+/// There is no [`Target`]. A rewrite's target is an *entry*, and the tree root
+/// is not one — it has no name to rewrite, no ordinal and no key. The model
+/// splits them the same way: `TagRewrite` carries a bare key where `TagInsert`
+/// carries a target.
+///
+/// # The species check is `promote`'s, with the opposite verdict
+///
+/// `promote` refuses parts that are not a node; this refuses parts that are not
+/// what the entry already is. Both read [`EntryName::positioned_species`] and
+/// nothing else, and they differ in one place worth naming: `promote`'s expected
+/// species is the constant [`Species::Node`], so its refusal carries no species,
+/// while this one's is whatever the target happens to be, so
+/// [`Refusal::RewriteSpeciesChange`] carries it.
+///
+/// # The no-op has to survive, and it survives twice
+///
+/// A rewrite to the parts an entry already carries is a rename onto its own
+/// path, and it must **succeed** — `wit_rewriteToSameParts`. Nothing here does
+/// that: it falls out of occupancy excluding the object being moved, which is
+/// [`Effect::mover`] and is why that method exists. The interpreter then carries
+/// the same exclusion across the boundary by short-circuiting a same-path
+/// rename, because a plan the algebra proved applicable must not be refused by
+/// the layer applying it. One property, two mechanisms, and neither alone is
+/// enough.
+pub(crate) fn rewrite<N: EntryName>(
+    snapshot: &Snapshot<N>,
+    key: Key,
+    parts: N::Parts,
+) -> Decision<N> {
+    // `resolve(f, ByKey(k))` and its refusal, in the model's own order: missing
+    // first, then the species. `by_key` answers with positioned entries only, so
+    // the distinguished child cannot be named here at all — the same fact that
+    // makes `promote`'s *not a leaf* refusal reachable in one direction only.
+    let Some(entry) = snapshot.by_key(key) else {
+        return Decision::Refuse(Refusal::TargetMissing { key });
+    };
+    let Some(triple) = entry.triple() else {
+        unreachable!("`by_key` answers with positioned entries, which all have a triple")
+    };
+    // Both sides read through `positioned_species`, and neither reads the
+    // entry's `species()`. That would widen to [`Species`], whose third variant
+    // no positioned entry can have — a refusal that can report a case no
+    // argument produces, which is the defect `docs/formalism-findings.md` entry
+    // 014 found in the document's own statement of `promote`'s refusal.
+    let species = N::positioned_species(triple.parts);
+    if N::positioned_species(&parts) != species {
+        return Decision::Refuse(Refusal::RewriteSpeciesChange { key, species });
+    }
+    let level = level_of(&entry.container());
+    // The ordinal and the key are the entry's **own**, taken off its current
+    // name: this is `compose(ordOf(n), keyOf(n), p)`, so a rewrite cannot move
+    // an entry, reorder a level, or reissue a key however wrong the parts are.
+    Plan::of(vec![Effect::MoveTo {
+        entry: entry.index(),
+        to: level,
+        name: N::compose(triple.ordinal, triple.key, parts),
+    }])
+    .guarded(snapshot)
 }
 
 /// The level a container is, as a plan names it.

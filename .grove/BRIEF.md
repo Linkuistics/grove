@@ -4,16 +4,28 @@
 
 Extract grove's tree-on-disk facilities as a reusable, domain-independent Rust
 library — `ordinal-fs-tree` — with a CLI in `grove-llm`'s shape, developed
-against a Quint model that leads the implementation. This is the first step in
+against a formal model that leads the implementation. This is the first step in
 deconstructing grove into composable units that can be modelled individually
 (Linkuistics/grove issue #13).
+
+**There are two experiments here, not one**, and they are equally the point. The
+first is the extraction: does grove's tree machinery survive being made
+domain-independent? The second is the method: can requirements and design be
+captured in formal models rather than prose reviewed by eye — with the formalism
+*chosen per question* rather than fixed in advance, and the implementation then
+derived from the checked model. The second experiment's output is a
+`linkuistics` skill, and it is a deliverable, not a by-product.
 
 ## Done when
 
 - `ordinal-fs-tree` stands alone: an ordered tree of entries on disk, its name
   grammar parameterised by one trait, with a CLI that drives any conforming tree.
-- A Quint model covers the library's operations, and the library's behaviour
-  follows the model rather than the reverse.
+- Formal models cover the library — its structure and its operations — and the
+  library's behaviour follows them rather than the reverse.
+- The method is captured: `docs/formalism-findings.md` carries an entry per
+  modelling episode, and a `linkuistics` skill is distilled from it covering
+  which formalism suits which question and how a checked model drives an
+  implementation.
 - grove is flipped onto the library: its tree modules are gone, grove supplies a
   domain impl, and trees in flight are unaffected.
 
@@ -69,6 +81,31 @@ deliverable in its own right rather than a by-product.
 **The flip is a pure refactor.** No on-disk name changes, so trees in flight need
 no migration by construction.
 
+**One formalism is not enough, and the split is deliberate.** Structural
+questions — is this shape coherent, can it even represent what is needed — go to
+**Alloy**, which finds counterexample *structures*. Behavioural questions — does
+this operation preserve the invariant from any reachable state — go to **Quint**,
+which finds counterexample *traces*. Both are applied to the *same* design, which
+is what makes the comparison evidence about the tools rather than about two
+unrelated problems. A single-tool experiment could only ever produce a skill
+about that tool, never one about choosing between them.
+
+**Findings accumulate; the skill distils.** The two experiments have opposite
+production schedules — the library converges, the method accumulates — so they
+must not share an artifact. Every session that reaches for a formalism appends an
+entry to `docs/formalism-findings.md` before it retires, against a fixed six-field
+format whose load-bearing field is the *counterfactual*: what would have caught
+this earlier or more cheaply. A later leaf turns the log into the skill. Writing
+the skill continuously would generalise from one data point; writing it only at
+the end would find the evidence already gone.
+
+**Prose survives alongside the models, with a demoted job.** A checked model
+guarantees consistency with itself, never that the right properties were stated,
+so review does not disappear — it relocates, from hundreds of lines of prose to
+roughly fifteen invariant statements. And a `.qnt` or `.als` file is not
+user-facing documentation. So the architecture document remains the explanation
+and the models become the specification.
+
 ## Pointers
 
 Established by reading the current implementation; the extraction must preserve
@@ -98,13 +135,32 @@ and has nothing to do with tree invariants.
 
 ## On the horizon
 
-- Implementing the operations, each with its Quint model first. Cannot be leafed
-  until the design lands, because the operation set is what the design settles.
+- Implementing the operations, each modelled first. Cannot be leafed until the
+  design lands, because the operation set is what the design settles.
 - The CLI's own shape, once there is a library for it to expose.
 - The grove flip.
-- Whether any of this earns an ADR. Nothing has yet: the candidate decisions each
-  fail the *hard to reverse* limb of the three-part test, and the trait design is
-  intent rather than a landed decision until the design step settles it. Re-apply
-  the test when the design lands.
-- Whether the library inherits grove's Unix-only assumption.
+- **Distilling `docs/formalism-findings.md` into a `linkuistics` skill.** The
+  question is precisely stateable already; its *scope* is not, because it depends
+  on how many formalisms were used and what they taught. It also has to run last,
+  after every modelling and implementation leaf, and an append lands it before
+  work not yet cut. So it stays here until the modelling is done, then earns a
+  leaf.
+- Whether a checked model can be shown to drive an implementation, or whether
+  that stays an article of faith. This is H3 in the findings log and the least
+  certain of the three hypotheses; it needs a deliberate test, not an impression
+  gathered in passing.
+- Whether any of this earns an ADR. The design has now landed in draft, so the
+  test is due for re-application at the `architecture-k2` close — in particular
+  the single-trait seam, which was intent when the test was last run and is now a
+  settled decision with a written rationale.
+- Whether `ordinal-fs-tree` becomes a **third bounded context** with its own
+  glossary. It has a deliberately separate vocabulary — entry, ordinal, key,
+  distinguished child — that shares no term with grove's, which is exactly what
+  `CONTEXT-MAP.md` uses to tell contexts apart. Not settled here; the question is
+  recorded rather than answered.
 - Splitting the crate into separately-modellable units.
+
+Settled since this brief was written: the library does **not** inherit grove's
+Unix-only assumption in its *interface* — locking is entirely internal, so the
+build is Unix-only today and gaining another platform later changes no signature
+and no caller.

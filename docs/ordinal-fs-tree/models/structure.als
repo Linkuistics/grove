@@ -163,7 +163,17 @@ pred ComposeTotal {
 
 /* A name that is not the distinguished one carries all three of ordinal, key
    and parts.  The trait returns `Option` for each, and the document never says
-   when each is `Some`. */
+   when each is `Some`.
+
+   DISCHARGED AT THE BOUNDARY, like `SpeciesAgreementIsParsed`.  The Rust seam
+   folds the three accessors into one — `fn triple(&self) -> Option<Triple<'_,
+   Parts>>` — so a name carrying some of the three and not the others cannot be
+   written, and no implementation can violate this law.  It stays an assumed
+   predicate here rather than a `fact` because the model is about the design and
+   not about Rust, and because the defect it closes is real in any language whose
+   name type is three independent optional fields: that is what
+   `witness_leaf_name_without_an_ordinal` still exhibits.  See
+   `docs/formalism-findings.md` entry 004. */
 pred PositionedNamesAreComplete {
   all n: Name | n != Trait.dist implies (some n.nOrd and some n.nKey and some n.nParts)
 }

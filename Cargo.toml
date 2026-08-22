@@ -1,3 +1,50 @@
+# This repo is a **workspace** whose root package is still `grove`. The second
+# member is `crates/ordinal-fs-tree`, the domain-independent tree library grove's
+# own tree modules are being extracted into (gh issue #13, increment 1). Its
+# design documents stay at `docs/ordinal-fs-tree/` rather than moving under the
+# crate: `docs/adr/` is flat and repo-wide while grove occupies the root, and
+# four artifacts link into that path.
+#
+# `resolver = "2"` is stated rather than inherited. A workspace root that is also
+# a package takes its resolver from that package's edition, so this is what 2021
+# already implies — written down so a later edition bump cannot move it silently.
+[workspace]
+members = ["crates/ordinal-fs-tree"]
+resolver = "2"
+
+# Hold the clippy baseline at zero, for every member. `clippy-baseline-k4` cleared
+# eight warnings that had accumulated unnoticed, and a baseline with nothing
+# defending it just climbs back — an ordinary `cargo build` or `cargo test` never
+# mentions a clippy lint, so the count is invisible between deliberate audits.
+# This repo has no CI (see the `rust-version` note below), so the manifest is the
+# only place a gate can live; there is no workflow step to put one in.
+#
+# Denying the group costs ordinary builds nothing: rustc does not evaluate
+# `clippy::` tool lints, so `cargo build` and `cargo test` are unaffected and
+# this bites only under `cargo clippy` — exactly when it should. Run
+# `cargo clippy --all-targets` before committing, where a new warning is now an
+# error rather than a line of scrollback.
+#
+# `priority = -1` keeps the group from outranking a future single-lint override
+# placed beside it.
+#
+# These live at the workspace rather than in each package so a new member
+# inherits the baseline by writing `[lints] workspace = true` and cannot start
+# below it by omission — the failure mode of the per-package form, where the
+# gate is a thing each crate has to remember.
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+
+[workspace.lints.rust]
+# Suppressions in this workspace prefer `#[expect(...)]` over `#[allow(...)]`
+# wherever the justification could stop holding — see the finish-transaction
+# enums in `src/repo/finish_commit.rs`, whose size ratio is a fact about today's
+# types. An expectation only expires loudly if going stale is itself an error;
+# left at the default `warn` it would be swallowed by the same inattention this
+# table exists to prevent. Permanent suppressions (portability, say) stay
+# `#[allow]`.
+unfulfilled_lint_expectations = "deny"
+
 [package]
 name = "grove"
 version = "19.2.0"
@@ -43,32 +90,11 @@ path = "src/bin/grove-llm.rs"
 name = "grove"
 path = "src/lib.rs"
 
-# Hold the clippy baseline at zero. `clippy-baseline-k4` cleared eight warnings
-# that had accumulated unnoticed, and a baseline with nothing defending it just
-# climbs back — an ordinary `cargo build` or `cargo test` never mentions a clippy
-# lint, so the count is invisible between deliberate audits. This repo has no CI
-# (see the `rust-version` note above), so the manifest is the only place a gate
-# can live; there is no workflow step to put one in.
-#
-# Denying the group costs ordinary builds nothing: rustc does not evaluate
-# `clippy::` tool lints, so `cargo build` and `cargo test` are unaffected and
-# this bites only under `cargo clippy` — exactly when it should. Run
-# `cargo clippy --all-targets` before committing, where a new warning is now an
-# error rather than a line of scrollback.
-#
-# `priority = -1` keeps the group from outranking a future single-lint override
-# placed beside it.
-[lints.clippy]
-all = { level = "deny", priority = -1 }
-
-[lints.rust]
-# Suppressions here prefer `#[expect(...)]` over `#[allow(...)]` wherever the
-# justification could stop holding — see the finish-transaction enums in
-# `src/repo/finish_commit.rs`, whose size ratio is a fact about today's types.
-# An expectation only expires loudly if going stale is itself an error; left at
-# the default `warn` it would be swallowed by the same inattention this table
-# exists to prevent. Permanent suppressions (portability, say) stay `#[allow]`.
-unfulfilled_lint_expectations = "deny"
+# The clippy baseline and the `#[expect]` policy live in `[workspace.lints]` at
+# the head of this file, so every member inherits one gate rather than each
+# restating it.
+[lints]
+workspace = true
 
 # No `[build-dependencies]`. `build.rs` is a `std`-only `rerun-if-changed` walk
 # over `content/`: it emits one hint per file so an edit reaches the embed, and

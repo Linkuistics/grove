@@ -1,0 +1,33 @@
+[package]
+name = "ordinal-fs-tree"
+version = "0.1.0"
+edition = "2021"
+description = "An ordered tree of entries stored as a directory tree, where each entry's position, identity and metadata live in its filename"
+license = "Apache-2.0"
+repository = "https://github.com/Linkuistics/grove"
+# Inherited from the workspace root, whose comment carries the evidence: the
+# locked dependency graph cannot be parsed by a cargo below 1.85. This crate has
+# no dependencies of its own and would build far lower, but a member that
+# promises more than the workspace can deliver promises nothing.
+rust-version = "1.85"
+
+# No dependencies. The library is `std` and nothing else, deliberately: it is
+# published for reuse, and every dependency it takes it imposes on grove and on
+# every later consumer. Errors are the consumer's own type (`EntryName::Err`), so
+# there is no error-handling crate to pull in either.
+[dependencies]
+
+[dev-dependencies]
+
+[lints]
+workspace = true
+
+# `cargo release` drives the workspace, and `release.toml` configures a cut of
+# *grove*. Excluding this member keeps that cut byte-identical to what it was
+# before the workspace existed: no version bump here, no tag, no changelog
+# section. Whether the crate wants its own version and release lane is an open
+# question that depends on whether it is ever published separately — see the
+# `crate-k7` brief's horizon — and answering it by accident, at grove's next
+# release, is the outcome this line prevents.
+[package.metadata.release]
+release = false

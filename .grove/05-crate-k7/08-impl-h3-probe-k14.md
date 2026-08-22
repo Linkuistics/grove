@@ -15,7 +15,7 @@ find — record the mismatch instead, which is a finding in its own right.
 
 ## Pre-registration
 
-**Probe.** `insert`, implemented by `04-impl-insert-k11.md`. Chosen because its
+**Probe.** `insert`, implemented by `05-impl-insert-k11.md`. Chosen because its
 ordering rule's payoff is an *intermediate-state* property: the reconciled prose
 now states it correctly, so the prose arm is not being set up to fail, but acting
 on it requires the reader to notice that the order of two renames is a design
@@ -23,7 +23,7 @@ decision rather than a loop's direction. **Fallback probe:** `promote`, if the
 first result is degenerate — both arms identical, or both arms failing so
 broadly that the comparison says nothing.
 
-**Arm A — model-led.** The `insert` implementation as `04-impl-insert-k11.md`
+**Arm A — model-led.** The `insert` implementation as `05-impl-insert-k11.md`
 produced it. Already in the tree; nothing to run.
 
 **Arm B — prose-only.** A fresh context, given:
@@ -38,7 +38,7 @@ It must **not** receive `operations.qnt`, `structure.als`, the model-derived
 tests, arm A's implementation, or `docs/formalism-findings.md`. It writes into a
 scratch path outside the crate.
 
-**Measure.** The model-claim-citing test suite from `04-impl-insert-k11.md`,
+**Measure.** The model-claim-citing test suite from `05-impl-insert-k11.md`,
 unchanged, run against both arms. Report, per arm: the number of model claims
 violated, which claims, and which stated refusals are missing or wrong. Record
 the input sizes actually used, in lines — "prose of equivalent length" is the
@@ -80,7 +80,7 @@ Beyond the brief chain:
 ## Notes
 
 **The limitation to record honestly.** Arm A's session was not told it was an
-arm — `04-impl-insert-k11.md` carries no mention of this leaf — but the node
+arm — `05-impl-insert-k11.md` carries no mention of this leaf — but the node
 brief does say a model-versus-prose experiment exists somewhere in the subtree
 without naming the probe. So arm A ran under a diffuse awareness that something
 was being measured, and arm B ran under none. That asymmetry favours arm A and

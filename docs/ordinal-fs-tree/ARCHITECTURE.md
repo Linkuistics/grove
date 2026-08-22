@@ -191,12 +191,13 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     fn distinguished() -> Option<Self> { None }
 
     /// `Some` for a positioned name, `None` for the distinguished one. The
-    /// three travel together: a name has all of them, or none of them.
-    fn ordinal(&self) -> Option<Ordinal>;
-    fn key(&self)     -> Option<Key>;
-    fn parts(&self)   -> Option<&Self::Parts>;
+    /// three travel together — a name has all of them or none of them — so
+    /// they are one `Option` and not three. See the obligation below.
+    fn triple(&self) -> Option<Triple<'_, Self::Parts>>;
     fn species(&self) -> Species;
 }
+
+pub struct Triple<'a, P> { pub ordinal: Ordinal, pub key: Key, pub parts: &'a P }
 
 pub enum Verdict<N, E> { Entry(N), Foreign, Malformed(E), Reserved(E) }
 pub enum Species { Leaf, Node, Distinguished }
@@ -221,9 +222,22 @@ direction only and a grammar may accept two spellings of one name — at which
 point two files on disk *are* one entry, sharing a key and an ordinal, and the
 tree carries a duplicate key that no invariant rules out.
 
-**A name is positioned or distinguished, never neither.** `ordinal()`, `key()`
-and `parts()` are `Some` together or `None` together. A name of species `Leaf`
-with no ordinal cannot be ordered, shifted or promoted, and no triple names it.
+**A name is positioned or distinguished, never neither.** *In Rust this one is
+discharged by the type system, and it is stated because it is not free
+everywhere.* Under three separate `Option` accessors — the shape this document
+carried while the structural model was written — a name of species `Leaf` with
+no ordinal is admitted: an entry that cannot be ordered, shifted or promoted,
+and that no triple names. One `Option` over all three makes that state
+unrepresentable, which is why `triple` is a single method returning a `Triple`
+rather than three accessors returning parts of one. What the type does *not*
+forbid is a name that is positioned *and* claims species `Distinguished`; that
+half stays checkable and is checked under the obligation below.
+
+This is `docs/formalism-findings.md` entry 002's own counterfactual applied to
+the implementation: **before modelling a structural property, ask whether the
+target language already forbids it.** The conformance kit checks the other four
+obligations and names this one as discharged, so a reader counting four checks
+against five obligations can see that the fifth was not forgotten.
 
 **`distinguished()` names the only entry of its species.** `parse` yields
 species `Distinguished` for that name and for nothing else. This is what makes

@@ -462,6 +462,120 @@ careful prose, which is at its most confident precisely there. Do not reach for
 it for anything a single state settles: half of what it checked about a single
 tree here was checking the model's own plumbing.
 
+---
+
+### 004 — Implementing against two checked models (`ordinal-fs-tree`'s seam)
+
+**Situation.** The first implementation leaf of the library: the crate skeleton,
+the name types, the `EntryName` trait, one reference domain implementing it, a
+conformance kit for the trait's five obligations, and the test that keeps the
+algebra out of `std::fs`. Two checked models and a reconciled architecture
+document already existed; nothing about the seam was open. This is the first
+entry about *consuming* a model rather than writing one.
+
+**Formalism.** None written. Both suites were re-run first (green, ~2 minutes,
+no friction), and then read as the specification. The instrument that actually
+did work here was a third one this log has not been counting: **the target
+language's type system.**
+
+**Caught.** Four, and the first is the log paying for itself.
+
+- **Entry 002's counterfactual changed the design one leaf later, exactly as
+  written.** It said: *before modelling a structural property, ask whether the
+  target language already forbids it* — and named the shape, `enum Name {
+  Positioned { ordinal, key, parts }, Distinguished }`. Applied at the **seam**
+  rather than only in a domain, it collapses the trait's three `Option`
+  accessors into one `fn triple(&self) -> Option<Triple<'_, Parts>>`, and the
+  obligation *a name is positioned or distinguished, never neither* stops being
+  a thing any consumer can get wrong. The conformance kit checks four
+  obligations, not five, and says which one it does not check and why. Cost: one
+  trait method, one paragraph of `ARCHITECTURE.md`, one comment in
+  `structure.als`. This is the second data point for the *already guaranteed*
+  routing row, and it is a stronger one than the first: 002 observed the
+  saving, 004 collected it.
+- **The witnesses were the test suite; the checks were not.** Four of
+  `structure.als`'s `witness_…` commands became executable Rust — a domain whose
+  `compose` ignores its arguments, one whose grammar forgives an unpadded
+  ordinal, one whose `parse` ignores what the listing found, one with a second
+  distinguished name — each a positive control proving the conformance kit can
+  say no. Not one `check` translated into anything: a check says the design is
+  sound and hands you nothing to run. Entry 002 recorded the witnesses as the
+  more valuable half for *explaining why a law is there*; they are also the more
+  valuable half for *deriving tests*, and that is a different and sharper claim.
+- **The models are silent on exactly where the work was.** Both hold no strings,
+  by design — the entire grammar reduces to one round-trip law — so the
+  reference domain's parse and format, the largest single piece of this leaf,
+  was written with zero model coverage. The obligation is checkable and *how to
+  hold it* was not modelled anywhere. The technique that discharges it is one
+  line and no model suggested it: parse leniently, render the result, and refuse
+  the input if it differs. Field-level padding rules drift; a whole-grammar
+  re-render cannot.
+- **Prior art violates the obligation, and reading it through the obligation is
+  what showed that.** grove's own `src/tree_id.rs` is deliberately lenient on
+  ordinal padding — `parse_position` accepts `5`, `Entry::name` renders `05` — so
+  `format(parse(f)) == f` fails and `5-impl-x-k1.md` and `05-impl-x-k1.md` are
+  one entry with one key at one ordinal. That is
+  `witness_two_filenames_name_one_entry` standing in production code. It is
+  recorded here and in the root brief as an input to increment 2 rather than
+  fixed in passing.
+
+**Missed.** Three, and the first is the one this workstream has now met in a
+third dress.
+
+- **Nothing checks that the code matches the model.** Entry 003 named the hand
+  translation between `structure.als` and `operations.qnt` as the concrete cost
+  of running two formalisms with no checker between them. There is a third
+  vertex: the trait in `ARCHITECTURE.md` is prose with syntax highlighting, and
+  nothing verifies that `src/name.rs` says the same thing. Folding three
+  accessors into one was a deliberate, reconciled edit across three artifacts;
+  an *accidental* divergence would have been caught by nothing at all. The
+  discipline that substitutes for a checker is naming the claim in each test's
+  comment, which is a convention and reads clean when it is broken.
+- **Neither model has anything to say about ergonomics or the public surface.**
+  Whether the seam should be four methods or six, whether `Triple` borrows or
+  owns, what a conformance kit even *is* — all decided by reading the ADR and
+  arguing with the document. The models constrain the design and do not produce
+  it.
+- **The grammar's ambiguities are invisible to both.** That a label may itself
+  end in something shaped like a key (`01-draft-notes-i7-i3.md`) and the name
+  still read one way only is a real property with a real test, and no model
+  states it.
+
+**Cost.** One session. Tooling friction was zero for the first time in this log:
+both runners found their toolchains and reported per-claim pass/fail, which is
+entry 003's own repair working. Re-running them cost about two minutes and
+established, before anything depended on it, that a green suite here means the
+suite ran.
+
+**Counterfactual.** Three, pointing in three directions.
+
+- **The `triple()` fold was free and was written down a session in advance.**
+  Nothing needed to be discovered; the log had it. What that measures is the
+  log's format rather than any formalism — the *counterfactual* field is the one
+  that carried it, which is why it is the load-bearing field.
+- **The grammar work wanted a property-based test, not a model.**
+  `format(parse(f)) == f` over generated filenames is the instrument that fits,
+  and it was not reached for; the fixed sample list in the conformance kit is a
+  weaker version of the same idea, and it says so by reporting which obligations
+  its samples never exercised. This is the first row this log can name and has
+  no evidence for.
+- **The prior-art defect would have been caught by an implementation attempt of
+  the flip** — at the moment two grove trees disagreed about a key — which is to
+  say much later and in a live task tree. Reading the old code *through* a
+  stated obligation is a free technique and it is not a formalism.
+
+**On H3 — untested here, and this entry is not evidence for it.** The
+implementation was faithful to the models, but the same person wrote both
+readings and there was no prose arm. `07-impl-h3-probe-k14` is the pre-registered
+experiment; this entry is the uncontrolled observation that precedes it, recorded
+so a later reader does not mistake it for a result.
+
+**Verdict.** When implementing against an existing model, **read the witnesses
+first** — they are the test suite, and the checks are not. And ask the type
+system before you ask the kit: an obligation the language forbids is one no
+consumer can break, one fewer check to maintain, and the only kind of guarantee
+in this log that costs nothing to keep.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -471,7 +585,7 @@ guesses are not.
 |---|---|---|
 | structural — "is this shape coherent, and can it even represent what I need?" | Alloy | 002: found two defects unprompted, sharpened two more, produced a tree satisfying every stated invariant with a subtree invisible to every traversal |
 | reachability — "is every thing I must name reachable from the constructors I have?" | Alloy | 002: both blocking defects across entries 001 and 002 were this question; it is the one Alloy answers best |
-| already guaranteed — "can the target language forbid this outright?" | none — check first | 002: two of eight structural claims were free from Rust's type system; modelling them taught nothing |
+| already guaranteed — "can the target language forbid this outright?" | none — check first | 002: two of eight structural claims were free from Rust's type system; modelling them taught nothing. 004: collected a third at the seam — folding three `Option` accessors into one removed an obligation from every consumer, at the cost of one trait method |
 | stated-isomorphism — "are both directions written down?" | none — a free question | 002: the canonicity gap was half an isomorphism, and asking costs nothing |
 | behavioural — "does this operation preserve the invariant, from any reachable state?" | Quint | 003: confirmed. All three invariants Alloy could not state were checkable, and six further defects came out of the same file |
 | interruption — "what does a crash halfway through leave behind?" | Quint | 003: the ordering rule's real payoff, and `promote`'s unavoidable transient duplicate, are both invisible to every other method in this log |
@@ -480,4 +594,6 @@ guesses are not.
 | routing itself — "which of the two am I holding?" | count the states the property mentions | 003: one state → structural; two or more → behavioural. Mechanical, and applicable before choosing. Supersedes shape-versus-operation, which mis-sorts "no key is ever reissued" |
 | already arranged — "did the model check this, or make it true?" | neither — a free question | 003: subtree preservation is true by construction of the state shape, and a model that satisfies an invariant by construction is indistinguishable from one that verified it |
 | did it run at all? — "is this suite green, or dead?" | must-be-reached claims beside the must-hold ones | 003: a JVM too old made Alloy print nothing, which its runner read as thirteen unfired witnesses and seven holding checks. Only the witnesses distinguish the two, and every one failing at once is a signature no real defect produces |
+| deriving tests — "what do I actually run against the implementation?" | the model's must-be-reached witnesses | 004: four Alloy witnesses became executable broken-domain tests; not one `check` translated into anything runnable |
+| grammar — "can two filenames name one entry?" | property-based testing *(untested)* | 004: both models hold no strings by design, so the largest piece of the implementation had no model coverage at all. The instrument that fits is `format(parse(f)) == f` over generated names, and it was not reached for |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |

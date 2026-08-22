@@ -216,7 +216,7 @@ readers need:
 - **The CLI is inside increment 1**, as a `design` leaf and an `impl` leaf at
   the end of `crate-k7`, because it is the only end-to-end consumer the library
   gets before the flip.
-- **H3 is pre-registered, not left to impression.** `07-impl-h3-probe-k14.md`
+- **H3 is pre-registered, not left to impression.** `08-impl-h3-probe-k14.md`
   carries the probe, the arms, the measure, a prediction and a falsification
   condition, all written before any implementation leaf ran. The horizon item
   that asked for a deliberate test is discharged by that leaf's existence.
@@ -234,3 +234,18 @@ Increment 2 decides whether grove re-stages after a library rename, accepts the
 changed status output, or something else; it is an input to that decomposition
 rather than work of its own. jj is unaffected — it snapshots the working copy
 and grove already renames plainly there.
+
+**A second thing the flip inherits: grove's name grammar is not canonical.**
+`src/tree_id.rs` is deliberately lenient on position padding — `parse_position`
+accepts a hand-typed `5` and `Entry::name` renders `05` — so
+`format(parse(f)) == f` fails, and a leaf whose position is written `5-` sitting
+beside the same leaf written `05-` is *one* entry occupying two files, sharing a
+key and a position. That is the
+library's canonicity obligation broken, and `structure.als`'s
+`witness_two_filenames_name_one_entry` is a picture of it. grove's domain
+implementation cannot be a transcription of `tree_id.rs`: either the grammar
+tightens and a lenient spelling becomes a refusal with the canonical name in the
+message (what the reference domain does), or the obligation is knowingly waived
+and the flip records why. An input to increment 2's decomposition, found while
+reading the prior art through the obligation; `docs/formalism-findings.md` entry
+004 carries it.

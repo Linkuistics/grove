@@ -20,7 +20,7 @@ Beyond the brief chain:
 - `docs/adr/entries-are-never-removed.md`, which is why this operation matters
   more than its size suggests: a domain retires an entry by rewriting an
   attribute, because there is no removal.
-- `05-impl-promote-k12.md`'s species check, which is this one with the opposite
+- `06-impl-promote-k12.md`'s species check, which is this one with the opposite
   verdict. If the two are not the same code by the time this leaf is done, say
   why in the findings entry.
 
@@ -45,4 +45,4 @@ models are written on the premise that it cannot — their state contains no
 strings at all.
 
 **This is the last mutation.** After it, every operation in `ARCHITECTURE.md`'s
-tables exists, which is the precondition `07-impl-h3-probe-k14.md` is waiting on.
+tables exists, which is the precondition `08-impl-h3-probe-k14.md` is waiting on.

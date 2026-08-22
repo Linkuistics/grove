@@ -1099,6 +1099,71 @@ than to the model's quality. Then check the model's stated idealisations for the
 refusals it cannot name, and count the mechanisms behind each property before
 believing one control covers it.
 
+---
+
+### 010 — Adversarial review of the plan interpreter (`ordinal-fs-tree`)
+
+**Situation.** `interpreter-k21` inspected the plan types, the one filesystem
+interpreter, `append`/`append_many`, their forty-two tests and the producer's
+nine recorded mutation controls before `insert`, `promote`, `rewrite` and the
+CLI could depend on them. Seven deliberate judgements were attacked against the
+exact Quint predicates rather than their names.
+
+**Formalism.** None written or run. This was a fresh, inspection-only
+`review-impl` session: the producer commit, architecture, model handoff and
+predicates, source, tests and verification narrative were read without running
+test, build, lint, format or model commands. Codebase-memory could not index this
+jj workspace because daemon coordination could not be verified, so exact source
+reads replaced graph claims and every graph limitation was kept explicit.
+
+**Caught.** Five findings: three implementation defects and two missing controls.
+
+- `EntryName::Display` is never constrained to one normal path component. A
+  domain satisfying all six obligations can compose `../outside` or an absolute
+  rendering, and the interpreter joins it directly, allowing create, move and
+  rollback outside the locked root. This is the strings-are-unmodelled miss
+  turned from a refusal class into a confinement obligation.
+- The algebra excludes a moved entry from occupying its own destination, but
+  the interpreter's pre-rename look does not. The exact same-parts rewrite that
+  `wit_rewriteToSameParts` requires to succeed is therefore refused by the
+  filesystem layer; its named test stops at the plan boundary.
+- `Report::paths` promises effect order while storing creations and renames in
+  separate buckets and concatenating them. Every insert (moves then create) and
+  promotion-with-child (create, move, create) disproves the promise.
+- Atomicity is correctly implemented for a content write failure — undo is
+  registered after exclusive creation and before `write_all` — but no failure
+  seam reaches that interval. Moving the registration after the write leaves all
+  current atomicity tests green and makes a real short-write error strand a
+  partial file.
+- Destination claiming has three filesystem mechanisms, not the two the
+  producer counted. File create and rename are controlled; node `create_dir` is
+  not. Replacing it with `create_dir_all` leaves the suite green and can make a
+  rollback remove a neighbour's pre-existing empty directory.
+
+**Missed.** The review did not execute the producer's mutation scripts or model
+suites, by kind. The guard-consumption API, forward-effect/undo split,
+pre-registration of move machinery, look-then-rename concurrency boundary,
+three unmodelled refusals and singleton delegation all survived attack. The
+twenty-eight/fourteen model-claim count is accurate; the issue is that a claim
+name can stop at one implementation boundary while the predicate crosses two.
+
+**Cost.** One session. Most cost was the complete architecture/model/test read;
+the disproofs were small once the seven judgements fixed the search axes. The
+failed graph indexing added a direct-source fallback but changed no result.
+
+**Counterfactual.** Count mechanisms across boundaries, not within the module
+where the property was first stated. Apply the plan test through the interpreter
+for same-path moves. Inject failure after file creation, not only before an
+effect. Exercise file create, directory create and rename separately. Feed the
+name seam a value that is a valid model name and an invalid filesystem
+component. Ask a mixed-effect report for its order. Each question independently
+mutates an assumption the existing happy paths hold fixed.
+
+**Verdict.** A named-judgement review remains valuable even when model overlap
+and test density are high. Models and mutation controls partition by their own
+abstraction boundaries; the cheapest adversarial move is to follow one promised
+predicate across the next boundary and count the mechanisms again there.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;

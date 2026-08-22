@@ -29,7 +29,9 @@
 
 use core::fmt;
 
-use crate::{EntryName, Found, Key, Ordinal, Species, Triple, Verdict};
+use crate::{
+    EntryName, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Triple, Verdict,
+};
 
 /// The name of a node's distinguished child in this domain.
 pub const OVERVIEW: &str = "OVERVIEW.md";
@@ -186,11 +188,14 @@ impl Parts {
     }
 
     /// The species these parts imply.
+    ///
+    /// [`PositionedSpecies`] and not [`Species`]: parts belong to a positioned
+    /// name, and the distinguished child has none.
     #[must_use]
-    pub const fn species(&self) -> Species {
+    pub const fn species(&self) -> PositionedSpecies {
         match self {
-            Self::Lesson { .. } => Species::Leaf,
-            Self::Module { .. } => Species::Node,
+            Self::Lesson { .. } => PositionedSpecies::Leaf,
+            Self::Module { .. } => PositionedSpecies::Node,
         }
     }
 }
@@ -201,7 +206,7 @@ impl Parts {
 /// carries an ordinal, a key and parts **together**, or it is the distinguished
 /// child and carries none of them. The obligation *a name is positioned or
 /// distinguished, never neither* is therefore not something this domain can
-/// break — see [`EntryName::triple`], and `docs/formalism-findings.md` entry
+/// break — see [`EntryName::view`], and `docs/formalism-findings.md` entry
 /// 002, whose counterfactual asked for exactly this encoding.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SyllabusName {
@@ -372,6 +377,22 @@ impl EntryName for SyllabusName {
             return Verdict::Foreign;
         };
 
+        // An empty middle is this domain's shape with its label missing —
+        // `01--i3`, which is exactly what an empty label renders as — so it is
+        // Malformed and not Foreign. Disclaiming it would skip the file, and
+        // skip the whole subtree beneath it when it is a directory, while the
+        // walk reported a healthy tree. Checked here rather than left to the
+        // branches below so that the lesson form, whose middle is
+        // `status-label`, refuses for the reason it is actually missing a label
+        // rather than for a missing status.
+        if middle.is_empty() {
+            return Verdict::Malformed(SyllabusError::BadLabel {
+                name: name.to_string(),
+                label: String::new(),
+                error: Label::new(middle).expect_err("the empty string is not a label"),
+            });
+        }
+
         // Canonicity, in the cheapest form there is: parse the number, render it
         // the one way this grammar renders it, and refuse anything else. `5-…`
         // and `005-…` are this domain's names spelled wrong, not foreign ones.
@@ -418,6 +439,7 @@ impl EntryName for SyllabusName {
             }
         };
 
+        let parts_species = parts.species();
         let parsed = Self::Positioned {
             ordinal: Ordinal::new(ordinal),
             key: Key::new(key),
@@ -433,7 +455,9 @@ impl EntryName for SyllabusName {
             return Verdict::Malformed(not_canonical_as(name, &parsed));
         }
 
-        match agree(parsed.species(), found, name) {
+        // The species of a positioned name is `positioned_species(parts)` and
+        // nothing else — the same function the seam derives `species()` from.
+        match agree(parts_species.species(), found, name) {
             Some(err) => Verdict::Malformed(err),
             None => Verdict::Entry(parsed),
         }
@@ -451,14 +475,14 @@ impl EntryName for SyllabusName {
         Some(Self::Overview)
     }
 
-    fn triple(&self) -> Option<Triple<'_, Self::Parts>> {
+    fn view(&self) -> NameView<'_, Self::Parts> {
         match self {
-            Self::Overview => None,
+            Self::Overview => NameView::Distinguished,
             Self::Positioned {
                 ordinal,
                 key,
                 parts,
-            } => Some(Triple {
+            } => NameView::Positioned(Triple {
                 ordinal: *ordinal,
                 key: *key,
                 parts,
@@ -466,11 +490,8 @@ impl EntryName for SyllabusName {
         }
     }
 
-    fn species(&self) -> Species {
-        match self {
-            Self::Overview => Species::Distinguished,
-            Self::Positioned { parts, .. } => parts.species(),
-        }
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        parts.species()
     }
 }
 
@@ -517,8 +538,9 @@ fn split_shape(stem: &str) -> Option<(&str, &str, &str)> {
         return None; // no trailing key digits
     }
     let middle = rest[..key_start].strip_suffix("-i")?;
-    if middle.is_empty() {
-        return None;
-    }
+    // An empty middle is *not* a reason to disclaim the name: `01--i3` has both
+    // markers this domain recognises its own names by, with the label between
+    // them missing. `parse` refuses it as Malformed; skipping it would be data
+    // loss, and a whole subtree of it when the name is a directory.
     Some((digits, middle, &rest[key_start..]))
 }

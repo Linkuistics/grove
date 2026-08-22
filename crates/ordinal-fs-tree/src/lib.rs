@@ -69,4 +69,7 @@ pub mod conformance;
 mod name;
 pub mod reference;
 
-pub use name::{EntryName, Found, Key, Ordinal, Species, Triple, Verdict};
+pub use name::{
+    EntryName, EntryNameExt, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Triple,
+    Verdict,
+};

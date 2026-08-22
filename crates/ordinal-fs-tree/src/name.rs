@@ -148,6 +148,42 @@ impl fmt::Display for Species {
     }
 }
 
+/// Which of the two kinds of thing a **positioned** name names.
+///
+/// [`Species`] minus the distinguished child, which is the species no
+/// positioned name can have. It exists so that
+/// [`EntryName::positioned_species`] can be a function of
+/// [`Parts`](EntryName::Parts) *and of nothing else*: the ordinal and the key
+/// are not in scope there, so a species that changes when an entry is shifted
+/// cannot be written. `structure.als` assumes exactly that in
+/// `SpeciesFromParts`, and every derived operation rests on it — a shift is a
+/// `compose` with a new ordinal, and a shift that changed a leaf into a node
+/// would be a shift that renamed a file into a directory.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PositionedSpecies {
+    /// A regular file with no children.
+    Leaf,
+    /// A directory holding zero or more children.
+    Node,
+}
+
+impl PositionedSpecies {
+    /// The same thing, widened to the three-way [`Species`].
+    #[must_use]
+    pub const fn species(self) -> Species {
+        match self {
+            Self::Leaf => Species::Leaf,
+            Self::Node => Species::Node,
+        }
+    }
+}
+
+impl fmt::Display for PositionedSpecies {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.species(), f)
+    }
+}
+
 /// What a directory listing reports is under a name, **unfollowed**.
 ///
 /// Unfollowed is load-bearing: a symbolic link wearing an entry's name is
@@ -259,6 +295,54 @@ impl<P: PartialEq> PartialEq for Triple<'_, P> {
 
 impl<P: Eq> Eq for Triple<'_, P> {}
 
+/// What a name *is*: a positioned entry with a triple, or the distinguished
+/// child with none.
+///
+/// This is the whole of the choice, in one value, and that is what makes the
+/// obligation *a name is positioned or distinguished, never neither* — and its
+/// other half, *never both* — unrepresentable rather than checkable. Under
+/// separate `triple()` and `species()` accessors a name could return `None` and
+/// [`Species::Leaf`] together (`witness_leaf_name_without_an_ordinal`), or a
+/// triple and [`Species::Distinguished`] together; neither can be written now.
+///
+/// [`EntryNameExt::triple`] and [`EntryNameExt::species`] are read off this, and
+/// are derived rather than implemented for the same reason a sibling shift is.
+pub enum NameView<'a, P> {
+    /// An ordinary entry, isomorphic to its triple.
+    Positioned(Triple<'a, P>),
+    /// A node's own content: no ordinal, no key, no parts.
+    Distinguished,
+}
+
+impl<P> Clone for NameView<'_, P> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<P> Copy for NameView<'_, P> {}
+
+impl<P: fmt::Debug> fmt::Debug for NameView<'_, P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Positioned(t) => f.debug_tuple("Positioned").field(t).finish(),
+            Self::Distinguished => f.write_str("Distinguished"),
+        }
+    }
+}
+
+impl<P: PartialEq> PartialEq for NameView<'_, P> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Positioned(a), Self::Positioned(b)) => a == b,
+            (Self::Distinguished, Self::Distinguished) => true,
+            _ => false,
+        }
+    }
+}
+
+impl<P: Eq> Eq for NameView<'_, P> {}
+
 /// The one trait. All genericity lives here: there are no callbacks, no hooks,
 /// no registration and no configuration objects, and there is no `Domain` type.
 ///
@@ -268,12 +352,13 @@ impl<P: Eq> Eq for Triple<'_, P> {}
 ///
 /// # What an implementation must guarantee
 ///
-/// Five obligations, and the library can check none of them. They are stated
-/// because the structural model found that four were missing, and that a design
-/// missing any one of them admits a tree the library will quietly corrupt. Each
-/// is written on the method it constrains; [`crate::conformance`] checks the
-/// four that Rust does not already make unrepresentable, and names the one it
-/// does.
+/// Six obligations, and the library can check none of them at run time. They
+/// are stated because the structural model found that four were missing, and
+/// that a design missing any one of them admits a tree the library will quietly
+/// corrupt. Each is written on the method it constrains; [`crate::conformance`]
+/// checks the four that Rust does not already make unrepresentable, and names
+/// the two it does — [`view`](EntryName::view) and
+/// [`positioned_species`](EntryName::positioned_species) carry those two.
 pub trait EntryName: Sized + Clone + fmt::Display {
     /// Everything the library does not understand: the label, and whatever
     /// attributes the domain carries. Entirely opaque.
@@ -353,29 +438,148 @@ pub trait EntryName: Sized + Clone + fmt::Display {
         None
     }
 
-    /// `Some` for a positioned name, `None` for the distinguished one.
+    /// What this name is: a positioned entry with its triple, or the
+    /// distinguished child.
+    ///
+    /// One method rather than the `ordinal()` / `key()` / `parts()` /
+    /// `species()` accessors an earlier draft had, because the choice is one
+    /// choice. Read a triple off it with [`EntryNameExt::triple`] and a species
+    /// with [`EntryNameExt::species`]; both are derived from this and from
+    /// [`positioned_species`](EntryName::positioned_species), so neither is an
+    /// implementation's to get wrong.
     ///
     /// # Obligation: a name is positioned or distinguished, never neither
     ///
-    /// **Rust discharges this one.** The architecture document states it of
-    /// three separate `Option` accessors — `ordinal()`, `key()` and `parts()`,
-    /// which "are `Some` together or `None` together" — and a name of species
-    /// [`Species::Leaf`] with no ordinal is then admitted: an entry that cannot
-    /// be ordered, shifted or promoted, and that no triple names
-    /// (`witness_leaf_name_without_an_ordinal`). One [`Option`] over all three
-    /// makes that state unrepresentable, so there is nothing left for an
-    /// implementation to get wrong and nothing for
+    /// **Rust discharges this one, and both halves of it.** The architecture
+    /// document states it of three separate `Option` accessors — `ordinal()`,
+    /// `key()` and `parts()`, which "are `Some` together or `None` together" —
+    /// and a name of species [`Species::Leaf`] with no ordinal is then
+    /// admitted: an entry that cannot be ordered, shifted or promoted, and that
+    /// no triple names (`witness_leaf_name_without_an_ordinal`). A `None`
+    /// triple beside a `Distinguished` species was the same defect inverted.
+    /// [`NameView`] carries the triple *and* the distinguished-or-not choice in
+    /// one value, so neither state can be written and there is nothing here for
     /// [`crate::conformance`] to check.
+    fn view(&self) -> NameView<'_, Self::Parts>;
+
+    /// The species of a positioned name carrying these parts.
     ///
-    /// What the type does *not* forbid is a name that is positioned *and*
-    /// claims [`Species::Distinguished`]. That half stays checkable, and it is
-    /// checked under the obligation on
-    /// [`distinguished`](EntryName::distinguished).
-    fn triple(&self) -> Option<Triple<'_, Self::Parts>>;
+    /// # Obligation: the species follows from the parts
+    ///
+    /// **Rust discharges this one too**, by the signature: this is an
+    /// associated function of the *name type* over a `&Parts`, so there is no
+    /// `self`, no ordinal and no key to consult. A domain whose leaves and
+    /// nodes differ expresses that as variants of [`Parts`](EntryName::Parts).
+    ///
+    /// `structure.als` assumes it as `SpeciesFromParts`, and the derivation
+    /// that rests on it is the sibling shift: shifting is
+    /// `compose(new_ordinal, key, parts)`, so a species that could vary with
+    /// the ordinal would make a shift able to turn a leaf into a node — a
+    /// rename of a file into a directory, with the subtree that implies.
+    ///
+    /// A discharge claim is a proof nobody wrote down, so here is the control.
+    /// The domain below wants its species to depend on where the entry sits,
+    /// and does not compile — there is no `self` to ask:
+    ///
+    /// ```compile_fail
+    /// # use core::fmt;
+    /// # use ordinal_fs_tree::{EntryName, Found, Key, NameView, Ordinal, PositionedSpecies, Verdict};
+    /// # use ordinal_fs_tree::reference::{Parts, SyllabusError, SyllabusName};
+    /// #[derive(Clone)]
+    /// struct OrdinalDependent(SyllabusName);
+    /// # impl fmt::Display for OrdinalDependent {
+    /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { fmt::Display::fmt(&self.0, f) }
+    /// # }
+    /// impl EntryName for OrdinalDependent {
+    ///     type Parts = Parts;
+    ///     type Err = SyllabusError;
+    /// #   fn parse(n: &str, f: Found) -> Verdict<Self, Self::Err> {
+    /// #       match SyllabusName::parse(n, f) {
+    /// #           Verdict::Entry(n) => Verdict::Entry(Self(n)),
+    /// #           Verdict::Foreign => Verdict::Foreign,
+    /// #           Verdict::Malformed(e) => Verdict::Malformed(e),
+    /// #           Verdict::Reserved(e) => Verdict::Reserved(e),
+    /// #       }
+    /// #   }
+    /// #   fn compose(o: Ordinal, k: Key, p: Self::Parts) -> Self { Self(SyllabusName::compose(o, k, p)) }
+    /// #   fn view(&self) -> NameView<'_, Self::Parts> { self.0.view() }
+    ///     fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+    ///         // A node at an even ordinal, a leaf at an odd one. It cannot be
+    ///         // said: no `self`, and no ordinal on `parts`.
+    ///         if self.0.ordinal().get() % 2 == 0 {
+    ///             PositionedSpecies::Node
+    ///         } else {
+    ///             PositionedSpecies::Leaf
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// And the other half of the control, since a `compile_fail` that fails for
+    /// the wrong reason proves nothing: the same domain, differing only in the
+    /// body, compiles.
+    ///
+    /// ```
+    /// # use core::fmt;
+    /// # use ordinal_fs_tree::{EntryName, Found, Key, NameView, Ordinal, PositionedSpecies, Verdict};
+    /// # use ordinal_fs_tree::reference::{Parts, SyllabusError, SyllabusName};
+    /// #[derive(Clone)]
+    /// struct PartsDependent(SyllabusName);
+    /// # impl fmt::Display for PartsDependent {
+    /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { fmt::Display::fmt(&self.0, f) }
+    /// # }
+    /// impl EntryName for PartsDependent {
+    ///     type Parts = Parts;
+    ///     type Err = SyllabusError;
+    /// #   fn parse(n: &str, f: Found) -> Verdict<Self, Self::Err> {
+    /// #       match SyllabusName::parse(n, f) {
+    /// #           Verdict::Entry(n) => Verdict::Entry(Self(n)),
+    /// #           Verdict::Foreign => Verdict::Foreign,
+    /// #           Verdict::Malformed(e) => Verdict::Malformed(e),
+    /// #           Verdict::Reserved(e) => Verdict::Reserved(e),
+    /// #       }
+    /// #   }
+    /// #   fn compose(o: Ordinal, k: Key, p: Self::Parts) -> Self { Self(SyllabusName::compose(o, k, p)) }
+    /// #   fn view(&self) -> NameView<'_, Self::Parts> { self.0.view() }
+    ///     fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+    ///         parts.species()
+    ///     }
+    /// }
+    /// ```
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies;
+}
+
+mod sealed {
+    /// Sealed so that [`super::EntryNameExt`] cannot be implemented by hand:
+    /// the whole point of it is that its two methods are *derived*.
+    pub trait Sealed {}
+    impl<N: super::EntryName> Sealed for N {}
+}
+
+/// What every [`EntryName`] can do without implementing anything further.
+///
+/// Blanket-implemented and sealed, which is the load-bearing part: these are
+/// not provided methods an implementation may override, they are readings of
+/// [`EntryName::view`] and [`EntryName::positioned_species`]. That is what
+/// makes *a name is positioned or distinguished, never neither* and *the
+/// species follows from the parts* unrepresentable rather than checkable — an
+/// overridable `species()` would put both back within reach.
+pub trait EntryNameExt: EntryName + sealed::Sealed {
+    /// `Some` for a positioned name, `None` for the distinguished one.
+    fn triple(&self) -> Option<Triple<'_, Self::Parts>> {
+        match self.view() {
+            NameView::Positioned(triple) => Some(triple),
+            NameView::Distinguished => None,
+        }
+    }
 
     /// Which of the three kinds of thing this name names.
-    ///
-    /// It follows from the parts, so an implementation reads its own parts
-    /// rather than storing a species beside them.
-    fn species(&self) -> Species;
+    fn species(&self) -> Species {
+        match self.view() {
+            NameView::Positioned(triple) => Self::positioned_species(triple.parts).species(),
+            NameView::Distinguished => Species::Distinguished,
+        }
+    }
 }
+
+impl<N: EntryName> EntryNameExt for N {}

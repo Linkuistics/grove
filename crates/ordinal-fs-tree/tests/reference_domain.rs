@@ -8,7 +8,9 @@
 use ordinal_fs_tree::reference::{
     Label, Parts, Status, SyllabusError, SyllabusName, OVERVIEW, PUBLISHING,
 };
-use ordinal_fs_tree::{EntryName, Found, Key, Ordinal, Species, Verdict};
+use ordinal_fs_tree::{
+    EntryName, EntryNameExt, Found, Key, Ordinal, PositionedSpecies, Species, Verdict,
+};
 
 /// Every name in `ARCHITECTURE.md`'s tree diagram, with what the listing finds.
 const DOCUMENT_EXAMPLES: &[(&str, Found, Species)] = &[
@@ -36,7 +38,11 @@ fn the_documents_examples_round_trip() {
     for (name, found, species) in DOCUMENT_EXAMPLES {
         let parsed = entry(name, *found);
         assert_eq!(parsed.to_string(), *name, "`{name}` did not render back");
-        assert_eq!(parsed.species(), *species, "`{name}` named the wrong species");
+        assert_eq!(
+            parsed.species(),
+            *species,
+            "`{name}` named the wrong species"
+        );
     }
 }
 
@@ -95,7 +101,10 @@ fn a_second_spelling_of_a_name_is_malformed_not_foreign() {
         let Verdict::Malformed(err) = SyllabusName::parse(name, Found::File) else {
             panic!("`{name}` should be malformed");
         };
-        let SyllabusError::NotCanonical { canonical: advice, .. } = &err else {
+        let SyllabusError::NotCanonical {
+            canonical: advice, ..
+        } = &err
+        else {
             panic!("`{name}`: wrong refusal: {err}");
         };
         assert_eq!(advice, canonical, "wrong advice for `{name}`");
@@ -122,7 +131,8 @@ fn a_name_of_this_shape_that_cannot_be_read_is_malformed() {
     }
 }
 
-/// Discharges `SpeciesAgreementIsParsed` — the fifth obligation — and with it
+/// Discharges `SpeciesAgreementIsParsed` — the obligation *parse refuses what
+/// found contradicts* — and with it
 /// the invariant `SpeciesAgreementHoldsWhenParsed` proves of every tree the
 /// library walks. Two of these are `witness_species_mismatch_is_unclassifiable`
 /// and one is `witness_distinguished_directory_hides_a_subtree`, which is the
@@ -160,8 +170,9 @@ fn the_key_is_the_terminal_token() {
 }
 
 /// Discharges `DistLawful` — a distinguished child carries neither an ordinal
-/// nor a key — and the half of *positioned or distinguished* that the type
-/// system does not cover: that this name does not also claim a triple.
+/// nor a key. Since `seam-k18` that is read off `NameView::Distinguished`, so
+/// the test now checks that this domain's `view` says *distinguished* for this
+/// name rather than that it remembered to return `None`.
 #[test]
 fn the_distinguished_child_carries_no_triple() {
     let overview = SyllabusName::distinguished().expect("this domain has one");
@@ -196,21 +207,67 @@ fn a_label_is_what_the_grammar_can_read_back() {
     assert!(Label::new("linear-algebra").is_ok());
     assert!(Label::new("notes-i7").is_ok());
     assert!(Label::new("week2").is_ok());
-    for bad in ["", "-leading", "trailing-", "Upper", "2leading", "with space", "with_score"] {
+    for bad in [
+        "",
+        "-leading",
+        "trailing-",
+        "Upper",
+        "2leading",
+        "with space",
+        "with_score",
+    ] {
         assert!(Label::new(bad).is_err(), "`{bad}` should not be a label");
     }
 }
 
-/// Discharges no model claim. It records the one judgement call in the
-/// Foreign/Malformed line that the document does not settle: a name with a
-/// position and a key but *no label at all* is not recognisably this domain's,
-/// so it is disclaimed rather than halting the tree.
+/// Discharges `NothingRecognisedIsSkipped` at the one place this domain nearly
+/// broke it: a name carrying both markers this domain recognises its own names
+/// by — a leading ordinal and a terminal key — with the label between them
+/// missing. `01--i3` is what an empty label *renders* as, so it is this
+/// domain's own name with its middle damaged, and disclaiming it would skip the
+/// file. The directory spelling is the one that costs a subtree: a walk that
+/// skips it loses everything beneath it while reporting a healthy tree.
+///
+/// `seam-k17` found this classified as `Foreign` in both spellings.
 #[test]
-fn a_name_with_no_label_is_not_this_domains_at_all() {
-    assert!(matches!(
-        SyllabusName::parse("01--i3.md", Found::File),
-        Verdict::Foreign
-    ));
+fn a_name_of_this_shape_with_no_label_is_malformed_not_foreign() {
+    for (name, found) in [
+        ("01--i3.md", Found::File), // the lesson spelling
+        ("01--i3", Found::Dir),     // the module spelling — a whole subtree
+    ] {
+        let Verdict::Malformed(err) = SyllabusName::parse(name, found) else {
+            panic!("`{name}` should be malformed, not skipped");
+        };
+        let SyllabusError::BadLabel { label, .. } = &err else {
+            panic!("`{name}`: wrong refusal: {err}");
+        };
+        assert!(
+            label.is_empty(),
+            "`{name}`: the empty label is what is wrong"
+        );
+        let advice = err.to_string();
+        assert!(
+            advice.contains("Rename it") && advice.contains("may not be empty"),
+            "no recovery advice in: {advice}"
+        );
+    }
+}
+
+/// The other side of that line, so the correction did not swallow it: a name
+/// missing one of the two markers is genuinely not this domain's, and staying
+/// `Foreign` is what lets a tree hold unrelated files at all.
+#[test]
+fn a_name_missing_a_marker_is_still_foreign() {
+    for (name, found) in [
+        ("01-i3.md", Found::File), // no `-i` before the key digits
+        ("-i3.md", Found::File),   // no leading ordinal
+        ("draft-vectors.md", Found::File),
+    ] {
+        assert!(
+            matches!(SyllabusName::parse(name, found), Verdict::Foreign),
+            "`{name}` should be foreign"
+        );
+    }
 }
 
 /// Discharges no model claim: this is the species-follows-from-parts rule at the
@@ -219,11 +276,24 @@ fn a_name_with_no_label_is_not_this_domains_at_all() {
 fn the_species_follows_from_the_parts() {
     let lesson = Parts::lesson(Status::Draft, Label::new("vectors").unwrap());
     let module = Parts::module(Label::new("vectors").unwrap());
-    assert_eq!(lesson.species(), Species::Leaf);
-    assert_eq!(module.species(), Species::Node);
+    assert_eq!(lesson.species(), PositionedSpecies::Leaf);
+    assert_eq!(module.species(), PositionedSpecies::Node);
+    // And it is the *only* input to a positioned name's species: the seam reads
+    // `species()` off `positioned_species(parts)`, which has no ordinal and no
+    // key to consult, so the same parts at any position are the same species.
+    assert_eq!(
+        SyllabusName::positioned_species(&lesson),
+        SyllabusName::positioned_species(&lesson)
+    );
 
     let o = Ordinal::new(1);
     let k = Key::new(4);
-    assert_eq!(SyllabusName::compose(o, k, lesson).to_string(), "01-draft-vectors-i4.md");
-    assert_eq!(SyllabusName::compose(o, k, module).to_string(), "01-vectors-i4");
+    assert_eq!(
+        SyllabusName::compose(o, k, lesson).to_string(),
+        "01-draft-vectors-i4.md"
+    );
+    assert_eq!(
+        SyllabusName::compose(o, k, module).to_string(),
+        "01-vectors-i4"
+    );
 }

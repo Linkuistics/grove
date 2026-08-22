@@ -9,8 +9,16 @@ type. Locking and version control are not in the trait because they are not
 domain questions — the library locks the directory containing the tree root
 whatever the domain is, and a rename is `rename(2)`.
 
+`EntryNameExt` is a second trait and not a second seam: it is
+blanket-implemented for every `EntryName` and sealed, so nothing outside the
+library can implement it and no consumer chooses anything by it. It exists
+because two of the obligations are discharged by being *derived* — a name's
+triple and its species are read off `view` and `positioned_species` — and a
+provided method on `EntryName` could be overridden, which would hand back the
+two defects the shape was chosen to remove.
+
 [`docs/ordinal-fs-tree/ARCHITECTURE.md`](../ordinal-fs-tree/ARCHITECTURE.md)
-carries the trait itself, the five obligations an implementation must meet, and
+carries the trait itself, the six obligations an implementation must meet, and
 the name/`(ordinal, key, parts)` isomorphism the seam rests on. This record
 carries what that document does not: the shapes that were rejected on the way to
 it, and what it would cost to change course.

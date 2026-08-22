@@ -92,7 +92,9 @@ attribute where the library's own surface is meant — it sees only parts.
 
 **Species**:
 Which of the three kinds of thing a **name** names: `Leaf`, `Node` or
-`Distinguished`. It follows from the **parts**.
+`Distinguished`. A **distinguished child** is the third; every other name is
+**positioned**, and its species follows from the **parts** and from nothing
+else — not from its **ordinal**, which changes under it.
 _Avoid_: "type", "kind", "variant".
 
 **Verdict**:

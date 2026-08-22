@@ -1,4 +1,4 @@
-//! The conformance kit, and the four deliberately broken domains that prove it
+//! The conformance kit, and the six deliberately broken domains that prove it
 //! is not reading clean while broken.
 //!
 //! Each broken domain is one of `structure.als`'s witnesses written in Rust: a
@@ -10,7 +10,9 @@ use core::fmt;
 
 use ordinal_fs_tree::conformance::{self, Finding, Obligation, DISCHARGED_BY_THE_TYPE_SYSTEM};
 use ordinal_fs_tree::reference::{Label, Parts, Status, SyllabusError, SyllabusName};
-use ordinal_fs_tree::{EntryName, Found, Key, Ordinal, Species, Triple, Verdict};
+use ordinal_fs_tree::{
+    EntryName, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Verdict,
+};
 
 /// A listing the reference domain should be entirely at home in: both species,
 /// the distinguished child, a foreign name, and the reserved witness.
@@ -91,20 +93,27 @@ fn samples_that_reach_only_half_the_seam_say_so() {
                           if *obligation == Obligation::ComposePlacesWhatItIsGiven)));
 }
 
-/// The obligation Rust discharges is named rather than dropped: a consumer
-/// counting four checks against the document's five needs to see that the fifth
-/// was not forgotten.
+/// The obligations Rust discharges are named rather than dropped: a consumer
+/// counting four checks against the document's six needs to see that the other
+/// two were not forgotten.
 #[test]
 fn the_obligation_the_type_system_discharges_is_reported() {
-    assert_eq!(DISCHARGED_BY_THE_TYPE_SYSTEM.len(), 1);
+    assert_eq!(DISCHARGED_BY_THE_TYPE_SYSTEM.len(), 2);
     assert_eq!(
         Obligation::ALL.len() + DISCHARGED_BY_THE_TYPE_SYSTEM.len(),
-        5,
-        "the architecture document states five obligations"
+        6,
+        "the architecture document states six obligations"
     );
-    assert!(DISCHARGED_BY_THE_TYPE_SYSTEM[0]
-        .statement
-        .contains("positioned or distinguished"));
+    let discharged: Vec<&str> = DISCHARGED_BY_THE_TYPE_SYSTEM
+        .iter()
+        .map(|d| d.statement)
+        .collect();
+    assert!(discharged
+        .iter()
+        .any(|s| s.contains("positioned or distinguished")));
+    assert!(discharged
+        .iter()
+        .any(|s| s.contains("follows from the parts")));
 }
 
 // ===========================================================================
@@ -156,12 +165,12 @@ impl EntryName for Forgetful {
         SyllabusName::distinguished().map(Self)
     }
 
-    fn triple(&self) -> Option<Triple<'_, Self::Parts>> {
-        self.0.triple()
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        self.0.view()
     }
 
-    fn species(&self) -> Species {
-        self.0.species()
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
     }
 }
 
@@ -212,12 +221,12 @@ impl EntryName for Lenient {
         SyllabusName::distinguished().map(Self)
     }
 
-    fn triple(&self) -> Option<Triple<'_, Self::Parts>> {
-        self.0.triple()
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        self.0.view()
     }
 
-    fn species(&self) -> Species {
-        self.0.species()
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
     }
 }
 
@@ -269,12 +278,12 @@ impl EntryName for Blind {
         SyllabusName::distinguished().map(Self)
     }
 
-    fn triple(&self) -> Option<Triple<'_, Self::Parts>> {
-        self.0.triple()
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        self.0.view()
     }
 
-    fn species(&self) -> Species {
-        self.0.species()
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
     }
 }
 
@@ -314,8 +323,18 @@ impl EntryName for TwoOverviews {
     type Err = SyllabusError;
 
     fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
-        if name == "INDEX.md" && found == Found::File {
-            return Verdict::Entry(Self::Index);
+        if name == "INDEX.md" {
+            // Not part of the defect: a name this domain owns still refuses a
+            // listing that contradicts it, so the kit's verdict names the one
+            // obligation this domain actually breaks.
+            return match found {
+                Found::File => Verdict::Entry(Self::Index),
+                _ => Verdict::Malformed(SyllabusError::SpeciesMismatch {
+                    name: name.to_string(),
+                    declares: Species::Distinguished,
+                    found,
+                }),
+            };
         }
         match SyllabusName::parse(name, found) {
             Verdict::Entry(n) => Verdict::Entry(Self::Delegated(n)),
@@ -333,18 +352,15 @@ impl EntryName for TwoOverviews {
         SyllabusName::distinguished().map(Self::Delegated)
     }
 
-    fn triple(&self) -> Option<Triple<'_, Self::Parts>> {
+    fn view(&self) -> NameView<'_, Self::Parts> {
         match self {
-            Self::Delegated(n) => n.triple(),
-            Self::Index => None,
+            Self::Delegated(n) => n.view(),
+            Self::Index => NameView::Distinguished,
         }
     }
 
-    fn species(&self) -> Species {
-        match self {
-            Self::Delegated(n) => n.species(),
-            Self::Index => Species::Distinguished,
-        }
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
     }
 }
 
@@ -356,6 +372,147 @@ fn a_second_distinguished_name_is_caught() {
     assert_eq!(
         violated(&report),
         vec![Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies],
+        "{report}"
+    );
+}
+
+/// `seam-k17`'s third finding: a domain that *detects* the contradiction and
+/// then answers `Foreign` rather than `Malformed`. Nothing is lost at the
+/// boundary — the name is refused either way — and everything is lost in the
+/// tree: `Foreign` means *not mine*, so a walk skips the entry silently, and
+/// skips the whole subtree under it when the contradiction is a directory
+/// wearing a leaf's name. That is exactly the tree
+/// `witness_species_mismatch_is_unclassifiable` exhibits, reached through the
+/// one verdict the old kit accepted.
+#[derive(Clone)]
+struct Evasive(SyllabusName);
+delegate!(Evasive);
+
+impl EntryName for Evasive {
+    type Parts = Parts;
+    type Err = SyllabusError;
+
+    fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
+        match SyllabusName::parse(name, found) {
+            Verdict::Entry(n) => Verdict::Entry(Self(n)),
+            Verdict::Foreign => Verdict::Foreign,
+            // The defect: the one refusal that halts becomes the one that skips.
+            Verdict::Malformed(SyllabusError::SpeciesMismatch { .. }) => Verdict::Foreign,
+            Verdict::Malformed(e) => Verdict::Malformed(e),
+            Verdict::Reserved(e) => Verdict::Reserved(e),
+        }
+    }
+
+    fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
+        Self(SyllabusName::compose(ordinal, key, parts))
+    }
+
+    fn distinguished() -> Option<Self> {
+        SyllabusName::distinguished().map(Self)
+    }
+
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        self.0.view()
+    }
+
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
+    }
+}
+
+#[test]
+fn a_species_contradiction_disguised_as_foreign_is_caught() {
+    let report = conformance::check::<Evasive>(&listings(), &triples());
+    assert_eq!(
+        violated(&report),
+        vec![Obligation::ParseRefusesWhatFoundContradicts],
+        "{report}"
+    );
+}
+
+/// `seam-k17`'s fourth finding, and `witness_two_filenames_name_one_entry` from
+/// the other end: a grammar whose round trip is exact on the *string* and wrong
+/// on the *name*. It renders what it was composed with and parses that same
+/// spelling into a different key, so nothing on disk looks amiss while every
+/// snapshot reads an identity that was never written. `RoundTripDisplay` is
+/// `v.seen = n` — the same name, not a name that spells the same.
+#[derive(Clone)]
+struct KeyDrift {
+    shown: String,
+    inner: SyllabusName,
+}
+
+impl fmt::Display for KeyDrift {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.shown)
+    }
+}
+
+impl KeyDrift {
+    /// The defect: what was read is not what the string said.
+    fn drifted(shown: &str, inner: SyllabusName) -> Self {
+        let inner = match inner {
+            SyllabusName::Positioned {
+                ordinal,
+                key,
+                parts,
+            } => SyllabusName::Positioned {
+                ordinal,
+                key: Key::new(key.get() + 1),
+                parts,
+            },
+            other => other,
+        };
+        Self {
+            shown: shown.to_string(),
+            inner,
+        }
+    }
+}
+
+impl EntryName for KeyDrift {
+    type Parts = Parts;
+    type Err = SyllabusError;
+
+    fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
+        match SyllabusName::parse(name, found) {
+            Verdict::Entry(n) => Verdict::Entry(Self::drifted(name, n)),
+            Verdict::Foreign => Verdict::Foreign,
+            Verdict::Malformed(e) => Verdict::Malformed(e),
+            Verdict::Reserved(e) => Verdict::Reserved(e),
+        }
+    }
+
+    fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
+        let inner = SyllabusName::compose(ordinal, key, parts);
+        Self {
+            shown: inner.to_string(),
+            inner,
+        }
+    }
+
+    fn distinguished() -> Option<Self> {
+        SyllabusName::distinguished().map(|inner| Self {
+            shown: inner.to_string(),
+            inner,
+        })
+    }
+
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        self.inner.view()
+    }
+
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
+    }
+}
+
+#[test]
+fn a_parse_that_changes_the_key_behind_an_exact_display_is_caught() {
+    let report = conformance::check::<KeyDrift>(&listings(), &triples());
+    assert_eq!(
+        violated(&report),
+        vec![Obligation::TheGrammarIsCanonical],
         "{report}"
     );
 }

@@ -107,7 +107,18 @@ fact ByConstruction {
 // ---------------------------------------------------------------------------
 
 /* "The species follows from the parts."  And, by the document's account of the
-   distinguished child, a name without parts is the distinguished one. */
+   distinguished child, a name without parts is the distinguished one.
+
+   DISCHARGED AT THE BOUNDARY since `seam-k18`.  The Rust seam derives a
+   positioned name's species from `positioned_species(parts: &Parts)`, an
+   associated function with no `self`, no ordinal and no key, so a species that
+   varied with an entry's position cannot be written.  It stays an assumed
+   predicate here rather than a `fact` because the model is about the design and
+   not about Rust, and because the defect it closes is real in any language whose
+   name type exposes a species accessor beside its parts: the trait did exactly
+   that until `seam-k17` found that a shift could then turn a leaf into a node
+   while `ComposeLawful` still held.  See `docs/formalism-findings.md` entry
+   005. */
 pred SpeciesFromParts {
   all n: Name | some n.nParts implies n.nSpecies = n.nParts.pSpecies
   all n: Name | no   n.nParts implies n.nSpecies = DistS
@@ -165,15 +176,21 @@ pred ComposeTotal {
    and parts.  The trait returns `Option` for each, and the document never says
    when each is `Some`.
 
-   DISCHARGED AT THE BOUNDARY, like `SpeciesAgreementIsParsed`.  The Rust seam
-   folds the three accessors into one — `fn triple(&self) -> Option<Triple<'_,
-   Parts>>` — so a name carrying some of the three and not the others cannot be
-   written, and no implementation can violate this law.  It stays an assumed
-   predicate here rather than a `fact` because the model is about the design and
-   not about Rust, and because the defect it closes is real in any language whose
-   name type is three independent optional fields: that is what
-   `witness_leaf_name_without_an_ordinal` still exhibits.  See
-   `docs/formalism-findings.md` entry 004. */
+   DISCHARGED AT THE BOUNDARY, like `SpeciesAgreementIsParsed` — but only since
+   `seam-k18`, and the correction is worth reading before trusting the claim.
+   Folding the three accessors into one `Option<Triple>` (entry 004) closed
+   *this* predicate and left its converse open: a name could still carry a
+   triple and report species `Dist`, which is what
+   `PositionedAndDistinguishedAreDisjoint` is about, and the trait's independent
+   `species()` was where an implementation said so.  `seam-k17` found the
+   document, this comment and the conformance kit all claiming the whole
+   obligation discharged on the strength of the half.  The seam now returns one
+   `NameView` — a `Triple`, or the distinguished child — so both halves are
+   unwritable.  It stays an assumed predicate here rather than a `fact` because
+   the model is about the design and not about Rust, and because the defect is
+   real in any language whose name type is three independent optional fields
+   beside a species: that is what `witness_leaf_name_without_an_ordinal` still
+   exhibits.  See `docs/formalism-findings.md` entries 004 and 005. */
 pred PositionedNamesAreComplete {
   all n: Name | n != Trait.dist implies (some n.nOrd and some n.nKey and some n.nParts)
 }

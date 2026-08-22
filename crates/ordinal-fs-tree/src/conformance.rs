@@ -1,7 +1,7 @@
 //! The conformance kit: hand it sample names and sample triples, and learn
 //! which of the trait's obligations your implementation violates.
 //!
-//! The five obligations under [`EntryName`] are the **consumer's**, and the
+//! The six obligations under [`EntryName`] are the **consumer's**, and the
 //! library cannot check any of them from inside an operation — a design missing
 //! any one of them admits a tree the library will quietly corrupt, and it
 //! corrupts it silently, in a tree someone is using. This module is where a
@@ -29,13 +29,14 @@
 
 use core::fmt;
 
-use crate::{EntryName, Found, Species, Verdict};
+use crate::{EntryName, EntryNameExt, Found, NameView, Species, Verdict};
 
 /// One of the obligations this kit checks.
 ///
-/// Four, not five. The fifth — *a name is positioned or distinguished, never
-/// neither* — is discharged by the type system and is listed in
-/// [`DISCHARGED_BY_THE_TYPE_SYSTEM`] rather than checked here.
+/// Four, not six. The other two — *a name is positioned or distinguished, never
+/// neither* and *the species follows from the parts* — are discharged by the
+/// type system and are listed in [`DISCHARGED_BY_THE_TYPE_SYSTEM`] rather than
+/// checked here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Obligation {
     /// `compose(o, k, p)` yields a name whose triple is `Some` and equal to
@@ -119,18 +120,30 @@ pub struct Discharged {
 /// violation of them.
 ///
 /// Reporting them is the point: a consumer reading four checks where the
-/// document states five needs to know that the fifth was not forgotten. The
+/// document states six needs to know that the other two were not forgotten. The
 /// finding that produced this list is `docs/formalism-findings.md` entry 002 —
 /// *before modelling a structural property, ask whether the target language
 /// already forbids it*.
-pub const DISCHARGED_BY_THE_TYPE_SYSTEM: &[Discharged] = &[Discharged {
-    statement: "a name is positioned or distinguished, never neither",
-    how: "`EntryName::triple` returns one `Option` over the ordinal, the key and the \
-          parts together, so a name carrying some of the three and not the others cannot \
-          be written. The document states the obligation of three separate `Option` \
-          accessors, where it is a real thing to get wrong \
-          (witness_leaf_name_without_an_ordinal).",
-}];
+pub const DISCHARGED_BY_THE_TYPE_SYSTEM: &[Discharged] = &[
+    Discharged {
+        statement: "a name is positioned or distinguished, never neither",
+        how: "`EntryName::view` returns one `NameView`: either a `Triple` — the ordinal, the \
+              key and the parts together — or the distinguished child, which has none of \
+              them. A name carrying some of the three and not the others cannot be written, \
+              and neither can one carrying a triple while claiming the distinguished \
+              species. The document states the obligation of three separate `Option` \
+              accessors beside an independent `species()`, where both halves are real things \
+              to get wrong (witness_leaf_name_without_an_ordinal).",
+    },
+    Discharged {
+        statement: "the species follows from the parts",
+        how: "`EntryName::positioned_species` is an associated function over a `&Parts`: no \
+              `self`, no ordinal, no key. A species that varied with an entry's position \
+              cannot be written, so a sibling shift — which is a `compose` with a new \
+              ordinal — cannot turn a leaf into a node. `structure.als` assumes it as \
+              `SpeciesFromParts` and every derived operation rests on it.",
+    },
+];
 
 /// What the kit learned about one obligation.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -209,8 +222,7 @@ impl Report {
     }
 
     fn violate(&mut self, obligation: Obligation, detail: String) {
-        self.findings
-            .push(Finding::Violated { obligation, detail });
+        self.findings.push(Finding::Violated { obligation, detail });
     }
 
     fn untested(&mut self, obligation: Obligation, detail: &str) {
@@ -266,15 +278,16 @@ pub fn check<N: EntryName>(
         .map(|(o, k, p)| N::compose(*o, *k, p.clone()))
         .collect();
     for ((ordinal, key, parts), name) in triples.iter().zip(&composed) {
-        match name.triple() {
-            None => report.violate(
+        match name.view() {
+            NameView::Distinguished => report.violate(
                 Obligation::ComposePlacesWhatItIsGiven,
                 format!(
-                    "compose(ordinal {ordinal}, key {key}, …) produced `{name}`, whose \
-                     triple() is None. A composed name is positioned by construction."
+                    "compose(ordinal {ordinal}, key {key}, …) produced `{name}`, which is \
+                     the distinguished child and carries no triple. A composed name is \
+                     positioned by construction."
                 ),
             ),
-            Some(t) => {
+            NameView::Positioned(t) => {
                 if t.ordinal != *ordinal {
                     report.violate(
                         Obligation::ComposePlacesWhatItIsGiven,
@@ -314,11 +327,15 @@ pub fn check<N: EntryName>(
         );
     }
 
+    let distinguished = N::distinguished();
+    let distinguished_name = distinguished.as_ref().map(ToString::to_string);
+
     // --- the grammar is canonical -----------------------------------------
     //
     // Both directions, because *isomorphic* means both: a filename that parses
-    // must render back to itself, and a composed name must parse back to
-    // itself. Alloy: `ParseIsCanonical` and `RoundTripDisplay`.
+    // must render back to itself, and a name the consumer can produce must
+    // parse back to *that name*. Alloy: `ParseIsCanonical` and
+    // `RoundTripDisplay`.
     let mut parsed_any_listing = false;
     for (filename, found) in listings {
         if let Verdict::Entry(name) = N::parse(filename, *found) {
@@ -342,7 +359,14 @@ pub fn check<N: EntryName>(
              Supply at least one well-formed name of each species.",
         );
     }
-    for name in &composed {
+    // `RoundTripDisplay` is `v.seen = n`: the name that comes back is *the same
+    // name*, not merely one that renders the same way. Comparing renderings
+    // alone lets a domain parse its own output into a different triple while
+    // `Display` keeps saying what it said — the strings agree, and every
+    // snapshot then reads an ordinal and a key that were never composed. The
+    // distinguished spelling goes through the same check, where the thing to
+    // come back is the absence of a triple.
+    for name in composed.iter().chain(distinguished.as_ref()) {
         let rendered = name.to_string();
         match N::parse(&rendered, name.species().requires()) {
             Verdict::Entry(reparsed) => {
@@ -350,15 +374,36 @@ pub fn check<N: EntryName>(
                 if again != rendered {
                     report.violate(
                         Obligation::TheGrammarIsCanonical,
-                        format!("composed `{rendered}` parses to a name rendering as `{again}`."),
+                        format!("`{rendered}` parses to a name rendering as `{again}`."),
+                    );
+                } else if reparsed.view() != name.view() {
+                    report.violate(
+                        Obligation::TheGrammarIsCanonical,
+                        format!(
+                            "`{rendered}` renders back to itself but parses to a different \
+                             name — its ordinal, key or parts are not the ones that were \
+                             composed. Every operation reads the triple, not the string."
+                        ),
+                    );
+                } else if reparsed.species() != name.species() {
+                    // Implied by the views agreeing, since the species is read
+                    // off the view; stated because the obligation is stated of
+                    // both and a later change to either derivation lands here.
+                    report.violate(
+                        Obligation::TheGrammarIsCanonical,
+                        format!(
+                            "`{rendered}` parses back to a {} where it was composed as a {}.",
+                            reparsed.species(),
+                            name.species()
+                        ),
                     );
                 }
             }
             _ => report.violate(
                 Obligation::TheGrammarIsCanonical,
                 format!(
-                    "composed `{rendered}` does not parse back to an entry. Every name \
-                     the consumer can produce must be one the consumer can read."
+                    "`{rendered}` does not parse back to an entry. Every name the consumer \
+                     can produce must be one the consumer can read."
                 ),
             ),
         }
@@ -367,28 +412,11 @@ pub fn check<N: EntryName>(
     // --- distinguished() names the only entry of its species ---------------
     //
     // Alloy: `OneDistinguishedName` and `DistLawful`, checked as
-    // `DistinguishedIsUniquePerNode`. This is also where the half of
-    // *positioned or distinguished* that the type system does not cover lives —
-    // a name that is positioned *and* claims the distinguished species.
-    let distinguished = N::distinguished();
-    let distinguished_name = distinguished.as_ref().map(ToString::to_string);
+    // `DistinguishedIsUniquePerNode`. That `distinguished()` itself carries no
+    // triple is no longer checkable — `NameView::Distinguished` holds none —
+    // so what is left is the half about every *other* name.
     if let Some(d) = &distinguished {
         let rendered = d.to_string();
-        if d.species() != Species::Distinguished {
-            report.violate(
-                Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies,
-                format!("distinguished() returned `{rendered}`, whose species is {}.", d.species()),
-            );
-        }
-        if d.triple().is_some() {
-            report.violate(
-                Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies,
-                format!(
-                    "distinguished() returned `{rendered}`, which carries a triple. A \
-                     distinguished child has neither an ordinal nor a key."
-                ),
-            );
-        }
         match N::parse(&rendered, Found::File) {
             Verdict::Entry(n) if n.species() == Species::Distinguished => {}
             Verdict::Entry(n) => report.violate(
@@ -424,18 +452,6 @@ pub fn check<N: EntryName>(
             }
         }
     }
-    for name in &composed {
-        if name.species() == Species::Distinguished {
-            report.violate(
-                Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies,
-                format!(
-                    "compose produced `{name}`, whose species is the distinguished one. A \
-                     composed name carries an ordinal and a key; a distinguished child \
-                     carries neither."
-                ),
-            );
-        }
-    }
     // Checking `distinguished()` against itself is half the obligation. The other
     // half — that *no other* name claims that species — needs names to look at,
     // and a domain whose own distinguished child is the only thing the kit saw
@@ -454,6 +470,14 @@ pub fn check<N: EntryName>(
     // one it was paired with: the obligation is about what `parse` does when the
     // listing contradicts the name, and a sample that is only ever shown its own
     // truth never asks the question. Alloy: `SpeciesAgreementIsParsed`.
+    //
+    // The refusal has to be `Malformed`, and that is the whole of the
+    // obligation rather than a detail of it: `Foreign` means *not my name*, and
+    // a walk skips a foreign name silently — together with everything beneath
+    // it when it is a directory. A domain that answers `Foreign` where its own
+    // name contradicts the listing has hidden exactly the subtree this
+    // obligation exists to expose, so the kit only accepts a halt that carries
+    // the domain's own error.
     let mut agreed = false;
     let mut refused = false;
     let every_found = [Found::File, Found::Dir, Found::Other];
@@ -468,28 +492,54 @@ pub fn check<N: EntryName>(
         candidates.push(d.clone());
     }
     for (index, filename) in candidates.iter().enumerate() {
-        let mut entries = 0;
+        let mut recognised = false;
+        let mut not_entry: Vec<(Found, &'static str)> = Vec::new();
         for found in every_found {
-            if let Verdict::Entry(name) = N::parse(filename, found) {
-                entries += 1;
-                if name.species().agrees_with(found) {
-                    agreed |= index < supplied;
-                } else {
-                    report.violate(
-                        Obligation::ParseRefusesWhatFoundContradicts,
-                        format!(
-                            "`{filename}` over {found} parsed as an entry of species {}, \
-                             which requires {}. That is how a subtree disappears from every \
-                             traversal while the tree reports itself healthy.",
-                            name.species(),
-                            name.species().requires()
-                        ),
-                    );
+            match N::parse(filename, found) {
+                Verdict::Entry(name) => {
+                    recognised = true;
+                    if name.species().agrees_with(found) {
+                        agreed |= index < supplied;
+                    } else {
+                        report.violate(
+                            Obligation::ParseRefusesWhatFoundContradicts,
+                            format!(
+                                "`{filename}` over {found} parsed as an entry of species {}, \
+                                 which requires {}. That is how a subtree disappears from every \
+                                 traversal while the tree reports itself healthy.",
+                                name.species(),
+                                name.species().requires()
+                            ),
+                        );
+                    }
                 }
+                Verdict::Foreign => not_entry.push((found, "Foreign")),
+                Verdict::Malformed(_) => not_entry.push((found, "Malformed")),
+                Verdict::Reserved(_) => not_entry.push((found, "Reserved")),
             }
         }
-        if entries > 0 && entries < every_found.len() && index < supplied {
-            refused = true;
+        // A name this domain never accepts is its own affair: whether it is
+        // foreign or reserved says nothing about this obligation. Only a name
+        // the domain *does* recognise can contradict a listing.
+        if !recognised {
+            continue;
+        }
+        for (found, verdict) in not_entry {
+            if verdict == "Malformed" {
+                refused |= index < supplied;
+            } else {
+                report.violate(
+                    Obligation::ParseRefusesWhatFoundContradicts,
+                    format!(
+                        "`{filename}` parses as an entry under another listing, so this \
+                         domain owns the name; over {found} it answers {verdict}. A \
+                         contradiction must be Malformed, carrying this domain's own error: \
+                         Foreign is skipped silently, taking the whole subtree with it when \
+                         the name is a directory, and Reserved says the name is deliberately \
+                         not an entry, which this one is not."
+                    ),
+                );
+            }
         }
     }
     if !agreed {
@@ -501,9 +551,9 @@ pub fn check<N: EntryName>(
     } else if !refused {
         report.untested(
             Obligation::ParseRefusesWhatFoundContradicts,
-            "every sample name that parsed did so under all three `Found` values, so no \
-             contradiction was ever refused. Supply a name of a species that requires a \
-             file, or one that requires a directory.",
+            "no sample name that parsed was refused as Malformed under a contradicting \
+             `Found`, so no contradiction was ever put to the domain. Supply a name of a \
+             species that requires a file, or one that requires a directory.",
         );
     }
 

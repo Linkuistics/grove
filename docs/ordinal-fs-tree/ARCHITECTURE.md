@@ -190,28 +190,44 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// promotion is refused rather than guessed at.
     fn distinguished() -> Option<Self> { None }
 
-    /// `Some` for a positioned name, `None` for the distinguished one. The
-    /// three travel together — a name has all of them or none of them — so
-    /// they are one `Option` and not three. See the obligation below.
+    /// What this name is: a positioned entry with its triple, or the
+    /// distinguished child. One value, because it is one choice — see the
+    /// obligation below.
+    fn view(&self) -> NameView<'_, Self::Parts>;
+
+    /// The species of a positioned name carrying these parts. No `self`, no
+    /// ordinal, no key: the species follows from the parts and from nothing
+    /// else. See the obligation below.
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies;
+}
+
+/// Blanket-implemented and sealed, so these are readings of the two methods
+/// above rather than methods an implementation may supply.
+pub trait EntryNameExt: EntryName {
     fn triple(&self) -> Option<Triple<'_, Self::Parts>>;
     fn species(&self) -> Species;
 }
 
 pub struct Triple<'a, P> { pub ordinal: Ordinal, pub key: Key, pub parts: &'a P }
 
+pub enum NameView<'a, P> { Positioned(Triple<'a, P>), Distinguished }
+
 pub enum Verdict<N, E> { Entry(N), Foreign, Malformed(E), Reserved(E) }
-pub enum Species { Leaf, Node, Distinguished }
-pub enum Found   { File, Dir, Other }
+pub enum Species          { Leaf, Node, Distinguished }
+pub enum PositionedSpecies { Leaf, Node }
+pub enum Found            { File, Dir, Other }
 ```
 
 ### What an implementation must guarantee
 
-Five obligations, none of which the library can check. They are stated because
-the structural model found that four were missing, and that a design missing any
-one of them admits a tree the library will quietly corrupt.
+Six obligations, none of which the library can check at run time. They are
+stated because the structural model found that four were missing, and that a
+design missing any one of them admits a tree the library will quietly corrupt.
+Two of the six are discharged by the Rust seam's *shape* rather than checked,
+and both are marked below.
 
 **Compose places what it is given.** `compose(o, k, p)` yields a name whose
-`ordinal()` is `o`, whose `key()` is `k` and whose `parts()` is `p`. Without
+view is `Positioned` with `ordinal == o`, `key == k` and `parts == p`. Without
 this the isomorphism below says nothing, and the sibling shift — which is
 nothing but a `compose` — is free to move one entry's key onto another's
 position while every stated invariant still holds.
@@ -224,20 +240,32 @@ tree carries a duplicate key that no invariant rules out.
 
 **A name is positioned or distinguished, never neither.** *In Rust this one is
 discharged by the type system, and it is stated because it is not free
-everywhere.* Under three separate `Option` accessors — the shape this document
-carried while the structural model was written — a name of species `Leaf` with
-no ordinal is admitted: an entry that cannot be ordered, shifted or promoted,
-and that no triple names. One `Option` over all three makes that state
-unrepresentable, which is why `triple` is a single method returning a `Triple`
-rather than three accessors returning parts of one. What the type does *not*
-forbid is a name that is positioned *and* claims species `Distinguished`; that
-half stays checkable and is checked under the obligation below.
+everywhere.* Under three separate `Option` accessors beside an independent
+`species()` — the shape this document carried while the structural model was
+written — two states are admitted: a name of species `Leaf` with no ordinal, an
+entry that cannot be ordered, shifted or promoted and that no triple names; and
+a name carrying a triple while claiming species `Distinguished`. `NameView`
+carries the triple *and* the positioned-or-distinguished choice in one value, so
+neither can be written. `seam-k17` found the first version of this claim
+overstated: one `Option` over the three fields closed the first state and left
+the second, while the document, the model and the kit all said the obligation
+was discharged. Discharging it takes the *view*, not the `Option`.
 
-This is `docs/formalism-findings.md` entry 002's own counterfactual applied to
+**The species follows from the parts.** *Discharged by the seam's shape too, and
+by the signature rather than by a sum type:* `positioned_species` is an
+associated function over a `&Parts`, so there is no `self`, no ordinal and no
+key to consult. The structural model assumes this as `SpeciesFromParts`, and the
+sibling shift is what rests on it — shifting is `compose(new_ordinal, key,
+parts)`, so a species free to vary with the ordinal would let a shift turn a leaf
+into a node, which on disk is a file renamed into a directory. `seam-k17` found
+the trait exposing `fn species(&self)` independently, where an implementation
+could do exactly that and pass every check the kit made.
+
+Both are `docs/formalism-findings.md` entry 002's own counterfactual applied to
 the implementation: **before modelling a structural property, ask whether the
 target language already forbids it.** The conformance kit checks the other four
-obligations and names this one as discharged, so a reader counting four checks
-against five obligations can see that the fifth was not forgotten.
+obligations and names these two as discharged, so a reader counting four checks
+against six obligations can see that the other two were not forgotten.
 
 **`distinguished()` names the only entry of its species.** `parse` yields
 species `Distinguished` for that name and for nothing else. This is what makes
@@ -246,16 +274,24 @@ rest, since a directory cannot hold two entries of one name — so it is a
 theorem rather than an invariant anything has to enforce.
 
 **`parse` refuses what `found` contradicts.** A name declaring `Leaf` over a
-directory, or `Node` over a regular file, is `Malformed` and never `Entry`.
+directory, or `Node` over a regular file, is `Malformed` and never `Entry`. It is
+`Malformed` specifically, and not merely *not an `Entry`*: `Foreign` means *not
+my name*, and a walk skips a foreign name — and everything beneath it when it is
+a directory — without saying so. A domain that answers `Foreign` where its own
+name contradicts the listing has hidden exactly the subtree this obligation
+exists to expose.
 
 ### The isomorphism this rests on
 
 A positioned entry's name is **isomorphic to a triple** — `(ordinal, key,
 parts)` — and that single fact is what keeps the seam small. *Isomorphic* is
 load-bearing, and it means both directions at once: `compose` recovers the name
-from the triple, and the accessors recover the triple from the name. An earlier
+from the triple, and the view recovers the triple from the name. An earlier
 draft stated only the string round trip, which leaves a `compose` free to ignore
-its arguments entirely.
+its arguments entirely — and the string round trip itself is about *names* and
+not about spellings: a grammar that renders what it was given and reads that
+same spelling back as a different triple has broken it while every filename on
+disk looks right.
 
 ```mermaid
 flowchart LR
@@ -280,7 +316,9 @@ Everything follows from it:
   strings at all, and the entire grammar reduces to one round-trip law.
 - **The species follows from the parts.** A consumer whose leaves and nodes
   carry different metadata expresses that as variants of `Parts`, and the
-  library never needs to be told which it is looking at.
+  library never needs to be told which it is looking at. It is stated as an
+  obligation above because it is one: the derivation of the shift depends on it,
+  and the seam is shaped so that a domain cannot break it.
 
 ### What is *not* in the trait, and why
 
@@ -427,8 +465,8 @@ out. The trait names no label type, so a `by_label` has nothing to take as an
 argument; the only value the caller could pass is a whole `Parts`, and `Parts`
 equality answers *same label* only in a domain where the label alone determines
 every attribute — which contradicts `Parts` being label *plus* attributes.
-`by_key` is the one lookup the library can offer, because `key()` is on the
-trait and a label is not.
+`by_key` is the one lookup the library can offer, because the key is in every
+positioned name's view and a label is not.
 
 ### Mutating
 

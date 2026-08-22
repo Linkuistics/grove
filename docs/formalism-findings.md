@@ -576,6 +576,113 @@ system before you ask the kit: an obligation the language forbids is one no
 consumer can break, one fewer check to maintain, and the only kind of guarantee
 in this log that costs nothing to keep.
 
+### 005 — Integrating an adversarial review of the seam (`ordinal-fs-tree`)
+
+**Situation.** `seam-k17` read the seam `seam-k8` had built — one trait, one
+reference domain, a conformance kit, a filesystem-boundary guard — with a
+charter to attack the producer's own deviation from the architecture document.
+It produced six findings and changed nothing. This entry is the integration:
+what the findings were evidence *about*, beyond the code they fixed.
+
+**Formalism.** None written. Both suites re-run before and after (green both
+times, ~2 minutes each, no friction). The instruments that did the work were the
+same two entry 004 named — the type system, and reading the code *through* a
+stated obligation — plus a third this log has not counted: **an adversarial
+reader whose brief names the specific judgement to attack.**
+
+**Caught.** Four, and they share one shape: every one is a *claim about a check*
+that was weaker than the claim it stood for.
+
+- **"Rust discharges this obligation" was itself an unchecked claim, and it was
+  half wrong.** Entry 004 collected `fn triple(&self) -> Option<Triple<'_,
+  Parts>>` as the fold that made *a name is positioned or distinguished, never
+  neither* unrepresentable. It closes *neither* and leaves *both*: a name could
+  return a triple and report species `Distinguished`, because `species()` was an
+  independent method. `src/name.rs` said so in one sentence; `ARCHITECTURE.md`,
+  `structure.als`'s comment and `DISCHARGED_BY_THE_TYPE_SYSTEM` all said the
+  obligation was discharged, full stop. **A partial discharge annotated in prose
+  is a full discharge to the next three readers.**
+- **The model stated a law the seam did not carry.** `SpeciesFromParts` is one
+  of `structure.als`'s assumed trait laws, and every derivation rests on it — a
+  shift is `compose(new_ordinal, key, parts)`, so a species free to vary with the
+  ordinal turns a shift into a file renamed to a directory. The Rust trait
+  exposed `fn species(&self)` beside the parts and required nothing, so a
+  conforming domain could break a law the model was entitled to assume. Both are
+  now unrepresentable — one `NameView`, and `positioned_species(parts: &Parts)`
+  as an associated function with no `self`, no ordinal and no key — and the
+  obligation count went from five to six because the second law was always an
+  obligation and had been filed as a consequence.
+- **Two tests cited a model claim and checked something weaker.**
+  `SpeciesAgreementIsParsed` says a contradicted name is *malformed*; the kit
+  accepted *anything that is not an entry*, so a domain returning `Foreign` —
+  the one verdict a walk skips silently, taking the subtree with it — passed the
+  check named after the claim that exists to stop exactly that. `RoundTripDisplay`
+  is `v.seen = n`, name identity; the kit compared **renderings**, so a grammar
+  could parse its own output into a different key and pass. In both cases the
+  test drifted toward *the property that is easier to observe*, and the citation
+  in the comment made the drift invisible.
+- **A textual instrument documented the wrong hole.** The `std::fs` guard
+  scanned for `fs::` and `std::fs` and its header named `use std::fs as f;` as
+  the known limit — which it actually catches. The real hole was the ordinary
+  grouped import `use std::{fs, path::Path};`, which contains neither token. Its
+  exemption was also written by file *name*, silently excusing any
+  `src/algebra/fs.rs`, while its header promised a rule about a path.
+
+**Missed.** Two.
+
+- **Neither model found any of this, and neither could have.** The trait laws
+  are assumed predicates over an abstract `Trait` object; nothing connects them
+  to Rust, so a seam that fails to carry one is invisible to the suite that
+  assumes it. This is entry 004's first *missed* — nothing checks that the code
+  matches the model — arriving one leaf later as two defects, exactly where it
+  said it would.
+- **The grammar is still unmodelled, and it is still where defects are.** The
+  reference domain classified `01--i3` — its own shape with the label missing —
+  as `Foreign`, so a walk would skip the file and, in the directory spelling, the
+  whole subtree beneath it. `NothingRecognisedIsSkipped` is a checked claim
+  about exactly that hazard and holds no strings, so it says nothing about which
+  names a grammar recognises. Found by a reader, not by a tool, for the second
+  entry running.
+
+**Cost.** One session, of which the models were four minutes and the reading was
+everything else. The fix cost more than the finding: closing the two trait-shape
+defects changed the public surface (a `NameView`, a `PositionedSpecies`, and a
+sealed blanket-implemented `EntryNameExt` so that `triple()` and `species()`
+cannot be overridden back into existence), and every test and broken domain
+moved with it. Doing this after the eight dependent leaves — where an appended
+`review-*` step would have put it — would have been a rework of the subtree
+instead.
+
+**Counterfactual.** Three, and the first two are new rows.
+
+- **A test citing a model claim should carry the claim's predicate, not its
+  name.** Both weakened checks would have been caught at writing time by pasting
+  the one line of Alloy beside the assertion: `v.seen = n` does not read like
+  *the strings match*, and `SpeciesAgreementIsParsed`'s `Malformed` does not read
+  like *not an entry*. The citation convention that entry 004 called "a
+  convention that reads clean when it is broken" is precisely as good as its
+  weakest citation, and the repair costs one comment.
+- **A partial discharge should be split into two obligations, not annotated as
+  one.** The prose qualification survived in the file that made the claim and in
+  none of the three artifacts that repeated it. Either the language forbids the
+  whole obligation — in which case say so and delete the check — or it forbids a
+  nameable half, which is then a different obligation with its own name.
+- **An adversarial reader is cheap and is not a formalism.** Five of the six
+  findings came from a brief that named the judgement to attack ("the trait
+  deviates from the document, deliberately — that judgement is the main thing to
+  attack") rather than asking for a review. No model, no tool, one session, and
+  the two structural findings were unreachable by either model in the repository.
+
+**On H2 — mild evidence for, and not the kind expected.** The model was *right*
+and the implementation had drifted from it; the model earned its keep by being a
+written-down law an adversarial reader could hold the code against, not by
+finding anything itself. A model with no reader is worth what an unread test is.
+
+**Verdict.** Reach for the type system first, then for a reader briefed to
+attack one judgement. And treat *the language discharges this* like any model
+claim: it is a proof you did not write down, so state what it does **not**
+cover, or split it until every part is either forbidden or checked.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -585,7 +692,7 @@ guesses are not.
 |---|---|---|
 | structural — "is this shape coherent, and can it even represent what I need?" | Alloy | 002: found two defects unprompted, sharpened two more, produced a tree satisfying every stated invariant with a subtree invisible to every traversal |
 | reachability — "is every thing I must name reachable from the constructors I have?" | Alloy | 002: both blocking defects across entries 001 and 002 were this question; it is the one Alloy answers best |
-| already guaranteed — "can the target language forbid this outright?" | none — check first | 002: two of eight structural claims were free from Rust's type system; modelling them taught nothing. 004: collected a third at the seam — folding three `Option` accessors into one removed an obligation from every consumer, at the cost of one trait method |
+| already guaranteed — "can the target language forbid this outright?" | none — check first | 002: two of eight structural claims were free from Rust's type system; modelling them taught nothing. 004: collected a third at the seam — folding three `Option` accessors into one removed an obligation from every consumer, at the cost of one trait method. 005: that collection was half wrong and said so nowhere it was repeated — a discharge claim needs the scepticism a model claim gets |
 | stated-isomorphism — "are both directions written down?" | none — a free question | 002: the canonicity gap was half an isomorphism, and asking costs nothing |
 | behavioural — "does this operation preserve the invariant, from any reachable state?" | Quint | 003: confirmed. All three invariants Alloy could not state were checkable, and six further defects came out of the same file |
 | interruption — "what does a crash halfway through leave behind?" | Quint | 003: the ordering rule's real payoff, and `promote`'s unavoidable transient duplicate, are both invisible to every other method in this log |
@@ -596,4 +703,7 @@ guesses are not.
 | did it run at all? — "is this suite green, or dead?" | must-be-reached claims beside the must-hold ones | 003: a JVM too old made Alloy print nothing, which its runner read as thirteen unfired witnesses and seven holding checks. Only the witnesses distinguish the two, and every one failing at once is a signature no real defect produces |
 | deriving tests — "what do I actually run against the implementation?" | the model's must-be-reached witnesses | 004: four Alloy witnesses became executable broken-domain tests; not one `check` translated into anything runnable |
 | grammar — "can two filenames name one entry?" | property-based testing *(untested)* | 004: both models hold no strings by design, so the largest piece of the implementation had no model coverage at all. The instrument that fits is `format(parse(f)) == f` over generated names, and it was not reached for |
+| model-claim-to-test — "does this test still say what the claim said?" | quote the claim's predicate beside the assertion | 005: two tests named a claim and checked a weaker property — `v.seen = n` became string equality, `Malformed` became *not an entry* — and both drifted toward the property that was easier to observe |
+| partial discharge — "the language forbids some of this obligation" | split it into two named obligations | 005: the qualification survived in the file that made the claim and in none of the three artifacts that repeated it; the unqualified half was a real defect |
+| a written law nobody holds the code against | an adversarial reader briefed to attack one judgement | 005: five of six findings, including both trait-shape defects, which neither model could reach; the models supplied the law and a reader supplied the comparison |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |

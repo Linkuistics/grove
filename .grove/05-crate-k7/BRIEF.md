@@ -124,6 +124,28 @@ seam session's call, not this brief's.
   stated with their evidence in the root `Cargo.toml`. A new crate inherits
   both; `cargo clippy --all-targets` before committing.
 
+## Settled since this brief was written
+
+**The seam changed shape at `seam-k18`, after `seam-k17` found the discharge
+claim half-true.** The eight remaining leaves here were cut against the old
+surface, so three facts they need:
+
+- **`EntryName` has `view()` and `positioned_species()` where it had `triple()`
+  and `species()`.** Those two survive as readings on `EntryNameExt`, which is
+  blanket-implemented and sealed — import it to call them, and note that no
+  domain can override them. That is the point: *a name is positioned or
+  distinguished, never neither* and *the species follows from the parts* are now
+  discharged by the seam's shape, which is why the stated obligations number six
+  and the conformance kit still checks four.
+- **A recognised name over a contradicting listing must be `Malformed`**, not
+  merely refused. `Foreign` is skipped silently — with its whole subtree when it
+  is a directory — so the kit now rejects a domain that answers it, and grove's
+  own domain in increment 2 inherits the constraint.
+- **`ARCHITECTURE.md` and `structure.als` were reconciled again**, and
+  `docs/formalism-findings.md` entry 005 carries why the first reconciliation
+  overstated what Rust guarantees. Read it before trusting a *discharged by the
+  type system* note in either.
+
 ## On the horizon
 
 - **Whether the crate wants its own `CHANGELOG`, version and release lane.**

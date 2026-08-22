@@ -56,7 +56,11 @@ Stated up front so they can be judged rather than quietly confirmed.
   disagreements between the two are worth more than the time they cost.
 - **H3 — a specification can drive implementation.** An LLM given a checked
   formal model produces a more faithful implementation than one given prose of
-  equivalent length. Untested and, on current evidence, the least certain.
+  equivalent length. **Tested deliberately at entry 017 and not supported**: a
+  prose-only arm violated no model claim. What the probe supports instead is
+  narrower — a model pays *upstream*, in the prose it corrects, and an
+  implementation reading already-corrected prose gets most of the benefit. Read
+  017's confounds before quoting either half.
 
 ---
 
@@ -1832,6 +1836,175 @@ over is the model's own exclusions (bytes, message text) and its own assumptions
 the tests go — which is now predictable enough to plan a leaf's test budget from
 the handoff block before writing a line.
 
+### 017 — The pre-registered model-versus-prose probe (`ordinal-fs-tree`'s `insert`)
+
+**Situation.** `h3-probe-k14`: test H3 — *an LLM given a checked formal model
+produces a more faithful implementation than one given prose of equivalent
+length* — deliberately rather than by impression. The probe, its arms, its
+measure, its prediction and its falsification condition were written by
+`library-k6` before any implementation leaf ran, and are in the leaf body
+unrevised. `insert` was the pre-registered probe; the fallback (`promote`) was
+not needed, because the result is not degenerate.
+
+**Formalism.** None written, and that is the point: the instrument here is a
+**controlled comparison**, not a model. Arm A is `insert` as `insert-k11`
+produced it, model-led. Arm B is a fresh context given the `ARCHITECTURE.md`
+sections covering `insert` and a doc-stripped listing of the crate surface, and
+nothing else — no `operations.qnt`, no `structure.als`, no tests, no arm A, no
+`docs/formalism-findings.md`. Both are scored by `insert-k11`'s own suite,
+unchanged.
+
+**The numbers.**
+
+| | arm A (model-led) | arm B (prose-only) |
+|---|---|---|
+| insert tests run | 26 | 26 |
+| tests failed | 0 | **4** |
+| distinct claims touched by a failure | — | 2 (`wit_insertPastTheEnd`, `wit_insertIntoAGap`) |
+| **model claims violated, adjudicated** | 0 | **0** |
+| stated refusals missing | 0 | 0 |
+| stated refusals wrong | 0 | 0 |
+| compiled as submitted | yes | **no** |
+
+The 26 tests are 18 naming a model claim, 7 saying they have none, and **1
+naming neither** — `the_reports_paths_are_in_the_order_the_effects_landed`,
+which names `Report::paths()`'s contract, a thing no model holds. Counted by
+reading, as the `crate-k7` brief requires; a sum of two labels cannot see the
+third.
+
+**Input sizes, in lines, since the hypothesis says *of equivalent length*.**
+Arm B: 372 lines of `ARCHITECTURE.md` prose + 195 lines of API listing = **567**.
+Arm A: the whole of `ARCHITECTURE.md` (957) + `CONTEXT.md` (221) +
+`operations.qnt` (1349, of which ~160 are `insert`-relevant: `shiftIds`,
+`shiftEffect`, `planIsApplicable`, `guardDestinations`, `planInsert`,
+`inv_insertOnlyShifts` and six witnesses) + `structure.als` (571) + a 106-line
+task body + the crate as it then stood. **The two inputs are not equivalent and
+not disjoint: arm A's input strictly contains arm B's.** This probe therefore
+compared *model + prose* against *prose*, which is not the comparison H3 states,
+and no design available to this leaf could have fixed it — arm A's session had
+already run, and denying it the specification of record was never an option.
+
+**Caught.**
+
+- **The prediction failed on all three of its points, and that is the result.**
+  It predicted the prose arm would produce a working happy path and fail on at
+  least two of: the shift order; the sequential destination check; the gap
+  refusal. Arm B got all three. It shifted **highest-first**, and stated the
+  intermediate-state reason for it — not collision — in its own comment. It
+  left the destination check entirely to `Plan::guarded`, correctly, citing *the
+  plan is checked against itself, in order*. It refused the gap, carried the
+  span, and rendered four distinct messages where arm A renders three-and-a-half.
+- **The suite is live, not vacuous.** A mutation control — arm B's shift
+  replayed lowest-first, a two-line edit — fires **7 further tests** (5 unit, 2
+  on-disk), including both halves of the ordering pair
+  (`the_shift_runs_highest_ordinal_first`,
+  `the_same_shifts_run_lowest_first_pass_through_a_duplicate_ordinal`). So arm
+  B's 22 passes are earned. Without this step, *arm B violated no claim* and
+  *the suite cannot see a violation* are the same observation.
+- **All four of arm B's failures are on assertions arm A wrote, not on outcomes
+  a model states.** Each of the four asserts a literal substring of a refusal
+  message — `` `append`'s job ``, `something below it`. In every one of the four,
+  the `assert_eq!` on the refusal **value** — the variant and its carried span —
+  ran first and passed. Arm B's messages send the reader to `append` for both
+  past-the-end and empty-level, and give the interior gap and the leading hole
+  different advice, which is what the claims and the document ask for; they say
+  it in other words. **The pre-registration's own defence of the measure — that
+  every test cites a claim `library-k6` fixed before either arm — is half
+  true.** The claims predate both arms. The assertions do not, and the assertions
+  are what a second implementation actually runs against.
+- **Arm B's one real defect is a shape the log already recorded.** It encoded the
+  span as two independent `Option<Ordinal>` fields rather than one
+  `Option<(Ordinal, Ordinal)>`, and its `Display` match is non-exhaustive: the
+  type admits `(None, Some(_))`, which its own comment says "cannot arise". The
+  crate does not compile until an arm is added. That is entry 013's lesson —
+  *two fields that restate each other are two fields that can disagree*, which
+  is exactly why `NoOccupantAtOrdinal` carries one field — arriving as a
+  compiler error rather than as a wrong message. Neither model reaches it: a
+  refusal's payload is unmodelled in both.
+- **Refusal precedence is observable and no arm's authority.** Arm A checks the
+  occupant before the content-for-a-node refusal; arm B checks content first.
+  `planInsert` fixes only *missing → not a node → no occupant*, content being
+  unmodelled, and the document fixes nothing. Arm B flagged this itself,
+  unprompted. A call that is doubly bad gets different refusals from the two
+  arms, and nothing in the specification says which is right.
+
+**Missed.**
+
+- **The asymmetry that favours arm A, stated in the leaf and confirmed.** Arm A
+  ran under a diffuse awareness that a model-versus-prose experiment existed
+  somewhere in the subtree (the `crate-k7` brief says so without naming the
+  probe); arm B ran under none. More decisively, **the measure is arm A's own
+  artifact** — arm A cannot fail a suite it wrote, so the *0 vs 4* headline is
+  not a comparison of two implementations against a neutral instrument. It is a
+  comparison of one implementation against another's tests. The adjudicated
+  0 vs 0 is the number that survives that, and it is the one the verdict rests on.
+- **The comparison H3 states was never run and cannot be run retrospectively.**
+  See *Input sizes*. A real test of H3 needs both arms cut from the same brief,
+  at the same time, neither owning the measure, and a suite written by a third
+  party from the claims alone.
+- **Nothing was learned about the operations the probe did not cover.** One
+  operation, one prose arm, one sample. `promote` — the fallback — would have
+  been the harder case, because its transient invariant break is stated in the
+  prose as a consequence rather than as a rule.
+
+**The decisive confound, and the thing worth keeping.** The prose arm B read is
+**model-derived prose**. `ARCHITECTURE.md`'s *Why the shift runs highest-first*
+says collision is *not* the reason and the intermediate state is — and entry 003
+records that the document's original stated reason was wrong and that
+`operations.qnt` is what found it. The gap half of the occupant refusal exists
+in the document because `wit_insertIntoAGap` surfaced a case the document's
+rationale did not cover. The span the refusal carries, and the three messages it
+separates, come from `insert-k23`'s review of arm A. **Every point on which arm
+B succeeded is a point the model had already corrected in the prose.** So the
+right reading is not *the model was unnecessary* but *the model had already been
+spent, upstream, and its payment was banked in the document*. Read that way this
+probe is evidence for H2, not against it, and it relocates H3's question from
+*model or prose?* to *has this prose been through a model yet?*
+
+**Cost.** One session. Assembling arm B's inputs and the isolation conditions
+(~30 min of reading and extraction), one subagent run (93 s, 3 tool calls: two
+reads and one write — consistent with its report that it read nothing else), a
+scoring scaffold that is the crate copied out of the workspace with arm B's
+function and refusal spliced in and the refusal's *name* mapped field-for-field
+in the tests, and one mutation control. No tooling to learn. The scaffold is the
+only fiddly part, and it exists because `Plan`, `Effect` and `Decision` are
+`pub(crate)`: the pre-registration's "the crate's public types and the `insert`
+signature" is literally insufficient to compile a plan, so arm B was given a
+doc-stripped internal listing as well. That is a deviation from the
+pre-registration, forced by mechanics, and it hands arm B `Plan::guarded`
+ready-made — which is one of the three things the prediction expected it to get
+wrong.
+
+**Counterfactual.** The cheap instrument that would have made this probe
+decisive costs nothing and was available from the start: **have the measure
+written by a session that implements neither arm**, from the model's claims
+alone, before either arm runs. `library-k6` fixed the *claims* in advance and
+believed that was enough; it was not, because a test is a claim plus an
+assertion, and the assertion is where an author's own wording gets baked in. The
+second, and cheaper still: **record whether the prose an arm reads has already
+been through a model.** Had that been asked at pre-registration time, this probe
+would have been designed against `ARCHITECTURE.md` *as of entry 001* — the
+prose-review baseline, before Alloy and Quint corrected it — and it would have
+tested what H3 says.
+
+**Verdict on H3 — not supported by this probe, and the probe is why.** Arm B,
+given only model-corrected prose, violated **zero** model claims on a suite with
+a demonstrated live control, and failed only on literal wordings of its scorer's
+own messages. H3 as stated — *a model beats prose of equivalent length at the
+implementation site* — does not survive that, and the honest entry says so
+rather than rescuing it. What replaces it is narrower and better supported by
+the whole log: **a model earns its keep upstream of the implementation, in the
+prose it corrects, and a session implementing against already-corrected prose
+gets most of the benefit without reading the model.** That is consistent with
+every incidental H3 observation here — 012's *the invariants confirmed what the
+document already said; the witnesses are what taught it something* and 016's
+*the model turned a judgement call into a reading* — and it is a claim the
+distilled skill can act on, where H3 as written was not.
+
+Arm B's code was throwaway by construction and has been deleted; it was written
+into a scratch path outside the crate and never entered the repository. Its
+decisive content is quoted above.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -1879,3 +2052,5 @@ guesses are not.
 | an edge case the model names for an operation that does not exist yet | build it into the layer beneath, with a test naming the witness | 016: `wit_rewriteToSameParts` was discharged by the interpreter leaves in both layers; the operation it belongs to later landed with no code. Written the other way round it is a layer-crossing defect, where the algebra proves a plan applicable and the applier refuses it |
 | the bytes did not change — "how do I say that without trusting a comparison?" | the inode, not the content | 016: bytes read and written back identically compare equal; an unchanged inode says nothing read them. Available because the crate is Unix-only, which is otherwise invisible in the interface |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |
+| model or prose at the implementation site? | ask instead whether the prose has already been through a model | 017: the pre-registered probe's prose arm shifted highest-first for the right reason, delegated the sequential destination check correctly, and refused the gap with a carried span — violating zero model claims. Every point it got right is one `operations.qnt` had already corrected in `ARCHITECTURE.md` (003, 013). H3 as stated is not supported; a model spent upstream and banked in the document is |
+| a suite as a measure of a second implementation — "can the other arm fail this?" | have it written by a session that implements neither, from the claims alone | 017: fixing the *claims* before both arms was not enough. All four failures landed on literal message substrings the scoring arm had authored; the `assert_eq!` on each refusal's value passed. A test is a claim plus an assertion, and only the first predated the arms |

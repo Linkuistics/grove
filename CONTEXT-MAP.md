@@ -6,7 +6,8 @@ happen to answer together, since each also ships by its own path and they change
 in lockstep, which is why they live together (see
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#skills-monorepo)). The third,
 `ordinal-fs-tree`, is declared on vocabulary alone: it has a glossary whose terms
-mean something else in grove's, and its crate does not exist yet.
+mean something else in grove's, and its crate ships by no path of its own —
+`release.toml` excludes it from grove's cut.
 
 ## Contexts
 
@@ -19,7 +20,8 @@ mean something else in grove's, and its crate does not exist yet.
   ordinals, keys, and the algebra over them. Its glossary sits beside
   [its architecture](./docs/ordinal-fs-tree/ARCHITECTURE.md). The crate lands at
   `crates/ordinal-fs-tree/`, a member of a workspace whose root package stays
-  `grove`; the glossary, the architecture and the models **stay** under
+  `grove`; the glossary, the architecture, the models and
+  [the CLI document](./docs/ordinal-fs-tree/CLI.md) **stay** under
   `docs/ordinal-fs-tree/` while the crate lives in this repo, because
   `docs/adr/` is flat and repo-wide and four artifacts link into that path. They
   move with the crate only if it is extracted to a repository of its own.

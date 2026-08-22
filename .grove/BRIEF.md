@@ -249,3 +249,16 @@ message (what the reference domain does), or the obligation is knowingly waived
 and the flip records why. An input to increment 2's decomposition, found while
 reading the prior art through the obligation; `docs/formalism-findings.md` entry
 004 carries it.
+
+**What the flip inherits from the crate's CLI: one line in a manifest.**
+`cli-shape-k15` settled that `ordinal-fs-tree` ships a binary on the reference
+domain — `docs/ordinal-fs-tree/CLI.md` — behind a `cli` feature that is **on by
+default**, so the crate's own `cargo test` builds it and its contract tests are
+never silently absent. The consequence for increment 2 is that grove's
+dependency line should read `default-features = false`, which keeps the
+library's imposed dependency set at `libc` for every consumer and is the only
+thing that checks that claim. Nothing else about the CLI reaches the flip: grove
+keeps its own verbs, and the rejected generic command factory is why — a factory
+handing out `append` and `insert` serves consumers who want the algebra's verbs
+verbatim, and grove wants `leaf-add`.
+

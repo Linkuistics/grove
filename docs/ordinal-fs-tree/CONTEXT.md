@@ -10,6 +10,28 @@ grove's — see [Flagged ambiguities](#flagged-ambiguities) and the
 
 ## Language
 
+### Who is on the other side
+
+**Consumer**:
+The program that links this library and supplies a **name** type. It owns the
+vocabulary; the library owns the **algebra**.
+_Avoid_: "user", "client", "caller"; and _avoid_ it for whoever runs a program
+built on the library — that is the **operator**.
+
+**Operator**:
+Whoever drives a program a **consumer** built — a person at a terminal, or an
+agent. The library has no operator.
+_Avoid_: "user", which is ambiguous across the two, and is why neither term is
+it.
+
+**Reference domain**:
+The course-syllabus implementation of **name** that ships in this crate, shared
+by every test and by the crate's one binary so the architecture's examples and
+the fixtures cannot drift apart. Its words — *lesson*, *module*, *overview* —
+are this context's example vocabulary and name nothing in the library.
+_Avoid_: "default domain", "base domain"; a **consumer** implements the trait
+and never builds on this one.
+
 ### The tree
 
 **Entry**:

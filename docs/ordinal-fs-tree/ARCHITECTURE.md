@@ -66,7 +66,10 @@ graph TD
 
 Throughout this document the examples use a course syllabus — modules and
 lessons, each carrying a `draft`/`published` attribute — purely to have
-something concrete to point at. None of it is known to the library.
+something concrete to point at. None of it is known to the library. It is a real
+implementation of the trait below, shared by every test in the crate and by the
+crate's one binary so that the examples here and the fixtures cannot drift
+apart; [`CLI.md`](CLI.md) is what that binary is.
 
 ### Why ordinal and key are separate
 
@@ -952,6 +955,16 @@ relying on it.
 - **No schema validation.** The trait defines what a name must yield, not what it
   must contain. A consumer that wants stricter names enforces that in its own
   `parse`.
+- **No CLI.** The crate ships a binary, and it drives the reference domain
+  rather than any conforming tree. A command factory generic over the name type
+  would need a `Parts` out of argv, and the only route the seam offers — parse a
+  whole filename and read its view — discards the ordinal and the key the library
+  is about to allocate; giving it typed arguments instead means a second point at
+  which the library is parameterised by its consumer, which is the thing
+  [`docs/adr/entry-name-is-the-only-seam.md`](../adr/entry-name-is-the-only-seam.md)
+  rules out. [`CLI.md`](CLI.md) carries the argument and the binary's own
+  contract.
+
 - **Unix only, for now.** The advisory lock is taken on a directory descriptor,
   which Windows has no equivalent for. Because locking is invisible in the
   interface, adding another platform later changes no signature and no caller.

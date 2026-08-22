@@ -247,6 +247,28 @@ facts the three remaining leaves need:
   node into a leaf. A CLI rendering refusals must not assume one message per
   variant.
 
+**The CLI's shape is settled at `cli-shape-k15`, in
+`docs/ordinal-fs-tree/CLI.md`.** That document is `cli-k16`'s specification and
+this brief does not restate it. Three facts that are about the **crate** rather
+than about the CLI, and that the node close needs:
+
+- **The crate gains a `cli` feature, on by default, and a `[[bin]]` whose source
+  is at `bin/syllabus.rs` — outside `src/`.** Measured, not assumed: a probe at
+  `src/bin/` calling `ordinal_fs_tree::fs::read` fails
+  `the_algebra_cannot_reach_the_filesystem`, because the guard lexes every source
+  under `src/` and refuses the identifier `fs`. The feature is default-on so the
+  binary and its contract tests are inside a plain `cargo test`; an external
+  consumer takes the bare library with `default-features = false`.
+- **No ADR was earned, and the clause that failed is hard-to-reverse.** The
+  rejected alternatives — a generic command factory, and one parameterised by a
+  parts-parser — therefore live in `CLI.md`, which is the durable artifact.
+  `.grove/` is deleted at the finish, so do not close this node expecting a
+  record that was deliberately not written.
+- **`docs/formalism-findings.md` entry 018 is this leaf's**, and it is a
+  no-formalism entry by design: the routing rule from entry 009 predicted zero
+  coverage before the leaf started and the prediction held. The node's *Done
+  when* is met by it.
+
 ## On the horizon
 
 - **Whether the crate wants its own `CHANGELOG`, version and release lane.**

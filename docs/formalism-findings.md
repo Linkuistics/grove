@@ -2005,6 +2005,73 @@ Arm B's code was throwaway by construction and has been deleted; it was written
 into a scratch path outside the crate and never entered the repository. Its
 decisive content is quoted above.
 
+### 018 — Designing an interface neither model can reach (`ordinal-fs-tree`'s CLI)
+
+**Situation.** Settling what the CLI *is*, now that there is a library for it to
+expose: generic dispatcher or concrete binary, which verbs, what each prints and
+to which stream, how a refusal reaches the operator, and what is out. The
+deliverable is `docs/ordinal-fs-tree/CLI.md`; `cli-k16` builds from it.
+
+**Formalism. None — and the decision not to reach for one was made by an existing
+routing rule rather than by impression.** Entry 009's rule is *how much will a
+model be worth to this leaf? — the fraction of the leaf inside the model's stated
+scope, legible from the handoff block before the leaf starts.* Every question
+here is about argv strings, output streams, exit codes and help text.
+`operations.qnt`'s handoff block names strings and bytes as excluded by design;
+`structure.als` holds no strings either. Predicted coverage: zero. The prediction
+held — nothing in the finished document could have been stated as a claim in
+either file. Applying entry 003's mechanical test gives the same answer from the
+other side: count the states the property mentions, and a question about what a
+verb prints mentions **none**, which is neither structural nor behavioural.
+
+**Caught.** Three things paid, and none of them was a model run.
+
+*The models' idealisation lists, read as a worklist* — entry 011's row — located
+the CLI's own refusals before any were written. Content and non-UTF-8 names are
+outside both models by design, and both are exactly where the CLI has to decide
+something the library cannot decide for it.
+
+*A modelled obligation discharged by an interface.* **The species follows from
+the parts** is a `structure.als` assumption and a trait signature; it became a
+verb-grammar rule — **a noun prefix appears exactly where the operator chooses a
+species, and nowhere else** — and `Refusal::ContentForANode` fell out as
+unreachable, because no verb that composes module parts accepts bytes. That is
+the same move as folding three `Option` accessors into one view (entry 002's
+counterfactual), one layer further out: an argument surface can discharge an
+obligation the way a type can.
+
+*A probe instead of an argument.* The load-bearing placement claim — *a binary
+under `src/bin/` trips the no-filesystem guard, because it must name
+`ordinal_fs_tree::fs::read` and the guard refuses the identifier `fs`* — was
+settled by planting `src/bin/probe_tmp.rs` and watching
+`the_algebra_cannot_reach_the_filesystem` fail naming its own line, then moving
+the same file outside `src/` and watching it pass. Ninety seconds, against a
+reading of a `proc-macro2` token scan and its one carve-out.
+
+**Missed.** Nothing, and the word is doing no work here: no model was run, so
+there is nothing to compare an answer against. The honest negative is the one
+above — the routing rule said *neither* before the leaf started, and re-reading
+the finished document found no claim either file could have carried.
+
+**Cost.** No tooling. One reading of `operations.qnt`'s handoff block to route,
+one probe, and the ordinary reading of `ARCHITECTURE.md`, `CONTEXT.md`, the two
+ADRs and `linkuistics:cli-tool-design`. The routing decision itself was the
+cheapest part of the leaf and is the part worth reproducing.
+
+**Counterfactual.** Nothing would have caught this earlier, because there was
+nothing to catch — which is the point of recording it. What is worth extracting
+is that **the leaves where a formalism is the wrong instrument are identifiable
+before the leaf starts, by the same reading that tells a leaf how much a model
+will be worth to it.** A log with no such entries would let the distilled skill
+imply that reaching for a formalism is always at worst neutral; it is not, and
+the evidence that it is sometimes plainly wrong has to be as recorded as the
+evidence that it is sometimes decisive.
+
+**Verdict.** No — and the routing said so in advance, which is the H1-shaped
+result here: a practitioner could tell *before choosing* that they were holding
+neither kind of question. H2 is untouched: the model led nothing here because
+there was nothing for it to lead.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -2020,7 +2087,7 @@ guesses are not.
 | interruption — "what does a crash halfway through leave behind?" | Quint | 003: the ordering rule's real payoff, and `promote`'s unavoidable transient duplicate, are both invisible to every other method in this log |
 | ordering — "does the order of these steps matter, and why?" | Quint | 003: the stated reason was wrong and the real one was unwritten; a model that stops halfway is the only thing that separates them |
 | dead branch — "is this refusal reachable at all?" | either, via a reachability witness | 003: the occupancy refusal fires in 0% of traces on any tree the library builds. Sampled, so evidence and not proof |
-| routing itself — "which of the two am I holding?" | count the states the property mentions | 003: one state → structural; two or more → behavioural. Mechanical, and applicable before choosing. Supersedes shape-versus-operation, which mis-sorts "no key is ever reissued" |
+| routing itself — "which of the two am I holding?" | count the states the property mentions | 003: one state → structural; two or more → behavioural. Mechanical, and applicable before choosing. Supersedes shape-versus-operation, which mis-sorts "no key is ever reissued". 018: **zero → neither** — a question about what a verb prints mentions no state of the tree at all, and the same reading that sizes a model's worth to a leaf (009) says so before the leaf starts |
 | out of scope — "the model says it excludes this; what does that oblige?" | none — the exclusion list is the worklist | 011: three of five interpreter defects sat in the three domains `operations.qnt`'s handoff names as excluded (strings, bytes, the filesystem). The exclusions were written two leaves before the defects; reading them as a list of what prose must now state would have caught all three at introduction |
 | enforceable obligation — "the type system cannot forbid this, but can the library check it?" | none — ask before writing it down as an assumption | 011: six of seven `EntryName` obligations are genuinely uncheckable; the seventh costs one string test at two boundaries and turns an escape from the locked tree into a refusal with recovery advice. 002's counterfactual asks whether the *language* forbids it; this is the question after that one |
 | already arranged — "did the model check this, or make it true?" | neither — a free question | 003: subtree preservation is true by construction of the state shape, and a model that satisfies an invariant by construction is indistinguishable from one that verified it |
@@ -2054,3 +2121,5 @@ guesses are not.
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |
 | model or prose at the implementation site? | ask instead whether the prose has already been through a model | 017: the pre-registered probe's prose arm shifted highest-first for the right reason, delegated the sequential destination check correctly, and refused the gap with a carried span — violating zero model claims. Every point it got right is one `operations.qnt` had already corrected in `ARCHITECTURE.md` (003, 013). H3 as stated is not supported; a model spent upstream and banked in the document is |
 | a suite as a measure of a second implementation — "can the other arm fail this?" | have it written by a session that implements neither, from the claims alone | 017: fixing the *claims* before both arms was not enough. All four failures landed on literal message substrings the scoring arm had authored; the `assert_eq!` on each refusal's value passed. A test is a claim plus an assertion, and only the first predated the arms |
+| an obligation with nowhere left to go — "can the *interface* forbid this?" | none — read the obligation against the argument surface, not just the type system | 018: *the species follows from the parts* became a verb-grammar rule (a noun prefix exactly where the operator chooses a species), and `ContentForANode` became unreachable by construction. 002's *ask whether the target language already forbids it*, one layer further out — an argument surface discharges an obligation the way a type does |
+| a claim about a guard — "will this change trip the detector?" | none — plant the violation and watch it fail | 018: *a binary under `src/bin/` trips the no-filesystem guard* was settled in ninety seconds by a probe that failed naming its own line, against a reading of a token scan and its carve-out. 006's deliberate mutation, aimed at a design decision rather than at a suite |

@@ -70,3 +70,60 @@ after one insert; is that enough to catch a plan that reached inside a subtree i
 some other shape? And entry 012's second miss says the create's last position is
 arranged in the model rather than claimed by it, defended only by mutation (b) —
 is there a test that pins it directly, and should there be?
+
+## Findings
+
+### Medium — the gap refusal invents an occupied lower neighbour
+
+`crates/ordinal-fs-tree/src/plan.rs:382` classifies every unoccupied ordinal at
+or below the level's greatest ordinal as a gap, then lines 383–384 tell the
+caller that "something below it and something above it are occupied." The
+predicate does not establish the first half. A hand-edited level containing only
+ordinal 5, followed by `insert(..., Ordinal::FIRST, ...)`, reaches this branch
+even though no lower ordinal is occupied; `Ordinal::new(0)` makes the statement
+impossible on its face. The refusal's actionable conclusion is still right —
+`append` will not occupy the requested ordinal and only a hand edit can — but its
+state report is false.
+
+Both controls arrange an interior hole with ordinal 1 below the requested
+ordinal and ordinal 5 above it (`src/ops/tests.rs:715` and
+`tests/inserting_on_disk.rs:302`), then assert only that the message contains
+`gap` and `by hand`. Neither distinguishes the implemented `ordinal <= greatest`
+predicate from the stronger prose it emits. Cover a leading hole explicitly and
+either make the message state only what `greatest` proves or carry enough state
+to distinguish an interior gap from one below the first occupied ordinal.
+
+## Doubt verdicts
+
+1. **Refusal state: mixed.** The second pass is over the same immutable,
+   deterministically ordered level, so it returns the true greatest ordinal for
+   distinguished-only, gapped and duplicate-ordinal levels. `None` correctly
+   identifies a level with no positioned child. The greatest alone cannot
+   justify the lower-neighbour claim in the finding above.
+2. **Shift order: sound.** `sort_level` orders positioned children by ordinal,
+   key and rendered name; `Container::positioned` preserves that order and
+   reversing the collected suffix therefore leaves ordinals descending even
+   when a hand edit duplicated one. Reversing also reverses the two prose
+   tie-breaks within an equal ordinal, but neither the operation contract nor
+   `operations.qnt` specifies an order within `idsAtOrdinal`, and every sibling
+   is still shifted exactly once.
+3. **Intermediate-state projection: sound in combination.** For this operation
+   there is one create and every move stays in the target level, so
+   `ordinals_after_each_step` is the interpreter's exact ordinal projection.
+   `an_inserts_plan_names_no_descendant` separately pins every effect to that
+   level, and the exact-effect tests pin the one-create shape; the helper is not
+   silently compensating for a differently shaped plan.
+4. **Subtree and create order: sound in combination.** The algebra test forbids
+   descendant effects, `Effect::MoveTo` is applied by one `fs::rename`, and the
+   on-disk test observes the directory and its children after that rename. The
+   create-last property is asserted directly by
+   `the_shift_runs_highest_ordinal_first` and again at the public surface by
+   `Report::paths`; mutation (b) is supporting evidence rather than the only
+   defence.
+
+Codebase-memory had no project for this jj workspace. Indexing through both the
+CLI and MCP worker failed because active-daemon coordination could not be
+verified in the sandbox, and the coverage call then required unavailable
+approval. This review therefore uses producer commit `294262c1`, complete direct
+reads of every cited source/test file, and the exact Quint predicates; no
+negative conclusion relies on an empty graph result.

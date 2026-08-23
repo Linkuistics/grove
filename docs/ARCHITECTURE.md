@@ -374,6 +374,156 @@ records, brief chain, and task, and executes it without calling `grove-llm
 pick`. A leaf inserted during the launch window therefore does not preempt a
 running session; it becomes the next iteration's work.
 
+<a id="library-refusals"></a>
+### How an `ordinal-fs-tree` refusal reaches an operator
+
+**Verbatim, unchanged, and rarely** — because Grove resolves and classifies its
+target before it calls the library, so the refusals that reach an operator are
+exactly the ones whose words are already true of a Grove tree.
+
+**Half the library's error surface already speaks Grove's words and half cannot.**
+`Error::Malformed` and `Error::Reserved` carry `EntryName::Err`, so a *parse*
+failure arrives as Grove's own `TaskNameError`; `Error::Refused` carries
+`Refusal`, which is not generic over the name type and holds no domain value at
+all, so every algebraic refusal speaks the library's vocabulary and no domain can
+change it ([`entry-name-is-the-only-seam`](adr/entry-name-is-the-only-seam.md)).
+That
+record names Grove as the condition that would reopen it — a domain whose
+vocabulary *collides* with the library's rather than merely differing — and the
+condition was met and did not fire. What follows is why.
+
+#### The rule this rests on
+
+Three clauses, and every verb the migrate stage moves transcribes them. Break
+one and the table below is wrong rather than merely incomplete.
+
+1. **Resolve the argument to an entry, then call by key** — against the same
+   snapshot the operation plans from, which one guard already guarantees. Grove's
+   reference grammar (a path, `[n]`, `n`, `<slug>-k<key>`, a bare slug) is wider
+   than a key, and its **ambiguous** outcome has no library counterpart at all, so
+   resolution is Grove's and a reference naming nothing is Grove's own refusal —
+   which can say that two namespaces were tried, where the library's cannot.
+2. **Classify the resolved entry before calling.** Every mutating verb has a
+   precondition the library cannot see — an outcome infix, a session kind,
+   `finish`-reservation, brief-ness — so the classification is not optional, and
+   once it has run, the library's own species refusals sit behind a check Grove
+   needed anyway. Where that check duplicates one the library also makes, make it
+   the **same predicate read off the snapshot** — a node is an entry whose
+   contents are `Some`, never a path that `is_dir` — because a second predicate
+   for one condition is clause 3 broken at the level of code rather than of
+   prose, and would let Grove refuse where the library would have proceeded.
+3. **Never write a second wording for a condition the library states.** Where
+   Grove refuses it refuses on its *own* precondition, naming its own verbs;
+   where the library refuses, its message is printed unchanged. The drift a
+   second wording produces is what `docs/formalism-findings.md` entry 017
+   measured.
+
+No read verb can produce a `Refusal` at all: the library's reading surface
+answers with `Option`, so `pick`, `brief-chain`, `kind` and `resolve` construct
+nothing and keep the diagnostics they have carried since before the library
+existed. `docs/ordinal-fs-tree/CLI.md` had its read verbs *construct* a
+`Refusal::TargetMissing` for want of a message of their own; Grove has one, and
+adopting the library's would be clause 3 broken in the opposite direction.
+
+#### Which verbs reach the algebra at all
+
+Nine of thirteen, and four of those only on a tree a hand edit or a failed
+rollback has damaged.
+
+| verb | library operation | `Refusal`s it can reach |
+|---|---|---|
+| `pick`, `brief-chain`, `kind`, `resolve` | `walk`, `by_key`, `ancestors`, `distinguished_chain` | **none** — the reading surface answers with `Option`, so no refusal exists to raise |
+| `leaf-add` | `append` | `TargetNotNode`; `DestinationOccupied`, `KeysExhausted`, `OrdinalsExhausted` |
+| `leaf-add-pair` | `append_many` | the same four |
+| `leaf-insert` | `insert` | `DestinationOccupied`, `KeysExhausted`, `OrdinalsExhausted` — not `TargetNotNode`, because the target passed is the resolved entry's **container**, a node by construction |
+| `leaf-decompose` | `promote` | `DestinationOccupied`, `KeysExhausted` — the node takes the leaf's own ordinal and the first child takes the first, so no ordinal is allocated past the end |
+| `leaf-retire`, `leaf-prune` | `rewrite` | `DestinationOccupied` — a rewrite allocates nothing |
+| `root-init` | `append` into a tree it has just created | **none** — the root is not an entry and the level is empty |
+| `finish-commit` | none — it reads the tree, then deletes `.grove/` under Grove's own transaction | **none** |
+| `complete` | none — it touches no tree | **none** |
+
+#### Which refusals Grove's verbs can reach
+
+Four of ten, and only one of those from an ordinary argument. A refusal no
+argument produces is a case a contract test cannot cover and a reader should not
+go looking for.
+
+| `Refusal` variant | reachable from Grove's verbs? |
+|---|---|
+| `TargetMissing` | **no** — clause 1. A reference naming nothing fails in Grove's resolution, before any operation is called. |
+| `TargetNotNode` | **yes** — `leaf-add <a task file> <slug>`, and `leaf-add-pair` the same way. The one algebraic refusal an ordinary argument reaches, and the one whose message collides; Grove keeps its own check in front of it. |
+| `NoOccupantAtOrdinal` | **no**, in none of its three messages — `leaf-insert` names the **entry** whose slot the new leaf takes, and Grove reads the ordinal off that entry in the snapshot the insert plans from, so `at` is occupied by construction. The syllabus CLI reached all three because `<at>` is an ordinal argument there; Grove's argument surface discharges the refusal `insert` spent two leaves getting right. |
+| `PromoteNotLeaf` | **no** — `leaf-decompose` refuses a brief, a `DONE` leaf, an `ABANDONED` leaf and a `finish` leaf, none of which the library can see; a node falls out of the same match. |
+| `PromotePartsNotNode` | **no** — `leaf-decompose` always composes node parts. |
+| `PromoteNoDistinguished` | **no** — Grove's distinguished child is `BRIEF.md`. |
+| `RewriteSpeciesChange` | **no** — `leaf-retire` and `leaf-prune` compose leaf parts for an entry they have already matched as a live leaf. |
+| `DestinationOccupied` | **yes**, on a hand-edited tree: a copied leaf duplicating a key, or a `DONE` twin sitting beside the live leaf so that retiring it lands on a taken name. Grove's trees *are* hand-edited — the methodology offers *reorder by hand*. |
+| `ContentForANode` | **no** — discharged by the verb set. A node arises only through `leaf-decompose`, whose node parts carry no bytes and whose first child is a leaf; `leaf-add`, `leaf-add-pair` and `leaf-insert` compose leaf parts and nothing else. |
+| `KeysExhausted` / `OrdinalsExhausted` | **yes** — a hand-written `-k4294967295`, or a position of `4294967295`. That is the exact edge: one more is refused by the grammar as [not canonical](adr/task-names-are-canonical.md), so nothing between the two states is representable. |
+
+| non-`Io` `Error` variant | reachable from Grove's verbs? |
+|---|---|
+| `Malformed` | **yes** — a hand-edited name. Carries `TaskNameError` and therefore already speaks Grove's words, which is the whole reason that variant is generic. |
+| `Reserved` | **yes** — `MIGRATING-session-kinds`, `FINISHING-*`, `PREPARING-FINISH-*`. Carries `TaskNameError` likewise. |
+| `Failed` | **yes in the wild, from no argument** — the filesystem refuses mid-apply and the run unwinds. **The tree is as it was found**, so a retry is safe. |
+| `FailedPartiallyRolledBack` | **yes in the wild, from no argument** — and the one message whose *recovery advice* is stated in the library's words. See below. |
+| `NonUtf8Name` | **not on macOS** — APFS refuses such a filename, so the branch cannot be reached from a test on this host. Assert that fact rather than skipping it; `docs/formalism-findings.md` entry 006. |
+| `NameIsNotOneComponent` | **no** — a `Slug` admits lowercase ASCII letters, digits and hyphens only, so no name `TaskName` renders can be more or less than one path component. |
+| `NoContainingDirectory` | **no** — the tree root is always `<worktree>/.grove`, which always has a containing directory. |
+
+#### What verbatim costs, measured rather than assumed
+
+The collision is real, and composing the offending message at design time is
+what sizes it. Were clause 2 dropped, `grove-llm leaf-add 03-impl-extract-k7.md
+sweep` would answer:
+
+> the entry with key 7 is a leaf, which holds nothing. Children go in a node —
+> promote it first, or name a node.
+
+Six clauses, read against [Grove's glossary](../CONTEXT.md): *the entry with key
+7* ✓ — the library's *key* is Grove's **Permanent key**, and `resolve` takes it
+bare; *is a leaf* ✓ **extensionally** — every
+positioned regular-file entry under `.grove/` is a Grove **Leaf**; *which holds
+nothing* ✗ — a Grove Leaf holds the task body, and the library means *holds no
+children*; *Children go in a node* ✓ — Grove's **Node directory**; *promote it
+first* ✗ — names no Grove verb, the operation being `leaf-decompose`; *or name a
+node* ✓.
+
+**Two clauses of six, and one of the two is the recovery advice.** That is the
+whole of the collision the seam record predicted, and it is smaller than *the
+library's vocabulary is foreign* implies — the nouns coincide inside `.grove/`
+and the verbs do not. It also lands on the audience that can least afford it:
+`grove-llm`'s operator is the LLM driving a session
+([cli-binary-split](#cli-binary-split)), which will try the verb it is told to
+try, so a wrong recovery clause is not confusing but executed.
+
+Keeping Grove's own check is therefore cheaper than either alternative. It
+re-words nothing — Grove refuses on its own precondition, as it already does for
+a `DONE` leaf — and it is a check Grove cannot drop anyway, because `.grove/`'s
+`BRIEF.md` carries no key and so cannot be handed to the library as a target at
+all.
+
+`FailedPartiallyRolledBack` is the one message left speaking the library's words
+where it matters: *a node and a leaf sharing an ordinal and a key, with the node
+holding no distinguished child, is an interrupted promotion*. In Grove's words
+that is a node directory and a task file sharing a position and a key, with the
+directory holding no `BRIEF.md`. It prints verbatim, because it fires on a failed
+rollback rather than on an argument and because
+[`CONTEXT-MAP.md`](../CONTEXT-MAP.md) carries the six-term translation — a map
+between two glossaries cannot drift from the messages it translates, where a
+re-wording of each message can.
+
+#### What would reopen this
+
+A Grove verb that takes an **ordinal** or a bare **key** straight through to an
+operation, without resolving it first. That breaks clause 1 and makes
+`TargetMissing` and `NoOccupantAtOrdinal` reachable — the second in three
+distinct messages — so the vocabulary question stops being about one refusal and
+this table's count is simply wrong. Nothing in the current verb set does it: all
+seventeen of `grove-llm`'s parsed arguments are paths, references, new-name
+inputs or flags, and not one is an ordinal. No verb should be added that changes
+that without re-deriving this table.
+
 <a id="task-kind-taxonomy"></a>
 ## Task kinds and composition
 

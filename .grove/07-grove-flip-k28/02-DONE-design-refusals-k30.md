@@ -82,3 +82,42 @@ runs before them and not alongside.
 hand-edited tree; grove's trees *are* hand-edited — the methodology says so. And
 `ContentForANode` was discharged there by the verb set; check whether
 `leaf-decompose` can hand a node bytes.
+
+## Decisions (running log)
+
+**The table is written against grove's *argument surface*, not against the
+library's operation set, and that is what makes it small.** Every grove verb that
+mutates has a precondition the library cannot see — an outcome infix, a session
+kind, `finish`-reservation, brief-ness — so grove must classify its target before
+it calls. Once it has, the library's own species refusals are unreachable behind
+checks grove needs anyway. Four `Refusal` variants of ten are reachable; one of
+them from an ordinary argument, three only from a tree a hand edit or a failed
+rollback has damaged.
+
+**Question 3 is answered: grove prints the library's refusals verbatim, and does
+not re-word any of them.** Not because the collision is imaginary — it is real
+and this leaf composed the offending message in grove's own vocabulary to
+measure it — but because the reachability table shows the collision reaches an
+operator through exactly **one** argument, `leaf-add`/`leaf-add-pair` given a
+task file as `<parent>`, and grove already refuses that itself and must keep
+doing so for the brief case the library cannot be handed at all. What survives
+verbatim is the set whose words are already true of a grove tree: a duplicated
+key, an exhausted counter, a failed rollback. The seam ADR is **not** reopened
+and no library-side leaf is cut.
+
+**No new ADR.** The AND test fails on *hard to reverse* — re-wording later is a
+match arm per variant, not an audit of unwritten assumptions the way
+`task-names-are-canonical` is. The durable record is three edits to artifacts
+that already exist: the table and the pre-empt rule in `docs/ARCHITECTURE.md`,
+the amendment closing `entry-name-is-the-only-seam.md`'s reopening clause, and
+the two missing terms in `CONTEXT-MAP.md`'s grove→library relationship. A fourth
+record restating them would fail `ADR-FORMAT.md`'s minimum-coherent-set rule.
+This also matches the precedent inside this workstream: `cli-k16` recorded the
+identical decision for the syllabus in `CLI.md`, a design document, not an ADR.
+
+**The translation lives in `CONTEXT-MAP.md`, not in either glossary.**
+`CONTEXT-FORMAT.md` forbids one term living in two glossaries, so a bridge from
+the library's words to grove's belongs to the relationship between the contexts.
+The map already carries two of the four pairs; this leaf adds the two an operator
+actually meets in a library message and the map did not have — *distinguished
+child* and *entry*.

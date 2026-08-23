@@ -935,7 +935,11 @@ The collision is why the two are separate contexts rather than one, so it is not
 a defect to resolve by renaming. Qualify when a sentence could be read either
 way ("a grove leaf", "a tree entry"), and never carry a definition across:
 `ordinal-fs-tree` is domain-independent precisely because none of grove's
-vocabulary reaches it.
+vocabulary reaches it. `CONTEXT-MAP.md` carries the full term-by-term
+mapping — six rows, including the two a library error message uses that neither
+glossary names — and that table is read at runtime rather than only in prose,
+because grove prints the library's errors verbatim
+([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#library-refusals)).
 
 **"chain"** carries two unrelated senses, and one of them is already a verb name:
 

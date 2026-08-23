@@ -2251,6 +2251,128 @@ turned five stated obligations into one line in a test — but its verdict is a
 statement about a fixture, and this entry is what that sentence means in
 practice.
 
+### 021 — Deciding whose words a refusal speaks (grove's verb set)
+
+**Situation.** The flip's *expand* stage, second leaf: settle how an
+`ordinal-fs-tree` refusal reaches a grove operator — print verbatim, re-word, or
+reopen `docs/adr/entry-name-is-the-only-seam.md`, which named grove as the
+condition that would reopen it — and write the refusal-**reachability table** for
+grove's whole verb set before any verb flips. The two halves are one leaf because
+the table is what says how many refusal variants the vocabulary question is
+actually about.
+
+**Formalism. None, and two instruments, both read off this log's own routing
+table rather than invented here.** Entry 019's row — *whose words does this error
+speak? — compose one example message in the consumer's own vocabulary at design
+time* — and entry 014's — *an enumerated refusal: name the argument that reaches
+each case*. Entry 009's sizing rule predicted zero model coverage before the leaf
+started, and entry 003's mechanical test agrees from the other side: *which
+words does this sentence use* and *can an argument produce this case* mention no
+state of the tree at all, so the question is neither structural nor behavioural.
+Both models hold no strings by design and neither reaches a `Refusal`'s payload.
+The prediction held: nothing in the finished table could have been stated as a
+claim in either file.
+
+**Caught.** Both instruments contradicted a claim the brief chain carried as
+settled, and in opposite directions.
+
+*The message was carried and the inference from it was not checked.*
+`docs/ordinal-fs-tree/CLI.md` quotes the offending sentence verbatim, and every
+brief downstream quotes it again — so entry 019's instrument looks discharged.
+What none of them did is read it **against grove's glossary, clause by clause**.
+Doing that: *the entry with key 7* ✓ (grove says *key*), *is a leaf* ✓
+**extensionally** — every positioned regular-file entry under `.grove/` is a
+grove **Leaf** — *which holds nothing* ✗, *Children go in a node* ✓ (grove's
+**Node directory**), *promote it first* ✗, *or name a node* ✓. Four of six
+clauses are true in grove, and the two that break are not the ones the chain
+predicted: the leaf brief says an operator *reads a true statement about regular
+files as a false statement about their tree*, and the nouns are exactly the half
+that survives. **The defect is in the verb the message names, not in the nouns it
+uses** — `promote` is an operation grove's verb set does not have, and
+`grove-llm`'s operator is an LLM that will try it.
+
+*The count cut the question from ten variants to one, for a structural reason
+that generalises.* **A consumer whose preconditions are stronger than the
+library's pre-empts the library's own refusals for free**, because it has to
+classify its target before it can call at all. Grove has four such preconditions
+the library cannot see — an outcome infix, a session kind, `finish`-reservation,
+brief-ness — and they retire `PromoteNotLeaf`, `PromotePartsNotNode`,
+`PromoteNoDistinguished` and `RewriteSpeciesChange` behind checks grove keeps for
+unrelated reasons. What is left reachable from an ordinary argument is
+`TargetNotNode`, alone.
+
+*The same refusal, two consumers, opposite reachability, decided by one
+argument's shape.* `NoOccupantAtOrdinal` is reachable in all three of its
+messages from the syllabus CLI, whose `insert` takes an ordinal, and unreachable
+from grove, whose `leaf-insert` takes the **entry** whose slot the new leaf takes
+and reads the ordinal off it in the snapshot the insert plans from. Three
+messages the library spent two leaves getting right (entries 012, 013) cannot be
+produced by grove at all. That is entry 018's *an argument surface discharges an
+obligation the way a type does*, applied to a refusal instead of an obligation.
+
+*A negative control on the count, and it failed the prediction.* The leaf brief
+asked which refusals grove reaches that the syllabus could not, expecting
+hand-edited trees to widen the set. **None.** `DestinationOccupied` and the two
+exhaustion refusals are reachable in both and by the same route — a hand-written
+name — and `ContentForANode` is discharged by both verb sets. Hand-editing widens
+*which trees* reach a refusal, not *which refusals* are reachable.
+
+**Missed.**
+
+- **The table is a reachability claim with no witness behind it.** Entry 003's
+  row answers *is this refusal reachable at all?* with *either formalism, via a
+  reachability witness*; none was built. This table rests on reading thirteen
+  verb bodies against ten variants, which is the same standing `CLI.md`'s table
+  had — and `CLI.md`'s was confirmed only *after* `cli-k16` transcribed it. So
+  this one is a prediction until the migrate leaves do the same, and its value is
+  precisely that it can be found wrong.
+- **`Failed` and `FailedPartiallyRolledBack` are asserted from the library's own
+  documentation rather than driven.** Grove has no fault seam, and the library's
+  internal one is `pub(crate)`. Their reachability *in the wild* is the library's
+  claim, repeated.
+- Neither model reaches any of this and both say so, which is now the third
+  consecutive grove-side leaf to record that the largest piece of the work — the
+  grammar in 020, the message text here — has no model coverage at all.
+
+**Cost.** No tooling. One composed message, which is minutes, and one reading of
+ten `Refusal` variants and seven non-`Io` `Error` variants against thirteen verbs,
+which is not — the verb-by-verb pass is most of the leaf and there is no way to
+shorten it, because the answer for each cell is a fact about one function's
+arguments. No `src/` change and no test change: 1228 passing before and after,
+the same count `domain-k29` left.
+
+**The prediction, in entry 017's terms, so a later reader can check it.** 017
+measured a second wording drifting: four failures, all on literal message
+substrings the scoring arm had authored. This decision writes **no** second
+wording, so it creates zero new message substrings and cannot drift that way. The
+exposure it does create is the opposite one — a pre-check that duplicates a
+library check and goes **stale** if the library's widens, so grove would refuse
+where the library would have proceeded, silently and in the right words. The
+cheap guard is stated with the rule: make the pre-check the library's own
+predicate read off the snapshot (*contents are `Some`*), never a second predicate
+(*the path `is_dir`*). Falsification: a migrate leaf that writes `is_dir` there,
+or any later `TargetNotNode` case grove's check does not cover.
+
+**Counterfactual.** **Carrying an offending message is not the check; reading it
+against the target glossary is.** `CLI.md` carried the sentence and three
+downstream briefs carried it again, each also carrying a one-line summary of what
+was wrong with it — and the summary was wrong about which half breaks, which
+nothing downstream could see because a summary of a message cannot be checked
+clause by clause while the message can. The check costs one paragraph: put each
+clause beside the glossary entry it lands on and mark it true or false. That is
+entry 013's *name the carried value behind each clause* pointed at a **foreign**
+message rather than at one's own, and it would have sized this question at
+`crate-k7`'s close.
+
+**Verdict.** H1-shaped, and with one new observation the distilled skill should
+carry. The routing said *neither formalism* before the leaf started and was
+right. What paid instead was the accumulated log: two instruments, an
+adjacent-entry sizing rule and a negative control, all read out of the routing
+table rather than invented — **the first leaf in this workstream where the log,
+and not a model, was the instrument.** That is the second experiment's own
+deliverable behaving as intended, and it is evidence for it that no single
+modelling episode could produce.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -2307,3 +2429,6 @@ guesses are not.
 | a claim about a guard — "will this change trip the detector?" | none — plant the violation and watch it fail | 018: *a binary under `src/bin/` trips the no-filesystem guard* was settled in ninety seconds by a probe that failed naming its own line, against a reading of a token scan and its carve-out. 006's deliberate mutation, aimed at a design decision rather than at a suite |
 | a suite that reports its own coverage — "does *exercised* mean the case that could fail it ran?" | none — one mutation per reported obligation | 020: a conformance kit read green over ten real listings while the grammar's canonicity check was disabled, and reported the obligation exercised, because nine other listings parsed. The kit can tell *no samples* from *samples* and not *samples* from *samples that pose the question* |
 | filling a fixture for someone else's checker | none — read its parameter documentation as a checklist | 020: the kit asks for "any near-miss the grammar is meant to refuse"; the fixture was filled from what a healthy tree holds, which is a different question, and the near-misses fell out |
+| an inherited claim that a message is wrong in my words | none — put each clause beside the glossary entry it lands on and mark it true or false | 021: `CLI.md` carried the offending sentence verbatim and three briefs carried it again, each with a summary of what was wrong — and the summary named the wrong half. Four of six clauses are true in grove; the defect is the operation the message names, not the nouns. A summary of a message cannot be checked clause by clause and the message can. Entry 013's *name the value behind each clause*, pointed at a foreign message |
+| the same refusal in two consumers — "why is it reachable there and not here?" | none — read it against each consumer's argument *shape*, not its verb count | 021: `NoOccupantAtOrdinal` reaches all three of its messages from a CLI whose `insert` takes an ordinal, and none from a verb that takes the entry whose slot is taken and reads the ordinal off it. 018's *an argument surface discharges an obligation the way a type does*, applied to a refusal |
+| a consumer whose preconditions are stronger than the library's | none — count the checks it needs for its own reasons before counting the library's refusals | 021: four grove preconditions the library cannot see (outcome infix, session kind, reserved kind, brief-ness) retire four species refusals behind checks grove keeps anyway, cutting a ten-variant vocabulary question to one. The pre-check must be the library's own predicate read off the snapshot, or it is a second wording at the level of code |

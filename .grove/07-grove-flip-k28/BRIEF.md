@@ -130,6 +130,64 @@ this stage could produce and is worth stating as such.
   it: a green kit is a statement about a fixture, so mutate the thing it checks
   before believing it.**
 
+**`refusals-k30` (expand).** No test changed and none could: this leaf touched no
+`src/`, and the suite is 1228 passing, byte-identical to what `domain-k29` left.
+The flip's *pure refactor* premise is untested here rather than unfalsified, and
+the distinction is worth keeping — a design leaf is not evidence about a refactor.
+
+- **Question 3 is answered: grove prints the library's refusals verbatim and
+  re-words none of them**, because the reachability table shows the collision
+  reaching an operator through exactly **one** ordinary argument — `leaf-add` /
+  `leaf-add-pair` given a task file as `<parent>` — which grove already refuses
+  itself and must keep refusing, since `.grove/BRIEF.md` carries no key and
+  cannot be handed to the library as a target at all. The seam ADR is **not**
+  reopened and **no library-side leaf is cut**. The records are
+  `docs/ARCHITECTURE.md#library-refusals` (the decision, the table, the rule) and
+  a rework of `docs/adr/entry-name-is-the-only-seam.md` in place, whose reopening
+  clause was met by grove and did not fire; `CONTEXT-MAP.md` gains the two terms
+  a library message uses that neither glossary mapped — *distinguished child* and
+  *entry*. **No new ADR**: the AND test fails on *hard to reverse*, and `cli-k16`
+  recorded the identical decision for the syllabus in `CLI.md` rather than in the
+  record set.
+- **This brief's own framing of the collision was wrong in its detail, and the
+  correction is the finding.** Composing the message against grove's glossary
+  clause by clause gives four of six clauses **true** — the library's *leaf* and
+  *node* pick out exactly grove's **Leaf** and **Node directory** inside
+  `.grove/`. What breaks is *which holds nothing* and, decisively, *promote it
+  first*: an operation grove's verb set does not have, delivered to an operator
+  who is an LLM and will try it. **The collision is in the verb the message
+  names, not in the nouns it uses**, which is why pre-empting one refusal is
+  cheaper than re-wording ten.
+- **What every migrate leaf transcribes** is three clauses, and breaking one makes
+  the table wrong rather than incomplete: resolve the argument to an entry and
+  call **by key** against the same snapshot; **classify before calling**, using
+  the library's own predicate read off the snapshot (*contents are `Some`*) and
+  never a second one (*the path `is_dir`*); write **no second wording** for a
+  condition the library states. Reading leaves get one more: no read verb can
+  produce a `Refusal` at all, so `pick`, `brief-chain`, `kind` and `resolve` keep
+  the diagnostics they already have — `CLI.md` had its read verbs *construct* a
+  `TargetMissing` for want of a message of their own, and grove has one.
+- **The table runs both ways** — a verb-side half naming each verb's library
+  operation and the refusals it can reach, and a refusal-side half naming the
+  argument that reaches each variant — so a migrate leaf reads its own row rather
+  than re-deriving the set. Nine verbs of thirteen touch the algebra at all.
+- **The count, so a migrate leaf knows what to expect.** Four `Refusal` variants
+  of ten are reachable — `TargetNotNode`, `DestinationOccupied`, `KeysExhausted`,
+  `OrdinalsExhausted` — and only the first from an ordinary argument. Two things
+  that surprised: `NoOccupantAtOrdinal` is unreachable in **all three** of its
+  messages, because `leaf-insert` names the *entry* whose slot is taken where the
+  syllabus's `insert` names an ordinal; and the leaf brief's expectation that
+  grove's hand-edited trees reach refusals the syllabus could not is **false** —
+  hand-editing widens which trees reach a refusal, not which refusals are
+  reachable. The argument surface was enumerated mechanically (17 clap-parsed
+  fields across 13 verbs, no ordinal among them, with a positive control) rather
+  than read, because a table seven leaves transcribe is worth the control.
+- **No review chain is cut.** The table's own check is scheduled and stronger
+  than an adversarial read: each migrate leaf transcribes its own rows into a
+  suite and finds them wrong if they are, exactly as `cli-k16` confirmed
+  `CLI.md`'s. `docs/formalism-findings.md` entry 021 carries the instruments, the
+  measurement, and a falsifiable prediction stated in entry 017's terms.
+
 ## Pointers
 
 - `docs/ordinal-fs-tree/ARCHITECTURE.md` — the seam, the seven obligations, the

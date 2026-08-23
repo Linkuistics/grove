@@ -83,11 +83,31 @@ of lessons and modules, which has neither. A `Refusal<N>` was rejected rather
 than overlooked — it is a second domain-facing rendering inside the seam this
 record exists to keep single, and a consumer re-wording the condition instead is
 the drift `docs/formalism-findings.md` entry 017 measured. So the library's
-words are accurate and generic, and a consumer prints them verbatim. Reopen if a
-domain appears whose own vocabulary **collides** with the library's rather than
-merely differing from it — grove is that domain, since its `Leaf` is a task file
-and the library's is any regular file; `docs/ordinal-fs-tree/CLI.md`'s *What
-`cli-k16` found* carries the case.
+words are accurate and generic, and a consumer prints them verbatim.
+`docs/ordinal-fs-tree/CLI.md`'s *What `cli-k16` found* carries the case, argued
+from the first consumer, whose vocabulary merely **differed**.
+
+**The second consumer's vocabulary collides, which this record used to name as
+the condition that would reopen it. The condition was met and did not fire, and
+the result is more useful than the prediction was.** Grove's `Leaf` is a task
+file where the library's is any regular file, so the two genuinely collide rather
+than differ — and grove's refusal-reachability table
+([`docs/ARCHITECTURE.md`](../ARCHITECTURE.md#library-refusals)) then found
+**one** algebraic refusal reachable from an ordinary argument, with one clause of
+its message wrong in that domain's reading: the recovery advice, which names an
+operation the consumer's verb set does not have. A consumer whose own
+preconditions are stronger than the library's has to classify its target before
+it calls anyway, so the check that pre-empts that refusal is one it cannot drop
+for unrelated reasons. A collision is therefore a reason to keep a consumer's own
+preconditions in front of the algebra, and not a reason to make `Refusal`
+domain-facing: widening the seam would buy a rendering for cases that consumer's
+argument surface does not produce.
+
+Reopen if a consumer appears that **cannot** pre-empt — one whose argument
+surface hands a bare key or an ordinal straight to an operation, so that a
+colliding refusal reaches its operator with no check of its own in front of it.
+That is the property the first formulation was reaching for, and unlike
+*collides* it is readable off a verb set before the consumer is built.
 
 ## Considered options
 

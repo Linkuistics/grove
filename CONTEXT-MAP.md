@@ -70,15 +70,30 @@ mean something else in grove's, and its crate ships by no path of its own —
   library's first and so far only consumer: it supplies a domain implementation
   of the one trait and keeps its own words out of the library. The boundary is
   **not compiler-enforced** and cannot be — the two vocabularies name the same
-  filesystem shapes — so it is held by the two glossaries. Where the words
-  collide the meanings differ, and that is deliberate: grove's **Leaf** is a task
-  file executed in one session and its **Node directory** is a directory headed
-  by a `BRIEF.md` charter, while the library's *leaf* is any regular file and its
-  *node* any directory of children. Where the words differ the meanings match:
-  grove's **Position** is the library's *ordinal*, grove's **Permanent key** its
-  *key*. Neither glossary defines the other's sense of any of the four. A
-  document that must speak of both says which tree it means, sentence by
-  sentence.
+  filesystem shapes — so it is held by the two glossaries and by this table.
+  Neither glossary defines the other's sense of any row.
+
+  | the library says | grove says | class |
+  |---|---|---|
+  | *leaf* — any regular-file entry | **Leaf** — a task file executed in one session | the words collide |
+  | *node* — any directory of children | **Node directory** — a directory headed by a `BRIEF.md` charter | the words collide |
+  | *ordinal* | **Position** | the words differ |
+  | *key* | **Permanent key** | the words differ |
+  | *distinguished child* | the node's `BRIEF.md` charter | grove names the file, not the role |
+  | *entry* | **Leaf** or **Node directory** | grove has no word for the union |
+
+  Where the words collide the meanings differ, and where they differ the meanings
+  match; both halves are deliberate. A document that must speak of both says
+  which tree it means, sentence by sentence.
+
+  **The table is read at runtime, not only in prose.** grove prints the library's
+  errors verbatim rather than re-wording them
+  ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#library-refusals) carries which
+  ones an operator can actually reach, and why re-wording was rejected), so an
+  operator meeting one reads it against these rows. Under `.grove/` the first two
+  rows happen to pick out the same files, which is what makes that collision
+  quiet rather than loud: a sentence about the library's *leaf* reads as a true
+  sentence about a grove **Leaf** right up to the clause where it is not.
 
 - **A durable record has one owner.** Every record under `docs/adr/` and
   `docs/specs/` has a repo-wide unique slug and a maintaining context recorded

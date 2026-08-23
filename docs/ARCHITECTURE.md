@@ -437,7 +437,7 @@ rollback has damaged.
 | `leaf-add-pair` | `append_many` | the same four |
 | `leaf-insert` | `insert` | `DestinationOccupied`, `KeysExhausted`, `OrdinalsExhausted` — not `TargetNotNode`, because the target passed is the resolved entry's **container**, a node by construction |
 | `leaf-decompose` | `promote` | `DestinationOccupied`, `KeysExhausted` — the node takes the leaf's own ordinal and the first child takes the first, so no ordinal is allocated past the end |
-| `leaf-retire`, `leaf-prune` | `rewrite` | `DestinationOccupied` — a rewrite allocates nothing |
+| `leaf-retire`, `leaf-prune` | `rewrite` | **none**, and the row below says why the `DestinationOccupied` this table first predicted is unreachable |
 | `root-init` | `append` into a tree it has just created | **none** — the root is not an entry and the level is empty |
 | `finish-commit` | none — it reads the tree, then deletes `.grove/` under Grove's own transaction | **none** |
 | `complete` | none — it touches no tree | **none** |
@@ -448,6 +448,15 @@ Four of ten, and only one of those from an ordinary argument. A refusal no
 argument produces is a case a contract test cannot cover and a reader should not
 go looking for.
 
+**One row has since been corrected by the leaf that transcribed it.**
+`marking-k32` found `DestinationOccupied` unreachable from the two marking
+verbs — the row below carries the reason — which is the check
+[`refusals-k30` scheduled](#library-refusals) working as intended: the table's
+own guarantee is that each migrate leaf writes its rows into a suite and finds
+them wrong if they are. The count of four is unchanged and their *source* is not:
+every reachable variant now belongs to the grow verbs alone, and the two marking
+verbs reach none.
+
 | `Refusal` variant | reachable from Grove's verbs? |
 |---|---|
 | `TargetMissing` | **no** — clause 1. A reference naming nothing fails in Grove's resolution, before any operation is called. |
@@ -456,8 +465,8 @@ go looking for.
 | `PromoteNotLeaf` | **no** — `leaf-decompose` refuses a brief, a `DONE` leaf, an `ABANDONED` leaf and a `finish` leaf, none of which the library can see; a node falls out of the same match. |
 | `PromotePartsNotNode` | **no** — `leaf-decompose` always composes node parts. |
 | `PromoteNoDistinguished` | **no** — Grove's distinguished child is `BRIEF.md`. |
-| `RewriteSpeciesChange` | **no** — `leaf-retire` and `leaf-prune` compose leaf parts for an entry they have already matched as a live leaf. |
-| `DestinationOccupied` | **yes**, on a hand-edited tree: a copied leaf duplicating a key, or a `DONE` twin sitting beside the live leaf so that retiring it lands on a taken name. Grove's trees *are* hand-edited — the methodology offers *reorder by hand*. |
+| `RewriteSpeciesChange` | **no** — `leaf-retire` and `leaf-prune` compose leaf parts for an entry they have already matched as a live leaf. Confirmed by `marking-k32`: the classification reads `Parts::Leaf` off the snapshot and composes from its own `kind` and `slug`, so no path through either verb can hand `rewrite` node parts. |
+| `DestinationOccupied` | **yes from the grow verbs**, on a hand-edited tree: a copied leaf duplicating a key. Grove's trees *are* hand-edited — the methodology offers *reorder by hand*. **Not from `leaf-retire` or `leaf-prune`**, and composing the fixture is what showed it: the occupying name must be exactly the name the mark would place, and an outcome infix and a key are both *parts of one name*, so a `DONE` twin sitting beside the live leaf necessarily carries the live leaf's key. That breaks the by-key addressing clause 1 rests on, and `task_tree::addressable_key` refuses it first — see [*One guard is one mutation*](#tree-access-lock). `marking-k32` corrected this row. |
 | `ContentForANode` | **no** — discharged by the verb set. A node arises only through `leaf-decompose`, whose node parts carry no bytes and whose first child is a leaf; `leaf-add`, `leaf-add-pair` and `leaf-insert` compose leaf parts and nothing else. |
 | `KeysExhausted` / `OrdinalsExhausted` | **yes** — a hand-written `-k4294967295`, or a position of `4294967295`. That is the exact edge: one more is refused by the grammar as [not canonical](adr/task-names-are-canonical.md), so nothing between the two states is representable. |
 
@@ -625,7 +634,11 @@ driver routes a scheduled review solely by its filename kind.
 
 Every steady-state task-tree reader holds a shared **Tree access lock** on an
 open descriptor for the *working-tree root*; every mutator holds it exclusively
-through validation, rollback, or success output. The working-tree root is used
+through validation, rollback, or success output. One exception is deliberate and
+recorded: a **bulk** mark holds one guard per entry it marks, because a library
+mutation consumes its guard — see
+[`bulk-marks-are-not-atomic`](adr/bulk-marks-are-not-atomic.md) and *One guard is
+one mutation* below. The working-tree root is used
 rather than `.grove/` because it is the one thing that exists before root
 initialization and survives finish deletion, so a single seam covers creation,
 ordinary mutation, and teardown. A contended caller prints one waiting
@@ -697,6 +710,43 @@ is the domain's: `tree_access::refuse_pending_*` raises `task_name`'s own
 `TaskNameError`, which is the identical value the library carries when it halts
 on a `Verdict::Reserved` mid-tree, so the pre-check and the halt cannot drift
 into two wordings of one condition.
+
+#### One guard is one mutation, and a bulk mark is many
+
+`marking-k32` moved `leaf-retire` and `leaf-prune` onto the library's `rewrite`,
+which is the first mutation Grove performs through it. A mutating method
+**consumes** its `WriteGuard`, so `leaf-prune` on a node — which marks every live
+leaf in a subtree — is *N* rewrites under *N* guards where it was one critical
+section returning one `PruneResult`. Grove accepts that
+([`bulk-marks-are-not-atomic`](adr/bulk-marks-are-not-atomic.md)) rather than
+asking a checked library for a batched rewrite, and two properties are what make
+it affordable:
+
+- **Validation still precedes every rename.** The subtree is planned and checked
+  against the *first* guard's snapshot, so a leaf that cannot be marked fails the
+  whole call with nothing renamed — the property the suite has always held.
+- **The verb is re-runnable.** An already-`ABANDONED` leaf is skipped silently
+  and a `DONE` one is reported and left alone, so re-running `leaf-prune` on the
+  node is the repair for a run that stopped part way, and is what an operator
+  does.
+
+The window between guards is the real cost, and it is the one thing that changed:
+a concurrent writer or a filesystem fault can now stop a bulk mark part way.
+`pruning_a_node_takes_one_guard_per_mark` asserts the count, so a later change
+moves a number rather than quietly contradicting this paragraph.
+
+**A path argument is only as good as the key it resolves to.** Clause 1 of
+[*How an `ordinal-fs-tree` refusal reaches an operator*](#library-refusals) says
+resolve the argument to an entry and call **by key**, and that is sound only
+while keys are unique tree-wide. The library states uniqueness as the domain's
+obligation and cannot enforce it; a hand edit or a failed rollback can put two
+entries under one key, and `by_key` then answers with whichever the walk reaches
+first — an order neither model establishes. So `task_tree::addressable_key`
+refuses a key that names more than one entry, before any operation is called.
+Without it, `leaf-retire` aimed at one twin rewrote the other onto its own name,
+changed nothing, and reported success. Every flipped verb goes through it, and
+every verb the migrate stage has yet to move should: the hazard belongs to
+*resolve a path, then call by key*, which is the shape of all of them.
 
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>
@@ -865,10 +915,22 @@ promise to preserve. See
 
 Grove walks upward from the current directory and lets the closest repository
 marker decide. `.jj/` wins over a colocated `.git`; otherwise `.git` selects
-Git. Jujutsu working copies are mutated with ordinary filesystem renames and
-committed with Jujutsu. Git working copies use `git mv` for tracked moves and
-Git for commits. This preserves Jujutsu's operation log and avoids mutating the
-Git index behind a colocated repository.
+Git. Working copies are committed with the tool the marker names — Jujutsu's
+operation log is preserved, and a colocated repository's Git index is never
+written behind it.
+
+**Moves are not commits, and no longer branch on the lane.** Every entry a
+flipped verb moves is renamed by `ordinal-fs-tree`, which does `rename(2)`,
+detects no repository and requires no tool on `PATH`. So a tracked entry marked
+`DONE` leaves Git's index holding the old path, and `git status` shows an
+unstaged deletion beside an untracked file where `git mv` once showed a staged
+rename. Both lanes still commit byte-identical trees — Git infers renames at
+diff time by content similarity — *provided the commit stages the tree*, which
+is why `content/references/commit.md` says so and `tests/leaf_ops.rs` asserts
+the three outcomes rather than describing them. See
+[`grove-does-not-stage-its-own-renames`](adr/grove-does-not-stage-its-own-renames.md).
+`src/tree_rename.rs`'s trackedness dispatch survives only for the verbs the
+migrate stage has not reached, and the contract stage deletes it.
 
 Grove resolves that marker before a session exists and **states** the result in
 `${prompt}`, which is why sessions do not probe: every launch is told whether its

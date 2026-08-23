@@ -9,12 +9,17 @@
 //   - `leaf-retire <leaf-path>` adds a `DONE` infix in place
 //     (`NN-<kind>-<slug>-k<key>.md` → `NN-DONE-<kind>-<slug>-k<key>.md`), keeping the retired
 //     leaf in its directory (no `done/` directory); the file body is untouched.
+//     It marks through `ordinal-fs-tree`'s `rewrite`, whose rename is
+//     `rename(2)` on every lane — so the repo below is what makes the Git-lane
+//     consequence assertable, not what the verb needs to work.
 //   - both terminal-marking verbs name the session's remaining steps — commit,
 //     then `grove-llm complete` — on stderr, leaving stdout as the parsed path
 //     data it already was.
 //
-// Each test stands up a real git repo so the verb's `git mv` calls have tracked
-// files to operate on.
+// Each test stands up a real git repo. `leaf-decompose` still moves entries with
+// `git mv` where they are tracked, so it needs one; the marking verbs no longer
+// do, and for them the repo is the *instrument* — see *What Git shows between
+// the verb and the commit* below.
 
 use assert_cmd::Command;
 use std::fs;
@@ -365,6 +370,165 @@ fn retire_refuses_an_already_done_leaf() {
     assert!(
         stderr.contains("already retired") || stderr.contains("DONE"),
         "expected already-retired diagnostic, got {stderr:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// What Git shows between the verb and the commit — question 1
+//
+// `leaf-retire` and `leaf-prune` mark through `ordinal-fs-tree`'s `rewrite`, and
+// the library renames with `rename(2)` and detects no repository. Grove does not
+// stage afterwards (`docs/adr/grove-does-not-stage-its-own-renames.md`), so on
+// the **Git** lane a tracked leaf's mark is no longer a `git mv`, and what an
+// operator sees before the commit changed. That is the whole of what question 1
+// is about, and this working tree is Jujutsu — so it is asserted here against a
+// real Git repository rather than observed.
+
+/// `git status --porcelain` over `.grove`, sorted. Index and worktree columns
+/// included, because the whole question is which of the two moved.
+fn git_status(repo: &Path) -> Vec<String> {
+    let out = Pcmd::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["status", "--porcelain", "--", ".grove"])
+        .output()
+        .unwrap();
+    let mut lines: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(str::to_string)
+        .collect();
+    lines.sort();
+    lines
+}
+
+/// `git diff --name-status -M` between the last two commits, over `.grove`.
+fn git_last_commit_names(repo: &Path) -> Vec<String> {
+    let out = Pcmd::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args([
+            "diff",
+            "--name-status",
+            "-M",
+            "HEAD~1",
+            "HEAD",
+            "--",
+            ".grove",
+        ])
+        .output()
+        .unwrap();
+    let mut lines: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(str::to_string)
+        .collect();
+    lines.sort();
+    lines
+}
+
+#[test]
+fn retiring_a_tracked_leaf_shows_a_deletion_and_an_untracked_file_not_a_rename() {
+    // The observable question 1 is about, stated as an assertion. Before the
+    // flip this was a staged `R  old -> new` and nothing else; now Git's index
+    // still holds the old path and the new one is untracked.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    stage_all(tmp.path());
+    assert!(
+        git_status(tmp.path()).is_empty(),
+        "the fixture must start clean, or the assertion below proves nothing"
+    );
+
+    let (_, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl-target-k1.md"]);
+    assert!(ok, "leaf-retire failed");
+
+    assert_eq!(
+        git_status(tmp.path()),
+        vec![
+            " D .grove/01-impl-target-k1.md".to_string(),
+            "?? .grove/01-DONE-impl-target-k1.md".to_string(),
+        ],
+        "an unstaged deletion plus an untracked file — not `R  old -> new`"
+    );
+}
+
+#[test]
+fn a_commit_that_stages_the_whole_tree_still_records_the_retire_as_a_rename() {
+    // The other half, and the reason accepting the changed status costs nothing
+    // at the commit: both lanes commit byte-identical trees, and Git infers
+    // renames at diff time by content similarity.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    stage_all(tmp.path());
+
+    let (_, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl-target-k1.md"]);
+    assert!(ok, "leaf-retire failed");
+    git(tmp.path(), &["add", "-A"]);
+    git(tmp.path(), &["commit", "-m", "retire target-k1"]);
+
+    assert_eq!(
+        git_last_commit_names(tmp.path()),
+        vec!["R100\t.grove/01-impl-target-k1.md\t.grove/01-DONE-impl-target-k1.md".to_string(),],
+        "staging the tree records one rename"
+    );
+    assert!(git_status(tmp.path()).is_empty(), "and leaves it clean");
+}
+
+#[test]
+fn a_commit_that_stages_only_tracked_paths_records_the_retire_as_a_deletion() {
+    // The hazard, asserted rather than warned about. `git commit -a` stages
+    // modifications and deletions of *tracked* files and never an untracked one,
+    // so it records the live name's disappearance and not the DONE name's
+    // arrival — the whole of what `docs/adr/grove-does-not-stage-its-own-renames.md`
+    // asks a session to avoid, and the reason `references/commit.md` now says to
+    // stage the tree. Nothing is lost from the working copy; the commit is wrong,
+    // not the tree.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    stage_all(tmp.path());
+
+    let (_, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl-target-k1.md"]);
+    assert!(ok, "leaf-retire failed");
+    git(tmp.path(), &["commit", "-a", "-m", "retire target-k1"]);
+
+    assert_eq!(
+        git_last_commit_names(tmp.path()),
+        vec!["D\t.grove/01-impl-target-k1.md".to_string()],
+        "the deletion alone — the retired leaf never reached history"
+    );
+    assert_eq!(
+        git_status(tmp.path()),
+        vec!["?? .grove/01-DONE-impl-target-k1.md".to_string()],
+        "and the retired leaf is still sitting there untracked"
+    );
+}
+
+#[test]
+fn pruning_a_node_leaves_every_mark_unstaged_the_same_way() {
+    // The bulk case reaches Git exactly as the single one does: N plain renames,
+    // none of them staged. Asserted because `leaf-prune` is the verb whose
+    // marking loop changed shape, and a per-mark staging step slipping back in
+    // would be invisible in the single-leaf test.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    let node = mknode(&grove, "01-build-k1", "build-k1");
+    touch(&node.join("01-impl-a-k2.md"), "# a-k2\n");
+    touch(&node.join("02-impl-b-k3.md"), "# b-k3\n");
+    stage_all(tmp.path());
+
+    let (_, _, ok) = run(tmp.path(), &["leaf-prune", ".grove/01-build-k1"]);
+    assert!(ok, "leaf-prune failed");
+
+    assert_eq!(
+        git_status(tmp.path()),
+        vec![
+            " D .grove/01-build-k1/01-impl-a-k2.md".to_string(),
+            " D .grove/01-build-k1/02-impl-b-k3.md".to_string(),
+            "?? .grove/01-build-k1/01-ABANDONED-impl-a-k2.md".to_string(),
+            "?? .grove/01-build-k1/02-ABANDONED-impl-b-k3.md".to_string(),
+        ],
     );
 }
 

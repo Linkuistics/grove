@@ -275,6 +275,97 @@ under grove's exclusive guard cannot reach the library from.
   caller relied on it; it is recorded here because a flip that quietly narrows a
   verb is exactly what this section exists to catch.
 
+**`marking-k32` (migrate).** The whole suite is **1236 passing**, up from
+`reading-k31`'s 1230; six are this leaf's own. **Two existing tests had to
+change** and both for the same reason — a message that is no longer grove's to
+choose — and one of the two carried a finding that corrects this node's own
+inherited table. `leaf-retire` and `leaf-prune` mark through `rewrite`, and
+`src/tree_rename.rs` has no caller left from either.
+
+- **Question 1 is answered: grove accepts the changed `git status` and stages
+  nothing**, and the record is `docs/adr/grove-does-not-stage-its-own-renames.md`.
+  What an operator sees between a grove verb and the commit is ` D` at the live
+  name beside `??` at the marked one, where a `git mv` once showed a staged
+  rename; the commit is unaffected **provided it stages the tree**, and a
+  `git commit -a` records the deletion alone. Re-staging was rejected as the
+  deleted primitive reassembled one layer up — it needs the same trackedness
+  probe issue #3 was about, a jj branch of its own, and `git add` stages the
+  file's *current content*, which `git mv` never did. All three outcomes are
+  asserted in `tests/leaf_ops.rs` against a real git repo, because this working
+  tree is jj and the whole question is about the git lane.
+  `docs/ARCHITECTURE.md`'s *Version-control seam* and
+  `content/references/commit.md` carry the consequence; the methodology sentence
+  is one clause and it is the only reason the hazard is not silent.
+- **The atomicity problem was accepted, not escalated**, and
+  `docs/adr/bulk-marks-are-not-atomic.md` says what an operator does with a prune
+  that stopped half way: run it again, because the marks are the state and an
+  already-`ABANDONED` leaf is skipped silently. **What survived the change is the
+  up-front validation** — the whole subtree is planned and checked against the
+  *first* guard's snapshot before any rename, so the all-or-nothing property the
+  suite has always held still holds against every precondition; only the window
+  *between* guards is lost. `pruning_a_node_takes_one_guard_per_mark` asserts the
+  count, so the cost is a number and not a paragraph.
+- **This node's own reachability table had a wrong row, and the leaf that
+  transcribed it is what found that out.** `DestinationOccupied` is **not**
+  reachable from `leaf-retire` or `leaf-prune`. The occupying name must be
+  exactly the name the mark would place, and an outcome infix and a key are both
+  parts of one name — so the `DONE` twin the row names necessarily carries the
+  live leaf's key, and there is no tree where the destination is taken and the
+  key is not duplicated. Four variants are still reachable; every one of them is
+  now a grow verb's. `docs/ARCHITECTURE.md#library-refusals` is corrected in
+  place. **This is `refusals-k30`'s scheduled check firing as scheduled, and it
+  fired on the first leaf to run it.**
+- **A duplicated key was silently marking the wrong entry, and the fix is the
+  finding every later migrate leaf needs.** `rewrite` is called **by key**;
+  `by_key` answers with whichever entry the walk reaches first, and walk order is
+  one of `structure.als`'s recorded misses. So `leaf-retire` aimed **by path** at
+  a live leaf rewrote its `DONE` twin onto its own name, changed nothing, and
+  printed the twin's path as the retired leaf — a success aimed at the wrong
+  entry. `task_tree::addressable_key` now refuses a key that names more than one
+  entry, before any operation is called. **What a later flip leaf should take
+  from it: clause 1's *resolve to an entry, then call by key* is sound only while
+  keys are unique, and nothing enforces that on a hand-edited tree. Every verb
+  that turns a path or a reference into a key wants this check.**
+  `docs/formalism-findings.md` entry 022 carries the instrument and the
+  counterfactual — a recorded model miss that had waited two leaves for a
+  consumer that could feel it.
+- **Changed test 1 — `prune_node_is_atomic_bails_clean_on_a_taken_destination`**
+  is now `…_on_a_leaf_it_cannot_address`. Same fixture, same property (nothing
+  renamed), different diagnosis and therefore a different sentence: the tree is
+  refused for carrying two entries under key 5, which is what is actually wrong
+  with it, rather than for a taken destination, which is a consequence.
+- **Changed test 2, and the pre-authorised `git mv` assertions, are all prose.**
+  There was no `git mv` *assertion* anywhere to move: no test ever checked that a
+  mark staged an index entry. What the three named files carried was a claim in
+  their headers, and each now says what is true of it. `tests/leaf_ops.rs`: the
+  git repo is the marking verbs' *instrument* rather than their prerequisite, and
+  four new tests use it as one. `tests/leaf.rs`: still true of `leaf-add` and
+  `leaf-insert`, and no longer true of grove as a whole — said so, with the leaf
+  that will finish it named. `tests/jj_tree_verbs.rs`: the four colocated
+  assertions are **unchanged and still pass**, and two of them now hold for a
+  second, stronger reason — the rename is plain on every lane, not plain because
+  this one is jj — so they have stopped discriminating the dispatch and are kept
+  as a guard against a verb growing a `git mv` of its own.
+- **The write seam is `task_tree::write` / `reopen_write`, and the contention
+  probe is now mode-aware.** `reading-k31` bought the waiting diagnostic back
+  outside the library with a **shared** non-blocking probe; a write must probe
+  **exclusively** or the message is swallowed whenever another reader holds the
+  tree. A bulk mark announces once and takes its later guards through
+  `reopen_write`, because the diagnostic is about the command's wait and not
+  about each lock it happens to need.
+- **Two messages improved and no test forced it, recorded because a flip that
+  quietly changes a verb is what this section exists to catch.** A node
+  directory handed to `leaf-retire` used to answer *cannot operate on a node
+  directory (lifecycle verbs act on leaves)*, which came from a path check;
+  it now answers *cannot retire a node (nodes are never marked done)*, from the
+  snapshot. And the paths both verbs return are now built from the caller's own
+  spelling of the root rather than from a canonicalised one, which is the
+  library's rule and what `reading-k31` already did for the read verbs.
+- **No formalism was reached for and entry 022 exists anyway.** The instrument
+  was building an inherited table's fixture, which is entry 019's counterfactual
+  run from the other end; the models were read only for their recorded misses.
+  Worth distinguishing from `reading-k31`, which owed no entry at all.
+
 ## Pointers
 
 - `docs/ordinal-fs-tree/ARCHITECTURE.md` — the seam, the seven obligations, the

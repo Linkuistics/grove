@@ -115,6 +115,8 @@ mean something else in grove's, and its crate ships by no path of its own —
   [`restatement-declares-its-class`](docs/adr/restatement-declares-its-class.md),
   [`behavioural-coverage-asserts-delivery`](docs/adr/behavioural-coverage-asserts-delivery.md),
   [`task-names-are-canonical`](docs/adr/task-names-are-canonical.md),
+  [`grove-does-not-stage-its-own-renames`](docs/adr/grove-does-not-stage-its-own-renames.md),
+  [`bulk-marks-are-not-atomic`](docs/adr/bulk-marks-are-not-atomic.md),
   and the two specs
   [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md) and
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md).

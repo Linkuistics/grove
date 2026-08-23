@@ -8,10 +8,15 @@ why Retire comes first — the message cannot name a node you have not yet close
 ## Where the boundary falls, in git and in jj
 
 That commit is also the boundary the *next* session starts from, and git and jj
-reach it differently — the same asymmetry the tree verbs already carry (`git mv`
-there, a plain rename under jj). In **git** the working tree is not history, so
-one `git commit`, taken once the rename has landed, both records the task and
-leaves the next session a clean tree. In **jj** the working copy *is* a commit:
+reach it differently. In **git** the working tree is not history, so one
+`git commit`, taken once the rename has landed, both records the task and leaves
+the next session a clean tree — but **stage the whole tree first**. A tree verb
+moves files; it does not decide what your commit contains, and a mark it did not
+stage reaches git as a deletion at the old name beside an untracked file at the
+new one. A commit that stages only tracked paths — `git commit -a`, or one
+naming the leaf's old path — then records the deletion alone. `git add -A`
+before the commit, and a glance at `git status` after it, is the whole of the
+precaution. In **jj** the working copy *is* a commit:
 this session's edits are already in `@`, so `jj describe -m` records the task but
 leaves that change open, and the next session's first edit is snapshotted into
 *this* task's commit. **Seal it** — `jj new` after describing, once the rename

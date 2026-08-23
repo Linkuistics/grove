@@ -34,11 +34,14 @@
 // replaced is gone.
 
 use crate::leaf::Kind;
+use crate::task_name::{Outcome, Parts, TaskName};
+use crate::task_tree;
 use crate::tree_access;
 use crate::tree_grow::{collect_all_names, leaf_add_unlocked, next_child_position};
-use crate::tree_id::{next_key, parse, validate_slug, Entry, Outcome};
+use crate::tree_id::{next_key, parse, validate_slug, Entry as IdEntry, Outcome as IdOutcome};
 use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
+use ordinal_fs_tree::{Entry, Key, Report, Snapshot};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -133,12 +136,12 @@ pub fn materialize_finish(worktree: &Path) -> Result<crate::task_tree::SelectedL
 
     let position = next_child_position(&grove_root)?;
     let key = next_key(collect_all_names(&grove_root)?)?;
-    let entry = Entry::Leaf {
+    let entry = IdEntry::Leaf {
         position,
         kind: Kind::Finish,
         slug: "finish".to_string(),
         key,
-        outcome: Outcome::Live,
+        outcome: IdOutcome::Live,
     };
     let path = grove_root.join(entry.name());
     let handle = format!("finish-k{key}");
@@ -282,12 +285,12 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
     entries.sort_by_key(std::fs::DirEntry::file_name);
     let mut scaffold_leaf_candidates = entries.iter().filter_map(|entry| {
         let name = entry.file_name();
-        let Entry::Leaf {
+        let IdEntry::Leaf {
             position: 1,
             kind: Kind::Requirements,
             slug,
             key: 1,
-            outcome: Outcome::Live,
+            outcome: IdOutcome::Live,
         } = parse(name.to_str()?)?
         else {
             return None;
@@ -305,12 +308,12 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
     let scaffold_slug = scaffold_leaf
         .as_ref()
         .map_or("plan", |(_, slug)| slug.as_str());
-    let leaf_name = Entry::Leaf {
+    let leaf_name = IdEntry::Leaf {
         position: 1,
         kind: Kind::Requirements,
         slug: scaffold_slug.to_string(),
         key: 1,
-        outcome: Outcome::Live,
+        outcome: IdOutcome::Live,
     }
     .name();
     let leaf_path = grove_root.join(&leaf_name);
@@ -471,23 +474,23 @@ fn leaf_decompose_unlocked(
     let grove_abs = canonical_grove_root(grove_root)?;
     let (parent_abs, name) = resolve_leaf_file(&grove_abs, leaf_path)?;
     let (position, parent_kind, slug, key) = match parse(&name) {
-        Some(Entry::Leaf {
-            outcome: Outcome::Live,
+        Some(IdEntry::Leaf {
+            outcome: IdOutcome::Live,
             position,
             kind,
             slug,
             key,
         }) => (position, kind, slug, key),
-        Some(Entry::Leaf {
-            outcome: Outcome::Done,
+        Some(IdEntry::Leaf {
+            outcome: IdOutcome::Done,
             ..
         }) => bail!("cannot decompose a retired (DONE) leaf: {name}"),
-        Some(Entry::Leaf {
-            outcome: Outcome::Abandoned,
+        Some(IdEntry::Leaf {
+            outcome: IdOutcome::Abandoned,
             ..
         }) => bail!("cannot decompose an abandoned (ABANDONED) leaf: {name}"),
-        Some(Entry::Brief) => bail!("cannot decompose a brief (it is already a node): {name}"),
-        Some(Entry::Node { .. }) => {
+        Some(IdEntry::Brief) => bail!("cannot decompose a brief (it is already a node): {name}"),
+        Some(IdEntry::Node { .. }) => {
             bail!("cannot decompose a node (it already has children): {name}")
         }
         None => bail!("not a v2 leaf: {name}"),
@@ -505,7 +508,7 @@ fn leaf_decompose_unlocked(
 
     // The entity that was leaf k becomes node directory k: same position, key, and
     // slug — only the on-disk shape changes (file → directory holding BRIEF.md).
-    let node_name = Entry::Node {
+    let node_name = IdEntry::Node {
         position,
         slug: slug.clone(),
         key,
@@ -530,61 +533,74 @@ fn leaf_decompose_unlocked(
     Ok((brief_path, child_path))
 }
 
-/// `leaf-retire <leaf-path>`: rename a live leaf `NN-<slug>-k<key>.md` →
-/// `NN-DONE-<slug>-k<key>.md` in place, keeping its position and key. The `DONE`
-/// infix is filename-only — the `# <handle>` header is byte-identical. Refuses a
-/// brief, a node directory, and an already-`DONE` leaf. Returns the retired file's
-/// absolute path. Working-tree only — no commit.
+/// `leaf-retire <leaf-path>`: rename a live leaf `NN-<kind>-<slug>-k<key>.md` →
+/// `NN-DONE-<kind>-<slug>-k<key>.md` in place, keeping its position and key. The
+/// `DONE` infix is filename-only — the `# <handle>` header is byte-identical.
+/// Refuses a brief, a node directory, and an already-`DONE` leaf. Returns the
+/// retired file's absolute path. Working-tree only — no commit.
+///
+/// **The mark is `ordinal_fs_tree`'s `rewrite`**, which is what a mark *is*
+/// algebraically: the entry keeps its ordinal, its key and its species, and only
+/// the opaque remainder of its name moves. The rename underneath is
+/// `rename(2)` — plain on every lane, git included; see
+/// [`docs/adr/grove-does-not-stage-its-own-renames.md`](../docs/adr/grove-does-not-stage-its-own-renames.md).
 pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
-    let guard = tree_access::write(grove_root)?;
-    leaf_retire_unlocked(guard.root(), leaf_path)
+    let tree = task_tree::write(grove_root)?;
+    // The classification, then the guard: `rewrite` consumes the guard, so the
+    // borrow of its snapshot has to end before the call.
+    let (key, parts) = {
+        let entry = match task_tree::target(tree.root(), tree.snapshot(), leaf_path)? {
+            task_tree::Target::Root => bail!(
+                "cannot retire the grove root (lifecycle verbs act on leaves): {}",
+                tree.root().display()
+            ),
+            task_tree::Target::Entry(entry) => entry,
+        };
+        let parts = retire_parts(&entry)?;
+        (
+            task_tree::addressable_key(tree.root(), tree.snapshot(), &entry)?,
+            parts,
+        )
+    };
+    let report = tree.rewrite(key, parts).map_err(task_tree::raised)?;
+    marked_path(&report)
 }
 
-fn leaf_retire_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
-    let grove_abs = canonical_grove_root(grove_root)?;
-    let (parent_abs, name) = resolve_leaf_file(&grove_abs, leaf_path)?;
-    let done_name = match parse(&name) {
-        Some(Entry::Leaf {
-            outcome: Outcome::Live,
-            position,
-            kind,
-            slug,
-            key,
-        }) => {
-            if kind == Kind::Finish {
-                bail!("`finish` is driver-reserved and cannot be retired");
-            }
-            Entry::Leaf {
-                position,
-                kind,
-                slug,
-                key,
-                outcome: Outcome::Done,
-            }
-            .name()
-        }
-        Some(Entry::Leaf {
-            outcome: Outcome::Done,
-            ..
-        }) => bail!("leaf is already retired (DONE): {name}"),
-        Some(Entry::Leaf {
-            outcome: Outcome::Abandoned,
-            ..
-        }) => bail!("cannot retire an abandoned (ABANDONED) leaf: {name}"),
-        Some(Entry::Brief) => bail!("cannot retire a brief (briefs are never done): {name}"),
-        Some(Entry::Node { .. }) => {
+/// The key to rewrite and the `DONE` parts to give it, or Grove's own refusal.
+///
+/// Every clause here is a precondition the library cannot see — an outcome
+/// infix, `finish`-reservation, brief-ness — which is why classifying before
+/// calling is not optional (`docs/ARCHITECTURE.md#library-refusals`, clause 2).
+/// The species refusal `rewrite` would make sits behind them and is therefore
+/// unreachable, exactly as that document's table says.
+fn retire_parts(entry: &Entry<'_, TaskName>) -> Result<Parts> {
+    let name = entry.name();
+    let Some(triple) = entry.triple() else {
+        bail!("cannot retire a brief (briefs are never done): {name}")
+    };
+    match triple.parts {
+        Parts::Node { .. } => {
             bail!("cannot retire a node (nodes are never marked done): {name}")
         }
-        None => bail!("not a v2 leaf: {name}"),
-    };
-
-    let done_path = parent_abs.join(&done_name);
-    if done_path.exists() {
-        bail!("destination already exists: {}", done_path.display());
+        Parts::Leaf {
+            outcome: Outcome::Done,
+            ..
+        } => bail!("leaf is already retired (DONE): {name}"),
+        Parts::Leaf {
+            outcome: Outcome::Abandoned,
+            ..
+        } => bail!("cannot retire an abandoned (ABANDONED) leaf: {name}"),
+        Parts::Leaf {
+            outcome: Outcome::Live,
+            kind,
+            slug,
+        } => {
+            if *kind == Kind::Finish {
+                bail!("`finish` is driver-reserved and cannot be retired");
+            }
+            Ok(Parts::leaf(Outcome::Done, *kind, slug.clone()))
+        }
     }
-    // The `DONE` infix is filename-only — the `# <handle>` header is byte-identical.
-    rename_entry(&parent_abs, &name, &done_name)?;
-    Ok(done_path)
 }
 
 /// The outcome of a [`leaf_prune`] call: every leaf newly marked `ABANDONED`
@@ -610,209 +626,192 @@ pub struct PruneResult {
 /// The `ABANDONED` infix is filename-only — every marked leaf's `# <handle>`
 /// header stays byte-identical. Working-tree only — no commit.
 ///
+/// # One guard is one mark, and a subtree is many
+///
+/// `rewrite` consumes its write guard, so a subtree prune is *N* rewrites under
+/// *N* guards where it was once one critical section. Grove accepts that rather
+/// than asking the library for a batched rewrite, and
+/// [`docs/adr/bulk-marks-are-not-atomic.md`](../docs/adr/bulk-marks-are-not-atomic.md)
+/// records why and what an operator does with a prune that stopped half way.
+/// What survives the change is the up-front validation: the whole subtree is
+/// planned and every destination checked against the **first** guard's snapshot
+/// before any rename happens, so the failure that test suite has always covered
+/// — a botched earlier prune leaving an `ABANDONED` twin in the way — still
+/// leaves the tree untouched. What is lost is only the window *between* guards:
+/// another writer, or a filesystem fault, can now stop the run partway.
+///
 /// **HITL (pruning):** this verb does not itself gate on human
 /// confirmation — constraint 5 is "grove guides, it does not gate" — so the
 /// caller (the LLM driving the session) must already have explicit human
 /// confirmation before calling this at all.
 pub fn leaf_prune(grove_root: &Path, path: &Path) -> Result<PruneResult> {
-    let guard = tree_access::write(grove_root)?;
-    leaf_prune_unlocked(guard.root(), path)
-}
-
-fn leaf_prune_unlocked(grove_root: &Path, path: &Path) -> Result<PruneResult> {
-    let grove_abs = canonical_grove_root(grove_root)?;
-    let target_abs = resolve_entry(&grove_abs, path)?;
-
-    if target_abs.is_dir() {
-        if target_abs == grove_abs {
-            bail!(
+    let tree = task_tree::write(grove_root)?;
+    let root = tree.root().to_path_buf();
+    let plan = {
+        let entry = match task_tree::target(&root, tree.snapshot(), path)? {
+            task_tree::Target::Root => bail!(
                 "cannot prune the grove root (abandoning a whole grove is a \
                  branch-delete, not a tree mark): {}",
-                target_abs.display()
-            );
-        }
-        let name = entry_name(&target_abs)?;
-        if !matches!(parse(&name), Some(Entry::Node { .. })) {
-            bail!("not a node directory: {}", target_abs.display());
-        }
-        let mut result = PruneResult {
-            marked: Vec::new(),
-            left_done: Vec::new(),
+                root.display()
+            ),
+            task_tree::Target::Entry(entry) => entry,
         };
-        prune_subtree(&target_abs, &mut result)?;
-        Ok(result)
-    } else {
-        let name = entry_name(&target_abs)?;
-        let parent_abs = target_abs
-            .parent()
-            .with_context(|| format!("path {} has no parent", target_abs.display()))?
-            .to_path_buf();
-        let marked = prune_one(&parent_abs, &name)?;
-        Ok(PruneResult {
-            marked: vec![marked],
-            left_done: Vec::new(),
-        })
-    }
-}
-
-/// Mark the single live leaf `name` (in `parent_abs`) `ABANDONED` in place,
-/// returning its new absolute path. Refuses a brief, a node, an already-`DONE`
-/// leaf, and an already-`ABANDONED` leaf.
-fn prune_one(parent_abs: &Path, name: &str) -> Result<PathBuf> {
-    let abandoned_name = match parse(name) {
-        Some(Entry::Leaf {
-            outcome: Outcome::Live,
-            position,
-            kind,
-            slug,
-            key,
-        }) => {
-            if kind == Kind::Finish {
-                bail!("`finish` is driver-reserved and cannot be pruned");
-            }
-            Entry::Leaf {
-                position,
-                kind,
-                slug,
-                key,
-                outcome: Outcome::Abandoned,
-            }
-            .name()
-        }
-        Some(Entry::Leaf {
-            outcome: Outcome::Done,
-            ..
-        }) => bail!("cannot prune a retired (DONE) leaf: {name}"),
-        Some(Entry::Leaf {
-            outcome: Outcome::Abandoned,
-            ..
-        }) => bail!("leaf is already pruned (ABANDONED): {name}"),
-        Some(Entry::Brief) => bail!("cannot prune a brief (briefs are never marked): {name}"),
-        Some(Entry::Node { .. }) => bail!(
-            "cannot prune a node directory as a leaf (pass the directory itself \
-             to prune its subtree): {name}"
-        ),
-        None => bail!("not a v2 leaf: {name}"),
+        plan_prune(&root, tree.snapshot(), &entry)?
     };
-
-    let abandoned_path = parent_abs.join(&abandoned_name);
-    if abandoned_path.exists() {
-        bail!("destination already exists: {}", abandoned_path.display());
-    }
-    // The `ABANDONED` infix is filename-only — the `# <handle>` header is
-    // byte-identical.
-    rename_entry(parent_abs, name, &abandoned_name)?;
-    Ok(abandoned_path)
+    apply_prune(&root, tree, plan)
 }
 
-/// One leaf discovered while planning a subtree prune (see [`prune_subtree`]): a
-/// live leaf slated to be marked `ABANDONED`, or an already-`DONE` leaf that will
-/// be left untouched and reported as such.
-enum PlannedLeaf {
-    ToMark { dir: PathBuf, name: String },
+/// One step of a planned prune: an entry to rewrite, or an already-`DONE` leaf
+/// to report and leave alone.
+enum Planned {
+    ToMark { key: Key, parts: Parts },
     LeftDone { path: PathBuf },
 }
 
-/// Mark every *live* leaf under `dir` `ABANDONED`, collecting each already-`DONE`
-/// leaf found along the way into `result.left_done` untouched (already-`ABANDONED`
-/// leaves are left silently alone — already terminal). **Two-phase**: first
-/// [`plan_subtree`] walks the whole subtree read-only, then every leaf slated to
-/// be marked is validated *before any of them are mutated* — so a leaf that cannot
-/// be marked (its `ABANDONED` name is already taken) fails the whole call with
-/// nothing renamed, instead of leaving every leaf visited before it already marked
-/// while the operator sees only a trailing rename error. Visits children in the
-/// per-level comparator order for a deterministic report.
-fn prune_subtree(dir: &Path, result: &mut PruneResult) -> Result<()> {
+/// Plan — and validate — the whole prune against one snapshot, mutating nothing.
+///
+/// Both halves matter. Planning first is what lets a subtree of *N* leaves be
+/// checked before the first of *N* guards is spent; validating here rather than
+/// leaf by leaf is what keeps the all-or-nothing promise a bulk verb makes and
+/// the library, seeing one entry at a time, cannot.
+fn plan_prune(
+    root: &Path,
+    snapshot: &Snapshot<TaskName>,
+    entry: &Entry<'_, TaskName>,
+) -> Result<Vec<Planned>> {
+    let name = entry.name();
+    let Some(triple) = entry.triple() else {
+        bail!("cannot prune a brief (briefs are never marked): {name}")
+    };
     let mut plan = Vec::new();
-    plan_subtree(dir, &mut plan)?;
-
-    // Validate every leaf slated for marking before mutating any of them — the
-    // phase that makes a failure a clean no-op.
-    for entry in &plan {
-        if let PlannedLeaf::ToMark { dir, name } = entry {
-            validate_prunable(dir, name)?;
-        }
+    match triple.parts {
+        Parts::Node { .. } => plan_subtree(root, snapshot, entry, &mut plan)?,
+        Parts::Leaf { .. } => plan.push(plan_leaf(root, snapshot, entry)?),
     }
-
-    for entry in plan {
-        match entry {
-            PlannedLeaf::ToMark { dir, name } => result.marked.push(prune_one(&dir, &name)?),
-            PlannedLeaf::LeftDone { path } => result.left_done.push(path),
-        }
-    }
-    Ok(())
+    Ok(plan)
 }
 
-/// The read-only first phase of [`prune_subtree`]: recursively collect every leaf
-/// in `dir`'s subtree that `leaf-prune` will act on, in the per-level comparator
-/// order, without mutating the filesystem.
-fn plan_subtree(dir: &Path, plan: &mut Vec<PlannedLeaf>) -> Result<()> {
-    // The one strict level reader (`tree_read::read_level`), so a subtree `pick`
-    // refuses is never a subtree `leaf-prune` silently walks past. The *on-disk*
-    // name is what a mark renames, so it comes from the path rather than from
-    // `Entry::name()` — position padding is lenient on the way in, and a hand-typed
-    // `5-impl-a-k1.md` would re-render as `05-…` and rename a file that is not there.
-    for (entry, path) in crate::tree_read::read_level(dir)? {
-        let name = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .map(str::to_string)
-            .with_context(|| format!("tree entry {} has no filename", path.display()))?;
-        match entry {
-            Entry::Leaf {
+/// Every live leaf under a node, in the library's own per-level order, with each
+/// already-`DONE` leaf collected untouched and each already-`ABANDONED` one
+/// skipped silently — already terminal.
+fn plan_subtree(
+    root: &Path,
+    snapshot: &Snapshot<TaskName>,
+    node: &Entry<'_, TaskName>,
+    plan: &mut Vec<Planned>,
+) -> Result<()> {
+    let Some(contents) = node.contents() else {
+        return Ok(());
+    };
+    for child in contents.children() {
+        let Some(triple) = child.triple() else {
+            continue; // the node's own `BRIEF.md`
+        };
+        match triple.parts {
+            Parts::Node { .. } => plan_subtree(root, snapshot, &child, plan)?,
+            Parts::Leaf {
                 outcome: Outcome::Live,
                 ..
-            } => plan.push(PlannedLeaf::ToMark {
-                dir: dir.to_path_buf(),
-                name,
-            }),
-            Entry::Leaf {
+            } => plan.push(plan_leaf(root, snapshot, &child)?),
+            Parts::Leaf {
                 outcome: Outcome::Done,
                 ..
-            } => plan.push(PlannedLeaf::LeftDone { path }),
-            Entry::Leaf {
+            } => plan.push(Planned::LeftDone {
+                path: task_tree::entry_path(root, child),
+            }),
+            Parts::Leaf {
                 outcome: Outcome::Abandoned,
                 ..
             } => {}
-            Entry::Node { .. } => plan_subtree(&path, plan)?,
-            Entry::Brief => {}
         }
     }
     Ok(())
 }
 
-/// Check that a live leaf `name` (in `dir`) is actually prunable: its `ABANDONED`
-/// destination is free. Run over every leaf in scope before [`prune_subtree`]
-/// mutates any of them, so a collision partway down a subtree fails the whole call
-/// with nothing renamed. (Tracked-ness is *not* checked: an untracked leaf renames
-/// perfectly well — see [`crate::tree_rename`].)
-fn validate_prunable(dir: &Path, name: &str) -> Result<()> {
-    let Some(Entry::Leaf {
-        outcome: Outcome::Live,
-        position,
+/// One leaf's step, refused here if it cannot be marked at all.
+///
+/// Every clause is a precondition the library cannot see, and the last of them —
+/// that the leaf's key addresses it and nothing else — is what makes the *by key*
+/// call the mark is about mean anything at all. Checking it here rather than at
+/// the rewrite is what keeps a bulk mark all-or-nothing across entries the
+/// library only ever sees one at a time.
+fn plan_leaf(
+    root: &Path,
+    snapshot: &Snapshot<TaskName>,
+    entry: &Entry<'_, TaskName>,
+) -> Result<Planned> {
+    let name = entry.name();
+    let triple = entry
+        .triple()
+        .with_context(|| format!("{name} carries no ordinal or key"))?;
+    let Parts::Leaf {
+        outcome,
         kind,
         slug,
-        key,
-    }) = parse(name)
+    } = triple.parts
     else {
-        bail!("not a live leaf: {name}");
+        bail!(
+            "cannot prune a node directory as a leaf (pass the directory itself \
+             to prune its subtree): {name}"
+        )
     };
-    if kind == Kind::Finish {
+    match outcome {
+        Outcome::Done => bail!("cannot prune a retired (DONE) leaf: {name}"),
+        Outcome::Abandoned => bail!("leaf is already pruned (ABANDONED): {name}"),
+        Outcome::Live => {}
+    }
+    if *kind == Kind::Finish {
         bail!("`finish` is driver-reserved and cannot be pruned");
     }
-    let abandoned_name = Entry::Leaf {
-        position,
-        kind,
-        slug,
-        key,
-        outcome: Outcome::Abandoned,
+    Ok(Planned::ToMark {
+        key: task_tree::addressable_key(root, snapshot, entry)?,
+        parts: Parts::leaf(Outcome::Abandoned, *kind, slug.clone()),
+    })
+}
+
+/// Apply a validated plan, one rewrite per guard.
+///
+/// The planning guard is spent on the first mark and every later one takes a
+/// fresh guard through [`task_tree::reopen_write`] — which re-reads the tree, so
+/// each rewrite plans from the state the one before it left, and prints no
+/// second waiting diagnostic.
+fn apply_prune(
+    root: &Path,
+    planning_guard: task_tree::TreeWrite,
+    plan: Vec<Planned>,
+) -> Result<PruneResult> {
+    let mut result = PruneResult {
+        marked: Vec::new(),
+        left_done: Vec::new(),
+    };
+    let mut held = Some(planning_guard);
+    for step in plan {
+        match step {
+            Planned::LeftDone { path } => result.left_done.push(path),
+            Planned::ToMark { key, parts } => {
+                let tree = match held.take() {
+                    Some(tree) => tree,
+                    None => task_tree::reopen_write(root)?,
+                };
+                let report = tree.rewrite(key, parts).map_err(task_tree::raised)?;
+                result.marked.push(marked_path(&report)?);
+            }
+        }
     }
-    .name();
-    let abandoned_path = dir.join(&abandoned_name);
-    if abandoned_path.exists() {
-        bail!("destination already exists: {}", abandoned_path.display());
-    }
-    Ok(())
+    Ok(result)
+}
+
+/// Where a mark left the entry, out of the library's own report.
+///
+/// A `rewrite` is exactly one rename and reports it whether or not the
+/// filesystem was touched, so the first entry is the answer and an empty report
+/// is a contract the library broke rather than a case to handle quietly.
+fn marked_path(report: &Report<TaskName>) -> Result<PathBuf> {
+    report
+        .renamed()
+        .first()
+        .map(|renamed| renamed.to.clone())
+        .context("the library reported no rename for a mark")
 }
 
 // ---------------------------------------------------------------------------
@@ -853,7 +852,7 @@ fn resolve_leaf_file(grove_abs: &Path, leaf_path: &Path) -> Result<(PathBuf, Str
         // non-file (a leaf-named directory, a symlink) falls through to the generic
         // guard, which also keeps the rename off anything that is not a real leaf file.
         let n = abs.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if abs.is_dir() && matches!(parse(n), Some(Entry::Node { .. })) {
+        if abs.is_dir() && matches!(parse(n), Some(IdEntry::Node { .. })) {
             bail!(
                 "cannot operate on a node directory (lifecycle verbs act on leaves): {}",
                 abs.display()
@@ -871,36 +870,6 @@ fn resolve_leaf_file(grove_abs: &Path, leaf_path: &Path) -> Result<(PathBuf, Str
         .with_context(|| format!("leaf path {} has no filename", abs.display()))?
         .to_string();
     Ok((parent, name))
-}
-
-/// Resolve `path` (absolute, or relative to the grove root) to an existing
-/// absolute path under the grove root — a leaf **file** or a node **directory**
-/// alike ([`leaf_prune`]'s arity, unlike [`resolve_leaf_file`]'s files-only).
-fn resolve_entry(grove_abs: &Path, path: &Path) -> Result<PathBuf> {
-    let candidate = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        grove_abs.join(path)
-    };
-    let abs = candidate
-        .canonicalize()
-        .with_context(|| format!("resolving path {}", candidate.display()))?;
-    if !abs.starts_with(grove_abs) {
-        bail!(
-            "path {} is not under grove root {}",
-            abs.display(),
-            grove_abs.display()
-        );
-    }
-    Ok(abs)
-}
-
-/// The path's final component as an owned `String`.
-fn entry_name(path: &Path) -> Result<String> {
-    path.file_name()
-        .and_then(|n| n.to_str())
-        .map(|s| s.to_string())
-        .with_context(|| format!("path {} has no filename", path.display()))
 }
 
 /// The grove's name is the worktree directory's basename (user-owned-worktrees
@@ -1980,26 +1949,35 @@ mod tests {
     }
 
     #[test]
-    fn prune_node_is_atomic_bails_clean_on_a_taken_destination() {
-        // pruning: a rename failure partway through the subtree walk must not
-        // leave earlier leaves already marked while the operator sees only the
-        // trailing error. The two-phase validate-before-mutate walk is what prevents
-        // it; a leaf whose `ABANDONED` name is already taken (a botched earlier
-        // prune) is the repro. Without the up-front validation the first two leaves
-        // would already be renamed by the time the third one's rename failed.
+    fn prune_node_is_atomic_bails_clean_on_a_leaf_it_cannot_address() {
+        // pruning: a failure partway through the subtree walk must not leave
+        // earlier leaves already marked while the operator sees only the
+        // trailing error. Planning and validating the whole subtree against the
+        // first guard's snapshot is what prevents it, and the repro is a botched
+        // earlier prune — an `ABANDONED` twin sitting beside a live leaf.
+        //
+        // **The property survived the flip and the diagnosis changed.** The twin
+        // wears the very name the mark would place, so it necessarily carries
+        // the same key: an outcome infix is part of the name and the key is part
+        // of the name, and a name that collides collides in both. So what is
+        // wrong with this tree is not that a destination is taken but that key 5
+        // names two entries — and `rewrite` is called *by key*, which on this
+        // tree means Grove cannot say which leaf it would mark. Refusing that is
+        // strictly prior, and it is Grove's own precondition rather than a
+        // second wording of the library's `DestinationOccupied`.
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
         let node = mknode(&g, "02-build-k2", "build-k2");
         touch(&node, "01-impl-a-k3.md", "a-k3");
         touch(&node, "02-impl-b-k4.md", "b-k4");
         touch(&node, "03-impl-c-k5.md", "c-k5");
-        // c's destination is already occupied — the one precondition left.
         touch(&node, "03-ABANDONED-impl-c-k5.md", "c-k5");
         stage_all(&g);
 
         let err = leaf_prune(&g, &node).unwrap_err();
         assert!(
-            err.to_string().contains("destination already exists"),
+            err.to_string()
+                .contains("two entries in this tree carry key 5"),
             "got {err}"
         );
 
@@ -2021,6 +1999,63 @@ mod tests {
             !names.contains(&"01-ABANDONED-impl-a-k3.md".to_string())
                 && !names.contains(&"02-ABANDONED-impl-b-k4.md".to_string()),
             "a validation failure must leave the whole subtree untouched: {names:?}"
+        );
+    }
+
+    #[test]
+    fn retiring_a_leaf_whose_key_names_a_twin_is_refused_rather_than_misaimed() {
+        // The single-leaf half, and the failure it prevents is worse than an
+        // error. `rewrite` is called by key; with two entries under key 1,
+        // `by_key` answers with whichever the walk reaches first — an order
+        // nothing models — so retiring the live leaf by *path* rewrote the DONE
+        // twin onto its own name, changed nothing, and reported the twin's path
+        // as the retired one. Success, silently aimed at the wrong entry.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "01-impl-a-k1.md", "a-k1");
+        touch(&g, "01-DONE-impl-a-k1.md", "a-k1");
+        stage_all(&g);
+
+        let err = leaf_retire(&g, Path::new("01-impl-a-k1.md")).unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("two entries in this tree carry key 1"),
+            "got {err}"
+        );
+        assert!(
+            g.join("01-impl-a-k1.md").is_file(),
+            "a refused mark changes nothing"
+        );
+    }
+
+    #[test]
+    fn pruning_a_node_takes_one_guard_per_mark() {
+        // `rewrite` consumes its guard, so a subtree of N live leaves is N
+        // observations of the tree where it used to be one critical section.
+        // That is the whole of what Grove accepted in
+        // `docs/adr/bulk-marks-are-not-atomic.md`, and it is asserted rather
+        // than described: a later leaf that restores atomicity, or that adds a
+        // re-read nobody meant to add, moves this number.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let node = mknode(&g, "02-build-k2", "build-k2");
+        touch(&node, "01-impl-a-k3.md", "a-k3");
+        touch(&node, "02-impl-b-k4.md", "b-k4");
+        touch(&node, "03-DONE-impl-c-k5.md", "c-k5");
+        touch(&node, "04-impl-d-k6.md", "d-k6");
+        stage_all(&g);
+        crate::task_tree::reset_read_count();
+
+        let result = leaf_prune(&g, &node).unwrap();
+
+        assert_eq!(result.marked.len(), 3);
+        assert_eq!(result.left_done.len(), 1);
+        assert_eq!(
+            crate::task_tree::read_count(),
+            3,
+            "one guard per mark — the planning guard is spent on the first, and \
+             a leaf left alone costs none"
         );
     }
 

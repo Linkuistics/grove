@@ -73,7 +73,7 @@ pub fn read(grove_root: &Path) -> Result<Tree> {
     #[cfg(test)]
     READ_COUNT.with(|count| count.set(count.get() + 1));
 
-    announce_contention(grove_root);
+    announce_contention(grove_root, libc::LOCK_SH);
     match ordinal_fs_tree::fs::read::<TaskName>(grove_root) {
         Ok(tree) => {
             tree_format::require_current(grove_root)?;
@@ -81,6 +81,57 @@ pub fn read(grove_root: &Path) -> Result<Tree> {
         }
         Err(error) => Err(diagnose(grove_root, &error)),
     }
+}
+
+/// The task tree, read once under the library's **exclusive** lock — the
+/// surface every mutation is on.
+///
+/// A mutating method *consumes* this guard (`crates/ordinal-fs-tree/src/fs/mod.rs`,
+/// *A mutation consumes its guard*), so one guard is one operation. That is the
+/// whole of what a bulk verb has to work around; `tree_lifecycle::leaf_prune`
+/// carries the consequence and `docs/adr/bulk-marks-are-not-atomic.md` records
+/// what Grove chose to do about it.
+pub type TreeWrite = ordinal_fs_tree::fs::WriteGuard<TaskName>;
+
+/// Read the task tree under an exclusive lock, announcing contention first.
+///
+/// The write-side twin of [`read`], and the same two observations in the same
+/// order: the library's snapshot, then the format witness while the guard is
+/// held, so a tree cannot be migrated out from under a writer between them.
+pub fn write(grove_root: &Path) -> Result<TreeWrite> {
+    announce_contention(grove_root, libc::LOCK_EX);
+    reopen_write(grove_root)
+}
+
+/// [`write`] without the waiting diagnostic, for the second and later guards of
+/// one verb.
+///
+/// A bulk mark is *N* rewrites under *N* guards, and every one of them would
+/// otherwise probe and print. The verb announces once, through [`write`], and
+/// takes the rest through here: the diagnostic is about the command's wait, not
+/// about each lock it happens to need.
+pub(crate) fn reopen_write(grove_root: &Path) -> Result<TreeWrite> {
+    #[cfg(test)]
+    READ_COUNT.with(|count| count.set(count.get() + 1));
+
+    match ordinal_fs_tree::fs::write::<TaskName>(grove_root) {
+        Ok(tree) => {
+            tree_format::require_current(grove_root)?;
+            Ok(tree)
+        }
+        Err(error) => Err(diagnose(grove_root, &error)),
+    }
+}
+
+/// Turn a library error raised by a *mutation* into Grove's own.
+///
+/// Not [`diagnose`]: that one re-states a failed **read**, whose precedence
+/// question is which of several conditions to name. A mutation's guard has
+/// already read the tree successfully, so what arrives here is a `Refusal`, a
+/// failed apply, or an unwind — and every one of those is printed unchanged
+/// (`docs/ARCHITECTURE.md#library-refusals`, clause 3).
+pub(crate) fn raised(error: Error<TaskName>) -> anyhow::Error {
+    anyhow!("{error}")
 }
 
 /// Say that this process is waiting, before it blocks.
@@ -91,7 +142,10 @@ pub fn read(grove_root: &Path) -> Result<Tree> {
 /// it appears to have hung, and losing that is a user-visible regression in what
 /// the node brief calls a pure refactor. So the diagnostic is bought outside the
 /// library: one non-blocking acquisition of the same mode on the same directory
-/// the library will lock, released immediately.
+/// the library will lock, released immediately. `mode` is the caller's own —
+/// [`libc::LOCK_SH`] before a read and [`libc::LOCK_EX`] before a write, because
+/// a shared probe taken before an exclusive acquisition succeeds while another
+/// reader holds the tree and would swallow the very message it exists to print.
 ///
 /// Best-effort by construction. Between releasing this probe and the library
 /// taking its own lock a contender can arrive, and then this process blocks
@@ -99,7 +153,7 @@ pub fn read(grove_root: &Path) -> Result<Tree> {
 /// costs a message and nothing else. Everything that can go wrong with it —
 /// including the directory not existing — is silence, because the library is
 /// about to report the same condition properly.
-fn announce_contention(grove_root: &Path) {
+fn announce_contention(grove_root: &Path, mode: libc::c_int) {
     // `<root>/..` and not `Path::parent`: the same spelling the library locks,
     // resolved by the kernel, so the probe asks about the directory the library
     // will actually contend for rather than a lexical parent of the string.
@@ -109,7 +163,7 @@ fn announce_contention(grove_root: &Path) {
     let descriptor = handle.as_raw_fd();
     // SAFETY: `descriptor` is open for the whole call — `handle` owns it and
     // outlives both `flock`s — and `flock` touches nothing else.
-    if unsafe { libc::flock(descriptor, libc::LOCK_SH | libc::LOCK_NB) } == 0 {
+    if unsafe { libc::flock(descriptor, mode | libc::LOCK_NB) } == 0 {
         unsafe { libc::flock(descriptor, libc::LOCK_UN) };
         return;
     }
@@ -168,6 +222,154 @@ pub fn entry_path(root: &Path, entry: Entry<'_, TaskName>) -> PathBuf {
     }
     path.push(entry.name().to_string());
     path
+}
+
+/// What a caller's path argument names in the tree.
+///
+/// The grove root is a case of its own rather than an error, because each verb
+/// words its refusal of it differently — `leaf-prune`'s is about abandoning a
+/// whole workstream, `leaf-retire`'s about the argument not being a leaf — and
+/// the resolver has no business choosing between them.
+pub enum Target<'a> {
+    /// The grove root itself. Not an entry: it carries no name to rewrite.
+    Root,
+    /// An entry of the snapshot — a task file, a node directory, or a `BRIEF.md`.
+    Entry(Entry<'a, TaskName>),
+}
+
+/// The snapshot entry a caller's path argument names: absolute, or relative to
+/// the grove root, and a leaf file or a node directory alike.
+///
+/// **Clause 1 of `docs/ARCHITECTURE.md#library-refusals`** — resolve the
+/// argument to an entry, so the verb can then call the library *by key* against
+/// the same snapshot the operation plans from. Grove's path grammar is wider
+/// than a key and the library has no counterpart for *no such path*, so
+/// resolution is Grove's and so is every message below.
+///
+/// Canonicalised to **compare** and never to report, exactly as `leaf_entry`
+/// does: two spellings of one path name one entry, and the paths this module
+/// returns are still built from the caller's own spelling of the root.
+pub fn target<'a>(
+    root: &Path,
+    snapshot: &'a ordinal_fs_tree::Snapshot<TaskName>,
+    path: &Path,
+) -> Result<Target<'a>> {
+    let candidate = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        root.join(path)
+    };
+    let resolved = candidate
+        .canonicalize()
+        .with_context(|| format!("resolving path {}", candidate.display()))?;
+    let root_real = root
+        .canonicalize()
+        .with_context(|| format!("canonicalising grove root {}", root.display()))?;
+    if resolved == root_real {
+        return Ok(Target::Root);
+    }
+    if !resolved.starts_with(&root_real) {
+        bail!(
+            "path {} is not under grove root {}",
+            resolved.display(),
+            root_real.display()
+        );
+    }
+    let name = resolved
+        .file_name()
+        .and_then(|name| name.to_str())
+        .with_context(|| format!("path {} has no UTF-8 filename", resolved.display()))?;
+    for entry in snapshot.walk() {
+        if entry.name().to_string() != name {
+            continue;
+        }
+        if entry_path(root, entry).canonicalize().ok().as_deref() == Some(resolved.as_path()) {
+            return Ok(Target::Entry(entry));
+        }
+    }
+    Err(unreachable_by_any_walk(&candidate, &resolved, name))
+}
+
+/// Why a path that exists under the grove root names no entry of the snapshot.
+///
+/// Three reasons, and they are different things to whoever hit one. The
+/// grammar answers the first two — a name it disclaims is not Grove's at all,
+/// and a name it refuses carries its own recovery advice — so only the third
+/// needs a sentence of Grove's own: the entry is task-shaped and some level
+/// above it is not, which is exactly the subtree no walk descends into.
+fn unreachable_by_any_walk(candidate: &Path, resolved: &Path, name: &str) -> anyhow::Error {
+    let found = if resolved.is_dir() {
+        Found::Dir
+    } else if resolved.is_file() {
+        Found::File
+    } else {
+        Found::Other
+    };
+    match TaskName::parse(name, found) {
+        Verdict::Malformed(error) | Verdict::Reserved(error) => anyhow!("{error}"),
+        Verdict::Foreign => anyhow!(
+            "not a Grove leaf or node directory: {}",
+            candidate.display()
+        ),
+        Verdict::Entry(_) => anyhow!(
+            "Grove entry {} is not in the task tree: every level above it must be \
+             a node directory named NN-<slug>-k<key>",
+            candidate.display()
+        ),
+    }
+}
+
+/// The key by which the library can address this entry, or Grove's refusal that
+/// it cannot.
+///
+/// **Clause 1 is sound only while keys are unique tree-wide.** The library
+/// states uniqueness as an obligation on the domain and cannot enforce it: a
+/// hand edit or a failed rollback can put two entries under one key, and
+/// [`Snapshot::by_key`](ordinal_fs_tree::Snapshot::by_key) then answers with
+/// whichever the walk reaches first. Walk *order* is unmodelled — the node
+/// brief records `by_key`'s tie-break on a duplicate-key tree as a known miss of
+/// `structure.als` — so which twin an operation lands on is not a fact anything
+/// establishes. This is the consumer-side half of that miss, and it is not
+/// theoretical: without it, `leaf-retire` aimed by path at one twin silently
+/// marks the other and reports success.
+///
+/// Grove's own precondition, therefore, and not a second wording of anything the
+/// library says (`docs/ARCHITECTURE.md#library-refusals`, clauses 2 and 3): the
+/// library has no notion of *the entry the operator named*, which is the whole
+/// of what is ambiguous here.
+///
+/// One walk per call, which is quadratic over a bulk mark. A `.grove/` tree is
+/// tens of entries and this runs once per marked leaf, so the simpler shape is
+/// kept deliberately.
+pub fn addressable_key(
+    root: &Path,
+    snapshot: &ordinal_fs_tree::Snapshot<TaskName>,
+    entry: &Entry<'_, TaskName>,
+) -> Result<Key> {
+    let name = entry.name();
+    let triple = entry
+        .triple()
+        .with_context(|| format!("{name} carries no key of its own"))?;
+    let twins: Vec<PathBuf> = snapshot
+        .walk()
+        .filter(|other| other.key() == Some(triple.key))
+        .map(|other| entry_path(root, other))
+        .collect();
+    if twins.len() > 1 {
+        bail!(
+            "two entries in this tree carry key {}, so naming one of them names \
+             both: {}. A key is assigned once and never reused, so this is a hand \
+             edit or a rollback that failed — give one of them a fresh key before \
+             operating on either.",
+            triple.key,
+            twins
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    Ok(triple.key)
 }
 
 /// A live leaf's session kind and handle, or `None` when the entry is not one.

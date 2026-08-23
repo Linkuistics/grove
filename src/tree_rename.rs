@@ -1,7 +1,17 @@
-// The task tree's **rename primitive** — the single place grove moves an entry on
-// disk. Every verb that renames one goes through here: `leaf-insert`'s sibling
-// renumber, `leaf-decompose`'s leaf→`BRIEF.md` promotion, `leaf-retire`'s `DONE`
-// infix, `leaf-prune`'s `ABANDONED` infix, and the v1→v2 migration's moves.
+// The task tree's **rename primitive**, for the verbs the flip has not yet moved
+// — `leaf-insert`'s sibling renumber, `leaf-decompose`'s leaf→`BRIEF.md`
+// promotion, and the v1→v2 migration's moves. `sweep-k37` deletes this module
+// when the last of them has gone.
+//
+// **It is no longer *the* place grove moves an entry, and the difference is the
+// point.** `leaf-retire` and `leaf-prune` mark through `ordinal-fs-tree`, which
+// renames with `rename(2)`, detects no repository and stages nothing — so on the
+// Git lane a mark now leaves an unstaged deletion beside an untracked file where
+// this module would have staged a rename. That is the decision, not an
+// oversight: `docs/adr/grove-does-not-stage-its-own-renames.md` says why grove
+// does not buy the old status output back from outside the library, and
+// `tests/leaf_ops.rs` asserts what an operator sees instead. Nothing below is
+// authority for how a flipped verb should behave.
 //
 // **Why it dispatches on trackedness (issue #3).** The grow verbs are
 // working-tree changes only: `root-init` and `leaf-add` write files that stay

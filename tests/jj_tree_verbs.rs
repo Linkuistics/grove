@@ -16,7 +16,11 @@
 //   * **colocated** — `.jj/` beside a `.git/` whose index already holds the
 //     tree, where jj-first is a *choice* rather than the only option: the rename
 //     must be plain and git's index must come out untouched, because a `git mv`
-//     would stage into an index jj ignores (jj snapshots the working copy).
+//     would stage into an index jj ignores (jj snapshots the working copy). For
+//     the verbs the flip has moved onto `ordinal-fs-tree` it is no longer a
+//     choice — the library renames plainly everywhere — and the colocated case
+//     is then a guard against a verb growing a `git mv` of its own rather than a
+//     test of the dispatch. See the section header below.
 //
 // `root-init` and `leaf-add` get no colocated twin deliberately: they only write
 // new files and consult no VCS beyond resolving the worktree, so a colocated
@@ -524,6 +528,17 @@ fn jjs_working_copy_snapshots_the_renames_a_verb_made() {
 // the rename is plain and git's index comes out untouched — but it is asserted
 // per verb because what it guards against is a *verb* reaching for `git mv`
 // directly, which no single test of the primitive can rule out.
+//
+// **Two of them now hold for a second, stronger reason, and the assertion is
+// unchanged.** `leaf-retire` and `leaf-prune` mark through `ordinal-fs-tree`,
+// which renames with `rename(2)` and detects no repository at all
+// (`docs/adr/grove-does-not-stage-its-own-renames.md`), so for those two the
+// rename is plain on *every* lane rather than plain because this one is jj. The
+// tests stay exactly as they were: what they guard against is a verb reaching
+// for `git mv` directly, and that is worth guarding whether the verb could have
+// had a reason to or not. Where they no longer discriminate is against
+// `tests/leaf_ops.rs`'s git-lane cases, which now assert the same plainness on
+// the lane where it used to be false — read the two together.
 
 #[test]
 fn leaf_insert_in_a_colocated_tree_leaves_the_git_index_alone() {

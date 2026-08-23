@@ -13,7 +13,11 @@
 //     (Appending past the last sibling is `leaf-add`'s job — target must exist.)
 //
 // Each test stands up a real git repo so the verb's `git mv` calls have tracked
-// files to operate on.
+// files to operate on. That is still true of these two verbs and no longer true
+// of grove as a whole: `leaf-retire` and `leaf-prune` mark through
+// `ordinal-fs-tree`, which renames with `rename(2)` and stages nothing
+// (`docs/adr/grove-does-not-stage-its-own-renames.md`). `leaf-add` and
+// `leaf-insert` follow when `growing-k33` moves them.
 //
 // - stdout: the new leaf's absolute path, single line.
 // - stderr: renumber summary and cross-reference candidates (for insert).

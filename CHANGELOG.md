@@ -51,6 +51,33 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`leaf-retire` and `leaf-prune` no longer stage their rename, and on Git that
+  changes what you see before the commit.** Both verbs now mark through
+  `ordinal-fs-tree`'s `rewrite`, which renames with `rename(2)` and detects no
+  repository, so a tracked leaf marked `DONE` shows in `git status` as an
+  unstaged deletion at the live name beside an untracked file at the marked one,
+  where a `git mv` previously showed a staged rename. The commit is unaffected
+  **provided it stages the tree** — Git infers renames at diff time by content
+  similarity — so `git add -A` before committing, which is what
+  `content/references/commit.md` now says; `git commit -a` records the deletion
+  alone. Jujutsu is unaffected and always was. Decision:
+  `docs/adr/grove-does-not-stage-its-own-renames.md`.
+
+- **`leaf-prune` on a node directory is no longer one critical section.** A
+  library mutation consumes its write guard, so a subtree of *N* live leaves is
+  *N* guards. The whole subtree is still planned and validated against the first
+  guard before any rename, so a prune that cannot complete still fails with
+  nothing renamed; what is lost is the window between guards, where a concurrent
+  writer or a filesystem fault can now stop the run part way. The verb is
+  re-runnable — an already-`ABANDONED` leaf is skipped — which is the repair.
+  Decision: `docs/adr/bulk-marks-are-not-atomic.md`.
+
+- **Fixed: a tree with a duplicated key marked the wrong entry and reported
+  success.** A mark names its target by permanent key, and two entries under one
+  key — a hand edit, or a rollback that failed — made the choice between them
+  arbitrary. Both verbs now refuse such a key before doing anything, naming both
+  paths and what to do about it.
+
 ## v19.2.0
 
 - **A project may override personal launch policy per session kind, with an

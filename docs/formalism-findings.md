@@ -2373,6 +2373,78 @@ and not a model, was the instrument.** That is the second experiment's own
 deliverable behaving as intended, and it is evidence for it that no single
 modelling episode could produce.
 
+### 022 — Transcribing an inherited reachability table (grove's marking verbs)
+
+**Situation.** The flip's *migrate* stage: `leaf-retire` and `leaf-prune` onto
+`ordinal-fs-tree`'s `rewrite`, the first mutation grove performs through the
+library. Two of the leaf's obligations are about someone else's written claim
+rather than about code — `refusals-k30`'s reachability table says these two verbs
+reach exactly one refusal, `DestinationOccupied`, and that table's own stated
+guarantee is that each migrate leaf transcribes its rows into a suite and finds
+them wrong if they are.
+
+**Formalism. None written, and none needed: the instrument is *composing the
+fixture the row implies*.** Entry 019 named it in the constructive direction —
+write the table at design time, then transcribe it into the suite. This is the
+first time a later leaf ran the second half against a table it did not write.
+The models were read, but only their recorded **misses**: `structure.als` leaves
+walk order unmodelled, so `by_key`'s tie-break on a duplicate-key tree rests on
+prose (entry 006 found the same gap from the other side, and the node brief
+carries it as a known miss).
+
+**Caught.** Two things, and the second is the one with teeth.
+
+*The row is wrong, and writing the test is what says so.* The table's evidence
+for `DestinationOccupied` was *a `DONE` twin sitting beside the live leaf so that
+retiring it lands on a taken name*. Composing that fixture makes the reason
+visible immediately: the occupying name must be **exactly** the name the mark
+would place, and both the outcome infix and the key are parts of one name — so
+the twin necessarily carries the live leaf's key. There is no tree in which the
+destination is occupied and the key is not duplicated. The row could not have
+been checked by reading; it needed the fixture, because the argument is about
+what two names have in common.
+
+*And a duplicated key is a live defect, not a curiosity.* `rewrite` is called
+**by key**. With two entries under key 1, `by_key` answers with whichever the
+walk reaches first — the very tie-break the model does not establish — so
+`leaf-retire` aimed **by path** at the live leaf rewrote the `DONE` twin onto its
+own name, changed nothing, and printed the twin's path as the retired leaf. A
+silent success aimed at the wrong entry, which is worse than any refusal, and the
+first written test found it in one run. The fix is grove's own precondition
+(`task_tree::addressable_key`, refusing a key that names more than one entry) and
+it makes `DestinationOccupied` unreachable from both verbs, which is why the row
+is now corrected rather than merely annotated.
+
+**Missed.** Nothing in either model reaches any of this, and both say so. What is
+worth naming is *which* miss paid: the recorded gap that mattered was not the one
+about strings (entries 004 and 020's grammar hole) but the one about **order** —
+walk order unmodelled, therefore `by_key`'s tie-break unestablished. That miss
+had been recorded twice, by two leaves, in two layers, and neither had a consumer
+that could feel it. This leaf was the first with a verb that names an entry one
+way and operates on it another, which is the shape that turns an unmodelled
+tie-break into a wrong answer.
+
+**Cost.** Under an hour, and almost all of it in the second finding. The row's
+falsification cost one fixture; the defect it exposed cost one function and two
+tests. No tooling, no model run.
+
+**Counterfactual.** Reading the table harder would not have done it — the row is
+written the way anyone would write it, and its error is a fact about names
+composing rather than about the library. What *would* have found it earlier is
+one question asked at design time and cheap to ask: **for each refusal you mark
+reachable, write the fixture's filenames out in full.** The collision and the
+duplicate key are the same string, and seeing them written down is the whole
+argument. The general form is the sharper one: **a reachability claim about an
+operation named by key is a claim about key uniqueness too** — so a table
+covering a by-key surface owes a row for *two entries share a key*, which
+`refusals-k30`'s did not have and which is where both of this entry's findings
+live.
+
+**Verdict.** Transcribe an inherited table by building each row's fixture, never
+by re-reading the row. The table earned its cost either way — it named which four
+of ten variants to think about, and one leaf's worth of checking corrected it —
+which is the arrangement entry 019 proposed working exactly as proposed.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -2432,3 +2504,5 @@ guesses are not.
 | an inherited claim that a message is wrong in my words | none — put each clause beside the glossary entry it lands on and mark it true or false | 021: `CLI.md` carried the offending sentence verbatim and three briefs carried it again, each with a summary of what was wrong — and the summary named the wrong half. Four of six clauses are true in grove; the defect is the operation the message names, not the nouns. A summary of a message cannot be checked clause by clause and the message can. Entry 013's *name the value behind each clause*, pointed at a foreign message |
 | the same refusal in two consumers — "why is it reachable there and not here?" | none — read it against each consumer's argument *shape*, not its verb count | 021: `NoOccupantAtOrdinal` reaches all three of its messages from a CLI whose `insert` takes an ordinal, and none from a verb that takes the entry whose slot is taken and reads the ordinal off it. 018's *an argument surface discharges an obligation the way a type does*, applied to a refusal |
 | a consumer whose preconditions are stronger than the library's | none — count the checks it needs for its own reasons before counting the library's refusals | 021: four grove preconditions the library cannot see (outcome infix, session kind, reserved kind, brief-ness) retire four species refusals behind checks grove keeps anyway, cutting a ten-variant vocabulary question to one. The pre-check must be the library's own predicate read off the snapshot, or it is a second wording at the level of code |
+| an inherited reachability table — "is this row I did not write actually right?" | none — build the row's fixture and write its filenames out in full | 022: `DestinationOccupied` was marked reachable from `leaf-retire` via a `DONE` twin; composing the fixture shows the occupying name and the live one must share a key, because the outcome infix and the key are parts of one name. Unreachable, and the row could not have been checked by re-reading it. The second half of 019, run by a leaf that did not write the table |
+| an operation named by key — "what else is this reachability claim assuming?" | none — add the row for *two entries share the key* | 022: `by_key` answers with whichever entry the walk reaches first, and walk order is one of `structure.als`'s recorded misses. `leaf-retire` aimed by path at one twin marked the other and reported success. A recorded model miss with no consumer that could feel it, meeting the first consumer that could |

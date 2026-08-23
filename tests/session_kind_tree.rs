@@ -317,8 +317,8 @@ fn a_task_shaped_entry_of_the_wrong_species_is_malformed_not_foreign() {
     // (entry name, whether it is a directory, the phrase naming what went wrong).
     // The phrases are the **domain's** since `reading-k31` put the reading verbs
     // on `ordinal-fs-tree`: the refusal is `task_name`'s own `TaskNameError`,
-    // carried verbatim by the library's halt, rather than a sentence
-    // `tree_read::read_level` wrote. Same conditions, same recovery advice,
+    // carried verbatim by the library's halt, rather than a sentence grove's
+    // own withdrawn level reader wrote. Same conditions, same recovery advice,
     // different words — which is a finding recorded in the node brief and not an
     // adjustment made quietly here.
     for (name, directory, expected) in [

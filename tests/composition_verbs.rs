@@ -13,7 +13,7 @@
 //     *creating session* is free to write.
 //   * a **research pair** is still one call, because its two producers must not
 //     see each other's framing. The library owns the shape and its
-//     all-or-nothing contract (`src/tree_grow.rs` unit tests); what only the
+//     all-or-nothing contract (`append_many`'s own interpreter); what only the
 //     binary can show is the *command* contract — stdout is the shape or it is
 //     nothing, and the verb sits beside `leaf-add` in `--help`, the surface a
 //     session re-orients on when it drops context.

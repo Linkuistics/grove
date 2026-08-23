@@ -1366,10 +1366,16 @@ mod tests {
 
     // ---- the grammar seam --------------------------------------------------
     //
-    // `migration-k36` cut this module off `tree_id`, and the cut runs along a
-    // line the module did not have before: **recognition** is frozen here and
-    // **rendering** is the live grammar's. The tests below are what hold that
-    // line, and each fails in a different direction.
+    // `migration-k36` cut this module off grove's withdrawn name model, and the
+    // cut runs along a line the module did not have before: **recognition** is
+    // frozen here and **rendering** is the live grammar's. The tests below are
+    // what hold that line, and each fails in a different direction.
+    //
+    // The differentials that settled the cut — both matchers and both renderers
+    // driven over one generated corpus — died with the withdrawn reader in
+    // `sweep-k37`, which is what `migration-k36` scheduled. What survives is the
+    // half that needs no second implementation: the frozen slug rule against the
+    // *live* grammar, below.
 
     /// The two slug rules agree today, and this is what says so.
     ///
@@ -1494,154 +1500,6 @@ mod tests {
             format!("{error}").contains("05-feature-k10"),
             "the refusal must name the canonical spelling: {error}"
         );
-    }
-
-    /// The frozen matchers admit exactly what the withdrawn reader admitted,
-    /// over a corpus neither of them was written against.
-    ///
-    /// This is the claim with teeth in `migration-k36` and the one the compiler
-    /// cannot reach: `legacy_v2_node_position` and [`is_legacy_slug`] are
-    /// hand-derived from `tree_id`, and this node's own brief warns that a
-    /// transcription of that module is a bug. So they are not argued against it,
-    /// they are **run** against it — the withdrawn reader is still compiled, so
-    /// both sides are live at once and a cross product settles it. The corpus is
-    /// generated rather than listed, because a listed corpus is a second copy of
-    /// the transcriber's own idea of what matters; this one crosses every
-    /// position form, infix, slug, key form and suffix that either grammar
-    /// distinguishes, including combinations neither author would think to write.
-    ///
-    /// It dies with `sweep-k37`, and the evidence has to be spent before then —
-    /// which is why it is here rather than deferred to the leaf that deletes the
-    /// other side of it.
-    #[test]
-    fn the_frozen_matchers_admit_exactly_what_the_withdrawn_reader_did() {
-        // Slug shapes: this module's frozen rule against the reader's validator.
-        let slugs = [
-            "task",
-            "a",
-            "k9",
-            "task-k9",
-            "a-1",
-            "1",
-            "-a",
-            "a-",
-            "a--b",
-            "",
-            "BRIEF",
-            "DONE",
-            "ABANDONED",
-            "brief",
-            "Task",
-            "TASK",
-            "a.b",
-            "a/b",
-            "a_b",
-            "a b",
-            "tâche",
-            "a-k",
-            "--",
-            "-",
-            "k",
-            "0",
-        ];
-        for slug in slugs {
-            assert_eq!(
-                is_legacy_slug(slug),
-                crate::tree_id::validate_slug(slug).is_ok(),
-                "the frozen slug rule and the withdrawn reader disagree on {slug:?}"
-            );
-        }
-
-        // Node-directory names: the cross product, against the reader's own
-        // node arm. `parse` decides species by the `.md` suffix, so a name
-        // wearing one is a leaf to it and must be `None` here whatever else it
-        // spells — which is why the suffixes are part of the product.
-        let mut checked = 0_usize;
-        let mut admitted = 0_usize;
-        for position in ["01", "5", "005", "100", "0", "", "1a", "a", "1-2"] {
-            for infix in ["", "DONE-", "ABANDONED-", "done-"] {
-                for slug in slugs {
-                    for key in ["-k1", "-k0", "-k99", "-k", "-kx", "-k1x", "", "-1"] {
-                        for suffix in ["", ".md", "/"] {
-                            let name = format!("{position}-{infix}{slug}{key}{suffix}");
-                            let expected = match crate::tree_id::parse(&name) {
-                                Some(crate::tree_id::Entry::Node { position, .. }) => {
-                                    Some(position)
-                                }
-                                _ => None,
-                            };
-                            assert_eq!(
-                                legacy_v2_node_position(&name),
-                                expected,
-                                "the frozen node matcher and the withdrawn reader \
-                                 disagree on {name:?}"
-                            );
-                            checked += 1;
-                            admitted += usize::from(expected.is_some());
-                        }
-                    }
-                }
-            }
-        }
-
-        // The control, because agreement between two functions that both answer
-        // `None` to everything is not evidence. A structural floor rather than an
-        // exact count: the product's shape may grow, and a count would then be a
-        // second thing to maintain that says nothing more than this does.
-        assert!(checked > 1_000, "the corpus collapsed to {checked} names");
-        assert!(
-            admitted > 20,
-            "only {admitted} of {checked} names were admitted as nodes — the \
-             corpus no longer exercises the accepting path, so agreement on it \
-             means nothing"
-        );
-    }
-
-    /// The renderer changed hands and wrote the same bytes, held by experiment.
-    ///
-    /// This leaf's *Done when* is byte-identical migration output, and this is
-    /// the one place in the increment where that can be **measured** rather than
-    /// argued: the withdrawn renderer is still compiled, so both are live at once
-    /// and can be driven over one corpus. It is `reading-k31`'s equivalence-test
-    /// finding applied to a renderer instead of a reader, and like that one it
-    /// dies with `sweep-k37` — which is the point at which the claim has stopped
-    /// being about a change and started being about history.
-    #[test]
-    fn both_renderers_spell_every_migrated_leaf_identically() {
-        for (position, kind, slug, key, outcome) in [
-            (1_u32, Kind::Impl, "task", 1_u32, Outcome::Live),
-            (5, Kind::Design, "add-leaf", 42, Outcome::Done),
-            (99, Kind::ResearchA, "a", 7, Outcome::Abandoned),
-            (100, Kind::CombineResearch, "task-k9", 1234, Outcome::Live),
-            (0, Kind::Finish, "grove-flip-2", 0, Outcome::Done),
-            (
-                12,
-                Kind::IntegrateReviewImpl,
-                "x0",
-                u32::MAX,
-                Outcome::Abandoned,
-            ),
-        ] {
-            let withdrawn = crate::tree_id::Entry::Leaf {
-                position,
-                kind,
-                slug: slug.to_string(),
-                key,
-                outcome: match outcome {
-                    Outcome::Live => crate::tree_id::Outcome::Live,
-                    Outcome::Done => crate::tree_id::Outcome::Done,
-                    Outcome::Abandoned => crate::tree_id::Outcome::Abandoned,
-                },
-            }
-            .name();
-            let live = TaskName::Positioned {
-                ordinal: Ordinal::new(position),
-                key: Key::new(key),
-                parts: Parts::leaf(outcome, kind, Slug::new(slug).unwrap()),
-            }
-            .to_string();
-            assert_eq!(withdrawn, live);
-        }
     }
 
     /// The node recogniser's own controls: what it must *not* admit.

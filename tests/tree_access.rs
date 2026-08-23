@@ -229,11 +229,13 @@ fn worktree_readers_share_the_lock_without_reporting_contention() {
 ///
 /// Grove's readers cooperate for two reasons, and both are checked here. The
 /// library's own `flock` is taken from exactly one module, so no snapshot exists
-/// that was not taken under it; and Grove's surviving path-walking readers take
-/// `tree_access`, which `flock`s **the same directory** — the one containing the
-/// tree root — so the two guards exclude each other rather than nesting. That
-/// second fact is the node brief's, and it is why the migrate stage is
-/// per-verb-group at all.
+/// that was not taken under it; and the readers still under Grove's own guard —
+/// the root's creation, and the session-kind migration, neither of which the
+/// library can perform — take `tree_access`, which `flock`s **the same
+/// directory**, the one containing the tree root, so the two guards exclude each
+/// other rather than nesting. That second fact is why the migrate stage was
+/// per-verb-group at all, and it is why the two survivors run in *phases*
+/// rather than nested.
 ///
 /// Enumerated rather than listed: the scan is every `.rs` file under `src/`, so a
 /// verb that reaches for `ordinal_fs_tree::fs::` in a module of its own fails

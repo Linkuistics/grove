@@ -1,7 +1,8 @@
 // The **lifecycle verbs** (task-tree-scheme) — `root-init`, `leaf-decompose`,
 // `leaf-retire`, `leaf-prune`, and the driver-owned finish lifecycle — expressed against the real **directory
-// tree**, built on the id model (`src/tree_id.rs`) and the grow verbs
-// (`src/tree_grow.rs`). Keeps task-tree-scheme's *semantics* (a fresh grove
+// tree**, built on the name grammar (`src/task_name.rs`) and the grow verbs
+// (`src/task_grow.rs`), both of which run through `ordinal-fs-tree` since the
+// flip (gh issue #13, increment 2). Keeps task-tree-scheme's *semantics* (a fresh grove
 // starts with one live leaf so it is never mistaken for finished; decompose
 // enforces a first child; retire is leaves-only and done-ness is marked in
 // place; prune marks abandonment in place, pruning) and changes the
@@ -67,9 +68,9 @@ pub enum CurrentTransition {
 /// (`dead-non-launch-exports-k166`). The driver twin is `pub(crate)` *and* reaps
 /// orphaned finish artifacts first, so an integration test cannot substitute it
 /// for the classification without also asserting through a best-effort cleanup
-/// it is not testing. That is the discriminator against the locked wrappers
-/// `tree_grow` lost: those had a production composition a test could perform
-/// itself, and this does not.
+/// it is not testing. That is the discriminator against the locked wrappers the
+/// withdrawn appender lost: those had a production composition a test could
+/// perform itself, and this does not.
 pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
     let classified = {
         let _guard = tree_access::write_for_lifecycle(worktree)?;
@@ -1241,19 +1242,18 @@ mod tests {
         run_git(root.parent().unwrap(), &["add", "-A"]);
     }
 
-    /// Grow a real root-level leaf the way `llm_cli` does — take the exclusive
-    /// tree guard, then call the lock-neutral verb under it — and release the
-    /// guard before returning, so the lifecycle verb under test takes its own.
+    /// Grow a real root-level leaf the way `llm_cli` does — the whole verb,
+    /// which takes and releases the library's own write guard, so the lifecycle
+    /// verb under test then takes its.
     ///
-    /// This is the composition production performs, and the only one it can:
-    /// the `<parent>` reference has to be resolved *inside* the same guard that
-    /// then mutates. `tree_grow` used to export a `leaf_add` that took the lock
-    /// around an already-resolved parent — a narrower critical section wearing
-    /// the operation's name, with these three tests as its only callers
-    /// (`dead-non-launch-exports-k166`).
+    /// It calls the verb rather than a lock-neutral primitive under a guard of
+    /// its own, and since `sweep-k37` there is no other option: the primitive
+    /// belonged to the withdrawn appender, and grove cannot nest its own
+    /// exclusive guard inside the library's anyway. `task_grow` owns
+    /// the resolve-then-mutate composition entirely, which is the composition
+    /// production performs and the only one it can.
     fn grow_leaf(root: &Path, slug: &str) -> PathBuf {
-        let guard = tree_access::write(root).unwrap();
-        crate::tree_grow::leaf_add_unlocked(guard.root(), root, slug, Kind::Impl).unwrap()
+        task_grow::leaf_add(root, ".", slug, Kind::Impl).unwrap()
     }
 
     /// Write a leaf/brief stub with a position-free `# <handle>` header.

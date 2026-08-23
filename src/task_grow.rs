@@ -33,9 +33,9 @@
 // second spelling of *what a new grove leaf is* would let the two drift on the
 // template, the slug grammar or the `finish` reservation.
 //
-// The whole of `tree_grow`'s collision machinery — the up-front destination
-// sweep, the `O_EXCL` claim, the per-run rollback, the injected post-claim
-// failure — because `append_many` *is* the atomic run: one snapshot answers
+// The whole of the path-walking appender's collision machinery — the up-front
+// destination sweep, the `O_EXCL` claim, the per-run rollback, the injected
+// post-claim failure — because `append_many` *is* the atomic run: one snapshot answers
 // every ordinal and every key, the plan is checked against itself before a byte
 // is written, and the interpreter unwinds its own effects. `leaf-add-pair` got
 // simpler, exactly as its brief predicted.

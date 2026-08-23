@@ -28,7 +28,7 @@ detects no repository and requires no tool on `PATH`
 ([`docs/ordinal-fs-tree/ARCHITECTURE.md`](../ordinal-fs-tree/ARCHITECTURE.md)).
 So the version-control-aware move Grove's `src/tree_rename.rs` carried — `git mv`
 for a tracked entry, `fs::rename` for an untracked one, plain on every jj
-tree — has nowhere left to live inside the operation. The question is whether
+tree — had nowhere left to live inside the operation. The question was whether
 Grove buys the old `git status` back from outside it.
 
 It does not, and what that costs is exactly the pre-commit window. What it buys
@@ -68,11 +68,12 @@ which is not.
 
 ## Why this is hard to reverse
 
-Not the decision — the deletion. `grove-flip-k28`'s contract stage removes
-`src/tree_rename.rs` once its last caller has gone, and it is the only place
-Grove has ever known how to move a tracked entry: the trackedness probe, the
-`git mv` invocation, and the jj-first rule that a colocated tree renames plainly
-all live there and nowhere else. Restoring it means rebuilding that dispatch
+Not the decision — the deletion, which has happened. `grove-flip-k28`'s contract
+stage removed `src/tree_rename.rs` once its last caller had gone, and it was the
+only place Grove had ever known how to move a tracked entry: the trackedness
+probe, the `git mv` invocation, and the jj-first rule that a colocated tree
+renames plainly all lived there and nowhere else. Restoring it means rebuilding
+that dispatch
 against a library that now performs the rename itself, so the reinstated code
 would have to run *after* the move rather than instead of it — a different
 operation with a different failure mode, not the one that was deleted. The

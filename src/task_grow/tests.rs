@@ -1,5 +1,5 @@
-//! The grow verbs' own tests, carried across from `tree_grow` when
-//! `growing-k33` moved the verbs onto the library.
+//! The grow verbs' own tests, carried across from the path-walking appender
+//! when `growing-k33` moved the verbs onto the library.
 //!
 //! Most are the same fixtures asserting the same outcomes: what a verb does to a
 //! tree is what this stage promises not to change. Three groups could not come
@@ -8,9 +8,10 @@
 //!
 //!   * the **`git mv` assertion** inverted, because the shift is now
 //!     `rename(2)` on every lane (`docs/adr/grove-does-not-stage-its-own-renames.md`);
-//!   * three **destination-machinery** tests stayed behind in `tree_grow`, whose
-//!     helpers they actually exercise, and the injected post-claim failure went
-//!     with the rollback it pinned;
+//!   * three **destination-machinery** tests stayed behind with the appender's
+//!     own helpers, which they actually exercised, and died with it in
+//!     `sweep-k37`; the injected post-claim failure went earlier, with the
+//!     rollback it pinned;
 //!   * the **refusals** for a parent that is not in the tree are now the
 //!     resolver's rather than the appender's, and say something different.
 
@@ -665,7 +666,7 @@ fn an_unwritable_third_destination_refuses_the_whole_run() {
 
 #[test]
 fn a_run_that_cannot_get_three_fresh_keys_creates_nothing_at_all() {
-    // Key exhaustion changed hands: `tree_id::next_keys` refused an exhausted
+    // Key exhaustion changed hands: grove's own allocator refused an exhausted
     // keyspace up front, and `Refusal::KeysExhausted` now does — planned from
     // the same snapshot, before any effect is built, so it is still true that
     // nothing lands. The message is the library's, printed unchanged.

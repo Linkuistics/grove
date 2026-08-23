@@ -8,7 +8,7 @@
 // root→leaf order. A directory level with no `BRIEF.md` is skipped silently.
 // Every brief is named `BRIEF.md`, so the assertions key on the **parent
 // directory name** of each printed path (mirroring the unit tests in
-// src/tree_read.rs). Each test stands up a real git repo so
+// src/task_tree.rs). Each test stands up a real git repo so
 // `git rev-parse --show-toplevel` resolves to the fixture path.
 
 use assert_cmd::Command;

@@ -16,8 +16,8 @@ mean something else in grove's, and its crate ships by no path of its own —
 - [skills](./plugins/CONTEXT.md) — the `linkuistics` and `testanyware` skill
   plugins: how a skill is authored, packaged, triggered and installed.
 - [ordinal-fs-tree](./docs/ordinal-fs-tree/CONTEXT.md) — the domain-independent
-  ordered-tree library being extracted from grove's tree modules: entries,
-  ordinals, keys, and the algebra over them. Its glossary sits beside
+  ordered-tree library extracted from grove's tree modules: entries, ordinals,
+  keys, and the algebra over them. Its glossary sits beside
   [its architecture](./docs/ordinal-fs-tree/ARCHITECTURE.md). The crate lands at
   `crates/ordinal-fs-tree/`, a member of a workspace whose root package stays
   `grove`; the glossary, the architecture, the models and
@@ -162,9 +162,11 @@ provisioning is **grove**. A topic about writing, packaging, triggering or
 installing a `SKILL.md` is **skills**.
 
 A topic about entries, ordinals, keys, the distinguished child, or the tree
-algebra over them is **ordinal-fs-tree** — including while that code still lives
-inside grove's `src/tree_*` modules, because the vocabulary moved before the code
-did. A topic about `.grove/` *as a task tree* stays **grove** even when it is
+algebra over them is **ordinal-fs-tree**, which is now also where that code
+lives: grove's own tree algebra was deleted once the library owned it
+(`docs/ARCHITECTURE.md`, *The withdrawn tree algebra*), and what grove keeps is
+a domain implementation of the seam plus the lifecycle around the tree. A topic
+about `.grove/` *as a task tree* stays **grove** even when it is
 about the same directories on disk: the discriminator is which vocabulary the
 answer is stated in, not which files it touches.
 

@@ -5,11 +5,11 @@
 // [`Snapshot`](ordinal_fs_tree::Snapshot) taken under the library's shared lock,
 // and their semantics are unchanged: first live leaf in walk order, ancestor
 // briefs root→leaf, reference-by-permanent-key. What changes is who owns the
-// walk. `src/tree_read.rs` keeps only what the verbs that have *not* flipped
-// still need — grove's own exclusive guard and the library's cannot be nested
-// (both `flock` the directory containing the tree root, and two open file
-// descriptions on one directory do not share a lock), so a write verb keeps the
-// path-walking reader until its own leaf moves it across.
+// walk. The path-walking reader that used to own it survived only as long as
+// there were verbs still under grove's own exclusive guard — that guard and the
+// library's cannot be nested (both `flock` the directory containing the tree
+// root, and two open file descriptions on one directory do not share a lock) —
+// and `sweep-k37` deleted it once the last of them had moved across.
 //
 // # Path construction lives here, and in exactly one place
 //
@@ -470,8 +470,8 @@ fn interrupted_promotion<'a>(twins: &[Entry<'a, TaskName>]) -> Option<Entry<'a, 
 ///
 /// # A mirror of the library's rule, and the reason grove needs one
 ///
-/// The library allocates keys and grove does not, which is why
-/// `tree_id::next_key` died. But grove's leaf **content** embeds the key its name
+/// The library allocates keys and grove does not, which is why grove's own
+/// key allocator died. But grove's leaf **content** embeds the key its name
 /// will carry — the first-line handle `# <slug>-k<key>` — and
 /// [`NewEntry`](ordinal_fs_tree::NewEntry) takes its bytes *before* the library
 /// composes the name, so the bytes cannot be written from the answer. A

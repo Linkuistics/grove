@@ -2651,6 +2651,89 @@ routing advice; their predictive record is 0 for 2. And add the error-message
 reading to the checklist for any leaf that consumes a fallible library: it is the
 cheapest thing in this log per finding, and it is not a formalism at all.
 
+### 025 — Deleting a module, and finding that a green test was aimed away from what it judged (grove's contract stage)
+
+**Situation.** The flip's *contract* stage, and the last leaf of the increment:
+delete grove's tree algebra now that `ordinal-fs-tree` owns it, and establish
+*grove's tree modules are gone, grove supplies a domain impl* as something
+checked rather than asserted. Two obligations, and both were inherited rather
+than chosen. `migration-k36` had left a **falsifiable prediction** — re-aiming
+`tests/session_kind_guidance.rs`'s well-formedness oracle from the withdrawn
+lenient grammar to the canonical one would surface at least one guidance example
+the canonical grammar refuses. And the node had asked for the deletion to be
+verified the way `content/references/execute.md` requires a repo-wide claim to
+be verified: enumerate then classify, with a positive and a cross-tree control.
+
+**Formalism. None, for the third leaf running and the fourth of seven in this
+increment**, and the entry exists because that number is now large enough to be
+a finding rather than an omission. The instruments were a re-aimed oracle and a
+lexical sweep; neither is a formalism, and the second is this entry's subject.
+
+**Caught.** Two things, and the second is the one worth carrying.
+
+*The prediction is false, and it could not have fired.* No guidance example is
+refused by the canonical grammar. But the withdrawn grammar's leniency was not
+confined to the oracle the leaf was sent to re-aim: the same file's **candidate
+scanner** matched a position of exactly two digits, and its **shape explainer**
+did the same. While a lenient parser decided, that narrowness cost nothing — a
+name the scanner skipped would have been accepted anyway — so neither could ever
+fail, and neither was wrong until the parser under them was tightened. Widened to
+a digit run, with a control asserting all four widths reach the parser, the
+corpus is still clean — but it is now clean **measured** rather than clean by
+construction. *A green test can be aimed away from the very class it exists to
+judge, and the tightening that makes it wrong changes nothing in it.*
+
+*The deletion sweep found thirty-three stale references, and not one was a `use`
+line.* The compiler had already discharged the linkage claim — `cargo build
+--lib` was clean the moment the four modules were removed, with the positive
+control `lifecycle-k35` recorded. What it cannot see is prose, and twelve files
+carried module-header essays arguing about modules that no longer existed: a
+crate root essay, a version-control seam paragraph, three test-file headers, a
+manifest comment. The instrument is `tests/removed_surface.rs`'s own method,
+applied to a second subject — enumerate every module-shaped token under `src/`
+and `tests/`, classify each against a live set read **off disk** and a listed
+withdrawn set — and it is total by construction where a pattern list is complete
+only as far as the list.
+
+**Missed.** The lexical sweep's own path scope missed the one file in **no**
+tree: `Cargo.toml`'s header said the library is what grove's tree modules *are
+being extracted into*, present tense, and no sweep rooted at `src/` and `tests/`
+can ever reach a root manifest. It was found by the separate pass
+`execute.md` demands over the *summary and overview* layers — the module table,
+the context map, the crate manifest — which is a different reading of the same
+claim and not a longer pattern list. Two of that pass's three findings were in
+files the enumerator does cover but under wordings it does not match
+(*surviving path-walking readers*, *verbs that have not flipped*), which is the
+honest limit: a token sweep finds names, and a stale claim need not contain one.
+
+**Cost.** Under an hour for both instruments, most of it spent on the thirty-three
+essays rather than on the machinery. The sweep is about eighty lines and reuses a
+file that already had the shape. No tooling and nothing to learn first.
+
+**Counterfactual.** For the sweep, nothing cheaper exists and the entry is not
+proposing one. For the oracle, the cheap and general move is the one that was
+missed at the point the grammar was tightened, two leaves earlier: **when a
+predicate is tightened, find every test-side filter that was built against the
+loose one.** The oracle was re-aimed because a brief named it; the scanner and
+the explainer were found only by asking what else in that file had encoded the
+old rule. A leniency that is safe to duplicate while the parser is lenient
+becomes a blind spot the moment it is not, and the blind spot is silent in both
+directions — it neither fails nor reports what it skipped.
+
+**Verdict.** Reach for enumerate-then-classify again for any *this is gone*
+claim, and reach for it in preference to a grep every time; it is cheap, it is
+complete by construction, and its cross-tree control is what makes a clean result
+mean something. On the aggregate question this increment was asked to answer:
+**four of seven flip leaves reached for no formalism at all, and none of the four
+was the worse for it.** The pattern is not that refactoring is model-free — it is
+that a refactor *onto an already-checked library* inherits its models rather than
+needing new ones, and what it needs instead is instruments that check the
+*consumer's* claims: transcription suites, equivalence tests between the two
+implementations while both are live, and sweeps over the surface the compiler
+cannot read. Three of those four leaves reached for one of exactly those. That is
+routing evidence about when a model earns its place, and it is the shape
+`formalism-skill-k38` should carry forward.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -2712,3 +2795,6 @@ guesses are not.
 | a consumer whose preconditions are stronger than the library's | none — count the checks it needs for its own reasons before counting the library's refusals | 021: four grove preconditions the library cannot see (outcome infix, session kind, reserved kind, brief-ness) retire four species refusals behind checks grove keeps anyway, cutting a ten-variant vocabulary question to one. The pre-check must be the library's own predicate read off the snapshot, or it is a second wording at the level of code |
 | an inherited reachability table — "is this row I did not write actually right?" | none — build the row's fixture and write its filenames out in full | 022: `DestinationOccupied` was marked reachable from `leaf-retire` via a `DONE` twin; composing the fixture shows the occupying name and the live one must share a key, because the outcome infix and the key are parts of one name. Unreachable, and the row could not have been checked by re-reading it. The second half of 019, run by a leaf that did not write the table |
 | an operation named by key — "what else is this reachability claim assuming?" | none — add the row for *two entries share the key* | 022: `by_key` answers with whichever entry the walk reaches first, and walk order is one of `structure.als`'s recorded misses. `leaf-retire` aimed by path at one twin marked the other and reported success. A recorded model miss with no consumer that could feel it, meeting the first consumer that could |
+| is it gone? — "this pattern/module/surface has been removed" | none — enumerate then classify, with a positive and a cross-tree control | 025: a clean `cargo build` discharged the *linkage* claim and said nothing about prose; enumerating every module-shaped token and classifying it against a live set read off disk found thirty-three stale references in twelve files, not one of them a `use` line. A pattern list is complete only as far as the list; an enumeration is complete by construction |
+| a predicate was just tightened — "what else was built against the loose one?" | none — grep the *test* side for filters encoding the old rule | 025: re-aiming one oracle at a canonical grammar left the same file's candidate scanner and shape explainer still matching the lenient rule, so the sweep reported a clean corpus about a class it never handed to the parser. A duplicated leniency is free while the parser is lenient and silent in both directions the moment it is not |
+| a claim about the repo itself — "did I sweep the whole claim, or the files I thought of?" | none — read the summary and overview layers as a separate pass | 025: the token sweep could not reach `Cargo.toml` from any path scope rooted at `src/`, and two more stale claims sat in files it *did* cover under wordings it did not match. A token sweep finds names; a stale claim need not contain one |

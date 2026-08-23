@@ -1,12 +1,14 @@
 // Grove's implementation of `ordinal_fs_tree::EntryName` — the whole seam
-// between the task tree and the library that will drive it (gh issue #13,
-// increment 2, the *expand* stage).
+// between the task tree and the library that drives it (gh issue #13,
+// increment 2).
 //
-// **Nothing consumes this module yet.** It is written before any verb moves onto
-// it, so that the grammar and its refusals can be checked against the library's
-// conformance kit while the old tree modules are still in place and the whole
-// suite is still green. `src/tree_id.rs` remains the live grammar until the
-// migrate stage takes each verb group across.
+// **This is the only grammar grove has.** It was written in the *expand* stage
+// against the library's conformance kit while grove's own path-walking name
+// model was still live, each verb group moved onto it in its own leaf through
+// the *migrate* stage, and `sweep-k37` deleted the other side. So there is no
+// longer a call site whose `use` line has to be read to know which model it
+// means, and the two-grammar hazards this header used to enumerate are history
+// (`docs/ARCHITECTURE.md`, *The withdrawn tree algebra*).
 //
 // The three on-disk shapes are unchanged, because the flip is a pure refactor
 // and no name on disk moves:
@@ -15,21 +17,21 @@
 //     node dir   NN-<slug>-k<key>
 //     brief      BRIEF.md                     (the containing node's charter)
 //
-// **This is not a transcription of `tree_id.rs`, and one difference is the whole
-// point of the leaf.** `tree_id::parse_position` is deliberately lenient on
-// padding — it accepts a hand-typed `5` and `Entry::name` renders `05` — so
-// `format(parse(f)) == f` fails there and one entry can occupy two files,
-// sharing a key and a position. That is the library's *canonicity* obligation
-// broken, and `docs/ordinal-fs-tree/models/structure.als` draws the picture
-// under `witness_two_filenames_name_one_entry`. Here the grammar is canonical:
-// a lenient spelling is a refusal that names the spelling grove writes. The
-// decision, its cost and the alternative are `docs/adr/task-names-are-canonical.md`.
+// **The grammar is canonical, and that was the departure from the model it
+// replaced.** The withdrawn one was deliberately lenient on padding — it
+// accepted a hand-typed `5` and rendered `05` — so `format(parse(f)) == f`
+// failed there and one entry could occupy two files, sharing a key and a
+// position. That is the library's *canonicity* obligation broken, and
+// `docs/ordinal-fs-tree/models/structure.als` draws the picture under
+// `witness_two_filenames_name_one_entry`. Here a lenient spelling is a refusal
+// that names the spelling grove writes. The decision, its cost and the
+// alternative are `docs/adr/task-names-are-canonical.md`.
 //
-// A second, smaller departure: `tree_id::parse` tolerates a trailing `/` on a
-// node name, for callers passing a path argument. A `parse` fed by a directory
-// listing never sees one, and tolerating it would be a second spelling of one
-// name — exactly what canonicity forbids. Trimming a caller's argument is the
-// caller's job.
+// A second, smaller departure, and the reason no caller may hand this a path:
+// the withdrawn parser tolerated a trailing `/` on a node name for callers
+// passing one. A `parse` fed by a directory listing never sees one, and
+// tolerating it would be a second spelling of one name — exactly what
+// canonicity forbids. Trimming a caller's argument is the caller's job.
 //
 // The classification is where a name grammar loses data, so it is where the care
 // goes. `Verdict` has four outcomes and the load-bearing split is between two of
@@ -484,8 +486,8 @@ impl EntryName for TaskName {
                 // The kind is a multi-word prefix of a closed set, so there is no
                 // single token to quote back when it does not match — an unknown
                 // kind and a missing one are the same failure. The advice is the
-                // grammar and the whole set, which is what `tree_id::parse_current`
-                // says today.
+                // grammar and the whole set, which is what the withdrawn
+                // parser said too.
                 return Verdict::Malformed(TaskNameError::UnknownKind {
                     name: name.to_string(),
                 });
@@ -516,8 +518,8 @@ impl EntryName for TaskName {
         // Canonicity, in the cheapest form there is, and over the whole grammar
         // rather than one rule per field: whatever was parsed, render it, and
         // refuse the input when it is not what Grove writes. This is the line
-        // `tree_id.rs` does not have — `parse_position` accepts `5` where
-        // `Entry::name` writes `05` — and a padding or ordering rule added later
+        // the withdrawn grammar did not have — it accepted `5` where its own
+        // renderer wrote `05` — and a padding or ordering rule added later
         // cannot escape it.
         let canonical = parsed.to_string();
         if canonical != name {
@@ -878,7 +880,7 @@ mod tests {
     // ---- question 2: the grammar is canonical -------------------------------
 
     /// The leaf's headline decision, and the one place this domain deliberately
-    /// refuses what `tree_id::parse_position` accepts. A lenient spelling is a
+    /// refuses what the withdrawn grammar accepted. A lenient spelling is a
     /// refusal **naming the canonical form** — without that, a hand-edited tree
     /// is unreadable with no stated way back.
     #[test]
@@ -934,9 +936,8 @@ mod tests {
     // ---- refusals inside the shape -----------------------------------------
 
     /// A task-shaped leaf whose kind is unknown or missing is Malformed, never
-    /// Foreign: skipping it is lost work. The advice is the one
-    /// `tree_id::parse_current` gives today — the grammar and the whole closed
-    /// set.
+    /// Foreign: skipping it is lost work. The advice is the one the withdrawn
+    /// parser gave — the grammar and the whole closed set.
     #[test]
     fn an_unknown_session_kind_is_malformed() {
         for name in ["01-wrok-a-k1.md", "01-a-k1.md", "01--k1.md"] {

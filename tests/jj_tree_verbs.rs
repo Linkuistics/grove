@@ -3,12 +3,12 @@
 // grove is jj-first (`src/repo.rs`, symmetric-vcs-rule): a `.jj/`
 // directory heading the working tree picks jj plumbing even when a `.git` sits
 // beside it. One seam carries that decision now — `repo::vcs_of`, which working
-// tree a verb resolves (covered by `tests/repo.rs`). The second used to be
-// `tree_rename::rename_entry`, and since `promotion-k34` it has **no production
-// caller left**: every entry that moves, moves inside an `ordinal-fs-tree`
-// operation, which renames with `rename(2)` and consults no VCS at all. The
-// module survives until `sweep-k37` deletes it. What neither seam
-// can show is that **every verb actually routes through them**: a verb carrying
+// tree a verb resolves (covered by `tests/repo.rs`). The second was grove's own
+// version-control-aware move, which lost its last production caller in
+// `promotion-k34` and was deleted in `sweep-k37`: every entry that moves, moves
+// inside an `ordinal-fs-tree` operation, which renames with `rename(2)` and
+// consults no VCS at all. So one seam carries the decision now, and what it
+// cannot show is that **every verb actually routes through it**: a verb carrying
 // its own git-only side path — a stray `git mv`, a git-first root resolution —
 // would pass both unit suites and still fail in a jj tree. So these drive the
 // real binaries end to end, once per verb, against two fixtures:
@@ -28,8 +28,8 @@
 // `root-init` and `leaf-add` get no colocated twin deliberately: they only write
 // new files and consult no VCS beyond resolving the worktree, so a colocated
 // case would assert nothing its jj-native case does not. That was already true
-// of `leaf-add` when it allocated through `tree_grow`, and it stayed true when
-// `growing-k33` moved it onto `append`.
+// of `leaf-add` when it allocated through grove's own path-walking appender,
+// and it stayed true when `growing-k33` moved it onto `append`.
 //
 // The two lifecycle-transition cases are the exception to "drive the binaries":
 // they call the library, because the transition is not a verb anyone types — the

@@ -317,3 +317,50 @@ this brief's own readers need:
   flips, in the same leaf that settles how a library refusal reaches a grove
   operator — the two belong together, because the table is what says how many
   refusal variants the vocabulary question is actually about.
+
+**Increment 2 has landed, and this brief's fourth *Done when* clause is met:
+grove's tree modules are gone, grove supplies a domain impl, and no on-disk name
+changed.** `grove-flip-k28` closed with the whole suite green (1210 passing,
+against 1206 when the node opened, the difference being the node's own tests less
+the withdrawn modules'). Everything durable it produced is filed where a reader
+without `.grove/` can find it — `docs/ARCHITECTURE.md` for the seam, the lock
+discipline and *The withdrawn tree algebra*; four ADRs
+(`task-names-are-canonical`, `grove-does-not-stage-its-own-renames`,
+`bulk-marks-are-not-atomic`, and `entry-name-is-the-only-seam` reworked in
+place); `docs/formalism-findings.md` entries 020–025; and `CONTEXT-MAP.md` for
+the three-context boundary. Four things a later session needs and cannot get from
+those alone:
+
+- **The *pure refactor* premise held, and it was measured rather than argued.**
+  Three of the seven flip leaves left every one of grove's ~130 CLI-contract
+  tests untouched on the first run, and the changes the other four forced were
+  each recorded as a finding with the reason it was forced. The instrument that
+  made it falsifiable was cheap and is repeatable: while a verb group is mid-flip
+  there are two live implementations of one contract, so an **equivalence test**
+  costs less than the review that would otherwise stand in for it and fails
+  rather than reassures. Those tests die with the old side, which is why the
+  evidence has to be spent before the contract stage rather than after.
+- **The seam held and was never widened.** Nothing was added to
+  `ordinal-fs-tree` for grove's sake across the whole increment, and
+  `entry-name-is-the-only-seam`'s reopening clause was met by grove and did not
+  fire. What the narrowness actually costs a consumer, in the three places it was
+  felt, is in `docs/ARCHITECTURE.md`: the waiting diagnostic and the key
+  prediction are bought back **outside** the library, and grove's own guard
+  survives for the two things the library cannot perform — the root's own
+  creation and the session-kind migration. The rule is *never both guards at
+  once*, not *never both*.
+- **A design-time reachability table is worth writing and worth distrusting in
+  the same breath.** `refusals-k30` wrote one for grove's whole verb set before
+  any verb flipped, and each migrate leaf transcribed its own rows into a suite:
+  four corrections in seven leaves, every one found by the transcription and none
+  by an argument. The advice increment 1 promoted here is therefore discharged
+  **and** qualified — write the table, and schedule its check rather than
+  trusting it.
+- **Four of the seven leaves reached for no formalism at all, and entry 025
+  reads that rather than leaving it as an absence.** A refactor *onto an
+  already-checked library* inherits its models; what it needs instead are
+  consumer-side instruments — transcription suites, equivalence tests while both
+  implementations are live, and enumerate-then-classify sweeps over the surface
+  the compiler cannot read. That is routing evidence about when a model earns its
+  place, and it is `formalism-skill-k38`'s to carry, not this brief's to
+  generalise.

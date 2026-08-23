@@ -3,7 +3,7 @@
 // nineteen** (five producers, each with its own `review-` and
 // `integrate-review-` step, two research producers, their combine step, and
 // finish) written into a current task filename. Live: the grow/lifecycle verbs
-// (`tree_grow` / `tree_lifecycle`) and the `grove-llm` CLI surface (`llm_cli`)
+// (`task_grow` / `tree_lifecycle`) and the `grove-llm` CLI surface (`llm_cli`)
 // parse and carry it.
 //
 // Everything else this module once held — the `NNN-slug` / `done/` reader and
@@ -138,7 +138,7 @@ impl Kind {
 
     /// The lowercase label written into a task filename and printed by
     /// `grove-llm kind`. The single source of truth for the label
-    /// direction: the grow verbs' leaf template (`tree_grow`), the `kind` verb,
+    /// direction: the grow verbs' leaf template (`task_grow`), the `kind` verb,
     /// [`Kind::from_label`], and the loop driver's env-var suffixes all read
     /// through it, so none of them can disagree on the spelling.
     pub fn label(self) -> &'static str {

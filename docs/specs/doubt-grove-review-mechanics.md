@@ -147,9 +147,12 @@ blocking-sibling condition, and why there is no exception to check — is
 second full statement of it.
 
 What belongs here is the **implementation** that condition is true of. The seam
-is `select_unlocked` in `src/tree_read.rs`, which is a **composition**: the
-recursive `collect_live_leaf_entries` walk gathers live entries, and
-`select_unlocked` applies the `finish`-sentinel rule over the result. Three
+is `selected` in `src/task_tree.rs`, which is a **composition**: the library's
+`Snapshot::walk` gathers live entries in tree order, and `selected` applies the
+`finish`-sentinel rule over the result. The walk moved into `ordinal-fs-tree`
+with the rest of the tree algebra (gh issue #13, increment 2) and the
+composition did not — which is why the three properties below are stated about
+the pair rather than about either half. Three
 properties of that composition are what make the loose form (*the first live leaf
 after it*) wrong, and they do not all come from the same half:
 
@@ -158,11 +161,11 @@ after it*) wrong, and they do not all come from the same half:
   leaf anywhere beneath it runs before anything appended after that node.
 - **Terminal entries never enter the collection at all** — a later `DONE` or
   `ABANDONED` leaf, and a node whose subtree is wholly terminal, are simply not
-  live. The driver's `finish` sentinel is different in kind: the collector pushes
-  it like any other live leaf without inspecting the kind, and it is
-  `select_unlocked` that takes the first live **non-`finish`** entry and falls
-  back to the sentinel only when no ordinary work is left. A test seam aimed at
-  the collector alone cannot see that property.
+  live. The driver's `finish` sentinel is different in kind: the walk yields it
+  like any other live leaf without inspecting the kind, and it is `selected`
+  that takes the first live **non-`finish`** entry and falls back to the
+  sentinel only when no ordinary work is left. A test seam aimed at the walk
+  alone cannot see that property.
 - **The walk is directory-local.** Pre-order finishes the review's own directory,
   including a leaf just appended to its end, before it visits any later sibling
   of an *ancestor*.

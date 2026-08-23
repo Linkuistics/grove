@@ -1,6 +1,7 @@
 # This repo is a **workspace** whose root package is still `grove`. The second
 # member is `crates/ordinal-fs-tree`, the domain-independent tree library grove's
-# own tree modules are being extracted into (gh issue #13, increment 1). Its
+# own tree modules were extracted into (gh issue #13); grove's side of that is a
+# domain implementation of one seam, and its algebra is gone. Its
 # design documents stay at `docs/ordinal-fs-tree/` rather than moving under the
 # crate: `docs/adr/` is flat and repo-wide while grove occupies the root, and
 # four artifacts link into that path.

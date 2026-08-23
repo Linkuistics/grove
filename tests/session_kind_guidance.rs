@@ -16,7 +16,7 @@
 //!   until `content/TASK-FORMAT.md` names it, and the set's *size word* fails
 //!   until the prose is recounted.
 //! * The **filename grammar** is enumerated out of the guidance itself, and each
-//!   concrete example is put through `tree_id::parse` — the same call `pick`,
+//!   concrete example is put through `TaskName::parse` — the same call `pick`,
 //!   `resolve` and the grow verbs make — so an example the binary would refuse
 //!   fails whether or not anyone thought to look for it. Only a grammar sketch
 //!   (`NN-<session-kind>-<slug>-k<key>.md`), which no tree could hold, takes an
@@ -54,7 +54,8 @@
 
 use clap::CommandFactory;
 use grove::leaf::Kind;
-use grove::tree_id::{self, Entry};
+use grove::task_name::{Parts, TaskName};
+use ordinal_fs_tree::{EntryName, Found, Verdict};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -242,7 +243,7 @@ fn the_guidance_counts_the_kind_set_correctly() {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Example {
     /// `NN-[DONE-]<kind>-<slug>-k<key>.md` — the current grammar. For a concrete
-    /// name this is [`tree_id::parse`]'s own verdict; for a grammar sketch it is
+    /// name this is [`TaskName::parse`]'s own verdict; for a grammar sketch it is
     /// the placeholder shape.
     Kinded,
     /// No leading token is a kind: the pre-session-kind grammar, or a slug where
@@ -283,24 +284,41 @@ fn is_sketch(name: &str) -> bool {
 /// Classify one candidate filename.
 ///
 /// **The shipped parser decides.** A concrete name is accepted only if
-/// [`tree_id::parse`] returns a leaf — the same call `pick`, `resolve` and every
+/// [`TaskName::parse`] returns a leaf — the same call `pick`, `resolve` and every
 /// grow verb make — so an example the binary would refuse cannot keep this guard
 /// green. The hand-rolled shape check below survives only to *explain* a
 /// rejection; it grants no admission of its own.
 fn classify_example(name: &str) -> Example {
     if !is_sketch(name) {
-        return match tree_id::parse(name) {
-            Some(Entry::Leaf { .. }) => Example::Kinded,
-            // Not a leaf (or not parseable at all): fall through to the shape
-            // check purely to name *why*, and report anything it thinks is fine
-            // as malformed, since the parser has already refused it.
-            _ => match classify_shape(name) {
-                Example::Kinded => Example::Malformed,
-                explained => explained,
-            },
+        if parses_as_leaf(name) {
+            return Example::Kinded;
+        }
+        // Not a leaf (or not parseable at all): fall through to the shape check
+        // purely to name *why*, and report anything it thinks is fine as
+        // malformed, since the parser has already refused it.
+        return match classify_shape(name) {
+            Example::Kinded => Example::Malformed,
+            explained => explained,
         };
     }
     classify_shape(name)
+}
+
+/// Whether the shipped grammar reads this name as a task **leaf**.
+///
+/// A guidance example is a filename, so it is offered to the domain as
+/// [`Found::File`] — the same thing the level reader does with a regular file it
+/// meets on disk. Only [`Verdict::Entry`] carrying leaf parts counts: `Foreign`,
+/// `Malformed` and `Reserved` are all *not a leaf*, and the caller's shape check
+/// then says which.
+fn parses_as_leaf(name: &str) -> bool {
+    matches!(
+        TaskName::parse(name, Found::File),
+        Verdict::Entry(TaskName::Positioned {
+            parts: Parts::Leaf { .. },
+            ..
+        })
+    )
 }
 
 /// The by-inspection shape check: position, then an optional outcome infix, then
@@ -308,15 +326,19 @@ fn classify_example(name: &str) -> Example {
 /// verdict for a grammar sketch, and a diagnostic aid for a rejected concrete
 /// name.
 fn classify_shape(name: &str) -> Example {
+    // A run of digits and then the `-`, matching what `candidates_in` collects.
+    // By inspection a position is *some* number, and the canonical width is the
+    // parser's business rather than this check's — which is what lets a lenient
+    // spelling read `Kinded` here and `Malformed` from the parser, and so
+    // demonstrate that the parser is what decides.
     let after_position = name
         .strip_prefix("NN-")
         .or_else(|| {
-            let (head, tail) = name.split_at(name.len().min(3));
-            let digits = head.len() == 3
-                && head.as_bytes()[0].is_ascii_digit()
-                && head.as_bytes()[1].is_ascii_digit()
-                && head.as_bytes()[2] == b'-';
-            digits.then_some(tail)
+            let digits = name.bytes().take_while(u8::is_ascii_digit).count();
+            (digits > 0)
+                .then(|| name.get(digits + 1..))
+                .flatten()
+                .filter(|_| name.as_bytes().get(digits) == Some(&b'-'))
         })
         .expect("candidates are collected with a position prefix");
 
@@ -350,6 +372,15 @@ fn classify_shape(name: &str) -> Example {
 /// terminating `.md`. Anything without `.md` is not a filename — that is what
 /// keeps a node directory (`NN-<slug>-k<key>/`) and a bare position reference
 /// (`01-…`) out of the sweep instead of needing an exception each.
+///
+/// **A position prefix here is any run of digits before the `-`, and the width
+/// is deliberately not two.** While the withdrawn grammar decided, a two-digit
+/// rule cost nothing: that one accepted every width, so a name the scanner
+/// skipped would have been accepted anyway. Under the canonical grammar
+/// (`docs/adr/task-names-are-canonical.md`) the width is exactly what is being
+/// judged — `5-…` and `005-…` are refused and `100-…` is not — so a scanner that
+/// admits only `NN-` cannot show the tightening either failing *or* holding, and
+/// the sweep would report a clean corpus it never looked at.
 fn candidates_in(line: &str) -> Vec<String> {
     fn token_char(byte: u8) -> bool {
         byte.is_ascii_alphanumeric()
@@ -361,11 +392,12 @@ fn candidates_in(line: &str) -> Vec<String> {
     let mut index = 0;
     while index < bytes.len() {
         let boundary = index == 0 || !bytes[index - 1].is_ascii_alphanumeric();
+        let digits = bytes[index..]
+            .iter()
+            .take_while(|byte| byte.is_ascii_digit())
+            .count();
         let position = bytes[index..].starts_with(b"NN-")
-            || (index + 3 <= bytes.len()
-                && bytes[index].is_ascii_digit()
-                && bytes[index + 1].is_ascii_digit()
-                && bytes[index + 2] == b'-');
+            || (digits > 0 && bytes.get(index + digits) == Some(&b'-'));
         if !(boundary && position) {
             index += 1;
             continue;
@@ -411,9 +443,41 @@ fn every_leaf_filename_example_in_the_methodology_matches_the_shipped_grammar() 
         findings.is_empty(),
         "these filename examples are not names the shipped grammar accepts \
          (MissingKind / KindWithoutSlug: written in the pre-session-kind shape; \
-         Malformed: `tree_id::parse` refuses the slug or the key):\n  {}",
+         Malformed: `TaskName::parse` refuses the position, the slug or the \
+         key):\n  {}",
         findings.join("\n  ")
     );
+}
+
+#[test]
+fn the_candidate_scan_offers_every_position_width_to_the_parser() {
+    // The widening's own control. `sweep-k37` re-aimed the oracle at the
+    // canonical grammar, whose whole difference from the withdrawn one is the
+    // position's spelling — so a scanner that hands the parser only two-digit
+    // positions reports a clean corpus without having looked at the class the
+    // tightening is about. All four widths must reach the parser; which of them
+    // it then refuses is the parser's business and is asserted above.
+    for width in [
+        "5-impl-extract-k7.md",
+        "05-impl-extract-k7.md",
+        "005-impl-extract-k7.md",
+        "100-impl-extract-k7.md",
+    ] {
+        assert_eq!(
+            candidates_in(&format!("see `{width}` for the shape")),
+            vec![width.to_owned()],
+            "{width} must reach the parser — a width this scan skips is a width              the sweep silently reports as clean"
+        );
+    }
+
+    // And the widening did not cost the two exclusions the scan is built on: a
+    // node directory and a bare position reference carry no `.md` and stay out.
+    for excluded in ["`07-flip-k28/`", "leaf `09-` in that node"] {
+        assert!(
+            candidates_in(excluded).is_empty(),
+            "{excluded} is not a filename and must stay out of the sweep"
+        );
+    }
 }
 
 #[test]
@@ -424,18 +488,21 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
     assert_eq!(classify_example("02-impl-k3.md"), Example::KindWithoutSlug);
 
     // Names the shipped parser refuses for a reason the *shape* check cannot
-    // see: a key that is not `-k<digits>`, and a slug the production validator
-    // rejects. Both read as well-formed by inspection, which is exactly why the
-    // parser and not the inspection decides.
+    // see: a key that is not `-k<digits>`, a slug the production validator
+    // rejects, and — since the oracle became `TaskName` — a position spelled
+    // outside the canonical width. All read as well-formed by inspection, which
+    // is exactly why the parser and not the inspection decides.
     for refused in [
         "01-impl-extract-knope.md",
         "01-impl-bad_slug-k7.md",
         "01-impl-Extract-k7.md",
+        "5-impl-extract-k7.md",
+        "005-impl-extract-k7.md",
     ] {
         assert_eq!(
             classify_example(refused),
             Example::Malformed,
-            "{refused} is refused by tree_id::parse, so the guard must refuse it"
+            "{refused} is refused by TaskName::parse, so the guard must refuse it"
         );
         assert_eq!(
             classify_shape(refused),
@@ -446,8 +513,11 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
     }
 
     // The current grammar, live and both terminal states — each accepted by the
-    // shipped parser itself.
+    // shipped parser itself. `100-…` is here because the padding is a *minimum*
+    // width, so the canonical rule admits it and the two refused spellings above
+    // are not simply "not two digits".
     for current in [
+        "100-impl-extract-k7.md",
         "01-requirements-plan-k1.md",
         "01-DONE-design-spec-k2.md",
         "03-ABANDONED-impl-extract-k7.md",
@@ -459,7 +529,7 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
             "{current} is concrete, so it must not take the sketch path"
         );
         assert!(
-            matches!(tree_id::parse(current), Some(Entry::Leaf { .. })),
+            parses_as_leaf(current),
             "{current} must be a leaf to the shipped parser"
         );
         assert_eq!(

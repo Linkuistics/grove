@@ -8,10 +8,10 @@ spelled any other way is refused, with the spelling Grove writes named in the
 refusal. `src/task_name.rs` discharges this in one line: parse leniently, render
 the result, refuse when the rendering differs from the input.
 
-This replaces a deliberate leniency. `src/tree_id.rs`'s `parse_position` accepts
-a hand-typed `5` while `Entry::name` renders `05`, so `05-impl-a-k1.md` and
-`5-impl-a-k1.md` are today **one entry occupying two files**, sharing a key and
-a position.
+This replaced a deliberate leniency. The grammar Grove carried before the flip —
+`src/tree_id.rs`, deleted in the contract stage — accepted a hand-typed `5` while
+rendering `05`, so `05-impl-a-k1.md` and `5-impl-a-k1.md` were **one entry
+occupying two files**, sharing a key and a position.
 
 ## The trade-off
 
@@ -54,8 +54,9 @@ nothing that Grove wrote becomes unreadable.
 
 ## Considered options
 
-- **Waive the obligation knowingly** and keep `tree_id`'s leniency in the domain
-  implementation, recording what breaks. Rejected: the library's operations are
+- **Waive the obligation knowingly** and carry the withdrawn grammar's leniency
+  (`src/tree_id.rs`) into the domain implementation, recording what breaks.
+  Rejected: the library's operations are
   built on the assumption that a name is an entry's unique spelling, and a
   waiver does not make them tolerant of the alternative — it makes the corruption
   silent and Grove's, rather than loud and the operator's. A waiver would also

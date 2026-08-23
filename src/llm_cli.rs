@@ -10,10 +10,11 @@
 // The task-tree verbs (`pick` / `brief-chain` / `resolve` / `leaf-add` /
 // `leaf-insert` / `leaf-decompose` / `leaf-retire` / `leaf-prune` / `root-init` /
 // `finish-commit`)
-// speak the **v2 directory scheme** (task-tree-scheme). The reading verbs and
-// the grow verbs dispatch to `task_tree` / `task_grow`, which run through
-// `ordinal-fs-tree`; the rest still dispatch to the directory-based
-// `tree_read` / `tree_grow` / `tree_lifecycle`, until their own flip leaf. There is
+// speak the **v2 directory scheme** (task-tree-scheme). Since `sweep-k37` every
+// one of them dispatches to `task_tree` / `task_grow` / `tree_lifecycle`, all of
+// which run through `ordinal-fs-tree`: the directory-walking modules the flip
+// replaced group by group are deleted, so there is no second reader left to
+// choose between. There is
 // no transitional dual-format reader — `tree_migrate` is the only thing that
 // reads a legacy tree, once, on adoption, and the only legacy shape it still
 // converts is a v2 tree whose leaves predate filename kinds.
@@ -771,10 +772,10 @@ mod tests {
 
         operation(&grove_root);
 
-        // Whichever reader owns the verb. The migrate stage has both live at
-        // once — grove's own guard for the verbs that have not flipped, the
-        // library's for the ones that have — and the property being held is
-        // about *observations*, not about which module took them: one CLI
+        // Whichever reader owns the verb. Both guards are still live — grove's
+        // own for the lifecycle work the library cannot perform, the library's
+        // for every verb that touches the algebra — and the property being held
+        // is about *observations*, not about which module took them: one CLI
         // command reads the tree once, so a verb that selected a leaf and then
         // re-read the tree to act on it could not slip through.
         assert_eq!(

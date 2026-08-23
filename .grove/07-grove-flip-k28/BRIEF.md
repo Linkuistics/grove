@@ -899,6 +899,99 @@ recognisers are frozen and private, and its one renderer is `task_name`'s.
   model at all — one more data point for the entry `sweep-k37` may owe, and the
   reading `lifecycle-k35` invited.
 
+**`sweep-k37` (contract).** The whole suite is **1210 passing**, down from
+`migration-k36`'s 1272: sixty-six tests died with the four modules and their two
+differentials, and four are this leaf's own. **Three existing tests changed and
+one unit helper moved**, none of them for a reason the flip could hide.
+`src/tree_id.rs`, `src/tree_read.rs`, `src/tree_grow.rs` and `src/tree_rename.rs`
+are deleted; `cargo build --lib` was clean the moment they went, which is the
+linkage half of the claim held by the compiler with `lifecycle-k35`'s control
+already run.
+
+- **`tree_lifecycle` and `tree_access` needed no surgery, and that is a
+  statement about the earlier leaves rather than about this one.** Neither held
+  any algebra by the time this leaf opened: what they carry is the lifecycle,
+  grove's own guard, the transaction sentinels and the grove-specific refusals,
+  exactly as the task's Notes predicted. The only edit either needed was one
+  unit-test helper that grew a leaf through the withdrawn appender under grove's
+  guard and now calls `task_grow::leaf_add`, which is the composition production
+  performs and — since grove cannot nest its lock inside the library's — the only
+  one available.
+- **`migration-k36`'s falsifiable prediction is false, and the reason it could
+  not have fired is the leaf's best finding.** Re-aiming
+  `tests/session_kind_guidance.rs`'s oracle from the lenient grammar to
+  `TaskName::parse` surfaced **no** guidance example the canonical grammar
+  refuses. But the lenient rule was encoded in two *more* places in that file —
+  the candidate scanner and the shape explainer both matched a position of
+  exactly two digits — so the sweep was structurally incapable of handing the
+  parser the one class the tightening is about. Both are widened to a digit run,
+  `the_candidate_scan_offers_every_position_width_to_the_parser` is the control,
+  and the corpus is clean **measured** rather than clean by construction.
+  **What a later leaf should take from it: when a predicate is tightened, hunt
+  the test-side filters that were built against the loose one.** A duplicated
+  leniency costs nothing while the parser is lenient and is silent in both
+  directions the moment it is not — it neither fails nor reports what it skipped.
+- **The deletion is checked by enumerate-then-classify, and it found
+  thirty-three stale references in twelve files — not one of them a `use`
+  line.** `tests/removed_surface.rs` gains a second subject on the method it
+  already used for the removed launch environment: every module-shaped
+  `tree_*` / `task_*` token under `src/` and `tests/` is enumerated, prose
+  included, and classified against a live set read **off disk** against a listed
+  withdrawn set. The positive control is the tokeniser finding a withdrawn name
+  in a line that carries one; the cross-tree control is the same tokeniser
+  finding every withdrawn name in `docs/` and the changelog, which both proves
+  the instrument works and stops the table fossilising. A second test holds the
+  disk-read live set equal to what `lib.rs` declares in both directions. **The
+  compiler discharged the linkage claim and said nothing about the essays**, and
+  the essays were the whole finding: a crate-root essay, the version-control seam
+  paragraph, three test-file headers, and the module-ownership sentence in
+  `docs/ARCHITECTURE.md` all argued about modules that no longer exist.
+- **The summary-layer pass is a different reading of the claim, not a longer
+  pattern list, and it is what reached the file in no tree at all.**
+  `Cargo.toml`'s header said the library is what grove's tree modules *are being
+  extracted into*, present tense; no sweep rooted at `src/` and `tests/` can ever
+  reach a root manifest. Two of that pass's three findings were in files the
+  enumerator does cover, under wordings it does not match — *surviving
+  path-walking readers*, *verbs that have not flipped* — which is the honest
+  limit of a token sweep: it finds names, and a stale claim need not contain one.
+- **`docs/ARCHITECTURE.md` gains *The withdrawn tree algebra*** — what went, the
+  three things that deliberately survive and why none of them is algebra, and how
+  the deletion is checked — and its module-seams table, species-half paragraph,
+  two-locks section and version-control seam are corrected. `CONTEXT-MAP.md`
+  stops calling the library *being extracted*.
+  `docs/specs/doubt-grove-review-mechanics.md`'s selection seam is re-pointed at
+  `task_tree::selected`, whose composition survived the move unchanged in shape.
+  Both ADRs naming a withdrawn module are reworked in place to current state
+  rather than left predicting a deletion that has happened. **No new ADR and no
+  CHANGELOG entry**: nothing was decided that was not already recorded, and this
+  leaf changes nothing a reader runs — only `marking-k32` of the seven flip
+  leaves earned an entry.
+- **The withdrawn names are kept in `docs/` deliberately.** The cross-tree
+  control asserts each is still found there, so tidying the deletion out of the
+  durable record breaks the sweep rather than passing it. The failure message
+  names that third cause explicitly, because it is the one a reader would
+  otherwise fix in the wrong direction.
+- **No formalism was reached for, which is `reading-k31`'s,
+  `lifecycle-k35`'s and `migration-k36`'s position, and `docs/formalism-findings.md`
+  entry 025 exists anyway** — because the task's Notes asked for the aggregate and
+  four of seven is now a finding rather than an omission. The reading it records:
+  a refactor **onto an already-checked library** inherits its models rather than
+  needing new ones, and what it needs instead are consumer-side instruments —
+  transcription suites, equivalence tests while both implementations are live,
+  and sweeps over the surface the compiler cannot read. Three of those four
+  model-free leaves reached for exactly one of those. Three routing rows added.
+- **The equivalence tests died as scheduled, and that was the plan rather than a
+  loss.** `both_readers_resolve_every_reference_form_identically`,
+  `both_renderers_spell_every_migrated_leaf_identically` and
+  `the_frozen_matchers_admit_exactly_what_the_withdrawn_reader_did` all needed two
+  live implementations of one contract, and there is now one. What survives is
+  `frozen_legacy_slug_rule_still_agrees_with_the_live_grammar`, which needs no
+  second implementation because it holds the frozen rule against the **live**
+  grammar. **What a later workstream should take from it:** the window in which a
+  flip can be checked by experiment closes when the old side is deleted, so the
+  evidence has to be spent while both are compiled — which is what every migrate
+  leaf here did.
+
 ## Pointers
 
 - `docs/ordinal-fs-tree/ARCHITECTURE.md` — the seam, the seven obligations, the

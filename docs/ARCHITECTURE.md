@@ -312,9 +312,10 @@ node is legal everywhere. The rule reaches directory names because the loss is
 larger there: a skipped leaf costs one task, a skipped node costs its whole live
 subtree while picking reports the grove finished.
 
-`tree_read`'s level reader owns the species half for every tree verb, so
+`task_name`'s verdict owns the species half for every tree verb, because the
+library classifies a listing once and every verb reads the same snapshot — so
 selection, resolution, growth, key allocation, and pruning share one answer about
-what a sibling is — without which a subtree the reader refuses could stay
+what a sibling is, without which a subtree the reader refuses could stay
 invisible to key allocation, lowering the visible maximum key so the next
 `leaf-add` re-issues a live one.
 
@@ -325,12 +326,53 @@ lifecycle state; root initialization and migration write it last, by atomic
 same-directory rename. Task bodies carry no launch metadata at all — only the
 `**Reviews:**` and `**Integrates:**` composition relationships below.
 
-`tree_id` parses identities, `tree_read` walks and resolves them, `tree_grow`
-creates leaves and composition shapes, `tree_rename` performs VCS-safe moves,
-`tree_lifecycle` applies terminal outcomes, `tree_access` owns the lock, and
-`tree_format` owns the witness. `tree_migrate` plans the conversion of prior
-layouts and `tree_migration_transaction` is its only mutation owner; neither is
-another live storage model.
+`task_name` parses identities, `task_tree` walks and resolves them and owns the
+read and write seams onto the library, `task_grow` creates leaves and composition
+shapes, `tree_lifecycle` applies terminal outcomes and owns the grove-only
+lifecycle, `tree_access` owns grove's own guard, and `tree_format` owns the
+witness. Every entry that moves, moves inside an `ordinal-fs-tree` operation, so
+no module performs a VCS-aware move — see
+[the withdrawn tree algebra](#withdrawn-tree-algebra) below.
+`tree_migrate` plans the conversion of prior layouts and
+`tree_migration_transaction` is its only mutation owner; neither is another live
+storage model.
+
+<a id="withdrawn-tree-algebra"></a>
+### The withdrawn tree algebra
+
+Grove used to carry its own tree algebra: a name model, a directory-walking
+reader, a path-walking appender, and a version-control-aware move. Increment 2
+of gh issue #13 moved each verb group onto `ordinal-fs-tree`, and the contract
+stage deleted what was left — `src/tree_id.rs`, `src/tree_read.rs`,
+`src/tree_grow.rs`, `src/tree_rename.rs`. Grove supplies a domain
+implementation and nothing else; there is no second reader to choose between and
+no second grammar to keep in step.
+
+**Three things that look like algebra deliberately survive**, and deleting one
+because its name begins `tree_` is the available mistake. `tree_lifecycle` keeps
+the lifecycle *around* the tree — the semantics task-tree-scheme fixed, and the
+root's own creation, which the library cannot perform because it has to reach the
+root in order to snapshot it. `tree_access` keeps grove's own guard, its
+transaction sentinels, and the grove-specific refusals that halt a tree with a
+pending migration or teardown. `tree_format` keeps `FORMAT`. None of the three
+has a library counterpart, and none of them is about ordinals or keys.
+
+**The deletion is checked rather than asserted**, in `tests/removed_surface.rs`,
+by the method that file already used for the removed launch environment:
+enumerate every module-shaped token under `src/` and `tests/` — prose included,
+since an essay arguing about a module that no longer exists is worse than no
+essay — and classify each against a live set read off disk and a listed
+withdrawn set. It carries a positive control (the tokeniser finds a withdrawn
+name in a line that has one) and a cross-tree control (the same tokeniser still
+finds every withdrawn name in `docs/` and the changelog, where the history
+legitimately lives). A clean grep alone would not be evidence: a broken
+instrument reads clean everywhere, and the first run of this one reported stale
+essays in twelve files that no `use`-line search would have reached.
+
+Because the cross-tree control reads this documentation, **the durable record of
+what was removed is load-bearing** — tidying the withdrawn modules out of the
+decision records and the changelog breaks the check rather than passing it, which
+is the intended direction.
 
 Picking is a stateless depth-first pre-order walk over numeric sibling
 positions. It returns the first live leaf and skips terminal entries. The one
@@ -708,7 +750,7 @@ promise process-interruption recovery, which is why they alone carry a witness.
 The residue is a hand-editable file in a directory tree, and recovering it is
 deleting it.
 
-#### Two locks, one at a time, while the flip is in flight
+#### Two locks, one at a time
 
 `reading-k31` moved `pick`, `select`, `brief-chain`, `kind` and `resolve` onto
 `ordinal-fs-tree`'s own guard (`src/task_tree.rs`). The library takes the same
@@ -717,9 +759,12 @@ outlives the root — but it takes it on **its own** descriptor, and `flock` is
 attached to an open file description rather than to a process. So the two guards
 do not share a lock, and a verb holding `tree_access::write` that called into the
 library's reader would block on itself forever. The rule that follows is per
-verb, not per module: a verb uses one guard or the other, never both, which is
-why the migrate stage moves whole verb groups at a time and why `tree_read`'s
-lock-neutral helpers stay alive until their last exclusive-guard caller has gone.
+verb, not per module: a verb uses one guard or the other, never both at once,
+which is why the migrate stage moved whole verb groups at a time. Both guards
+are still live and both are still needed: the library's is the authority on the
+tree, and grove's covers the two things the library cannot reach — the root's own
+creation, and the session-kind migration that converts a tree the live grammar
+cannot yet read.
 
 Two consumer-side obligations came out of that move, and every later flip leaf
 inherits both.
@@ -1072,8 +1117,10 @@ diff time by content similarity — *provided the commit stages the tree*, which
 is why `content/references/commit.md` says so and `tests/leaf_ops.rs` asserts
 the three outcomes rather than describing them. See
 [`grove-does-not-stage-its-own-renames`](adr/grove-does-not-stage-its-own-renames.md).
-`src/tree_rename.rs`'s trackedness dispatch survives only for the verbs the
-migrate stage has not reached, and the contract stage deletes it.
+Grove's own trackedness-dispatching move is gone — it survived the migrate stage
+only for the verbs that had not yet flipped, and the contract stage deleted it,
+so `repo::vcs_of` now branches the lane for launch, `llm_cli` and migration
+planning and for nothing that renames.
 
 Grove resolves that marker before a session exists and **states** the result in
 `${prompt}`, which is why sessions do not probe: every launch is told whether its
@@ -1504,8 +1551,10 @@ prescribing one command.
 | `loop_driver` | Foreground iteration, selection, child lifecycle, and completion signals. |
 | `driver_lease` | Driver lease, session epoch, signal-channel allocation, and ambient-session validation. |
 | `harness` | The provisioning-target registry — delivery destinations only. |
-| `repo`, `tree_rename` | Git/Jujutsu detection, scoped commits, the read-only trackedness probe, and the mutation seam. |
-| `tree_id`, `tree_read`, `tree_grow`, `tree_lifecycle`, `tree_access`, `tree_format` | Filesystem task-tree model, lock, and format witness. |
+| `repo` | Git/Jujutsu detection, scoped commits, and the read-only trackedness probe. |
+| `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has. |
+| `task_tree`, `task_grow` | The reading and growing verbs expressed through the library: one snapshot per command, path construction, key prediction, and the cross-reference lint. |
+| `tree_lifecycle`, `tree_access`, `tree_format` | The grove-only lifecycle around the tree, grove's own guard and its transaction sentinels, and the format witness. |
 | `tree_migrate`, `tree_migration_transaction` | Legacy classification, planning and admission, and its fail-closed mutation owner. |
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |

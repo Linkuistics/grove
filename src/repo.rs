@@ -4,8 +4,10 @@
 // beside it (colocated) — the symmetric VCS rule the using-jujutsu skill also
 // follows. Git remains the interface only in not-jj-enabled trees. The probe
 // is a thin filesystem walk, not an abstraction layer: the handful of call
-// sites (launch, llm_cli, tree_rename, tree_migrate) each branch on it where
-// the two VCSes genuinely differ.
+// sites (launch, llm_cli, tree_migrate) each branch on it where the two VCSes
+// genuinely differ. Renaming is no longer among them: since the flip every
+// entry moves inside an `ordinal-fs-tree` operation, which is a plain
+// `rename(2)` on either lane (`docs/adr/grove-does-not-stage-its-own-renames.md`).
 
 use anyhow::{anyhow, bail, Context, Result};
 use std::fs;

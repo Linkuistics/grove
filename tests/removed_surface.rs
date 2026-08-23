@@ -1,5 +1,11 @@
-//! The removed launch-policy surface, asserted as removed — by **enumeration**,
-//! not by a list of things to look for.
+//! Surfaces the design removed, asserted as removed — by **enumeration**, not by
+//! a list of things to look for.
+//!
+//! Two of them, sharing one method and nothing else: the **launch-policy
+//! environment**, which the routing rework deleted, and the **tree algebra**,
+//! which `sweep-k37` deleted once `ordinal-fs-tree` owned it (gh issue #13,
+//! increment 2). The second lives at the bottom of the file and is argued
+//! there; everything down to it is the first.
 //!
 //! The obvious way to write this file is a constant holding the sixteen
 //! variables the design deleted, checked one by one. That version answers only
@@ -845,4 +851,237 @@ fn the_launch_fixture_still_observes_a_configuration_driven_change() {
         lines[0], lines[1],
         "the fixture must be able to observe a changed launch"
     );
+}
+
+// ---------------------------------------------------------------------------
+// The withdrawn tree algebra
+//
+// `sweep-k37`'s claim, and it is the same *shape* of claim as the one above:
+// something the design deleted is gone, and a clean grep is not what shows it.
+// grove's tree algebra moved into `ordinal-fs-tree` one verb group at a time
+// (gh issue #13, increment 2), and the four modules that carried it were
+// deleted once their last caller had gone.
+//
+// The enumeration is what makes this more than a pattern list. Candidates are
+// every module-shaped `tree_*` / `task_*` token occurring anywhere under `src/`
+// and `tests/` — code and prose alike, because an essay arguing about a module
+// that no longer exists is worse than no essay — and the **live** half of the
+// classification comes off disk rather than from a constant, so a module added
+// tomorrow classifies without anyone editing this file.
+
+/// The modules `sweep-k37` deleted.
+///
+/// Listed, unlike the live set, because absence cannot be enumerated: nothing on
+/// disk can tell you the name of a file that is not there. What keeps the list
+/// from becoming a fossil is the cross-tree control below — each of these must
+/// still be discussed somewhere in `docs/` or the changelog, so an entry naming
+/// a module grove never had fails here.
+const WITHDRAWN_TREE_MODULES: &[&str] = &["tree_id", "tree_read", "tree_grow", "tree_rename"];
+
+/// Every module-shaped `tree_*` / `task_*` token on one line.
+///
+/// The same two lexical rules [`names_in`] earned: a match starts at a
+/// non-identifier boundary, and it runs to the end of the identifier. A token
+/// this yields is not necessarily a *module* — `task_template_body` is a
+/// function — which is why the classification consults disk and this list, and
+/// never assumes shape implies role.
+fn module_tokens_in(line: &str) -> Vec<String> {
+    let bytes = line.as_bytes();
+    let mut found = Vec::new();
+    for prefix in ["tree_", "task_"] {
+        let mut from = 0;
+        while let Some(offset) = line[from..].find(prefix) {
+            let start = from + offset;
+            let preceded_by_identifier =
+                start > 0 && (bytes[start - 1].is_ascii_alphanumeric() || bytes[start - 1] == b'_');
+            let mut end = start + prefix.len();
+            while end < bytes.len()
+                && (bytes[end].is_ascii_lowercase()
+                    || bytes[end].is_ascii_digit()
+                    || bytes[end] == b'_')
+            {
+                end += 1;
+            }
+            if !preceded_by_identifier && end > start + prefix.len() {
+                found.push(line[start..end].trim_end_matches('_').to_string());
+            }
+            from = end.max(start + prefix.len());
+        }
+    }
+    found
+}
+
+/// Every module-token occurrence under the given roots, recursively.
+///
+/// This file is skipped for [`collect`]'s reason: it names all four withdrawn
+/// modules, so including it would make the table report itself.
+fn module_occurrences(roots: &[PathBuf]) -> Vec<Occurrence> {
+    fn walk(path: &Path, out: &mut Vec<Occurrence>) {
+        if path.ends_with(this_file().file_name().unwrap())
+            && path.parent().is_some_and(|p| p.ends_with("tests"))
+        {
+            return;
+        }
+        if path.is_dir() {
+            let mut entries: Vec<_> = fs::read_dir(path)
+                .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()))
+                .map(|entry| entry.unwrap().path())
+                .collect();
+            entries.sort();
+            for entry in entries {
+                walk(&entry, out);
+            }
+            return;
+        }
+        let Ok(text) = fs::read_to_string(path) else {
+            return;
+        };
+        let relative = path.strip_prefix(manifest_dir()).unwrap_or(path);
+        for (index, line) in text.lines().enumerate() {
+            for name in module_tokens_in(line) {
+                out.push(Occurrence {
+                    name,
+                    file: relative.to_path_buf(),
+                    line: index + 1,
+                });
+            }
+        }
+    }
+
+    let mut out = Vec::new();
+    for root in roots {
+        walk(root, &mut out);
+    }
+    out
+}
+
+/// The modules `src/` actually holds, read off disk — a `foo.rs` file or a
+/// `foo/` directory beside it.
+fn live_modules() -> BTreeSet<String> {
+    fs::read_dir(manifest_dir().join("src"))
+        .expect("src/ must be readable")
+        .map(|entry| entry.unwrap().path())
+        .filter_map(|path| {
+            let name = path.file_name()?.to_str()?.to_owned();
+            if path.is_dir() {
+                return Some(name);
+            }
+            name.strip_suffix(".rs").map(str::to_owned)
+        })
+        .collect()
+}
+
+/// The code roots the module sweep is responsible for: production and the suite.
+/// `docs/` and `content/` are deliberately **out**, and they are the cross-tree
+/// control below rather than an oversight — a withdrawn module is history, and
+/// history is what a changelog and a decision record are for.
+fn code_roots() -> Vec<PathBuf> {
+    let base = manifest_dir();
+    ["src", "tests"].iter().map(|r| base.join(r)).collect()
+}
+
+#[test]
+fn no_withdrawn_tree_module_is_named_anywhere_in_grove_code() {
+    let live = live_modules();
+    let withdrawn: BTreeSet<&str> = WITHDRAWN_TREE_MODULES.iter().copied().collect();
+
+    let mut findings = Vec::new();
+    let mut classified = 0_usize;
+    for occurrence in module_occurrences(&code_roots()) {
+        if withdrawn.contains(occurrence.name.as_str()) {
+            findings.push(occurrence.clone());
+        }
+        if live.contains(&occurrence.name) || withdrawn.contains(occurrence.name.as_str()) {
+            classified += 1;
+        }
+    }
+
+    assert!(
+        classified >= live.len(),
+        "the module sweep matched only {classified} module references across \
+         {} live modules — the walk is mis-scoped, and a mis-scoped walk reports \
+         a clean tree for the wrong reason",
+        live.len()
+    );
+    assert!(
+        findings.is_empty(),
+        "these name a tree module `sweep-k37` deleted — the algebra is \
+         `ordinal-fs-tree`'s now, and an essay arguing about a module that no \
+         longer exists is worse than no essay:\n{}",
+        render(&findings)
+    );
+}
+
+#[test]
+fn every_module_file_on_disk_is_declared_and_every_declaration_has_a_file() {
+    let live = live_modules();
+    let text = fs::read_to_string(manifest_dir().join("src/lib.rs")).unwrap();
+    let declared: BTreeSet<String> = text
+        .lines()
+        .filter_map(|line| {
+            let rest = line.trim().strip_prefix("pub mod ").or_else(|| {
+                line.trim()
+                    .strip_prefix("pub(crate) mod ")
+                    .or_else(|| line.trim().strip_prefix("mod "))
+            })?;
+            rest.strip_suffix(';').map(str::to_owned)
+        })
+        .collect();
+
+    // `lib.rs` and `main.rs` are the crate roots, not modules of it.
+    let expected: BTreeSet<String> = live
+        .iter()
+        .filter(|name| !matches!(name.as_str(), "lib" | "main" | "bin"))
+        .cloned()
+        .collect();
+
+    assert_eq!(
+        expected, declared,
+        "a module file with no declaration is dead weight the compiler never \
+         mentions, and a declaration with no file does not build — this is the \
+         check that makes `live_modules` reading disk equivalent to reading \
+         `lib.rs`, which is what lets the sweep above derive its live set from \
+         either"
+    );
+}
+
+#[test]
+fn the_module_sweep_finds_a_withdrawn_module_and_still_finds_it_in_the_docs() {
+    // Positive control: the instrument finds the class when the class is there.
+    // Without this, a clean sweep and a broken tokeniser are the same reading.
+    assert_eq!(
+        module_tokens_in("        crate::tree_id::parse(&name)"),
+        vec!["tree_id".to_owned()],
+        "the tokeniser must find a withdrawn module in a line that carries one"
+    );
+    assert_eq!(
+        module_tokens_in("use crate::task_name::TaskName;"),
+        vec!["task_name".to_owned()],
+        "and a live one"
+    );
+    // …and it must not invent one out of an identifier that merely ends that way.
+    assert!(
+        module_tokens_in("let subtask_grow = 1;").is_empty(),
+        "a match must start at an identifier boundary"
+    );
+
+    // Cross-tree control: the same tokeniser over the surfaces where a withdrawn
+    // module legitimately still lives. `docs/` and the changelog *describe* what
+    // grove used to be, so every entry in the table must be found there — which
+    // proves the instrument works on the class and keeps the table from becoming
+    // a fossil naming modules grove never had.
+    let base = manifest_dir();
+    let history = module_occurrences(&[base.join("docs"), base.join("CHANGELOG.md")]);
+    let found: BTreeSet<&str> = history.iter().map(|o| o.name.as_str()).collect();
+    for withdrawn in WITHDRAWN_TREE_MODULES {
+        assert!(
+            found.contains(withdrawn),
+            "{withdrawn} is named nowhere in docs/ or the changelog. Three \
+             things look like this and only the last is benign: the sweep's \
+             instrument is broken; the table names a module grove never had; or \
+             the durable record of the deletion was tidied away, in which case \
+             put it back rather than relaxing this — a removal nothing \
+             remembers is a removal nothing can check."
+        );
+    }
 }

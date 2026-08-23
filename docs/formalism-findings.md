@@ -2798,3 +2798,72 @@ guesses are not.
 | is it gone? — "this pattern/module/surface has been removed" | none — enumerate then classify, with a positive and a cross-tree control | 025: a clean `cargo build` discharged the *linkage* claim and said nothing about prose; enumerating every module-shaped token and classifying it against a live set read off disk found thirty-three stale references in twelve files, not one of them a `use` line. A pattern list is complete only as far as the list; an enumeration is complete by construction |
 | a predicate was just tightened — "what else was built against the loose one?" | none — grep the *test* side for filters encoding the old rule | 025: re-aiming one oracle at a canonical grammar left the same file's candidate scanner and shape explainer still matching the lenient rule, so the sweep reported a clean corpus about a class it never handed to the parser. A duplicated leniency is free while the parser is lenient and silent in both directions the moment it is not |
 | a claim about the repo itself — "did I sweep the whole claim, or the files I thought of?" | none — read the summary and overview layers as a separate pass | 025: the token sweep could not reach `Cargo.toml` from any path scope rooted at `src/`, and two more stale claims sat in files it *did* cover under wordings it did not match. A token sweep finds names; a stale claim need not contain one |
+
+---
+
+## Distillation — where each entry landed
+
+`formalism-skill-k38` turned this log into
+`plugins/linkuistics/skills/model-led-development/`. The log stays as it is: it
+is the evidence, and the skill's citation keys (`[003]`, `[017]`, …) are these
+entry numbers, so a reader who doubts a rule can come back here and check it.
+
+**Every one of the twenty-five entries is cited.** What follows is therefore an
+account of *how much* of each survived and, where an entry contributed less than
+it holds, why — because silent omission and considered omission look identical
+afterwards.
+
+| entry | where it landed | what did not survive, and why |
+|---|---|---|
+| 001 | the reachability row, and the free question about isomorphisms | its three defects are the baseline's, not routing evidence; 002 supersedes it as a routing datum |
+| 002 | the structural row, the *already guaranteed* question, isomorphism, scope traps | the eight findings themselves — they are about one design, not about the tool |
+| 003 | the state-counting rule, the behavioural/interruption/ordering rows, all four modelling traps, the dead-tool defence | the shift-order finding as such; it is the design's, and its *shape* is what the skill carries |
+| 004 | witnesses-are-the-test-suite, the reading order, the *untested* property-based row | — |
+| 005 | quote-the-predicate, the partial-discharge rule, the adversarial reader | — |
+| 006 | read-the-misses-first, mutation controls, the platform-untestable row, the second *untested* row | — |
+| 007 | mutate the assumption, not the happy path | its four specific findings; the sharpening is the transferable half |
+| 008 | `k` keys want `k` controls, mutate the repair, run a finding's counterexample, use the language's lexer | — |
+| 009 | the sizing rule, the idealisation list as refusal classes, one-control-per-mechanism, comments hide unenforced invariants | — |
+| 010 | count mechanisms **across** boundaries | its five findings; the counting lesson is what generalises |
+| 011 | the exclusion list is the worklist, the can-the-library-check question, re-run the unchanged model as a control | — |
+| 012 | witnesses before invariants, the one-instance witness names the control, quantify prose over the property | — |
+| 013 | a predicate discriminates and does not characterise, name the value behind each clause, prose in a checked file is unchecked | — |
+| 014 | name the argument that reaches each enumerated case, rarity measures the simulator, a forced order is not a rule, recovery advice as a test shape | — |
+| 015 | the opaque-sort question (`Eq`/`Ord`/`Hash` are coarser than identity) | the conformance-kit reasoning about congruences, which is specific to that kit's design |
+| 016 | read two model functions side by side, refusal payload by subtraction, the inode rather than the content, an edge case built into the layer beneath | — |
+| 017 | the whole *what this evidence does not support* section, and the *has this prose been through a model?* replacement | the probe's mechanics (the scoring scaffold, the arm-B isolation conditions) — reproducible from the entry, not needed to act on the result |
+| 018 | routing to *neither*, the argument surface discharges an obligation, plant-the-violation probes | — |
+| 019 | the design-time reachability table, whose-words-does-this-error-speak, count-then-read | — |
+| 020 | one mutation per reported obligation, read a kit's parameter docs as a checklist | — |
+| 021 | put each clause beside the glossary entry, stronger-preconditions pre-empt refusals, and the *log as instrument* note | its ten-variant verb-by-verb table, which is grove's |
+| 022 | write the fixture's filenames out in full, a by-key surface owes a duplicate-key row | — |
+| 023 | *we keep our own check in front of it* is not a reachable row, fold-order refusals need the interpreter | — |
+| 024 | an error message read as a specification, mark a table *checked by X against revision Y*, and the 0-for-2 counterfactual record | — |
+| 025 | enumerate-then-classify, the tightened-predicate sweep, the summary-layer pass, equivalence tests | — |
+
+### One thing the skill carries that no entry stated in full
+
+Entry 025 names **equivalence tests between two live implementations** as one of
+three consumer-side instruments and stops there. The scheduling rule that makes
+the instrument usable was stated at the increment's close rather than in an
+entry, and is recorded here because `.grove/` does not survive the finish:
+
+> While a verb group is mid-migration there are two live implementations of one
+> contract, so an equivalence test costs less than the review that would
+> otherwise stand in for it, and it **fails** rather than reassures. **Those
+> tests die with the old side**, which is why the evidence has to be spent before
+> the contract stage rather than after. Three of seven migration leaves left
+> every one of grove's ~130 CLI-contract tests untouched on the first run, and
+> the changes the other four forced were each recorded with the reason they were
+> forced — which is what turned *this is a pure refactor* into a measured claim
+> instead of an argued one.
+
+### What the distillation could not verify
+
+The skill was **not** pressure-tested against a no-skill control, which
+`superpowers:writing-skills` asks for and `linkuistics:authoring-conventions`
+scopes to behaviour-shaping wording. It is a reference and routing guide, which
+that house note exempts — but the exemption is a judgement, not a measurement,
+and this log's own standard is to say so rather than imply the check was made.
+The instrument that fits is the one entry 017 names: a measure written by a party
+that authored neither the skill nor its baseline.

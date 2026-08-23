@@ -364,3 +364,24 @@ those alone:
   the compiler cannot read. That is routing evidence about when a model earns its
   place, and it is `formalism-skill-k38`'s to carry, not this brief's to
   generalise.
+
+**The second experiment is closed, and this brief's third *Done when* clause is
+met.** `formalism-skill-k38` distilled `docs/formalism-findings.md` into
+`plugins/linkuistics/skills/model-led-development/` — a body carrying the routing
+rule, the free questions, the model-writing discipline and the reading order,
+over three reference files (the full routing table, the six non-formal
+instruments, and the accumulate-then-distil log format). Every rule carries the
+entry numbers behind it; **all twenty-five entries are cited**, so the required
+account of omissions is an account of *depth* rather than of exclusion and lives
+in the log's new *Distillation* section. Three facts a finish session needs:
+
+- **The log stays.** It is the evidence the skill's `[NNN]` keys point at, and it
+  now also holds the two things `.grove/` was the only home for: the
+  equivalence-test scheduling rule from increment 2's close, and the record that
+  the skill was **not** pressure-tested against a no-skill control.
+- **Nothing in `content/` cites the new skill**, deliberately — grove's
+  methodology corpus owes a plugin-absent fallback for every `linkuistics:`
+  citation it makes, and this skill is for the workstream's readers rather than
+  for a grove session.
+- **The whole suite is green at 1210 passing**, the count `grove-flip-k28` left;
+  this leaf changed no Rust.

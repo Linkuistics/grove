@@ -28,6 +28,7 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | `codebase-design` | by description | deep-module design vocabulary — Ousterhout depth + Feathers seams, language-neutral |
 | `decision-records` | by description | ADRs as a minimum coherent set describing the design's current state — current-state over changelog, identity by slug not number |
 | `doubt-driven-development` | by description | in-flight adversarial verify — spawn a fresh-context reviewer to disprove a non-trivial decision before it stands |
+| `model-led-development` | by description | route a specification question to the instrument that answers it — Alloy, Quint, a type system, or no model at all — then let the checked model lead the implementation; the routing table, the non-formal instruments and the log format are in `references/` |
 | `simplify-project` | by description | contract-preserving repository simplification — consolidate current-state docs, remove proven-dead artifacts, reconcile every consumer |
 | `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else — command surface and the git→jj mapping in `references/` |
 | `using-codebase-memory` | by description | query a codebase knowledge graph from any shell via the `codebase-memory-mcp` CLI; the silent failure modes are in `references/` |

@@ -34,6 +34,18 @@ from [`mattpocock/skills`](https://github.com/mattpocock/skills) at `b8be62ff`
 (MIT). The minimum-coherent-set framing, in-place rework, and slug identity are
 original to Linkuistics.
 
+### `model-led-development`
+
+Original to Linkuistics, and unusual in this file for having **no external prior
+art at all**. Every rule in it is distilled from `docs/formalism-findings.md` in
+this repository — a 25-entry log kept across one workstream that extracted a
+tree-on-disk library under two formalisms (Alloy 6.2 on its structure, Quint
+0.32.0 on its operations), with the model written before each operation was
+implemented. The citation keys inside the skill (`[003]`, `[017]`, …) are that
+log's entry numbers, and the log's own distillation note records where each entry
+landed. The named tools are third-party: [Alloy](https://alloytools.org/) and
+[Quint](https://quint-lang.org/) are cited as instruments, not adapted from.
+
 ### `doubt-driven-development`
 
 Adapted in independent prose from

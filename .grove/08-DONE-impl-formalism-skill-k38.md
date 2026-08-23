@@ -82,3 +82,66 @@ guarantees consistency with itself and never that the right properties were
 stated. That is one of the findings and it is also this skill's own honesty
 clause: the skill is prose about how to write specifications, and nothing checks
 it.
+
+## Decisions (running log)
+
+**The skill is `model-led-development`, and the name is the sibling of
+`doubt-driven-development` on purpose.** Both are in-flight verification
+disciplines in the same plugin, and the parallel is routing signal. Rejected
+`choosing-a-formalism` (undersells the implementation half) and `formal-modelling`
+(names the activity, not the decision — and the corpus's strongest routing result
+is that the answer is often *no model at all*, which a name about modelling hides).
+
+**The description triggers on questions and still names the tools.** The house
+rule in `linkuistics:authoring-conventions` overrides superpowers' when-only
+shape, so the capability clause leads; the tool names stay in it for keyword
+coverage, and every clause of the "Use when" half is question-shaped, which is
+what this leaf's *Done when* asks for. 511 characters, inside the corpus range
+(guardrail 608, using-jujutsu 562) and the 1024-char frontmatter limit.
+
+**Evidence is cited by entry number, not inlined.** Every rule carries `[NNN]`
+keys naming entries in `docs/formalism-findings.md`, which stays exactly as it is
+— it is the evidence, and a reader who doubts a rule can check it. The
+alternative, inlining each entry's evidence, would have produced a skill nobody
+reads and a log nobody keeps.
+
+**Three reference files, one level deep**, per the house progressive-disclosure
+thresholds: `routing-table.md` (the full question-to-instrument table, which is
+the corpus's own biggest asset), `instruments.md` (the six non-formal instruments
+and the instrument-reports-less-than-it-has failure in its five dresses), and
+`keeping-a-log.md` (the accumulate-then-distil argument and the six-field format —
+because the practice is not reproducible without it). Body 284 lines, under the
+~500 threshold.
+
+**All twenty-five entries are cited, so the omission account is an account of
+*depth*, not of exclusion.** It lives in the log rather than in the skill, as a
+new *Distillation* section: it is bookkeeping about a corpus the skill's readers
+cannot see, and putting it in the skill would have been noise for them and lost
+for the log's own readers.
+
+**One claim the skill carries had no findings entry behind it, and the fix was to
+give it one.** The equivalence-test *scheduling* rule — those tests die with the
+old side, so the evidence must be spent before the contract stage — was stated at
+increment 2's close in `.grove/BRIEF.md`, which does not survive the finish.
+Entry 025 names the instrument and stops there. Rather than let a durable skill
+rest on an evaporating source, the rule is now recorded in the log's distillation
+note and the skill points at it. This leaf's *Done when* clause about traceability
+is what caught it.
+
+**Two figures in the sizing table were superseded and are now the final ones.**
+Entries 009, 012 and 014 state a leaf's model-claim ratio before its review;
+011, 013 and 015 revise each upward. The skill quotes the revised counts and
+says which, because a ratio quoted from the wrong side of a review is exactly the
+drift entry 005 is about.
+
+**The skill was not pressure-tested against a no-skill control, and says so.**
+`superpowers:writing-skills` asks for it; `linkuistics:authoring-conventions`
+scopes it to behaviour-shaping wording and exempts reference/routing guides. The
+exemption is a judgement rather than a measurement, and this session's harness
+forbids dispatching subagents unasked, so the honest move was to record the
+absence — in the log's distillation note — rather than imply the check was made.
+That is entry 003's own standard applied to this artifact.
+
+**No ADR.** Each decision above fails the AND test on *hard to reverse*; the
+placement of the skill was already settled by the root brief rather than
+established here.

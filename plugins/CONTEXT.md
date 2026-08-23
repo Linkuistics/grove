@@ -208,6 +208,6 @@ skill" when the distinction matters; see `CONTEXT-MAP.md`.
 > install skips it, out loud.
 > **Dev:** And a new skill I write without the key just goes everywhere?
 > **Expert:** Nowhere, and you get told — the *skip-loudly default*. Silent
-> either way would have been wrong: 15 of our 16 are portable, so
+> either way would have been wrong: 16 of our 17 are portable, so
 > install-everywhere would have mis-installed the one that matters and
-> Claude-only would have withheld the fifteen that don't.
+> Claude-only would have withheld the sixteen that don't.

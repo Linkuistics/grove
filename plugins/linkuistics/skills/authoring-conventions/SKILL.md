@@ -59,7 +59,7 @@ A **content list** ("rustfmt, thiserror, Tokio") elaborates the capability and i
 A **step sequence** ("first … then … then …") is the forbidden shape.
 
 **Byte budget.** Keep the whole frontmatter under the **1024-char** spec limit
-(`anthropics-S1`); our descriptions run ≤~470. Ignore hermes' ≤60-char cap
+(`anthropics-S1`); our descriptions run ≤~610. Ignore hermes' ≤60-char cap
 (`hermes-S2`) — far too tight for a capability + trigger sentence.
 
 ## Conventions adopted from upstream (pointers, not copies)
@@ -90,10 +90,10 @@ our house position.
   **body under ~500 lines**; a reference file over **~300 lines gets a table of
   contents**; references stay **one level deep**; and **never `@path` links** — `@`
   force-loads the file immediately, burning context before it is needed. Cross-reference
-  other skills by **name**, not path. Four skills now split a
+  other skills by **name**, not path. Five skills now split a
   `references/` file, one level deep — `cli-tool-design`, `doubt-driven-development`,
-  `using-jujutsu` and `using-codebase-memory`; each keeps the rules that decide
-  behaviour in the body and routes only the detail.
+  `using-jujutsu`, `using-codebase-memory` and `model-led-development`; each keeps
+  the rules that decide behaviour in the body and routes only the detail.
 - **Hunt no-ops sentence by sentence, not just line by line** (`mattpocock/skills`
   `aa7ed40`). Run the no-op test — does this change behaviour versus the
   no-skill default? — on each *sentence* in isolation; when one fails, delete the
@@ -103,7 +103,7 @@ our house position.
 ## House lever: user-invoked vs model-invoked
 
 A skill is **model-invoked** by default — its `description` sits in context every session
-so the agent can auto-fire it on a match. Thirteen of our fifteen shipped skills are
+so the agent can auto-fire it on a match. Fourteen of our sixteen shipped skills are
 model-invoked, which is **correct**: they are reference/style guides that *should*
 auto-fire on a language or task match (`mattpocock-S3`).
 

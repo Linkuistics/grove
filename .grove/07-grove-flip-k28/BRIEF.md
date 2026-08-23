@@ -791,6 +791,114 @@ production caller left anywhere in grove** and are `#[cfg(test)]` until
   point for the entry it may owe: three of six flip leaves have now reached for no
   model at all.
 
+**`migration-k36` (migrate).** The whole suite is **1272 passing**, up from
+`lifecycle-k35`'s 1266, and the six are this leaf's own. **Not one existing test
+changed** — not an assertion, not a name, not a fixture, not a prose header —
+which makes this the third consecutive migrate leaf to leave the ~130
+CLI-contract tests untouched and the second to leave the unit tests untouched as
+well. `tree_migrate` names no item from `tree_id` in production; the module's
+recognisers are frozen and private, and its one renderer is `task_name`'s.
+
+- **Two grammars meet in this module and they are deliberately not one — this is
+  the seam finding of the leaf, and no brief predicted it.** Migration's *input*
+  is a tree written before the live grammar existed and its *output* is a
+  current-format tree, so its two halves carry **opposite** obligations. A
+  recogniser must never narrow: its false negative classifies a real workstream
+  `Format::Empty`, stamps `FORMAT` over it and loses the tree, which is the loss
+  `Format`'s own doc comment exists for. A renderer must always track: what it
+  writes is read by every verb. Sharing one rule between them satisfies either by
+  breaking the other — and the sharing is the *tempting* move, because the rules
+  are identical today and the module's own comment said so
+  (*"the two grammars' slug rules agree, so there is no second validator to
+  keep"*). So `is_legacy_slug` is a deliberate **copy** of `Slug::new`'s rule, and
+  what holds the copy honest is a test rather than a call:
+  `frozen_legacy_slug_rule_still_agrees_with_the_live_grammar` fails the day they
+  part, and failing is the point — it is not a demand that the live grammar stay
+  put, it is a demand that someone *decide* what a legacy tree spelled that way
+  should do. **What a later flip leaf should take from it:** shared code between a
+  legacy reader and a live writer is a coupling that looks like de-duplication,
+  and the direction each side is allowed to move in is what tells them apart.
+
+- **The `pure refactor` premise is measured here rather than argued, twice, and
+  both instruments die with the sweep.** This leaf's *Done when* asks for
+  byte-identical output, and the withdrawn reader is still compiled, so both
+  implementations of both contracts are live at once — `reading-k31`'s
+  equivalence-test finding applied to a *renderer* and a *matcher* instead of a
+  reader. `both_renderers_spell_every_migrated_leaf_identically` drives
+  `tree_id::Entry::name` and `TaskName`'s `Display` over one corpus, including
+  shapes no fixture reaches (position 0 and 100, `u32::MAX` as a key, every
+  outcome). `the_frozen_matchers_admit_exactly_what_the_withdrawn_reader_did`
+  runs the frozen matchers against `tree_id::parse` and `tree_id::validate_slug`
+  over a **generated** cross product — position form × infix × slug × key form ×
+  suffix, five figures of names — rather than a listed corpus, because a listed corpus is a
+  second copy of the transcriber's own idea of what matters, and this node's brief
+  warns that a transcription of `tree_id` is a bug. Both carry their own control:
+  the corpus asserts a floor on how many names it *admits*, since agreement
+  between two functions that answer `None` to everything is not evidence.
+
+- **The in-session reviewer was not spent, and what replaced it is stronger.**
+  The claim with teeth was the hand-derived node matcher, which is exactly the
+  narrow-claim-the-compiler-cannot-reach the allowance is for. A differential
+  against the function it replaces settles the same claim by experiment, so the
+  allowance went unspent and the four mutants below are what a reviewer would have
+  had to argue about instead.
+
+- **Two mutants survived, and they are equivalent rather than uncaught.** The
+  matcher's `.md` guard and its outcome-infix guard can both be deleted without
+  failing anything: a `.md` tail leaves the terminal key non-numeric and an
+  uppercase infix leaves the slug outside the character set, so each is refused a
+  line later anyway. The corpus is what establishes this rather than the argument
+  — it crosses both features against everything and still agrees. Both guards are
+  **kept and labelled redundant in place**, because they state rules a reader
+  would otherwise derive, and because a later change to the key or slug rule would
+  make them load-bearing without announcing it. The other two mutants failed as
+  they should: admitting an empty slug, and perturbing the rendered ordinal (nine
+  tests).
+
+- **A lenient *node directory* survives migration, and the decision is recorded
+  rather than left in the code.** Leaves are re-rendered — a legacy `5-task-k1.md`
+  lands canonically as `05-impl-task-k1.md`, which is what `{:02}` always did and
+  is now the domain type's rule rather than a second copy of it. Directories are
+  the one entry migration never renames, because a planned file's source and
+  destination share a parent and the migration transaction leans on that, so a
+  hand-edited `5-node-k1/` passes through and is then refused by name with the
+  `mv` in the message. Recognising it leniently and letting it halt **loudly**
+  beats not recognising it, which loses the classification and the subtree with
+  it. `docs/adr/task-names-are-canonical.md` is reworked in place — the migration
+  case its corpus argument did not cover, and *repair the spelling during
+  migration* added as a considered-and-rejected option with the invariant that
+  rejects it. **No new ADR**: the AND test fails on *hard to reverse*, and the
+  decision it turns on is already recorded.
+
+- **`tree_id` is production-dead as of this leaf, and unlike `tree_grow` and
+  `tree_read` the compiler cannot be made to say so.** The claim is held by a
+  control run in both directions: gating the module `#[cfg(test)]` leaves
+  `cargo build --lib` **clean**, and `cargo check --all-targets` then fails with
+  `E0432` in exactly one place. That one place is `tests/session_kind_guidance.rs`,
+  an *integration* test, which reaches `grove::tree_id` through the public API
+  where the gate does not apply — so the module must stay `pub` until it is
+  deleted. **What `sweep-k37` inherits is not a `use` line.** That file's oracle
+  for whether a guidance example is a well-formed leaf **is** `tree_id::parse`,
+  the lenient grammar, and its prose says that call is *"the same call `pick`,
+  `resolve` and every … makes"* — false since `reading-k31`. Re-aiming the oracle
+  at `task_name` is the deletion's real cost, and the **falsifiable prediction**
+  is that doing so surfaces at least one guidance example the canonical grammar
+  refuses and the lenient one accepted. That prediction is this leaf's answer to
+  `promotion-k34`'s *grep the strings, not just the tests*.
+
+- **Nothing to transcribe from this node's reachability table, and that is a
+  statement rather than an omission.** `tree_migrate` calls no library operation
+  at all — it is pure planning, and migration reaches the library only through
+  `tree_lifecycle::transition_to_current`, whose rows `lifecycle-k35` already
+  transcribed. `refusals-k30`'s scheduled check therefore stands where that leaf
+  left it, four corrections in five leaves, and this leaf neither confirms nor
+  corrects it.
+
+- **No formalism was reached for and none is owed**, which is `reading-k31`'s and
+  `lifecycle-k35`'s position. Four of seven flip leaves have now reached for no
+  model at all — one more data point for the entry `sweep-k37` may owe, and the
+  reading `lifecycle-k35` invited.
+
 ## Pointers
 
 - `docs/ordinal-fs-tree/ARCHITECTURE.md` — the seam, the seven obligations, the

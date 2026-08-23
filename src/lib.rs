@@ -43,13 +43,13 @@ pub mod provision;
 pub mod repo;
 pub mod session_config;
 // `task_name` is Grove's implementation of `ordinal_fs_tree::EntryName` — the
-// whole seam onto the extracted tree library (gh issue #13, increment 2). It is
-// the *expand* stage and nothing consumes it yet: `tree_id` is still the live
-// grammar, and each verb group moves across in its own leaf. The two grammars
-// differ in exactly one place that matters — this one is canonical where
-// `tree_id::parse_position` is lenient — so read a call site's `use` line before
-// concluding which model it speaks, exactly as this crate's second name grammar
-// always demanded.
+// whole seam onto the extracted tree library (gh issue #13, increment 2), and
+// since `migration-k36` it is the **only** grammar production speaks. Each verb
+// group moved across in its own leaf and the migration planner's renderer came
+// last, so there is no longer a call site whose `use` line has to be read to
+// know which model it means. The two grammars differ in exactly one place that
+// matters — this one is canonical where `tree_id::parse_position` is lenient —
+// which is why the order mattered while both were live.
 pub mod task_name;
 // `task_grow` is `leaf-add`, `leaf-add-pair` and `leaf-insert` expressed through
 // that seam — the *migrate* stage's third leaf. What is left in it is what the
@@ -119,6 +119,14 @@ pub mod tree_format;
 // until `sweep-k37` removes both together.
 #[cfg(test)]
 pub(crate) mod tree_grow;
+// Dead in production since `migration-k36` took the migration planner's
+// recogniser and renderer across — the last production caller of any item in it.
+// Unlike `tree_grow` and `tree_read` it is **not** `#[cfg(test)]`, and cannot be:
+// `tests/session_kind_guidance.rs` reaches it as an integration test, through the
+// public API, where that gate does not apply. So the compiler cannot hold the
+// dead-module claim here the way `lifecycle-k35` had it hold theirs, and
+// `sweep-k37` inherits both the deletion and the oracle that test is built on
+// (see this increment's brief under `migration-k36`).
 pub mod tree_id;
 pub mod tree_lifecycle;
 pub(crate) mod tree_migrate;

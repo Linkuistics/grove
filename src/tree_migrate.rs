@@ -26,6 +26,24 @@
 // it found. What is left of the two readers is a private name matcher each, under
 // *legacy recognition* below, which read nothing.
 //
+// **Two grammars meet here, and they are deliberately not one.** Migration's
+// *input* is a tree written before the live grammar existed, so every recogniser
+// in this module is frozen — a private matcher, checked against no live rule (see
+// `is_legacy_slug`). Its *output* is a current-format tree, so the one place a
+// name is rendered goes through `task_name::TaskName` and nothing else. The two
+// obligations point opposite ways: a recogniser must never narrow, because its
+// false negative classifies a real workstream `Empty`; a renderer must always
+// track, because its output is read by every verb. Sharing one rule between them
+// would satisfy either by breaking the other, so a test holds them together
+// instead — `frozen_legacy_slug_rule_still_agrees_with_the_live_grammar`.
+//
+// One consequence is worth stating where it is decided: a legacy **node
+// directory** is the one entry migration never renames, so a hand-typed `5-` on a
+// directory passes through and is then refused by the live grammar, which names
+// the `mv` that fixes it. Recognising it leniently and letting it halt loudly
+// beats not recognising it at all, which loses the classification and with it the
+// subtree.
+//
 // **Structure: planning only.** Everything here is pure — it reads the directory
 // shape and source bytes and mutates nothing, which is what makes the mapping
 // unit-testable without a repository.
@@ -39,8 +57,9 @@
 // `tree_lifecycle::transition_to_current` exactly once instead of sequencing two
 // migration APIs.
 use crate::leaf::Kind;
-use crate::tree_id::{self, Entry};
+use crate::task_name::{Outcome, Parts, Slug, TaskName};
 use anyhow::{bail, Context, Result};
+use ordinal_fs_tree::{Key, Ordinal};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -246,8 +265,9 @@ fn is_v1_flat_name(name: &str) -> bool {
         return false;
     }
 
-    // The key `[<digits>]`, then `-<slug>` under the current slug grammar (the
-    // two grammars' slug rules agree, so there is no second validator to keep).
+    // The key `[<digits>]`, then `-<slug>`, checked against this module's own
+    // frozen shape rule rather than against the live grammar — see
+    // [`is_withdrawn_layout_slug`].
     let Some(rest) = rest.strip_prefix('[') else {
         return false;
     };
@@ -260,7 +280,32 @@ fn is_v1_flat_name(name: &str) -> bool {
     }
     rest[close + 1..]
         .strip_prefix('-')
-        .is_some_and(|slug| tree_id::validate_slug(slug).is_ok())
+        .is_some_and(is_legacy_slug)
+}
+
+/// The slug shape a **legacy** name had to satisfy, frozen here.
+///
+/// It is a copy of the rule [`Slug::new`](crate::task_name::Slug::new) applies
+/// today, and copying it is the point rather than an oversight. Every caller is
+/// a *recogniser*, asked only of trees that were written before the live grammar
+/// existed, and a recogniser's false negative is a workstream classified
+/// [`Format::Empty`] and stamped `FORMAT` — the loss [`Format`]'s own doc comment
+/// is about. Sharing the live validator would put that outcome one tightening of
+/// an unrelated grammar away, and the tightening would look harmless. The live
+/// grammar is free to move; this is a statement about what was already written.
+///
+/// Rendering is the other side of it and does **not** use this: a name migration
+/// *writes* goes through [`TaskName`], so the live grammar is the only authority
+/// on output. `frozen_legacy_slug_rule_still_agrees_with_the_live_grammar` holds
+/// the two together and is what fails on the day they part.
+fn is_legacy_slug(slug: &str) -> bool {
+    !slug.is_empty()
+        && !matches!(slug, "BRIEF" | "DONE" | "ABANDONED")
+        && !slug.starts_with('-')
+        && !slug.ends_with('-')
+        && slug
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
 fn collect_legacy_layout_markers(
@@ -282,7 +327,7 @@ fn collect_legacy_layout_markers(
         let file_type = entry.file_type()?;
         let mut recurse = false;
         if file_type.is_dir() {
-            if matches!(tree_id::parse(&name), Some(Entry::Node { .. })) {
+            if legacy_v2_node_position(&name).is_some() {
                 v2.push(path.clone());
                 recurse = true;
             } else if name == "done" || is_nnn_slug_name(&name) {
@@ -352,7 +397,7 @@ fn plan_legacy_v2_node(node: &Path, node_rel: &Path, files: &mut Vec<PlannedFile
         let from_rel = node_rel.join(&name);
         let file_type = entry.file_type()?;
         if file_type.is_dir() {
-            if let Some(Entry::Node { position, .. }) = tree_id::parse(&name) {
+            if let Some(position) = legacy_v2_node_position(&name) {
                 let diagnostic_rel = if entry.path().join("BRIEF.md").is_file() {
                     from_rel.join("BRIEF.md")
                 } else {
@@ -443,14 +488,27 @@ fn plan_legacy_v2_node(node: &Path, node_rel: &Path, files: &mut Vec<PlannedFile
             (_, _, LegacyKind::Research) => Kind::ResearchA,
             (_, _, LegacyKind::Known(kind)) => kind,
         };
-        let to_name = Entry::Leaf {
-            position: legacy.position,
-            kind,
-            slug: legacy.slug,
-            key: legacy.key,
-            outcome: legacy.outcome,
+        // The one place migration *renders* a name, and it renders it through the
+        // live grammar rather than through a spelling of its own: what this plan
+        // writes is a current-format tree, so the type every other verb reads
+        // through is the only authority on how it is spelled. Note what that
+        // buys on the input side — the position is re-rendered from the parsed
+        // integer, so a legacy `5-` leaf lands canonically padded as `05-`.
+        //
+        // Fallible because `Slug` is validated on construction and this slug came
+        // off disk through `is_legacy_slug`, which is frozen and could one day
+        // admit what the live grammar refuses. Unreachable today, and
+        // `frozen_legacy_slug_rule_still_agrees_with_the_live_grammar` is what
+        // says so; if it ever fires, the operator is told which file rather than
+        // handed a name nothing can read back.
+        let slug = Slug::new(&legacy.slug)
+            .map_err(|error| anyhow::anyhow!("cannot migrate {}: {error}", from_rel.display()))?;
+        let to_name = TaskName::Positioned {
+            ordinal: Ordinal::new(legacy.position),
+            key: Key::new(legacy.key),
+            parts: Parts::leaf(legacy.outcome, kind, slug),
         }
-        .name();
+        .to_string();
         files.push(PlannedFile {
             from_rel,
             to_rel: node_rel.join(to_name),
@@ -468,7 +526,7 @@ struct LegacyV2Leaf {
     position: u32,
     slug: String,
     key: u32,
-    outcome: tree_id::Outcome,
+    outcome: Outcome,
 }
 
 fn parse_legacy_v2_leaf_parts(name: &str) -> Option<LegacyV2Leaf> {
@@ -479,14 +537,14 @@ fn parse_legacy_v2_leaf_parts(name: &str) -> Option<LegacyV2Leaf> {
     }
     let position = position.parse().ok()?;
     let (outcome, rest) = if let Some(rest) = rest.strip_prefix("DONE-") {
-        (tree_id::Outcome::Done, rest)
+        (Outcome::Done, rest)
     } else if let Some(rest) = rest.strip_prefix("ABANDONED-") {
-        (tree_id::Outcome::Abandoned, rest)
+        (Outcome::Abandoned, rest)
     } else {
-        (tree_id::Outcome::Live, rest)
+        (Outcome::Live, rest)
     };
     let (slug, key) = rest.rsplit_once("-k")?;
-    if slug.is_empty() || key.is_empty() || tree_id::validate_slug(slug).is_err() {
+    if key.is_empty() || !is_legacy_slug(slug) {
         return None;
     }
     Some(LegacyV2Leaf {
@@ -495,6 +553,50 @@ fn parse_legacy_v2_leaf_parts(name: &str) -> Option<LegacyV2Leaf> {
         key: key.parse().ok()?,
         outcome,
     })
+}
+
+/// The position a **legacy v2 node directory** name carries, or `None` if the
+/// name is not one.
+///
+/// Recognition only: a node directory is the one entry migration never renames,
+/// so nothing here reaches [`TaskName`]. It is deliberately **lenient on the
+/// position** — `5-design-k5` is recognised exactly as `05-design-k5` is —
+/// because that is what the reader it replaces accepted, and because the
+/// alternative is the [`Format::Empty`] misclassification a false negative
+/// costs. A lenient spelling therefore survives migration unchanged and is then
+/// refused by the live grammar, which names the canonical spelling and the one
+/// `mv` that fixes it (`docs/adr/task-names-are-canonical.md`) — loud, local,
+/// and recoverable, where losing the tree's classification is none of the three.
+fn legacy_v2_node_position(name: &str) -> Option<u32> {
+    // A `.md` suffix declares a leaf, whatever is on disk. This guard and the
+    // outcome-infix one below are **redundant** rather than load-bearing — a
+    // `.md` tail leaves the key non-numeric, and an uppercase infix leaves the
+    // slug outside the character set — and both survived mutation against the
+    // differential corpus for exactly that reason. They are kept because they
+    // state the two rules a reader would otherwise have to derive, and because a
+    // later change to the key or slug rule would make them load-bearing without
+    // announcing it.
+    if name.ends_with(".md") {
+        return None;
+    }
+    // A trailing `/` is tolerated for exactness with the reader this replaces;
+    // every caller here feeds it a `read_dir` file name, which carries none.
+    let stem = name.strip_suffix('/').unwrap_or(name);
+    let dash = stem.find('-')?;
+    let (position, rest) = (&stem[..dash], &stem[dash + 1..]);
+    if position.is_empty() || !position.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    // A node directory never carries an outcome infix — its done-ness is the
+    // absence of a live leaf beneath it. Redundant today; see above.
+    if rest.starts_with("DONE-") || rest.starts_with("ABANDONED-") {
+        return None;
+    }
+    let (slug, key) = rest.rsplit_once("-k")?;
+    if key.is_empty() || !key.bytes().all(|byte| byte.is_ascii_digit()) || !is_legacy_slug(slug) {
+        return None;
+    }
+    position.parse().ok()
 }
 
 #[derive(Clone, Copy)]
@@ -639,7 +741,7 @@ fn detect(grove_root: &Path) -> Result<Format> {
         }
         let ft = entry.file_type()?;
         if ft.is_dir() {
-            if matches!(tree_id::parse(&name), Some(Entry::Node { .. })) {
+            if legacy_v2_node_position(&name).is_some() {
                 has_v2 = true; // a v2 node directory
             } else if name == "done" || is_nnn_slug_name(&name) {
                 has_old = true; // a `done/` mirror or an old `NNN-slug/` node dir
@@ -1259,6 +1361,316 @@ mod tests {
             assert!(error.contains("ambiguous legacy tree layout"), "{error}");
             assert!(error.contains(left), "missing {left:?} in: {error}");
             assert!(error.contains(right), "missing {right:?} in: {error}");
+        }
+    }
+
+    // ---- the grammar seam --------------------------------------------------
+    //
+    // `migration-k36` cut this module off `tree_id`, and the cut runs along a
+    // line the module did not have before: **recognition** is frozen here and
+    // **rendering** is the live grammar's. The tests below are what hold that
+    // line, and each fails in a different direction.
+
+    /// The two slug rules agree today, and this is what says so.
+    ///
+    /// [`is_legacy_slug`] is a deliberate copy of [`Slug::new`]'s rule rather
+    /// than a call to it, for the reason its doc comment gives. A copy that
+    /// nothing compares is a copy that drifts, so the comparison is here — over
+    /// a corpus that exercises every clause of both, in both directions. It is
+    /// **not** a demand that the live grammar stay put: the live grammar may
+    /// tighten, and when it does this test fails and someone decides what a
+    /// legacy tree spelled that way should do, which is exactly the decision
+    /// that must not be made silently.
+    #[test]
+    fn frozen_legacy_slug_rule_still_agrees_with_the_live_grammar() {
+        for slug in [
+            "task",
+            "add-leaf",
+            "k9",
+            "a",
+            "task-k9",
+            "grove-flip-2",
+            "",
+            "-task",
+            "task-",
+            "BRIEF",
+            "DONE",
+            "ABANDONED",
+            "Task",
+            "task.md",
+            "task/child",
+            "task_leaf",
+            "tâche",
+            "task ",
+        ] {
+            assert_eq!(
+                is_legacy_slug(slug),
+                Slug::new(slug).is_ok(),
+                "the frozen legacy slug rule and the live grammar disagree on \
+                 {slug:?}. Neither is automatically wrong — decide what a legacy \
+                 tree spelling it that way should do, then move whichever rule \
+                 that decision names."
+            );
+        }
+    }
+
+    /// A legacy leaf's position is re-rendered, not passed through.
+    ///
+    /// The old renderer padded `{:02}` unconditionally and so does [`TaskName`],
+    /// which is why this leaf's cut could be a pure refactor at all. Asserted
+    /// rather than assumed, because it is the only reason a lenient *leaf*
+    /// spelling in a legacy tree cannot survive migration into a tree the live
+    /// grammar then refuses.
+    #[test]
+    fn a_lenient_legacy_leaf_position_is_migrated_to_the_canonical_spelling() {
+        let (_t, g) = grove();
+        write(&g, "BRIEF.md", "# demo — brief\n");
+        write(&g, "5-task-k1.md", "# task-k1\n\n**Kind:** impl\n");
+
+        let plan = plan_current(&g).unwrap();
+
+        assert_eq!(plan.files.len(), 1);
+        assert_eq!(plan.files[0].from_rel, Path::new("5-task-k1.md"));
+        assert_eq!(plan.files[0].to_rel, Path::new("05-impl-task-k1.md"));
+    }
+
+    /// A lenient *node* spelling is recognised and passed through, and then
+    /// refused by the live grammar with the `mv` that fixes it.
+    ///
+    /// Both halves matter and neither is obvious. Migration never renames a
+    /// directory — a plan's source and destination share a parent, which the
+    /// transaction leans on — so the leniency cannot be normalised away here.
+    /// What it must not do instead is go *unrecognised*: that classifies the
+    /// tree [`Format::Empty`], stamps `FORMAT` over it, and loses the subtree
+    /// under a name every later reader then calls foreign. So it is recognised,
+    /// the leaves beneath it migrate, and the one non-canonical name left halts
+    /// the tree loudly, naming its own repair
+    /// (`docs/adr/task-names-are-canonical.md`).
+    #[test]
+    fn a_lenient_legacy_node_is_recognised_passed_through_and_then_refused_by_name() {
+        let (_t, g) = grove();
+        write(&g, "BRIEF.md", "# demo — brief\n");
+        write(&g, "5-feature-k10/BRIEF.md", "# feature-k10 — brief\n");
+        write(
+            &g,
+            "5-feature-k10/1-build-k11.md",
+            "# build-k11\n\n**Kind:** impl\n",
+        );
+
+        assert_eq!(detect(&g).unwrap(), Format::V2);
+        let plan = plan_current(&g).unwrap();
+        assert_eq!(
+            plan.files
+                .iter()
+                .map(|file| (
+                    file.from_rel.to_string_lossy().into_owned(),
+                    file.to_rel.to_string_lossy().into_owned(),
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    "5-feature-k10/1-build-k11.md".to_string(),
+                    // The leaf is re-rendered canonically; the directory it sits
+                    // in keeps the spelling it had.
+                    "5-feature-k10/01-impl-build-k11.md".to_string(),
+                ),
+                (
+                    "5-feature-k10/BRIEF.md".to_string(),
+                    "5-feature-k10/BRIEF.md".to_string(),
+                ),
+            ],
+        );
+
+        // The directory keeps its lenient spelling, and the live grammar refuses
+        // it by name — the loud half of the trade this test exists to pin.
+        let verdict = <TaskName as ordinal_fs_tree::EntryName>::parse(
+            "5-feature-k10",
+            ordinal_fs_tree::Found::Dir,
+        );
+        let ordinal_fs_tree::Verdict::Malformed(error) = verdict else {
+            panic!("the live grammar accepted a lenient node spelling");
+        };
+        assert!(
+            format!("{error}").contains("05-feature-k10"),
+            "the refusal must name the canonical spelling: {error}"
+        );
+    }
+
+    /// The frozen matchers admit exactly what the withdrawn reader admitted,
+    /// over a corpus neither of them was written against.
+    ///
+    /// This is the claim with teeth in `migration-k36` and the one the compiler
+    /// cannot reach: `legacy_v2_node_position` and [`is_legacy_slug`] are
+    /// hand-derived from `tree_id`, and this node's own brief warns that a
+    /// transcription of that module is a bug. So they are not argued against it,
+    /// they are **run** against it — the withdrawn reader is still compiled, so
+    /// both sides are live at once and a cross product settles it. The corpus is
+    /// generated rather than listed, because a listed corpus is a second copy of
+    /// the transcriber's own idea of what matters; this one crosses every
+    /// position form, infix, slug, key form and suffix that either grammar
+    /// distinguishes, including combinations neither author would think to write.
+    ///
+    /// It dies with `sweep-k37`, and the evidence has to be spent before then —
+    /// which is why it is here rather than deferred to the leaf that deletes the
+    /// other side of it.
+    #[test]
+    fn the_frozen_matchers_admit_exactly_what_the_withdrawn_reader_did() {
+        // Slug shapes: this module's frozen rule against the reader's validator.
+        let slugs = [
+            "task",
+            "a",
+            "k9",
+            "task-k9",
+            "a-1",
+            "1",
+            "-a",
+            "a-",
+            "a--b",
+            "",
+            "BRIEF",
+            "DONE",
+            "ABANDONED",
+            "brief",
+            "Task",
+            "TASK",
+            "a.b",
+            "a/b",
+            "a_b",
+            "a b",
+            "tâche",
+            "a-k",
+            "--",
+            "-",
+            "k",
+            "0",
+        ];
+        for slug in slugs {
+            assert_eq!(
+                is_legacy_slug(slug),
+                crate::tree_id::validate_slug(slug).is_ok(),
+                "the frozen slug rule and the withdrawn reader disagree on {slug:?}"
+            );
+        }
+
+        // Node-directory names: the cross product, against the reader's own
+        // node arm. `parse` decides species by the `.md` suffix, so a name
+        // wearing one is a leaf to it and must be `None` here whatever else it
+        // spells — which is why the suffixes are part of the product.
+        let mut checked = 0_usize;
+        let mut admitted = 0_usize;
+        for position in ["01", "5", "005", "100", "0", "", "1a", "a", "1-2"] {
+            for infix in ["", "DONE-", "ABANDONED-", "done-"] {
+                for slug in slugs {
+                    for key in ["-k1", "-k0", "-k99", "-k", "-kx", "-k1x", "", "-1"] {
+                        for suffix in ["", ".md", "/"] {
+                            let name = format!("{position}-{infix}{slug}{key}{suffix}");
+                            let expected = match crate::tree_id::parse(&name) {
+                                Some(crate::tree_id::Entry::Node { position, .. }) => {
+                                    Some(position)
+                                }
+                                _ => None,
+                            };
+                            assert_eq!(
+                                legacy_v2_node_position(&name),
+                                expected,
+                                "the frozen node matcher and the withdrawn reader \
+                                 disagree on {name:?}"
+                            );
+                            checked += 1;
+                            admitted += usize::from(expected.is_some());
+                        }
+                    }
+                }
+            }
+        }
+
+        // The control, because agreement between two functions that both answer
+        // `None` to everything is not evidence. A structural floor rather than an
+        // exact count: the product's shape may grow, and a count would then be a
+        // second thing to maintain that says nothing more than this does.
+        assert!(checked > 1_000, "the corpus collapsed to {checked} names");
+        assert!(
+            admitted > 20,
+            "only {admitted} of {checked} names were admitted as nodes — the \
+             corpus no longer exercises the accepting path, so agreement on it \
+             means nothing"
+        );
+    }
+
+    /// The renderer changed hands and wrote the same bytes, held by experiment.
+    ///
+    /// This leaf's *Done when* is byte-identical migration output, and this is
+    /// the one place in the increment where that can be **measured** rather than
+    /// argued: the withdrawn renderer is still compiled, so both are live at once
+    /// and can be driven over one corpus. It is `reading-k31`'s equivalence-test
+    /// finding applied to a renderer instead of a reader, and like that one it
+    /// dies with `sweep-k37` — which is the point at which the claim has stopped
+    /// being about a change and started being about history.
+    #[test]
+    fn both_renderers_spell_every_migrated_leaf_identically() {
+        for (position, kind, slug, key, outcome) in [
+            (1_u32, Kind::Impl, "task", 1_u32, Outcome::Live),
+            (5, Kind::Design, "add-leaf", 42, Outcome::Done),
+            (99, Kind::ResearchA, "a", 7, Outcome::Abandoned),
+            (100, Kind::CombineResearch, "task-k9", 1234, Outcome::Live),
+            (0, Kind::Finish, "grove-flip-2", 0, Outcome::Done),
+            (
+                12,
+                Kind::IntegrateReviewImpl,
+                "x0",
+                u32::MAX,
+                Outcome::Abandoned,
+            ),
+        ] {
+            let withdrawn = crate::tree_id::Entry::Leaf {
+                position,
+                kind,
+                slug: slug.to_string(),
+                key,
+                outcome: match outcome {
+                    Outcome::Live => crate::tree_id::Outcome::Live,
+                    Outcome::Done => crate::tree_id::Outcome::Done,
+                    Outcome::Abandoned => crate::tree_id::Outcome::Abandoned,
+                },
+            }
+            .name();
+            let live = TaskName::Positioned {
+                ordinal: Ordinal::new(position),
+                key: Key::new(key),
+                parts: Parts::leaf(outcome, kind, Slug::new(slug).unwrap()),
+            }
+            .to_string();
+            assert_eq!(withdrawn, live);
+        }
+    }
+
+    /// The node recogniser's own controls: what it must *not* admit.
+    ///
+    /// A `.md` suffix declares a leaf whatever is on disk, and a directory never
+    /// wears an outcome infix — its done-ness is the absence of a live leaf
+    /// beneath it. Both were the withdrawn reader's rules and both are load
+    /// bearing: admitting either would plan a rename for something that is not a
+    /// node, inside a directory walk.
+    #[test]
+    fn the_node_recogniser_admits_only_what_the_reader_it_replaces_did() {
+        for (name, expected) in [
+            ("01-feature-k10", Some(1)),
+            ("5-feature-k10", Some(5)),
+            ("100-feature-k10", Some(100)),
+            ("01-feature-k9-k10", Some(1)),
+            ("01-feature-k10/", Some(1)),
+            ("01-feature-k10.md", None),
+            ("01-DONE-feature-k10", None),
+            ("01-ABANDONED-feature-k10", None),
+            ("feature-k10", None),
+            ("01-feature", None),
+            ("01-feature-k", None),
+            ("01-feature-kx", None),
+            ("01--k10", None),
+            ("BRIEF.md", None),
+            ("done", None),
+        ] {
+            assert_eq!(legacy_v2_node_position(name), expected, "{name:?}");
         }
     }
 }

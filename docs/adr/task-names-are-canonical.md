@@ -33,6 +33,17 @@ not merely report a parse failure: the recovery is one `mv`, and the message has
 to contain it. Detection without advice would have made this decision
 indefensible rather than merely expensive.
 
+One tree can still arrive carrying a lenient name, and the record has to say
+what happens to it: a **legacy tree being migrated**. Migration re-renders every
+leaf it moves through the canonical grammar, so a legacy `5-task-k1.md` lands as
+`05-impl-task-k1.md`. It does not rename **directories** — a migration plan's
+source and destination share a parent, which is what is left of the format once
+the two layouts needing relocation were withdrawn — so a hand-edited `5-node-k1/`
+survives the conversion and is then refused by name, with the `mv` in the
+message. That is the same bargain as above and not a gap in it: the alternative
+is refusing to *recognise* the directory, which classifies the whole tree as
+having no work in it.
+
 What makes the trade favourable is a fact about the corpus rather than a
 preference. **Grove has never written a lenient position.** Every on-disk name
 Grove produces is rendered by one function that formats `{:02}` — the grow
@@ -56,6 +67,14 @@ nothing that Grove wrote becomes unreadable.
   `pick` taking the write lock. It also repairs under the *shared* lock, where a
   concurrent reader is looking at the name being replaced. Reopen as an explicit
   repair verb, which is a different thing from a parse.
+- **Repair the spelling during migration**, which is the one write path that
+  already rewrites names and could rename a lenient directory into its canonical
+  form. Rejected for the migration planner's own invariant rather than for the
+  reasons above: a planned file's source and destination share a parent, and the
+  migration transaction leans on that where its directory sweeps used to be.
+  Renaming a node means moving its whole subtree, which reintroduces relocation
+  into a format that was reduced to in-place renames on purpose. The lenient
+  directory is instead recognised, passed through, and refused by name.
 - **Keep leniency and add a separate tree-wide duplicate check.** Rejected: it
   is a second mechanism for a property the grammar can hold by construction, it
   can only run over a whole tree while parsing is per-entry, and it answers after

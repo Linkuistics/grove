@@ -81,3 +81,33 @@ Question 2 is the one that can break that promise — tightening the grammar mak
 a tree grove itself wrote unreadable if grove ever wrote a lenient name. Whether
 it did is a question about the corpus, and it is worth cutting a leaf for it if
 the answer is not obvious.
+
+## Decisions (running log)
+
+**Increment 2 is a sibling node, not this leaf decomposed.** `library-k6` cut
+`crate-k7` the same way — the planner retires as its own `DONE` leaf beside the
+node it created. Decomposing this leaf would have been the wrong trigger:
+`references/decompose.md`'s node verb is for a leaf that proved *bigger than its
+brief*, and this one completed exactly as chartered.
+
+**No review chain was cut for this decomposition.** `references/decompose.md`
+names *a decomposition others will build on for months* as earning one, so this
+was a judgement rather than an omission. Against: the cut is heavily constrained
+— an already-checked architecture, a fixed operation set, four explicitly
+enumerated questions and an existing 130-test net — so the failure mode is a
+misplaced boundary, which the first leaf to read the brief hits immediately and
+cheaply. The precedent in this grove agrees: `library-k6` cut none for
+`crate-k7`, and increment 1 landed clean. A later leaf that finds the ordering
+wrong should `leaf-insert` rather than treat it as settled.
+
+**The skill-distillation leaf was cut now, at the root, rather than deferred.**
+The reasoning is in `formalism-skill-k38`'s own body, where the session that
+executes it will read it. Recorded here only because the task asked for the
+decision to be visible rather than made by omission.
+
+**Question 2 needed no corpus-survey leaf.** The task file said one was worth
+cutting *if the answer is not obvious*. It is: every on-disk name grove writes is
+rendered by `tree_id::Entry::name`, which pads the position `{:02}` — the grow
+verbs, the lifecycle verbs and `tree_migrate`'s output alike — so grove has never
+written a lenient position and only a hand edit can produce one. That fact is in
+the node brief so `domain-k29` starts from it.

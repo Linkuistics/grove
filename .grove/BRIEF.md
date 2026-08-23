@@ -140,7 +140,6 @@ and has nothing to do with tree invariants.
 
 ## On the horizon
 
-- The grove flip.
 - **Whether `ordinal-fs-tree` wants its own `CHANGELOG`, version and release
   lane.** Promoted from `crate-k7` at its close. Precise enough to state, and it
   depends on an answer increment 1 did not produce: whether the crate is ever
@@ -149,12 +148,6 @@ and has nothing to do with tree invariants.
   crate sets `release = false`, so grove's next cut is byte-identical to what it
   was before the workspace existed — which is the outcome that line prevents
   answering by accident.
-- **Distilling `docs/formalism-findings.md` into a `linkuistics` skill.** The
-  question is precisely stateable already; its *scope* is not, because it depends
-  on how many formalisms were used and what they taught. It also has to run last,
-  after every modelling and implementation leaf, and an append lands it before
-  work not yet cut. So it stays here until the modelling is done, then earns a
-  leaf.
 - Splitting the crate into separately-modellable units.
 
 ## Settled since this brief was written
@@ -305,3 +298,22 @@ not knowable before the CLI existed:
   every unreachable one with none, and not one was reachable after all. Whatever
   cuts increment 2 should do the same for grove's verbs — it turns the suite into
   a transcription and it is the cheapest thing in entry 019.
+
+**Increment 2 is cut, and the last horizon item has graduated.** `flip-k27`
+decomposed the flip into the node `grove-flip-k28` — nine leaves, expand →
+migrate → contract, because the flip is the wide refactor `references/decompose.md`
+names as the exception to vertical slicing. That node's `BRIEF.md` carries the
+ordering, the assignment of the four inherited questions, what a flip leaf owes
+as regression evidence, and five facts established while cutting it. Two things
+this brief's own readers need:
+
+- **`formalism-skill-k38` is a root-level leaf, after the flip node**, not inside
+  it. It is the second experiment's deliverable rather than flip work, and the
+  horizon note that used to sit here graduated because `crate-k7` answered what
+  the note said was missing: two formalisms, sixteen entries. What increment 2
+  can still add is entries, not a third formalism.
+- **The reachability-table advice above is discharged by a leaf, not by a habit.**
+  `refusals-k30` writes the table for grove's whole verb set before any verb
+  flips, in the same leaf that settles how a library refusal reaches a grove
+  operator — the two belong together, because the table is what says how many
+  refusal variants the vocabulary question is actually about.

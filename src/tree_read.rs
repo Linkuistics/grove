@@ -25,8 +25,11 @@
 // that overlap into evidence rather than risk.
 
 use crate::leaf::Kind;
+#[cfg(test)]
 use crate::task_name::Outcome as TaskOutcome;
-use crate::task_tree::{handle_key, parse_ref, AmbiguousMatch, Ref, Resolution, SelectedLeaf};
+use crate::task_tree::SelectedLeaf;
+#[cfg(test)]
+use crate::task_tree::{handle_key, parse_ref, AmbiguousMatch, Ref, Resolution};
 // Only the in-test guard assertion reaches it: these helpers are lock-neutral,
 // and the guard is the caller's.
 #[cfg(test)]
@@ -43,6 +46,7 @@ use std::path::{Path, PathBuf};
 /// Crossing from `tree_id`'s outcome to `task_name`'s here, rather than keeping
 /// a second `Resolution` type alive, is what stops the two readers from
 /// answering in two vocabularies while both are live.
+#[cfg(test)]
 fn entry_outcome(entry: &Entry) -> TaskOutcome {
     match entry {
         Entry::Leaf { outcome, .. } => match outcome {
@@ -119,9 +123,17 @@ fn collect_live_leaf_entries(dir: &Path, live: &mut Vec<(Entry, PathBuf)>) -> Re
     Ok(())
 }
 
-/// Resolve a reference against the whole directory tree, lock-neutrally. The
-/// lock-neutral half of what `task_tree::resolve` now does through the library;
-/// `llm_cli`'s grow verbs call it while holding the exclusive tree guard.
+/// Resolve a reference against the whole directory tree, lock-neutrally.
+///
+/// **A test oracle now, and nothing else.** Its last production caller was the
+/// grow verbs' `<parent>` / `<target>` resolution, which `growing-k33` moved onto
+/// the snapshot — so this survives only to keep
+/// [`both_readers_resolve_every_reference_form_identically`](tests::both_readers_resolve_every_reference_form_identically)
+/// possible while both readers exist. That test is the one direct check the
+/// flip's *pure refactor* premise gets, and it is cheaper to keep the
+/// implementation it compares against than to lose the evidence a leaf early.
+/// Both die together in `sweep-k37`.
+#[cfg(test)]
 pub(crate) fn resolve_unlocked(grove_root: &Path, reference: &str) -> Result<Resolution> {
     #[cfg(test)]
     tree_access::assert_guard_held(grove_root);
@@ -243,7 +255,9 @@ pub(crate) fn read_level(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
 
 /// Recursively collect every parsed entry in the tree — leaves (live and `DONE`),
 /// node directories, and briefs — each with its absolute path, in pre-order.
-/// The shared scan behind [`resolve`]'s tree-wide key/slug search.
+/// The shared scan behind [`resolve_unlocked`]'s tree-wide key/slug search, and
+/// so, like it, a test oracle.
+#[cfg(test)]
 fn collect_all(dir: &Path, out: &mut Vec<(Entry, PathBuf)>) -> Result<()> {
     for (entry, path) in read_level(dir)? {
         let descend = entry.is_node();

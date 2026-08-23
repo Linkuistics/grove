@@ -24,7 +24,9 @@
 //
 // `root-init` and `leaf-add` get no colocated twin deliberately: they only write
 // new files and consult no VCS beyond resolving the worktree, so a colocated
-// case would assert nothing its jj-native case does not.
+// case would assert nothing its jj-native case does not. That was already true
+// of `leaf-add` when it allocated through `tree_grow`, and it stayed true when
+// `growing-k33` moved it onto `append`.
 //
 // The two lifecycle-transition cases are the exception to "drive the binaries":
 // they call the library, because the transition is not a verb anyone types — the
@@ -529,16 +531,19 @@ fn jjs_working_copy_snapshots_the_renames_a_verb_made() {
 // per verb because what it guards against is a *verb* reaching for `git mv`
 // directly, which no single test of the primitive can rule out.
 //
-// **Two of them now hold for a second, stronger reason, and the assertion is
+// **Three of them now hold for a second, stronger reason, and the assertions are
 // unchanged.** `leaf-retire` and `leaf-prune` mark through `ordinal-fs-tree`,
-// which renames with `rename(2)` and detects no repository at all
-// (`docs/adr/grove-does-not-stage-its-own-renames.md`), so for those two the
+// and since `growing-k33` `leaf-insert` shifts through it too; the library
+// renames with `rename(2)` and detects no repository at all
+// (`docs/adr/grove-does-not-stage-its-own-renames.md`), so for those three the
 // rename is plain on *every* lane rather than plain because this one is jj. The
 // tests stay exactly as they were: what they guard against is a verb reaching
 // for `git mv` directly, and that is worth guarding whether the verb could have
-// had a reason to or not. Where they no longer discriminate is against
-// `tests/leaf_ops.rs`'s git-lane cases, which now assert the same plainness on
-// the lane where it used to be false — read the two together.
+// had a reason to or not. Where they no longer discriminate is against the
+// git-lane cases in `tests/leaf_ops.rs` and `src/task_grow/tests.rs`, which now
+// assert the same plainness on the lane where it used to be false — read them
+// together. `leaf-decompose` is the one left that still discriminates, until
+// `promotion-k34` moves it.
 
 #[test]
 fn leaf_insert_in_a_colocated_tree_leaves_the_git_index_alone() {

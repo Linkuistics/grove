@@ -7,17 +7,19 @@
 //     next gapless per-level position (root parent `.`) with a fresh key.
 //   - `leaf-insert <target> <slug>` inserts at the slot the existing target holds,
 //     shifting the target and later siblings up one position. Because the
-//     hierarchy lives in directories, a shift is a `git mv` of each sibling
+//     hierarchy lives in directories, a shift is one plain rename of each sibling
 //     directory + the subtree riding along, and in-file headers are position-free
 //     (`# <slug>-k<key>`), so the renumber rewrites **zero file contents**.
 //     (Appending past the last sibling is `leaf-add`'s job — target must exist.)
 //
-// Each test stands up a real git repo so the verb's `git mv` calls have tracked
-// files to operate on. That is still true of these two verbs and no longer true
-// of grove as a whole: `leaf-retire` and `leaf-prune` mark through
+// Each test stands up a real git repo, and since `growing-k33` that repo is the
+// **instrument** rather than a prerequisite: both verbs run through
 // `ordinal-fs-tree`, which renames with `rename(2)` and stages nothing
-// (`docs/adr/grove-does-not-stage-its-own-renames.md`). `leaf-add` and
-// `leaf-insert` follow when `growing-k33` moves them.
+// (`docs/adr/grove-does-not-stage-its-own-renames.md`), so nothing here needs
+// tracked files to operate on. What the repo buys is that the fixtures are the
+// ones a real session produces. The Git-lane consequence — a deletion at the
+// old name beside an untracked file at the new one — is asserted where the
+// index is readable, in `src/task_grow/tests.rs`.
 //
 // - stdout: the new leaf's absolute path, single line.
 // - stderr: renumber summary and cross-reference candidates (for insert).

@@ -366,6 +366,153 @@ inherited table. `leaf-retire` and `leaf-prune` mark through `rewrite`, and
   run from the other end; the models were read only for their recorded misses.
   Worth distinguishing from `reading-k31`, which owed no entry at all.
 
+**`growing-k33` (migrate).** The whole suite is **1250 passing**, up from
+`marking-k32`'s 1236. **Not one integration-test assertion changed**: all ~130
+CLI-contract tests passed untouched, first run, and the only edits to those files
+are four prose headers whose claims about `git mv` stopped being true. That is
+the strongest evidence this stage has produced for the *pure refactor* premise
+and is worth stating as such — every one of those tests asserts what the tree
+looks like afterwards, and the library computes the ordinals and keys grove's own
+algebra did. Every change with teeth landed in **unit** tests, where the
+machinery rather than the outcome was the subject. `src/task_grow.rs`
+is the new module; `src/tree_grow.rs` keeps `leaf_add_unlocked` and the
+destination guard, which the lifecycle verbs still write through.
+
+- **The library allocates the key, and grove's content embeds it — this is the
+  seam finding of the leaf, and no brief predicted it.** `NewEntry` takes its
+  bytes *before* the library composes the name, and a grove leaf opens with the
+  handle `# <slug>-k<key>`. So a content-carrying domain cannot render its
+  content from the answer and must **predict** the allocation: `task_tree::next_key`
+  is `max + 1` over the same snapshot the operation plans from, which is the
+  library's own rule mirrored on the consumer's side. `tree_id::next_key` was
+  supposed to die here; what actually happened is that its **rule** survived in a
+  place the seam did not anticipate. The prediction is checked against the report
+  and the verb refuses to claim success on a disagreement, because the silent
+  failure is a leaf whose first line contradicts its own filename, permanently.
+  Recorded in `docs/ARCHITECTURE.md#tree-access-lock` and asserted by
+  `every_grow_verb_writes_a_handle_that_matches_its_own_filename`.
+  **What a later flip leaf should take from it:** `promotion-k34` and
+  `lifecycle-k35` both create leaves with bodies, so both inherit this, and the
+  cheapest correct shape is to call `task_tree::next_key` and check the report —
+  never to write the body after the operation, which would put a content write
+  outside the guard and defeat the atomicity the operation just bought.
+
+- **Two more rows of the inherited reachability table were wrong, and neither
+  fell to the instrument that broke the last one.** `TargetNotNode` is **not**
+  reachable: the row said *yes* and then named its own contradiction two lines
+  later — *Grove keeps its own check in front of it* — and what settles it is that
+  grove **cannot** drop that check, since `.grove/BRIEF.md` is an entry carrying
+  no key and so can never be a target. `DestinationOccupied` is **not** reachable
+  from any grow verb either: an append composes with `max + 1`, so nothing can
+  already carry the name; and a shift's only possible occupant is the sibling one
+  ordinal higher, which is itself a mover and has already vacated, because the
+  renames run highest-first and `Plan::refusal` folds the plan through the
+  snapshot in effect order. Entry 003's model result thus discharges a refusal as
+  a side effect. The count of reachable variants falls from four to three, and
+  the consequential change is that **no algebraic refusal reaches an operator
+  from an ordinary argument any more** — `TargetNotNode` was the only one that
+  did, and the collision `refusals-k30` weighed was its message. That record's
+  decision is unchanged and now cheaper than it looked;
+  `docs/adr/entry-name-is-the-only-seam.md` is reworked in place to say the
+  pre-emption is *forced* rather than merely available, and
+  `docs/ARCHITECTURE.md#library-refusals` carries both corrections.
+  `docs/formalism-findings.md` entry 023 carries the protocol finding: entry
+  022's own counterfactual (*write the fixture's filenames out in full*) would
+  have caught **neither** of these, so what is repeatable is the transcription
+  and not the instrument.
+
+- **This leaf's own *Done when* is not fully met, and it could not be.**
+  `tree_id::next_key`, `tree_grow::next_child_position` and `collect_all_names`
+  still have callers: `tree_lifecycle`'s `root_init` and `materialize_finish`
+  allocate leaves while holding **grove's own** exclusive guard, and grove cannot
+  nest its lock inside the library's — the node brief's own established fact. So
+  they keep the path-walking allocator until `lifecycle-k35`, and
+  `leaf_add_unlocked` survives with them. `next_keys` did lose its last
+  production caller and is now reached only through `next_key`. The clause was
+  written expecting the grow flip to orphan the allocators; what orphans them is
+  the lifecycle flip, and the two are different leaves for exactly the locking
+  reason that made the migrate stage per-verb-group in the first place.
+
+- **The `git mv` assertion the node brief pre-authorised does exist, and it is
+  here.** `marking-k32` found none in `tests/leaf.rs` or `tests/jj_tree_verbs.rs`
+  and said so; the assertion was in `tree_grow`'s own unit tests, where
+  `insert_moves_the_index_entry_for_a_tracked_sibling` held that a tracked
+  sibling's shift staged a rename. It is now
+  `insert_leaves_a_tracked_siblings_index_entry_where_it_was` and asserts the
+  opposite, which is question 1 arriving at the last verbs that answered it the
+  other way (`docs/adr/grove-does-not-stage-its-own-renames.md`).
+  `content/references/commit.md` widens *a mark it did not stage* to *a rename it
+  did not stage — a `DONE` mark, a `leaf-insert` shift*, and
+  `tests/jj_tree_verbs.rs`'s colocated section now names three verbs that hold
+  for the stronger reason instead of two. `leaf-decompose` is the one left that
+  still discriminates the dispatch.
+
+- **A verb that reports on the tree it changed needs a second guard.**
+  `leaf-insert` lints stray position-prefixed cross-references left stale by its
+  own renumber, and the tree it must read is the one the shift **left** — a
+  shifted node took its whole subtree's paths with it — while the mutation
+  consumed the guard that could have shown it. So `task_grow::surface_cross_refs`
+  reopens one. Two observations, deliberately, and the property preserved is the
+  one that mattered: the output is written while the tree is held, so a hit
+  naming a path is a path nothing has renamed underneath it.
+  `leaf_insert_lints_cross_references_under_an_exclusive_lock_of_its_own` asserts
+  the count is exactly two, so a later change moves a number rather than quietly
+  contradicting the paragraph.
+
+- **The lint's scan set narrowed, and it is a narrowing rather than a
+  simplification.** It walked `.grove/` for every `.md` file; it walks the
+  snapshot now, so what it reads is every leaf and every charter — the same set
+  every other verb calls the tree — and a foreign `.md` a hand edit dropped in is
+  no longer scanned. Grove writes no such file, and the alternative is a second,
+  wider notion of *what is in the tree* than the reader has. The old fixture used
+  exactly such a file (`NOTE.md`), so it moved into a real charter;
+  `surface_scans_the_tree_and_not_the_directory` pins the new boundary in both
+  directions.
+
+- **`tree_read::resolve_unlocked` lost its last production caller here and was
+  kept as a test oracle.** The grow verbs' `<parent>` / `<target>` resolution was
+  it, so `resolve` is now entirely the library's. Rather than delete the
+  path-walking resolver and take
+  `both_readers_resolve_every_reference_form_identically` with it — the one
+  direct check the *pure refactor* premise gets, and `reading-k31`'s best finding
+  — it is `#[cfg(test)]` and labelled as an oracle. Both die in `sweep-k37`.
+  **What a later flip leaf should take from it:** when a flip orphans the old
+  implementation of a contract that still has a live equivalence test, gate it
+  rather than delete it; the evidence is worth more than the lines.
+
+- **Key exhaustion changed hands and grove took the library's message.** The task
+  brief asked which survives, and the answer is the library's, unchanged
+  (`docs/ARCHITECTURE.md#library-refusals`, clause 3): `Refusal::KeysExhausted`
+  is planned from the same snapshot before any effect is built, so *nothing was
+  created* remains true even though grove no longer says it. Ordinal exhaustion
+  is a **gain** — `next_child_position` added one to a `u32` unguarded, and
+  `Refusal::OrdinalsExhausted` refuses. Both are now the only two refusals grove
+  can reach, and `a_level_at_the_last_ordinal_refuses_rather_than_wrapping` is
+  the first test grove has ever had for the second.
+
+- **`leaf-add-pair` got simpler, exactly as its brief predicted, and the measure
+  is what went.** The up-front destination sweep, the `O_EXCL` claim per leaf,
+  the per-run rollback list, the injected post-claim failure and its
+  thread-local, and `next_keys` — all of them grove's reconstruction of what
+  `append_many` and the one interpreter already do. The three tests that pinned
+  that machinery were re-aimed at the outcome (`a_failed_run_leaves_the_next_call_a_clean_slate`,
+  `an_unwritable_third_destination_refuses_the_whole_run`) or deleted with the
+  seam they armed (`a_fill_that_fails_after_its_claim_unwinds_…`, whose window is
+  now inside the library's own interpreter and fault-injected there). The
+  destination guard itself stayed in `tree_grow`, with its three tests, because
+  the lifecycle verbs still write through it.
+
+- **Three refusal messages are now the resolver's rather than the appender's,
+  and each says something more precise.** A `<parent>` path that does not exist
+  was *not a node directory*; it is now *no entry matches …, tried as a path
+  under the grove root and as a key/slug*, from clause 1's resolution, before
+  anything is planned. A bare `notes/` directory was *not a node directory*; it
+  is now *not a Grove leaf or node directory*, because the grammar disclaims the
+  name and no walk reaches it. And the grove root handed to `leaf-insert` was
+  *target is not a grove entry*; it is now *cannot insert at the grove root*,
+  naming the verb that would work instead. No integration test asserted any of
+  the three.
+
 ## Pointers
 
 - `docs/ordinal-fs-tree/ARCHITECTURE.md` — the seam, the seven obligations, the

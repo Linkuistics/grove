@@ -103,6 +103,14 @@ preconditions in front of the algebra, and not a reason to make `Refusal`
 domain-facing: widening the seam would buy a rendering for cases that consumer's
 argument surface does not produce.
 
+`growing-k33` then wrote that row into a suite and found the refusal unreachable
+in fact as well as in argument, which sharpens the claim: the pre-emption is not
+merely one the consumer *would not* drop, it is one it **cannot**. Grove's
+distinguished child is an entry carrying no key, so it can never be handed to an
+operation as a target at all, and the classification that discharges it is
+forced by the consumer's own argument surface rather than chosen. No algebraic
+refusal now reaches a Grove operator from an ordinary argument.
+
 Reopen if a consumer appears that **cannot** pre-empt — one whose argument
 surface hands a bare key or an ordinal straight to an operation, so that a
 colliding refusal reaches its operator with no check of its own in front of it.

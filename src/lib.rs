@@ -51,6 +51,11 @@ pub mod session_config;
 // concluding which model it speaks, exactly as this crate's second name grammar
 // always demanded.
 pub mod task_name;
+// `task_grow` is `leaf-add`, `leaf-add-pair` and `leaf-insert` expressed through
+// that seam — the *migrate* stage's third leaf. What is left in it is what the
+// library has no counterpart for: grove's reference grammar, the preconditions
+// the library cannot see, the task-file template, and the cross-reference lint.
+pub mod task_grow;
 // `task_tree` is grove's reading surface expressed through that seam — the
 // *migrate* stage's first leaf. `pick`, `select`, `brief-chain`, `kind` and
 // `resolve` read one snapshot under the library's shared lock, and it owns the
@@ -65,8 +70,12 @@ pub mod task_tree;
 pub(crate) mod test_barrier;
 pub mod tree_access;
 pub mod tree_format;
-// `tree_grow` is crate-private for the same reason as the modules above, and it
-// is the module that settled the general rule: **a public item whose only
+// `tree_grow` is what is left of the path-walking appender after `growing-k33`
+// took the grow verbs to `task_grow`: one primitive, `leaf_add_unlocked`, and
+// the destination guard it writes through, kept alive by the lifecycle verbs
+// that allocate under grove's *own* exclusive guard and so cannot reach the
+// library at all. It is crate-private for the same reason as the modules above,
+// and it is the module that settled the general rule: **a public item whose only
 // callers are tests stops being module API** — deleted where the tests can
 // assert on what production reads, demoted into `mod tests` where they still
 // need the convenience. Either way its coverage moves onto the interface

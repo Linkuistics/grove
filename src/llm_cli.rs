@@ -10,8 +10,10 @@
 // The task-tree verbs (`pick` / `brief-chain` / `resolve` / `leaf-add` /
 // `leaf-insert` / `leaf-decompose` / `leaf-retire` / `leaf-prune` / `root-init` /
 // `finish-commit`)
-// speak the **v2 directory scheme** (task-tree-scheme): they dispatch to the
-// directory-based modules `tree_read` / `tree_grow` / `tree_lifecycle`. There is
+// speak the **v2 directory scheme** (task-tree-scheme). The reading verbs and
+// the grow verbs dispatch to `task_tree` / `task_grow`, which run through
+// `ordinal-fs-tree`; the rest still dispatch to the directory-based
+// `tree_read` / `tree_grow` / `tree_lifecycle`, until their own flip leaf. There is
 // no transitional dual-format reader — `tree_migrate` is the only thing that
 // reads a legacy tree, once, on adoption, and the only legacy shape it still
 // converts is a v2 tree whose leaves predate filename kinds.
@@ -20,9 +22,8 @@ use crate::complete;
 use crate::driver_lease;
 use crate::leaf::Kind;
 use crate::repo;
-use crate::task_tree::{self, Resolution};
-use crate::tree_access;
-use crate::tree_grow;
+use crate::task_grow;
+use crate::task_tree;
 use crate::tree_lifecycle;
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
@@ -183,10 +184,9 @@ pub enum Command {
     /// Insert a new leaf at the slot held by `<target>`, shifting `<target>` and
     /// every later sibling up one position. `<target>` is an existing leaf or
     /// node by its key or path. Because the hierarchy lives in directories, each
-    /// shift is a single move of one sibling directory (`git mv`, or a plain
-    /// rename in a jj-enabled tree) and the whole subtree
-    /// — child names *and* keys — rides along untouched; in-file `# …` headers
-    /// are position-free, so **zero file contents** are rewritten. The new leaf
+    /// shift is a single plain rename of one sibling directory, and the whole
+    /// subtree — child names *and* keys — rides along untouched; in-file `# …`
+    /// headers are position-free, so **zero file contents** are rewritten. The new leaf
     /// gets a fresh key. Prints the new leaf's absolute path on stdout; the
     /// renumber summary and stray position-prefixed cross-references go to
     /// stderr. Working-tree change only — no commit.
@@ -572,26 +572,9 @@ fn cmd_resolve(reference: &str) -> Result<()> {
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
-    let path = leaf_add_for(&grove_root, &args.parent, &args.slug, kind)?;
+    let path = task_grow::leaf_add(&grove_root, &args.parent, &args.slug, kind)?;
     println!("{}", path.display());
     Ok(())
-}
-
-fn leaf_add_for(grove_root: &Path, parent: &str, slug: &str, kind: Kind) -> Result<PathBuf> {
-    let guard = tree_access::write(grove_root)?;
-    let parent_dir = resolve_parent_unlocked(guard.root(), parent)?;
-    tree_grow::leaf_add_unlocked(guard.root(), &parent_dir, slug, kind)
-}
-
-/// Resolve the `<parent>` argument shared by the two appending verbs: `.` is
-/// the grove root (the root node); anything else is a node by key or path.
-/// `tree_grow` validates that the result is a real node directory.
-fn resolve_parent_unlocked(grove_root: &Path, parent: &str) -> Result<PathBuf> {
-    if parent == "." {
-        Ok(grove_root.to_path_buf())
-    } else {
-        resolve_ref_or_path_unlocked(grove_root, parent)
-    }
 }
 
 /// Print `leaf-add-pair`'s paths — **after** the mutation succeeded, never as
@@ -606,68 +589,45 @@ fn print_paths(paths: &[PathBuf]) {
 
 fn cmd_leaf_add_pair(args: &LeafAddPairArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
-    let paths = leaf_add_pair_for(&grove_root, &args.parent, &args.stem)?;
+    let paths = task_grow::leaf_add_pair(&grove_root, &args.parent, &args.stem)?;
     print_paths(&paths);
     Ok(())
-}
-
-fn leaf_add_pair_for(grove_root: &Path, parent: &str, stem: &str) -> Result<Vec<PathBuf>> {
-    let guard = tree_access::write(grove_root)?;
-    let parent_dir = resolve_parent_unlocked(guard.root(), parent)?;
-    tree_grow::leaf_add_pair_unlocked(guard.root(), &parent_dir, stem)
 }
 
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
-    leaf_insert_for(
-        &grove_root,
-        &args.target,
-        &args.slug,
-        kind,
-        |locked_root, path, renumbers| {
-            // Keep the established CLI stream semantics: the standard print macros
-            // panic on a broken stdout/stderr, while cross-reference scanning
-            // remains the only fallible output operation returned as an error.
-            println!("{}", path.display());
-            if renumbers.is_empty() {
-                eprintln!("leaf-insert {}: no siblings to renumber", args.slug);
-            } else {
-                eprintln!(
-                    "leaf-insert {}: renumbered {} sibling{}:",
-                    args.slug,
-                    renumbers.len(),
-                    if renumbers.len() == 1 { "" } else { "s" }
-                );
-                for renumber in renumbers {
-                    eprintln!(
-                        "  {:02} -> {:02}  ({})",
-                        renumber.old_position, renumber.new_position, renumber.new_name
-                    );
-                }
-                eprintln!("cross-references to review (verb does not auto-rewrite):");
-                tree_grow::surface_cross_refs_unlocked(
-                    locked_root,
-                    renumbers,
-                    &mut std::io::stderr(),
-                )?;
-            }
-            Ok(())
-        },
-    )
+    let inserted = task_grow::leaf_insert(&grove_root, &args.target, &args.slug, kind)?;
+    report_insert(&grove_root, &args.slug, &inserted)
 }
 
-fn leaf_insert_for(
-    grove_root: &Path,
-    target: &str,
-    slug: &str,
-    kind: Kind,
-    after_insert: impl FnOnce(&Path, &Path, &[tree_grow::Renumber]) -> Result<()>,
-) -> Result<()> {
-    let guard = tree_access::write(grove_root)?;
-    let target = resolve_ref_or_path_unlocked(guard.root(), target)?;
-    let (path, renumbers) = tree_grow::leaf_insert_unlocked(guard.root(), &target, slug, kind)?;
-    after_insert(guard.root(), &path, &renumbers)
+/// `leaf-insert`'s output: the new leaf's path on stdout, the renumber summary
+/// and the cross-reference lint on stderr.
+///
+/// Keep the established CLI stream semantics: the standard print macros panic on
+/// a broken stdout/stderr, while cross-reference scanning remains the only
+/// fallible output operation returned as an error.
+fn report_insert(grove_root: &Path, slug: &str, inserted: &task_grow::Inserted) -> Result<()> {
+    println!("{}", inserted.path.display());
+    let renumbers = &inserted.renumbers;
+    if renumbers.is_empty() {
+        eprintln!("leaf-insert {slug}: no siblings to renumber");
+        return Ok(());
+    }
+    eprintln!(
+        "leaf-insert {}: renumbered {} sibling{}:",
+        slug,
+        renumbers.len(),
+        if renumbers.len() == 1 { "" } else { "s" }
+    );
+    for renumber in renumbers {
+        eprintln!(
+            "  {:02} -> {:02}  ({})",
+            renumber.old_position, renumber.new_position, renumber.new_name
+        );
+    }
+    eprintln!("cross-references to review (verb does not auto-rewrite):");
+    task_grow::surface_cross_refs(grove_root, renumbers, &mut std::io::stderr())
 }
 
 fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
@@ -754,49 +714,6 @@ fn grove_paths() -> Result<(PathBuf, PathBuf)> {
     Ok((worktree, grove_root))
 }
 
-// Map a `<parent>` / `<target>` argument — a `resolve`-able key/slug/handle OR a
-// path — to an absolute entry path. The driving flow passes back the **absolute**
-// path `pick`/`resolve` printed (the path branch); a key/slug/handle is the
-// convenience (the reference branch). Tried as a path first so an explicit,
-// existing path always wins; only a non-existent path is re-tried as a reference,
-// so the two namespaces never collide in practice.
-fn resolve_ref_or_path_unlocked(grove_root: &Path, arg: &str) -> Result<PathBuf> {
-    if let Some(path) = existing_path(grove_root, arg) {
-        return Ok(path);
-    }
-    match crate::tree_read::resolve_unlocked(grove_root, arg)? {
-        Resolution::Found { path, .. } => Ok(path),
-        Resolution::NotFound => bail!(
-            "no entry matches {arg:?} (tried as a path under the grove root and as a key/slug)"
-        ),
-        Resolution::Ambiguous(matches) => {
-            let keys = matches
-                .iter()
-                .map(|m| format!("[{}]", m.key))
-                .collect::<Vec<_>>()
-                .join(", ");
-            bail!("reference {arg:?} is ambiguous; re-query by key: {keys}")
-        }
-    }
-}
-
-// Interpret `arg` as a path that actually exists: absolute, or relative to the
-// grove root, or relative to the cwd. `None` if no such path exists (then it is a
-// key/slug reference). This preserves the "pass back what pick/resolve printed"
-// ergonomics (absolute) and the worktree-relative convenience.
-fn existing_path(grove_root: &Path, arg: &str) -> Option<PathBuf> {
-    let p = Path::new(arg);
-    if p.is_absolute() {
-        return p.exists().then(|| p.to_path_buf());
-    }
-    let grove_rel = grove_root.join(p);
-    if grove_rel.exists() {
-        return Some(grove_rel);
-    }
-    let cwd_rel = std::env::current_dir().ok()?.join(p);
-    cwd_rel.exists().then_some(cwd_rel)
-}
-
 // Normalize a user-supplied leaf path to what the v2 modules accept (absolute, or
 // relative to the grove root). The real driving flow passes back the **absolute**
 // path `pick`/`brief-chain` printed — handled by the absolute branch. A path given
@@ -870,10 +787,10 @@ mod tests {
     #[test]
     fn reference_taking_commands_acquire_the_tree_lock_once() {
         assert_one_acquisition(|grove_root| {
-            leaf_add_for(grove_root, "1", "later", Kind::Impl).unwrap();
+            task_grow::leaf_add(grove_root, "1", "later", Kind::Impl).unwrap();
         });
         assert_one_acquisition(|grove_root| {
-            leaf_add_pair_for(grove_root, "1", "survey").unwrap();
+            task_grow::leaf_add_pair(grove_root, "1", "survey").unwrap();
         });
         assert_one_acquisition(|grove_root| {
             brief_chain_for(grove_root, None).unwrap().unwrap();
@@ -904,31 +821,42 @@ mod tests {
     }
 
     #[test]
-    fn leaf_insert_lints_cross_references_under_its_only_exclusive_lock() {
+    fn leaf_insert_lints_cross_references_under_an_exclusive_lock_of_its_own() {
+        // **Two observations, and the second is the lint's.** A mutation consumes
+        // its guard, so the tree the shift *left* — which is the tree a stale
+        // reference has to be read out of, since a shifted node took its whole
+        // subtree's paths with it — can only be seen through a second guard. What
+        // the property was ever about is that the output is written while the tree
+        // is **held**: a hit printed after the lock went would name a path anything
+        // else could already have renamed.
         let (worktree, grove_root) = grove_with_node();
-        fs::write(grove_root.join("NOTE.md"), "stale path: 01-impl-first-k2\n").unwrap();
+        let brief = grove_root.join("01-plan-k1").join("BRIEF.md");
+        let body = fs::read_to_string(&brief).unwrap() + "stale path: 01-impl-first-k2\n";
+        fs::write(&brief, body).unwrap();
         let mut output = ExclusiveLockAssertingWriter {
             worktree: worktree.path().to_path_buf(),
             bytes: Vec::new(),
         };
         tree_access::reset_acquisition_count();
+        crate::task_tree::reset_read_count();
 
-        leaf_insert_for(
-            &grove_root,
-            "2",
-            "earlier",
-            Kind::Impl,
-            |locked_root, _, renumbers| {
-                tree_grow::surface_cross_refs_unlocked(locked_root, renumbers, &mut output)
-            },
-        )
-        .unwrap();
+        let inserted = task_grow::leaf_insert(&grove_root, "2", "earlier", Kind::Impl).unwrap();
+        task_grow::surface_cross_refs(&grove_root, &inserted.renumbers, &mut output).unwrap();
 
         assert!(
-            String::from_utf8_lossy(&output.bytes).contains("NOTE.md:1"),
+            String::from_utf8_lossy(&output.bytes).contains("BRIEF.md:"),
             "fixture must exercise a cross-reference hit: {}",
             String::from_utf8_lossy(&output.bytes)
         );
-        assert_eq!(tree_access::acquisition_count(), 1);
+        assert_eq!(
+            tree_access::acquisition_count(),
+            0,
+            "leaf-insert takes none of grove's own guards"
+        );
+        assert_eq!(
+            crate::task_tree::read_count(),
+            2,
+            "the insert, then the lint's own guard over the tree it left"
+        );
     }
 }

@@ -576,7 +576,7 @@ fn pair_prints_three_flat_siblings_with_fixed_research_kinds() {
 /// The pair's half of the compatibility promise, which the legacy *chain* node
 /// fixture above cannot make.
 ///
-/// `content/TASK-FORMAT.md` and `leaf_add_pair_unlocked` both promise that both
+/// `content/TASK-FORMAT.md` and `task_grow::leaf_add_pair` both promise that both
 /// slug spellings stay legal and no existing tree is invalidated, and the review
 /// chain's half is guarded above. The pair's is a genuinely different parse and
 /// was left uncovered: the moment the generator stopped emitting `-a` / `-b` /

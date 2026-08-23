@@ -16,10 +16,11 @@
 //     then `grove-llm complete` — on stderr, leaving stdout as the parsed path
 //     data it already was.
 //
-// Each test stands up a real git repo. `leaf-decompose` still moves entries with
-// `git mv` where they are tracked, so it needs one; the marking verbs no longer
-// do, and for them the repo is the *instrument* — see *What Git shows between
-// the verb and the commit* below.
+// Each test stands up a real git repo. `leaf-decompose` is now the *only* verb
+// that still moves entries with `git mv` where they are tracked, so it needs
+// one; the marking verbs no longer do — nor, since `growing-k33`, does
+// `leaf-insert` — and for them the repo is the *instrument* — see *What Git
+// shows between the verb and the commit* below.
 
 use assert_cmd::Command;
 use std::fs;

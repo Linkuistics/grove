@@ -2445,6 +2445,101 @@ by re-reading the row. The table earned its cost either way — it named which f
 of ten variants to think about, and one leaf's worth of checking corrected it —
 which is the arrangement entry 019 proposed working exactly as proposed.
 
+### 023 — Transcribing the same table a second time (grove's grow verbs)
+
+**Situation.** The flip's *migrate* stage again: `leaf-add`, `leaf-add-pair` and
+`leaf-insert` onto `append`, `append_many` and `insert`. The leaf inherits three
+rows of `refusals-k30`'s reachability table and the same obligation entry 022
+discharged for the marking verbs — transcribe them into a suite, and find them
+wrong if they are. This is the second run of that protocol, on rows written by
+the same session, and it is worth logging *because* it is a repeat: what a
+protocol finds the second time is evidence about the protocol.
+
+**Formalism. None written again, and the instrument is the same — compose the
+fixture each row implies.** What differed is where the argument had to be read
+from. Entry 022's row fell to the fixture alone: the collision and the duplicate
+key were the same string, and writing the filenames out settled it. Neither of
+these two fell that way.
+
+**Caught.** Two more rows wrong, by two different mechanisms, and one seam
+finding that no row predicted.
+
+*`TargetNotNode` was wrong on the page, and needed no fixture at all.* The row
+said **yes** and then named its own contradiction in the next clause — *Grove
+keeps its own check in front of it*. Both sentences are true of the design and
+only one can be true of an operator. What settles it is not judgement but the
+consumer's argument surface: grove's distinguished child (`BRIEF.md`) is an entry
+carrying **no key**, so it can never be handed to an operation as a target
+however the refusal is worded, and clause 2's *classify before calling* is
+therefore forced rather than chosen. The pre-emption is permanent, and the row
+is now **no**. This one was legible by reading, and had not been read.
+
+*`DestinationOccupied` was wrong in the algebra, and needed both the fixture and
+the interpreter.* The row predicted it from a hand-edited tree carrying a copied
+leaf that duplicates a key — grove's trees *are* hand-edited, so the premise was
+sound. It is still unreachable, and the reason is in two places at once: an
+`append` composes its name with `max + 1` over the whole tree, so no existing
+entry can carry it; and a **shift** composes `(ordinal + 1, key, parts)`, whose
+only possible occupant is the sibling one ordinal higher, which is itself a mover
+and has already vacated — because the renames run highest-ordinal-first and
+`Plan::refusal` folds the plan through the snapshot **in effect order**,
+accumulating `vacated` as it goes. The fixture (`operations.qnt`'s `corrupted`
+instance written in grove's grammar) shows the outcome; only reading the fold
+shows why. Entry 003's model result — highest-first, argued from the intermediate
+state rather than from collisions — turns out to discharge a refusal as a side
+effect, and `ops.rs` notes it in passing while the design document's table did
+not carry the consequence.
+
+*And the seam finding, which no row could have predicted: **the library allocates
+the key, and the consumer's content embeds it**.* `NewEntry` takes its bytes
+before the library composes the name, and grove's leaf body opens with the handle
+`# <slug>-k<key>`. So a content-carrying domain cannot render content from the
+answer and must **predict** the allocation — `max + 1` over the same snapshot,
+which is the library's own rule mirrored on the consumer's side. `tree_id::next_key`
+was supposed to die here; what actually happened is that its *rule* survived in a
+place the seam did not anticipate. The prediction is checked against the report
+and the verb refuses to claim success on a disagreement, because the silent
+failure is a leaf whose first line contradicts its own filename.
+
+**Missed.** The table missed both rows and could not have caught the seam
+finding, which is not a refusal at all. More usefully: entry 022's own
+counterfactual — *for each refusal you mark reachable, write the fixture's
+filenames out in full* — would have caught **neither** of these. The first is not
+about filenames, it is about a clause the row contradicts two lines later; the
+second is about the order in which a plan is folded, which no filename shows.
+That is a limit on a counterfactual one entry old, and worth recording as such.
+
+**Cost.** Two hours for the leaf; perhaps forty minutes on the table. The
+`TargetNotNode` row cost one reading and one loop over five parent arguments. The
+`DestinationOccupied` row cost one fixture and one careful read of
+`plan.rs::refusal`, and the read is where the confidence came from — the fixture
+passing only shows *this* corrupted tree survives.
+
+**Counterfactual.** Two, at different levels.
+
+For the table: **a row whose justification contains the words *we keep our own
+check in front of it* is not a reachable row.** That is a mechanical test, it
+applies to any consumer-side reachability claim, and it would have caught the
+`TargetNotNode` row at the moment it was written. Generalised: a reachability
+table over a layered surface must say *reachable by an operator* or *reachable by
+the algebra*, and it is worth nothing if it silently means both.
+
+For the algebra: **a refusal whose reachability depends on the order effects are
+folded cannot be settled from an operation's signature.** `DestinationOccupied`
+is the only refusal in this library that is a property of the *plan* rather than
+of the arguments, and it is the only one whose row was wrong for a structural
+reason twice — once here and once at entry 022. A table over an
+operation-plus-interpreter design should mark those rows and check them against
+the interpreter, not against the operation.
+
+**Verdict.** Reach for the protocol again — it has now corrected three rows of
+one table across two leaves, at well under an hour each. But do not expect the
+same instrument twice: entry 022's fixtures found a fact about names, and this
+leaf's found a fact about fold order and a fact about who allocates. The
+transcription is what is repeatable; *what it takes to falsify a row* is not, and
+a leaf that budgets only for a fixture will re-affirm a row it should have
+broken.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;

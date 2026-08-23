@@ -427,15 +427,16 @@ adopting the library's would be clause 3 broken in the opposite direction.
 
 #### Which verbs reach the algebra at all
 
-Nine of thirteen, and four of those only on a tree a hand edit or a failed
-rollback has damaged.
+Nine of thirteen, and the refusals they reach need a tree at the edge of the
+keyspace or the ordinal space — or, for the one verb the migrate stage has yet to
+move, one a hand edit or a failed rollback has damaged.
 
 | verb | library operation | `Refusal`s it can reach |
 |---|---|---|
 | `pick`, `brief-chain`, `kind`, `resolve` | `walk`, `by_key`, `ancestors`, `distinguished_chain` | **none** — the reading surface answers with `Option`, so no refusal exists to raise |
-| `leaf-add` | `append` | `TargetNotNode`; `DestinationOccupied`, `KeysExhausted`, `OrdinalsExhausted` |
-| `leaf-add-pair` | `append_many` | the same four |
-| `leaf-insert` | `insert` | `DestinationOccupied`, `KeysExhausted`, `OrdinalsExhausted` — not `TargetNotNode`, because the target passed is the resolved entry's **container**, a node by construction |
+| `leaf-add` | `append` | `KeysExhausted`, `OrdinalsExhausted` — and **not** `TargetNotNode` or `DestinationOccupied`; `growing-k33` corrected both rows |
+| `leaf-add-pair` | `append_many` | the same two |
+| `leaf-insert` | `insert` | `KeysExhausted`, `OrdinalsExhausted` — not `TargetNotNode`, because the target passed is the resolved entry's **container**, a node by construction; and not `DestinationOccupied`, per the row below |
 | `leaf-decompose` | `promote` | `DestinationOccupied`, `KeysExhausted` — the node takes the leaf's own ordinal and the first child takes the first, so no ordinal is allocated past the end |
 | `leaf-retire`, `leaf-prune` | `rewrite` | **none**, and the row below says why the `DestinationOccupied` this table first predicted is unreachable |
 | `root-init` | `append` into a tree it has just created | **none** — the root is not an entry and the level is empty |
@@ -444,29 +445,37 @@ rollback has damaged.
 
 #### Which refusals Grove's verbs can reach
 
-Four of ten, and only one of those from an ordinary argument. A refusal no
-argument produces is a case a contract test cannot cover and a reader should not
-go looking for.
+Three of ten, and none from an ordinary argument. A refusal no argument produces
+is a case a contract test cannot cover and a reader should not go looking for.
 
-**One row has since been corrected by the leaf that transcribed it.**
-`marking-k32` found `DestinationOccupied` unreachable from the two marking
-verbs — the row below carries the reason — which is the check
-[`refusals-k30` scheduled](#library-refusals) working as intended: the table's
-own guarantee is that each migrate leaf writes its rows into a suite and finds
-them wrong if they are. The count of four is unchanged and their *source* is not:
-every reachable variant now belongs to the grow verbs alone, and the two marking
-verbs reach none.
+**Three rows have since been corrected by the leaves that transcribed them, and
+the count fell from four to three.** `marking-k32` found `DestinationOccupied`
+unreachable from the two marking verbs; `growing-k33` found `TargetNotNode` and
+`DestinationOccupied` unreachable from the three grow verbs. Each correction is
+the check [`refusals-k30` scheduled](#library-refusals) working as intended: the
+table's own guarantee is that each migrate leaf writes its rows into a suite and
+finds them wrong if they are, and it has fired on every migrate leaf that had a
+row to write.
+
+What survives is `KeysExhausted` and `OrdinalsExhausted` from the grow verbs, and
+`DestinationOccupied` from `leaf-decompose` — a row no leaf has transcribed yet,
+and `promotion-k34`'s to check. The consequential change is that **no algebraic
+refusal reaches an operator from an ordinary argument any more**: `TargetNotNode`
+was the only one that did, and the collision `refusals-k30` weighed was its
+message. The decision that record reached — print verbatim, re-word nothing — is
+unchanged and is now cheaper than it looked, because the message that collides is
+one no argument produces.
 
 | `Refusal` variant | reachable from Grove's verbs? |
 |---|---|
 | `TargetMissing` | **no** — clause 1. A reference naming nothing fails in Grove's resolution, before any operation is called. |
-| `TargetNotNode` | **yes** — `leaf-add <a task file> <slug>`, and `leaf-add-pair` the same way. The one algebraic refusal an ordinary argument reaches, and the one whose message collides; Grove keeps its own check in front of it. |
+| `TargetNotNode` | **no**, and `growing-k33` corrected this row: it predicted *yes* for `leaf-add <a task file> <slug>` while naming its own contradiction in the next clause — *Grove keeps its own check in front of it*. Both are true of the design and only one can be true of an operator. The check is not optional either, which is what settles it: `.grove/BRIEF.md` is an entry carrying **no key**, so it cannot be handed to the library as a target however the refusal were worded, and clause 2 therefore *forces* the classification that puts this refusal permanently behind one. Asserted in `src/task_grow/tests.rs` over every parent argument that is an entry and not a node. |
 | `NoOccupantAtOrdinal` | **no**, in none of its three messages — `leaf-insert` names the **entry** whose slot the new leaf takes, and Grove reads the ordinal off that entry in the snapshot the insert plans from, so `at` is occupied by construction. The syllabus CLI reached all three because `<at>` is an ordinal argument there; Grove's argument surface discharges the refusal `insert` spent two leaves getting right. |
 | `PromoteNotLeaf` | **no** — `leaf-decompose` refuses a brief, a `DONE` leaf, an `ABANDONED` leaf and a `finish` leaf, none of which the library can see; a node falls out of the same match. |
 | `PromotePartsNotNode` | **no** — `leaf-decompose` always composes node parts. |
 | `PromoteNoDistinguished` | **no** — Grove's distinguished child is `BRIEF.md`. |
 | `RewriteSpeciesChange` | **no** — `leaf-retire` and `leaf-prune` compose leaf parts for an entry they have already matched as a live leaf. Confirmed by `marking-k32`: the classification reads `Parts::Leaf` off the snapshot and composes from its own `kind` and `slug`, so no path through either verb can hand `rewrite` node parts. |
-| `DestinationOccupied` | **yes from the grow verbs**, on a hand-edited tree: a copied leaf duplicating a key. Grove's trees *are* hand-edited — the methodology offers *reorder by hand*. **Not from `leaf-retire` or `leaf-prune`**, and composing the fixture is what showed it: the occupying name must be exactly the name the mark would place, and an outcome infix and a key are both *parts of one name*, so a `DONE` twin sitting beside the live leaf necessarily carries the live leaf's key. That breaks the by-key addressing clause 1 rests on, and `task_tree::addressable_key` refuses it first — see [*One guard is one mutation*](#tree-access-lock). `marking-k32` corrected this row. |
+| `DestinationOccupied` | **no from any flipped verb**, and it took two leaves to establish; `leaf-decompose`'s row above is still predicted and still unchecked. **Not from `leaf-retire` or `leaf-prune`** (`marking-k32`): the occupying name must be exactly the name the mark would place, and an outcome infix and a key are both *parts of one name*, so a `DONE` twin beside the live leaf necessarily carries the live leaf's key — which `task_tree::addressable_key` refuses first. **Not from the grow verbs either** (`growing-k33`), though this row predicted *yes on a hand-edited tree: a copied leaf duplicating a key*, and composing that tree is what showed otherwise. An **append** composes its name with `max + 1` over the whole tree, so no entry in the snapshot can already carry it, whatever a hand edit did. A **shift** composes `(ordinal + 1, key, parts)`, and the only entry that could already carry that name is the sibling one ordinal higher — itself a mover, and already vacated, because the renames run highest-first and the plan is folded through the snapshot in that order. That is the second thing highest-first buys, after the intermediate state, and `ops.rs` says as much in passing — *lowest-first is refused only where a hand edit already duplicated a key and its parts at adjacent ordinals*, which is the tree this row was reaching for. Asserted against `operations.qnt`'s `corrupted` instance rendered in Grove's grammar. |
 | `ContentForANode` | **no** — discharged by the verb set. A node arises only through `leaf-decompose`, whose node parts carry no bytes and whose first child is a leaf; `leaf-add`, `leaf-add-pair` and `leaf-insert` compose leaf parts and nothing else. |
 | `KeysExhausted` / `OrdinalsExhausted` | **yes** — a hand-written `-k4294967295`, or a position of `4294967295`. That is the exact edge: one more is refused by the grammar as [not canonical](adr/task-names-are-canonical.md), so nothing between the two states is representable. |
 
@@ -654,22 +663,22 @@ transactions fail closed](adr/task-tree-transactions-fail-closed.md).
 
 Composite grow verbs need neither, and the promise they make is correspondingly
 narrower. `leaf-add-pair` is all-or-nothing **on a reported error** within one
-exclusive lock: it validates every slug, resolves the parent, allocates all
-positions and keys from one snapshot, and refuses up front on any destination it
-cannot prove free, so the only failure that reaches a partial state is a
-mid-write error, which unwinds every leaf it created — including the one whose
-creation succeeded and whose write did not. Each destination is taken by an
-atomic non-clobbering create, so a racing writer that ignored the lock cannot be
-truncated or written through, and every path unwound is one Grove provably owns.
+exclusive lock, and since `growing-k33` that is the library's doing rather than
+Grove's: `append_many` plans the whole run from one snapshot — so the ordinals
+are contiguous and the keys consecutive by construction — checks the plan against
+that snapshot before a byte is written, and unwinds its own effects when the
+filesystem refuses part way. Grove's own reconstruction of the same guarantee —
+an up-front destination sweep, an `O_EXCL` claim per leaf, a per-run rollback
+list — went with the verb, and what is left of it serves the lifecycle verbs
+that still allocate under Grove's own guard.
 
 That guarantee covers the error return path and nothing else. **Process death
-mid-run is not recovered**: rollback runs only when control returns through the
-`Err` branch, so a `SIGKILL` after the first pair leaf lands leaves a partial
-shape a reader cannot distinguish from a deliberately hand-cut one, and a killed
-`leaf-add` can leave a created-but-empty leaf. Finish teardown and the
-session-kind migration remain the only operations that promise
-process-interruption recovery, which is why they alone carry a witness. The
-residue is a hand-editable file in a directory tree, and recovering it is
+mid-run is not recovered**: the interpreter unwinds only when control returns
+through the `Err` branch, so a `SIGKILL` after the first pair leaf lands leaves a
+partial shape a reader cannot distinguish from a deliberately hand-cut one.
+Finish teardown and the session-kind migration remain the only operations that
+promise process-interruption recovery, which is why they alone carry a witness.
+The residue is a hand-editable file in a directory tree, and recovering it is
 deleting it.
 
 #### Two locks, one at a time, while the flip is in flight
@@ -747,6 +756,51 @@ Without it, `leaf-retire` aimed at one twin rewrote the other onto its own name,
 changed nothing, and reported success. Every flipped verb goes through it, and
 every verb the migrate stage has yet to move should: the hazard belongs to
 *resolve a path, then call by key*, which is the shape of all of them.
+
+#### A verb that reports on the tree it changed needs a second guard
+
+`growing-k33` moved `leaf-add`, `leaf-add-pair` and `leaf-insert` onto `append`,
+`append_many` and `insert`, and one of them has an epilogue: `leaf-insert` lints
+stray position-prefixed cross-references left stale by the renumber it just made.
+The lint reads the tree the **shift left** — a shifted node took its whole
+subtree's paths with it — and the mutation consumed the guard that could have
+shown it, so the verb reopens one. That is a second observation, deliberately,
+and the property it preserves is the one that mattered: the output is written
+while the tree is held, so a hit naming a path is a path nothing has renamed
+underneath it. The reopen takes no second waiting diagnostic, for the same reason
+a bulk mark's later guards do not.
+
+The lint also **scans the snapshot** rather than the directory, so what it reads
+is every leaf and every charter — the same set every other verb calls the tree —
+and a foreign `.md` a hand edit dropped into `.grove/` is no longer scanned.
+Grove writes no such file, and the alternative is a second, wider notion of
+*what is in the tree* than the reader has.
+
+#### The library allocates the key; the consumer's content embeds it
+
+Grove's leaf body opens with the position-free handle `# <slug>-k<key>`, and
+`NewEntry` takes its bytes **before** the library composes the name that carries
+the key. A content-carrying domain therefore cannot render its content from the
+answer, and has to predict the allocation: `task_tree::next_key` is `max + 1`
+over the same snapshot the operation plans from, which is the library's own rule
+mirrored on the consumer's side.
+
+The alternative was to create with `NewEntry::empty` and write the body
+afterwards, from the key the report carries. It was rejected because the guard is
+consumed by the mutation, so that content write lands **outside** it — and
+because it would hand `append_many` a run whose three files land atomically and
+whose three bodies do not, which is the all-or-nothing property the composite
+verb exists for. Predicting keeps the content atomic with the creation, and pays
+for it with one check.
+
+It is a prediction and it is checked. Every grow verb compares it against the key
+the library reports and refuses to claim success on a disagreement, because the
+silent failure is a leaf whose first line contradicts its own filename —
+permanently, and invisibly. The prediction reads the same snapshot under the same
+guard, so it can only be wrong if the library's allocation rule changes, which is
+exactly what the check exists to catch. An exhausted keyspace predicts nothing
+and hands the library no bytes: `Refusal::KeysExhausted` is the library's to
+state, a refusal writes nothing, and the unrenderable content is never reached.
 
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>

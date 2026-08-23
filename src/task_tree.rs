@@ -44,7 +44,7 @@ use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
-use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Verdict};
+use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Verdict};
 
 use crate::leaf::Kind;
 use crate::task_name::{Outcome, Parts, TaskName};
@@ -251,7 +251,7 @@ pub enum Target<'a> {
 /// returns are still built from the caller's own spelling of the root.
 pub fn target<'a>(
     root: &Path,
-    snapshot: &'a ordinal_fs_tree::Snapshot<TaskName>,
+    snapshot: &'a Snapshot<TaskName>,
     path: &Path,
 ) -> Result<Target<'a>> {
     let candidate = if path.is_absolute() {
@@ -343,7 +343,7 @@ fn unreachable_by_any_walk(candidate: &Path, resolved: &Path, name: &str) -> any
 /// kept deliberately.
 pub fn addressable_key(
     root: &Path,
-    snapshot: &ordinal_fs_tree::Snapshot<TaskName>,
+    snapshot: &Snapshot<TaskName>,
     entry: &Entry<'_, TaskName>,
 ) -> Result<Key> {
     let name = entry.name();
@@ -370,6 +370,43 @@ pub fn addressable_key(
         );
     }
     Ok(triple.key)
+}
+
+/// The key the library will give the next entry it creates from this snapshot —
+/// `max + 1` over every name in the tree — or `None` when the keyspace is full.
+///
+/// # A mirror of the library's rule, and the reason grove needs one
+///
+/// The library allocates keys and grove does not, which is why
+/// `tree_id::next_key` died. But grove's leaf **content** embeds the key its name
+/// will carry — the first-line handle `# <slug>-k<key>` — and
+/// [`NewEntry`](ordinal_fs_tree::NewEntry) takes its bytes *before* the library
+/// composes the name, so the bytes cannot be written from the answer. A
+/// content-carrying domain therefore has to predict the allocation.
+///
+/// It is a prediction and it is checked: every grow verb compares this against
+/// the key the library actually reports and refuses to claim success on a
+/// disagreement (`task_grow::allocated`). The prediction reads the *same*
+/// snapshot the operation plans from under the *same* guard, so it can only
+/// differ if the library's allocation rule changes — which is exactly what the
+/// check exists to catch, since a silent disagreement is a leaf whose header
+/// contradicts its filename.
+///
+/// `None` rather than a refusal: an exhausted keyspace is
+/// [`Refusal::KeysExhausted`](ordinal_fs_tree::Refusal), which is the library's
+/// to state and not grove's to anticipate
+/// (`docs/ARCHITECTURE.md#library-refusals`, clause 3). The caller hands the
+/// library no bytes and lets it refuse — a refusal writes nothing, so the
+/// unrenderable content is never reached.
+#[must_use]
+pub fn next_key(snapshot: &Snapshot<TaskName>) -> Option<Key> {
+    let greatest = snapshot
+        .walk()
+        .filter_map(|entry| entry.key())
+        .map(Key::get)
+        .max()
+        .unwrap_or(0);
+    greatest.checked_add(1).map(Key::new)
 }
 
 /// A live leaf's session kind and handle, or `None` when the entry is not one.
@@ -635,41 +672,139 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
 /// property of the match *set*: `find` short-circuits at the first hit, which is
 /// precisely the answer `resolve` must not give.
 pub fn resolve_in(tree: &Tree, reference: &str) -> Result<Resolution> {
-    let by_key = |key: u32| -> Resolution {
-        tree.by_key(Key::new(key))
-            .map_or(Resolution::NotFound, |entry| Resolution::Found {
-                path: entry_path(tree.root(), entry),
-                outcome: entry_outcome(&entry),
-            })
-    };
+    Ok(match lookup(tree.snapshot(), reference)? {
+        Lookup::Found(entry) => Resolution::Found {
+            path: entry_path(tree.root(), entry),
+            outcome: entry_outcome(&entry),
+        },
+        Lookup::NotFound => Resolution::NotFound,
+        Lookup::Ambiguous(matches) => Resolution::Ambiguous(
+            matches
+                .into_iter()
+                .map(|entry| AmbiguousMatch {
+                    key: slug_match_key(&entry),
+                    path: entry_path(tree.root(), entry),
+                    outcome: entry_outcome(&entry),
+                })
+                .collect(),
+        ),
+    })
+}
 
+/// What a reference matched in the snapshot, before anything is said about it.
+///
+/// **Entries and not paths**, because a mutating verb needs the entry itself: it
+/// has to read a key off it and call the library *by key* against this same
+/// snapshot (`docs/ARCHITECTURE.md#library-refusals`, clause 1). [`resolve_in`]
+/// renders the same three outcomes as paths, so grove has one lookup and not
+/// two — the read verb's answer and the write verb's are the same walk.
+enum Lookup<'a> {
+    Found(Entry<'a, TaskName>),
+    NotFound,
+    Ambiguous(Vec<Entry<'a, TaskName>>),
+}
+
+/// The key of an entry a bare slug matched.
+///
+/// [`Lookup::Ambiguous`] arises only from the slug branch of [`lookup`], whose
+/// filter reads the slug off a `triple` — so every entry in it is positioned and
+/// carries a key.
+fn slug_match_key(entry: &Entry<'_, TaskName>) -> u32 {
+    entry
+        .key()
+        .map_or_else(|| unreachable!("a slug match is positioned"), Key::get)
+}
+
+/// The reference grammar itself: `[n]` / `n` / `[n]-slug` by key, a bare slug by
+/// slug, and a full `<slug>-k<key>` handle by its terminal key once the bare
+/// slug has failed.
+fn lookup<'a>(snapshot: &'a Snapshot<TaskName>, reference: &str) -> Result<Lookup<'a>> {
+    let by_key = |key: u32| -> Lookup<'a> {
+        snapshot
+            .by_key(Key::new(key))
+            .map_or(Lookup::NotFound, Lookup::Found)
+    };
     match parse_ref(reference)? {
         Ref::Key(key) => Ok(by_key(key)),
         Ref::Slug(slug) => {
-            let matches: Vec<AmbiguousMatch> = tree
+            // A whole walk and never `find`: ambiguity is a property of the
+            // match *set*, and `find` short-circuits at the first hit — which is
+            // precisely the answer this must not give.
+            let matches: Vec<Entry<'a, TaskName>> = snapshot
                 .walk()
-                .filter_map(|entry| {
-                    let triple = entry.triple()?;
-                    (triple.parts.slug().as_str() == slug.as_str()).then(|| AmbiguousMatch {
-                        key: triple.key.get(),
-                        path: entry_path(tree.root(), entry),
-                        outcome: entry_outcome(&entry),
-                    })
+                .filter(|entry| {
+                    entry
+                        .triple()
+                        .is_some_and(|triple| triple.parts.slug().as_str() == slug.as_str())
                 })
                 .collect();
-            Ok(match matches.as_slice() {
-                [] => match handle_key(&slug) {
+            Ok(match matches.len() {
+                0 => match handle_key(&slug) {
                     Some(key) => by_key(key),
-                    None => Resolution::NotFound,
+                    None => Lookup::NotFound,
                 },
-                [only] => Resolution::Found {
-                    path: only.path.clone(),
-                    outcome: only.outcome,
-                },
-                _ => Resolution::Ambiguous(matches),
+                1 => Lookup::Found(matches[0]),
+                _ => Lookup::Ambiguous(matches),
             })
         }
     }
+}
+
+/// What a `<parent>` / `<target>` argument names in the tree: a path, or a
+/// reference in the key/slug namespace.
+///
+/// **Clause 1, for the verbs whose argument is a reference rather than a path.**
+/// The resolution runs against the snapshot the mutation will plan from, which
+/// one guard already guarantees — where the pre-flip verbs resolved a reference
+/// to a *path* under grove's own guard and then re-read the directory to act on
+/// it.
+///
+/// Tried as a path first so an explicit, existing path always wins; only a
+/// non-existent path is re-tried as a reference, so the two namespaces never
+/// collide in practice. `.` is a path — the grove root — and so needs no case of
+/// its own.
+pub fn reference<'a>(
+    root: &Path,
+    snapshot: &'a Snapshot<TaskName>,
+    argument: &str,
+) -> Result<Target<'a>> {
+    if let Some(path) = existing_path(root, argument) {
+        return target(root, snapshot, &path);
+    }
+    match lookup(snapshot, argument)? {
+        Lookup::Found(entry) => Ok(Target::Entry(entry)),
+        Lookup::NotFound => bail!(
+            "no entry matches {argument:?} (tried as a path under the grove root \
+             and as a key/slug)"
+        ),
+        Lookup::Ambiguous(matches) => {
+            let keys = matches
+                .iter()
+                .map(|entry| format!("[{}]", slug_match_key(entry)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            bail!("reference {argument:?} is ambiguous; re-query by key: {keys}")
+        }
+    }
+}
+
+/// Interpret an argument as a path that actually exists: absolute, or relative
+/// to the grove root, or relative to the cwd. `None` if no such path exists —
+/// then it is a key/slug reference.
+///
+/// This preserves the *pass back what `pick`/`resolve` printed* ergonomics (the
+/// absolute branch) and the worktree-relative convenience.
+fn existing_path(grove_root: &Path, argument: &str) -> Option<PathBuf> {
+    let candidate = Path::new(argument);
+    if candidate.is_absolute() {
+        return candidate.exists().then(|| candidate.to_path_buf());
+    }
+    let grove_relative = grove_root.join(candidate);
+    if grove_relative.exists() {
+        return Some(grove_relative);
+    }
+    let cwd_relative = std::env::current_dir().ok()?.join(candidate);
+    cwd_relative.exists().then_some(cwd_relative)
 }
 
 /// A parsed reference: a permanent key, or a bare slug.

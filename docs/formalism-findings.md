@@ -2072,6 +2072,112 @@ result here: a practitioner could tell *before choosing* that they were holding
 neither kind of question. H2 is untouched: the model led nothing here because
 there was nothing for it to lead.
 
+### 019 — Building the interface neither model can reach (`ordinal-fs-tree`'s CLI)
+
+**Situation.** Implementing `docs/ordinal-fs-tree/CLI.md`: the `syllabus` binary,
+twelve verbs, its contract tests, and the six things that document met and
+deliberately did not resolve. The leaf that closes increment 1, and the first
+time the seam is driven by code written against a real terminal rather than
+against the architecture document.
+
+**Formalism. None run, and entry 018 had already said so** — this leaf is the
+other half of that prediction, and it is worth recording as the *confirmation*
+rather than as a second no. Predicted coverage was zero and the measured account
+is **31 tests, 8 naming a model claim, 23 saying they have none, none naming
+neither**. The eight that do name one are not about the CLI: each checks that a
+*modelled* outcome survives the trip out through argv and back through stdout,
+which the on-disk suites had already discharged in-process.
+
+**Caught.**
+
+*A design document's reachability table predicted a suite that did not exist
+yet.* `CLI.md`'s *Which refusals this CLI can reach* was written before any
+argument parsing existed, marking six refusals reachable and seven not. Writing
+the contract tests was reading that table: every refusal it marked reachable has
+a test naming its witness, every one it marked unreachable has none, and **not
+one turned out to be reachable after all**. That is entry 004's *witnesses are
+the test suite* one layer further out again — a table over `wit_refused*` is a
+test plan, and building it at design time is what makes the implementation leaf's
+suite a transcription rather than an invention.
+
+*The library's refusals speak the library's vocabulary, and a domain cannot
+change them.* `syllabus lesson-add 4 sections` answers **"the entry with key 4 is
+a leaf, which holds nothing. Children go in a node — promote it first, or name a
+node."** In this domain there are no leaves and no nodes; there are lessons and
+modules. `Error::Malformed` and `Error::Reserved` carry `EntryName::Err`, so a
+*parse* failure reaches the operator in the domain's own words — the design went
+out of its way to arrange that — but `Error::Refused` carries `Refusal`, which is
+not generic over `N` and holds no domain value at all. So the half of the error
+surface a conforming tree actually meets in normal use is the half the domain
+cannot speak for. **Accepted rather than fixed**, and the reasoning is the
+finding: the library's words are *true* (a leaf is a regular file), a `Refusal<N>`
+would put a second domain-facing rendering into a seam whose ADR says the name
+type is the only one, and a CLI that re-words the condition itself is exactly
+what entry 017 measured going wrong. What is lost is stated instead of hidden.
+
+*The claim label is prose, so a count of it measures the counter.* The crate
+carries 204 tests and the convention is *each test names the claim it discharges,
+or says it has none*. A regex over the claim identifiers and the phrase *no model
+claim* leaves 22 unclassified — and **every one of them is labelled**, in a form
+the pattern did not hold: *Discharges the assumed half of subtree preservation
+under shift*, *Discharges `RefusedDestinationOccupied` against the snapshot
+itself*, *Discharges every trait obligation Alloy states*, and a handful whose
+suite is labelled once in its **module header** instead (`conformance_kit.rs`:
+*each broken domain but the last is one of `structure.als`'s witnesses… the last
+has no witness and can have none*). The crate-wide account is therefore
+**204 tests, all labelled**, and the two-label split cannot be computed
+mechanically at all.
+
+That is the mirror of `interpreter-k22`'s finding, and the pair is the useful
+shape. It found three tests naming *neither*, which only re-reading the
+forty-two could see; this finds twenty-two that a count reports as naming neither
+and that are all labelled. A count over-reports in one direction and
+under-reports in the other, so **an account is counted and then read**, and the
+number a leaf states about its own file — small enough to read — is worth more
+than any crate-wide split a script produces.
+
+*Three of `CLI.md`'s six watch items resolved to "sound, do not promote".* The
+report's landing order correlated with a rename's origin by path is ten lines and
+is sound because a plan claims every destination exclusively. The CLI building
+its own paths is safe because every name a snapshot admits has already been
+checked to render as one path component. The ordinal argument proved *good*
+rather than awkward: the refusal carrying the level's occupied span closes the
+discovery loop from argv, which is the payoff `insert` spent two leaves on.
+`reference::Status::from_token` was the one permitted micro-change and was taken
+— a domain that renders a token it cannot read back forces every consumer to
+write the mapping a second time.
+
+**Missed.** No model was run, so nothing was missed by one. The honest negative
+is sharper than at 018: the vocabulary finding above is a defect in the
+*interface* that both models are structurally incapable of posing, because a
+message is a string and neither file holds one. Two entries now (011, 019) put a
+real interface defect inside a stated idealisation, which is the strongest
+recurring evidence in this log that **the exclusion list is a worklist and not a
+disclaimer**.
+
+**Cost.** No tooling beyond `cargo`. The expensive part was reading the library's
+public surface — `Report`, `Refusal`, `Error`, `Entry`, `Container` — closely
+enough to build paths and labelled traces from values that were designed for a
+programmatic consumer rather than for a terminal. `CLI.md` had already paid for
+every decision, so the leaf was transcription plus the six watch items.
+
+**Counterfactual.** The vocabulary defect is the one thing here that a cheaper
+instrument would have caught: **compose one example error message in the
+consumer's own words at design time.** `CLI.md` did exactly that for exit codes
+and for the landing trace, and did not do it for a refusal — it said refusals
+reach the operator *verbatim, as `Display`* and never wrote one out in the
+syllabus's words. One line of the document would have shown a message about
+leaves and nodes in a tool that has neither, before there was any code to
+discover it against. The rule generalises past errors: **a design that promises a
+rendering should render one.**
+
+**Verdict.** No formalism, as predicted, twice over — but the leaf is not
+evidence-free about the tools. It is evidence for the *artifacts a model leaves
+behind*: a witness table written at design time drove a suite, and an
+idealisation list named the one defect the models could not. H2 is supported
+indirectly and narrowly, in the same shape as 017 — nothing here was led by a
+model, and everything here was led by documents a model had already corrected.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -2118,6 +2224,9 @@ guesses are not.
 | what may a refusal carry? — "which of these fields is derivable from the others?" | count the model's variants for the sort | 016: two positioned species, so *the entry is a leaf* already says *the parts make a node*. `promote` carries none and `rewrite` carries one, and both follow from the same count. The narrow form of 013's lesson about state carried for a message |
 | an edge case the model names for an operation that does not exist yet | build it into the layer beneath, with a test naming the witness | 016: `wit_rewriteToSameParts` was discharged by the interpreter leaves in both layers; the operation it belongs to later landed with no code. Written the other way round it is a layer-crossing defect, where the algebra proves a plan applicable and the applier refuses it |
 | the bytes did not change — "how do I say that without trusting a comparison?" | the inode, not the content | 016: bytes read and written back identically compare equal; an unchanged inode says nothing read them. Available because the crate is Unix-only, which is otherwise invisible in the interface |
+| a design document's reachability table — "which of these cases can an argument actually produce?" | none — write the table at design time, then transcribe it into the suite | 019: `CLI.md` marked six refusals reachable and seven not, before any argument parsing existed; every reachable one got a test naming its witness, every unreachable one got none, and not one was reachable after all. Entry 004's *witnesses are the test suite*, one layer out, and the constructive form of 014's question |
+| whose words does this error speak? | none — compose one example message in the *consumer's* own vocabulary at design time | 019: a library refusal says *a leaf, which holds nothing. Children go in a node* to a tool that has lessons and modules. Parse failures carry the domain's own error and algebraic refusals carry none, so the half the operator meets in normal use is the half the domain cannot speak for. A design that promises a rendering should render one |
+| is this per-test convention countable? | count, then read whatever the count could not classify | 019: a regex left 22 of 204 tests unclassified and every one was labelled — in prose the pattern missed, or once in a module header. The mirror of `interpreter-k22`'s three tests naming *neither*, which only re-reading could see: a count over-reports one way and under-reports the other, so an account is counted **and** read, and a leaf's statement about its own file beats any crate-wide split a script produces |
 | universal — "does this hold for all inputs, not just those a checker reached?" | Lean *(untested)* | — |
 | model or prose at the implementation site? | ask instead whether the prose has already been through a model | 017: the pre-registered probe's prose arm shifted highest-first for the right reason, delegated the sequential destination check correctly, and refused the gap with a carried span — violating zero model claims. Every point it got right is one `operations.qnt` had already corrected in `ARCHITECTURE.md` (003, 013). H3 as stated is not supported; a model spent upstream and banked in the document is |
 | a suite as a measure of a second implementation — "can the other arm fail this?" | have it written by a session that implements neither, from the claims alone | 017: fixing the *claims* before both arms was not enough. All four failures landed on literal message substrings the scoring arm had authored; the `assert_eq!` on each refusal's value passed. A test is a claim plus an assertion, and only the first predated the arms |

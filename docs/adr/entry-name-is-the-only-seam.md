@@ -71,6 +71,24 @@ domain hook implies. The containing directory outlives both the root's creation
 and its deletion in every domain, and a rename that a version control system
 must be told about commits a byte-identical tree either way.
 
+**It costs a second thing, measured at `cli-k16` and worth naming because it is
+the half a reader will assume was not paid.** `Error::Malformed` and
+`Error::Reserved` carry `EntryName::Err`, so a *parse* failure reaches an
+operator in the domain's own words — that is the whole reason those two variants
+are generic. `Error::Refused` carries `Refusal`, which is **not** generic over
+the name type and holds no domain value at all, so every algebraic refusal
+speaks the library's vocabulary: *the entry with key 4 is a leaf, which holds
+nothing. Children go in a node.* The first consumer to render one drove a tree
+of lessons and modules, which has neither. A `Refusal<N>` was rejected rather
+than overlooked — it is a second domain-facing rendering inside the seam this
+record exists to keep single, and a consumer re-wording the condition instead is
+the drift `docs/formalism-findings.md` entry 017 measured. So the library's
+words are accurate and generic, and a consumer prints them verbatim. Reopen if a
+domain appears whose own vocabulary **collides** with the library's rather than
+merely differing from it — grove is that domain, since its `Leaf` is a task file
+and the library's is any regular file; `docs/ordinal-fs-tree/CLI.md`'s *What
+`cli-k16` found* carries the case.
+
 ## Considered options
 
 - **A `Domain` trait with associated functions for lock scope and moving.**

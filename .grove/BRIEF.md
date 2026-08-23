@@ -141,6 +141,14 @@ and has nothing to do with tree invariants.
 ## On the horizon
 
 - The grove flip.
+- **Whether `ordinal-fs-tree` wants its own `CHANGELOG`, version and release
+  lane.** Promoted from `crate-k7` at its close. Precise enough to state, and it
+  depends on an answer increment 1 did not produce: whether the crate is ever
+  published separately or only ever consumed in-tree by grove. `release.toml`
+  sets `publish = false` repo-wide today and `[package.metadata.release]` on the
+  crate sets `release = false`, so grove's next cut is byte-identical to what it
+  was before the workspace existed — which is the outcome that line prevents
+  answering by accident.
 - **Distilling `docs/formalism-findings.md` into a `linkuistics` skill.** The
   question is precisely stateable already; its *scope* is not, because it depends
   on how many formalisms were used and what they taught. It also has to run last,
@@ -262,3 +270,38 @@ keeps its own verbs, and the rejected generic command factory is why — a facto
 handing out `append` and `insert` serves consumers who want the algebra's verbs
 verbatim, and grove wants `leaf-add`.
 
+**Increment 1 is closed.** `cli-k16` built the `syllabus` binary from
+`docs/ordinal-fs-tree/CLI.md`, and `crate-k7`'s *Done when* holds: both crates
+build and test green, every operation in `ARCHITECTURE.md`'s tables exists with
+its stated refusals, the no-`std::fs` guard is a test, a conforming domain can
+check itself against the seam without reading the architecture, the CLI drives a
+tree end to end, and `docs/formalism-findings.md` carries entries 004–019 —
+one from every leaf under that node. Three things the flip inherits that were
+not knowable before the CLI existed:
+
+- **The library's refusals speak the *library's* vocabulary, and grove's
+  collides with it.** `Error::Malformed` and `Error::Reserved` carry
+  `EntryName::Err`, so a *parse* failure reaches an operator in the domain's own
+  words; `Error::Refused` carries `Refusal`, which is not generic over `N` and
+  holds no domain value — so `TargetNotNode` says *"the entry with key 4 is a
+  **leaf**, which holds nothing. Children go in a **node**"* and no domain can
+  change it. In the syllabus that reads as foreign vocabulary and was accepted as
+  such. **In grove it is worse than foreign, because it collides**: grove's
+  `CONTEXT.md` defines *Leaf* and *Node directory* in session terms, and an
+  operator meeting that sentence will read the library's *leaf* (any regular
+  file) as grove's *Leaf* (a task file). `docs/ordinal-fs-tree/CLI.md`'s *What
+  `cli-k16` found* carries why widening the seam to fix it was rejected;
+  increment 2 decides whether grove renders these refusals itself, and if it
+  does, entry 017's measurement of what a second wording costs is the thing to
+  read first.
+- **The domain's token mappings must go both ways and be public.**
+  `reference::Status::from_token` was private while `token()` was public, and the
+  first consumer that had to build parts from a string wrote the mapping a second
+  time. It is public now. grove's domain impl carries a session-kind token and a
+  `DONE`/`ABANDONED` marker in exactly that position.
+- **Write the reachability table at design time.** `CLI.md` marked six refusals
+  reachable from its verb set and seven not, before any argument parsing existed;
+  every reachable one ended up with a contract test naming its model witness,
+  every unreachable one with none, and not one was reachable after all. Whatever
+  cuts increment 2 should do the same for grove's verbs — it turns the suite into
+  a transcription and it is the cheapest thing in entry 019.

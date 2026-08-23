@@ -128,7 +128,16 @@ impl Status {
         }
     }
 
-    fn from_token(token: &str) -> Option<Self> {
+    /// The status a filename's token names, or `None` for a token this domain
+    /// does not recognise.
+    ///
+    /// The inverse of [`Status::token`], and public for the reason the pair
+    /// exists at all: a consumer building [`Parts`] from a string — the CLI's
+    /// `--status` flag is the one in this workspace — would otherwise write the
+    /// mapping a second time, and a domain that can render a token it cannot
+    /// read back is a domain whose own output is not valid input to it.
+    #[must_use]
+    pub fn from_token(token: &str) -> Option<Self> {
         match token {
             "draft" => Some(Self::Draft),
             "published" => Some(Self::Published),

@@ -467,7 +467,9 @@ No environment variable is read.
 
 ## What `cli-k16` should watch
 
-Six things this design met and did not resolve, each a candidate finding.
+Six things this design met and did not resolve, each a candidate finding. **All six
+are resolved below**, in *What `cli-k16` found*; the list is kept as written
+because what was predicted before the build is the interesting half.
 
 - **The report can be read in landing order, or with a rename's origin, but not
   both.** `Report::paths()` yields destinations in the plan's order and
@@ -501,3 +503,59 @@ Six things this design met and did not resolve, each a candidate finding.
   a real error text or a real `Parts` construction is awkward through this
   surface, that is a finding about the seam and belongs in
   `docs/formalism-findings.md`, not a thing to work around.
+
+
+---
+
+## What `cli-k16` found
+
+The binary was built from the document above and the document did not change.
+Five outcomes, in the order a later reader will want them.
+
+**The library's refusals speak the *library's* vocabulary, and a domain cannot
+change them.** `syllabus lesson-add 4 sections` answers *"the entry with key 4 is
+a **leaf**, which holds nothing. Children go in a **node** — promote it first, or
+name a node."* This syllabus has no leaves and no nodes; it has lessons and
+modules. `Error::Malformed` and `Error::Reserved` carry `EntryName::Err`, so a
+**parse** failure reaches the operator in the domain's own words — the design
+went out of its way to arrange that — but `Error::Refused` carries `Refusal`,
+which is not generic over `N` and holds no domain value at all. The half of the
+error surface a conforming tree meets in normal use is the half the domain cannot
+speak for.
+
+It is **accepted rather than fixed**, and the reasoning is the finding. The
+library's words are true — a leaf *is* a regular file — a `Refusal<N>` would put a
+second domain-facing rendering into a seam whose ADR says the name type is the
+only one, and a CLI that re-words the condition itself is exactly what
+`docs/formalism-findings.md` entry 017 measured going wrong. So the CLI prints
+them verbatim, and the loss is stated here rather than papered over. Entry 019
+carries the counterfactual: **a design that promises a rendering should render
+one** — this document wrote out an exit-code table and a landing trace and never
+wrote out a refusal in the syllabus's own words.
+
+**The reachability table above predicted the suite exactly.** Every refusal it
+marks reachable has a contract test naming that refusal's model witness; every
+one it marks unreachable has none; and not one turned out to be reachable after
+all. Building that table at design time is what made the implementation leaf's
+suite a transcription rather than an invention.
+
+**Three watch items resolved to *sound, do not promote*.** Correlating
+`Report::paths()` with `renamed()` by path is ten lines and is sound because a
+plan claims every destination exclusively — the report is unchanged. The CLI
+building its own paths is safe because every name a snapshot admits has already
+been checked to render as one path component — the algebra gains no `path()`. And
+the ordinal argument proved **good** rather than awkward: an operator who guesses
+is told the level's occupied span by the refusal itself, which is the payoff
+`insert` spent two leaves on, reachable from argv in one call.
+
+**`reference::Status::from_token` is now public**, which was the one permitted
+micro-change this document named. A domain that renders a token it cannot read
+back forces every consumer to write the mapping a second time, and the CLI's
+`--status` was the first consumer to hit it.
+
+**The claim account is 31 tests, 8 naming a model claim, 23 saying they have
+none, none naming neither** — the shape entry 018's routing rule predicted before
+the leaf started. The eight are not about the CLI: each checks that a modelled
+outcome survives the trip out through argv and back through stdout. Counted and
+then read, because the label is prose: a regex over the crate's other 173 tests
+leaves 22 unclassified and every one of them turns out to be labelled.

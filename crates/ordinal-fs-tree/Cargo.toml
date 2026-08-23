@@ -26,11 +26,56 @@ rust-version = "1.85"
 [dependencies]
 libc = "0.2"
 
+# `clap` is the CLI's and nobody else's, so it is optional and behind the `cli`
+# feature below. An external consumer taking `default-features = false` gets the
+# bare library, whose imposed dependency set stays exactly `libc`.
+clap = { version = "4", features = ["derive"], optional = true }
+
+# The feature is **on by default**, and that is the load-bearing half. With
+# `default = []` the binary would not be built by a plain `cargo test`, so
+# `tests/driving_a_tree.rs` would be silently absent from the one command this
+# crate's *Done when* actually names — the failure mode
+# `docs/formalism-findings.md` entry 003 has already cost this workstream three
+# times over: a suite that did not run reports what a suite that found nothing
+# reports. Inside this workspace the feature unifies on, which costs grove
+# nothing; the escape hatch is `default-features = false`, and increment 2's
+# grove dependency line is where it gets exercised.
+[features]
+default = ["cli"]
+cli = ["dep:clap"]
+
+# The source is **outside `src/`**, and that was measured rather than assumed.
+# `tests/algebra_has_no_filesystem.rs` lexes every `.rs` under `src/` outside
+# `src/fs/` and refuses the identifier `fs`; a CLI must call
+# `ordinal_fs_tree::fs::read`, which is that identifier. A probe planted at
+# `src/bin/` failed `the_algebra_cannot_reach_the_filesystem` naming its own
+# line, and the same file moved out of `src/` passed. The alternative is a
+# second exemption in the guard, and the guard's own header says why that is the
+# wrong direction: a new module is inside the algebra by default, which is the
+# direction that fails safe. It also says structurally what `CLI.md` says in
+# prose — the CLI is not a module of this library, it is a consumer that shares
+# a package with it.
+#
+# The binary is named for the tree it drives and not for the library: a binary
+# called `ordinal-fs-tree` would advertise a generic tool, which is the one thing
+# `CLI.md` spends its first section rejecting.
+[[bin]]
+name = "syllabus"
+path = "bin/syllabus.rs"
+required-features = ["cli"]
+
 # `tempfile` is a *dev*-dependency, so no consumer inherits it. The filesystem
 # tests need a directory that is unique per run and removed afterwards, and
 # hand-rolling that is a worse version of a crate this workspace already uses.
 [dev-dependencies]
 tempfile = "3.10"
+
+# `assert_cmd` drives the `syllabus` binary in `tests/driving_a_tree.rs`. Those
+# are contract tests over the binary rather than unit tests behind it, because
+# the point of the CLI leaf is exercising the library from *outside* — through a
+# real `Display`, a real error text and a real domain implementation. It is a
+# dev-dependency of a member the workspace already locks it for.
+assert_cmd = "2.0"
 
 # `proc-macro2` is the Rust lexer, and `tests/algebra_has_no_filesystem.rs` is
 # where a hand-rolled one was silently wrong. That test used to strip comments

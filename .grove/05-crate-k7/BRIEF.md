@@ -271,10 +271,9 @@ than about the CLI, and that the node close needs:
 
 ## On the horizon
 
-- **Whether the crate wants its own `CHANGELOG`, version and release lane.**
-  Precise enough to state, and it depends on an answer this increment does not
-  produce: whether the crate is ever published separately or only ever consumed
-  in-tree by grove. `release.toml` currently sets `publish = false` repo-wide.
+Nothing. `cli-k16` closed this node, and the one item that stood here — whether
+the crate wants its own `CHANGELOG`, version and release lane — was promoted to
+the root brief, which is the chain every increment-2 session reads.
 
 ## Notes
 

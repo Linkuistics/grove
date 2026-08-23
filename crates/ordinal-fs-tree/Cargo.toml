@@ -99,9 +99,18 @@ workspace = true
 # `cargo release` drives the workspace, and `release.toml` configures a cut of
 # *grove*. Excluding this member keeps that cut byte-identical to what it was
 # before the workspace existed: no version bump here, no tag, no changelog
-# section. Whether the crate wants its own version and release lane is an open
-# question that depends on whether it is ever published separately — see the
-# `crate-k7` brief's horizon — and answering it by accident, at grove's next
-# release, is the outcome this line prevents.
+# section.
+#
+# **Whether this crate wants its own `CHANGELOG`, version and release lane is
+# still open**, and it is open because it depends on an answer nothing has yet
+# had to give: is `ordinal-fs-tree` ever published on its own, or is it only
+# ever consumed in-tree by grove? Published separately, it owes consumers a
+# version they can pin and a changelog they can read; consumed in-tree only, a
+# second release lane is ceremony over a crate that ships inside grove's tag
+# anyway. Answering it **by accident**, at grove's next release, is the outcome
+# this line prevents — `publish = false` is repo-wide in `release.toml`, so
+# without this exclusion the member would simply be swept along by a `cargo
+# release` cut of grove and the question would be settled by a version bump
+# nobody decided on.
 [package.metadata.release]
 release = false

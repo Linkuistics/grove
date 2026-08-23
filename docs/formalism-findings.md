@@ -1868,9 +1868,12 @@ unchanged.
 
 The 26 tests are 18 naming a model claim, 7 saying they have none, and **1
 naming neither** — `the_reports_paths_are_in_the_order_the_effects_landed`,
-which names `Report::paths()`'s contract, a thing no model holds. Counted by
-reading, as the `crate-k7` brief requires; a sum of two labels cannot see the
-third.
+which names `Report::paths()`'s contract, a thing no model holds. **Counted by
+reading the suite, never by adding up the per-leaf numbers** — the standing rule
+of the increment, and it is not pedantry: an earlier leaf reported fourteen
+tests as ten-naming-a-claim plus four-saying-they-have-none, and a re-read of
+the forty-two then in the suite turned up three naming *neither*. A sum of two
+labels cannot see the third.
 
 **Input sizes, in lines, since the hypothesis says *of equivalent length*.**
 Arm B: 372 lines of `ARCHITECTURE.md` prose + 195 lines of API listing = **567**.
@@ -1930,10 +1933,12 @@ already run, and denying it the specification of record was never an option.
 
 **Missed.**
 
-- **The asymmetry that favours arm A, stated in the leaf and confirmed.** Arm A
-  ran under a diffuse awareness that a model-versus-prose experiment existed
-  somewhere in the subtree (the `crate-k7` brief says so without naming the
-  probe); arm B ran under none. More decisively, **the measure is arm A's own
+- **The asymmetry that favours arm A, stated in the leaf and confirmed.** The
+  probe was pre-registered, so the plan that cut the increment listed it among
+  the leaves — as *the pre-registered model-versus-prose experiment*, without
+  naming what it would measure or which arm was which. Arm A therefore ran under
+  a diffuse awareness that such an experiment existed somewhere in the subtree;
+  arm B ran under none. More decisively, **the measure is arm A's own
   artifact** — arm A cannot fail a suite it wrote, so the *0 vs 4* headline is
   not a comparison of two implementations against a neutral instrument. It is a
   comparison of one implementation against another's tests. The adjudicated

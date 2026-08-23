@@ -39,8 +39,10 @@ where the payment is cheap: `leaf-prune` on a node is a human-confirmed, rare
 decision to abandon a whole line of work, taken once and visible on disk
 immediately afterwards.
 
-Against that, a batched rewrite is a change to a **checked** library. The model
-leads (`.grove/BRIEF.md`, *The model leads*), so `models/operations.qnt` would
+Against that, a batched rewrite is a change to a **checked** library, and this
+workstream's standing rule is that **the model leads**: Quint is written per
+operation, before that operation is implemented, and where the model and a test
+disagree the model wins and the test changes. So `models/operations.qnt` would
 move first, then the algebra, then the filesystem layer, then grove — for a
 property no current consumer needs except in a failure mode that already
 self-repairs. Doing it here, mid-flip, would be the failure the leaf brief

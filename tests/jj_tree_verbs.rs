@@ -2,9 +2,12 @@
 //
 // grove is jj-first (`src/repo.rs`, symmetric-vcs-rule): a `.jj/`
 // directory heading the working tree picks jj plumbing even when a `.git` sits
-// beside it. Two seams carry that decision — `repo::vcs_of`, which working tree
-// a verb resolves (covered by `tests/repo.rs`), and `tree_rename::rename_entry`,
-// how an entry moves (covered in-process by `src/tree_rename.rs`). What neither
+// beside it. One seam carries that decision now — `repo::vcs_of`, which working
+// tree a verb resolves (covered by `tests/repo.rs`). The second used to be
+// `tree_rename::rename_entry`, and since `promotion-k34` it has **no production
+// caller left**: every entry that moves, moves inside an `ordinal-fs-tree`
+// operation, which renames with `rename(2)` and consults no VCS at all. The
+// module survives until `sweep-k37` deletes it. What neither seam
 // can show is that **every verb actually routes through them**: a verb carrying
 // its own git-only side path — a stray `git mv`, a git-first root resolution —
 // would pass both unit suites and still fail in a jj tree. So these drive the
@@ -531,19 +534,21 @@ fn jjs_working_copy_snapshots_the_renames_a_verb_made() {
 // per verb because what it guards against is a *verb* reaching for `git mv`
 // directly, which no single test of the primitive can rule out.
 //
-// **Three of them now hold for a second, stronger reason, and the assertions are
-// unchanged.** `leaf-retire` and `leaf-prune` mark through `ordinal-fs-tree`,
-// and since `growing-k33` `leaf-insert` shifts through it too; the library
-// renames with `rename(2)` and detects no repository at all
-// (`docs/adr/grove-does-not-stage-its-own-renames.md`), so for those three the
-// rename is plain on *every* lane rather than plain because this one is jj. The
-// tests stay exactly as they were: what they guard against is a verb reaching
-// for `git mv` directly, and that is worth guarding whether the verb could have
-// had a reason to or not. Where they no longer discriminate is against the
-// git-lane cases in `tests/leaf_ops.rs` and `src/task_grow/tests.rs`, which now
-// assert the same plainness on the lane where it used to be false — read them
-// together. `leaf-decompose` is the one left that still discriminates, until
-// `promotion-k34` moves it.
+// **All of them now hold for a second, stronger reason, and the assertions are
+// unchanged.** Every rename-shaped verb runs through `ordinal-fs-tree` — the
+// marks through `rewrite`, the shift through `insert`, and since `promotion-k34`
+// `leaf-decompose` through `promote`, whose middle effect is the leaf's own file
+// moving into the node it now sits in. The library renames with `rename(2)` and
+// detects no repository at all
+// (`docs/adr/grove-does-not-stage-its-own-renames.md`), so the rename is plain on
+// *every* lane rather than plain because this one is jj. The tests stay exactly
+// as they were: what they guard against is a verb reaching for `git mv` directly,
+// and that is worth guarding whether the verb could have had a reason to or not.
+// **Nothing in this file discriminates the dispatch any more**, which is the
+// migrate stage arriving rather than a gap — the git-lane cases in
+// `tests/leaf_ops.rs` and `src/task_grow/tests.rs` assert the same plainness on
+// the lane where it used to be false, and are where the property is now
+// falsifiable. Read them together.
 
 #[test]
 fn leaf_insert_in_a_colocated_tree_leaves_the_git_index_alone() {

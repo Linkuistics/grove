@@ -350,26 +350,78 @@ pub fn addressable_key(
     let triple = entry
         .triple()
         .with_context(|| format!("{name} carries no key of its own"))?;
-    let twins: Vec<PathBuf> = snapshot
+    let twins: Vec<Entry<'_, TaskName>> = snapshot
         .walk()
         .filter(|other| other.key() == Some(triple.key))
-        .map(|other| entry_path(root, other))
         .collect();
     if twins.len() > 1 {
+        let paths = twins
+            .iter()
+            .map(|other| entry_path(root, *other).display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        if let Some(node) = interrupted_promotion(&twins) {
+            bail!(
+                "a node directory and a task file share position {} and key {}, and \
+                 the directory holds no BRIEF.md: {}. That is an interrupted \
+                 `leaf-decompose` — the promotion created {} and then failed to move \
+                 the leaf into it, and its rollback failed too. Removing either half \
+                 resolves it: delete the empty directory to keep the leaf, or move \
+                 the leaf in as its BRIEF.md to keep the node.",
+                node.ordinal()
+                    .map_or_else(|| "?".to_string(), |ordinal| ordinal.get().to_string()),
+                triple.key,
+                paths,
+                node.name(),
+            );
+        }
         bail!(
             "two entries in this tree carry key {}, so naming one of them names \
              both: {}. A key is assigned once and never reused, so this is a hand \
              edit or a rollback that failed — give one of them a fresh key before \
              operating on either.",
             triple.key,
-            twins
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
+            paths
         );
     }
     Ok(triple.key)
+}
+
+/// The node half of an interrupted promotion, when that is what these
+/// key-sharing entries are.
+///
+/// **The library names this state and Grove has to recognise it, because the
+/// process that meets it is never the process that caused it.**
+/// `Error::FailedPartiallyRolledBack` says *a node and a leaf sharing an ordinal
+/// and a key, with the node holding no distinguished child, is an interrupted
+/// promotion* — but it says so in the run whose rollback failed. A later command
+/// opens a tree in exactly that state and the library reports nothing at all: a
+/// duplicate key is an obligation on the domain and not something any operation
+/// checks. So the only wording available is Grove's, which is why writing one is
+/// not a second wording of anything (`docs/ARCHITECTURE.md#library-refusals`,
+/// clause 3) — and the recovery it gives is the library's own, not
+/// [`addressable_key`]'s general *give one a fresh key*, which is actively wrong
+/// here: the node and the leaf are **one entity** caught mid-shape-change, and
+/// giving either a fresh key would make two of it.
+///
+/// The signature is exact and cannot be met by a hand edit that merely
+/// duplicated a key: two entries, one a node and one a leaf, at the same
+/// ordinal, with the node empty of a `BRIEF.md`. Both are positioned by
+/// construction — the caller filtered on `key() == Some(_)`, and the charter
+/// brief carries no key — so the ordinals compared here always exist. Grove itself never writes a
+/// childless node — `leaf-decompose` creates the brief in the same unit — so
+/// nothing in the verb set produces this shape by any other route.
+fn interrupted_promotion<'a>(twins: &[Entry<'a, TaskName>]) -> Option<Entry<'a, TaskName>> {
+    let [first, second] = twins else { return None };
+    let (node, leaf) = match (first.contents(), second.contents()) {
+        (Some(_), None) => (*first, *second),
+        (None, Some(_)) => (*second, *first),
+        _ => return None,
+    };
+    if node.ordinal() != leaf.ordinal() {
+        return None;
+    }
+    node.contents()?.distinguished().is_none().then_some(node)
 }
 
 /// The key the library will give the next entry it creates from this snapshot —

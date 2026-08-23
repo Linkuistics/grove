@@ -513,6 +513,167 @@ destination guard, which the lifecycle verbs still write through.
   naming the verb that would work instead. No integration test asserted any of
   the three.
 
+**`promotion-k34` (migrate).** The whole suite is **1257 passing**, up from
+`growing-k33`'s 1250, and the seven are this leaf's own. **Not one existing test
+changed** — not an assertion, not a name, not a fixture — which makes this the
+second consecutive migrate leaf to leave the ~130 CLI-contract tests untouched
+and the first to leave the *unit* tests untouched as well. Every existing
+`leaf-decompose` test passed on the first run against `promote`. The only edits
+to test files are three prose headers whose claims about `tree_rename` stopped
+being true. `leaf_decompose` runs through `promote` with the first child in the
+same unit; `src/tree_lifecycle.rs` keeps the verb, and
+`resolve_leaf_file` and the lifecycle module's `canonical_grove_root` went with
+the path-walking it did.
+
+- **`src/tree_rename.rs` has no production caller left anywhere in grove.** This
+  was the last one. Every entry that moves now moves inside an `ordinal-fs-tree`
+  operation, so the version-control seam that used to live in that module is
+  discharged by `docs/adr/grove-does-not-stage-its-own-renames.md` and nothing
+  dispatches on the lane to rename. `sweep-k37` deletes the module; until then it
+  survives with only its own tests, and `tests/jj_tree_verbs.rs`'s header says so
+  rather than continuing to name it as a live seam. **Nothing in that file
+  discriminates the jj dispatch any more** — the four colocated cases are now all
+  guards against a verb *growing* a `git mv`, which is worth keeping and is a
+  different claim from the one the file was written to make.
+
+- **The row this leaf was sent to check is wrong, and what discharges it was
+  written two leaves ago for something else.** `DestinationOccupied` is **not**
+  reachable from `leaf-decompose`. The algebra reaches it perfectly well — a
+  promotion composes the node as `(the leaf's own ordinal, the leaf's own key,
+  node parts)`, so a hand-edited tree can occupy that name, which is exactly what
+  the row said. But such an occupant is a *node carrying the leaf's key*, so the
+  key is duplicated tree-wide and `task_tree::addressable_key` refuses before
+  anything is planned. `marking-k32`'s finding retired a row nobody was looking at
+  when it was written. The count of reachable variants falls from three to two,
+  and both survivors are the grow verbs' keyspace and ordinal-space edges.
+  `docs/ARCHITECTURE.md#library-refusals` carries the correction. **This is the
+  fourth leaf to transcribe that table and the fourth to find a row wrong** —
+  `refusals-k30`'s scheduled check has now fired on every leaf that had a row to
+  write, four for four.
+
+- **The check came with a positive control, because a reachability claim that
+  cannot fail is worth nothing.** `library_promotion_refusal` calls `promote`
+  directly on the same fixture, bypassing every precondition grove puts in front
+  of it, and the library does refuse — with `PromoteNotLeaf`, as it happens,
+  because `by_key` on that tree reaches the node twin first. *Which* refusal is
+  not determined by anything: walk order on a duplicate-key tree is one of
+  `structure.als`'s recorded misses, so the control accepts either wording. That
+  it is undetermined is itself the argument for grove's check.
+
+- **The recovery advice for the one tree state this library can damage was
+  addressed to a reader nobody had, and this is the seam finding of the leaf.**
+  `Error::FailedPartiallyRolledBack` states diagnosis and fix in as many words —
+  *a node and a leaf sharing an ordinal and a key, with the node holding no
+  distinguished child, is an interrupted promotion, and removing either half
+  resolves it* — and `refusals-k30` decided grove prints it verbatim. What no
+  record noticed is **who is holding that tree when it matters**: never the
+  process that made it, which reported and exited, and always a later command, to
+  which the library says nothing at all, key uniqueness being an obligation on the
+  domain that no operation checks. So the only wording available is grove's — and
+  grove's existing one was **wrong**. `addressable_key`'s general *give one of
+  them a fresh key* would make two entities out of one entity caught
+  mid-shape-change. It now recognises the exact signature and gives the library's
+  own recovery instead. **This is not clause 3 broken**: there is no library
+  wording in play, the one that exists having been printed by a process that has
+  gone. `docs/ARCHITECTURE.md#interrupted-promotion` is the record, `CONTEXT-MAP.md`
+  gains the *promote* / `leaf-decompose` row the two messages now share, and **no
+  ADR** — the AND test fails on *hard to reverse*, exactly as it did for
+  `refusals-k30`'s own decision. `docs/formalism-findings.md` entry 024 carries
+  the measurement, and its counterfactual is the cheapest thing in that log per
+  finding and is not a formalism at all: *read every error variant whose message
+  describes a persistent state of the artifact, and ask which of your own commands
+  can meet that state later.* Three of the library's nine `Error` variants do;
+  two already had an owner.
+
+- **`leaf-decompose` takes two guards, and the second is the retitle rather than
+  a lint.** ` — brief` is grove's own edit to bytes the library moved verbatim and
+  never read — it has no content model — so it cannot ride inside the unit, and
+  `promote` consumes its guard. It takes one of its own through `reopen_write`
+  rather than running on an unheld tree, so no cooperating command meets a node
+  brief mid-retitle; the wait was already announced by the promotion.
+  `decompose_takes_one_guard_for_the_promotion_and_one_for_the_retitle` asserts the
+  count is exactly two. **What a later flip leaf should take from it:** a verb
+  whose content edit follows its structural one is the same shape as
+  `leaf-insert`'s lint, and the answer is the same — reopen, do not run unheld,
+  and do not announce twice.
+
+- **The intermediate state is real and no grove reader can see it, and that is
+  held rather than argued.** A promotion has both the node and the leaf on disk
+  sharing an ordinal and a key between its first two effects, which is why the
+  library's invariants are about *quiescent* trees. Grove's readers cooperate for
+  two reasons and `tests/tree_access.rs`'s
+  `the_librarys_tree_lock_is_taken_from_exactly_one_module` checks the first by
+  enumeration over `src/`: the library's `flock` is `task_tree`'s to take, one
+  shared and one exclusive, so no snapshot exists that was not taken under it. The
+  second is this node brief's own established fact — grove's surviving
+  path-walking readers take `tree_access`, which `flock`s the *same* directory, so
+  the two guards exclude rather than nest.
+
+- **Two keys are predicted where `growing-k33` predicted one, and only one of
+  them is an allocation.** `promoted` holds the library to both: the node's key
+  must be the promoted leaf's own, which is what identity preservation *is* and
+  what keeps the retitled `# <slug>-k<key>` handle true of the entry it now names;
+  the child's must be the `task_tree::next_key` grove rendered into its template.
+  A promotion allocates nothing for the node — the entity is unchanged — so
+  `Refusal::KeysExhausted` reaches `leaf-decompose` through the **first child**
+  alone, and `a_tree_at_the_last_key_refuses_the_promotion_rather_than_wrapping` is
+  the first test grove has had for it on this verb. No ordinal is allocated past
+  the end of any level, so `OrdinalsExhausted` is unreachable here.
+
+- **The leaf's one in-session reviewer was spent on the corrected row, and it
+  paid — not by breaking the claim but by finding the argument was weaker than
+  written.** A promotion's **only** exposure to `DestinationOccupied` is its
+  *first* effect: the two later destinations sit inside the directory the plan
+  has just created, and `plan.rs::occupied` answers `false` for a
+  `Level::Created` unconditionally, so no tree state at all can make them refuse.
+  The row therefore rests on exactly one line of grove's code —
+  `addressable_key`'s tree-wide twin scan — and `docs/ARCHITECTURE.md` now says
+  so, with the four ways that line could be weakened named as what would reopen
+  it. **A row whose whole support is one consumer-side check should say which
+  check**, which is a rule the previous three corrections did not need and this
+  one did.
+  - The pass also found `crates/ordinal-fs-tree/src/ops.rs`'s promotion comment
+    misleading, and it is **corrected in place**. Its true sentence — *a tree a
+    failed rollback already damaged can reach the refusal* — sat in a paragraph
+    about the two later destinations and read as being about them. Worth the
+    two lines because the row above depends on which effect can refuse. **And
+    the model does not settle it**: `wit_damagedTreeStrandsALaterOperation` is
+    `outcome == RefusedDestinationOccupied and not(isInsert(…))`, which does not
+    distinguish *which effect* refused, so the comment's citation could not
+    support the reading it invited. Which effect it is comes from reading
+    `occupied`. A recorded gap between what a witness proves and what a comment
+    citing it claims, and the second of this node's findings to land there.
+  - One finding was classified and **not** acted on: `plan.rs`'s
+    `DestinationOccupied` doc naming *a duplicated key* and *a damaged tree* as
+    two routes, which on the promote path are one. The variant is shared by every
+    operation and the two routes are genuinely distinct for `insert`, so the
+    sentence is right where it sits. Recorded as a visible trade-off rather than
+    left unstated.
+
+- **The verb's own `--help` text carried a claim that stopped being true, and it
+  is the first user-visible string this stage has had to change.** `leaf-decompose`
+  described the body's move as *`git mv`, or a plain rename in a jj-enabled tree*
+  — a dispatch that no longer exists; it is a plain rename on every lane, staging
+  nothing. Two prose claims went with it: `tests/jj_tree_verbs.rs`'s header, which
+  named `tree_rename::rename_entry` as a live seam, and the untracked-leaf section
+  of `src/tree_lifecycle.rs`'s tests, whose whole premise was that `git mv` had no
+  index entry to move. `content/references/commit.md` gains `leaf-decompose` beside
+  the `DONE` mark and the `leaf-insert` shift, and it is the one worth naming
+  there: what an operator sees is a deletion beside an **untracked directory**,
+  which reads less like a rename than either of the other two. **What a later flip
+  leaf should take from it:** the pre-authorised exception this brief wrote was for
+  `git mv` *assertions*, and three leaves have now found the claims living in prose
+  and help text instead — grep the strings, not just the tests.
+
+- **The three refusals `promote` owns are unreachable, and the sweep is what makes
+  that a claim about the verb.** `no_promotion_refusal_reaches_an_operator_from_an_ordinary_argument`
+  runs every argument that is an entry and not a live leaf — the grove root, the
+  root brief, a node, a node's brief, a `DONE` leaf, an `ABANDONED` leaf, a
+  `finish` leaf — and asserts none of the three library wordings appears.
+  `PromoteNoDistinguished` needs no fixture: it is about the *domain*, and
+  `TaskName::distinguished()` is `Some(BRIEF.md)`, asserted rather than assumed,
+  the way `docs/ordinal-fs-tree/CLI.md`'s table does it.
+
 ## Pointers
 
 - `docs/ordinal-fs-tree/ARCHITECTURE.md` — the seam, the seven obligations, the

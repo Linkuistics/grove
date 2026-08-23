@@ -12,8 +12,9 @@ reach it differently. In **git** the working tree is not history, so one
 `git commit`, taken once the rename has landed, both records the task and leaves
 the next session a clean tree — but **stage the whole tree first**. A tree verb
 moves files; it does not decide what your commit contains, and a rename it did
-not stage — a `DONE` mark, a `leaf-insert` shift — reaches git as a deletion at
-the old name beside an untracked file at the new one. A commit that stages only
+not stage — a `DONE` mark, a `leaf-insert` shift, a `leaf-decompose` that turned
+a file into a directory — reaches git as a deletion at the old name beside an
+untracked file at the new one. A commit that stages only
 tracked paths — `git commit -a`, or one naming the leaf's old path — then
 records the deletion alone. `git add -A`
 before the commit, and a glance at `git status` after it, is the whole of the

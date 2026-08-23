@@ -34,12 +34,12 @@
 // replaced is gone.
 
 use crate::leaf::Kind;
-use crate::task_name::{Outcome, Parts, TaskName};
+use crate::task_grow;
+use crate::task_name::{Outcome, Parts, Slug, TaskName};
 use crate::task_tree;
 use crate::tree_access;
 use crate::tree_grow::{collect_all_names, leaf_add_unlocked, next_child_position};
 use crate::tree_id::{next_key, parse, validate_slug, Entry as IdEntry, Outcome as IdOutcome};
-use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use ordinal_fs_tree::{Entry, Key, Report, Snapshot};
 use std::fs;
@@ -451,86 +451,198 @@ fn partial_scaffold_file_match(path: &Path, expected_body: &[u8]) -> Result<Opti
 /// (task-kind-taxonomy): `None` inherits the leaf being decomposed's own kind —
 /// read strictly from the parent filename. `Some(k)` uses `k` regardless of the
 /// parent's kind. Legacy body routing is not copied into either new task body.
+///
+/// # The whole verb is one `promote`, and it has to be
+///
+/// [`WriteGuard::promote`](ordinal_fs_tree::fs::WriteGuard::promote) creates the
+/// node, moves the leaf's own file into it as the distinguished child, and
+/// creates the first child — three effects in one unit, which is exactly what
+/// *atomically growing a first child* has always promised and what Grove used to
+/// assemble out of a `create_dir`, a rename and a whole second verb. The
+/// difference is not tidiness. A promotion **breaks an invariant on the way
+/// through**: the node carries the promoted leaf's own ordinal and its own key,
+/// so between effect one and effect two both are on disk sharing an ordinal and
+/// a key, and no ordering avoids it
+/// (`docs/ordinal-fs-tree/ARCHITECTURE.md`, *Promotion is not atomic against the
+/// invariants*). The invariants hold of **quiescent** trees, and the exclusive
+/// guard is what makes that safe — so a Grove reader running without a guard
+/// would see the intermediate state, and none does: every reader goes through
+/// [`task_tree::read`] or [`task_tree::write`], and
+/// `the_librarys_tree_lock_is_taken_from_exactly_one_module` holds that,
+/// together with the fact that Grove's own guard `flock`s the same directory and
+/// so excludes rather than nests.
+///
+/// # Two keys are predicted here, for two different reasons
+///
+/// The node's key is the leaf's own — *identity preservation* is the whole point
+/// of a promotion — and the first child's is [`task_tree::next_key`], the
+/// consumer-side mirror of the library's `max + 1` that a content-carrying domain
+/// cannot do without (`growing-k33`; `docs/ARCHITECTURE.md#tree-access-lock`).
+/// Both are checked against the report by [`promoted`], because both are embedded
+/// in bytes: the child's in the template handle it is created with, and the
+/// node's in the brief header this verb retitles afterwards.
 pub fn leaf_decompose(
     grove_root: &Path,
     leaf_path: &Path,
     first_child_slug: &str,
     kind_override: Option<Kind>,
 ) -> Result<(PathBuf, PathBuf)> {
-    let guard = tree_access::write(grove_root)?;
-    leaf_decompose_unlocked(guard.root(), leaf_path, first_child_slug, kind_override)
+    // Grove's own precondition, before the tree is even observed, so a bad slug
+    // leaves the leaf un-decomposed. It could sit inside the guard with the rest
+    // of them; it stays out here because it needs nothing from the tree, and
+    // refusing without taking an exclusive lock is strictly kinder.
+    let child_slug = task_grow::leaf_slug(first_child_slug)?;
+
+    let tree = task_tree::write(grove_root)?;
+    let root = tree.root().to_path_buf();
+    // The classification, then the operation: `promote` consumes the guard, so
+    // every borrow of its snapshot has to end before the call.
+    let (key, slug, kind, child_key) = {
+        let entry = match task_tree::target(&root, tree.snapshot(), leaf_path)? {
+            task_tree::Target::Root => bail!(
+                "cannot decompose the grove root (lifecycle verbs act on leaves): {}",
+                root.display()
+            ),
+            task_tree::Target::Entry(entry) => entry,
+        };
+        let (parent_kind, slug) = decomposable(&entry)?;
+        // task-kind-taxonomy: the first child inherits the decomposed leaf's own
+        // kind unless `--kind` overrides it.
+        let kind = kind_override.unwrap_or(parent_kind);
+        task_grow::refuse_finish_kind(kind, "leaf-decompose")?;
+        (
+            task_tree::addressable_key(&root, tree.snapshot(), &entry)?,
+            slug.clone(),
+            kind,
+            task_tree::next_key(tree.snapshot()),
+        )
+    };
+    // The node's parts are Grove's to supply because the library cannot make
+    // them — `Parts` is opaque, and nothing the library can reach describes
+    // *this* entry as a node (`docs/adr/entry-name-is-the-only-seam.md`). The
+    // same slug, so the species is the only thing that moved.
+    let node_parts = Parts::node(slug.clone());
+    let child = task_grow::new_leaf(child_key, Outcome::Live, kind, &child_slug);
+    let report = tree
+        .promote(key, node_parts, Some(child))
+        .map_err(task_tree::raised)?;
+    let (brief_path, child_path) = promoted(&report, key, child_key)?;
+
+    // The retitling is Grove's own edit to bytes the library moved verbatim and
+    // never read — it has no content model — so it cannot be part of the unit
+    // above. It takes a guard of its own for the reason `leaf-insert`'s lint
+    // does: the tree this touches is the one the promotion *left*, and no
+    // cooperating command should meet a node brief mid-retitle.
+    // `reopen_write`, not `write`: the wait this command made was announced by
+    // the promotion (`docs/ARCHITECTURE.md#tree-access-lock`).
+    let _guard = task_tree::reopen_write(grove_root)?;
+    append_brief_suffix_in_file(&brief_path, slug.as_str(), key.get())?;
+    Ok((brief_path, child_path))
 }
 
-fn leaf_decompose_unlocked(
-    grove_root: &Path,
-    leaf_path: &Path,
-    first_child_slug: &str,
-    kind_override: Option<Kind>,
-) -> Result<(PathBuf, PathBuf)> {
-    // Validate the child slug up front, before any filesystem mutation, so a bad
-    // slug leaves the leaf un-decomposed (no half-built childless node directory).
-    validate_slug(first_child_slug)?;
-
-    let grove_abs = canonical_grove_root(grove_root)?;
-    let (parent_abs, name) = resolve_leaf_file(&grove_abs, leaf_path)?;
-    let (position, parent_kind, slug, key) = match parse(&name) {
-        Some(IdEntry::Leaf {
-            outcome: IdOutcome::Live,
-            position,
-            kind,
-            slug,
-            key,
-        }) => (position, kind, slug, key),
-        Some(IdEntry::Leaf {
-            outcome: IdOutcome::Done,
-            ..
-        }) => bail!("cannot decompose a retired (DONE) leaf: {name}"),
-        Some(IdEntry::Leaf {
-            outcome: IdOutcome::Abandoned,
-            ..
-        }) => bail!("cannot decompose an abandoned (ABANDONED) leaf: {name}"),
-        Some(IdEntry::Brief) => bail!("cannot decompose a brief (it is already a node): {name}"),
-        Some(IdEntry::Node { .. }) => {
+/// The decomposed leaf's own kind and slug, or Grove's refusal that this entry
+/// is not a live leaf.
+///
+/// Every clause is a precondition the library cannot see — brief-ness, an
+/// outcome infix, `finish`-reservation — which is clause 2 of
+/// `docs/ARCHITECTURE.md#library-refusals` and the reason
+/// [`Refusal::PromoteNotLeaf`](ordinal_fs_tree::Refusal) is unreachable: a node
+/// falls out of the same match, before any key is handed to the library.
+fn decomposable<'a>(entry: &Entry<'a, TaskName>) -> Result<(Kind, &'a Slug)> {
+    let name = entry.name();
+    let Some(triple) = entry.triple() else {
+        bail!("cannot decompose a brief (it is already a node): {name}")
+    };
+    match triple.parts {
+        Parts::Node { .. } => {
             bail!("cannot decompose a node (it already has children): {name}")
         }
-        None => bail!("not a v2 leaf: {name}"),
+        Parts::Leaf {
+            outcome: Outcome::Done,
+            ..
+        } => bail!("cannot decompose a retired (DONE) leaf: {name}"),
+        Parts::Leaf {
+            outcome: Outcome::Abandoned,
+            ..
+        } => bail!("cannot decompose an abandoned (ABANDONED) leaf: {name}"),
+        Parts::Leaf {
+            outcome: Outcome::Live,
+            kind,
+            slug,
+        } => {
+            if *kind == Kind::Finish {
+                bail!("`finish` is driver-reserved and cannot be decomposed");
+            }
+            Ok((*kind, slug))
+        }
+    }
+}
+
+/// What a promotion left behind: the node's brief, and the first child — each
+/// checked against what Grove promised itself.
+///
+/// **Three claims, and every one of them is about bytes rather than tidiness.**
+/// The node kept the promoted leaf's key, which is what identity preservation
+/// *is* and what keeps the brief's own `# <slug>-k<key>` handle true of the
+/// entry it now names. The child got the key Grove predicted, without which its
+/// template handle would contradict its filename permanently (`growing-k33`).
+/// And the leaf's file was *renamed* rather than copied, which is the only
+/// reason its bytes are still there to retitle.
+///
+/// A disagreement is a broken contract to report and not a case to recover from:
+/// the operation has already landed when this runs. The ordinal needs no clause
+/// of its own — the node's name is composed from the promoted leaf's triple, so
+/// a preserved key and a preserved ordinal are one fact, and the on-disk
+/// assertion lives in `decompose_converts_leaf_file_to_node_dir_preserving_the_key`.
+fn promoted(
+    report: &Report<TaskName>,
+    key: Key,
+    predicted_child: Option<Key>,
+) -> Result<(PathBuf, PathBuf)> {
+    let created = report.created();
+    let [node, child] = created else {
+        bail!(
+            "the library created {} entries for a promotion with a first child, \
+             where 2 were asked for",
+            created.len()
+        )
     };
-
-    // Inherit the parent leaf's own kind unless overridden — read before the
-    // rename below moves it out from under this path.
-    if parent_kind == Kind::Finish {
-        bail!("`finish` is driver-reserved and cannot be decomposed");
+    let TaskName::Positioned { key: node_key, .. } = &node.name else {
+        bail!(
+            "the library promoted a leaf into the charter brief, which carries no \
+             key: {}",
+            node.path.display()
+        )
+    };
+    if *node_key != key {
+        bail!(
+            "the library gave the promoted node key {} where the leaf carried {}: \
+             the handle in {} contradicts its filename and must be corrected by hand",
+            node_key.get(),
+            key.get(),
+            node.path.display()
+        );
     }
-    let kind = kind_override.unwrap_or(parent_kind);
-    if kind == Kind::Finish {
-        bail!("`finish` is driver-reserved and cannot be created by `leaf-decompose`");
+    let TaskName::Positioned { key: child_key, .. } = &child.name else {
+        bail!(
+            "the library created a charter brief as a first child: {}",
+            child.path.display()
+        )
+    };
+    if Some(*child_key) != predicted_child {
+        bail!(
+            "the library allocated key {} where Grove's template wrote {}: the \
+             handle in {} contradicts its filename and must be corrected by hand",
+            child_key.get(),
+            predicted_child.map_or("no key".to_string(), |key| key.get().to_string()),
+            child.path.display()
+        );
     }
-
-    // The entity that was leaf k becomes node directory k: same position, key, and
-    // slug — only the on-disk shape changes (file → directory holding BRIEF.md).
-    let node_name = IdEntry::Node {
-        position,
-        slug: slug.clone(),
-        key,
-    }
-    .name();
-    let node_dir = parent_abs.join(&node_name);
-    if node_dir.exists() {
-        bail!("destination already exists: {}", node_dir.display());
-    }
-    fs::create_dir(&node_dir).with_context(|| format!("creating {}", node_dir.display()))?;
-
-    // Rename the leaf file into the new directory as its charter `BRIEF.md`; the
-    // leaf body is carried in verbatim, then its `# <handle>` header retitled.
-    rename_entry(&parent_abs, &name, format!("{node_name}/BRIEF.md"))?;
-    let brief_path = node_dir.join("BRIEF.md");
-    append_brief_suffix_in_file(&brief_path, &slug, key)?;
-
-    // Grow the first child at `01` (enforce-first-child) — delegated to `leaf_add_unlocked`
-    // so it is byte-identical to a hand-added child and gets the next fresh key. The
-    // node now exists (the BRIEF.md we just created), so the parent guard passes.
-    let child_path = leaf_add_unlocked(&grove_abs, &node_dir, first_child_slug, kind)?;
-    Ok((brief_path, child_path))
+    let brief = report
+        .renamed()
+        .first()
+        .context("the library reported no rename for a promotion")?;
+    Ok((brief.to.clone(), child.path.clone()))
 }
 
 /// `leaf-retire <leaf-path>`: rename a live leaf `NN-<kind>-<slug>-k<key>.md` →
@@ -817,61 +929,6 @@ fn marked_path(report: &Report<TaskName>) -> Result<PathBuf> {
 // ---------------------------------------------------------------------------
 // helpers
 
-/// Validate the grove root exists and canonicalise it.
-fn canonical_grove_root(grove_root: &Path) -> Result<PathBuf> {
-    if !grove_root.is_dir() {
-        bail!("grove root not found: {}", grove_root.display());
-    }
-    grove_root
-        .canonicalize()
-        .with_context(|| format!("canonicalising grove root {}", grove_root.display()))
-}
-
-/// Resolve a leaf path (absolute, or relative to the grove root) to
-/// `(parent_dir, name)`. The resolved entry must be a real **file** under the grove
-/// root — a node directory or a foreign path is rejected here for rename safety
-/// (the kind/format is then refined by `parse` in the caller).
-fn resolve_leaf_file(grove_abs: &Path, leaf_path: &Path) -> Result<(PathBuf, String)> {
-    let candidate = if leaf_path.is_absolute() {
-        leaf_path.to_path_buf()
-    } else {
-        grove_abs.join(leaf_path)
-    };
-    let abs = candidate
-        .canonicalize()
-        .with_context(|| format!("resolving leaf path {}", candidate.display()))?;
-    if !abs.starts_with(grove_abs) {
-        bail!(
-            "leaf path {} is not under grove root {}",
-            abs.display(),
-            grove_abs.display()
-        );
-    }
-    if !abs.is_file() {
-        // A node directory is the common mistake — name it specifically; any other
-        // non-file (a leaf-named directory, a symlink) falls through to the generic
-        // guard, which also keeps the rename off anything that is not a real leaf file.
-        let n = abs.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if abs.is_dir() && matches!(parse(n), Some(IdEntry::Node { .. })) {
-            bail!(
-                "cannot operate on a node directory (lifecycle verbs act on leaves): {}",
-                abs.display()
-            );
-        }
-        bail!("not a leaf file: {}", abs.display());
-    }
-    let parent = abs
-        .parent()
-        .with_context(|| format!("leaf path {} has no parent", abs.display()))?
-        .to_path_buf();
-    let name = abs
-        .file_name()
-        .and_then(|n| n.to_str())
-        .with_context(|| format!("leaf path {} has no filename", abs.display()))?
-        .to_string();
-    Ok((parent, name))
-}
-
 /// The grove's name is the worktree directory's basename (user-owned-worktrees
 /// — grove reads no branch, ever). Used as the root brief's `# <name> — brief`
 /// title.
@@ -941,9 +998,12 @@ mod tests {
         (tmp, wt)
     }
 
-    /// A `.grove/` inside a real git repo. Entries rename whether or not git is
-    /// tracking them ([`crate::tree_rename`]); call [`stage_all`] when a test wants
-    /// the *tracked* branch (the rename moves git's index entry too).
+    /// A `.grove/` inside a real git repo. The repo is these tests' **instrument**
+    /// rather than their prerequisite: every verb below renames inside an
+    /// `ordinal-fs-tree` operation, which uses `rename(2)` and stages nothing
+    /// (`docs/adr/grove-does-not-stage-its-own-renames.md`), so nothing here needs
+    /// tracked files to operate on. [`stage_all`] is what makes the fixtures the
+    /// ones a real session produces.
     fn git_grove() -> (TempDir, PathBuf) {
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path().to_path_buf();
@@ -971,7 +1031,8 @@ mod tests {
     }
 
     /// Stage everything under the grove, putting the entries in git's index — the
-    /// state in which a rename goes through `git mv` and carries the index along.
+    /// state a real session's tree is in, and the one in which a rename that
+    /// staged anything would be visible.
     fn stage_all(root: &Path) {
         run_git(root.parent().unwrap(), &["add", "-A"]);
     }
@@ -1583,6 +1644,265 @@ mod tests {
         );
     }
 
+    // ---- leaf-decompose: the seam --------------------------------------------
+    //
+    // `promote` is the operation with the most that can go wrong, and the three
+    // refusals it owns are all discharged *upstream* by Grove's own
+    // classification. That makes reachability the question worth asserting, and
+    // the node brief's own table the thing to check rather than transcribe
+    // (`docs/ARCHITECTURE.md#library-refusals`).
+
+    #[test]
+    fn decompose_takes_one_guard_for_the_promotion_and_one_for_the_retitle() {
+        // Two observations, deliberately. `promote` consumes its guard, and the
+        // ` — brief` retitle is Grove's own edit to bytes the library moved
+        // verbatim and never read — so it cannot ride inside the unit, and it
+        // takes a guard of its own rather than running on an unheld tree.
+        // Asserted as a number so a later change moves it rather than quietly
+        // contradicting the paragraph, exactly as `leaf-insert`'s lint is.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "02-impl-build-k3.md", "build-k3");
+        stage_all(&g);
+        crate::task_tree::reset_read_count();
+
+        leaf_decompose(
+            &g,
+            Path::new("02-impl-build-k3.md"),
+            "step",
+            Some(Kind::Impl),
+        )
+        .unwrap();
+
+        assert_eq!(
+            crate::task_tree::read_count(),
+            2,
+            "one guard for the promotion, one for the retitle it cannot contain"
+        );
+    }
+
+    #[test]
+    fn decomposing_a_leaf_whose_key_names_a_twin_is_refused_rather_than_misaimed() {
+        // `marking-k32`'s finding, at the verb that most needs it: `promote` is
+        // called **by key**, and `by_key` answers with whichever entry the walk
+        // reaches first on a duplicate-key tree. Decomposing the live leaf could
+        // otherwise promote its `DONE` twin.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "01-impl-a-k1.md", "a-k1");
+        touch(&g, "01-DONE-impl-a-k1.md", "a-k1");
+        stage_all(&g);
+
+        let err =
+            leaf_decompose(&g, Path::new("01-impl-a-k1.md"), "x", Some(Kind::Impl)).unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("two entries in this tree carry key 1"),
+            "got {err}"
+        );
+        assert!(
+            g.join("01-impl-a-k1.md").is_file() && !g.join("01-a-k1").exists(),
+            "a refused promotion creates nothing"
+        );
+    }
+
+    #[test]
+    fn destination_occupied_is_unreachable_because_the_occupant_duplicates_the_key() {
+        // **The row this leaf was sent to check.** The node a promotion composes
+        // is `compose(ordinal, key, node parts)` with the *leaf's own* ordinal
+        // and key, so the only name that can already occupy the destination is a
+        // node carrying that key — which makes the key duplicated tree-wide, and
+        // `addressable_key` refuses before any operation is planned. The same
+        // argument `marking-k32` made for the marking verbs, reaching the last
+        // row the table still predicted. Both shapes of occupant are checked:
+        // the node with a brief (an ordinary hand edit) and the node without one
+        // (an interrupted promotion), because they take different branches and
+        // only the second is a state the library can leave behind.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "02-impl-build-k3.md", "build-k3");
+        mknode(&g, "02-build-k3", "build-k3");
+        stage_all(&g);
+
+        let err = leaf_decompose(
+            &g,
+            Path::new("02-impl-build-k3.md"),
+            "step",
+            Some(Kind::Impl),
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("two entries in this tree carry key 3"),
+            "the duplicate key is what is wrong with this tree, and the taken \
+             destination is a consequence: {err}"
+        );
+        assert!(
+            !err.to_string().contains("already taken"),
+            "`Refusal::DestinationOccupied` must not reach an operator: {err}"
+        );
+        // The control, because a reachability claim that cannot fail is worth
+        // nothing: with Grove's check removed, this same tree does reach the
+        // library — and which refusal it reaches is not even determined, since
+        // `by_key` on a duplicate key answers with whichever entry the walk
+        // reaches first and walk order on such a tree is one of `structure.als`'s
+        // recorded misses. Either wording is the library's, about a state Grove
+        // can describe better.
+        assert!(
+            library_promotion_refusal(&g, 3, "build").contains("already taken")
+                || library_promotion_refusal(&g, 3, "build").contains("promotion turns a"),
+            "the refusal has to be there for Grove's check to be what hides it: {}",
+            library_promotion_refusal(&g, 3, "build")
+        );
+    }
+
+    /// Call the library's `promote` directly, bypassing every precondition Grove
+    /// puts in front of it, and return the message it answers with.
+    ///
+    /// The positive control for the two reachability claims above. Grove has no
+    /// production path that does this — clause 1 resolves an argument to an entry
+    /// and clause 2 classifies it first — which is exactly why the claims need an
+    /// instrument that does.
+    fn library_promotion_refusal(grove_root: &Path, key: u32, slug: &str) -> String {
+        let tree = crate::task_tree::write(grove_root).unwrap();
+        match tree.promote(
+            ordinal_fs_tree::Key::new(key),
+            Parts::node(Slug::new(slug).unwrap()),
+            None,
+        ) {
+            Ok(_) => panic!("the library must refuse this tree"),
+            Err(error) => error.to_string(),
+        }
+    }
+
+    #[test]
+    fn an_interrupted_promotion_is_diagnosed_as_one_rather_than_as_a_hand_edit() {
+        // The tree `Error::FailedPartiallyRolledBack` warns about, met by a
+        // *later* command — which is the only way it is ever met, since the run
+        // that caused it already reported it and exited. The library reports
+        // nothing here: a duplicate key is an obligation on the domain and no
+        // operation checks it. So the recovery advice is Grove's to give, and it
+        // is the library's own — remove either half — and not
+        // `addressable_key`'s general *give one a fresh key*, which would make
+        // two entities out of one caught mid-shape-change.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "02-impl-build-k3.md", "build-k3");
+        fs::create_dir(g.join("02-build-k3")).unwrap();
+        stage_all(&g);
+
+        let err = leaf_decompose(
+            &g,
+            Path::new("02-impl-build-k3.md"),
+            "step",
+            Some(Kind::Impl),
+        )
+        .unwrap_err();
+
+        let message = err.to_string();
+        assert!(
+            message.contains("interrupted `leaf-decompose`"),
+            "got {message}"
+        );
+        assert!(
+            message.contains("holds no BRIEF.md") && message.contains("Removing either half"),
+            "the recovery has to be the library's own: {message}"
+        );
+        assert!(
+            !message.contains("fresh key"),
+            "the general duplicate-key advice is wrong for this tree: {message}"
+        );
+        assert!(
+            g.join("02-impl-build-k3.md").is_file(),
+            "a refused promotion creates nothing and repairs nothing"
+        );
+    }
+
+    #[test]
+    fn a_tree_at_the_last_key_refuses_the_promotion_rather_than_wrapping() {
+        // The one refusal `leaf-decompose` really can reach, and it comes from
+        // the **first child** rather than from the node: a promotion allocates
+        // no key for the node — the entity is unchanged — so the only `max + 1`
+        // in the operation is the child's. Grove predicts `None`, hands the
+        // library no bytes, and lets it state the condition (clause 3).
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "02-impl-build-k4294967295.md", "build-k4294967295");
+        stage_all(&g);
+
+        let err = leaf_decompose(
+            &g,
+            Path::new("02-impl-build-k4294967295.md"),
+            "step",
+            Some(Kind::Impl),
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string().contains("greatest a key can be"),
+            "got {err}"
+        );
+        assert!(
+            g.join("02-impl-build-k4294967295.md").is_file()
+                && !g.join("02-build-k4294967295").exists(),
+            "a refusal writes nothing"
+        );
+    }
+
+    #[test]
+    fn no_promotion_refusal_reaches_an_operator_from_an_ordinary_argument() {
+        // The three refusals `promote` owns, asserted unreachable rather than
+        // described. `PromoteNoDistinguished` is discharged by the domain itself
+        // and needs no fixture; the other two are discharged by every argument
+        // that is not a live leaf, and the sweep is what makes that a claim
+        // about the *verb* rather than about the cases someone thought of.
+        assert!(
+            <TaskName as ordinal_fs_tree::EntryName>::distinguished().is_some(),
+            "Grove's distinguished child is BRIEF.md, so a promotion always has \
+             somewhere to put the leaf's bytes"
+        );
+        assert_eq!(
+            Parts::node(crate::task_name::Slug::new("build").unwrap()).species(),
+            ordinal_fs_tree::PositionedSpecies::Node,
+            "`leaf-decompose` composes node parts and nothing else, so \
+             `PromotePartsNotNode` cannot fire"
+        );
+
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "01-DONE-impl-done-k1.md", "done-k1");
+        touch(&g, "02-ABANDONED-impl-gone-k2.md", "gone-k2");
+        touch(&g, "03-finish-wrap-k3.md", "wrap-k3");
+        let node = mknode(&g, "04-build-k4", "build-k4");
+        stage_all(&g);
+
+        for argument in [
+            g.as_path(),
+            &g.join("BRIEF.md"),
+            &g.join("01-DONE-impl-done-k1.md"),
+            &g.join("02-ABANDONED-impl-gone-k2.md"),
+            &g.join("03-finish-wrap-k3.md"),
+            node.as_path(),
+            &node.join("BRIEF.md"),
+        ] {
+            let err = leaf_decompose(&g, argument, "step", Some(Kind::Impl))
+                .unwrap_err()
+                .to_string();
+            for library_wording in [
+                "promotion turns a",
+                "this domain has no distinguished child",
+                "make a leaf, not a node",
+            ] {
+                assert!(
+                    !err.contains(library_wording),
+                    "{argument:?} reached a `promote` refusal: {err}"
+                );
+            }
+        }
+    }
+
     // ---- leaf-retire --------------------------------------------------------
 
     #[test]
@@ -1703,10 +2023,14 @@ mod tests {
 
     // ---- lifecycle over untracked leaves (issue #3's root cause) -------------
     //
-    // Same defect as `leaf-insert`'s, in the lifecycle verbs: a leaf grown this
-    // session is untracked until the enclosing task commits, and `git mv` has no
-    // index entry to move. Retiring one is not exotic — a task that grows a leaf
-    // and finishes it in the same session hits it head-on.
+    // Issue #3's defect, in the lifecycle verbs: a leaf grown this session is
+    // untracked until the enclosing task commits, and the `git mv` these verbs
+    // used to reach for had no index entry to move. The verbs now rename through
+    // `ordinal-fs-tree`, which never consults git at all
+    // (`docs/adr/grove-does-not-stage-its-own-renames.md`), so these cases can no
+    // longer fail that way — they are kept because the fixtures are the ones a
+    // real session produces, and a verb that grew a tracked-only path would fail
+    // them again.
 
     #[test]
     fn retire_an_untracked_leaf_added_this_session() {

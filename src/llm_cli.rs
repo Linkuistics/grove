@@ -212,7 +212,7 @@ pub enum Command {
     /// Convert a live leaf file `NN-<kind>-<slug>-k<key>.md` into a node **directory**
     /// `NN-<slug>-k<key>/` (**key preserved** — the leaf that was `k<key>`
     /// becomes the node `k<key>`), moving the leaf body in as the node's
-    /// `BRIEF.md` (`git mv`, or a plain rename in a jj-enabled tree; its
+    /// `BRIEF.md` (a plain rename on every lane, staging nothing; its
     /// `# <slug>-k<key>` header retitled with ` — brief`) and
     /// atomically growing a first child
     /// `01-<kind>-<first-child-slug>-k<new>.md` so the

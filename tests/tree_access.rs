@@ -215,3 +215,74 @@ fn worktree_readers_share_the_lock_without_reporting_contention() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+/// **No Grove reader observes a promotion's intermediate state**, held as a
+/// property of the source rather than of a race that would have to be provoked.
+///
+/// A promotion is the one operation whose intermediate state breaks an invariant:
+/// the node exists before the leaf's content can move into it, and it carries the
+/// leaf's own ordinal and key, so between those two effects both are on disk
+/// sharing both (`docs/ordinal-fs-tree/ARCHITECTURE.md`, *Promotion is not atomic
+/// against the invariants*). The library's invariants therefore hold of
+/// **quiescent** trees, and the exclusive lock is what makes that safe — for
+/// *cooperating* readers.
+///
+/// Grove's readers cooperate for two reasons, and both are checked here. The
+/// library's own `flock` is taken from exactly one module, so no snapshot exists
+/// that was not taken under it; and Grove's surviving path-walking readers take
+/// `tree_access`, which `flock`s **the same directory** — the one containing the
+/// tree root — so the two guards exclude each other rather than nesting. That
+/// second fact is the node brief's, and it is why the migrate stage is
+/// per-verb-group at all.
+///
+/// Enumerated rather than listed: the scan is every `.rs` file under `src/`, so a
+/// verb that reaches for `ordinal_fs_tree::fs::` in a module of its own fails
+/// here whether or not anyone remembered to add it. The control is the count —
+/// the call sites must still exist, so a rename that hides them fails too.
+#[test]
+fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
+    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut callers: Vec<(String, usize)> = Vec::new();
+    let mut files = vec![source.clone()];
+    while let Some(path) = files.pop() {
+        if path.is_dir() {
+            files.extend(
+                fs::read_dir(&path)
+                    .unwrap()
+                    .map(|entry| entry.unwrap().path()),
+            );
+            continue;
+        }
+        if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
+            continue;
+        }
+        let relative = path
+            .strip_prefix(source.parent().unwrap())
+            .unwrap()
+            .display()
+            .to_string();
+        let body = fs::read_to_string(&path).unwrap();
+        // Any **non-comment** mention of the library's `fs` module, and not just
+        // the turbofished call spelling: a caller writing `use ordinal_fs_tree::fs;`
+        // and then `fs::write(...)` would evade a narrower pattern, and that is
+        // exactly the caller this test exists to catch. Doc links are skipped
+        // because they name the module without reaching it.
+        let hits = body
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("//"))
+            .filter(|line| line.contains("ordinal_fs_tree::fs"))
+            .count();
+        if hits > 0 {
+            callers.push((relative, hits));
+        }
+    }
+    callers.sort();
+    assert_eq!(
+        callers,
+        vec![("src/task_tree.rs".to_string(), 4)],
+        "the library's lock is `task_tree`'s to take: two guard type aliases and \
+         the shared and exclusive acquisitions themselves, and every reader in \
+         Grove goes through them. The count is the control — a pattern that \
+         stopped matching would leave this empty rather than clean."
+    );
+}

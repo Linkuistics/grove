@@ -378,9 +378,20 @@ pub(crate) fn promote<N: EntryName>(
     // to `DestinationOccupied`. See `EntryNameExt::same_name`.
     //
     // The two later destinations are in a directory this plan has just created,
-    // so nothing a promotion builds can reach the refusal on a tree the library
-    // built — but a tree a failed rollback already damaged can, which is
-    // `wit_damagedTreeStrandsALaterOperation`.
+    // and `occupied` answers `false` for a `Level::Created` unconditionally — a
+    // directory nothing has ever been written into can only be occupied by this
+    // plan's own effects, and a distinguished child and a positioned name are
+    // never `same_name`. So effects two and three cannot reach the refusal on
+    // **any** tree, damaged or not; the whole of a promotion's exposure to it is
+    // effect one.
+    //
+    // That exposure is real: a tree a failed rollback already damaged carries a
+    // node and a leaf sharing an ordinal and a key, and promoting that leaf
+    // composes the name the leftover node holds. `wit_damagedTreeStrandsALaterOperation`
+    // is that case, and it is worth being precise that the witness does not say
+    // so — it is `outcome == RefusedDestinationOccupied and not(isInsert(…))`,
+    // which does not distinguish which effect refused. Which effect it is comes
+    // from reading `occupied`, not from the model.
     Plan::of(effects).guarded(snapshot)
 }
 

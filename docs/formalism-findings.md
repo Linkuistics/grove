@@ -2540,6 +2540,117 @@ transcription is what is repeatable; *what it takes to falsify a row* is not, an
 a leaf that budgets only for a fixture will re-affirm a row it should have
 broken.
 
+### 024 — Transcribing the same table a fourth time, and reading an error message as a specification (grove's `leaf-decompose`)
+
+**Situation.** The flip's *migrate* stage, last mutation: `leaf-decompose` onto
+`promote`. Two obligations, and they turned out to be different in kind. The
+first is the inherited one — transcribe this leaf's rows of `refusals-k30`'s
+reachability table into a suite and find them wrong if they are; the row was
+`DestinationOccupied`, the only one still predicted **yes** and the one that
+looked likeliest, since a promotion's destination is composed from an ordinal and
+a key that already exist. The second came from the leaf brief rather than from
+the table: *read* `docs/ordinal-fs-tree/ARCHITECTURE.md`'s **When rollback
+fails** *before deciding what grove reports*.
+
+**Formalism. None written, for the fourth time, and the instrument for the row
+was the same — compose the fixture the row implies.** What is worth logging is
+that the row fell to neither of the two mechanisms the previous entries recorded.
+
+**Caught.** One more row wrong, by a third distinct mechanism; and one gap that
+is not a refusal at all and that no reachability table could hold.
+
+*`DestinationOccupied` is unreachable from `leaf-decompose`, and what discharges
+it is a consumer-side check added two leaves earlier for an unrelated reason.*
+The algebra reaches the refusal perfectly well: promote composes the node as
+`(leaf's own ordinal, leaf's own key, node parts)`, so an entry already carrying
+that name is possible on a hand-edited tree, which is exactly what the row said.
+But such an entry is a **node carrying the leaf's key**, so the key is duplicated
+tree-wide — and `task_tree::addressable_key`, which `marking-k32` wrote because
+`by_key` silently marked the wrong twin, refuses before anything is planned.
+Entry 022's finding retired a row nobody was looking at when it was written.
+
+*The recovery advice for the one tree state this library can damage was
+addressed to a reader nobody had.* `Error::FailedPartiallyRolledBack` states the
+diagnosis and the fix in as many words — *a node and a leaf sharing an ordinal
+and a key, with the node holding no distinguished child, is an interrupted
+promotion, and removing either half resolves it* — and grove was already decided
+to print it verbatim (entry 021). What neither the record nor the table noticed
+is **who is holding that tree when it matters**: never the process that made it,
+which reported and exited, and always a later command, to which the library says
+nothing at all, key uniqueness being an obligation on the domain that no
+operation checks. So the only wording available for the state the library warns
+about is the consumer's — and grove's existing one, `addressable_key`'s *give one
+of them a fresh key*, is **wrong** here, because the node and the leaf are one
+entity caught mid-shape-change and a fresh key would make two of it. The
+signature is exact enough to recognise (two entries under one key, one node one
+leaf, same ordinal, node holding no `BRIEF.md`) and grove now gives the library's
+own recovery for it.
+
+**Missed.** The table missed the row, as it has missed one on every leaf that
+transcribed it — four for four. More usefully, and this is the entry's point:
+**both previous counterfactuals would have missed this one too.** Entry 022's
+(*write the fixture's filenames out in full*) does not apply — the argument is
+about a check that runs before any name is composed. Entry 023's (*mark the rows
+whose reachability depends on fold order and check them against the interpreter*)
+does not apply either, for the same reason: the interpreter is never reached.
+That is now two entries whose counterfactuals failed to predict the next
+falsification, and it is worth saying plainly — a counterfactual written at the
+moment of a falsification tends to describe *that* falsification's mechanism, and
+the mechanisms have not repeated once in four leaves.
+
+Nothing formal missed the recovery gap, because nothing formal was asked. Worth
+being precise about why: **both models describe operations, and this is a
+question about the interval between two of them, across a process boundary.**
+`operations.qnt` has no notion of a run ending, and `structure.als` has no notion
+of a tree being *met* rather than held. A model would have had to be asked *what
+does the next command see* — which is not a claim either model's vocabulary can
+state, so this is a limit of the modelling frame and not a miss inside it.
+
+**Cost.** Under two hours for the leaf. The row cost one fixture and ten minutes,
+because the argument was already written down in `marking-k32`'s finding and only
+had to be recognised as applying. The recovery gap cost one careful reading of
+two short document sections — the ones the leaf brief named — plus about twenty
+minutes deciding whether writing a message was clause 3 broken (it is not: there
+is no library wording in play, the one that exists having been printed by a
+process that has gone).
+
+**Counterfactual.** Two, and the first is deliberately about the *protocol*
+rather than about this row.
+
+**Stop writing per-falsification counterfactuals for the reachability table, and
+write the standing rule the four leaves actually support:** a consumer-side
+reachability row is a claim about the *composition* of the consumer's
+preconditions with the algebra, so it goes stale whenever either side changes and
+it cannot be settled once. What is repeatable is the transcription; a table of
+this kind should therefore be marked *checked by leaf X against revision Y*, and
+a leaf that adds a precondition should be expected to retire rows it was not
+looking at. **A falsifiable prediction, in entry 017's terms:** the next consumer
+of a refusing library that keeps its own preconditions in front of one will find
+its reachability table wrong at a rate that does not decay with the number of
+rows already corrected — because each correction is a fact about a different
+mechanism, and there were four mechanisms in four leaves here.
+
+For the recovery gap, and this one *is* mechanical and cheap: **read every error
+variant whose message describes a persistent state of the artifact, and ask which
+of your own commands can meet that state later.** A library's error message is a
+specification of a tree, and the consumer is the only party that can act on it
+after the failing run has gone. `entries-are-never-removed` makes this
+structural rather than incidental for this library — a damaged tree is never
+tidied away — and the same reading applies to any store whose failures persist.
+**Three of the library's nine `Error` variants describe a persistent state of the
+tree**: `Malformed` and `Reserved`, which `reading-k31` already gave grove's own
+precedence in `task_tree::diagnose`, and `FailedPartiallyRolledBack`, which had
+no owner until this leaf. `Failed` is the control — it says in as many words that
+the tree is as it was found, so a retry is safe and no later command needs to
+recognise anything.
+
+**Verdict.** Reach for the transcription protocol again — four leaves, four
+corrected rows, well under an hour each, and it is the only instrument that has
+found anything about this table. Do **not** reach for its counterfactuals as
+routing advice; their predictive record is 0 for 2. And add the error-message
+reading to the checklist for any leaf that consumes a fallible library: it is the
+cheapest thing in this log per finding, and it is not a formalism at all.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;

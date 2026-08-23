@@ -24,6 +24,15 @@
 //
 // # What went, and stayed gone
 //
+// # Three helpers here are `pub(crate)`, and `leaf-decompose` is why
+//
+// `new_leaf`, `leaf_slug` and `refuse_finish_kind` are shared with
+// `tree_lifecycle`'s `leaf_decompose`, whose `promote` optionally creates a first
+// child in the same unit — so it composes a new leaf exactly as the grow verbs
+// do, key prediction and all. One constructor rather than two is the point: a
+// second spelling of *what a new grove leaf is* would let the two drift on the
+// template, the slug grammar or the `finish` reservation.
+//
 // The whole of `tree_grow`'s collision machinery — the up-front destination
 // sweep, the `O_EXCL` claim, the per-run rollback, the injected post-claim
 // failure — because `append_many` *is* the atomic run: one snapshot answers
@@ -372,7 +381,12 @@ fn containing_level(
 /// [`Refusal::KeysExhausted`](ordinal_fs_tree::Refusal) and the library's to
 /// state. The entry carries no bytes then, and never needs any: a refusal writes
 /// nothing.
-fn new_leaf(key: Option<Key>, outcome: Outcome, kind: Kind, slug: &Slug) -> NewEntry<Parts> {
+pub(crate) fn new_leaf(
+    key: Option<Key>,
+    outcome: Outcome,
+    kind: Kind,
+    slug: &Slug,
+) -> NewEntry<Parts> {
     let parts = Parts::leaf(outcome, kind, slug.clone());
     match key {
         Some(key) => NewEntry::new(
@@ -432,12 +446,12 @@ fn allocated(report: &Report<TaskName>, predicted: &[Option<Key>]) -> Result<Vec
 /// [`Slug::new`] is the domain's own validator — the same one
 /// [`TaskName::parse`](ordinal_fs_tree::EntryName::parse) reads a filename
 /// through — so a slug this accepts is one the tree can carry and read back.
-fn leaf_slug(slug: &str) -> Result<Slug> {
+pub(crate) fn leaf_slug(slug: &str) -> Result<Slug> {
     Slug::new(slug).map_err(|error| anyhow::anyhow!("slug {slug:?}: {error}"))
 }
 
 /// The `finish` kind is the driver's own and no operator verb may create one.
-fn refuse_finish_kind(kind: Kind, verb: &str) -> Result<()> {
+pub(crate) fn refuse_finish_kind(kind: Kind, verb: &str) -> Result<()> {
     if kind == Kind::Finish {
         bail!("`finish` is driver-reserved and cannot be created by `{verb}`");
     }

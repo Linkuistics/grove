@@ -437,7 +437,7 @@ move, one a hand edit or a failed rollback has damaged.
 | `leaf-add` | `append` | `KeysExhausted`, `OrdinalsExhausted` — and **not** `TargetNotNode` or `DestinationOccupied`; `growing-k33` corrected both rows |
 | `leaf-add-pair` | `append_many` | the same two |
 | `leaf-insert` | `insert` | `KeysExhausted`, `OrdinalsExhausted` — not `TargetNotNode`, because the target passed is the resolved entry's **container**, a node by construction; and not `DestinationOccupied`, per the row below |
-| `leaf-decompose` | `promote` | `DestinationOccupied`, `KeysExhausted` — the node takes the leaf's own ordinal and the first child takes the first, so no ordinal is allocated past the end |
+| `leaf-decompose` | `promote` | `KeysExhausted` alone, from the **first child** — a promotion allocates no key for the node, the entity being unchanged; and no ordinal at all, since the node takes the leaf's own and the child takes the first. `promotion-k34` corrected the `DestinationOccupied` this row predicted |
 | `leaf-retire`, `leaf-prune` | `rewrite` | **none**, and the row below says why the `DestinationOccupied` this table first predicted is unreachable |
 | `root-init` | `append` into a tree it has just created | **none** — the root is not an entry and the level is empty |
 | `finish-commit` | none — it reads the tree, then deletes `.grove/` under Grove's own transaction | **none** |
@@ -445,39 +445,41 @@ move, one a hand edit or a failed rollback has damaged.
 
 #### Which refusals Grove's verbs can reach
 
-Three of ten, and none from an ordinary argument. A refusal no argument produces
+Two of ten, and neither from an ordinary argument. A refusal no argument produces
 is a case a contract test cannot cover and a reader should not go looking for.
 
-**Three rows have since been corrected by the leaves that transcribed them, and
-the count fell from four to three.** `marking-k32` found `DestinationOccupied`
+**Four rows have since been corrected by the leaves that transcribed them, and
+the count fell from four to two.** `marking-k32` found `DestinationOccupied`
 unreachable from the two marking verbs; `growing-k33` found `TargetNotNode` and
-`DestinationOccupied` unreachable from the three grow verbs. Each correction is
-the check [`refusals-k30` scheduled](#library-refusals) working as intended: the
-table's own guarantee is that each migrate leaf writes its rows into a suite and
-finds them wrong if they are, and it has fired on every migrate leaf that had a
-row to write.
+`DestinationOccupied` unreachable from the three grow verbs; `promotion-k34`
+found `DestinationOccupied` unreachable from `leaf-decompose`, which was the last
+row still predicting it. Each correction is the check
+[`refusals-k30` scheduled](#library-refusals) working as intended: the table's own
+guarantee is that each migrate leaf writes its rows into a suite and finds them
+wrong if they are, and it has fired on **every** migrate leaf that had a row to
+write — four for four, which is a fact about the protocol rather than about any
+one instrument (`docs/formalism-findings.md`, entries 022–024).
 
-What survives is `KeysExhausted` and `OrdinalsExhausted` from the grow verbs, and
-`DestinationOccupied` from `leaf-decompose` — a row no leaf has transcribed yet,
-and `promotion-k34`'s to check. The consequential change is that **no algebraic
-refusal reaches an operator from an ordinary argument any more**: `TargetNotNode`
-was the only one that did, and the collision `refusals-k30` weighed was its
-message. The decision that record reached — print verbatim, re-word nothing — is
-unchanged and is now cheaper than it looked, because the message that collides is
-one no argument produces.
+What survives is `KeysExhausted` and `OrdinalsExhausted`, and both need a tree at
+the edge of the keyspace or the ordinal space. The consequential change is that
+**no algebraic refusal reaches an operator from an ordinary argument any more**:
+`TargetNotNode` was the only one that did, and the collision `refusals-k30`
+weighed was its message. The decision that record reached — print verbatim,
+re-word nothing — is unchanged and is now cheaper than it looked, because the
+message that collides is one no argument produces.
 
 | `Refusal` variant | reachable from Grove's verbs? |
 |---|---|
 | `TargetMissing` | **no** — clause 1. A reference naming nothing fails in Grove's resolution, before any operation is called. |
 | `TargetNotNode` | **no**, and `growing-k33` corrected this row: it predicted *yes* for `leaf-add <a task file> <slug>` while naming its own contradiction in the next clause — *Grove keeps its own check in front of it*. Both are true of the design and only one can be true of an operator. The check is not optional either, which is what settles it: `.grove/BRIEF.md` is an entry carrying **no key**, so it cannot be handed to the library as a target however the refusal were worded, and clause 2 therefore *forces* the classification that puts this refusal permanently behind one. Asserted in `src/task_grow/tests.rs` over every parent argument that is an entry and not a node. |
 | `NoOccupantAtOrdinal` | **no**, in none of its three messages — `leaf-insert` names the **entry** whose slot the new leaf takes, and Grove reads the ordinal off that entry in the snapshot the insert plans from, so `at` is occupied by construction. The syllabus CLI reached all three because `<at>` is an ordinal argument there; Grove's argument surface discharges the refusal `insert` spent two leaves getting right. |
-| `PromoteNotLeaf` | **no** — `leaf-decompose` refuses a brief, a `DONE` leaf, an `ABANDONED` leaf and a `finish` leaf, none of which the library can see; a node falls out of the same match. |
-| `PromotePartsNotNode` | **no** — `leaf-decompose` always composes node parts. |
-| `PromoteNoDistinguished` | **no** — Grove's distinguished child is `BRIEF.md`. |
+| `PromoteNotLeaf` | **no** — `leaf-decompose` refuses a brief, a `DONE` leaf, an `ABANDONED` leaf and a `finish` leaf, none of which the library can see; a node falls out of the same match. Confirmed by `promotion-k34` over every argument that is an entry and not a live leaf, the grove root included, with a positive control that calls `promote` directly on the same tree and shows the refusal is there for Grove's check to hide. |
+| `PromotePartsNotNode` | **no** — `leaf-decompose` always composes node parts, and `Parts::node(_).species()` is `Node` by construction. |
+| `PromoteNoDistinguished` | **no** — Grove's distinguished child is `BRIEF.md`, so `TaskName::distinguished()` is `Some` and the refusal is about the *domain* rather than about any call. Asserted rather than assumed. |
 | `RewriteSpeciesChange` | **no** — `leaf-retire` and `leaf-prune` compose leaf parts for an entry they have already matched as a live leaf. Confirmed by `marking-k32`: the classification reads `Parts::Leaf` off the snapshot and composes from its own `kind` and `slug`, so no path through either verb can hand `rewrite` node parts. |
-| `DestinationOccupied` | **no from any flipped verb**, and it took two leaves to establish; `leaf-decompose`'s row above is still predicted and still unchecked. **Not from `leaf-retire` or `leaf-prune`** (`marking-k32`): the occupying name must be exactly the name the mark would place, and an outcome infix and a key are both *parts of one name*, so a `DONE` twin beside the live leaf necessarily carries the live leaf's key — which `task_tree::addressable_key` refuses first. **Not from the grow verbs either** (`growing-k33`), though this row predicted *yes on a hand-edited tree: a copied leaf duplicating a key*, and composing that tree is what showed otherwise. An **append** composes its name with `max + 1` over the whole tree, so no entry in the snapshot can already carry it, whatever a hand edit did. A **shift** composes `(ordinal + 1, key, parts)`, and the only entry that could already carry that name is the sibling one ordinal higher — itself a mover, and already vacated, because the renames run highest-first and the plan is folded through the snapshot in that order. That is the second thing highest-first buys, after the intermediate state, and `ops.rs` says as much in passing — *lowest-first is refused only where a hand edit already duplicated a key and its parts at adjacent ordinals*, which is the tree this row was reaching for. Asserted against `operations.qnt`'s `corrupted` instance rendered in Grove's grammar. |
+| `DestinationOccupied` | **no from any flipped verb**, and it took three leaves to establish. **Not from `leaf-retire` or `leaf-prune`** (`marking-k32`): the occupying name must be exactly the name the mark would place, and an outcome infix and a key are both *parts of one name*, so a `DONE` twin beside the live leaf necessarily carries the live leaf's key — which `task_tree::addressable_key` refuses first. **Not from the grow verbs either** (`growing-k33`), though this row predicted *yes on a hand-edited tree: a copied leaf duplicating a key*, and composing that tree is what showed otherwise. An **append** composes its name with `max + 1` over the whole tree, so no entry in the snapshot can already carry it, whatever a hand edit did. A **shift** composes `(ordinal + 1, key, parts)`, and the only entry that could already carry that name is the sibling one ordinal higher — itself a mover, and already vacated, because the renames run highest-first and the plan is folded through the snapshot in that order. That is the second thing highest-first buys, after the intermediate state, and `ops.rs` says as much in passing — *lowest-first is refused only where a hand edit already duplicated a key and its parts at adjacent ordinals*, which is the tree this row was reaching for. Asserted against `operations.qnt`'s `corrupted` instance rendered in Grove's grammar. **And not from `leaf-decompose`** (`promotion-k34`), which is the row this table predicted longest and the one that looked most likely, since a promotion's destination is composed from an ordinal and a key that already exist. That is exactly why it cannot fire: the node is `compose(ordinal, key, node parts)` with the promoted **leaf's own** ordinal and key, so an occupant of that name is a node carrying that key, the key is duplicated tree-wide, and `addressable_key` refuses before anything is planned. Both shapes of occupant are asserted — the node with a `BRIEF.md`, which is an ordinary hand edit, and the node without one, which is the interrupted promotion below. An adversarial pass sharpened this and is worth carrying: a promotion's **only** exposure to the refusal is its first effect. The two later destinations sit in the directory the plan has just created, and `plan.rs::occupied` answers `false` for a `Level::Created` unconditionally, so no tree state whatsoever — hand-edited, nested, or rollback-damaged — can make them refuse. **So this row rests on exactly one line of Grove's code**, `task_tree::addressable_key`'s tree-wide twin scan, and that is what would reopen it: narrowing the scan from `snapshot.walk()` to a level or a subtree, downgrading its refusal to a warning, or adding a verb that hands `promote` a key without it. A `read` that attached entries unreachable from the root would do it too, since the twin scan and the occupancy scan would stop seeing the same set. |
 | `ContentForANode` | **no** — discharged by the verb set. A node arises only through `leaf-decompose`, whose node parts carry no bytes and whose first child is a leaf; `leaf-add`, `leaf-add-pair` and `leaf-insert` compose leaf parts and nothing else. |
-| `KeysExhausted` / `OrdinalsExhausted` | **yes** — a hand-written `-k4294967295`, or a position of `4294967295`. That is the exact edge: one more is refused by the grammar as [not canonical](adr/task-names-are-canonical.md), so nothing between the two states is representable. |
+| `KeysExhausted` / `OrdinalsExhausted` | **yes** — a hand-written `-k4294967295`, or a position of `4294967295`. That is the exact edge: one more is refused by the grammar as [not canonical](adr/task-names-are-canonical.md), so nothing between the two states is representable. `KeysExhausted` reaches `leaf-decompose` too, and through the **first child** alone: a promotion allocates no key for the node, the entity being unchanged, so the verb's only `max + 1` is the child's. `OrdinalsExhausted` does not — the node takes the promoted leaf's own ordinal and the child takes the first. |
 
 | non-`Io` `Error` variant | reachable from Grove's verbs? |
 |---|---|
@@ -530,6 +532,27 @@ rollback rather than on an argument and because
 [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) carries the six-term translation — a map
 between two glossaries cannot drift from the messages it translates, where a
 re-wording of each message can.
+
+<a id="interrupted-promotion"></a>
+**But the process that meets that tree is never the process that left it**, and
+that is `promotion-k34`'s finding. The run whose rollback failed reported it and
+exited. Every command afterwards opens a tree carrying a duplicate key, and the
+library reports *nothing at all* about it: key uniqueness is an obligation on the
+domain, and no operation checks it. So the recovery advice for the state the
+library warns about is only ever given by whoever meets it, and that is Grove.
+
+This is not clause 3 broken, because there is no library wording in play — the
+one that exists was printed in a process that has gone. `task_tree::addressable_key`
+therefore recognises the signature exactly (two entries under one key, one a node
+and one a leaf, at the same position, the node holding no `BRIEF.md`) and gives
+**the library's own recovery**: removing either half resolves it. Its general
+duplicate-key advice — *give one of them a fresh key* — is actively wrong here,
+and that is why the special case earns its place rather than merely fitting: the
+node and the leaf are **one entity** caught mid-shape-change, so giving either a
+fresh key would make two entities out of one. Grove itself never writes a
+childless node — the only `create_dir` on Grove's tree path is `.grove/` itself,
+and every node arises through `promote`, which creates the brief in the same
+unit — so no other route in the verb set produces this shape.
 
 #### What would reopen this
 

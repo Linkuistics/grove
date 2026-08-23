@@ -81,6 +81,7 @@ mean something else in grove's, and its crate ships by no path of its own —
   | *key* | **Permanent key** | the words differ |
   | *distinguished child* | the node's `BRIEF.md` charter | grove names the file, not the role |
   | *entry* | **Leaf** or **Node directory** | grove has no word for the union |
+  | *promote* | `leaf-decompose` | the operations coincide, the names do not |
 
   Where the words collide the meanings differ, and where they differ the meanings
   match; both halves are deliberate. A document that must speak of both says
@@ -93,7 +94,14 @@ mean something else in grove's, and its crate ships by no path of its own —
   operator meeting one reads it against these rows. Under `.grove/` the first two
   rows happen to pick out the same files, which is what makes that collision
   quiet rather than loud: a sentence about the library's *leaf* reads as a true
-  sentence about a grove **Leaf** right up to the clause where it is not.
+  sentence about a grove **Leaf** right up to the clause where it is not. The
+  *promote* row is the one whose absence would bite: `refusals-k30` measured the
+  collision clause by clause and found it lands on the **verb** a message names
+  rather than on its nouns, and grove's operator is an LLM that will try the verb
+  it is told to try. It is also the row two messages now share — the library's
+  *interrupted promotion* and grove's own diagnosis of the tree a failed rollback
+  leaves ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#interrupted-promotion)),
+  which is exactly the drift a map prevents and a re-wording does not.
 
 - **A durable record has one owner.** Every record under `docs/adr/` and
   `docs/specs/` has a repo-wide unique slug and a maintaining context recorded

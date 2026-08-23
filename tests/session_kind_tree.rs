@@ -314,14 +314,20 @@ fn malformed_terminal_task_names_fail_as_strictly_as_live_names() {
 /// next move was to allocate a finish leaf and propose teardown.
 #[test]
 fn a_task_shaped_entry_of_the_wrong_species_is_malformed_not_foreign() {
-    // (entry name, whether it is a directory, the phrase naming what went wrong)
+    // (entry name, whether it is a directory, the phrase naming what went wrong).
+    // The phrases are the **domain's** since `reading-k31` put the reading verbs
+    // on `ordinal-fs-tree`: the refusal is `task_name`'s own `TaskNameError`,
+    // carried verbatim by the library's halt, rather than a sentence
+    // `tree_read::read_level` wrote. Same conditions, same recovery advice,
+    // different words — which is a finding recorded in the node brief and not an
+    // adjustment made quietly here.
     for (name, directory, expected) in [
         // An outcome infix on a node name: parses as neither species.
         ("01-DONE-node-k1", true, "never marked DONE or ABANDONED"),
         // A leaf's name on a directory: parses as a leaf, is not one.
-        ("01-impl-decoy-k1.md", true, "declares a leaf"),
+        ("01-impl-decoy-k1.md", true, "names a leaf"),
         // A node's name on a regular file: parses as a node, is not one.
-        ("01-decoy-k1", false, "declares a node directory"),
+        ("01-decoy-k1", false, "names a node"),
     ] {
         let repository = init_repo();
         let grove = current_grove(repository.path());

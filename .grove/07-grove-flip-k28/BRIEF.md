@@ -188,6 +188,93 @@ the distinction is worth keeping — a design leaf is not evidence about a refac
   `CLI.md`'s. `docs/formalism-findings.md` entry 021 carries the instruments, the
   measurement, and a falsifiable prediction stated in entry 017's terms.
 
+**`reading-k31` (migrate).** The whole suite is **1230 passing**, up from
+`refusals-k30`'s 1228 — the two new ones are this leaf's own equivalence tests,
+and no test was added to cover a hole. **Three existing tests had to change, and
+none of them for a reason the flip could hide.** `pick`, `select`,
+`brief-chain`, `kind` and `resolve` now read one snapshot under the library's
+guard; `src/task_tree.rs` is the new module and `src/tree_read.rs` keeps only
+`select_unlocked`, `resolve_unlocked` and `read_level`, which the verbs still
+under grove's exclusive guard cannot reach the library from.
+
+- **The premise is held directly rather than argued.** Both readers are live at
+  once during this stage, which is the only window in which *pure refactor* is
+  falsifiable by experiment instead of by inspection, so `tree_read`'s own tests
+  now drive **both** over one fixture and assert they agree — thirteen reference
+  forms for `resolve`, and the selected leaf for `select`. They pass, and they
+  die with `tree_read`. **What a later flip leaf should take from it:** while a
+  verb group is mid-flip you have two implementations of one contract for free;
+  an equivalence test is cheaper than the review that would otherwise stand in
+  for it, and it fails rather than reassures.
+- **Changed test 1 — `pick_orders_numerically_not_lexically` made its point with
+  a name grove never writes.** It seeded `2-impl-a-k1.md` against `10-…`, which
+  `domain-k29`'s canonical grammar now refuses
+  (`docs/adr/task-names-are-canonical.md`). Reseeded as `99-…` against `100-…`,
+  which is the *stronger* case anyway: zero-padding is a minimum width, so three
+  digits is where a lexical sort actually breaks, and the walk orders on the
+  parsed ordinal rather than on the name. The old spelling was testing the
+  lenient grammar's tolerance, not the ordering.
+- **Changed tests 2 and 3 — the species-mismatch wording is now the domain's.**
+  `pick_refuses_a_species_mismatch_at_a_task_shaped_name` (unit) and
+  `a_task_shaped_entry_of_the_wrong_species_is_malformed_not_foreign`
+  (`tests/session_kind_tree.rs`) asserted *declares a leaf* / *declares a node
+  directory*, which was `tree_read::read_level`'s own sentence. The condition,
+  the recovery advice and the blast radius are unchanged; the words are
+  `task_name::TaskNameError::SpeciesMismatch`'s — *names a leaf* / *names a
+  node*. This is `refusals-k30`'s *write no second wording* arriving as a test
+  edit, and it is the shape every later flip leaf should expect its own message
+  assertions to take.
+- **One test that did not change but had to be re-aimed:**
+  `llm_cli`'s *one CLI command observes the tree exactly once* counted
+  `tree_access` acquisitions, and a flipped verb takes none. It now sums both
+  counters. The property is about observations, not about which module took
+  them, and stating it that way is what keeps it meaningful for the rest of the
+  stage.
+- **Path construction is `task_tree::entry_path`, and it is the only one.** The
+  root's own spelling, each ancestor node's rendered name, the entry's — no
+  `path()` on the algebra, exactly as `cli-k16` refused. Nothing canonicalises
+  for output. Canonicalisation appears once, inside `leaf_entry`, purely to
+  *compare* a caller's spelling of a leaf argument against the tree's, which is
+  what the path-walking reader did too.
+- **The pending-transaction refusals could not come from the grammar alone, and
+  the reason is ordering rather than mechanism.** `task_name` does classify all
+  three sentinels `Verdict::Reserved`, and that halt is live. But a tree with a
+  pending migration is a tree mid-conversion, so its *other* names are legacy —
+  task-shaped, no session kind, therefore `Malformed` — and the library reports
+  whichever it meets first in sorted order, which is the legacy leaf. The
+  operator would be told to fix a filename in a tree that needs migrating. So
+  `task_tree::diagnose` re-states a **failed** read in grove's own precedence:
+  root, pending, format, then the library's message. What holds the two spellings
+  together is that `tree_access::refuse_pending_*` now raises `task_name`'s own
+  `TaskNameError` — the identical value the library carries — so the pre-check
+  and the halt cannot drift.
+- **The library's invisible locking costs a consumer its contention
+  diagnostic, and this is the seam finding of the leaf.** `ARCHITECTURE.md`
+  (library) makes locking invisible deliberately: no try-variant, no timeout,
+  `read` blocks. Nothing in that interface can say *someone else holds this*, and
+  grove has always said it. `task_tree::announce_contention` buys it back
+  outside the library — a non-blocking probe in the same mode on the same
+  directory, one message, released — and it is a diagnostic and never a decision,
+  so the window between its release and the library's acquisition costs a message
+  and nothing else. **The write path will need the same and cannot reuse this
+  one**: an exclusive probe must be released before the library's own exclusive
+  acquisition or it deadlocks against itself. Recorded in
+  `docs/ARCHITECTURE.md#tree-access-lock`, under *Two locks, one at a time*,
+  along with the per-verb rule the nesting hazard forces.
+- **`resolve` fits the seam without friction, and the leaf brief's worry was
+  unfounded.** Slug lookup is a `walk` with grove's predicate over grove's own
+  `Parts`, and ambiguity needs the whole walk rather than `find`'s first hit —
+  which is a sentence of code, not a workaround. Nothing was added to the
+  library and no `docs/formalism-findings.md` entry is owed: this leaf reached
+  for no formalism, and the seam's narrowness was felt as *state the predicate
+  yourself*, which is what it is for.
+- **One tightening that is not a wording change.** `kind <leaf>` used to answer
+  for **any** task-shaped file anywhere on disk — it parsed the filename and
+  never checked containment. It now requires the leaf to be in the tree, because
+  the answer comes from the snapshot. No test covered the old behaviour and no
+  caller relied on it; it is recorded here because a flip that quietly narrows a
+  verb is exactly what this section exists to catch.
+
 ## Pointers
 
 - `docs/ordinal-fs-tree/ARCHITECTURE.md` — the seam, the seven obligations, the

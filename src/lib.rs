@@ -51,6 +51,14 @@ pub mod session_config;
 // concluding which model it speaks, exactly as this crate's second name grammar
 // always demanded.
 pub mod task_name;
+// `task_tree` is grove's reading surface expressed through that seam — the
+// *migrate* stage's first leaf. `pick`, `select`, `brief-chain`, `kind` and
+// `resolve` read one snapshot under the library's shared lock, and it owns the
+// one place grove builds a path out of the tree. `tree_read` keeps only what the
+// verbs that have not flipped yet still need: grove's exclusive guard and the
+// library's cannot be nested, so a write verb keeps the path-walking reader
+// until its own leaf moves it across.
+pub mod task_tree;
 // `test_barrier` is the publication rule the process-interruption seams share.
 // It is compiled always — the seams are, too — but nothing outside them may
 // reach it, so it is crate-private like the seams' own checkpoint functions.

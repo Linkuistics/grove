@@ -20,10 +20,10 @@ use crate::complete;
 use crate::driver_lease;
 use crate::leaf::Kind;
 use crate::repo;
+use crate::task_tree::{self, Resolution};
 use crate::tree_access;
 use crate::tree_grow;
 use crate::tree_lifecycle;
-use crate::tree_read::{self, Resolution};
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
@@ -501,7 +501,7 @@ fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
 
 fn cmd_pick() -> Result<()> {
     let (worktree, grove_root) = grove_paths()?;
-    match tree_read::pick(&grove_root)? {
+    match task_tree::pick(&grove_root)? {
         Some(p) => {
             println!("{}", p.display());
         }
@@ -531,24 +531,24 @@ fn cmd_brief_chain(leaf_path: Option<&Path>) -> Result<()> {
 }
 
 fn brief_chain_for(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Vec<PathBuf>>> {
-    let guard = tree_access::read(grove_root)?;
+    let tree = task_tree::read(grove_root)?;
     let leaf = match leaf_path {
         Some(path) => normalize_leaf_path(path),
-        None => match tree_read::pick_unlocked(guard.root())? {
+        None => match task_tree::pick_in(&tree)? {
             Some(path) => path,
             None => return Ok(None),
         },
     };
-    tree_read::brief_chain_unlocked(guard.root(), &leaf).map(Some)
+    task_tree::brief_chain(&tree, &leaf).map(Some)
 }
 
 fn cmd_kind(leaf_path: Option<&Path>) -> Result<()> {
     let (worktree, grove_root) = grove_paths()?;
-    // Normalize a cwd-relative path to what `tree_read::kind` accepts (absolute
+    // Normalize a cwd-relative path to what `task_tree::kind` accepts (absolute
     // or grove-root-relative), matching `cmd_brief_chain`'s handling; a `None`
     // stays `None` so the verb defaults to `pick`'s next live leaf.
     let leaf = leaf_path.map(normalize_leaf_path);
-    match tree_read::kind(&grove_root, leaf.as_deref())? {
+    match task_tree::kind(&grove_root, leaf.as_deref())? {
         Some(kind) => println!("{}", kind.label()),
         None => eprintln!(
             "grove {}: no live leaves; this grove is done",
@@ -560,8 +560,8 @@ fn cmd_kind(leaf_path: Option<&Path>) -> Result<()> {
 
 fn cmd_resolve(reference: &str) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
-    let resolution = tree_read::resolve(&grove_root, reference)?;
-    let (stdout, stderr) = tree_read::render_resolution(reference, &resolution);
+    let resolution = task_tree::resolve(&grove_root, reference)?;
+    let (stdout, stderr) = task_tree::render_resolution(reference, &resolution);
     // `resolve` is pick-style: a not-found / ambiguous reference is reported on
     // stderr and still exits zero (it is information, not an error).
     print!("{stdout}");
@@ -764,7 +764,7 @@ fn resolve_ref_or_path_unlocked(grove_root: &Path, arg: &str) -> Result<PathBuf>
     if let Some(path) = existing_path(grove_root, arg) {
         return Ok(path);
     }
-    match tree_read::resolve_unlocked(grove_root, arg)? {
+    match crate::tree_read::resolve_unlocked(grove_root, arg)? {
         Resolution::Found { path, .. } => Ok(path),
         Resolution::NotFound => bail!(
             "no entry matches {arg:?} (tried as a path under the grove root and as a key/slug)"
@@ -850,13 +850,20 @@ mod tests {
     fn assert_one_acquisition(operation: impl FnOnce(&Path)) {
         let (_worktree, grove_root) = grove_with_node();
         tree_access::reset_acquisition_count();
+        crate::task_tree::reset_read_count();
 
         operation(&grove_root);
 
+        // Whichever reader owns the verb. The migrate stage has both live at
+        // once — grove's own guard for the verbs that have not flipped, the
+        // library's for the ones that have — and the property being held is
+        // about *observations*, not about which module took them: one CLI
+        // command reads the tree once, so a verb that selected a leaf and then
+        // re-read the tree to act on it could not slip through.
         assert_eq!(
-            tree_access::acquisition_count(),
+            tree_access::acquisition_count() + crate::task_tree::read_count(),
             1,
-            "one CLI command must acquire the tree lock exactly once"
+            "one CLI command must observe the tree exactly once"
         );
     }
 

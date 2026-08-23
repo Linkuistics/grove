@@ -124,7 +124,7 @@ fn transition_to_current_unlocked(worktree: &Path) -> Result<CurrentTransition> 
 /// no live work. The exclusive re-selection closes the gap between that read
 /// and allocation: newly inserted ordinary work wins, and an existing finish
 /// is reused.
-pub fn materialize_finish(worktree: &Path) -> Result<crate::tree_read::SelectedLeaf> {
+pub fn materialize_finish(worktree: &Path) -> Result<crate::task_tree::SelectedLeaf> {
     let _guard = tree_access::write_for_lifecycle(worktree)?;
     let grove_root = worktree.join(".grove");
     if let Some(selection) = crate::tree_read::select_unlocked(&grove_root)? {
@@ -152,7 +152,7 @@ pub fn materialize_finish(worktree: &Path) -> Result<crate::tree_read::SelectedL
          - Run `grove-llm complete --done` as the last action.\n"
     );
     fs::write(&path, body).with_context(|| format!("writing {}", path.display()))?;
-    Ok(crate::tree_read::SelectedLeaf {
+    Ok(crate::task_tree::SelectedLeaf {
         path,
         handle,
         kind: Kind::Finish,
@@ -1152,7 +1152,7 @@ mod tests {
         assert_eq!(tree_access::acquisition_count(), 1);
         assert_eq!(body(&grove_root.join("FORMAT")), "session-kinds-v1\n");
         assert_eq!(
-            name_of(&crate::tree_read::pick(&grove_root).unwrap().unwrap()),
+            name_of(&crate::task_tree::pick(&grove_root).unwrap().unwrap()),
             "01-requirements-plan-k1.md"
         );
     }
@@ -1171,7 +1171,7 @@ mod tests {
 
         assert_eq!(outcome, CurrentTransition::AlreadyCurrent);
         assert_eq!(tree_access::acquisition_count(), 1);
-        assert_eq!(crate::tree_read::pick(&grove_root).unwrap(), Some(leaf));
+        assert_eq!(crate::task_tree::pick(&grove_root).unwrap(), Some(leaf));
     }
 
     #[test]
@@ -1188,7 +1188,7 @@ mod tests {
         assert_eq!(tree_access::acquisition_count(), 1);
         assert_eq!(body(&grove_root.join("FORMAT")), "session-kinds-v1\n");
         assert_eq!(
-            name_of(&crate::tree_read::pick(&grove_root).unwrap().unwrap()),
+            name_of(&crate::task_tree::pick(&grove_root).unwrap().unwrap()),
             "01-requirements-plan-k1.md"
         );
     }
@@ -1216,7 +1216,7 @@ mod tests {
         assert_eq!(tree_access::acquisition_count(), 1);
         assert!(!grove_root.join("01-task-k1.md").exists());
         assert!(!body(&migrated).contains("**Kind:**"));
-        assert_eq!(crate::tree_read::pick(&grove_root).unwrap(), Some(migrated));
+        assert_eq!(crate::task_tree::pick(&grove_root).unwrap(), Some(migrated));
         let subject = Command::new("git")
             .args(["log", "-1", "--format=%s"])
             .current_dir(&worktree)

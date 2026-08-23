@@ -1,4 +1,6 @@
 use anyhow::{bail, Context, Result};
+
+use crate::task_name::TaskNameError;
 use std::fs::{self, File};
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
@@ -190,10 +192,16 @@ pub(crate) fn refuse_pending_finish(grove_root: &Path) -> Result<()> {
         let name = name.to_string_lossy();
         name.starts_with(FINISHING_PREFIX) || name.starts_with(PREPARING_FINISH_PREFIX)
     }) {
-        bail!(
-            "pending Grove finish transaction: {}. Recover it with the same finish-commit handle or rerun bare `grove`",
-            witness.path().display()
-        );
+        // The wording is the **domain's**, not a second one written here.
+        // `task_name` classifies these sentinels `Verdict::Reserved` carrying the
+        // same error, so the library halting on one mid-tree and this pre-check
+        // meeting one at the root say the same sentence. The `name` field is
+        // whatever names the witness, and here that is its path: the library has
+        // only the filename to give, and a reader who ran a verb from elsewhere
+        // wants to know where it is.
+        bail!(TaskNameError::PendingFinish {
+            name: witness.path().display().to_string()
+        });
     }
     Ok(())
 }
@@ -201,10 +209,10 @@ pub(crate) fn refuse_pending_finish(grove_root: &Path) -> Result<()> {
 pub(crate) fn refuse_pending_migration(grove_root: &Path) -> Result<()> {
     let migration = grove_root.join(MIGRATION_TRANSACTION);
     match fs::symlink_metadata(&migration) {
-        Ok(_) => bail!(
-            "pending Grove session-kind migration: {}. To recover it, rerun bare `grove`",
-            migration.display()
-        ),
+        // The domain's wording, for the reason `refuse_pending_finish` gives.
+        Ok(_) => bail!(TaskNameError::PendingMigration {
+            name: migration.display().to_string()
+        }),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(error)
             .with_context(|| format!("checking migration witness {}", migration.display())),

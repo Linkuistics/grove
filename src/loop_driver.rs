@@ -128,7 +128,7 @@ fn run_configured_loop_with_lease(
         let _pre_transition_config = SessionConfig::load(&home, &delta_roots)?;
 
         crate::tree_lifecycle::transition_driver_to_current(worktree)?;
-        let selection = match crate::tree_read::select(&worktree.join(".grove"))? {
+        let selection = match crate::task_tree::select(&worktree.join(".grove"))? {
             Some(selection) => selection,
             None => crate::tree_lifecycle::materialize_finish(worktree)?,
         };
@@ -316,7 +316,7 @@ fn stated_vcs(worktree: &Path) -> Result<String> {
 /// template (`docs/adr/untracked-configuration-delta.md`).
 fn launch_configured_session(
     argv: &[OsString],
-    selection: &crate::tree_read::SelectedLeaf,
+    selection: &crate::task_tree::SelectedLeaf,
     resolved_source: &Path,
     worktree: &Path,
     signal_file: &Path,

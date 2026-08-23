@@ -659,6 +659,45 @@ process-interruption recovery, which is why they alone carry a witness. The
 residue is a hand-editable file in a directory tree, and recovering it is
 deleting it.
 
+#### Two locks, one at a time, while the flip is in flight
+
+`reading-k31` moved `pick`, `select`, `brief-chain`, `kind` and `resolve` onto
+`ordinal-fs-tree`'s own guard (`src/task_tree.rs`). The library takes the same
+lock on the same directory for the same reason — the containing directory
+outlives the root — but it takes it on **its own** descriptor, and `flock` is
+attached to an open file description rather than to a process. So the two guards
+do not share a lock, and a verb holding `tree_access::write` that called into the
+library's reader would block on itself forever. The rule that follows is per
+verb, not per module: a verb uses one guard or the other, never both, which is
+why the migrate stage moves whole verb groups at a time and why `tree_read`'s
+lock-neutral helpers stay alive until their last exclusive-guard caller has gone.
+
+Two consumer-side obligations came out of that move, and every later flip leaf
+inherits both.
+
+**The waiting diagnostic is bought outside the library.** Locking is invisible
+in the library's interface by design — no try-variant, no timeout, `read` and
+`write` simply block — so nothing in it can say *someone else is holding this*.
+Grove has always said so, and losing it in a refactor that promises to change no
+behaviour would be a real regression, so `task_tree::announce_contention` probes
+the same directory in the same mode non-blockingly, prints the one diagnostic,
+releases, and lets the library block. It is a diagnostic and never a decision:
+between the probe's release and the library's acquisition a contender can
+arrive, and the cost of that window is a missing message and nothing else.
+
+**Refusal precedence is grove's; the halt is the library's.** The library halts
+the whole tree on a name grove's grammar refuses, wherever it sits — that is the
+decision, and it is taken under the lock. But a legacy tree's leaves are
+task-shaped names carrying no session kind, so they are `Malformed`, and an
+operator holding one needs to be told to migrate rather than to fix a filename.
+So `task_tree::diagnose` re-states a *failed* read in the order grove owes its
+operator — root, pending transaction, format witness, then the library's own
+message — and chooses only the wording. The pending-transaction sentence itself
+is the domain's: `tree_access::refuse_pending_*` raises `task_name`'s own
+`TaskNameError`, which is the identical value the library carries when it halts
+on a `Verdict::Reserved` mid-tree, so the pre-check and the halt cannot drift
+into two wordings of one condition.
+
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>
 <a id="fresh-grove-start-contract"></a>

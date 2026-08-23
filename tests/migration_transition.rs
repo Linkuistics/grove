@@ -1,7 +1,7 @@
 mod support;
 
+use grove::task_tree;
 use grove::tree_lifecycle::{transition_to_current, CurrentTransition};
-use grove::tree_read;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
@@ -154,7 +154,7 @@ fn assert_successful_transition_and_restart(kind: RepositoryKind) {
         "session-kinds-v1\n"
     );
     assert!(!grove_root.join("01-task-k1.md").exists());
-    assert_eq!(tree_read::pick(&grove_root).unwrap(), Some(migrated_leaf));
+    assert_eq!(task_tree::pick(&grove_root).unwrap(), Some(migrated_leaf));
     assert_eq!(
         migration_description(&repository, kind),
         "grove(fixture): migrate task tree to session-kind filenames\n"

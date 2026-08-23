@@ -95,8 +95,40 @@ grove's existing suites are this increment's **safety net, not its deliverable**
 
 ## Findings
 
-Nothing yet. Each leaf appends here as it lands: changed tests, and anything the
-flip falsified.
+Each leaf appends here as it lands: changed tests, and anything the flip
+falsified.
+
+**`domain-k29` (expand).** No existing test changed, and none had to: the whole
+suite went from 1206 passing to 1228, the twenty-two new ones being this leaf's
+own. The flip's *pure refactor* premise is unfalsified so far, which is the least
+this stage could produce and is worth stating as such.
+
+- **Question 2 is answered by tightening**, and the record is
+  `docs/adr/task-names-are-canonical.md`. The refusal names the canonical
+  spelling, which is what makes the cost recoverable — a hand-typed `5-` halts
+  the tree until one `mv`. Nothing on disk changes, so the premise holds.
+- **Question 4 is answered**, and it is two claims rather than one:
+  `tests/library_dependency.rs` holds that the library's transitive imposed set
+  is exactly `libc` with the `cli` feature off, that grove's line actually asks
+  for that (`uses_default_features: false`, read out of `cargo metadata`), and —
+  the control — that the feature flag is doing observable work, since `clap` is
+  in the graph without it.
+- **One visibility widening, and no behaviour change with it.**
+  `tree_access::FINISHING_PREFIX` and `PREPARING_FINISH_PREFIX` became
+  `pub(crate)` so `task_name` classifies the sentinels from the same constants
+  rather than a second spelling of them. `MIGRATION_TRANSACTION` already was.
+- **The architecture's claim that a conforming domain can check itself against
+  the seam *without reading the architecture* did not hold here, and the way it
+  fails is worth the next domain's attention.** The kit reported conforming over
+  a fixture of ten real `.grove/` names while this domain's canonicity check was
+  disabled — its check is `format(parse(f)) == f` over the filenames it is
+  handed, and a lenient grammar is invisible without a lenient sample. The kit's
+  *not exercised* finding cannot see the gap either, because the other listings
+  parsed. This is not a defect in the kit so much as a limit on what any coverage
+  report can say, and `docs/formalism-findings.md` entry 020 carries the
+  measurement and the counterfactual. **What a later flip leaf should take from
+  it: a green kit is a statement about a fixture, so mutate the thing it checks
+  before believing it.**
 
 ## Pointers
 

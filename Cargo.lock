@@ -247,6 +247,7 @@ dependencies = [
  "include_dir",
  "kdl",
  "libc",
+ "ordinal-fs-tree",
  "serde",
  "serde_json",
  "sha2",

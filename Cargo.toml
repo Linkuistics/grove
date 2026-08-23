@@ -122,6 +122,19 @@ kdl = "4.7"
 # `isatty` before launching, and its session watcher ends a signalled session
 # with `libc::kill` (SIGTERM, then SIGKILL).
 libc = "0.2"
+# The extracted tree library (gh issue #13). `default-features = false` turns off
+# its `cli` feature, which exists for its own `syllabus` binary and pulls in
+# `clap`: with it off, the dependency set this crate *imposes* on grove is
+# exactly `libc`, which grove already takes for `flock` and the loop driver's
+# signals. That claim is the point of the line rather than a note beside it, so
+# `tests/library_dependency.rs` holds it against `cargo metadata` — the crate's
+# own manifest says the set is `libc` and nothing but a test says grove asked for
+# that set.
+#
+# Nothing consumes it yet: `src/task_name.rs` is Grove's `EntryName`
+# implementation, written in the flip's *expand* stage before any verb moves onto
+# the library.
+ordinal-fs-tree = { path = "crates/ordinal-fs-tree", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"

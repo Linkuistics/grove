@@ -2178,6 +2178,79 @@ idealisation list named the one defect the models could not. H2 is supported
 indirectly and narrowly, in the same shape as 017 — nothing here was led by a
 model, and everything here was led by documents a model had already corrected.
 
+### 020 — Implementing the domain the models are stated about (grove's `EntryName`)
+
+**Situation.** The flip's *expand* stage: grove's implementation of
+`ordinal_fs_tree::EntryName`, written before any verb moves onto it, and with it
+the decision the library's canonicity obligation forces — grove's own grammar is
+lenient on position padding, so `05-impl-a-k1.md` and `5-impl-a-k1.md` are one
+entry occupying two files. Tighten, or waive knowingly.
+
+**Formalism. None written; two instruments reached for, and they answered
+different questions.** The first is the library's conformance kit, which is
+`structure.als`'s witnesses turned into a runnable checker a consumer points at
+its own domain — the closest thing in this workstream to a model that ships. The
+second is deliberate mutation of the implementation (entry 006's instrument),
+reached for as the control on the first, because a kit that says *conforming* is
+making a claim about the samples it was handed and not about the domain.
+
+**Caught.** The mutation found the kit reading clean while the domain was broken.
+
+*A conformance kit reports coverage of an obligation, not coverage of the case
+that could fail it.* The fixture was ten listings drawn from what a real
+`.grove/` holds — the charter, a live leaf, both terminal marks, a node
+directory, `FORMAT`, a foreign `README.md`, and the three transaction sentinels.
+Disabling the domain's canonicity check left the kit **green**. Its canonicity
+check is `format(parse(f)) == f` over the filenames it is handed, so a grammar
+that accepts `5-…` and renders `05-…` is only ever caught by a `5-…`; and its
+second kind of finding — *this obligation was never exercised* — cannot see the
+gap either, because the other nine listings did parse, which is what the kit
+counts as exercising it. Two near-miss listings later, the same mutation is red.
+
+That is the failure mode the kit's own header is about, one layer in. The kit
+distinguishes *no samples* from *samples*. It cannot distinguish *samples* from
+*samples that pose the question*, and the distinction is invisible from inside:
+both produce the same report.
+
+*Two further mutations, as controls on the rest.* Classifying `.grove/FORMAT` as
+`Reserved` rather than `Foreign` — the mistake the leaf brief names first,
+because `Reserved` halts and `FORMAT` is in every healthy tree, so it would make
+every grove command refuse every grove tree — fired exactly one test. Dropping
+`default-features = false` from grove's dependency line fired exactly one. Both
+were the intended test and no other.
+
+**Missed.** Neither model reaches any of this and both say so: they hold no
+strings by design, so the grammar — the largest single piece of the domain — has
+no model coverage at all. Entry 004 recorded that gap and named
+property-based testing as the instrument that fits; this is the second domain to
+meet the same question and the second not to reach for it. What was used instead
+is one adversarial sample plus a mutation, which is cheaper and strictly weaker:
+it establishes that *this* lenient spelling is refused, where
+`format(parse(f)) == f` over generated names would establish the law.
+
+**Cost.** Minutes. Three mutations, each a one-line edit and one `cargo test`;
+the fixture fix was two lines. The instrument needs no tooling and no setup,
+which is most of why it is worth reaching for at all.
+
+**Counterfactual.** The kit's own parameter documentation asks for exactly what
+was missing — sample listings "should include the domain's own well-formed names,
+its distinguished child, at least one foreign name, **and any near-miss the
+grammar is meant to refuse**". The fixture was filled from *what a healthy tree
+holds*, which is a different question, and the near-misses fell out. **Read a
+kit's parameter documentation as a checklist of what to supply, not as a
+description of what you have.** The stronger, more general form is the one the
+mutation actually taught: **a coverage report cannot distinguish an obligation
+reached from an obligation reached by a case that could fail it — only a
+mutation can**, so any suite that reports its own coverage wants one mutation per
+reported obligation before the report is believed.
+
+**Verdict.** Reach for the mutation every time a kit or a suite reports its own
+coverage; the two answer different questions and the report is the one that
+cannot detect its own blind spot. The kit itself remains worth its cost — it
+turned five stated obligations into one line in a test — but its verdict is a
+statement about a fixture, and this entry is what that sentence means in
+practice.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;
@@ -2200,7 +2273,7 @@ guesses are not.
 | a message derived from a model — "may this refusal say what it says?" | none — name the carried value behind each clause | 013: `wit_insertIntoAGap`'s predicate `a.at < maxOrdIn` discriminates the case and does not characterise it; the comment beside it did, and the refusal's message transcribed the comment. One clause, no value behind it, one wrong error message for every hand-edited level with a leading hole |
 | did it run at all? — "is this suite green, or dead?" | must-be-reached claims beside the must-hold ones | 003: a JVM too old made Alloy print nothing, which its runner read as thirteen unfired witnesses and seven holding checks. Only the witnesses distinguish the two, and every one failing at once is a signature no real defect produces |
 | deriving tests — "what do I actually run against the implementation?" | the model's must-be-reached witnesses | 004: four Alloy witnesses became executable broken-domain tests; not one `check` translated into anything runnable |
-| grammar — "can two filenames name one entry?" | property-based testing *(untested)* | 004: both models hold no strings by design, so the largest piece of the implementation had no model coverage at all. The instrument that fits is `format(parse(f)) == f` over generated names, and it was not reached for |
+| grammar — "can two filenames name one entry?" | property-based testing *(untested)* | 004: both models hold no strings by design, so the largest piece of the implementation had no model coverage at all. The instrument that fits is `format(parse(f)) == f` over generated names, and it was not reached for. 020: the second domain to meet the question and the second not to reach for it — one adversarial sample plus a mutation is what was used, and it establishes one spelling where the law would establish all of them |
 | model-claim-to-test — "does this test still say what the claim said?" | quote the claim's predicate beside the assertion | 005: two tests named a claim and checked a weaker property — `v.seen = n` became string equality, `Malformed` became *not an entry* — and both drifted toward the property that was easier to observe |
 | partial discharge — "the language forbids some of this obligation" | split it into two named obligations | 005: the qualification survived in the file that made the claim and in none of the three artifacts that repeated it; the unqualified half was a real defect |
 | a written law nobody holds the code against | an adversarial reader briefed to attack one judgement | 005: five of six findings, including both trait-shape defects, which neither model could reach; the models supplied the law and a reader supplied the comparison |
@@ -2232,3 +2305,5 @@ guesses are not.
 | a suite as a measure of a second implementation — "can the other arm fail this?" | have it written by a session that implements neither, from the claims alone | 017: fixing the *claims* before both arms was not enough. All four failures landed on literal message substrings the scoring arm had authored; the `assert_eq!` on each refusal's value passed. A test is a claim plus an assertion, and only the first predated the arms |
 | an obligation with nowhere left to go — "can the *interface* forbid this?" | none — read the obligation against the argument surface, not just the type system | 018: *the species follows from the parts* became a verb-grammar rule (a noun prefix exactly where the operator chooses a species), and `ContentForANode` became unreachable by construction. 002's *ask whether the target language already forbids it*, one layer further out — an argument surface discharges an obligation the way a type does |
 | a claim about a guard — "will this change trip the detector?" | none — plant the violation and watch it fail | 018: *a binary under `src/bin/` trips the no-filesystem guard* was settled in ninety seconds by a probe that failed naming its own line, against a reading of a token scan and its carve-out. 006's deliberate mutation, aimed at a design decision rather than at a suite |
+| a suite that reports its own coverage — "does *exercised* mean the case that could fail it ran?" | none — one mutation per reported obligation | 020: a conformance kit read green over ten real listings while the grammar's canonicity check was disabled, and reported the obligation exercised, because nine other listings parsed. The kit can tell *no samples* from *samples* and not *samples* from *samples that pose the question* |
+| filling a fixture for someone else's checker | none — read its parameter documentation as a checklist | 020: the kit asks for "any near-miss the grammar is meant to refuse"; the fixture was filled from what a healthy tree holds, which is a different question, and the near-misses fell out |

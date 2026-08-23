@@ -99,6 +99,7 @@ mean something else in grove's, and its crate ships by no path of its own —
   [`corpus-rules-have-one-owner`](docs/adr/corpus-rules-have-one-owner.md),
   [`restatement-declares-its-class`](docs/adr/restatement-declares-its-class.md),
   [`behavioural-coverage-asserts-delivery`](docs/adr/behavioural-coverage-asserts-delivery.md),
+  [`task-names-are-canonical`](docs/adr/task-names-are-canonical.md),
   and the two specs
   [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md) and
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md).

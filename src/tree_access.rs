@@ -8,8 +8,11 @@ thread_local! {
     static ACQUISITION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
-const FINISHING_PREFIX: &str = "FINISHING-";
-const PREPARING_FINISH_PREFIX: &str = "PREPARING-FINISH-";
+// The three transaction sentinels. `pub(crate)` rather than private because
+// `task_name` classifies them as `Verdict::Reserved` and a token spelled in two
+// modules is a token that can drift in one of them.
+pub(crate) const FINISHING_PREFIX: &str = "FINISHING-";
+pub(crate) const PREPARING_FINISH_PREFIX: &str = "PREPARING-FINISH-";
 pub(crate) const MIGRATION_TRANSACTION: &str = "MIGRATING-session-kinds";
 
 pub struct TreeReadGuard {

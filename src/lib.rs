@@ -42,6 +42,15 @@ pub mod prompt;
 pub mod provision;
 pub mod repo;
 pub mod session_config;
+// `task_name` is Grove's implementation of `ordinal_fs_tree::EntryName` — the
+// whole seam onto the extracted tree library (gh issue #13, increment 2). It is
+// the *expand* stage and nothing consumes it yet: `tree_id` is still the live
+// grammar, and each verb group moves across in its own leaf. The two grammars
+// differ in exactly one place that matters — this one is canonical where
+// `tree_id::parse_position` is lenient — so read a call site's `use` line before
+// concluding which model it speaks, exactly as this crate's second name grammar
+// always demanded.
+pub mod task_name;
 // `test_barrier` is the publication rule the process-interruption seams share.
 // It is compiled always — the seams are, too — but nothing outside them may
 // reach it, so it is crate-private like the seams' own checkpoint functions.

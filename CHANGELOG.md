@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v19.3.0
+
 - **`leaf-retire` and `leaf-prune` no longer stage their rename, and on Git that
   changes what you see before the commit.** Both verbs now mark through
   `ordinal-fs-tree`'s `rewrite`, which renames with `rename(2)` and detects no

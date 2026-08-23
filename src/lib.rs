@@ -59,10 +59,11 @@ pub mod task_grow;
 // `task_tree` is grove's reading surface expressed through that seam — the
 // *migrate* stage's first leaf. `pick`, `select`, `brief-chain`, `kind` and
 // `resolve` read one snapshot under the library's shared lock, and it owns the
-// one place grove builds a path out of the tree. `tree_read` keeps only what the
-// verbs that have not flipped yet still need: grove's exclusive guard and the
-// library's cannot be nested, so a write verb keeps the path-walking reader
-// until its own leaf moves it across.
+// one place grove builds a path out of the tree. Since `lifecycle-k35` it also
+// owns the **write** seam every mutating verb is on, including the scaffolding
+// guard `root-init` completes a formatless root through — the one writer that
+// cannot require `.grove/FORMAT`, because it is the writer `FORMAT` is written
+// after. `tree_read` has no production caller left at all.
 pub mod task_tree;
 // `test_barrier` is the publication rule the process-interruption seams share.
 // It is compiled always — the seams are, too — but nothing outside them may
@@ -70,11 +71,12 @@ pub mod task_tree;
 pub(crate) mod test_barrier;
 pub mod tree_access;
 pub mod tree_format;
-// `tree_grow` is what is left of the path-walking appender after `growing-k33`
+// `tree_grow` is what was left of the path-walking appender after `growing-k33`
 // took the grow verbs to `task_grow`: one primitive, `leaf_add_unlocked`, and
-// the destination guard it writes through, kept alive by the lifecycle verbs
-// that allocate under grove's *own* exclusive guard and so cannot reach the
-// library at all. It is crate-private for the same reason as the modules above,
+// the destination guard it wrote through, kept alive by the lifecycle verbs that
+// allocated under grove's *own* exclusive guard. `lifecycle-k35` moved the last
+// of those across and the module is now test-only, awaiting `sweep-k37`.
+// It is crate-private for the same reason as the modules above,
 // and it is the module that settled the general rule: **a public item whose only
 // callers are tests stops being module API** — deleted where the tests can
 // assert on what production reads, demoted into `mod tests` where they still
@@ -110,10 +112,22 @@ pub mod tree_format;
 // The technique that produces that list: copy `src/` to a scratch crate, make
 // every module private except `cli` and `llm_cli`, and read the compiler's
 // reachability warnings.
+// Dead in production since `lifecycle-k35` took the last allocator across, and
+// gated rather than deleted for the reason `growing-k33` gated
+// `tree_read::resolve_unlocked`: the destination guard's tests are evidence
+// about a hazard the library now owns, and they are worth more than the lines
+// until `sweep-k37` removes both together.
+#[cfg(test)]
 pub(crate) mod tree_grow;
 pub mod tree_id;
 pub mod tree_lifecycle;
 pub(crate) mod tree_migrate;
 pub(crate) mod tree_migration_transaction;
+// Dead in production since `lifecycle-k35` flipped the last two verbs that read
+// through it, and gated rather than deleted for `growing-k33`'s reason: the
+// module is the *other* implementation of a contract the library now owns, and
+// `both_readers_resolve_every_reference_form_identically` is the one direct
+// check the flip's *pure refactor* premise gets. Both die in `sweep-k37`.
+#[cfg(test)]
 pub mod tree_read;
 pub mod tree_rename;

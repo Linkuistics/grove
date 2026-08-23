@@ -674,6 +674,123 @@ the path-walking it did.
   `TaskName::distinguished()` is `Some(BRIEF.md)`, asserted rather than assumed,
   the way `docs/ordinal-fs-tree/CLI.md`'s table does it.
 
+**`lifecycle-k35` (migrate).** The whole suite is **1266 passing**, up from
+`promotion-k34`'s 1257, and the nine are this leaf's own. **Two existing tests had
+to change**, neither for a reason the flip could hide, and one of them is the
+node's own instrument moving rather than a behaviour. `root-init`,
+`materialize-finish`, `transition-to-current` and `finish-commit` are on the
+library's write path; `src/tree_grow.rs` and `src/tree_read.rs` have **no
+production caller left anywhere in grove** and are `#[cfg(test)]` until
+`sweep-k37`.
+
+- **The root's own creation takes both guards, one after the other, and this is
+  the finding the leaf exists for.** The library locks the directory *containing*
+  the root — so the lock spans the root's creation and its deletion, which is what
+  the brief predicted `root-init` would need — but it still has to *reach* the
+  root to snapshot it, so it cannot create one; and a `BRIEF.md` arrives only
+  through `promote`, so it cannot create that either. Both are grove's, under
+  grove's guard, and the first leaf is the library's, under its. **Nesting them is
+  the deadlock this node established in its own Notes**, so the scaffold releases
+  the first before taking the second, and `transition-to-current` was forced into
+  the same shape because it called `root_init_unlocked` while holding the
+  lifecycle guard. `docs/ARCHITECTURE.md#tree-access-lock` carries it under *The
+  root's own creation takes both guards*. **What a later flip leaf should take
+  from it:** the node brief's rule was *a verb uses one guard or the other, never
+  both* — and the correct refinement is *never both at once*. A verb that needs
+  what only grove can do and then what only the library can do is a verb in two
+  phases, not a verb that has to pick one.
+
+- **The window that release opens is the one `FORMAT` already made legible, and
+  the brief's instruction to check rather than assume paid.** The task file asked
+  whether `recover_partial_root_init` still recovers and whether the case it
+  recovers from still exists. It does — and the case is now reachable *without
+  anyone having died*, which it was not before: the tree exposed between the two
+  phases is the root plus its charter and nothing else, which is exactly
+  `partial_root_scaffold(ROOT_BRIEF)` in the migration transaction's own fixture.
+  `phase_one_leaves_the_partial_root_recovery_completes` asserts the shape and
+  then recovers it, so the two cannot drift. **The behaviour change is recorded
+  rather than hidden**: a concurrent reader in that window is told the tree is
+  legacy and must be migrated, where it used to block on grove's guard and then
+  read a complete tree. It fails closed, the window is two lock acquisitions wide,
+  and one bare `grove` repairs it.
+
+- **Idempotency is load-bearing, not defensive, and the distinction has teeth
+  here.** Completing a scaffold appends only when the snapshot holds no positioned
+  entry. Appending unconditionally would not collide and would not refuse — the
+  second first leaf lands at ordinal 2 with key 2, perfectly legally — so the
+  failure mode is a *silently wrong tree* rather than an error.
+  `a_scaffold_completed_by_a_recovery_leaves_the_original_nothing_to_add`
+  sequences the exact race deterministically, which is better evidence than the
+  in-session reviewer it was spent instead of.
+
+- **`recover_partial_root_init_unlocked` deliberately does not go through the
+  library.** It runs inside the session-kind migration transaction, which holds
+  grove's exclusive guard, so reaching for the library's would be the nesting
+  above; and it allocates nothing — ordinal, key, slug and bytes are all fixed,
+  and every file is byte-compared before anything is written. It completes a
+  scaffold; it does not grow a tree. What it *did* drop is `tree_id`: it composes
+  and recognises the scaffold name through `TaskName` now, which is what orphaned
+  `tree_grow`'s last lifecycle caller and with it `tree_id::next_key`,
+  `next_child_position` and `collect_all_names` — the clause `growing-k33` could
+  not meet and named this leaf for.
+
+- **This node's reachability table survived transcription unchanged for the first
+  time, and gained a row.** `root-init`'s predicted **none** is right — the root
+  is not an entry and the level is empty. The addition is `materialize-finish`,
+  the driver's own: an `append` at the root level, so it reaches `KeysExhausted`
+  and `OrdinalsExhausted` exactly as `leaf-add` does, and from *no argument at
+  all*, the verb taking none. Both are transcribed into tests
+  (`a_tree_at_the_last_key_refuses_the_sentinel_rather_than_wrapping`,
+  `a_root_level_at_the_last_ordinal_refuses_the_sentinel_rather_than_wrapping`).
+  `refusals-k30`'s scheduled check is now **four corrections in five leaves**, and
+  the fifth being clean is worth as much as the four: a check that had never
+  passed would be measuring the transcriber rather than the table.
+
+- **Changed test 1 — `finish_preflight_refuses_a_reserved_witness_collision_before_deletion`
+  is now `finish_commit_refuses_…`, and the refusal moved a layer out.** On the
+  library's guard a `FINISHING-*` name halts the tree as `Error::Reserved`,
+  carrying `task_name`'s own wording, before `preflight_root`'s *reserved finish
+  transaction path* is reached. That is clause 3 arriving as a test edit — one
+  condition with one wording, where there were two — and it is the same shape
+  `reading-k31` reported for the species-mismatch sentence. The preflight check is
+  **kept**: it re-reads the root through its own `O_NOFOLLOW` descriptor rather
+  than by path, so it is defence against a writer that ignored the lock rather
+  than a duplicate of the guard.
+
+- **`finish-commit` still classifies `.grove` itself before opening the tree, and
+  a test is why.** `finish_preflight_refuses_a_symlinked_task_root_before_deleting_the_tree`
+  failed the moment the guard came first: a symbolic link to a directory elsewhere
+  is a root the library happily *follows and reads*, because every reader follows
+  links, while a no-follow teardown must refuse it unfollowed. **What a later flip
+  leaf should take from it:** the library's guard is the authority on the tree, and
+  it is not the authority on what the caller's spelling of the root is allowed to
+  be.
+
+- **Changed test 2 — `the_librarys_tree_lock_is_taken_from_exactly_one_module`
+  moved from 4 to 5, and it failed rather than reassured.** The count is that
+  test's own control, and adding `task_tree::write_scaffold` moved it. Worth
+  naming because of *how* it was found: the first full-suite run after the flip
+  reported clean, and the count only failed once the binary was actually rebuilt —
+  so the honest total came from measuring the parent revision in a second
+  `jj workspace` with the same command, not from reading a summary line. **A test
+  count is evidence only when both sides of the comparison were measured the same
+  way.**
+
+- **The dead-module claim has a positive control.** *No production caller of
+  `tree_grow` or `tree_read` remains* is held by the compiler rather than by a
+  grep: both modules are `#[cfg(test)]`, so a production reference does not
+  compile. The control was run — a `crate::tree_read::read_level` reference added
+  to `llm_cli` fails with `E0433`, and was reverted — because a clean build proves
+  nothing unless a dirty one would have failed.
+
+- **No formalism was reached for and none is owed**, which is `reading-k31`'s
+  position rather than `marking-k32`'s. The one modelled fact this leaf leans on —
+  that `append` composes `max + 1` from the snapshot, which is what makes the
+  idempotency check sufficient rather than merely prudent — is entry 003's, and
+  `growing-k33` already cited it. `sweep-k37` should read that as one more data
+  point for the entry it may owe: three of six flip leaves have now reached for no
+  model at all.
+
 ## Pointers
 
 - `docs/ordinal-fs-tree/ARCHITECTURE.md` — the seam, the seven obligations, the

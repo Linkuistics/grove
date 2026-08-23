@@ -1276,8 +1276,21 @@ fn finish_preflight_refuses_special_entries_before_deleting_the_tree() {
     assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
 }
 
+/// A reserved finish-transaction path already in the root is refused before
+/// anything is deleted, and the refusal is now the **tree guard's**.
+///
+/// `lifecycle-k35` flipped `finish-commit` onto `ordinal-fs-tree`'s exclusive
+/// guard, and `task_name` classifies `FINISHING-` and `PREPARING-FINISH-` names
+/// `Verdict::Reserved` — so the library halts the tree on one wherever it sits,
+/// carrying grove's own `TaskNameError` wording. That is the same condition
+/// `preflight_root`'s *reserved finish transaction path* stated, one layer
+/// further out, which is why this assertion moved rather than weakened:
+/// `docs/ARCHITECTURE.md#library-refusals`, clause 3 — no second wording for a
+/// condition the library already states. The preflight check itself stays, as
+/// defence against a writer that ignored the lock, and it re-reads the root
+/// through its own `O_NOFOLLOW` descriptor rather than by path.
 #[test]
-fn finish_preflight_refuses_a_reserved_witness_collision_before_deletion() {
+fn finish_commit_refuses_a_reserved_witness_collision_before_deletion() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("reserved-collision");
     init_git(&repository);
@@ -1292,7 +1305,7 @@ fn finish_preflight_refuses_a_reserved_witness_collision_before_deletion() {
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("reserved finish transaction path"),
+        stderr.contains("pending Grove finish transaction"),
         "{stderr}"
     );
     assert!(stderr.contains("FINISHING-finish-k2"), "{stderr}");

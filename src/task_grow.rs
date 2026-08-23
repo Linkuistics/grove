@@ -407,7 +407,10 @@ pub(crate) fn new_leaf(
 /// name in the report, which is the library's own answer, and the operation has
 /// already landed when it fires: a disagreement is a broken contract to report,
 /// not a case to recover from, and the message says which file carries it.
-fn allocated(report: &Report<TaskName>, predicted: &[Option<Key>]) -> Result<Vec<PathBuf>> {
+pub(crate) fn allocated(
+    report: &Report<TaskName>,
+    predicted: &[Option<Key>],
+) -> Result<Vec<PathBuf>> {
     let created = report.created();
     if created.len() != predicted.len() {
         bail!(

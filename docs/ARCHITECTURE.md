@@ -427,9 +427,10 @@ adopting the library's would be clause 3 broken in the opposite direction.
 
 #### Which verbs reach the algebra at all
 
-Nine of thirteen, and the refusals they reach need a tree at the edge of the
-keyspace or the ordinal space — or, for the one verb the migrate stage has yet to
-move, one a hand edit or a failed rollback has damaged.
+Nine of thirteen, plus the driver's own `materialize-finish`, and the refusals
+they reach need a tree at the edge of the keyspace or the ordinal space — or, for
+the one verb the migrate stage has yet to move, one a hand edit or a failed
+rollback has damaged.
 
 | verb | library operation | `Refusal`s it can reach |
 |---|---|---|
@@ -439,8 +440,9 @@ move, one a hand edit or a failed rollback has damaged.
 | `leaf-insert` | `insert` | `KeysExhausted`, `OrdinalsExhausted` — not `TargetNotNode`, because the target passed is the resolved entry's **container**, a node by construction; and not `DestinationOccupied`, per the row below |
 | `leaf-decompose` | `promote` | `KeysExhausted` alone, from the **first child** — a promotion allocates no key for the node, the entity being unchanged; and no ordinal at all, since the node takes the leaf's own and the child takes the first. `promotion-k34` corrected the `DestinationOccupied` this row predicted |
 | `leaf-retire`, `leaf-prune` | `rewrite` | **none**, and the row below says why the `DestinationOccupied` this table first predicted is unreachable |
-| `root-init` | `append` into a tree it has just created | **none** — the root is not an entry and the level is empty |
-| `finish-commit` | none — it reads the tree, then deletes `.grove/` under Grove's own transaction | **none** |
+| `root-init` | `append` into a tree it has just created | **none** — the root is not an entry and the level is empty. `lifecycle-k35` transcribed this row and it was **right**, which is the first time that has happened |
+| `materialize-finish` (the driver's, not an operator verb) | `append` at the root level | `KeysExhausted`, `OrdinalsExhausted` — the same two `leaf-add` reaches, and from no argument at all, because the verb takes none |
+| `finish-commit` | none of the algebra — it selects off the guard's snapshot, then deletes `.grove/` under Grove's own transaction | **none**. Since `lifecycle-k35` its guard is the library's, so a `FINISHING-*` or `PREPARING-FINISH-*` name halts it as `Error::Reserved` — a *parse* refusal in Grove's own words, not a `Refusal` |
 | `complete` | none — it touches no tree | **none** |
 
 #### Which refusals Grove's verbs can reach
@@ -449,7 +451,9 @@ Two of ten, and neither from an ordinary argument. A refusal no argument produce
 is a case a contract test cannot cover and a reader should not go looking for.
 
 **Four rows have since been corrected by the leaves that transcribed them, and
-the count fell from four to two.** `marking-k32` found `DestinationOccupied`
+the count fell from four to two**; `lifecycle-k35` is the first leaf whose rows
+survived transcription unchanged, and it added one — `materialize-finish`'s —
+that reaches the two survivors from no argument at all. `marking-k32` found `DestinationOccupied`
 unreachable from the two marking verbs; `growing-k33` found `TargetNotNode` and
 `DestinationOccupied` unreachable from the three grow verbs; `promotion-k34`
 found `DestinationOccupied` unreachable from `leaf-decompose`, which was the last
@@ -824,6 +828,68 @@ guard, so it can only be wrong if the library's allocation rule changes, which i
 exactly what the check exists to catch. An exhausted keyspace predicts nothing
 and hands the library no bytes: `Refusal::KeysExhausted` is the library's to
 state, a refusal writes nothing, and the unrenderable content is never reached.
+
+#### The root's own creation takes both guards, one after the other
+
+`lifecycle-k35` moved `root-init`, `materialize-finish`, `transition-to-current`
+and `finish-commit` onto the library's write path, and one of the four cannot be
+done under a single guard at all. The library locks the directory **containing**
+the tree root — deliberately, so the lock spans the root's creation and its
+deletion — but it still has to reach the root to snapshot it, so it cannot create
+one; nor can it create the distinguished child, since a `BRIEF.md` arrives
+through `promote` and there is nothing here to promote. Both are therefore
+Grove's, under Grove's own guard, and the first leaf is the library's, under its.
+Nesting them is the deadlock *Two locks, one at a time* describes, so the scaffold
+releases the first before taking the second:
+
+1. Under `tree_access::write_for_lifecycle` — refuse an existing `.grove/`,
+   create it, write the root `BRIEF.md`.
+2. Under `task_tree::write_scaffold` — `append` the first `requirements` leaf,
+   then install `.grove/FORMAT` while the tree is held.
+
+**`FORMAT` is written last, and that ordering is what pays for the release.** A
+root without its format witness is a *partial* root: every ordinary verb refuses
+it, and bare `grove` completes it through
+`tree_lifecycle::recover_partial_root_init_unlocked`. So the tree the window
+exposes is precisely the tree that recovery already existed to handle — the shape
+a process death used to be the only route to. Do not move the witness earlier to
+close the window; that would make the partial root unrecognisable, which is the
+condition the ordering exists to create.
+
+Two consequences follow, and both are held by tests rather than by this
+paragraph.
+
+- **Completing a scaffold is idempotent.** Another process can complete the
+  partial root first, so the append happens only when the snapshot holds no
+  positioned entry at all; appending unconditionally would give the tree two
+  first leaves and no refusal, since the second would land at ordinal 2 with key
+  2 quite legally.
+- **A reader can now meet a partial root without anyone having died.** Between
+  the phases a concurrent `pick` is told the tree is legacy and must be migrated,
+  where it used to block on Grove's guard and then read a complete tree. The
+  window is two lock acquisitions and two small writes wide, the refusal fails
+  closed, and one bare `grove` repairs it — but it is a behaviour change and not
+  merely an implementation one.
+
+`recover_partial_root_init_unlocked` itself does **not** go through the library,
+and that is not an omission. It runs inside the session-kind migration
+transaction, which holds Grove's exclusive guard, so reaching for the library's
+would be exactly the nesting above; and there is nothing there to allocate — the
+ordinal, the key, the slug and the bytes are all fixed, and every file has already
+been compared byte for byte before anything is written. It completes a scaffold;
+it does not grow a tree.
+
+`finish-commit` is the fourth verb and the only one whose guard changed what it
+refuses. It now opens the tree through `task_tree::write`, so a `FINISHING-*` or
+`PREPARING-FINISH-*` name in the root halts it at the guard, in the domain's own
+`TaskNameError` words, rather than reaching `finish_transaction::preflight_root`'s
+*reserved finish transaction path*. That is one condition with one wording again
+([clause 3](#library-refusals)). The preflight check stays as defence against a
+writer that ignored the lock, and it re-reads the root through its own
+`O_NOFOLLOW` descriptor rather than by path — which is also why the verb still
+classifies `.grove` itself before opening the tree: a symbolic link to a directory
+elsewhere is a root the library would follow and read, and a no-follow teardown
+must refuse it unfollowed.
 
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>

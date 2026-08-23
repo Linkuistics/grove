@@ -123,6 +123,28 @@ pub(crate) fn reopen_write(grove_root: &Path) -> Result<TreeWrite> {
     }
 }
 
+/// The exclusive guard a tree that has no format witness **yet** is completed
+/// through — `root-init`'s second phase, and nothing else.
+///
+/// **The one writer that cannot require `FORMAT`, because it is the writer
+/// `FORMAT` is written after.** `.grove/FORMAT` is installed last precisely so
+/// that a root missing it is recognisable as partial
+/// (`tree_format::write_current_last`), so a scaffolding writer demanding one
+/// would be demanding the outcome of its own last step. Every other clause
+/// [`reopen_write`] applies still applies: the snapshot is the library's, and a
+/// name grove refuses still halts.
+///
+/// No waiting diagnostic, for [`reopen_write`]'s reason — the command announced
+/// its wait when it took grove's own guard to create the root, and the
+/// diagnostic is about the command's wait rather than about each lock it needs.
+pub(crate) fn write_scaffold(grove_root: &Path) -> Result<TreeWrite> {
+    #[cfg(test)]
+    READ_COUNT.with(|count| count.set(count.get() + 1));
+
+    ordinal_fs_tree::fs::write::<TaskName>(grove_root)
+        .map_err(|error| restate(grove_root, &error, Witness::NotYetWritten))
+}
+
 /// Turn a library error raised by a *mutation* into Grove's own.
 ///
 /// Not [`diagnose`]: that one re-states a failed **read**, whose precedence
@@ -184,14 +206,33 @@ fn announce_contention(grove_root: &Path, mode: libc::c_int) {
 /// decision to refuse was already taken under the lock, and only the wording is
 /// chosen here.
 fn diagnose(grove_root: &Path, error: &Error<TaskName>) -> anyhow::Error {
+    restate(grove_root, error, Witness::Required)
+}
+
+/// Whether the format witness is one of the conditions this failed read owes a
+/// sentence about.
+///
+/// [`Witness::NotYetWritten`] is [`write_scaffold`]'s alone: a tree being
+/// scaffolded has no `FORMAT` by construction, so naming its absence would
+/// answer *this tree is legacy and must be migrated* to a caller that is in the
+/// middle of creating it.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Witness {
+    Required,
+    NotYetWritten,
+}
+
+fn restate(grove_root: &Path, error: &Error<TaskName>, witness: Witness) -> anyhow::Error {
     if !grove_root.is_dir() {
         return anyhow!("grove root not found: {}", grove_root.display());
     }
     if let Err(refusal) = tree_access::refuse_pending(grove_root) {
         return refusal;
     }
-    if let Err(refusal) = tree_format::require_current(grove_root) {
-        return refusal;
+    if witness == Witness::Required {
+        if let Err(refusal) = tree_format::require_current(grove_root) {
+            return refusal;
+        }
     }
     match error {
         // The domain's own advice *is* the message (`Error`'s `Display` says
@@ -527,8 +568,22 @@ pub fn select(grove_root: &Path) -> Result<Option<SelectedLeaf>> {
 /// sits, and more than one live `finish` leaf is a malformed tree rather than a
 /// choice.
 pub fn select_in(tree: &Tree) -> Result<Option<SelectedLeaf>> {
+    selected(tree.root(), tree.snapshot())
+}
+
+/// [`select_in`] against a tree held **exclusively**.
+///
+/// The lifecycle verbs select and then write from one observation — the driver's
+/// finish sentinel is allocated only if the same snapshot found no live work —
+/// and a mutation is on the exclusive guard. Both guards deref to a
+/// [`Snapshot`], so this is the same selection and not a second one.
+pub(crate) fn select_in_write(tree: &TreeWrite) -> Result<Option<SelectedLeaf>> {
+    selected(tree.root(), tree.snapshot())
+}
+
+fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<SelectedLeaf>> {
     let mut live = Vec::new();
-    for entry in tree.walk() {
+    for entry in snapshot.walk() {
         if let Some((kind, handle)) = live_leaf(&entry) {
             live.push((entry, kind, handle));
         }
@@ -542,7 +597,7 @@ pub fn select_in(tree: &Tree) -> Result<Option<SelectedLeaf>> {
             "multiple live `finish` leaves are malformed: {}",
             finish
                 .iter()
-                .map(|(entry, _, _)| entry_path(tree.root(), *entry).display().to_string())
+                .map(|(entry, _, _)| entry_path(root, *entry).display().to_string())
                 .collect::<Vec<_>>()
                 .join(", ")
         );
@@ -552,7 +607,7 @@ pub fn select_in(tree: &Tree) -> Result<Option<SelectedLeaf>> {
         .find(|(_, kind, _)| *kind != Kind::Finish)
         .or_else(|| finish.first().copied());
     Ok(selected.map(|(entry, kind, handle)| SelectedLeaf {
-        path: entry_path(tree.root(), *entry),
+        path: entry_path(root, *entry),
         handle: handle.clone(),
         kind: *kind,
     }))

@@ -3,19 +3,21 @@
 //
 // `pick`, `select`, `brief-chain`, `kind` and `resolve` now live in
 // `src/task_tree.rs` and read one snapshot under the library's shared lock.
-// What stays here is exactly what the verbs that have **not** flipped yet still
-// need, and it stays for one reason: grove's exclusive guard and the library's
-// cannot be nested. Both `flock` the directory *containing* the tree root, and
-// two open file descriptions on one directory do not share a lock, so a verb
-// holding `tree_access::write` cannot call into the library's reader without
-// deadlocking against itself. Each of these dies with the leaf that flips its
-// last caller, and `sweep-k37` checks that they are gone.
+// **Nothing here has a production caller any more.** `lifecycle-k35` took
+// `select_unlocked`'s last two — `materialize-finish` and `finish-commit` — and
+// the module is now `#[cfg(test)]`, awaiting `sweep-k37`.
 //
-//   * `select_unlocked` — `tree_lifecycle`, under the lifecycle write guard;
-//   * `resolve_unlocked` — `llm_cli`'s `<parent>` / `<target>` arguments, under
-//     the grow verbs' write guard;
-//   * `read_level` — `tree_grow` and `tree_lifecycle`, the one strict level
-//     reader they share.
+// What kept it alive until then was one fact: grove's exclusive guard and the
+// library's cannot be nested. Both `flock` the directory *containing* the tree
+// root, and two open file descriptions on one directory do not share a lock, so a
+// verb holding `tree_access::write` cannot call into the library's reader without
+// deadlocking against itself. Every verb that held grove's own guard therefore
+// kept the path-walking reader until its own leaf moved it across.
+//
+// It is kept rather than deleted for `growing-k33`'s reason, and the reason is
+// the paragraph below: this is the *other* implementation of a contract the
+// library now owns, and an equivalence test over two live implementations is
+// evidence the flip gets nowhere else.
 //
 // **This is prior art and never authority.** `tree_id`'s grammar is deliberately
 // lenient where `task_name`'s is canonical, so the two readers disagree about a

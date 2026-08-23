@@ -1,15 +1,22 @@
-// What is left of grove's directory-walking **grow** machinery: one appending
-// primitive, `leaf_add_unlocked`, and the helpers it needs.
+// Grove's directory-walking **grow** machinery, with **no production caller
+// left**: the module is `#[cfg(test)]` and survives only as its own tests, until
+// `sweep-k37` deletes it.
 //
 // The three grow *verbs* went to `src/task_grow.rs` in `growing-k33` — `leaf-add`,
 // `leaf-add-pair` and `leaf-insert` are `ordinal-fs-tree`'s `append`,
-// `append_many` and `insert` now. What kept this module alive is the lifecycle:
-// `root_init`, `materialize_finish` and `leaf_decompose` allocate leaves while
-// holding **grove's own** exclusive guard, and grove cannot nest its lock inside
-// the library's — both `flock` the directory containing the tree root, and two
-// open file descriptions on one directory do not share a lock. So they keep the
-// path-walking allocator until `lifecycle-k35` and `promotion-k34` move them
-// across, and `tree_id::next_key` keeps its last callers until then.
+// `append_many` and `insert` now. What kept this module alive after that was the
+// lifecycle: `root_init` and `materialize_finish` allocated leaves while holding
+// **grove's own** exclusive guard, and grove cannot nest its lock inside the
+// library's — both `flock` the directory containing the tree root, and two open
+// file descriptions on one directory do not share a lock. `lifecycle-k35`
+// answered that by splitting the scaffold across the two guards rather than
+// nesting them, which orphaned the path-walking allocator and `tree_id::next_key`
+// with it.
+//
+// What is worth reading here is the **destination guard** and its tests:
+// `refuse_occupied_destination` and `claim_destination` are why a dangling
+// symlink at a planned name cannot become a write outside `.grove/`, and the
+// library's interpreter now owns that hazard.
 //
 // **Position-free headers.** A task file's first-line `# …` header is the stable
 // handle `# <slug>-k<key>` — the per-level position `NN` lives only in the

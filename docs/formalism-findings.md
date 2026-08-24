@@ -2745,6 +2745,293 @@ cannot read. Three of those four leaves reached for one of exactly those. That i
 routing evidence about when a model earns its place, and it is the shape
 `formalism-skill-k38` should carry forward.
 
+### 026 — The first temporal Alloy model of grove's own tree (task-tree names and identity)
+
+**Scope.** Task tree, **component-local** (`crates/grove-task-tree/models/`).
+`TT-01` – `TT-10`: names, identity, and the four operations of the entry-name
+algebra. `TT-11` – `TT-25` are two later leaves'.
+
+**Independence protocol: held.** No Quint model of this subject exists yet, and
+`docs/ordinal-fs-tree/models/operations.qnt` — a different subject and a
+different experiment — was not opened either. Nothing was carried across.
+
+**Situation.** Experiment 1 used Alloy for static relational structure and Quint
+for behaviour, which is what H1 predicted. Experiment 2 puts both on behavioural
+questions, so this is the first Alloy 6 model in the workstream that has to be
+*temporal*: `var` state, primed transitions, and a trace in which an operation
+either applies or returns a named refusal. It is also the first model written
+against a **claim catalogue** rather than against a design document — the
+question of whether that changes what a model finds is most of what Experiment 2
+is for, and this entry is the first data point.
+
+The subject is grove's shipped tree semantics, already green under 1,210 tests.
+Any finding here is a finding against working code, which is a harder bar than
+Experiment 1's.
+
+**Caught.** *Nothing about grove's shipped behaviour.* What the model caught was
+**the catalogue**, three times — the specific shape the pre-registration named as
+a borderline and classified in advance as material. Two were found by having to
+write a total transition; the third by an actual counterexample, and it is the
+one worth reading first.
+
+*A task name inside a foreign directory was an entry, and should not have been.*
+`TT-06.b` produced a counterexample: an insert into a directory whose **own**
+name is outside the task grammar, on a level whose positions began at 2, leaving
+the level non-gapless after a correct shift. The catalogue defines an entry as
+"anything directly or transitively beneath the task root" — and *transitively
+beneath* is not what grove does. Its walk descends into the task root and into
+**nodes**, and into nothing else, so a perfectly well-formed task name inside a
+foreign directory is invisible: not an entry, holding no position on any level
+grove orders, its key not in the counter, and a malformity in it not stopping the
+tree. The catalogue now says *reached* rather than *beneath*, `TT-04` extends the
+foreign rule to whole subtrees, and `TT-06` says which directories it quantifies
+over. The counterexample is retained as a witness.
+**M1** `alloy-only`. **M2** `structure`. **M3** **2** — the trace named the
+transition and the level; reading it took a couple of minutes once `-t text` was
+in play, and it did not transcribe straight into a test. **M4** `none` — the
+shipped walk is already correct, so there is nothing to write a failing test
+against; the defect was in the description.
+
+The other two were found without the solver, by the obligation to make every
+action total:
+
+*`TT-01.b` did not say which refusal a non-canonical spelling gets.* The claim
+requires the spelling "refused naming the canonical one" and the refusal-reason
+set is closed, but no row of it names a spelling refusal. Writing the model
+forced a choice, and a choice made inside one model is a divergence the
+comparison would later measure instead of the formalisms. The catalogue now fixes
+it as `Malformed(MalformedEntry(entry))` — a non-canonical spelling is
+task-shaped and does not parse *completely*, which is that reason's own
+definition, and it is the same reason an unknown session kind gets.
+**M1** `alloy-only`. **M2** `refusal`. **M3** n/a — there was no counterexample
+to read; the finding is an absence in the catalogue, surfaced by having to write
+a total transition. **M4** `none`.
+
+*`TT-07`'s byte clause is unreachable as the omissions stood.* The claim says a
+shift changes "never any file's bytes", and the deliberate-omission row reduces
+an entry to "identity and type only" — so read together, both families are
+required to check a clause neither can express. The fix was already in the
+catalogue's own vocabulary: the **entry digest**, an opaque equality defined for
+`FN-12`, and the `TT-` section simply never cited it. The model carries a
+`Digest` per object that a rename never touches, and `TT-07` is checked in full.
+**M1** `alloy-only`. **M2** `structure`. **M3** n/a. **M4** `none`.
+
+**All three findings falsify H7**, by the terms H7 sets for itself: none yields a
+Rust test that fails against the pre-fix implementation, because none is a defect
+in the implementation. The pre-registration anticipated exactly this row —
+*shipped behaviour the model says is fine, but a catalogue required to describe
+it never described it* — and said such a finding is more interesting than the
+ones that convert. It is worth being precise about why: a claim catalogue is a
+*new* artifact, so the class of defect available to find is "the specification is
+not checkable", and that class has no failing test by construction. H7 was
+written with Experiment 1's subject in mind, where the artifact under test was
+code. **H7 is falsified at the first entry, and the falsification is about the
+subject rather than about the formalisms.**
+
+**Missed — and this is the entry's real result.** The suite reported itself
+green, witnesses included, while checking **nothing**. Two defects, each hiding
+the other:
+
+1. `doRewrite` constrained `Sys.act'` only through `i = DoneI implies Retire` and
+   `i = AbandonedI implies Prune`. For `i = LiveI` neither fired, so the
+   predicate admitted a rewrite that **labelled itself any action at all** —
+   `AddLeaf`, outcome `Applied`. And a "rewrite to Live" under a canonical
+   grammar renames an entry to the name it already has, so the tree does not
+   change.
+2. An Alloy 6 trace is a lasso: the last state must loop. A state reached by a
+   tree-changing action can loop neither back to the idle initial state (the
+   tree differs) nor to itself (repeating the action changes it again). **At
+   `2 steps` no applied mutation exists at all**, so every check conditioned on
+   `Sys.res' = Applied` — `TT-04` through `TT-09`, ten of the sixteen
+   obligations — was vacuously true.
+
+The witnesses exist to catch exactly (2). They did not, because (1) let the
+solver forge the action label each witness was looking for, and a forged
+`AddLeaf` that changes nothing satisfies the lasso. **One hole in the transition
+relation defeated the whole witness discipline at once**, which is worth stating
+as a general rule: *a paired witness proves reachability only if the transition
+relation cannot lie about which action fired.* Write every action's outcome as a
+total function of its guard **before** writing any command, and the control
+works; leave one case unconstrained and the control reports on a fiction.
+
+It was found by re-reading the transitions, not by any command, and it stood for
+roughly half an hour. **M8 false-confidence incident**; the bound change that
+fixed it is **M7** by clause 2 of the material-finding rule, since no
+tool-neutral claim was invalidated — nothing had been recorded on the strength of
+the false green.
+
+Two things about it are worth carrying beyond this model. The first is that the
+*hazard the pre-registration named third* — the vacuous invariant — arrived
+through the route it did not name: not an antecedent that happens to be
+unreachable, but a **trace-length bound that makes an entire class of transition
+unreachable**, with the witness control neutralised by a separate defect. The
+second is that a green suite plus green witnesses is still not evidence; the only
+thing that distinguished the fiction from the fact was mutation, and reading.
+
+**Missed, more ordinarily.** Nothing about grove, and the honest reading is that
+there was little to miss here: `TT-01` – `TT-10` are the claims closest to the
+`ordinal-fs-tree` boundary, and that boundary is the one part of grove already
+modelled twice and already implemented against those models (entries 002–019). A
+green run here is substantially Experiment 1's work re-confirmed through grove's
+own vocabulary. The claims that could surprise — selection, root classification,
+guards, fail-closed ownership — are `TT-11` – `TT-25`, and they are not in this
+entry.
+
+**Three observations that are not findings.** None affects a tool-neutral claim,
+so by the material-finding rule they are prose and M7, not counts.
+
+*The catalogue is not extractable by a match, quite.* It documents the obligation
+shape by showing it, and the example inside the fenced block is byte-identical to
+a real obligation line — a manifest extractor counts `TT-02.a` and `TT-02.b`
+twice. The runner skips fenced blocks and the catalogue now says so. The general
+form is worth keeping: **a document that is also a manifest has to say which of
+its lines are the manifest**, because its own worked example is indistinguishable
+from its content.
+
+It recurred within the hour, which is the part worth recording. The family
+`README.md` is *also* a manifest — the runner reads declared gaps out of it — and
+writing a worked example of the gap line into it reintroduced the same defect.
+It happened not to fire only because the placeholder `TT-nn.x` has letters where
+the pattern wants digits: luck, not design. The rule is therefore not "fix this
+document" but **skip fenced blocks wherever a manifest is read**, which is what
+the runner now does in both places, with a control that the real declaration is
+still seen.
+
+*Alloy's CLI reports a temporal counterexample and shows nothing of it.* The
+default `-t table` renders a trace as an empty grid — every field column blank.
+The tool says "counterexample found" and the trace is unreadable, which is an
+**M3 score of 0 produced by a flag rather than by a defect**. `-t text` prints
+the full valuation per state and the same counterexample scores 2. This is one
+step from an M8 incident in the other direction: a reader who concludes "Alloy's
+temporal counterexamples are useless" has measured a default, not the tool. The
+runner passes `-t text` and `models/README.md` says why.
+
+*Three performance cliffs, all about how a property is spelled rather than what
+it says, and one bound that simply costs what it costs.* Gaplessness written as `#positions != #entries` costs an
+Int-arithmetic encoding that took `TT-03` alone past three minutes; the same
+property stated relationally — no repetition, a position 1 present, no position
+whose predecessor is absent — runs in seconds. Quantifying an operation's
+*fresh* objects over `Obj` rather than over `FileObj`/`DirObj` makes the
+promotion transition `5^4` combinations instead of `2 × 3 × 3`. And a check whose
+antecedent is broad — `Sys.act' in groveActs` — costs more than the same claim
+written four times, once per action, because each narrow antecedent pins the
+transition.
+
+The third carries a rule worth keeping, because the obvious fix is the wrong
+one: **when a check will not finish, narrow the antecedent, not the bound.**
+Shrinking a bound buys the green run at the cost of what the run was evidence
+about, and it can quietly put the check below the bound at which its own witness
+first lands — at which point the check has no content and the pair still reports
+green. Splitting one command into four kept the bound and removed the work.
+
+**Cost.** One session. **M5 authoring:** about 1 h on the runner and 2 h on the
+model, over 16 obligations — 0.19 h per checked obligation for a component-local
+model, which is the figure H8 will compare against `models/system/` when that
+exists. **M7 state-space and tooling:** the Alloy scope runs about **30 minutes**
+wall on the measurement host, SAT4J, at the bounds recorded on each command;
+`witness_TT_07` is nine of those minutes on its own and two checks are three to
+four each. **M7 wrangling:** about 3 h — the three performance cliffs, the
+output-format discovery, one dead end where every check ran at 3 steps before the
+unconstrained initial state was noticed, the half hour the false green stood, and
+the hour the mutation pass cost including its three replaced mutations.
+**M6 synchronization: zero**, there being no second family yet; recorded as a
+baseline rather than as an absence.
+
+Against Experiment 1's M7 baseline — 17 s for Alloy over 20 commands — this is
+**30 minutes over 37**, and the pre-registration's warning applies in the
+direction it expected: the subject has behavioural state now, and the cost went
+up by two orders of magnitude. That is the first evidence that Experiment 2 is
+modelling something Experiment 1 was not.
+
+**The mutation pass, run before the green was believed, and what it cost.**
+Sixteen mutations, one per obligation: thirteen killed their check on the first
+attempt. The three that did not are a finding about the control rather than
+about the model.
+
+Two of them — *insert may drop an object*, *promotion leaves the leaf on disk* —
+turned out to be **unsatisfiable against the model's own filesystem facts**: an
+object cannot leave `onDisk` while keeping a parent, nor stay on it without a
+name. The mutated transition never fires, its check is vacuously true, and the
+run reports green **exactly as a surviving mutation does**. So: *a mutation the
+model cannot execute is not a control; it is a second vacuity wearing the first
+one's clothes*, and nothing in the runner can tell the two apart — the same
+reading that produced the mutation has to confirm the mutated model still admits
+the situation. This is the mutation-testing analogue of an equivalent mutant, and
+it is worse than one, because an equivalent mutant at least runs.
+
+The third survived honestly and is worth keeping: dropping species mismatch from
+the halting reasons left `TT-02.b` green, because a file carrying a node name
+lands in `nodeDirs`, has no charter child, and the tree halts under
+`NodeWithoutCharter` instead. Two reasons overlap on exactly that tree — which is
+a fact about the catalogue's reason table that only a mutation could have
+surfaced, and which the `guarding` leaf should keep in view when it models the
+rest of the table. **M7**, an hour.
+
+**Counterfactual — for the incident.** Nothing in the pre-registration's control
+set would have caught it. The runner's *fail on zero work* fires when a command
+set is empty or a witness never lands; here every command ran and every witness
+landed. *Every invariant has a paired witness* was satisfied. The bound was
+recorded, as the *scope trap* control asks — and the recorded bound was the
+defect, which is a case that control cannot see, because it records the bound
+rather than testing it. The only instrument that would have caught it is the one
+the catalogue names last and this session had not yet run: **one mutation per
+reported obligation**. A deliberate break of the append's position rule would
+have left `TT-06.a` green, and that is the signal. The lesson is a sequencing
+one — *run the mutation pass before believing the first green run, not after* —
+and it is cheap enough that there is no argument for the other order.
+
+**Counterfactual.** Would a careful prose read of the catalogue have found the
+two material findings? For `TT-01.b`, plausibly — a reader checking each claim
+against the closed refusal set could notice the gap. For `TT-07`, less likely:
+the claim and the omission row are eleven hundred lines apart in one document,
+and each is correct on its own. What forced both was **having to write a total
+transition function**: every action must return exactly one outcome, so a claim
+that does not say which outcome is a hole the model cannot leave open. That is
+the same mechanism entry 021 recorded from the other side, and it is the clearest
+thing this entry has to say about *why* a formalism helps here — not that it
+searched a state space, but that it refused to accept an unstated case. Note
+what that implies: neither finding needed the solver at all.
+
+**Verdict.** Temporal Alloy 6 is usable on this subject and the modelling cost is
+ordinary, but this slice is the wrong place to judge the *formalism* — the claims
+nearest the already-modelled boundary are the ones least likely to surprise.
+What it establishes is procedural, and both halves are worth carrying:
+
+- **Write the transitions as total functions first and the checks second.** The
+  totality obligation is what found both catalogue holes, and neither needed the
+  solver. It is also what would have prevented the incident: the incident's first
+  defect *is* a transition that was not total.
+- **Run the mutation pass before believing the first green run.** A green suite
+  with green witnesses was, here, entirely fictional, and mutation is the only
+  control that distinguishes the two.
+
+**The seam, exercised in both directions.** `models/run.sh --scope task-tree
+--family alloy --no-coverage` reports 37 of 37 commands passing and exits 0. The
+same run with coverage asserted reports the same 37 passes and exits **1**, on
+16 complete cells and 27 empty ones — which is the phase's remaining work
+reported as such. A missing model directory and a family with no model file each
+abort at *zero work* rather than reporting a clean sweep. That is the third
+runner obligation working: the catalogue rather than the model is the source of
+truth about what has been checked.
+
+**The model, as required per entry.** Alloy 6, Corretto `21.0.12.1+9-LTS`, SAT4J
+(distribution default). Bounds per command, the common shape being
+`for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps`;
+`TT-03` runs one filename short of that, which is the difference between 72
+seconds and not finishing in three minutes, and the bound is recorded on the
+command. Every command runs with `-n`, so an overflow of `plus[7, 1]` is not a
+counterexample. No fairness assumption: nothing in `TT-01` – `TT-10` is an
+eventuality. Abstractions and deliberate omissions are listed in
+`crates/grove-task-tree/models/README.md`; the one added beyond the catalogue's
+fixed list is that a directory the walk does not enter is present on disk and
+outside the model's `visited`, which is the third finding turned into
+machinery. **What a green run does not prove:** every result is about at most
+three files, two directories, six filenames, three states, one working tree and
+one cooperating process — and the three-state bound is sufficient only because
+the initial state is unconstrained, which is `EN-11` cashed out as a modelling
+decision rather than a claim anyone checked. Nothing here is a proof about
+arbitrary trees, and nothing here is evidence about `TT-11` – `TT-25`.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;

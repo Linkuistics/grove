@@ -123,7 +123,10 @@ therefore has either zero sub-identities or at least two, and a claim that grows
 a second obligation grows letters at the same moment. **This document is the
 manifest**: the runner reads the obligation lines out of it and requires each
 one to be answered, rather than trusting a mnemonic to imply that a case was
-covered. Renumbering an obligation is a breaking change to every citation of it,
+covered. **The manifest is the obligation lines outside fenced blocks**: the
+shape above is documented by showing it, so the example is otherwise
+indistinguishable from a real obligation and a reader extracting the manifest
+would count it twice. Renumbering an obligation is a breaking change to every citation of it,
 exactly as it is for a claim identifier, so a retired obligation's letter is
 retired with it and never reused.
 
@@ -308,9 +311,21 @@ duration of any operation.
 **Task root** — the tree's own directory beneath the working-tree root. Present
 or absent; its absence is a first-class, load-bearing state (`SY-05`).
 
-**Entry** — anything directly or transitively beneath the task root. Exactly one
-of: a **charter**, the **format witness**, a **reserved witness**, a **task
-entry** (a leaf or a node directory), or **foreign**.
+**Entry** — anything the walk **reaches** beneath the task root. Exactly one of:
+a **charter**, the **format witness**, a **reserved witness**, a **task entry**
+(a leaf or a node directory), or **foreign**.
+
+*Reached*, not merely *beneath*: the walk descends into the task root and into
+**node** entries, and into nothing else. A directory whose own name is outside
+the task grammar is foreign, so grove never opens it — and a perfectly
+well-formed task name inside one is therefore **not an entry at all**. It holds
+no position on any level grove orders, its key is not part of the counter, and a
+malformity in it does not stop the tree. Stated because "anything transitively
+beneath" said the opposite and the difference is reachable: a level whose
+positions begin at 2 because the level is a foreign directory's contents
+satisfies no gaplessness rule, and `TT-06.b` finds it as a counterexample. Every
+`TT-` claim that quantifies over "every directory" or "every entry" means the
+reached ones.
 
 **Position**, **permanent key**, **slug**, **session kind**, **outcome infix**,
 **work-item handle** — as the glossary defines them. A name is the tuple of all
@@ -629,8 +644,13 @@ canonical spelling.
 - `TT-01.a` — distinct filenames never denote one entry. *Witness*: a tree in
   which two spellings of one entry would otherwise both parse.
 - `TT-01.b` — parse-then-render reproduces the input exactly, and any other
-  spelling is refused naming the canonical one. *Witness*: a non-canonical
-  spelling refused.
+  spelling is refused naming the canonical one. The refusal is
+  `Malformed(MalformedEntry(entry))`, and the canonical spelling is what the
+  diagnostic carries: a non-canonical spelling is task-shaped and does not parse
+  *completely*, which is that reason's own definition. Fixed here rather than
+  left to each family, because a spelling refusal and an unknown-kind refusal
+  are the same reason and a model that invents a second one has widened the
+  closed set. *Witness*: a non-canonical spelling refused.
 *Cites*: [`task-names-are-canonical`](../adr/task-names-are-canonical.md).
 
 **`TT-02` — a name declares its species and must be it.** A task-shaped name
@@ -649,8 +669,13 @@ kinds.
 where skipping would report a finished grove.
 
 **`TT-04` — foreign entries are ignored and preserved.** An entry outside the
-task grammar SHALL neither be read as work nor mutated by any action.
-*Witness*: a foreign entry surviving a mutation that renamed its siblings.
+task grammar SHALL neither be read as work nor mutated by any action, and
+**neither shall anything beneath it**: a foreign directory is not descended
+into, so its whole subtree is invisible to every read and untouched by every
+mutation ([Identities](#identities)).
+*Witness*: a foreign entry surviving a mutation that renamed its siblings; and a
+canonical, known-kind task name inside a foreign directory that is not an entry,
+holds no position, and contributes no key.
 
 **`TT-05` — keys are unique, permanent and never reissued.** Allocation SHALL be
 one past the maximum key over every entry in the tree, terminal entries
@@ -658,9 +683,11 @@ included, and no key SHALL ever be issued twice.
 *Witness*: an allocation whose maximum comes from a terminal entry.
 *Cites*: [`entries-are-never-removed`](../adr/entries-are-never-removed.md).
 
-**`TT-06` — positions are per-directory and gapless.** Every directory's
-positions SHALL be `1..n` with no repetition and no gap; a directory that is not
-SHALL be malformed with reason `PositionsNotGapless(dir)`.
+**`TT-06` — positions are per-directory and gapless.** Every **reached**
+directory's positions SHALL be `1..n` with no repetition and no gap; a directory
+that is not SHALL be malformed with reason `PositionsNotGapless(dir)`. A
+directory the walk does not enter has no positions to be gapless, which is what
+`TT-04` and [Identities](#identities) settle.
 *Obligations*:
 - `TT-06.a` — an append lands at `n+1` and closes no gap. *Witness*: that insert.
 - `TT-06.b` — an insert at an occupied position shifts every later sibling.
@@ -668,7 +695,12 @@ SHALL be malformed with reason `PositionsNotGapless(dir)`.
 
 **`TT-07` — a shift preserves everything but position.** Insertion and
 renumbering SHALL change positions only — never a key, slug, kind or outcome
-infix, and never any file's bytes.
+infix, and never any file's bytes. The byte clause is discharged by the **entry
+digest** — the opaque equality [Identities](#identities) already defines — and
+not by reading any file's contents, which the [deliberate
+omissions](#deliberate-omissions) forbid. Stated here because the omission read
+on its own removes the clause from both families, and a clause no model can
+reach is not a claim.
 *Witness*: a shift across a directory containing every species.
 
 **`TT-08` — decomposition preserves the key.** A leaf promoted to a node SHALL

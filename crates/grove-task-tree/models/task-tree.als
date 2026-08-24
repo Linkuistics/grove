@@ -147,7 +147,11 @@ pred GrammarIsTotal {
                     implies f in Grammar.accepts
 }
 
-pred GroveGrammar { ParseIsCanonical and GrammarIsTotal }
+/* EN-12 rides in the bundle rather than beside it, for a solver reason worth
+   stating: `Rendering.collide` is a free static relation, so leaving it
+   unpinned would be paid for by every command in the file rather than by the
+   one that drops it. */
+pred GroveGrammar { ParseIsCanonical and GrammarIsTotal and EN_12 }
 
 /* The grammar WITHOUT the canonicity rule — a round trip stated in one
    direction only, which is what a grammar looks like before anyone asks whether
@@ -261,6 +265,151 @@ fun matched[q: Query]: set Obj {
              and (some q.qSlug implies o.nm.fSlug = q.qSlug) }
 }
 
+// ===========================================================================
+// THE TASK ROOT'S OWN IDENTITY (TT-17 .. TT-20)
+//
+// Modelled BESIDE the ordered entries rather than among them.  A witness holds
+// no position, carries no permanent key, and is never ordered, so nothing any
+// `TT-17` .. `TT-20` obligation says about one reads a `Filename` -- what those
+// obligations read is its PRESENCE and its CONTENT.  Keeping witnesses out of
+// `Obj` is also what keeps the existing slice's bounds where they are: a
+// witness costs no `FileObj` and no `Filename` atom.
+// ===========================================================================
+
+/* What the format witness HOLDS.  TT-17 is the claim that classification reads
+   this and nothing else -- never any task entry's text -- so it has to be
+   variable independently of every name in the tree. */
+abstract sig Format {}
+one sig CurrentFmt, ForeignFmt extends Format {}
+
+/* What sits at a name grove RESERVES.  Either an artifact grove can prove is
+   its own -- a finish witness, whose class names the recovery that settles it
+   (`WitnessPending(class)`) -- or one it cannot classify at all (`Unowned`,
+   which is `ReservedNameOccupied`'s content and `ownership`'s to claim). */
+abstract sig SlotContent {}
+abstract sig WitnessClass extends SlotContent {}
+one sig Preparing, Published, Migrating extends WitnessClass {}
+one sig Unowned extends SlotContent {}
+
+/* The format witness.  `some Fmt.fmt` is "the witness is present"; publication
+   is one step, which is the atomic same-directory rename of TT-20. */
+one sig Fmt { var fmt: lone Format }
+
+/* The reserved name.  ONE slot: no TT- obligation counts them, and every one of
+   them is stated over the reserved CLASS rather than over its members. */
+one sig Slot { var occ: lone SlotContent }
+
+/* An initialisation transaction in flight.  `some inFlight` is the catalogue's
+   TRANSIENT state -- it exists only between two filesystem steps of one
+   operation -- and every state TT-20 is stated over is a STABLE one the
+   transaction has already left behind. */
+one sig Txn {}
+var sig inFlight in Txn {}
+
+/* The bytes a fresh scaffold writes.  An `in` subset, so it costs no atom; the
+   charter's and the first leaf's are one atom rather than two, which no TT-
+   obligation distinguishes (the digest is an opaque equality). */
+one sig ScaffoldD in Digest {}
+
+/* The catalogue's root states, less `Absent`: no TT- obligation reads it and
+   `SY-05` owns it.  `Reserved` is one state rather than three because TT-18 and
+   TT-19 are stated over the reserved CLASS. */
+abstract sig RootState {}
+one sig ReservedR, PartialScaffoldR, LegacyR, ForeignR, MalformedR,
+        CurrentLiveR, CurrentFinishOnlyR, CurrentSpentR extends RootState {}
+fun currentFamily: set RootState { CurrentLiveR + CurrentFinishOnlyR + CurrentSpentR }
+
+/* The FORMAT family a classification lands in.  TT-17 is stated over this and
+   not over the state itself, because the split INSIDE `Current(*)` is
+   walk-derived and reading entries is what it is for; what the claim forbids is
+   entry text moving the root between the families. */
+fun familyOf[s: RootState]: set RootState {
+  s = ReservedR                          implies ReservedR
+  else s in (PartialScaffoldR + LegacyR) implies (PartialScaffoldR + LegacyR)
+  else s = ForeignR                      implies ForeignR
+  else                                           (MalformedR + currentFamily)
+}
+
+/* PARTIAL SCAFFOLD, as the catalogue defines it: an exact closed SUBSET, never
+   "present and witnessless".  Anything outside the subset -- a second
+   positioned entry, a differing byte, a foreign entry, a node -- falls through
+   to `Legacy`, and that is what makes completion safe rather than an inference
+   about someone else's tree. */
+pred isPartialScaffold {
+  no Fmt.fmt
+  no foreignEntries
+  no malformedEntries
+  charters in kidsOf[TaskRoot]
+  lone charters
+  entries in kidsOf[TaskRoot]
+  lone entries
+  all e: entries | {
+    e in FileObj
+    e.nm.fSpec = LeafSp and e.nm.fOut = LiveI and e.nm.fKind = OrdinaryK
+    e.nm.fPos = 1 and e.nm.fKey = 1
+    e.dg = ScaffoldD
+  }
+  all c: charters | c.dg = ScaffoldD
+  // nothing else beneath the root at all
+  onDisk - TaskRoot = entries + charters
+}
+
+/* CLASSIFICATION, IN THE FIXED ORDER (TT-18): reserved-witness first, then
+   format, then walk-derived -- and `PartialScaffold` before `Legacy`.  A `fun`
+   rather than a `var` field, so it adds no free state for the solver to search;
+   the order is a claim because REORDERING THIS BODY is a mutation the matrix
+   runs, not because the model leaves the order open. */
+fun rootState: one RootState {
+  some Slot.occ                                        implies ReservedR
+  else (no Fmt.fmt and isPartialScaffold)              implies PartialScaffoldR
+  else no Fmt.fmt                                      implies LegacyR
+  else Fmt.fmt = ForeignFmt                            implies ForeignR
+  else halted                                          implies MalformedR
+  else some liveOrdinary                               implies CurrentLiveR
+  else some liveFinish                                 implies CurrentFinishOnlyR
+  else                                                         CurrentSpentR
+}
+
+/* The root an ordinary operation may act on at all. */
+pred rootClear { no Slot.occ and Fmt.fmt = CurrentFmt }
+
+/* The assumption bundle TT-01 .. TT-16 were always stated over, said out loud
+   now that there is a root classification to say it against: a current-format
+   root, no reserved witness, and no transaction in flight.  It PINS the new
+   state rather than leaving it free, which is why those thirty commands cost
+   what they cost before this layer arrived. */
+pred CurrentRootThroughout {
+  always {
+    rootClear
+    no inFlight
+    // AND NO ROOT-LIFECYCLE ACTION.  Not decoration: `initialise-root` and the
+    // three recoveries are transitions the solver encodes in every trace even
+    // where their guards can never fire, and TT-03's check -- already the
+    // tightest command in the file, run one filename short of its neighbours --
+    // stops finishing without this clause.  It narrows the ANTECEDENT rather
+    // than the bound, which is the trade recorded on TT-05's four commands.
+    //
+    // Nothing is lost by it.  `Crash` under `no inFlight` is a pure stutter, and
+    // `doIdle` already supplies one; the four root actions all refuse on a
+    // current-format root, so no trace they could have contributed reaches an
+    // `Applied` any TT-01..TT-16 command is stated over.
+    Sys.act' not in (rootActs + Crash)
+  }
+}
+
+/* EN-12: A NAME RENDERS AS EXACTLY ONE PATH COMPONENT.  The base model gets it
+   from the filesystem fact -- a name is unique within its directory and a level
+   is a directory -- so the assumption has nowhere to be false and nothing to
+   control.  `collide` is where it is given one: a rendering under which two
+   distinct spellings reach one entry, which is what a separator inside a part
+   buys.  Static, and pinned empty by `EN_12`, so every command that assumes the
+   assumption pays nothing for its existence. */
+one sig Rendering { collide: set Filename -> Filename }
+pred EN_12 { no Rendering.collide }
+pred denotesSame[f, g: Filename] {
+  sameReading[f, g] or (f -> g) in Rendering.collide or (g -> f) in Rendering.collide
+}
+
 /* A name declares its species and the on-disk object must be it (TT-02). */
 pred speciesAgrees[o: Obj] {
   (o.nm.fSpec = LeafSp implies o in FileObj) and (o.nm.fSpec = NodeSp implies o in DirObj)
@@ -304,6 +453,25 @@ pred treeOk { not halted }
 abstract sig Action {}
 one sig Idle, AddLeaf, InsertLeaf, Decompose, Retire, Prune, HandEdit,
         Select, Resolve extends Action {}
+/* Root initialisation is TWO filesystem steps, and it is the only action in
+   this file that is not one.  It has to be: TT-20 is a claim about the state
+   BETWEEN them, so an atomic initialisation would answer the question by
+   construction the way a folded `replace-cleanup-marker` answers Q3. */
+one sig InitScaffold, InitPublish extends Action {}
+/* EN-08: interruption may occur between any two steps.  `Crash` is what ENDS an
+   open transaction without completing it, which is what makes the state it
+   leaves behind STABLE rather than transient -- and removing this action is
+   exactly the exercise-removal the assumption table asks for. */
+one sig Crash extends Action {}
+/* The recovery that settles a reserved witness.  One per class, because TT-19's
+   content is that the MATCHING recovery is admitted and everything else -- a
+   non-matching recovery included -- refuses. */
+abstract sig Recovery extends Action {}
+one sig RecoverPreparing, RecoverPublished, RecoverMigrating extends Recovery {}
+fun recoveryFor: WitnessClass -> one Recovery {
+  Preparing -> RecoverPreparing + Published -> RecoverPublished
+    + Migrating -> RecoverMigrating
+}
 
 abstract sig Result {}
 one sig Applied extends Result {}
@@ -312,6 +480,10 @@ one sig Applied extends Result {}
 abstract sig Refused extends Result {}
 one sig RefMalformed, RefNotAnEntry, RefNotLive, RefAlreadyTerminal,
         RefReservedKind extends Refused {}
+/* The root-identity refusals.  `WitnessPending` names a witness grove CAN prove
+   is its own and the operation that recovers it; `FormatLegacy` and
+   `FormatForeign` are what the format classification refuses with. */
+one sig RefWitnessPending, RefFormatLegacy, RefFormatForeign extends Refused {}
 /* The algebra's own refusal, opaque.  TT-10 is the claim that no ordinary
    argument reaches it, because grove's preconditions run in front. */
 one sig AlgebraicRefusal extends Result {}
@@ -331,7 +503,13 @@ one sig Sys {
      that a check restating the intended report is broken by a mutation of the
      transition — a derived value could not be got wrong. */
   var got:     set Obj,        // the entries the observation reported
-  var gotTerm: set Obj         // those of them it reported as TERMINAL (TT-16)
+  var gotTerm: set Obj,        // those of them it reported as TERMINAL (TT-16)
+  /* What a `WitnessPending` refusal NAMED.  Written by the transition rather
+     than derived by the reader, for the reason `got` is: a derived value could
+     not be got wrong, and TT-19 is precisely the claim that the refusal carries
+     the witness and its recovery. */
+  var pending: lone SlotContent,
+  var recov:   lone Recovery
 }
 
 /* What `ordinal-fs-tree` itself would refuse, given the argument as handed to
@@ -341,7 +519,46 @@ pred algebraWouldRefuse[a: Action, t: Obj] {
   or (a = AddLeaf and t not in nodeDirs)
 }
 
-pred noTreeChange { onDisk' = onDisk and nm' = nm and loc' = loc and dg' = dg }
+/* Byte-identical, and the witnesses are part of the tree: a refusal that left
+   the format witness or the reserved slot moved would not be a refusal. */
+pred noTreeChange {
+  onDisk' = onDisk and nm' = nm and loc' = loc and dg' = dg
+  Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
+}
+
+/* Nothing was named, because nothing pending was met. */
+pred noPending { no Sys.pending' and no Sys.recov' }
+
+/* THE ROOT-IDENTITY CASCADE every observation and mutation runs before it looks
+   at its own operand (TT-18, TT-19).  Reserved witness first, then format, and
+   only then anything the walk derives -- which is why `RefMalformed` is not in
+   here: it is walk-derived and classifies LAST.
+   A refusal here names the witness and the operation that recovers it; an
+   occupant grove cannot classify names no recovery, which is the whole reason
+   `WitnessPending` and `ReservedNameOccupied` are two reasons and not one. */
+pred reservedRefusal {
+  some Slot.occ implies {
+    Sys.res' = RefWitnessPending
+    Sys.pending' = Slot.occ
+    Sys.recov' = (Slot.occ in WitnessClass implies recoveryFor[Slot.occ] else none)
+    noTreeChange
+    no inFlight'
+  }
+}
+
+/* The format half.  Split from the reserved half because ROOT INITIALISATION
+   runs the first and not the second: a witnessless root is what it is FOR, and
+   an operation that refused there could never create one.  The split is the
+   ordering of TT-18 made operational — reserved classification runs for every
+   operation, format classification only for the ones that need a format. */
+pred formatRefusal {
+  (no Slot.occ and no Fmt.fmt) implies
+    (Sys.res' = RefFormatLegacy and noTreeChange and noPending and no inFlight')
+  (no Slot.occ and Fmt.fmt = ForeignFmt) implies
+    (Sys.res' = RefFormatForeign and noTreeChange and noPending and no inFlight')
+}
+
+pred rootRefusal { reservedRefusal and formatRefusal }
 
 /* Renames that the algebra performs, as name-level relations. */
 pred shiftedUp[f, g: Filename] {
@@ -362,6 +579,8 @@ pred appendable[d: Obj] { d in nodeDirs }
 
 pred doAddLeaf[d: Obj, o: Obj, f: Filename] {
   Sys.act' = AddLeaf and Sys.tgt' = d
+  rootRefusal
+  rootClear implies { noPending and no inFlight'
   halted implies (Sys.res' = RefMalformed and noTreeChange)
   (not halted and not appendable[d]) implies (Sys.res' = RefNotAnEntry and noTreeChange)
   (not halted and appendable[d] and f.fKind = FinishK) implies
@@ -378,7 +597,9 @@ pred doAddLeaf[d: Obj, o: Obj, f: Filename] {
     onDisk' = onDisk + o
     nm' = nm ++ (o -> f)
     loc' = loc ++ (o -> d)
+    Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
     some dgt: Digest | dg' = dg ++ (o -> dgt)
+  }
   }
 }
 
@@ -386,6 +607,8 @@ pred doAddLeaf[d: Obj, o: Obj, f: Filename] {
 
 pred doInsertLeaf[t: Obj, o: Obj, f: Filename] {
   Sys.act' = InsertLeaf and Sys.tgt' = t
+  rootRefusal
+  rootClear implies { noPending and no inFlight'
   halted implies (Sys.res' = RefMalformed and noTreeChange)
   (not halted and t not in entries) implies (Sys.res' = RefNotAnEntry and noTreeChange)
   (not halted and t in entries and f.fKind = FinishK) implies
@@ -402,8 +625,10 @@ pred doInsertLeaf[t: Obj, o: Obj, f: Filename] {
       // every later sibling shifts by one; NOTHING else about it changes
       all s: later | shiftedUp[s.nm, s.nm']
       all s: onDisk - later | s.nm' = s.nm
+      Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
       some dgt: Digest | dg' = dg ++ (o -> dgt)
     }
+  }
   }
 }
 
@@ -411,6 +636,8 @@ pred doInsertLeaf[t: Obj, o: Obj, f: Filename] {
 
 pred doDecompose[t: Obj, n: Obj, c: Obj, k: Obj, nf, kf: Filename] {
   Sys.act' = Decompose and Sys.tgt' = t
+  rootRefusal
+  rootClear implies { noPending and no inFlight'
   halted implies (Sys.res' = RefMalformed and noTreeChange)
   (not halted and t not in entries) implies (Sys.res' = RefNotAnEntry and noTreeChange)
   (not halted and t in entries and t.nm.fSpec = NodeSp) implies
@@ -430,11 +657,13 @@ pred doDecompose[t: Obj, n: Obj, c: Obj, k: Obj, nf, kf: Filename] {
     nm'  = (nm  - (t -> Filename)) ++ (n -> nf) ++ (c -> CharterF) ++ (k -> kf)
     loc' = (loc - (t -> Obj)) ++ (n -> t.loc) ++ (c -> n) ++ (k -> n)
     // the leaf's body becomes the node's charter: same bytes, new name
+    Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
     some a, b: Digest |
       dg' = (dg - (t -> Digest)) ++ (c -> t.dg) ++ (n -> a) ++ (k -> b)
   }
   (not halted and t in entries and t.nm.fSpec = LeafSp and t.nm.fOut in terminalInfix)
       implies (Sys.res' = RefAlreadyTerminal and noTreeChange)
+  }
 }
 
 // --- retire / prune: rewrite ------------------------------------------------
@@ -447,6 +676,8 @@ pred doRewrite[t: Obj, i: Infix, g: Filename] {
   i in terminalInfix
   Sys.act' = (i = DoneI implies Retire else Prune)
   Sys.tgt' = t
+  rootRefusal
+  rootClear implies { noPending and no inFlight'
   halted implies (Sys.res' = RefMalformed and noTreeChange)
   (not halted and t not in entries) implies (Sys.res' = RefNotAnEntry and noTreeChange)
   (not halted and t in entries and t.nm.fSpec = NodeSp) implies
@@ -457,7 +688,9 @@ pred doRewrite[t: Obj, i: Infix, g: Filename] {
     Sys.res' = Applied
     rewritten[t.nm, g, i]
     onDisk' = onDisk and loc' = loc and dg' = dg
+    Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
     nm' = nm ++ (t -> g)
+  }
   }
 }
 
@@ -470,16 +703,23 @@ pred doRewrite[t: Obj, i: Infix, g: Filename] {
 
 pred doSelect {
   Sys.act' = Select and no Sys.tgt' and noTreeChange and no Sys.gotTerm'
+  rootRefusal
+  (not rootClear) implies no Sys.got'
+  rootClear implies { noPending and no inFlight'
   halted implies (Sys.res' = RefMalformed and no Sys.got')
   not halted implies {
     Sys.got' = selected
     no selected   implies Sys.res' = Empty        // TT-15.a
     some selected implies Sys.res' = Reported
   }
+  }
 }
 
 pred doResolve[q: Query] {
   Sys.act' = Resolve and no Sys.tgt' and noTreeChange
+  rootRefusal
+  (not rootClear) implies (no Sys.got' and no Sys.gotTerm')
+  rootClear implies { noPending and no inFlight'
   halted implies (Sys.res' = RefMalformed and no Sys.got' and no Sys.gotTerm')
   not halted implies {
     Sys.got' = matched[q]
@@ -491,6 +731,7 @@ pred doResolve[q: Query] {
     one matched[q]  implies Sys.res' = Reported
     (some matched[q] and not one matched[q]) implies Sys.res' = Ambiguous  // TT-15.c
   }
+  }
 }
 
 // --- the world's own actions ------------------------------------------------
@@ -500,9 +741,100 @@ pred doResolve[q: Query] {
    tree grove's own actions could not build. */
 pred doHandEdit {
   Sys.act' = HandEdit and Sys.res' = Environmental and no Sys.tgt'
+  noPending and no inFlight'
+  // `Fmt.fmt'` and `Slot.occ'` are deliberately UNCONSTRAINED: a witness is a
+  // file, and a hand edit reaches it exactly as it reaches any other.
 }
 
-pred doIdle { Sys.act' = Idle and Sys.res' = Environmental and no Sys.tgt' and noTreeChange }
+pred doIdle {
+  Sys.act' = Idle and Sys.res' = Environmental and no Sys.tgt' and noTreeChange
+  noPending and no inFlight'
+}
+
+
+// --- root initialisation, in two steps (TT-20) ------------------------------
+//
+// The ONLY action in this file that is not one filesystem step, and it has to
+// be: TT-20 is a claim about the state BETWEEN the two.  Folding them the way
+// promotion is folded would answer the question by construction.
+
+pred doInitScaffold[c: FileObj, l: FileObj, lf: Filename] {
+  Sys.act' = InitScaffold and no Sys.tgt'
+  // The RESERVED half of the cascade, and not the format half: a witnessless
+  // root is what this action is for, so `RefFormatLegacy` here would make a
+  // current-format root uncreatable.  A reserved witness still refuses it, and
+  // TT-19 is the check that caught this action skipping the cascade entirely.
+  reservedRefusal
+  // The guard: nothing of grove's is here yet.  Anything else present is
+  // someone's tree, and initialising over it is the fail-closed violation.
+  (no Slot.occ and (some Fmt.fmt or some (onDisk - TaskRoot))) implies
+    (Sys.res' = RefNotAnEntry and noTreeChange and noPending and no inFlight')
+  (no Slot.occ and no Fmt.fmt and no (onDisk - TaskRoot)) implies {
+    noPending
+    Sys.res' = Applied
+    some inFlight'                            // the transaction is now OPEN
+    c != l and c not in onDisk and l not in onDisk
+    lf in entryName and lf.fSpec = LeafSp and lf.fOut = LiveI and lf.fKind = OrdinaryK
+    lf.fPos = 1 and lf.fKey = 1
+    onDisk' = onDisk + c + l
+    nm'  = nm  ++ (c -> CharterF) ++ (l -> lf)
+    loc' = loc ++ (c -> TaskRoot) ++ (l -> TaskRoot)
+    dg'  = dg  ++ (c -> ScaffoldD) ++ (l -> ScaffoldD)
+    Fmt.fmt'  = Fmt.fmt                       // THE WITNESS DOES NOT LAND HERE
+    Slot.occ' = Slot.occ
+  }
+}
+
+/* The atomic same-directory rename that makes the witness visible.  One step,
+   so no reader observes a torn or premature marker; reachable only from an OPEN
+   transaction, so a witness never appears over a tree grove did not scaffold. */
+pred doInitPublish {
+  Sys.act' = InitPublish and no Sys.tgt'
+  reservedRefusal
+  (no Slot.occ and some inFlight and isPartialScaffold) implies {
+    noPending
+    Sys.res' = Applied
+    Fmt.fmt' = CurrentFmt
+    onDisk' = onDisk and nm' = nm and loc' = loc and dg' = dg
+    Slot.occ' = Slot.occ
+    no inFlight'
+  }
+  (no Slot.occ and not (some inFlight and isPartialScaffold)) implies
+    (Sys.res' = RefNotAnEntry and noTreeChange and noPending and inFlight' = inFlight)
+}
+
+/* EN-08.  Interruption between any two steps.  What it does that no other
+   action does is END an open transaction without completing it -- which is what
+   turns the state the transaction had reached into a STABLE one an ordinary
+   invocation may observe, and it is why removing this action makes TT-20's
+   witness unreachable rather than merely rarer. */
+pred doCrash {
+  Sys.act' = Crash and Sys.res' = Environmental and no Sys.tgt' and noPending
+  noTreeChange
+  no inFlight'
+}
+
+/* TT-19's one exception: the MATCHING recovery is admitted while its witness is
+   held, and settles it.  A non-matching recovery is not an exception at all --
+   it meets the cascade like every other operation, and an occupant grove cannot
+   classify has no matching recovery to be an exception for. */
+pred doRecover[r: Recovery] {
+  Sys.act' = r and no Sys.tgt' and no inFlight'
+  let matching = (some Slot.occ and Slot.occ in WitnessClass
+                  and recoveryFor[Slot.occ] = r) | {
+    matching implies {
+      Sys.res' = Applied
+      no Slot.occ'
+      onDisk' = onDisk and nm' = nm and loc' = loc and dg' = dg
+      Fmt.fmt' = Fmt.fmt
+      noPending
+    }
+    (not matching) implies {
+      rootRefusal
+      rootClear implies (Sys.res' = RefNotAnEntry and noTreeChange and noPending)
+    }
+  }
+}
 
 /* The fresh objects an operation introduces are quantified at their SPECIES
    rather than over `Obj`.  It changes no meaning — the bodies already require
@@ -512,21 +844,34 @@ pred doIdle { Sys.act' = Idle and Sys.res' = Environmental and no Sys.tgt' and n
    can name: a node handed to `retire` has to reach its refusal. */
 pred noReport { no Sys.got' and no Sys.gotTerm' }
 
-pred step {
+pred ordinaryStep {
   (noReport and (doIdle
     or doHandEdit
+    or doCrash
     or (some d: Obj, o: FileObj, f: Filename | doAddLeaf[d, o, f])
     or (some t: Obj, o: FileObj, f: Filename | doInsertLeaf[t, o, f])
     or (some t: Obj, n: DirObj, disj c, k: FileObj, nf, kf: Filename |
           doDecompose[t, n, c, k, nf, kf])
-    or (some t: Obj, i: Infix, g: Filename | doRewrite[t, i, g])))
+    or (some t: Obj, i: Infix, g: Filename | doRewrite[t, i, g])
+    or (some disj c, l: FileObj, lf: Filename | doInitScaffold[c, l, lf])
+    or (some r: Recovery | doRecover[r])))
   or doSelect
   or (some q: Query | doResolve[q])
+}
+
+/* An OPEN transaction admits only its own next step or an interruption.  That
+   is what makes `some inFlight` transient in the catalogue's sense: no ordinary
+   invocation runs while it holds, so no ordinary invocation observes it. */
+pred step {
+  some inFlight implies (noReport and (doInitPublish or doCrash))
+  no inFlight   implies ordinaryStep
 }
 
 fact Trace {
   Sys.act = Idle and Sys.res = Environmental and no Sys.tgt
   no Sys.got and no Sys.gotTerm
+  no Sys.pending and no Sys.recov
+  no inFlight
   always step
 }
 
@@ -535,6 +880,9 @@ fun groveActs: set Action { AddLeaf + InsertLeaf + Decompose + Retire + Prune }
 /* The observations, which are reads: no `groveAct` names one, so every command
    written about mutation is unchanged by their arrival. */
 fun observeActs: set Action { Select + Resolve }
+/* The root's own actions, kept OUT of `groveActs` so that every command written
+   about tree mutation before this layer arrived is unchanged by it. */
+fun rootActs: set Action { InitScaffold + InitPublish + Recovery }
 pred groveStep { Sys.act' in groveActs }
 
 
@@ -563,20 +911,21 @@ pred groveStep { Sys.act' in groveActs }
 /* TT-01.a.  Under the canonical grammar, no two accepted spellings share a
    reading — so two on-disk entries can never BE one entry. */
 check TT_01a_distinct_filenames_never_denote_one_entry {
-  GroveGrammar implies (all disj f, g: entryName | not sameReading[f, g])
+  GroveGrammar and CurrentRootThroughout implies
+    (all disj f, g: entryName | not denotesSame[f, g])
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
 
 /* DEFECT, without the ADR's rule.  Two spellings both parse, so two files in
    one directory are the same entry: same key, same position, same everything. */
 run witness_TT_01a_two_spellings_would_both_parse {
-  StatedGrammar
+  StatedGrammar and CurrentRootThroughout and EN_12
   some disj a, b: entries | a.nm != b.nm and sameReading[a.nm, b.nm]
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
 
 /* TT-01.b.  Parse-then-render reproduces the input exactly, and any other
    spelling of the same reading is refused with the canonical one to hand. */
 check TT_01b_a_noncanonical_spelling_is_refused_naming_the_canonical_one {
-  GroveGrammar implies {
+  GroveGrammar and CurrentRootThroughout implies {
     all f: entryName | f.canon = f
     all f: shaped | (f.canon != f and (f.fSpec = NodeSp or f.fKind in known)) implies
       (f in malformedName and f.canon in entryName and sameReading[f, f.canon])
@@ -584,7 +933,7 @@ check TT_01b_a_noncanonical_spelling_is_refused_naming_the_canonical_one {
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
 
 run witness_TT_01b_a_noncanonical_spelling_refused {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   some o: visited - TaskRoot | o.nm in malformedName and o.nm.canon in entryName
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
 
@@ -594,27 +943,27 @@ run witness_TT_01b_a_noncanonical_spelling_refused {
    refused — rather than foreign, which would be skipped.  The distinction is
    the whole claim: a skipped directory takes its live subtree with it. */
 check TT_02a_a_leaf_name_at_a_directory_is_malformed_not_foreign {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (some o: (visited & DirObj) - TaskRoot | o.nm in entryName and o.nm.fSpec = LeafSp)
       implies (rSpeciesMismatch and halted
                and (Sys.act' in groveActs implies (Sys.res' = RefMalformed and noTreeChange))))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 run witness_TT_02a_leaf_name_at_a_directory {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   some o: (visited & DirObj) - TaskRoot | o.nm in entryName and o.nm.fSpec = LeafSp
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
 
 /* TT-02.b.  The converse: a node name at a file. */
 check TT_02b_a_node_name_at_a_file_is_malformed_not_foreign {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (some o: (visited & FileObj) | o.nm in entryName and o.nm.fSpec = NodeSp)
       implies (rSpeciesMismatch and halted
                and (Sys.act' in groveActs implies (Sys.res' = RefMalformed and noTreeChange))))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 run witness_TT_02b_node_name_at_a_file {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   some o: visited & FileObj | o.nm in entryName and o.nm.fSpec = NodeSp
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
 
@@ -627,7 +976,7 @@ run witness_TT_02b_node_name_at_a_file {
    The bound is recorded rather than hidden: at 5 filenames a three-entry tree
    with a rename in flight is expressible, which is what the claim needs. */
 check TT_03_malformed_halts_and_never_skips {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     halted implies (Sys.act' in groveActs implies (Sys.res' = RefMalformed and noTreeChange)))
 } for 3 but 4 Int, 3 FileObj, 2 DirObj, 5 Filename, 2 Slug, 2 Digest, 3 steps
 
@@ -638,7 +987,7 @@ check TT_03_malformed_halts_and_never_skips {
    that is not the walk but the halt: the directory is itself an entry at its
    parent's level, its name is malformed, and the whole tree stops. */
 run witness_TT_03_a_malformed_node_hides_live_work {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   some d: (visited & DirObj) - TaskRoot | {
     d.nm in malformedName
     some o: kidsOf[d] | o.nm in entryName and o.nm.fSpec = LeafSp and o.nm.fOut = LiveI
@@ -650,7 +999,7 @@ run witness_TT_03_a_malformed_node_hides_live_work {
 // --- TT-04: foreign entries are ignored and preserved ----------------------
 
 check TT_04_foreign_entries_are_ignored_and_preserved {
-  GroveGrammar implies {
+  GroveGrammar and CurrentRootThroughout implies {
     always no (foreignEntries & entries)                    // never read as work
     always ((Sys.act' in groveActs and Sys.res' = Applied) implies
       (all o: foreignEntries | o in onDisk' and o.nm' = o.nm and o.loc' = o.loc and o.dg' = o.dg))
@@ -662,14 +1011,14 @@ check TT_04_foreign_entries_are_ignored_and_preserved {
    directory is not work: not an entry, not on any level grove orders, and its
    key is not in the counter. */
 run witness_TT_04_a_task_name_under_a_foreign_directory_is_not_work {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   some d: (onDisk & DirObj) - TaskRoot, o: onDisk |
     d.nm in foreignName and o.loc = d and o.nm in entryName
     and o not in entries and o.nm.fKey not in allKeys
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
 
 run witness_TT_04_foreign_survives_a_sibling_rename {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = InsertLeaf and Sys.res' = Applied and
     (some o: foreignEntries | some s: entriesIn[o.loc] | s.nm' != s.nm and o.nm' = o.nm))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
@@ -688,12 +1037,12 @@ pred keysArePermanent {
 }
 
 check TT_05_keys_never_reissued_on_append {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = AddLeaf and Sys.res' = Applied) implies keysArePermanent)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 check TT_05_keys_never_reissued_on_insert {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = InsertLeaf and Sys.res' = Applied) implies keysArePermanent)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
@@ -702,19 +1051,19 @@ check TT_05_keys_never_reissued_on_insert {
    charter, its first child, the task root and the new node — and the wider
    bound did not finish in five minutes. */
 check TT_05_keys_never_reissued_on_promotion {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Decompose and Sys.res' = Applied) implies keysArePermanent)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 check TT_05_keys_never_reissued_on_rewrite {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' in (Retire + Prune) and Sys.res' = Applied) implies keysArePermanent)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 /* The witness the catalogue asks for: an allocation whose maximum comes from a
    TERMINAL entry — which is why retirement is a rename and never a removal. */
 run witness_TT_05_allocation_max_comes_from_a_terminal_entry {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = AddLeaf and Sys.res' = Applied and
     (some t: entries | t.nm.fOut in terminalInfix and t.nm.fKey = max[allKeys]))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
@@ -722,7 +1071,7 @@ run witness_TT_05_allocation_max_comes_from_a_terminal_entry {
 // --- TT-06: positions are per-directory and gapless ------------------------
 
 check TT_06a_append_lands_at_n_plus_one_and_closes_no_gap {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = AddLeaf and Sys.res' = Applied) implies {
       all o: onDisk' - onDisk | {
         all s: entriesIn[o.loc'] | s.nm.fPos < o.nm'.fPos
@@ -732,14 +1081,14 @@ check TT_06a_append_lands_at_n_plus_one_and_closes_no_gap {
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 run witness_TT_06a_append_lands_at_n_plus_one {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = AddLeaf and Sys.res' = Applied and
     (some o: onDisk' - onDisk | o.nm'.fPos > 1
        and (all s: entriesIn[o.loc'] | s.nm.fPos < o.nm'.fPos)))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 check TT_06b_insert_shifts_every_later_sibling {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = InsertLeaf and Sys.res' = Applied) implies
       (let t = Sys.tgt', d = t.loc, p = t.nm.fPos | {
          all s: entriesIn[d] | s.nm.fPos >= p implies s.nm'.fPos = plus[s.nm.fPos, 1]
@@ -749,7 +1098,7 @@ check TT_06b_insert_shifts_every_later_sibling {
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 run witness_TT_06b_insert_at_an_occupied_position_shifts {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = InsertLeaf and Sys.res' = Applied and
     (some s: entriesIn[Sys.tgt'.loc] | s.nm.fPos >= Sys.tgt'.nm.fPos and s != Sys.tgt'))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
@@ -757,7 +1106,7 @@ run witness_TT_06b_insert_at_an_occupied_position_shifts {
 // --- TT-07: a shift preserves everything but position ----------------------
 
 check TT_07_a_shift_changes_only_positions {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = InsertLeaf and Sys.res' = Applied) implies
       (all s: onDisk | {
          s in onDisk'
@@ -776,7 +1125,7 @@ check TT_07_a_shift_changes_only_positions {
    terminal leaf, a foreign entry and the shift's target — five files and two
    directories before the insert adds its own. */
 run witness_TT_07_shift_across_every_species {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = InsertLeaf and Sys.res' = Applied and
     (let d = Sys.tgt'.loc | {
        some s: entriesIn[d] | s.nm.fSpec = NodeSp
@@ -788,7 +1137,7 @@ run witness_TT_07_shift_across_every_species {
 // --- TT-08: decomposition preserves the key --------------------------------
 
 check TT_08_decomposition_preserves_the_key {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Decompose and Sys.res' = Applied) implies
       (let t = Sys.tgt' | {
          some n: onDisk' - onDisk | n.nm'.fKey = t.nm.fKey and n.nm'.fPos = t.nm.fPos
@@ -799,7 +1148,7 @@ check TT_08_decomposition_preserves_the_key {
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 run witness_TT_08_promotion_of_the_maximum_key {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Decompose and Sys.res' = Applied and
               Sys.tgt'.nm.fKey = max[allKeys])
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
@@ -807,7 +1156,7 @@ run witness_TT_08_promotion_of_the_maximum_key {
 // --- TT-09: one algebraic operation plus a domain precondition -------------
 
 check TT_09a_append_adds_exactly_one_entry_and_renames_nothing {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = AddLeaf and Sys.res' = Applied) implies {
       one onDisk' - onDisk
       no  onDisk - onDisk'
@@ -815,33 +1164,33 @@ check TT_09a_append_adds_exactly_one_entry_and_renames_nothing {
     })
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
-run witness_TT_09a_append { GroveGrammar and eventually (Sys.act' = AddLeaf and Sys.res' = Applied) }
+run witness_TT_09a_append { GroveGrammar and CurrentRootThroughout and eventually (Sys.act' = AddLeaf and Sys.res' = Applied) }
   for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 check TT_09b_insert_adds_exactly_one_entry_and_removes_none {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = InsertLeaf and Sys.res' = Applied) implies {
       one onDisk' - onDisk
       no  onDisk - onDisk'
     })
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
-run witness_TT_09b_insert { GroveGrammar and eventually (Sys.act' = InsertLeaf and Sys.res' = Applied) }
+run witness_TT_09b_insert { GroveGrammar and CurrentRootThroughout and eventually (Sys.act' = InsertLeaf and Sys.res' = Applied) }
   for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 check TT_09c_promotion_replaces_exactly_the_target {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Decompose and Sys.res' = Applied) implies {
       onDisk - onDisk' = Sys.tgt'
       #(onDisk' - onDisk) = 3          // the node, its charter, its first child
     })
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
-run witness_TT_09c_promotion { GroveGrammar and eventually (Sys.act' = Decompose and Sys.res' = Applied) }
+run witness_TT_09c_promotion { GroveGrammar and CurrentRootThroughout and eventually (Sys.act' = Decompose and Sys.res' = Applied) }
   for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 check TT_09d_rewrite_renames_exactly_one_entry {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' in (Retire + Prune) and Sys.res' = Applied) implies {
       onDisk' = onDisk
       one s: onDisk | s.nm' != s.nm
@@ -849,13 +1198,13 @@ check TT_09d_rewrite_renames_exactly_one_entry {
     })
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
-run witness_TT_09d_rewrite { GroveGrammar and eventually (Sys.act' in (Retire + Prune) and Sys.res' = Applied) }
+run witness_TT_09d_rewrite { GroveGrammar and CurrentRootThroughout and eventually (Sys.act' in (Retire + Prune) and Sys.res' = Applied) }
   for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
 
 // --- TT-10: no algebraic refusal reaches an operator -----------------------
 
 check TT_10_no_algebraic_refusal_reaches_an_operator {
-  GroveGrammar implies always {
+  GroveGrammar and CurrentRootThroughout implies always {
     Sys.res' != AlgebraicRefusal
     (Sys.act' in groveActs and algebraWouldRefuse[Sys.act', Sys.tgt'])
       implies Sys.res' in Refused
@@ -865,7 +1214,7 @@ check TT_10_no_algebraic_refusal_reaches_an_operator {
 /* An argument the algebra itself would have refused, shown pre-empted by
    grove's own precondition: the operator sees a refusal this catalogue names. */
 run witness_TT_10_an_algebraic_refusal_is_preempted {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' in groveActs and algebraWouldRefuse[Sys.act', Sys.tgt']
               and Sys.res' in Refused)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
@@ -892,7 +1241,7 @@ run witness_TT_10_an_algebraic_refusal_is_preempted {
    THAT holds only because gaplessness makes sibling positions distinct.  Drop
    gaplessness from `halted` and this check finds two minima. */
 check TT_11_selection_is_the_first_eligible_leaf_in_preorder {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Select and not halted) implies {
       noTreeChange
       Sys.got' in liveLeaves
@@ -904,7 +1253,7 @@ check TT_11_selection_is_the_first_eligible_leaf_in_preorder {
 /* The catalogue's witness: a selection that descends a node before visiting a
    later sibling.  Pre-order and not breadth-first, and not "shallowest first". */
 run witness_TT_11_selection_descends_a_node_before_a_later_sibling {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Select and Sys.res' = Reported and
     (some o: Sys.got', n: entries | {
        o.loc = n
@@ -916,7 +1265,7 @@ run witness_TT_11_selection_descends_a_node_before_a_later_sibling {
 // --- TT-12: terminal entries are skipped, never removed --------------------
 
 check TT_12_terminal_entries_are_skipped_never_removed {
-  GroveGrammar implies always {
+  GroveGrammar and CurrentRootThroughout implies always {
     (Sys.act' = Select and Sys.res' = Reported) implies
       (all o: Sys.got' | o.nm.fOut = LiveI)
     // skipping is not deletion: no grove action takes a terminal entry off disk.
@@ -929,7 +1278,7 @@ check TT_12_terminal_entries_are_skipped_never_removed {
 /* A walk crossing a WHOLLY terminal node: the node holds entries, none of them
    live, it precedes the selection, and it is still on disk. */
 run witness_TT_12_the_walk_crosses_a_wholly_terminal_node {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Select and Sys.res' = Reported and
     (some n: entries, o: Sys.got' | {
        n.nm.fSpec = NodeSp
@@ -942,7 +1291,7 @@ run witness_TT_12_the_walk_crosses_a_wholly_terminal_node {
 // --- TT-13: finish is reserved, not blocking -------------------------------
 
 check TT_13a_a_live_finish_leaf_is_skipped_while_ordinary_work_is_live {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Select and not halted and some liveOrdinary) implies
       no (Sys.got' & liveFinish))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
@@ -951,19 +1300,19 @@ check TT_13a_a_live_finish_leaf_is_skipped_while_ordinary_work_is_live {
    finish leaf sits at an earlier position than live ordinary work, so a walk
    that merely took the first live leaf would return it. */
 run witness_TT_13a_a_finish_leaf_earlier_than_live_work_is_skipped {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Select and Sys.res' = Reported and
     (some fl: liveFinish, o: Sys.got' | precedes[fl, o]))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 check TT_13b_the_finish_leaf_is_returned_when_it_is_the_only_live_leaf {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Select and not halted and no liveOrdinary and some liveFinish)
       implies (Sys.res' = Reported and one Sys.got' and Sys.got' in liveFinish))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 run witness_TT_13b_the_finish_leaf_is_the_only_live_leaf {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Select and Sys.res' = Reported and
               Sys.got' in liveFinish and some terminalInfix & entries.nm.fOut)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
@@ -973,7 +1322,7 @@ run witness_TT_13b_the_finish_leaf_is_the_only_live_leaf {
    entry-local reason holds — both finish leaves are individually well formed,
    and there is nothing to name but the tree. */
 check TT_13c_two_live_finish_leaves_malform_the_whole_tree {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     rMultipleLiveFinish implies {
       halted
       (Sys.act' in groveActs + observeActs) implies
@@ -984,7 +1333,7 @@ check TT_13c_two_live_finish_leaves_malform_the_whole_tree {
 /* Two individually well-formed live finish leaves in DIFFERENT subtrees, and no
    other malformity anywhere: nothing is wrong with either entry. */
 run witness_TT_13c_two_well_formed_live_finish_leaves_in_different_subtrees {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   rMultipleLiveFinish
   not (rMalformedEntry or rSpeciesMismatch or rPositionsNotGapless
        or rKeyReissued or rNodeWithoutCharter)
@@ -998,7 +1347,7 @@ run witness_TT_13c_two_well_formed_live_finish_leaves_in_different_subtrees {
    key, not the slug, not the kind, not the order they were created in.  The
    mutation that breaks it is a walk that prefers the smallest key. */
 check TT_14_position_and_terminality_are_the_only_mechanisms {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Select and Sys.res' = Reported) implies
       (all o: Sys.got', p: eligible - o | p.loc = o.loc implies o.nm.fPos < p.nm.fPos))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
@@ -1008,7 +1357,7 @@ check TT_14_position_and_terminality_are_the_only_mechanisms {
    positions of two live leaves while keeping every other part of both names,
    select again — and a different leaf comes back.  Nothing but the order moved. */
 run witness_TT_14_two_orderings_of_the_same_work_select_differently {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   some disj a, b: FileObj |
     eventually {
       Sys.act = Select and Sys.res = Reported and Sys.got = a
@@ -1032,7 +1381,7 @@ run witness_TT_14_two_orderings_of_the_same_work_select_differently {
 // told apart by the reported value alone.
 
 check TT_15a_selection_on_a_spent_tree_reports_empty {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Select and not halted) implies {
       noTreeChange
       Sys.res' in observations                 // never a refusal
@@ -1044,13 +1393,13 @@ check TT_15a_selection_on_a_spent_tree_reports_empty {
 /* A SPENT tree, not an empty one: entries exist and every one of them is
    terminal.  An empty tree would satisfy the claim for the wrong reason. */
 run witness_TT_15a_a_spent_tree_reports_empty {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Select and Sys.res' = Empty and
               some entries and no liveLeaves)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 check TT_15b_a_resolution_matching_nothing_reports_empty {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Resolve and not halted) implies {
       noTreeChange
       Sys.res' in observations
@@ -1063,12 +1412,12 @@ check TT_15b_a_resolution_matching_nothing_reports_empty {
 /* Matching nothing on a POPULATED tree — the reference is well formed and simply
    names no entry. */
 run witness_TT_15b_a_resolution_matching_nothing_reports_empty {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Resolve and Sys.res' = Empty and some entries)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 check TT_15c_a_resolution_matching_several_reports_ambiguous {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Resolve and not halted) implies {
       noTreeChange
       (one Sys.got')  iff (Sys.res' = Reported)
@@ -1080,14 +1429,14 @@ check TT_15c_a_resolution_matching_several_reports_ambiguous {
 /* Several matches from a bare SLUG: a key resolves at most one entry, so this
    outcome exists only because a slug is not an identity. */
 run witness_TT_15c_a_bare_slug_matching_several_reports_ambiguous {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Resolve and Sys.res' = Ambiguous and no Query.qKey)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 // --- TT-16: a resolved terminal entry is never mistaken for live -----------
 
 check TT_16a_a_resolved_done_entry_is_reported_terminal {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Resolve and Sys.res' in (Reported + Ambiguous)) implies {
       all o: Sys.got' | o.nm.fOut = DoneI implies o in Sys.gotTerm'
       no (Sys.gotTerm' & liveLeaves)
@@ -1095,13 +1444,13 @@ check TT_16a_a_resolved_done_entry_is_reported_terminal {
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 run witness_TT_16a_a_resolved_done_entry {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Resolve and Sys.res' = Reported and
     (some o: Sys.got' | o.nm.fOut = DoneI and o in Sys.gotTerm'))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 check TT_16b_a_resolved_abandoned_entry_is_reported_terminal {
-  GroveGrammar implies always (
+  GroveGrammar and CurrentRootThroughout implies always (
     (Sys.act' = Resolve and Sys.res' in (Reported + Ambiguous)) implies {
       all o: Sys.got' | o.nm.fOut = AbandonedI implies o in Sys.gotTerm'
       no (Sys.gotTerm' & liveLeaves)
@@ -1109,21 +1458,242 @@ check TT_16b_a_resolved_abandoned_entry_is_reported_terminal {
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 run witness_TT_16b_a_resolved_abandoned_entry {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = Resolve and Sys.res' = Reported and
     (some o: Sys.got' | o.nm.fOut = AbandonedI and o in Sys.gotTerm'))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 // ===========================================================================
+// CLAIMS — TT-17 .. TT-20, the root-identity scope
+//
+// WHAT SEPARATES THESE FROM EVERYTHING ABOVE.  `TT-01` .. `TT-16` are stated
+// over a tree grove may act on at all, which is what `CurrentRootThroughout`
+// says out loud.  These four are stated over the roots grove may NOT act on —
+// so none of them assumes that bundle, and `rootState` rather than `halted` is
+// the thing they read.
+//
+// WHY `TT-20` NEEDS FOUR STATES AND THE OTHER THREE NEED ONE OR TWO.  Three of
+// the four are claims about ONE state — a classification is a function of the
+// state it classifies — so they run at `1 steps`, exactly as `TT-01`'s do.
+// `TT-19` needs THREE, and the reason is the lasso argument in the README met
+// from a new direction.  Most of TT-19 is refusals, and a refusal changes
+// nothing, so two states would do — but its exception clause is about the
+// MATCHING RECOVERY, and a recovery that settles a witness is a tree change.  At
+// `2 steps` no applied recovery exists, that clause is vacuous, and the mutation
+// aimed at it SURVIVES: the check reports green exactly as it would if the
+// mutation had been caught and forgiven.  `TT-20` is the first claim in this scope about an action
+// INTERRUPTED PART-WAY — scaffold, crash, and the stable state the crash left
+// behind — and that is THREE states, not more: the README's `3 steps` argument
+// reaches it after all, and the witness is what shows so, finding an instance
+// at 3 and none at 2.  Its CHECK runs at 4, because the check is the thing that
+// wants room the witness does not: a fourth state admits an initialisation
+// followed by an ordinary mutation, which is where a premature witness would
+// have somewhere to appear.
+// ===========================================================================
+
+// --- TT-17: format is decided by the witness's content ---------------------
+
+/* Two conjuncts, and the second is the falsifiable one.  The first says which
+   family each witness content lands in; a classification that read a task
+   entry's text would still satisfy it on the tree it was tuned for.  The second
+   is what a hand edit cannot do: change every name in the tree, leave the
+   witness alone, and the root does not move between families. */
+check TT_17_format_is_decided_by_the_witness_content_alone {
+  GroveGrammar implies always {
+    no Slot.occ implies {
+      (no Fmt.fmt)           iff (rootState in (LegacyR + PartialScaffoldR))
+      (Fmt.fmt = ForeignFmt) iff (rootState = ForeignR)
+      (Fmt.fmt = CurrentFmt) iff (rootState in (MalformedR + currentFamily))
+    }
+    (Sys.act' = HandEdit and Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ)
+      implies familyOf[rootState'] = familyOf[rootState]
+  }
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* The catalogue's witness: a LEGACY tree whose entries would otherwise read as
+   current work.  Every entry is a canonical, known-kind, current-grammar name,
+   the tree does not halt, and a reader that classified by looking at the entries
+   would call it `Current(Live)`.  It is `Legacy`, because the witness says so
+   and nothing else is consulted. */
+run witness_TT_17_a_legacy_tree_whose_entries_read_as_current_work {
+  GroveGrammar
+  no Slot.occ and no Fmt.fmt
+  not halted
+  some liveOrdinary
+  not isPartialScaffold
+  rootState = LegacyR
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
+
+// --- TT-18: classification order is fixed ----------------------------------
+
+/* Reserved-witness classification precedes format classification, which
+   precedes anything the walk derives — and `PartialScaffold` precedes `Legacy`.
+   The last conjunct is the one that makes it an ORDER rather than a list: a
+   root reaches `Malformed` only when the two classifications ahead of it have
+   both passed, so a halted tree under a reserved witness is `Reserved`. */
+check TT_18_classification_order_is_fixed {
+  GroveGrammar implies always {
+    some Slot.occ implies rootState = ReservedR
+    (no Slot.occ and no Fmt.fmt)           implies rootState in (PartialScaffoldR + LegacyR)
+    (no Slot.occ and Fmt.fmt = ForeignFmt) implies rootState = ForeignR
+    (no Slot.occ and isPartialScaffold)    implies rootState = PartialScaffoldR
+    rootState = MalformedR implies (rootClear and halted)
+    rootState in currentFamily implies (rootClear and not halted)
+  }
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
+
+/* The catalogue's witness: a tree carrying BOTH a reserved witness and no
+   format witness, reported as the former.  Format classification would call it
+   `Legacy` and the walk would call it live; neither runs. */
+run witness_TT_18_a_reserved_witness_over_a_witnessless_root_reports_reserved {
+  GroveGrammar
+  some Slot.occ
+  no Fmt.fmt
+  some liveOrdinary
+  rootState = ReservedR
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
+
+// --- TT-19: a reserved witness refuses everything else ---------------------
+
+/* Every observation and mutation refuses, the tree is byte-identical, the
+   refusal NAMES the witness, and it names the operation that can recover it —
+   except when the occupant is one grove cannot classify, which names no
+   recovery at all.  Telling an operator to run a recovery against someone
+   else's bytes is exactly the fail-closed violation the two reasons are split
+   to prevent. */
+check TT_19_a_reserved_witness_refuses_everything_but_its_matching_recovery {
+  GroveGrammar implies always (
+    some Slot.occ implies {
+      (Sys.act' in groveActs + observeActs + InitScaffold + InitPublish) implies {
+        Sys.res' = RefWitnessPending
+        Sys.pending' = Slot.occ
+        noTreeChange
+        no Sys.got' and no Sys.gotTerm'
+      }
+      (Sys.act' in Recovery and Sys.act' not in recoveryFor[Slot.occ & WitnessClass])
+        implies (Sys.res' = RefWitnessPending and noTreeChange)
+      (Sys.res' = RefWitnessPending) implies
+        Sys.recov' = recoveryFor[Slot.occ & WitnessClass]
+    })
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* The catalogue's witness: a `Reserved(Preparing)` tree whose ordinary entries
+   are all still in place, which therefore looks PERFECTLY WALKABLE — current
+   format, no malformity, live work waiting — and whose `select` refuses
+   anyway, naming the witness and `RecoverPreparing`. */
+run witness_TT_19_a_preparing_witness_over_a_perfectly_walkable_tree {
+  GroveGrammar
+  always (Slot.occ = Preparing and Fmt.fmt = CurrentFmt)
+  not halted
+  some liveOrdinary
+  eventually (Sys.act' = Select and Sys.res' = RefWitnessPending
+              and Sys.pending' = Preparing and Sys.recov' = RecoverPreparing)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* The exception, so that "except the matching recovery" is not green for want of
+   a recovery that ever applies.  Three states, for the reason the check needs
+   three: an applied recovery is a tree change. */
+run witness_TT_19_the_matching_recovery_is_admitted_and_settles_the_witness {
+  GroveGrammar
+  eventually (Sys.act' = RecoverPublished and Sys.res' = Applied
+              and Slot.occ = Published and after no Slot.occ)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+// --- TT-20: the format witness lands last ----------------------------------
+
+/* Four conjuncts.  The first two are *lands last*: the scaffold step never
+   publishes, and publication happens only onto a complete scaffold.  The third
+   is *no premature marker* — while the transaction is open there is no witness
+   to observe, torn or otherwise.  The fourth is what the interruption LEAVES:
+   never `Current(*)`, and never `Legacy`. */
+check TT_20_the_format_witness_lands_last {
+  GroveGrammar implies always {
+    (Sys.act' = InitScaffold and Sys.res' = Applied) implies no Fmt.fmt'
+    (Sys.act' = InitPublish and Sys.res' = Applied) implies {
+      isPartialScaffold and no Fmt.fmt
+      after (Fmt.fmt = CurrentFmt)
+    }
+    some inFlight implies no Fmt.fmt
+    (no inFlight and no Slot.occ and no Fmt.fmt and isPartialScaffold) implies {
+      rootState = PartialScaffoldR
+      rootState not in currentFamily
+      rootState != LegacyR
+    }
+  }
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 4 steps
+
+/* The catalogue's witness: scaffold, interrupt, and the STABLE root the
+   interruption left.  What makes the last state stable rather than transient is
+   the crash — the transaction is closed, so an ordinary invocation may observe
+   it — and that is `EN-08`'s whole content.  Three states exactly: it finds no
+   instance at 2. */
+run witness_TT_20_an_interrupted_initialisation_leaves_a_partial_scaffold {
+  GroveGrammar
+  eventually {
+    Sys.act = InitScaffold and Sys.res = Applied and some inFlight
+    Sys.act' = Crash
+    after (no inFlight and no Fmt.fmt and isPartialScaffold
+           and rootState = PartialScaffoldR)
+  }
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* The other half, so the check above is not green for want of an initialisation
+   that ever completes: scaffold, publish, and a `Current(Live)` root.  Three
+   FOUR states, and the reason is one more than the interrupted case needs: the
+   crash IS the third state, while the publish must be followed by a state in
+   which the published root is observed.  It finds no instance at 3. */
+run witness_TT_20_an_uninterrupted_initialisation_publishes_the_witness {
+  GroveGrammar
+  eventually (Sys.act' = InitPublish and Sys.res' = Applied
+              and after (Fmt.fmt = CurrentFmt and rootState = CurrentLiveR))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 4 steps
+
+
+// ===========================================================================
+// THE ALLOY-OWNED ASSUMPTION MUTATIONS THIS SLICE RUNS
+//
+// `models/run.sh`'s two inverted forms.  `expect_fail_` must find a
+// counterexample; `expect_unreachable_` must find none.  They are inverted
+// deliberately: a mutation whose control is "this named obligation fails"
+// cannot be reported by a runner that treats every failing check as a defect.
+// ===========================================================================
+
+/* EN-04 — counterfactual-capability: THERE IS NO ATOMIC REPLACEMENT OF A FILE
+   BY A DIFFERENTLY NAMED DIRECTORY, and the candidate grants one.  This model
+   already carries the candidate: promotion is one step, which the abstraction
+   table records.  The control is therefore that the capability is really in
+   force — the half-applied promotion the incumbent would expose is unreachable
+   — and the retained obligations `TT-07`, `TT-08` and `TT-09` are green beside
+   it in this same file, at no wider bound.
+   `TT-02.b`'s witness lands by hand edit rather than through a half-promoted
+   entry, which is the exercised half: see `witness_TT_02b_node_name_at_a_file`. */
+run expect_unreachable_EN_04_promotion_is_never_observed_half_applied {
+  GroveGrammar and CurrentRootThroughout
+  eventually (Sys.act = Decompose and Sys.res = Applied and Sys.tgt in onDisk)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* EN-12 — premise-break: A NAME RENDERS AS EXACTLY ONE PATH COMPONENT.  Drop it
+   and rendering becomes many-to-one, so two accepted spellings reach one entry
+   and `TT-01.a` fails — which is the assumption table's stated expected result.
+   The bundle is `ParseIsCanonical and GrammarIsTotal` rather than
+   `GroveGrammar`, because `GroveGrammar` is what carries `EN_12`. */
+check expect_fail_EN_12_TT_01a_a_name_that_renders_as_two_components {
+  ParseIsCanonical and GrammarIsTotal and CurrentRootThroughout implies
+    (all disj f, g: entryName | not denotesSame[f, g])
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
+
+
+// ===========================================================================
 // VACUITY GUARDS
 //
-// Every check above has the form `GroveGrammar implies P`.  If the law bundle
+// Every check above has the form `GroveGrammar and CurrentRootThroughout
+// implies P`.  If the law bundle
 // were unsatisfiable over a populated tree, every one of them would pass for no
 // reason at all.
 // ===========================================================================
 
 run witness_vacuity_the_law_bundle_admits_a_working_grove {
-  GroveGrammar
+  GroveGrammar and CurrentRootThroughout
   eventually (Sys.act' = AddLeaf and Sys.res' = Applied)
   eventually (Sys.act' in (Retire + Prune) and Sys.res' = Applied)
   some entries

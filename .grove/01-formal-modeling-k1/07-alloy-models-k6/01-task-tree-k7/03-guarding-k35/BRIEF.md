@@ -1,12 +1,12 @@
-# guarding-k35
+# guarding-k35 — brief
 
 
 ## Goal
 
 Extend `crates/grove-task-tree/models/task-tree.als` to the root-identity and
 guarding claims `TT-17` – `TT-25`, and run the Alloy-owned `EN-` assumption
-mutations that control them. This is the last leaf of `task-tree-k7`: when it
-retires, the Alloy column of the task-tree scope is complete and only the Quint
+mutations that control them. This is the last subtree of `task-tree-k7`: when it
+closes, the Alloy column of the task-tree scope is complete and only the Quint
 column (`quint-models-k10`) is empty.
 
 
@@ -77,6 +77,37 @@ control. Run those two against the named witness sets rather than the whole file
 - The family `README.md` records the new bounds, any new abstraction, and the
   witness bound at which each new obligation first lands.
 - Material observations are appended to Experiment 2 as entry 028.
+
+
+## Decomposition
+
+Three sessions, cut along the **machinery** each claim group needs rather than
+along the claim numbers, exactly as `task-tree-k7` cut this level. Each child
+leaves `task-tree.als` green for the obligations it claims and the runner able
+to say which cells are still empty, so no child is dead until its siblings land.
+Only the first is cut now; each session cuts the next one as its last act, once
+the model's actual shape at that point is known.
+
+1. `roots` — root identity: `TT-17` – `TT-20`. Adds the `Witness` species, the
+   witness's *content* as what classification reads, the fixed classification
+   order, and `crash` between two filesystem steps (which is why root
+   initialisation cannot be one step the way promotion is). Owns `EN-04` and
+   `EN-12`, both of which are premise/counterfactual mutations over claims that
+   are already green and need no new machinery.
+2. `guards` — guards and bulk marks: `TT-21` – `TT-23`. Adds concurrency: an
+   operation with a duration, a shared/exclusive lock taken on the working-tree
+   root, the single listing an operation classifies from, and a bulk mark's
+   plan. Owns `EN-07`, `EN-14`, and `EN-08` — the last because `crash`'s removal
+   controls `TT-20`'s witness *and* `TT-23.b`'s, so it runs once both exist.
+3. `ownership` — fail-closed ownership and derived done-ness: `TT-24`, `TT-25`.
+   Adds `Blocked`, and whatever the reserved-name-occupancy question settles to.
+   Owns `EN-11`, which runs last because removing `doHandEdit` makes a great
+   many of the file's witnesses unreachable and that is its stated control.
+
+The `Notes` below are the whole subtree's, and each names the child it lands on:
+the wider trace bound is `roots`' (`TT-20`) and `guards`' (`TT-23.b`); the
+`Blocked` question is `ownership`'s; the antecedent-narrowing trade is every
+child's.
 
 
 ## Notes

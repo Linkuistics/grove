@@ -3258,6 +3258,198 @@ guesses are not.
 
 ---
 
+### 028 — Four obligations, one model defect, and a vacuity whose cause was the bound (task-tree root identity)
+
+**Scope.** Task tree, **component-local** (`crates/grove-task-tree/models/`).
+`TT-17` – `TT-20`: format decided by the witness's content, the fixed
+classification order, the reserved witness that refuses everything else, and the
+format witness landing last. `TT-21` – `TT-25` are the `guards` and `ownership`
+leaves'. Assumption mutations `EN-04` and `EN-12` were run here; `EN-07`, `EN-08`
+and `EN-14` are `guards`', `EN-11` is `ownership`'s.
+
+**Independence protocol: held.** No Quint model of this subject exists. Neither
+`docs/ordinal-fs-tree/models/operations.qnt` nor any Quint file was opened.
+
+**Situation.** The third slice of the same Alloy 6 file, and the first whose
+subject is the task root *itself* rather than what is inside it. Entries 026 and
+027 left `TT-01` – `TT-16` green over a tree with no identity at all: `TaskRoot`
+was a bare atom, always present, carrying no name, no content and no
+classification. This slice gives it a format witness whose **content** decides,
+a reserved slot, an initialisation that is two filesystem steps, and a `crash`
+between them.
+
+**The leaf that was mandated was decomposed before any of it was written.**
+`guarding-k35` charters `TT-17` – `TT-25` — sixteen obligations and four
+independent machinery layers — against two retired siblings that spent a whole
+session each on ten and six. It became a node; this entry is its first child.
+**M5 is therefore reported per obligation and not per leaf**, and the
+decomposition itself is a datum about modelling cost: the unit that fits a
+session here is *one machinery layer*, not *one claim group*.
+
+**Caught: one, and it is about the model rather than about grove or the
+catalogue.** `InitScaffold` — root initialisation's first filesystem step — was
+written with its own guard and no root cascade at all, so on a tree holding a
+reserved witness it refused with `RefNotAnEntry`: a refusal naming nothing and
+recovering nothing. `TT-19`'s check found it in **7s**, on the first run of the
+command. The fix is a split that the catalogue implies and the model had elided:
+initialisation runs the **reserved** half of the cascade and not the **format**
+half, because a witnessless root is what it is *for*. That split is `TT-18`'s
+ordering made operational.
+
+It is a **model defect, not a product defect**, so by the counting rule it is not
+material — but it is the first counterexample in three slices that a *solver*
+found rather than a mutation, and that is worth separating from the miss column.
+`TT-19` is a claim of the form *every operation, without exception, does X*, and
+the class of defect it catches is **an operation nobody thought of as an
+operation**. Prose review of the same change would have to enumerate the action
+set correctly to catch it; the check quantifies over the action set by
+construction. **`M4 = none` (no material finding). One non-material catch, at
+7s.**
+
+**Two findings about the catalogue's own margins, both recorded rather than
+resolved here.**
+
+*`TT-17` is only half checkable, and the checkable half had to be found.* Stated
+literally — *classification depends only on the format witness, never on any task
+entry's text* — the first half is true by construction of any classification
+function written from the witness, so a command restating it cannot fail. What
+*can* fail is the temporal half: a hand edit that changes every name in the tree
+and leaves the witness alone must not move the root between format families. That
+is the conjunct the mutation breaks, and without it `TT-17` would have joined
+`TT-11` in the README's *answered by construction* paragraph. **The general
+shape: a claim of the form "X depends only on Y" is checkable only as "changing
+not-Y does not change X".**
+
+*`EN-12` had nowhere to be false.* *A name renders as exactly one path component*
+is supplied for free by a model that has no paths — a `Filename` in a directory,
+and the filesystem fact that names are unique per directory. The assumption
+table's `controls` column forbids a blank cell, so the mutation needed a
+mechanism built expressly for it, and `TT-01.a` had to be restated over
+*denotation* rather than over *reading* to have somewhere to fail. **An
+assumption a model gets for free is an assumption that model cannot control**,
+and the honest response is to build the mechanism rather than to record the
+assumption as untested — but the cost is real and belongs in the ledger.
+
+**One false-confidence incident (M8), and it is the fifth cumulatively — but the
+first whose cause is the BOUND rather than an unsatisfiable transition.**
+`TT-19`'s mutation — *any recovery settles any reserved witness*, dropping the
+match — **survived**. It was not a survivor. `TT-19` is mostly refusals, and a
+refusal changes nothing, so its check had been written at `2 steps` alongside the
+observation commands; but its exception clause is about the matching *recovery*,
+and an admitted recovery **settles the witness**, which is a tree change. At two
+states no applied recovery exists, the clause was vacuous, and the runner
+reported green exactly as it reports a real survivor. At `3 steps` the mutation
+is caught in 10s. Stood **~4 minutes**.
+
+This is the same lasso argument entry 026 paid for and the README documents, met
+from a direction where it does not look like it applies: **most of the claim was
+a read, and one clause was not.** The four prior incidents were all
+*unsatisfiable mutations*, whose fix is to re-aim the mutation; this one's
+mutation was correct and the command around it was too narrow, so the fix is the
+opposite. The distinction is now in the README, because the two failure modes
+present identically at the runner's interface and are repaired differently.
+
+**Fire evidence, and its asymmetry, stated for the first time.** Entry 027's rule
+— *a mutation is a control only with evidence that it fires* — was applied to all
+four. Two of the four witnesses land under their own mutations. The other two
+cannot, because each asserts the very thing its mutation removes. The evidence
+there is the counterexample itself: **a check that passes can pass for want of a
+reachable situation, while a check that fails has the situation in hand.**
+`TT-20`'s counterexample shows `InitScaffold`, `Applied` and `CurrentFmt` in one
+state, which is the mutated transition executing.
+
+**Cost.** Authoring ≈ **2 h 20 m** for 4 obligations (**M5**: 0.58 h/obligation,
+against 0.18 for the selection slice and a markedly higher rate for the name
+algebra). The ratio is the point: **this slice's cost is machinery, not claims.**
+Four obligations needed a witness species, a witness content, a classification
+order, a two-step transaction, a transaction-open state, an interruption action,
+three recovery actions, three refusal reasons and two new `Sys` fields — against
+the selection slice's one walk and two read transitions for six obligations.
+**M6 synchronization: 0.** No second family exists yet.
+
+**M7 — state-space and tooling, and this slice's is a cost imposed on work
+already done.** Adding the root layer nearly doubled `TT-03`'s check —
+already the file's tightest command, run one filename short of its neighbours —
+from **68s to not finishing at all** until the antecedent was narrowed. The cause is not the new claims: it is that four new
+transitions (`InitScaffold`, `InitPublish`, `Crash`, and three recoveries) are
+encoded into **every** trace the solver searches, including traces of commands
+whose guards those transitions can never pass. The repair is the trade the README
+already records — narrow the antecedent, not the bound — spelled as an explicit
+`CurrentRootThroughout` bundle every earlier command now carries: current format,
+no reserved witness, no transaction in flight, and no root-lifecycle action.
+`TT-03` came back at **122s**.
+
+The whole-scope figure is the one to carry: **2581s CPU for 59 commands became
+3648s for 71 — +41% CPU for +20% more commands**, and none of the added 41% is
+spent on the new claims.
+
+**The generalisation, and it is the one this entry contributes.** In a
+*temporal* relational model, the cost of a new action is paid by every command in
+the file, not by the commands that mention it. A model built claim-group by
+claim-group therefore has a **superlinear** cost curve unless each slice pins the
+state the earlier slices did not know about — and the pinning is not merely an
+optimisation, because writing it down is what exposed that four earlier
+commands (`TT-02.a`, `TT-02.b`, `TT-03`, `TT-13.c`) had been assuming a
+current-format root all along. `Malformed` is walk-derived, and `TT-18` orders it
+behind reserved-witness and format classification, so on a tree carrying a
+reserved witness the refusal is `WitnessPending` and not `RefMalformed`. The
+arrival of the root layer **exposed** that assumption rather than creating it.
+
+**Counterfactual.** Prose review would have reached `TT-17` and `TT-18` unaided —
+both are transcriptions of a table the catalogue already fixes. It would not have
+reached the `InitScaffold` cascade omission, because that is a defect of
+*enumeration* and the reviewer would have to enumerate correctly to find it. Nor
+would it have reached the `TT-19` bound vacuity, which is not a property of the
+claim at all but of the instrument. **One obligation's worth of value from the
+solver (the catch), one from the mutation pass (the bound), and two
+transcriptions.**
+
+**Verdict.** The pattern from entries 026 and 027 holds and gains a third
+dimension:
+
+- **The solver earned its place once, on the claim shaped *every operation
+  without exception*.** That is the shape worth spending a model on: a universal
+  quantification over a set the author must otherwise enumerate by hand. The two
+  claims that merely fix an order found nothing, as transcriptions do.
+- **Machinery, not claims, is what a modelling session costs.** The unit that
+  fits a session is one machinery layer; `guarding-k35` was decomposed on exactly
+  that observation before a line was written, and this slice's M5 is the evidence
+  it was right.
+- **A green suite decays as the model grows.** Two commands that were fast became
+  one that would not finish, with no claim changed and no defect introduced. A
+  model family checked incrementally needs the *pinning* discipline as a standing
+  rule, not as an optimisation reached for when something stalls.
+
+**The seam, exercised.** `models/run.sh --scope task-tree --family alloy
+--no-coverage` reports **71 of 71** commands passing and exits 0, in **3648s
+CPU** (53m wall on a contended host). Its matrix reads **31 complete cells, 0
+declared gaps, 12 empty, of 43** — and every empty cell is `TT-21` – `TT-25`,
+which is exactly the `guards` and `ownership` leaves' scope and nothing else. No
+command named an obligation the catalogue does not define, and no placement error
+was reported.
+
+**The model, as required per entry.** Alloy 6, `org.alloytools.alloy.dist.jar`,
+Corretto `21.0.12.1+9-LTS`, SAT4J (distribution default), every command with
+`-n`. **Bounds**: `for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug,
+2 Digest` throughout this slice, with `1 steps` for the two classification
+claims, `2` for `TT-19`'s witnesses, `3` for `TT-19`'s check and `TT-20`'s
+interrupted witness, and `4` for `TT-20`'s check and its uninterrupted witness.
+The bound at which **each** witness first lands is tabulated in
+`crates/grove-task-tree/models/README.md`, separately from the bound its check
+ran at. **Fairness**: none assumed; every obligation here is a safety or
+reachability claim and none is an eventuality. **Symmetry**: no `exactly` scope,
+so Alloy's symmetry breaking is free to collapse isomorphic instances — sound for
+the existential witnesses and for the universal checks alike. **Deliberately
+omitted**, beyond the earlier slices' list: the root state `Absent` (`SY-05`'s),
+the witnesses' filesystem placement, the three reserved classes' mechanisms, and
+the bytes a fresh scaffold writes (one opaque digest atom for both scaffolded
+entries). **What a green run does not prove**: everything is about the stated
+bounds — at most 5 objects, 6 filenames, four states, one working tree and one
+cooperating process. `TT-21`'s non-cooperating writer is not excluded by anything
+here and is not this slice's claim.
+
+---
+
 ## Distillation — where each entry landed
 
 `formalism-skill-k38` turned this log into

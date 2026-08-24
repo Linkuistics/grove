@@ -823,11 +823,17 @@ spec, an ADR set, or both; `planning` consumes it and cuts the leaves.
 The positive discriminator for the current session-kind filename grammar, with
 exact LF-terminated content `session-kinds-v1\n`, written last by root
 initialization and migration once the rest of the tree is complete. It is format
-metadata inside the artifact tree, not a phase, status, or counter file; absence
-means legacy and an unknown value means a newer or foreign format that stops
-work without mutation.
+metadata inside the artifact tree, not a phase, status, or counter file; an
+unknown value means a newer or foreign format that stops work without mutation.
+Absence means [[Partial scaffold]] **or** legacy, in that order — a root whose
+contents are exactly a known proper subset of a fresh scaffold is Grove's own
+interrupted `root-init` and is completed, and only a root outside that subset is
+legacy.
 _Avoid_: inferring current format by parsing a filename prefix — a legacy slug
 such as `design-notes` makes that test silently change both kind and handle.
+_Avoid_: "no witness means legacy" as the whole rule — that reading completes
+someone else's legacy tree as though Grove had scaffolded it, which is the
+fail-closed violation [[Partial scaffold]] exists to prevent.
 
 **Node directory** / **node**:
 A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding its numbered children (leaf files and child node directories), headed by a `BRIEF.md` charter; `.grove/` is itself the root node (its charter is `.grove/BRIEF.md`). The filesystem carries the hierarchy, so a name encodes only its *per-level* position — not a global path (task-tree-scheme).
@@ -968,6 +974,47 @@ _Avoid_: a taxonomy of outcomes (`blocked` / `deferred` / `superseded`). `blocke
 expressed by **ordering** and would break the finish trigger if `pick` skipped it (a
 blocked leaf is *live* work); `deferred` is a reorder or a GitHub issue; `superseded`
 differs only in *reason*, which is prose and belongs in the ADR, not the filename.
+
+### Formal contract (docs/specs/semantic-contract.md, Experiment 2)
+
+**Partial scaffold** (`PartialScaffold`):
+A task root that exists, carries no [[Tree format witness]], and whose entries are
+exactly a known **proper subset** of what a fresh scaffold writes: the root
+`BRIEF.md`, and at most one positioned entry, which is the first `requirements`
+leaf at position 1 with key 1 — with those bytes, and nothing else present. It is
+what [[root-init]] leaves behind when it is interrupted before the witness lands,
+and it is classified *before* legacy and completed before any format
+classification runs. The subset is what makes completion safe: every value the
+completion would write is fixed in advance, so completing is a comparison
+followed by at most one append, never an inference about someone else's tree.
+_Avoid_: defining it as "a root with no format witness" — that is the definition
+of legacy, and the two must be told apart or legacy work gets completed.
+_Avoid_: calling it a transient — an interrupted scaffold is a **stable** state
+an ordinary invocation meets and acts on.
+
+**Terminal disposition**:
+In the lifecycle claims, an ending from which the loop has no further admitted
+action of its own. There are exactly two: a **proven successful finish** (the
+exact attempt-bound commit proven and the task root absent), and a **blocked
+tree**, which is terminal because no admitted action clears a block and the only
+exit is an operator action, which is outside the admitted set. A malformed tree
+is *not* one — it is a refusal state a hand edit reaches and a hand edit leaves.
+_Avoid_: reading it as *the loop will reach one* — the claim it serves is
+existential reachability, deliberately not liveness, because nothing in the
+models schedules the operator and no fairness premise is available to grant.
+
+**Obligation** / **sub-identity** (`TT-02.b`):
+The unit of coverage in the semantic contract: a claim with exactly one
+checkable content, addressed by its own permanent identifier. A claim carrying
+several independently reachable cases enumerates them as lettered
+sub-identities, and a claim therefore has either zero of them or at least two.
+The runner's coverage unit is the pair `(family, obligation)` — both model
+families must answer every one, or declare that family's own gap.
+_Avoid_: treating the **claim** as the coverage unit — one witness then makes an
+identifier look covered while its other cases stay unmodelled, which is the
+false confidence the catalogue's whole witness discipline exists to prevent.
+_Avoid_: renumbering a letter — an obligation's identifier is as permanent as a
+claim's, and a retired letter is never reused.
 
 ## Flagged ambiguities
 

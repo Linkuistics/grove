@@ -99,11 +99,43 @@ The `<mnemonic>` is the model author's, and nothing parses it. What is fixed is
 the prefix, because that is what the runner matches to decide whether every
 claim in this document is covered.
 
-A claim a model family cannot express is **declared, not dropped**: the family's
-`README.md` records the identifier, the reason (inexpressible, abstracted away,
-outside bounds, or tool-limited) and what would change the answer. The runner
-counts a declared gap as covered for the coverage assertion and reports it, so
-"not modelled" and "forgotten" never look alike.
+**A claim is not the checkable unit; an obligation is.** Many claims below carry
+several independently reachable cases — two species mismatches, three session
+endings, four handoff revalidations — and a single command answering to the
+claim prefix can make the identifier look covered while every other case stays
+unmodelled. So each claim whose content is **more than one** obligation
+enumerates them, and each enumerated obligation carries its own permanent
+sub-identity `TT-nn.x`, where `x` is a lower-case letter fixed for the life of
+the obligation. The model spelling drops the separator: `TT-02.b` ↔ `TT_02b`.
+
+The enumeration is written in one fixed shape, so extracting it is a match
+rather than a parse. Under a multi-obligation claim:
+
+```md
+*Obligations*:
+- `TT-02.a` — <what must hold>. *Witness*: <what must be reached>.
+- `TT-02.b` — <what must hold>. *Witness*: <what must be reached>.
+```
+
+A claim with exactly **one** obligation carries no letters and keeps a bare
+`*Witness*:` line; the claim identifier is then itself the unit. A claim
+therefore has either zero sub-identities or at least two, and a claim that grows
+a second obligation grows letters at the same moment. **This document is the
+manifest**: the runner reads the obligation lines out of it and requires each
+one to be answered, rather than trusting a mnemonic to imply that a case was
+covered. Renumbering an obligation is a breaking change to every citation of it,
+exactly as it is for a claim identifier, so a retired obligation's letter is
+retired with it and never reused.
+
+An obligation a model family cannot express is **declared, not dropped**: the
+family's `README.md` records the identifier — claim or sub-identity — the reason
+(inexpressible, abstracted away, outside bounds, or tool-limited) and what would
+change the answer. A declared gap is **per family**: the other family is not
+excused by it, and a gap declared on both sides is a finding about the catalogue
+rather than a covered obligation, so the runner reports the count of
+both-family gaps separately. The runner counts a declared gap as covered *for
+the family that declared it* and reports it, so "not modelled" and "forgotten"
+never look alike.
 
 ### Model paths and the runner
 
@@ -142,11 +174,24 @@ beyond running commands:
 2. **Fail on zero work.** A model file no runner reaches, a command set that is
    empty, a witness that never lands, and a verification step that was skipped
    are each a runner failure that names itself.
-3. **Assert claim coverage in both directions.** Every identifier in this
-   document must be answered by a command or a declared gap in at least one
-   family, and every `TT_`/`FN_`/`SY_`-prefixed command in either family must
-   name an identifier this document defines. One direction catches a claim
-   nobody modelled; the other catches a command answering to no claim.
+3. **Assert obligation coverage in both directions, per family.** The unit is
+   the pair `(family, obligation)`, where an obligation is a claim with no
+   sub-identities or one lettered sub-identity of a claim that has them. For
+   **each** of the two families independently: every obligation in this document
+   must be answered by a property command plus each witness that obligation
+   requires, or by that family's own declared gap; and every
+   `TT_`/`FN_`/`SY_`-prefixed command in that family must name an obligation
+   this document defines. One direction catches an obligation nobody modelled;
+   the other catches a command answering to nothing.
+
+   **Per family** is the load-bearing half. The node brief requires two
+   independently constructed families that each cover all three scopes; a
+   coverage rule satisfied by either family alone lets one of them omit a claim
+   entirely and still report green, which is the divergence the comparison would
+   then be measuring instead of the formalisms. The runner therefore reports a
+   coverage matrix over `(family, obligation)` and fails on any empty cell that
+   is not a declared gap, and the evidence record below is written per pair, not
+   per claim.
 
 It delegates to the two existing `ordinal-fs-tree` runners rather than
 absorbing them, which also gives it a positive control: those suites are known
@@ -155,9 +200,12 @@ anywhere else is reporting a broken instrument.
 
 ### Evidence, and where it is recorded
 
-Per claim, per run, the runner records: identifier, family, exact command,
-bound or trace limit, solver or backend, outcome, the bound at which the
-claim's witness **first** appears, and wall-clock. The witness bound is
+Per `(family, obligation)`, per run, the runner records: obligation identifier,
+family, exact command, bound or trace limit, solver or backend, outcome, the
+bound at which that obligation's witness **first** appears, and wall-clock. The
+pair is the row key, so a claim with four obligations produces eight rows across
+the two families and a missing one is visible as a missing row rather than as an
+averaged-away absence. The witness bound is
 separate from the check bound on purpose — the pre-registration's *scope trap*
 hazard is a bound too small to reach the defect, and a claim whose witness first
 lands at the bound it was checked at has no margin.
@@ -178,19 +226,70 @@ trace trimmed to the transition that matters.
 [`TODO.finish_process.md`](../../TODO.finish_process.md) asks four questions that
 `formal-synthesis-k16` must answer *keep*, *delete/replace* or *defer* with
 evidence — and "the model is smaller" is explicitly not evidence. The catalogue
-fixes which claims decide each, so the answer is read off the models rather than
-argued:
+fixes which obligations decide each, so the answer is read off the models rather
+than argued — but fixing that required separating two kinds of claim first.
 
-| question | decided by | what would classify it *delete/replace* |
+**Strategy-neutral safety, separated from incumbent mechanics.** A question that
+asks whether a mechanism should exist cannot be decided by claims that *are* that
+mechanism: a candidate protocol would violate the catalogue by construction and
+the question would answer itself. So every `FN-` claim carries a **class**, and
+the classes are what the questions are decided against:
+
+| class | meaning | may a candidate protocol contradict it? |
 |---|---|---|
-| **Q1 — does the quarantine need to exist?** | `FN-19`, `FN-20`, `FN-21`, `FN-24` | a disposal-in-place protocol under which every interruption still lands in exactly one stable state, with `FN-24`'s witness reached at the same bound |
-| **Q2 — can the three dispositions become two?** | `FN-15`, `FN-25`, and the lane table | `Indeterminate` unreachable on a lane, shown by a witness that never lands under a bound where the neighbouring witnesses do |
-| **Q3 — is the marker-replacement sub-transaction reachable?** | `FN-21`, `FN-22` | no reachable state in which disposal must *replace* rather than create or remove its marker |
-| **Q4 — what does finish still owe the user?** | `FN-27`, `FN-28`, `SY-05` | a claim whose only content is protecting Grove's own intermediate artifacts, which drops with the artifact |
+| **shared safety** | a property any admissible finish protocol must have, stated without naming a mechanism | no — contradicting one disqualifies the candidate |
+| **incumbent mechanics** | how *today's* protocol achieves the shared safety properties | yes — this is what a candidate replaces |
+
+A candidate is checked against the shared-safety claims **only**, at the bounds
+the incumbent reached them at. The incumbent-mechanics claims stay in the
+catalogue and stay checked for the incumbent; they are not evidence about a
+candidate either way.
+
+Each question therefore names the shared-safety claims a candidate must **retain**,
+the incumbent mechanics it is allowed to **replace**, and the evidence that
+classifies it. Where the deciding evidence is a reachability fact about an
+incumbent transition (Q3), it is still read only while every retained claim is
+green — the reachability answers *is this needed*, and the retained claims answer
+*is the answer safe*.
+
+| question | shared safety retained | incumbent mechanics at stake | what would classify it *delete/replace* |
+|---|---|---|---|
+| **Q1 — does the quarantine need to exist?** | `FN-20`, `FN-24`, `FN-27`, `TT-24` | `FN-19`, `FN-21`, `FN-31` | both candidate strategies — the incumbent quarantine handoff, and disposal-in-place under `relax_EN_03` — checked against the shared-safety claims, and disposal-in-place holding every one of them with each of `FN-24`'s obligations' witnesses reached at a bound no greater than the incumbent's |
+| **Q2 — can the three dispositions become two?** | `FN-15`, `FN-25` | — | `FN-15.d`'s bounded-unreachability check passing for `Indeterminate` on a lane, at a bound strictly greater than the one at which `FN-15.b` and `FN-15.c` first land their witnesses, in **both** families |
+| **Q3 — is the marker-replacement sub-transaction reachable?** | `FN-24` | `FN-31`, `FN-21`, `FN-22` | `FN-31.a`'s bounded-unreachability branch establishing that no state requires a *replace* rather than a create or a remove, at a bound strictly greater than the one at which `FN-21.a` and `FN-31.b` first land their witnesses, in **both** families. `FN-31.a`'s witness merely failing to land is a `defer`, for the reason Q2 gives |
+| **Q4 — what does finish still owe the user?** | `FN-27`, `FN-28`, `SY-05` | every artifact and transition in the matrix below | a row of the removal matrix whose artifact or transition can be removed without breaking **any** shared-safety claim |
+
+**Q2 needs an instrument, not an absent witness.** "The witness never landed" and
+"no trace reaches it" are different statements, and only the second decides
+anything: an unlanded witness is equally consistent with a bound too small, which
+is the pre-registration's *scope trap*. `FN-15.d` therefore requires an explicit
+**bounded-unreachability check** per lane — Alloy a `check` over the full scope
+that no state carries the disposition, Quint an exhaustive run to the same depth
+— and what it can decide is bounded by its own bound and says so: it is evidence
+that the disposition is unreachable *within* B, never a proof that it is
+unreachable. Delete/replace requires that evidence at a bound strictly greater
+than the neighbours' first-witness bounds, in both families; anything weaker is
+**defer**.
+
+**Q4 needs a matrix, not a claim.** No claim in this catalogue classifies a
+transition by *what it protects*, so Q4 cannot be read off one. What decides it
+is an **artifact/transition removal matrix**, recorded in
+`crates/grove-finish/models/README.md` by each family: one row per removable
+artifact or transition — the reserved witness, the evacuation manifest, its ready
+mark, the correlation ticket, the quarantine, the cleanup marker, the replace
+transition, the index image, the recorded anchor, the deletion fingerprint —
+naming the **first shared-safety obligation** its removal breaks under the
+mutation discipline, or `none`. A row reading `none` in both families is Q4's
+evidence for delete/replace; a row naming an obligation is evidence the artifact
+is protecting the user rather than Grove. The matrix is a runner obligation like
+any other: a removable artifact with no row fails the run.
 
 A question whose deciding witness is never reached is **defer**, not delete: an
 unreached witness is an absence of evidence, and the pre-registration's
-*vacuous invariant* hazard is exactly the habit of reading one as the other.
+*vacuous invariant* hazard is exactly the habit of reading one as the other. The
+only exception is a check that positively establishes unreachability within a
+stated bound, which is a different instrument and is named as one wherever it
+decides something.
 
 ## Vocabulary
 
@@ -262,9 +361,10 @@ of a live leaf anywhere beneath it, and it is never marked.
 | `Reserved(Preparing)` | a finish witness built but not published |
 | `Reserved(Published)` | a finish witness published, holding the evacuated entries |
 | `Reserved(Migrating)` | a session-kind migration interrupted mid-flight |
-| `Legacy` | present, no format witness |
+| `PartialScaffold` | present, no format witness, and the contents are exactly a known proper subset of a fresh scaffold |
+| `Legacy` | present, no format witness, and not a partial scaffold |
 | `Foreign(found)` | the format witness holds something else |
-| `Malformed(entry)` | current format, but a task-shaped entry breaks the grammar |
+| `Malformed(reason)` | current format, but a grammar or whole-tree invariant fails |
 | `Current(Live)` | at least one live non-finish leaf |
 | `Current(FinishOnly)` | the only live leaf is the finish sentinel |
 | `Current(Spent)` | no live leaf at all |
@@ -272,6 +372,47 @@ of a live leaf anywhere beneath it, and it is never marked.
 A `Reserved` state may additionally carry a **blocked diagnosis** — see
 [Outcomes](#outcomes) — which is what an interrupted transaction leaves behind
 once recovery has run and could not settle it.
+
+**`PartialScaffold` exists because `TT-20` and `SY-06` need somewhere to land.**
+Root initialisation makes the format witness visible last, so an interruption
+before it lands leaves a present root with no witness — which the classification
+order would otherwise call `Legacy`, and legacy work would then be *completed* as
+though Grove had scaffolded it. The state is therefore defined by an exact,
+closed subset rather than by the absence of the witness:
+
+> the task root exists; it contains no format witness; and its entries are a
+> subset of `{the root charter, exactly one positioned entry, which is the first
+> `requirements` leaf at position 1 with key 1}`, with the charter's and the
+> leaf's bytes equal to what a fresh scaffold writes; and it contains nothing
+> else.
+
+Anything outside that subset — a second positioned entry, a differing byte, a
+foreign entry, a node directory — is **not** a partial scaffold and falls
+through to `Legacy`. The subset is what makes completion safe: every value the
+completion would write is fixed in advance, so completing is a comparison
+followed by at most one append, never an inference about someone else's tree.
+`PartialScaffold` is ordered **before** `Legacy` and, per `SY-06`, is completed
+before any format classification runs.
+
+**`Malformed` carries a reason, not only an entry**, because not every malformity
+is local to one entry. `TT-13` makes two individually well-formed live finish
+leaves malform the *whole tree*, and an entry-shaped state cannot say that. The
+reasons are closed and enumerated:
+
+| reason | what failed |
+|---|---|
+| `MalformedEntry(entry)` | a task-shaped entry does not parse completely, or its session kind is absent or unknown (`TT-03`) |
+| `SpeciesMismatch(entry)` | a name declares a species the on-disk entry is not (`TT-02`) |
+| `PositionsNotGapless(dir)` | a directory's positions are not `1..n` without repetition or gap (`TT-06`) |
+| `KeyReissued(key)` | one key names two entries (`TT-05`) |
+| `MultipleLiveFinish` | more than one live finish leaf exists anywhere in the tree (`TT-13`) |
+| `NodeWithoutCharter(dir)` | a node directory carries no charter |
+
+Every reason is a whole-tree classification and stops every read and mutation,
+which is `TT-03`'s rule generalised: the entry-local ones name the entry so the
+operator can find it, and `MultipleLiveFinish` names the tree because that is
+what is wrong. A model reaching a malformity not on this list is a finding
+about the list, not a licence to invent a seventh.
 
 `Reserved(Migrating)` is in the table because it is a state a tree can be in
 today, and the models must be able to say what an ordinary reader does with one.
@@ -299,9 +440,17 @@ produces a named refusal rather than an absent transition.
 |---|---|---|
 | **Observation** | `select`, `resolve`, `brief-chain`, `kind` | shared |
 | **Tree mutation** | `initialise-root`, `add-leaf`, `add-pair`, `insert-leaf`, `decompose-leaf`, `retire-leaf`, `prune` | exclusive |
-| **Finish** | `allocate-finish-leaf`, `finish-commit`, `recover`, `dispose-quarantine`, `reap-quarantine` | exclusive, plus the repository |
+| **Finish** | `allocate-finish-leaf`, `finish-commit`, `recover`, `dispose-quarantine`, `replace-cleanup-marker`, `reap-quarantine` | exclusive, plus the repository |
 | **Lifecycle** | `acquire-lease`, `layout-preflight`, `open-epoch`, `launch`, `reap`, `close-epoch`, `release-lease` | lease, then epoch |
 | **Environment** | `crash`, `hand-edit`, `foreign-write`, `topology-change`, `confirm` | none — these are the world's |
+
+`replace-cleanup-marker` is in the table rather than folded into
+`dispose-quarantine` because [`TODO.finish_process.md`](../../TODO.finish_process.md)
+Q3 asks whether *replacement* — as against creating a marker or removing one — is
+reachable at all. A model that folds it away answers Q3 by construction, which is
+the shape of a false-confidence incident rather than a finding. `FN-31` is its
+claim; the [deliberate omission](#deliberate-omissions) covers only the marker's
+byte layout.
 
 The environment actions are what make the models behavioural rather than
 structural. `crash` may occur between any two steps of any action; `hand-edit`
@@ -330,10 +479,17 @@ report nothing to standard output (`TT-15`).
 **Refusal reasons**, closed:
 
 `RootAbsent` · `FormatLegacy` · `FormatForeign` · `WitnessPending(class)` ·
-`Malformed(entry)` · `NotLive` · `AlreadyTerminal` · `ReservedKind` ·
-`NotAnEntry` · `DestinationOccupied` · `LayoutUnsupported` · `LeaseHeld` ·
-`EpochStale` · `NoTrackedDeletion` · `RootIdentityChanged` ·
-`UnsupportedEntryType`
+`ReservedNameOccupied(entry)` · `Malformed(reason)` · `NotLive` ·
+`AlreadyTerminal` · `ReservedKind` · `NotAnEntry` · `DestinationOccupied` ·
+`LayoutUnsupported` · `LeaseHeld` · `EpochStale` · `NoTrackedDeletion` ·
+`RootIdentityChanged` · `UnsupportedEntryType`
+
+`WitnessPending` and `ReservedNameOccupied` are the two halves of one situation
+and the split is deliberate: `WitnessPending` is an artifact at a reserved name
+that Grove **can** prove is its own and can name the recovery for, while
+`ReservedNameOccupied` is one it cannot classify at all. Telling an operator to
+run a recovery against someone else's bytes is exactly the fail-closed violation
+`TT-24` exists to prevent, so the second reason names the entry and no recovery.
 
 **Blocked diagnoses**, closed and exhaustive over blocks:
 
@@ -348,7 +504,26 @@ report nothing to standard output (`TT-15`).
   anchor nor the expected result; or an entry is of a type Grove refuses to
   touch.
 
-**These two are a partition the catalogue introduces, and the shipped
+**The partition is over `Blocked` outcomes and nothing else.** `FN-25` states it
+about blocks, not about every unhappy result: a refusal is not a block and
+carries a refusal reason instead, and reading `OwnershipConflict` onto a refusal
+would make the partition neither disjoint nor exhaustive over anything.
+
+**One artifact, three contexts, one decided outcome.** A foreign entry sitting at
+a name Grove reserves is reachable from three places, and the catalogue fixes
+each rather than letting a model choose (`TT-24`):
+
+| context | outcome |
+|---|---|
+| an ordinary tree operation, before any transaction | `Refused(ReservedNameOccupied(entry))` — the tree is byte-identical |
+| inside a finish or recovery transaction | `Blocked(OwnershipConflict)` — a transaction has already mutated, so a block is the honest stable state |
+| the quarantine reaper (`FN-21`) | declines the entry, mutating nothing, and reports it; the sweep continues over entries the reaper *can* prove are Grove's |
+
+The three agree on what matters — nothing foreign is ever mutated — and differ
+only in what the caller can be told, which is a function of how far the caller
+had already gone. `TT-24`'s obligations check all three.
+
+**The two diagnoses are a partition the catalogue introduces, and the shipped
 implementation does not yet draw it.** Today's classification yields three
 commit *dispositions* — `Committed`, `NotCommitted`, `Indeterminate` — and
 gathers under one blocked state both of the cases above. The root brief requires
@@ -369,35 +544,51 @@ Everything the models **grant**. This list is the control for the
 pre-registration's *agreement mistaken for proof* hazard: both families descend
 from this one document, so an error smuggled in as an assumption produces two
 models that agree and a comparison that means nothing. Each assumption is
-therefore **relaxed in at least one model**, in a named instance or scope of its
-own, and the relaxation must break a claim that names it. An assumption whose
-relaxation breaks nothing was carrying no weight and is recorded as such.
+therefore **mutated in at least one model**, in a named instance or scope of its
+own, and each mutation has a stated expected result that the runner checks.
 
-| id | assumption | relaxed by |
+**Three controls, not one.** The mutations below are not all the same experiment,
+and requiring all of them to "break a claim" is wrong for two of the three
+classes — a capability added to test a cheaper protocol is supposed to leave the
+safety claims standing. Every row therefore declares its class:
+
+| class | what the mutation does | expected result |
 |---|---|---|
-| `EN-01` | A same-directory rename is atomic with respect to namespace visibility. | Quint — `relax_EN_01`, a rename observable half-applied |
-| `EN-02` | A rename cannot cross a filesystem boundary. | Alloy — a two-device scope |
-| `EN-03` | There is no atomic recursive directory deletion. | Quint — `relax_EN_03`, disposal as one step (this is Q1's counterfactual) |
-| `EN-04` | There is no atomic replacement of a file by a differently named directory. | Alloy — the promotion structure, inherited from the delegated boundary |
-| `EN-05` | No filesystem transaction can include a version-control commit. | Quint — `relax_EN_05`, commit and evacuation as one step |
-| `EN-06` | Locks are advisory: only cooperating processes are serialized, and a direct edit is outside the guarantee. | Quint — `relax_EN_06`, a non-cooperating writer |
-| `EN-07` | Two open descriptions of one directory do not share a lock. | Alloy — a shared-lock scope, which should reintroduce the deadlock `bulk-marks-are-not-atomic` records |
-| `EN-08` | Interruption may occur between any two steps. Power loss, kernel failure and storage-cache loss are outside the contract. | Both — `crash` is a first-class action, so this assumption is *exercised* rather than relaxed; its complement is the omission list |
-| `EN-09` | A command's exit status is not a receipt: a result may be lost or arrive late. | Alloy — a trace in which the result arrives after the classification |
-| `EN-10` | The names are the counter: key allocation reads the tree, and entries are never removed. | Quint — `relax_EN_10`, an entry removed, which should re-issue a live key |
-| `EN-11` | Any well-formed tree is reachable by hand edit. | Both — `hand-edit` is a first-class action; the relaxation is the *absence* of it, which is the pristine instance |
-| `EN-12` | A name renders as exactly one path component. | Alloy — a rendering that escapes its level |
-| `EN-13` | Foreign entries may appear at any name and are not Grove's to delete. | Quint — `relax_EN_13`, a sweep of a reserved namespace, which should delete bytes a refusal exists to preserve |
-| `EN-14` | The working-tree root exists before the task root and outlives its deletion. | Alloy — a scope in which the root itself is removed |
-| `EN-15` | Confirmation is an operator input Grove cannot verify. | Quint — `relax_EN_15`, a machine-attested confirmation, which should make no claim stronger |
-| `EN-16` | The three lanes differ in mechanism and agree on abstract outcome. | Both — the lane is a model parameter, so every finish claim is checked three times |
+| **premise-break** | removes a capability a claim's correctness rests on | a **named obligation fails**. If every obligation stays green, the assumption was carrying no weight and that is the finding. |
+| **exercise-removal** | removes a dimension the models exercise — an action, a scope, a parameter | **named witnesses become unreachable**, and the property checks stay green. A witness that still lands was not exercising the dimension. |
+| **counterfactual-capability** | *adds* a capability, to ask whether a cheaper protocol is admissible | every **shared-safety** obligation stays green, and the named **incumbent-mechanics** claims are deliberately out of scope for the candidate. A counterfactual capability is never required to falsify the safety property it exists to retain. |
 
-`EN-08`, `EN-11` and `EN-16` are marked *exercised rather than relaxed* because
-their negation is not a smaller world but a different one: a model with no
-`crash` action, no `hand-edit` and one lane is the model this experiment exists
-to avoid. Where an assumption is exercised, the control is that the claims which
-depend on it must **fail** when the action is removed, and that is checked by
-the same mutation discipline as everything else.
+A row's `controls` column names the obligations the expected result is stated
+over. An empty `controls` column is not permitted: if no obligation depends on an
+assumption, the assumption is either unnecessary or a claim is missing, and
+either way it is a finding recorded in the experiment log rather than a blank
+cell.
+
+| id | assumption | class | mutated by | controls | expected result |
+|---|---|---|---|---|---|
+| `EN-01` | A same-directory rename is atomic with respect to namespace visibility. | premise-break | Quint — `relax_EN_01`, a rename observable half-applied | `FN-09.a`, `FN-19`, `FN-24.a`, `TT-20` | `FN-09.a` fails — a published witness is observable half-renamed — and `FN-24.a` fails with it, since the torn state is classifiable as two stable states |
+| `EN-02` | A rename cannot cross a filesystem boundary. | exercise-removal | Alloy — a two-device scope | `FN-08` | with a single-device scope, `FN-08`'s witness — a layout that passes at lease acquisition and fails at the transaction's own operands — is unreachable; the property stays green |
+| `EN-03` | There is no atomic recursive directory deletion. | counterfactual-capability | Quint — `relax_EN_03`, disposal as one step (this is Q1's counterfactual) | retained: `FN-20`, `FN-24`, `FN-27`, `TT-24`. replaced: `FN-19`, `FN-21`, `FN-31` | every retained obligation stays green under the candidate, at bounds no greater than the incumbent's; the replaced claims are not checked against the candidate and their failure under it is not evidence |
+| `EN-04` | There is no atomic replacement of a file by a differently named directory. | counterfactual-capability | Alloy — the promotion structure, inherited from the delegated boundary | retained: `TT-07`, `TT-08`, `TT-09`. exercised: `TT-02.b` | with promotion atomic, `TT-07`, `TT-08` and `TT-09` stay green, and `TT-02.b`'s witness still lands by `hand-edit` (`EN-11`) rather than through a half-promoted entry — which records that `EN-04` buys step count, not safety, and that no claim in this catalogue depends on it |
+| `EN-05` | No filesystem transaction can include a version-control commit. | counterfactual-capability | Quint — `relax_EN_05`, commit and evacuation as one step (this is Q2's counterfactual) | retained: `FN-03`, `FN-15`, `FN-24`, `FN-25`, `FN-27`. replaced: `FN-09`, `FN-11`, `FN-22` | every retained obligation stays green; `FN-15.d`'s bounded-unreachability check passes for `Indeterminate` on every lane, and `FN-25.b` is then exhaustive over one diagnosis — which is the evidence Q2 reads |
+| `EN-06` | Locks are advisory: only cooperating processes are serialized, and a direct edit is outside the guarantee. | exercise-removal | Quint — `relax_EN_06`, a non-cooperating writer | `TT-21.b`, `TT-22` | removing the non-cooperating writer makes `TT-21.b`'s witness unreachable, while `TT-22`'s obligations stay green — which is exactly the content of the assumption, and the reason `TT-21` cannot claim to exclude one |
+| `EN-07` | Two open descriptions of one directory do not share a lock. | premise-break | Alloy — a shared-lock scope | `SY-11.b`, `TT-22.b` | `SY-11.b` fails: the shared-lock scope reintroduces the cycle [`bulk-marks-are-not-atomic`](../adr/bulk-marks-are-not-atomic.md) records |
+| `EN-08` | Interruption may occur between any two steps. Power loss, kernel failure and storage-cache loss are outside the contract. | exercise-removal | Both — `crash` is a first-class action; the mutation is its removal | `FN-09`, `FN-10`, `FN-24`, `FN-31.c`, `SY-12`, `TT-20`, `TT-23.b` | with `crash` removed, every named witness is unreachable and the run fails on zero work rather than reporting green |
+| `EN-09` | A command's exit status is not a receipt: a result may be lost or arrive late. | exercise-removal | Alloy — a trace in which the result arrives after the classification | `FN-15.a` | removing the late-arrival trace makes `FN-15.a`'s witness — a lost result reported as failure while the exact commit exists — unreachable |
+| `EN-10` | The names are the counter: key allocation reads the tree, and entries are never removed. | premise-break | Quint — `relax_EN_10`, an entry removed | `TT-05`, `TT-12` | `TT-05` fails: allocation re-issues a key a removed entry held |
+| `EN-11` | Any well-formed tree is reachable by hand edit. | exercise-removal | Both — `hand-edit` is a first-class action; the mutation is its removal | `TT-02`, `TT-03`, `TT-13.c`, `TT-16`, `TT-24.b`, `TT-25` | with `hand-edit` removed, every witness that posits a tree Grove's own actions cannot build is unreachable |
+| `EN-12` | A name renders as exactly one path component. | premise-break | Alloy — a rendering that escapes its level | `TT-01.a`, `TT-06` | `TT-01.a` fails: two spellings denote one entry, and the level's positions stop being a per-directory sequence |
+| `EN-13` | Foreign entries may appear at any name and are not Grove's to delete. | premise-break | Quint — `relax_EN_13`, a sweep of a reserved namespace | `TT-04`, `TT-24.b`, `TT-24.d`, `FN-27` | `TT-04` and `TT-24.d` fail: the sweep deletes bytes a refusal exists to preserve |
+| `EN-14` | The working-tree root exists before the task root and outlives its deletion. | premise-break | Alloy — a scope in which the root itself is removed | `TT-22`, `SY-01`, `SY-05` | `SY-01` fails: ownership has nothing to be held on, so a second driver is admitted |
+| `EN-15` | Confirmation is an operator input Grove cannot verify. | counterfactual-capability | Quint — `relax_EN_15`, a machine-attested confirmation | retained: `FN-01.a`, `FN-01.b` | **no obligation becomes stronger and none fails.** A machine attestation replaces nothing: `FN-01.a` still forbids running without confirmation and `FN-01.b` still refuses the deterministic guard as a substitute. A run in which some obligation *does* strengthen is the finding, because it would mean a claim was resting on the attestation rather than on the guard |
+| `EN-16` | The three lanes differ in mechanism and agree on abstract outcome. | exercise-removal | Both — the lane is a model parameter; the mutation is collapsing it to one | `FN-15.b`, `FN-15.c`, `FN-15.d`, `FN-17`, `FN-25.c` | with one lane, `FN-25.c`'s per-lane witnesses are unreachable and `FN-17`'s working-copy-as-commit obligation has no instance; every `FN-` property stays green, which is what makes the collapse invisible without this control |
+
+`EN-08`, `EN-11` and `EN-16` are *exercise-removal* rather than premise-break
+because their negation is not a smaller world but a different one: a model with
+no `crash` action, no `hand-edit` and one lane is the model this experiment
+exists to avoid. Their control is unreachability, not failure — the properties
+stay green, which is precisely why a green run under a collapsed dimension is the
+false confidence the pre-registration names.
 
 ## The three lanes
 
@@ -434,14 +625,21 @@ checked, whatever the check reported.
 denote the same entry: parsing a name and rendering the result SHALL reproduce
 the input exactly, and a name spelled any other way SHALL be refused, naming the
 canonical spelling.
-*Witness*: a tree in which a non-canonical spelling is refused, and a tree in
-which two spellings of one entry would otherwise both parse.
+*Obligations*:
+- `TT-01.a` — distinct filenames never denote one entry. *Witness*: a tree in
+  which two spellings of one entry would otherwise both parse.
+- `TT-01.b` — parse-then-render reproduces the input exactly, and any other
+  spelling is refused naming the canonical one. *Witness*: a non-canonical
+  spelling refused.
 *Cites*: [`task-names-are-canonical`](../adr/task-names-are-canonical.md).
 
 **`TT-02` — a name declares its species and must be it.** A task-shaped name
 SHALL denote an on-disk entry of the species the name declares; a leaf name at a
-directory, or a node name at a file, SHALL be malformed.
-*Witness*: each mismatch, separately.
+directory, or a node name at a file, SHALL be malformed with reason
+`SpeciesMismatch(entry)`.
+*Obligations*:
+- `TT-02.a` — a leaf name at a directory is malformed. *Witness*: that tree.
+- `TT-02.b` — a node name at a file is malformed. *Witness*: that tree.
 
 **`TT-03` — malformed halts, and never skips.** A task-shaped entry that does
 not parse completely, or whose session kind is absent or unknown, SHALL stop
@@ -460,8 +658,13 @@ included, and no key SHALL ever be issued twice.
 *Witness*: an allocation whose maximum comes from a terminal entry.
 *Cites*: [`entries-are-never-removed`](../adr/entries-are-never-removed.md).
 
-**`TT-06` — positions are per-directory and gapless.**
-*Witness*: an insert that closes no gap and one that shifts every later sibling.
+**`TT-06` — positions are per-directory and gapless.** Every directory's
+positions SHALL be `1..n` with no repetition and no gap; a directory that is not
+SHALL be malformed with reason `PositionsNotGapless(dir)`.
+*Obligations*:
+- `TT-06.a` — an append lands at `n+1` and closes no gap. *Witness*: that insert.
+- `TT-06.b` — an insert at an occupied position shifts every later sibling.
+  *Witness*: that insert.
 
 **`TT-07` — a shift preserves everything but position.** Insertion and
 renumbering SHALL change positions only — never a key, slug, kind or outcome
@@ -476,7 +679,11 @@ keep its own key, and the promoted subtree's names and keys SHALL be untouched.
 precondition.** No action SHALL move an entry outside an append, insert,
 promotion or rewrite of the entry-name algebra; ordering, shifting and
 allocation SHALL be properties of that algebra alone.
-*Witness*: each of the four, reached.
+*Obligations*:
+- `TT-09.a` — append. *Witness*: reached.
+- `TT-09.b` — insert. *Witness*: reached.
+- `TT-09.c` — promotion. *Witness*: reached.
+- `TT-09.d` — rewrite. *Witness*: reached.
 *Cites*: [`entry-name-is-the-only-seam`](../adr/entry-name-is-the-only-seam.md).
 
 **`TT-10` — no algebraic refusal reaches an operator from an ordinary
@@ -496,9 +703,17 @@ outside the tree.
 
 **`TT-13` — finish is reserved, not blocking.** The walk SHALL skip a live
 finish leaf while any non-finish leaf is live, and SHALL return it when it is the
-only live leaf. More than one live finish leaf SHALL be malformed.
-*Witness*: a finish leaf at an earlier position than live ordinary work — the
-case where the skip rule is the only thing preventing teardown.
+only live leaf. More than one live finish leaf SHALL malform the whole tree.
+*Obligations*:
+- `TT-13.a` — the walk skips a live finish leaf while any non-finish leaf is
+  live. *Witness*: a finish leaf at an earlier position than live ordinary work —
+  the case where the skip rule is the only thing preventing teardown.
+- `TT-13.b` — the walk returns the finish leaf when it is the only live leaf.
+  *Witness*: that tree.
+- `TT-13.c` — two live finish leaves anywhere in the tree classify the **tree**
+  as `Malformed(MultipleLiveFinish)`, not either entry as malformed, and stop
+  every read and mutation. *Witness*: two individually well-formed live finish
+  leaves in different subtrees.
 
 **`TT-14` — selection is not a scheduler.** No dependency, priority or grouping
 SHALL affect the order; the only mechanisms are position and terminality.
@@ -508,11 +723,17 @@ SHALL affect the order; the only mechanisms are position and terminality.
 spent tree, a resolution matching nothing, and a resolution matching several
 SHALL each mutate nothing, refuse nothing, and be distinguishable from one
 another by their reported value alone.
-*Witness*: all three.
+*Obligations*:
+- `TT-15.a` — selection on a spent tree reports `Empty`. *Witness*: reached.
+- `TT-15.b` — a resolution matching nothing reports `Empty`. *Witness*: reached.
+- `TT-15.c` — a resolution matching several reports `Ambiguous(cs)`. *Witness*:
+  reached.
 
 **`TT-16` — a resolved terminal entry is never mistaken for live.** A resolution
 that matches a terminal entry SHALL report both the entry and its terminality.
-*Witness*: one of each terminal state.
+*Obligations*:
+- `TT-16.a` — a resolved `Done` entry. *Witness*: reached.
+- `TT-16.b` — a resolved `Abandoned` entry. *Witness*: reached.
 
 ### Root identity and guarding
 
@@ -534,39 +755,93 @@ place and which therefore looks perfectly walkable.
 
 **`TT-20` — the format witness lands last.** Root initialisation SHALL make the
 format witness visible only after every other scaffolded entry, by an atomic
-same-directory rename, so no reader observes a torn or premature marker.
-*Witness*: an interruption before the witness lands, classified as a partial
-scaffold rather than as a current tree.
+same-directory rename, so no reader observes a torn or premature marker. The
+root it leaves behind on interruption SHALL classify as `PartialScaffold` — never
+as `Current(*)` and never as `Legacy`.
+*Witness*: an interruption before the witness lands, classified as
+`PartialScaffold`.
 
 **`TT-21` — one snapshot per operation.** Every classification an operation
 makes SHALL be computed from a single listing taken under that operation's
-guard.
-*Witness*: a concurrent writer between two classifications, shown excluded.
+guard. This is a claim about **internal consistency, not about excluding the
+world**: `EN-06` grants only that cooperating processes are serialized, so
+`hand-edit` and `foreign-write` may interleave at any point during an operation
+and the operation may therefore act on a world that has already moved. What the
+claim forbids is an operation drawing two classifications from two listings and
+reaching a conclusion neither listing supports.
+*Obligations*:
+- `TT-21.a` — a cooperating writer between two classifications is excluded by the
+  guard. *Witness*: that interleaving, shown serialized.
+- `TT-21.b` — a **non-cooperating** writer interleaving mid-operation does not
+  falsify the claim: every classification the operation made still comes from its
+  one listing, and the operation's outcome is a refusal, a block, or a mutation
+  that was licensed by that listing. *Witness*: a `foreign-write` landing between
+  two classifications, with the operation's classifications still mutually
+  consistent.
 
 **`TT-22` — guards are shared for observation and exclusive for mutation**, and
 are taken on the working-tree root.
-*Witness*: two concurrent observations admitted; an observation and a mutation
-serialized.
+*Obligations*:
+- `TT-22.a` — two concurrent observations are admitted. *Witness*: reached.
+- `TT-22.b` — an observation and a mutation are serialized. *Witness*: reached.
 *Cites*: [`task-tree-transactions-fail-closed`](../adr/task-tree-transactions-fail-closed.md).
 
 **`TT-23` — a bulk mark validates before it moves, and converges.** A bulk mark
 SHALL validate its whole plan against one snapshot before its first rename, and
 re-running it after a partial application SHALL reach the same result.
-*Witness*: a bulk mark interrupted mid-run, repaired by re-running it.
+*Obligations*:
+- `TT-23.a` — the whole plan is validated against one snapshot before the first
+  rename. *Witness*: a plan whose later member is invalid, refused before the
+  first rename lands.
+- `TT-23.b` — re-running after a partial application converges on the same
+  result. *Witness*: a bulk mark interrupted mid-run, repaired by re-running it.
 *Cites*: [`bulk-marks-are-not-atomic`](../adr/bulk-marks-are-not-atomic.md).
 
 **`TT-24` — fail-closed ownership.** No action SHALL reset, merge, delete or
-rewrite an entry it cannot prove is its own; where ownership cannot be proved the
-outcome SHALL be a refusal or a block, never a mutation.
-*Witness*: a foreign entry at a reserved name, refused rather than removed.
+rewrite an entry it cannot prove is its own. Which non-mutating outcome it
+produces is **not** the model's choice: it is fixed by how far the caller had
+already gone, per [Outcomes](#outcomes).
+*Class*: shared safety.
+*Obligations*:
+- `TT-24.a` — no action mutates an entry whose ownership it cannot prove.
+  *Witness*: a mutation attempted against an unprovable entry, shown not taken.
+- `TT-24.b` — an ordinary tree operation meeting a foreign entry at a reserved
+  name returns `Refused(ReservedNameOccupied(entry))`, leaving the tree
+  byte-identical and naming no recovery. *Witness*: reached.
+- `TT-24.c` — the same entry met **inside** a finish or recovery transaction
+  returns `Blocked(OwnershipConflict)`. *Witness*: reached.
+- `TT-24.d` — the quarantine reaper declines the same entry, mutating nothing and
+  continuing over entries it can prove are Grove's. *Witness*: reached; and the
+  entry's bytes unchanged across the sweep.
 
 **`TT-25` — a node is never marked.** Done-ness SHALL be derived from the absence
 of a live leaf beneath it, and no action SHALL write a node's state.
-*Witness*: a node whose subtree is wholly terminal, and one that is not.
+*Obligations*:
+- `TT-25.a` — a node whose subtree is wholly terminal is derived done, unmarked.
+  *Witness*: reached.
+- `TT-25.b` — a node with a live leaf beneath it is derived live, unmarked.
+  *Witness*: reached.
 
 ## Claims — finish and recovery (`FN`)
 
 Every claim below is checked under all three lanes.
+
+**Every `FN-` claim carries a class**, because [what the models must be able to
+decide](#what-the-models-must-be-able-to-decide) turns on it: a question asking
+whether a mechanism should exist cannot be decided by the claims that *are* that
+mechanism. The register is here, in one place, so it cannot drift claim by claim:
+
+| class | claims |
+|---|---|
+| **shared safety** | `FN-01`–`FN-07`, `FN-13`–`FN-18`, `FN-20`, `FN-23`–`FN-30`, and `TT-24` |
+| **incumbent mechanics** | `FN-08`, `FN-09`, `FN-10`, `FN-11`, `FN-12`, `FN-19`, `FN-21`, `FN-22`, `FN-31` |
+
+Where a **shared-safety** claim names a concrete artifact — the correlation
+ticket, the manifest, the recorded anchor — the artifact is the *incumbent
+realisation of a role*, exactly as the repository anchor's entry in
+[Identities](#identities) already says. A candidate protocol satisfies such a
+claim by supplying the role, not by keeping the artifact, and Q4's removal matrix
+is where each artifact's role is made to state itself.
 
 ### Entry and intent
 
@@ -575,8 +850,13 @@ transaction SHALL run without an operator confirmation, and the transaction SHAL
 make no claim to have verified that one occurred. The deterministic guards it
 *can* make — a live finish leaf, no live ordinary work — are separate and are
 not a substitute.
-*Witness*: a transaction refused for want of the deterministic guard, distinct
-from one never entered for want of confirmation.
+*Obligations*:
+- `FN-01.a` — no step runs without an operator confirmation, and the transaction
+  makes no claim to have verified one. *Witness*: a transaction never entered for
+  want of confirmation.
+- `FN-01.b` — the deterministic guards are not a substitute for confirmation.
+  *Witness*: a transaction refused for want of the deterministic guard, distinct
+  from the previous.
 
 **`FN-02` — intent persists as the finish leaf.** Declining, or exiting without
 completing, SHALL leave that leaf live and selectable, and SHALL write nothing
@@ -600,7 +880,20 @@ session's; a ticket from an earlier attempt SHALL NOT settle a later one.
 **`FN-05` — preflight mutates nothing.** Every precondition SHALL be established
 before any tree mutation, and a failure SHALL leave the tree and the repository
 byte-identical.
-*Witness*: each precondition failing, with the tree unchanged.
+*Obligations*:
+- `FN-05.a` — the preflight precondition set is **closed and exactly** this:
+  confirmation absent (`FN-01`); no live finish leaf, or live ordinary work
+  present (`SY-07`, `TT-13`); layout unsupported (`SY-02`); the quarantine target
+  unreachable from the transaction's own operands (`FN-08`); task-root identity
+  unverified (`FN-06`); an empty deletion fingerprint (`FN-07`); an entry type
+  that cannot be digested (`FN-12`). No other precondition exists, and a model
+  reaching an eighth is a finding about this list.
+  *Witness*: each of the seven, reached — the enumeration is what makes the
+  remaining two obligations quantified over something finite.
+- `FN-05.b` — each member, failing, leaves the **tree** byte-identical.
+  *Witness*: each of the seven, with the tree unchanged.
+- `FN-05.c` — each member, failing, leaves the **repository** byte-identical.
+  *Witness*: each of the seven, with the repository unchanged.
 
 **`FN-06` — the task root's identity is pinned and rechecked.** The task root
 SHALL be opened as a no-follow directory whose identity is verified against the
@@ -623,14 +916,22 @@ operands, and SHALL never be satisfied by an earlier lifecycle check.
 **`FN-09` — build, then publish, in one atomic step.** The witness SHALL be
 built under a preparing name and published by exactly one atomic rename. No
 preparing witness SHALL ever hold an evacuated entry.
-*Witness*: an interruption inside the build, and one immediately after
-publication.
+*Obligations*:
+- `FN-09.a` — publication is exactly one atomic same-directory rename, and no
+  reader observes it half-applied. *Witness*: an interruption immediately after
+  publication.
+- `FN-09.b` — no preparing witness ever holds an evacuated entry. *Witness*: an
+  interruption inside the build.
 
 **`FN-10` — an unpublished witness is discardable.** Interruption before
 publication SHALL be recoverable by discarding the witness, never by
 interpreting its contents, and SHALL fail closed on any content it cannot
 classify as its own.
-*Witness*: a discard, and a refusal to discard unclassifiable content.
+*Obligations*:
+- `FN-10.a` — interruption before publication is recovered by discarding the
+  witness, never by interpreting its contents. *Witness*: a discard.
+- `FN-10.b` — content the discard cannot classify as Grove's own fails closed.
+  *Witness*: a refusal to discard unclassifiable content.
 
 **`FN-11` — evacuation precedes deletion.** Every ordinary root entry SHALL be
 inside the published witness, beneath a manifest that has been written and
@@ -642,7 +943,13 @@ present, unwalkable and holding every entry.
 finish handle, the attempt identity, the repository anchor, the deletion
 fingerprint, and every evacuated entry's type and digest; an entry type it
 cannot digest SHALL be refused before any mutation.
-*Witness*: a refused entry type; a manifest interrupted before its ready mark.
+*Obligations*:
+- `FN-12.a` — the manifest records the finish handle, the attempt identity, the
+  repository anchor, the deletion fingerprint, and every evacuated entry's type
+  and digest, and is marked ready last. *Witness*: a manifest interrupted before
+  its ready mark, recovered as not ready.
+- `FN-12.b` — an entry type that cannot be digested is refused before any
+  mutation. *Witness*: a refused entry type.
 
 **`FN-13` — the witness is never committed.** Every candidate committed tree
 SHALL exclude the witness.
@@ -658,18 +965,40 @@ work SHALL survive.
 **`FN-15` — disposition is classified from evidence, not from exit status.** The
 classification SHALL be derived from the recorded anchor, the expected
 fingerprint and the exact immediate result.
-*Witness*: a lost or late result reported as failure while the exact commit
-exists — classified `Committed`.
+*Obligations*:
+- `FN-15.a` — the classification never reads an exit status as a receipt.
+  *Witness*: a lost or late result reported as failure while the exact commit
+  exists — classified `Committed`.
+- `FN-15.b` — `Committed` is reachable. *Witness*: reached, on each lane.
+- `FN-15.c` — `NotCommitted` is reachable. *Witness*: reached, on each lane.
+- `FN-15.d` — `Indeterminate` is **either** reachable, with a witness, **or**
+  positively established unreachable within a stated bound by an exhaustive
+  check — an Alloy `check` over the full scope that no state carries the
+  disposition, or a Quint exhaustive run to the same depth. A witness that merely
+  fails to land satisfies neither branch and is a `defer`.
+  *Witness*: reached on each lane, **or** the unreachability check's bound and
+  result recorded per lane.
+*Decides*: [`TODO.finish_process.md`](../../TODO.finish_process.md) Q2, jointly
+with `FN-25`. What the unreachability branch can decide is bounded by its own
+bound and never more.
 
 **`FN-16` — rollback is licensed only by proof.** Restoration SHALL require the
 recorded anchor to still hold **and** the attempt-bound result to be absent.
-*Witness*: each half failing separately.
+*Obligations*:
+- `FN-16.a` — restoration is refused when the recorded anchor no longer holds.
+  *Witness*: reached.
+- `FN-16.b` — restoration is refused when the attempt-bound result is present.
+  *Witness*: reached.
 
 **`FN-17` — rollback is exact.** After restoration the tree SHALL match the
 manifest, and on a working-copy-as-commit lane the exact recorded preflight
 commit SHALL be reproduced before the witness is removed.
-*Witness*: a restoration that reproduces the commit, and one that cannot, which
-must block rather than proceed.
+*Obligations*:
+- `FN-17.a` — after restoration the tree matches the manifest, and on a
+  working-copy-as-commit lane the exact recorded preflight commit is reproduced
+  before the witness is removed. *Witness*: a restoration that reproduces it.
+- `FN-17.b` — a restoration that cannot reproduce it blocks rather than
+  proceeds. *Witness*: reached.
 
 **`FN-18` — forward recovery never restores.** Once the exact commit is proven,
 the tree SHALL never be reconstructed.
@@ -684,26 +1013,112 @@ observable.
 *Witness*: an interruption immediately after the rename, leaving a complete
 quarantine and an absent task root.
 
-**`FN-20` — quarantine is garbage, never a receipt.** No classification SHALL
-read the quarantine, or any control-directory artifact, as evidence that a
-finish happened.
-*Witness*: a quarantine present while the tree is classified fresh.
+**`FN-20` — a leftover artifact is garbage, never a receipt.** No classification
+SHALL read the quarantine, or any other artifact the transaction owns, as
+evidence that a finish happened; only the correlation ticket is that evidence
+(`FN-03`). The quarantine is the incumbent realisation, and the role — *no
+artifact a transaction leaves behind is a receipt for it* — is what a candidate
+protocol must supply, whatever it leaves behind instead.
+*Witness*: a leftover artifact present while the tree is classified fresh.
+*Class*: shared safety, stated over the role rather than over the quarantine, so
+Q1 can be decided against it.
 
 **`FN-21` — disposal is resumable and bounded to Grove's own.** Disposal SHALL be
 re-enterable from any interruption, and a reaper SHALL touch only entries
 carrying Grove's own cleanup manifest, and only when no matching in-tree witness
 owns them.
-*Witness*: a resumed disposal; a reaper declining an entry whose witness still
-owns it; a reaper declining a foreign entry at a reserved name.
-*Decides*: `TODO.finish_process.md` Q1 and Q3 — whether a *replace* step, as
-against create or remove, is reachable at all.
+*Obligations*:
+- `FN-21.a` — disposal is re-enterable from any interruption. *Witness*: a
+  resumed disposal.
+- `FN-21.b` — a reaper touches only entries carrying Grove's own cleanup
+  manifest. *Witness*: a reaper declining an entry whose in-tree witness still
+  owns it.
+- `FN-21.c` — a reaper declines a foreign entry at a reserved name, mutating
+  nothing (`TT-24.d`). *Witness*: reached.
+*Class*: incumbent mechanics — this claim is what Q1 asks about, so it is not
+evidence about a candidate protocol.
 
-**`FN-22` — the disposition is revalidated across every handoff.** It SHALL be
-rechecked immediately before and after each filesystem handoff. A change after
-restoration SHALL leave the witness blocking the restored tree; a change after
-the quarantine rename SHALL return the quarantine atomically, and SHALL report
-both the change and the quarantine if that return cannot complete.
-*Witness*: each of the two, and the failed return.
+**`FN-22` — the disposition is revalidated across every handoff.** There are
+exactly **two** filesystem handoffs — the **restoration** and the **quarantine
+rename** — and the disposition SHALL be rechecked immediately before and after
+each, giving four revalidation points. Every observed disposition at every point
+SHALL have a stated corrective action and a stated stable state, **including the
+observations that settle successfully**: a corrective return that completes is
+not an absence of a result.
+
+| point | observed | corrective action | stable state after a **successful** action | outcome |
+|---|---|---|---|---|
+| before restoration | `NotCommitted` | proceed with the restoration | — (continues) | — |
+| before restoration | `Committed` | do not restore; take the forward path (`FN-18`) | — (continues to the quarantine rename) | — |
+| after restoration | `NotCommitted` (unchanged) | complete: remove the witness | task root `Current(*)`, matching the manifest, finish leaf live | `Refused` |
+| after restoration | `Committed` | leave the witness blocking the restored tree | `Reserved(Published)` carrying `RecoveryPending` | `Blocked` |
+| before quarantine rename | `Committed` | proceed with the rename | — (continues) | — |
+| before quarantine rename | `NotCommitted` | do not rename; take the restoration path | — (continues to the restoration) | — |
+| after quarantine rename | `Committed` (unchanged) | complete: dispose (`FN-21`) | task root `Absent`, quarantine holding the root | `Applied` |
+| after quarantine rename | `NotCommitted` | return the quarantine atomically | `Reserved(Published)`, disposition `NotCommitted` — the exact pre-rename state, from which the restoration path runs | `Refused` |
+| after quarantine rename | `Indeterminate` | return the quarantine atomically | `Reserved(Published)` carrying `RecoveryPending` | `Blocked` |
+| any point | `Indeterminate` (except the row above) | no handoff is performed | `Reserved(Published)` carrying `RecoveryPending` | `Blocked` |
+| after quarantine rename | any change, return cannot complete | report both the change and the quarantine | `Reserved(Published)` **and** a quarantine, both named in the diagnostic | `Blocked` |
+
+The two rows the shipped material never distinguished are the last two `Committed`
+departures, and they are not the same event: **`Committed -> NotCommitted`** is a
+rollback that succeeds — the quarantine returns, the tree is restored, and the
+attempt ends as a complete refusal with the finish leaf live (`FN-29`) — while
+**`Committed -> Indeterminate`** cannot be settled either way and ends as a block.
+Collapsing them would let a block be reported as a refusal, which is exactly the
+distinction `FN-29` requires the operator to be able to make.
+
+*Obligations*:
+- `FN-22.a` — all four revalidation points are performed, and none is skipped.
+  *Witness*: each of the four, reached.
+- `FN-22.b` — before restoration, `Committed` diverts to the forward path and
+  restores nothing. *Witness*: reached.
+- `FN-22.c` — after restoration, `Committed` leaves the witness blocking the
+  restored tree, `Blocked(RecoveryPending)`. *Witness*: reached.
+- `FN-22.d` — after restoration, an unchanged `NotCommitted` settles to a
+  manifest-matching `Current(*)` root with the witness removed and the finish leaf
+  live, `Refused`. *Witness*: reached.
+- `FN-22.e` — before the quarantine rename, `NotCommitted` diverts to the
+  restoration path and renames nothing. *Witness*: reached.
+- `FN-22.f` — after the quarantine rename, `Committed -> NotCommitted` returns the
+  quarantine atomically, and a **successful** return settles to the exact
+  pre-rename `Reserved(Published)` state from which the attempt completes as
+  `Refused`. *Witness*: reached, with the returned tree byte-equal to the
+  pre-rename tree.
+- `FN-22.g` — after the quarantine rename, `Committed -> Indeterminate` returns
+  the quarantine atomically, and a **successful** return settles to
+  `Reserved(Published)` carrying `RecoveryPending`, `Blocked`. *Witness*: reached.
+- `FN-22.h` — a return that cannot complete reports both the change and the
+  quarantine and blocks. *Witness*: reached, with both named.
+- `FN-22.i` — after the quarantine rename, an unchanged `Committed` settles to an
+  absent task root with the quarantine holding it, `Applied`. *Witness*: reached.
+- `FN-22.j` — `Indeterminate` observed at any point other than after the
+  quarantine rename performs no handoff and blocks `RecoveryPending`. *Witness*:
+  reached at each remaining point.
+*Class*: incumbent mechanics.
+
+**`FN-31` — the cleanup marker's replace transition exists and is reachable.**
+Disposal SHALL have a `replace-cleanup-marker` transition distinct from creating
+a marker and from removing one, and the models SHALL decide by reachability
+rather than by construction whether it is needed.
+*Obligations*:
+- `FN-31.a` — there is a reachable source state from which disposal must
+  *replace* an existing cleanup marker rather than create or remove one.
+  *Witness*: that source state, with the marker present, owned by Grove, and
+  carrying a value the next disposal step must supersede — **or**, if no such
+  state is reachable, the bounded-unreachability check of `FN-15.d`'s form
+  recorded at its bound, which is what makes Q3's *delete* answer evidence rather
+  than an absent witness.
+- `FN-31.b` — the replacement is atomic with respect to readers: no reader
+  observes the marker absent, nor observes two markers. *Witness*: an observation
+  interleaved with the replacement.
+- `FN-31.c` — an interruption inside the replacement is resumable, and resumption
+  reaches the same terminal state as an uninterrupted replacement (`FN-21.a`,
+  `FN-23`). *Witness*: an interruption at each step of the replacement, resumed.
+- `FN-31.d` — a replacement is never performed against a marker Grove cannot
+  prove is its own (`TT-24.a`). *Witness*: a foreign marker, declined.
+*Class*: incumbent mechanics.
+*Decides*: [`TODO.finish_process.md`](../../TODO.finish_process.md) Q3.
 
 ### Recovery, refusal and the exits
 
@@ -716,16 +1131,50 @@ once it has.
 between any two steps of the transaction, the next invocation SHALL classify the
 result into exactly one stable state, and never into a state that is
 indistinguishable from a different one.
-*Witness*: the full interruption sequence, one crash point per step.
-*Decides*: `TODO.finish_process.md` Q1 — a cheaper protocol is admissible only if
-this claim still holds under it, at the same bound.
 
-**`FN-25` — a block is exactly one of the two diagnoses.** Every blocked state
-SHALL be exactly one of `RecoveryPending` and `OwnershipConflict`; the two SHALL
-be disjoint and jointly exhaustive over blocks, and each SHALL be reachable on
-each lane.
-*Witness*: each diagnosis, on each lane.
-*Decides*: `TODO.finish_process.md` Q2.
+**Two premises this claim rests on, stated rather than smuggled.** "Between any
+two steps" is only as strong as the step list, and `EN-08` grants interruption
+between steps without saying what a step is. So: (i) the model's step list is a
+**complete** set of crash boundaries for the transaction — every point at which a
+persistent effect becomes visible is a step boundary in the model; and (ii) every
+persistent effect **inside** one step is either atomic by `EN-01`, which grants
+atomicity to a same-directory rename and to nothing else, or is decomposed into
+steps of its own. A step whose persistent effect is neither is a modelling defect
+and `FN-24.b` is what catches it. Neither premise is checkable by `FN-24.a`
+alone, which is why it is not the whole claim.
+
+*Obligations*:
+- `FN-24.a` — from a crash at each step boundary, the next invocation classifies
+  the result into exactly one stable state. *Witness*: the full interruption
+  sequence, one crash point per step.
+- `FN-24.b` — every step of the transaction has at most one persistent effect,
+  and that effect is a same-directory rename (`EN-01`) or is itself decomposed.
+  A step that is neither is declared, with what it would take to decompose it.
+  *Witness*: the step list, enumerated, each step's persistent effect named.
+*Class*: shared safety — this is the claim a candidate protocol is judged
+against, and it names no artifact of the incumbent one.
+*Decides*: [`TODO.finish_process.md`](../../TODO.finish_process.md) Q1 — a cheaper
+protocol is admissible only if both obligations still hold under it, with
+`FN-24.a`'s witnesses reached at a bound no greater than the incumbent's.
+
+**`FN-25` — a block is exactly one of the two diagnoses.** Every `Blocked`
+outcome SHALL carry exactly one of `RecoveryPending` and `OwnershipConflict`.
+The partition is over **`Blocked` outcomes and nothing else**: a refusal is not a
+block and carries a refusal reason instead, so a `Refused(ReservedNameOccupied)`
+is outside this claim entirely and reading `OwnershipConflict` onto it would make
+the partition neither disjoint nor exhaustive.
+*Obligations*:
+- `FN-25.a` — the two diagnoses are **disjoint**: no blocked state satisfies
+  both. *Witness*: a state that nearly does — a Grove-owned, correlated artifact
+  sitting at a name Grove also reserves — resolved to exactly one.
+- `FN-25.b` — the two are **jointly exhaustive** over `Blocked`: no blocked state
+  carries neither. *Witness*: an exhaustive sweep of the blocked states within
+  the bound.
+- `FN-25.c` — each diagnosis is reachable on **each** lane. *Witness*: each
+  diagnosis, on each lane.
+*Class*: shared safety.
+*Decides*: [`TODO.finish_process.md`](../../TODO.finish_process.md) Q2, jointly
+with `FN-15`.
 
 **`FN-26` — history is never rewritten to clear a block.** A block SHALL stay
 blocked and operator-restorable, naming the artifact holding the transaction,
@@ -736,7 +1185,11 @@ recorded history changes.
 **`FN-27` — nothing unrelated is mutated, on any outcome.** Nothing outside the
 task root, the reserved witness, the quarantine and the scoped commit SHALL
 change — on success, on refusal, and on a block alike.
-*Witness*: unrelated work intact across each of the three outcomes.
+*Obligations*:
+- `FN-27.a` — nothing unrelated changes on success. *Witness*: reached.
+- `FN-27.b` — nothing unrelated changes on refusal. *Witness*: reached.
+- `FN-27.c` — nothing unrelated changes on a block. *Witness*: reached.
+*Class*: shared safety.
 
 **`FN-28` — one successful exit.** A finish succeeds exactly when the exact
 attempt-bound commit is proven and the task root is absent. Branch, bookmark and
@@ -765,7 +1218,11 @@ interruption and recovery together, and they are what `models/system/` owns.
 **`SY-01` — one live driver per working tree.** A second driver SHALL be refused
 immediately rather than queued, and ownership SHALL be released by process death
 as ordinarily as by return.
-*Witness*: a refused second driver; a crashed driver whose successor proceeds.
+*Obligations*:
+- `SY-01.a` — a second driver is refused immediately, never queued. *Witness*:
+  reached.
+- `SY-01.b` — ownership is released by process death as ordinarily as by return.
+  *Witness*: a crashed driver whose successor proceeds.
 *Cites*: [`one-live-driver-per-working-tree`](../adr/one-live-driver-per-working-tree.md).
 
 **`SY-02` — the layout is proved before any tree exists.** An unsupported
@@ -781,28 +1238,46 @@ earlier layout check; each SHALL revalidate against its own operands.
 **`SY-04` — at most one lifecycle transition per iteration**, and full
 configuration validation SHALL precede every one, so an invalid configuration
 leaves the working tree byte-identical.
-*Witness*: each transition, taken alone; an invalid configuration mutating
-nothing.
+*Obligations*:
+- `SY-04.a` — at most one lifecycle transition occurs per iteration. *Witness*:
+  each transition, taken alone.
+- `SY-04.b` — full configuration validation precedes every transition, so an
+  invalid configuration leaves the working tree byte-identical. *Witness*:
+  reached.
 
 **`SY-05` — task-root absence is the complete fresh-tree discriminator.** A
 missing task root SHALL mean *start a new grove*, and SHALL never be read as
 evidence about an earlier one. This inference is sound only because `FN-11`
 and `FN-19` never expose an absent task root before the deletion is proven, and
 the two claims SHALL be checked together.
-*Witness*: a completed teardown whose driver never observed the signal, followed
-by a fresh scaffold; and the absence of any trace in which an unproven deletion
-exposes an absent root.
+*Obligations*:
+- `SY-05.a` — a missing task root means *start a new grove* and is never read as
+  evidence about an earlier one. *Witness*: a completed teardown whose driver
+  never observed the signal, followed by a fresh scaffold.
+- `SY-05.b` — no trace exposes an absent task root before the deletion is proven
+  (`FN-11`, `FN-19`), so the inference in `SY-05.a` is sound. *Witness*: the
+  exhaustive absence of such a trace within the bound.
 
 **`SY-06` — a fresh root carries a first live leaf.** Scaffolding SHALL produce
 work, not only a charter, so a fresh grove is never indistinguishable from a
-finished one; a partial scaffold SHALL be recognised as a subset and completed
-before any format classification.
-*Witness*: an interrupted scaffold, completed.
+finished one.
+*Obligations*:
+- `SY-06.a` — a completed scaffold carries a first live leaf, not only a charter.
+  *Witness*: a fresh root, distinguishable from a spent one.
+- `SY-06.b` — an interrupted scaffold classifies as `PartialScaffold` — by the
+  exact known subset in [States](#states), never by the mere absence of the format
+  witness — and is completed **before** any format classification runs, so a
+  `Legacy` tree is never completed as though Grove had scaffolded it. *Witness*:
+  an interrupted scaffold, completed; and a `Legacy` tree, refused rather than
+  completed.
 
 **`SY-07` — exhaustion yields exactly one finish leaf.** When no live leaf
 remains the driver SHALL append or reuse exactly one driver-owned finish leaf,
 and no session SHALL create one.
-*Witness*: a reuse; a refused creation.
+*Obligations*:
+- `SY-07.a` — on exhaustion the driver appends or reuses exactly one
+  driver-owned finish leaf. *Witness*: an append; a reuse.
+- `SY-07.b` — no session creates one. *Witness*: a refused creation.
 
 **`SY-08` — selection is authoritative once per iteration.** The driver SHALL
 select exactly once per iteration and SHALL not recompute before launching, so a
@@ -813,31 +1288,78 @@ preempting the running one.
 **`SY-09` — a session ends in exactly one of three ways.** Relaunch, done, or no
 signal. No signal SHALL stop the loop, and SHALL never be inferred as done — not
 even when that session committed a teardown.
-*Witness*: all three, including the last with a proven teardown.
+*Obligations*:
+- `SY-09.a` — **relaunch**: the loop continues with the next iteration.
+  *Witness*: reached.
+- `SY-09.b` — **done**: the loop ends. *Witness*: reached.
+- `SY-09.c` — **no signal**: the loop stops, and is never inferred as done — not
+  even when that session committed a teardown. *Witness*: reached, with a proven
+  teardown.
 
 **`SY-10` — a stale session cannot act.** An ambient operation SHALL match the
 live launch generation before it may touch the tree, and a contended generation
 SHALL time out into a visible stop rather than a silent park.
-*Witness*: a stale session refused; a timeout reported.
+*Obligations*:
+- `SY-10.a` — an ambient operation matching no live launch generation is refused
+  before it touches the tree. *Witness*: a stale session refused.
+- `SY-10.b` — a contended generation times out into a visible stop, never a
+  silent park. *Witness*: a timeout reported.
 
 **`SY-11` — the guard order admits no cycle.** Lease, then launch generation,
 then tree; and no path SHALL wait for a generation while holding a tree guard.
-*Witness*: the full order, and the absence of any cycle within the bound.
+*Obligations*:
+- `SY-11.a` — every path takes lease, then launch generation, then tree, in that
+  order. *Witness*: the full order, reached.
+- `SY-11.b` — no path waits for a generation while holding a tree guard, and no
+  cycle exists within the bound. *Witness*: the exhaustive absence of a cycle,
+  with its bound.
 
 **`SY-12` — restart is ordinary continuation.** From a crash at any lifecycle
 point, the next invocation SHALL reach a stable state and either make progress or
 refuse; it SHALL never silently repeat a completed effect.
 *Witness*: one crash point per lifecycle step.
 
-**`SY-13` — the loop makes progress.** From any stable state, a bounded sequence
-of admitted actions SHALL reach either a live leaf to run or a terminal
-disposition; no stable state SHALL be a sink from which neither is reachable.
-*Witness*: the longest such sequence within the bound, and its length.
+**`SY-13` — no stable state is a sink.** From any stable state there SHALL
+**exist** a bounded sequence of admitted actions reaching either a live leaf to
+run or a terminal disposition.
+
+**This is existential reachability, and deliberately not a liveness property.**
+Stating it as "the loop *will* reach one" would need a fairness or admission
+premise the models have no grounds to grant — nothing here schedules the
+operator, and `EN-15` says Grove cannot even verify a confirmation. What the
+claim says instead is that no stable state is a dead end, which is checkable
+without fairness and is the property the tree actually needs.
+
+**`terminal disposition`** means an ending from which the loop has no further
+admitted action of its own. There are exactly two, and a **block is one of
+them**: `SY-14` says no admitted action clears a block, so the only exit is an
+operator action, and operator actions are outside the admitted set by
+construction. The two are therefore:
+
+- a **proven successful finish** — the exact attempt-bound commit proven and the
+  task root `Absent` (`FN-28`); and
+- a **blocked tree** — any `Blocked` outcome's stable state, carrying exactly one
+  diagnosis (`FN-25`) and two operator-restorable exits (`FN-26`).
+
+A `Malformed(reason)` tree is **not** terminal for this property: it is a refusal
+state that a hand edit reaches and a hand edit leaves, and folding it in would
+let the claim be satisfied by a tree nobody can act on.
+
+*Obligations*:
+- `SY-13.a` — from every stable state, some bounded sequence of admitted actions
+  reaches a live leaf or a terminal disposition. *Witness*: the longest such
+  sequence within the bound, and its length.
+- `SY-13.b` — no stable state within the bound is a sink. *Witness*: the
+  exhaustive sweep of the stable states, with its bound.
 
 **`SY-14` — a blocked tree stays blocked until an operator acts.** No admitted
 action SHALL clear a block, and every action on a blocked tree SHALL refuse
 naming it.
-*Witness*: an exhaustive sweep of the action set against a blocked tree.
+*Obligations*:
+- `SY-14.a` — no admitted action clears a block. *Witness*: an exhaustive sweep
+  of the action set against a blocked tree.
+- `SY-14.b` — every action on a blocked tree refuses, naming the block.
+  *Witness*: the same sweep, each refusal naming it.
 
 <a id="deliberate-omissions"></a>
 ## Deliberate omissions
@@ -856,13 +1378,16 @@ result recorded in the experiment log.
 | byte-level file contents | an entry's identity and type only | no claim in this catalogue reads a leaf's prose |
 | clocks, timeouts and retry counts | non-determinism | a bounded handoff wait is a liveness property of the *implementation*, not of the protocol |
 | more than two cooperating processes | two | every guard claim is about mutual exclusion, which two processes exhibit |
-| the marker-replacement protocol's own byte layout | a resumable disposal step **with an explicit replace transition** | Q3 asks whether replacement is reachable at all, so the transition must exist for the model to answer; only its encoding is omitted |
+| the marker-replacement protocol's own byte layout | a resumable disposal step **with an explicit `replace-cleanup-marker` transition**, required by `FN-31` | Q3 asks whether replacement is reachable at all, so the transition must exist for the model to answer; only its encoding is omitted |
 | power loss, kernel failure, storage-cache loss | not represented | `EN-08` — outside the contract, and representing them would make every claim false without making any of them wrong |
 | the methodology corpus and session conduct | a session is a step that returns one of three endings | conduct is checked by delivery assertions, not by these models |
 
 The sixth row is the one to watch. Abstracting the replace step *away* would
 answer Q3 by construction, which is the shape of a false-confidence incident
-rather than a finding.
+rather than a finding — and a prose row is not an instrument, because the runner
+checks obligations rather than reading this table. `FN-31` is what makes the row
+enforceable: the transition is in the [action vocabulary](#actions), its
+reachability is `FN-31.a`, and a family that omits it fails coverage.
 
 ## Test seams
 

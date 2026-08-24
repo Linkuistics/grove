@@ -341,6 +341,68 @@ _Avoid_: deleting `.grove/` before the commit boundary and treating repository
 history as a rollback source — a process death exposes an indistinguishable
 fresh-root shape.
 
+**Finish-attempt identity**:
+The opaque value drawn once per launch that binds one [[Finish transaction]] to
+one still-live [[Session epoch]]. Two attempts on the same finish
+[[Work-item handle]] are distinguishable by it and by nothing else, which is what
+lets a rootless retry accept only its own session's result.
+_Avoid_: treating the finish handle as the attempt's identity — the handle is
+stable across every attempt, so a result named by handle alone could belong to an
+earlier one.
+
+**Evacuation manifest**:
+The record written inside a [[Finish transaction]]'s reserved witness and marked
+ready last: the finish [[Work-item handle]], the [[Finish-attempt identity]], the
+**repository anchor** (the recorded starting topology a rollback must find
+unchanged), the **deletion fingerprint** (the expected, non-empty set of tracked
+paths the commit removes), and every evacuated entry's type and canonical
+no-follow digest.
+_Avoid_: reading it as a receipt — it records what an attempt *intends* and what
+it must restore, never that the attempt completed. That is the
+[[Correlation ticket]]'s job.
+
+**Correlation ticket**:
+The deletion commit's own message, naming the finish [[Work-item handle]] and the
+[[Finish-attempt identity]]. It is the durable record that a given attempt
+completed, and it survives in version-control history after every artifact the
+transaction owns has been destroyed.
+_Avoid_: the post-commit cleanup [[Quarantine]], or any control-directory
+artifact, as a substitute — those are cleanup garbage and prove nothing.
+
+**Finish disposition**:
+The classification of the *commit*, derived from the recorded anchor, the
+expected deletion fingerprint and the exact immediate result rather than from a
+command's exit status: **Committed** (the exact attempt-bound commit is proven),
+**Not committed** (it is proven absent and the anchor still holds), or
+**Indeterminate** (neither can be proven). It is an input to an operation's
+outcome, not the outcome: Committed settles forward, Not committed rolls back and
+leaves the finish [[Leaf]] live, Indeterminate blocks.
+_Avoid_: an exit status as the boundary — a lost or late result can report
+failure after the exact commit exists.
+
+**Recovery pending** / **Ownership conflict**:
+The two diagnoses a blocked [[Finish transaction]] leaves. **Recovery pending**
+means a correlated Grove-owned attempt is incomplete: the artifact holding the
+transaction is provably Grove's, named by this handle and this
+[[Finish-attempt identity]], and the outcome cannot yet be proven either way.
+**Ownership conflict** means state is unrelated, ambiguous, or cannot be proved
+safe to mutate. Both are stable and operator-restorable; Grove never rewrites
+history to clear either.
+_Avoid_: reading the pair as shipped diagnostics. The shipped classification
+gathers both under one blocked state; the split is required by
+`docs/specs/semantic-contract.md` and its adoption is a decision the formal phase
+settles.
+
+**Quarantine** (post-commit cleanup):
+The collision-resistant destination in the workspace's VCS-administration control
+directory into which a proven [[Finish transaction]] atomically renames the whole
+`.grove/` root — witness and evacuated tree intact — before descriptor-rooted
+disposal. Same-device by [[Workspace layout preflight]]'s constraint, and revalidated
+against the transaction's own operands.
+_Avoid_: reading a quarantine's presence as evidence a finish happened, or its
+absence as evidence one did not; it is cleanup garbage, never a finish receipt or
+a workflow input.
+
 **Grove name**:
 The working-tree directory's basename — never a branch, a bookmark, or a
 canonical layout — resolved **jj-first** from the closest repository marker

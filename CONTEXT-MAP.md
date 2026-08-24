@@ -125,9 +125,10 @@ mean something else in grove's, and its crate ships by no path of its own —
   [`task-names-are-canonical`](docs/adr/task-names-are-canonical.md),
   [`grove-does-not-stage-its-own-renames`](docs/adr/grove-does-not-stage-its-own-renames.md),
   [`bulk-marks-are-not-atomic`](docs/adr/bulk-marks-are-not-atomic.md),
-  and the two specs
-  [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md) and
-  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md).
+  and the three specs
+  [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md),
+  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
+  and [`semantic-contract`](docs/specs/semantic-contract.md).
   The **ordinal-fs-tree** context owns
   [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md) and
   [`entries-are-never-removed`](docs/adr/entries-are-never-removed.md). They sit
@@ -143,9 +144,14 @@ mean something else in grove's, and its crate ships by no path of its own —
   would cost, for someone proposing to change it.
 
   Each spec earns its place the same way: the first describes how the embedded
-  corpus files its rules, an area no single increment finishes, and the second a
-  composition **between** two contexts — so both outlive the increment that wrote
-  them. The doubt skill
+  corpus files its rules, an area no single increment finishes; the second a
+  composition **between** two contexts; and the third the tool-neutral semantics
+  of the task tree, the finish protocol and the lifecycle joining them, which the
+  models check and the crates must deliver — so all three outlive the increment
+  that wrote them. `semantic-contract` is **grove**'s despite naming
+  `docs/ordinal-fs-tree/models/` as a delegated boundary: it consumes that
+  boundary in grove's vocabulary and states no claim in the library's, which is
+  the discriminator this map sets. The doubt skill
   participates in the review-ownership and promotion contracts, but the mandate,
   task tree, review routing, and lifecycle are Grove's maintaining seam.
 

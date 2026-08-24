@@ -48,6 +48,12 @@ contains wins produces a skill that only knows how to succeed.
 
 Stated up front so they can be judged rather than quietly confirmed.
 
+**H1–H3 and entries 001–025 are Experiment 1** — the `ordinal-fs-tree`
+extraction, closed by the distillation at the foot of this file. A second
+experiment is pre-registered below under *Experiment 2*, with its own hypotheses
+numbered from H4; nothing here is restated or revised by it. When quoting a
+hypothesis, say which experiment it belongs to.
+
 - **H1 — the split is real.** Structural questions ("is this shape coherent?")
   and behavioural ones ("does this operation preserve it?") want different
   tools, and a practitioner can tell which they are holding *before* choosing.
@@ -2872,3 +2878,204 @@ that house note exempts — but the exemption is a judgement, not a measurement,
 and this log's own standard is to say so rather than imply the check was made.
 The instrument that fits is the one entry 017 names: a measure written by a party
 that authored neither the skill nor its baseline.
+
+---
+
+# Experiment 2 — pre-registration
+
+**Written before any Experiment 2 model exists.** That is the whole value of the
+section: a comparison decided after the results are in is a story, and this log's
+standing complaint is that "Quint was helpful here" is worth nothing. Everything
+below — hypotheses, counting rules, controls, and what would *falsify* each
+prediction — is fixed now, at jj change `uwuvxpkowmpumtukrknzxqptvpklmlwp`
+(commit `149994afa5f3a8d6fd04178b60754e085dfb960f`), 2026-08-24, before
+`design-model-contract-k5` writes the claim catalogue.
+
+Registered by `experiment-baseline-k4`. Nothing in Experiment 1 is revised;
+entries 001–025, H1–H3 and the distillation stand as written.
+
+## What is being compared, and what is not
+
+The subject is grove's own modular redesign: **task-tree semantics**, the
+**finish/recovery protocol** described by `TODO.finish_process.md`, and the
+**end-to-end lifecycle** joining session completion, tree exhaustion, finish,
+interruption and recovery. Alloy 6 and Quint each cover all three.
+
+This is a different subject from Experiment 1 in three ways that bound what the
+two experiments can be pooled into, and they are stated now so a later synthesis
+does not pool them anyway:
+
+1. **The system is stateful across process deaths.** Experiment 1's subject was
+   a tree algebra and its filesystem application. Experiment 2's includes crash
+   recovery, a VCS boundary, and three transactions nested inside one another.
+2. **The implementation already exists and is green.** Experiment 1 modelled
+   ahead of code. Here 1,210 tests pass over 31,423 lines of `src/` before a
+   line of model is written, so H2 ("the model leads profitably") **cannot** be
+   retested — the counterfactual is unavailable. Any finding is a finding
+   against *shipped* behaviour, which is a different and generally harder bar.
+3. **Alloy 6 is required to be temporal.** Experiment 1 used Alloy for static
+   relational structure and Quint for behaviour, which is precisely what H1
+   predicted. Experiment 2 deliberately puts both tools on behavioural questions,
+   so H1 is not being re-confirmed here — it is being *stressed*.
+
+Baseline facts about the system under study — versions, pre-existing suite
+state, the observable contract, and the repository's shape at this revision —
+are **not** repeated here. They live in
+[`docs/preservation-baseline.md`](preservation-baseline.md), which is the
+contract this experiment must not perturb; §1 and §2 there are the versions and
+green-suite record this pre-registration would otherwise have to carry.
+
+## Independence protocol
+
+The comparison is worthless if the second model is written by reading the first.
+Three rules, fixed now:
+
+1. **The claim catalogue is tool-neutral.** `design-model-contract-k5` defines
+   state, actions, observations, environment assumptions, stable and transient
+   states, refusal outcomes and recovery obligations in prose that encodes
+   neither tool's syntax. Both models are written from it.
+2. **Neither model reads the other before both are green.** Replay is a
+   deliberate later step, not a running cross-check. A finding carried across
+   during construction is recorded as such and excluded from the unique/overlap
+   count.
+3. **Replay is one-directional per finding and recorded either way.** Every
+   unique counterexample is replayed in the other formalism, or recorded as
+   inexpressible **with the reason**. "Not attempted" is not one of the outcomes.
+
+The rules are recorded as *intended*, and each entry says whether they held.
+Entry 017's lesson is the reason for that last clause: an arm's isolation
+conditions are the first thing a later reader doubts.
+
+## Hypotheses
+
+Each carries the observation that would **falsify** it, because a prediction
+with no falsifier is a description.
+
+- **H4 — the blind spots differ.** Within the same scope, each formalism finds
+  at least one material defect the other does not, in at least two of the three
+  scopes. *Falsified if* one formalism's findings are a subset of the other's
+  across all three scopes, or if the symmetric difference is empty.
+
+- **H5 — temporal Alloy and executable Quint fail differently on the same
+  question.** Quint's guarded actions and random simulation will reach
+  *interruption-and-recovery ordering* defects that Alloy 6's bounded temporal
+  traces do not; Alloy 6's temporal operators will reach *eventuality* claims
+  ("recovery always terminates in one of the two operator-restorable exits")
+  that bounded random simulation cannot establish. *Falsified if* neither tool
+  reaches a class the other misses, or if the classes land the other way round.
+
+- **H6 — counterexample usefulness is a property of the tool, not the finding.**
+  A counterexample's cost-to-act-on is more strongly determined by which tool
+  produced it than by which defect it exposes. *Falsified if* the spread within
+  a tool exceeds the spread between tools on the M3 scale below.
+
+- **H7 — findings convert to tests.** Every material finding yields at least one
+  executable Rust test that fails against the pre-fix implementation. *Falsified
+  by any finding that cannot* — and such a finding is more interesting than the
+  ones that can, so it is recorded prominently rather than dropped.
+
+- **H8 — placement is a real trade-off, not a preference.** Component-local
+  models (beside `grove-task-tree`, beside `grove-finish`) will be cheaper per
+  claim; the defects that actually motivate the redesign will appear only in the
+  system-level lifecycle model. *Falsified if* the system model finds nothing
+  the component models did not, or if component-local models are not cheaper.
+
+- **H9 — synchronization is the dominant hidden cost.** Keeping two independent
+  models describing one system in step will consume a materially larger share of
+  total modelling effort than writing either model did. *Falsified if* the
+  synchronization share is small, or if it is dwarfed by tool-wrangling (M7).
+
+- **H10 — a green run's silence is the main hazard.** More Experiment 2 hours
+  will be lost to a check that passed for the wrong reason than to a check that
+  failed. *Falsified if* the recorded false-confidence incidents (M8) cost less
+  than the genuine failures did.
+
+H4, H5 and H8 are the load-bearing ones: the brief keeps **both** model families
+regardless of the result, so no hypothesis here decides whether a tool is used.
+They decide what the eventual routing advice says.
+
+## Measures
+
+Counting rules fixed now, because the tempting time to define "material finding"
+is after seeing which tool produced more of them.
+
+**A *material finding*** is a defect, ambiguity or unstated assumption in the
+design or the shipped implementation that a reader would act on: it changes a
+model, a document, a test, or code. A modelling artifact — a scope too small, a
+typo in a predicate, a bounds tweak — is **not** one, and is recorded separately
+as tooling cost under M7. The classification is written down *when the finding is
+found*, before its origin tool is scored.
+
+| # | measure | how it is counted | which brief item |
+|---|---|---|---|
+| **M1** | unique vs overlapping findings | each material finding is tagged `alloy-only`, `quint-only`, or `both`; `both` requires that each model reached it *before* replay | unique vs overlapping |
+| **M2** | Alloy 6 temporal vs Quint actions | per scope, each finding is tagged with the class it belongs to — `ordering`, `interruption`, `eventuality`, `structure`, `refusal` — and the tool that reached it first | temporal vs action modelling |
+| **M3** | counterexample usefulness | a 0–3 ordinal recorded at the moment of reading, before any fix: 0 = tool says "violated", no usable trace; 1 = trace readable, defect inferable with effort; 2 = trace names the transition; 3 = trace transcribes directly into a failing test | counterexample quality |
+| **M4** | derived tests | per finding: the test file and name added, or `none` plus why. The pre-fix red/post-fix green pair is the evidence | test derivation |
+| **M5** | placement | per model file: which crate owns it, claims checked, findings produced, and wall-clock to green. Component-local and `models/system/` are compared on findings-per-hour | component-local vs system-level |
+| **M6** | synchronization burden | wall-clock spent making one model agree with the other after a change to either, logged as its own line item and never folded into authoring time | synchronization burden |
+| **M7** | state-space and tooling cost | per model: bounds or trace limits, solver/backend, wall-clock and CPU-seconds of the full run, plus every hour lost to the tool rather than to the problem | state-space / tooling cost |
+| **M8** | false-confidence incidents | each occasion a check was believed to pass while proving nothing, with how it was caught and how long it stood | false-confidence hazards |
+
+M7 has a baseline to beat and a warning attached. Experiment 1's suites at this
+revision cost **17s wall for Alloy** (20 commands) and **3m 29s wall / 2527s CPU
+for Quint** (148 claims, one instance at six times the sample budget for a
+witness landing in ~0.07% of traces). Experiment 2's subject has recovery states
+and a VCS boundary; if its Quint run does not cost materially more than that, the
+suspicion is that it is not modelling the interesting states.
+
+## Named false-confidence hazards, and the control for each
+
+Pre-registered so that finding one later is a confirmed prediction rather than an
+excuse. Each is a way this experiment could report a green result that means
+nothing.
+
+| hazard | why it is live | control |
+|---|---|---|
+| **The dead tool** — a run that never started reports what a run that found nothing reports | live on the measurement machine *right now*: `java` on `PATH` is Corretto 16, below Alloy 6's floor, and only `run-alloy.sh`'s own JDK probe makes the suite green (`preservation-baseline.md` §1) | the repository runner aborts on launch-failure output rather than recording it as a result, and the suite is required to fail when a tool is removed |
+| **The absent suite** — a model that is not run at all | entry 003's failure mode, and it has cost this workstream three times | one runner executes every model; a model file no runner reaches is a runner defect, asserted as such |
+| **The vacuous invariant** — a property that holds because its antecedent is never reached | a bounded random simulation reaching an interruption state 0.07% of the time is one witness away from reaching it never | every invariant has a paired witness proving its situation is reachable; an invariant with no reachable witness is not a claim |
+| **The unfalsifiable green** — no mutation control | Experiment 1's repeated lesson (entries 006, 008, 011) | one mutation per reported obligation: break the mechanism, watch the specific claim fail, restore |
+| **Agreement mistaken for proof** — the two models agree because they share an error inherited from one catalogue | the catalogue is the single common ancestor of both models, by design | the catalogue's own assumptions are enumerated as a list, and each is mutated in at least one model |
+| **The scope trap** — a bound too small to reach the defect | recovery needs at least two interleaved failures | every `check` records the bound at which it was run *and* the bound at which its witness first appears |
+| **The idealisation** — a detail omitted from the model is where the bug lives | the finish protocol's real hazards are `renameat2`, symlinks and partial `jj commit` | each model's deliberate omissions are listed as refusal classes, and each listed omission is checked against the shipped code by hand |
+
+## Recording protocol
+
+Experiment 2 entries continue the same numbering (**026** onward) in the
+`## Entries` section above, and keep the six fields — Situation, Formalism,
+Caught / missed, Cost, Counterfactual, Verdict — that
+*What makes an entry useful* defines. The node brief requires exactly those, so
+nothing changes there.
+
+Four additions, and they are additions rather than replacements:
+
+1. Every entry states which **scope** it belongs to (task-tree, finish/recovery,
+   lifecycle) and whether the model is component-local or system-level.
+2. Every material finding carries its **M1 tag, M2 class and M3 score**, recorded
+   before the fix.
+3. Every entry records whether the **independence protocol held**, and names any
+   breach.
+4. Every entry names the model's **tool version, bounds or trace limits,
+   solver/backend, fairness assumptions, abstractions, deliberate omissions, and
+   what a green run does not prove** — the node brief's requirement, restated
+   here as an entry field so it cannot be satisfied only in the model header.
+
+**Misses are recorded with the same care as hits.** A log that contains only wins
+produces a skill that only knows how to succeed, and Experiment 1's most-cited
+result (H3, at entry 017) is a hypothesis that was *not* supported.
+
+## What this pre-registration deliberately does not promise
+
+- **It does not decide whether either formalism is worth it.** Both model
+  families are required by the node brief regardless of the outcome. This section
+  fixes what gets measured, not what gets used.
+- **It cannot re-test H2.** The implementation is already written and green; the
+  model-leads-implementation counterfactual is gone for this subject.
+- **It is not a plan.** Which models exist, in which order, is
+  `formal-modeling-k1`'s decomposition, not this section's.
+- **It has no control arm.** There is no prose-only arm as at entry 017, because
+  the shipped implementation *is* the prose-driven arm and its defects are
+  already the thing being hunted. Any claim that a model beat prose here is
+  confounded by the whole v1.0.0 → v19.3.0 history of this code being read,
+  reviewed and revised; say so rather than implying a comparison was run.

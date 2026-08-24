@@ -7,9 +7,9 @@
  * command below names an OBLIGATION of that document, and the repository runner
  * reads the obligation list out of the document rather than out of this file.
  *
- * COVERAGE SO FAR: TT-01 .. TT-10.  TT-11 .. TT-25 are the two sibling leaves'
- * (`selection`, `guarding`); the runner reports their cells empty, which is the
- * truth about this file rather than a defect in it.
+ * COVERAGE SO FAR: TT-01 .. TT-16.  TT-17 .. TT-25 are the `guarding` sibling
+ * leaf's; the runner reports their cells empty, which is the truth about this
+ * file rather than a defect in it.
  *
  * HOW TO READ IT — the house style of `docs/ordinal-fs-tree/models/`:
  *
@@ -221,7 +221,45 @@ fun foreignEntries:    set Obj { { o: onDisk - TaskRoot | o.nm in foreignName } 
 fun entriesIn[d: Obj]: set Obj { kidsOf[d] & entries }
 fun nodeDirs:          set Obj { TaskRoot + { o: entries | o.nm.fSpec = NodeSp } }
 fun liveLeaves:        set Obj { { o: entries | o.nm.fSpec = LeafSp and o.nm.fOut = LiveI } }
+fun liveFinish:        set Obj { { o: liveLeaves | o.nm.fKind = FinishK } }
+fun liveOrdinary:      set Obj { liveLeaves - liveFinish }
 fun allKeys:           set Int { entries.nm.fKey }
+
+/* ---------------------------------------------------------------------------
+   THE WALK (TT-11).  Depth-first PRE-ORDER over positions, and it needs no rank
+   relation: `a` precedes `b` exactly when `a` is an ancestor of `b`, or some
+   ancestor-or-self of each are siblings ordered by position.  `loc` is the
+   parent relation, so `x: a.*loc` is `a` and its ancestors.
+
+   Stated as a function of `loc` and `nm` and NOTHING else.  That is how TT-11's
+   "depends on no state outside the tree" is answered: by construction, not by a
+   command — a model cannot check the absence of a variable it does not have.
+   --------------------------------------------------------------------------- */
+pred precedes[a, b: Obj] {
+  b in a.^(~loc)
+  or (some x: a.*loc, y: b.*loc | x.loc = y.loc and some x.loc and x.nm.fPos < y.nm.fPos)
+}
+
+/* TT-13: a live finish leaf is RESERVED, not blocking — skipped while any
+   ordinary work is live, returned when it is the only live leaf. */
+fun eligible: set Obj { some liveOrdinary implies liveOrdinary else liveFinish }
+
+/* TT-11 + TT-14: the `precedes`-minimal eligible leaf.  Position and terminality
+   are the only mechanisms that enter; there is nowhere for a priority to go. */
+fun selected: set Obj { { o: eligible | no p: eligible - o | precedes[p, o] } }
+
+/* A resolution's argument: a permanent key, a slug, or both — the CLI's `[n]`,
+   a bare slug, and the full `<slug>-k<key>` handle.  Nothing else about the
+   reference matters to TT-15/TT-16, and the model reads no slug's content. */
+one sig Query { qKey: lone Int, qSlug: lone Slug }
+fact QueryIsNonEmpty { some Query.qKey or some Query.qSlug }
+
+/* Resolution searches live, DONE and ABANDONED entries alike — which is exactly
+   why TT-16 exists: a match is not evidence of liveness. */
+fun matched[q: Query]: set Obj {
+  { o: entries | (some q.qKey  implies o.nm.fKey  = q.qKey)
+             and (some q.qSlug implies o.nm.fSlug = q.qSlug) }
+}
 
 /* A name declares its species and the on-disk object must be it (TT-02). */
 pred speciesAgrees[o: Obj] {
@@ -246,9 +284,13 @@ pred gaplessAt[d: Obj] {
 pred rPositionsNotGapless { some d: nodeDirs | not gaplessAt[d] }
 pred rKeyReissued      { some disj a, b: entries | a.nm.fKey = b.nm.fKey }
 pred rNodeWithoutCharter { some d: nodeDirs - TaskRoot | no (kidsOf[d] & charters) }
+/* TT-13.c.  A WHOLE-TREE reason, the shape `rKeyReissued` has and not the shape
+   `rSpeciesMismatch` has: both entries are individually well formed, and what is
+   wrong is the tree.  `MultipleLiveFinish` of the catalogue's reason table. */
+pred rMultipleLiveFinish { not lone liveFinish }
 
 pred halted { rMalformedEntry or rSpeciesMismatch or rPositionsNotGapless
-              or rKeyReissued or rNodeWithoutCharter }
+              or rKeyReissued or rNodeWithoutCharter or rMultipleLiveFinish }
 pred treeOk { not halted }
 
 
@@ -260,7 +302,8 @@ pred treeOk { not halted }
 // ===========================================================================
 
 abstract sig Action {}
-one sig Idle, AddLeaf, InsertLeaf, Decompose, Retire, Prune, HandEdit extends Action {}
+one sig Idle, AddLeaf, InsertLeaf, Decompose, Retire, Prune, HandEdit,
+        Select, Resolve extends Action {}
 
 abstract sig Result {}
 one sig Applied extends Result {}
@@ -273,11 +316,22 @@ one sig RefMalformed, RefNotAnEntry, RefNotLive, RefAlreadyTerminal,
    argument reaches it, because grove's preconditions run in front. */
 one sig AlgebraicRefusal extends Result {}
 one sig Environmental extends Result {}
+/* The catalogue's observation outcomes.  `Empty` and `Ambiguous` are SUCCESSES,
+   not refusals, because that is the shipped contract and callers branch on it
+   (TT-15); the whole content of that claim is that they sit here rather than
+   under `Refused`. */
+one sig Reported, Empty, Ambiguous extends Result {}
+fun observations: set Result { Reported + Empty + Ambiguous }
 
 one sig Sys {
   var act: one Action,
   var res: one Result,
-  var tgt: lone Obj
+  var tgt: lone Obj,
+  /* What an observation REPORTED.  Modelled as a field rather than derived, so
+     that a check restating the intended report is broken by a mutation of the
+     transition — a derived value could not be got wrong. */
+  var got:     set Obj,        // the entries the observation reported
+  var gotTerm: set Obj         // those of them it reported as TERMINAL (TT-16)
 }
 
 /* What `ordinal-fs-tree` itself would refuse, given the argument as handed to
@@ -407,6 +461,38 @@ pred doRewrite[t: Obj, i: Infix, g: Filename] {
   }
 }
 
+// --- select / resolve: the observations ------------------------------------
+//
+// Both are TOTAL like every other action, and both are READS: a malformed tree
+// stops them exactly as it stops a mutation (TT-03's rule, which the reason
+// table generalises to "stops every read and mutation").  What they add to the
+// vocabulary is the pair of outcomes that are SUCCESSES rather than refusals.
+
+pred doSelect {
+  Sys.act' = Select and no Sys.tgt' and noTreeChange and no Sys.gotTerm'
+  halted implies (Sys.res' = RefMalformed and no Sys.got')
+  not halted implies {
+    Sys.got' = selected
+    no selected   implies Sys.res' = Empty        // TT-15.a
+    some selected implies Sys.res' = Reported
+  }
+}
+
+pred doResolve[q: Query] {
+  Sys.act' = Resolve and no Sys.tgt' and noTreeChange
+  halted implies (Sys.res' = RefMalformed and no Sys.got' and no Sys.gotTerm')
+  not halted implies {
+    Sys.got' = matched[q]
+    // TT-16: what a resolution reports about terminality, reported rather than
+    // derived by the reader — a `Done` or `Abandoned` entry comes back WITH its
+    // terminality, so a caller cannot read a match as liveness.
+    Sys.gotTerm' = { o: matched[q] | o.nm.fOut in terminalInfix }
+    no matched[q]   implies Sys.res' = Empty          // TT-15.b
+    one matched[q]  implies Sys.res' = Reported
+    (some matched[q] and not one matched[q]) implies Sys.res' = Ambiguous  // TT-15.c
+  }
+}
+
 // --- the world's own actions ------------------------------------------------
 
 /* EN-11: any well-formed tree is reachable by hand edit.  Unconstrained beyond
@@ -424,23 +510,31 @@ pred doIdle { Sys.act' = Idle and Sys.res' = Environmental and no Sys.tgt' and n
    the promotion disjunct, which is most of what the solver spends its time on.
    The TARGET stays `Obj`, because an action must be total over what an operator
    can name: a node handed to `retire` has to reach its refusal. */
+pred noReport { no Sys.got' and no Sys.gotTerm' }
+
 pred step {
-  doIdle
-  or doHandEdit
-  or (some d: Obj, o: FileObj, f: Filename | doAddLeaf[d, o, f])
-  or (some t: Obj, o: FileObj, f: Filename | doInsertLeaf[t, o, f])
-  or (some t: Obj, n: DirObj, disj c, k: FileObj, nf, kf: Filename |
-        doDecompose[t, n, c, k, nf, kf])
-  or (some t: Obj, i: Infix, g: Filename | doRewrite[t, i, g])
+  (noReport and (doIdle
+    or doHandEdit
+    or (some d: Obj, o: FileObj, f: Filename | doAddLeaf[d, o, f])
+    or (some t: Obj, o: FileObj, f: Filename | doInsertLeaf[t, o, f])
+    or (some t: Obj, n: DirObj, disj c, k: FileObj, nf, kf: Filename |
+          doDecompose[t, n, c, k, nf, kf])
+    or (some t: Obj, i: Infix, g: Filename | doRewrite[t, i, g])))
+  or doSelect
+  or (some q: Query | doResolve[q])
 }
 
 fact Trace {
   Sys.act = Idle and Sys.res = Environmental and no Sys.tgt
+  no Sys.got and no Sys.gotTerm
   always step
 }
 
 /* A grove action, as against the world's. */
 fun groveActs: set Action { AddLeaf + InsertLeaf + Decompose + Retire + Prune }
+/* The observations, which are reads: no `groveAct` names one, so every command
+   written about mutation is unchanged by their arrival. */
+fun observeActs: set Action { Select + Resolve }
 pred groveStep { Sys.act' in groveActs }
 
 
@@ -775,6 +869,250 @@ run witness_TT_10_an_algebraic_refusal_is_preempted {
   eventually (Sys.act' in groveActs and algebraWouldRefuse[Sys.act', Sys.tgt']
               and Sys.res' in Refused)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+
+// ===========================================================================
+// CLAIMS — TT-11 .. TT-16, the selection scope
+//
+// WHY THESE COMMANDS RUN AT `2 steps` AND THE MUTATION ONES AT `3`.  The lasso
+// argument in the header is about a TREE-CHANGING action: the state it reaches
+// can loop to neither the initial state nor itself.  An observation changes
+// nothing, so the state it reaches loops to ITSELF — repeat the observation on
+// an unchanged tree and every component of the state recurs.  Two states is
+// therefore the minimum that admits an applied observation, and the witnesses
+// below are what prove that rather than assume it.  `TT-14` is the exception:
+// it needs two observations with a hand edit between them, which is four.
+// ===========================================================================
+
+// --- TT-11: selection is a stateless pre-order walk ------------------------
+
+/* The walk returns the `precedes`-minimal eligible leaf, and returns exactly
+   one when there is one to return.  `lone Sys.got'` is not a formality: the
+   minimum is unique only because `precedes` is total on a well-formed tree, and
+   THAT holds only because gaplessness makes sibling positions distinct.  Drop
+   gaplessness from `halted` and this check finds two minima. */
+check TT_11_selection_is_the_first_eligible_leaf_in_preorder {
+  GroveGrammar implies always (
+    (Sys.act' = Select and not halted) implies {
+      noTreeChange
+      Sys.got' in liveLeaves
+      some eligible implies one Sys.got'
+      all o: Sys.got' | no p: eligible - o | precedes[p, o]
+    })
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* The catalogue's witness: a selection that descends a node before visiting a
+   later sibling.  Pre-order and not breadth-first, and not "shallowest first". */
+run witness_TT_11_selection_descends_a_node_before_a_later_sibling {
+  GroveGrammar
+  eventually (Sys.act' = Select and Sys.res' = Reported and
+    (some o: Sys.got', n: entries | {
+       o.loc = n
+       n.nm.fSpec = NodeSp
+       some s: entriesIn[n.loc] | s in liveLeaves and s.nm.fPos > n.nm.fPos
+     }))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+// --- TT-12: terminal entries are skipped, never removed --------------------
+
+check TT_12_terminal_entries_are_skipped_never_removed {
+  GroveGrammar implies always {
+    (Sys.act' = Select and Sys.res' = Reported) implies
+      (all o: Sys.got' | o.nm.fOut = LiveI)
+    // skipping is not deletion: no grove action takes a terminal entry off disk.
+    // (`hand-edit` is the world's, and EN-11 is what makes it unconstrained.)
+    Sys.act' in groveActs implies
+      (all o: entries | o.nm.fOut in terminalInfix implies o in onDisk')
+  }
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* A walk crossing a WHOLLY terminal node: the node holds entries, none of them
+   live, it precedes the selection, and it is still on disk. */
+run witness_TT_12_the_walk_crosses_a_wholly_terminal_node {
+  GroveGrammar
+  eventually (Sys.act' = Select and Sys.res' = Reported and
+    (some n: entries, o: Sys.got' | {
+       n.nm.fSpec = NodeSp
+       some (entries & n.^(~loc))
+       no (liveLeaves & n.^(~loc))
+       precedes[n, o]
+     }))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+// --- TT-13: finish is reserved, not blocking -------------------------------
+
+check TT_13a_a_live_finish_leaf_is_skipped_while_ordinary_work_is_live {
+  GroveGrammar implies always (
+    (Sys.act' = Select and not halted and some liveOrdinary) implies
+      no (Sys.got' & liveFinish))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* The case where the skip rule is the ONLY thing preventing teardown: the
+   finish leaf sits at an earlier position than live ordinary work, so a walk
+   that merely took the first live leaf would return it. */
+run witness_TT_13a_a_finish_leaf_earlier_than_live_work_is_skipped {
+  GroveGrammar
+  eventually (Sys.act' = Select and Sys.res' = Reported and
+    (some fl: liveFinish, o: Sys.got' | precedes[fl, o]))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+check TT_13b_the_finish_leaf_is_returned_when_it_is_the_only_live_leaf {
+  GroveGrammar implies always (
+    (Sys.act' = Select and not halted and no liveOrdinary and some liveFinish)
+      implies (Sys.res' = Reported and one Sys.got' and Sys.got' in liveFinish))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+run witness_TT_13b_the_finish_leaf_is_the_only_live_leaf {
+  GroveGrammar
+  eventually (Sys.act' = Select and Sys.res' = Reported and
+              Sys.got' in liveFinish and some terminalInfix & entries.nm.fOut)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* TT-13.c.  The reason classifies the TREE.  What makes that a claim rather
+   than a restatement is the second conjunct: the tree halts even when no
+   entry-local reason holds — both finish leaves are individually well formed,
+   and there is nothing to name but the tree. */
+check TT_13c_two_live_finish_leaves_malform_the_whole_tree {
+  GroveGrammar implies always (
+    rMultipleLiveFinish implies {
+      halted
+      (Sys.act' in groveActs + observeActs) implies
+        (Sys.res' = RefMalformed and noTreeChange and no Sys.got' and no Sys.gotTerm')
+    })
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* Two individually well-formed live finish leaves in DIFFERENT subtrees, and no
+   other malformity anywhere: nothing is wrong with either entry. */
+run witness_TT_13c_two_well_formed_live_finish_leaves_in_different_subtrees {
+  GroveGrammar
+  rMultipleLiveFinish
+  not (rMalformedEntry or rSpeciesMismatch or rPositionsNotGapless
+       or rKeyReissued or rNodeWithoutCharter)
+  some disj a, b: liveFinish | a.loc != b.loc
+  eventually (Sys.act' = Select and Sys.res' = RefMalformed)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+// --- TT-14: selection is not a scheduler -----------------------------------
+
+/* Among eligible SIBLINGS, position decides and nothing else does — not the
+   key, not the slug, not the kind, not the order they were created in.  The
+   mutation that breaks it is a walk that prefers the smallest key. */
+check TT_14_position_and_terminality_are_the_only_mechanisms {
+  GroveGrammar implies always (
+    (Sys.act' = Select and Sys.res' = Reported) implies
+      (all o: Sys.got', p: eligible - o | p.loc = o.loc implies o.nm.fPos < p.nm.fPos))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* The catalogue's witness, and the only command here that needs four states:
+   TWO ORDERINGS OF THE SAME WORK SELECTING DIFFERENTLY.  Select, hand-edit the
+   positions of two live leaves while keeping every other part of both names,
+   select again — and a different leaf comes back.  Nothing but the order moved. */
+run witness_TT_14_two_orderings_of_the_same_work_select_differently {
+  GroveGrammar
+  some disj a, b: FileObj |
+    eventually {
+      Sys.act = Select and Sys.res = Reported and Sys.got = a
+      liveLeaves = a + b
+      Sys.act' = HandEdit
+      a.loc' = a.loc and b.loc' = b.loc
+      a.nm'.fKey  = a.nm.fKey  and b.nm'.fKey  = b.nm.fKey
+      a.nm'.fSlug = a.nm.fSlug and b.nm'.fSlug = b.nm.fSlug
+      a.nm'.fKind = a.nm.fKind and b.nm'.fKind = b.nm.fKind
+      a.nm'.fOut  = a.nm.fOut  and b.nm'.fOut  = b.nm.fOut
+      a.nm'.fSpec = a.nm.fSpec and b.nm'.fSpec = b.nm.fSpec
+      a.nm'.fPos != a.nm.fPos
+      after after (Sys.act = Select and Sys.res = Reported and Sys.got = b)
+    }
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 4 steps
+
+// --- TT-15: an empty or ambiguous observation is a SUCCESS -----------------
+//
+// The whole content is that `Empty` and `Ambiguous` are in `observations` and
+// not in `Refused`, that the tree is untouched, and that the three outcomes are
+// told apart by the reported value alone.
+
+check TT_15a_selection_on_a_spent_tree_reports_empty {
+  GroveGrammar implies always (
+    (Sys.act' = Select and not halted) implies {
+      noTreeChange
+      Sys.res' in observations                 // never a refusal
+      (no eligible)      iff (Sys.res' = Empty)
+      (Sys.res' = Empty) iff (no Sys.got')
+    })
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* A SPENT tree, not an empty one: entries exist and every one of them is
+   terminal.  An empty tree would satisfy the claim for the wrong reason. */
+run witness_TT_15a_a_spent_tree_reports_empty {
+  GroveGrammar
+  eventually (Sys.act' = Select and Sys.res' = Empty and
+              some entries and no liveLeaves)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+check TT_15b_a_resolution_matching_nothing_reports_empty {
+  GroveGrammar implies always (
+    (Sys.act' = Resolve and not halted) implies {
+      noTreeChange
+      Sys.res' in observations
+      (no Sys.got')      iff (Sys.res' = Empty)
+      (some Query.qKey  implies (all o: Sys.got' | o.nm.fKey  = Query.qKey))
+      (some Query.qSlug implies (all o: Sys.got' | o.nm.fSlug = Query.qSlug))
+    })
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* Matching nothing on a POPULATED tree — the reference is well formed and simply
+   names no entry. */
+run witness_TT_15b_a_resolution_matching_nothing_reports_empty {
+  GroveGrammar
+  eventually (Sys.act' = Resolve and Sys.res' = Empty and some entries)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+check TT_15c_a_resolution_matching_several_reports_ambiguous {
+  GroveGrammar implies always (
+    (Sys.act' = Resolve and not halted) implies {
+      noTreeChange
+      (one Sys.got')  iff (Sys.res' = Reported)
+      (not lone Sys.got') iff (Sys.res' = Ambiguous)
+      Sys.res' = Ambiguous implies Sys.got' in entries
+    })
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* Several matches from a bare SLUG: a key resolves at most one entry, so this
+   outcome exists only because a slug is not an identity. */
+run witness_TT_15c_a_bare_slug_matching_several_reports_ambiguous {
+  GroveGrammar
+  eventually (Sys.act' = Resolve and Sys.res' = Ambiguous and no Query.qKey)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+// --- TT-16: a resolved terminal entry is never mistaken for live -----------
+
+check TT_16a_a_resolved_done_entry_is_reported_terminal {
+  GroveGrammar implies always (
+    (Sys.act' = Resolve and Sys.res' in (Reported + Ambiguous)) implies {
+      all o: Sys.got' | o.nm.fOut = DoneI implies o in Sys.gotTerm'
+      no (Sys.gotTerm' & liveLeaves)
+    })
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+run witness_TT_16a_a_resolved_done_entry {
+  GroveGrammar
+  eventually (Sys.act' = Resolve and Sys.res' = Reported and
+    (some o: Sys.got' | o.nm.fOut = DoneI and o in Sys.gotTerm'))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+check TT_16b_a_resolved_abandoned_entry_is_reported_terminal {
+  GroveGrammar implies always (
+    (Sys.act' = Resolve and Sys.res' in (Reported + Ambiguous)) implies {
+      all o: Sys.got' | o.nm.fOut = AbandonedI implies o in Sys.gotTerm'
+      no (Sys.gotTerm' & liveLeaves)
+    })
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+run witness_TT_16b_a_resolved_abandoned_entry {
+  GroveGrammar
+  eventually (Sys.act' = Resolve and Sys.res' = Reported and
+    (some o: Sys.got' | o.nm.fOut = AbandonedI and o in Sys.gotTerm'))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
 // ===========================================================================
 // VACUITY GUARDS

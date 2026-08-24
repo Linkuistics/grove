@@ -61,3 +61,32 @@ else, and say so in the README rather than pretending a command checks it.
 
 
 ## Decisions (running log)
+
+- **The walk is a `precedes` predicate, not a rank relation.** `a` precedes `b`
+  iff `a` is an ancestor of `b`, or ancestor-or-self of each are siblings ordered
+  by `fPos`. `selected` is the `precedes`-minimum of `eligible`, and `eligible`
+  is `liveOrdinary` unless it is empty, in which case `liveFinish`. No new state.
+- **`TT-11`'s "depends on no state outside the tree" is answered by construction
+  and no command claims to check it.** Recorded under its own heading in the
+  family `README.md`. A model cannot check the absence of a variable it does not
+  have; what *is* checked is `TT-14`, which names `fPos` and so survives a
+  `precedes` that has been taught a scheduler.
+- **Observation commands run at `2 steps`.** The lasso argument that forces
+  mutations to `3` does not apply to a read: the state a read reaches loops to
+  itself. Verified, not assumed — `witness_TT_09a_append` finds no instance at
+  `2 steps` while every observation witness does. `TT-12` and `TT-13.c`'s checks
+  quantify over mutations and stay at `3`; `witness_TT_14` needs `4`.
+- **What an observation reported is modelled as state** (`Sys.got`,
+  `Sys.gotTerm`) rather than derived from the tree. A derived terminality could
+  not be got wrong, and `TT-16` is exactly the claim that the report carries it.
+- **A resolution's reference is `one sig Query`** — an optional key and an
+  optional slug, one atom for the whole trace. Every command needs at most one
+  `resolve`, and one atom leaves the existing `TT-01` – `TT-10` scopes untouched.
+- **`MultipleLiveFinish` is a whole-tree halting reason** (`rMultipleLiveFinish`
+  in `halted`), the shape `rKeyReissued` has and not the shape
+  `rSpeciesMismatch` has, per `TT-13.c`.
+- **A mutation is a control only with evidence that it fires.** `TT-12`'s first
+  mutation was unsatisfiable and therefore reported as a survivor; the rule added
+  to the family `README.md` is to re-run one existing witness under the mutation.
+- **The `guarding` sibling is `03-prototype-guarding-k35.md`**, carrying
+  `TT-17` – `TT-25` and the Alloy-owned `EN-` mutations.

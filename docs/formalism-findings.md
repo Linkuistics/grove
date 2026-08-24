@@ -3032,6 +3032,165 @@ the initial state is unconstrained, which is `EN-11` cashed out as a modelling
 decision rather than a claim anyone checked. Nothing here is a proof about
 arbitrary trees, and nothing here is evidence about `TT-11` – `TT-25`.
 
+### 027 — Eleven obligations, no findings, and a mutation that could not fire (task-tree selection)
+
+**Scope.** Task tree, **component-local** (`crates/grove-task-tree/models/`).
+`TT-11` – `TT-16`: the pre-order walk, terminality, the reserved finish leaf, and
+the empty/ambiguous observation outcomes. `TT-17` – `TT-25` are the `guarding`
+leaf's.
+
+**Independence protocol: held.** No Quint model of this subject exists. Neither
+`docs/ordinal-fs-tree/models/operations.qnt` nor any Quint file was opened.
+
+**Situation.** The second slice of the same Alloy 6 file, and the first one whose
+subject is *reading* rather than mutating: `select` and `resolve`, their outcomes,
+and the rule that a live finish leaf is reserved rather than blocking. Entry 026
+left the file green for `TT-01` – `TT-10` after a false-confidence incident that
+cost a suite's worth of trust, so this slice was run under the procedure that
+incident produced — transitions written as total functions first, commands
+second, mutation pass before the green is believed.
+
+**Caught: nothing.** No counterexample about grove's shipped behaviour, and — a
+change from entry 026 — **no finding about the catalogue either**. Every one of
+`TT-11` – `TT-16` transcribed into a command without forcing a choice the
+catalogue had not already made. Eleven obligations, twenty-two commands, all
+green on the first complete run, and eleven mutations that each broke exactly the
+check they were aimed at — one of them only after being re-aimed, which is this
+entry's one incident and is recorded below rather than smoothed over.
+
+That is a **miss recorded as a miss**, and it is the second data point on the
+same axis as entry 026's verdict: *the claims nearest an already-settled boundary
+are the ones least likely to surprise*. `TT-11` – `TT-16` are the most fully
+specified claims in the task-tree scope — `TT-13` and `TT-15` were both sharpened
+by `model-contract-k31`/`k32` before any model existed — and a model of a claim
+that has already been argued to a fixed point finds nothing, because the finding
+already happened in prose. **No material findings. `M4 = none` for the slice**,
+and there is no defect to write a failing test against.
+
+**Two things the modelling did establish, neither of them material by the
+counting rule.** Both are recorded because the entry would be misleading without
+them.
+
+*`TT-11` and `TT-14` are separable claims, and only the mutation pass shows it.*
+Written naively, `TT-14` — *selection is not a scheduler* — reads as a restatement
+of `TT-11`'s pre-order and is tempting to leave out. It is not: re-defining
+`precedes` to order siblings by **key** instead of position leaves `TT-11`'s check
+green (the walk still returns the `precedes`-minimum, and `TT-11` is stated in
+terms of `precedes`) while `TT-14` fails, because `TT-14` names the position
+field. `TT-14` is the command that catches a scheduler the *walk itself* has been
+taught to respect, which is the only place such a thing could hide.
+
+*`TT-11`'s "depends on no state outside the tree" is not checkable, and saying so
+is the honest result.* A model cannot check the absence of a variable it does not
+have. The walk is written as a function of `loc` and `nm` alone and the README
+says so under its own heading, rather than a command pretending to establish it.
+This is the shape entry 021 recorded from the other side: the useful output of a
+formalism is sometimes a clear statement of what it is *not* evidence for.
+
+**One false-confidence incident (M8), and it is the fourth of its kind here.**
+`TT-12`'s first mutation — widen promotion's applied guard from `t in liveLeaves`
+to any leaf, so a terminal entry can be taken off disk — **survived**. It was not
+a survivor. `doDecompose` still carried its `RefAlreadyTerminal` clause, so on a
+terminal target both implications fired against a `one Result` field; the
+transition was unsatisfiable, never fired, and the check passed vacuously. **The
+runner reports a mutation that cannot execute exactly as it reports one that
+executed and was not caught**, and only reading tells them apart. Entry 026
+retained two of these; this is the third and fourth cumulatively, and the pattern
+is now specific enough to name a rule: **a mutation is a control only with
+evidence that it fires.** Re-aimed (remove the refusal clause as well), `TT-12`
+was caught in 30s, and `witness_TT_09c_promotion` finding an instance *under the
+mutation* is the cheap evidence that it executed. Stood **~3 minutes**.
+**Genuine failing checks this slice: zero, at zero hours.** Both halves of H10's
+ledger, and this slice contributes only to the false-confidence side.
+
+**A second self-inflicted one, on the instrument rather than the model (M7).** The
+bound probe that establishes where each witness *first* lands was run by
+string-substituting the `steps` scope in a copy of the file. The pattern included
+a trailing `\n}` that the file does not contain, so two probes silently changed
+nothing and reported the witness landing at a bound it had never been run at.
+Caught by the result being implausible — `TT-14` cannot land in fewer states than
+its own three actions — and corrected with an assertion on the substitution
+count. **Wrangling: ~10 minutes.** The generalisation is the same one the runner
+already embodies at a larger scale: *a transformation that silently matched
+nothing reports what a transformation that worked reports*.
+
+**Cost.** Authoring ≈ **2 h** for 11 obligations (**M5**: 0.18 h/obligation,
+against entry 026's 16 obligations at a markedly higher rate — the machinery this
+slice needed, the walk and two observation transitions, is a fraction of what the
+name algebra needed). **M6 synchronization: 0.** No second family exists yet.
+
+**M7 — state-space and tooling.** The selection slice's 22 commands cost **4m 40s**
+wall against the `TT-01` – `TT-10` slice's ~30 minutes for 37, and the ratio is
+the finding worth carrying: **an observation is cheap because it cannot change
+the tree.** The lasso argument that forces every mutation command to `3 steps`
+does not apply to a read — the state a read reaches loops to *itself* — so the
+selection commands run at `2 steps`, and eleven of the twenty-two finish in five
+seconds. Two exceptions locate the boundary precisely: `TT-12` and `TT-13.c`'s
+checks quantify over grove *mutations* and need `3 steps`; `witness_TT_14` needs
+**`4 steps`**, because *two orderings of the same work selecting differently* is
+`select · hand-edit · select` and it finds no instance at 2 or at 3. The claim
+that `2 steps` admits no tree change is itself checked rather than argued:
+`witness_TT_09a_append` finds nothing there. The full task-tree Alloy suite is
+now **37m 36s** wall / **2581s** CPU for 59 commands, against entry 026's ~30
+minutes for 37 — the 22 added commands cost about a quarter of what the first 37
+did. Mutation pass ≈ **7 min**, bound probes ≈ **4 min**, wrangling **~10 min**
+(above).
+
+**Counterfactual.** Prose review would have reached the same place on ten of the
+eleven obligations, because the catalogue had already been argued into shape.
+The eleventh is `TT-14`: a prose reviewer asked whether *selection is not a
+scheduler* needs its own test, next to a pre-order that is already specified,
+would very plausibly answer no. The mutation that orders siblings by key is what
+answers yes, and it is not an argument a reader produces — it is a thing done to
+the model. That is one obligation's worth of value from the formalism, and it
+came from the **mutation pass**, not from the solver: no check here ever searched
+a state space for a defect that was there.
+
+**Verdict.** On this slice the model is a **transcription instrument**, not a
+discovery instrument, and the honest summary is that it found nothing the
+catalogue did not already contain. Two things nevertheless survive it, and both
+are procedural rather than semantic:
+
+- **The mutation pass is now carrying the whole evidential load.** Every finding
+  of substance in both task-tree entries came from mutating the model, and none
+  from a solver-found counterexample. Entry 026's verdict said run the mutations
+  before believing the green; this slice sharpens it — **a mutation is a control
+  only with evidence that it fires**, since an unsatisfiable one is
+  indistinguishable from a survivor at the runner's interface.
+- **Cheapness follows the claim's shape, not the claim's importance.** Reads cost
+  an order of magnitude less than writes at the same bounds, for a reason
+  (`2 steps` versus `3`) that is a property of the lasso and generalises to every
+  observation claim in the catalogue — `FN` and `SY` included, where the same
+  distinction between a read and a transaction step will be worth drawing early.
+
+**The seam, exercised.** `models/run.sh --scope task-tree --family alloy
+--no-coverage` reports **59 of 59** commands passing and exits 0, in **37m 36s**
+wall / **2581s** CPU. Its matrix reads **27 complete cells, 0 declared gaps, 16
+empty, of 43** — and every empty cell is `TT-17` – `TT-25`, which is exactly the
+`guarding` leaf's scope and nothing else. No command named an obligation the
+catalogue does not define. Coverage asserted, the same run exits **1** on those
+16, reported as the phase's remaining work rather than as a defect.
+
+**The model, as required per entry.** Alloy 6, `org.alloytools.alloy.dist.jar`,
+Corretto `21.0.12.1+9-LTS`, SAT4J (distribution default), every command with
+`-n`. **Bounds**: `for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug,
+2 Digest, 2 steps` for the observation commands; `3 steps` for `TT-12` and
+`TT-13.c`; `4 steps` for `witness_TT_14`. The bound at which **each** witness
+first lands is tabulated in `crates/grove-task-tree/models/README.md`, separately
+from the bound its check ran at — `TT-11`, `TT-12` and `TT-13.c` need the second
+directory and the other eight do not. **Fairness**: none assumed; nothing in
+`TT-11` – `TT-16` is an eventuality. **Abstractions added by this slice**: a
+resolution's reference is `one sig Query` (an optional key and an optional slug,
+one atom per trace); what an observation reported is *state* (`Sys.got`,
+`Sys.gotTerm`) rather than a derived value, which is what makes `TT-16`
+falsifiable at all; `brief-chain` and `kind` are not represented, no obligation
+distinguishing them from `select` and `resolve`. **What a green run does not
+prove**: every result is about at most three files, two directories, six
+filenames, and two to four states — and, specific to this slice, `TT-11`'s
+"depends on no state outside the tree" is established **by construction and not
+by any command**, so a green run is not evidence for it. It is evidence that,
+given a walk defined over `loc` and `nm`, selection is that walk's minimum.
+
 ### Routing table (under construction)
 
 Filled in from the entries above as evidence accumulates. Empty rows are honest;

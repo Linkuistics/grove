@@ -15,13 +15,13 @@ models/run.sh --scope task-tree --family alloy --no-coverage
 
 | family | file | obligations |
 |---|---|---|
-| Alloy 6 | `task-tree.als` | `TT-01` – `TT-10` |
+| Alloy 6 | `task-tree.als` | `TT-01` – `TT-16` |
 | Quint | — | none yet (`quint-models-k10`) |
 
-`TT-11` – `TT-25` are the two sibling leaves' work (`selection`, `guarding`).
-The runner reports their cells empty, which is the truth about this directory
-rather than a defect in it: they are **not** declared gaps, because a declared
-gap means *cannot express*, and nothing here has tried yet.
+`TT-17` – `TT-25` are the `guarding` sibling leaf's work. The runner reports
+their cells empty, which is the truth about this directory rather than a defect
+in it: they are **not** declared gaps, because a declared gap means *cannot
+express*, and nothing here has tried yet.
 
 **Declared gaps** — none. The runner reads them from this file, in one shape:
 
@@ -59,6 +59,22 @@ Two of its parts mean something other than "make it bigger":
   mutation followed by a stutter; the vacuity guard, which needs two mutations,
   runs at four. The purely static name claims stay at `1 steps`.
 
+- **`2 steps` for an observation, and the same lasso argument is why.** The
+  three-state argument above is about a *tree-changing* action. `select` and
+  `resolve` change nothing, so the state one of them reaches loops to **itself**:
+  repeat the observation on an unchanged tree and every component of the state
+  recurs. Two states therefore admit an applied observation, which is what makes
+  the selection commands roughly an order of magnitude cheaper than the
+  mutation ones. It is checked rather than argued — `witness_TT_09a_append` finds
+  no instance at `2 steps` while every observation witness does.
+
+  Three exceptions run wider. `TT-12` and `TT-13.c`'s **checks** quantify over
+  grove *mutations* (a terminal entry is never taken off disk; every read and
+  mutation refuses on a malformed tree), so they need the mutation bound of
+  `3 steps`. `witness_TT_14` needs `4 steps`, because two orderings of the same
+  work selecting differently is *select · hand-edit · select* and nothing
+  shorter: it finds no instance at 2 or at 3.
+
   What makes three *enough* is `EN-11` — any well-formed tree is reachable by
   hand edit — cashed out as a modelling decision: the initial state is
   unconstrained beyond the filesystem facts, so every single transition is
@@ -76,6 +92,13 @@ adds its own. It is kept whole rather than split into cheaper witnesses, because
 "a directory containing every species" is the obligation as the catalogue states
 it. Two checks are the other heavy ones, at three to four minutes each; both are
 recorded on their commands.
+
+The **selection** slice (`TT-11` – `TT-16`, 22 commands) costs about **4m 40s**
+of that, and the reason is the `2 steps` bound: its two most expensive commands
+are `TT-11`'s check at 61s and `TT-15.a`'s at 40s, and eleven of its twenty-two
+finish in five seconds each. Its mutation pass is another **~7 minutes**. The
+cheapness is a fact about observations, not about the claims: a read that cannot
+change the tree gives the solver a two-state lasso to search instead of three.
 
 **Temporal, not structural.** State is `var`: `onDisk`, each object's name,
 parent and digest, and the `Sys` record of the action and outcome that produced
@@ -104,13 +127,39 @@ refusal this catalogue names.
 | `Refused(DestinationOccupied)` | not represented | no `TT-01` – `TT-10` obligation states it; a name collision at a reserved name is `TT-24.b`'s, in `guarding` |
 | the reserved and format witnesses | not represented | `TT-17` – `TT-20`, in `guarding` |
 | a directory the walk does not enter | present on disk, but outside `visited` | the walk descends into the task root and into nodes only; nothing beneath a foreign directory is an entry, holds a position, or contributes a key |
+| a resolution's reference syntax | `one sig Query` — an optional key and an optional slug | the CLI's `[n]`, a bare slug and `<slug>-k<key>` differ only in which of the two is present, and no `TT-` obligation reads a slug's content. **One** atom, so a trace carries one resolution argument: every command here needs at most one `resolve`, and the existing `TT-01` – `TT-10` scopes are unchanged by its arrival |
+| what an observation reported | `Sys.got` and `Sys.gotTerm`, written by the transition | *derived* terminality could not be got wrong, and `TT-16` is precisely the claim that the report carries it. Modelling the report as state is what makes the mutation *"a resolved `Done` entry is not reported terminal"* expressible at all |
+| `brief-chain` and `kind` | not represented | both are observations, but no `TT-11` – `TT-16` obligation states anything about either beyond what `select` and `resolve` already carry |
+
+**`TT-11`'s "depends on no state outside the tree" is answered by construction,
+not by a command**, and this is the honest place to say so. `precedes` and
+`selected` are written as functions of `loc` and `nm` and of nothing else, so
+there is no scheduler state for a check to quantify over — a model cannot check
+the absence of a variable it does not have. What *is* checked is the falsifiable
+half: `TT-14` pins position as the mechanism that orders siblings, independently
+of whatever `precedes` happens to say, which is why re-defining `precedes` to
+order by key breaks `TT-14` and leaves `TT-11` green.
 
 **What a green run does not prove.** Every result is about the stated bounds: at
-most 5 objects, at most 5 filenames, two states, one working tree, and one
-cooperating process. Nothing here is a proof about arbitrary trees. In
+most 5 objects, at most 5 filenames, two to four states, one working tree, and
+one cooperating process. Nothing here is a proof about arbitrary trees. In
 particular a green `check` at bound *n* says nothing about a defect that needs
 *n+1* objects to express, which is why every obligation's witness records the
 bound at which it **first** lands, separately from the bound its check ran at.
+
+**The bound at which each witness first lands.** Recorded separately from the
+bound its check ran at, which is the pre-registered control on the scope trap. A
+check green at bound *n* says nothing about a defect needing *n+1*.
+
+| obligation | witness first lands at | what the extra room buys |
+|---|---|---|
+| `TT-11` | `3 FileObj, 2 DirObj, 6 Filename, 2 steps` | a node, its charter and a leaf inside it — the walk cannot descend without one |
+| `TT-12` | as above | a node whose whole subtree is terminal |
+| `TT-13.a` | `2 FileObj, 1 DirObj, 4 Filename, 2 steps` | nothing: two leaves on one level suffice |
+| `TT-13.b` | as `TT-13.a` | — |
+| `TT-13.c` | `3 FileObj, 2 DirObj, 6 Filename, 2 steps` | *different subtrees*, which needs a second directory |
+| `TT-14` | `3 FileObj, 2 DirObj, 6 Filename, **4 steps**` | the second observation: it finds no instance at 2 or at 3 |
+| `TT-15.a` – `TT-16.b` | `2 FileObj, 1 DirObj, 4 Filename, 2 steps` | nothing; every one of them is flat |
 
 **Symmetry, exact scopes, fairness.** No command uses an `exactly` scope, so
 Alloy's symmetry breaking is free to collapse isomorphic instances — which is
@@ -145,6 +194,31 @@ reported itself green while checking nothing at all (below), so the pass is run
 | `TT-09.c` | promotion leaves the leaf in place beside its node | ✓ |
 | `TT-09.d` | a rewrite may move the entry | ✓ |
 | `TT-10` | the algebra's refusal reaches the operator | ✓ |
+| `TT-11` | the walk returns the pre-order **maximum** | ✓ |
+| `TT-12` | promotion accepts a terminal leaf, taking it off disk | ✓ (see below) |
+| `TT-13.a` | eligibility is plain liveness — finish is not reserved | ✓ |
+| `TT-13.b` | eligibility is `liveOrdinary` — finish is never returned | ✓ |
+| `TT-13.c` | two live finish leaves no longer halt the tree | ✓ |
+| `TT-14` | `precedes` orders siblings by **key** instead of position | ✓ |
+| `TT-15.a` | a spent tree refuses instead of reporting `Empty` | ✓ |
+| `TT-15.b` | a resolution matching nothing refuses instead of `Empty` | ✓ |
+| `TT-15.c` | several matches are reported as one | ✓ |
+| `TT-16.a` | a resolved `Done` entry is not reported terminal | ✓ |
+| `TT-16.b` | a resolved `Abandoned` entry is not reported terminal | ✓ |
+
+**Each of the eleven was run against its neighbour as well as its target, and
+every neighbour stayed green.** Two of those pairings are worth more than the
+bookkeeping:
+
+- **`TT-11` and `TT-14` are not the same claim, and the mutation pass is what
+  shows it.** Re-defining `precedes` to order siblings by key leaves `TT-11`
+  green — the walk still returns the `precedes`-minimum, and the check is stated
+  in terms of `precedes` — while `TT-14` fails, because `TT-14` names `fPos`.
+  That is the whole content of *selection is not a scheduler*: it is the command
+  that would catch a scheduler `precedes` had been taught to respect.
+- **`TT-13.a` and `TT-13.b` are the two halves of the reservation rule and fail
+  independently.** Making finish never selectable breaks `.b` alone; making it
+  always selectable breaks `.a` alone.
 
 **Three first attempts had to be replaced, and the reason is a hazard of the
 control itself.** Two of them — *insert may drop an object*, *promotion leaves
@@ -160,11 +234,26 @@ file carrying a node name is in `nodeDirs`, has no charter child, and the tree
 halts under `NodeWithoutCharter` instead. That one is a fact about the model
 worth keeping: the two reasons overlap on exactly this tree.
 
+**A fourth unsatisfiable mutation, and it is the same hazard as the first two.**
+`TT-12`'s first attempt widened promotion's applied guard from `t in liveLeaves`
+to *any leaf* — and **survived**. It was not a survivor: `doDecompose` still
+carried its `RefAlreadyTerminal` clause, so on a terminal target both
+implications fired at once against a `one Result` field, the transition was
+unsatisfiable, and the check passed vacuously. The runner reports that exactly as
+it reports a real survivor. The mutation that works removes the refusal clause
+*as well*, and it is checkable that the mutated transition still fires:
+`witness_TT_09c_promotion` finds an instance under it. **A mutation should come
+with evidence that it executes** — one existing witness re-run under the mutation
+is enough, and it is cheap.
+
 ## Counterexamples retained
 
-**None about grove's shipped behaviour.** The three findings this slice produced
-were about the **catalogue**, and all three landed there; see
-[`docs/formalism-findings.md`](../../../docs/formalism-findings.md) entry 026.
+**None about grove's shipped behaviour**, from either slice. The `TT-01` – `TT-10`
+slice produced three findings about the **catalogue**, and all three landed
+there; the `TT-11` – `TT-16` slice produced none of either kind — its result is
+the mutation matrix, and its one incident is the vacuous `TT-12` mutation above.
+See [`docs/formalism-findings.md`](../../../docs/formalism-findings.md) entries
+026 and 027.
 
 **One counterexample, retained.** `TT-06.b`, at the standard bound:
 

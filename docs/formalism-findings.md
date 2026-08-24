@@ -2894,6 +2894,20 @@ prediction — is fixed now, at jj change `uwuvxpkowmpumtukrknzxqptvpklmlwp`
 Registered by `experiment-baseline-k4`. Nothing in Experiment 1 is revised;
 entries 001–025, H1–H3 and the distillation stand as written.
 
+**Revised once, before any Experiment 2 model existed.**
+`experiment-baseline-k29` reviewed this section against the artifacts and
+`experiment-baseline-k30` applied the result: the *material finding* rule, the
+falsifiers of H4, H5, H6, H8, H9 and H10, and the M3, M5, M6, M7 and M8
+counting rules were corrected because they did not decide their own outcomes.
+The revision is legitimate **only** because of where it sits — the review was
+inserted *ahead of* `design-model-contract-k5`, so no claim catalogue, no model
+and no result existed to tune the measures towards; there was nothing to see.
+That window closes when `design-model-contract-k5` becomes selectable.
+**As corrected, this pre-registration is fit to bind Experiment 2**, and it is
+now fixed: any later change to a hypothesis, a falsifier or a counting rule is
+a post-hoc amendment and must be recorded as one, in place, naming what was
+already known when it was made.
+
 ## What is being compared, and what is not
 
 The subject is grove's own modular redesign: **task-tree semantics**, the
@@ -2951,23 +2965,43 @@ conditions are the first thing a later reader doubts.
 Each carries the observation that would **falsify** it, because a prediction
 with no falsifier is a description.
 
-- **H4 — the blind spots differ.** Within the same scope, each formalism finds
-  at least one material defect the other does not, in at least two of the three
-  scopes. *Falsified if* one formalism's findings are a subset of the other's
-  across all three scopes, or if the symmetric difference is empty.
+- **H4 — the blind spots differ.** A scope is **mutually discriminating** when,
+  within that scope, Alloy 6 holds at least one `alloy-only` material finding
+  *and* Quint holds at least one `quint-only` material finding — M1 tags,
+  assigned before replay. H4 predicts **at least two of the three scopes are
+  mutually discriminating**. *Falsified if* **fewer than two** are. That is the
+  exact complement, and it subsumes what the first draft of this falsifier left
+  unsorted: subset-in-every-scope, empty symmetric difference, and the case of
+  exactly one discriminating scope all land as falsification.
 
 - **H5 — temporal Alloy and executable Quint fail differently on the same
   question.** Quint's guarded actions and random simulation will reach
   *interruption-and-recovery ordering* defects that Alloy 6's bounded temporal
   traces do not; Alloy 6's temporal operators will reach *eventuality* claims
   ("recovery always terminates in one of the two operator-restorable exits")
-  that bounded random simulation cannot establish. *Falsified if* neither tool
-  reaches a class the other misses, or if the classes land the other way round.
+  that bounded random simulation cannot establish. Those are **two directional
+  predictions**, so both must hold. *Falsified if* **either** of them fails:
+  if no `quint-only` finding carries the M2 class `interruption` or `ordering`,
+  or if no `alloy-only` finding carries the M2 class `eventuality`, or if either
+  class lands in the opposite formalism. "Neither tool reached a class the other
+  missed" is one way to fail this, not the definition of failing it.
 
 - **H6 — counterexample usefulness is a property of the tool, not the finding.**
   A counterexample's cost-to-act-on is more strongly determined by which tool
-  produced it than by which defect it exposes. *Falsified if* the spread within
-  a tool exceeds the spread between tools on the M3 scale below.
+  produced it than by which defect it exposes. *Spread* and *between* need a
+  statistic, and it is fixed here rather than after the scores exist. The
+  population is the **paired** findings: those tagged `both` under M1, each of
+  which therefore carries **two** M3 scores, one per formalism (M3 is recorded
+  per `(finding, formalism)`, not once per finding). Let `d_i = M3_alloy(i) −
+  M3_quint(i)` over the paired findings.
+  - **between-tool effect** = `|median(d_i)|`;
+  - **within-tool spread** = `max(MAD_alloy, MAD_quint)`, each the median
+    absolute deviation of that tool's M3 scores across the same paired findings.
+
+  *Supported if* the between-tool effect **strictly exceeds** the within-tool
+  spread. *Falsified if* it is **strictly less**. An exact tie, or **fewer than
+  five paired findings**, records H6 **inconclusive** — declared now, so that a
+  thin result cannot be rescued by choosing a different statistic afterwards.
 
 - **H7 — findings convert to tests.** Every material finding yields at least one
   executable Rust test that fails against the pre-fix implementation. *Falsified
@@ -2975,20 +3009,34 @@ with no falsifier is a description.
   ones that can, so it is recorded prominently rather than dropped.
 
 - **H8 — placement is a real trade-off, not a preference.** Component-local
-  models (beside `grove-task-tree`, beside `grove-finish`) will be cheaper per
-  claim; the defects that actually motivate the redesign will appear only in the
-  system-level lifecycle model. *Falsified if* the system model finds nothing
-  the component models did not, or if component-local models are not cheaper.
+  models (beside `grove-task-tree`, beside `grove-finish`) will be cheaper
+  **per checked claim**; the defects that actually motivate the redesign will
+  appear only in the system-level lifecycle model. Cheapness is measured as
+  **authoring hours ÷ checked claims** — the operand the hypothesis names —
+  aggregated over the component-local model files and over `models/system/`
+  separately. *Falsified if* the system model produces no material finding the
+  component models did not, **or** if component-local hours-per-checked-claim is
+  not strictly lower than the system model's. Findings-per-hour is retained
+  under M5 as a descriptive figure and is **not** an operand of this test.
 
-- **H9 — synchronization is the dominant hidden cost.** Keeping two independent
-  models describing one system in step will consume a materially larger share of
-  total modelling effort than writing either model did. *Falsified if* the
-  synchronization share is small, or if it is dwarfed by tool-wrangling (M7).
+- **H9 — synchronization is the dominant hidden cost.** *Total modelling
+  effort* is fixed here as the denominator: **M5 authoring hours + M6
+  synchronization hours + M7 tool-wrangling hours**, summed over every model
+  file in both families. H9 predicts that M6 **exceeds the authoring hours of
+  each family taken separately** and is **at least 30%** of total modelling
+  effort. *Falsified if* M6 is below 30% of that total, **or** if M6 does not
+  exceed `max(authoring_alloy, authoring_quint)`, **or** if tool-wrangling
+  hours reach **twice** M6 — the "dwarfed by M7" clause, given a number so that
+  it is decidable from the logged figures alone.
 
 - **H10 — a green run's silence is the main hazard.** More Experiment 2 hours
   will be lost to a check that passed for the wrong reason than to a check that
-  failed. *Falsified if* the recorded false-confidence incidents (M8) cost less
-  than the genuine failures did.
+  failed. Both operands are recorded by M8: the **summed standing hours of
+  false-confidence incidents** and the **summed hours spent on genuine failing
+  checks** — the second was missing from the first draft, which left the
+  comparison one-sided. *Falsified if* the false-confidence sum is **less than
+  or equal to** the genuine-failure sum. An incident with no recorded duration
+  is counted as zero rather than dropped.
 
 H4, H5 and H8 are the load-bearing ones: the brief keeps **both** model families
 regardless of the result, so no hypothesis here decides whether a tool is used.
@@ -2999,23 +3047,46 @@ They decide what the eventual routing advice says.
 Counting rules fixed now, because the tempting time to define "material finding"
 is after seeing which tool produced more of them.
 
-**A *material finding*** is a defect, ambiguity or unstated assumption in the
-design or the shipped implementation that a reader would act on: it changes a
-model, a document, a test, or code. A modelling artifact — a scope too small, a
-typo in a predicate, a bounds tweak — is **not** one, and is recorded separately
-as tooling cost under M7. The classification is written down *when the finding is
-found*, before its origin tool is scored.
+**A *material finding*** is defined by the **source** of the defect and the
+**durable consequence** of correcting it, not by a judgement about what a reader
+would act on. "A reader would act on it" was the first attempt and it does not
+sort the borderlines below, because acting on a bounds tweak is still acting.
+The operational rule, in three clauses:
+
+1. A finding is material **only when** its correction lands in the tool-neutral
+   claim catalogue, in the requirements or design, in shipped behaviour, in
+   durable documentation, or in a Rust test — and **survives outside** model
+   syntax, runner settings, and bounds. The test is whether the correction is
+   still there when both model families are deleted.
+2. A model-only syntax or transcription error, and any bounds or trace-limit
+   change, is **M7 tooling cost** — *unless* it also invalidates a recorded
+   tool-neutral claim. In that case the **invalidated claim is the material
+   finding** and the bounds change is its evidence, recorded as both.
+3. Both operands are recorded **at discovery time**, before M1/M3 scoring: the
+   affected tool-neutral claim, and the durable correction. **A classification
+   carrying neither is not countable as a material finding** — it is an
+   observation, and it goes in the entry prose.
+
+The three borderlines the review of this pre-registration raised are resolved
+here rather than left to the session that meets them:
+
+| borderline | result |
+|---|---|
+| a bound that turned out too small | **M7.** Nothing outside the runner changes. If that bound previously produced a **believed green**, it is *also* an **M8** false-confidence incident. It becomes material only via clause 2 — when a tool-neutral claim was recorded on the strength of the too-small run. |
+| a predicate that was ambiguous until a model forced a choice | **M7**, unless the ambiguity **originated in** the tool-neutral catalogue or design and the choice **forces a correction there**. Ambiguity resolved only inside one model's syntax is that model's cost. |
+| shipped behaviour the model says is fine, but a catalogue required to describe it never described it | **Material.** The catalogue must change, and that change survives both models. This case may legitimately record **`M4 = none`** — there is no defect to write a failing test against — and each such finding **falsifies H7** by the terms H7 sets for itself. |
+
 
 | # | measure | how it is counted | which brief item |
 |---|---|---|---|
 | **M1** | unique vs overlapping findings | each material finding is tagged `alloy-only`, `quint-only`, or `both`; `both` requires that each model reached it *before* replay | unique vs overlapping |
 | **M2** | Alloy 6 temporal vs Quint actions | per scope, each finding is tagged with the class it belongs to — `ordering`, `interruption`, `eventuality`, `structure`, `refusal` — and the tool that reached it first | temporal vs action modelling |
-| **M3** | counterexample usefulness | a 0–3 ordinal recorded at the moment of reading, before any fix: 0 = tool says "violated", no usable trace; 1 = trace readable, defect inferable with effort; 2 = trace names the transition; 3 = trace transcribes directly into a failing test | counterexample quality |
+| **M3** | counterexample usefulness | a 0–3 ordinal recorded at the moment of reading, before any fix: 0 = tool says "violated", no usable trace; 1 = trace readable, defect inferable with effort; 2 = trace names the transition; 3 = trace transcribes directly into a failing test. Recorded per **`(finding, formalism)`**, so a finding both tools reached independently carries **two** scores — the paired population H6 needs | counterexample quality |
 | **M4** | derived tests | per finding: the test file and name added, or `none` plus why. The pre-fix red/post-fix green pair is the evidence | test derivation |
-| **M5** | placement | per model file: which crate owns it, claims checked, findings produced, and wall-clock to green. Component-local and `models/system/` are compared on findings-per-hour | component-local vs system-level |
-| **M6** | synchronization burden | wall-clock spent making one model agree with the other after a change to either, logged as its own line item and never folded into authoring time | synchronization burden |
-| **M7** | state-space and tooling cost | per model: bounds or trace limits, solver/backend, wall-clock and CPU-seconds of the full run, plus every hour lost to the tool rather than to the problem | state-space / tooling cost |
-| **M8** | false-confidence incidents | each occasion a check was believed to pass while proving nothing, with how it was caught and how long it stood | false-confidence hazards |
+| **M5** | placement | per model file: which crate owns it, **checked claims**, **authoring hours**, findings produced, and wall-clock to green. The H8 comparison is **authoring hours ÷ checked claims**, aggregated over component-local files and over `models/system/` separately; findings-per-hour is retained as a descriptive figure and is not an H8 operand | component-local vs system-level |
+| **M6** | synchronization burden | wall-clock spent making one model agree with the other after a change to either, logged as its own line item and never folded into authoring time. It is the numerator of H9's share; the denominator is M5 authoring + M6 + M7 wrangling, summed over both families | synchronization burden |
+| **M7** | state-space and tooling cost | per model: bounds or trace limits, solver/backend, wall-clock and CPU-seconds of the full run, plus every hour lost to the tool rather than to the problem — **logged as `wrangling` hours, distinct from run wall-clock**, since H9 compares the former. Model-only syntax and transcription errors and bounds/trace-limit changes land here by clause 2 of the material-finding rule | state-space / tooling cost |
+| **M8** | false-confidence incidents, **and their control arm** | each occasion a check was believed to pass while proving nothing, with how it was caught and **how many hours it stood** — *and*, on the same ledger, **each genuine failing check with the hours spent on it**. H10 compares the two sums, so recording only the first half makes it untestable. A duration left unrecorded counts as zero | false-confidence hazards |
 
 M7 has a baseline to beat and a warning attached. Experiment 1's suites at this
 revision cost **17s wall for Alloy** (20 commands) and **3m 29s wall / 2527s CPU

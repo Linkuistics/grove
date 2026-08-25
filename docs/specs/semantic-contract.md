@@ -954,6 +954,20 @@ byte-identical.
 - `FN-05.c` — each member, failing, leaves the **repository** byte-identical.
   *Witness*: each of the seven, with the repository unchanged.
 
+**The seven are not distinguishable by their outcomes, and a family answering
+`FN-05.a` needs an observable of its own.** The first member produces no refusal
+at all — the transaction is simply never entered (`FN-01`) — and two of the
+remaining six, an unsupported layout and an unreachable quarantine operand, are
+the *same* [refusal reason](#outcomes): the closed set holds exactly one reason
+about the workspace's shape, `LayoutUnsupported`, and `SY-03` makes the two gates
+one question asked twice — so the reason names the question rather than the gate.
+Six reasons
+therefore cannot witness seven members. A model that introduces a
+precondition-naming observable to reach them is doing what this obligation
+requires and records it as an abstraction; a model that reports six witnesses and
+calls the set covered has lost a member. Whether the shipped diagnostic should
+distinguish the two gates is `formal-synthesis-k16`'s and is not settled here.
+
 **`FN-06` — the task root's identity is pinned and rechecked.** The task root
 SHALL be opened as a no-follow directory whose identity is verified against the
 entry in the guarded working-tree root, and rechecked at every later step, so a

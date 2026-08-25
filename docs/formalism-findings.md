@@ -4014,6 +4014,236 @@ the two contexts it does not have are exactly what the declared gaps say.
 
 ---
 
+### 031 — Seven preconditions and six reasons, and three mutations that were not controls (finish entry surface)
+
+**Scope.** Finish / recovery, **component-local**
+(`crates/grove-finish/models/`). `FN-01` and `FN-05` – `FN-08`: the finish
+transaction's **entry surface** — confirmation, the closed preflight
+precondition set, task-root identity pinning, the deletion fingerprint, and the
+quarantine operand. Assumption mutation `EN-02` was run here. This is the first
+slice of a new scope and a new file; fifty-three of the scope's sixty-one alloy
+cells remain empty and are named as such by the runner.
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened.
+
+**Situation.** `finish-k8` was decomposed before this slice ran — sixty-one
+obligations against `task-tree-k7`'s forty-three, plus a lane parameter that
+scope did not have — into five children cut along the machinery each claim group
+needs. This is the first, and it is the only one of the five whose obligations
+all end in a refusal or in a transaction that is never entered. That is what
+makes it a vertical slice rather than a foundation layer: it needs the
+transaction's entry and none of its body, and it is verifiable on its own.
+
+**The material finding is a counting mismatch in the catalogue, and the model
+found it by trying to write the witnesses.** `FN-05.a` fixes the preflight
+precondition set as *closed and exactly* seven-membered, and requires *each of
+the seven, reached* as its witness. The catalogue also fixes seventeen closed
+refusal reasons — and never states the mapping between the two lists. Writing
+seven witnesses is what makes the mapping unavoidable, and it does not exist:
+
+- the **first** member produces no refusal at all. Confirmation is an operator
+  input Grove cannot verify (`EN-15`), so declining is a transaction that is
+  never entered rather than one that refuses — which is `FN-01.a`'s content read
+  from the other end;
+- the **third** and **fourth** — an unsupported layout, and a quarantine target
+  unreachable from the transaction's own operands — are the **same** reason.
+  `SY-03` says no later gate consults an earlier layout check and each
+  revalidates against its own operands, which makes them one question asked at
+  two gates. The reason names the question; only the gate distinguishes them.
+
+Six reasons cannot witness seven members. A family that reports six witnesses and
+calls `FN-05.a` covered has silently lost a member, and nothing in the runner
+would notice, because coverage is per obligation and `FN-05.a` is one. The
+correction is in the catalogue: `FN-05.a` now says the seven are not
+distinguishable by outcome, that a family answering it needs an observable of its
+own, and that introducing one is what the obligation requires rather than a gap.
+This model's is `Sys.why`, declared as an abstraction in the family `README.md`.
+
+> `M1 alloy-only` · `M2 refusal` · `M3 = 2` — the trace names the transition and
+> the reported precondition, but the *absence* of a seventh distinguishable
+> outcome is read off the signature rather than out of any one trace ·
+> `M4 = none` — there is no defect to write a failing test against; the shipped
+> preflight refuses correctly and the catalogue simply under-described what
+> witnessing it requires. This is the pre-registration's third borderline,
+> and by its own terms it falsifies **H7**.
+
+**One false-confidence incident, and the predictor that would have caught it was
+already written down.** Every check in the file was first written at `3 steps`,
+which is the sibling scope's minimum for a behavioural command, and the whole
+suite ran green — twenty-three commands, checks and witnesses alike. Then the
+witness bounds were measured, by re-running each witness at `1..5 steps` and
+taking the first that lands. Four of the fourteen first land at **4**, and one of
+those four is `witness_FN_05a_p3_layout_unsupported`: reaching an unsupported
+layout *at the preflight* needs an intervening `TopologyChange`, because the
+lease gate's recorded verdict proves the layout was supported when it was taken.
+
+So at `3 steps` `FN-05.a` — the check whose whole content is *the preflight
+refuses exactly when some member of the closed set fails* — ran green having
+never once seen the third member fail. It was believed green for about twenty
+minutes. `task-tree-k7`'s second bound-vacuity predictor names it exactly: **the
+bound must hold the machinery of the transitions the obligation quantifies
+over**, not only the objects the obligation names. The member is not an object;
+it is a state reachable only across an environment action.
+
+> A check's bound is not a property of the check. It is the largest bound at
+> which any witness of the obligation the check answers first lands.
+
+Every check in the file now runs at 4. Applying the rule cost one re-run and
+found the vacuity in the same pass; applying it while writing the bounds would
+have cost nothing.
+
+`M7` (bounds), and `M8` — a believed green, twenty minutes standing, caught by
+the witness-bound measurement rather than by any check.
+
+**Three of the nine mutations were not controls, and each failed differently.**
+The pass is one mutation per obligation, run before the green is believed. Six
+killed their check first time. The other three are the slice's most transferable
+result, because all three *reported as survivors*:
+
+- **Two were unsatisfiable.** `FN-05.b` and `FN-05.c` say a failed precondition
+  leaves the tree and the repository byte-identical, and the mutations added
+  `Slot.occ' = Reserved` and `Repo.rev' != Repo.rev` into `doPreflight`'s refusal
+  branch — which already sat underneath `treeSame and repoSame`. The branch
+  became unreachable, the check stayed green for want of an antecedent, and the
+  report read *SURVIVED*. The fix is to **remove** the frame condition rather
+  than contradict it. This is the third independent recurrence of one rule, met
+  from a third direction — `selection-k34` found it in an antecedent the model's
+  facts forbade, `ownership-k38` in a subset antecedent that emptied the whole
+  transition relation, and here in a frame condition:
+
+  > **A mutation the model cannot execute is not a control**, and it reports
+  > exactly as a surviving one does. Every mutation needs evidence that it
+  > *fires* — one existing witness re-run under it, still landing — and the
+  > evidence is cheapest to take at the moment the mutation is written.
+
+- **One was a semantic no-op.** `FN-01.a`'s second conjunct — confirmation
+  changes only by the world's own action, which is what *and is never attested*
+  means in a model — was mutated by having `doTxnOpen` set
+  `Op.confirmed' = Confirmation`. But `doTxnOpen`'s guard already requires
+  `some Op.confirmed`, and `Op.confirmed` is a `lone` field of a `one sig`, so
+  the assignment changes nothing whatever. Moved to `doDecline`, whose guard is
+  `no Op.confirmed`, it killed the check immediately. A no-op mutation is a
+  fourth species of the same failure: not an unreachable branch, but a reachable
+  one in which the mutation is the identity.
+
+**The no-op mutation found a real hole, which is the argument for chasing a
+survivor rather than recording it.** Investigating why it changed nothing showed
+that **no command in the file exercised the `Confirm` transition at all**. Every
+witness could satisfy *some confirmation is present* from the unconstrained
+initial state, so the conjunct forbidding any other action from setting it was
+being checked over a transition the file never demonstrated. The check was not
+vacuous — the transition is reachable, and Alloy quantifies over all traces — but
+the *witness discipline* had a hole in it that the coverage matrix cannot see,
+because the runner counts a witness per obligation and there was one.
+`witness_FN_01b` now requires the `Confirm` action, at a cost of one state.
+
+> A witness proves its obligation's situation is reachable. It does not prove
+> that the transitions the obligation's *check* quantifies over are exercised,
+> and the coverage matrix cannot tell the two apart.
+
+**Two decisions this slice made for the whole subtree.**
+
+- **The tree abstraction is coarse: no filename grammar.** No `FN-` claim
+  quantifies over names, positions, keys or slugs, so an entry here is an opaque
+  object with a type and a role. What the seven preconditions actually read is
+  leaf liveness, the finish/ordinary distinction, an undigestible entry type and
+  a tracked/untracked split — nothing finer. Rebuilding `task-tree.als`'s
+  grammar would have been machinery no claim in this scope reads, and the two
+  files stay independent for the same reason the runner keeps them in separate
+  scope directories.
+- **The lane is a signature parameter from the first command**, even though
+  nothing in this slice differs by lane. `EN-16`'s control is a *collapse* to one
+  lane, and a parameter retrofitted in a later slice is a parameter every earlier
+  command was never checked under. It also earns its place immediately: an absent
+  lane **is** an unsupported layout, which is how `FN-05.a`'s third member gets a
+  state to fail in at all.
+
+**Cost.** Twenty-three commands, **38s wall** for the whole file, of which two
+commands are 9–10s and the other twenty-one are under a second each. The two are
+`witness_FN_05a_p5` and the `EN-02` control; the second is the expensive shape by
+construction, since establishing that *no* instance exists means exhausting the
+space rather than stopping at the first model. Against `task-tree.als`'s 6888s
+CPU for 103 commands, this file is nearly free — and the reason is that it has no
+`Int`: there are no positions and no keys in this scope, so the bitwidth
+arithmetic that dominates the sibling file has no counterpart here. That is a
+finding about where a temporal relational model's cost actually goes, and it
+sharpens the cost model rather than adding to it. **These figures do not compare
+across sessions**; `task-tree-k7` measured one untouched command at 61s in one
+sitting and 77s in another.
+
+**`EN-02`, as the assumption table requires.** Class *exercise-removal*, so the
+expected result is that a **named witness becomes unreachable** while the
+property stays green — not that anything fails.
+`expect_unreachable_EN_02_a_single_device_layout_cannot_fail_the_operand_gate` is
+`witness_FN_08`'s body at `1 Device`, and finds no instance, while `FN-08`'s
+check stays green. The control was widened to `4 steps` — one state wider than
+the witness's first landing — because *no instance* at exactly the witness's own
+bound is the weaker statement.
+
+**Counterfactual.** Prose review reaches `FN-06` and `FN-07` unaided; both are
+single sentences about a single gate. It reaches `FN-08` too, since the catalogue
+already states the two-gate distinction in words. It does **not** reach the
+seven-versus-six counting mismatch: that needs someone to sit down and try to
+name seven distinguishable outcomes, which is precisely what writing seven
+witnesses is and what reading a claim is not. Nor does it reach the `3 steps`
+vacuity, whose symptom is a green run. **One obligation's worth of value from the
+witness-bound measurement, one from the mutation pass, and six transcriptions.**
+
+**Verdict.**
+
+- **Writing the witnesses is what audits the catalogue.** The check for
+  `FN-05.a` could have been written, run and believed without the mismatch ever
+  surfacing. Enumerating seven reachable states is what made six reasons visibly
+  too few, and it is the second time in this experiment that the *witness* half
+  of the discipline produced the finding while the check half produced nothing.
+- **A surviving mutation is a hypothesis, not a result.** Three of nine survived
+  and none of the three was a fact about a check. Two were unsatisfiable, one was
+  the identity, and chasing the third is what found a hole in the witness set.
+  Recording a survivor without investigating it would have recorded three
+  falsehoods.
+- **A check bound is derived, not chosen.** The largest first-landing bound among
+  an obligation's witnesses is the number; picking the file's conventional
+  minimum instead is how a check ends up green over a member it never reached.
+- **What a green run of this slice does not prove is most of the protocol.**
+  `FN-05.b` and `FN-05.c` are carried entirely by frame conditions on
+  `doPreflight`, because the entry surface contains no step that mutates
+  anything. They separate two reachable behaviours only once evacuation exists —
+  the `witness` sibling's — and until then they say *the claim is stated and the
+  instrument works*, not *the protocol was tested*. The family `README.md` says
+  so in those terms rather than leaving a reader to infer it from a green run.
+
+**The seam, exercised.** `models/run.sh --scope finish --family alloy
+--no-coverage` reports **23 of 23** commands passing and exits 0. Its matrix
+reads **8 complete cells, 0 declared gaps, 53 empty, of 61**. No command named an
+obligation the catalogue does not define, and no placement error was reported.
+The `--no-coverage` is on the run line deliberately and comes off when the
+column closes, which is four sibling leaves away.
+
+**The model, as required per entry.** Alloy 6,
+`org.alloytools.alloy.dist.jar`, Corretto `21.0.12.1+9-LTS`, SAT4J (distribution
+default), every command with `-n` and `-t text`. **Bounds**: the common shape is
+`for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, N steps`; every `check` at
+`4 steps`, witnesses at 3 or 4, and the `EN-02` control at `1 Device, 4 steps`.
+No `Int` in the file. The bound at which **each** witness first lands is
+tabulated in `crates/grove-finish/models/README.md`. **Fairness**: none assumed;
+no obligation in this slice is a liveness claim. **Symmetry**: no `exactly`
+scope. **Abstractions**: the coarse tree described above; `Sys.why` as a
+model-only precondition observable; the lease gate as a recorded verdict rather
+than a transition, since `SY-02` is the lifecycle scope's claim and this file
+consumes it; and the unconstrained initial state, which is `EN-11` cashed out as
+a modelling decision rather than as a `hand-edit` action — a licence `exits` will
+have to remove rather than an action, when it runs `EN-11`'s own control.
+**Deliberately omitted**: the entire transaction body — the witness build,
+evacuation, the manifest, the commit, the dispositions, the quarantine, the
+cleanup marker and recovery. `Slot` is in the signature and is never occupied,
+which is what gives `FN-05.b` something the preflight *could* have mutated.
+**What a green run does not prove**: everything is about the stated bounds — at
+most three entries, two devices, four states, one transaction and no lane
+distinction — and, beyond the bounds, the four caveats in the family `README.md`.
+
+---
+
 ## Distillation — where each entry landed
 
 `formalism-skill-k38` turned this log into

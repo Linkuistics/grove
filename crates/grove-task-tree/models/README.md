@@ -8,34 +8,42 @@ which is deliberate — the model is what the crate will be cut against.
 Run them from the repository root:
 
 ```sh
-models/run.sh --scope task-tree --family alloy --no-coverage
+models/run.sh --scope task-tree --family alloy
 ```
 
 ## What is covered, and what is not
 
 | family | file | obligations |
 |---|---|---|
-| Alloy 6 | `task-tree.als` | `TT-01` – `TT-23` |
+| Alloy 6 | `task-tree.als` | `TT-01` – `TT-25` |
 | Quint | — | none yet (`quint-models-k10`) |
 
-`TT-24` and `TT-25` are the `ownership` sibling leaf's work — fail-closed
-ownership and derived done-ness. The runner reports their cells empty, which is
-the truth about this directory rather than a defect in it: they are **not**
-declared gaps, because a declared gap means *cannot express*, and nothing here
-has tried yet.
+**The Alloy column of the task-tree scope is complete**, and the invocation
+above is the one that says so: with `--family alloy` the coverage matrix holds
+only the alloy cells, so it runs **with coverage asserted** and exits 0. The
+unqualified `models/run.sh` stays red until `quint-models-k10` lands, and that
+redness is the truth about the repository rather than a gate to be tolerated —
+which is why the phase's green is spelled as a named subset rather than as an
+expected-red run. A suite anyone is told to ignore the colour of is not a suite.
 
-**One question `ownership` inherits, stated here because this slice is where it
-became concrete.** `TT-24.c`'s outcome is `Blocked(OwnershipConflict)`, and
-`Blocked` is not in this model's `Result` set. Whether the task-tree model
-represents it or declares it a gap belonging to `crates/grove-finish/models/` is
-`ownership`'s to answer explicitly — a declared gap **with a reason** is a
-legitimate answer, and the runner reads it from this file.
-
-**Declared gaps** — none. The runner reads them from this file, in one shape:
+**Declared gaps** — two, both `TT-24`'s, and both because the context the
+obligation names is not this model's. The runner reads them from this file, in
+one shape:
 
 ```md
 - **GAP** alloy `TT-nn.x` (inexpressible|abstracted|out-of-bounds|tool-limited) — reason.
 ```
+
+- **GAP** alloy `TT-24.c` (out-of-bounds) — the obligation's antecedent is *inside a finish or recovery transaction* and its outcome is `Blocked(OwnershipConflict)`. This model has no finish transaction and no `Blocked` in its `Result` set; adding a ninth outcome so the cell could be filled would answer `TT-24` by construction, which is what the catalogue's *one artifact, three contexts, one decided outcome* table exists to prevent. It belongs to `crates/grove-finish/models/`, beside `FN-22` and `FN-25`.
+- **GAP** alloy `TT-24.d` (out-of-bounds) — the obligation's subject is the quarantine reaper, which is `FN-21`'s machinery: a sweep, a quarantine, and a per-entry ownership proof, none of which this model has. Stated separately from `TT-24.c` rather than folded into it, because the two are out of reach for different reasons — one lacks an outcome, the other lacks a subject.
+
+**Both gaps are an observation about the catalogue, not only about this model.**
+`TT-24` is the one `TT-` claim whose obligations are stated over `FN-` contexts,
+so two of its four cells can only ever be filled by the finish scope while the
+runner's placement rule sends every `TT-` command to this directory. Whether
+`TT-24.c` and `TT-24.d` should be re-stated as `FN-` obligations is
+`formal-synthesis-k16`'s to settle; the gaps are honest either way, and the
+quint column will meet the same wall for the same reason.
 
 ## `task-tree.als`
 
@@ -133,10 +141,77 @@ was one atom short of **expressible**, not one short of true.
   which is where an initialisation followed by an ordinary mutation gives a
   premature witness somewhere to appear.
 
-**Runtime.** The Alloy scope of this directory is **88 commands** and costs
-**4002s CPU** end to end on the measurement host (1h 02m wall; CPU is the fairer
-number). One command is a large fraction of it:
-`witness_TT_07_shift_across_every_species` runs about **nine minutes**, because
+The **ownership** slice (`TT-24` – `TT-25`) is the one slice that runs *wider*
+than the file's common shape rather than narrower, and both widenings were asked
+for by a mutation rather than by a claim.
+
+- **`3 DirObj` for `TT-25.b`**, where nothing else in the file has needed more
+  than two. The claim is *a node with a live leaf **anywhere** beneath it*, so a
+  counterexample needs a node, a node beneath it, and the task root. At
+  `2 DirObj` the live leaf is necessarily a direct child, the subtree reading and
+  the children reading of done-ness agree, and the mutation aimed at this
+  obligation survives for want of a place to differ. It is the depth analogue of
+  the guarding slice's interval rule: **count the depth the claim quantifies
+  over before writing the bound**.
+- **`3 FileObj` for `TT-24.a`'s check**, where the claim mentions two objects —
+  an actor and something unprovable. The bound is set by the transition most
+  likely to violate it rather than by the claim: `InitScaffold` introduces a
+  charter and a first leaf of its **own** before it can trample anything, which
+  is three files before the tree holds one. At `2 FileObj` the mutation could not
+  fire and reported green exactly as a survivor would. The generalisation is a
+  second predictor beside the interval one: **an obligation's bound must hold the
+  machinery of the transitions it quantifies over, not only the objects it
+  names.**
+
+`TT-24.b`'s commands stay at the guarding slice's narrow `2 FileObj, 1 DirObj,
+4 Filename`: an occupant and a live leaf is the whole situation, and it is flat.
+
+**Every `TT-24` and `TT-25` command pins the process scope**, and it is a
+correctness control rather than a habit. Both claims are single-process, and in
+the concurrent scope no grove mutation exists at all — so an unpinned witness is
+unreachable and an unpinned check vacuous. `TT-25`'s two carry
+`CurrentRootThroughout` (which carries `SingleProc`); `TT-24`'s carry
+`SingleProc` alone, because `TT-24` is stated over roots `CurrentRootThroughout`
+excludes — an occupied reserved name is not a root grove may act on.
+
+**Runtime, and a caveat that governs every absolute number in this section.**
+The Alloy scope of this directory is **103 commands** and costs **6888s CPU**
+end to end (1h 57m wall; CPU is the fairer number).
+
+**Do not compare a figure here against one measured in another session.** The
+numbers below were taken across five slices and the host is not the same
+instrument each time: `TT-11`'s check, unchanged since the selection slice,
+costs **61s** in the measurement that produced this section's earlier figures and
+**77s on that same unmodified file** when re-run during the ownership slice —
+~24% drift, independently confirmed by `witness_TT_07` landing at 668s against a
+drift-adjusted prediction of ~680s. A slice's real imposition is therefore an
+**A/B on one host in one sitting**, old file against new, and that is how the
+ownership slice's figures below were taken. Corrected for drift, the whole scope
+went from ~4970s to 6888s: about **+15%** on the pre-existing commands plus
+~860s for the fifteen new ones.
+
+**And one sentinel is not enough — the ownership slice is what established
+that.** `TT-03` was adopted as the file's standing sentinel because it is the
+*tightest* command here, run one filename short of its neighbours. That makes it
+sensitive to a new **transition**, which is what the two previous slices added,
+and nearly blind to new **state**. The ownership slice added no transition and
+two `lone Obj` fields plus a ninth `Result` atom — state present in every state of
+every trace — and the A/B says so plainly:
+
+| command | pre-slice | with ownership | Δ |
+|---|---|---|---|
+| `TT-03` (tightest) | 156s | 138s | −12% |
+| `TT-11` | 77s | 75s | −3% |
+| `TT-15.a` | 51s | 56s | +10% |
+| `witness_TT_07` (largest) | 668s | **987s** | **+48%** |
+
+Read `TT-03` alone and this slice looks free. It is not: the file's single
+largest command is half again as expensive, because state is paid where the trace
+is **widest**. **Measure the largest command as well as the tightest** — the
+first measures the cost of state, the second the cost of transitions.
+
+One command is a large fraction of the total: `witness_TT_07_shift_across_every_species` runs about **sixteen minutes** (nine
+before this slice, and see the A/B above), because
 `TT-07`'s witness obligation asks for a level carrying every species at once —
 a node, that node's charter one level down, a terminal leaf, a foreign entry and
 the shift's target, which is five files and two directories before the insert
@@ -262,6 +337,10 @@ refusal this catalogue names.
 | a resolution's reference syntax | `one sig Query` — an optional key and an optional slug | the CLI's `[n]`, a bare slug and `<slug>-k<key>` differ only in which of the two is present, and no `TT-` obligation reads a slug's content. **One** atom, so a trace carries one resolution argument: every command here needs at most one `resolve`, and the existing `TT-01` – `TT-10` scopes are unchanged by its arrival |
 | what an observation reported | `Sys.got` and `Sys.gotTerm`, written by the transition | *derived* terminality could not be got wrong, and `TT-16` is precisely the claim that the report carries it. Modelling the report as state is what makes the mutation *"a resolved `Done` entry is not reported terminal"* expressible at all |
 | `brief-chain` and `kind` | not represented | both are observations, but no `TT-11` – `TT-16` obligation states anything about either beyond what `select` and `resolve` already carry |
+| the reserved NAME, as a spelling | `Slot.occAt`, a pointer from the slot to the object sitting there | `TT-24.b`'s refusal reason carries the **entry**, so the occupant must be a real filesystem object — but what makes it *reserved* need not be a `Filename`. What makes a witness reserved is that the slot holds it; what makes an occupant reserved is that the slot points at it, and the symmetry is the argument. `one sig ReservedF in Filename` — the reserved spelling as an atom — would consume a `Filename` atom in **every** command in the file, and the nine-minute `TT-07` witness runs at six with nothing spare |
+| the root state `Blocked`, and a finish or recovery transaction | not represented; `TT-24.c` is a declared gap | there is no transaction of that kind here, and a ninth `Result` atom invented to fill the cell would answer `TT-24` by construction. See *Declared gaps* |
+| the quarantine reaper | not represented; `TT-24.d` is a declared gap | `FN-21`'s machinery — a sweep, a quarantine, a per-entry ownership proof. The gap is stated separately from `TT-24.c`'s because the two are out of reach for different reasons: one lacks an outcome, the other lacks a subject |
+| a marked node | **not spellable**: `isShaped` gives a `NodeSp` name no `fOut` field at all | `TT-25`'s prohibition is therefore answered by construction, and the paragraph below says so rather than a command pretending to check it |
 | the witnesses' filesystem placement | `Fmt.fmt` and `Slot.occ`, beside `Obj` rather than in it | see above: no `TT-17` – `TT-20` obligation reads a witness's name, position or key. `TT-24.b` will need a foreign entry **at** a reserved name; `Slot.occ = Unowned` was the seat kept for it, and the `ownership` leaf is cut carrying this slice's answer that it is **not enough on its own** — `TT-24.b`'s reason carries the *entry*, and a `SlotContent` cannot name an `Obj` |
 | the fifteen other task-tree operations, in the concurrent scope | `Open`/`Classify`/`Release` for an observation, `Mark` for a mutation | no `TT-21` – `TT-23` obligation distinguishes *which* mutation holds the exclusive guard, and a second one is a transition every command in the file pays for. A single mutation is a bulk mark with a one-member plan, so `Mark` is both |
 | a bulk mark's target subtree | the task root | no `TT-23` obligation reads a narrower subtree, and a narrower one costs a second `DirObj` every command in the slice would pay for |
@@ -276,6 +355,17 @@ refusal this catalogue names.
 | the `requirements` session kind | `OrdinaryK` | the same row as the nineteen kinds: `PartialScaffold`'s subset needs *one positioned live leaf at position 1 with key 1*, and no obligation reads which ordinary kind it is |
 | interruption's cause | one `Crash` action that ENDS an open transaction | `EN-08` grants exactly this and excludes power loss and storage-cache loss. What makes `crash` load-bearing rather than decorative is that it is the only way to leave a transaction incomplete, which is what turns a transient state into a **stable** one |
 | a name's rendering to a path | `Rendering.collide`, pinned empty by `EN_12` inside `GroveGrammar` | there is no path in this model, so `EN-12` had nowhere to be false and nothing to control. `collide` is the one place it is given one, and it rides inside the grammar bundle because an unpinned free static relation is paid for by all sixty-eight commands rather than by the one that drops it |
+
+**`TT-25`'s "a node is never marked" is answered by construction too, and it is
+the second entry in this paragraph's family.** A node name carries no outcome
+infix — `isShaped` says `f.fSpec = NodeSp implies (no f.fKind and no f.fOut)` —
+so this model cannot spell a marked node, and no mutation of an *action* can
+produce one. What is checked instead is what "derived" actually forbids, and both
+halves are falsifiable: the transition that makes a node done writes **nothing**
+to the node (`TT-25.a`), and done-ness reads the **whole** subtree (`TT-25.b`,
+stated over `d.^(~loc)` rather than over `nodeDone`, exactly as `TT-14` names
+`fPos` rather than `precedes`, so that re-defining the mechanism has somewhere to
+fail).
 
 **`TT-11`'s "depends on no state outside the tree" is answered by construction,
 not by a command**, and this is the honest place to say so. `precedes` and
@@ -321,6 +411,10 @@ check green at bound *n* says nothing about a defect needing *n+1*.
 | `TT-22.b` | `2 FileObj, 1 DirObj, 4 Filename, **6 steps**` | the whole serialization: open · deferred mark · release · applied mark, plus the run-out state an applied mark cannot supply itself |
 | `TT-23.a` | `2 FileObj, 1 DirObj, 4 Filename, **2 steps**` | nothing: a refused mark changes nothing, so it closes on itself, and the invalid plan is reachable at state 0 by `EN-11` |
 | `TT-23.b` | `2 FileObj, 1 DirObj, **6 Filename**, **5 steps**` | the interruption **and** the re-run: mark · crash · mark, plus the run-out state. The sixth filename is `CharterF`'s atom, not a claim |
+| `TT-24.a` | `2 FileObj, 1 DirObj, 4 Filename, **2 steps**` | nothing: a refused mutation changes no bytes, so the trace closes on itself. Its **check** runs at `3 FileObj` for the mutation's sake, not the witness's |
+| `TT-24.b` | `2 FileObj, 1 DirObj, 4 Filename, **2 steps**` | nothing, and for the same reason: the occupant and one live leaf is the whole situation, and the refusal is idempotent |
+| `TT-25.a` | `3 FileObj, 2 DirObj, 6 Filename, **3 steps**` | the retirement: a node, its charter, the leaf inside it, and the state the applied rename reaches |
+| `TT-25.b` | `3 FileObj, **3 DirObj**, 6 Filename, **1 steps**` | the **depth**. A node, a node beneath it, and a live leaf in the second — which is the only shape a done-ness reading only the node's children gets wrong |
 
 **Symmetry, exact scopes, fairness.** No command uses an `exactly` scope, so
 Alloy's symmetry breaking is free to collapse isomorphic instances — which is
@@ -380,6 +474,51 @@ reported itself green while checking nothing at all (below), so the pass is run
 | `TT-22.b` | the plan is validated **before** the guard is taken, so a refusing mark never acquires | ✓ |
 | `TT-23.a` | only the member about to be renamed is validated, not the whole plan | ✓ |
 | `TT-23.b` | a run with nothing left to mark refuses `AlreadyTerminal` instead of reporting `Empty` | ✓ |
+| `TT-24.a` | `initialise-root` clears a directory it did not create | ✓ (at `3 FileObj`; see below) |
+| `TT-24.b` | the refusal treats someone else's bytes as a recoverable witness — `WitnessPending`, naming a recovery | ✓ |
+| `TT-25.a` | the retire that empties a node records done-ness in the node's own bytes | ✓ |
+| `TT-25.b` | done-ness reads only the node's **children** instead of its subtree | ✓ |
+
+**The ownership four each fired, and each has POSITIVE evidence that it did** —
+no reliance on the failing-check asymmetry this time, which is worth recording
+because the two earlier slices leaned on it for four of their ten mutations. Each
+mutant carries a `fire_` probe exhibiting the mutated transition in an instance:
+an `InitScaffold` applied over a non-empty root, a `groveAct` refusing
+`RefWitnessPending` under an `Unowned` slot, a retire that changes its node's
+digest, and a node reported done with a live leaf beneath it. All four land.
+
+**`TT-25.a` and `TT-09.d` are one framing seen from two sides, and the pair of
+mutations says which half each claims.** `TT-25.a`'s mutation — the retire that
+empties a node records done-ness in the node's own bytes — breaks `TT-09.d` as
+well, and it must: in this model the only transition that can make a node done is
+a rewrite, and `TT-09.d` already says a rewrite touches nothing but its target.
+They separate from the other side, which is what makes the pair a control rather
+than a duplicate: `TT-09.d`'s own mutation — *a rewrite may move the entry* —
+breaks `TT-09.d` and leaves `TT-25.a` **green**, because moving the target writes
+nothing to the node above it. This is the second such pairing in the file, after
+`TT-21.a`/`TT-22.b`, and it is recorded rather than contrived away for the same
+reason.
+
+**Each was run against its neighbours, and one pairing carries more than
+bookkeeping.** `TT-24.a` and `TT-04` are both about bytes grove must not touch,
+and they separate cleanly *because of the scope*: `TT-04` carries
+`CurrentRootThroughout`, which excludes the root-lifecycle actions, so an
+`initialise-root` that tramples a foreign entry is invisible to it and visible to
+`TT-24.a`. That is the whole of what `TT-24.a` adds to a file that already
+had `TT-04` — not a wider class of protected object, but a wider class of
+**action**, and the roots `TT-01` – `TT-16` are not stated over.
+
+**`TT-24.a`'s mutation survived its first run, and it is the ninth incident and
+the FIFTH whose cause is the bound.** The check was written at the guarding
+slice's `2 FileObj`, which is what the claim mentions: an actor and something
+unprovable. The transition that violates it is `InitScaffold`, which brings a
+charter and a first leaf of its own — so the situation needs **three** files
+before the tree holds one, the mutated transition could not fire, and the check
+reported green exactly as a real survivor would. Caught at `3 FileObj` in 22s.
+Entry 029's predictor was about *states*; this one is the same shape in the other
+dimension, and the two combine into one authoring rule: **the bound must hold the
+machinery of the transitions the obligation quantifies over, not only the objects
+the obligation names.**
 
 **The guarding six were each run against every other check in the slice, and
 every neighbour stayed green — with one deliberate exception, recorded rather
@@ -491,9 +630,11 @@ there; the `TT-11` – `TT-16` slice produced none of either kind — its result
 the mutation matrix, and its one incident is the vacuous `TT-12` mutation above.
 The `TT-17` – `TT-20` slice produced one model defect and one bound vacuity; the
 `TT-21` – `TT-23` slice produced one model defect (the orphaned plan listing,
-below) and two more bound vacuities. See
+below) and two more bound vacuities; the `TT-24` – `TT-25` slice produced one
+model defect (the subset antecedent, below), one bound vacuity, and one finding
+about the catalogue's own assumption table. See
 [`docs/formalism-findings.md`](../../../docs/formalism-findings.md) entries 026,
-027, 028 and 029.
+027, 028, 029 and 030.
 
 **One counterexample, retained.** `TT-06.b`, at the standard bound:
 
@@ -550,6 +691,33 @@ runs for every operation, format classification only for operations that need a
 format — and it is a distinction the catalogue states and a model is free to
 miss.
 
+**One model defect the ownership slice introduced and its own witnesses caught,
+retained because the failure mode is the file's oldest one wearing new
+clothes.** `reservedRefusal` had to split — a reserved *witness* refuses with
+`WitnessPending`, an occupant grove cannot classify with `ReservedNameOccupied` —
+and the witness half was first written:
+
+```alloy
+Slot.occ in WitnessClass implies { Sys.res' = RefWitnessPending ... }
+```
+
+`in` is **subset**, and `Slot.occ` is a `lone` field whose empty value is a
+subset of every set. On a root with no reserved artifact at all the antecedent is
+therefore **true**, every ordinary transition was forced to refuse
+`RefWitnessPending` against its own applied branch, and the transition relation
+became **unsatisfiable**. All four of the slice's new checks reported green while
+checking nothing whatever, and `TT-19`, `TT-24.a`, `TT-24.b`, `TT-25.a` and
+`TT-25.b` would all have shipped that way.
+
+What caught it was not a check but the two **witnesses that did not land** — and
+then a probe run against the pre-change file, which found the same situation in
+7s and localised the change that had removed it. The spelling that says what was
+meant is `some (Slot.occ & WitnessClass)`, which is what `doRecover` had said
+correctly all along. The lesson is narrower and more useful than *be careful with
+`in`*: **a `lone` field's emptiness makes `in` an antecedent that fires when
+nothing is there**, and the symptom is not a failing check but a file that has
+quietly stopped being able to do anything.
+
 **One false-confidence incident, retained because it is the more useful
 result.**
 
@@ -580,8 +748,8 @@ are — the pre-registration's control on *agreement mistaken for proof*, since
 both families descend from one document and an error smuggled in as an
 assumption produces two models that agree.
 
-The Alloy-owned rows this file has run are `EN-04`, `EN-07`, `EN-08`, `EN-12` and
-`EN-14`. `EN-11` is `ownership`'s.
+The Alloy-owned rows this file has run are `EN-04`, `EN-07`, `EN-08`, `EN-11`,
+`EN-12` and `EN-14` — all five of them, with `EN-11` the last to land.
 
 | id | class | command | result |
 |---|---|---|---|
@@ -592,6 +760,13 @@ The Alloy-owned rows this file has run are `EN-04`, `EN-07`, `EN-08`, `EN-12` an
 | `EN-08` | exercise-removal | `expect_unreachable_EN_08_the_interrupted_bulk_mark_witness_needs_crash` | no instance, as expected |
 | `EN-12` | premise-break | `expect_fail_EN_12_TT_01a_a_name_that_renders_as_two_components` | counterexample found, as expected |
 | `EN-14` | premise-break | `expect_fail_EN_14_TT_22b_with_no_root_to_guard_a_mark_lands_mid_observation` | counterexample found, as expected |
+| `EN-11` | exercise-removal | `expect_unreachable_EN_11_a_species_mismatch_needs_a_hand_edit` | no instance, as expected |
+| `EN-11` | exercise-removal | `expect_unreachable_EN_11_a_malformed_node_hiding_live_work_needs_a_hand_edit` | no instance, as expected |
+| `EN-11` | exercise-removal | `expect_unreachable_EN_11_two_live_finish_leaves_need_a_hand_edit` | no instance, as expected |
+| `EN-11` | exercise-removal | `expect_unreachable_EN_11_an_occupied_reserved_name_needs_a_hand_edit` | no instance, as expected |
+| `EN-11` | exercise-removal | `expect_unreachable_EN_11_a_leaf_two_levels_deep_needs_a_hand_edit_at_this_bound` | no instance, as expected **at this bound** |
+| `EN-11` (fire evidence) | — | `witness_EN_11_groves_own_actions_still_build_a_tree_without_a_hand_edit` | instance found |
+| `EN-11` (**finding**) | — | `witness_EN_11_a_resolved_terminal_entry_needs_no_hand_edit` | instance found — the assumption does **not** control `TT-16` |
 
 **`EN-04` — there is no atomic replacement of a file by a differently named
 directory.** This model already carries the *candidate* rather than the
@@ -645,6 +820,46 @@ carrying no weight in this scope — and it is a legitimate outcome of the contr
 rather than a defect in it. What the assumption *does* buy is the window the ADR
 names: the interval between two marks in which another writer may arrive, which
 is `SY-11.b`'s subject and not this file's.
+
+**`EN-11` — any well-formed tree is reachable by hand edit.** Exercise-removal,
+and it is the row that took two attempts to *remove anything*.
+
+**The assumption is realised in this file in two places, not one.** The
+`hand-edit` action is the obvious one. The other is the **unconstrained initial
+state**, which the bounds paragraph above rests on in as many words — *every
+single transition is reachable from state 0, so a one-step property needs no
+run-up*. That argument **is** `EN-11`, cashed out as a modelling decision. A
+switch that guarded only the action left every named witness reachable at state
+0 and reported green while removing nothing at all. `not EN_11` takes both: no
+`hand-edit`, and a world that starts as Grove would have found it before it had
+done anything — an empty task root, no format witness, nothing at a reserved
+name.
+
+**The scope is `SingleProc`, not `CurrentRootThroughout`, and `5 steps`.** Under
+`CurrentRootThroughout` the root-lifecycle actions are excluded, so an empty
+start could never be populated at all and every command would be unreachable for
+the trivial reason. The commands admit `initialise-root` instead, and five states
+is the shortest run-up in which Grove builds anything: scaffold, publish, one
+mutation, and the state that closes the lasso.
+`witness_EN_11_groves_own_actions_still_build_a_tree_without_a_hand_edit` is what
+shows the scope is not simply dead — an applied `add-leaf` from an empty root,
+with `hand-edit` gone.
+
+**Five of the six named witness sets are controlled, and `TT-16` is not — which
+is this row's finding.** A species mismatch, a malformed node hiding live work,
+two live finish leaves, an occupant at a reserved name and a live leaf two levels
+deep are all unreachable with `hand-edit` removed. A **resolved terminal entry**
+is not: Grove's own actions build one — allocate, retire, resolve — so
+`TT-16`'s witness never needed the assumption. The catalogue's `EN-11` row listed
+it and has been corrected; the model ships the positive control rather than an
+`expect_unreachable_` written to the table instead of to the model.
+
+One of the five is weaker than the other four and says so in its own name.
+`expect_unreachable_EN_11_a_leaf_two_levels_deep_needs_a_hand_edit_at_this_bound`
+is unreachable because two promotions need two nodes, two charters and two leaves
+against a scope of three files — not because Grove could not build such a tree
+given room. It is recorded as an unreachability **at this bound**, which is the
+distinction the whole `expect_unreachable_` form rests on.
 
 **`EN-08` — interruption may occur between any two steps.** Exercise-removal, run
 against the two **named witness sets** it controls rather than against the whole

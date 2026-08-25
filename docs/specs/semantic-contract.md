@@ -196,6 +196,20 @@ beyond running commands:
    is not a declared gap, and the evidence record below is written per pair, not
    per claim.
 
+**A scope still being built is run as a NAMED SUBSET, not as an expected-red
+whole.** While one family's column is empty the unqualified `models/run.sh` is
+red, and that redness is the truth about the repository. What it must not become
+is a colour anyone is told to ignore: a suite whose red is routinely explained
+away has stopped being an instrument. So the phase's green while a column is
+under construction is a **named invocation that asserts coverage over exactly
+what exists** — `models/run.sh --scope <scope> --family <family>`, which
+restricts the matrix to that family's cells and therefore still fails on an
+empty one. `--no-coverage` stays what it is: the flag a scope uses *while its own
+first family is mid-build*, and the model README says which obligations it claims
+so far. The moment a family's column is complete, that scope's `--family` run is
+green with coverage asserted, and the README's run line is updated to drop
+`--no-coverage` — which is the visible signal that the column closed.
+
 It delegates to the two existing `ordinal-fs-tree` runners rather than
 absorbing them, which also gives it a positive control: those suites are known
 green, so a repository run that reports them clean while finding nothing
@@ -604,7 +618,7 @@ cell.
 | `EN-08` | Interruption may occur between any two steps. Power loss, kernel failure and storage-cache loss are outside the contract. | exercise-removal | Both — `crash` is a first-class action; the mutation is its removal | `FN-09`, `FN-10`, `FN-24`, `FN-31.c`, `SY-12`, `TT-20`, `TT-23.b` | with `crash` removed, every named witness is unreachable and the run fails on zero work rather than reporting green |
 | `EN-09` | A command's exit status is not a receipt: a result may be lost or arrive late. | exercise-removal | Alloy — a trace in which the result arrives after the classification | `FN-15.a` | removing the late-arrival trace makes `FN-15.a`'s witness — a lost result reported as failure while the exact commit exists — unreachable |
 | `EN-10` | The names are the counter: key allocation reads the tree, and entries are never removed. | premise-break | Quint — `relax_EN_10`, an entry removed | `TT-05`, `TT-12` | `TT-05` fails: allocation re-issues a key a removed entry held |
-| `EN-11` | Any well-formed tree is reachable by hand edit. | exercise-removal | Both — `hand-edit` is a first-class action; the mutation is its removal | `TT-02`, `TT-03`, `TT-13.c`, `TT-16`, `TT-24.b`, `TT-25` | with `hand-edit` removed, every witness that posits a tree Grove's own actions cannot build is unreachable |
+| `EN-11` | Any well-formed tree is reachable by hand edit. | exercise-removal | Both — `hand-edit` is a first-class action; the mutation is its removal | `TT-02`, `TT-03`, `TT-13.c`, `TT-24.b`, `TT-25` | with `hand-edit` removed, every witness that posits a tree Grove's own actions cannot build is unreachable. **`TT-16` was listed here and has been removed**: a resolved *terminal* entry is something Grove's own actions build — allocate, retire, resolve — so its witness never needed the assumption, and the Alloy run reaches it with `hand-edit` gone ([`crates/grove-task-tree/models/task-tree.als`](../../crates/grove-task-tree/models/task-tree.als), `witness_EN_11_a_resolved_terminal_entry_needs_no_hand_edit`) |
 | `EN-12` | A name renders as exactly one path component. | premise-break | Alloy — a rendering that escapes its level | `TT-01.a`, `TT-06` | `TT-01.a` fails: two spellings denote one entry, and the level's positions stop being a per-directory sequence |
 | `EN-13` | Foreign entries may appear at any name and are not Grove's to delete. | premise-break | Quint — `relax_EN_13`, a sweep of a reserved namespace | `TT-04`, `TT-24.b`, `TT-24.d`, `FN-27` | `TT-04` and `TT-24.d` fail: the sweep deletes bytes a refusal exists to preserve |
 | `EN-14` | The working-tree root exists before the task root and outlives its deletion. | premise-break | Alloy — a scope in which the root itself is removed | `TT-22`, `SY-01`, `SY-05` | `SY-01` fails: ownership has nothing to be held on, so a second driver is admitted |

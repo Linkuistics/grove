@@ -238,6 +238,14 @@ fun liveFinish:        set Obj { { o: liveLeaves | o.nm.fKind = FinishK } }
 fun liveOrdinary:      set Obj { liveLeaves - liveFinish }
 fun allKeys:           set Int { entries.nm.fKey }
 
+/* DERIVED DONE-NESS (TT-25).  A node is done when no live leaf is beneath it,
+   and there is nowhere else for the answer to come from: a node NAME carries no
+   outcome infix at all (`isShaped`), so this model cannot even spell a marked
+   node.  What is left to check is behavioural -- that the answer tracks the
+   subtree, and that the transition which makes a node done writes NOTHING to
+   the node. */
+pred nodeDone[d: Obj] { no (liveLeaves & d.^(~loc)) }
+
 /* ---------------------------------------------------------------------------
    THE WALK (TT-11).  Depth-first PRE-ORDER over positions, and it needs no rank
    relation: `a` precedes `b` exactly when `a` is an ancestor of `b`, or some
@@ -305,8 +313,34 @@ one sig Unowned extends SlotContent {}
 one sig Fmt { var fmt: lone Format }
 
 /* The reserved name.  ONE slot: no TT- obligation counts them, and every one of
-   them is stated over the reserved CLASS rather than over its members. */
-one sig Slot { var occ: lone SlotContent }
+   them is stated over the reserved CLASS rather than over its members.
+
+   `occAt` IS WHERE THE RESERVED NAME IS, and it is why this model needs no
+   reserved `Filename`.  `TT-24.b`'s refusal reason CARRIES THE ENTRY -- an
+   occupant grove cannot classify is named, so that the operator is told what is
+   in the way -- and `SlotContent` cannot name an `Obj`.  What it names is a real
+   filesystem object, so the occupant IS one; what makes it *reserved* is that
+   the slot points at it, exactly as what makes a witness reserved is that the
+   slot holds it.  The alternative -- `one sig ReservedF in Filename`, the
+   reserved spelling as an atom -- would consume a `Filename` atom in EVERY
+   command in the file, and the nine-minute `TT-07` witness runs at six with
+   nothing spare. */
+one sig Slot {
+  var occ:   lone SlotContent,
+  var occAt: lone Obj
+}
+
+/* WHAT THE OCCUPANT IS, and when there is one.  A witness is grove's own
+   artifact and holds no object (`TT-17` .. `TT-20` read its presence and its
+   content, never a name); an `Unowned` occupant is someone else's bytes, and
+   naming them is the whole of `TT-24.b`.  Its own name is foreign -- grove
+   cannot parse it -- which is what `cannot classify at all` means here. */
+fact ReservedOccupancy {
+  always {
+    some Slot.occAt iff Slot.occ = Unowned
+    all o: Slot.occAt | o in onDisk - TaskRoot and o.nm in foreignName
+  }
+}
 
 /* An initialisation transaction in flight.  `some inFlight` is the catalogue's
    TRANSIENT state -- it exists only between two filesystem steps of one
@@ -479,9 +513,19 @@ one sig Env {
   crashOn:   lone Txn,   // EN-08: interruption is a first-class action
   descShare: lone Txn,   // EN-07 BROKEN: one guard covers a whole bulk run
   wtRoot:    lone Txn,   // EN-14: the working-tree root the guard is held on
-  concOn:    lone Txn    // the process scope: one process, or two
+  concOn:    lone Txn,   // the process scope: one process, or two
+  handEditOn: lone Txn   // EN-11: any well-formed tree is reachable by hand edit
 }
 pred EN_08 { some Env.crashOn }
+/* EN-11 -- ANY WELL-FORMED TREE IS REACHABLE BY HAND EDIT.  It is realised HERE
+   in two places and not one, and that is the whole content of its control: the
+   `hand-edit` action, and the UNCONSTRAINED INITIAL STATE the README's `3 steps`
+   argument rests on ("every single transition is reachable from state 0").
+   Removing only the action leaves every witness it is supposed to control
+   reachable at state 0, and the exercise-removal reports green while removing
+   nothing -- so the switch takes away both, and what is left is a world grove's
+   own actions had to build from an empty task root. */
+pred EN_11 { some Env.handEditOn }
 pred EN_07 { no Env.descShare }
 pred EN_14 { some Env.wtRoot }
 pred Concurrent  { some Env.concOn }
@@ -660,6 +704,12 @@ one sig RefMalformed, RefNotAnEntry, RefNotLive, RefAlreadyTerminal,
    is its own and the operation that recovers it; `FormatLegacy` and
    `FormatForeign` are what the format classification refuses with. */
 one sig RefWitnessPending, RefFormatLegacy, RefFormatForeign extends Refused {}
+/* `ReservedNameOccupied(entry)` -- the OTHER half of the reserved situation
+   (TT-24.b).  Split from `RefWitnessPending` because telling an operator to run
+   a recovery against someone else's bytes is exactly the fail-closed violation
+   the two reasons exist to keep apart: this one names the entry and NO
+   recovery. */
+one sig RefReservedNameOccupied extends Refused {}
 /* The algebra's own refusal, opaque.  TT-10 is the claim that no ordinary
    argument reaches it, because grove's preconditions run in front. */
 one sig AlgebraicRefusal extends Result {}
@@ -693,6 +743,12 @@ one sig Sys {
      the witness and its recovery. */
   var pending: lone SlotContent,
   var recov:   lone Recovery,
+  /* WHAT A `ReservedNameOccupied` REFUSAL NAMED (TT-24.b).  Written by the
+     transition for the reason `pending` and `got` are: a derived value could
+     not be got wrong, and the claim is precisely that the refusal carries the
+     entry.  It is separate from `pending` because the two reasons are separate:
+     one names a class and a recovery, the other an entry and no recovery. */
+  var occupant: lone Obj,
   /* WHICH GUARD THE OPERATION ASKED FOR.  Without it a DEFERRED open is
      indistinguishable from a deferred mark, and TT-22.a -- which is about
      shared opens specifically -- would have no subject. */
@@ -713,11 +769,15 @@ pred algebraWouldRefuse[a: Action, t: Obj] {
    the format witness or the reserved slot moved would not be a refusal. */
 pred noTreeChange {
   onDisk' = onDisk and nm' = nm and loc' = loc and dg' = dg
-  Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
+  Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ and Slot.occAt' = Slot.occAt
 }
 
-/* Nothing was named, because nothing pending was met. */
-pred noPending { no Sys.pending' and no Sys.recov' }
+/* Nothing was named, because nothing that names anything was met.  `occupant`
+   rides here rather than in a predicate of its own so that every transition
+   already framing `pending` frames it too -- an under-framed transition is a
+   latent inconsistency AND a search-space multiplier, which is the guarding
+   slice's retained lesson. */
+pred noPending { no Sys.pending' and no Sys.recov' and no Sys.occupant' }
 
 /* THE ROOT-IDENTITY CASCADE every observation and mutation runs before it looks
    at its own operand (TT-18, TT-19).  Reserved witness first, then format, and
@@ -727,10 +787,29 @@ pred noPending { no Sys.pending' and no Sys.recov' }
    occupant grove cannot classify names no recovery, which is the whole reason
    `WitnessPending` and `ReservedNameOccupied` are two reasons and not one. */
 pred reservedRefusal {
-  some Slot.occ implies {
+  // AN ARTIFACT GROVE CAN PROVE IS ITS OWN: the refusal names the witness and
+  // the operation that settles it.
+  //
+  // `some (Slot.occ & WitnessClass)` AND NOT `Slot.occ in WitnessClass`.  The
+  // slot is a `lone` field, and the empty set is a subset of every set: written
+  // with `in`, this antecedent is TRUE on a root with no reserved artifact at
+  // all, and every ordinary transition in the file is then forced to refuse
+  // `RefWitnessPending`.  It made every applied mutation unsatisfiable.
+  some (Slot.occ & WitnessClass) implies {
     Sys.res' = RefWitnessPending
     Sys.pending' = Slot.occ
-    Sys.recov' = (Slot.occ in WitnessClass implies recoveryFor[Slot.occ] else none)
+    Sys.recov' = recoveryFor[Slot.occ]
+    no Sys.occupant'
+    noTreeChange
+    no inFlight'
+  }
+  // ONE IT CANNOT CLASSIFY AT ALL (TT-24.b): the refusal names the ENTRY, and
+  // no recovery -- not the class either, because there is no class it could
+  // honestly report.  Byte-identical, like every refusal in this file.
+  Slot.occ = Unowned implies {
+    Sys.res' = RefReservedNameOccupied
+    Sys.occupant' = Slot.occAt
+    no Sys.pending' and no Sys.recov'
     noTreeChange
     no inFlight'
   }
@@ -787,7 +866,7 @@ pred doAddLeaf[d: Obj, o: Obj, f: Filename] {
     onDisk' = onDisk + o
     nm' = nm ++ (o -> f)
     loc' = loc ++ (o -> d)
-    Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
+    Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ and Slot.occAt' = Slot.occAt
     some dgt: Digest | dg' = dg ++ (o -> dgt)
   }
   }
@@ -815,7 +894,7 @@ pred doInsertLeaf[t: Obj, o: Obj, f: Filename] {
       // every later sibling shifts by one; NOTHING else about it changes
       all s: later | shiftedUp[s.nm, s.nm']
       all s: onDisk - later | s.nm' = s.nm
-      Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
+      Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ and Slot.occAt' = Slot.occAt
       some dgt: Digest | dg' = dg ++ (o -> dgt)
     }
   }
@@ -847,7 +926,7 @@ pred doDecompose[t: Obj, n: Obj, c: Obj, k: Obj, nf, kf: Filename] {
     nm'  = (nm  - (t -> Filename)) ++ (n -> nf) ++ (c -> CharterF) ++ (k -> kf)
     loc' = (loc - (t -> Obj)) ++ (n -> t.loc) ++ (c -> n) ++ (k -> n)
     // the leaf's body becomes the node's charter: same bytes, new name
-    Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
+    Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ and Slot.occAt' = Slot.occAt
     some a, b: Digest |
       dg' = (dg - (t -> Digest)) ++ (c -> t.dg) ++ (n -> a) ++ (k -> b)
   }
@@ -878,7 +957,7 @@ pred doRewrite[t: Obj, i: Infix, g: Filename] {
     Sys.res' = Applied
     rewritten[t.nm, g, i]
     onDisk' = onDisk and loc' = loc and dg' = dg
-    Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
+    Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ and Slot.occAt' = Slot.occAt
     nm' = nm ++ (t -> g)
   }
   }
@@ -930,11 +1009,14 @@ pred doResolve[q: Query] {
    the filesystem facts, and that is the point: it is how a witness posits a
    tree grove's own actions could not build. */
 pred doHandEdit {
+  EN_11
   Sys.act' = HandEdit and Sys.res' = Environmental and no Sys.tgt'
   noPending and no inFlight'
   no Sys.who' and no Sys.mode' and procAllFrame
-  // `Fmt.fmt'` and `Slot.occ'` are deliberately UNCONSTRAINED: a witness is a
-  // file, and a hand edit reaches it exactly as it reaches any other.
+  // `Fmt.fmt'`, `Slot.occ'` and `Slot.occAt'` are deliberately UNCONSTRAINED: a
+  // witness is a file, and a hand edit reaches it exactly as it reaches any
+  // other -- including by leaving someone else's bytes at a name grove reserves,
+  // which is the only way `TT-24.b`'s situation arises at all (`EN-11`).
 }
 
 pred doIdle {
@@ -982,7 +1064,7 @@ pred doInitScaffold[c: FileObj, l: FileObj, lf: Filename] {
     loc' = loc ++ (c -> TaskRoot) ++ (l -> TaskRoot)
     dg'  = dg  ++ (c -> ScaffoldD) ++ (l -> ScaffoldD)
     Fmt.fmt'  = Fmt.fmt                       // THE WITNESS DOES NOT LAND HERE
-    Slot.occ' = Slot.occ
+    Slot.occ' = Slot.occ and Slot.occAt' = Slot.occAt
   }
 }
 
@@ -997,7 +1079,7 @@ pred doInitPublish {
     Sys.res' = Applied
     Fmt.fmt' = CurrentFmt
     onDisk' = onDisk and nm' = nm and loc' = loc and dg' = dg
-    Slot.occ' = Slot.occ
+    Slot.occ' = Slot.occ and Slot.occAt' = Slot.occAt
     no inFlight'
   }
   (no Slot.occ and not (some inFlight and isPartialScaffold)) implies
@@ -1033,7 +1115,7 @@ pred doRecover[r: Recovery] {
                   and recoveryFor[Slot.occ] = r) | {
     matching implies {
       Sys.res' = Applied
-      no Slot.occ'
+      no Slot.occ' and no Slot.occAt'
       onDisk' = onDisk and nm' = nm and loc' = loc and dg' = dg
       Fmt.fmt' = Fmt.fmt
       noPending
@@ -1054,7 +1136,7 @@ pred markRename[o: Obj, g: Filename] {
   rewritten[o.nm, g, AbandonedI]
   onDisk' = onDisk and loc' = loc and dg' = dg
   nm' = nm ++ (o -> g)
-  Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
+  Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ and Slot.occAt' = Slot.occAt
 }
 
 /* AN OBSERVATION TAKES ITS GUARD AND ITS ONE LISTING, in the same step: the
@@ -1229,11 +1311,16 @@ pred step {
 fact Trace {
   Sys.act = Idle and Sys.res = Environmental and no Sys.tgt
   no Sys.got and no Sys.gotTerm
-  no Sys.pending and no Sys.recov
+  no Sys.pending and no Sys.recov and no Sys.occupant
   no Sys.who and no Sys.mode
   all p: Proc | no p.holds and no p.snapOn and no p.snapNm
                 and no p.cls and no p.clsLive and no p.plan and no p.planNm
   no inFlight
+  // EN-11's OTHER HALF.  With the assumption in force this says nothing and the
+  // initial tree is free, which is what every witness in this file rests on;
+  // with it removed the world starts as grove would have found it before it had
+  // done anything -- an empty task root, no witness, nothing at a reserved name.
+  not EN_11 implies (onDisk = TaskRoot and no Fmt.fmt and no Slot.occ)
   always step
 }
 
@@ -1923,9 +2010,16 @@ run witness_TT_18_a_reserved_witness_over_a_witnessless_root_reports_reserved {
    recovery at all.  Telling an operator to run a recovery against someone
    else's bytes is exactly the fail-closed violation the two reasons are split
    to prevent. */
+/* NARROWED TO THE WITNESS, which is what the claim says in words: *a reserved
+   WITNESS* refuses everything but its matching recovery.  Before `TT-24.b` the
+   slot's other content -- an occupant grove cannot classify -- had no consumer,
+   so `some Slot.occ` and `Slot.occ in WitnessClass` were the same set and the
+   wider spelling was free.  They are two refusals now, and the wider spelling
+   would assert that an unclassifiable occupant refuses with a WITNESS reason:
+   the very confusion the two reasons are split to prevent. */
 check TT_19_a_reserved_witness_refuses_everything_but_its_matching_recovery {
   (GroveGrammar and SingleProc) implies always (
-    some Slot.occ implies {
+    some (Slot.occ & WitnessClass) implies {
       (Sys.act' in groveActs + observeActs + InitScaffold + InitPublish) implies {
         Sys.res' = RefWitnessPending
         Sys.pending' = Slot.occ
@@ -2214,6 +2308,156 @@ run witness_TT_23b_an_interrupted_bulk_mark_is_repaired_by_rerunning_it {
 
 
 // ===========================================================================
+// CLAIMS — TT-24 .. TT-25, fail-closed ownership and derived done-ness
+//
+// WHAT SEPARATES THESE FROM THE SLICE BEFORE THEM.  `TT-21` .. `TT-23` are the
+// only claims in this file about two processes; these two are single-process
+// claims again, so every command below PINS the scope.  That is not a style
+// rule: in the concurrent scope no grove mutation exists at all, so an unpinned
+// witness is unreachable and an unpinned check is vacuous — the file's retained
+// false-confidence incident in a fourth set of clothes.
+//
+// `TT-24` IS ONE ARTIFACT MET IN THREE CONTEXTS, and the catalogue fixes the
+// outcome of each rather than letting a model choose.  Two of the three are out
+// of this file's reach and are DECLARED GAPS in the family README with their
+// reason — `TT-24.c`'s outcome is `Blocked(OwnershipConflict)` and its
+// antecedent is *inside a finish or recovery transaction*, which this file has
+// no notion of; `TT-24.d`'s subject is the quarantine reaper, which is
+// `FN-21`'s.  Inventing a fourth outcome to make the cells green is the thing
+// the catalogue's table exists to prevent.
+// ===========================================================================
+
+/* WHAT GROVE CANNOT PROVE IS ITS OWN.  A foreign entry anywhere the walk can or
+   cannot reach, and the occupant of the reserved name.  `Malformed` is NOT here
+   and the distinction is the catalogue's: a malformed name is grove's own and
+   broken, which is why it halts with recovery advice rather than being left
+   alone. */
+fun unprovable: set Obj { foreignEntries + Slot.occAt }
+
+// --- TT-24.a: nothing unprovable is ever mutated ---------------------------
+
+/* Stated over EVERY action and over EVERY root, which is what separates it from
+   `TT-04`.  `TT-04` is a claim about grove's five tree mutations on a root
+   grove may act on at all; this one reaches the root-lifecycle actions and the
+   roots `CurrentRootThroughout` excludes — an `initialise-root` over a
+   directory that already holds someone's bytes is the fail-closed violation
+   nothing else in this file would catch. */
+check TT_24a_no_action_mutates_what_it_cannot_prove_is_its_own {
+  (GroveGrammar and SingleProc) implies always (
+    Sys.act' not in (HandEdit + ForeignWrite) implies
+      (all o: unprovable |
+         o in onDisk' and o.nm' = o.nm and o.loc' = o.loc and o.dg' = o.dg))
+// THREE `FileObj`, AND THE MUTATION IS WHAT ASKED FOR THEM.  The claim mentions
+// two objects — an actor and something unprovable — but the transition most
+// likely to violate it is `InitScaffold`, which introduces a charter and a first
+// leaf of its OWN before it can trample anything, and that is three files before
+// the tree has one.  At `2 FileObj` the mutation aimed at this obligation cannot
+// fire, and reports green exactly as a survivor would.
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* The catalogue's witness: a mutation ATTEMPTED against an entry grove cannot
+   prove is its own, shown not taken.  A refusal changes nothing, so the trace
+   closes on itself and two states are enough. */
+run witness_TT_24a_a_mutation_against_a_foreign_entry_is_not_taken {
+  GroveGrammar and CurrentRootThroughout
+  eventually (some o: foreignEntries |
+    Sys.act' in (Retire + Prune) and Sys.tgt' = o and Sys.res' = RefNotAnEntry
+    and o in onDisk' and o.nm' = o.nm and o.dg' = o.dg)
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 2 steps
+
+// --- TT-24.b: an occupied reserved name refuses, naming the entry ----------
+
+/* Four conjuncts, and the middle two are the claim.  The refusal NAMES THE
+   ENTRY — `Sys.occupant'`, written by the transition, because a derived value
+   could not be got wrong — and it names NO RECOVERY and no class, because there
+   is none it could honestly report.  Telling an operator to run a recovery
+   against someone else's bytes is the fail-closed violation `WitnessPending`
+   and `ReservedNameOccupied` are two reasons to prevent. */
+check TT_24b_an_occupied_reserved_name_refuses_naming_the_entry_and_no_recovery {
+  (GroveGrammar and SingleProc) implies always (
+    Slot.occ = Unowned implies (
+      Sys.act' in (groveActs + observeActs + rootActs) implies {
+        Sys.res' = RefReservedNameOccupied
+        Sys.occupant' = Slot.occAt
+        no Sys.recov' and no Sys.pending'
+        noTreeChange
+        no Sys.got' and no Sys.gotTerm'
+      }))
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* The catalogue's witness, built as `TT-19`'s is: a tree that looks PERFECTLY
+   WALKABLE — current format, nothing malformed, live ordinary work waiting —
+   and whose ordinary operation refuses anyway, because someone's bytes sit at a
+   name grove reserves.  The tree is byte-identical and no recovery is named. */
+run witness_TT_24b_an_ordinary_operation_meets_a_foreign_entry_at_the_reserved_name {
+  GroveGrammar and SingleProc
+  always (Slot.occ = Unowned and Fmt.fmt = CurrentFmt)
+  not halted
+  some liveOrdinary
+  eventually (Sys.act' in groveActs and Sys.res' = RefReservedNameOccupied
+              and some Sys.occupant' and Sys.occupant' = Slot.occAt
+              and no Sys.recov' and no Sys.pending' and noTreeChange)
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 2 steps
+
+// --- TT-25: a node is never marked -----------------------------------------
+
+/* TT-25.a.  Two conjuncts, and the second is the falsifiable one — the same
+   shape `TT-17` has.  The first is true BY CONSTRUCTION of the grammar: a node
+   name carries no outcome infix at all (`isShaped`), so this model cannot spell
+   a marked node, and that is the honest place to say so rather than a command
+   pretending to check it.  The second is behavioural and is what "done-ness is
+   DERIVED" actually forbids: the transition that makes a node done writes
+   NOTHING to the node — not its name, not its bytes, not its place. */
+check TT_25a_a_node_becomes_done_by_its_subtree_and_is_never_written_to {
+  (GroveGrammar and CurrentRootThroughout) implies always {
+    all d: nodeDirs - TaskRoot | no d.nm.fOut
+    all d: nodeDirs - TaskRoot |
+      (Sys.act' in groveActs and Sys.res' = Applied
+       and not nodeDone[d] and after nodeDone[d])
+        implies (d in onDisk' and d.nm' = d.nm and d.loc' = d.loc and d.dg' = d.dg)
+  }
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* Reached: the retirement of the last live leaf beneath a node, after which the
+   node is derived done and its own entry is byte-identical to what it was. */
+run witness_TT_25a_retiring_the_last_leaf_beneath_a_node_derives_it_done_unmarked {
+  GroveGrammar and CurrentRootThroughout
+  eventually (some d: nodeDirs - TaskRoot |
+    Sys.act' in (Retire + Prune) and Sys.res' = Applied
+    and not nodeDone[d] and after nodeDone[d]
+    and d.nm' = d.nm and no d.nm'.fOut and d.dg' = d.dg)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* TT-25.b.  Stated over `d.^(~loc)` — every leaf ANYWHERE beneath the node —
+   rather than over `nodeDone`, so that the mechanism has somewhere to be wrong.
+   That is `TT-14`'s shape: `TT-14` names `fPos` rather than `precedes` for the
+   same reason, and re-defining done-ness to read only the node's own children
+   breaks this check while leaving `TT-25.a` green.
+   THREE `DirObj`, and it is the claim that asks for it: a node, a node beneath
+   it, and the task root.  At two the live leaf is necessarily a direct child,
+   the two readings of done-ness agree, and the mutation aimed at this
+   obligation survives for want of a place to differ. */
+check TT_25b_a_node_with_a_live_leaf_anywhere_beneath_it_is_derived_live {
+  (GroveGrammar and CurrentRootThroughout) implies always (
+    all d: nodeDirs - TaskRoot |
+      (some (liveLeaves & d.^(~loc))) implies (not nodeDone[d] and no d.nm.fOut))
+} for 4 but 4 Int, 3 FileObj, 3 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
+
+/* Reached, and reached at the DEPTH the claim is about: the live leaf is two
+   levels beneath the node it keeps live, which is the situation a done-ness
+   that read only the node's children would get wrong. */
+run witness_TT_25b_a_node_is_live_on_a_leaf_two_levels_beneath_it {
+  GroveGrammar and CurrentRootThroughout
+  some d, e: nodeDirs - TaskRoot | some o: liveLeaves | {
+    e.loc = d and o.loc = e
+    not nodeDone[d] and not nodeDone[e]
+    no d.nm.fOut and no e.nm.fOut
+    no (liveLeaves & kidsOf[d])
+  }
+} for 4 but 4 Int, 3 FileObj, 3 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
+
+
+// ===========================================================================
 // THE ALLOY-OWNED ASSUMPTION MUTATIONS THIS SLICE RUNS
 //
 // `models/run.sh`'s two inverted forms.  `expect_fail_` must find a
@@ -2319,6 +2563,93 @@ run expect_unreachable_EN_08_the_interrupted_bulk_mark_witness_needs_crash {
       and after (Sys.act = Mark and Sys.res = Applied and no liveLeaves))
   }
 } for 4 but 4 Int, 2 FileObj, 1 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+
+
+/* EN-11 — exercise-removal: ANY WELL-FORMED TREE IS REACHABLE BY HAND EDIT.  Run
+   against the NAMED WITNESS SETS the assumption table lists rather than against
+   the whole file, which is what an exercise-removal asks for.
+
+   WHAT THE REMOVAL HAS TO TAKE AWAY, and it is two things rather than one.  The
+   assumption is realised here as the `hand-edit` action AND as the
+   unconstrained initial state — the README's `3 steps` argument rests on the
+   second in as many words ("every single transition is reachable from state 0").
+   Removing only the action leaves every witness reachable at state 0 and the
+   control reports green while removing nothing.  `not EN_11` takes both, and
+   what is left is a world grove's own actions had to build from an empty task
+   root.
+
+   `SingleProc` RATHER THAN `CurrentRootThroughout`, and the difference is what
+   makes these commands mean anything.  `CurrentRootThroughout` excludes the
+   root-lifecycle actions, so under it an empty start can never be populated at
+   all and every command below would be unreachable for the trivial reason.  The
+   scope here admits `initialise-root`, so grove has a way to build — and the
+   companion witness is what shows it takes it.
+
+   `5 steps`, and it is the shortest run-up that lets grove build anything:
+   scaffold, publish, one mutation, and the state that closes the lasso. */
+run witness_EN_11_groves_own_actions_still_build_a_tree_without_a_hand_edit {
+  GroveGrammar and SingleProc and not EN_11
+  eventually (Sys.act' = AddLeaf and Sys.res' = Applied)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+
+/* TT-02: a name that declares one species over an object of the other.  Grove
+   never writes one — the species a name declares is the species of the object
+   the operation creates — so this witness is `hand-edit`'s or it is nothing. */
+run expect_unreachable_EN_11_a_species_mismatch_needs_a_hand_edit {
+  GroveGrammar and SingleProc and not EN_11
+  eventually (some o: (visited & DirObj) - TaskRoot |
+                o.nm in entryName and o.nm.fSpec = LeafSp)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+
+/* TT-03: a malformed node hiding live work.  Every name grove writes is
+   accepted by the grammar, so a malformed one has no other way in. */
+run expect_unreachable_EN_11_a_malformed_node_hiding_live_work_needs_a_hand_edit {
+  GroveGrammar and SingleProc and not EN_11
+  eventually (some d: (visited & DirObj) - TaskRoot | d.nm in malformedName
+    and some o: kidsOf[d] |
+      o.nm in entryName and o.nm.fSpec = LeafSp and o.nm.fOut = LiveI)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+
+/* TT-13.c: two live finish leaves.  `add-leaf` refuses `FinishK` with
+   `RefReservedKind` (the driver allocates the finish leaf, not the operator),
+   so grove cannot write even ONE, let alone the second that halts the tree. */
+run expect_unreachable_EN_11_two_live_finish_leaves_need_a_hand_edit {
+  GroveGrammar and SingleProc and not EN_11
+  eventually rMultipleLiveFinish
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+
+/* TT-24.b: someone else's bytes at a name grove reserves.  Grove writes
+   witnesses at that name and never an artifact it cannot classify, so an
+   `Unowned` slot is by definition not grove's work. */
+run expect_unreachable_EN_11_an_occupied_reserved_name_needs_a_hand_edit {
+  GroveGrammar and SingleProc and not EN_11
+  eventually (Slot.occ = Unowned)
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+
+/* TT-25: a live leaf two levels beneath a node.  Grove CAN build this one in
+   principle — two promotions — but not inside the bound: each promotion brings a
+   node, a charter and a leaf, and the file's scope holds three files.  Recorded
+   as an unreachability at THIS bound rather than as a claim about grove's
+   reach, which is the distinction the whole `expect_unreachable_` form rests
+   on. */
+run expect_unreachable_EN_11_a_leaf_two_levels_deep_needs_a_hand_edit_at_this_bound {
+  GroveGrammar and SingleProc and not EN_11
+  eventually (some d, e: nodeDirs - TaskRoot | some o: liveLeaves |
+                e.loc = d and o.loc = e)
+} for 4 but 4 Int, 3 FileObj, 3 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+
+/* TT-16, AND IT IS THE FINDING: the assumption table lists `TT-16` among the
+   witnesses `EN-11` controls, and it does not control them.  A resolved
+   TERMINAL entry is something grove's own actions build — scaffold, publish,
+   retire, resolve — so the witness needs no hand edit and removing `hand-edit`
+   leaves it standing.  Shipped as a POSITIVE control, because that is what the
+   evidence supports: an `expect_unreachable_` here would be a command written to
+   the table rather than to the model.  The row is corrected in the catalogue. */
+run witness_EN_11_a_resolved_terminal_entry_needs_no_hand_edit {
+  GroveGrammar and SingleProc and not EN_11
+  eventually (Sys.act' = Resolve and Sys.res' = Reported and
+    (some o: Sys.got' | o.nm.fOut = DoneI and o in Sys.gotTerm'))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
 
 
 // ===========================================================================

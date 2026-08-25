@@ -174,6 +174,66 @@ the file exists.
   ticket*, *Quarantine*, *Complete finish cycle*, *Obligation*.
 
 
+## What the handoff subtree established, and what `exits` inherits
+
+`handoff-k42` closed with `FN-19` – `FN-22` and `FN-31` complete across three
+children — `quarantine-k43`, `revalidation-k44`, `disposal-k45` — taking the
+finish scope to **118 commands and fourteen empty alloy cells**, all fourteen
+`exits`'. Five things it settled are this node's rather than that subtree's, and
+`exits` should not rediscover them.
+
+**The cost law reached a form that stopped needing correction, and it has a
+number for a shape this scope had never measured.** `commit-k41` said *budget by
+transitions × the bound they are reachable at*; `quarantine-k43` found that six
+times too pessimistic and refined it to *(phase, guard) points × the bound*;
+`revalidation-k44` found that four times too pessimistic and refined it again to
+**the number of STATES OF A TRACE at which a transition is enabled** — a phase a
+trace passes through once is one state, however many guards select it.
+`disposal-k45` measured the first transition enabled at a phase a trace can
+**rest** in, isolated it in three variants of one file, and found the law right:
+one sweep at a dwell phase cost **+11%** on the widest command where four
+pass-through transitions plus two phases plus a scope dimension cost **+7%**, and
+un-narrowing the sweep's guard cost a further **+4%**. **Take the ordering — a
+static scope switch, then a narrowed antecedent, then a smaller bound — and do
+not take the multiplier**; it has been wrong three times and right once.
+
+**The bound register now carries seven shapes and a third vacuity predictor.**
+The seventh is that a step inserted at the **end** of a path costs nothing to a
+witness whose final assertion re-anchors onto it, which is *passes through*
+sharpened rather than a new shape. The third vacuity predictor is more
+consequential and is new in kind: **the file's own witness-bound rule is a floor
+that can sit below the real floor**, whenever an obligation's witnesses posit a
+disk while its antecedent is a deep transition — `FN-31.c`'s witnesses land at 3
+and 4 and its antecedent first occurs at 10, so the rule applied literally would
+have made the check green and empty. Read a check's antecedent for the deepest
+transition it names and take the larger of the two numbers.
+
+**`Blocked` still carries no diagnosis, and four slices' abstinence is what makes
+`FN-25` a finding.** `exits` inherits **four** model-only `why` values its
+partition must absorb — `W14QuarantineOccupied`, `W15CommittedAfterRestore`,
+`W16ReturnIncomplete` and `W17OwnershipConflict`. The fourth is the only one the
+catalogue itself names, and it appears on a **`NoOp`** as well as on a block (the
+reaper's decline), which is exactly the case the catalogue warns must not be read
+onto a refusal. The `why` set's shape is not the outcome set's.
+
+**Q4's removal matrix has five decided rows and two that cannot be decided from
+this subtree.** The five are transcribed rather than re-derived, and the two —
+the quarantine's and the cleanup marker's — carry notes saying why: both artifacts
+are *incumbent mechanics*, so every mutation that breaks them is evidence about
+the incumbent protocol and about nothing else, and the shared-safety claims that
+could name them are `FN-24`'s and `FN-27`'s, which are `exits`'.
+
+**`TODO.finish_process.md` Q3 is answered on the Alloy side, and no ADR was
+written.** The marker-replacement sub-transaction is reachable — a witness at ten
+states, over a source state a second witness reaches at twelve — and the
+enumeration Q3 asked for is one class: *a marker left standing by a disposal that
+completed its removal and was interrupted before retiring it*. It is recorded in
+`crates/grove-finish/models/README.md` and in Experiment 2 entry 036 and nowhere
+else, deliberately: the answer is **evidence** for `formal-synthesis-k16` rather
+than a decision, it is not hard to reverse, and Q1's counterfactual — disposal in
+place under `relax_EN_03`, which is Quint's — would remove the quarantine, the
+marker and the replacement together and moot it.
+
 ## On the horizon
 
 - **`TT-24.c` and `TT-24.d` cannot be filled from either directory** as the
@@ -190,7 +250,8 @@ the file exists.
   fails the run", and `models/run.sh` has no such check — it reads `README.md`
   for declared gaps and for nothing else. Whether `run.sh` grows a matrix reader
   is `exits`' question when it writes the matrix, and a leaf if the answer is
-  yes.
+  yes. `exits-k46`'s body carries it as a `Done when`, so it is charged rather
+  than merely foreseen.
 
 
 ## Notes

@@ -5019,6 +5019,240 @@ catalogue's word, not this file's.
 
 ---
 
+### 036 — A sweep priced against four transitions, and Q3 answered by a state the protocol produces (finish disposal)
+
+**Scope.** Finish / recovery, **component-local**
+(`crates/grove-finish/models/`). `FN-21` and `FN-31`: disposal's re-entrancy, the
+cleanup marker's create / replace / remove transitions, the replacement's
+atomicity with respect to readers, and the reaper. Seven obligations, seventeen
+new commands, four new reachable Grove transitions, one sweep outside the phase
+machine, two new phases and one new scope dimension. The scope's empty alloy
+cells fall from twenty-one to **fourteen**, and with it `handoff-k42`'s subtree
+is complete.
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened.
+
+**Situation.** Every slice before this one disposed the quarantine in the same
+transition that revalidated it: `FN-22.i`'s stable state — *task root `Absent`,
+quarantine holding the root* — was passed through and out of in one move, and
+three READMEs recorded that as an abstraction of disposal. `FN-21.a` says
+disposal is *re-enterable from any interruption*, and `EN-03` says there is no
+atomic recursive directory deletion, so a disposal that is one transition has no
+interruption point to be re-enterable **from** and the claim is unstateable. The
+slice's whole shape follows from that: write a cleanup marker, remove what it
+authorises removing, retire the marker — and a **sweep** to resume it, because
+`doTxnOpen` requires `some Root.rid` and the disk an interruption after the
+rename leaves has none.
+
+**The material result is a price for a transition shape this corpus had never
+measured: a sweep enabled at a phase a trace can REST in.** `revalidation-k44`
+corrected the cost law to *budget by the number of states of a trace at which a
+transition is enabled* and predicted the reaper would be the first expensive
+thing in the scope, naming this slice as the first chance to see the law wrong in
+the **dear** direction. Three variants of one file, one sitting, medians of three,
+on `FN_13` (ten states, the widest inherited command):
+
+| variant | median |
+|---|---|
+| the disposal slice with **no `Reap` at all** | 7.54 s (+7% on the inherited file) |
+| as it ships — `Reap` guarded on *something at a reserved name* | **8.34 s** (+11% on top) |
+| the same with `Reap`'s antecedent widened to every `Fresh` state | 8.68 s (+15% on top) |
+
+**One sweep at a dwell phase costs more than four transitions at pass-through
+phases put together.** The four disposal steps, the two phases and the `2 CMark`
+scope dimension are +7% between them; the sweep alone is +11%. This is the first
+of three consecutive slices in which the law's arithmetic did **not** need
+correcting — the direction and the ordering were both right — and it is the first
+time the corpus can put a number on *prefer a narrowed antecedent*: the guard
+`some Cleanup.present or some Quar.qRid` against an unguarded `Txn.phase = Fresh`
+buys about four points of the sweep's fifteen, at no cost in reachable behaviour,
+because a sweep over nothing is a no-op. The second-order reading matters as
+much: +11% is a fifth of what `commit-k41`'s four transitions cost on the same
+sentinel, so *expensive* here means *worth narrowing*, not *worth avoiding*.
+
+**`TODO.finish_process.md` Q3 is answered, and by a state the protocol produces
+rather than one the model permits.** Q3 asks whether the marker-replacement
+sub-transaction — 960 lines of shipped Rust nested inside the cleanup of a
+crash-safe protocol — is reachable at all, and asks for the states requiring a
+*replace* to be enumerated. The answer is **yes, by witness, first landing at ten
+states**, and the enumeration is one class:
+
+> a cleanup marker left standing by a disposal that completed the removal it
+> authorised and was interrupted before retiring it — Grove's own, its target
+> gone. A sweep will collect it; a **new** attempt reaching the after-rename
+> point first must supersede it.
+
+**The answer falls out of `FN-21.a`'s machinery, which is what makes it evidence
+about the protocol rather than about the file.** The marker is retired last
+because a document recording that a removal has not happened cannot go before the
+removal; a protocol that retired it earlier would have no stale markers, no
+replacement — and no re-enterability. And the source state is **reached, not
+posited**: a second witness runs the protocol from the disk an interruption
+mid-evacuation leaves, through the rename, the marker and the removal, and
+crashes before the marker is retired, at **twelve states**. Without it the answer
+would have rested on a hand-edit `EN-11` permits, which is the debt `commit-k41`
+took on and `revalidation-k44` paid; this slice did not open a second one. The
+two commands are separable and both are needed: a mutation that narrows the
+replacement to foreign markers kills the first and leaves the second standing.
+
+> **What `formal-synthesis-k16` should not read into it.** The Alloy family says
+> the transition is reachable under the **incumbent** protocol at these bounds,
+> so *delete the replacement* is unavailable on this evidence — it does not say
+> the sub-transaction earns its 960 lines. The catalogue omits the marker's byte
+> layout; `EN-01` **grants** the atomicity the replacement rests on rather than
+> the model establishing it; and Q1's counterfactual — disposal in place under
+> `relax_EN_03` — is Quint's, and would remove the quarantine, the marker and the
+> replacement together. Q3 is answered *within* the incumbent; Q1 is what could
+> make the question moot.
+
+**A third bound-vacuity predictor, and it is produced by this corpus's own rule.**
+The file's witness-bound rule is *a check runs at least as high as the widest
+first-landing bound among its obligation's witnesses*, floor 4. `FN-31.c`'s two
+witnesses land at **3** and **4**, because both posit the disk an interruption
+leaves and run the sweep over it. Run at 4, the check's first conjunct has **no
+reachable antecedent at all**: `MarkerReplace` first occurs at ten states, so the
+check would have been green and empty and its mutation would have reported
+exactly as a survivor. The two predictors `task-tree-k7` left cover the case in
+principle — *the bound must hold the machinery of the transitions the obligation
+quantifies over* — but what is new is **where the wrong number comes from**. It is
+not carelessness; it is the file's own rule, applied to an obligation whose
+witnesses are cheap posited disks and whose antecedent is a deep transition. The
+two had coincided in every earlier slice because every witness ran the protocol
+up to the thing it witnessed.
+
+> **The witness-bound rule is a floor, and it is below the real floor whenever an
+> obligation's witnesses posit a disk its antecedent has to be run up to.** Read
+> the check's antecedent for the deepest transition it names, and take the larger
+> of the two numbers.
+
+**A seventh entry in the bound register, and it sharpens the second rather than
+adding a shape.** Splitting the forward settle put two transitions into a stretch
+five inherited witnesses run through, and the register says a step inserted into a
+path costs a state to every witness that **passes through** it. **Two moved**:
+`witness_FN_03` 10 → 12 and `witness_FN_18` 10 → 11. The three that did not each
+end **on** the inserted step rather than past it, and their final assertion was
+re-anchored from `Settle` to `MarkerCreate` — the same position in the trace. So
+*passes through* is the operative word and a witness ending at the insertion point
+does not: **ask whether a witness needs to reach past the insertion or only to
+it.** Sixty-nine witnesses were swept from 2 to 14 states to establish that
+exactly two did. The ceiling stayed at twelve.
+
+**Formalism.** Alloy 6, temporal, one file, seventeen new commands (seven checks
+and ten witnesses), **118 in total**. Four new Grove transitions —
+`MarkerCreate`, `MarkerReplace`, `Dispose`, `MarkerRemove` — plus `Reap`, which is
+a **sweep** and is deliberately in neither `bodySteps` nor `txnActs`: it takes no
+operator confirmation, `FN-24.b` should not be asked of it, and `FN-22.a`'s *none
+is skipped* conjuncts correctly do not reach it, because a sweep never had a
+disposition to revalidate. Two new phases (`Disposing`, `Disposed`) and one new
+scope dimension.
+
+**The scope dimension is the slice's one false-confidence save, and it is worth
+its own paragraph.** `FN-31.b` is *no reader observes the marker absent, **nor
+observes two markers***. Modelled the obvious way — `one sig Mark { var there:
+lone Marker }` — the second prohibition is **inexpressible** and half the claim is
+true by construction. So a marker is an **atom** and what is `var` is which
+markers stand at the reserved name; `#Cleanup.present = 2` is a state the model
+can be in, a remove-then-create replacement is a trace it can take, and the
+mutation that adds a second marker kills the check. That is the fifth time in this
+scope a claim would have been answered by an encoding, and the first time the fix
+was a **scope dimension** rather than a rewritten conjunct.
+
+**Caught / missed.** Caught: two retained counterexamples, **both a check written
+wider than the claim it answers**, which is now this file's most common failure
+mode and its third and fifth grain respectively; a third bound-vacuity predictor;
+a seventh bound-register entry; three mutations that failed their aim, two of them
+the *unsatisfiable branch* trap met in one slice against a **fact** and against a
+**contradiction with the conjunct being replaced**; and Q3's answer. Missed by
+construction, and recorded: disposal's content removal is one step where `EN-03`
+says the shipped one is entry-by-entry, and `inTreeWitnessOwns` errs towards
+declining because the file has one `Slot` and cannot tell a witness inside the
+quarantine from one at the reserved name in the tree.
+
+**A fourth rule about mutation aim, for overlapping subjects rather than for a
+table.** Two mutations killed `FN-22.i` alongside their targets, because that
+check had been written to assert the marker's own content — exactly one marker
+afterwards, naming this quarantine. True, and `FN-31`'s. The fix was to the
+check, not to the mutations: **when two obligations describe the same artifact
+from two directions, the one whose subject it is not should not describe it at
+all.** `revalidation-k44`'s rule was the same lesson for a table's totality; this
+is it for a shared subject, and both were found by sweeping what a mutation leaves
+**green**.
+
+**A fifth mutation shape: a control whose kill is a witness that stops landing.**
+`FN-31.a` is answered by a witness, so its mutation has to be able to make the
+trace disappear rather than make a check go red. Narrowing `doMarkerReplace` to
+foreign markers leaves **every check in the file green** — the protocol simply
+stops at `Quarantined` with an owned marker standing, a liveness hole no safety
+check notices — and the witness stops landing. For a reachability-answered
+obligation, a green suite under the mutation is the expected result rather than a
+survivor, and the runner's missing-instance `FAIL` is the control.
+
+**Cost.** 118 commands, **7 m 39 s** wall for the whole file, against 101 in
+5 m 46 s. Roughly one session, of which the bound sweep of sixty-nine witnesses
+from 2 to 14 states at concurrency five was by a distance the largest block —
+larger than the mutation work, which is a reversal of the previous slice and is a
+consequence of sweeping from 2 rather than from each witness's inherited bound.
+
+**Counterfactual.** Q3 is the one result here that no amount of reading could have
+produced: *enumerate the states that require replacing rather than creating a
+marker* is a reachability question over a twelve-transition trace, and the answer
+arrived as a witness plus a bound. The cost isolation is the second — three
+variants of one file measured in one sitting is not something a review produces,
+and the number it yields (a sweep at a dwell phase ≈ four pass-through
+transitions) is the kind of thing the next slice budgets against. The two
+counterexamples a careful reader could in principle have argued to; what a reader
+could not have done is notice that the file's **own** witness-bound rule would
+have made `FN-31.c` vacuous, because that requires knowing at what bound
+`MarkerReplace` first occurs.
+
+**Verdict.** The slice is green — **118 commands, 7 obligations, 47 of 61 alloy
+cells filled**, one mutation per obligation and **all seven KILLED**, each with a
+named witness re-run under it and still landing, and each swept against eleven
+neighbouring checks to show it isolates. No protocol defect and no counterexample
+that was a defect in the catalogue: for the sixth consecutive slice in this scope,
+every finding came from writing down what a branch returns, from reading a check
+against its own claim, or from measuring what a slice cost. One question from
+`TODO.finish_process.md` answered, one cost law confirmed rather than corrected,
+one bound-vacuity predictor, one bound-register entry, two mutation-discipline
+rules, two retained counterexamples, and one abstraction removed.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6,
+`org.alloytools.alloy.dist.jar`, Corretto `21.0.12.1+9-LTS`. **Solver**: SAT4J
+(distribution default), every command with `-n` and `-t text`. **Bounds**: the
+common shape gains one dimension —
+`for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark,
+N steps` — with `N` still from 2 to **12**; the ceiling did not move. `2 CMark` is
+`FN-31.b`'s and is described above. Each check runs at or above **both** the
+widest first-landing bound among its own obligation's witnesses **and** the bound
+at which the deepest transition its antecedent names first occurs, all sixty-nine
+witnesses measured by sweep and tabulated in
+`crates/grove-finish/models/README.md`; `FN-21.b` and `FN-21.c` carry a stated
+margin of three over their floor. No `Int` in the file. **Fairness**: none
+assumed; nothing here is a liveness claim, and the one liveness hole the slice
+met — a mutation that strands disposal at `Quarantined` — is recorded as
+something no check notices rather than modelled. **Symmetry**: no `exactly` scope.
+**Abstractions**: the cleanup marker as atoms-plus-presence rather than a `lone`
+field; the marker's reserved **name** replaced by `cTarget`, which is what the
+sweep reads a name for; `inTreeWitnessOwns` as *a task root is present to hold a
+witness*, which errs towards declining; disposal's content removal as one step
+where `EN-03` says the shipped one is entry-by-entry; disposal's terminal state
+stated over the two names disposal owns rather than over the tree; `Reap` outside
+`bodySteps` and `txnActs`; and `OwnershipConflict` as a model-only `Sys.why`
+member serving both the sweep's decline and the replacement's, because `FN-25`'s
+partition is `exits`' — `exits` now inherits **four** such values, and this is the
+only one the catalogue itself names. **Deliberately omitted**: the marker's byte
+layout, the reaper's lease, and everything the earlier slices already listed.
+**What a green run does not prove**: everything is about the stated bounds, and
+beyond them the caveats in the family `README.md` — one **removed** (the
+quarantine this file leaves behind can now be cleaned up, and by a witness rather
+than a property, which is twice in two slices) and five new, of which the two
+sharpest are that the sweep's concurrency safety is unmodelled because the shipped
+reaper is lease-owned and nothing here has a lease, and that disposal's removal is
+not re-enterable *within* a step.
+
+---
+
 ## Distillation — where each entry landed
 
 `formalism-skill-k38` turned this log into

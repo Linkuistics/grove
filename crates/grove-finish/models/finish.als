@@ -11,10 +11,32 @@
  * COVERAGE SO FAR: FN-01, FN-05 .. FN-08 — the transaction's ENTRY surface;
  * FN-09 .. FN-13, the RESERVED WITNESS; FN-03, FN-04, FN-14 .. FN-18, the
  * COMMIT AND ITS DISPOSITION; FN-19, FN-20, the QUARANTINE AND ITS ATOMIC ROOT
- * RENAME; and FN-22, the FOUR REVALIDATION POINTS AND THE TEN-ROW TABLE.  Every
- * other `FN-` obligation belongs to a sibling leaf of `finish-k8` — `disposal`
- * and `exits` — and the runner reports its cell empty, which is the truth about
- * this file rather than a defect in it.
+ * RENAME; FN-22, the FOUR REVALIDATION POINTS AND THE TEN-ROW TABLE; and
+ * FN-21, FN-31, DISPOSAL — its re-entrancy, the cleanup marker's create /
+ * replace / remove transitions, and the reaper.  Every other `FN-` obligation
+ * belongs to the `exits` sibling of `finish-k8`, and the runner reports its
+ * cell empty, which is the truth about this file rather than a defect in it.
+ *
+ * THE DISPOSAL SLICE IS WHERE THE FORWARD SETTLE STOPS BEING ONE STEP.  Every
+ * slice before it disposed the quarantine in the same transition that
+ * revalidated: `FN-22.i`'s stable state — task root ABSENT, quarantine holding
+ * the root — was passed through and out of in one move.  `FN-21.a`'s *disposal
+ * is re-enterable from any interruption* is what turns that one step into
+ * three, and `EN-03` is why: there is no atomic recursive directory deletion,
+ * so an interruption mid-disposal is a state the protocol has to be able to
+ * resume from, and the CLEANUP MARKER is the only thing that survives it to say
+ * the removal still has to happen.  Write the marker; remove what it authorises
+ * removing; remove the marker.  Nothing but the marker distinguishes a disposal
+ * that stopped from a directory that was never Grove's.
+ *
+ * AND IT IS WHERE THE FILE FIRST RUNS OUTSIDE THE PHASE MACHINE.  `doTxnOpen`
+ * requires `some Root.rid`, so no transaction can be opened on the disk an
+ * interruption immediately after the rename leaves — the state
+ * `witness_FN_19` demonstrates and that nothing in the file could leave.  The
+ * catalogue's answer is the REAPER, a sweep rather than a transaction, and it
+ * is what resumes an interrupted disposal.  It is deliberately NOT in
+ * `bodySteps` or `txnActs`: it is not a step of the finish transaction, it
+ * carries no operator confirmation, and `FN-24.b` should not be asked of it.
  *
  * WHY THESE THREE SLICES AND NOT A LAYER.  The entry surface ends in a refusal or
  * in a transaction that is never entered.  The witness slice adds the six steps
@@ -169,6 +191,34 @@ one sig Root { var rid: lone RootId, var holds: set Entry }
    abstraction — see `doSettle`. */
 one sig Quar { var qRid: lone RootId }
 
+/* THE CLEANUP MARKER — `FN-31`'s subject, and it is a SET OVER A SIGNATURE
+   rather than a `lone` field on a singleton, which is the one modelling
+   decision in this slice that a reader should not skip.
+
+   `FN-31.b` says *no reader observes the marker absent, nor observes two
+   markers*.  With the marker as `one sig Mark { var there: lone Marker }`, TWO
+   MARKERS IS INEXPRESSIBLE and half the claim is true by construction — which
+   is the false-confidence shape this corpus has recorded four times.  So the
+   markers are atoms and what is `var` is WHICH ARE PRESENT at the reserved
+   name: `#Cleanup.present = 2` is a state the model can be in, a replacement
+   written as remove-then-create is a trace the model can take, and `FN-31.b`
+   is a claim that can be false.
+
+   `cOwner` and `cTarget` are STATIC because a marker's bytes are written once:
+   the attempt identity that wrote it, and the quarantined root it authorises
+   removing.  An owner PRESENT is what Grove can prove is its own; an owner
+   ABSENT is a foreign document at the reserved name, which is `Slot.owner`'s
+   trick applied to the artifact `FN-31.d` is about.  A marker has no attempt of
+   its own to be owned by — it is owned by the attempt that WROTE it, which is
+   exactly what the catalogue's *entries carrying Grove's own cleanup manifest*
+   means.
+
+   Nothing here is a filename.  The catalogue gives the marker a per-handle,
+   per-attempt reserved name and this file has no filename grammar; what it has
+   instead is `cTarget`, which is the only thing the reaper reads a name FOR. */
+sig CMark { cOwner: lone AttemptId, cTarget: lone RootId }
+one sig Cleanup { var present: set CMark }
+
 /* THE RESERVED WITNESS.  Two names in ONE directory, which is the whole of
    `FN-09.a`: `PREPARING-FINISH-<handle>-<attempt>/` while it is being built and
    `FINISHING-<handle>/` once it is published, so publication is exactly one
@@ -300,6 +350,19 @@ one sig Fresh, Opened, Entered, Prepared, Manifested, ReadyP, PublishedP,
            a conjunction into a real ordering.  `README.md` records that it
            REMOVES an abstraction rather than adding one. */
         Restored,
+        /* THE DISPOSAL SLICE'S TWO, and they exist because `FN-21.a` says
+           disposal is re-enterable from any interruption and `EN-03` says the
+           removal is not atomic.  `Disposing` is the marker written and the
+           content still there; `Disposed` is the content gone and the marker
+           still there.  Those are the two interruption points disposal has, and
+           each of them is a state a later sweep can tell apart from a directory
+           that was never Grove's — which is the whole of what the marker buys.
+
+           NEITHER GETS A CLAUSE IN `BodyPhaseMatchesDisk`, for the reason
+           `Quarantined` and `Restored` do not: everything true of the disk at
+           them is what `FN-21` and `FN-31` CLAIM, and a clause here would make
+           those claims' own mutations unsatisfiable. */
+        Disposing, Disposed,
         Settled extends Phase {}
 one sig Verdict {}
 
@@ -399,7 +462,22 @@ one sig Idle, Confirm, Decline, TxnOpen, Preflight, Swap, TopologyChange,
            `RootNameTaken` is the world occupying the task-root name while the
            quarantine holds the root, which is what `FN-22.h`'s *a return that
            cannot complete* is. */
-        Revalidate, QuarReturn, CommitMoves, RootNameTaken extends Action {}
+        Revalidate, QuarReturn, CommitMoves, RootNameTaken,
+        /* THE DISPOSAL SLICE'S FIVE.  Four are Grove's own disposal, and the
+           catalogue requires the first three to be DISTINCT TRANSITIONS rather
+           than one step with three branches: `FN-31` says the
+           `replace-cleanup-marker` transition is *distinct from creating a
+           marker and from removing one*, because `TODO.finish_process.md` Q3
+           asks whether replacement is reachable at all and a model that folds
+           it away answers Q3 by construction.
+
+           `Reap` is the fifth and it is not a transaction.  It is the sweep the
+           catalogue names for entries no transaction can reach — the disk
+           `witness_FN_19` leaves, where the task root is absent and
+           `doTxnOpen` is therefore unavailable — and it is what makes
+           `FN-21.a`'s *resumed disposal* reachable at all.  It is not in
+           `bodySteps`, not in `txnActs`, and takes no operator confirmation. */
+        MarkerCreate, MarkerReplace, Dispose, MarkerRemove, Reap extends Action {}
 
 /* THE STEP LIST.  `EN-08` grants interruption between any two steps and says
    nothing about what a step is, so the grant is worth exactly what this list
@@ -413,7 +491,15 @@ fun bodySteps: set Action {
   WPrepare + WManifest + WReady + WPublish + WEvacuate + CommitAttempt
   + Recover + Classify + QuarRename + Settle
   + Revalidate + QuarReturn
+  + disposalSteps
 }
+
+/* DISPOSAL'S OWN FOUR, named as one thing because three claims quantify over
+   exactly them: `FN-18`'s *a proven commit is never followed by a
+   reconstruction* (which used to be stated over `Settle` and no longer can be —
+   see the note there), `FN-21.a`'s re-entrancy, and `FN-31.b`'s atomicity.
+   `Reap` is deliberately absent: it is a sweep, not a step of the transaction. */
+fun disposalSteps: set Action { MarkerCreate + MarkerReplace + Dispose + MarkerRemove }
 
 /* The transaction's own steps.  `FN-01.a` is stated over exactly this set, and
    the set GREW when the body arrived: `entry-k39` could state it over the entry
@@ -501,6 +587,27 @@ one sig W14QuarantineOccupied extends Why {}
    extended.  The table's other two `Blocked` rows are `Indeterminate` observed
    away from the rename, which `W12Indeterminate` already names. */
 one sig W15CommittedAfterRestore, W16ReturnIncomplete extends Why {}
+/* THE DISPOSAL SLICE'S ONE, AND IT IS THE FIRST `why` IN THIS FILE THAT THE
+   CATALOGUE NAMES.  `FN-21.c` asks for `OwnershipConflict` BY NAME — *a reaper
+   declines a foreign entry at a reserved name* is `TT-24.d`, and the catalogue's
+   three-context table fixes the reaper's answer — and `FN-31.d` asks for the
+   same condition at the other gate: a marker Grove cannot prove is its own.
+
+   IT IS STILL A `Sys.why` MEMBER AND NOT AN EXTENSION OF THE OUTCOME, and that
+   is the same decision `quarantine-k43` and `revalidation-k44` each recorded.
+   `FN-25`'s closed partition over `RecoveryPending` and `OwnershipConflict` is
+   `exits`', and a slice that made `BlockedOutcome` carry a diagnosis here would
+   answer `FN-25.a`'s totality, disjointness and exhaustiveness BY CONSTRUCTION.
+   Naming the condition is what this slice needs; naming the PARTITION is not.
+   `exits` therefore inherits FOUR model-only `why` values its partition has to
+   absorb, and this is the only one of the four the catalogue itself names.
+
+   ONE MEMBER SERVES BOTH GATES, exactly as `RefLayoutUnsupported` serves
+   `P3Layout` and `P4Quarantine`: it is the same question — *can Grove prove
+   this is its own?* — asked of a quarantine by a sweep and of a marker by a
+   transaction.  What an operator cannot learn from the `why` alone is which
+   gate refused, and `README.md` records that. */
+one sig W17OwnershipConflict extends Why {}
 
 one sig Sys { var act: one Action, var res: one Result, var why: lone Why }
 
@@ -586,6 +693,70 @@ pred candidateExcludesWitness { no Repo.wTracked }
 // FN-10.b: what the discard can classify as Grove's own.
 pred gateOwned  { some Slot.owner }
 pred discardable { Slot.occ = Preparing and some Slot.owner }
+
+/* THE DISPOSAL SLICE'S FOUR PREDICATES, and every one of them is the CATALOGUE's
+   side rather than a transition's, in the discipline this file has used since
+   the seven preconditions: what the sweep is ALLOWED to touch is written here,
+   what it DOES touch is written in `doReap`, and a divergence between them is a
+   counterexample to `FN-21.b` rather than a definition of it.
+
+   `FN-21` states three conditions and this file states all three: every marker
+   at the reserved name is provably Grove's (`not markerForeign`); one of them
+   names the thing being removed (`markerAuthorises`); and no matching in-tree
+   witness still owns it (`not inTreeWitnessOwns`).
+
+   `inTreeWitnessOwns` IS AN ABSTRACTION AND IT ERRS TOWARDS DECLINING.  The
+   catalogue's *no matching in-tree witness owns them* distinguishes a
+   `FINISHING-<handle>/` still standing in the task root from the one that rode
+   into the quarantine with it.  This file has one `Slot` and no filename
+   grammar, so it cannot tell the two apart; what it reads instead is *there is
+   a task root present to hold a witness, that witness is published, and it
+   names an attempt one of the markers names*.  On the disk the rename leaves
+   the task root is absent and the sweep proceeds; where the world has put
+   something back at the task-root name (`doRootNameTaken`), the sweep DECLINES
+   where the shipped protocol might have proceeded.  That is the fail-closed
+   direction — *Grove never mutates what it cannot prove is its own* — and
+   `README.md` records it as an abstraction rather than as a claim. */
+pred markerForeign    { some m: Cleanup.present | no m.cOwner }
+pred markerAuthorises { some m: Cleanup.present | some m.cOwner and m.cTarget = Quar.qRid }
+pred inTreeWitnessOwns {
+  some Root.rid and Slot.occ = Published and some (Slot.owner & Cleanup.present.cOwner)
+}
+pred reapable {
+  some Cleanup.present
+  not markerForeign
+  some Quar.qRid implies markerAuthorises
+  not inTreeWitnessOwns
+}
+
+/* WHAT `FN-21.c` IS ABOUT, WRITTEN APART FROM `reapable` SO THE TWO CAN
+   DISAGREE.  *A foreign entry at a reserved name* is narrower than *not
+   reapable*: a quarantine whose in-tree witness still owns it is Grove's own
+   and is declined for a different reason (`FN-21.b`).  `reapable` implies
+   `not foreignAtReservedName` and nothing states the converse, which is what
+   keeps the two obligations' mutations from killing each other. */
+pred foreignAtReservedName {
+  markerForeign or (some Quar.qRid and not markerAuthorises)
+}
+
+/* DISPOSAL'S TERMINAL STATE — the one `FN-21.a` and `FN-31.c` both require a
+   resumption to reach, whichever of the two interruption points it resumed
+   from.
+
+   IT IS STATED OVER THE TWO NAMES DISPOSAL OWNS AND NOT OVER THE TREE, and a
+   counterexample is what taught the difference.  Written as *the quarantine
+   gone, the marker gone, AND the reserved witness gone*, `FN-21.a` is false —
+   `FN_21a`'s first run found a sweep retiring a stale marker while an
+   UNRELATED preparing witness stood at the reserved name, owned by nobody and
+   nothing to do with the disposal being resumed.  The sweep was right and the
+   predicate was wide: disposal's business is the quarantine and the document
+   that authorises removing it, and a witness that is not inside the quarantine
+   is another claim's subject (`FN-10`).  Retained in `README.md`.
+
+   What the release of the artifacts INSIDE the quarantine is worth is carried
+   separately, by `FN-21.a`'s fourth conjunct, which is stated over the step
+   that removes the content rather than over the terminal state. */
+pred disposalTerminalNext { no Quar.qRid' and no Cleanup.present' }
 
 /* FN-12.a's five, stated as the catalogue states them.  It is evaluated in the
    state the ready mark is set FROM, which is what "written and verified, then
@@ -742,12 +913,24 @@ fun currentPoint: lone RevPoint { { p: RevPoint | atRevPoint[p] } }
 
 /* THE TABLE'S *CORRECTIVE ACTION* COLUMN, TOTAL OVER 4 x 3.  Twelve
    combinations; the catalogue's ten rows cover all of them because its last row
-   is stated over *any point*.  Nothing below reads a transition. */
+   is stated over *any point*.  Nothing below reads a transition.
+
+   THE AFTER-RENAME `Committed` ROW NOW READS THE MARKER, AND THAT IS A
+   DELEGATION RATHER THAN A LEAK.  The catalogue's corrective action there is
+   *complete: dispose (`FN-21`)* — it names another claim group rather than one
+   move — and `FN-31` requires disposal's first step to be a CREATE when no
+   marker stands at the reserved name and a REPLACE when one does, as two
+   distinct transitions.  So the row is a function of the marker as well as of
+   the point and the observation, which is what `tableOutcome` has done since
+   `revalidation-k44` for the occupied target and the unreproducible commit.
+   It is still DATA and still total: delete the row and the function goes
+   partial exactly as before.  `README.md` records the decision. */
 fun tableAction[p: RevPoint, d: Disposition]: one Action {
   p = BeforeRestore implies Settle       else
   p = BeforeRename  implies QuarRename   else
   p = AfterRestore  implies Revalidate   else
-  (d = Committed implies Settle else QuarReturn)
+  (d = Committed implies (no Cleanup.present implies MarkerCreate else MarkerReplace)
+                 else QuarReturn)
 }
 
 /* THE TABLE'S *OUTCOME* COLUMN, likewise total.  Two rows are conditional on
@@ -768,7 +951,7 @@ fun tableOutcome[p: RevPoint, d: Disposition]: one Result {
   p = AfterRestore implies (
       (d = NotCommitted and reproductionStands) implies RefRollbackNotCommitted
       else BlockedOutcome)                                                else
-  (d = Committed implies Applied else
+  (d = Committed implies (markerForeign implies BlockedOutcome else Applied) else
    (some Root.rid implies BlockedOutcome else Applied))
 }
 
@@ -795,10 +978,16 @@ pred rootSame  { Root.holds' = Root.holds and Root.rid' = Root.rid }
    named separately as well, because eight transitions frame the tree
    field-by-field rather than through `treeSame`. */
 pred quarSame  { Quar.qRid' = Quar.qRid }
+/* THE CLEANUP MARKER IS TREE BYTES TOO — a document at a reserved name beside
+   the quarantine — so it joins `treeSame` the way the quarantine did, and every
+   transition that framed the tree before frames it now without being touched.
+   The twelve transitions that frame the tree field-by-field name it explicitly,
+   which is the same bookkeeping `quarSame` needed. */
+pred markSame  { Cleanup.present' = Cleanup.present }
 /* The root's ENTRIES alone.  `doQuarRename` frames them in both branches and
    moves the identity in one, so it cannot use `rootSame`. */
 pred rootSameHolds { Root.holds' = Root.holds }
-pred treeSame  { rootSame and slotSame and manSame and quarSame }
+pred treeSame  { rootSame and slotSame and manSame and quarSame and markSame }
 /* THE REPOSITORY'S FRAME GREW WITH THE COMMIT, and every transition that framed
    it before frames the new state too without being touched — history, the
    reproduced preflight commit, and whether one can be reproduced at all.
@@ -928,7 +1117,7 @@ pred doSwap {
   some Root.rid
   Sys.act' = Swap and Sys.res' = Environmental and noWhy
   some Root.rid' and Root.rid' != Root.rid
-  Root.holds' = Root.holds and slotSame and manSame and quarSame
+  Root.holds' = Root.holds and slotSame and manSame and quarSame and markSame
   repoSame and worldSame and opSame and txnSame
 }
 
@@ -1025,7 +1214,7 @@ pred doRootNameTaken {
   some Quar.qRid
   Sys.act' = RootNameTaken and Sys.res' = Environmental and noWhy
   some Root.rid' and Root.rid' != Quar.qRid
-  rootSameHolds and slotSame and manSame and quarSame
+  rootSameHolds and slotSame and manSame and quarSame and markSame
   repoSame and worldSame and opSame and txnSame
 }
 
@@ -1053,7 +1242,7 @@ pred doWPrepare {
   some Op.confirmed
   Txn.phase = Entered
   Sys.act' = WPrepare
-  rootSame and quarSame and repoSame and worldSame and opSame
+  rootSame and quarSame and markSame and repoSame and worldSame and opSame
   no Slot.occ implies {
     Sys.res' = Applied and noWhy
     Slot.occ' = Preparing and Slot.owner' = Txn.attempt and no Slot.wHolds'
@@ -1087,7 +1276,7 @@ pred doWManifest {
   Man.mType'    = Root.holds <: et
   Man.mDigest'  = Root.holds <: digest
   no Man.mReady'
-  rootSame and slotSame and quarSame and repoSame and worldSame and opSame
+  rootSame and slotSame and quarSame and markSame and repoSame and worldSame and opSame
   Txn.phase' = Manifested and txnCarried and txnResultSame
 }
 
@@ -1103,7 +1292,7 @@ pred doWReady {
   Man.mAnchor'  = Man.mAnchor  and Man.mFinger'  = Man.mFinger
   Man.mEntries' = Man.mEntries and Man.mType'    = Man.mType
   Man.mDigest'  = Man.mDigest
-  rootSame and slotSame and quarSame and repoSame and worldSame and opSame
+  rootSame and slotSame and quarSame and markSame and repoSame and worldSame and opSame
   Txn.phase' = ReadyP and txnCarried and txnResultSame
 }
 
@@ -1117,7 +1306,7 @@ pred doWPublish {
   Sys.act' = WPublish and Sys.res' = Applied and noWhy
   Slot.occ' = Published
   Slot.owner' = Slot.owner and Slot.wHolds' = Slot.wHolds
-  rootSame and manSame and quarSame and repoSame and worldSame and opSame
+  rootSame and manSame and quarSame and markSame and repoSame and worldSame and opSame
   Txn.phase' = PublishedP and txnCarried and txnResultSame
 }
 
@@ -1140,7 +1329,7 @@ pred doWEvacuate {
   Slot.wHolds' = Slot.wHolds + (Root.holds - Root.holds')
   Root.rid' = Root.rid
   Slot.occ' = Slot.occ and Slot.owner' = Slot.owner
-  manSame and quarSame and repoSame and worldSame and opSame
+  manSame and quarSame and markSame and repoSame and worldSame and opSame
   (no Root.holds') implies Txn.phase' = Evacuated else Txn.phase' = PublishedP
   txnCarried and txnResultSame
 }
@@ -1223,7 +1412,7 @@ pred doDiscard {
   Txn.phase = Fresh
   Slot.occ = Preparing
   Sys.act' = Discard
-  rootSame and quarSame and worldSame and opSame and txnSame
+  rootSame and quarSame and markSame and worldSame and opSame and txnSame
   repoHistorySame
   gateOwned implies {
     Sys.res' = Applied and noWhy
@@ -1348,7 +1537,7 @@ pred doQuarRename {
   Txn.phase = Classified
   Txn.disp = Committed
   Sys.act' = QuarRename
-  rootSameHolds and repoSame and worldSame and opSame
+  rootSameHolds and markSame and repoSame and worldSame and opSame
   /* REVALIDATION POINT 3 — IMMEDIATELY BEFORE THE QUARANTINE RENAME.  The
      disposition the classification wrote is `Committed`; what the rename acts
      on is what is observed NOW.  Three rows: proceed, divert to the restoration
@@ -1406,7 +1595,7 @@ pred doQuarReturn {
   Txn.phase = Quarantined
   observed != Committed
   Sys.act' = QuarReturn
-  rootSameHolds and repoSame and worldSame and opSame
+  rootSameHolds and markSame and repoSame and worldSame and opSame
   no Root.rid implies {
     Sys.res' = Applied and noWhy
     Root.rid' = Quar.qRid
@@ -1438,7 +1627,7 @@ pred doRevalidate {
   some Op.confirmed
   Txn.phase = Restored
   Sys.act' = Revalidate
-  worldSame and opSame and quarSame
+  worldSame and opSame and quarSame and markSame
   observed = NotCommitted implies {
     reproductionStands implies {
       Sys.res' = RefRollbackNotCommitted and Sys.why' = W11NotCommitted
@@ -1483,35 +1672,21 @@ pred doRevalidate {
    released (`FN-17.a`). */
 pred doSettle {
   some Op.confirmed
-  /* THE FORWARD SETTLE IS NO LONGER AVAILABLE AT `Classified`.  A `Committed`
-     classification renames first (`FN-19`) and settles after, so the settle's
-     forward branch is guarded by the phase the rename produced.  That is the
-     phase machine doing what it has done since the witness slice — each step's
-     guard is the phase its predecessor produced — and it is why a `Committed`
-     at `Classified` enables nothing here rather than blocking. */
-  (Txn.phase = Quarantined) or (Txn.phase = Classified and Txn.disp != Committed)
+  /* THE FORWARD SETTLE IS GONE FROM THIS STEP ENTIRELY, AND `FN-21.a` IS WHY.
+     `quarantine-k43` moved it from `Classified` to `Quarantined` because a
+     `Committed` classification renames first; the disposal slice takes it out
+     of `doSettle` altogether, because *complete: dispose* is no longer one
+     move.  What the after-rename point hands off to is `doMarkerCreate` or
+     `doMarkerReplace`, and disposal runs from there under its own marker.
+
+     WHAT IS LEFT HERE IS THE RESTORATION PATH AND THE CLASSIFICATION'S OWN
+     BLOCK, which is what `Settle` meant before the quarantine existed.  The
+     step is still in `bodySteps`, still the before-restoration point's
+     corrective action, and still `FN-16` and `FN-17`'s subject. */
+  Txn.phase = Classified and Txn.disp != Committed
   Sys.act' = Settle
-  worldSame and opSame
-  Txn.phase = Quarantined implies {
-    /* REVALIDATION POINT 4 — IMMEDIATELY AFTER THE QUARANTINE RENAME, the
-       *`Committed` unchanged* row.  The forward settle is no longer reachable
-       on the strength of the disposition the classification wrote: it is
-       reachable on what is observed here, and anything else hands the state to
-       `doQuarReturn`.  That is the whole of what `quarantine-k43` deliberately
-       left out by not opening `doClassify` to `Quarantined`. */
-    observed = Committed
-    /* FORWARD, and it is now the disposal of a quarantine rather than a release
-       in place: the root left in one rename and what remains is the quarantine
-       holding it.  This step is STILL AN ABSTRACTION of disposal — nothing here
-       claims it is re-entrant, marker-guarded or bounded to Grove's own, which
-       are `FN-21` and `FN-31` and are the `disposal` sibling's. */
-    Sys.res' = Applied and noWhy
-    rootSame
-    no Quar.qRid'
-    no Slot.occ' and no Slot.owner' and no Slot.wHolds' and manEmptyNext
-    repoSameReleasingWitness
-    Txn.phase' = Settled and txnCarried and txnResultSame
-  } else Txn.disp = Indeterminate implies {
+  worldSame and opSame and markSame
+  Txn.disp = Indeterminate implies {
     /* NOT A REVALIDATION POINT: no handoff was ever pending.  This is the
        classification's own block, unchanged since `commit-k41`, and it is what
        `witness_FN_16a` reaches. */
@@ -1573,6 +1748,209 @@ pred doSettle {
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// THE DISPOSAL SLICE'S FIVE TRANSITIONS
+//
+// `EN-03` is the shape of all five: THERE IS NO ATOMIC RECURSIVE DIRECTORY
+// DELETION.  The quarantine rename put the whole task root somewhere Grove owns
+// in one atomic move; getting rid of it is the one thing in the protocol that
+// cannot be one move, so it is the one thing an interruption can leave
+// half-done.  The cleanup marker is what makes the half-done state legible: a
+// document at a reserved name, naming the attempt that wrote it and the root it
+// authorises removing.  Write it, remove what it authorises, remove it.
+//
+// AND THE FOURTH IS NOT A TRANSACTION.  A crash after the rename leaves the
+// task root absent, `doTxnOpen` requires `some Root.rid`, and no transaction can
+// be opened on that disk — which `README.md` has carried as *a state this file
+// demonstrates and cannot leave* since `quarantine-k43`.  The reaper is the
+// sweep that leaves it, and it is what makes `FN-21.a`'s *resumed disposal*
+// reachable rather than argued about.
+// ---------------------------------------------------------------------------
+
+/* DISPOSAL, STEP 1a — CREATE the cleanup marker.  The after-rename point's
+   corrective action when the reserved name is free.
+
+   IT IS A SEPARATE TRANSITION FROM THE REPLACEMENT, AND `TODO.finish_process.md`
+   Q3 IS WHY.  Q3 asks whether the marker-replacement sub-transaction — a whole
+   crash-safe protocol nested inside the cleanup of a crash-safe protocol — is
+   reachable at all.  A model with one `write-marker` step branching internally
+   would answer it by construction, whichever way the branch fell; two
+   transitions make the answer a REACHABILITY QUESTION, which is what `FN-31.a`
+   asks and what the catalogue means by *decide by reachability rather than by
+   construction*. */
+pred doMarkerCreate {
+  some Op.confirmed
+  Txn.phase = Quarantined
+  /* REVALIDATION POINT 4 — IMMEDIATELY AFTER THE QUARANTINE RENAME, the
+     *`Committed` unchanged* row, unchanged from `revalidation-k44` except in
+     which step carries it.  Disposal is not reachable on the strength of the
+     disposition the classification wrote; it is reachable on what is observed
+     HERE, and anything else hands the state to `doQuarReturn`. */
+  observed = Committed
+  no Cleanup.present
+  Sys.act' = MarkerCreate and Sys.res' = Applied and noWhy
+  /* ONE PERSISTENT EFFECT: the marker appears.  It names THIS attempt — which
+     is what `FN-21.b`'s *Grove's own cleanup manifest* is worth in a file with
+     no filename grammar — and THIS quarantined root, which is what a later
+     sweep reads to know what the marker authorises removing. */
+  one Cleanup.present'
+  Cleanup.present'.cOwner = Txn.attempt
+  Cleanup.present'.cTarget = Quar.qRid
+  rootSame and slotSame and manSame and quarSame
+  repoSame and worldSame and opSame
+  Txn.phase' = Disposing and txnCarried and txnResultSame
+}
+
+/* DISPOSAL, STEP 1b — REPLACE a cleanup marker that is already standing.  One
+   atomic same-directory rename (`EN-01`), which is what `FN-31.b`'s *no reader
+   observes the marker absent, nor observes two markers* costs: the supersession
+   is one transition, and a protocol that removed and then created would be two.
+
+   WHY A MARKER IS EVER ALREADY STANDING — the answer to Q3, and it is the whole
+   value of this transition being separate.  `doMarkerRemove` is disposal's LAST
+   step, so an interruption between the content's removal and the marker's leaves
+   an owned marker whose target is gone.  The reaper will collect it; a NEW
+   attempt that reaches the after-rename point first will not, and must supersede
+   it with its own.  That is a reachable source state and `witness_FN_31a` runs
+   the protocol up to it rather than positing it.
+
+   AND IT IS THE FILE'S SECOND `FN-31.d`-SHAPED GATE.  A marker Grove cannot
+   prove is its own is not replaced, is not removed, and is not written over: the
+   attempt blocks with the quarantine standing, exactly as an occupied quarantine
+   target does and for the same reason — there is a proven commit at this point,
+   so a refusal would say the finish did not happen while the ticket says it
+   did. */
+pred doMarkerReplace {
+  some Op.confirmed
+  Txn.phase = Quarantined
+  observed = Committed
+  some Cleanup.present
+  Sys.act' = MarkerReplace
+  rootSame and slotSame and manSame and quarSame
+  repoSame and worldSame and opSame
+  markerForeign implies {
+    // FN-31.d — never against a marker Grove cannot prove is its own.
+    Sys.res' = BlockedOutcome and Sys.why' = W17OwnershipConflict
+    markSame
+    txnGone
+  } else {
+    Sys.res' = Applied and noWhy
+    /* THE SUPERSESSION, AND IT IS ONE STEP.  Exactly one marker before, exactly
+       one after, and no state between: that is what `FN-31.b` asks of it, and
+       the mutation that splits it into a remove and a create is what makes the
+       claim falsifiable rather than true by construction. */
+    one Cleanup.present'
+    Cleanup.present'.cOwner = Txn.attempt
+    Cleanup.present'.cTarget = Quar.qRid
+    Txn.phase' = Disposing and txnCarried and txnResultSame
+  }
+}
+
+/* DISPOSAL, STEP 2 — REMOVE WHAT THE MARKER AUTHORISES REMOVING.  The
+   quarantine goes, and the published witness, its evacuated entries and the
+   manifest inside it go with it, because they are inside the root the rename
+   moved.
+
+   IT IS GUARDED BY THE MARKER AND NOT BY THE PHASE ALONE, and that is the
+   whole of `FN-21.b` at the transaction's own gate: the step reads the document
+   at the reserved name, checks that it is Grove's and that it names THIS
+   quarantine, and removes nothing otherwise.  A reaper reads exactly the same
+   document, which is what makes the two resumable into each other.
+
+   ONE STEP IS AN ABSTRACTION AND `README.md` RECORDS IT AS ONE.  `EN-03` says
+   the removal is not atomic, so the shipped protocol takes it entry by entry;
+   this file has no filename grammar and one `Quar.qRid`, so it cannot decompose
+   the removal further than the marker protocol's own two boundaries.  What is
+   modelled is that the removal is MARKER-GUARDED and RE-ENTERABLE, which is what
+   `FN-21.a` claims; what is not modelled is a partial removal within it. */
+pred doDispose {
+  some Op.confirmed
+  Txn.phase = Disposing
+  some Quar.qRid
+  some m: Cleanup.present | m.cOwner = Txn.attempt and m.cTarget = Quar.qRid
+  Sys.act' = Dispose and Sys.res' = Applied and noWhy
+  no Quar.qRid'
+  no Slot.occ' and no Slot.owner' and no Slot.wHolds' and manEmptyNext
+  rootSame and markSame
+  repoSameReleasingWitness and worldSame and opSame
+  Txn.phase' = Disposed and txnCarried and txnResultSame
+}
+
+/* DISPOSAL, STEP 3 — REMOVE THE MARKER, and it is LAST for the reason the
+   manifest's ready mark is written last: the document is the evidence that the
+   work it authorises has not been done, so it cannot go before the work does.
+   `FN-21.a`'s second conjunct is exactly that ordering, and it is what makes a
+   resumption able to tell an interrupted disposal from a finished one. */
+pred doMarkerRemove {
+  some Op.confirmed
+  Txn.phase = Disposed
+  Sys.act' = MarkerRemove and Sys.res' = Applied and noWhy
+  no Cleanup.present'
+  rootSame and slotSame and manSame and quarSame
+  repoSame and worldSame and opSame
+  Txn.phase' = Settled and txnCarried and txnResultSame
+}
+
+/* THE REAPER — `FN-21.b`, `FN-21.c`, and `TT-24.d`.  A SWEEP RATHER THAN A
+   TRANSACTION, and the first thing in this file that runs outside the phase
+   machine entirely.
+
+   WHY IT CANNOT BE A TRANSACTION.  `doTxnOpen` requires `some Root.rid`, and
+   the disk an interruption immediately after the rename leaves has none — the
+   task root left in the rename.  `witness_FN_19` has demonstrated that state
+   since `quarantine-k43` and `README.md` has recorded that nothing in the file
+   could leave it.  This is what leaves it.
+
+   ITS GUARD IS NARROWED TO *THERE IS SOMETHING AT A RESERVED NAME*, AND THAT IS
+   A COST DECISION RECORDED AS ONE.  `Txn.phase = Fresh` is a state a trace can
+   REST in — the dwell shape `revalidation-k44` named as the expensive one — so
+   a sweep enabled at every `Fresh` state would be this file's dearest
+   transition by a distance.  A sweep over nothing is a no-op; requiring
+   something to sweep costs no reachable behaviour and takes the enabling
+   surface down to the states the protocol actually leaves.
+
+   IT TAKES NO CONFIRMATION, and that is not an omission.  `FN-01.a` is stated
+   over `txnActs` and the reaper is not in it: an operator confirms a FINISH, and
+   collecting the garbage a crashed finish left is not a second finish.  It is
+   also why `FN-24.b`'s *at most one persistent effect per step* should not be
+   asked of it — though as written each firing has exactly one.
+
+   IT RESUMES IN THE ORDER DISPOSAL RUNS IN: the content first, then the marker.
+   That is what makes `FN-21.a`'s *resumption reaches the same terminal state*
+   true of an interruption at either of disposal's two points, and it is why the
+   sweep is idempotent: run it on a terminal state and its guard is false. */
+pred doReap {
+  Txn.phase = Fresh
+  some Cleanup.present or some Quar.qRid
+  Sys.act' = Reap
+  worldSame and opSame and txnSame
+  reapable implies {
+    Sys.res' = Applied and noWhy
+    some Quar.qRid implies {
+      // resume at disposal's step 2 — remove what the marker authorises
+      no Quar.qRid'
+      no Slot.occ' and no Slot.owner' and no Slot.wHolds' and manEmptyNext
+      rootSame and markSame
+      repoSameReleasingWitness
+    } else {
+      // resume at disposal's step 3 — the content is gone, collect the marker
+      no Cleanup.present'
+      rootSame and slotSame and manSame and quarSame
+      repoSame
+    }
+  } else {
+    /* THE CATALOGUE'S THIRD CONTEXT, VERBATIM: *declines the entry, mutating
+       nothing, and reports it; the sweep continues over entries the reaper CAN
+       prove are Grove's*.  It is neither a refusal nor a block — nothing was
+       ever entered, so there is nothing to leave stable — and `NoOp` is the
+       outcome this file already uses for an action that reports and mutates
+       nothing (`doDecline`).  The `why` is the diagnosis `FN-21.c` names. */
+    Sys.res' = NoOp and Sys.why' = W17OwnershipConflict
+    treeSame and repoSame
+  }
+}
+
 /* THE RESULT ARRIVING — the world's, and `EN-09` as a first-class action.  A
    result may be lost or arrive LATE, and late is only meaningful against a
    classification that has already happened.  Removing this action is exactly the
@@ -1594,6 +1972,7 @@ pred step {
   or doCommitAttempt
   or doRecover or doClassify or doQuarRename or doSettle or doResultArrives
   or doRevalidate or doQuarReturn or doCommitMoves or doRootNameTaken
+  or doMarkerCreate or doMarkerReplace or doDispose or doMarkerRemove or doReap
   or doCrash or doDiscard
 }
 
@@ -1617,9 +1996,11 @@ fact TxnStateWellFormed {
        result only once something has been attempted.  Both are volatile and both
        go with the transaction. */
     some Txn.disp   implies Txn.phase in (Classified + Quarantined
-                                          + Restored + Settled)
+                                          + Restored + Disposing + Disposed
+                                          + Settled)
     some Txn.report implies Txn.phase in (Attempted + Classified
-                                          + Quarantined + Restored + Settled)
+                                          + Quarantined + Restored
+                                          + Disposing + Disposed + Settled)
   }
 }
 
@@ -1738,7 +2119,7 @@ check FN_01a_no_transaction_step_runs_unconfirmed_and_none_is_attested {
     (Sys.act' in txnActs) implies some Op.confirmed
     (Op.confirmed' != Op.confirmed) implies Sys.act' in (Confirm + Crash)
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 /* The transaction never entered for want of confirmation — with the
    DETERMINISTIC guard `FN-01` names (a live finish leaf, no live ordinary work)
@@ -1748,7 +2129,7 @@ run witness_FN_01a_a_transaction_never_entered_for_want_of_confirmation {
   always Txn.phase = Fresh
   gateWork
   eventually Sys.act = Decline
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 /* FN-01.b.  The other direction, and the non-redundant one: a CONFIRMED attempt
    whose deterministic guard fails is still refused.  Confirmation is not a
@@ -1756,7 +2137,7 @@ run witness_FN_01a_a_transaction_never_entered_for_want_of_confirmation {
 check FN_01b_confirmation_is_not_a_substitute_for_the_deterministic_guard {
   always ((Sys.act' = Preflight and some Op.confirmed and not pre2Work)
             implies Sys.res' in Refused)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 /* Distinct from `witness_FN_01a` in the state it reaches, which is what the
    catalogue's *distinct from the previous* asks for: there, no confirmation and
@@ -1770,7 +2151,7 @@ check FN_01b_confirmation_is_not_a_substitute_for_the_deterministic_guard {
 run witness_FN_01b_a_confirmed_attempt_refused_for_want_of_the_guard {
   eventually (Sys.act = Confirm and some Op.confirmed)
   eventually (some Op.confirmed and Sys.act = Preflight and Sys.why = P2Work)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 // --- FN-05: preflight mutates nothing ---------------------------------------
 
@@ -1793,15 +2174,15 @@ check FN_05a_the_preflight_precondition_set_is_closed_and_exactly_seven {
     }
     (Sys.act' = Decline) implies (not pre1Confirm and Sys.why' = P1Confirm)
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 run witness_FN_05a_p1_confirmation_absent {
   eventually (Sys.act = Decline and Sys.why = P1Confirm)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 run witness_FN_05a_p2_no_live_finish_leaf_or_live_ordinary_work {
   eventually (Sys.act = Preflight and Sys.why = P2Work and Sys.res = RefNotLive)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 /* The layout is unsupported AT THE PREFLIGHT, having been supported at the
    lease gate — which is `SY-03` stated as a trace rather than as prose. */
@@ -1809,27 +2190,27 @@ run witness_FN_05a_p3_layout_unsupported {
   eventually (Sys.act = TopologyChange and no World.lane)
   eventually (Sys.act = Preflight and Sys.why = P3Layout
               and Sys.res = RefLayoutUnsupported)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 run witness_FN_05a_p4_quarantine_target_unreachable {
   eventually (Sys.act = Preflight and Sys.why = P4Quarantine
               and Sys.res = RefLayoutUnsupported)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 run witness_FN_05a_p5_task_root_identity_unverified {
   eventually (Sys.act = Preflight and Sys.why = P5Identity
               and Sys.res = RefRootIdentityChanged)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 run witness_FN_05a_p6_empty_deletion_fingerprint {
   eventually (Sys.act = Preflight and Sys.why = P6Fingerprint
               and Sys.res = RefNoTrackedDeletion)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 run witness_FN_05a_p7_an_entry_type_that_cannot_be_digested {
   eventually (Sys.act = Preflight and Sys.why = P7EntryType
               and Sys.res = RefUnsupportedEntryType)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 /* FN-05.b.  Quantified over EVERY reported PREFLIGHT failure, which is what
    makes the seven witnesses above discharge *each of the seven, with the tree
@@ -1846,15 +2227,15 @@ run witness_FN_05a_p7_an_entry_type_that_cannot_be_digested {
    command had reached. */
 check FN_05b_a_failed_precondition_leaves_the_tree_byte_identical {
   always ((some Sys.why' and Sys.act' in (Preflight + Decline)) implies treeSame)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 run witness_FN_05b_a_refusal_with_the_tree_unchanged {
   eventually (some Sys.why and Sys.act in (Preflight + Decline))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 check FN_05c_a_failed_precondition_leaves_the_repository_byte_identical {
   always ((some Sys.why' and Sys.act' in (Preflight + Decline)) implies repoSame)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 /* The repository is exercised in the same trace that refuses — a topology
    change moves it, and the preflight step does not.  A witness that only
@@ -1863,7 +2244,7 @@ check FN_05c_a_failed_precondition_leaves_the_repository_byte_identical {
 run witness_FN_05c_a_refusal_with_the_repository_unchanged {
   eventually (Sys.act' = TopologyChange and Repo.rev' != Repo.rev)
   eventually (some Sys.why' and Sys.act' = Preflight and repoSame)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 // --- FN-06: the task root's identity is pinned and rechecked ----------------
 
@@ -1873,25 +2254,25 @@ run witness_FN_05c_a_refusal_with_the_repository_unchanged {
 check FN_06_the_task_roots_identity_is_pinned_and_rechecked {
   always ((Sys.act' = Preflight and Root.rid != Txn.pinned)
             implies (Sys.res' in Refused and treeSame))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 /* Two consecutive transitions, which is why this one runs at four states: the
    swap, then the preflight that catches it. */
 run witness_FN_06_a_swap_between_two_steps_is_refused {
   eventually (Sys.act = Swap and after (Sys.act = Preflight and Sys.why = P5Identity))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 // --- FN-07: an untracked tree is refused before evacuation ------------------
 
 check FN_07_an_empty_deletion_fingerprint_is_refused_before_any_mutation {
   always ((Sys.act' = Preflight and no (Root.holds & Repo.tracked))
             implies (Sys.res' in Refused and treeSame and repoSame))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 run witness_FN_07_a_wholly_untracked_tree {
   eventually (Sys.act = Preflight and no Repo.tracked and some Root.holds
               and Sys.res = RefNoTrackedDeletion)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 // --- FN-08: the quarantine target is proved reachable before mutation -------
 
@@ -1901,7 +2282,7 @@ run witness_FN_07_a_wholly_untracked_tree {
 check FN_08_the_lease_gates_verdict_never_licenses_the_transactions_operands {
   always ((Sys.act' = Preflight and Sys.res' = Applied)
             implies World.rootDev = World.qDev)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 /* A layout that passes at lease acquisition and fails here.  It needs two
    devices, and that is exactly what `EN-02` removes below. */
@@ -1910,7 +2291,7 @@ run witness_FN_08_a_layout_that_passes_at_lease_acquisition_and_fails_here {
   World.wtDev = World.qDev
   World.rootDev != World.qDev
   eventually (Sys.act = Preflight and Sys.why = P4Quarantine)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 
 
@@ -1962,14 +2343,14 @@ check FN_09a_publication_is_exactly_one_atomic_same_directory_rename {
       rootSame and manSame and repoSame and worldSame
     }
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 /* The licence every body witness below runs on, and the file's first `Applied`
    preflight.  Two consecutive transitions, so four states. */
 run witness_FN_09a_the_transaction_is_entered_by_a_preflight {
   eventually Sys.act = TxnOpen
   eventually (Sys.act = Preflight and Sys.res = Applied and Txn.phase = Entered)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 /* An interruption IMMEDIATELY AFTER publication — the state `EN-01` is the only
    reason is not a torn one.  Five transitions: prepare, manifest, ready,
@@ -1978,7 +2359,7 @@ run witness_FN_09a_an_interruption_immediately_after_publication {
   Txn.phase = Fresh and no Slot.occ
   eventually (Sys.act = WPublish and Slot.occ = Published
               and after (Sys.act = Crash and Slot.occ = Published))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 /* FN-09.b.  The preparing witness holds nothing that was evacuated, ever —
    which is what makes an interruption before publication DISCARDABLE rather
@@ -2006,14 +2387,14 @@ check FN_09b_no_preparing_witness_ever_holds_an_evacuated_entry {
       implies (Sys.act' = WEvacuate and Slot.occ = Published and Slot.occ' = Published)
     (Sys.act' = WPrepare and Sys.res' = Applied) implies no Slot.wHolds'
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
 
 run witness_FN_09b_an_interruption_inside_the_build {
   Txn.phase = Fresh and no Slot.occ
   eventually (Sys.act = WManifest and Slot.occ = Preparing)
   eventually (Sys.act = Crash and Slot.occ = Preparing and no Slot.wHolds
               and manWritten)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
 
 // --- FN-10: an unpublished witness is discardable ---------------------------
 
@@ -2029,13 +2410,13 @@ check FN_10a_an_unpublished_witness_is_discarded_never_interpreted {
     (Sys.res' = Applied) iff discardable
     (Sys.res' = Applied) implies (no Slot.occ' and no Slot.wHolds' and rootSame)
   })
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
 
 run witness_FN_10a_a_discard {
   Txn.phase = Fresh and no Slot.occ
   eventually (Sys.act = Crash and Slot.occ = Preparing)
   eventually (Sys.act = Discard and Sys.res = Applied and no Slot.occ)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
 
 /* FN-10.b.  Content the discard cannot classify as Grove's own fails closed:
    refused, with the tree and the repository byte-identical.  It is the
@@ -2045,7 +2426,7 @@ run witness_FN_10a_a_discard {
 check FN_10b_content_the_discard_cannot_classify_fails_closed {
   always ((Sys.act' = Discard and not gateOwned)
             implies (Sys.res' in Refused and treeSame and repoSame))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 /* Reached from the free initial state and not from a run-up, because a foreign
    artifact at a reserved name is TREE state and `EN-11` is exactly the licence
@@ -2054,7 +2435,7 @@ run witness_FN_10b_a_refusal_to_discard_unclassifiable_content {
   Txn.phase = Fresh and Slot.occ = Preparing and no Slot.owner
   eventually (Sys.act = Discard and Sys.res = RefReservedNameOccupied
               and Sys.why = W10SlotForeign and Slot.occ = Preparing)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 // --- FN-11: evacuation precedes deletion ------------------------------------
 
@@ -2066,7 +2447,7 @@ run witness_FN_10b_a_refusal_to_discard_unclassifiable_content {
 check FN_11_evacuation_precedes_any_attempted_commit {
   always ((Sys.act' = CommitAttempt and Sys.res' = Applied)
             implies evacuationComplete)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* THE INTERVAL, which is why this is the file's widest command.  `task-tree-k7`'s
    first bound-vacuity predictor says an interval claim needs interval-many
@@ -2084,7 +2465,7 @@ run witness_FN_11_the_interval_between_publication_and_commit {
               and Slot.wHolds = Man.mEntries   // holding every entry
               and some Man.mReady)
   eventually (Sys.act = CommitAttempt and Sys.res = Applied)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 // --- FN-12: the manifest is complete and marked ready last ------------------
 
@@ -2103,7 +2484,7 @@ check FN_12a_the_manifest_is_complete_and_marked_ready_last {
     }
     (Sys.act' = WPublish and Sys.res' = Applied) implies some Man.mReady
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 /* A manifest interrupted before its ready mark, RECOVERED AS NOT READY: the
    crash leaves a written, unmarked manifest inside a preparing witness, and what
@@ -2113,7 +2494,7 @@ run witness_FN_12a_a_manifest_interrupted_before_its_ready_mark {
   eventually (Sys.act = Crash and Slot.occ = Preparing
               and manWritten and no Man.mReady)
   eventually (Sys.act = Discard and Sys.res = Applied and no Man.mReady)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 /* FN-12.b.  An entry type that cannot be digested is refused BEFORE ANY
    MUTATION, and the gate that does it is the preflight's seventh member — the
@@ -2136,13 +2517,13 @@ check FN_12b_an_undigestible_entry_type_is_refused_before_any_mutation {
     (Sys.act' in bodySteps and Sys.res' = Applied)
       implies (no e: Root.holds | e.et = OpaqueT)
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 run witness_FN_12b_a_refused_entry_type {
   eventually (Sys.act' = Preflight and (some e: Root.holds | e.et = OpaqueT)
               and Sys.res' = RefUnsupportedEntryType and Sys.why' = P7EntryType
               and treeSame and repoSame)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
 
 // --- FN-13: the witness is never committed ----------------------------------
 
@@ -2162,7 +2543,7 @@ check FN_13_every_candidate_committed_tree_excludes_the_witness {
     (Sys.act' = CommitAttempt and not candidateExcludesWitness)
       implies (Sys.res' in Refused and treeSame and repoSame)
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* A commit attempted while the witness is tracked, refused.  Seven transitions:
    the five that build and publish and evacuate, the world's snapshot that takes
@@ -2174,7 +2555,7 @@ run witness_FN_13_a_commit_attempted_while_the_witness_is_tracked_refused {
   eventually (Sys.act' = CommitAttempt and no Root.holds
               and Sys.res' = RefWitnessPending and Sys.why' = W8WitnessTracked
               and treeSame and repoSame)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 
 // ===========================================================================
@@ -2278,7 +2659,7 @@ check FN_03_the_ticket_is_the_durable_record_and_outlives_the_artifacts {
        and Txn.attempt in Txn.handle.(Repo.tickets))
       implies Txn.disp' = Committed
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 12 steps
 
 /* A retry with no local trace of the attempt, settling forward on the ticket
    alone.  The forward settle releases every artifact the transaction owns, and
@@ -2287,10 +2668,12 @@ check FN_03_the_ticket_is_the_durable_record_and_outlives_the_artifacts {
 run witness_FN_03_a_retry_with_no_local_trace_settling_forward_on_the_ticket_alone {
   interruptedMidEvacuation
   no Repo.tickets
-  eventually (Sys.act = Settle and Sys.res = Applied and no Slot.occ and manEmpty)
+  no Cleanup.present
+  eventually (Sys.act = MarkerRemove and Sys.res = Applied
+              and no Slot.occ and manEmpty and no Cleanup.present and no Quar.qRid)
   eventually (Sys.act = Classify and Txn.disp = Committed
               and Txn.phase = Settled and no Slot.occ and manEmpty)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 12 steps
 
 // --- FN-04: an attempt binds to a live session ------------------------------
 
@@ -2306,7 +2689,7 @@ check FN_04_a_ticket_from_an_earlier_attempt_never_settles_a_later_one {
     (Sys.act' = Classify and Txn.attempt not in Txn.handle.(Repo.tickets))
       implies Txn.disp' != Committed
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 /* Two attempts on one handle, the earlier ticket rejected by the later.  The
    earlier ticket is in history at state 0 — history is not the transaction's
@@ -2321,7 +2704,7 @@ run witness_FN_04_two_attempts_on_one_handle_the_earlier_ticket_rejected {
   eventually (Sys.act = CommitAttempt and Sys.res = Applied)
   eventually (Sys.act = Classify and Txn.disp = NotCommitted
               and some Txn.handle.(Repo.tickets))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 // --- FN-14: the commit is scoped --------------------------------------------
 
@@ -2331,7 +2714,7 @@ run witness_FN_04_two_attempts_on_one_handle_the_earlier_ticket_rejected {
    sentence. */
 check FN_14_the_commit_records_exactly_the_expected_deletions {
   always ((some (Repo.tickets' - Repo.tickets)) implies commitIsScoped)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 /* Unrelated modified work present across a successful finish — present before
    the commit, present after it, and never part of what the deletion recorded. */
@@ -2341,7 +2724,7 @@ run witness_FN_14_unrelated_modified_work_present_across_a_successful_finish {
   always some World.wcWork
   eventually (Sys.act = CommitAttempt and some Repo.tickets)
   eventually (Sys.act = Classify and Txn.disp = Committed and some World.wcWork)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 // --- FN-15: disposition is classified from evidence, not from exit status ----
 
@@ -2357,7 +2740,7 @@ check FN_15a_the_classification_is_a_function_of_the_evidence_and_not_of_the_rep
     Txn.disp' = NotCommitted  iff (not resultProven and anchorHolds)
     Txn.disp' = Indeterminate iff (not resultProven and not anchorHolds)
   })
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 /* The catalogue's witness: a lost or late result reported as failure while the
    exact commit exists — classified `Committed`.  The commit lands, the immediate
@@ -2372,7 +2755,7 @@ run witness_FN_15a_a_failure_reported_after_the_classification_over_an_exact_com
   eventually (Sys.act = Classify and Txn.disp = Committed and no Txn.report)
   eventually (Sys.act = ResultArrives and Txn.report = FailReport
               and Txn.disp = Committed)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 /* FN-15.b .. FN-15.d are REACHABILITY obligations, so each one's check states
    the other half — what the disposition is reached ON.  A model in which
@@ -2380,7 +2763,7 @@ run witness_FN_15a_a_failure_reported_after_the_classification_over_an_exact_com
    and fail the check, which is the pair the catalogue asks for. */
 check FN_15b_committed_is_reached_only_on_a_proven_result {
   always ((Sys.act' = Classify and Txn.disp' = Committed) implies resultProven)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 /* THE LANE IS PINNED FOR THE WHOLE TRACE IN EACH OF THE NINE COMMANDS BELOW,
    because *reached, on each lane* is three statements and Alloy has no way to
@@ -2398,47 +2781,47 @@ run witness_FN_15b_git_committed_reached_from_a_fresh_grove {
   eventually (Sys.act = WPublish and Slot.occ = Published)
   eventually (Sys.act = CommitAttempt and Sys.res = Applied and some Repo.tickets)
   eventually (Sys.act = Classify and Txn.disp = Committed)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 run witness_FN_15b_nativejj_committed_reached {
   always World.lane = NativeJjL
   interruptedMidEvacuation
   no Repo.tickets
   eventually (Sys.act = Classify and Txn.disp = Committed)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 run witness_FN_15b_colocatedjj_committed_reached {
   always World.lane = ColocatedJjL
   interruptedMidEvacuation
   no Repo.tickets
   eventually (Sys.act = Classify and Txn.disp = Committed)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 check FN_15c_notcommitted_is_reached_only_with_the_anchor_intact_and_no_result {
   always ((Sys.act' = Classify and Txn.disp' = NotCommitted)
             implies (anchorHolds and not resultProven))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 run witness_FN_15c_git_notcommitted_reached {
   always World.lane = GitL
   interruptedMidEvacuation
   no Repo.tickets
   eventually (Sys.act = Classify and Txn.disp = NotCommitted)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 run witness_FN_15c_nativejj_notcommitted_reached {
   always World.lane = NativeJjL
   interruptedMidEvacuation
   no Repo.tickets
   eventually (Sys.act = Classify and Txn.disp = NotCommitted)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 run witness_FN_15c_colocatedjj_notcommitted_reached {
   always World.lane = ColocatedJjL
   interruptedMidEvacuation
   no Repo.tickets
   eventually (Sys.act = Classify and Txn.disp = NotCommitted)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 /* FN-15.d.  `Indeterminate` IS REACHABLE, with a witness on each lane, so this
    file takes the catalogue's first branch and neither the bounded-unreachability
@@ -2450,7 +2833,7 @@ run witness_FN_15c_colocatedjj_notcommitted_reached {
 check FN_15d_indeterminate_is_reached_only_when_neither_outcome_can_be_proven {
   always ((Sys.act' = Classify and Txn.disp' = Indeterminate)
             implies (not anchorHolds and not resultProven))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 run witness_FN_15d_git_indeterminate_reached {
   always World.lane = GitL
@@ -2459,7 +2842,7 @@ run witness_FN_15d_git_indeterminate_reached {
   eventually (Sys.act = TopologyChange and Txn.phase = Attempted
               and Repo.rev != Txn.anchor)
   eventually (Sys.act = Classify and Txn.disp = Indeterminate)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 run witness_FN_15d_nativejj_indeterminate_reached {
   always World.lane = NativeJjL
@@ -2468,7 +2851,7 @@ run witness_FN_15d_nativejj_indeterminate_reached {
   eventually (Sys.act = TopologyChange and Txn.phase = Attempted
               and Repo.rev != Txn.anchor)
   eventually (Sys.act = Classify and Txn.disp = Indeterminate)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 run witness_FN_15d_colocatedjj_indeterminate_reached {
   always World.lane = ColocatedJjL
@@ -2477,7 +2860,7 @@ run witness_FN_15d_colocatedjj_indeterminate_reached {
   eventually (Sys.act = TopologyChange and Txn.phase = Attempted
               and Repo.rev != Txn.anchor)
   eventually (Sys.act = Classify and Txn.disp = Indeterminate)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 // --- FN-16: rollback is licensed only by proof ------------------------------
 
@@ -2488,7 +2871,7 @@ run witness_FN_15d_colocatedjj_indeterminate_reached {
    this file ever grows `Root.holds`. */
 check FN_16a_restoration_is_refused_when_the_recorded_anchor_no_longer_holds {
   always ((some (Root.holds' - Root.holds)) implies anchorHolds)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* Reached: the anchor has moved under the transaction, and the settle that
    follows restores nothing — it blocks, and the witness and the evacuated tree
@@ -2501,21 +2884,24 @@ run witness_FN_16a_a_settle_with_the_recorded_anchor_moved_restores_nothing {
   eventually (Sys.act = Settle and Sys.res = BlockedOutcome
               and Sys.why = W12Indeterminate
               and no Root.holds and Slot.occ = Published)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 check FN_16b_restoration_is_refused_when_the_attempt_bound_result_is_present {
   always ((some (Root.holds' - Root.holds)) implies not resultProven)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* Reached: the attempt-bound result IS present — the ticket landed — so the
    settle goes forward and no entry ever comes back. */
 run witness_FN_16b_a_settle_with_the_attempt_bound_result_present_restores_nothing {
   interruptedMidEvacuation
   no Repo.tickets
+  no Cleanup.present
   eventually (Sys.act = CommitAttempt and some Repo.tickets)
-  eventually (Sys.act = Settle and Sys.res = Applied
-              and no Root.holds and no Slot.occ)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+  /* THE FORWARD PATH NO LONGER *SETTLES*, IT DISPOSES.  What this witness needs
+     is a forward step taken with the ticket present and nothing coming back, and
+     the first of those is now the marker the disposal writes. */
+  eventually (Sys.act = MarkerCreate and Sys.res = Applied and no Root.holds)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 // --- FN-17: rollback is exact -----------------------------------------------
 
@@ -2544,7 +2930,7 @@ check FN_17a_a_restoration_matches_the_manifest_and_reproduces_the_preflight_com
                and ((World.lane in wcAsCommitLanes)
                       implies Repo.reproduced = Txn.anchor))
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* A restoration that reproduces it, on a working-copy-as-commit lane — which is
    the only obligation in this slice that reads the lane at all. */
@@ -2564,7 +2950,7 @@ run witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit {
   eventually (Sys.act = Revalidate and Sys.res = RefRollbackNotCommitted
               and some Root.holds and no Slot.occ
               and Repo.reproduced = Txn.anchor)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* FN-17.b.  A restoration that cannot reproduce it BLOCKS rather than proceeds:
    the outcome is `Blocked`, and the tree and the repository are byte-identical,
@@ -2583,7 +2969,7 @@ check FN_17b_a_restoration_that_cannot_reproduce_it_blocks_rather_than_proceeds 
   always ((Sys.act' = Settle and Txn.disp = NotCommitted and observed = NotCommitted
              and World.lane in wcAsCommitLanes and no Repo.canReproduce)
             implies (Sys.res' = BlockedOutcome and treeSame and repoSame))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 run witness_FN_17b_a_restoration_that_cannot_reproduce_it_blocks {
   always World.lane = ColocatedJjL
@@ -2593,21 +2979,32 @@ run witness_FN_17b_a_restoration_that_cannot_reproduce_it_blocks {
   eventually (Sys.act = Settle and Sys.res = BlockedOutcome
               and Sys.why = W13CannotReproduce
               and Slot.occ = Published and no Root.holds)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 // --- FN-18: forward recovery never restores ---------------------------------
 
-/* Two conjuncts.  A forward settle puts nothing back and empties the witness
+/* Two conjuncts.  A forward step puts nothing back and empties the witness
    rather than unpacking it; and once THIS attempt's commit is proven, no later
-   state in the trace ever grows the task root again. */
+   state in the trace ever grows the task root again.
+
+   THE FIRST CONJUNCT MOVED FROM `Settle` TO `disposalSteps`, AND IT HAD TO.
+   `commit-k41` and `quarantine-k43` both ran the forward path through
+   `doSettle`, so *a forward settle with a `Committed` disposition* was where the
+   claim bit.  The disposal slice takes the forward path out of `doSettle`
+   entirely, and a conjunct still stated over `Sys.act' = Settle` would have gone
+   VACUOUS — `doSettle`'s only remaining `Committed` branch is the
+   before-restoration DIVERT, which runs with `Txn.disp = NotCommitted` in the
+   unprimed state.  A vacuous conjunct reports exactly as a green one, and
+   mutation 29 would have stopped firing without saying so.  Stated over
+   disposal's four steps it bites where the forward path now is. */
 check FN_18_a_proven_commit_is_never_followed_by_a_reconstruction {
   always {
-    (Sys.act' = Settle and Txn.disp = Committed)
-      implies (rootSame and no Slot.wHolds')
+    (Sys.act' in disposalSteps) implies rootSame
+    (Sys.act' = Dispose and Sys.res' = Applied) implies no Slot.wHolds'
     (resultProven and once (Sys.act = Classify and Txn.disp = Committed))
       implies no (Root.holds' - Root.holds)
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 /* A proven commit reached after an interruption mid-evacuation: the recovery
    adopts the interrupted attempt, finishes the evacuation, commits, proves it,
@@ -2616,10 +3013,11 @@ run witness_FN_18_a_proven_commit_reached_after_an_interruption_mid_evacuation {
   interruptedMidEvacuation
   no Repo.tickets
   eventually (Sys.act = Recover and Txn.phase = PublishedP and some Root.holds)
+  no Cleanup.present
   eventually (Sys.act = Classify and Txn.disp = Committed and no Root.holds)
-  eventually (Sys.act = Settle and Sys.res = Applied
-              and no Root.holds and no Slot.occ)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+  eventually (Sys.act = Dispose and Sys.res = Applied
+              and no Root.holds and no Slot.occ and no Quar.qRid)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 
 // ===========================================================================
@@ -2671,7 +3069,7 @@ check FN_19_the_root_moves_into_the_quarantine_in_one_atomic_rename {
     (Sys.act' in txnActs and some Root.rid and no Root.rid')
       implies Quar.qRid' = Root.rid
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* The catalogue's witness verbatim: an interruption immediately after the
    rename, leaving a complete quarantine and an absent task root.  It runs the
@@ -2697,7 +3095,7 @@ run witness_FN_19_an_interruption_immediately_after_the_rename {
               and Slot.occ = Published         // the witness, intact
               and some Slot.wHolds             // the evacuated tree, intact
               and some Man.mReady)             // the manifest, intact
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 // --- FN-20: a leftover artifact is garbage, never a receipt ------------------
 
@@ -2746,7 +3144,7 @@ check FN_20_no_artifact_the_transaction_leaves_behind_is_ever_a_receipt {
        and no (Man.mFinger & Repo.tracked))
       implies Txn.disp' = Committed
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 /* The catalogue's witness: a leftover artifact present while the tree is
    classified fresh.  An earlier attempt's quarantine sits beside a task root
@@ -2762,7 +3160,7 @@ run witness_FN_20_a_leftover_artifact_present_while_the_tree_is_classified_fresh
               and some Quar.qRid                // the leftover, present
               and Slot.occ = Published          // and this attempt's own, too
               and Txn.disp = NotCommitted)      // and the tree classifies fresh
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
 
 
 // ===========================================================================
@@ -2822,11 +3220,37 @@ check FN_22a_all_four_revalidation_points_are_performed_and_none_is_skipped {
     }
     (some (Root.holds' - Root.holds)) implies atRevPoint[BeforeRestore]
     (some (Quar.qRid' - Quar.qRid))   implies atRevPoint[BeforeRename]
-    (some (Quar.qRid - Quar.qRid'))   implies atRevPoint[AfterRename]
+    /* THE TWO COMPLETION CONJUNCTS MOVED WITH THE DISPOSAL, AND THE THIRD IS
+       WHAT KEEPS THEM AS STRONG AS THEY WERE.  Until the disposal slice, the
+       quarantine was emptied and the witness released by the forward settle
+       AT the after-rename point, in one step.  Disposal is now three steps and
+       the last two run at `Disposing` and `Disposed`, which are not revalidation
+       points — so a conjunct still requiring `atRevPoint[AfterRename]` would be
+       false of a protocol that does exactly what the catalogue asks.
+
+       The strength is restored by the third conjunct rather than surrendered:
+       DISPOSAL ONLY EVER BEGINS AT THE AFTER-RENAME POINT.  `Disposing` is
+       entered by `doMarkerCreate` and `doMarkerReplace` and by nothing else, and
+       both are guarded by `Txn.phase = Quarantined` with `observed = Committed`
+       — so *the quarantine is emptied only by a disposal that revalidated first*
+       is carried by the pair, exactly as before.
+
+       BOTH ANTECEDENTS GAIN `Sys.act' in txnActs`, WHICH EXCLUDES THE REAPER,
+       AND THAT IS NOT A WEAKENING SLIPPED IN.  `FN-22` is *the disposition is
+       revalidated across every handoff*: the reaper is not a handoff and never
+       had a disposition to revalidate — it is a sweep over what a crashed
+       transaction left, which is `FN-21`'s subject and is checked there.  The
+       corpus's oldest rule in this file says the same thing from the other
+       side: a claim about what a transaction never does is never a claim about
+       what every actor never does. */
+    (Sys.act' in txnActs and some (Quar.qRid - Quar.qRid'))
+      implies (atRevPoint[AfterRename] or Txn.phase = Disposing)
     (Sys.act' in txnActs and some Slot.occ and no Slot.occ')
-      implies (atRevPoint[AfterRestore] or atRevPoint[AfterRename])
+      implies (atRevPoint[AfterRestore] or Txn.phase = Disposing)
+    (Txn.phase != Disposing and Txn.phase' = Disposing)
+      implies atRevPoint[AfterRename]
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 /* THE FOUR POINTS, REACHED — the catalogue's own witness for `FN-22.a`, one
    command each so that a point no execution reaches is a missing instance
@@ -2835,28 +3259,29 @@ run witness_FN_22a_the_point_before_the_restoration_is_reached {
   interruptedMidEvacuation
   no Repo.tickets
   eventually (atRevPoint[BeforeRestore] and Sys.act' = Settle)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 run witness_FN_22a_the_point_after_the_restoration_is_reached {
   interruptedMidEvacuation
   no Repo.tickets
   always some Repo.canReproduce
   eventually (atRevPoint[AfterRestore] and Sys.act' = Revalidate)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 run witness_FN_22a_the_point_before_the_quarantine_rename_is_reached {
   interruptedMidEvacuation
   no Quar.qRid
   no Repo.tickets
   eventually (atRevPoint[BeforeRename] and Sys.act' = QuarRename)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
 run witness_FN_22a_the_point_after_the_quarantine_rename_is_reached {
   interruptedMidEvacuation
   no Quar.qRid
   no Repo.tickets
-  eventually (atRevPoint[AfterRename] and Sys.act' = Settle and Sys.res' = Applied)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+  no Cleanup.present
+  eventually (atRevPoint[AfterRename] and Sys.act' = MarkerCreate and Sys.res' = Applied)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* THE DEBT `commit-k41` TOOK ON, PAID.  Fifteen of that slice's witnesses — and
    every witness in this file that starts from `interruptedMidEvacuation` — begin
@@ -2879,7 +3304,7 @@ run witness_FN_22a_the_posited_recovery_disk_is_reachable {
   Txn.phase = Fresh and no Slot.occ and no Quar.qRid and no Repo.tickets
   eventually (Sys.act = Crash and Slot.occ = Published and some Slot.wHolds)
   eventually (Sys.act = Confirm and interruptedMidEvacuation)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 // --- FN-22.b: before restoration, Committed diverts and restores nothing -----
 
@@ -2891,7 +3316,7 @@ check FN_22b_before_the_restoration_committed_diverts_and_restores_nothing {
   always ((Sys.act' in txnActs and atRevPoint[BeforeRestore] and observed = Committed)
     implies (treeSame and repoSame and Sys.res' = Applied
              and Txn.phase' = Classified and Txn.disp' = Committed))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* THE COMMIT LANDS LATE, AFTER A CLASSIFICATION THAT GAVE UP ON IT.  The attempt
    is made, nothing lands, the classification reads `NotCommitted`, and then this
@@ -2905,7 +3330,7 @@ run witness_FN_22b_a_late_landing_observed_before_the_restoration {
   eventually (atRevPoint[BeforeRestore] and observed = Committed
               and Sys.act' = Settle and Txn.disp' = Committed
               and no Root.holds and no Root.holds')
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 // --- FN-22.c: after restoration, Committed leaves the witness blocking -------
 
@@ -2918,7 +3343,7 @@ check FN_22c_after_the_restoration_committed_leaves_the_witness_blocking {
     implies (Sys.res' = BlockedOutcome and Sys.why' = W15CommittedAfterRestore
              and Slot.occ' = Published and Root.holds' = Man.mEntries
              and treeSame and repoSame))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 run witness_FN_22c_a_late_landing_observed_after_the_restoration {
   interruptedMidEvacuation
@@ -2929,7 +3354,7 @@ run witness_FN_22c_a_late_landing_observed_after_the_restoration {
   eventually (Sys.act = Revalidate and Sys.res = BlockedOutcome
               and Sys.why = W15CommittedAfterRestore
               and Slot.occ = Published and some Root.holds)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 // --- FN-22.d: after restoration, unchanged NotCommitted completes as Refused -
 
@@ -2958,7 +3383,7 @@ check FN_22d_after_the_restoration_an_unchanged_notcommitted_refuses_completely 
     implies (Sys.res' = RefRollbackNotCommitted
              and Root.holds' = Man.mEntries and some Root.rid'
              and no Slot.occ' and manEmptyNext))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 run witness_FN_22d_a_rollback_that_completes_as_a_refusal {
   interruptedMidEvacuation
@@ -2969,7 +3394,7 @@ run witness_FN_22d_a_rollback_that_completes_as_a_refusal {
   eventually (Sys.act = Revalidate and Sys.res = RefRollbackNotCommitted
               and no Slot.occ and manEmpty and some Root.rid
               and one finishLive)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 // --- FN-22.e: before the rename, NotCommitted diverts to the restoration -----
 
@@ -2977,7 +3402,7 @@ check FN_22e_before_the_rename_notcommitted_diverts_and_renames_nothing {
   always ((Sys.act' in txnActs and atRevPoint[BeforeRename] and observed = NotCommitted)
     implies (treeSame and repoSame and Sys.res' = Applied
              and Txn.phase' = Classified and Txn.disp' = NotCommitted))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 /* THE COMMIT IS UNDONE BETWEEN THE CLASSIFICATION AND THE RENAME — an operator's
    `jj undo` in another terminal, which `EN-11` grants over the repository the
@@ -2993,7 +3418,7 @@ run witness_FN_22e_an_undone_commit_observed_before_the_rename {
   eventually (atRevPoint[BeforeRename] and observed = NotCommitted
               and Sys.act' = QuarRename
               and Txn.disp' = NotCommitted and no Quar.qRid')
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 // --- FN-22.f: after the rename, Committed -> NotCommitted returns ------------
 
@@ -3012,7 +3437,7 @@ check FN_22f_a_successful_return_restores_the_exact_pre_rename_state {
     Txn.phase' = Classified and Txn.disp' = observed
     (observed = NotCommitted) implies after atRevPoint[BeforeRestore]
   })
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 run witness_FN_22f_a_committed_becomes_notcommitted_after_the_rename {
   interruptedMidEvacuation
@@ -3024,7 +3449,7 @@ run witness_FN_22f_a_committed_becomes_notcommitted_after_the_rename {
               and some Root.rid and no Quar.qRid
               and Slot.occ = Published and some Man.mReady
               and Txn.disp = NotCommitted)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 // --- FN-22.g: after the rename, Committed -> Indeterminate returns and blocks -
 
@@ -3050,7 +3475,7 @@ check FN_22g_after_the_rename_indeterminate_returns_and_then_blocks {
       implies (Sys.res' = BlockedOutcome and Sys.res' not in Refused
                and Slot.occ' = Published and treeSame and repoSame)
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 run witness_FN_22g_a_committed_becomes_indeterminate_after_the_rename {
   interruptedMidEvacuation
@@ -3062,7 +3487,7 @@ run witness_FN_22g_a_committed_becomes_indeterminate_after_the_rename {
               and some Root.rid and no Quar.qRid
               and Slot.occ = Published
               and Txn.disp = Indeterminate)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 // --- FN-22.h: a return that cannot complete reports both and blocks ----------
 
@@ -3079,7 +3504,7 @@ check FN_22h_a_return_that_cannot_complete_reports_both_and_blocks {
     observed != Committed and Txn.disp = Committed
     treeSame and repoSame
   })
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 12 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 12 steps
 
 run witness_FN_22h_the_task_root_name_taken_while_the_quarantine_holds_the_root {
   interruptedMidEvacuation
@@ -3090,39 +3515,63 @@ run witness_FN_22h_the_task_root_name_taken_while_the_quarantine_holds_the_root 
   eventually (Sys.act = QuarReturn and Sys.res = BlockedOutcome
               and Sys.why = W16ReturnIncomplete
               and some Quar.qRid and some Root.rid and Slot.occ = Published)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 12 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 12 steps
 
 // --- FN-22.i: after the rename, an unchanged Committed disposes --------------
 
 /* The catalogue's stable state is *task root `Absent`, quarantine holding the
-   root* and the corrective action is *dispose (`FN-21`)*.  This file's forward
-   settle passes through that state and out of it in one step, because disposal
-   is still an abstraction here and `FN-21` is the `disposal` sibling's — so
-   what is checked is the action taken, the outcome, that the quarantine was
-   holding a root when it ran, and that the TASK ROOT IS LEFT EXACTLY AS THE
-   PROTOCOL LEFT IT — `rootSame`, which is `FN-18`'s *never followed by a
-   reconstruction* at this point.  It is `rootSame` rather than `no Root.rid'`
-   because `doRootNameTaken` lets the WORLD put something at the task-root name
-   while the quarantine holds the root, and the catalogue's *task root `Absent`*
-   is a statement about what the rename left, not a promise about what the world
-   does next; `FN-19`'s fourth conjunct already carries the former.
-   `README.md` carries the disposal abstraction. */
+   root* and the corrective action is *complete: dispose (`FN-21`)*.
+
+   THIS ROW IS WHERE THE DISPOSAL SLICE ENTERS THE FILE, AND THE CHECK CHANGED
+   SHAPE BECAUSE THE PROTOCOL DID.  `revalidation-k44` could check that the
+   quarantine was emptied by the very step the point enabled, because the
+   forward settle passed through the catalogue's stable state and out of it in
+   ONE transition.  `FN-21.a` is what turns that one step into three, so what
+   the point now hands off to is disposal's FIRST step, and *the quarantine is
+   emptied* is `FN-21`'s to carry rather than this row's.  What is left here is
+   what the row is actually about: the corrective action taken is the one the
+   TABLE names, the stable state it is taken from is the catalogue's — the
+   quarantine holding a root — and the TASK ROOT IS LEFT EXACTLY AS THE PROTOCOL
+   LEFT IT.
+
+   `rootSame` rather than `no Root.rid'` because `doRootNameTaken` lets the WORLD
+   put something at the task-root name while the quarantine holds the root, and
+   the catalogue's *task root `Absent`* is a statement about what the rename
+   left, not a promise about what the world does next; `FN-19`'s fourth conjunct
+   already carries the former.
+
+   THE FOREIGN-MARKER ARM IS NAMED HERE RATHER THAN LEFT TO `tableOutcome`,
+   because the row's own words are *complete: dispose* and a disposal that
+   cannot prove the document at the reserved name is Grove's does not complete.
+   `FN-31.d` is what that arm is checked by; this conjunct only says the row
+   knows about it.
+
+   AND WHAT THE MARKER ITSELF CONTAINS IS NOT STATED HERE, DELIBERATELY.  A
+   first form of this check also required exactly one marker afterwards, naming
+   this quarantine.  It is true, and it is `FN-31.b`'s and `FN-21.b`'s — and
+   stating it here made two of this slice's seven mutations kill a neighbour,
+   which is the third way a mutation fails its aim.  The row is about the
+   corrective action and the stable state it is taken from; the document is
+   `FN-31`'s subject. */
 check FN_22i_after_the_rename_an_unchanged_committed_disposes_and_applies {
   always ((Sys.act' in txnActs and atRevPoint[AfterRename] and observed = Committed)
-    implies (Sys.act' = Settle and Sys.res' = Applied
-             and some Quar.qRid and no Quar.qRid' and rootSame
-             and no Slot.occ' and manEmptyNext))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+    implies (Sys.act' in (MarkerCreate + MarkerReplace)
+             and some Quar.qRid and rootSame
+             and (markerForeign implies Sys.res' = BlockedOutcome
+                  else (Sys.res' = Applied and Txn.phase' = Disposing))))
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 run witness_FN_22i_an_unchanged_committed_disposes_after_the_rename {
   interruptedMidEvacuation
   no Quar.qRid
   no Repo.tickets
+  no Cleanup.present
   eventually (Sys.act = QuarRename and Sys.res = Applied
               and no Root.rid and some Quar.qRid)
   eventually (atRevPoint[AfterRename] and observed = Committed
-              and Sys.act' = Settle and Sys.res' = Applied and no Slot.occ')
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+              and Sys.act' = MarkerCreate and Sys.res' = Applied
+              and one Cleanup.present')
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 // --- FN-22.j: Indeterminate away from the rename performs no handoff ---------
 
@@ -3134,7 +3583,7 @@ check FN_22j_indeterminate_away_from_the_rename_performs_no_handoff_and_blocks {
            and (atRevPoint[BeforeRestore] or atRevPoint[AfterRestore]
                 or atRevPoint[BeforeRename]))
     implies (Sys.res' = BlockedOutcome and treeSame and repoSame))
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 run witness_FN_22j_indeterminate_observed_before_the_restoration {
   interruptedMidEvacuation
@@ -3144,7 +3593,7 @@ run witness_FN_22j_indeterminate_observed_before_the_restoration {
               and Repo.rev != Txn.anchor)
   eventually (atRevPoint[BeforeRestore] and observed = Indeterminate
               and Sys.act' = Settle and Sys.res' = BlockedOutcome)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 run witness_FN_22j_indeterminate_observed_before_the_rename {
   interruptedMidEvacuation
@@ -3155,7 +3604,7 @@ run witness_FN_22j_indeterminate_observed_before_the_rename {
   eventually (atRevPoint[BeforeRename] and observed = Indeterminate
               and Sys.act' = QuarRename and Sys.res' = BlockedOutcome
               and no Quar.qRid')
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 run witness_FN_22j_indeterminate_observed_after_the_restoration {
   interruptedMidEvacuation
@@ -3167,7 +3616,479 @@ run witness_FN_22j_indeterminate_observed_after_the_restoration {
   eventually (atRevPoint[AfterRestore] and observed = Indeterminate
               and Sys.act' = Revalidate and Sys.res' = BlockedOutcome
               and Slot.occ = Published and some Root.holds)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 11 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+
+
+
+// ===========================================================================
+// CLAIMS — FN-21 AND FN-31, DISPOSAL
+//
+// The last claim group of the handoff subtree, and the first in this file whose
+// subject is not a transaction at all.  Two things about where its witnesses
+// start are worth reading before the commands.
+//
+// WHERE THESE WITNESSES START, AND WHY MOST OF THEM ARE SHORT.  The reaper runs
+// at `Txn.phase = Fresh`, which is where a trace starts, so a sweep witness
+// needs no run-up: the disk is posited — the same `EN-11` licence every witness
+// in this file rests on, covering the TREE at `Fresh` — and the sweep runs in
+// two or three states.  That is the opposite shape from `FN-22`'s, whose ten
+// rows each needed nine transitions of protocol in front of them.
+//
+// AND THE TWO POSITED DISKS ARE CHECKED REACHABLE RATHER THAN ASSERTED, WHICH
+// IS THE ONE PIECE OF METHOD THIS SLICE INHERITED AND DID NOT WANT TO PAY
+// AGAIN.  `commit-k41` posited `interruptedMidEvacuation`, recorded its
+// unchecked reachability as a limit, and `revalidation-k44` discharged it three
+// slices later with a witness that simply ran the body up to it.  The lesson
+// that cost three slices is that the honest instrument was a WITNESS and the
+// thing preventing it was a BOUND.  So `interruptedMidDisposal` and
+// `staleMarkerLeftBehind` each get one, here, in the slice that posits them —
+// and `staleMarkerLeftBehind`'s is not optional at any price, because
+// `FN-31.a`'s whole answer to `TODO.finish_process.md` Q3 rests on that disk
+// being one an execution reaches.
+// ===========================================================================
+
+/* THE DISK AN INTERRUPTION MID-DISPOSAL LEAVES: the task root gone into the
+   quarantine, the quarantine still holding it, the published witness and its
+   ready manifest still inside it, and the cleanup marker written and naming
+   both.  Nothing volatile — the transaction is `Fresh` and the confirmation
+   went with it, which is what `doCrash` produces and what a later sweep reads. */
+pred interruptedMidDisposal {
+  Txn.phase = Fresh
+  no Op.confirmed
+  some World.lane and World.rootDev = World.qDev and World.wtDev = World.qDev
+  no Root.rid                    // the task root left in the rename
+  no Root.holds
+  some Quar.qRid                 // the quarantine holds it
+  Slot.occ = Published           // the witness, intact, inside the quarantine
+  some Slot.owner
+  some Man.mReady
+  no Repo.wTracked
+  // the marker the interrupted disposal wrote: provably Grove's, naming the
+  // attempt that wrote it and the root it authorises removing
+  one Cleanup.present
+  Cleanup.present.cOwner = Slot.owner
+  Cleanup.present.cTarget = Quar.qRid
+}
+
+/* THE DISK AN INTERRUPTION BETWEEN THE CONTENT'S REMOVAL AND THE MARKER'S
+   LEAVES, and it is the source state `FN-31.a` is about: a marker Grove can
+   prove is its own, standing at the reserved name, whose target is gone.  The
+   quarantine it authorised removing has been removed; the document saying so
+   has not.  A sweep collects it.  A NEW attempt that reaches the after-rename
+   point first must SUPERSEDE it, which is the transition Q3 asks about. */
+pred staleMarkerLeftBehind {
+  Txn.phase = Fresh
+  no Quar.qRid
+  one Cleanup.present
+  some Cleanup.present.cOwner
+  Cleanup.present.cTarget != Root.rid
+}
+
+// --- FN-21.a: disposal is re-enterable from any interruption ----------------
+
+/* THREE CONJUNCTS, AND THEY ARE THE THREE THINGS RE-ENTERABILITY IS MADE OF —
+   the evidence survives, the evidence is not retired early, and every
+   resumption lands in the same place.
+
+   (a) THE EVIDENCE SURVIVES THE INTERRUPTION.  A crash at either of disposal's
+   two points leaves a marker, and one Grove can prove is its own.  Without it
+   the next launch meets a quarantine it cannot classify, which the catalogue
+   sends to `FN-21.c` — declined, mutating nothing, for ever.
+
+   (b) THE EVIDENCE IS NOT RETIRED BEFORE THE WORK IT AUTHORISES.  No disposal
+   step removes the marker while the quarantine it names is still there.  This is
+   the manifest's ready mark at a second grain: the document is the record that
+   the work has NOT been done, so it goes last.  Written as an ordering on the
+   step rather than as a phase clause, because a phase clause would make the
+   mutation unsatisfiable — the trap this file has recorded twice.
+
+   (c) EVERY RESUMPTION REACHES THE SAME TERMINAL STATE.  Whatever retires the
+   marker — Grove's own third step or the reaper's second firing — leaves
+   exactly the terminal state and not a partial one.  Together with (a) and (b)
+   this is what *reaches the same terminal state as an uninterrupted disposal*
+   is worth as a safety property; that a resumption EXISTS is a reachability
+   question and is the witness's. */
+check FN_21a_disposal_is_re_enterable_from_any_interruption {
+  always {
+    (Sys.act' = Crash and Txn.phase in (Disposing + Disposed))
+      implies (some Cleanup.present' and no m: Cleanup.present' | no m.cOwner)
+    (Sys.act' in disposalSteps and some Cleanup.present and no Cleanup.present')
+      implies (no Quar.qRid and no Quar.qRid')
+    ((Sys.act' in disposalSteps or Sys.act' = Reap)
+      and Sys.res' = Applied and no Cleanup.present')
+      implies disposalTerminalNext
+    /* (d) AND THE REMOVAL THE MARKER AUTHORISES IS THE WHOLE OF IT.  Whichever
+       quarantine goes and everything inside it goes with it, in one move.
+       Stated over the step rather than over the terminal state, because a
+       witness standing at the reserved name that is NOT inside the quarantine
+       is `FN-10`'s subject and not disposal's; see the note on
+       `disposalTerminalNext`.
+
+       IT IS GROVE'S OWN REMOVAL AND NOT THE SWEEP'S, and the division is a
+       mutation-isolation decision recorded as one.  The sweep does the same
+       thing in the same order and `FN-31.c`'s second conjunct is where that is
+       stated; written over both actors here, a mutation aimed at either would
+       take down the other obligation as well, which is the third way a mutation
+       fails its aim. */
+    (Sys.act' = Dispose and Sys.res' = Applied)
+      implies (no Quar.qRid' and no Slot.occ' and no Slot.wHolds' and manEmptyNext)
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+/* THE CATALOGUE'S WITNESS: A RESUMED DISPOSAL.  It resumes from the FIRST of
+   disposal's two interruption points — the marker written, the quarantine still
+   standing — and runs the sweep twice: once to remove what the marker
+   authorises, once to retire the marker.  The terminal state it reaches is the
+   one an uninterrupted disposal reaches. */
+run witness_FN_21a_a_disposal_interrupted_mid_disposal_and_resumed {
+  interruptedMidDisposal
+  eventually (Sys.act = Reap and Sys.res = Applied
+              and no Quar.qRid and no Slot.occ and manEmpty and some Cleanup.present)
+  eventually (Sys.act = Reap and Sys.res = Applied
+              and no Quar.qRid and no Cleanup.present and no Slot.occ and manEmpty)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
+
+/* AND THE DISK IT RESUMES FROM IS REACHED RATHER THAN POSITED.  It runs the
+   whole forward path for real from the disk an interruption mid-evacuation
+   leaves — recover, finish the evacuation, attempt the commit, land it, classify
+   it `Committed`, rename, write the marker — and then crashes, which is what
+   makes *mid-disposal* a fact about the trace rather than about the predicate.
+   This is `witness_FN_19`'s trace with disposal's first step on the end. */
+run witness_FN_21a_the_interrupted_disposal_disk_is_reachable {
+  interruptedMidEvacuation
+  no Quar.qRid
+  no Repo.tickets
+  no Cleanup.present
+  eventually (Sys.act = MarkerCreate and Sys.res = Applied)
+  eventually (Sys.act = Crash and interruptedMidDisposal)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+// --- FN-21.b: the reaper touches only Grove's own, and only when unowned -----
+
+/* THE `pre*`/`gate*` DISCIPLINE AT A THIRD GATE.  `reapable` is what the SWEEP
+   reads; the three conjuncts below are what the CATALOGUE requires, written
+   apart so a divergence is a counterexample rather than a definition — exactly
+   as the seven preconditions are written apart from the six gates.
+
+   The fourth conjunct is *mutating nothing* for the declining case, which the
+   catalogue states of both `FN-21.b`'s and `FN-21.c`'s declines and which is
+   what makes a sweep safe to run against a disk it does not understand. */
+check FN_21b_the_reaper_touches_only_groves_own_and_only_when_unowned {
+  always {
+    (Sys.act' = Reap and Sys.res' = Applied) implies {
+      not markerForeign
+      some Quar.qRid implies markerAuthorises
+      not inTreeWitnessOwns
+    }
+    (Sys.act' = Reap and Sys.res' != Applied) implies (treeSame and repoSame)
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 5 steps
+
+/* THE CATALOGUE'S WITNESS: A REAPER DECLINING AN ENTRY WHOSE IN-TREE WITNESS
+   STILL OWNS IT.  A quarantine carrying Grove's own cleanup manifest — the
+   sweep can prove every part of it — beside a published witness at the reserved
+   name naming the same attempt.  The attempt is not finished with it: a
+   revalidation after the rename may still RETURN the quarantine (`FN-22.f`), and
+   a sweep that had eaten it would have made the return impossible.  So the
+   sweep declines, and mutates nothing. */
+run witness_FN_21b_a_reaper_declining_an_entry_its_in_tree_witness_still_owns {
+  Txn.phase = Fresh
+  some Root.rid
+  Slot.occ = Published and some Slot.owner
+  some Quar.qRid
+  one Cleanup.present
+  Cleanup.present.cOwner = Slot.owner
+  Cleanup.present.cTarget = Quar.qRid
+  eventually (Sys.act = Reap and Sys.res = NoOp
+              and Sys.why = W17OwnershipConflict
+              and some Quar.qRid and one Cleanup.present
+              and Slot.occ = Published)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
+
+// --- FN-21.c: a foreign entry at a reserved name is declined ----------------
+
+/* `TT-24.d`'s SUBJECT, UNDER AN `FN-` PREFIX — and the catalogue's three-context
+   table is what fixes the outcome.  An ordinary tree operation refuses; a
+   transaction blocks; the reaper *declines the entry, mutating nothing, and
+   reports it*.  It is neither a refusal nor a block, because nothing was
+   entered, and `NoOp` is the outcome this file already gives an action that
+   reports and mutates nothing.
+
+   THE `why` IS THE CATALOGUE'S OWN WORD.  `OwnershipConflict` is one half of
+   `FN-25`'s partition and `FN-25` is `exits`'; naming it as a `Sys.why` member
+   rather than as a `Blocked` diagnosis is what lets this obligation say what the
+   catalogue says without answering `FN-25.a`'s totality by construction.
+   `README.md` records the decision and the three `why` values `exits` inherits
+   beside it. */
+check FN_21c_a_reaper_declines_a_foreign_entry_at_a_reserved_name {
+  always ((Sys.act' = Reap and foreignAtReservedName)
+    implies (Sys.res' = NoOp and Sys.why' = W17OwnershipConflict
+             and treeSame and repoSame and txnSame))
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 5 steps
+
+/* Reached: a directory at the quarantine's reserved name carrying no cleanup
+   manifest at all.  Grove cannot prove it is its own — it has nothing to prove
+   it WITH — so the sweep passes over it and changes nothing. */
+run witness_FN_21c_a_foreign_entry_at_a_reserved_name_is_declined {
+  Txn.phase = Fresh
+  some Quar.qRid
+  no Cleanup.present
+  no Root.rid
+  eventually (Sys.act = Reap and Sys.res = NoOp
+              and Sys.why = W17OwnershipConflict and some Quar.qRid)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
+
+// --- FN-31.a: the replacement's source state is reachable -------------------
+
+/* `TODO.finish_process.md` Q3 IS ANSWERED HERE, AND BY A WITNESS RATHER THAN BY
+   A CONSTRUCTION.  The catalogue gives the obligation two admissible
+   instruments — the source state as a witness, or a bounded-unreachability check
+   of `FN-15.d`'s form recorded per lane — and the leaf's brief names the third
+   possibility, a `defer`, as legitimate.  **This file answers with the witness.**
+   The source state is reachable, it first lands at eleven states, and what makes
+   it reachable is not an artefact of the encoding: `doMarkerRemove` is
+   disposal's LAST step because `FN-21.a` requires the marker to outlive the work
+   it authorises, so an interruption between the removal and the marker's
+   retirement leaves an owned marker whose target is gone.  A later attempt that
+   reaches the after-rename point before the sweep does must supersede it.
+
+   THE ENUMERATION Q3 ASKS FOR IS THEREFORE ONE CLASS AND NOT A LIST: *a marker
+   left standing by a disposal that completed its removal and was interrupted
+   before retiring it.*  `README.md` records it as the answer, with the bound.
+
+   THE MARKER IS SUPERSEDED RATHER THAN REMOVED AND REWRITTEN, and that is what
+   makes this a REPLACEMENT rather than a remove followed by a create: `FN-31.b`
+   forbids the state between.  The witness asserts both halves — one marker
+   before, one after, and the one after names this attempt and this quarantine. */
+run witness_FN_31a_a_source_state_from_which_disposal_must_replace_a_marker {
+  interruptedMidEvacuation
+  staleMarkerLeftBehind
+  no Repo.tickets
+  eventually (Sys.act = QuarRename and Sys.res = Applied and some Quar.qRid)
+  eventually (Sys.act = MarkerReplace and Sys.res = Applied
+              and one Cleanup.present
+              and Cleanup.present.cOwner = Txn.attempt
+              and Cleanup.present.cTarget = Quar.qRid)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+/* AND THE STALE MARKER IS PRODUCED RATHER THAN POSITED.  This is the command
+   that keeps the answer above from being an artefact of a hand-edited disk:
+   it runs the protocol from the disk an interruption mid-evacuation leaves,
+   through the rename, the marker, and the removal the marker authorises, and
+   crashes before the marker is retired — leaving exactly
+   `staleMarkerLeftBehind`.  Twelve states.
+
+   Without this command `witness_FN_31a` would be evidence about a disk `EN-11`
+   permits rather than about one the protocol produces, and Q3's answer would
+   rest on the free initial state.  That is the shape `commit-k41` left as a
+   debt and `revalidation-k44` paid; this slice does not open a second one. */
+run witness_FN_31a_the_stale_marker_is_what_an_interrupted_disposal_leaves {
+  interruptedMidEvacuation
+  no Quar.qRid
+  no Repo.tickets
+  no Cleanup.present
+  eventually (Sys.act = Dispose and Sys.res = Applied and no Quar.qRid)
+  eventually (Sys.act = Crash and Txn.phase = Fresh
+              and no Quar.qRid and one Cleanup.present
+              and some Cleanup.present.cOwner)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 12 steps
+
+/* AND THE PROPERTY SIDE OF THE CELL: THE REPLACEMENT IS A REPLACEMENT.  A
+   reachability obligation still needs a check, and what there is to check here
+   is that the transition the witness reaches is the one the catalogue asked for
+   — *distinct from creating a marker and from removing one*.
+
+   Three conjuncts.  The replacement is only ever performed where the catalogue
+   puts disposal, and only over a name that is already occupied; a successful one
+   leaves the name occupied too, so it is neither a create nor a remove; and the
+   CREATE is never performed over an occupied name, which is what makes the two
+   a partition of the after-rename point rather than two spellings of one step.
+   The third is the one that would go red if a later slice folded the two
+   together, which is the shape this obligation exists to prevent. */
+check FN_31a_the_replacement_is_a_replacement_and_not_a_create_or_a_remove {
+  always {
+    (Sys.act' = MarkerReplace)
+      implies (some Cleanup.present and atRevPoint[AfterRename])
+    (Sys.act' = MarkerReplace and Sys.res' = Applied)
+      implies (some Cleanup.present and some Cleanup.present')
+    (Sys.act' = MarkerCreate) implies no Cleanup.present
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+// --- FN-31.b: the replacement is atomic with respect to readers -------------
+
+/* THREE CONJUNCTS, AND THE THIRD IS THE ONE A `lone` FIELD WOULD HAVE MADE
+   UNSTATEABLE.  *No reader observes the marker absent, nor observes two
+   markers* is two prohibitions and this file can express both, because the
+   markers are atoms and what is `var` is which of them stand at the reserved
+   name.  Under `one sig Mark { var there: lone Marker }` the second prohibition
+   is true by construction and the claim is half a claim — the false-confidence
+   shape this corpus has recorded four times.
+
+   (a) the replacement itself: one marker before, one after.
+   (b) no step ever leaves two standing.
+   (c) THE MARKER GOES ABSENT ONLY AT THE STEP WHOSE JOB IT IS.  This is what
+   forbids a replacement implemented as a remove followed by a create — the
+   trace in which a reader observes the marker absent — and it is what the
+   mutation aims at.  Stated over Grove's own steps and the sweep, never over
+   the free initial state, which is this file's oldest rule. */
+check FN_31b_the_replacement_is_atomic_with_respect_to_readers {
+  always {
+    /* (a) THE REPLACEMENT LEAVES EXACTLY ONE.  The PRE-state is deliberately
+       not constrained here: `EN-11` is cashed out as a free initial state, so
+       *two markers at state 0* is a hand edit and a conjunct reading
+       `one Cleanup.present` unprimed is a claim about what the world never does
+       rather than about what the protocol never does.  That is this file's
+       oldest rule and `FN_31b`'s first run met it again — the counterexample was
+       a replacement over a hand-edited pair.  Conjunct (b) is what carries the
+       pair's impossibility, over the transition relation where it belongs. */
+    (Sys.act' = MarkerReplace and Sys.res' = Applied)
+      implies one Cleanup.present'
+    ((Sys.act' in txnActs or Sys.act' = Reap) and lone Cleanup.present)
+      implies lone Cleanup.present'
+    /* (c) AND THE REPLACEMENT NEVER LEAVES THE NAME EMPTY.  This is *no
+       reader observes the marker absent*, and it is what forbids a replacement
+       implemented as a remove followed by a create.  Stated over
+       `MarkerReplace` ALONE rather than over every step: *the marker is not
+       retired before the work it authorises* is disposal-wide and is
+       `FN-21.a`'s second conjunct, and a version of this stated that widely
+       made one of this slice's mutations kill it — the third way a mutation
+       fails its aim, met here at the point where two obligations describe the
+       same document from two directions. */
+    (Sys.act' = MarkerReplace) implies some Cleanup.present'
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+/* THE CATALOGUE'S WITNESS: AN OBSERVATION INTERLEAVED WITH THE REPLACEMENT.
+   This file has no reader action — nothing in the finish scope observes the
+   marker except the sweep and the disposal steps themselves — so what an
+   interleaved observation could see is stated over the STATES the trace passes
+   through: every one of them holds at most one marker, the state before the
+   replacement holds exactly one and so does the state after, and they are
+   different markers.  `README.md` records the abstraction. */
+run witness_FN_31b_an_observation_interleaved_with_the_replacement_sees_one_marker {
+  interruptedMidEvacuation
+  staleMarkerLeftBehind
+  no Repo.tickets
+  always lone Cleanup.present
+  /* Stated forwards, which is the only direction Alloy 6 gives an EXPRESSION:
+     `before` is a formula operator and there is no past-state expression, so
+     the two sides of the replacement are named as the state it is taken FROM
+     and that state's primed successor. */
+  eventually (Sys.act' = MarkerReplace and Sys.res' = Applied
+              and one Cleanup.present and one Cleanup.present'
+              and Cleanup.present' != Cleanup.present)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+// --- FN-31.c: an interruption inside the replacement is resumable -----------
+
+/* THE REPLACEMENT IS ONE TRANSITION, SO *INSIDE* IT IS ITS TWO BOUNDARIES, and
+   saying so is the honest reading rather than a dodge: `FN-31.b` is the claim
+   that there is no observable state between, and a claim that an interruption
+   inside an atomic step is resumable is a claim about the two states either side
+   of it.  Both are checked and both are witnessed, and the two resume
+   DIFFERENTLY — the earlier one has a marker whose target is gone and the later
+   one a marker whose target is standing — which is exactly why the sweep reads
+   the marker rather than the phase.
+
+   THE SECOND CONJUNCT IS *THE SAME TERMINAL STATE AS AN UNINTERRUPTED
+   REPLACEMENT*, and it is stated over the completion rather than over the
+   interruption: whatever retires the marker leaves the terminal state, so a
+   resumption cannot land anywhere an uninterrupted disposal would not.
+   `FN-21.a`'s third conjunct says the same thing about disposal as a whole; this
+   one is stated over the replacement's own trace and is what `FN-23`'s
+   idempotence will inherit. */
+check FN_31c_an_interruption_at_either_boundary_of_the_replacement_is_resumable {
+  always {
+    /* (a) BOTH MARKERS THE REPLACEMENT TOUCHES ARE ONES A SWEEP CAN ACT ON —
+       the one it supersedes and the one it writes.  That is what makes a
+       resumption EXIST from either boundary: an interruption before the
+       replacement leaves the first, an interruption after it leaves the second,
+       and `reapable` accepts both.  A replacement that wrote a marker the sweep
+       could not classify would strand the disposal at the later boundary for
+       ever, which is the failure this conjunct is aimed at. */
+    (Sys.act' = MarkerReplace and Sys.res' = Applied)
+      implies (not markerForeign and (no m: Cleanup.present' | no m.cOwner))
+    /* (b) AND THE SWEEP RESUMES IN THE RIGHT ORDER FROM EITHER OF THEM.  From
+       the earlier boundary the marker's target is already gone and one firing
+       retires it; from the later one the target is standing and the sweep
+       removes it FIRST, keeping the marker.  Written over `Reap` alone, which
+       is what keeps a mutation aimed at it from killing `FN-21.a`'s
+       `disposalSteps` conjuncts — the third way a mutation fails its aim, and
+       the one this file has recorded most recently. */
+    (Sys.act' = Reap and Sys.res' = Applied and some Quar.qRid)
+      implies (no Quar.qRid' and some Cleanup.present')
+    (Sys.act' = Reap and Sys.res' = Applied and no Cleanup.present')
+      implies disposalTerminalNext
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+/* THE EARLIER BOUNDARY, RESUMED: the interruption left the marker the
+   replacement was going to supersede — Grove's own, its target already gone —
+   and the sweep retires it in one firing.  Terminal. */
+run witness_FN_31c_an_interruption_before_the_replacement_is_resumed {
+  staleMarkerLeftBehind
+  no Root.rid
+  no Slot.occ
+  eventually (Sys.act = Reap and Sys.res = Applied
+              and no Cleanup.present and no Quar.qRid)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
+
+/* THE LATER BOUNDARY, RESUMED: the interruption left the marker the replacement
+   WROTE, naming a quarantine that is still standing, and the sweep runs
+   disposal's remaining two steps in that order.  Terminal, and it is the same
+   terminal state. */
+run witness_FN_31c_an_interruption_after_the_replacement_is_resumed {
+  interruptedMidDisposal
+  eventually (Sys.act = Reap and Sys.res = Applied
+              and no Quar.qRid and some Cleanup.present)
+  eventually (Sys.act = Reap and Sys.res = Applied
+              and no Cleanup.present and no Quar.qRid
+              and no Slot.occ and manEmpty)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
+
+// --- FN-31.d: never against a marker Grove cannot prove is its own ----------
+
+/* `TT-24.a`'s SUBJECT INSIDE A TRANSACTION, AND THE CATALOGUE'S TABLE FIXES THE
+   OUTCOME AS A BLOCK.  Two conjuncts: the replacement does not happen, and
+   NOTHING happens — the foreign document is not superseded, not removed, not
+   written beside.  A block rather than a refusal because the transaction has a
+   PROVEN COMMIT at this point; ending it as a refusal would report that the
+   finish did not happen while the ticket in history says it did.  That is the
+   same reasoning `quarantine-k43` recorded for the occupied quarantine target
+   and it is the catalogue's, not this file's.
+
+   THE SWEEP'S SIDE OF THE SAME CONDITION IS `FN-21.c`, and the two are written
+   over different antecedents — `markerForeign` here, `foreignAtReservedName`
+   there — so a mutation aimed at one leaves the other standing.  They share a
+   `why` and nothing else. */
+check FN_31d_a_replacement_is_never_performed_against_a_foreign_marker {
+  always {
+    (Sys.act' = MarkerReplace and markerForeign)
+      implies (Sys.res' = BlockedOutcome and Sys.why' = W17OwnershipConflict
+               and treeSame and repoSame)
+    (Sys.act' in disposalSteps and markerForeign) implies markSame
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+/* Reached: a document at the marker's reserved name that Grove cannot prove is
+   its own — no attempt identity in it — met by a disposal that has just renamed
+   the task root into the quarantine.  The attempt blocks with the quarantine
+   standing and the foreign document untouched, which is what a later launch,
+   or an operator, has to be able to find. */
+run witness_FN_31d_a_foreign_marker_is_declined {
+  interruptedMidEvacuation
+  no Quar.qRid
+  no Repo.tickets
+  one Cleanup.present
+  no Cleanup.present.cOwner
+  eventually (Sys.act = QuarRename and Sys.res = Applied and some Quar.qRid)
+  eventually (Sys.act = MarkerReplace and Sys.res = BlockedOutcome
+              and Sys.why = W17OwnershipConflict
+              and one Cleanup.present and no Cleanup.present.cOwner
+              and some Quar.qRid)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 
 // ===========================================================================
@@ -3185,7 +4106,7 @@ run expect_unreachable_EN_02_a_single_device_layout_cannot_fail_the_operand_gate
   World.wtDev = World.qDev
   World.rootDev != World.qDev
   eventually (Sys.act = Preflight and Sys.why = P4Quarantine)
-} for 3 but 1 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+} for 3 but 1 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 
 // ===========================================================================
@@ -3207,4 +4128,4 @@ run expect_unreachable_EN_09_a_failure_cannot_be_reported_after_a_classification
   eventually (Sys.act = Classify and Txn.disp = Committed and no Txn.report)
   eventually (Sys.act = ResultArrives and Txn.report = FailReport
               and Txn.disp = Committed)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps

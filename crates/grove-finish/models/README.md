@@ -15,16 +15,16 @@ models/run.sh --scope finish --family alloy --no-coverage
 
 | family | file | obligations |
 |---|---|---|
-| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition**; `FN-19`, `FN-20` — the **quarantine and the atomic root rename**; `FN-22` — the **four revalidation points and the ten-row table** |
+| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition**; `FN-19`, `FN-20` — the **quarantine and the atomic root rename**; `FN-22` — the **four revalidation points and the ten-row table**; `FN-21`, `FN-31` — **disposal**: its re-entrancy, the cleanup marker's create / replace / remove transitions, and the reaper |
 | Quint | — | none yet (`quint-models-k10`) |
 
 **The `--no-coverage` on the run line above is the signal that this column is
-still being built**, and it is what leaves it when the column closes. **Twenty-one**
+still being built**, and it is what leaves it when the column closes. **Fourteen**
 of the scope's sixty-one alloy cells are empty, and that is the truth about the
-repository rather than a defect in the instrument: `FN-21` and `FN-31` belong to
-`handoff-k42`'s remaining child (`disposal`) and the rest to the `exits` sibling
-of `finish-k8`. The runner prints the matrix in
-full on every run whether or not it is asserted.
+repository rather than a defect in the instrument: all fourteen belong to the
+`exits` sibling of `finish-k8` (`FN-02`, `FN-23` – `FN-30`), and with the
+disposal slice landed **`handoff-k42`'s subtree is complete**. The runner prints
+the matrix in full on every run whether or not it is asserted.
 
 **Declared gaps** — none. The runner reads them from this file, in one shape:
 
@@ -76,8 +76,9 @@ slices is a safety property or a reachability witness. Nothing here is a livenes
 claim, so no command rests on a scheduler ever running anything.
 
 **Bounds.** Stated per command. The common shape is
-`for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, N steps`.
-Four parts of it mean something other than "make it bigger":
+`for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark,
+N steps`.
+Five parts of it mean something other than "make it bigger":
 
 - **`2 Device`** is `EN-02`'s dimension and nothing else. One device makes
   `FN-08`'s witness — a layout that passes at the lease gate and fails at the
@@ -88,6 +89,19 @@ Four parts of it mean something other than "make it bigger":
   about recording *some* value. At one atom each, `Man.mAttempt = Txn.attempt`
   and `Man.mDigest = Root.holds <: digest` hold for any manifest that records
   anything at all, and `FN-12.a` would be checking presence rather than content.
+- **`2 CMark` IS THE DISPOSAL SLICE'S ONE SCOPE DIMENSION, AND IT EXISTS SO
+  THAT `FN-31.b` CAN BE FALSE.** *No reader observes the marker absent, **nor
+  observes two markers*** is two prohibitions. Modelled as `one sig Mark { var
+  there: lone Marker }`, the second is **inexpressible** and half the claim is
+  true by construction — the false-confidence shape this file has now recorded
+  five times. So a cleanup marker is an **atom** and what is `var` is which
+  markers stand at the reserved name (`Cleanup.present: set CMark`), which makes
+  `#Cleanup.present = 2` a state the model can be in and a remove-then-create
+  replacement a trace it can take. Two atoms is the smallest scope in which a
+  replacement has an old marker and a new one to be distinguishable; at one, *the
+  replacement superseded the marker* and *the replacement left it alone* are the
+  same instance. `cOwner` and `cTarget` are **static**, because a marker's bytes
+  are written once and it is the marker's PRESENCE that changes.
 - **No `Int` anywhere.** No `FN-` claim in these slices is arithmetic — there are
   no positions and no keys here — so the bitwidth that governs `task-tree.als`
   has no counterpart. The runner still passes `-n`; it simply has nothing to
@@ -100,8 +114,23 @@ Four parts of it mean something other than "make it bigger":
   into one about recording *some* value — `2 AttemptId`, `2 Rev` — are exactly
   what `FN-04` and `FN-16.a` need, and at one atom each both claims would be
   unstateable rather than false.
-- **`N steps` now ranges from 2 to 12, and THE REVALIDATION SLICE IS THE FIRST
-  TO MOVE THE CEILING SINCE `witness-k40`.** It stood at ten from the witness
+- **`N steps` still ranges from 2 to 12, AND THE DISPOSAL SLICE DID NOT MOVE THE
+  CEILING — which is not what its own arithmetic predicted.** Splitting the
+  forward settle into three steps put two transitions into a path five inherited
+  witnesses run through, and the file's rule says a step inserted into a path
+  costs a state to every witness that passes through it. **Two witnesses moved
+  and no more**: `witness_FN_03` 10 → **12** and `witness_FN_18` 10 → **11**.
+  The three that did not — `witness_FN_16b`, `witness_FN_22i` and
+  `witness_FN_22a_the_point_after_the_quarantine_rename_is_reached` — each end
+  ON the inserted step rather than past it, and their final assertion was
+  re-anchored from `Settle` to `MarkerCreate`, which is the same position in the
+  trace. That is a **seventh entry in the bound register** and it is stated
+  beneath the table. The two new commands that reach twelve —
+  `witness_FN_31a_the_stale_marker_is_what_an_interrupted_disposal_leaves`, and
+  `witness_FN_22h` which was already there — are what hold the ceiling where
+  `revalidation-k44` left it.
+- ~~**`N steps` now ranges from 2 to 12, and THE REVALIDATION SLICE IS THE FIRST
+  TO MOVE THE CEILING SINCE `witness-k40`.**~~ It stood at ten from the witness
   slice through the handoff slice, and three separate things pushed it:
   `witness_FN_22h` — the return that cannot complete — needs the rename, the
   world taking the task-root name, the commit moving and the return that meets
@@ -122,10 +151,10 @@ Four parts of it mean something other than "make it bigger":
 The catalogue asks for the witness bound separately from the check bound because
 *a claim whose witness first lands at the bound it was checked at has no margin*.
 Measured, by re-running each witness at `2..14 steps` and taking the first that
-lands; **all fifty-nine rows below have been re-measured under the revalidation
-slice**, not only the sixteen it added. **Thirteen inherited rows moved, twelve
-of them for one reason, and it is a SIXTH entry in this corpus's bound
-register** — see beneath the table:
+lands; **all sixty-nine rows below have been re-measured under the disposal
+slice**, not only the ten it added. **Exactly two inherited rows moved**, which
+is fewer than the arithmetic predicted and is a seventh bound-register entry —
+see beneath the table.
 
 | witness | first lands at |
 |---|---|
@@ -152,7 +181,7 @@ register** — see beneath the table:
 | `witness_FN_12a_a_manifest_interrupted_before_its_ready_mark` | **8** |
 | `witness_FN_12b_a_refused_entry_type` | 3 |
 | `witness_FN_13_a_commit_attempted_while_the_witness_is_tracked_refused` | **10** |
-| `witness_FN_03_a_retry_with_no_local_trace_settling_forward_on_the_ticket_alone` | **10** |
+| `witness_FN_03_a_retry_with_no_local_trace_settling_forward_on_the_ticket_alone` | **12** |
 | `witness_FN_04_two_attempts_on_one_handle_the_earlier_ticket_rejected` | **8** |
 | `witness_FN_14_unrelated_modified_work_present_across_a_successful_finish` | **8** |
 | `witness_FN_15a_a_failure_reported_after_the_classification_over_an_exact_commit` | **9** |
@@ -169,7 +198,7 @@ register** — see beneath the table:
 | `witness_FN_16b_a_settle_with_the_attempt_bound_result_present_restores_nothing` | **10** |
 | `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | **10** |
 | `witness_FN_17b_a_restoration_that_cannot_reproduce_it_blocks` | **9** |
-| `witness_FN_18_a_proven_commit_reached_after_an_interruption_mid_evacuation` | **10** |
+| `witness_FN_18_a_proven_commit_reached_after_an_interruption_mid_evacuation` | **11** |
 | `witness_FN_19_an_interruption_immediately_after_the_rename` | **10** |
 | `witness_FN_20_a_leftover_artifact_present_while_the_tree_is_classified_fresh` | **8** |
 | `witness_FN_22a_the_point_after_the_quarantine_rename_is_reached` | **10** |
@@ -188,6 +217,16 @@ register** — see beneath the table:
 | `witness_FN_22j_indeterminate_observed_after_the_restoration` | **11** |
 | `witness_FN_22j_indeterminate_observed_before_the_rename` | **10** |
 | `witness_FN_22j_indeterminate_observed_before_the_restoration` | **10** |
+| `witness_FN_21a_a_disposal_interrupted_mid_disposal_and_resumed` | 4 |
+| `witness_FN_21a_the_interrupted_disposal_disk_is_reachable` | **11** |
+| `witness_FN_21b_a_reaper_declining_an_entry_its_in_tree_witness_still_owns` | 2 |
+| `witness_FN_21c_a_foreign_entry_at_a_reserved_name_is_declined` | 2 |
+| `witness_FN_31a_a_source_state_from_which_disposal_must_replace_a_marker` | **10** |
+| `witness_FN_31a_the_stale_marker_is_what_an_interrupted_disposal_leaves` | **12** |
+| `witness_FN_31b_an_observation_interleaved_with_the_replacement_sees_one_marker` | **10** |
+| `witness_FN_31c_an_interruption_before_the_replacement_is_resumed` | 3 |
+| `witness_FN_31c_an_interruption_after_the_replacement_is_resumed` | 4 |
+| `witness_FN_31d_a_foreign_marker_is_declined` | **10** |
 
 The rule this file adopts, and the one a sibling leaf should carry forward:
 **a check runs at a bound at least as large as the widest first-landing bound
@@ -200,7 +239,41 @@ entry surface's eight unchanged at 4, the commit slice's twelve at 8 (`FN-04`,
 `FN-16.a`, `FN-16.b`, `FN-17.a`, `FN-18`) and 11 (`FN-15.b`), the handoff
 slice's two at 10 (`FN-19`) and 8 (`FN-20`), and the revalidation slice's ten at
 10 (`FN-22.b`, `.d`, `.e`, `.i`), 11 (`FN-22.a`, `.c`, `.f`, `.g`, `.j`) and 12
-(`FN-22.h`).
+(`FN-22.h`). Two inherited checks move with their witnesses: **`FN-03` to 12** and
+**`FN-18` to 11**.
+
+**AND THE DISPOSAL SLICE IS WHERE THE RULE, APPLIED LITERALLY, WOULD HAVE MADE A
+CHECK VACUOUS — WHICH IS A THIRD BOUND-VACUITY PREDICTOR FOR THIS CORPUS.**
+`FN-31.c`'s two witnesses land at **3** and **4**, because both posit the disk an
+interruption leaves and run the sweep over it; the rule says *the widest
+first-landing bound among the obligation's witnesses*, with 4 as the floor. Run
+at 4, `FN_31c`'s first conjunct — *both markers the replacement touches are ones
+a sweep can act on* — has **no reachable antecedent at all**, because
+`MarkerReplace` first occurs at ten states. The check would have been green and
+empty, and its mutation would have reported exactly as a survivor.
+
+`task-tree-k7` left two predictors for bound vacuity: an interval claim needs
+interval-many states, and the bound must hold *the machinery of the transitions
+the obligation quantifies over*, not only the objects it names. The second is
+this case — and what is new is **where the wrong number comes from**. It is not
+carelessness: it is the file's own witness-bound rule, applied to an obligation
+whose witnesses are **cheap posited disks** and whose antecedent is a **deep
+transition**. The two had always coincided before, because every witness in this
+file ran the protocol up to the thing it was witnessing.
+
+> **The witness-bound rule is a FLOOR, and it is below the real floor whenever an
+> obligation's witnesses posit a disk its antecedent has to be run up to.** Read
+> the check's own antecedent for the deepest transition it names, and take the
+> larger of the two numbers.
+
+Applied: `FN-31.a`, `FN-31.b`, `FN-31.c` and `FN-31.d` all run at **11** — the
+witness rule gives 11, 11, 4 and 11, and the antecedent rule gives 11 for all
+four, because every one of them quantifies over `MarkerReplace`. `FN-21.a` runs
+at **11**, where both rules agree. `FN-21.b` and `FN-21.c` run at **5** — a
+stated margin of **three** over the floor of 2, and their antecedent is `Reap`,
+which first occurs at **2**, so the two rules agree here as well. Stating the
+margin as a number is `FN-20`'s lesson from the previous slice, applied
+pre-emptively.
 
 **`FN-20` NO LONGER RUNS ABOVE ITS OWN RULE, AND NOTHING ABOUT `FN-20` CHANGED.**
 The handoff slice set it at 8 against a witness that landed at 7, deliberately,
@@ -231,8 +304,20 @@ each is found by a different question:
    THROUGH it** (`quarantine-k43`, three witnesses 9 → 10). Ask: which witnesses
    traverse the point a new step was spliced into?
 3. **A step that stops being ENABLED at a phase costs a state to every witness
-   that CLOSED ITS LASSO on it** (this slice, twelve witnesses +1). Ask: which
-   witnesses' final transition is one whose enabling surface you narrowed?
+   that CLOSED ITS LASSO on it** (`revalidation-k44`, twelve witnesses +1). Ask:
+   which witnesses' final transition is one whose enabling surface you narrowed?
+4. **A step inserted at the END of a path costs nothing to a witness whose final
+   assertion RE-ANCHORS onto it** (the disposal slice, three witnesses +0 where
+   the arithmetic said +2). The disposal split put two transitions between the
+   after-rename point and `Settled`. Five inherited witnesses run through that
+   stretch, and only the two that must reach the far end of it moved —
+   `witness_FN_03` +2 and `witness_FN_18` +1. `witness_FN_16b`,
+   `witness_FN_22i` and `witness_FN_22a_the_point_after_the_quarantine_rename` each
+   asserted *a forward settle happened*, which is now *the first disposal step
+   happened*, at the same position in the trace. Ask: does this witness need to
+   reach **past** the insertion, or only **to** it? This is entry 2 sharpened
+   rather than a new shape — *passes through* is the condition, and a witness
+   that ends at the insertion point does not pass through it.
 
 The thirteenth moved row is the second shape again: `witness_FN_17a` went 9 → 10
 because the restoration was split into a restore and a release, and it passes
@@ -278,6 +363,70 @@ close the lasso, and the predictor was applied before the command was written
 rather than after a mutation survived.
 
 ### Cost
+
+**THE DISPOSAL SLICE COST 11–19%, AND FOR THE FIRST TIME IN THIS SCOPE THE COST
+LAW WAS NOT PESSIMISTIC — BECAUSE ONE TRANSITION IS A SWEEP AND THE OTHERS ARE
+NOT.** Four new reachable Grove transitions (`MarkerCreate`, `MarkerReplace`,
+`Dispose`, `MarkerRemove`), two new phases, **one new scope dimension**
+(`2 CMark`), one enabling point removed (the forward settle's `Quarantined`
+branch), and **one sweep enabled outside the phase machine altogether** (`Reap`).
+Medians of three, one host, one sitting, both files present, and a clean A/B: no
+bound moved on any of the four sentinels.
+
+| command | revalidation slice | disposal slice | |
+|---|---|---|---|
+| `FN_08` (4 steps, entry surface) | 1.97 s | 2.22 s | +13% |
+| `FN_07` (4 steps, entry surface) | 2.17 s | 2.41 s | +11% |
+| `FN_13` (10 steps, the widest inherited) | 7.04 s | **8.37 s** | **+19%** |
+| `witness_FN_11` (10 steps) | 3.45 s | 3.95 s | +14% |
+
+(The revalidation column is re-measured in **this** sitting and reads 7.04 s
+where that slice's own figures said 6.93 s — which is the third measurement rule
+below doing its job rather than a discrepancy.)
+
+**THE SWEEP WAS ISOLATED AND PRICED, AND IT IS THE MOST USEFUL NUMBER IN THIS
+FILE SINCE `quarantine-k43`'s.** `revalidation-k44` predicted that `FN-21`'s
+reaper would be the first thing in this scope the dwell form of the law says is
+expensive, *because a sweep is enabled at states no phase machine constrains* —
+and named this slice as the third chance to measure the law and the first chance
+to see it wrong in the **dear** direction. Three variants of the same file, same
+sitting, same command, medians of three:
+
+| `FN_13` at 10 states | median | against |
+|---|---|---|
+| the disposal slice with **no `Reap` at all** | 7.54 s | +7% on the inherited file |
+| the disposal slice as it ships (`Reap` guarded on *something at a reserved name*) | 8.34 s | **+11% on top** |
+| the same with `Reap`'s antecedent widened to **every** `Fresh` state | 8.68 s | +15% on top |
+
+Three things follow, and the first is the headline:
+
+- **ONE SWEEP AT A DWELL PHASE COSTS MORE THAN FOUR TRANSITIONS AT PASS-THROUGH
+  PHASES PUT TOGETHER.** The four disposal steps, the two phases and the new
+  scope dimension are +7% between them; `Reap` alone is +11%. The dwell form
+  predicted the *direction* and the *ordering* correctly, which is the first time
+  in three slices the law has not needed its arithmetic corrected — and it is the
+  first slice in this scope whose dominant new cost is a single transition.
+- **THE NARROWED ANTECEDENT BOUGHT A QUARTER OF IT.** `some Cleanup.present or
+  some Quar.qRid` against an unguarded `Txn.phase = Fresh` is 8.34 s against
+  8.68 s: about 4 points of the sweep's 15. A sweep over nothing is a no-op, so
+  the narrowing costs no reachable behaviour — which makes it the cheapest
+  possible instance of *prefer a narrowed antecedent*, arriving with a number on
+  it for the second time in this scope.
+- **AND IT IS STILL ONLY +11%, WHICH IS THE SECOND-ORDER RESULT.** A sweep
+  enabled at a phase a trace can rest in is the expensive shape the law names,
+  and it cost a fifth of what `commit-k41`'s four transitions cost on the same
+  sentinel. **The ordering the corpus recommends has now been right four times
+  running and the multiplier has been wrong three times; take the ordering, do
+  not take the multiplier** — and read *expensive* as *worth narrowing*, not as
+  *worth avoiding*.
+
+**Where the suite's time actually went.** 118 commands, **7 m 39 s**, against 101
+in 5 m 46 s. Seventeen new commands, six of them at 10–12 states, plus two
+inherited bounds rising and the +19% on everything wide. A whole-suite total
+still does not compare across sessions — this pair is quoted only because both
+halves carry their command counts.
+
+---
 
 **THE REVALIDATION SLICE COST 9–15%, AND THE REFINED COST LAW WAS AGAIN
 PESSIMISTIC — THIS TIME BY ABOUT FOUR.** Four new reachable transitions (two
@@ -572,14 +721,69 @@ this file adopts unchanged:
   root, the witness still stands, and `observed` still differs from the recorded
   disposition. Whether the shipped diagnostic names both is
   `formal-synthesis-k16`'s.
-- **The forward settle still passes through `FN-22.i`'s stable state and out of
-  it in one step.** The catalogue's stable state after *complete: dispose* is
-  *task root `Absent`, quarantine holding the root* — the state from which
-  `FN-21`'s disposal proceeds. This file's settle disposes in the same step that
-  revalidates, because disposal is still an abstraction here and `FN-21` is
-  `disposal`'s. `FN_22i` therefore checks the action, the outcome, that the
-  quarantine was holding a root when it ran, and that the task root is left
-  exactly as the protocol left it.
+- ~~**The forward settle still passes through `FN-22.i`'s stable state and out of
+  it in one step.**~~ **AN ABSTRACTION REMOVED, AND THE SECOND ONE A CLAIM HAS
+  FORCED RATHER THAN A SLICE CHOSEN.** `FN-21.a` says disposal is *re-enterable
+  from any interruption* and `EN-03` says there is no atomic recursive directory
+  deletion, so a disposal that is one transition has no interruption point to be
+  re-enterable from and the claim is unstateable. Disposal is now **three steps**
+  — write the cleanup marker, remove what it authorises removing, retire the
+  marker — and the forward settle is gone from `doSettle` altogether. The
+  catalogue's stable state after the rename is still passed through; what has
+  changed is that the protocol now stops there and proceeds under a document.
+- **THE CLEANUP MARKER'S NAME IS NOT MODELLED, AND `cTarget` IS WHAT STANDS IN
+  FOR IT.** The catalogue gives the marker a per-handle, per-attempt reserved
+  name and this file has no filename grammar. What the reaper actually reads a
+  name **for** is *which quarantine does this document authorise removing*, and
+  that is `cTarget`; what it reads an attempt identity for is *can Grove prove
+  this is its own*, and that is `cOwner` present or absent — `Slot.owner`'s trick
+  applied to the artifact `FN-31.d` is about. `quarantine-k43` flagged the
+  quarantine's missing name as **this slice's to widen if `FN-21.b`'s cleanup
+  manifest needed it**; it did not need a filename, it needed a **target**, and
+  one static field is what that cost.
+- **`inTreeWitnessOwns` IS AN ABSTRACTION AND IT ERRS TOWARDS DECLINING.**
+  `FN-21.b`'s *only when no matching in-tree witness owns them* distinguishes a
+  `FINISHING-<handle>/` still standing in the task root from the one that rode
+  into the quarantine with it. This file has **one** `Slot` and no filename
+  grammar, so it cannot tell the two apart; the sweep reads *there is a task root
+  present to hold a witness, that witness is published, and it names an attempt
+  one of the markers names*. On the disk the rename leaves, the task root is
+  absent and the sweep proceeds; where the world has put something back at the
+  task-root name (`doRootNameTaken`), the sweep **declines** where the shipped
+  protocol might proceed. That is the fail-closed direction, which is the one the
+  catalogue requires, and it is why `FN-21.b`'s witness is a *decline* rather
+  than a proceed. A model that needed the sweep to proceed there would need a
+  second place a witness can be, the way `Quar` is a second place a root can be.
+- **DISPOSAL'S CONTENT REMOVAL IS ONE STEP, AND `EN-03` SAYS IT IS NOT.** The
+  shipped protocol removes the quarantine entry by entry, because there is no
+  atomic recursive deletion; this file has one `Quar.qRid` and no filename
+  grammar, so it cannot decompose the removal below the marker protocol's own two
+  boundaries. What is modelled is that the removal is **marker-guarded** and
+  **re-enterable**, which is what `FN-21.a` claims; a partial removal *within*
+  the step is not. The two interruption points the model does have —
+  `Disposing` and `Disposed` — are the two the marker exists to distinguish.
+- **DISPOSAL'S TERMINAL STATE IS THE TWO NAMES DISPOSAL OWNS, NOT THE TREE.**
+  Written as *quarantine gone, marker gone, and the reserved witness gone*,
+  `FN-21.a` is false, and a counterexample said so: a sweep may retire a stale
+  marker beside an **unrelated** preparing witness that is nobody's. The
+  predicate reads `no Quar.qRid' and no Cleanup.present'`, and what the release
+  of the artifacts *inside* the quarantine is worth is carried separately, by a
+  conjunct stated over the removal step. Retained below.
+- **THE SWEEP IS NOT IN `bodySteps` OR `txnActs`, AND THREE THINGS FOLLOW.** It
+  takes no operator confirmation (`FN-01.a` is stated over `txnActs`, and
+  collecting the garbage a crashed finish left is not a second finish); `FN-24.b`
+  should not be asked of it, though as written each firing has exactly one
+  persistent effect; and `FN-22.a`'s *none is skipped* conjuncts, which quantify
+  over `txnActs`, do not reach it — which is correct, because a sweep never had a
+  disposition to revalidate. `exits` inherits that distinction with `FN-24.b`.
+- **`tableAction`'s AFTER-RENAME `Committed` ROW NOW READS THE MARKER.** The
+  catalogue's corrective action there is *complete: dispose (`FN-21`)* — it names
+  another claim group rather than one move — and `FN-31` requires a **create**
+  where the reserved name is free and a **replace** where it is not, as distinct
+  transitions. So the row is a function of the marker as well as of the point and
+  the observation, which is what `tableOutcome` has done since `revalidation-k44`
+  for the occupied target and the unreproducible commit. It is still data and
+  still total: delete the row and the function goes partial exactly as before.
 - **The occupied quarantine target BLOCKS rather than refuses, and no diagnosis
   is named.** At the rename the transaction has a proven commit, so ending it as
   a refusal would report that the finish did not happen while the ticket in
@@ -850,15 +1054,42 @@ this model followed the catalogue, because the catalogue is the sole input.
   never obstructs — are the reachable approximation. A candidate protocol that
   read a leftover only in a way that changed **nothing** about the outcome would
   satisfy both conjuncts and violate the claim's plain reading.
-- **Not that a quarantine this file leaves behind can ever be cleaned up.**
-  `witness_FN_19` is the catalogue's own witness — an interruption immediately
-  after the rename — and what it leaves is a complete quarantine over an absent
-  task root. `doTxnOpen` requires `some Root.rid`, so **no transaction in this
-  file can be opened on that disk**, and the forward settle that would dispose of
-  the quarantine is unreachable from it. That is not a defect: the catalogue's
-  answer is the **reaper** (`FN-21`), which is a sweep rather than a transaction
-  over the task root, and it is the `disposal` sibling's. Until it lands, the
-  file demonstrates a state it cannot leave.
+- ~~**Not that a quarantine this file leaves behind can ever be cleaned up.**~~
+  **ANSWERED, AND IT IS THE SECOND ENTRY EVER REMOVED FROM THIS LIST.**
+  `witness_FN_19` leaves a complete quarantine over an absent task root, and
+  `doTxnOpen` requires `some Root.rid`, so no *transaction* can be opened on that
+  disk. The catalogue's answer is the **reaper**, and it is now in the file:
+  `doReap` runs at `Txn.phase = Fresh` over anything at a reserved name, reads
+  the cleanup marker for whether Grove can prove the entry is its own, and
+  resumes the disposal in the order disposal runs in.
+  `witness_FN_21a_a_disposal_interrupted_mid_disposal_and_resumed` is that
+  resumption, at four states. **Both entries removed from this list were removed
+  by a witness rather than by a property**, which is now twice in two slices.
+- **Not that the sweep is safe to run concurrently with anything.** `doReap`
+  fires at `Txn.phase = Fresh`, which in this file means *no transaction is
+  running in this process*. Nothing here models a second process, a lease, or the
+  file lock that `TT-22` is about, so what is checked is that a sweep run when
+  Grove believes nothing is in flight touches only what it can prove is its own.
+  The shipped reaper is **lease-owned** (`TODO.finish_process.md`,
+  `src/finish_cleanup/reaper.rs`) and that is exactly the machinery this file
+  does not have. `SY-` is where the two would meet.
+- **Not that the marker's own byte layout is crash-safe.** The catalogue lists
+  *the marker-replacement protocol's own byte layout* under its deliberate
+  omissions and requires only that the transition exist and be decided by
+  reachability. `MarkerReplace` is one transition here and `EN-01` grants
+  same-directory renames atomicity, so *the replacement is atomic* is an
+  **assumption discharged by `EN-01`**, not a result. What the model does decide
+  is that the transition is **reachable** and **distinct**, which is what Q3
+  asked.
+- **Not that `FN-21.b`'s in-tree-witness condition is checked at the grain the
+  shipped protocol uses.** See *Abstractions*: the model errs towards declining,
+  and a shipped reaper that proceeds where this one declines would satisfy every
+  check here. The direction is the safe one, and that is all a green run says.
+- **Not that disposal's removal is re-enterable *within* a step.** The two
+  interruption points the model has are the marker protocol's; `EN-03` says the
+  shipped removal has one per entry. A defect that needs a partial recursive
+  deletion is outside what any green above says, and it is the sharpest thing
+  `formal-synthesis-k16` should not read this slice as covering.
 - **Almost nothing about the lane, still.** Twelve more obligations have landed
   and **exactly one of them reads the lane**: `FN-17.a`'s *on a
   working-copy-as-commit lane the exact recorded preflight commit is reproduced*.
@@ -954,6 +1185,12 @@ as bad luck. Rows 30–31 are the handoff slice's, and **one of the two did not
 land as first written either**, for a reason that is neither of the commit
 slice's two — see *A mutation that kills a neighbour* below.
 
+Rows 42–48 are the disposal slice's, and **three of the seven did not land as
+first written — two of them the same trap, met against a `fact` and against a
+contradiction, and one a neighbour kill.** Every one of the seven was run against
+the other six disposal checks and against `FN-22.a`, `FN-22.i`, `FN-03`, `FN-18`
+and `FN-19`; the *left green* column is that sweep.
+
 Rows 32–41 are the revalidation slice's, and **three of the ten did not land as
 first written — one in each of the three ways this file had already recorded,
 which is the first time all three have appeared in one slice.** Every one of the
@@ -1004,6 +1241,46 @@ that sweep, not an assertion.
 | 39 | `FN-22.h` | the incomplete return clears the quarantine while blocking — it reports the change and not the quarantine | `witness_FN_22g` | KILLED |
 | 40 | `FN-22.i` | the forward settle frames the quarantine instead of disposing it — the artifacts go and the quarantine stays | `witness_FN_18` | KILLED |
 | 41 | `FN-22.j` | the `Indeterminate` block at a point stops framing `Repo.rev` — it performs no handoff and moves the repository | `witness_FN_22d` | KILLED |
+| 42 | `FN-21.a` | `doDispose` retires the cleanup marker in the same step that removes what it authorises removing — the evidence goes before the work | `witness_FN_18` | KILLED |
+| 43 | `FN-21.b` | `reapable` drops `not inTreeWitnessOwns` — the sweep collects a quarantine whose in-tree witness still owns it | `witness_FN_21a_a_disposal_interrupted_mid_disposal_and_resumed` | KILLED |
+| 44 | `FN-21.c` | the sweep's decline reports `Environmental` and no `why` — it passes over a foreign entry **silently**, mutating nothing and reporting nothing | `witness_FN_21a_a_disposal_interrupted_mid_disposal_and_resumed` | KILLED |
+| 45 | `FN-31.a` | `doMarkerReplace`'s guard narrows to a **foreign** marker — an owned one is never superseded, so the replacement's source state is never acted on | `witness_FN_22i` | KILLED (the witness stops landing) |
+| 46 | `FN-31.b` | the replacement adds its marker beside the one it supersedes — two stand at the reserved name | `witness_FN_22i` | KILLED |
+| 47 | `FN-31.c` | the sweep retires the marker in the same firing that removes the quarantine — the two boundaries of the replacement stop being distinguishable | `witness_FN_31c_an_interruption_before_the_replacement_is_resumed` | KILLED |
+| 48 | `FN-31.d` | the foreign document is **superseded anyway** while the attempt blocks — it reports the conflict and mutates the thing it could not prove is its own | `witness_FN_31a_a_source_state_from_which_disposal_must_replace_a_marker` | KILLED |
+
+**ROW 45 IS THE ONLY MUTATION IN THIS FILE WHOSE KILL IS A WITNESS THAT STOPS
+LANDING, AND THAT IS WHAT A REACHABILITY OBLIGATION'S CONTROL LOOKS LIKE.**
+`FN-31.a` is answered by a witness, so the thing a mutation has to be able to
+break is the witness. Narrowing `doMarkerReplace` to foreign markers leaves every
+check in the file green — the protocol simply **stops** at `Quarantined` with an
+owned marker standing, which is a liveness hole no safety check notices — and
+`witness_FN_31a_a_source_state_from_which_disposal_must_replace_a_marker` stops
+landing. Worth one line for whoever writes the next reachability-answered
+obligation: **a mutation aimed at a witness must be able to make the trace
+disappear, and a green suite under it is the expected result rather than a
+survivor.** The runner reports the missing instance as a `FAIL`, which is exactly
+right.
+
+**AND `witness_FN_31a_the_stale_marker_is_what_an_interrupted_disposal_leaves`
+SURVIVES ROW 45, WHICH IS THE POINT OF HAVING IT.** The mutation removes the
+protocol's ability to *act on* a stale marker, not its ability to *produce* one.
+Two commands, two different things: one says the source state is reachable, the
+other says the transition that needs it exists. `TODO.finish_process.md` Q3 needs
+both.
+
+**THE DISPOSAL SLICE DECIDES NO `Q4` ROW EITHER, AND THE CLASS REGISTER IS WHY.**
+`FN-21` and `FN-31` are both *incumbent mechanics* — the catalogue says so — so a
+mutation that breaks one is evidence about the incumbent protocol and about
+nothing else. **The cleanup marker's own removal-matrix row therefore cannot be
+decided here, and the reason is the quarantine's reason at one remove**: rows 42
+and 47 break `FN-21.a` and `FN-31.c`, both incumbent mechanics; rows 45, 46 and
+48 break `FN-31.a`, `.b` and `.d`, likewise. The marker exists to make a
+non-atomic removal resumable, and *disposal is resumable* is `FN-21`, which is
+what Q1 asks about — so the shared-safety claim the marker's removal would break
+first is not in this file. It is `FN-24`'s or `FN-27`'s, and both are `exits`'.
+**`exits` inherits two undecided rows on the same grounds — the quarantine's and
+the marker's — and this note is what the marker's should read first.**
 
 **THE REVALIDATION SLICE DECIDES NO `Q4` ROW, AND THE REASON IS THE SAME ONE
 `quarantine-k43` GAVE.** All ten of `FN-22`'s obligations are *incumbent
@@ -1061,6 +1338,41 @@ mutates on `no Slot.occ` instead — the antecedent `FN-03` **already carries** 
 standing, not only what it takes down.** `commit-k41` learned to check that a
 mutation *can fire* and that it *aims at the right thing*; this adds that a
 mutation must be *specific*, and all three report identically when they are not.
+
+**THREE OF THE SEVEN DID NOT LAND AS FIRST WRITTEN, AND TWO OF THEM ARE THE SAME
+TRAP MET FROM TWO DIRECTIONS IN ONE SLICE.** All three reported exactly as a
+surviving mutation does.
+
+- **Row 42 was first written as `doMarkerRemove` enabled at `Disposing` as well
+  as `Disposed`** — retire the marker before the removal it authorises. It
+  **SURVIVED**, and the reason is `fact BodyPhaseMatchesDisk`: the step produces
+  `Txn.phase' = Settled`, and the fact requires `Settled implies (no Slot.occ and
+  manEmpty)`, which at `Disposing` is false because the witness and the manifest
+  are still inside the quarantine. The mutated branch was **unsatisfiable**. That
+  is row 34's trap — *a mutation the model cannot execute is not a control* — met
+  against a `fact` for the second time, and it is worth separating from row 34's
+  because the fact in question is one the file added for a completely unrelated
+  reason two slices earlier. **A phase machine's own well-formedness facts are a
+  mutation surface you did not choose**, and the cheapest check is to ask what
+  the mutated step's *successor phase* is obliged to look like.
+- **Row 47 was first written as the sweep keeping the quarantine while retiring
+  the marker**, and the patch left the original `no Quar.qRid'` in place beside a
+  new `quarSame`. Unsatisfiable, and it **SURVIVED** — the same trap in its
+  original form, *a mutation added underneath a frame condition*, except that
+  here the contradiction was with the conjunct the mutation was meant to replace.
+  `entry-k39`'s rule is *remove the frame, do not contradict it*; the disposal
+  slice adds the mechanical corollary: **a mutation stated as an addition when it
+  should have been a substitution is unsatisfiable and reports green.**
+- **Row 46 was first written with `FN-22.i` still asserting the marker's own
+  content** — exactly one marker afterwards, naming this quarantine. The
+  two-markers mutation killed `FN-31.b` **and** `FN-22.i`, and row 48's killed
+  `FN-31.d` and `FN-22.i`. Both are neighbour kills, and the fix was not to the
+  mutations: the conjunct came **out** of `FN_22i`. `FN-22.i` is about the
+  corrective action and the stable state it is taken from; the document at the
+  reserved name is `FN-31`'s subject. **When two obligations describe the same
+  artifact from two directions, the one whose subject it is not should not
+  describe it at all** — which is the fourth rule about aim, restated for
+  overlapping *subjects* rather than for a table's totality.
 
 **TWO OF THE TWELVE DID NOT LAND AS FIRST WRITTEN, and both are old rules in new
 clothes.** Neither is a defect in the model, and recording them is the point —
@@ -1156,9 +1468,9 @@ fixes, and because rows 10–17 were written against them:
 
 ## Counterexamples retained
 
-**Ten: four from the witness slice, one from the handoff slice and FIVE from the
-revalidation slice — and all ten are about the model rather than about the
-protocol** — which is itself the
+**Twelve: four from the witness slice, one from the handoff slice, five from the
+revalidation slice and TWO from the disposal slice — and all twelve are about the
+model rather than about the protocol** — which is itself the
 observation, because a slice that adds eight transitions and finds no protocol
 defect has still learned something about what its instrument was licensing.
 
@@ -1266,6 +1578,40 @@ this file had done.
     the check reads `rootSame`. `doSwap`'s lesson at a third grain: **a claim
     about what a protocol leaves is not a claim about what stays there.**
 
+**THE DISPOSAL SLICE ADDED TWO, AND BOTH ARE A CHECK WRITTEN WIDER THAN THE
+CLAIM IT ANSWERS.** Five of the slice's seven checks were green as first written.
+
+11. **`FN-21.a`'s terminal state, written over the tree, fails on an unrelated
+    preparing witness.** `disposalTerminalNext` first read *the quarantine gone,
+    the marker gone, **and the reserved witness gone***, which is what a
+    completed disposal does leave. The counterexample is a sweep retiring a
+    **stale marker** — Grove's own, its target already removed — while a
+    `Slot.occ = Preparing` owned by nobody stands at the reserved name, having
+    nothing to do with the disposal being resumed. The sweep is right and the
+    predicate was wide: disposal's business is the quarantine and the document
+    that authorises removing it, and an unpublished witness at the reserved name
+    is `FN-10`'s subject. The predicate now reads `no Quar.qRid' and no
+    Cleanup.present'`, and what the release of the artifacts *inside* the
+    quarantine is worth is carried by a conjunct stated over the removal step.
+
+    This is the `FN-03` over-statement's shape at a **third** grain, and the
+    grain is new: `FN-03`'s was a claim over every actor where the catalogue said
+    Grove's own steps; `FN-19`'s was a claim over the disk where the catalogue
+    said the protocol; this one is a claim over **every artifact at a reserved
+    name** where the catalogue said the ones disposal owns. **A claim about what
+    a protocol leaves behind is not a claim about what else is lying around.**
+
+12. **`FN-31.b`'s *one marker before and one after*, written over the pre-state,
+    fails on a hand-edited pair.** Under `EN-11` as a free initial state, two
+    markers at state 0 is a hand edit, and a replacement performed over them is a
+    trace the model permits. The conjunct now constrains only the **primed**
+    state, and *the reserved name never comes to hold two* is carried over the
+    transition relation by the conjunct beside it. This is the witness slice's
+    first retained counterexample at a **fifth** grain — a shape claim under a
+    free initial state must be restated over the transition relation — and its
+    value is that the rule keeps being violated by a conjunct that reads as
+    obviously true, in a file whose header states the rule.
+
 **THE COMMIT SLICE ADDED NONE, and that is a fact about the slice rather than a
 gap in it.** Twelve obligations, thirty-one commands, every check green as first
 written and every one of the twelve mutations killed. What it did produce is two
@@ -1274,9 +1620,9 @@ check could have reported: the missing refusal reason for a rolled-back finish,
 the anchor's lane-blindness, and `Indeterminate` being reachable rather than
 positively excluded.
 
-**No command in any of the five slices has found a counterexample that was a
-defect in the catalogue or in the shipped protocol.** Ten retained
-counterexamples, all ten about the model's own licence rather than about the
+**No command in any of the six slices has found a counterexample that was a
+defect in the catalogue or in the shipped protocol.** Twelve retained
+counterexamples, all twelve about the model's own licence rather than about the
 finish process. The three catalogue-level findings this file carries — the
 seven-preconditions/six-reasons mismatch (entry 031), `FN-13`'s missing refusal
 reason (entry 032) and the rolled-back finish's missing reason (entry 033) —
@@ -1284,6 +1630,57 @@ were each found by trying to write down **what a branch returns**, never by a
 check going red. That is now three times in one scope, and it is the strongest
 methodological signal this family has produced: the instrument's value here has
 been the discipline of totality, not the solver.
+
+## `TODO.finish_process.md` Q3, answered — and the enumeration it asked for
+
+**Q3 asks: *is the marker-replacement sub-transaction reachable?  Enumerate the
+states that require replacing rather than creating or removing a marker.*** The
+Alloy side's answer is **yes, by witness, at ten states**, and the enumeration is
+**one class rather than a list**:
+
+> A cleanup marker left standing by a disposal that completed the removal it
+> authorised and was interrupted before retiring it. The document is Grove's own
+> and its target is gone. A sweep will collect it; a **new** attempt that reaches
+> the after-rename point before the sweep does must supersede it with its own.
+
+Three things about that answer are worth separating, because only the first is a
+result and the other two are what make it evidence:
+
+- **It is not an artefact of the encoding.** The stale marker exists because
+  `doMarkerRemove` is disposal's **last** step, and it is last because `FN-21.a`
+  requires the marker to outlive the work it authorises — a document that records
+  that the removal has not happened cannot go before the removal. A protocol that
+  retired the marker earlier would have no stale markers and no replacement, and
+  it would also not be re-enterable. **Q3's answer falls out of Q1's machinery**,
+  which is what makes it a finding about the incumbent protocol rather than about
+  this file.
+- **The source state is REACHED, not posited.**
+  `witness_FN_31a_the_stale_marker_is_what_an_interrupted_disposal_leaves` runs
+  the protocol from the disk an interruption mid-evacuation leaves, through the
+  rename, the marker, and the removal, and crashes before the marker is retired —
+  **twelve states**. Without it the answer would rest on a hand-edited disk that
+  `EN-11` permits, which is precisely the debt `commit-k41` took on and
+  `revalidation-k44` paid; this slice does not open a second one.
+- **The bounded-unreachability branch was not taken, and no `defer` is
+  recorded.** The catalogue offers three instruments and `handoff-k42`'s brief
+  names `commit-k41`'s three-lane answer to `FN-15.d` as the bar. This is the
+  witness branch, answered once rather than per lane, **because nothing in the
+  replacement reads the lane** — `doMarkerReplace`, `doMarkerCreate`,
+  `doMarkerRemove`, `doDispose` and `doReap` mention no `World.lane` and no
+  `wcAsCommitLanes`, and the witness runs with the lane free, so the instance the
+  solver returns is a statement about all three. That is weaker than three
+  lane-pinned witnesses and it is what the claim supports; `EN-16`'s collapse
+  control, which is what would make a lane-blind model visible, is still `exits`'.
+
+**What `formal-synthesis-k16` should read this as, and what it should not.** The
+Alloy family says the transition is **reachable under the incumbent protocol at
+these bounds**, so *delete the replacement* is not available on this evidence.
+It does **not** say the sub-transaction earns its 960 lines: the catalogue
+explicitly omits the marker's byte layout, `EN-01` grants the atomicity the
+replacement rests on rather than the model establishing it, and Q1's counterfactual
+— disposal in place, under `relax_EN_03` — is **Quint's** and would remove the
+quarantine, the marker and the replacement together. Q3 is answered *within* the
+incumbent; Q1 is what could make the question moot.
 
 ## A fourth finding, and it is of a new kind
 

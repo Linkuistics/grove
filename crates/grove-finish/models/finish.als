@@ -8,20 +8,31 @@
  * repository runner reads the obligation list out of the document rather than
  * out of this file.
  *
- * COVERAGE SO FAR: FN-01, FN-05 .. FN-08 — the transaction's ENTRY surface —
- * and FN-09 .. FN-13, the RESERVED WITNESS.  Every other `FN-` obligation
- * belongs to a sibling leaf of `finish-k8` and the runner reports its cell
+ * COVERAGE SO FAR: FN-01, FN-05 .. FN-08 — the transaction's ENTRY surface;
+ * FN-09 .. FN-13, the RESERVED WITNESS; and FN-03, FN-04, FN-14 .. FN-18, the
+ * COMMIT AND ITS DISPOSITION.  Every other `FN-` obligation belongs to a sibling
+ * leaf of `finish-k8` — `handoff` and `exits` — and the runner reports its cell
  * empty, which is the truth about this file rather than a defect in it.
  *
- * WHY THESE TWO SLICES AND NOT A LAYER.  The entry surface ends in a refusal or
+ * WHY THESE THREE SLICES AND NOT A LAYER.  The entry surface ends in a refusal or
  * in a transaction that is never entered.  The witness slice adds the six steps
  * that build and publish the witness and evacuate the tree into it, plus the two
  * things a step list is for: `crash` between any two steps, and `discard` as the
- * recovery an unpublished witness admits.  It stops at the point a commit is
- * ATTEMPTED: no commit, no disposition, no rollback, no quarantine, no reaper.
+ * recovery an unpublished witness admits.  The COMMIT slice adds the repository
+ * as something that changes: the scoped deletion commit, the correlation ticket
+ * that names the handle and the attempt, the three dispositions classified from
+ * evidence rather than from exit status, the rollback licence and its exactness,
+ * and forward recovery.  It stops before the quarantine: no atomic root rename,
+ * no revalidation table, no cleanup marker, no reaper, no `Blocked` DIAGNOSIS.
  * That is what makes it verifiable on its own.  It is also what a green run here
  * does NOT prove — see `README.md`, which says so in more detail than this
  * header can.
+ *
+ * `EN-05` IS THE SHAPE OF THE THIRD SLICE.  No filesystem transaction can include
+ * a version-control commit, so the commit sits outside the body and the interval
+ * between the evacuation and the recorded result cannot be closed.  Everything
+ * from `doCommitAttempt` to `doSettle` is about what can be KNOWN across that
+ * interval and what may be done on the strength of it.
  *
  * THE STEP LIST IS A NAMED THING (`bodySteps`), not an accretion of predicates.
  * `EN-08` grants interruption between any two steps and says nothing about what
@@ -108,8 +119,23 @@ one sig World {
   var lane: lone Lane,   // absent == the workspace layout is unsupported (SY-02)
   wtDev:   one Device,   // the working-tree root's device  — the LEASE gate's operand
   rootDev: one Device,   // the task root's device          — a TRANSACTION operand
-  qDev:    one Device    // the quarantine parent's device  — the other one
+  qDev:    one Device,   // the quarantine parent's device  — the other one
+  /* UNRELATED MODIFIED WORKING-COPY WORK — the commit slice's, and the only
+     thing in this file that lives OUTSIDE the task root.  `FN-14` requires it to
+     survive a successful finish, so it has to be able to change: the world edits
+     it (`doTopologyChange` leaves it free) and every Grove step frames it.  A
+     `wcWork` that no transition could move would make `FN-14`'s second half a
+     tautology rather than a claim. */
+  var wcWork: set Entry
 }
+
+/* THE THREE LANES, PARTITIONED THE ONE WAY AN OBLIGATION IN THIS SLICE READS
+   THEM.  `FN-17.a` is the catalogue's first lane-specific claim: *on a
+   working-copy-as-commit lane the exact recorded preflight commit SHALL be
+   reproduced before the witness is removed*.  Nothing else here distinguishes
+   the three, and that a twelve-obligation slice needs exactly one lane split is
+   itself recorded in `README.md` as a finding. */
+fun wcAsCommitLanes: set Lane { NativeJjL + ColocatedJjL }
 
 one sig Root { var rid: lone RootId, var holds: set Entry }
 
@@ -172,7 +198,36 @@ one sig Man {
    `FN-13` and the only thing in this file that makes a candidate committed tree
    differ from the deletion fingerprint. */
 one sig Tracked {}
-one sig Repo { var rev: one Rev, var tracked: set Entry, var wTracked: lone Tracked }
+
+/* WHETHER THE EXACT PREFLIGHT COMMIT CAN BE REPRODUCED AT ALL.  It is the
+   world's, not Grove's — a jj working copy whose recorded change identity the
+   operator has since moved on from cannot be put back — and `FN-17.b` is the
+   claim that a restoration which cannot reproduce it BLOCKS rather than
+   proceeds.  Without an observable for the impossibility, `FN-17.b`'s branch
+   would be an unreachable arm and its mutation would not be a control. */
+one sig Reproducible {}
+
+/* THE REPOSITORY, and the three things the commit slice adds to it.
+
+   `tickets` IS THE CORRELATION TICKET, in the only shape the catalogue gives it:
+   the deletion commit's own message, naming the finish HANDLE and the ATTEMPT
+   IDENTITY.  It sits in version-control history rather than in any artifact the
+   transaction can destroy, which is the whole of `FN-03`, and it is a RELATION
+   rather than a set because `FN-04` — a ticket from an earlier attempt shall not
+   settle a later one — is a claim about the pair and not about either half.
+
+   `reproduced` is the exact preflight commit a working-copy-as-commit lane has
+   put back, and `canReproduce` is whether it can be.  Both are `FN-17`'s.
+
+   Nothing here is a quarantine, a marker or a reaper: disposal is `handoff`'s. */
+one sig Repo {
+  var rev:          one Rev,
+  var tracked:      set Entry,
+  var wTracked:     lone Tracked,
+  var tickets:      Entry -> AttemptId,
+  var reproduced:   lone Rev,
+  var canReproduce: lone Reproducible
+}
 
 /* Confirmation is an operator input Grove cannot verify (`EN-15`).  It is set
    by the world's own action and by nothing else, which is the checkable half of
@@ -192,14 +247,45 @@ one sig Confirmation {}
    order is not one of them. */
 abstract sig Phase {}
 one sig Fresh, Opened, Entered, Prepared, Manifested, ReadyP, PublishedP,
-        Evacuated extends Phase {}
+        Evacuated, Attempted, Classified, Settled extends Phase {}
 one sig Verdict {}
+
+/* THE DISPOSITION IS NOT AN OUTCOME, and the catalogue says so in as many
+   words: it is the classification of the COMMIT and an INPUT to the outcome.
+   `Committed` settles forward and yields `Applied`; `NotCommitted` rolls back
+   and yields a refusal; `Indeterminate` yields exactly one `Blocked`. */
+abstract sig Disposition {}
+one sig Committed, NotCommitted, Indeterminate extends Disposition {}
+
+/* THE COMMIT'S IMMEDIATE RESULT, AS REPORTED — and `EN-09` is the whole reason
+   it is in the signature: *a command's exit status is not a receipt: a result
+   may be lost or arrive late*.  ABSENT means lost, or not yet arrived.  Nothing
+   in the classification reads it, which is `FN-15.a`, and the fact that it is
+   here at all is what gives that claim something to be false about. */
+abstract sig Report {}
+one sig OkReport, FailReport extends Report {}
+
 one sig Txn {
   var phase: one Phase,
   var pinned: lone RootId,      // the identity pinned at open, rechecked at every later step
   var leaseOk: lone Verdict,    // the LEASE gate's recorded verdict — never a licence
   var attempt: lone AttemptId,  // drawn once per launch; what a rootless retry accepts by
-  var anchor:  lone Rev         // the recorded starting topology a rollback must find
+  var anchor:  lone Rev,        // the recorded starting topology a rollback must find
+  /* THE FINISH HANDLE, PINNED.  `entry-k39` and `witness-k40` could read the
+     handle off the tree (`finishLive`) because nothing in either slice ran past
+     the evacuation.  This one does: after `WEvacuate` the root holds nothing and
+     `finishLive` is empty, so a classification that read the tree for its handle
+     would have nothing to read.  Pinned at `TxnOpen` and adopted from the
+     manifest by a recovery, it is a LIVE SESSION's operand rather than an
+     artifact — which is exactly what `FN-03` needs it to be.
+
+     It is `set Entry` rather than `lone Entry` deliberately: `gateWork` is not
+     checked until the preflight, so `finishLive` may hold two entries at open,
+     and a `lone` field would make `doTxnOpen` silently UNAVAILABLE on such a
+     tree instead of letting the preflight refuse it. */
+  var handle:  set Entry,
+  var disp:    lone Disposition,
+  var report:  lone Report
 }
 
 
@@ -210,7 +296,15 @@ one sig Txn {
 abstract sig Action {}
 one sig Idle, Confirm, Decline, TxnOpen, Preflight, Swap, TopologyChange,
         WPrepare, WManifest, WReady, WPublish, WEvacuate, CommitAttempt,
-        Crash, Discard extends Action {}
+        Crash, Discard,
+        /* THE COMMIT SLICE'S FOUR.  `Recover` is the catalogue's `recover`: a
+           later launch adopting an interrupted attempt's published witness.
+           `Classify` and `Settle` are the two halves the interval is between —
+           and they are two ACTIONS rather than one because `EN-09` grants a
+           result that arrives LATE, and "late" has no meaning unless there is a
+           classification for it to be late for.  `ResultArrives` is that
+           arrival, and it is the WORLD's. */
+        Recover, Classify, Settle, ResultArrives extends Action {}
 
 /* THE STEP LIST.  `EN-08` grants interruption between any two steps and says
    nothing about what a step is, so the grant is worth exactly what this list
@@ -222,6 +316,7 @@ one sig Idle, Confirm, Decline, TxnOpen, Preflight, Swap, TopologyChange,
    effect. */
 fun bodySteps: set Action {
   WPrepare + WManifest + WReady + WPublish + WEvacuate + CommitAttempt
+  + Recover + Classify + Settle
 }
 
 /* The transaction's own steps.  `FN-01.a` is stated over exactly this set, and
@@ -237,6 +332,27 @@ abstract sig Refused extends Result {}
 one sig RefNotLive, RefLayoutUnsupported, RefRootIdentityChanged,
         RefNoTrackedDeletion, RefUnsupportedEntryType,
         RefWitnessPending, RefReservedNameOccupied extends Refused {}
+
+/* A SECOND FINDING OF THE SAME SHAPE AS `FN-13`'s, and the file's only added
+   refusal atom.  The catalogue maps `NotCommitted` to *rolls back and yields
+   `Refused`*, and NONE of its seventeen closed refusal reasons names a finish
+   that was rolled back: the closest members — `NoTrackedDeletion`,
+   `RootIdentityChanged` — are each false of it.  Reporting it under one of them
+   would be a lie the model could not be caught in, so the atom is added HERE,
+   named for what it is, and recorded in `README.md` as a finding for
+   `formal-synthesis-k16` rather than smuggled into the catalogue's set.
+   Nothing but `doSettle`'s rollback branch produces it. */
+one sig RefRollbackNotCommitted extends Refused {}
+
+/* `Blocked` — the catalogue's sixth outcome: *a transaction stopped part-way and
+   left a stable, recoverable state*.  IT CARRIES NO DIAGNOSIS HERE, and the
+   omission is deliberate rather than lazy: the closed partition over
+   `RecoveryPending` and `OwnershipConflict` is `FN-25`'s, which is the `exits`
+   sibling's, and a commit slice that named the two would answer `FN-25.a`'s
+   totality and disjointness by construction — the shape of a false-confidence
+   incident rather than a finding.  What this slice needs is an OUTCOME for
+   `Indeterminate` and for `FN-17.b`, and that is all it takes. */
+one sig BlockedOutcome extends Result {}
 
 /* A MODEL-ONLY OBSERVABLE, and declared as one in `README.md`.  The catalogue
    fixes seven preconditions and seventeen refusal reasons and never states the
@@ -265,6 +381,10 @@ abstract sig Why {}
 one sig P1Confirm, P2Work, P3Layout, P4Quarantine, P5Identity, P6Fingerprint,
         P7EntryType extends Why {}
 one sig W8WitnessTracked, W9SlotPending, W10SlotForeign extends Why {}
+/* The commit slice's three, all post-classification.  `W11NotCommitted` rides
+   with the added refusal atom above; the other two name the two ways a settle
+   blocks, and neither is a blocked DIAGNOSIS — see `BlockedOutcome`. */
+one sig W11NotCommitted, W12Indeterminate, W13CannotReproduce extends Why {}
 
 one sig Sys { var act: one Action, var res: one Result, var why: lone Why }
 
@@ -307,7 +427,8 @@ fun reasonOf[p: Why]: lone Refused {
   p = P7EntryType   implies RefUnsupportedEntryType else
   p = W8WitnessTracked implies RefWitnessPending      else
   p = W9SlotPending    implies RefWitnessPending      else
-  p = W10SlotForeign   implies RefReservedNameOccupied else none
+  p = W10SlotForeign   implies RefReservedNameOccupied else
+  p = W11NotCommitted  implies RefRollbackNotCommitted  else none
 }
 
 /* The deletion fingerprint: the expected, non-empty set of tracked paths the
@@ -364,6 +485,66 @@ pred manifestComplete {
 }
 
 
+// ---------------------------------------------------------------------------
+// THE COMMIT SLICE'S EVIDENCE, AND THE THREE THINGS IT DECIDES
+//
+// `FN-15` says the classification SHALL be derived from THE RECORDED ANCHOR,
+// THE EXPECTED FINGERPRINT AND THE EXACT IMMEDIATE RESULT — three operands, and
+// the reported exit status is not among them.  Everything below is written out
+// of exactly those three, which is what makes `FN-15.a` a claim about this
+// file rather than a restatement of it.
+// ---------------------------------------------------------------------------
+
+/* The attempts this handle has a landed deletion commit for.  `Txn.handle` is
+   the live session's pin, never an artifact, which is what lets a classification
+   run with the witness and the manifest gone (`FN-03`). */
+fun ticketedAttempts: set AttemptId { Txn.handle.(Repo.tickets) }
+
+/* THE EXACT IMMEDIATE RESULT, PROVEN.  Two conjuncts and both are evidence:
+   a correlation ticket naming THIS handle and THIS attempt, and the expected
+   deletions actually gone from the repository's tracked set.
+
+   THE SECOND CONJUNCT GOES VACUOUS ONCE THE MANIFEST IS RELEASED, and that is
+   `FN-03` rather than a hole: after a forward settle there is no manifest to
+   read a fingerprint out of, and the ticket alone is what the claim says the
+   durable record is.  Recorded in `README.md` under what a green run does not
+   prove, because a reader could take the conjunction for a stronger test than
+   it is at the point it matters most. */
+pred resultProven { Txn.attempt in ticketedAttempts and no (Man.mFinger & Repo.tracked) }
+
+/* THE RECORDED ANCHOR STILL HOLDS.  Lane-blind, and that is a finding rather
+   than a shortcut: the catalogue gives the three lanes three different anchors —
+   a head revision, a working-copy change identity with its parents, both plus an
+   index image — and states the rollback licence over the ROLE each plays, not
+   over its shape.  `Repo.rev` is that role.  `README.md` says so. */
+pred anchorHolds { Repo.rev = Txn.anchor }
+
+/* `FN-16`'s licence, stated as the catalogue states it and NOT as the
+   classification computes it — the same discipline as `pre*` against `gate*`.
+   The two coincide in this file; writing them apart is what makes a mutation to
+   the classification a counterexample to `FN-16` rather than a new definition
+   of it. */
+pred rollbackLicensed { anchorHolds and not resultProven }
+
+/* `FN-17.a`'s exactness, in the two halves the lanes table gives it. */
+pred treeMatchesManifest { Root.holds' = Man.mEntries }
+pred preflightCommitReproduced {
+  (World.lane in wcAsCommitLanes) implies Repo.reproduced' = Txn.anchor
+}
+pred canReproduceHere {
+  (World.lane in wcAsCommitLanes) implies some Repo.canReproduce
+}
+
+/* `FN-14`'s scope, over the state the commit moves.  *Exactly the expected
+   deletions at their original paths* is the fingerprint leaving the tracked set
+   and nothing else leaving it; *unrelated working-copy work SHALL survive* is
+   `wcWork` untouched. */
+pred commitIsScoped {
+  Repo.tracked' = Repo.tracked - Man.mFinger
+  World.wcWork' = World.wcWork
+}
+
+
 // ===========================================================================
 // FRAMING
 // ===========================================================================
@@ -380,17 +561,36 @@ pred manSame   { Man.mHandle'  = Man.mHandle  and Man.mAttempt' = Man.mAttempt
                  and Man.mDigest'  = Man.mDigest  and Man.mReady'   = Man.mReady }
 pred rootSame  { Root.holds' = Root.holds and Root.rid' = Root.rid }
 pred treeSame  { rootSame and slotSame and manSame }
-pred repoSame  { Repo.rev' = Repo.rev and Repo.tracked' = Repo.tracked
-                 and Repo.wTracked' = Repo.wTracked }
-pred worldSame { World.lane' = World.lane }
+/* THE REPOSITORY'S FRAME GREW WITH THE COMMIT, and every transition that framed
+   it before frames the new state too without being touched — history, the
+   reproduced preflight commit, and whether one can be reproduced at all.
+   `repoHistorySame` is the same frame MINUS the witness's tracked bit, for the
+   two places that legitimately clear it: the discard, and a settle that releases
+   the witness. */
+pred repoHistorySame { Repo.rev' = Repo.rev and Repo.tracked' = Repo.tracked
+                 and Repo.tickets' = Repo.tickets
+                 and Repo.reproduced' = Repo.reproduced
+                 and Repo.canReproduce' = Repo.canReproduce }
+pred repoSame  { repoHistorySame and Repo.wTracked' = Repo.wTracked }
+/* Releasing the witness: the artifact is gone, so the repository cannot still
+   be tracking it. */
+pred repoSameReleasingWitness { repoHistorySame and no Repo.wTracked' }
+pred worldSame { World.lane' = World.lane and World.wcWork' = World.wcWork }
 pred opSame    { Op.confirmed' = Op.confirmed }
-pred txnSame   { Txn.phase' = Txn.phase and Txn.pinned' = Txn.pinned
-                 and Txn.leaseOk' = Txn.leaseOk
-                 and Txn.attempt' = Txn.attempt and Txn.anchor' = Txn.anchor }
+pred txnSame   { Txn.phase' = Txn.phase and txnCarried and txnResultSame }
 /* The transaction's volatile state, carried across a body step unchanged: the
-   phase is what each step advances and is written by the step itself. */
+   phase is what each step advances and is written by the step itself.  The
+   handle joins the pins here for the same reason it exists — it is the live
+   session's, and a step that dropped it would leave the classification with
+   nothing to look a ticket up by. */
 pred txnCarried { Txn.pinned' = Txn.pinned and Txn.leaseOk' = Txn.leaseOk
-                  and Txn.attempt' = Txn.attempt and Txn.anchor' = Txn.anchor }
+                  and Txn.attempt' = Txn.attempt and Txn.anchor' = Txn.anchor
+                  and Txn.handle' = Txn.handle }
+/* The disposition and the reported result.  Separate from `txnCarried` because
+   exactly two steps write them — `Classify` and `ResultArrives` — and every
+   other transition frames both. */
+pred txnResultSame { Txn.disp' = Txn.disp and Txn.report' = Txn.report }
+pred txnResultEmpty { no Txn.disp' and no Txn.report' }
 /* The transaction is gone: a crash, or a refusal that leaves nothing behind.
    THE LEASE VERDICT IS NOT PART OF IT.  It is recorded by the driver's own gate
    BEFORE the transaction opens (`FN-08`), so a transaction that ends does not
@@ -400,6 +600,7 @@ pred txnCarried { Txn.pinned' = Txn.pinned and Txn.leaseOk' = Txn.leaseOk
    `entry-k39`'s fourteen witnesses reported *no instance* in the same run. */
 pred txnGone   { Txn.phase' = Fresh and no Txn.pinned'
                  and no Txn.attempt' and no Txn.anchor'
+                 and no Txn.handle' and txnResultEmpty
                  and Txn.leaseOk' = Txn.leaseOk }
 pred noWhy     { no Sys.why' }
 
@@ -452,11 +653,14 @@ pred doTxnOpen {
   some Root.rid
   Sys.act' = TxnOpen and Sys.res' = Applied and noWhy
   Txn.phase' = Opened and Txn.pinned' = Root.rid and Txn.leaseOk' = Txn.leaseOk
-  /* The attempt identity is DRAWN here — once per launch — and the anchor is the
-     repository's topology as it stands at open.  Neither is read by anything in
-     this slice except the manifest `FN-12.a` requires; the classification that
-     reads them back is the `commit` sibling's. */
-  some Txn.attempt' and Txn.anchor' = Repo.rev
+  /* The attempt identity is DRAWN here — once per launch — the anchor is the
+     repository's topology as it stands at open, and the handle is the live finish
+     leaf as the tree stands at open.  ALL THREE ARE NOW READ BACK: the
+     classification compares the anchor, looks a ticket up by the handle, and
+     accepts one only for this attempt.  That is what `FN-03`, `FN-04` and
+     `FN-15` turn them from pins into operands. */
+  some Txn.attempt' and Txn.anchor' = Repo.rev and Txn.handle' = finishLive
+  txnResultEmpty
   treeSame and repoSame and worldSame and opSame
 }
 
@@ -470,6 +674,7 @@ pred doPreflight {
     Sys.res' = Applied and noWhy
     Txn.phase' = Entered and Txn.pinned' = Txn.pinned
     Txn.attempt' = Txn.attempt and Txn.anchor' = Txn.anchor
+    Txn.handle' = Txn.handle and txnResultEmpty
   } else {
     one Sys.why'
     Sys.why' in failedPre
@@ -501,6 +706,13 @@ pred doTopologyChange {
   Sys.act' = TopologyChange and Sys.res' = Environmental and noWhy
   (Repo.rev' != Repo.rev or World.lane' != World.lane)
   Repo.tracked' = Repo.tracked
+  /* HISTORY IS NOT THE WORLD'S TO WRITE.  A correlation ticket lands by a commit
+     and by nothing else, which is what makes `FN-03`'s *the ticket survives* a
+     claim about Grove's steps rather than about what the world happens to leave
+     alone.  The reproduced preflight commit is likewise Grove's; `canReproduce`
+     and `wcWork` are left FREE, because whether a working copy can be put back
+     and what unrelated work sits beside it are exactly the world's. */
+  Repo.tickets' = Repo.tickets and Repo.reproduced' = Repo.reproduced
   treeSame and opSame and txnSame
 }
 
@@ -533,7 +745,7 @@ pred doWPrepare {
     Sys.res' = Applied and noWhy
     Slot.occ' = Preparing and Slot.owner' = Txn.attempt and no Slot.wHolds'
     manEmptyNext
-    Txn.phase' = Prepared and txnCarried
+    Txn.phase' = Prepared and txnCarried and txnResultSame
   } else {
     some Slot.owner implies {
       Sys.res' = RefWitnessPending and Sys.why' = W9SlotPending
@@ -563,7 +775,7 @@ pred doWManifest {
   Man.mDigest'  = Root.holds <: digest
   no Man.mReady'
   rootSame and slotSame and repoSame and worldSame and opSame
-  Txn.phase' = Manifested and txnCarried
+  Txn.phase' = Manifested and txnCarried and txnResultSame
 }
 
 /* STEP 3 — verify the manifest and mark it READY, which is the last thing
@@ -579,7 +791,7 @@ pred doWReady {
   Man.mEntries' = Man.mEntries and Man.mType'    = Man.mType
   Man.mDigest'  = Man.mDigest
   rootSame and slotSame and repoSame and worldSame and opSame
-  Txn.phase' = ReadyP and txnCarried
+  Txn.phase' = ReadyP and txnCarried and txnResultSame
 }
 
 /* STEP 4 — PUBLISH: exactly one atomic same-directory rename, and the only
@@ -593,7 +805,7 @@ pred doWPublish {
   Slot.occ' = Published
   Slot.owner' = Slot.owner and Slot.wHolds' = Slot.wHolds
   rootSame and manSame and repoSame and worldSame and opSame
-  Txn.phase' = PublishedP and txnCarried
+  Txn.phase' = PublishedP and txnCarried and txnResultSame
 }
 
 /* STEP 5 — EVACUATE the root's entries into the published witness.  It moves a
@@ -617,7 +829,7 @@ pred doWEvacuate {
   Slot.occ' = Slot.occ and Slot.owner' = Slot.owner
   manSame and repoSame and worldSame and opSame
   (no Root.holds') implies Txn.phase' = Evacuated else Txn.phase' = PublishedP
-  txnCarried
+  txnCarried and txnResultSame
 }
 
 /* STEP 6 — ATTEMPT the commit.  This slice models the ATTEMPT and nothing past
@@ -635,17 +847,46 @@ pred doCommitAttempt {
   some Op.confirmed
   Txn.phase in (PublishedP + Evacuated)
   Sys.act' = CommitAttempt
-  treeSame and repoSame and worldSame and opSame and txnSame
+  treeSame and worldSame and opSame
   (gateEvacuated and gateWitnessUntracked) implies {
     Sys.res' = Applied and noWhy
+    Txn.phase' = Attempted and txnCarried and no Txn.disp'
+    /* THE COMMIT EITHER LANDS OR IT DOES NOT, AND GROVE DOES NOT GET TO SAY
+       WHICH.  `EN-05` puts the commit outside the filesystem transaction, so the
+       interval between the evacuation and the recorded result is irreducible —
+       it is the whole of what `TODO.finish_process.md` is about and it is Q2's
+       counterfactual.  Modelling the landing as a free branch of THIS step, and
+       the reported result as a separate `lone` value, is what makes
+       `Indeterminate` reachable rather than argued about.
+
+       When it lands it lands SCOPED (`FN-14`) and it lands a CORRELATION TICKET
+       naming this handle and this attempt (`FN-03`, `FN-04`). */
+    (commitLands or commitDoesNotLand)
+    /* `Txn.report'` is left FREE — `OkReport`, `FailReport`, or absent.  Absent
+       is the lost result; a `FailReport` over a landed commit is the exit status
+       that is not a receipt.  `EN-09` is the assumption, and the classification
+       below never reads this field. */
   } else {
     not gateWitnessUntracked implies {
       Sys.res' = RefWitnessPending and Sys.why' = W8WitnessTracked
     } else {
       Sys.res' = RefWitnessPending and Sys.why' = W9SlotPending
     }
+    repoSame and txnSame
   }
 }
+
+/* The two branches of the landing, written apart from `commitIsScoped` so that
+   `FN-14` is checked against the step rather than defined by it. */
+pred commitLands {
+  Repo.tickets' = Repo.tickets + (Txn.handle -> Txn.attempt)
+  Repo.rev' != Repo.rev
+  Repo.tracked' = Repo.tracked - Man.mFinger
+  World.wcWork' = World.wcWork
+  Repo.wTracked' = Repo.wTracked
+  Repo.reproduced' = Repo.reproduced and Repo.canReproduce' = Repo.canReproduce
+}
+pred commitDoesNotLand { repoSame }
 
 /* INTERRUPTION, between any two steps — `EN-08` as a first-class action.  It
    destroys the transaction's volatile state and the launch's confirmation with
@@ -670,7 +911,7 @@ pred doDiscard {
   Slot.occ = Preparing
   Sys.act' = Discard
   rootSame and worldSame and opSame and txnSame
-  Repo.rev' = Repo.rev and Repo.tracked' = Repo.tracked
+  repoHistorySame
   gateOwned implies {
     Sys.res' = Applied and noWhy
     no Slot.occ' and no Slot.owner' and no Slot.wHolds'
@@ -683,11 +924,147 @@ pred doDiscard {
   }
 }
 
+// ---------------------------------------------------------------------------
+// THE COMMIT SLICE'S FOUR TRANSITIONS
+//
+// `EN-05` is the shape of all four: no filesystem transaction can include a
+// version-control commit, so the commit sits OUTSIDE the six-step body and the
+// interval between the evacuation and the recorded result is the problem.
+// `CommitAttempt` opens the interval, `Classify` closes it, `Settle` acts on the
+// classification, and `ResultArrives` is the world delivering a result that may
+// come too late to be read.
+// ---------------------------------------------------------------------------
+
+/* RECOVERY of a PUBLISHED witness — the catalogue's `recover`, and the only way
+   this file reaches a second launch over one attempt's artifacts.  A later
+   session adopts the recorded attempt, anchor and handle out of the manifest,
+   which is exactly what the `RecoveryPending` diagnosis describes: an artifact
+   provably Grove's, named by THIS finish handle and THIS attempt identity.
+
+   WHY IT ADOPTS RATHER THAN REWRITES.  `FN-12.a` freezes every manifest field
+   once the ready mark is on, so a recovery that re-stamped the manifest with its
+   own launch's identity would be a counterexample to a claim two slices old.
+   Adopting moves the identity the other way — into the live session — and leaves
+   the artifact byte-identical, which is also what keeps `FN-04` true through a
+   recovery: the ticket that settles this transaction still has to name the
+   attempt the live session is settling.
+
+   IT IS DELIBERATELY NARROW.  The four revalidation points, the ten-row table
+   and the re-entrancy `FN-22` states are `handoff`'s; what is here is the one
+   guarded adoption `FN-18`'s witness needs to exist. */
+pred doRecover {
+  some Op.confirmed
+  Txn.phase = Entered
+  Slot.occ = Published
+  some Slot.owner and Slot.owner = Man.mAttempt
+  some Man.mReady
+  Sys.act' = Recover and Sys.res' = Applied and noWhy
+  Txn.phase' = PublishedP
+  Txn.pinned' = Txn.pinned and Txn.leaseOk' = Txn.leaseOk
+  Txn.attempt' = Man.mAttempt
+  Txn.anchor'  = Man.mAnchor
+  Txn.handle'  = Man.mHandle
+  txnResultEmpty
+  treeSame and repoSame and worldSame and opSame
+}
+
+/* CLASSIFICATION, from evidence and not from exit status.  Three operands and
+   the catalogue names all three: the recorded anchor, the expected fingerprint,
+   and the exact immediate result.  `Txn.report` is not among them and does not
+   appear below, which is the whole of `FN-15.a` and the thing its mutation
+   removes.
+
+   IT IS RE-RUNNABLE, INCLUDING AFTER A SETTLE, and that is not an oversight:
+   `FN-03`'s witness is a retry that has lost every artifact the transaction
+   owned, and the state after a forward settle is exactly that tree.  A second
+   classification there reads the ticket and nothing else. */
+pred doClassify {
+  some Op.confirmed
+  Txn.phase in (Attempted + Classified + Settled)
+  Sys.act' = Classify and Sys.res' = Applied and noWhy
+  treeSame and repoSame and worldSame and opSame
+  (Txn.phase = Settled) implies Txn.phase' = Settled else Txn.phase' = Classified
+  txnCarried and Txn.report' = Txn.report
+  resultProven implies Txn.disp' = Committed
+    else (anchorHolds implies Txn.disp' = NotCommitted
+                       else Txn.disp' = Indeterminate)
+}
+
+/* SETTLING — the one action the three dispositions are inputs to, and the
+   catalogue's mapping taken verbatim: `Committed` settles forward and yields
+   `Applied`, `NotCommitted` rolls back and yields a refusal, `Indeterminate`
+   yields exactly one `Blocked`.
+
+   FORWARD NEVER RESTORES (`FN-18`).  The root stays as the evacuation left it
+   and the artifacts the transaction owns are RELEASED.  That release is an
+   ABSTRACTION of disposal and is recorded as one: the quarantine rename, the
+   cleanup marker and the reaper are `handoff`'s, and nothing here claims the
+   release is atomic, re-entrant, or a single rename.
+
+   THE ROLLBACK BRANCH IS GUARDED BY THE DISPOSITION AND CHECKED AGAINST THE
+   LICENCE.  `rollbackLicensed` states `FN-16` as the catalogue states it and is
+   written apart from the classification that computes the same thing, so a
+   mutation to either is a counterexample rather than a redefinition.  On a
+   working-copy-as-commit lane a restoration that cannot reproduce the exact
+   preflight commit BLOCKS and touches nothing (`FN-17.b`); one that can restores
+   the tree to the manifest and reproduces it, and only then is the witness
+   released (`FN-17.a`). */
+pred doSettle {
+  some Op.confirmed
+  Txn.phase = Classified
+  Sys.act' = Settle
+  worldSame and opSame
+  Txn.disp = Committed implies {
+    Sys.res' = Applied and noWhy
+    rootSame
+    no Slot.occ' and no Slot.owner' and no Slot.wHolds' and manEmptyNext
+    repoSameReleasingWitness
+    Txn.phase' = Settled and txnCarried and txnResultSame
+  } else {
+    (Txn.disp = NotCommitted and rollbackLicensed) implies {
+      canReproduceHere implies {
+        Sys.res' = RefRollbackNotCommitted and Sys.why' = W11NotCommitted
+        treeMatchesManifest and Root.rid' = Root.rid
+        no Slot.occ' and no Slot.owner' and no Slot.wHolds' and manEmptyNext
+        Repo.rev' = Repo.rev and Repo.tracked' = Repo.tracked
+        Repo.tickets' = Repo.tickets and no Repo.wTracked'
+        Repo.canReproduce' = Repo.canReproduce
+        preflightCommitReproduced
+        (World.lane not in wcAsCommitLanes) implies Repo.reproduced' = Repo.reproduced
+        Txn.phase' = Settled and txnCarried and txnResultSame
+      } else {
+        Sys.res' = BlockedOutcome and Sys.why' = W13CannotReproduce
+        treeSame and repoSame
+        txnGone
+      }
+    } else {
+      Sys.res' = BlockedOutcome and Sys.why' = W12Indeterminate
+      treeSame and repoSame
+      txnGone
+    }
+  }
+}
+
+/* THE RESULT ARRIVING — the world's, and `EN-09` as a first-class action.  A
+   result may be lost or arrive LATE, and late is only meaningful against a
+   classification that has already happened.  Removing this action is exactly the
+   assumption table's exercise-removal for `EN-09`, and the command that runs it
+   is at the foot of this file. */
+pred doResultArrives {
+  Txn.phase in (Attempted + Classified + Settled)
+  no Txn.report
+  Sys.act' = ResultArrives and Sys.res' = Environmental and noWhy
+  some Txn.report'
+  treeSame and repoSame and worldSame and opSame
+  Txn.phase' = Txn.phase and txnCarried and Txn.disp' = Txn.disp
+}
+
 pred step {
   doIdle or doConfirm or doDecline or doTxnOpen or doPreflight
   or doSwap or doTopologyChange
   or doWPrepare or doWManifest or doWReady or doWPublish or doWEvacuate
   or doCommitAttempt
+  or doRecover or doClassify or doSettle or doResultArrives
   or doCrash or doDiscard
 }
 
@@ -702,6 +1079,16 @@ fact TxnStateWellFormed {
     Txn.phase = Fresh iff no Txn.attempt
     Txn.phase = Fresh iff no Txn.anchor
     Txn.phase != Fresh implies some Txn.leaseOk
+    /* The handle is `set Entry`, so it cannot be pinned by an `iff` — a tree
+       whose live finish leaves number two would otherwise make `TxnOpen`
+       unavailable rather than make the preflight refuse.  One direction is all
+       that is true by construction. */
+    Txn.phase = Fresh implies no Txn.handle
+    /* A disposition exists only once something has classified, and a reported
+       result only once something has been attempted.  Both are volatile and both
+       go with the transaction. */
+    some Txn.disp   implies Txn.phase in (Classified + Settled)
+    some Txn.report implies Txn.phase in (Attempted + Classified + Settled)
   }
 }
 
@@ -725,6 +1112,14 @@ fact BodyPhaseMatchesDisk {
     Txn.phase = Manifested implies (manWritten and no Man.mReady)
     Txn.phase in (ReadyP + PublishedP + Evacuated) implies some Man.mReady
     Txn.phase = Evacuated  implies no Root.holds
+    /* The commit slice's three.  `Attempted` and `Classified` are the two ends
+       of `EN-05`'s interval, and what is on disk across it is what `gateEvacuated`
+       let the attempt through on.  `Settled` is after the artifacts are released,
+       whichever branch released them. */
+    Txn.phase in (Attempted + Classified) implies
+      (Slot.occ = Published and Slot.owner = Txn.attempt
+       and no Root.holds and some Man.mReady)
+    Txn.phase = Settled implies (no Slot.occ and manEmpty)
   }
 }
 
@@ -747,6 +1142,14 @@ fact BodyPhaseMatchesDisk {
    else, so a crash still leaves any body's disk behind at `Fresh`, which is
    exactly what recovery has to read. */
 fact TransactionsStartWhereAProcessStarts { Txn.phase in (Fresh + Opened) }
+
+/* TRUE BY CONSTRUCTION.  An entry is beneath the task root or it is not, and
+   `wcWork` is the catalogue's *unrelated working-copy work* — which is exactly
+   the entries that are not.  Without this the world could satisfy `FN-14`'s
+   *unrelated work survives* with an entry the evacuation was carrying. */
+fact UnrelatedWorkIsOutsideTheTaskRoot {
+  always no (World.wcWork & (Root.holds + Slot.wHolds))
+}
 
 /* TRUE BY CONSTRUCTION.  An unoccupied reserved name is a name with nothing at
    it: no owner, no evacuated entries, no manifest, and nothing for the
@@ -1119,7 +1522,7 @@ run witness_FN_10b_a_refusal_to_discard_unclassifiable_content {
 check FN_11_evacuation_precedes_any_attempted_commit {
   always ((Sys.act' = CommitAttempt and Sys.res' = Applied)
             implies evacuationComplete)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
 
 /* THE INTERVAL, which is why this is the file's widest command.  `task-tree-k7`'s
    first bound-vacuity predictor says an interval claim needs interval-many
@@ -1137,7 +1540,7 @@ run witness_FN_11_the_interval_between_publication_and_commit {
               and Slot.wHolds = Man.mEntries   // holding every entry
               and some Man.mReady)
   eventually (Sys.act = CommitAttempt and Sys.res = Applied)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
 
 // --- FN-12: the manifest is complete and marked ready last ------------------
 
@@ -1231,6 +1634,401 @@ run witness_FN_13_a_commit_attempted_while_the_witness_is_tracked_refused {
 
 
 // ===========================================================================
+// CLAIMS — FN-03, FN-04, FN-14 .. FN-18, THE COMMIT AND ITS DISPOSITION
+//
+// `EN-05` IS THE SHAPE OF THIS WHOLE SECTION.  No filesystem transaction can
+// include a version-control commit, so the commit sits outside the six-step body
+// and there is an INTERVAL between the evacuation and the recorded result that
+// no protocol here can close.  Every obligation below is about what can be known
+// across that interval and what may be done on the strength of it.
+//
+// WHERE THESE WITNESSES START.  The witness slice paid twice — once for the
+// free initial state's honesty (`fact TransactionsStartWhereAProcessStarts`) and
+// once for running every body witness from `Txn.phase = Entered`.  This slice
+// pays a third time and stops.  Reaching a SETTLED disposition from a fresh
+// grove is ten transitions; reaching a retry that has lost its artifacts is
+// twelve; and `witness-k40` measured this file's widest command at ten states
+// already.  So nine of the commands below start from `interruptedMidEvacuation`
+// — the DISK an interruption mid-evacuation leaves — and recover forward.
+//
+// That is not a weakening of the witness slice's rule, it is that rule applied:
+// the licence covers the TREE and this predicate constrains only tree state, at
+// `Txn.phase = Fresh`, which is precisely what a later launch finds.  The
+// transaction's volatile state still starts where a process starts, and every
+// witness below still runs `TxnOpen`, `Preflight` and `Recover` for real.  What
+// is NOT demonstrated is the six-step body followed by a commit in one trace;
+// `witness_FN_11` demonstrates the body and `witness_FN_15b_git` demonstrates
+// the run-up from a fresh grove to a classified disposition, and the cost of the
+// missing join is recorded in `README.md`.
+// ===========================================================================
+
+/* THE DISK AN INTERRUPTION MID-EVACUATION LEAVES: a published witness this
+   attempt owns, a ready manifest inside it, part of the tree already moved, and
+   the task root still present and still holding the live finish leaf.  Nothing
+   volatile — the transaction is `Fresh`, which is what `doCrash` produces and
+   what a later launch reads. */
+pred interruptedMidEvacuation {
+  Txn.phase = Fresh
+  some Op.confirmed
+  // a supported workspace on one device, past the lease gate
+  some World.lane and World.rootDev = World.qDev and World.wtDev = World.qDev
+  some Txn.leaseOk
+  // the published witness, owned, with a ready manifest, part-filled
+  Slot.occ = Published
+  some Slot.owner and Slot.owner = Man.mAttempt
+  some Man.mReady and some Slot.wHolds
+  no Repo.wTracked
+  // the task root, present, unemptied, and holding exactly the finish leaf
+  some Root.rid
+  Root.holds = finishLive and one finishLive and no ordinaryLive
+  no e: Root.holds | e.et = OpaqueT
+  Root.holds in Repo.tracked
+  // the manifest the interrupted attempt wrote, and never rewrote (FN-12.a)
+  Man.mHandle = finishLive
+  some Man.mAnchor and Man.mAnchor = Repo.rev
+  some Man.mFinger and Man.mFinger in Repo.tracked
+  Man.mEntries = Slot.wHolds + Root.holds
+}
+
+// --- FN-03: the correlation ticket is the durable record --------------------
+
+/* Three conjuncts, and the third is the one the claim is actually about.
+   History is append-only under Grove's own steps, so the ticket cannot be
+   destroyed by anything the transaction owns; a `Committed` disposition is never
+   reached without one; and — the load-bearing one — a classification run with NO
+   WITNESS AND NO MANIFEST LEFT still settles forward on the ticket alone.
+
+   THAT THIRD CONJUNCT IS ALSO WHERE `resultProven` GOES VACUOUS IN ITS SECOND
+   HALF, and `README.md` says so: with the manifest released there is no recorded
+   fingerprint to compare, so the ticket carries the whole proof.  That is the
+   catalogue's own position — *the deletion commit's own message ... SHALL survive
+   the destruction of every artifact the transaction owns* — and not a hole, but
+   a reader could mistake the conjunction for a stronger test than it is at the
+   exact moment it matters most. */
+check FN_03_the_ticket_is_the_durable_record_and_outlives_the_artifacts {
+  always {
+    Repo.tickets in Repo.tickets'
+    (Sys.act' = Classify and Txn.disp' = Committed)
+      implies Txn.attempt in Txn.handle.(Repo.tickets)
+    (Sys.act' = Classify and no Slot.occ and manEmpty
+       and Txn.attempt in Txn.handle.(Repo.tickets))
+      implies Txn.disp' = Committed
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+/* A retry with no local trace of the attempt, settling forward on the ticket
+   alone.  The forward settle releases every artifact the transaction owns, and
+   the classification that follows it reads an empty slot, an empty manifest and
+   a ticket. */
+run witness_FN_03_a_retry_with_no_local_trace_settling_forward_on_the_ticket_alone {
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = Settle and Sys.res = Applied and no Slot.occ and manEmpty)
+  eventually (Sys.act = Classify and Txn.disp = Committed
+              and Txn.phase = Settled and no Slot.occ and manEmpty)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+// --- FN-04: an attempt binds to a live session ------------------------------
+
+/* Two conjuncts.  A ticket that lands names EXACTLY this handle and this
+   attempt — so history can never acquire a ticket for an attempt that did not
+   commit it — and no classification reaches `Committed` without a ticket naming
+   the attempt the live session is settling, however many tickets the handle
+   already carries. */
+check FN_04_a_ticket_from_an_earlier_attempt_never_settles_a_later_one {
+  always {
+    (some (Repo.tickets' - Repo.tickets))
+      implies (Repo.tickets' - Repo.tickets) = (Txn.handle -> Txn.attempt)
+    (Sys.act' = Classify and Txn.attempt not in Txn.handle.(Repo.tickets))
+      implies Txn.disp' != Committed
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+/* Two attempts on one handle, the earlier ticket rejected by the later.  The
+   earlier ticket is in history at state 0 — history is not the transaction's
+   volatile state and `EN-11`'s licence over the tree has a counterpart here:
+   a repository whose past a later launch did not write is exactly the situation
+   the claim is about.  The recovery adopts the manifest's attempt, the earlier
+   ticket names a different one, and the disposition is `NotCommitted` WITH a
+   ticket for the handle sitting there unread. */
+run witness_FN_04_two_attempts_on_one_handle_the_earlier_ticket_rejected {
+  interruptedMidEvacuation
+  some a: AttemptId | a != Man.mAttempt and Repo.tickets = Man.mHandle -> a
+  eventually (Sys.act = CommitAttempt and Sys.res = Applied)
+  eventually (Sys.act = Classify and Txn.disp = NotCommitted
+              and some Txn.handle.(Repo.tickets))
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+// --- FN-14: the commit is scoped --------------------------------------------
+
+/* Whenever a ticket lands, exactly the recorded fingerprint left the tracked set
+   and the unrelated working-copy work is untouched.  Stated over the ticket
+   rather than over the step, so a future step that commits is caught by the same
+   sentence. */
+check FN_14_the_commit_records_exactly_the_expected_deletions {
+  always ((some (Repo.tickets' - Repo.tickets)) implies commitIsScoped)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+/* Unrelated modified work present across a successful finish — present before
+   the commit, present after it, and never part of what the deletion recorded. */
+run witness_FN_14_unrelated_modified_work_present_across_a_successful_finish {
+  interruptedMidEvacuation
+  no Repo.tickets
+  always some World.wcWork
+  eventually (Sys.act = CommitAttempt and some Repo.tickets)
+  eventually (Sys.act = Classify and Txn.disp = Committed and some World.wcWork)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+// --- FN-15: disposition is classified from evidence, not from exit status ----
+
+/* FN-15.a.  The classification is a TOTAL FUNCTION of the two evidence
+   predicates and of nothing else — stated as three biconditionals, so a
+   classification that consulted `Txn.report` would have to break one of them.
+   The reported result appears nowhere in this check, which is the point: the
+   mutation that makes `doClassify` read it is what turns this from a definition
+   into a control. */
+check FN_15a_the_classification_is_a_function_of_the_evidence_and_not_of_the_report {
+  always ((Sys.act' = Classify) implies {
+    Txn.disp' = Committed     iff resultProven
+    Txn.disp' = NotCommitted  iff (not resultProven and anchorHolds)
+    Txn.disp' = Indeterminate iff (not resultProven and not anchorHolds)
+  })
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+/* The catalogue's witness: a lost or late result reported as failure while the
+   exact commit exists — classified `Committed`.  The commit lands, the immediate
+   result is LOST, the classification settles on the evidence, and the failure
+   report arrives afterwards to find a disposition that never read it.  That
+   late arrival is `EN-09`'s exercise, and the control at the foot of this file
+   removes it. */
+run witness_FN_15a_a_failure_reported_after_the_classification_over_an_exact_commit {
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = CommitAttempt and some Repo.tickets and no Txn.report)
+  eventually (Sys.act = Classify and Txn.disp = Committed and no Txn.report)
+  eventually (Sys.act = ResultArrives and Txn.report = FailReport
+              and Txn.disp = Committed)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+/* FN-15.b .. FN-15.d are REACHABILITY obligations, so each one's check states
+   the other half — what the disposition is reached ON.  A model in which
+   `Committed` were reachable without a proven result would satisfy the witness
+   and fail the check, which is the pair the catalogue asks for. */
+check FN_15b_committed_is_reached_only_on_a_proven_result {
+  always ((Sys.act' = Classify and Txn.disp' = Committed) implies resultProven)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+
+/* THE LANE IS PINNED FOR THE WHOLE TRACE IN EACH OF THE NINE COMMANDS BELOW,
+   because *reached, on each lane* is three statements and Alloy has no way to
+   parameterise a command.  `EN-16` — the collapse control that makes a
+   lane-blind model visible — is the `exits` sibling's and runs over all of them.
+
+   `witness_FN_15b_git` is the ONE command in this slice that runs the whole
+   protocol from a fresh grove: `TxnOpen`, the preflight, the six body steps and
+   the classification.  It is the file's widest command and it exists so that the
+   other eight are demonstrably shortcuts of something, not of nothing. */
+run witness_FN_15b_git_committed_reached_from_a_fresh_grove {
+  always World.lane = GitL
+  Txn.phase = Fresh and no Slot.occ and some Root.holds
+  no Repo.tickets
+  eventually (Sys.act = WPublish and Slot.occ = Published)
+  eventually (Sys.act = CommitAttempt and Sys.res = Applied and some Repo.tickets)
+  eventually (Sys.act = Classify and Txn.disp = Committed)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+
+run witness_FN_15b_nativejj_committed_reached {
+  always World.lane = NativeJjL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = Classify and Txn.disp = Committed)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+run witness_FN_15b_colocatedjj_committed_reached {
+  always World.lane = ColocatedJjL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = Classify and Txn.disp = Committed)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+check FN_15c_notcommitted_is_reached_only_with_the_anchor_intact_and_no_result {
+  always ((Sys.act' = Classify and Txn.disp' = NotCommitted)
+            implies (anchorHolds and not resultProven))
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+run witness_FN_15c_git_notcommitted_reached {
+  always World.lane = GitL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = Classify and Txn.disp = NotCommitted)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+run witness_FN_15c_nativejj_notcommitted_reached {
+  always World.lane = NativeJjL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = Classify and Txn.disp = NotCommitted)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+run witness_FN_15c_colocatedjj_notcommitted_reached {
+  always World.lane = ColocatedJjL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = Classify and Txn.disp = NotCommitted)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 7 steps
+
+/* FN-15.d.  `Indeterminate` IS REACHABLE, with a witness on each lane, so this
+   file takes the catalogue's first branch and neither the bounded-unreachability
+   check nor a `defer`.  What makes it reachable is exactly `EN-05`: the commit
+   is outside the transaction, so between the attempt and the classification the
+   world may move the repository, and a moved anchor with no ticket for this
+   attempt is a state in which NEITHER outcome can be proven.  That is Q2's
+   evidence and `formal-synthesis-k16` reads it as such. */
+check FN_15d_indeterminate_is_reached_only_when_neither_outcome_can_be_proven {
+  always ((Sys.act' = Classify and Txn.disp' = Indeterminate)
+            implies (not anchorHolds and not resultProven))
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+
+run witness_FN_15d_git_indeterminate_reached {
+  always World.lane = GitL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = TopologyChange and Txn.phase = Attempted
+              and Repo.rev != Txn.anchor)
+  eventually (Sys.act = Classify and Txn.disp = Indeterminate)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+
+run witness_FN_15d_nativejj_indeterminate_reached {
+  always World.lane = NativeJjL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = TopologyChange and Txn.phase = Attempted
+              and Repo.rev != Txn.anchor)
+  eventually (Sys.act = Classify and Txn.disp = Indeterminate)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+
+run witness_FN_15d_colocatedjj_indeterminate_reached {
+  always World.lane = ColocatedJjL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = TopologyChange and Txn.phase = Attempted
+              and Repo.rev != Txn.anchor)
+  eventually (Sys.act = Classify and Txn.disp = Indeterminate)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+
+// --- FN-16: rollback is licensed only by proof ------------------------------
+
+/* A RESTORATION IS IDENTIFIED STRUCTURALLY — entries coming back into the task
+   root — rather than by the action that did it.  That is deliberate: the claim
+   is about restoration, not about `Settle`, and a future step that put entries
+   back by another route would be caught by the same sentence.  Nothing else in
+   this file ever grows `Root.holds`. */
+check FN_16a_restoration_is_refused_when_the_recorded_anchor_no_longer_holds {
+  always ((some (Root.holds' - Root.holds)) implies anchorHolds)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+
+/* Reached: the anchor has moved under the transaction, and the settle that
+   follows restores nothing — it blocks, and the witness and the evacuated tree
+   stay exactly where they were for a later recovery to read. */
+run witness_FN_16a_a_settle_with_the_recorded_anchor_moved_restores_nothing {
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = TopologyChange and Txn.phase = Attempted
+              and Repo.rev != Txn.anchor)
+  eventually (Sys.act = Settle and Sys.res = BlockedOutcome
+              and Sys.why = W12Indeterminate
+              and no Root.holds and Slot.occ = Published)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+
+check FN_16b_restoration_is_refused_when_the_attempt_bound_result_is_present {
+  always ((some (Root.holds' - Root.holds)) implies not resultProven)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+/* Reached: the attempt-bound result IS present — the ticket landed — so the
+   settle goes forward and no entry ever comes back. */
+run witness_FN_16b_a_settle_with_the_attempt_bound_result_present_restores_nothing {
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = CommitAttempt and some Repo.tickets)
+  eventually (Sys.act = Settle and Sys.res = Applied
+              and no Root.holds and no Slot.occ)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+// --- FN-17: rollback is exact -----------------------------------------------
+
+/* Two conjuncts, and the second is what *before the witness is removed* is worth
+   in a model whose settle is one step: the removal is CONDITIONED on the
+   reproduction, so a restoration that skipped it could not release the witness.
+   Whether the step must itself be decomposed — one persistent effect per step —
+   is `FN-24.b`'s and is the `exits` sibling's; `README.md` records that this
+   file states the ordering as a conjunction and does not check it as one. */
+check FN_17a_a_restoration_matches_the_manifest_and_reproduces_the_preflight_commit {
+  always {
+    (some (Root.holds' - Root.holds))
+      implies (treeMatchesManifest and preflightCommitReproduced)
+    (Sys.act' = Settle and Txn.disp = NotCommitted and some Slot.occ and no Slot.occ')
+      implies (treeMatchesManifest and preflightCommitReproduced)
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+/* A restoration that reproduces it, on a working-copy-as-commit lane — which is
+   the only obligation in this slice that reads the lane at all. */
+run witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit {
+  always World.lane = NativeJjL
+  interruptedMidEvacuation
+  no Repo.tickets
+  always some Repo.canReproduce
+  eventually (Sys.act = Settle and Sys.res = RefRollbackNotCommitted
+              and some Root.holds and no Slot.occ
+              and Repo.reproduced = Txn.anchor)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+/* FN-17.b.  A restoration that cannot reproduce it BLOCKS rather than proceeds:
+   the outcome is `Blocked`, and the tree and the repository are byte-identical,
+   so the witness still stands and a later recovery has something to read. */
+check FN_17b_a_restoration_that_cannot_reproduce_it_blocks_rather_than_proceeds {
+  always ((Sys.act' = Settle and Txn.disp = NotCommitted
+             and World.lane in wcAsCommitLanes and no Repo.canReproduce)
+            implies (Sys.res' = BlockedOutcome and treeSame and repoSame))
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+run witness_FN_17b_a_restoration_that_cannot_reproduce_it_blocks {
+  always World.lane = ColocatedJjL
+  interruptedMidEvacuation
+  no Repo.tickets
+  always no Repo.canReproduce
+  eventually (Sys.act = Settle and Sys.res = BlockedOutcome
+              and Sys.why = W13CannotReproduce
+              and Slot.occ = Published and no Root.holds)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+// --- FN-18: forward recovery never restores ---------------------------------
+
+/* Two conjuncts.  A forward settle puts nothing back and empties the witness
+   rather than unpacking it; and once THIS attempt's commit is proven, no later
+   state in the trace ever grows the task root again. */
+check FN_18_a_proven_commit_is_never_followed_by_a_reconstruction {
+  always {
+    (Sys.act' = Settle and Txn.disp = Committed)
+      implies (rootSame and no Slot.wHolds')
+    (resultProven and once (Sys.act = Classify and Txn.disp = Committed))
+      implies no (Root.holds' - Root.holds)
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+/* A proven commit reached after an interruption mid-evacuation: the recovery
+   adopts the interrupted attempt, finishes the evacuation, commits, proves it,
+   and settles FORWARD — the tree is never reconstructed. */
+run witness_FN_18_a_proven_commit_reached_after_an_interruption_mid_evacuation {
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = Recover and Txn.phase = PublishedP and some Root.holds)
+  eventually (Sys.act = Classify and Txn.disp = Committed and no Root.holds)
+  eventually (Sys.act = Settle and Sys.res = Applied
+              and no Root.holds and no Slot.occ)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+
+
+// ===========================================================================
 // THE ASSUMPTION MUTATION THIS FILE RUNS
 //
 // `EN-02` — a rename cannot cross a filesystem boundary.  Class:
@@ -1246,3 +2044,25 @@ run expect_unreachable_EN_02_a_single_device_layout_cannot_fail_the_operand_gate
   World.rootDev != World.qDev
   eventually (Sys.act = Preflight and Sys.why = P4Quarantine)
 } for 3 but 1 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 4 steps
+
+
+// ===========================================================================
+// `EN-09` — a command's exit status is not a receipt: a result may be lost or
+// arrive late.  Class: EXERCISE-REMOVAL, and the dimension removed is the LATE
+// ARRIVAL: the same trace as `witness_FN_15a`, with `ResultArrives` gone.
+//
+// The expected result is that the witness becomes unreachable while every
+// property check stays green — a failure report can still be produced AT the
+// attempt, but it can no longer arrive after a classification that never read
+// it, which is the exact situation `FN-15.a` is stated about.
+// ===========================================================================
+
+run expect_unreachable_EN_09_a_failure_cannot_be_reported_after_a_classification_without_a_late_arrival {
+  interruptedMidEvacuation
+  no Repo.tickets
+  always Sys.act != ResultArrives
+  eventually (Sys.act = CommitAttempt and some Repo.tickets and no Txn.report)
+  eventually (Sys.act = Classify and Txn.disp = Committed and no Txn.report)
+  eventually (Sys.act = ResultArrives and Txn.report = FailReport
+              and Txn.disp = Committed)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps

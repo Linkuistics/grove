@@ -15,15 +15,15 @@ models/run.sh --scope finish --family alloy --no-coverage
 
 | family | file | obligations |
 |---|---|---|
-| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness** |
+| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition** |
 | Quint | — | none yet (`quint-models-k10`) |
 
 **The `--no-coverage` on the run line above is the signal that this column is
-still being built**, and it is what leaves it when the column closes. Forty-five
+still being built**, and it is what leaves it when the column closes. **Thirty-three**
 of the scope's sixty-one alloy cells are empty, and that is the truth about the
 repository rather than a defect in the instrument: each belongs to a sibling leaf
-of `finish-k8` (`commit`, `handoff`, `exits`). The runner prints the matrix in
-full on every run whether or not it is asserted.
+of `finish-k8` (`handoff`, `exits`). The runner prints the matrix in full on every
+run whether or not it is asserted.
 
 **Declared gaps** — none. The runner reads them from this file, in one shape:
 
@@ -49,10 +49,14 @@ requires one, in this file, per family — one row per removable artifact naming
 the first shared-safety obligation its removal breaks, or `none`. It belongs to
 the `exits` sibling, which is the leaf that has every shared-safety claim in
 front of it; a matrix written before `FN-24` and `FN-27` exist would have nothing
-to name. Two of its rows are already decided by the witness slice and are
-recorded under *The mutation matrix* below, so `exits` transcribes rather than
-re-derives them: **the reserved witness** and **the evacuation manifest's ready
-mark**.
+to name. **Five of its rows are now decided** and are recorded under *The mutation
+matrix* below, so `exits` transcribes rather than re-derives them: the reserved
+witness, the evacuation manifest's ready mark, and — this slice's — the
+**correlation ticket** (`FN-04` first, a shared-safety claim), the **recorded
+anchor** (`FN-16.a`, shared safety) and the **deletion fingerprint** (`FN-14`,
+shared safety). The commit slice's three are the first rows whose first-broken
+obligation is a *shared-safety* claim rather than incumbent mechanics, which is
+what makes them answers to Q4 rather than notes toward one.
 
 ## `finish.als`
 
@@ -87,11 +91,22 @@ Four parts of it mean something other than "make it bigger":
   no positions and no keys here — so the bitwidth that governs `task-tree.als`
   has no counterpart. The runner still passes `-n`; it simply has nothing to
   exclude.
-- **`N steps` now ranges from 3 to 10.** `entry-k39`'s file ran everything at 3
-  or 4 because its transactions are two steps long. The witness slice's body is
-  six, and every body witness runs the whole of it from a fresh grove, so the
-  file's widest command is `FN-13` at ten states. The next section is why each
-  command sits where it does.
+- **The commit slice adds no scope dimension**, and that is worth one line
+  because it might have. `Disposition`, `Report` and `Reproducible` are all
+  `one sig`s under the default `3`, and the correlation ticket is a relation over
+  the `Entry` and `AttemptId` atoms that already existed. The two atoms the
+  witness slice bought so a claim about recording *this* value would not collapse
+  into one about recording *some* value — `2 AttemptId`, `2 Rev` — are exactly
+  what `FN-04` and `FN-16.a` need, and at one atom each both claims would be
+  unstateable rather than false.
+- **`N steps` now ranges from 2 to 10, and the ceiling did not move.** The
+  witness slice's widest was `FN-13` at ten states; this slice's widest is
+  `witness_FN_15b_git_committed_reached_from_a_fresh_grove`, also at ten, and
+  `witness_FN_11` and `witness_FN_16a` join them there. That the commit,
+  the classification and the settle cost **no additional states over the widest
+  command** is a consequence of where the slice's witnesses start — see *Where a
+  trace starts* below — and it is the single decision that kept the suite
+  runnable. The next section is why each command sits where it does.
 
 ### Every check runs at or above its own obligation's widest witness
 
@@ -124,17 +139,50 @@ needed it:
 | `witness_FN_09b_an_interruption_inside_the_build` | **7** |
 | `witness_FN_10a_a_discard` | **7** |
 | `witness_FN_10b_a_refusal_to_discard_unclassifiable_content` | 2 |
-| `witness_FN_11_the_interval_between_publication_and_commit` | **9** |
+| `witness_FN_11_the_interval_between_publication_and_commit` | **10** |
 | `witness_FN_12a_a_manifest_interrupted_before_its_ready_mark` | **8** |
 | `witness_FN_12b_a_refused_entry_type` | 3 |
 | `witness_FN_13_a_commit_attempted_while_the_witness_is_tracked_refused` | **10** |
+| `witness_FN_03_a_retry_with_no_local_trace_settling_forward_on_the_ticket_alone` | **9** |
+| `witness_FN_04_two_attempts_on_one_handle_the_earlier_ticket_rejected` | 7 |
+| `witness_FN_14_unrelated_modified_work_present_across_a_successful_finish` | 7 |
+| `witness_FN_15a_a_failure_reported_after_the_classification_over_an_exact_commit` | **9** |
+| `witness_FN_15b_git_committed_reached_from_a_fresh_grove` | **10** |
+| `witness_FN_15b_nativejj_committed_reached` | 7 |
+| `witness_FN_15b_colocatedjj_committed_reached` | 7 |
+| `witness_FN_15c_git_notcommitted_reached` | 7 |
+| `witness_FN_15c_nativejj_notcommitted_reached` | 7 |
+| `witness_FN_15c_colocatedjj_notcommitted_reached` | 7 |
+| `witness_FN_15d_git_indeterminate_reached` | **8** |
+| `witness_FN_15d_nativejj_indeterminate_reached` | **8** |
+| `witness_FN_15d_colocatedjj_indeterminate_reached` | **8** |
+| `witness_FN_16a_a_settle_with_the_recorded_anchor_moved_restores_nothing` | **10** |
+| `witness_FN_16b_a_settle_with_the_attempt_bound_result_present_restores_nothing` | **9** |
+| `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | **9** |
+| `witness_FN_17b_a_restoration_that_cannot_reproduce_it_blocks` | **9** |
+| `witness_FN_18_a_proven_commit_reached_after_an_interruption_mid_evacuation` | **9** |
 
 The rule this file adopts, and the one a sibling leaf should carry forward:
 **a check runs at a bound at least as large as the widest first-landing bound
 among the witnesses of the obligation it answers**, with the file's conventional
 minimum of 4 as a floor where that number is smaller. Applied: `FN-09.a` at 9,
-`FN-09.b` and `FN-10.a` at 7, `FN-10.b` and `FN-12.b` at 4, `FN-11` at 9,
-`FN-12.a` at 8, `FN-13` at 10, and the entry surface's eight unchanged at 4.
+`FN-09.b` and `FN-10.a` at 7, `FN-10.b` and `FN-12.b` at 4, `FN-11` at 10,
+`FN-12.a` at 8, `FN-13` at 10, the entry surface's eight unchanged at 4, and the
+commit slice's twelve at 7 (`FN-04`, `FN-14`, `FN-15.c`), 8 (`FN-15.d`), 9
+(`FN-03`, `FN-15.a`, `FN-16.b`, `FN-17.a`, `FN-17.b`, `FN-18`) and 10 (`FN-15.b`,
+`FN-16.a`).
+
+**EXACTLY ONE INHERITED ROW MOVED, and the reason is a shape change rather than a
+state-space one.** All twenty-three of the witness slice's rows were re-measured
+under the commit slice and twenty-two are unchanged;
+`witness_FN_11_the_interval_between_publication_and_commit` went 9 → **10**, and
+`FN-11`'s check with it. `doCommitAttempt` used to leave every field alone, so
+the state it produced differed from its predecessor in `Sys.act` alone and the
+trace could close its lasso on the spot. It now advances the phase to
+`Attempted`, so the trace needs one more state to stutter into. **A step that
+stops being a no-op costs a state to every witness that ended on it** — which is
+a fourth entry in this corpus's bound register, and the cheapest of them to
+check for: re-measure any witness whose last transition you made mutating.
 
 **`FN-11` is the file's first interval claim, and it cost exactly what
 `task-tree-k7`'s first bound-vacuity predictor said it would.** *The task root
@@ -145,6 +193,43 @@ close the lasso, and the predictor was applied before the command was written
 rather than after a mutation survived.
 
 ### Cost
+
+**The commit slice, measured against `witness-k40`'s file in one sitting.** Four
+new reachable transitions — `Recover`, `Classify`, `Settle`, `ResultArrives` —
+plus a `CommitAttempt` that mutates where it used to record. Seventy-one
+commands, **2 m 40 s**, against forty commands in **1 m 04 s** for the same
+inherited file in the same sitting.
+
+| command | witness slice | commit slice | |
+|---|---|---|---|
+| `FN_08` (4 steps, entry surface) | 1.3 s | 1.7 s | +31% |
+| `FN_07` (4 steps, entry surface) | 1.4 s | 1.8 s | +29% |
+| `FN_13` (10 steps, the widest inherited) | 2.5 s | **5.7 s** | **+128%** |
+| `witness_FN_11` | 2.0 s | 2.8 s | +40% at 9 → 10 states |
+
+Every figure is a median of three, and the last row is **not** a clean A/B: its
+bound moved with it, so it measures the state as well as the transitions.
+
+**THE TWO SENTINELS DISAGREE BY A FACTOR OF FOUR, AND THAT IS THE POINT.**
+`task-tree-k7` established that one sentinel is not enough and that the tightest
+command is nearly blind to new state; this is the sharpest instance yet.
+Four reachable transitions cost the *tight* entry-surface commands ~+30% —
+less than the witness slice's eight cost them (+55%), roughly in proportion — and
+cost the file's *widest* inherited command +128%, which is more than twice what
+proportionality predicts. **The marginal cost of a transition is superlinear in
+the trace length it is reachable at.** A transition enabled only in the last two
+phases of a ten-state trace is cheap for a four-state command and dear for a
+ten-state one, and a slice that measured only the entry surface would have
+reported +30% and been wrong about its own file by a factor of four.
+
+**The corollary, for the two siblings still to come.** `handoff` adds nineteen
+obligations over a quarantine, an atomic root rename and a nested crash-safe
+protocol, and `exits` adds a full step-boundary crash sweep. Both are
+long-trace slices. Budget them by counting **transitions × the bound they are
+reachable at**, not by counting transitions, and prefer — as ever — a static
+scope switch, then a narrowed antecedent, then a smaller bound.
+
+---
 
 Forty commands, **2 m 13 s** wall-clock for the whole file on the measurement
 host, against `entry-k39`'s twenty-three commands in **23 s** in the same
@@ -159,7 +244,7 @@ sitting. Two figures separate the transitions' cost from the states':
 - **The new commands are 1.6 s – 2.7 s each**, so the suite's 23 s → 133 s is
   mostly the seventeen new commands rather than a blow-up in the old ones.
 
-**A THIRD MEASUREMENT RULE, and it is new.** `task-tree-k7` established that
+**A THIRD MEASUREMENT RULE, from the witness slice.** `task-tree-k7` established that
 whole-suite totals do not compare across sessions. This file adds that **a single
 command's cost is bimodal within one sitting**:
 `witness_FN_11_the_interval_between_publication_and_commit` measured 2.0 s, 10.1 s
@@ -195,11 +280,57 @@ this file adopts unchanged:
   the durable evidence that the verification passed. A separate `verified` field
   would carry no state the mark does not, and `FN-11`'s *beneath a manifest that
   has been written and verified* reads `some Man.mReady`.
-- **The attempt identity and the repository anchor are opaque pins, not
-  machinery.** They are drawn and recorded at `TxnOpen` because `FN-12.a`
-  requires the manifest to record them. Nothing in this file reads them back:
-  the classification that compares an anchor against an observed topology, and
-  the correlation ticket that names an attempt, are the `commit` sibling's.
+- **The attempt identity and the repository anchor are no longer pins.** The
+  witness slice drew them at `TxnOpen` and never read them back. The commit slice
+  is where they become operands: the classification compares `Repo.rev` against
+  `Txn.anchor` and looks a ticket up by `Txn.attempt`. **The finish handle joined
+  them, and had to** — after `WEvacuate` the task root holds nothing, so
+  `finishLive` is empty and a classification that read the tree for its handle
+  would have nothing to read. `Txn.handle` is pinned at `TxnOpen` and adopted
+  from the manifest by a recovery, which is what makes it a *live session's*
+  operand rather than an artifact, and that in turn is what `FN-03` needs it to
+  be. It is `set Entry` rather than `lone Entry` so that a tree with two live
+  finish leaves makes the **preflight refuse** instead of making `TxnOpen`
+  silently unavailable.
+- **The repository anchor is lane-blind, and that is a finding rather than a
+  shortcut.** The catalogue gives the three lanes three different anchors — a head
+  revision; a working-copy change identity with its parents and the exact
+  preflight commit; both plus the user's index image — and states the rollback
+  licence over the **role** each plays. `Repo.rev` is that role and nothing
+  finer. **Exactly one obligation in this slice reads the lane at all**: `FN-17.a`,
+  whose *the exact recorded preflight commit is reproduced* is stated only of the
+  working-copy-as-commit lanes, and which the file carries as `Repo.reproduced`
+  and `Repo.canReproduce`. Twelve obligations, one lane split, and `EN-16`'s
+  collapse control — which is what would make a lane-blind model visible — is
+  still `exits`'. See *What a green run does not prove*.
+- **The commit lands or it does not, and the model does not say why.**
+  `doCommitAttempt`'s success branch is a free choice between `commitLands` and
+  `commitDoesNotLand`, and the immediate result is a separate `lone Report` left
+  wholly free. That is `EN-05` taken seriously: the commit is outside the
+  filesystem transaction, so what happened to it is not something the transaction
+  can know, and modelling the landing as a branch of the step rather than as a
+  consequence of it is what makes `Indeterminate` **reachable** instead of
+  argued about.
+- **The forward settle's release of the witness and the manifest is an
+  abstraction of disposal.** `FN-18` requires that a proven commit is never
+  followed by a reconstruction; it says nothing about how the artifacts go. The
+  quarantine rename, the cleanup marker, the reaper and disposal's re-entrancy
+  are `FN-19` – `FN-22` and `FN-31`, which are `handoff`'s. Nothing here claims
+  the release is atomic, re-entrant, or a single rename.
+- **`FN-17.a`'s *before the witness is removed* is a conjunction, not an
+  ordering.** `doSettle` restores the tree, reproduces the exact preflight commit
+  and releases the witness in one step, and the check states the removal as
+  **conditioned on** the reproduction rather than as sequenced after it. Whether
+  that step must itself be decomposed — one persistent effect per step, each a
+  same-directory rename or itself decomposed — is `FN-24.b`'s, and `Settle`,
+  `Classify` and `Recover` are in `bodySteps` so that `exits` can ask it of them.
+- **`Blocked` carries no diagnosis here, and the omission is deliberate.** The
+  catalogue's closed partition over `RecoveryPending` and `OwnershipConflict` is
+  `FN-25`'s, which is `exits`'. A commit slice that named the two would have
+  answered `FN-25.a`'s totality and disjointness **by construction**, which is the
+  shape of a false-confidence incident rather than a finding. What this slice
+  needs is an outcome atom for `Indeterminate` and for `FN-17.b`, and that is all
+  it takes.
 - **The lease gate is a recorded verdict, not a transition** — unchanged from
   `entry-k39`, and the verdict now explicitly *survives* a transaction that ends.
   It is the driver's, recorded before the transaction opens; a crash or a refusal
@@ -248,8 +379,33 @@ the root, the repository — which is what keeps a foreign reserved name
 (`witness_FN_10b`) and an interrupted manifest reachable at state 0, and what
 makes a crash still leave any body's disk behind at `Fresh` for recovery to read.
 
-The price is that every body witness runs `TxnOpen` and `Preflight` in front of
-its own steps, which is two states each. The gain is that they demonstrate the
+**THE COMMIT SLICE PAYS THE SAME PRICE ONCE AND THEN STOPS, AND SAYS SO HERE
+RATHER THAN LEAVING IT TO BE NOTICED.** Reaching a *settled* disposition from a
+fresh grove is ten transitions and a retry that has lost its artifacts is twelve,
+against a file whose widest command was already ten states. So fifteen of this
+slice's eighteen witnesses start from `interruptedMidEvacuation` — **the disk an
+interruption mid-evacuation leaves**: a published witness this attempt owns, a
+ready manifest inside it, part of the tree already moved, the task root still
+present and still holding the live finish leaf, and `Txn.phase = Fresh`. They
+then run `TxnOpen`, `Preflight` and `Recover` for real and go forward.
+
+That is the witness slice's rule applied rather than weakened: the predicate
+constrains **tree state only**, at the one phase `doCrash` produces, which is
+exactly what a later launch finds. What it does **not** demonstrate is the
+six-step body followed by a commit in one trace, and one command exists to close
+that: `witness_FN_15b_git_committed_reached_from_a_fresh_grove` runs `TxnOpen`,
+the preflight, all six body steps and the classification, at ten states, and it
+is the file's widest command. The other fourteen are demonstrably shortcuts of
+something rather than of nothing.
+
+**One consequence is load-bearing and is repeated under *What a green run does
+not prove*:** a witness that starts from a posited disk cannot testify that the
+disk is reachable. `interruptedMidEvacuation` is written to be *exactly* what the
+six body steps plus a `crash` produce, and the reader is owed the check that it
+is — which is `FN-22`'s revalidation table, and `handoff`'s.
+
+The price of the witness slice's own choice is that every body witness runs
+`TxnOpen` and `Preflight` in front of its own steps, which is two states each. The gain is that they demonstrate the
 protocol rather than assume it, and that
 `witness_FN_09a_the_transaction_is_entered_by_a_preflight` is the file's **first
 `Applied` preflight**: `entry-k39`'s fourteen witnesses are all refusals, so
@@ -275,6 +431,7 @@ of `FN-05.a`'s seven members produces. This file chose:
 | the reserved name holds this attempt's own artifact | `WitnessPending` |
 | the reserved name holds content Grove cannot classify | `ReservedNameOccupied` |
 | **the repository has tracked the witness** | `WitnessPending` — **see below** |
+| **a finish that was rolled back** | *no member fits* — **see below** |
 
 **Two members share one reason, and that is not a modelling shortcut.** `SY-03`
 says a preflight is never a licence and every gate revalidates against its own
@@ -283,6 +440,27 @@ the same question asked at two gates. What follows is that a reason cannot say
 which member refused — hence `Sys.why` — and that the two are distinguishable to
 an operator only by which gate reported. Whether the shipped diagnostic should
 distinguish them is `formal-synthesis-k16`'s, not this file's.
+
+**A ROLLED-BACK FINISH HAS NO REFUSAL REASON EITHER, AND THIS IS THE SECOND
+INSTANCE OF ONE SHAPE.** The catalogue maps the `NotCommitted` disposition to
+*rolls back and yields `Refused`*, and none of the seventeen closed reasons names
+it: `NoTrackedDeletion` and `RootIdentityChanged` are each **false** of a
+transaction whose fingerprint was fine and whose root never moved. Reporting it
+under one of them would be a lie the model could not be caught in, so
+`finish.als` adds **one** refusal atom of its own — `RefRollbackNotCommitted`,
+named for what it is and reported alongside the model-only
+`Sys.why = W11NotCommitted`. It is the only atom this file adds to the
+catalogue's set, and it is recorded here rather than smuggled in.
+
+Two of the three post-flight outcomes this slice reaches therefore have no name
+in the shipped contract, and `formal-synthesis-k16` has the same two exits for
+both: widen the closed reason set, or restate the outcome. **That is now three
+findings of one kind in this scope** — seven preconditions against six reasons
+(entry 031), a tracked witness with no reason (entry 032), and a rolled-back
+finish with no reason (this one). The pattern is not three accidents: **the
+catalogue fixes closed sets and never states the map between them**, and every
+place a model has to write down the outcome of a branch is a place that map is
+missing.
 
 **`FN-13`'s refusal has no reason in the closed set, and that is a finding.**
 `FN-13`'s stated witness is *a commit attempted while the witness is tracked,
@@ -336,10 +514,49 @@ this model followed the catalogue, because the catalogue is the sole input.
   removes a root. The two sides are written apart precisely so that the day a
   step *does* remove the root — the quarantine rename, which is `handoff`'s —
   the divergence becomes a counterexample rather than a silence.
-- **Not anything about the lane.** The lane is in the signature from the first
-  command and no obligation in either slice distinguishes the three. `EN-16`'s
-  collapse control — which is what makes a lane-blind model visible — is
-  `exits`'.
+- **Almost nothing about the lane, still.** Twelve more obligations have landed
+  and **exactly one of them reads the lane**: `FN-17.a`'s *on a
+  working-copy-as-commit lane the exact recorded preflight commit is reproduced*.
+  Everything else — the anchor, the licence, the three dispositions, the scoping
+  of the commit — is stated over a role the three lanes share, which is what the
+  catalogue asks for and is *also* exactly what a lane-blind model would look
+  like. `FN-15.b`, `FN-15.c` and `FN-15.d` each have a witness per lane, so the
+  three are demonstrably *reachable* under all three; that is weaker than the
+  claims *differing* under them. **`EN-16`'s collapse control is what separates
+  the two and it is `exits`'**, and until it runs, "the lane is a model parameter"
+  is a property of the signature rather than a measured fact about the commands.
+- **Not that `interruptedMidEvacuation` is reachable.** Fifteen of the commit
+  slice's eighteen witnesses start from a posited disk rather than running the
+  body up to it, for the reason given under *Where a trace starts*. The predicate
+  is written to be exactly what the six body steps plus a `crash` produce and is
+  not **checked** to be — a check would be `FN-22`'s revalidation table, which is
+  `handoff`'s. If it is over-permissive in some detail, every one of those
+  fifteen witnesses is testifying about a disk that no execution reaches, and the
+  checks would not say so, because a check quantifies over all traces and does not
+  care which ones a witness chose.
+- **Not that `Indeterminate` is the *only* irreducible gap.** `FN-15.d` is
+  answered by a witness on each lane rather than by the bounded-unreachability
+  branch, so this file's evidence for Q2 is *`Indeterminate` is reachable under
+  the incumbent protocol at these bounds*. Whether it becomes unreachable under
+  `EN-05`'s counterfactual — commit and evacuation as one step — is **Quint's**
+  side of the assumption table and is not evidence this file can produce.
+- **Not that the classification's evidence is complete.** `resultProven` is the
+  ticket **and** the expected deletions being gone from the tracked set — but the
+  second conjunct goes **vacuously true once the manifest is released**, because
+  there is then no recorded fingerprint to compare against. That is `FN-03`'s own
+  content (*the ticket ... SHALL survive the destruction of every artifact the
+  transaction owns*) rather than a hole, and it is written down because a reader
+  meeting the conjunction would take it for a stronger test than it is at exactly
+  the moment it matters most.
+- **Not that the commit is scoped at the level a lane cares about.** `FN-14` is
+  checked as *the fingerprint leaves the tracked set, nothing else does, and the
+  unrelated working-copy work is untouched*. The lanes table's mechanisms — a
+  pathspec, a jj fileset, the index image, and native jj's **partial-commit
+  hazard**, where the deletion stays in the change and the unselected witness
+  moves into a *successor* — are none of them modelled. The hazard in particular
+  would need a notion of successor revisions this file does not have, and it is
+  the sharpest thing `formal-synthesis-k16` should not read this green run as
+  covering.
 - **Not that the step list is complete.** `FN-24.b` is the obligation that asks
   whether every step has at most one persistent effect and whether that effect is
   a same-directory rename or is itself decomposed. It is `exits`', it quantifies
@@ -360,9 +577,11 @@ counterexample. Every row carries **evidence that the mutation fires** — an
 existing witness re-run under it, still landing — because a mutation the model
 cannot execute reports exactly as a surviving one does.
 
-Rows 1–9 are `entry-k39`'s and are unchanged. Rows 10–17 are the witness slice's,
-and **all eight landed as first written**, which is what the three retained
-lessons below were for.
+Rows 1–9 are `entry-k39`'s and rows 10–17 the witness slice's; both sets are
+unchanged. Rows 18–29 are the commit slice's, and **two of the twelve did not
+land as first written** — after eight that did. Both failures are new instances
+of rules this file already carried, which is recorded below rather than treated
+as bad luck.
 
 | # | obligation | mutation | fires (witness still landing) | result |
 |---|---|---|---|---|
@@ -383,13 +602,59 @@ lessons below were for.
 | 15 | `FN-12.a` | `doWManifest` leaves the entries' digests unwritten | `witness_FN_12a_a_manifest_interrupted_before_its_ready_mark` | KILLED |
 | 16 | `FN-12.b` | `preflightGates` drops `gateEntryType` — the undigestible entry is not refused before mutation | `witness_FN_09b_an_interruption_inside_the_build` | KILLED |
 | 17 | `FN-13` | `doCommitAttempt` drops `gateWitnessUntracked` — the candidate committed tree may include the witness | `witness_FN_11_the_interval_between_publication_and_commit` | KILLED |
+| 18 | `FN-03` | `resultProven` also requires `some Man.mReady` — the classification reads an artifact the transaction owns, not the ticket | `witness_FN_15b_nativejj_committed_reached` | KILLED |
+| 19 | `FN-04` | `resultProven` reads `some ticketedAttempts` — any ticket on the handle settles, whoever wrote it | `witness_FN_15b_nativejj_committed_reached` | KILLED |
+| 20 | `FN-14` | the commit step stops framing the unrelated working-copy work, **in both the places it is framed** | `witness_FN_14_unrelated_modified_work_present_across_a_successful_finish` | KILLED |
+| 21 | `FN-15.a` | `doClassify`'s `Committed` arm gains `Txn.report != FailReport` — an exit status read as a receipt | `witness_FN_15a_a_failure_reported_after_the_classification_over_an_exact_commit` | KILLED |
+| 22 | `FN-15.b` | `doClassify` reaches `Committed` on `resultProven or some Repo.tickets` | `witness_FN_15c_git_notcommitted_reached` | KILLED |
+| 23 | `FN-15.c` | `doClassify` stops comparing the recorded anchor — everything unproven is `NotCommitted` | `witness_FN_15c_git_notcommitted_reached` | KILLED |
+| 24 | `FN-15.d` | `doClassify` reaches `Indeterminate` with the anchor intact | `witness_FN_15d_git_indeterminate_reached` | KILLED |
+| 25 | `FN-16.a` | `doSettle` restores on an `Indeterminate` too | `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | KILLED |
+| 26 | `FN-16.b` | `rollbackLicensed` drops `not resultProven`, and `doSettle` branches on the licence rather than on the disposition | `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | KILLED |
+| 27 | `FN-17.a` | `doSettle`'s restore branch drops `preflightCommitReproduced` | `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | KILLED |
+| 28 | `FN-17.b` | `doSettle`'s restore branch proceeds whether or not it can reproduce the commit | `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | KILLED |
+| 29 | `FN-18` | the forward settle unpacks the witness back into the task root | `witness_FN_15b_nativejj_committed_reached` | KILLED |
 
-**Rows 14 and 17 are the two removal-matrix rows `exits` inherits.** Removing the
-`gateEvacuated` half of the commit attempt breaks `FN-11` first; removing the
-`gateWitnessUntracked` half breaks `FN-13` first. Both are *incumbent mechanics*
-claims, so neither is yet an answer to Q4 — the matrix `exits` writes needs the
-first **shared-safety** obligation each removal breaks, and `FN-13` is the only
-shared-safety claim either slice reaches.
+**Rows 14, 17, 19, 20 and 25 are the removal-matrix rows `exits` inherits.**
+Removing the `gateEvacuated` half of the commit attempt breaks `FN-11` first and
+the `gateWitnessUntracked` half breaks `FN-13` first; both of those are
+*incumbent mechanics* claims and neither is yet an answer to Q4. The commit
+slice's three are the first that are not:
+
+| removable artifact | first **shared-safety** obligation its removal breaks |
+|---|---|
+| the correlation ticket (as an *attempt-naming* record) | `FN-04` — row 19 |
+| the deletion fingerprint (as the commit's scope) | `FN-14` — row 20 |
+| the recorded anchor (as the rollback licence) | `FN-16.a` — row 25 |
+
+Each row is stated over the artifact's **role**, which is what the catalogue's
+class register requires: a candidate protocol satisfies the claim by supplying
+the role, not by keeping the artifact. `exits` transcribes these three rather
+than re-deriving them.
+
+**TWO OF THE TWELVE DID NOT LAND AS FIRST WRITTEN, and both are old rules in new
+clothes.** Neither is a defect in the model, and recording them is the point —
+each reported *exactly* as a surviving mutation does.
+
+- **A frame stated in two places must be removed from both.** Row 20 first
+  dropped `World.wcWork' = World.wcWork` from `commitLands` alone. `FN-14` stayed
+  green, because `doCommitAttempt`'s common part frames the world too and
+  `worldSame` carries the same conjunct. The mutation was a **semantic no-op** —
+  the same class as the witness slice's mutation 2, reached from the opposite
+  direction: there a conjunct that changed nothing was *added*, here a conjunct
+  that constrained nothing was *removed*. The general form is one sentence: **the
+  frame you must remove is every frame, and a redundantly-stated one hides the
+  other copy.** The row as run removes both.
+- **A mutation must be able to reach the state its check is about.** Row 26 first
+  reordered `doClassify` so the anchor was consulted before the result. `FN-16.b`
+  stayed green — because `doSettle`'s rollback branch reads `rollbackLicensed`,
+  which is written apart from the classification and still carried
+  `not resultProven`. The mutation changed which disposition was written and
+  changed nothing about whether a restoration could happen with a result present.
+  **Writing the claim apart from the transition protected the claim from a
+  mutation aimed at the transition**, which is the house style working exactly as
+  intended and is also why the *aim* has to be checked. The row as run mutates the
+  licence itself and lets the settle branch on it.
 
 **Three of `entry-k39`'s nine did not land as first written, and none of the three
 was a fact about a check.** Retained because the *rules* are worth more than the
@@ -456,9 +721,19 @@ line: `fact TransactionsStartWhereAProcessStarts`. Recording them separately is
 deliberate — each was found by a different check, and a reader who meets only the
 fact would not know how much it is load-bearing for.
 
-**No command in either slice found a counterexample that was a defect in the
-catalogue or in the protocol.** The two catalogue-level findings this file
-carries — the seven-preconditions/six-reasons mismatch (entry 031) and `FN-13`'s
-missing refusal reason (this slice) — were both found by trying to write a
-*witness*, not by a check going red. That is now twice, and it is the strongest
-methodological signal either slice has produced.
+**THE COMMIT SLICE ADDED NONE, and that is a fact about the slice rather than a
+gap in it.** Twelve obligations, thirty-one commands, every check green as first
+written and every one of the twelve mutations killed. What it did produce is two
+*mutation* failures, recorded under the matrix above, and three findings that no
+check could have reported: the missing refusal reason for a rolled-back finish,
+the anchor's lane-blindness, and `Indeterminate` being reachable rather than
+positively excluded.
+
+**No command in any of the three slices found a counterexample that was a defect
+in the catalogue or in the protocol.** The three catalogue-level findings this
+file carries — the seven-preconditions/six-reasons mismatch (entry 031),
+`FN-13`'s missing refusal reason (entry 032) and the rolled-back finish's missing
+reason (entry 033) — were each found by trying to write down **what a branch
+returns**, never by a check going red. That is now three times in one scope, and
+it is the strongest methodological signal this family has produced: the
+instrument's value here has been the discipline of totality, not the solver.

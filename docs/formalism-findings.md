@@ -4433,6 +4433,183 @@ exists for one, and that `evacuationComplete`'s *the task root is still present*
 is discharged upstream by the preflight rather than by the commit attempt's own
 gate.
 
+### 033 — A commit whose cost was in the trace length, and a third outcome the closed set cannot name (finish commit and disposition)
+
+**Scope.** Finish / recovery, **component-local**
+(`crates/grove-finish/models/`). `FN-03`, `FN-04`, `FN-14` – `FN-18`: the
+repository as something that changes — the scoped deletion commit, the
+correlation ticket, the three dispositions classified from evidence, the rollback
+licence and its exactness, and forward recovery. Twelve obligations, thirty-one
+new commands, and the `EN-09` exercise-removal. The scope's empty alloy cells
+fall from forty-five to **thirty-three**.
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened.
+
+**Situation.** `witness-k40` left the transaction's body six steps long and
+stopped at the point a commit is *attempted*: `doCommitAttempt` recorded that one
+had been tried and mutated nothing. This slice opens that seam. `EN-05` — *no
+filesystem transaction can include a version-control commit* — is what shapes all
+of it: the commit sits outside the body, so the interval between the evacuation
+and the recorded result cannot be closed, and every obligation here is about what
+can be *known* across that interval and what may be done on the strength of it.
+
+**The material finding is that the cost of a reachable transition is superlinear
+in the trace length it is reachable at, and a slice that measures only its
+cheapest commands will be wrong about its own file by a factor of four.**
+`task-tree-k7` established that one sentinel is not enough because the tightest
+command is nearly blind to new *state*. This is the sharper form of the same
+lesson, and it is about *transitions*. Four new reachable transitions —
+`Recover`, `Classify`, `Settle`, `ResultArrives` — cost the inherited
+entry-surface commands **+30%** (1.3 s → 1.7 s, 1.4 s → 1.8 s, medians of three
+on one host in one sitting), which is in proportion to the witness slice's eight
+costing them +55%. The same four cost the file's widest inherited command,
+`FN-13` at ten states, **+128%** (2.5 s → 5.7 s) — more than twice what
+proportionality predicts. A transition enabled only in the last two phases of a
+ten-state trace is nearly free for a four-state command and dear for a ten-state
+one.
+
+> `M1 alloy-only` · `M2 cost` · `M3 = n/a` — this is a measurement rather than a
+> counterexample · `M4 = none` — nothing shipped is wrong; the corpus's cost
+> model was.
+
+The corollary is a budgeting rule the two remaining siblings need, and both are
+long-trace slices: **budget by counting transitions × the bound they are
+reachable at, not by counting transitions.**
+
+**A fourth entry in the bound register, and the cheapest of them to check for.**
+Twenty-three inherited witness bounds were re-measured under the commit slice by
+sweeping each command from 2 to 14 states and taking the first that lands.
+Twenty-two are unchanged. One moved:
+`witness_FN_11_the_interval_between_publication_and_commit`, 9 → **10**, and
+`FN-11`'s check with it. The cause is not state space. `doCommitAttempt` used to
+frame everything, so the state it produced differed from its predecessor in
+`Sys.act` alone and the trace closed its lasso on the spot; it now advances the
+phase, so the trace needs one more state to stutter into. **A step that stops
+being a no-op costs a state to every witness that ended on it.** It cost one
+`FAIL  … no instance` in the first full run, which is the runner reporting
+exactly what it exists to report.
+
+**The second material finding is a third outcome the catalogue's closed refusal
+set cannot name — and it is the third of one shape in one scope.** The catalogue
+maps the `NotCommitted` disposition to *rolls back and yields `Refused`*, and
+none of the seventeen closed reasons names a rolled-back finish: `NoTrackedDeletion`
+and `RootIdentityChanged` are each false of a transaction whose fingerprint was
+fine and whose root never moved. The model adds **one** refusal atom of its own,
+`RefRollbackNotCommitted`, and records it as an addition rather than smuggling it
+in. Beside entry 031's seven-preconditions-against-six-reasons and entry 032's
+tracked witness, that is three, and the diagnosis is now specific: **the
+catalogue fixes closed sets and never states the map between them**, and every
+place a model is forced to write down what a branch returns is a place the map is
+missing.
+
+> `M1 alloy-only` · `M2 refusal` · `M3 = 2` — the absence of a fitting reason is
+> read off the closed set, not out of a trace · `M4 = none`. Like 031 and 032 this
+> falsifies **H7** by H7's own terms, and for the third time the finder was a
+> *branch that had to return something*, not a check going red.
+
+**`Indeterminate` is reachable, on every lane, which is Q2's evidence and the
+answer this leaf owed.** `FN-15.d` offers two branches — a witness, or a
+positively-established bounded unreachability — and this file takes the first,
+so no `defer` is recorded. What makes it reachable is exactly `EN-05`: with the
+commit outside the transaction, the world may move the repository between the
+attempt and the classification, and a moved anchor with no ticket for this
+attempt is a state in which neither outcome can be proven. Whether the
+counterfactual — commit and evacuation as one step — makes it *unreachable* is
+`relax_EN_05`, which is **Quint's** row in the assumption table and is not
+evidence this family can produce.
+
+**Caught / missed.** Caught: the two mutation failures below; the missing refusal
+reason; the bound move; and the anchor's lane-blindness, which is written up as a
+limit rather than a defect — twelve obligations landed and exactly *one* of them,
+`FN-17.a`, reads the lane at all. Missed, in the sense of not attempted:
+whether `interruptedMidEvacuation` — the posited disk fifteen of the eighteen new
+witnesses start from — is *reachable*. It is written to be exactly what the six
+body steps plus a `crash` produce and is not checked to be; the check would be
+`FN-22`'s revalidation table and is `handoff`'s. Also missed: native jj's
+**partial-commit hazard**, where the deletion stays in the change and the
+unselected witness moves into a *successor*, so success is the exact ticket-named
+*parent*. That needs a notion of successor revisions this file does not have, and
+it is the sharpest thing `formal-synthesis-k16` should not read this green run as
+covering.
+
+**Two of twelve mutations did not land as first written, after eight that did —
+and both are rules this file already carried, met from a new direction.**
+
+- **A frame stated in two places must be removed from both.** `FN-14`'s mutation
+  first dropped the unrelated-work frame from `commitLands` alone; the check
+  stayed green because `doCommitAttempt`'s common part frames the world too. It
+  is the same class as the witness slice's mutation 2 approached from the
+  opposite side — there a conjunct that changed nothing was *added*, here a
+  conjunct that constrained nothing was *removed* — and the general form is one
+  sentence: **the frame you must remove is every frame, and a redundantly-stated
+  one hides the other copy.**
+- **Writing the claim apart from the transition protects the claim from a
+  mutation aimed at the transition.** `FN-16.b`'s mutation first reordered the
+  classification so the anchor was consulted before the result. The check stayed
+  green, because the settle branch reads `rollbackLicensed` — written apart, as
+  house style requires — which still carried *and the result is absent*. That is
+  the discipline working exactly as designed, and it is precisely why the *aim*
+  of a mutation has to be checked as carefully as its satisfiability. The row as
+  run mutates the licence and lets the settle branch on it.
+
+**Counterfactual.** The superlinear cost result needs the model and a stopwatch
+and nothing else — it is not a fact about grove at all, and no amount of reading
+the shipped Rust would produce it. The rolled-back-finish reason hole is legible
+from the catalogue alone by anyone who reads the disposition-to-outcome mapping
+beside the closed reason list; the honest claim, as with 031 and 032, is that the
+model **forced** the reading rather than that it alone could produce it. The
+reachability of `Indeterminate` is the one result here that is genuinely
+model-shaped: it is a statement about what the incumbent protocol admits at
+stated bounds, and the only cheaper way to reach it is to argue about it.
+
+**Verdict.** The slice is green — **71 commands, 12 obligations, 28 of 61 alloy
+cells filled**, one mutation per obligation and **all twelve KILLED**, each with a
+named existing witness re-run under it and still landing. No protocol defect and
+no counterexample that was a defect in the catalogue: for the third consecutive
+slice in this scope, every finding came from writing down what a branch returns.
+One catalogue-level finding, one cost law, one bound-register entry and two
+mutation-discipline lessons. `FN-15.d` is answered by witnesses rather than by a
+`defer`.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6,
+`org.alloytools.alloy.dist.jar`, Corretto `21.0.12.1+9-LTS`. **Solver**: SAT4J
+(distribution default), every command with `-n` and `-t text`. **Bounds**: the
+common shape is unchanged —
+`for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, N steps` —
+with `N` from 2 to 10 and **the ceiling unmoved**; the commit slice adds no scope
+dimension, since `Disposition`, `Report` and `Reproducible` are `one sig`s and
+the correlation ticket is a relation over atoms that already existed. Each check
+runs at or above the widest first-landing bound among its own obligation's
+witnesses, all forty-one of them measured by sweep and tabulated in
+`crates/grove-finish/models/README.md`. The `EN-02` control is unchanged at
+`1 Device, 4 steps`; `EN-09`'s runs at `9 steps`. No `Int` in the file.
+**Fairness**: none assumed; nothing here is a liveness claim. **Symmetry**: no
+`exactly` scope. **Abstractions**: the anchor as a single lane-blind revision;
+the commit's landing as a free branch of the attempt step and the reported result
+as a free `lone` value; the forward settle's release of the witness and manifest
+as a stand-in for disposal; `FN-17.a`'s *before the witness is removed* as a
+conjunction rather than an ordering; `Blocked` as an outcome with **no
+diagnosis**, because the partition is `FN-25`'s; and — the load-bearing one —
+fifteen of eighteen witnesses starting from `interruptedMidEvacuation`, a posited
+disk, because reaching a settled disposition from a fresh grove is ten
+transitions and a retry that has lost its artifacts is twelve.
+`witness_FN_15b_git_committed_reached_from_a_fresh_grove` pays that cost once, at
+ten states, so the other fourteen are shortcuts of something rather than of
+nothing. **Deliberately omitted**: the quarantine, the atomic root rename, the
+four revalidation points, disposal's re-entrancy, the cleanup marker and its
+`replace` transition, the reaper, the `Blocked` diagnoses, the index image, and
+the lanes table's commit mechanisms including native jj's partial-commit hazard.
+**What a green run does not prove**: everything is about the stated bounds, and
+beyond them the eleven caveats in the family `README.md`, of which five are new —
+the lane still being a property of the signature rather than a measured fact; the
+unchecked reachability of the posited disk; `resultProven`'s fingerprint conjunct
+going vacuous once the manifest is released, which is `FN-03`'s own content;
+`Indeterminate`'s reachability saying nothing about the counterfactual; and the
+commit's scoping being checked at the level of a tracked set rather than at the
+level of a pathspec, a fileset or a successor revision.
+
+
 ---
 
 ## Distillation — where each entry landed

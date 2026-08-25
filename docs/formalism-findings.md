@@ -5477,6 +5477,182 @@ sharpest are that `FN-24.a`'s totality conjunct is true by construction and that
 
 ---
 
+### 038 — One condition stated under two closed names, and a green run over an empty state (finish blocked diagnoses)
+
+**Scope.** Finish / recovery, **component-local**
+(`crates/grove-finish/models/`). `FN-25` and `FN-26`: the closed partition of
+`Blocked` over `RecoveryPending` and `OwnershipConflict`, its disjointness,
+exhaustiveness and per-lane reachability, and *history is never rewritten to
+clear a block*. Four obligations, seventeen new commands, and **`EN-16`** — the lane
+collapsed to one — run as the scope's fourth assumption control. The scope's
+empty alloy cells fall from twelve to **eight**.
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened.
+
+**Situation.** `FN-25` is the one claim in this scope that four consecutive
+slices deliberately did not build. `commit-k41`, `quarantine-k43`,
+`revalidation-k44` and `disposal-k45` each reached a condition the catalogue
+diagnoses — an indeterminate commit, an occupied quarantine target, a late
+`Committed` after the restoration, an incomplete return, a foreign cleanup
+marker — and each gave it a model-only `Sys.why` rather than extending
+`BlockedOutcome`, recording in as many words why: a slice that named the
+partition in the SIGNATURE would answer totality, disjointness and
+exhaustiveness by construction, which is the false-confidence shape rather than
+a finding. **That accumulated abstinence is spendable exactly once, and this is
+what it bought.**
+
+**The material result is three catalogue findings, and all three are the same
+document defect at a grain this corpus had not recorded: THE CATALOGUE STATES
+ONE CONDITION UNDER TWO CLOSED NAMES.** The three findings before them in this
+scope are all *closed sets with no map between them*. These are worse, because
+each definition is individually complete and reads correctly:
+
+- `OwnershipConflict`'s second clause — *the observed topology matches neither
+  the recorded anchor nor the expected result* — is the classification's
+  `Indeterminate` written out. §*Handoff and cleanup*'s ten-row table produces
+  three `Blocked` rows for `Indeterminate` and diagnoses every one of them
+  `RecoveryPending`, by name. Read literally the two definitions are not a
+  partition at all: **every `RecoveryPending` state the protocol reaches
+  satisfies the other name's definition.** `FN-25.a` is red at nine states.
+- `RecoveryPending`'s third sentence — *and the outcome cannot yet be proven
+  either way* — is false of two of that same table's rows, both of which it
+  diagnoses `RecoveryPending`. Taken as a conjunct it makes `FN-25.b` false.
+- `OwnershipConflict`'s first clause is a **general sentence with three printed
+  examples**, and the general sentence is the one the model needs: a Grove-OWNED
+  witness whose manifest names a different finish handle falls through both
+  diagnoses when the clause is modelled as its example (*no owner*) and is
+  covered when it is modelled as its sentence (*cannot be proved safe to
+  mutate*).
+
+The first two are the same sentence read from two sides. The edit they imply is
+citation-sized and is written down in the family README; what is not
+citation-sized, and is what `formal-synthesis-k16` inherits, is that **nothing in
+the catalogue decides which diagnosis wins where both hold.** This file chooses
+`OwnershipConflict`, on the fail-closed rule, and states the choice as a
+two-element precedence relation so that deleting the edge leaves two survivors
+rather than silently reversing.
+
+**The methodological result is a sixth grain of the vacuity rule, and it is the
+first that is not about a bound.** The first form of every `FN-25` command read
+the diagnosis in the state a block LANDS in. `doSettle`, `doRevalidate` and
+`doQuarReturn` all block through `txnGone`, so that state carries no attempt
+identity, no handle and no anchor — and `resultProven`'s first conjunct then
+reads `none in ticketedAttempts`, which Alloy makes **vacuously true**. Every arm
+evaluated alike; `lone diagnosedRaw` and `one diagnosed` both held, for the wrong
+reason, and the exhaustiveness check reported the only counterexample that
+exposed it.
+
+> **A check can be green because its subject is EMPTY rather than because its
+> subject is well-behaved.** The five vacuity predictors this corpus carries are
+> all about a bound too small to REACH a state. This one is about a state that is
+> reached and is empty, and the tell is a relational subset over a `lone` field:
+> `none in X` is true. An outcome is what an INVOCATION returns, and the
+> invocation still holds its operands when it decides — so a claim about an
+> outcome is read in the state the outcome is decided in, unprimed against a
+> primed result.
+
+Four antecedents were probed for reachability before any green was believed, and
+**two of the four would otherwise have been vacuous**: `FN-25.c`'s lane-blindness
+antecedent (a step that changes the lane and nothing else) and `FN-26`'s first
+conjunct (a Grove step immediately after a block).
+
+**`EN-16` was run and its named set is EXACT.** The assumption table names
+`FN-15.b`, `FN-15.c`, `FN-15.d`, `FN-17` and `FN-25.c`, and `crash-k47` found
+`EN-08`'s overstated its reach by one obligation, so the same question was asked
+here. Eleven commands in the file pinned a lane before this slice and every one
+of them answers one of the four; the six this slice adds answer `FN-25.c`; and
+the file has exactly three lane-sensitive predicates —
+`preflightCommitReproduced`, `canReproduceHere` and `reproductionStands` — all
+three vacuous on `GitL`, which is why `FN-17.b`'s block branch is unreachable
+under the collapse as well as `FN-17.a`'s reproduction. **Every `FN-` property
+stays green under the collapse**, which is the whole content of the control: a
+lane-blind model passes this file.
+
+**A fifth way for a mutation to fail its aim, and it is specific to claims stated
+ACROSS a state boundary.** `FN-26`'s first mutation freed `doRecover`'s
+repository frame. `doRecover` guards on `Txn.phase = Entered` and a block leaves
+`Fresh`, so the mutated transition is not reachable *after* the claim's
+antecedent holds within the bound, and the check reported green exactly as a
+survivor would. Aimed instead at `doQuarRename`'s own blocking branch — inside
+the antecedent rather than after it — it kills. **Two of the four mutations also
+kill a neighbour**, and in both cases the neighbour is a conjunct written ABOUT
+the clause the mutation edits, which is `disposal-k45`'s fourth rule met for the
+first time where the shared subject is a predicate rather than a disk object.
+
+**Formalism.** Alloy 6, temporal, one file, seventeen new commands (four checks, ten
+witnesses and three `EN-16` controls), **164 in total**. Two new static
+abstract signatures — `Diagnosis` (two members) and `BlockField` (four) — six
+predicates, three functions and a two-element precedence relation, all of them
+read only by claims. No transition, no `var` field, no `fact` and no scope
+dimension: the second consecutive slice that adds none of the four, and the
+ceiling stays at thirteen.
+
+**Caught / missed.** Caught: three catalogue findings, all three the same defect
+shape and new to this corpus; a sixth vacuity grain that is not about a bound; a
+fifth way for a mutation to miss its aim; the confirmation that `EN-16`'s named
+set is exact where `EN-08`'s was not; and one property that read as obviously
+true and is false — *a diagnosis is only ever produced under a selected lane*,
+which `SY-03`'s `var` lane refutes at nine states. Missed by construction, and
+recorded: at the reserved WITNESS name the two arms are complements, so `FN-25.a`
+and `FN-25.b` have no content there; `FN-26`'s `BObserved` arm is a fact of the
+signature; and `OwnershipConflict`'s second clause never fires alone within the
+bound, which is recorded as a checked bounded-unreachability rather than as prose.
+
+**Cost.** 164 commands, **12 m 08 s** wall for the whole file, against 147 in
+10 m 33 s — of which the sentinel A/B puts the slice's tax on the inherited
+commands at **1–6%**, so essentially all of the extra 1 m 35 s is the seventeen
+new commands. **The flat-cost law now has a coefficient.** The crash slice added
+sixteen static atoms and moved the four sentinels by 0.17 / 0.20 / 0.10 / 0.14 s;
+this one added **six** and moved them by 0.12 / 0.08 / 0.10 / 0.07 s — the same
+absolute shape at roughly a third to a half the size, on commands whose totals
+differ by a factor of four. Budget static structure at about **10 ms of
+translation per atom per command** and stop reading the percentage. The four new
+checks are 7.2 s, 7.6 s, 5.2 s and 15.4 s at thirteen states; `FN_24b`'s 51.8 s
+is still the file's dearest command. `FN_26` costs twice its siblings because its
+third conjunct is nested (`always (... implies always (...))`), which is the one
+thing in the slice that is not a function of static data. The session's largest
+block was neither the bound sweep — argued, with a six-witness control — nor the
+mutations, but **finding out where the diagnosis had to be evaluated**: three
+successive forms of the arms were written and probed before the fourth, and each
+rewrite was cheap only because a counterexample rather than a green was what
+prompted it.
+
+**Counterfactual.** The three catalogue findings are what no amount of reading
+produces, and the reason is specific: each requires holding two closed
+definitions and a ten-row table six hundred lines apart against the set of states
+one protocol actually reaches. Four slices read those definitions and none
+noticed; each of them recorded, correctly, that naming the partition was not its
+job. **The abstinence is what made the finding available, and spending it once is
+what collected it** — which is the strongest evidence this experiment has
+produced for deferring a claim rather than answering it early and cheaply.
+
+**Verdict.** The slice is green — **164 commands, 4 obligations, 53 of 61
+alloy cells filled**, one mutation per obligation and all four KILLED, each with
+a named witness re-run under it and still landing. Three catalogue findings, no
+protocol defect, and the eighth consecutive slice in this scope whose findings
+came from writing down what the model already implied rather than from a solver
+disagreeing with it.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6,
+`org.alloytools.alloy.dist.jar`, Corretto `21.0.12.1+9-LTS`. **Solver**: SAT4J
+(distribution default), every command with `-n` and `-t text`. **Bounds**: the
+common shape is unchanged, and **the ceiling does not move** — all four checks at
+13, all ten witnesses at 9, and the three `EN-16` controls at 8–10. No `Int`.
+**Fairness**: none assumed; nothing here is a liveness claim. **Symmetry**: no
+`exactly` scope. **Abstractions**: the diagnosis read in the deciding state
+rather than the landing state; `OwnershipConflict`'s first clause widened from
+its printed example to its general sentence, with the complementarity that costs;
+`BObserved` true in every state of the file; and the precedence itself, which is
+a design decision rather than a reading. **Deliberately omitted**: nothing new.
+**What a green run does not prove**: six new entries in the family README, of
+which the two sharpest are that the partition has no content at the reserved
+witness name and that the precedence is this file's proposal rather than the
+catalogue's.
+
+
+---
+
 ## Distillation — where each entry landed
 
 `formalism-skill-k38` turned this log into

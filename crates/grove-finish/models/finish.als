@@ -1163,6 +1163,185 @@ pred declaredMultiEffect {
   or (Sys.act' = Settle and Txn.phase' = Restored)
 }
 
+// ---------------------------------------------------------------------------
+// THE BLOCKED SLICE — THE DIAGNOSIS PARTITION, AND WHAT A BLOCK'S DIAGNOSTIC
+// NAMES
+//
+// `FN-25` is the claim four slices deliberately did not build.  `commit-k41`,
+// `quarantine-k43`, `revalidation-k44` and `disposal-k45` each reached a
+// condition the catalogue diagnoses and each gave it a model-only `Sys.why`
+// rather than extending `BlockedOutcome`, recording why in as many words: a
+// slice that named the partition in the SIGNATURE would answer `FN-25.a`'s
+// totality, disjointness and exhaustiveness BY CONSTRUCTION.  That abstinence
+// is spendable exactly once and this is the slice that spends it — so the
+// partition is written HERE, as data over static atoms, apart from every
+// transition that produces the states it ranges over.  `BlockedOutcome` still
+// carries no diagnosis and `Sys.why` is still model-only; nothing below is read
+// by a guard, and deleting the whole block leaves every other command in this
+// file exactly as it was.
+//
+// THE CLAUSES ARE THE CATALOGUE'S OWN, ONE PREDICATE EACH, and the two arms are
+// assembled out of them rather than stated whole.  That is what made the
+// findings under *A seventh finding, an eighth and a ninth* findable: read
+// literally, `OwnershipConflict`'s second clause holds at every block the
+// catalogue's own revalidation table diagnoses `RecoveryPending`.
+//
+// THE DIAGNOSIS IS A FUNCTION OF THE STATE THE BLOCK IS DECIDED IN, NOT OF THE
+// STATE IT LEAVES, and every command below reads it unprimed against a primed
+// `Sys.res'`.  That is forced rather than chosen: `doSettle`, `doRevalidate`
+// and `doQuarReturn` all block through `txnGone`, so in the state a block
+// LANDS in there is no attempt identity, no handle and no anchor left to
+// correlate anything against — `Txn.attempt` is empty, `resultProven`'s first
+// conjunct reads `none in ...` and is vacuously true, and every block would
+// classify alike.  An outcome is what an INVOCATION returns, and the invocation
+// still holds its operands when it decides.  `README.md` records this as the
+// slice's first counterexample.
+// ---------------------------------------------------------------------------
+
+abstract sig Diagnosis {}
+one sig DRecoveryPending, DOwnershipConflict extends Diagnosis {}
+
+/* `RecoveryPending`'s clause: *a correlated Grove-owned attempt is incomplete.
+   The artifact holding the transaction is provably Grove's, named by THIS
+   finish handle and THIS attempt identity.*
+
+   THE CATALOGUE'S THIRD SENTENCE — *and the outcome cannot yet be proven either
+   way* — IS NOT A CONJUNCT HERE, and the narrowing is declared rather than
+   quiet.  Two rows of the revalidation table are blocks whose outcome IS
+   proven: *after restoration, `Committed` leaves the witness blocking the
+   restored tree*, and *after the rename, a return that cannot complete*, both
+   diagnosed `RecoveryPending` by the table.  As a conjunct the sentence makes
+   `FN-25.b` false on both rows.  It appears below as `dgTopologyUnmatched`,
+   which is where the catalogue states the same condition a second time and
+   under the OTHER diagnosis. */
+pred dgCorrelatedIncompleteAttempt {
+  some Txn.attempt
+  some Slot.occ and Slot.owner = Txn.attempt
+  some Txn.handle and Man.mHandle = Txn.handle
+  leftoverArtifact
+}
+
+/* `OwnershipConflict`'s first clause: *an artifact sits at a name Grove
+   reserves but Grove cannot classify it as its own*.  This file has three
+   reserved names and each already carries its own correlation test, so the
+   clause is the same question — CAN GROVE PROVE THIS IS ITS OWN? — asked three
+   times: of the witness slot, of the marker, and of the quarantine.
+
+   THE WITNESS ARM IS `no Slot.owner` WIDENED, AND THE WIDENING IS THIS SLICE'S
+   SECOND COUNTEREXAMPLE.  A published witness with an owner whose manifest
+   names a DIFFERENT handle than the running attempt is an artifact Grove owns
+   and cannot correlate; at `no Slot.owner` alone it fell through both arms and
+   `FN-25.b` was false.  The catalogue's clause is the general sentence — *state
+   is unrelated, ambiguous, or cannot be proved safe to mutate* — and the three
+   examples printed under it are examples.  What the widening costs is recorded
+   under *what a green run does not prove*: this arm and
+   `dgCorrelatedIncompleteAttempt`'s correlation are complements at the witness
+   name, so `FN-25` has no content THERE and all of its content at the other two
+   names and at the topology clause.
+
+   The quarantine's arm needed the opposite care.  `foreignAtReservedName` is
+   `FN-21.c`'s predicate and is written from the REAPER's standpoint, where no
+   transaction is live; used here it fires between `QuarRename` and
+   `MarkerCreate` on every ordinary forward path, and the three revalidation
+   rows that block in that interval would diagnose `OwnershipConflict` against
+   the table's own `RecoveryPending`. */
+pred dgWitnessNotProvablyThisAttempts {
+  some Slot.occ
+  not (some Slot.owner and Slot.owner = Txn.attempt
+       and some Txn.handle and Man.mHandle = Txn.handle)
+}
+pred dgUnclassifiableAtReservedName {
+  dgWitnessNotProvablyThisAttempts
+  or markerForeign
+  or (some Quar.qRid and no Txn.attempt and not markerAuthorises)
+}
+
+/* `OwnershipConflict`'s second clause: *the observed topology matches neither
+   the recorded anchor nor the expected result*.  It is `Indeterminate` written
+   out — `Committed` is `resultProven`, `NotCommitted` is `anchorHolds and not
+   resultProven`, and this is the negation of both.
+
+   THE PROVISO IS THIS FILE'S AND IT IS THE SLICE'S THIRD COUNTEREXAMPLE.
+   Without `not dgCorrelatedIncompleteAttempt` the clause holds at every
+   `Indeterminate` block, all of which the revalidation table diagnoses
+   `RecoveryPending`, and `FN-25.a` is not nearly false but flatly so.  The
+   catalogue states one condition under two diagnoses and only the table
+   disambiguates it; the proviso is the table's answer, written once. */
+pred dgTopologyUnmatched {
+  not resultProven
+  not anchorHolds
+  not dgCorrelatedIncompleteAttempt
+}
+
+/* `OwnershipConflict`'s third clause: *an entry is of a type Grove refuses to
+   touch*. */
+pred dgUndigestibleEntry { some e: Root.holds | e.et = OpaqueT }
+
+/* THE TWO ARMS, WHICH OVERLAP — exactly as `classifiedRaw`'s do, and for the
+   same reason: an arm narrowed until it cannot meet its neighbour is an arm
+   that answers `FN-25.a` by construction. */
+fun diagnosedRaw: set Diagnosis {
+  (dgCorrelatedIncompleteAttempt implies DRecoveryPending else none)
+  + ((dgUnclassifiableAtReservedName or dgTopologyUnmatched or dgUndigestibleEntry)
+       implies DOwnershipConflict else none)
+}
+
+/* THE TWO PLACES THE ARMS MEET, NAMED HERE AND NOWHERE ELSE, so that narrowing
+   the check and declaring the overlap are the same edit — the discipline
+   `declaredMultiEffect` is written under.
+
+   The first is `FN-25.a`'s stated witness: a correlated Grove-owned attempt in
+   progress WITH a document Grove cannot classify at another name it reserves.
+   Reachable, and cheaply — a foreign cleanup marker standing while the attempt
+   settles.
+
+   THE SECOND WAS NOT FORESEEN AND IS THE SLICE'S FOURTH COUNTEREXAMPLE: an
+   entry of a type Grove refuses to touch, sitting in the task root at a
+   correlated block.  The seven preconditions are the ENTRY SURFACE'S — a
+   recovery adopts a published witness and never re-runs them — so a settle that
+   restores a manifest recording an undigestible entry reaches a correlated
+   block with `dgUndigestibleEntry` true.  `README.md` records it.
+
+   WHAT THIS DECLARATION LEAVES CHECKABLE is the clause it does NOT name:
+   `FN_25a`'s first conjunct now says the arms never meet through
+   `dgTopologyUnmatched`, which is false the moment that predicate's proviso is
+   removed.  That is mutation 5. */
+pred declaredDiagnosisOverlap {
+  dgCorrelatedIncompleteAttempt
+  and (dgUnclassifiableAtReservedName or dgUndigestibleEntry)
+}
+
+/* THE RESOLUTION, AS A STRICT PRECEDENCE AND AS DATA — the crash slice's
+   `earlierThan` over two atoms.  `OwnershipConflict` wins, and the reason is
+   the fail-closed rule rather than a preference: if a document Grove cannot
+   classify sits at a name it reserves, Grove cannot prove the state safe to
+   mutate, however completely it has correlated the rest of it. */
+fun earlierDiagnosis: Diagnosis -> Diagnosis {
+  DOwnershipConflict -> DRecoveryPending
+}
+
+fun diagnosed: set Diagnosis { diagnosedRaw - diagnosedRaw.earlierDiagnosis }
+
+/* WHAT A BLOCK'S DIAGNOSTIC NAMES — `FN-26`'s four, as four static atoms, so
+   that *the diagnostic carries all four* is a set equality rather than four
+   conjuncts a mutation can pick off one at a time.
+
+   `BObserved` IS TRUE IN EVERY STATE OF THIS FILE AND IS DECLARED AS SUCH.
+   `Repo.rev` is `one Rev`: this model has no unreadable repository, so *the
+   diagnostic names the observed topology* is a fact of the signature here and
+   not a claim.  The arm is kept because deleting it would make the remaining
+   three look like the whole of the catalogue's sentence, and `README.md`
+   records it under *what a green run does not prove*. */
+abstract sig BlockField {}
+one sig BArtifact, BRecorded, BObserved, BExits extends BlockField {}
+
+fun blockDiagnostic: set BlockField {
+    (leftoverArtifact implies BArtifact else none)
+  + (some Txn.anchor implies BRecorded else none)
+  + (some Repo.rev implies BObserved else none)
+  + ((some Txn.anchor and some Txn.attempt) implies BExits else none)
+}
+
 
 
 // ===========================================================================
@@ -4578,6 +4757,205 @@ run witness_FN_24b_the_declared_step_with_two_persistent_effects {
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
 
+
+// ===========================================================================
+// `FN-25` — A BLOCK IS EXACTLY ONE OF THE TWO DIAGNOSES
+//
+// The partition itself is written as data above, apart from every transition;
+// what is here are the three obligations stated over it.  Every command reads
+// the diagnosis UNPRIMED against a primed `Sys.res'` — see the note above the
+// signature for why the state a block LANDS in cannot carry it.
+//
+// WHERE THE BOUNDS COME FROM.  All three checks quantify over every blocking
+// transition in the file, whose deepest is `QuarReturn`'s incomplete return
+// (`witness_FN_22h`, twelve states); the widest first-landing bound among these
+// obligations' own witnesses is nine.  The antecedent rule is the larger of the
+// two and gives thirteen, which is also where `FN_24a` sits.
+// ===========================================================================
+
+/* FN-25.a.  TWO CONJUNCTS, AND THE FIRST IS THE CLAIM'S OWN WORDS.  *No blocked
+   state satisfies both* is `lone diagnosedRaw`; the file's one exception is
+   named in `declaredDiagnosisOverlap` and nowhere else, so weakening the check
+   and declaring the overlap are the same edit.  The second conjunct is what the
+   catalogue's witness means by *resolved to exactly one*, and it is the strict
+   precedence doing its work. */
+check FN_25a_the_two_diagnoses_are_disjoint_and_the_declared_overlap_resolves_to_one {
+  always (Sys.res' = BlockedOutcome implies {
+    lone diagnosedRaw or declaredDiagnosisOverlap
+    one diagnosed
+  })
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* THE CATALOGUE'S OWN WITNESS: *a state that nearly does — a Grove-owned,
+   correlated artifact sitting at a name Grove also reserves — resolved to
+   exactly one*.  A foreign cleanup marker stands while this attempt's own
+   published witness, manifest and handle correlate perfectly; both arms hold
+   and the fail-closed precedence returns `OwnershipConflict`. */
+run witness_FN_25a_a_correlated_attempt_at_a_name_grove_also_reserves_resolved_to_one {
+  interruptedMidEvacuation
+  one Cleanup.present and no Cleanup.present.cOwner
+  eventually (Sys.res' = BlockedOutcome
+              and dgCorrelatedIncompleteAttempt
+              and dgUnclassifiableAtReservedName
+              and diagnosed = DOwnershipConflict)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+/* FN-25.b.  TWO CONJUNCTS, AND THE SECOND IS A BOUNDED UNREACHABILITY RATHER
+   THAN A CLAIM OF THE CATALOGUE'S.  *No blocked state carries neither* is the
+   first.  The second records, as a checked fact rather than as prose, that
+   `OwnershipConflict`'s SECOND clause never fires alone in this model: every
+   state whose topology matches neither the anchor nor the result is also a
+   state whose reserved witness this attempt cannot prove is its own.  A witness
+   for the topology clause alone was sought at twelve states and does not exist;
+   stating it here is what makes a future slice that reaches one see a red
+   command rather than an unremarked green. */
+check FN_25b_every_block_carries_at_least_one_of_the_two_diagnoses {
+  always (Sys.res' = BlockedOutcome implies {
+    some diagnosedRaw
+    dgTopologyUnmatched implies dgUnclassifiableAtReservedName
+  })
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* The catalogue's witness for `FN-25.b` is *an exhaustive sweep of the blocked
+   states within the bound*, which is the check above and not a `run`.  What the
+   two commands below add is that each arm is reachable ALONE — a sweep over an
+   arm nothing ever satisfies is exhaustive and empty. */
+run witness_FN_25b_a_block_whose_only_arm_is_recovery_pending {
+  interruptedMidEvacuation
+  no Cleanup.present
+  eventually (Sys.res' = BlockedOutcome and diagnosedRaw = DRecoveryPending)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_25b_a_block_whose_only_arm_is_ownership_conflict {
+  Txn.phase = Fresh
+  /* NO MARKER ANYWHERE IN THE TRACE, which is what makes this witness say
+     something the near-miss above does not: `OwnershipConflict` is reachable
+     through the reserved WITNESS name alone, and does not depend on the cleanup
+     marker.  Q4's removal matrix reads that line — the marker's removal would
+     not take this diagnosis with it. */
+  always no Cleanup.present
+  eventually (Sys.res' = BlockedOutcome and diagnosedRaw = DOwnershipConflict
+              and dgUnclassifiableAtReservedName)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+/* FN-25.c IS A REACHABILITY OBLIGATION, so the six witnesses do the reaching
+   and the check states the property that makes them mean something — the shape
+   `FN-15.b` .. `FN-15.d` are written in.
+
+   THE PROPERTY IS LANE-BLINDNESS, and the first form of it was FALSE.  *A
+   diagnosis is only ever produced under a selected lane* looked like the
+   companion property and is not: `World.lane` is `var` because `SY-03` requires
+   a preflight never to be a licence, so the world can withdraw the layout
+   between two of Grove's steps and the block that follows is decided with no
+   lane at all.  That is a property of the protocol rather than a defect, and it
+   is `README.md`'s fifth counterexample.
+
+   What is true, and is what `each diagnosis on each lane` rests on, is that no
+   clause of the partition READS the lane: a step that changes the lane and
+   nothing else moves no atom into or out of `diagnosed`.  Together with the six
+   witnesses that is *reachable on each lane*; without it, six witnesses could
+   each be reaching a lane-specific condition that happens to exist three
+   times. */
+check FN_25c_the_partition_reads_no_lane_so_no_diagnosis_is_confined_to_one {
+  always (( some World.lane and some World.lane'
+            and treeSame and repoSame and opSame and txnSame
+            and World.wcWork' = World.wcWork )
+          implies (all d: Diagnosis | d in diagnosed iff after (d in diagnosed)))
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* THE LANE IS PINNED FOR THE WHOLE TRACE IN EACH OF THE SIX, for the reason
+   `FN-15.b`'s nine give: *reached, on each lane* is three statements and Alloy
+   has no way to parameterise a command.  `EN-16` runs over them. */
+run witness_FN_25c_git_recovery_pending_reached {
+  always World.lane = GitL
+  interruptedMidEvacuation
+  no Cleanup.present
+  eventually (Sys.res' = BlockedOutcome and diagnosed = DRecoveryPending)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_25c_nativejj_recovery_pending_reached {
+  always World.lane = NativeJjL
+  interruptedMidEvacuation
+  no Cleanup.present
+  eventually (Sys.res' = BlockedOutcome and diagnosed = DRecoveryPending)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_25c_colocatedjj_recovery_pending_reached {
+  always World.lane = ColocatedJjL
+  interruptedMidEvacuation
+  no Cleanup.present
+  eventually (Sys.res' = BlockedOutcome and diagnosed = DRecoveryPending)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_25c_git_ownership_conflict_reached {
+  always World.lane = GitL
+  interruptedMidEvacuation
+  one Cleanup.present and no Cleanup.present.cOwner
+  eventually (Sys.res' = BlockedOutcome and diagnosed = DOwnershipConflict)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_25c_nativejj_ownership_conflict_reached {
+  always World.lane = NativeJjL
+  interruptedMidEvacuation
+  one Cleanup.present and no Cleanup.present.cOwner
+  eventually (Sys.res' = BlockedOutcome and diagnosed = DOwnershipConflict)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_25c_colocatedjj_ownership_conflict_reached {
+  always World.lane = ColocatedJjL
+  interruptedMidEvacuation
+  one Cleanup.present and no Cleanup.present.cOwner
+  eventually (Sys.res' = BlockedOutcome and diagnosed = DOwnershipConflict)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+
+// ===========================================================================
+// `FN-26` — HISTORY IS NEVER REWRITTEN TO CLEAR A BLOCK
+//
+// THREE CONJUNCTS, AND THE FIRST IS NARROWED TO GROVE'S OWN STEPS FOR THE
+// REASON `FN_03`'s FIRST CONJUNCT WAS.  `doCommitMoves` is the world taking a
+// ticket back out of history — an operator's `jj undo` between two of Grove's
+// steps — and a claim about what a protocol never does is never a claim about
+// what the world never does.  Stated over every step this conjunct would delete
+// the states two rows of the revalidation table need, which is the failure mode
+// `README.md` records under *A fourth finding*.
+// ===========================================================================
+
+check FN_26_history_is_never_rewritten_to_clear_a_block {
+  always {
+    /* (i) the blocking transition itself writes no history — a block is a
+       stopping, not a correction. */
+    Sys.res' = BlockedOutcome implies repoHistorySame
+    /* (ii) nor does the step that meets the block. */
+    (Sys.res = BlockedOutcome and Sys.act' in txnActs) implies repoHistorySame
+    /* (iii) and from the block onward Grove never takes a ticket back out —
+       which is the half `doCommitMoves` shows the WORLD can do and Grove
+       cannot.  Stated over `Repo.tickets` rather than over `repoHistorySame`
+       because a later attempt's own commit may legitimately append. */
+    Sys.res = BlockedOutcome implies
+      always (Sys.act' in txnActs implies Repo.tickets in Repo.tickets')
+    /* (iv) the diagnostic names the artifact, the recorded topology and the
+       observed one, on every block. */
+    Sys.res' = BlockedOutcome implies BArtifact + BRecorded + BObserved in blockDiagnostic
+    /* (v) and names the two restorable exits as well when the diagnosis is
+       `RecoveryPending`, which is the only one the catalogue promises them
+       for. */
+    (Sys.res' = BlockedOutcome and diagnosed = DRecoveryPending)
+      implies blockDiagnostic = BlockField
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* The catalogue's witness, in its two halves: *a block whose diagnostic carries
+   all four*, and *no trace in which recorded history changes* — the second read
+   as the world never taking the ticket back, which is the only thing in this
+   file that rewrites rather than appends. */
+run witness_FN_26_a_block_whose_diagnostic_names_all_four_with_history_unchanged {
+  interruptedMidEvacuation
+  no Cleanup.present
+  always Sys.act != CommitMoves
+  eventually (Sys.res' = BlockedOutcome and blockDiagnostic = BlockField)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
 // ===========================================================================
 // `EN-08` — INTERRUPTION MAY OCCUR BETWEEN ANY TWO STEPS.  Class:
 // EXERCISE-REMOVAL, and the thing removed is `crash` itself.  The assumption
@@ -4657,3 +5035,56 @@ run expect_unreachable_EN_09_a_failure_cannot_be_reported_after_a_classification
   eventually (Sys.act = ResultArrives and Txn.report = FailReport
               and Txn.disp = Committed)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+
+// ===========================================================================
+// `EN-16` — THE THREE LANES DIFFER IN MECHANISM AND AGREE ON ABSTRACT OUTCOME.
+// Class: EXERCISE-REMOVAL, and the dimension removed is the LANE ITSELF: the
+// lane is a model parameter, and the mutation collapses it to one.
+//
+// The assumption table's expected result is that `FN-25.c`'s per-lane witnesses
+// become unreachable and `FN-17`'s working-copy-as-commit obligation has no
+// instance, WHILE EVERY `FN-` PROPERTY STAYS GREEN.  That last clause is the
+// whole point of the control: a lane-blind model passes every check in this
+// file, so nothing but an unreachability says the dimension was ever exercised.
+//
+// The collapse is `always World.lane = GitL` and the three commands below run
+// against the NAMED WITNESS SETS rather than the whole file — `FN-25.c`'s six,
+// `FN-17`'s two, and `FN-15.b` .. `FN-15.d`'s nine.  Each asks for the
+// witness's own content on a lane the collapse has removed, which makes it
+// INEXPRESSIBLE rather than false; that is `EN-02`'s shape and the reason an
+// exercise-removal's expected result is *no instance* rather than *a failure*.
+//
+// THE NAMED SET WAS CHECKED AGAINST THE FILE AND IS EXACT — `crash-k47` found
+// `EN-08`'s overstated its reach by one obligation, so this one was asked the
+// same question.  Eleven commands in this file pin a lane and every one of them
+// answers `FN-15.b`, `FN-15.c`, `FN-15.d` or `FN-17`; the six this slice adds
+// answer `FN-25.c`; no other command's content depends on which lane is
+// selected, because `preflightCommitReproduced`, `canReproduceHere` and
+// `reproductionStands` are the only three lane-sensitive predicates in the file
+// and all three are vacuous on `GitL`.  `README.md` records the count.
+// ===========================================================================
+
+run expect_unreachable_EN_16_no_diagnosis_is_reached_on_a_second_lane {
+  always World.lane = GitL
+  interruptedMidEvacuation
+  no Cleanup.present
+  eventually (Sys.res' = BlockedOutcome and diagnosed = DRecoveryPending
+              and World.lane in wcAsCommitLanes)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run expect_unreachable_EN_16_no_working_copy_as_commit_restoration_exists {
+  always World.lane = GitL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = Settle and Sys.res = Applied
+              and World.lane in wcAsCommitLanes
+              and Repo.reproduced = Txn.anchor)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
+
+run expect_unreachable_EN_16_no_disposition_is_reached_on_a_second_lane {
+  always World.lane = GitL
+  interruptedMidEvacuation
+  no Repo.tickets
+  eventually (Sys.act = Classify and some Txn.disp and World.lane != GitL)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps

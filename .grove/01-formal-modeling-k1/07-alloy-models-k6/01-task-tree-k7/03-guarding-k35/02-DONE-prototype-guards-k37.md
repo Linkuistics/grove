@@ -104,3 +104,83 @@ Two commands in this file cost minutes each and one costs nine. Prefer
 
 Do not read the Quint side of Experiment 2. The independence protocol holds
 until both families are green.
+
+
+## Decisions (running log)
+
+**The ADR fixed the shape of the layer before the catalogue did.**
+`bulk-marks-are-not-atomic` says a mutating method **consumes** its guard, so an
+exclusive guard never spans a state boundary: an observation is
+`Open · Classify* · Release` and holds `Shared`, a mutation is a single `Mark`
+that acquires and consumes `Exclusive` in one step. `TT-22.b` is therefore
+checked over the mark's **acquisition** rather than over a held exclusive guard.
+The symmetric design — open-exclusive, mutate, release — was two states more
+expensive on every `TT-23` command *and* would have contradicted the decision it
+was supposed to model.
+
+**The concurrency layer sits behind a STATIC switch, and that is stronger than
+narrowing the antecedent.** `Env.concOn` selects between the two process scopes,
+so the translator folds the whole unselected branch away and the five new
+transitions cost the fifty-nine earlier commands nothing — where `roots`' four
+transitions cost the file 41% CPU and were repaired only by pinning. The test for
+when the switch is available is a question about the claims, not the solver: *is
+there a command that needs both the old transitions and the new ones in one
+trace?* Here there is not.
+
+**Pinning the scope is a correctness control, not an optimisation.** In the
+concurrent scope no grove mutation exists. Left free, the solver could satisfy
+every `TT-01` – `TT-16` witness by picking that scope and discharge every check
+vacuously — the file's retained false-confidence incident in a third set of
+clothes. `CurrentRootThroughout` carries `SingleProc`, and the nine
+root-identity commands were amended to carry it explicitly.
+
+**`Deferred` is a new outcome and the catalogue does not have one.** A guard that
+is held means the operation has not begun, which is not a return value. The
+alternative — a guard failure as an *absent* transition — would make `TT-22` true
+by construction and break the file's totality rule. Recorded as an abstraction
+with that reason rather than smuggled in.
+
+**A plan and an observation are two lifetimes, and the model had one field.**
+`TT-21.b`'s check found it in 9s: a `Mark` sets the plan and the listing that
+validated it, an `Open` replaces the listing, a `Release` clears it, and the plan
+is left with nothing to have been validated against. The ADR states the missing
+clause — *a plan outlives the guard that validated it* — and `planNm` is the fix.
+`TT-23.a` gained a conjunct from it: the whole-plan validation **stands** across
+the guards each mark takes of its own.
+
+**Both `TT-21` checks needed `4 steps`, and both mutations survived at `3`.**
+`TT-21` is a claim about an **interval** — between an operation taking its guard
+and the classifications it makes from it — and the shortest violating trace is
+*open · interleave · classify*. This is `TT-19`'s incident twice more, and it now
+has a predictor rather than only a repair: **when a claim's subject is an
+interval rather than a step, count the states the interval needs before anything
+can happen inside it.**
+
+**`TT-21.a` and `TT-22.b` are one mechanism seen twice, and the pair of mutations
+says which half each claims.** No mutation breaks `TT-21.a` alone — every
+cooperating tree change under a held guard is an applied mark, and an applied
+mark has acquired. They separate from the other side: `TT-22.b`'s own mutation
+(*the plan is validated before the guard is taken*) breaks `TT-22.b` and leaves
+`TT-21.a` green, because a refusal changes no bytes. The overlap is recorded
+rather than contrived away.
+
+**`EN-07`'s finding is that nothing in this scope depends on it**, the second
+such row after `EN-04`. Every `TT-21` – `TT-23` check leaves `EN_07` **free**, so
+all six are checked over the broken assumption as well as the incumbent and all
+six are green either way. The assumption table predicted it — its own
+expected-result column names `SY-11.b`.
+
+**`EN-08`'s second half is an argument, not eleven commands.** *Every property
+check stays green with `crash` removed* needs no run, because no check in this
+file asserts `EN_08`: each is already checked over the traces that contain
+`crash` and those that do not, and green over the superset is green over the
+subset. A later slice that starts asserting `EN_08` inside a check invalidates
+the argument visibly.
+
+**`Slot.occ = Unowned` is not the right seat for `TT-24.b` on its own**, and the
+`ownership` sibling is cut carrying that answer with both candidate repairs and
+their costs. `TT-24.b`'s reason **carries the entry**, and `Slot.occ` is a
+`SlotContent`, not an `Obj`. Splitting `reservedRefusal` on
+`Slot.occ in WitnessClass` is required either way, and it will break `TT-19`'s
+check until that check is narrowed to say *witness* where it currently says
+*occupant* — which is what `TT-19` means in words.

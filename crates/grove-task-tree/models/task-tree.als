@@ -7,9 +7,18 @@
  * command below names an OBLIGATION of that document, and the repository runner
  * reads the obligation list out of the document rather than out of this file.
  *
- * COVERAGE SO FAR: TT-01 .. TT-16.  TT-17 .. TT-25 are the `guarding` sibling
+ * COVERAGE SO FAR: TT-01 .. TT-23.  TT-24 and TT-25 are the `ownership` sibling
  * leaf's; the runner reports their cells empty, which is the truth about this
  * file rather than a defect in it.
+ *
+ * TWO PROCESS SCOPES.  TT-01 .. TT-20 are stated over ONE cooperating process
+ * and over operations that are one transition each; TT-21 .. TT-23 are about
+ * what happens DURING an operation and about what a second process may do while
+ * it runs.  `Env.concOn` is a STATIC switch selecting between them, and every
+ * command pins it: `CurrentRootThroughout` and the root-identity commands pin it
+ * off, `Guarding` turns it on.  Leaving it free is not an optimisation question
+ * -- in the concurrent scope no grove mutation exists, so an unpinned witness is
+ * unreachable and an unpinned check is vacuous.
  *
  * HOW TO READ IT — the house style of `docs/ordinal-fs-tree/models/`:
  *
@@ -379,6 +388,12 @@ pred rootClear { no Slot.occ and Fmt.fmt = CurrentFmt }
    state rather than leaving it free, which is why those thirty commands cost
    what they cost before this layer arrived. */
 pred CurrentRootThroughout {
+  // ONE COOPERATING PROCESS, pinned rather than left free.  Without it the
+  // solver may pick the concurrent scope, in which no grove mutation exists at
+  // all -- every witness below would become unreachable and every check
+  // vacuous, which is this file's retained false-confidence incident wearing a
+  // third set of clothes.
+  SingleProc
   always {
     rootClear
     no inFlight
@@ -395,6 +410,157 @@ pred CurrentRootThroughout {
     // `Applied` any TT-01..TT-16 command is stated over.
     Sys.act' not in (rootActs + Crash)
   }
+}
+
+// ===========================================================================
+// THE CONCURRENCY LAYER (TT-21 .. TT-23)
+//
+// EVERYTHING ABOVE IS STATED OVER ONE COOPERATING PROCESS.  The README already
+// recorded that as a bound ("one cooperating process"); `Env.concOn` is the
+// bound made OPERATIONAL.  It is a STATIC switch, so a command that does not
+// turn it on pays for these transitions in Alloy's translation and not in the
+// solver's search -- which is the standing rule this file learned when four
+// root-lifecycle transitions took `TT-03` from 68s to not finishing.
+//
+// WHAT AN OPERATION IS, HERE.  Above, an operation is one atomic transition.
+// TT-21 and TT-22 are claims about what happens DURING one, so here an
+// operation has a duration:
+//
+//   observation   Open(Shared) . Classify* . Release        -- the guard is HELD
+//   mutation      Mark                                       -- one step, and the
+//                                                               guard is CONSUMED
+//
+// The asymmetry is not a simplification, it is the ADR.  `bulk-marks-are-not-
+// atomic` records that a mutating method CONSUMES its `WriteGuard`, so N marks
+// are N critical sections; an exclusive guard therefore never spans a state
+// boundary and `holds` only ever carries `Shared`.  TT-22.b is checked over the
+// mark's own acquisition rather than over a held exclusive guard, and the
+// mutation that breaks it is the removal of that acquisition test.
+// ===========================================================================
+
+/* TWO cooperating processes.  Two, because every TT-21/TT-22 obligation is
+   about one operation and one other party, and a third pays for a claim no
+   obligation makes. */
+abstract sig Proc {
+  /* The guard this process HOLDS.  `Shared` while an observation is in flight,
+     and nothing otherwise -- see the asymmetry above. */
+  var holds:   lone Mode,
+  /* THE ONE LISTING (TT-21).  What the operation saw when it took its guard,
+     and the only thing any of its classifications may read.  It is state rather
+     than a re-read precisely so that a classification CAN be got wrong: a model
+     whose classifications are functions of the live tree has answered TT-21 by
+     construction. */
+  var snapOn:  set Obj,
+  var snapNm:  Obj -> lone Filename,
+  /* The classifications the operation has made: what it asked about, and what
+     it concluded.  Written by the transition, for the reason `Sys.got` is. */
+  var cls:     set Obj,
+  var clsLive: set Obj,
+  /* A bulk mark's REMAINING plan, and the listing it was validated against.
+     TWO fields rather than one, and the reason is the ADR: a plan OUTLIVES the
+     guard that validated it, while an observation's listing dies with its
+     guard.  Sharing `snapOn`/`snapNm` between them lets a `Release` orphan a
+     live plan -- which is a counterexample this file found and retained, not a
+     hypothetical. */
+  var plan:    set Obj,
+  var planNm:  Obj -> lone Filename
+}
+one sig P1, P2 extends Proc {}
+
+abstract sig Mode {}
+one sig Shared, Exclusive extends Mode {}
+
+/* THE ENVIRONMENT SWITCHES.  Four static `lone Txn` fields -- reusing the `Txn`
+   atom, so none of them costs an atom -- each pinning one thing a command may
+   turn off.  Static rather than `var` deliberately: an assumption is a property
+   of the SCOPE a command runs in, and a variable one would be free state every
+   command in the file paid for. */
+one sig Env {
+  crashOn:   lone Txn,   // EN-08: interruption is a first-class action
+  descShare: lone Txn,   // EN-07 BROKEN: one guard covers a whole bulk run
+  wtRoot:    lone Txn,   // EN-14: the working-tree root the guard is held on
+  concOn:    lone Txn    // the process scope: one process, or two
+}
+pred EN_08 { some Env.crashOn }
+pred EN_07 { no Env.descShare }
+pred EN_14 { some Env.wtRoot }
+pred Concurrent  { some Env.concOn }
+pred SingleProc  { no Env.concOn }
+
+/* THE ONE LISTING, read.  A classification asks whether an object was a live
+   leaf, and it answers from `snapOn`/`snapNm` -- never from `onDisk`/`nm`. */
+pred liveInSnap[p: Proc, o: Obj] {
+  o in p.snapOn
+  p.snapNm[o] in entryName
+  p.snapNm[o].fSpec = LeafSp
+  p.snapNm[o].fOut = LiveI
+}
+/* What the listing SUPPORTS about the objects this operation asked about.
+   TT-21 is the claim that `clsLive` equals it. */
+fun liveBySnap[p: Proc]: set Obj { { o: p.cls | liveInSnap[p, o] } }
+
+/* WHAT THE PLAN'S OWN LISTING LICENSED: every member the run is still working
+   through was a live, non-reserved leaf in the listing the plan was validated
+   against.  TT-21.b's "a mutation that was licensed by that listing", and the
+   standing form of TT-23.a's whole-plan validation. */
+pred licensedByPlan[p: Proc, o: Obj] {
+  p.planNm[o] in entryName
+  p.planNm[o].fSpec = LeafSp
+  p.planNm[o].fOut = LiveI
+  // NOT `fKind != FinishK`: whether the plan should have contained a reserved
+  // leaf at all is TT-23.a's whole-plan validation, and folding it in here made
+  // one mutation break both obligations for one defect.
+}
+
+/* GUARD COMPATIBILITY (TT-22): shared for observation, exclusive for mutation,
+   both taken on the WORKING-TREE ROOT.  EN-14 is what the guard is held ON: with
+   no working-tree root there is nothing to `flock`, no guard is taken, and the
+   compatibility test has no subject -- which is the premise-break the assumption
+   table asks for and the reason it is written as an implication. */
+pred compatible[p: Proc, m: Mode] {
+  EN_14 implies {
+    m = Shared    implies (no q: Proc - p | q.holds = Exclusive)
+    m = Exclusive implies (no q: Proc - p | some q.holds)
+  }
+}
+
+/* A bulk mark's plan, and its validity, both computed from ONE listing.  The
+   target is the task root: no TT-23 obligation reads a narrower subtree, and a
+   narrower one costs a second `DirObj` every command in the slice would pay
+   for.  A `finish` leaf is what makes a plan invalid -- the ADR's "a leaf the
+   mark cannot address, a `finish` leaf, a leaf whose destination the tree
+   already occupies", less the third, which this file does not represent. */
+pred planValid { no o: liveLeaves | o.nm.fKind = FinishK }
+
+/* Every process's state, unchanged.  The world's actions do not touch a
+   process's listing -- that is the whole content of TT-21.b. */
+pred procAllFrame {
+  all q: Proc | {
+    q.holds' = q.holds and q.snapOn' = q.snapOn and q.snapNm' = q.snapNm
+    q.cls' = q.cls and q.clsLive' = q.clsLive
+    q.plan' = q.plan and q.planNm' = q.planNm
+  }
+}
+/* Every OTHER process's state, unchanged. */
+pred procFrame[p: Proc] {
+  all q: Proc - p | {
+    q.holds' = q.holds and q.snapOn' = q.snapOn and q.snapNm' = q.snapNm
+    q.cls' = q.cls and q.clsLive' = q.clsLive
+    q.plan' = q.plan and q.planNm' = q.planNm
+  }
+}
+/* This process's state, unchanged: what a `Deferred` leaves behind. */
+pred procSelfFrame[p: Proc] {
+  p.holds' = p.holds and p.snapOn' = p.snapOn and p.snapNm' = p.snapNm
+  p.cls' = p.cls and p.clsLive' = p.clsLive
+  p.plan' = p.plan and p.planNm' = p.planNm
+}
+/* No process exists at all: the single-process scope, pinned rather than left
+   free, so the thirty-odd commands above pay nothing for this layer. */
+pred procQuiet {
+  no Sys.who' and no Sys.mode'
+  all q: Proc | no q.holds' and no q.snapOn' and no q.snapNm'
+                and no q.cls' and no q.clsLive' and no q.plan' and no q.planNm'
 }
 
 /* EN-12: A NAME RENDERS AS EXACTLY ONE PATH COMPONENT.  The base model gets it
@@ -463,6 +629,16 @@ one sig InitScaffold, InitPublish extends Action {}
    leaves behind STABLE rather than transient -- and removing this action is
    exactly the exercise-removal the assumption table asks for. */
 one sig Crash extends Action {}
+/* The NON-cooperating writer.  Distinct from `hand-edit` because the two are
+   distinct rows of the assumption table: `EN-11`'s exercise-removal takes away
+   `hand-edit`, and TT-21.b's witness is a `foreign-write` -- so folding them
+   would let `ownership`'s mutation silently take this leaf's witness with it. */
+one sig ForeignWrite extends Action {}
+/* THE CONCURRENCY LAYER'S OWN ACTIONS (TT-21 .. TT-23).  `Open` and `Release`
+   bracket an observation; `Classify` is one reading from its listing; `Mark` is
+   one rename of a bulk plan, and it acquires and consumes its own exclusive
+   guard in the same step because that is what the ADR says a mutation does. */
+one sig Open, Classify, Release, Mark extends Action {}
 /* The recovery that settles a reserved witness.  One per class, because TT-19's
    content is that the MATCHING recovery is admitted and everything else -- a
    non-matching recovery included -- refuses. */
@@ -492,6 +668,13 @@ one sig Environmental extends Result {}
    not refusals, because that is the shipped contract and callers branch on it
    (TT-15); the whole content of that claim is that they sit here rather than
    under `Refused`. */
+/* A GUARD THAT WAS HELD, and an operation that therefore has not begun.  It is
+   NOT one of the catalogue's outcomes, and that is deliberate: the closed set
+   covers what a completed invocation returns, and a lock wait is not a return.
+   Modelling it as an ABSENT transition -- the obvious alternative -- would make
+   TT-22 true by construction, since incompatible guard states would simply not
+   occur, and it would break this file's totality rule besides. */
+one sig Deferred extends Result {}
 one sig Reported, Empty, Ambiguous extends Result {}
 fun observations: set Result { Reported + Empty + Ambiguous }
 
@@ -509,7 +692,14 @@ one sig Sys {
      not be got wrong, and TT-19 is precisely the claim that the refusal carries
      the witness and its recovery. */
   var pending: lone SlotContent,
-  var recov:   lone Recovery
+  var recov:   lone Recovery,
+  /* WHICH GUARD THE OPERATION ASKED FOR.  Without it a DEFERRED open is
+     indistinguishable from a deferred mark, and TT-22.a -- which is about
+     shared opens specifically -- would have no subject. */
+  var mode:    lone Mode,
+  /* WHICH PROCESS ACTED.  `none` for the world's actions and for every state of
+     the single-process scope. */
+  var who:     lone Proc
 }
 
 /* What `ordinal-fs-tree` itself would refuse, given the argument as handed to
@@ -742,6 +932,7 @@ pred doResolve[q: Query] {
 pred doHandEdit {
   Sys.act' = HandEdit and Sys.res' = Environmental and no Sys.tgt'
   noPending and no inFlight'
+  no Sys.who' and no Sys.mode' and procAllFrame
   // `Fmt.fmt'` and `Slot.occ'` are deliberately UNCONSTRAINED: a witness is a
   // file, and a hand edit reaches it exactly as it reaches any other.
 }
@@ -749,6 +940,16 @@ pred doHandEdit {
 pred doIdle {
   Sys.act' = Idle and Sys.res' = Environmental and no Sys.tgt' and noTreeChange
   noPending and no inFlight'
+  no Sys.who' and no Sys.mode' and procAllFrame
+}
+
+/* EN-06's writer, which no guard excludes.  Unconstrained on the tree exactly as
+   `hand-edit` is, and it leaves every process's LISTING alone -- an operation
+   that re-read the world would see it, and TT-21.b is the claim that none does. */
+pred doForeignWrite {
+  Sys.act' = ForeignWrite and Sys.res' = Environmental and no Sys.tgt'
+  noPending and no inFlight'
+  no Sys.who' and no Sys.mode' and procAllFrame
 }
 
 
@@ -812,6 +1013,14 @@ pred doCrash {
   Sys.act' = Crash and Sys.res' = Environmental and no Sys.tgt' and noPending
   noTreeChange
   no inFlight'
+  // EN-08.  The removal this switch performs is the exercise-removal the
+  // assumption table asks for, and it is what makes TT-20's and TT-23.b's
+  // witnesses unreachable rather than merely rarer.
+  EN_08
+  // A crashed process holds no guard, keeps no listing, and has lost its plan.
+  // That is what makes the RE-RUN of a bulk mark a fresh plan over the tree the
+  // interruption left, which is TT-23.b's whole content.
+  procQuiet
 }
 
 /* TT-19's one exception: the MATCHING recovery is admitted while its witness is
@@ -834,6 +1043,155 @@ pred doRecover[r: Recovery] {
       rootClear implies (Sys.res' = RefNotAnEntry and noTreeChange and noPending)
     }
   }
+}
+
+// --- the concurrency layer's transitions (TT-21 .. TT-23) -------------------
+
+/* One rename of a bulk mark: `leaf-prune`'s `ABANDONED` infix, one entry, under
+   the exclusive guard the step acquired and consumed. */
+pred markRename[o: Obj, g: Filename] {
+  o in onDisk
+  rewritten[o.nm, g, AbandonedI]
+  onDisk' = onDisk and loc' = loc and dg' = dg
+  nm' = nm ++ (o -> g)
+  Fmt.fmt' = Fmt.fmt and Slot.occ' = Slot.occ
+}
+
+/* AN OBSERVATION TAKES ITS GUARD AND ITS ONE LISTING, in the same step: the
+   listing is what the guard is FOR.  A guard that is held elsewhere does not
+   refuse -- it defers, and the operation has not begun. */
+pred doOpen[p: Proc, m: Mode] {
+  Sys.act' = Open and Sys.who' = p and Sys.mode' = m and no Sys.tgt'
+  noReport and noPending and no inFlight' and noTreeChange and procFrame[p]
+  (no p.holds and compatible[p, m]) implies {
+    Sys.res' = Applied
+    p.holds' = m
+    p.snapOn' = onDisk - TaskRoot
+    p.snapNm' = (onDisk - TaskRoot) <: nm
+    no p.cls' and no p.clsLive'
+    p.plan' = p.plan and p.planNm' = p.planNm
+  }
+  (some p.holds or not compatible[p, m]) implies {
+    Sys.res' = Deferred and procSelfFrame[p]
+  }
+}
+
+/* ONE CLASSIFICATION, ANSWERED FROM THE ONE LISTING (TT-21).  `clsLive` is
+   written by the transition rather than derived by the reader, for the reason
+   `Sys.got` is: a derived answer could not be got wrong, and TT-21 is precisely
+   the claim that the answer came from the listing the guard was taken with. */
+pred doClassify[p: Proc, o: Obj] {
+  Sys.act' = Classify and Sys.who' = p and no Sys.mode'
+  noReport and noPending and no inFlight' and noTreeChange and procFrame[p]
+  (some p.holds) implies {
+    Sys.res' = Applied and Sys.tgt' = o
+    p.cls' = p.cls + o
+    p.clsLive' = p.clsLive + (liveInSnap[p, o] implies o else none)
+    p.holds' = p.holds and p.snapOn' = p.snapOn and p.snapNm' = p.snapNm
+    p.plan' = p.plan and p.planNm' = p.planNm
+  }
+  (no p.holds) implies {
+    Sys.res' = Deferred and no Sys.tgt' and procSelfFrame[p]
+  }
+}
+
+/* The operation ends and drops its guard.  Its listing and its classifications
+   go with it; its PLAN does not, because a plan outlives the guard it was
+   validated under and that is the whole of `bulk-marks-are-not-atomic`. */
+pred doRelease[p: Proc] {
+  Sys.act' = Release and Sys.who' = p and no Sys.mode' and no Sys.tgt'
+  noReport and noPending and no inFlight' and noTreeChange and procFrame[p]
+  (some p.holds) implies {
+    Sys.res' = Applied
+    no p.holds' and no p.snapOn' and no p.snapNm' and no p.cls' and no p.clsLive'
+    p.plan' = p.plan and p.planNm' = p.planNm
+  }
+  (no p.holds) implies { Sys.res' = Deferred and procSelfFrame[p] }
+}
+
+/* ONE MARK OF A BULK PRUNE, and it is one whole critical section: it acquires
+   the exclusive guard, renames one entry, and CONSUMES the guard again, which
+   is what `bulk-marks-are-not-atomic` records a mutating method doing.  Three
+   branches, and each is an obligation:
+   - the PLANNING mark validates the whole plan against ONE listing and only
+     then takes the first rename (TT-23.a).  An invalid member refuses with
+     nothing renamed.
+   - a LATER mark of the same plan renames the next member (TT-23), and the plan
+     it works from is the one the first guard's listing validated.
+   - a mark with no plan and nothing live to plan reports `Empty` and changes
+     nothing, which is the state a completed -- or a RE-RUN and already
+     converged -- prune reaches (TT-23.b).
+   EN-07 lives in the acquisition test: two open descriptions of one directory
+   do not share a lock, so a process that already holds its own outer guard
+   DEADLOCKS here rather than nesting.  That is the option
+   `bulk-marks-are-not-atomic` rejects, and breaking the assumption is what
+   makes it reachable. */
+pred doMark[p: Proc, o: Obj, g: Filename] {
+  Sys.act' = Mark and Sys.who' = p and Sys.mode' = Exclusive
+  noReport and noPending and no inFlight' and procFrame[p]
+  let acquired = (compatible[p, Exclusive] and (EN_07 implies no p.holds)) | {
+    (not acquired) implies {
+      Sys.res' = Deferred and no Sys.tgt' and noTreeChange and procSelfFrame[p]
+    }
+    acquired implies {
+      (no p.plan) implies {
+        (not planValid) implies {
+          Sys.res' = RefReservedKind and no Sys.tgt' and noTreeChange
+          procSelfFrame[p]
+        }
+        (planValid and no liveLeaves) implies {
+          Sys.res' = Empty and no Sys.tgt' and noTreeChange and procSelfFrame[p]
+        }
+        (planValid and some liveLeaves) implies {
+          Sys.res' = Applied and Sys.tgt' = o
+          o in liveLeaves
+          markRename[o, g]
+          // THE PLAN AND ITS LISTING, and nothing else.  `planNm` records what
+          // this guard's listing showed for every member the run will work
+          // through, taken before the first rename and outliving the guard that
+          // took it.  A mark touches NO observation field: the two lifetimes are
+          // disjoint, which is the whole of what TT-21.b's counterexample taught.
+          p.plan' = liveLeaves - o
+          p.planNm' = (liveLeaves - o) <: nm
+          p.holds' = p.holds and p.snapOn' = p.snapOn and p.snapNm' = p.snapNm
+          p.cls' = p.cls and p.clsLive' = p.clsLive
+        }
+      }
+      (some p.plan) implies {
+        (no (p.plan & liveLeaves)) implies {
+          // The run is over: nothing it planned is live any more, which is what
+          // a RE-RUN of an already-converged prune reaches (TT-23.b).
+          Sys.res' = Empty and no Sys.tgt' and noTreeChange
+          no p.plan' and no p.planNm'
+          p.holds' = p.holds and p.snapOn' = p.snapOn and p.snapNm' = p.snapNm
+          p.cls' = p.cls and p.clsLive' = p.clsLive
+        }
+        (some (p.plan & liveLeaves)) implies {
+          Sys.res' = Applied and Sys.tgt' = o
+          o in p.plan & liveLeaves
+          markRename[o, g]
+          p.plan' = p.plan - o
+          p.planNm' = (p.plan - o) <: p.planNm
+          p.holds' = p.holds and p.snapOn' = p.snapOn and p.snapNm' = p.snapNm
+          p.cls' = p.cls and p.clsLive' = p.clsLive
+        }
+      }
+    }
+  }
+}
+
+/* The concurrent scope's step.  The world's actions are here too: `EN-06`
+   grants only that COOPERATING processes are serialized, so `hand-edit` and
+   `foreign-write` land at any point during an operation and no guard excludes
+   them. */
+pred concStep {
+  noReport and (
+    doIdle or doHandEdit or doForeignWrite or doCrash
+    or (some p: Proc, m: Mode | doOpen[p, m])
+    or (some p: Proc, o: Obj | doClassify[p, o])
+    or (some p: Proc | doRelease[p])
+    or (some p: Proc, o: Obj, g: Filename | doMark[p, o, g])
+  )
 }
 
 /* The fresh objects an operation introduces are quantified at their SPECIES
@@ -863,14 +1221,18 @@ pred ordinaryStep {
    is what makes `some inFlight` transient in the catalogue's sense: no ordinary
    invocation runs while it holds, so no ordinary invocation observes it. */
 pred step {
-  some inFlight implies (noReport and (doInitPublish or doCrash))
-  no inFlight   implies ordinaryStep
+  some inFlight implies (noReport and procQuiet and (doInitPublish or doCrash))
+  no inFlight   implies (SingleProc implies (procQuiet and ordinaryStep)
+                                    else concStep)
 }
 
 fact Trace {
   Sys.act = Idle and Sys.res = Environmental and no Sys.tgt
   no Sys.got and no Sys.gotTerm
   no Sys.pending and no Sys.recov
+  no Sys.who and no Sys.mode
+  all p: Proc | no p.holds and no p.snapOn and no p.snapNm
+                and no p.cls and no p.clsLive and no p.plan and no p.planNm
   no inFlight
   always step
 }
@@ -1499,7 +1861,7 @@ run witness_TT_16b_a_resolved_abandoned_entry {
    is what a hand edit cannot do: change every name in the tree, leave the
    witness alone, and the root does not move between families. */
 check TT_17_format_is_decided_by_the_witness_content_alone {
-  GroveGrammar implies always {
+  (GroveGrammar and SingleProc) implies always {
     no Slot.occ implies {
       (no Fmt.fmt)           iff (rootState in (LegacyR + PartialScaffoldR))
       (Fmt.fmt = ForeignFmt) iff (rootState = ForeignR)
@@ -1516,7 +1878,7 @@ check TT_17_format_is_decided_by_the_witness_content_alone {
    would call it `Current(Live)`.  It is `Legacy`, because the witness says so
    and nothing else is consulted. */
 run witness_TT_17_a_legacy_tree_whose_entries_read_as_current_work {
-  GroveGrammar
+  GroveGrammar and SingleProc
   no Slot.occ and no Fmt.fmt
   not halted
   some liveOrdinary
@@ -1532,7 +1894,7 @@ run witness_TT_17_a_legacy_tree_whose_entries_read_as_current_work {
    root reaches `Malformed` only when the two classifications ahead of it have
    both passed, so a halted tree under a reserved witness is `Reserved`. */
 check TT_18_classification_order_is_fixed {
-  GroveGrammar implies always {
+  (GroveGrammar and SingleProc) implies always {
     some Slot.occ implies rootState = ReservedR
     (no Slot.occ and no Fmt.fmt)           implies rootState in (PartialScaffoldR + LegacyR)
     (no Slot.occ and Fmt.fmt = ForeignFmt) implies rootState = ForeignR
@@ -1546,7 +1908,7 @@ check TT_18_classification_order_is_fixed {
    format witness, reported as the former.  Format classification would call it
    `Legacy` and the walk would call it live; neither runs. */
 run witness_TT_18_a_reserved_witness_over_a_witnessless_root_reports_reserved {
-  GroveGrammar
+  GroveGrammar and SingleProc
   some Slot.occ
   no Fmt.fmt
   some liveOrdinary
@@ -1562,7 +1924,7 @@ run witness_TT_18_a_reserved_witness_over_a_witnessless_root_reports_reserved {
    else's bytes is exactly the fail-closed violation the two reasons are split
    to prevent. */
 check TT_19_a_reserved_witness_refuses_everything_but_its_matching_recovery {
-  GroveGrammar implies always (
+  (GroveGrammar and SingleProc) implies always (
     some Slot.occ implies {
       (Sys.act' in groveActs + observeActs + InitScaffold + InitPublish) implies {
         Sys.res' = RefWitnessPending
@@ -1582,7 +1944,7 @@ check TT_19_a_reserved_witness_refuses_everything_but_its_matching_recovery {
    format, no malformity, live work waiting — and whose `select` refuses
    anyway, naming the witness and `RecoverPreparing`. */
 run witness_TT_19_a_preparing_witness_over_a_perfectly_walkable_tree {
-  GroveGrammar
+  GroveGrammar and SingleProc
   always (Slot.occ = Preparing and Fmt.fmt = CurrentFmt)
   not halted
   some liveOrdinary
@@ -1594,7 +1956,7 @@ run witness_TT_19_a_preparing_witness_over_a_perfectly_walkable_tree {
    a recovery that ever applies.  Three states, for the reason the check needs
    three: an applied recovery is a tree change. */
 run witness_TT_19_the_matching_recovery_is_admitted_and_settles_the_witness {
-  GroveGrammar
+  GroveGrammar and SingleProc
   eventually (Sys.act' = RecoverPublished and Sys.res' = Applied
               and Slot.occ = Published and after no Slot.occ)
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
@@ -1607,7 +1969,7 @@ run witness_TT_19_the_matching_recovery_is_admitted_and_settles_the_witness {
    to observe, torn or otherwise.  The fourth is what the interruption LEAVES:
    never `Current(*)`, and never `Legacy`. */
 check TT_20_the_format_witness_lands_last {
-  GroveGrammar implies always {
+  (GroveGrammar and SingleProc) implies always {
     (Sys.act' = InitScaffold and Sys.res' = Applied) implies no Fmt.fmt'
     (Sys.act' = InitPublish and Sys.res' = Applied) implies {
       isPartialScaffold and no Fmt.fmt
@@ -1628,7 +1990,7 @@ check TT_20_the_format_witness_lands_last {
    it — and that is `EN-08`'s whole content.  Three states exactly: it finds no
    instance at 2. */
 run witness_TT_20_an_interrupted_initialisation_leaves_a_partial_scaffold {
-  GroveGrammar
+  GroveGrammar and SingleProc
   eventually {
     Sys.act = InitScaffold and Sys.res = Applied and some inFlight
     Sys.act' = Crash
@@ -1643,10 +2005,212 @@ run witness_TT_20_an_interrupted_initialisation_leaves_a_partial_scaffold {
    crash IS the third state, while the publish must be followed by a state in
    which the published root is observed.  It finds no instance at 3. */
 run witness_TT_20_an_uninterrupted_initialisation_publishes_the_witness {
-  GroveGrammar
+  GroveGrammar and SingleProc
   eventually (Sys.act' = InitPublish and Sys.res' = Applied
               and after (Fmt.fmt = CurrentFmt and rootState = CurrentLiveR))
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 4 steps
+
+
+// ===========================================================================
+// CLAIMS — TT-21 .. TT-23, the guarding scope
+//
+// WHAT SEPARATES THESE FROM EVERYTHING ABOVE.  `TT-01` .. `TT-20` are stated
+// over ONE cooperating process and over operations that are one transition
+// each.  These six obligations are about what happens DURING an operation and
+// about what a SECOND process may do while it runs, so none of them assumes
+// `CurrentRootThroughout` -- they assume `Guarding`, which turns the process
+// scope on instead.
+//
+// WHY EN-07 IS NOT IN THE BUNDLE.  `EN_07` is left FREE in `Guarding`, so every
+// check below is checked over both the incumbent and the broken assumption at
+// once.  That is not carelessness: the assumption table's expected-result column
+// for `EN-07` names `SY-11.b`, the lifecycle scope's, and what this slice owes
+// is the `TT-` half.  Leaving it free is what makes "no `TT-` obligation depends
+// on EN-07" a checked result rather than an unrun one.
+// ===========================================================================
+
+/* The guarding scope.  Two cooperating processes, a working-tree root to hold
+   the guard on, and a task root grove may act on at all -- the last for the
+   same reason `TT-01` .. `TT-16` carry `CurrentRootThroughout`: a claim about
+   what two operations may do concurrently was never a claim about a root either
+   of them refuses to touch. */
+pred Guarding {
+  GroveGrammar
+  Concurrent
+  EN_14
+  always rootClear
+  always no inFlight
+  // AND A WALKABLE TREE.  The four concurrency transitions do NOT run the halt
+  // cascade, which is a deliberate omission rather than a slip: halting is
+  // `TT-02`/`TT-03`'s subject and is already checked there over every read and
+  // every mutation, and adding a fifth copy of it here would be paid for by
+  // every command in the file while answering no `TT-21` .. `TT-23` obligation.
+  // Pinning the tree walkable is what keeps the omission from licensing a mark
+  // on a tree grove would refuse -- the same narrowing, and the same reason, as
+  // `CurrentRootThroughout`.
+  always not halted
+}
+
+// --- TT-21: one snapshot per operation -------------------------------------
+
+/* TT-21.a.  A COOPERATING writer is excluded by the guard: while any process
+   holds one, no step taken by anyone ELSE that is not the world's own writer
+   moves the tree.  That is the invariant two classifications of one operation
+   rest on, and it is stated over the TREE rather than over the mark's guard so
+   that it is a different formula from `TT-22.b` -- the same mechanism seen at
+   the classification level rather than at the acquisition. */
+check TT_21a_a_cooperating_writer_cannot_move_the_tree_under_a_held_guard {
+  Guarding implies always (
+    all p: Proc |
+      (some p.holds and Sys.who' != p and Sys.act' not in (HandEdit + ForeignWrite))
+        implies (onDisk' = onDisk and nm' = nm and loc' = loc and dg' = dg)
+  )
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 4 steps
+
+/* The catalogue's witness: that interleaving, SHOWN SERIALIZED.  P1 opens, makes
+   one classification, P2's mark is deferred, and P1 makes its second
+   classification -- both from the one listing P1's guard was taken with. */
+run witness_TT_21a_a_cooperating_writer_between_two_classifications_is_serialized {
+  Guarding
+  eventually {
+    Sys.act = Open and Sys.who = P1 and Sys.res = Applied
+    after (Sys.act = Classify and Sys.who = P1 and Sys.res = Applied
+      and after (Sys.act = Mark and Sys.who = P2 and Sys.res = Deferred
+        and after (Sys.act = Classify and Sys.who = P1 and Sys.res = Applied
+                   and #P1.cls = 2 and P1.clsLive = liveBySnap[P1])))
+  }
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 5 steps
+
+/* TT-21.b.  A NON-cooperating writer is NOT excluded, and the claim survives it:
+   every classification an operation made still comes from its one listing, and
+   every member of a plan it is still working through was licensed by the listing
+   that validated it.  TT-21 is internal consistency, not exclusion of the world
+   -- a model that serialized `foreign-write` would have answered `EN-06` by
+   construction, which is the shape of a false-confidence incident. */
+check TT_21b_every_classification_and_every_plan_member_comes_from_the_one_listing {
+  Guarding implies always (
+    all p: Proc | {
+      p.clsLive = liveBySnap[p]
+      all m: p.plan | licensedByPlan[p, m]
+    }
+  )
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 4 steps
+
+/* The catalogue's witness: a `foreign-write` landing between two
+   classifications, with the operation's classifications still mutually
+   consistent.  The last conjunct is what makes it the interleaving rather than a
+   quiet trace -- the operation's listing no longer describes the tree. */
+run witness_TT_21b_a_foreign_write_lands_between_two_classifications {
+  Guarding
+  eventually {
+    Sys.act = Open and Sys.who = P1 and Sys.res = Applied
+    after (Sys.act = Classify and Sys.who = P1 and Sys.res = Applied
+      and after (Sys.act = ForeignWrite
+        and after (Sys.act = Classify and Sys.who = P1 and Sys.res = Applied
+                   and #P1.cls = 2 and P1.clsLive = liveBySnap[P1]
+                   and P1.snapNm != (onDisk - TaskRoot) <: nm)))
+  }
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 5 steps
+
+// --- TT-22: shared for observation, exclusive for mutation -----------------
+
+/* TT-22.a.  A shared guard never excludes another shared guard: an open asking
+   for `Shared` is admitted whenever the process holds nothing and no exclusive
+   guard is out.  Stated over `Sys.mode'` because a DEFERRED open is otherwise
+   indistinguishable from a deferred mark. */
+check TT_22a_a_shared_guard_never_excludes_another_shared_guard {
+  Guarding implies always (
+    all p: Proc |
+      (Sys.act' = Open and Sys.who' = p and Sys.mode' = Shared and no p.holds
+       and (no q: Proc - p | q.holds = Exclusive))
+        implies Sys.res' = Applied
+  )
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* Reached: two observations holding at once. */
+run witness_TT_22a_two_observations_hold_the_root_together {
+  Guarding
+  eventually (some P1.holds and some P2.holds)
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 4 steps
+
+/* TT-22.b.  An observation and a mutation are SERIALIZED.  The mutation's
+   exclusive guard is acquired and consumed inside its own step
+   (`bulk-marks-are-not-atomic`), so the claim is stated over the acquisition:
+   no mark ever applies while another process holds. */
+check TT_22b_an_observation_and_a_mutation_are_serialized {
+  Guarding implies always (
+    (Sys.act' = Mark and Sys.res' != Deferred) implies
+      (no q: Proc - Sys.who' | some q.holds)
+  )
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* Reached, and reached as a SERIALIZATION rather than as a refusal: P2's mark
+   is deferred while P1 observes, and applies once P1 has released. */
+run witness_TT_22b_a_mark_waits_for_an_observation_and_then_applies {
+  Guarding
+  eventually {
+    Sys.act = Open and Sys.who = P1 and Sys.res = Applied
+    after (Sys.act = Mark and Sys.who = P2 and Sys.res = Deferred
+      and after (Sys.act = Release and Sys.who = P1 and Sys.res = Applied
+        and after (Sys.act = Mark and Sys.who = P2 and Sys.res = Applied)))
+  }
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 6 steps
+
+// --- TT-23: a bulk mark validates before it moves, and converges -----------
+
+/* TT-23.a.  Two conjuncts.  The whole plan is validated against ONE listing
+   before the first rename -- so a run whose FIRST mark applies is a run in which
+   no live leaf anywhere was a `finish` leaf -- and a mark that refuses renames
+   nothing. */
+check TT_23a_the_whole_plan_is_validated_before_the_first_rename {
+  Guarding implies always (
+    all p: Proc | {
+      (Sys.act' = Mark and Sys.who' = p and Sys.res' = Applied and no p.plan)
+        implies (no o: liveLeaves | o.nm.fKind = FinishK)
+      // and the validation STANDS for the rest of the run, across the guards
+      // the ADR gives each mark of its own.
+      all m: p.plan | p.planNm[m].fKind != FinishK
+      (Sys.act' = Mark and Sys.res' in Refused) implies noTreeChange
+    }
+  )
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* The catalogue's witness: a plan whose LATER member is invalid, refused before
+   the first rename lands.  Both leaves are still live at the refusal, which is
+   what "before the first rename" means on a tree of two. */
+run witness_TT_23a_a_plan_with_an_invalid_member_is_refused_before_the_first_rename {
+  Guarding
+  eventually (Sys.act = Mark and Sys.res = RefReservedKind
+              and some liveOrdinary and some liveFinish)
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* TT-23.b.  Convergence, as two falsifiable conjuncts.  An already-terminal
+   entry is never renamed again -- it is skipped silently, which is what makes
+   the re-run idempotent on the part that already landed -- and a run with
+   nothing left to mark reports `Empty` rather than refusing, which is what makes
+   the re-run REACH the same result instead of failing at it. */
+check TT_23b_a_rerun_skips_what_landed_and_converges {
+  Guarding implies always (
+    all p: Proc | {
+      (Sys.act' = Mark and Sys.res' = Applied and some Sys.tgt')
+        implies Sys.tgt'.nm.fOut = LiveI
+      (Sys.act' = Mark and Sys.who' = p and Sys.res' != Deferred and no liveLeaves)
+        implies Sys.res' = Empty
+    }
+  )
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* The catalogue's witness: a bulk mark interrupted mid-run, repaired by running
+   it again.  The interruption is `crash` (`EN-08`), which is what loses the plan
+   and makes the second run a FRESH plan over the tree the first one left. */
+run witness_TT_23b_an_interrupted_bulk_mark_is_repaired_by_rerunning_it {
+  Guarding
+  eventually {
+    Sys.act = Mark and Sys.res = Applied and some liveLeaves and some Sys.who.plan
+    after (Sys.act = Crash
+      and after (Sys.act = Mark and Sys.res = Applied and no liveLeaves))
+  }
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
 
 
 // ===========================================================================
@@ -1681,6 +2245,80 @@ check expect_fail_EN_12_TT_01a_a_name_that_renders_as_two_components {
   ParseIsCanonical and GrammarIsTotal and CurrentRootThroughout implies
     (all disj f, g: entryName | not denotesSame[f, g])
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
+
+/* EN-07 — premise-break: TWO OPEN DESCRIPTIONS OF ONE DIRECTORY DO NOT SHARE A
+   LOCK.  It is the assumption that rejects `bulk-marks-are-not-atomic`'s third
+   considered option — hold Grove's own exclusive guard around the whole run and
+   let the library take its guard inside it — because both `flock` the directory
+   containing the tree root and the inner acquisition would deadlock against the
+   outer one.  The control is therefore that the deadlock is really in force:
+   under the incumbent, a process holding its own guard can never take a mark.
+
+   THE FINDING IS THAT NO `TT-` OBLIGATION DEPENDS ON IT, which is what the
+   assumption table predicts in its own expected-result column — it names
+   `SY-11.b`, the lifecycle scope's.  Every `TT-21` .. `TT-23` check above leaves
+   `EN_07` FREE, so all six are checked over the broken assumption as well as
+   over the incumbent, and all six are green either way.  An assumption carrying
+   no weight in this scope is a legitimate result of this control and not a
+   defect in it. */
+run expect_unreachable_EN_07_an_outer_guard_is_never_held_across_a_mark {
+  Guarding and EN_07
+  eventually (Sys.act = Mark and Sys.res != Deferred and some Sys.who.holds)
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 6 Filename, 2 Slug, 2 Digest, 4 steps
+
+/* The fire evidence for it, and the other half of the premise-break: once the
+   two descriptions DO share a lock the nested acquisition is admitted, so the
+   command above is unreachable because of the assumption rather than because
+   the situation cannot be built. */
+run witness_EN_07_the_outer_guard_is_admitted_once_two_descriptions_share_a_lock {
+  Guarding and not EN_07
+  eventually (Sys.act = Mark and Sys.res = Applied and some Sys.who.holds)
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 6 Filename, 2 Slug, 2 Digest, 4 steps
+
+/* EN-14 — premise-break: THE WORKING-TREE ROOT EXISTS BEFORE THE TASK ROOT AND
+   OUTLIVES ITS DELETION.  It is what the guard is held ON — the task root is
+   `TaskRoot` and cannot be it, since finish deletes that and the lease outlives
+   it.  Remove the working-tree root and there is nothing to `flock`: no guard is
+   taken, the compatibility test has no subject, and a mutation lands while an
+   observation is mid-flight.  `TT-22.b` fails, which is the `TT-` half of the
+   assumption table's expected result (its own column names `SY-01`, the
+   lifecycle scope's second driver). */
+check expect_fail_EN_14_TT_22b_with_no_root_to_guard_a_mark_lands_mid_observation {
+  (GroveGrammar and Concurrent and not EN_14 and always rootClear
+     and always no inFlight) implies always (
+    (Sys.act' = Mark and Sys.res' != Deferred) implies
+      (no q: Proc - Sys.who' | some q.holds)
+  )
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 4 Filename, 2 Slug, 2 Digest, 3 steps
+
+/* EN-08 — exercise-removal: INTERRUPTION MAY OCCUR BETWEEN ANY TWO STEPS.  Run
+   against the two NAMED WITNESS SETS it controls rather than against the whole
+   file, which is what the assumption table's `TT-` column names: `TT-20`'s
+   interrupted initialisation (`roots` landed it) and `TT-23.b`'s interrupted
+   bulk mark (this slice's).  With `crash` removed both are unreachable.
+
+   EVERY PROPERTY CHECK STAYS GREEN, and that half needs no run of its own: no
+   check in this file asserts `EN_08`, so each is already checked over the traces
+   that contain `crash` AND the traces that do not.  Green over the superset is
+   green over the subset. */
+run expect_unreachable_EN_08_the_interrupted_initialisation_witness_needs_crash {
+  GroveGrammar and SingleProc and not EN_08
+  eventually {
+    Sys.act = InitScaffold and Sys.res = Applied and some inFlight
+    Sys.act' = Crash
+    after (no inFlight and no Fmt.fmt and isPartialScaffold
+           and rootState = PartialScaffoldR)
+  }
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
+
+run expect_unreachable_EN_08_the_interrupted_bulk_mark_witness_needs_crash {
+  Guarding and not EN_08
+  eventually {
+    Sys.act = Mark and Sys.res = Applied and some liveLeaves and some Sys.who.plan
+    after (Sys.act = Crash
+      and after (Sys.act = Mark and Sys.res = Applied and no liveLeaves))
+  }
+} for 4 but 4 Int, 2 FileObj, 1 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
 
 
 // ===========================================================================

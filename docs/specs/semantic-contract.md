@@ -491,6 +491,19 @@ shipped contract and callers branch on it: selection on a spent grove and a
 resolution that matched nothing are both successes that mutate nothing and
 report nothing to standard output (`TT-15`).
 
+**A guard wait is not an outcome, and the omission is deliberate.** `TT-22`
+serializes an observation against a mutation, and nothing in the closed set above
+says what the *waiting* caller sees. It sees nothing: `src/tree_access.rs`
+acquires with `flock` and no `LOCK_NB`, so the tree lock **blocks** and no
+invocation ever returns while it is held. The set covers what a completed
+invocation returns, and a wait is not a return; adding it here would put a
+tree-level twin of `LeaseHeld` into the refusal list for a refusal Grove does not
+produce. A model that needs the waiting state to be *observable* — because
+otherwise a failed guard is an absent transition and `TT-22` is true by
+construction — introduces it as an abstraction of its own and records it as one
+([`crates/grove-task-tree/models/task-tree.als`](../../crates/grove-task-tree/models/task-tree.als),
+`Deferred`).
+
 **Refusal reasons**, closed:
 
 `RootAbsent` · `FormatLegacy` · `FormatForeign` · `WitnessPending(class)` ·

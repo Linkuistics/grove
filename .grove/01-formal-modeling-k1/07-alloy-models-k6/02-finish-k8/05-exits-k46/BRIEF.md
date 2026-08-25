@@ -1,4 +1,4 @@
-# exits-k46
+# exits-k46 — brief
 
 
 ## Goal
@@ -151,6 +151,44 @@ sections are specifically this leaf's inheritance and are named below.
   assumption mutations, `FN-15.d`/`FN-31.a`'s instrument, and the per-command
   README record. Walk it.
 
+
+
+## Decomposition
+
+Fourteen obligations, and **four new machineries** where every sibling slice of
+`finish-k8` added one or two: a stable-state classification of the disk
+(`FN-24.a`), a persistent-effect enumeration over all sixteen `bodySteps`
+(`FN-24.b`), the `Blocked` diagnosis partition four slices deliberately did not
+build (`FN-25`), and hook suppression (`FN-30`). On top of those sit two
+exercise-removals whose named witness sets span the whole file, Q4's removal
+matrix, the runner's matrix-reader question, and this node's own close. That is
+more than one focused session, and the cut is along **machinery** — which is how
+`finish-k8` cut its own level and how `handoff-k42` cut its.
+
+1. `crash` — `FN-24.a`, `FN-24.b` (2 obligations). Adds the **stable-state
+   classification** of the disk, written as data the way `observed` and
+   `tableAction` are, and the **persistent-effect enumeration** the step list is
+   worth. `FN-24.a`'s antecedent quantifies over all sixteen `bodySteps` and is
+   the widest this file will have had; `FN-24.b`'s job is to name the steps that
+   have more than one persistent effect and declare them. Owns **`EN-08`** — the
+   `crash` exercise-removal — because `FN-24` is the obligation it controls that
+   this file did not already have.
+2. `blocked` — `FN-25.a` – `FN-25.c`, `FN-26` (4). Adds the **diagnosis
+   partition** over `Blocked` and the four model-only `why` values it has to
+   absorb, plus *history is never rewritten to clear a block*. Owns **`EN-16`** —
+   the lane collapsed to one — because `FN-25.c`'s per-lane witnesses are what
+   the control makes visible.
+3. `exits` — `FN-02`, `FN-23`, `FN-27.a` – `FN-27.c`, `FN-28` – `FN-30` (8),
+   plus **Q4's removal matrix**, the runner question, and the node close. Adds
+   hook suppression and the single successful exit. It is last because the matrix
+   needs `FN-24` (child 1) and `FN-27` (its own), because `FN-02`'s witness is a
+   decline followed by a *successful* attempt and no success exists before
+   `FN-28`, and because the visible signal — `--no-coverage` leaving the README's
+   run line — is the last child's by construction.
+
+Only the first child is cut now, which is the rule `finish-k8` set: each session
+cuts the next one as its last act, once the model's actual shape at that point is
+known.
 
 ## Notes
 

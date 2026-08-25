@@ -15,16 +15,28 @@ models/run.sh --scope finish --family alloy --no-coverage
 
 | family | file | obligations |
 |---|---|---|
-| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition**; `FN-19`, `FN-20` — the **quarantine and the atomic root rename**; `FN-22` — the **four revalidation points and the ten-row table**; `FN-21`, `FN-31` — **disposal**: its re-entrancy, the cleanup marker's create / replace / remove transitions, and the reaper |
+| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition**; `FN-19`, `FN-20` — the **quarantine and the atomic root rename**; `FN-22` — the **four revalidation points and the ten-row table**; `FN-21`, `FN-31` — **disposal**: its re-entrancy, the cleanup marker's create / replace / remove transitions, and the reaper; `FN-24` — the **crash slice**: what the disk a crash leaves classifies as, and what one step of the transaction may change |
 | Quint | — | none yet (`quint-models-k10`) |
 
 **The `--no-coverage` on the run line above is the signal that this column is
-still being built**, and it is what leaves it when the column closes. **Fourteen**
+still being built**, and it is what leaves it when the column closes. **Twelve**
 of the scope's sixty-one alloy cells are empty, and that is the truth about the
-repository rather than a defect in the instrument: all fourteen belong to the
-`exits` sibling of `finish-k8` (`FN-02`, `FN-23` – `FN-30`), and with the
-disposal slice landed **`handoff-k42`'s subtree is complete**. The runner prints
-the matrix in full on every run whether or not it is asserted.
+repository rather than a defect in the instrument: all twelve belong to the two
+remaining children of `exits-k46` (`FN-02`, `FN-23`, `FN-25` – `FN-30`), and with
+the crash slice landed `FN-24` is answered.
+
+**`exits-k46` decomposed, and the reason is in this file.** It was cut as one
+leaf for fourteen obligations; four of them need machinery no sibling slice
+built — a stable-state classification of the disk, a persistent-effect
+enumeration over all sixteen `bodySteps`, the `Blocked` diagnosis partition four
+slices deliberately did not build, and hook suppression — where every earlier
+slice of `finish-k8` added one or two. The node's three children are `crash`
+(`FN-24`, this one, owning `EN-08`), `blocked` (`FN-25`, `FN-26`, owning
+`EN-16`) and `exits` (`FN-02`, `FN-23`, `FN-27` – `FN-30`, plus Q4's removal
+matrix and the runner question). The visible signal — `--no-coverage` leaving
+the run line above — is the last of the three's, by construction: the matrix
+needs `FN-24` and `FN-27` both, and `FN-02`'s witness is a decline followed by a
+**successful** attempt, which does not exist before `FN-28`.
 
 **Declared gaps** — none. The runner reads them from this file, in one shape:
 
@@ -48,9 +60,15 @@ the re-statement would be a citation change rather than new modelling, because
 **Q4's artifact/transition removal matrix is not here yet.** The catalogue
 requires one, in this file, per family — one row per removable artifact naming
 the first shared-safety obligation its removal breaks, or `none`. It belongs to
-the `exits` sibling, which is the leaf that has every shared-safety claim in
-front of it; a matrix written before `FN-24` and `FN-27` exist would have nothing
-to name. **Five of its rows are now decided** and are recorded under *The mutation
+the **third child of `exits-k46`**, which is the leaf that has every
+shared-safety claim in front of it; a matrix written before `FN-24` and `FN-27`
+exist would have nothing to name. `FN-24` now exists — the crash slice is the
+first of the three children — and **it still decides no row**, for the reason
+under *The mutation matrix*: `FN-24.b`'s two multi-effect steps are declared
+abstractions of the incumbent's own machinery, and `FN-24.a`'s only mutation
+that reaches an artifact is one that reaches the model's classification rather
+than the protocol's. The matrix stays at five decided rows and two recorded as
+undecidable; `FN-27` is the last shared-safety claim that could move it. **Five of its rows are now decided** and are recorded under *The mutation
 matrix* below, so `exits` transcribes rather than re-derives them: the reserved
 witness, the evacuation manifest's ready mark, and — this slice's — the
 **correlation ticket** (`FN-04` first, a shared-safety claim), the **recorded
@@ -114,6 +132,16 @@ Five parts of it mean something other than "make it bigger":
   into one about recording *some* value — `2 AttemptId`, `2 Rev` — are exactly
   what `FN-04` and `FN-16.a` need, and at one atom each both claims would be
   unstateable rather than false.
+- **THE CRASH SLICE ADDS NO SCOPE DIMENSION, NO `var` FIELD AND NO TRANSITION —
+  AND IT IS THE FIRST SLICE IN THIS SCOPE THAT ADDS NONE OF THE THREE.** What it
+  adds is sixteen **static** `one sig` atoms in two new abstract signatures
+  (`Stable`, `Effect`) and a handful of `fun`s and `pred`s over them, all of them
+  read only by claims. `crash` has been enabled at every step boundary since
+  `witness-k40`; `FN-24` is the first claim that asks what the disk it leaves
+  classifies as. **It did move the ceiling, from 12 to 13**, and by exactly one
+  command: `witness_FN_24a_a_crash_after_the_cleanup_marker_is_removed` needs
+  disposal's last step and then an interruption, which is one state past the
+  deepest trace the file had.
 - **`N steps` still ranges from 2 to 12, AND THE DISPOSAL SLICE DID NOT MOVE THE
   CEILING — which is not what its own arithmetic predicted.** Splitting the
   forward settle into three steps put two transitions into a path five inherited
@@ -151,10 +179,24 @@ Five parts of it mean something other than "make it bigger":
 The catalogue asks for the witness bound separately from the check bound because
 *a claim whose witness first lands at the bound it was checked at has no margin*.
 Measured, by re-running each witness at `2..14 steps` and taking the first that
-lands; **all sixty-nine rows below have been re-measured under the disposal
-slice**, not only the ten it added. **Exactly two inherited rows moved**, which
-is fewer than the arithmetic predicted and is a seventh bound-register entry —
-see beneath the table.
+lands; the ninety-three rows below carry the disposal slice's sweep of
+sixty-nine plus the crash slice's twenty-four.
+
+**THE CRASH SLICE IS THE FIRST WHOSE INHERITED ROWS COULD NOT MOVE, AND THE
+ARGUMENT IS BETTER EVIDENCE THAN THE SWEEP WOULD HAVE BEEN.** It adds no
+transition, no `var` field and no `fact`; the transition relation and every
+existing signature's state are byte-for-byte what the disposal slice left. Two
+new abstract signatures of `one sig` atoms cannot make a trace exist or stop
+existing, so no inherited witness's first-landing bound can move — that is a
+proof rather than a measurement, and it is stated here because the alternative
+was a sixty-nine-witness sweep that could only have confirmed it. **Eight
+inherited rows spread across the whole depth range were re-measured anyway, as
+the control the argument is worth nothing without**: `witness_FN_01a` (2),
+`witness_FN_21c` (2), `witness_FN_09b` (7), `witness_FN_11` (10),
+`witness_FN_15b_git` (11), `witness_FN_22h` (12), `witness_FN_31a_the_stale_marker`
+(12) and `witness_FN_03` (12) each still land at their recorded bound and at no
+smaller one. A sibling that adds a `var` field, a transition or a fact does not
+inherit this argument and owes the full sweep.
 
 | witness | first lands at |
 |---|---|
@@ -227,6 +269,30 @@ see beneath the table.
 | `witness_FN_31c_an_interruption_before_the_replacement_is_resumed` | 3 |
 | `witness_FN_31c_an_interruption_after_the_replacement_is_resumed` | 4 |
 | `witness_FN_31d_a_foreign_marker_is_declined` | **10** |
+| `witness_FN_24a_a_crash_after_the_witness_is_prepared` | **6** |
+| `witness_FN_24a_a_crash_after_the_manifest_is_written` | **7** |
+| `witness_FN_24a_a_crash_after_the_manifest_is_marked_ready` | **8** |
+| `witness_FN_24a_a_crash_after_the_witness_is_published` | **9** |
+| `witness_FN_24a_a_crash_after_the_tree_is_evacuated` | **7** |
+| `witness_FN_24a_a_crash_after_the_commit_is_attempted` | **7** |
+| `witness_FN_24a_a_crash_after_a_recovery_adopts_the_witness` | **6** |
+| `witness_FN_24a_a_crash_after_the_classification` | **9** |
+| `witness_FN_24a_a_crash_after_the_quarantine_rename` | **10** |
+| `witness_FN_24a_a_crash_after_the_settle` | **10** |
+| `witness_FN_24a_a_crash_after_the_revalidation` | **11** |
+| `witness_FN_24a_a_crash_after_the_quarantine_is_returned` | **12** |
+| `witness_FN_24a_a_crash_after_the_cleanup_marker_is_created` | **11** |
+| `witness_FN_24a_a_crash_after_the_cleanup_marker_is_replaced` | **11** |
+| `witness_FN_24a_a_crash_after_the_quarantine_is_disposed` | **12** |
+| `witness_FN_24a_a_crash_after_the_cleanup_marker_is_removed` | **13** |
+| `witness_FN_24b_a_step_whose_one_effect_is_at_the_reserved_witness_name` | 5 |
+| `witness_FN_24b_a_step_whose_one_effect_is_the_manifest` | **6** |
+| `witness_FN_24b_a_step_whose_one_effect_is_the_ready_mark` | **7** |
+| `witness_FN_24b_a_step_whose_one_effect_moves_entries` | **9** |
+| `witness_FN_24b_a_step_whose_one_effect_is_the_commit` | **7** |
+| `witness_FN_24b_a_step_whose_one_effect_is_the_atomic_root_rename` | **9** |
+| `witness_FN_24b_a_step_whose_one_effect_is_at_the_cleanup_marker_name` | **10** |
+| `witness_FN_24b_the_declared_step_with_two_persistent_effects` | **11** |
 
 The rule this file adopts, and the one a sibling leaf should carry forward:
 **a check runs at a bound at least as large as the widest first-landing bound
@@ -241,6 +307,17 @@ slice's two at 10 (`FN-19`) and 8 (`FN-20`), and the revalidation slice's ten at
 10 (`FN-22.b`, `.d`, `.e`, `.i`), 11 (`FN-22.a`, `.c`, `.f`, `.g`, `.j`) and 12
 (`FN-22.h`). Two inherited checks move with their witnesses: **`FN-03` to 12** and
 **`FN-18` to 11**.
+
+**THE CRASH SLICE'S TWO CHECKS, AND THE TWO RULES AGREE ON ONE AND DISAGREE ON
+THE OTHER.** `FN-24.a` runs at **13**: its widest witness is the crash after
+disposal's last step at 13, and its antecedent — a body step followed by an
+interruption — is deepest at exactly that trace, so both rules give 13.
+`FN-24.b` runs at **12**, where the two rules disagree by one and the antecedent
+rule wins: its widest witness lands at 11, and the antecedent quantifies over
+`bodySteps`, whose deepest member (`MarkerRemove`) first occurs at 12. Run at 11
+the check would have said nothing about the last step of the transaction — which
+is `disposal-k45`'s third predictor in its ordinary, undramatic form, applied
+before the fact rather than after a mutation survived.
 
 **AND THE DISPOSAL SLICE IS WHERE THE RULE, APPLIED LITERALLY, WOULD HAVE MADE A
 CHECK VACUOUS — WHICH IS A THIRD BOUND-VACUITY PREDICTOR FOR THIS CORPUS.**
@@ -363,6 +440,60 @@ close the lasso, and the predictor was applied before the command was written
 rather than after a mutation survived.
 
 ### Cost
+
+**THE CRASH SLICE COST 1–9%, AND THE SHAPE OF THE COST IS INVERTED FROM EVERY
+SLICE BEFORE IT.** It adds no transition, no `var` field and no scope dimension:
+sixteen static `one sig` atoms in two abstract signatures, and `fun`s over them
+that only claims read. Medians of three, one host, one sitting, both files
+present, and a clean A/B on the four inherited sentinels:
+
+| command | disposal slice | crash slice | |
+|---|---|---|---|
+| `FN_08` (4 steps, entry surface) | 2.03 s | 2.20 s | **+8%** |
+| `FN_07` (4 steps, entry surface) | 2.24 s | 2.44 s | **+9%** |
+| `FN_13` (10 steps, the widest inherited) | 8.16 s | 8.26 s | **+1%** |
+| `witness_FN_11` (10 steps) | 3.83 s | 3.97 s | +4% |
+
+(The disposal column is re-measured in **this** sitting and reads 8.16 s on
+`FN_13` where that slice's own figures said 8.37 s — the third measurement rule
+doing its job, as it did for the slice before.)
+
+**EVERY SLICE BEFORE THIS ONE COST MOST ON THE WIDEST COMMAND AND LEAST ON THE
+TIGHTEST. THIS ONE IS THE OTHER WAY ROUND, AND THAT IS THE FINDING.** The
+disposal slice was +13% / +11% on the two entry-surface sentinels and **+19%** on
+`FN_13`; the revalidation slice +9% / +11% against +14%; the commit slice's ratio
+was steeper still. Here the tightest commands moved **eight and nine points** and
+the widest moved **one**. The absolute movement is nearly the same number of
+milliseconds in all four — 0.17 s, 0.20 s, 0.10 s, 0.14 s — which is what a
+**flat** cost looks like on four commands whose totals differ by a factor of four.
+
+> **The cost law is about STATE. Static atoms and static relations cost a
+> roughly CONSTANT amount per command, not a percentage of it** — they enlarge
+> `univ` and the per-command translation, both of which are paid once whatever
+> the bound. Read a percentage on a tight sentinel as a large fraction of a small
+> number, and do not extrapolate it to the wide ones.
+
+That is a fourth statement of one law rather than a fifth law: *budget by the
+number of states of a trace at which a transition is enabled* prices this slice
+at **zero**, and zero was very nearly right. It also means the four-sentinel
+convention this scope inherited has been carrying a second job all along — one
+sentinel is not enough is `task-tree-k7`'s rule for **state**, and this slice is
+the first case where the tight sentinel is the one that saw the movement.
+
+**Where the suite's time actually went.** 147 commands, **10 m 33 s**, against
+118 in 7 m 39 s. Twenty-nine new commands — two checks, twenty-four witnesses and
+three `EN-08` controls — of which six are at 11–13 states. The two checks are
+**5.3 s** and **51.7 s**: `FN_24b` is the dearest single command in the file, and
+it is dear for the ordinary reason — a `bodySteps`-wide antecedent at twelve
+states — rather than for a new one. `FN_24a` at thirteen states is 5.3 s, which
+is the flat-cost result again from the other side: a check whose antecedent is
+wide but whose consequent is a function of static data is cheap at any bound.
+**A whole-suite total still does not compare across sessions**; this pair is
+quoted only because both halves carry their command counts, and note that the
+sentinel A/B above puts the crash slice's own contribution at 1–9%, so most of
+the 2 m 54 s is the twenty-nine new commands rather than a tax on the old ones.
+
+---
 
 **THE DISPOSAL SLICE COST 11–19%, AND FOR THE FIRST TIME IN THIS SCOPE THE COST
 LAW WAS NOT PESSIMISTIC — BECAUSE ONE TRANSITION IS A SWEEP AND THE OTHERS ARE
@@ -591,6 +722,47 @@ Beyond the catalogue's own [deliberate
 omissions](../../../docs/specs/semantic-contract.md#deliberate-omissions), which
 this file adopts unchanged:
 
+- **THE STABLE-STATE CLASSIFICATION IS SEVEN ROWS OF THE CATALOGUE'S ELEVEN, PLUS
+  ONE THIS FILE ADDS.** §*States* classifies a task root in a fixed order over
+  `Absent`, three `Reserved` classes, `PartialScaffold`, `Legacy`, `Foreign`,
+  `Malformed` and three `Current` classes. No finish transition produces a
+  `Migrating`, a partial scaffold, a legacy tree, a foreign format witness or a
+  malformity — all five are the task-tree scope's — so `classifiedRaw` carries
+  `Absent`, `Reserved(Preparing)`, `Reserved(Published)`, the three `Current`
+  rows, and **`Reserved(Quarantined)`**, which is this file's own and is
+  described under *A fifth finding* below. Each arm is the catalogue's row
+  verbatim and the arms **overlap**; the classification ORDER is what resolves
+  them, and it is written as a strict precedence relation so that deleting a pair
+  leaves two survivors rather than silently changing which one wins.
+- **A step's PERSISTENT EFFECTS are counted at the grain `FN-24.b` states them,
+  which is the effect and not the field.** Three consequences, and each of them
+  is a case where a field-by-field count would report a correct protocol as a
+  defective one: a same-directory rename touches two names and `EN-01` makes it
+  **one** effect; removing a directory removes what is inside it, so a step that
+  releases the reserved witness has not separately written its manifest; and
+  moving entries between two names is one move however many entries move.
+  Counted by field, the completed refusal would read as four persistent effects
+  and the atomic root rename as two.
+- **TWO STEPS HAVE MORE THAN ONE PERSISTENT EFFECT, AND BOTH ARE DECLARED — which
+  is what `FN-24.b` asks for in as many words.** They are named in one place
+  (`declaredMultiEffect`), so narrowing the check and declaring the abstraction
+  are the same edit; a check quietly weakened until it passes and a declaration
+  are otherwise indistinguishable in a green run.
+  - **`Dispose` clears the quarantine name and the reserved witness name
+    together.** In this model they are two `one sig`s; in the shipped protocol
+    the witness is **inside** the root the rename moved, so removing the one
+    removes the other. *To decompose it* the model needs a containment relation
+    between the two names — which is the same abstraction `EN-03` (no atomic
+    recursive deletion) already forces the shipped removal to take entry by
+    entry, and which `disposal-k45` recorded as *what is not modelled is a
+    partial removal within the step*.
+  - **`doSettle`'s restore branch puts the tree back and reproduces the exact
+    preflight commit**, and on a working-copy-as-commit lane those are two
+    persistent effects. *To decompose it* the model needs a phase between the
+    restoration and the reproduction — which is exactly what `revalidation-k44`
+    did to the settle once already, for `FN-22`'s after-restoration row. What a
+    **fifth** revalidation point would cost is `FN-22`'s question rather than
+    this claim's, and `FN-24.b` declares rather than answers it.
 - **The tree is coarse: no filename grammar.** An entry is an opaque object with
   a type, a role and a digest. No `FN-` claim in these slices quantifies over
   names, positions, keys or slugs, so the grammar that occupies most of
@@ -772,10 +944,12 @@ this file adopts unchanged:
 - **THE SWEEP IS NOT IN `bodySteps` OR `txnActs`, AND THREE THINGS FOLLOW.** It
   takes no operator confirmation (`FN-01.a` is stated over `txnActs`, and
   collecting the garbage a crashed finish left is not a second finish); `FN-24.b`
-  should not be asked of it, though as written each firing has exactly one
-  persistent effect; and `FN-22.a`'s *none is skipped* conjuncts, which quantify
-  over `txnActs`, do not reach it — which is correct, because a sweep never had a
-  disposition to revalidate. `exits` inherits that distinction with `FN-24.b`.
+  should not be asked of it, ~~though as written each firing has exactly one
+  persistent effect~~ — **and that clause was wrong: the crash slice's effect
+  enumeration shows the content-removal branch has two, exactly as `Dispose`
+  does**; and `FN-22.a`'s *none is skipped* conjuncts, which quantify over
+  `txnActs`, do not reach it — which is correct, because a sweep never had a
+  disposition to revalidate. `FN-24.b` landed with that exclusion intact.
 - **`tableAction`'s AFTER-RENAME `Committed` ROW NOW READS THE MARKER.** The
   catalogue's corrective action there is *complete: dispose (`FN-21`)* — it names
   another claim group rather than one move — and `FN-31` requires a **create**
@@ -806,7 +980,8 @@ this file adopts unchanged:
   now reads the **unprimed** state for both halves, which is what makes it an
   ordering. Whether the *remaining* steps must be decomposed is still
   `FN-24.b`'s, and `Settle`, `Classify`, `Recover`, `Revalidate` and `QuarReturn`
-  are all in `bodySteps` so that `exits` can ask it of them.
+  are all in `bodySteps` so that it can be asked of them. **It was**: `Settle`'s
+  restore branch is one of the two steps `FN-24.b` declares.
 - **SPLITTING THE RESTORATION OPENED A LANE-CHANGE WINDOW, AND `FN_17a` FOUND
   IT.** `World.lane` is `var` because `SY-03` requires it, so the layout can move
   between the restoration and the release: a tree restored on a Git lane, where
@@ -985,6 +1160,54 @@ this model followed the catalogue, because the catalogue is the sole input.
 
 ## What a green run of this file does not prove
 
+- **Not that `FN-24.a`'s totality conjunct is doing any work.** `some
+  classifiedRaw` is the claim's *classifies into a stable state* half, and with
+  the arm set as it stands it is true by construction: `SAbsent` reads *no task
+  root* and the three `Current` rows between them cover *some task root*, so
+  every disk matches something. It is kept because a row added later with a
+  narrower guard would break it and because its absence would be a silence rather
+  than a red — but the conjuncts that carry `FN-24.a` are the **order** ones,
+  and the mutation matrix's row 49 is aimed at those.
+- **Not that all sixteen step boundaries are witnessed by one trace.** They are
+  witnessed by sixteen, one per member of `bodySteps`, because a crash ends the
+  transaction and a trace that reached them all would have to restart fifteen
+  times. What the file demonstrates is that each boundary is individually
+  reachable and that `FN_24a` quantifies over all of them; what it does not
+  demonstrate is a single execution visiting every one.
+- **Not that `FN-24.b` covers `Reap`, and the exclusion corrected a sentence of
+  this file.** `bodySteps` deliberately excludes the sweep — a sweep is not a
+  step of the transaction, takes no confirmation, and never had a disposition to
+  revalidate — and the note on `doReap` has said since `disposal-k45` that *as
+  written each firing has exactly one persistent effect*. **Writing the
+  enumeration down shows that is false**: the content-removal branch clears the
+  quarantine name and the reserved witness name together, exactly as `Dispose`
+  does and for the same reason. The exclusion was right; the reason offered for
+  it was one sentence too generous, and the sentence has been corrected in
+  `finish.als`.
+- **Not that `EN-08`'s control reaches every obligation the assumption table
+  names — and `FN-31.c` is the one it does not.** The table names `FN-09`,
+  `FN-10`, `FN-24`, `FN-31.c`, `SY-12`, `TT-20` and `TT-23.b` as the witnesses
+  that become unreachable when `crash` is removed. In this file `FN-09.a`,
+  `FN-09.b`, `FN-10.a` and all sixteen of `FN-24.a`'s do; **`FN-31.c`'s two do
+  not**, because both **posit** the disk an interruption leaves rather than
+  running `crash` to reach it, so removing the action leaves them landing. That
+  is a fact about this file's realisation rather than about the assumption, and
+  it is exactly what an exercise-removal exists to make visible — it is invisible
+  without one. `formal-synthesis-k16` reads it as evidence that a posited disk
+  and a reached one are not interchangeable for an assumption's control, however
+  interchangeable they are for the claim.
+- **Not that `FN-09.a`'s *exactly one rename* frames the whole tree.** Its
+  `WPublish` branch asserts `Slot.owner`, `Slot.wHolds`, `rootSame`, `manSame`,
+  `repoSame` and `worldSame` — and **not** the cleanup marker, which did not
+  exist when the check was written. Mutation 50 is a publication that deletes a
+  standing marker: it kills `FN-24.b` and leaves `FN-09.a` green. Two readings
+  are available and the file takes the second: either `FN-09.a` should grow a
+  `markSame`, or the marker is `FN-31`'s subject and `FN-09.a` should not
+  describe it — which is `disposal-k45`'s fourth rule about aim, applied to a
+  check rather than to a mutation. What follows is that *nothing else moves* in
+  this file means *nothing else the claim's own frame names*, and `FN-24.b` is
+  now the only check that quantifies over the whole disk at once.
+
 - **Not that the seven preconditions are the right seven.** `FN-05.a` is checked
   as a biconditional between what the catalogue states (`pre1`..`pre7`) and what
   the transaction gates on (`gateWork`..`gateEntryType`), which are written
@@ -1157,12 +1380,16 @@ this model followed the catalogue, because the catalogue is the sole input.
   would need a notion of successor revisions this file does not have, and it is
   the sharpest thing `formal-synthesis-k16` should not read this green run as
   covering.
-- **Not that the step list is complete.** `FN-24.b` is the obligation that asks
-  whether every step has at most one persistent effect and whether that effect is
-  a same-directory rename or is itself decomposed. It is `exits`', it quantifies
-  over `bodySteps`, and this file writes that set as one named thing so the
-  question has something to be asked of. Until then, the six steps are this
-  file's *proposal* for the crash boundaries, not a checked claim about them.
+- ~~**Not that the step list is complete.**~~ **ANSWERED BY THE CRASH SLICE.**
+  `FN-24.b` asks whether every step has at most one persistent effect and whether
+  that effect is a same-directory rename or is itself decomposed; it quantifies
+  over `bodySteps`, which this file has written as one named thing since
+  `witness-k40` precisely so the question would have something to be asked of.
+  Sixteen steps, fourteen with at most one effect and **two declared** with what
+  decomposing them would take. What a green `FN_24b` still does not prove is that
+  the step *list* is the complete set of crash boundaries — that is `FN-24`'s
+  first premise, stated by the catalogue rather than checked by it, and no
+  command in either family can establish it.
 - **Nothing outside the bounds.** A successful bounded check is evidence about
   the stated bounds, not proof about arbitrary executions. With three entries,
   two devices, two attempt identities, two digests and ten states, a protocol
@@ -1184,6 +1411,10 @@ of rules this file already carried, which is recorded below rather than treated
 as bad luck. Rows 30–31 are the handoff slice's, and **one of the two did not
 land as first written either**, for a reason that is neither of the commit
 slice's two — see *A mutation that kills a neighbour* below.
+
+Rows 49–50 are the crash slice's, and **both landed as first written — but row
+49 is the second mutation that was tried**, and the first is a fourth way for a
+mutation to fail its aim; see below.
 
 Rows 42–48 are the disposal slice's, and **three of the seven did not land as
 first written — two of them the same trap, met against a `fact` and against a
@@ -1248,6 +1479,51 @@ that sweep, not an assertion.
 | 46 | `FN-31.b` | the replacement adds its marker beside the one it supersedes — two stand at the reserved name | `witness_FN_22i` | KILLED |
 | 47 | `FN-31.c` | the sweep retires the marker in the same firing that removes the quarantine — the two boundaries of the replacement stop being distinguishable | `witness_FN_31c_an_interruption_before_the_replacement_is_resumed` | KILLED |
 | 48 | `FN-31.d` | the foreign document is **superseded anyway** while the attempt blocks — it reports the conflict and mutates the thing it could not prove is its own | `witness_FN_31a_a_source_state_from_which_disposal_must_replace_a_marker` | KILLED |
+| 49 | `FN-24.a` | the classification order is the catalogue's table order taken **literally** — `Absent` first, the whole `Reserved` class after it | `witness_FN_24a_a_crash_after_the_quarantine_rename` | KILLED |
+| 50 | `FN-24.b` | `doWPublish` drops `markSame` and removes a standing cleanup marker — the publication is still exactly one rename and now has two persistent effects | `witness_FN_09a_an_interruption_immediately_after_publication` | KILLED |
+
+**ROWS 49–50 ARE THE CRASH SLICE'S, AND BOTH LANDED AS FIRST WRITTEN — BUT ROW
+49 IS THE SECOND THING THAT WAS TRIED, AND THE FIRST IS WORTH MORE THAN THE
+ROW.** Row 49 was first written as *delete one pair from the precedence
+relation* — `SReservedPublished -> SAbsent`, so that the post-rename disk would
+match `Reserved(Published)` and `Absent` with neither classified before the
+other. It **SURVIVED**. The reason is that the same disk also matches
+`Reserved(Quarantined)`, and `SReservedQuarantined -> SAbsent` was still
+standing, so `Absent` was dominated by a **neighbouring** pair the mutation had
+not touched. That is a fourth way for a mutation to fail its aim, and it is the
+first one in this file that is a property of the *claim's own data* rather than
+of the model around it:
+
+> **A mutation to one row of a total order is not a mutation to the order.** A
+> precedence relation is transitively redundant by construction, so any single
+> pair a disk's classification rests on has understudies. Mutate the ORDER — the
+> whole ranking, as an alternative the claim is stated against — not one edge of
+> it.
+
+The row as run does exactly that: it restores §*States*' own table order and lets
+the check say what is wrong with it. That makes the mutation and the finding the
+same object, which is the cheapest form a control can take.
+
+**BOTH ROWS WERE SWEPT AGAINST FIFTEEN NEIGHBOURING CHECKS AND LEFT ALL FIFTEEN
+GREEN.** `FN-24.b`'s subject is the widest in the file — it quantifies over every
+persistent component of the disk at once — so the *left green* column mattered
+more here than anywhere: row 50 was run against `FN-09.a`, `FN-12.a`, `FN-11`,
+`FN-19`, `FN-21.a`, `FN-21.b`, `FN-21.c`, `FN-22.a`, `FN-22.i`, `FN-31.a`,
+`FN-31.b`, `FN-31.c`, `FN-31.d` and `FN-24.a`, and every one stayed green. Row
+49 touches `earlierThan`, which `classified` alone reads and `FN-24.a` alone
+reads, so it isolates by construction rather than by measurement — which is
+worth saying plainly, because *isolates by construction* is a weaker fact than
+*isolated by a sweep* and reads identically in a table.
+
+**AND A SECOND MUTATION WAS RUN AGAINST `FN-24.a` THAT IS NOT A MATRIX ROW,
+because it is evidence for a finding rather than a control for the claim.**
+Removing the `SReservedQuarantined` arm from `classifiedRaw` — reverting to the
+catalogue's six applicable rows — **KILLS** `FN-24.a`, on the disk a disposal
+leaves when it has released its reserved witness with the quarantine still
+standing: without the row that disk classifies `Current(Spent)`, an ordinary
+spent grove. That is what makes the added row load-bearing rather than
+decorative, and it is recorded under *A fifth finding* rather than in the matrix
+because one mutation per obligation is the rule and row 49 is `FN-24.a`'s.
 
 **ROW 45 IS THE ONLY MUTATION IN THIS FILE WHOSE KILL IS A WITNESS THAT STOPS
 LANDING, AND THAT IS WHAT A REACHABILITY OBLIGATION'S CONTROL LOOKS LIKE.**
@@ -1278,9 +1554,17 @@ and 47 break `FN-21.a` and `FN-31.c`, both incumbent mechanics; rows 45, 46 and
 48 break `FN-31.a`, `.b` and `.d`, likewise. The marker exists to make a
 non-atomic removal resumable, and *disposal is resumable* is `FN-21`, which is
 what Q1 asks about — so the shared-safety claim the marker's removal would break
-first is not in this file. It is `FN-24`'s or `FN-27`'s, and both are `exits`'.
-**`exits` inherits two undecided rows on the same grounds — the quarantine's and
-the marker's — and this note is what the marker's should read first.**
+first is not in this file. It is `FN-24`'s or `FN-27`'s.
+
+**AND THE CRASH SLICE SETTLED HALF OF THAT: IT IS NOT `FN-24`'s.** `FN-24.b`'s
+two multi-effect steps are `Dispose` and `doSettle`'s restore branch, both
+declared abstractions of the incumbent's own machinery; `FN-24.a`'s only
+mutation that reaches an artifact reaches the model's **classification** rather
+than the protocol's. Neither obligation's mutations name the quarantine or the
+marker as the thing whose removal breaks them, so **`FN-27` is the last
+shared-safety claim that could decide either row**, and both stay recorded as
+undecidable until the third child of `exits-k46` writes it. This note is what
+the marker's row should read first.
 
 **THE REVALIDATION SLICE DECIDES NO `Q4` ROW, AND THE REASON IS THE SAME ONE
 `quarantine-k43` GAVE.** All ten of `FN-22`'s obligations are *incumbent
@@ -1681,6 +1965,55 @@ replacement rests on rather than the model establishing it, and Q1's counterfact
 — disposal in place, under `relax_EN_03` — is **Quint's** and would remove the
 quarantine, the marker and the replacement together. Q3 is answered *within* the
 incumbent; Q1 is what could make the question moot.
+
+## A fifth finding, and a sixth — both from writing a classification down
+
+**THE CATALOGUE'S OWN CLASSIFICATION ORDER, TAKEN LITERALLY, CONTRADICTS THE
+LOAD-BEARING PROPERTY STATED THREE PARAGRAPHS BELOW IT.** §*States* orders the
+task-root states `Absent`, then the three `Reserved` classes, then
+`PartialScaffold`, `Legacy`, `Foreign`, `Malformed` and the three `Current`
+classes — and says beneath the table that **no transient state may be observable
+as a different stable state**, instancing *a task root whose deletion is not yet
+proven is never `Absent`*. The two are in tension exactly once a reserved name
+can be occupied while the task-root name is **free**, which is a disk the finish
+protocol creates — `doQuarRename` moves the whole task root into the quarantine
+in one rename — and the task-tree scope never does. With `Absent` classified
+first, the disk an interruption immediately after that rename leaves reads
+`Absent`: the deletion is recorded in history and can be **undone** by the world
+between two of Grove's steps (`doCommitMoves`), so *not yet proven* is reachable
+there and not hypothetical.
+
+`finish.als` therefore orders the whole `Reserved` class **before** `Absent`,
+states each arm as the catalogue's row verbatim so that the order is what carries
+the claim, and `FN-24.a`'s third conjunct is what catches the other choice —
+mutation row 49 restores the catalogue's order and the check goes red.
+**`formal-synthesis-k16` reads this as a catalogue finding, not a model
+decision**: either the table's order is wrong for a scope that reserves names
+beside the task root, or the `Absent` row needs the qualification the property
+below it already implies. It is a one-word edit either way, and it is not this
+subtree's to make.
+
+**AND THE STATE TABLE HAS NO ROW FOR A DISK THE PROTOCOL ROUTINELY PRODUCES.**
+A disposal that has released its reserved witness while its quarantine is still
+standing — the task root present, nothing at the witness's name, Grove's own
+quarantine holding a root — matches no row: it is not `Reserved`, because
+`Reserved(Preparing)` and `Reserved(Published)` are about the witness; and every
+`Current` row would call it an ordinary grove. `finish.als` adds
+**`Reserved(Quarantined)`** as a model-only member of the reserved class, which
+the catalogue licenses in as many words (*`TT-18`/`TT-19` are stated over the
+reserved CLASS rather than over its members so that removing one member changes
+no claim*). It is **load-bearing rather than decorative**, and the evidence is a
+mutation that is not a matrix row: remove the arm and `FN-24.a` goes red on
+exactly that disk. Recorded here rather than smuggled into the catalogue's
+table.
+
+Both findings are the same shape as the four above it — *the catalogue fixes a
+closed set and the model reaches a member of it the set does not name* — and both
+were produced by the same move, which is worth naming because it is cheap and
+this corpus had not made it before: **write the classification down as data,
+apart from every transition, and ask a check whether it is total and
+unambiguous.** Six slices of this scope acted on the disk without ever stating
+what the disk *is*.
 
 ## A fourth finding, and it is of a new kind
 

@@ -13,9 +13,20 @@
  * COMMIT AND ITS DISPOSITION; FN-19, FN-20, the QUARANTINE AND ITS ATOMIC ROOT
  * RENAME; FN-22, the FOUR REVALIDATION POINTS AND THE TEN-ROW TABLE; and
  * FN-21, FN-31, DISPOSAL — its re-entrancy, the cleanup marker's create /
- * replace / remove transitions, and the reaper.  Every other `FN-` obligation
- * belongs to the `exits` sibling of `finish-k8`, and the runner reports its
- * cell empty, which is the truth about this file rather than a defect in it.
+ * replace / remove transitions, and the reaper; and FN-24, THE CRASH SLICE —
+ * what the disk a crash leaves classifies as, and what one step of the
+ * transaction is allowed to change.  Every other `FN-` obligation belongs to a
+ * later child of `exits-k46`, and the runner reports its cell empty, which is
+ * the truth about this file rather than a defect in it.
+ *
+ * THE CRASH SLICE ADDS NO TRANSITION AND NO `var` FIELD, AND IT IS THE FIRST
+ * SLICE IN THIS SCOPE THAT DOES NOT.  `crash` has been enabled at every step
+ * boundary since `witness-k40`; what was never asked until now is what the disk
+ * it leaves CLASSIFIES AS, and whether the step it interrupted had one
+ * persistent effect or several.  Both are functions of state written as DATA
+ * beside `observed` and the ten-row table, so what the slice costs is bound and
+ * nothing else — and `README.md` records that the cost came out flat per
+ * command rather than proportional, which is a shape the cost law had not met.
  *
  * THE DISPOSAL SLICE IS WHERE THE FORWARD SETTLE STOPS BEING ONE STEP.  Every
  * slice before it disposed the quarantine in the same transition that
@@ -953,6 +964,203 @@ fun tableOutcome[p: RevPoint, d: Disposition]: one Result {
       else BlockedOutcome)                                                else
   (d = Committed implies (markerForeign implies BlockedOutcome else Applied) else
    (some Root.rid implies BlockedOutcome else Applied))
+}
+
+
+// ---------------------------------------------------------------------------
+// THE CRASH SLICE — WHAT A DISK CLASSIFIES AS, AND WHAT A STEP DOES TO IT
+//
+// `FN-24` is the only claim group in this file whose two obligations are about
+// the model's own SHAPE rather than about a transition: one says every disk a
+// crash can leave classifies as exactly one stable state, the other says every
+// step of the transaction changes exactly one thing.  Both are written HERE, as
+// data, apart from every transition that produces the states they range over —
+// the same discipline `observed` and `tableAction` are written under, and for
+// the same reason: a classification a transition defines is a classification
+// that cannot disagree with one.
+// ---------------------------------------------------------------------------
+
+/* THE STABLE STATES THIS FILE'S DISK CAN BE IN.  The catalogue's task-root state
+   table (§*States*) has eleven rows; six of them are reachable here, and one is
+   this file's own — see below.  `Reserved(Migrating)`, `PartialScaffold`,
+   `Legacy`, `Foreign` and `Malformed` are the task-tree scope's and no finish
+   transition produces one, which `README.md` records as a deliberate omission
+   rather than a gap.
+
+   `SReservedQuarantined` IS A MODEL-ONLY MEMBER OF THE RESERVED CLASS, AND IT
+   IS LOAD-BEARING RATHER THAN DECORATIVE — mutation 50 is the evidence.  A
+   disposal that has released the reserved witness while its quarantine is still
+   standing is a disk the catalogue's table has no row for: the task root is
+   present, nothing is at the witness's name, and Grove's own quarantine is.
+   Without this member that disk classifies `Current(Spent)` — an ordinary spent
+   grove — which is exactly what §*States*' load-bearing property forbids.
+   Adding a member is licensed by the catalogue in as many words: *`TT-18`/
+   `TT-19` are stated over the reserved CLASS rather than over its members so
+   that removing one member changes no claim*.  `README.md` records it for
+   `formal-synthesis-k16` rather than smuggling it into the catalogue's table. */
+abstract sig Stable {}
+one sig SAbsent, SReservedPreparing, SReservedPublished, SReservedQuarantined,
+        SCurrentLive, SCurrentFinishOnly, SCurrentSpent extends Stable {}
+
+/* WHAT THE DISK MATCHES, BEFORE THE ORDER IS APPLIED — and the arms OVERLAP on
+   purpose.  Writing each row's own condition, unordered, is what makes
+   `FN-24.a`'s *exactly one* a claim about the ORDER rather than a consequence of
+   how the arms were phrased: an evacuated tree matches `Reserved(Published)` and
+   `Current(Spent)` at once, and the catalogue says in as many words that it is
+   the first and never the second.  A set of arms made disjoint by their guards
+   would have answered that by construction.
+
+   EVERY ARM IS THE CATALOGUE'S ROW, VERBATIM — `SAbsent` INCLUDED, AND THAT IS
+   WHAT PUTS THE WEIGHT ON THE ORDER.  The row reads *no task root* and nothing
+   more, so an arm strengthened to *and nothing at a reserved name either* would
+   make `FN-24.a`'s third conjunct true by construction and the departure below
+   invisible.  Stated verbatim, the post-rename disk matches `Absent` and
+   `Reserved(Published)` at once and the ORDER is what has to resolve it — which
+   is where this slice's second finding is. */
+fun classifiedRaw: set Stable {
+  { s: Stable |
+       (s = SAbsent              and no Root.rid)
+    or (s = SReservedPreparing   and Slot.occ = Preparing)
+    or (s = SReservedPublished   and Slot.occ = Published)
+    or (s = SReservedQuarantined and some Quar.qRid)
+    or (s = SCurrentLive         and some Root.rid and some ordinaryLive)
+    or (s = SCurrentFinishOnly   and some Root.rid and some finishLive
+                                 and no ordinaryLive)
+    or (s = SCurrentSpent        and some Root.rid and no finishLive
+                                 and no ordinaryLive) }
+}
+
+/* THE CLASSIFICATION ORDER, WRITTEN AS DATA AND AS A STRICT PRECEDENCE — the
+   same device the ten-row table uses, and for the same reason: delete a pair
+   from it and two rows survive the resolution, which makes `FN-24.a`'s *exactly
+   one* red rather than silently weaker.  `s -> t` reads *`s` is classified
+   before `t`*.
+
+   IT DEPARTS FROM THE CATALOGUE'S TABLE ORDER IN ONE PLACE, AND THE DEPARTURE
+   IS THIS SLICE'S SECOND FINDING.  §*States* lists `Absent` FIRST and the whole
+   `Reserved` class after it.  Taken literally that classifies the disk an
+   interruption after the quarantine rename leaves — the task-root name free,
+   Grove's own quarantine holding the root — as `Absent`, which is exactly what
+   the same section's load-bearing property forbids: *a task root whose deletion
+   is not yet proven is never `Absent`*.  The two are in tension only once a
+   reserved name can be occupied while the task-root name is free, which is a
+   situation the finish protocol creates and the task-tree scope never does.
+   This file therefore orders the WHOLE RESERVED CLASS BEFORE `Absent`, and
+   `FN-24.a`'s third conjunct is what would catch the other order.  `README.md`
+   records it for `formal-synthesis-k16`. */
+fun earlierThan: Stable -> Stable {
+    SReservedPreparing   -> (SReservedPublished + SReservedQuarantined + SAbsent
+                             + SCurrentLive + SCurrentFinishOnly + SCurrentSpent)
+  + SReservedPublished   -> (SReservedQuarantined + SAbsent
+                             + SCurrentLive + SCurrentFinishOnly + SCurrentSpent)
+  + SReservedQuarantined -> (SAbsent
+                             + SCurrentLive + SCurrentFinishOnly + SCurrentSpent)
+  + SAbsent              -> (SCurrentLive + SCurrentFinishOnly + SCurrentSpent)
+  + SCurrentLive         -> (SCurrentFinishOnly + SCurrentSpent)
+  + SCurrentFinishOnly   -> SCurrentSpent
+}
+
+/* The catalogue's three `Current(...)` rows, named as one thing because
+   `FN-24.a`'s fourth conjunct is stated over the class rather than over a
+   member: what the claim prohibits is a disk with something of Grove's at a
+   reserved name reading as an ORDINARY tree, and which of the three it would
+   read as depends only on what the root happens to hold. */
+fun currentStates: set Stable { SCurrentLive + SCurrentFinishOnly + SCurrentSpent }
+
+/* WHAT THE NEXT INVOCATION READS: what the disk matches, less everything
+   something it matches is classified before. */
+fun classified: set Stable { classifiedRaw - classifiedRaw.earlierThan }
+
+/* ---------------------------------------------------------------------------
+   A STEP'S PERSISTENT EFFECTS, AT THE GRAIN `FN-24.b` STATES THEM
+ 
+   The obligation's grain is THE EFFECT, not the field, and three things follow
+   that a field-by-field count gets wrong.  A same-directory rename touches two
+   names and `EN-01` makes it ONE effect.  Removing a directory removes what is
+   inside it, so a step that releases the reserved witness has not separately
+   written its manifest.  And moving entries between two names is one move
+   however many entries move.  Counted by field instead, the completed refusal
+   would read as four persistent effects and the atomic root rename as two, and
+   a correct protocol would report as a defective one.
+   --------------------------------------------------------------------------- */
+
+abstract sig Effect {}
+one sig ERootName, EQuarName, EWitnessName, EManifest, EReady, EEntries,
+        EMarkerName, ECommit, EReproduce extends Effect {}
+
+pred rootNameChanged    { Root.rid' != Root.rid }
+pred quarNameChanged    { Quar.qRid' != Quar.qRid }
+pred witnessNameChanged { Slot.occ' != Slot.occ or Slot.owner' != Slot.owner
+                          or Repo.wTracked' != Repo.wTracked }
+pred markerChanged      { Cleanup.present' != Cleanup.present }
+pred repoHistoryChanged { Repo.rev' != Repo.rev or Repo.tracked' != Repo.tracked
+                          or Repo.tickets' != Repo.tickets }
+pred reproducedChanged  { Repo.reproduced' != Repo.reproduced }
+/* The three that are INSIDE the reserved witness, and each is suppressed when
+   the witness name itself changed: a directory that goes takes its contents
+   with it, and counting the contents again would make one removal four
+   effects. */
+pred manifestChanged {
+  not witnessNameChanged
+  (Man.mHandle' != Man.mHandle or Man.mAttempt' != Man.mAttempt
+   or Man.mAnchor' != Man.mAnchor or Man.mFinger' != Man.mFinger
+   or Man.mEntries' != Man.mEntries or Man.mType' != Man.mType
+   or Man.mDigest' != Man.mDigest)
+}
+pred readyChanged   { not witnessNameChanged and Man.mReady' != Man.mReady }
+pred entriesMoved   { not witnessNameChanged
+                      and (Root.holds' != Root.holds
+                           or Slot.wHolds' != Slot.wHolds) }
+
+/* `EN-01`'s ONE SAME-DIRECTORY RENAME, in either direction: the task root's
+   identity moving to the quarantine name, or the quarantine's moving back.
+   Both names change and the step has ONE persistent effect, which is the whole
+   of what `EN-01` grants and the only atomicity this file assumes. */
+pred atomicRootRename {
+  (some Root.rid and no Root.rid' and no Quar.qRid and Quar.qRid' = Root.rid)
+  or (some Quar.qRid and no Quar.qRid' and no Root.rid and Root.rid' = Quar.qRid)
+}
+
+fun effectsAt: set Effect {
+  { e: Effect |
+       (e = ERootName    and rootNameChanged)
+    or (e = EQuarName    and quarNameChanged)
+    or (e = EWitnessName and witnessNameChanged)
+    or (e = EManifest    and manifestChanged)
+    or (e = EReady       and readyChanged)
+    or (e = EEntries     and entriesMoved)
+    or (e = EMarkerName  and markerChanged)
+    or (e = ECommit      and repoHistoryChanged)
+    or (e = EReproduce   and reproducedChanged) }
+}
+
+/* The rename counted once.  It is counted AT THE QUARANTINE NAME rather than at
+   the task root's, arbitrarily and stated as arbitrary: what matters to the
+   claim is that a rename is one effect, not which of its two names carries it. */
+fun persistentEffects: set Effect {
+  atomicRootRename implies (effectsAt - ERootName) else effectsAt
+}
+
+/* THE TWO STEPS THIS FILE DECLARES, and `FN-24.b` asks for exactly this — *a
+   step that is neither is DECLARED, with what it would take to decompose it*.
+   `README.md` carries both declarations in full; in one line each:
+
+   `Dispose` clears the quarantine AND the reserved witness, because in this
+   model they are two `one sig`s and in the shipped protocol the witness is
+   INSIDE the root the rename moved.  Decomposing it means giving the model a
+   containment relation between the two names, which is the abstraction
+   `EN-03` — no atomic recursive deletion — already forces the shipped removal
+   to take entry by entry.
+
+   `doSettle`'s RESTORE BRANCH puts the tree back AND reproduces the exact
+   preflight commit, and on a working-copy-as-commit lane those are two
+   persistent effects.  Decomposing it means a phase between the restoration and
+   the reproduction — which is what `revalidation-k44` did to the settle once
+   already, for `FN-22`'s after-restoration row, and what a fifth revalidation
+   point would cost is `FN-22`'s answer rather than this claim's. */
+pred declaredMultiEffect {
+  Sys.act' = Dispose
+  or (Sys.act' = Settle and Txn.phase' = Restored)
 }
 
 
@@ -1914,7 +2122,13 @@ pred doMarkerRemove {
    over `txnActs` and the reaper is not in it: an operator confirms a FINISH, and
    collecting the garbage a crashed finish left is not a second finish.  It is
    also why `FN-24.b`'s *at most one persistent effect per step* should not be
-   asked of it — though as written each firing has exactly one.
+   asked of it — AND THE CRASH SLICE CORRECTED THIS SENTENCE, which used to end
+   *though as written each firing has exactly one*.  It does not: the
+   content-removal branch clears the quarantine name and the reserved witness
+   name together, exactly as `doDispose` does and for the same modelling reason.
+   The exclusion was right; the reason offered for it was one sentence too
+   generous, and `README.md` records the correction under *what a green run does
+   not prove*.
 
    IT RESUMES IN THE ORDER DISPOSAL RUNS IN: the content first, then the marker.
    That is what makes `FN-21.a`'s *resumption reaches the same terminal state*
@@ -4089,6 +4303,320 @@ run witness_FN_31d_a_foreign_marker_is_declined {
               and one Cleanup.present and no Cleanup.present.cOwner
               and some Quar.qRid)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+
+// ===========================================================================
+// `FN-24` — EVERY INTERRUPTION LANDS IN EXACTLY ONE STABLE STATE
+//
+// The crash slice, and the first claim group in this file whose subject is the
+// model's own shape rather than a transition.  `crash` has been enabled at
+// every step boundary since `witness-k40`; what was never asked until now is
+// what the disk it leaves CLASSIFIES AS, and whether the step it interrupted
+// had one persistent effect or several.
+//
+// `FN-24.a`'S ANTECEDENT IS THE WIDEST IN THE FILE, and deliberately so: it
+// quantifies over all sixteen members of `bodySteps`.  It adds no transition —
+// which is what makes it cheap by the scope's cost law — but it is reachable at
+// every state a body step is, so the bound is the whole of its price.
+//
+// WHERE THE BOUNDS COME FROM.  Both checks quantify over `bodySteps`, whose
+// deepest member (`MarkerRemove`) first occurs at twelve states, and the
+// witness-bound rule's own floor is thirteen.  The two rules agree here, which
+// they did not for `FN-31.c`; the antecedent rule is applied anyway, which is
+// the discipline `disposal-k45` left rather than an observation about this
+// claim.
+// ===========================================================================
+
+/* THE DISK A LATER LAUNCH FINDS WITH NOTHING RESERVED — the run-up the four
+   witness-building steps need, and the counterpart of
+   `interruptedMidEvacuation` for the front half of the body.  It constrains
+   TREE state at `Txn.phase = Fresh` and nothing else, which is the licence
+   `witness-k40` established and `commit-k41` restated. */
+pred freshGroveDisk {
+  Txn.phase = Fresh
+  some Op.confirmed
+  some World.lane and World.rootDev = World.qDev and World.wtDev = World.qDev
+  some Txn.leaseOk
+  no Slot.occ and no Quar.qRid and no Cleanup.present
+  some Root.rid
+  Root.holds = finishLive and one finishLive and no ordinaryLive
+  no e: Root.holds | e.et = OpaqueT
+  Root.holds in Repo.tracked
+  no Repo.tickets
+}
+
+/* One crash point, at one step's boundary.  `after Sys.act = Crash` is the
+   interruption IMMEDIATELY after the step, which is what "between any two
+   steps" means when the steps are consecutive. */
+pred crashAfter[a: Action] { eventually (Sys.act = a and after Sys.act = Crash) }
+
+// --- FN-24.a: the full step-boundary sweep ----------------------------------
+
+/* FOUR CONJUNCTS, AND ONLY THE FIRST TWO ARE THE CLAIM'S OWN WORDS.  The other
+   two are the load-bearing property §*States* states beneath the table — *no
+   transient state may be observable as a different stable state* — instantiated
+   at the two places this file can reach it.  Both were found by writing the
+   classification down, and both are recorded in `README.md` as findings about
+   the catalogue rather than about the protocol.
+
+   (a) TOTALITY.  Every disk a crash leaves matches at least one row.  This is
+   the conjunct a new phase or a new artifact breaks: a state the table has no
+   row for reports here and nowhere else, and it is how
+   `SReservedQuarantined` came to exist.
+
+   (b) EXACTLY ONE, AFTER THE ORDER.  `classifiedRaw`'s arms overlap; the order
+   is what resolves them, and it is written as a strict precedence so that
+   deleting a pair leaves two survivors rather than silently changing which one
+   wins.
+
+   (c) `Absent` MEANS NOTHING OF GROVE'S IS LEFT AT A RESERVED NAME.  *A task
+   root whose deletion is not yet proven is never `Absent`*, and the arm is the
+   catalogue's row verbatim — *no task root* — so this conjunct is a claim about
+   the ORDER and about nothing else.  The catalogue's own table orders `Absent`
+   first; this file orders the reserved class before it, and this is the conjunct
+   that would catch the other choice.
+
+   (d) A DISK WITH SOMETHING OF GROVE'S AT A RESERVED NAME IS NEVER AN ORDINARY
+   CURRENT TREE.  *An evacuated tree is `Reserved(Published)` and never
+   `Malformed` or `Current(Spent)`* is the catalogue's own instance of it; the
+   conjunct is stated over the whole `Current` class and over the quarantine as
+   well as the witness, because a disposal that has released its witness with the
+   quarantine still standing is the OTHER disk that would otherwise read as an
+   ordinary spent grove.  That second half is what makes `SReservedQuarantined`
+   load-bearing rather than decorative. */
+check FN_24a_from_a_crash_at_any_step_boundary_the_result_classifies_as_exactly_one_stable_state {
+  always {
+    (Sys.act in bodySteps and after Sys.act = Crash) implies after {
+      some classifiedRaw
+      one classified
+      classified = SAbsent implies (no Slot.occ and no Quar.qRid)
+      classified in currentStates implies (no Slot.occ and no Quar.qRid)
+    }
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* THE FULL INTERRUPTION SEQUENCE, ONE CRASH POINT PER STEP — sixteen commands,
+   one for each member of `bodySteps`, because that is what the catalogue's
+   witness says and because a single crash shown once would leave fifteen
+   boundaries unproven while `FN_24a` reported green over all sixteen.  Each
+   runs at its own step's depth rather than at the check's, which is what keeps
+   the sweep affordable. */
+run witness_FN_24a_a_crash_after_the_witness_is_prepared {
+  freshGroveDisk
+  crashAfter[WPrepare]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 6 steps
+
+run witness_FN_24a_a_crash_after_the_manifest_is_written {
+  freshGroveDisk
+  crashAfter[WManifest]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
+
+run witness_FN_24a_a_crash_after_the_manifest_is_marked_ready {
+  freshGroveDisk
+  crashAfter[WReady]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
+
+run witness_FN_24a_a_crash_after_the_witness_is_published {
+  freshGroveDisk
+  crashAfter[WPublish]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_24a_a_crash_after_the_tree_is_evacuated {
+  interruptedMidEvacuation
+  crashAfter[WEvacuate]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
+
+run witness_FN_24a_a_crash_after_the_commit_is_attempted {
+  interruptedMidEvacuation
+  crashAfter[CommitAttempt]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
+
+run witness_FN_24a_a_crash_after_a_recovery_adopts_the_witness {
+  interruptedMidEvacuation
+  crashAfter[Recover]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 6 steps
+
+run witness_FN_24a_a_crash_after_the_classification {
+  interruptedMidEvacuation
+  crashAfter[Classify]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_24a_a_crash_after_the_quarantine_rename {
+  interruptedMidEvacuation
+  no Quar.qRid
+  crashAfter[QuarRename]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
+
+run witness_FN_24a_a_crash_after_the_settle {
+  interruptedMidEvacuation
+  crashAfter[Settle]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
+
+run witness_FN_24a_a_crash_after_the_revalidation {
+  interruptedMidEvacuation
+  crashAfter[Revalidate]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+run witness_FN_24a_a_crash_after_the_quarantine_is_returned {
+  interruptedMidEvacuation
+  no Quar.qRid
+  crashAfter[QuarReturn]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 12 steps
+
+run witness_FN_24a_a_crash_after_the_cleanup_marker_is_created {
+  interruptedMidEvacuation
+  no Quar.qRid
+  crashAfter[MarkerCreate]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+run witness_FN_24a_a_crash_after_the_cleanup_marker_is_replaced {
+  interruptedMidEvacuation
+  no Quar.qRid
+  one Cleanup.present
+  some Cleanup.present.cOwner
+  crashAfter[MarkerReplace]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+run witness_FN_24a_a_crash_after_the_quarantine_is_disposed {
+  interruptedMidEvacuation
+  no Quar.qRid
+  crashAfter[Dispose]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 12 steps
+
+run witness_FN_24a_a_crash_after_the_cleanup_marker_is_removed {
+  interruptedMidEvacuation
+  no Quar.qRid
+  crashAfter[MarkerRemove]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+// --- FN-24.b: at most one persistent effect per step ------------------------
+
+/* THE STEP LIST'S OWN DISCIPLINE, quantified over exactly `bodySteps` — which is
+   what the set was named for, and what the header has said it was for since
+   `witness-k40`.
+
+   `Reap` IS OUTSIDE IT AND THE EXCLUSION IS THE CATALOGUE'S, NOT A CONVENIENCE.
+   A sweep is not a step of the transaction, takes no confirmation, and never
+   had a disposition to revalidate.  Writing the enumeration down did correct
+   one sentence of this file, though, and `README.md` records it: the note on
+   `doReap` says *as written each firing has exactly one persistent effect*, and
+   the content-removal branch has TWO — the quarantine and the reserved witness
+   — for exactly the reason `Dispose` does.  The exclusion was right; the reason
+   given for it was one sentence too generous.
+
+   THE TWO DECLARED STEPS ARE NAMED IN `declaredMultiEffect` AND NOWHERE ELSE,
+   so that narrowing the check and declaring an abstraction are the same edit.
+   A check quietly weakened until it passes and a declaration are otherwise
+   indistinguishable in a green run, which is the shape this file exists to
+   refuse. */
+check FN_24b_every_step_of_the_transaction_has_at_most_one_persistent_effect {
+  always {
+    (Sys.act' in bodySteps and not declaredMultiEffect)
+      implies lone persistentEffects
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 12 steps
+
+/* THE STEP LIST, ENUMERATED, EACH STEP'S PERSISTENT EFFECT NAMED — one command
+   per EFFECT rather than one per step, because the enumeration the catalogue
+   asks for is of what the steps DO and sixteen steps produce seven kinds of
+   effect between them.  `README.md` carries the step-by-step table; these seven
+   are what make each of its columns a reachable fact rather than a reading of
+   the source.  The eighth is the declaration made reachable: a step this file
+   declares, shown having the two effects it is declared for. */
+run witness_FN_24b_a_step_whose_one_effect_is_at_the_reserved_witness_name {
+  freshGroveDisk
+  eventually (Sys.act' = WPrepare and persistentEffects = EWitnessName)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 5 steps
+
+run witness_FN_24b_a_step_whose_one_effect_is_the_manifest {
+  freshGroveDisk
+  eventually (Sys.act' = WManifest and persistentEffects = EManifest)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 6 steps
+
+run witness_FN_24b_a_step_whose_one_effect_is_the_ready_mark {
+  freshGroveDisk
+  eventually (Sys.act' = WReady and persistentEffects = EReady)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
+
+run witness_FN_24b_a_step_whose_one_effect_moves_entries {
+  freshGroveDisk
+  eventually (Sys.act' = WEvacuate and persistentEffects = EEntries)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_24b_a_step_whose_one_effect_is_the_commit {
+  interruptedMidEvacuation
+  eventually (Sys.act' = CommitAttempt and persistentEffects = ECommit)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
+
+/* THE ONE THE GRAIN EXISTS FOR.  Both names change and the step has ONE
+   persistent effect, because `EN-01` grants atomicity to a same-directory
+   rename — which is the second half of `FN-24.b`'s sentence, shown rather than
+   asserted. */
+run witness_FN_24b_a_step_whose_one_effect_is_the_atomic_root_rename {
+  interruptedMidEvacuation
+  no Quar.qRid
+  eventually (Sys.act' = QuarRename and atomicRootRename
+              and persistentEffects = EQuarName)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+run witness_FN_24b_a_step_whose_one_effect_is_at_the_cleanup_marker_name {
+  interruptedMidEvacuation
+  no Quar.qRid
+  eventually (Sys.act' = MarkerCreate and persistentEffects = EMarkerName)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
+
+/* THE DECLARATION, REACHED.  `Dispose` clears the quarantine name and the
+   reserved witness name in one step, because in this model they are two `one
+   sig`s and in the shipped protocol the second is inside the first.  A
+   declaration nothing demonstrates is a claim about the source rather than
+   about the model, which is why it has a command. */
+run witness_FN_24b_the_declared_step_with_two_persistent_effects {
+  interruptedMidEvacuation
+  no Quar.qRid
+  eventually (Sys.act' = Dispose
+              and persistentEffects = EQuarName + EWitnessName)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+
+// ===========================================================================
+// `EN-08` — INTERRUPTION MAY OCCUR BETWEEN ANY TWO STEPS.  Class:
+// EXERCISE-REMOVAL, and the thing removed is `crash` itself.  The assumption
+// table's expected result is that every NAMED witness becomes unreachable and
+// the run fails on zero work rather than reporting green.
+//
+// Three commands, run against the named witness sets rather than against the
+// whole file: `FN-24`'s step-boundary sweep, `FN-09`'s and `FN-10`'s
+// interruptions inside the build, and `FN-31.c`'s two resumptions.  The third
+// is a FINDING and is recorded in `README.md`: `FN-31.c`'s witnesses POSIT the
+// disk an interruption leaves rather than running `crash` to reach it, so they
+// keep landing with `crash` removed.  The assumption table names `FN-31.c`
+// among `EN-08`'s controlled obligations and this file's realisation of it does
+// not depend on the action — which is exactly the kind of thing an
+// exercise-removal exists to make visible, and it is invisible without one.
+// ===========================================================================
+
+run expect_unreachable_EN_08_no_step_boundary_is_an_interruption_point {
+  always Sys.act != Crash
+  freshGroveDisk
+  crashAfter[WPublish]
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
+
+run expect_unreachable_EN_08_no_interruption_inside_the_build_is_reachable {
+  always Sys.act != Crash
+  Txn.phase = Fresh and no Slot.occ
+  eventually (Sys.act = WManifest and Slot.occ = Preparing)
+  eventually (Sys.act = Crash and Slot.occ = Preparing and no Slot.wHolds
+              and manWritten)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 7 steps
+
+run expect_unreachable_EN_08_no_unpublished_witness_is_discarded_after_an_interruption {
+  always Sys.act != Crash
+  Txn.phase = Fresh and no Slot.occ
+  eventually (Sys.act = WPrepare and Slot.occ = Preparing)
+  eventually (Sys.act = Crash and Slot.occ = Preparing)
+  eventually (Sys.act = Discard and Sys.res = Applied)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
+
 
 
 // ===========================================================================

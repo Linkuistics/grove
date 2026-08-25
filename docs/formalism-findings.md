@@ -5251,6 +5251,230 @@ sharpest are that the sweep's concurrency safety is unmodelled because the shipp
 reaper is lease-owned and nothing here has a lease, and that disposal's removal is
 not re-enterable *within* a step.
 
+### 037 — A classification nobody had written down, and a slice whose cost was flat (finish crash boundaries)
+
+**Scope.** Finish / recovery, **component-local**
+(`crates/grove-finish/models/`). `FN-24`: *every interruption lands in exactly one
+stable state*, and *every step of the transaction has at most one persistent
+effect*. Two obligations, twenty-nine new commands, **no new transition, no new
+`var` field and no new scope dimension** — the first slice in this scope that
+adds none of the three. The scope's empty alloy cells fall from fourteen to
+**twelve**.
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened.
+
+**The leaf decomposed before it modelled anything, and that is part of the
+result.** `exits-k46` was cut as one session for fourteen obligations. Four of
+them need machinery no sibling slice built — a stable-state classification of the
+disk, a persistent-effect enumeration over sixteen steps, the `Blocked` diagnosis
+partition four slices deliberately declined to build, and hook suppression —
+where every earlier slice of `finish-k8` added one or two. It became a node with
+three children (`crash`, `blocked`, `exits`), cut along **machinery** rather than
+along the catalogue's section order, which is how the two levels above it were
+cut. This entry is the first child's.
+
+**Situation.** `crash` has been a first-class action since `witness-k40` and is
+enabled at every step boundary; six slices have acted on the disk it leaves.
+What none of them asked is what that disk **is**. `FN-24.a` is *the next
+invocation classifies the result into exactly one stable state, and never into a
+state indistinguishable from a different one* — a claim about a classification
+the file did not contain. Writing it down, as data, apart from every transition,
+is the whole of the slice, and it produced two findings about the catalogue in
+the first hour.
+
+**The material result is that §*States*' own classification order contradicts the
+load-bearing property stated three paragraphs below it.** The table orders
+`Absent` first and the three `Reserved` classes after it; the property beneath it
+says *no transient state may be observable as a different stable state*,
+instancing *a task root whose deletion is not yet proven is never `Absent`*. The
+two are in tension exactly once a reserved name can be occupied while the
+task-root name is **free** — a disk the finish protocol creates in one rename and
+the task-tree scope never produces. With `Absent` first, the disk an interruption
+immediately after the quarantine rename leaves reads `Absent`; and *not yet
+proven* is reachable there rather than hypothetical, because the world can undo
+the deletion commit between two of Grove's steps. The model orders the whole
+`Reserved` class before `Absent`, and the mutation that restores the catalogue's
+order is what makes the check red — so the control and the finding are the same
+object.
+
+**And the table has no row for a disk the protocol routinely produces.** A
+disposal that has released its reserved witness while its quarantine still stands
+is not `Reserved` — those rows are about the witness — and every `Current` row
+would call it an ordinary grove. The model adds `Reserved(Quarantined)`, which
+the catalogue licenses in as many words (*`TT-18`/`TT-19` are stated over the
+reserved class rather than over its members*), and a second mutation shows it is
+load-bearing: remove the arm and `FN-24.a` goes red on exactly that disk.
+
+> **Both findings came from one cheap move this corpus had not made: write the
+> classification down as data, apart from every transition, and ask a check
+> whether it is total and unambiguous.** Six slices had acted on the disk without
+> ever stating what the disk is. The move costs no state — it is `fun`s over
+> static atoms — and it is available to any model whose subject has a documented
+> state table.
+
+**A cost shape the law had not met: flat rather than proportional.** Every slice
+before this one cost most on the widest sentinel and least on the tightest —
+disposal +13% / +11% on the entry surface against **+19%** on `FN_13`. This one
+is the other way round: **+8% and +9% on the two tight sentinels, +1% on the
+widest**. The absolute movement is nearly the same number of milliseconds in all
+four (0.17 s, 0.20 s, 0.10 s, 0.14 s), which is what a constant looks like across
+commands whose totals differ by a factor of four.
+
+| command | disposal slice | crash slice | |
+|---|---|---|---|
+| `FN_08` (4 steps) | 2.03 s | 2.20 s | **+8%** |
+| `FN_07` (4 steps) | 2.24 s | 2.44 s | **+9%** |
+| `FN_13` (10 steps, widest inherited) | 8.16 s | 8.26 s | **+1%** |
+| `witness_FN_11` (10 steps) | 3.83 s | 3.97 s | +4% |
+
+> **The cost law is about STATE. Static atoms and static relations cost a roughly
+> CONSTANT amount per command, not a percentage of it** — they enlarge `univ` and
+> the per-command translation, both paid once whatever the bound. A percentage on
+> a tight sentinel is a large fraction of a small number; do not extrapolate it.
+
+That is a fourth statement of one law rather than a fifth law: *budget by the
+number of states of a trace at which a transition is enabled* prices this slice
+at zero, and zero was very nearly right. It also gives `task-tree-k7`'s *one
+sentinel is not enough* its converse case — that rule was written because the
+tight sentinel went **down** while the wide one rose; here the tight sentinel is
+the only one that moved at all.
+
+**The first slice whose inherited bounds could not move, and the argument beats
+the sweep.** No transition, no `var` field, no `fact`: two abstract signatures of
+`one sig` atoms cannot make a trace exist or stop existing, so no inherited
+witness's first-landing bound can move. That is a proof rather than a
+measurement. Eight inherited rows spread across the full depth range (2, 2, 7,
+10, 11, 12, 12, 12) were re-measured anyway as the control the argument is worth
+nothing without, and each still lands at its recorded bound and at no smaller
+one. A sibling that adds a `var` field, a transition or a fact does not inherit
+the argument and owes the full sweep — which, at sixty-nine witnesses, was the
+largest single block of the previous slice's session.
+
+**A fourth way for a mutation to fail its aim, and it is a property of the
+claim's own data.** `FN-24.a`'s mutation was first written as *delete one pair
+from the precedence relation*, so that the post-rename disk would match two
+stable states with neither classified before the other. It **SURVIVED** — the
+same disk also matches `Reserved(Quarantined)`, whose own pair into `Absent` the
+mutation had not touched, so the resolution had an understudy.
+
+> **A mutation to one row of a total order is not a mutation to the order.** A
+> precedence relation is transitively redundant by construction, so any single
+> edge a classification rests on has alternatives. Mutate the whole ranking, as
+> an alternative the claim is stated against.
+
+**`FN-09.a`'s *exactly one rename* does not frame the whole tree, and the mutation
+for a whole-disk claim is what found it.** `FN-24.b`'s control is a publication
+that also deletes a standing cleanup marker: two persistent effects in one step.
+It kills `FN-24.b` and leaves `FN-09.a` **green**, because that check's frame —
+written before the marker existed — asserts the root, the manifest, the
+repository and the world and not the marker. Two readings were available and the
+file takes the second: the marker is `FN-31`'s subject and a check whose subject
+it is not should not describe it, which is `disposal-k45`'s fourth rule about aim
+applied to a *check* rather than to a mutation. What follows is a caveat the
+family README now carries: *nothing else moves* in this file means *nothing else
+the claim's own frame names*, and `FN-24.b` is the only check that quantifies
+over the whole disk at once.
+
+**`EN-08` was run and it does not control everything the assumption table says it
+does.** The table names `FN-09`, `FN-10`, `FN-24`, `FN-31.c`, `SY-12`, `TT-20`
+and `TT-23.b` as the witnesses that become unreachable when `crash` is removed.
+Three controls confirm `FN-09.a`, `FN-09.b`, `FN-10.a` and all sixteen of
+`FN-24.a`'s do. **`FN-31.c`'s two do not** — both *posit* the disk an
+interruption leaves rather than running `crash` to reach it, so they keep landing
+with the action gone. That is a fact about the realisation rather than about the
+assumption, and it is the sort of thing an exercise-removal exists to make
+visible: a posited disk and a reached one are interchangeable for the *claim* and
+not for the assumption's *control*.
+
+**Formalism.** Alloy 6, temporal, one file, twenty-nine new commands (two checks,
+twenty-four witnesses and three `EN-08` controls), **147 in total**. Two new
+static abstract signatures — `Stable` (seven members) and `Effect` (nine) — and
+`fun`s over them read only by claims. `FN-24.a`'s witness is sixteen commands,
+one crash point per member of `bodySteps`, because a crash ends the transaction
+and no single trace can visit all sixteen; each runs at its own step's depth
+(6–13) rather than at the check's, which is what keeps the sweep affordable.
+
+**The persistent-effect grain is the slice's one design decision worth naming.**
+`FN-24.b`'s subject is *the effect*, not *the field*, and a field-by-field count
+reports a correct protocol as a defective one three separate ways: a
+same-directory rename touches two names and `EN-01` makes it one effect; removing
+a directory removes what is inside it, so releasing the reserved witness is not
+also four writes; and moving entries between two names is one move however many
+entries move. Counted by field, the completed refusal reads as four persistent
+effects and the atomic root rename as two. **Two steps have more than one
+effect and both are declared, with what decomposing them would take** — which is
+what the obligation asks for in as many words. They are named in one place, so
+narrowing the check and declaring the abstraction are the same edit; a check
+quietly weakened until it passes and a declaration are otherwise
+indistinguishable in a green run.
+
+**Caught / missed.** Caught: two catalogue findings (the classification order,
+and a missing row); a fourth mutation-aim rule; a fourth statement of the cost
+law with a new shape; one over-narrow inherited frame (`FN-09.a`); one sentence
+of this file's own prose corrected by the enumeration (`doReap`'s
+content-removal branch has two persistent effects, not one); and one limit of an
+assumption's control (`EN-08` over `FN-31.c`). Missed by construction, and
+recorded: `FN-24.a`'s totality conjunct is true by construction given the arm
+set, so the claim rests on its two ordering conjuncts; and the sixteen step
+boundaries are witnessed individually rather than by one execution.
+
+**Cost.** 147 commands, **10 m 33 s** wall for the whole file, against 118 in
+7 m 39 s — of which the sentinel A/B puts the slice's tax on the inherited
+commands at 1–9%, so most of the extra 2 m 54 s is the twenty-nine new commands
+themselves. `FN_24b` at twelve states is 51.7 s and is now the dearest single
+command in the file; `FN_24a` at thirteen is 5.3 s, which is the flat-cost result
+from the other side — a wide antecedent whose consequent is a function of static
+data is cheap at any bound. The session's largest block was neither the
+bound sweep nor the mutations but the **restatement** — the classification was
+written twice, because the first version made `FN-24.a`'s third conjunct true by
+construction by strengthening the `Absent` arm instead of moving the order, and a
+mutation is what showed it. That is the cheapest kind of rework and it happened
+because a mutation was run before the green was believed.
+
+**Counterfactual.** The two catalogue findings are the result no amount of
+reading produces: both require asking whether a *set of eleven rows with a stated
+order* is total and unambiguous over the disks one particular protocol reaches,
+which is a question about reachability and not about prose. A careful reader
+could have noticed the `Absent` tension by inspection; nobody had, across six
+slices and two scopes, and what surfaced it was a check with a mutation aimed at
+it. The flat cost shape is the second — it needs an A/B on four sentinels in one
+sitting, and its value is that the next slice adding only static structure can
+budget it at approximately nothing.
+
+**Verdict.** The slice is green — **147 commands, 2 obligations, 49 of 61 alloy
+cells filled**, one mutation per obligation and **both KILLED**, each with a named
+witness re-run under it and still landing, and `FN-24.b`'s swept against fourteen
+neighbouring checks to show it isolates. No protocol defect: for the seventh
+consecutive slice in this scope, every finding came from writing down what the
+model already implied, from reading a check against its own claim, or from
+measuring what a slice cost.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6,
+`org.alloytools.alloy.dist.jar`, Corretto `21.0.12.1+9-LTS`. **Solver**: SAT4J
+(distribution default), every command with `-n` and `-t text`. **Bounds**: the
+common shape is unchanged —
+`for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark,
+N steps` — and **the ceiling moved from 12 to 13**, by exactly one command:
+`witness_FN_24a_a_crash_after_the_cleanup_marker_is_removed` needs disposal's
+last step and then an interruption. `FN-24.a` runs at 13 (both bound rules
+agree); `FN-24.b` at 12, where the witness rule gives 11 and the antecedent rule
+gives 12 and the larger wins — `disposal-k45`'s third predictor in its ordinary
+form, applied before the fact. No `Int` in the file. **Fairness**: none assumed;
+neither obligation is a liveness claim. **Symmetry**: no `exactly` scope.
+**Abstractions**: the stable-state classification as seven of the catalogue's
+eleven rows plus one model-only member; each arm the catalogue's row verbatim so
+the ORDER carries the claim; persistent effects counted at the effect's grain
+rather than the field's; and the two declared multi-effect steps (`Dispose`, and
+`doSettle`'s restore branch), each with what decomposing it would take.
+**Deliberately omitted**: `Reserved(Migrating)`, `PartialScaffold`, `Legacy`,
+`Foreign` and `Malformed` — five task-root states no finish transition produces.
+**What a green run does not prove**: everything is about the stated bounds, and
+beyond them the caveats in the family `README.md` — five new, of which the two
+sharpest are that `FN-24.a`'s totality conjunct is true by construction and that
+`EN-08`'s control does not reach `FN-31.c`'s witnesses.
+
+
 ---
 
 ## Distillation — where each entry landed

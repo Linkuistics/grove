@@ -4788,6 +4788,237 @@ the reaper.
 
 ---
 
+### 035 — A check written stronger than its claim, and a table that had to become data (finish revalidation)
+
+**Scope.** Finish / recovery, **component-local**
+(`crates/grove-finish/models/`). `FN-22`: the four revalidation points, the
+ten-row table, and the quarantine **return** as its own transition. Ten
+obligations — the largest single claim group in the scope — twenty-six new
+commands, four new reachable transitions and **one enabling point removed**. The
+scope's empty alloy cells fall from thirty-one to **twenty-one**.
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened.
+
+**Situation.** `commit-k41` built the restoration and `quarantine-k43` built the
+quarantine rename, and neither put any recheck around either one; both recorded
+the absence deliberately, naming this slice as the reason. `FN-22` says the two
+handoffs are the only two, that the disposition is rechecked immediately before
+and after each, and that **every observed disposition at every point has a stated
+corrective action and a stated stable state** — including the observations that
+settle successfully.
+
+**The material finding is that a check written stronger than the claim it answers
+does not fail; it deletes states, and a sibling claim that needs those states is
+then answered BY CONSTRUCTION two slices later.** `FN_03`'s first conjunct read
+`always Repo.tickets in Repo.tickets'` — history never shrinks, under any step,
+the world's included. The catalogue's claim is narrower: the ticket *SHALL
+survive the destruction of every artifact the transaction owns*. The comment
+beside the check had said *under Grove's own steps* since `commit-k41`; the check
+said more than its own comment.
+
+With history append-only under every step, `resultProven` is **monotone**: a
+`Committed` observation can never become anything else. The catalogue's table has
+two rows that are exactly that transition — `Committed -> NotCommitted`, a
+rollback that succeeds and ends `Refused`, and `Committed -> Indeterminate`, a
+block — and says in as many words that collapsing them *would let a block be
+reported as a refusal, which is exactly the distinction `FN-29` requires the
+operator to be able to make*. A slice that had not read the check against the
+catalogue's wording would have written both obligations, watched their witnesses
+fail to land, widened the bound, given up, and reported them green.
+
+This is a **new failure mode**, not a new rule. The three catalogue-level
+findings this scope already carries (entries 031, 032, 033) are all one shape —
+*the catalogue fixes closed sets and never states the map between them* — and all
+three were found by writing down what a branch returns. This one is found by
+reading a **sibling's check** against the catalogue, and it is invisible to every
+command in the file that contains it: an over-statement has no counterexample of
+its own. The narrowing is the same one `FN-19`'s third conjunct took after the
+`doSwap` counterexample, so the file now carries *a claim about what a protocol
+never does is never a claim about what the world never does* at three grains — a
+free initial state, a world transition over the tree, and a world transition over
+history.
+
+**The second finding is about how to state a table at all.** A table is the shape
+a mutation cannot falsify row by row: a per-row mutation kills a row, and nothing
+kills *the table is complete*. `FN-22.a` is written as a **total function over
+four points and three dispositions** (`tableAction`, `tableOutcome`), held apart
+from every transition, with a check binding every Grove step taken at a point to
+it. Delete a row and the function goes partial, `Sys.act' = tableAction[..]` is
+false, and the check is red — **a missing row is a counterexample rather than a
+silence**, which is what the leaf's brief asked for. What the construction cannot
+catch is a combination reachable in the world that enables no Grove step at all;
+that remains a silence, and sixteen witnesses are what fill it.
+
+Writing the totality down has an immediate consequence for mutation discipline,
+and it is a **fourth rule about aim** in this corpus. `FN-22.a` binds the action
+and the outcome at every point, so it is strictly stronger than the
+action-and-outcome half of every other row — and **any mutation that changes
+which arm runs, or what it returns, kills `FN-22.a` too.** An isolating mutation
+for the other nine rows must therefore aim at the **stable-state column**, the
+one the totality claim does not carry. One row was re-aimed for exactly this
+reason after killing its neighbour.
+
+**Formalism.** Alloy 6, temporal, one file, twenty-six new commands (ten checks
+and sixteen witnesses), **101 in total**. Four new transitions: `Revalidate`, the
+recheck after the restoration; `QuarReturn`, the rename's inverse; and two the
+world's — `CommitMoves`, this attempt's own commit landing late or being undone,
+and `RootNameTaken`, the task-root name occupied while the quarantine holds the
+root. One new phase, `Restored`.
+
+**Caught / missed.** Caught: the `FN-03` over-statement; five retained
+counterexamples, two of which changed a **transition** rather than a check, which
+no earlier counterexample in this file had done; three mutations that failed
+their aim, one in each of the three ways this file had already recorded — the
+first time all three have appeared in one slice; thirteen inherited witness
+bounds moving, twelve of them for a reason that is a sixth bound-register entry;
+and the file's first ceiling movement since `witness-k40`. Caught *by not going
+red*: the `evacuationComplete` / `gateEvacuated` divergence was predicted by
+`quarantine-k43` to fire here and did not, because `doCommitAttempt` is enabled
+at two phases and both are upstream of any handoff — the honest reading has
+hardened rather than changed across three slices.
+
+**The debt `commit-k41` took on is paid, and the answer is yes.** Fifteen of that
+slice's eighteen witnesses — and every witness in the file resting on
+`interruptedMidEvacuation` — start from a **posited disk** written to be exactly
+what the six body steps plus a `crash` produce, and never checked to be one. The
+family `README.md` recorded it as a limit and named this table as the check. The
+honest check turned out not to be the table at all but a **witness**: run the
+body up to the disk. It runs `TxnOpen`, the preflight, all six body steps with a
+partial evacuation, a `crash` and the confirmation a later launch supplies, and
+**first lands at eleven states, finding nothing at ten**. Ten was the ceiling from
+`witness-k40` onward, so the thing that had prevented the check for three slices
+was a **bound**, not an argument — and paying the debt is what moved the ceiling.
+This is the only entry ever removed from that file's *what a green run does not
+prove* list.
+
+> The methodological point is worth separating from the result. A limit recorded
+> as *we did not check X* had a stated reason (*the check would be `FN-22`'s
+> table*) that was **wrong about its own instrument**, and the wrongness was
+> cheap to discover and expensive to leave: had the predicate been
+> over-permissive, fifteen witnesses would have been testifying about a state no
+> execution reaches and **no check would have said so**, because a check
+> quantifies over all traces and does not care which one a witness picked. Read
+> an inherited limit for whether its stated remedy is actually the remedy.
+
+**A cost law wrong in the cheap direction for the second consecutive slice.**
+Medians of three, one host, one sitting, clean A/B with no bound moving on any
+sentinel: `FN_13` (ten states, the widest inherited) **6.07 s → 6.93 s, +14%**;
+the two entry-surface sentinels +9% and +11%; `witness_FN_11` +15%.
+`quarantine-k43`'s law — budget by (phase, guard) points times the bound they are
+reachable at — predicts about **+53%** for this slice's net five points against
+`commit-k41`'s twelve at +128%. The variable being over-counted is **dwell**: all
+five of this slice's points sit at phases a trace passes through once, whereas
+`commit-k41`'s `Classify` and `ResultArrives` were enabled at phases a trace can
+rest in, contributing a successor at many depths. The third statement of the law:
+**budget by the number of states of a trace at which a transition is enabled** —
+a phase a trace passes through once is one state, however many guards select it.
+Two slices have now found the arithmetic pessimistic, by six and then by four,
+while the ordering it recommends (a static scope switch, then a narrowed
+antecedent, then a smaller bound) has been right every time. **Take the ordering;
+do not take the multiplier.**
+
+**A sixth entry in the bound register, found by a third question.** Twelve
+inherited witnesses went up by exactly one, and every one of them ends on a
+`Classify`. Nothing about them changed and nothing about the classification's
+effect changed; it stopped being **enabled** at `Classified`, so a trace that
+ended on a classification can no longer close its lasso by running the same
+classification again. The register's three shapes are now: a step that stops
+being a no-op costs a state to every witness that **ended** on it; a step
+inserted into a path costs a state to every witness that **passes through** it;
+and a step that stops being enabled costs a state to every witness that **closed
+its lasso** on it. They are worth keeping apart because each is found by a
+different question. Fifty-nine witnesses were swept from 2 to 14 states to
+establish which thirteen moved.
+
+**Two counterexamples that changed a transition, which is a first for this file.**
+`FN-22.j` fails on a `Classify` taken at a pending handoff: the classification
+was re-runnable at `Classified`, so a trace could observe `Indeterminate` with
+the rename pending, re-derive the disposition, report `Applied` and take no
+corrective action — **a fifth revalidation point the catalogue did not
+authorise**, and one that is invisible until something states how many points
+there are. The fix is the transition, not the check. And `FN-17.a`'s new ordering
+conjunct fails on a **lane change between the restoration and the release**: the
+split this slice was forced to make opened a window that the shipped one-step
+settle does not have, and closing it needed `SY-03`'s own rule — every gate
+revalidates against its own operands. That second one is a design finding for
+`formal-synthesis-k16`: it is the hazard the implementation inherits if
+`FN-24.b` ever forces the same decomposition.
+
+**An abstraction removed rather than added.** `FN-17.a`'s *before the witness is
+removed* was a conjunction in `commit-k41`, recorded as an abstraction, with the
+decomposition question deferred to `FN-24.b`. `FN-22`'s *after restoration* row
+cannot be stated without a state after the restoration — a one-step settle can
+only observe what it observed before its own effect, since the restore branch
+frames the whole repository — so the split was forced by the claim rather than
+chosen, and the ordering is now real.
+
+**Cost.** 101 commands, **5 m 46 s** wall for the whole file, against 75 in
+3 m 05 s. Roughly one session: the bound sweep of fifty-nine witnesses at
+concurrency six was the largest single block, and the mutation work was larger
+still, because ten mutations were each run against the other nine `FN-22` checks
+and six inherited neighbours rather than against their target alone.
+
+**Counterfactual.** The `FN-03` over-statement is not reachable by reading the
+shipped Rust — there is no Rust for this yet — and it is not reachable by reading
+the catalogue either: it is a statement about what a **model's own check** made
+unreachable, and it took a second claim needing those states to expose it. The
+`interruptedMidEvacuation` result is the sharpest thing here that a prose review
+could not have produced at all: *is this posited state one an execution reaches*
+is a reachability question over a nine-transition trace, and the answer arrived
+as a bound. The revalidation table's totality is the one result a careful reader
+could have argued to — every row is in the catalogue — and the model's
+contribution is that a missing row is now **red at eleven states** rather than
+unnoticed.
+
+**Verdict.** The slice is green — **101 commands, 10 obligations, 40 of 61 alloy
+cells filled**, one mutation per obligation and **all ten KILLED**, each with a
+named existing witness re-run under it and still landing, and each swept against
+fifteen neighbouring checks to show it isolates. No protocol defect and no
+counterexample that was a defect in the catalogue: for the fifth consecutive
+slice in this scope, every finding came from writing down what a branch returns,
+from reading a check against its own claim, or from measuring what a slice cost.
+One new failure mode, one cost law corrected again, five retained
+counterexamples, one bound-register entry, one mutation-discipline rule, one
+abstraction removed, and one three-slice-old debt paid.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6,
+`org.alloytools.alloy.dist.jar`, Corretto `21.0.12.1+9-LTS`. **Solver**: SAT4J
+(distribution default), every command with `-n` and `-t text`. **Bounds**: the
+common shape is unchanged —
+`for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, N steps` —
+with `N` now from 2 to **12**, the first ceiling movement since `witness-k40`.
+The slice adds no scope dimension: `Restored` is one more `Phase` atom and the
+four `RevPoint`s are static `one sig`s used only by the claims. Each check runs
+at or above the widest first-landing bound among its own obligation's witnesses,
+all fifty-nine measured by sweep and tabulated in
+`crates/grove-finish/models/README.md`; `FN_20`'s deliberate margin above that
+floor has been **absorbed** by a bound movement unrelated to the claim, which is
+recorded there as a caution about stating margins as numbers. No `Int` in the
+file. **Fairness**: none assumed; nothing here is a liveness claim. **Symmetry**:
+no `exactly` scope. **Abstractions**: the revalidation points as **states** rather
+than as a `var` field, which costs no state space and makes the two before-points
+one moment distinguished by which handoff was pending; `observed` written apart
+from `doClassify` and bound to it only through the evidence predicates;
+`doCommitMoves` narrowed to the three phases a point can observe it at; the
+failed return's *report both* as an observable **state** rather than as
+diagnostic text; the four `Blocked` rows carrying model-only `why` values rather
+than the catalogue's `RecoveryPending`, because the partition is `FN-25`'s and
+`exits`' — `exits` now inherits three such values, not one; and the forward
+settle still passing through `FN-22.i`'s stable state and out of it in one step,
+because disposal is `FN-21`'s. **Deliberately omitted**: disposal's re-entrancy,
+the cleanup marker and its `replace` transition, the reaper, the `Blocked`
+diagnoses, and everything the earlier slices already listed. **What a green run
+does not prove**: everything is about the stated bounds, and beyond them the
+caveats in the family `README.md` — one **removed** (`interruptedMidEvacuation`,
+answered) and three new: that `observed` and `doClassify` agree is argued rather
+than checked; that the four points are the right four rests on the catalogue's
+count of handoffs, so a handoff by a third mechanism would fall outside all four
+antecedents; and that a `Blocked` this table produces is `RecoveryPending` is the
+catalogue's word, not this file's.
+
+---
+
 ## Distillation — where each entry landed
 
 `formalism-skill-k38` turned this log into

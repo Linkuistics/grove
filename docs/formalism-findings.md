@@ -4610,6 +4610,182 @@ commit's scoping being checked at the level of a tracked set rather than at the
 level of a pathspec, a fileset or a successor revision.
 
 
+### 034 — A transition that cost a sixth of what the cost law predicted, and an invariant the world can break (finish quarantine and the atomic root rename)
+
+**Scope.** Finish / recovery, **component-local**
+(`crates/grove-finish/models/`). `FN-19` and `FN-20`: the quarantine, the atomic
+rename of the whole task root into it, and *a leftover artifact is garbage, never
+a receipt*. Two obligations, four new commands, one new reachable transition. The
+scope's empty alloy cells fall from thirty-three to **thirty-one**.
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened.
+
+**Situation.** `commit-k41` ran the transaction to a settled disposition and
+released the witness and the manifest in place, recording that release as an
+*abstraction of disposal*. This slice replaces the first half of it with the real
+thing: a `Committed` classification now renames the whole task root — witness and
+evacuated tree intact — into the quarantine in one step, and the settle that
+follows disposes what the rename produced. It is the first slice in the scope
+that **removes the task root**, and three things were armed against exactly that
+day.
+
+**The material finding is that the cost of a reachable transition is governed by
+how many places it is ENABLED, not by the depth it is reachable at — and the
+previous slice's law, applied literally, was a factor of six too pessimistic.**
+`commit-k41` measured four transitions at **+128%** on the file's widest command
+and concluded that marginal cost is superlinear in trace length; it budgeted this
+slice as the worst case that law describes, since a quarantine rename is
+reachable only at the far end of a ten-state trace. Measured, medians of three,
+one host, one sitting, clean A/B with no bound moving on any sentinel: `FN_13`
+(ten states, the widest inherited) **5.73 s → 6.01 s, +5%**; the two
+entry-surface sentinels +4% each; `witness_FN_11` +7%. Per transition the
+previous law predicted about +30% on the widest.
+
+What separates the two measurements is the **enabling surface**. `commit-k41`'s
+four included a `Classify` re-runnable at three phases and a world-driven
+`ResultArrives` enabled at three more; `QuarRename` is enabled at exactly one
+phase *and* one disposition and nothing else in the file reaches it. The
+operative form of the law from here: **budget by the number of (phase, guard)
+points a transition is enabled at, multiplied by the bound they are reachable
+at.** That is the same advice the corpus already gave — *prefer a narrowed
+antecedent* — arriving from the other side with a number on it, and it is the
+first time in this experiment that a cost prediction has been wrong in the
+**cheap** direction. A slice that trusted the arithmetic would have bought a
+static scope switch it did not need.
+
+**Formalism.** Alloy 6, temporal, one file, four new commands
+(`FN_19`, `witness_FN_19`, `FN_20`, `witness_FN_20`), seventy-five in total.
+
+**Caught / missed.** Caught: one retained counterexample (below); the cost
+result; three inherited witness bounds moving; and a mutation that killed a
+neighbour. Caught *by not going red*, which is the more interesting one: the
+`evacuationComplete` / `gateEvacuated` divergence — written apart since
+`witness-k40` against the day a step removed the root — **did not become a
+counterexample**, because the rename is two transitions past the commit attempt
+and `doTxnOpen` refuses an absent root, so the protocol's own ordering makes the
+divergence unreachable. That is weaker than *the gate enforces it* and the two
+sides were left unedited; the first thing that will re-enter a transaction over a
+rootless disk is `FN-22`'s revalidation. Missed, in the sense of not attempted:
+whether `interruptedMidEvacuation` is reachable — still `FN-22`'s. Also
+deliberately not reached: `doClassify` was **not** opened to the phase between
+the rename and the settle, because that is precisely `FN-22`'s revalidation
+*after the quarantine rename* and writing it here would answer two of that
+table's ten rows by construction.
+
+**A retained counterexample, and it is the witness slice's first met from the
+other side.** `FN-19`'s *no partial or empty task root is ever observable*,
+restated as the invariant *one root identity is never in two places at once* and
+written over **every** step, fails on a `Swap`: the world swapping the task root
+is constrained only by *the identity changes*, so the solver picks the
+quarantine's own identity, and the model cannot know that moving the quarantine
+directory back over `.grove/` took the quarantine with it. The witness slice's
+retained counterexample 1 is the same lesson under a free **initial state** — *a
+shape claim under `EN-11` must be restated over the transition relation*. This is
+`EN-11` as a **transition**, since `doSwap` and `doTopologyChange` are the hand
+edit made first-class, and the restatement it forces is one clause: the invariant
+is preserved by the transaction's own steps and is not a property of the disk.
+**A claim about what a protocol never does is never a claim about what the world
+never does**, and this file now carries that at both grains.
+
+**A third way for a mutation to fail its aim, and it reports like the other
+two.** `entry-k39` found that a mutation the model cannot **execute** is not a
+control; `commit-k41` found that a mutation aimed at the wrong half of a claim is
+not one either. This slice adds: **a mutation that kills its target and a
+neighbour has not isolated what the target uniquely says.** `FN-20`'s obvious
+mutation — the classification refusing to reach `Committed` while a leftover
+*quarantine* exists — was satisfiable, killed `FN-20`, and killed `FN-03` with
+it, because `FN-03`'s third conjunct says nothing about a quarantine. The row as
+run mutates on the witness's presence instead, which is the antecedent `FN-03`
+already carries and `FN-20`'s deliberately drops, and it leaves `FN-03`, `FN-04`
+and `FN-15.b` green. The general form: **check what a mutation leaves standing,
+not only what it takes down.**
+
+**A fifth entry in the bound register, and the cheapest yet to predict.** Three
+inherited witnesses moved 9 → 10 — `witness_FN_03`, `witness_FN_16b`,
+`witness_FN_18` — and their three checks with them. All three are the file's only
+witnesses that run through the **forward settle**, and the slice put a step in
+front of it. The register already carried *a step that stops being a no-op costs
+a state to every witness that ended on it*; this is the other half — **a step
+inserted into a path costs a state to every witness that passes through it**.
+Forty-three witnesses were swept from 2 to 14 states to establish that exactly
+three did.
+
+**A `Q4` row that could not be decided, and the reason is itself evidence.** The
+quarantine's own removal-matrix row is not written. Row 30 breaks `FN-19`, which
+is *incumbent mechanics* and is exactly what `TODO.finish_process.md` Q1 asks
+about, so it is not an answer; row 31 breaks `FN-20`, which **is** shared safety
+and which the catalogue states over the **role** — *no artifact a transaction
+leaves behind is a receipt for it* — so a protocol leaving nothing behind
+satisfies it vacuously. The one shared-safety claim this slice reaches therefore
+says **nothing against disposal-in-place**. The obligations that could name the
+quarantine, `FN-24` and `FN-27`, are not in the file yet.
+
+**Cost.** Seventy-five commands, **3 m 05 s** wall for the whole file, against
+seventy-one in 2 m 40 s for `commit-k41`'s — and the four new commands are most
+of the difference. One new reachable transition, one `one sig` with a single
+`var lone` field, one new phase atom, no new scope dimension. Roughly one
+session, of which the bound sweep was about two and a half minutes at concurrency
+five and the mutation work rather more, because one mutation had to be re-aimed
+after it took a neighbour down with it.
+
+**Counterfactual.** The enabling-surface refinement to the cost law needs the
+model, a stopwatch and a *prior wrong prediction*; it is not a fact about grove
+at all and no reading of the shipped Rust produces it. The `doSwap` counterexample
+is genuinely model-shaped: it is a statement about what the model's own world
+transitions license, and prose review would have accepted *the root is never in
+two places* without asking who else can move a directory. The divergence staying
+unreachable is the one result here a careful reader of the step order could have
+argued to — the model's contribution is that it is now **checked at ten states**
+rather than argued.
+
+**Verdict.** The slice is green — **75 commands, 2 obligations, 30 of 61 alloy
+cells filled**, one mutation per obligation and **both KILLED**, each with a named
+existing witness re-run under it and still landing. No protocol defect and no
+counterexample that was a defect in the catalogue: for the fourth consecutive
+slice in this scope, every finding came from writing down what a branch returns
+or from measuring what a slice cost. One cost law corrected, one retained
+counterexample, one bound-register entry, one mutation-discipline lesson, and one
+Q4 row deliberately left for the sibling that will have the claims to decide it.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6,
+`org.alloytools.alloy.dist.jar`, Corretto `21.0.12.1+9-LTS`. **Solver**: SAT4J
+(distribution default), every command with `-n` and `-t text`. **Bounds**: the
+common shape is unchanged —
+`for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, N steps` —
+with `N` from 2 to 10 and **the ceiling unmoved**, since the rename sits one
+transition past a classification that was already the ninth. The slice adds no
+scope dimension: `Quar` is a `one sig` and `2 RootId` was already bought by
+`FN-06`'s swap, which is what `FN-20`'s witness spends it on — at one atom, *a
+leftover quarantine beside a task root that is not the one inside it* is
+inexpressible rather than false. Each check runs at or above the widest
+first-landing bound among its own obligation's witnesses, all forty-three
+measured by sweep and tabulated in `crates/grove-finish/models/README.md`;
+`FN_20` is the first command in the file to sit deliberately **above** that
+floor, at 8 against a witness landing at 7, because it is the slice's only
+shared-safety claim. No `Int` in the file. **Fairness**: none assumed; nothing
+here is a liveness claim. **Symmetry**: no `exactly` scope. **Abstractions**: the
+quarantine as a second place a `RootId` can be rather than as a copy of what the
+root holds, which is what makes *witness and evacuated tree intact* a frame
+condition; the forward settle as **still** a stand-in for disposal, now clearing
+a quarantine rather than releasing artifacts in place; the occupied quarantine
+target as a `Blocked` with a model-only `why` rather than a named
+`OwnershipConflict`, because the diagnosis partition is `FN-25`'s; and no
+filename grammar, so *the quarantine target is occupied* is one condition here
+where the shipped protocol has a per-handle, per-attempt family of them.
+**Deliberately omitted**: disposal's re-entrancy, the cleanup marker and its
+`replace` transition, the reaper, the four revalidation points and their ten-row
+table, the `Blocked` diagnoses, and everything `commit-k41` already listed. **What
+a green run does not prove**: everything is about the stated bounds, and beyond
+them the thirteen caveats in the family `README.md`, of which two are new and one
+is rewritten — the divergence being unreachable rather than enforced, which is
+the rewrite; `FN-20`'s strongest form
+being **non-interference**, which quantifies over pairs of traces and is
+therefore inexpressible as an Alloy check at all; and the fact that this file
+demonstrates, in `witness_FN_19`, a state it has no transition capable of leaving,
+because the only thing that disposes of a quarantine over an absent task root is
+the reaper.
+
 ---
 
 ## Distillation — where each entry landed

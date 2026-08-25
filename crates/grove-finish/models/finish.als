@@ -139,6 +139,23 @@ fun wcAsCommitLanes: set Lane { NativeJjL + ColocatedJjL }
 
 one sig Root { var rid: lone RootId, var holds: set Entry }
 
+/* THE QUARANTINE — the handoff slice's whole new signature, and it is ONE
+   FIELD on purpose.  The catalogue settles a proven commit by *renaming the
+   whole task root — witness and evacuated tree intact — into the quarantine in
+   one step*, so the only thing the rename changes is WHERE THE ROOT LIVES.
+   Modelling the quarantine as a second place a `RootId` can be, rather than as
+   a copy of the root's contents, is what makes "intact" a FRAME CONDITION
+   rather than a list of equalities to keep in step — and it is also what keeps
+   the step to at most one persistent effect, which is what `FN-24.b` will ask
+   of it.
+
+   `World.qDev` is the device this directory sits on, and `FN-08` has read it
+   since `entry-k39`; this is the first slice in which the directory itself
+   exists.  Nothing here is a cleanup marker or a reaper: `FN-21` and `FN-31`
+   are the `disposal` sibling's, and this file's disposal is still an
+   abstraction — see `doSettle`. */
+one sig Quar { var qRid: lone RootId }
+
 /* THE RESERVED WITNESS.  Two names in ONE directory, which is the whole of
    `FN-09.a`: `PREPARING-FINISH-<handle>-<attempt>/` while it is being built and
    `FINISHING-<handle>/` once it is published, so publication is exactly one
@@ -247,7 +264,15 @@ one sig Confirmation {}
    order is not one of them. */
 abstract sig Phase {}
 one sig Fresh, Opened, Entered, Prepared, Manifested, ReadyP, PublishedP,
-        Evacuated, Attempted, Classified, Settled extends Phase {}
+        Evacuated, Attempted, Classified,
+        /* THE HANDOFF SLICE'S ONE PHASE.  It sits BETWEEN `Classified` and
+           `Settled` on the forward path and on no other, which is what makes
+           the quarantine rename a step of the protocol rather than a detail of
+           the settle: a `Committed` classification no longer settles, it
+           renames, and the settle that follows disposes what the rename
+           produced. */
+        Quarantined,
+        Settled extends Phase {}
 one sig Verdict {}
 
 /* THE DISPOSITION IS NOT AN OUTCOME, and the catalogue says so in as many
@@ -304,7 +329,12 @@ one sig Idle, Confirm, Decline, TxnOpen, Preflight, Swap, TopologyChange,
            result that arrives LATE, and "late" has no meaning unless there is a
            classification for it to be late for.  `ResultArrives` is that
            arrival, and it is the WORLD's. */
-        Recover, Classify, Settle, ResultArrives extends Action {}
+        Recover, Classify, Settle, ResultArrives,
+        /* THE HANDOFF SLICE'S ONE TRANSITION.  `FN-19`'s *one atomic rename*,
+           and by the cost law the dearest single transition this file has
+           added: it is reachable only at the far end of the longest trace in
+           the scope. */
+        QuarRename extends Action {}
 
 /* THE STEP LIST.  `EN-08` grants interruption between any two steps and says
    nothing about what a step is, so the grant is worth exactly what this list
@@ -316,7 +346,7 @@ one sig Idle, Confirm, Decline, TxnOpen, Preflight, Swap, TopologyChange,
    effect. */
 fun bodySteps: set Action {
   WPrepare + WManifest + WReady + WPublish + WEvacuate + CommitAttempt
-  + Recover + Classify + Settle
+  + Recover + Classify + QuarRename + Settle
 }
 
 /* The transaction's own steps.  `FN-01.a` is stated over exactly this set, and
@@ -385,6 +415,14 @@ one sig W8WitnessTracked, W9SlotPending, W10SlotForeign extends Why {}
    with the added refusal atom above; the other two name the two ways a settle
    blocks, and neither is a blocked DIAGNOSIS — see `BlockedOutcome`. */
 one sig W11NotCommitted, W12Indeterminate, W13CannotReproduce extends Why {}
+/* THE HANDOFF SLICE'S ONE, and it is a `why` rather than a blocked DIAGNOSIS
+   for the reason `BlockedOutcome` gives: the closed partition over
+   `RecoveryPending` and `OwnershipConflict` is `FN-25`'s, which is `exits`', and
+   a slice that named `OwnershipConflict` here to describe a quarantine target
+   Grove cannot prove is free would answer `FN-25.a`'s totality by construction.
+   What this slice needs is a name for the branch, and `why` is that name —
+   exactly the device the two `LayoutUnsupported` members already needed. */
+one sig W14QuarantineOccupied extends Why {}
 
 one sig Sys { var act: one Action, var res: one Result, var why: lone Why }
 
@@ -519,6 +557,14 @@ pred resultProven { Txn.attempt in ticketedAttempts and no (Man.mFinger & Repo.t
    over its shape.  `Repo.rev` is that role.  `README.md` says so. */
 pred anchorHolds { Repo.rev = Txn.anchor }
 
+/* EVERY ARTIFACT THIS TRANSACTION OWNS, as one named thing, so that `FN-20` can
+   be stated over the ROLE the catalogue states it over — *no artifact a
+   transaction leaves behind is a receipt for it* — rather than over the
+   quarantine, which is only the incumbent realisation of that role.  Q1 is
+   decided against the role, so a claim written over the quarantine alone would
+   be evidence about the incumbent and about nothing else. */
+pred leftoverArtifact { some Quar.qRid or some Slot.occ or manWritten }
+
 /* `FN-16`'s licence, stated as the catalogue states it and NOT as the
    classification computes it — the same discipline as `pre*` against `gate*`.
    The two coincide in this file; writing them apart is what makes a mutation to
@@ -560,7 +606,16 @@ pred manSame   { Man.mHandle'  = Man.mHandle  and Man.mAttempt' = Man.mAttempt
                  and Man.mEntries' = Man.mEntries and Man.mType'    = Man.mType
                  and Man.mDigest'  = Man.mDigest  and Man.mReady'   = Man.mReady }
 pred rootSame  { Root.holds' = Root.holds and Root.rid' = Root.rid }
-pred treeSame  { rootSame and slotSame and manSame }
+/* THE QUARANTINE IS TREE BYTES, so it joins `treeSame` and every transition
+   that framed the tree before frames it now without being touched — the same
+   way the reserved slot and the manifest joined in the witness slice.  It is
+   named separately as well, because eight transitions frame the tree
+   field-by-field rather than through `treeSame`. */
+pred quarSame  { Quar.qRid' = Quar.qRid }
+/* The root's ENTRIES alone.  `doQuarRename` frames them in both branches and
+   moves the identity in one, so it cannot use `rootSame`. */
+pred rootSameHolds { Root.holds' = Root.holds }
+pred treeSame  { rootSame and slotSame and manSame and quarSame }
 /* THE REPOSITORY'S FRAME GREW WITH THE COMMIT, and every transition that framed
    it before frames the new state too without being touched — history, the
    reproduced preflight commit, and whether one can be reproduced at all.
@@ -690,7 +745,7 @@ pred doSwap {
   some Root.rid
   Sys.act' = Swap and Sys.res' = Environmental and noWhy
   some Root.rid' and Root.rid' != Root.rid
-  Root.holds' = Root.holds and slotSame and manSame
+  Root.holds' = Root.holds and slotSame and manSame and quarSame
   repoSame and worldSame and opSame and txnSame
 }
 
@@ -740,7 +795,7 @@ pred doWPrepare {
   some Op.confirmed
   Txn.phase = Entered
   Sys.act' = WPrepare
-  rootSame and repoSame and worldSame and opSame
+  rootSame and quarSame and repoSame and worldSame and opSame
   no Slot.occ implies {
     Sys.res' = Applied and noWhy
     Slot.occ' = Preparing and Slot.owner' = Txn.attempt and no Slot.wHolds'
@@ -774,7 +829,7 @@ pred doWManifest {
   Man.mType'    = Root.holds <: et
   Man.mDigest'  = Root.holds <: digest
   no Man.mReady'
-  rootSame and slotSame and repoSame and worldSame and opSame
+  rootSame and slotSame and quarSame and repoSame and worldSame and opSame
   Txn.phase' = Manifested and txnCarried and txnResultSame
 }
 
@@ -790,7 +845,7 @@ pred doWReady {
   Man.mAnchor'  = Man.mAnchor  and Man.mFinger'  = Man.mFinger
   Man.mEntries' = Man.mEntries and Man.mType'    = Man.mType
   Man.mDigest'  = Man.mDigest
-  rootSame and slotSame and repoSame and worldSame and opSame
+  rootSame and slotSame and quarSame and repoSame and worldSame and opSame
   Txn.phase' = ReadyP and txnCarried and txnResultSame
 }
 
@@ -804,7 +859,7 @@ pred doWPublish {
   Sys.act' = WPublish and Sys.res' = Applied and noWhy
   Slot.occ' = Published
   Slot.owner' = Slot.owner and Slot.wHolds' = Slot.wHolds
-  rootSame and manSame and repoSame and worldSame and opSame
+  rootSame and manSame and quarSame and repoSame and worldSame and opSame
   Txn.phase' = PublishedP and txnCarried and txnResultSame
 }
 
@@ -827,7 +882,7 @@ pred doWEvacuate {
   Slot.wHolds' = Slot.wHolds + (Root.holds - Root.holds')
   Root.rid' = Root.rid
   Slot.occ' = Slot.occ and Slot.owner' = Slot.owner
-  manSame and repoSame and worldSame and opSame
+  manSame and quarSame and repoSame and worldSame and opSame
   (no Root.holds') implies Txn.phase' = Evacuated else Txn.phase' = PublishedP
   txnCarried and txnResultSame
 }
@@ -910,7 +965,7 @@ pred doDiscard {
   Txn.phase = Fresh
   Slot.occ = Preparing
   Sys.act' = Discard
-  rootSame and worldSame and opSame and txnSame
+  rootSame and quarSame and worldSame and opSame and txnSame
   repoHistorySame
   gateOwned implies {
     Sys.res' = Applied and noWhy
@@ -990,6 +1045,50 @@ pred doClassify {
                        else Txn.disp' = Indeterminate)
 }
 
+/* THE QUARANTINE RENAME — `FN-19`, and the handoff slice's one transition.
+
+   IT REPLACES A STAND-IN.  `commit-k41`'s forward settle released the witness
+   and the manifest in place and recorded that release as an ABSTRACTION of
+   disposal: `FN-18` needed the artifacts gone so that `FN-03`'s retry had no
+   local trace to read, and needed nothing about how.  This is the real thing
+   for the first half of it — the whole task root leaves in one rename — and the
+   settle that follows disposes what the rename produced.  Disposal's
+   re-entrancy, the cleanup marker and the reaper are still absent and are the
+   `disposal` sibling's.
+
+   ONE PERSISTENT EFFECT, AND IT IS THE MOVE.  `Quar.qRid'` gains the identity
+   and `Root.rid'` loses it, in the same step.  Everything the root held —
+   the published witness, its evacuated entries, the manifest inside it — is
+   FRAMED rather than copied, which is what "witness and evacuated tree intact"
+   is worth in a model whose quarantine is a second place a root can be.
+
+   THE OCCUPIED TARGET BLOCKS RATHER THAN REFUSES, and that is the catalogue's
+   shape rather than a convenience.  The transaction has a PROVEN commit at this
+   point; ending it as a refusal would say the finish did not happen when the
+   ticket in history says it did.  So the attempt ends, the tree keeps its
+   published witness and its present task root, and a later launch recovers,
+   re-classifies `Committed` on the ticket and tries again — which is exactly
+   what `RecoveryPending` describes.  It is reported as a `Blocked` with a
+   model-only `why`; naming the diagnosis is `FN-25`'s and `exits`'. */
+pred doQuarRename {
+  some Op.confirmed
+  Txn.phase = Classified
+  Txn.disp = Committed
+  Sys.act' = QuarRename
+  rootSameHolds and repoSame and worldSame and opSame
+  no Quar.qRid implies {
+    Sys.res' = Applied and noWhy
+    Quar.qRid' = Root.rid
+    no Root.rid'
+    slotSame and manSame
+    Txn.phase' = Quarantined and txnCarried and txnResultSame
+  } else {
+    Sys.res' = BlockedOutcome and Sys.why' = W14QuarantineOccupied
+    Root.rid' = Root.rid and slotSame and manSame and quarSame
+    txnGone
+  }
+}
+
 /* SETTLING — the one action the three dispositions are inputs to, and the
    catalogue's mapping taken verbatim: `Committed` settles forward and yields
    `Applied`, `NotCommitted` rolls back and yields a refusal, `Indeterminate`
@@ -1011,16 +1110,29 @@ pred doClassify {
    released (`FN-17.a`). */
 pred doSettle {
   some Op.confirmed
-  Txn.phase = Classified
+  /* THE FORWARD SETTLE IS NO LONGER AVAILABLE AT `Classified`.  A `Committed`
+     classification renames first (`FN-19`) and settles after, so the settle's
+     forward branch is guarded by the phase the rename produced.  That is the
+     phase machine doing what it has done since the witness slice — each step's
+     guard is the phase its predecessor produced — and it is why a `Committed`
+     at `Classified` enables nothing here rather than blocking. */
+  (Txn.phase = Quarantined) or (Txn.phase = Classified and Txn.disp != Committed)
   Sys.act' = Settle
   worldSame and opSame
-  Txn.disp = Committed implies {
+  Txn.phase = Quarantined implies {
+    /* FORWARD, and it is now the disposal of a quarantine rather than a release
+       in place: the root left in one rename and what remains is the quarantine
+       holding it.  This step is STILL AN ABSTRACTION of disposal — nothing here
+       claims it is re-entrant, marker-guarded or bounded to Grove's own, which
+       are `FN-21` and `FN-31` and are the `disposal` sibling's. */
     Sys.res' = Applied and noWhy
     rootSame
+    no Quar.qRid'
     no Slot.occ' and no Slot.owner' and no Slot.wHolds' and manEmptyNext
     repoSameReleasingWitness
     Txn.phase' = Settled and txnCarried and txnResultSame
   } else {
+    quarSame
     (Txn.disp = NotCommitted and rollbackLicensed) implies {
       canReproduceHere implies {
         Sys.res' = RefRollbackNotCommitted and Sys.why' = W11NotCommitted
@@ -1064,7 +1176,7 @@ pred step {
   or doSwap or doTopologyChange
   or doWPrepare or doWManifest or doWReady or doWPublish or doWEvacuate
   or doCommitAttempt
-  or doRecover or doClassify or doSettle or doResultArrives
+  or doRecover or doClassify or doQuarRename or doSettle or doResultArrives
   or doCrash or doDiscard
 }
 
@@ -1087,8 +1199,9 @@ fact TxnStateWellFormed {
     /* A disposition exists only once something has classified, and a reported
        result only once something has been attempted.  Both are volatile and both
        go with the transaction. */
-    some Txn.disp   implies Txn.phase in (Classified + Settled)
-    some Txn.report implies Txn.phase in (Attempted + Classified + Settled)
+    some Txn.disp   implies Txn.phase in (Classified + Quarantined + Settled)
+    some Txn.report implies Txn.phase in (Attempted + Classified
+                                          + Quarantined + Settled)
   }
 }
 
@@ -1120,6 +1233,15 @@ fact BodyPhaseMatchesDisk {
       (Slot.occ = Published and Slot.owner = Txn.attempt
        and no Root.holds and some Man.mReady)
     Txn.phase = Settled implies (no Slot.occ and manEmpty)
+    /* `Quarantined` GETS NO CLAUSE, AND THE ABSENCE IS THE POINT.  Everything
+       true of the disk at that phase — the root gone from its own name, the
+       quarantine holding it, the witness and the manifest intact inside it — is
+       what `FN-19` CLAIMS about the rename.  A clause here would make the
+       claim's own mutation UNSATISFIABLE, and an unsatisfiable mutation reports
+       exactly as a surviving one; this file has recorded that trap twice
+       already.  The phase is reachable by the rename and by nothing else —
+       state 0 is `Fresh + Opened` — so nothing is needed here to keep it
+       honest. */
   }
 }
 
@@ -1714,7 +1836,7 @@ check FN_03_the_ticket_is_the_durable_record_and_outlives_the_artifacts {
        and Txn.attempt in Txn.handle.(Repo.tickets))
       implies Txn.disp' = Committed
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
 
 /* A retry with no local trace of the attempt, settling forward on the ticket
    alone.  The forward settle releases every artifact the transaction owns, and
@@ -1726,7 +1848,7 @@ run witness_FN_03_a_retry_with_no_local_trace_settling_forward_on_the_ticket_alo
   eventually (Sys.act = Settle and Sys.res = Applied and no Slot.occ and manEmpty)
   eventually (Sys.act = Classify and Txn.disp = Committed
               and Txn.phase = Settled and no Slot.occ and manEmpty)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
 
 // --- FN-04: an attempt binds to a live session ------------------------------
 
@@ -1941,7 +2063,7 @@ run witness_FN_16a_a_settle_with_the_recorded_anchor_moved_restores_nothing {
 
 check FN_16b_restoration_is_refused_when_the_attempt_bound_result_is_present {
   always ((some (Root.holds' - Root.holds)) implies not resultProven)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
 
 /* Reached: the attempt-bound result IS present — the ticket landed — so the
    settle goes forward and no entry ever comes back. */
@@ -1951,7 +2073,7 @@ run witness_FN_16b_a_settle_with_the_attempt_bound_result_present_restores_nothi
   eventually (Sys.act = CommitAttempt and some Repo.tickets)
   eventually (Sys.act = Settle and Sys.res = Applied
               and no Root.holds and no Slot.occ)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
 
 // --- FN-17: rollback is exact -----------------------------------------------
 
@@ -2013,7 +2135,7 @@ check FN_18_a_proven_commit_is_never_followed_by_a_reconstruction {
     (resultProven and once (Sys.act = Classify and Txn.disp = Committed))
       implies no (Root.holds' - Root.holds)
   }
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
 
 /* A proven commit reached after an interruption mid-evacuation: the recovery
    adopts the interrupted attempt, finishes the evacuation, commits, proves it,
@@ -2025,7 +2147,150 @@ run witness_FN_18_a_proven_commit_reached_after_an_interruption_mid_evacuation {
   eventually (Sys.act = Classify and Txn.disp = Committed and no Root.holds)
   eventually (Sys.act = Settle and Sys.res = Applied
               and no Root.holds and no Slot.occ)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 9 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+
+
+// ===========================================================================
+// CLAIMS — FN-19, FN-20, THE HANDOFF
+//
+// The slice that first REMOVES THE TASK ROOT.  Every claim before this one
+// could take the root's presence for granted; `evacuationComplete`'s *the task
+// root is still present* and `gateEvacuated`'s silence about it have been
+// written apart since `witness-k40` against exactly this day, and what that
+// divergence turned out to be worth is recorded in `README.md`.
+// ===========================================================================
+
+// --- FN-19: the root moves in one atomic rename -----------------------------
+
+/* Four conjuncts, and the last two are one claim stated the only way a claim
+   about SHAPE can be stated under a free initial state.
+
+   (a) and (b) are the rename itself: the quarantine acquires a root only by
+   this step and never by any other, the identity leaves the task root in the
+   SAME state it arrives in the quarantine, and nothing inside the root moves
+   with it.  (b) is what *witness and evacuated tree intact* is worth here —
+   a frame condition on the step rather than a list of equalities.
+
+   (c) IS AN INVARIANT THE PROTOCOL PRESERVES, NOT A SHAPE CLAIM, AND ITS
+   ANTECEDENT IS NARROWED TO GROVE'S OWN STEPS BECAUSE OF A COUNTEREXAMPLE.
+   The witness slice's first retained counterexample is the rule: under `EN-11`
+   cashed out as a free initial state, every "never" claim about tree shape is
+   false unless it is restated over the transition relation, because state 0 can
+   hand-edit the violation.  Written over EVERY step, (c) is still false, and
+   `doSwap` is why: the world swapping the task root can put the QUARANTINE's
+   own identity at the task-root path — which is what moving the quarantine
+   directory back over `.grove/` looks like from the inside — and the model has
+   no way to know the quarantine went with it.  That is the same lesson as the
+   witness slice's, met from a new direction: the hand edit is a TRANSITION here
+   rather than a free initial state, and a claim about the protocol's shape has
+   to be stated over the protocol's own steps.  Retained in `README.md`.
+
+   (d) is the other half — a task root never simply disappears under a
+   transaction step; if it goes, the quarantine gained exactly it. */
+check FN_19_the_root_moves_into_the_quarantine_in_one_atomic_rename {
+  always {
+    (some (Quar.qRid' - Quar.qRid))
+      implies (Sys.act' = QuarRename
+               and Quar.qRid' = Root.rid and no Root.rid')
+    (Sys.act' = QuarRename and Sys.res' = Applied)
+      implies (Root.holds' = Root.holds and slotSame and manSame)
+    (Sys.act' in txnActs and no (Root.rid & Quar.qRid))
+      implies (no (Root.rid' & Quar.qRid'))
+    (Sys.act' in txnActs and some Root.rid and no Root.rid')
+      implies Quar.qRid' = Root.rid
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+
+/* The catalogue's witness verbatim: an interruption immediately after the
+   rename, leaving a complete quarantine and an absent task root.  It runs the
+   whole forward path for real from the disk an interruption mid-evacuation
+   leaves — recover, finish the evacuation, attempt the commit, land it,
+   classify it `Committed`, rename — and then crashes, which is what makes
+   *immediately after* a fact about the trace rather than about the predicate.
+
+   WHAT IT LEAVES IS ALSO WHAT NOTHING IN THIS FILE CAN YET CLEAN UP, and that
+   is recorded in `README.md` rather than fixed here: with the task root absent,
+   `doTxnOpen` is unavailable, so the quarantine this crash leaves is disposed
+   of by a REAPER and by nothing else — which is `FN-21`, and the `disposal`
+   sibling's. */
+run witness_FN_19_an_interruption_immediately_after_the_rename {
+  interruptedMidEvacuation
+  no Quar.qRid
+  no Repo.tickets
+  eventually (Sys.act = QuarRename and Sys.res = Applied
+              and no Root.rid and some Quar.qRid)
+  eventually (Sys.act = Crash
+              and no Root.rid                  // the task root is absent
+              and some Quar.qRid               // the quarantine holds it
+              and Slot.occ = Published         // the witness, intact
+              and some Slot.wHolds             // the evacuated tree, intact
+              and some Man.mReady)             // the manifest, intact
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 10 steps
+
+// --- FN-20: a leftover artifact is garbage, never a receipt ------------------
+
+/* TWO CONJUNCTS, AND ONLY THE SECOND IS NEW IN THIS FILE — which is recorded
+   here and in `README.md` rather than left for a reader to work out, because a
+   cell filled by a check that adds nothing is the shape of a false-confidence
+   incident.
+
+   (a) PRESENCE IS NEVER SUFFICIENT.  Whatever the transaction has left lying
+   about — a quarantine, a published witness, a written manifest — it never
+   makes a finish provable.  In THIS file that is ENTAILED by `FN-04`'s second
+   conjunct, which is stated without the leftover antecedent and is therefore
+   strictly stronger.  It is restated here because `FN-20` quantifies over every
+   artifact where `FN-04` quantifies over the ticket, and a candidate protocol
+   that leaves something else behind is checked against the role by this
+   conjunct and by nothing else in the file.
+
+   (b) PRESENCE IS NEVER NECESSARY, AND NEVER OBSTRUCTS.  With a ticket naming
+   this handle and this attempt, and the expected deletions gone, the
+   classification reaches `Committed` — whatever is or is not still on disk.
+   `FN-03`'s third conjunct reaches only the EMPTY-TREE half of that, because it
+   carries `no Slot.occ and manEmpty` in its own antecedent; (b) drops that
+   antecedent, so it is the half that says the transaction's own artifacts,
+   still sitting there, are not allowed to WITHHOLD the answer either.
+
+   THE MUTATION HAD TO BE RE-AIMED, AND THAT IS RECORDED IN `README.md` RATHER
+   THAN QUIETLY FIXED.  The obvious mutation — `doClassify` refusing to reach
+   `Committed` while a QUARANTINE exists — kills (b) and kills `FN-03` with it,
+   because `FN-03`'s third conjunct says nothing about a quarantine.  A mutation
+   that kills its target and a neighbour has not isolated what the target
+   uniquely says.  The one that does is `doClassify` requiring the WITNESS to be
+   gone, which `FN-03`'s antecedent already assumes and (b)'s does not.
+
+   THE STRONGEST FORM OF `FN-20` IS NOT STATED HERE AND CANNOT BE.  *No
+   classification reads the quarantine* is non-interference: two traces
+   differing only in the leftover reach the same disposition.  Alloy quantifies
+   over traces one at a time, so the property is inexpressible as a check and
+   (a) and (b) are the reachable approximation.  `README.md` carries it under
+   what a green run does not prove. */
+check FN_20_no_artifact_the_transaction_leaves_behind_is_ever_a_receipt {
+  always {
+    (Sys.act' = Classify and leftoverArtifact
+       and Txn.attempt not in Txn.handle.(Repo.tickets))
+      implies Txn.disp' != Committed
+    (Sys.act' = Classify and Txn.attempt in Txn.handle.(Repo.tickets)
+       and no (Man.mFinger & Repo.tracked))
+      implies Txn.disp' = Committed
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
+
+/* The catalogue's witness: a leftover artifact present while the tree is
+   classified fresh.  An earlier attempt's quarantine sits beside a task root
+   that is NOT the one inside it — two `RootId` atoms is exactly what makes the
+   two distinguishable, and at one atom the witness would be inexpressible
+   rather than false — and the classification of the live attempt reads the
+   ticket, finds none, and settles on `NotCommitted`.  The leftover is garbage. */
+run witness_FN_20_a_leftover_artifact_present_while_the_tree_is_classified_fresh {
+  interruptedMidEvacuation
+  some Quar.qRid and Quar.qRid != Root.rid
+  no Repo.tickets
+  eventually (Sys.act = Classify
+              and some Quar.qRid                // the leftover, present
+              and Slot.occ = Published          // and this attempt's own, too
+              and Txn.disp = NotCommitted)      // and the tree classifies fresh
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 8 steps
 
 
 // ===========================================================================

@@ -4244,6 +4244,197 @@ distinction — and, beyond the bounds, the four caveats in the family `README.m
 
 ---
 
+### 032 — A licence that was about the tree, and a refusal the closed set cannot name (finish witness)
+
+**Scope.** Finish / recovery, **component-local**
+(`crates/grove-finish/models/`). `FN-09` – `FN-13`: the **reserved witness** —
+build under a preparing name, publish by one atomic rename, evacuate the root
+into it beneath a manifest marked ready last, and never commit it. Eight
+obligations, seventeen new commands, no assumption mutation (`EN-08`'s
+exercise-removal is `exits`'). The scope's empty alloy cells fall from
+fifty-three to **forty-five**.
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened.
+
+**Situation.** `entry-k39` left `finish.als` green over a two-step transaction in
+which every outcome is a refusal. This slice adds the transaction's *body*: six
+steps, `crash` between any two of them, and `discard` as the recovery an
+unpublished witness admits — the file's first reachable-transition addition, and
+its first claim (`FN-11`) whose witness is an **interval** rather than a state.
+
+**The material finding is that `EN-11`, as this corpus cashes it out, silently
+weakens every claim about tree shape — and it took a six-step body to make that
+visible.** `EN-11` says *any well-formed tree is reachable by hand edit*, and
+both scopes implement it as an **unconstrained initial state** rather than as a
+`hand-edit` transition, because it is cheap and it saves every witness a run-up.
+`entry-k39` records it as an abstraction and nothing went wrong: its transactions
+are two steps long and its witnesses need at most a just-opened transaction.
+
+With a six-step body it goes wrong in two distinct ways, and only one of them has
+a fix.
+
+- **The volatile half is a modelling defect, and it broke three checks at once.**
+  An unconstrained initial state does not just hand-edit the *tree*; it also
+  hands you a `Txn.phase` in the middle of the body — a running transaction
+  nobody started. `FN-12.a` failed on a manifest half-written by no step
+  (`Manifested`, only the anchor field present); `FN-11` failed on a published
+  witness over an **absent task root**; `FN-12.b` failed on an undigestible entry
+  inside an entered transaction the preflight would have refused. All three are
+  one counterexample wearing three hats, and one line fixes it: constrain state
+  0's phase to `Fresh + Opened` — where a *process* starts — and leave the disk
+  entirely free, which is what `EN-11` actually licenses.
+- **The tree half has no fix, and that is the reusable rule.** `FN-09.b` — *no
+  preparing witness ever holds an evacuated entry* — written the obvious way,
+  `always (Slot.occ = Preparing implies no Slot.wHolds)`, fails at state 0 on a
+  hand-edited preparing witness with something inside it. And it *should*: under
+  the free-initial-state licence, **every "never" claim about tree shape is false
+  unless it is restated as a claim about what the protocol does**. Making it a
+  `fact` would make the check vacuous and its mutation unsatisfiable, which is
+  the exact trap entry 031 records twice. It is stated over the transition
+  relation instead.
+
+> `M1 alloy-only` · `M2 structure` · `M3 = 3` — the three counterexamples name
+> the state and the field, and reading *why* that state is unreachable-in-fact
+> takes the phase machine as well as the trace · `M4 = none` — there is no
+> shipped defect here; the model's own licence was over-broad, and what changes
+> is the model and the corpus's rules for writing one.
+
+**This is the third bound-and-vacuity predictor the corpus carries**, and it sits
+beside `task-tree-k7`'s two rather than replacing them:
+
+1. an **interval** claim needs interval-many states;
+2. the bound must hold the **machinery of the transitions** the obligation
+   quantifies over;
+3. a **shape** claim under a free initial state must be restated over the
+   **transition relation** — and if the model also leaves *volatile* state free,
+   the initial state must be narrowed to where a process starts.
+
+Predictor 1 was applied before the fact and worked: `FN-11`'s witness was budgeted
+for the interval from the start and landed at nine states, first try. Predictor 3
+was learned from three failures in one run.
+
+**The second material finding is a hole in the catalogue's closed refusal-reason
+set, and — for the second time in this scope — a *witness* found it, not a
+check.** `FN-13`'s stated witness is *a commit attempted while the witness is
+tracked, **refused***. None of the seventeen closed refusal reasons names a
+tracked witness. The model reports it under `WitnessPending` — the closest true
+member, an artifact at a reserved name Grove can prove is its own — and keeps the
+case distinguishable through the model-only `Sys.why`, which is the same device
+`FN-05.a`'s two `LayoutUnsupported` members already needed. The consequence is
+operator-visible: the reason cannot say that the **repository**, not the
+filesystem, is what is blocking.
+
+The two documents also disagree about the outcome's *kind*.
+`task-tree-transactions-fail-closed` says a tracked witness "keeps the witness
+unwalkable as **Recovery pending**" — a `Blocked`, which is what `TT-24`'s own
+context table implies for a transaction that has already mutated — and the
+catalogue says **refused**. This model followed the catalogue, because the
+catalogue is the sole input to the formal phase. `formal-synthesis-k16` picks the
+exit: add a reason to the closed set, or restate `FN-13` as a block.
+
+> `M1 alloy-only` · `M2 refusal` · `M3 = 2` — the trace names the transition and
+> the outcome, but the *absence* of a fitting reason is read off the closed set
+> rather than out of any trace · `M4 = none` — there is no defect to write a
+> failing test against; the catalogue under-described an outcome it requires.
+> Like entry 031's counting mismatch, this falsifies **H7** by H7's own terms —
+> and it is the same failure mode twice in one scope: **a catalogue that fixes
+> two closed sets and never states the map between them.**
+
+**Caught / missed.** Caught: the three initial-state counterexamples above; the
+missing refusal reason; and one hole in the file's own coverage — no command in
+`entry-k39`'s twenty-three ever reached `doPreflight`'s **success** branch, since
+all fourteen of its witnesses are refusals. That is the same shape as the
+undemonstrated `Confirm` transition entry 031 found, discovered the same way, by
+asking what the witnesses actually *execute* rather than what they assert.
+`witness_FN_09a_the_transaction_is_entered_by_a_preflight` is the fix and the
+licence every body witness now runs on. Missed, in the sense of not attempted:
+`FN-24.b`'s question about whether the six steps are a *complete* set of crash
+boundaries. The step list is written as one named thing (`bodySteps`) precisely
+so `exits` can quantify over it, but this slice's six steps are a **proposal**,
+not a checked claim.
+
+**One self-inflicted failure worth recording, because it is a frame-condition
+trap in a new place.** The refactor that gave the transaction an attempt identity
+also rewrote its "the transaction is gone" frame to clear the **lease verdict**.
+`doPreflight` frames that verdict explicitly and `TxnStateWellFormed` requires it
+of any non-`Fresh` phase, so the preflight's entire refusal branch became
+unsatisfiable — and **eight of `entry-k39`'s fourteen witnesses reported *no
+instance* in one run** while every check stayed green. Checks going green while
+witnesses vanish is the signature the runner exists to catch, and it caught it.
+The rule generalises: **a shared frame predicate that a later slice widens is a
+change to every transition that ever used it**, and the witnesses, not the
+checks, are what report it.
+
+**Cost.** Eight reachable transitions. The same six unchanged entry-surface
+commands run 0.9 s each on `entry-k39`'s file and 1.4 s on this one — **~+55%**,
+an A/B on one host in one sitting. The suite goes 23 commands / 23 s → 40
+commands / 2 m 13 s, most of which is the seventeen new commands at 1.6–2.7 s
+each. That places eight reachable transitions above the model's prior worst case
+(four transitions, +41%) on the inherited commands, which is what the cost model
+predicts, and it says the *marginal* cost of a transition is not linear in the
+count.
+
+**A third measurement rule, and it is new.** `task-tree-k7` established that
+whole-suite totals do not compare across sessions. Add: **a single command's cost
+is bimodal within one sitting.**
+`witness_FN_11_the_interval_between_publication_and_commit` measured 2.0 s,
+10.1 s and 2.0 s on three consecutive runs of the same bytes — a 5× swing with
+nothing changed. SAT4J's search is not a stopwatch, so a slice that reports one
+sentinel's before-and-after is reporting noise; every figure above is a median of
+three.
+
+**Counterfactual.** Without the model, the volatile-initial-state defect is
+invisible — it is a property of the *model*, so no amount of reading the shipped
+Rust would surface it. The `FN-13` reason hole is different: it is legible from
+the catalogue alone by anyone who reads `FN-13`'s witness beside the closed
+reason list, and the honest claim is that the model **forced** the reading rather
+than that it alone could produce it. The same is true of entry 031's counting
+mismatch, and two data points now say the same thing about what this instrument
+is doing: it is a discipline that makes you write down the outcome of every
+branch, and the catalogue's gaps are where that discipline has nothing to write.
+
+**Verdict.** The slice is green — 40 commands, 8 obligations, 16 of 61 alloy
+cells filled, one mutation per obligation and **all eight KILLED as first
+written**, each with a named existing witness re-run under it and still landing.
+No protocol defect. Two catalogue-level findings, both from writing witnesses.
+Three model-level counterexamples, all from one over-broad licence, all retained
+in the family `README.md`. The corpus gains a third vacuity predictor and a third
+measurement rule.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6,
+`org.alloytools.alloy.dist.jar`, Corretto `21.0.12.1+9-LTS`. **Solver**: SAT4J
+(distribution default), every command with `-n` and `-t text`. **Bounds**: the
+common shape is
+`for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, N steps`,
+with `N` from 3 to 10; each check at or above the widest first-landing bound
+among its own obligation's witnesses, tabulated in
+`crates/grove-finish/models/README.md`, and the `EN-02` control unchanged at
+`1 Device, 4 steps`. No `Int` in the file. **Fairness**: none assumed; nothing in
+either slice is a liveness claim. **Symmetry**: no `exactly` scope.
+**Abstractions**: the coarse tree, with the two reserved names modelled as one
+slot carrying a **class**; the manifest's ready mark read as *both* the ready
+mark and the written-and-verified record; the attempt identity and repository
+anchor as opaque pins nothing reads back; the digest as the catalogue's opaque
+equality; `Sys.why` widened from a precondition observable to a condition
+observable; the body's step order as a phase machine rather than a refusal per
+out-of-order step, which is a scoping of the totality rule to what an
+*invocation* returns; and the initial state narrowed in its **volatile** half
+only. **Deliberately omitted**: everything from the commit onward — the commit
+itself, the correlation ticket, the three dispositions, rollback, forward
+recovery, the quarantine, the atomic root rename, the cleanup marker and the
+reaper. `doCommitAttempt` records that a commit was *attempted* and mutates
+nothing. **What a green run does not prove**: everything is about the stated
+bounds — at most three entries, two devices, two attempt identities, two digests
+and ten states, one transaction, no lane distinction — and, beyond the bounds,
+the six caveats in the family `README.md`, of which two are new: that the
+manifest is never revalidated at the digest step because no reachable antecedent
+exists for one, and that `evacuationComplete`'s *the task root is still present*
+is discharged upstream by the preflight rather than by the commit attempt's own
+gate.
+
+---
+
 ## Distillation — where each entry landed
 
 `formalism-skill-k38` turned this log into

@@ -2765,6 +2765,14 @@ shared-safety obligation** its removal breaks under the mutation discipline, or
 removed without breaking any shared-safety claim*, so a `none` is an answer and
 an obligation is evidence the artifact protects the user.
 
+**Every row carries its family**, because both families record into this one
+file and `models/run.sh` reads the rows per family — the same reason a `GAP`
+line names its family. The runner asserts the matrix in both directions
+(every catalogue-named artifact has a row; every row names an artifact the
+catalogue names, cites an obligation the catalogue defines or `none` or is
+declared `abstracted`, and carries an evidence citation that resolves), and the
+row shape it reads is documented in its header under *Q4's removal matrix*.
+
 **Every row carries its evidence class**, because the node brief's warning is
 exact — *the matrix is prose, and a row naming the wrong first-broken obligation
 reports identically to a right one*. `mutation` means a row of the matrix above
@@ -2772,18 +2780,18 @@ fired and killed the named check; `argument` means the claim's own text names th
 artifact and no mutation in either direction was available; `abstracted` means
 the artifact has no counterpart in this file.
 
-| # | removable artifact or transition | first **shared-safety** obligation its removal breaks | evidence |
-|---|---|---|---|
-| Q4-1 | the **reserved witness**, as the thing every candidate committed tree excludes | `FN-13` | mutation — row 17. **See the twelfth finding**: this row was recorded for three slices as incumbent mechanics and the register says shared safety. Under *total* removal the claim is satisfied **vacuously**, which is `FN-20`'s shape and is why the row is evidence about the mutation discipline rather than about a candidate protocol |
-| Q4-2 | the **evacuation manifest**, as the record a restoration restores *to* | `FN-02` | mutation — row x2, and **not the obligation the argument predicted**. A restore branch that stops matching the manifest was expected to kill `FN-17.a` (*a restoration matches the manifest*) and does not; it kills `FN-02` and `FN-22.d`. Read forward: without the record, the restoration cannot put the **finish leaf** back, and *intent persists as the finish leaf* is the first shared-safety claim that notices. `FN-17.a`'s first conjunct is guarded on entries actually returning and its second on the release, so a restoration that returns nothing slips beneath both — which is itself worth a line to whoever writes the Quint row |
-| Q4-3 | its **ready mark** | `FN-10.a` — **incumbent mechanics, so not yet a Q4 answer** | mutation — row 12 |
-| Q4-4 | the **correlation ticket**, as an *attempt-naming* record | `FN-04` | mutation — row 19, transcribed |
-| Q4-5 | the **quarantine** | **`none`** | argument, and it is the row Q1 exists for — see below |
-| Q4-6 | the **cleanup marker**, as the document a sweep reads to know what is Grove's | `TT-24` | mutation — row x1, and the obligation is **unreachable from this directory**; see below |
-| Q4-7 | the **replace transition** (`doMarkerReplace`) | **`none`** | mutation — row 45, transcribed: narrowing the transition away leaves **every check in the file green** and stops one witness landing. A liveness hole no safety claim sees |
-| Q4-8 | the **index image** | — | abstracted. The three lanes' anchors and commit mechanisms are carried as one `Repo.rev` role and the index image has no counterpart here; declared under *Abstractions* since `commit-k41`. The row exists so that a removable artifact is not silently unrowed |
-| Q4-9 | the **recorded anchor**, as the rollback licence | `FN-16.a` | mutation — row 25, transcribed |
-| Q4-10 | the **deletion fingerprint**, as the commit's scope | `FN-14` | mutation — row 20, transcribed |
+| # | family | removable artifact or transition | first **shared-safety** obligation its removal breaks | evidence |
+|---|---|---|---|---|
+| Q4-1 | alloy | the **reserved witness**, as the thing every candidate committed tree excludes | `FN-13` | mutation — row 17. **See the twelfth finding**: this row was recorded for three slices as incumbent mechanics and the register says shared safety. Under *total* removal the claim is satisfied **vacuously**, which is `FN-20`'s shape and is why the row is evidence about the mutation discipline rather than about a candidate protocol |
+| Q4-2 | alloy | the **evacuation manifest**, as the record a restoration restores *to* | `FN-02` | mutation — row x2, and **not the obligation the argument predicted**. A restore branch that stops matching the manifest was expected to kill `FN-17.a` (*a restoration matches the manifest*) and does not; it kills `FN-02` and `FN-22.d`. Read forward: without the record, the restoration cannot put the **finish leaf** back, and *intent persists as the finish leaf* is the first shared-safety claim that notices. `FN-17.a`'s first conjunct is guarded on entries actually returning and its second on the release, so a restoration that returns nothing slips beneath both — which is itself worth a line to whoever writes the Quint row |
+| Q4-3 | alloy | its **ready mark** | `FN-10.a` — **incumbent mechanics, so not yet a Q4 answer** | mutation — row 12 |
+| Q4-4 | alloy | the **correlation ticket**, as an *attempt-naming* record | `FN-04` | mutation — row 19, transcribed |
+| Q4-5 | alloy | the **quarantine** | **`none`** | argument, and it is the row Q1 exists for — see below |
+| Q4-6 | alloy | the **cleanup marker**, as the document a sweep reads to know what is Grove's | `TT-24` | mutation — row x1, and the obligation is **unreachable from this directory**; see below |
+| Q4-7 | alloy | the **replace transition** (`doMarkerReplace`) | **`none`** | mutation — row 45, transcribed: narrowing the transition away leaves **every check in the file green** and stops one witness landing. A liveness hole no safety claim sees |
+| Q4-8 | alloy | the **index image** | — | abstracted. The three lanes' anchors and commit mechanisms are carried as one `Repo.rev` role and the index image has no counterpart here; declared under *Abstractions* since `commit-k41`. The row exists so that a removable artifact is not silently unrowed |
+| Q4-9 | alloy | the **recorded anchor**, as the rollback licence | `FN-16.a` | mutation — row 25, transcribed |
+| Q4-10 | alloy | the **deletion fingerprint**, as the commit's scope | `FN-14` | mutation — row 20, transcribed |
 
 **Q4-5 IS THE ROW `exits` WAS CUT TO WRITE, AND IT READS `none`.** Every earlier
 slice recorded the quarantine's row as undecidable-from-here, each with the same

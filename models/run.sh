@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The one repository model runner.
 #
-# It has three obligations beyond running commands, and they are what make it a
+# It has four obligations beyond running commands, and they are what make it a
 # test seam rather than a convenience script (`docs/specs/semantic-contract.md`,
 # *Model paths and the runner*):
 #
@@ -15,10 +15,31 @@
 #      obligation the catalogue defines must be answered by each family, and
 #      every TT_/FN_/SY_-prefixed command must name an obligation the catalogue
 #      defines.
+#   4. ASSERT Q4'S REMOVAL MATRIX IN BOTH DIRECTIONS, PER FAMILY.  The
+#      catalogue calls the artifact/transition removal matrix "a runner
+#      obligation like any other: a removable artifact with no row fails the
+#      run" (*Q4 needs a matrix, not a claim*).  Every artifact the catalogue
+#      names has a row; every row names an artifact the catalogue names and
+#      cites an obligation the catalogue defines, or `none`, or is declared
+#      `abstracted`; and every row's evidence citation RESOLVES.  See *Q4's
+#      removal matrix* below for the row shape and for what this cannot check.
 #
 # The catalogue IS the manifest: the obligation list is read out of
 # `docs/specs/semantic-contract.md` rather than transcribed here, so a claim
-# added there with no command anywhere fails the run.
+# added there with no command anywhere fails the run.  Obligation 4 is the same
+# principle at a second grain: the ten removable artifacts, and the README that
+# holds their matrix, are read out of the catalogue's Q4 paragraph too.
+#
+# THE MATRIX OBLIGATION RIDES WITH COVERAGE ASSERTION; IT HAS NO FLAG OF ITS
+# OWN.  A matrix is owed only once a family's column has closed, and
+# `--no-coverage` is already the statement "this family is still being built".
+# Splitting the two would let a run assert coverage while excusing the matrix,
+# which is the same hole in a second place.  The split that IS made is the one
+# the coverage matrix already makes: the catalogue->row direction (a named
+# artifact with no row) rides with coverage, and the row->catalogue directions
+# (an invented artifact, an invented obligation, a dangling citation) are fatal
+# always, exactly as a command naming no obligation is fatal always.  A broken
+# row is not an empty cell.
 #
 # COMMAND CONVENTIONS.  Alloy's are the two `docs/ordinal-fs-tree/models/`
 # runners', extended with two controls the assumption table needs:
@@ -40,9 +61,11 @@
 #
 # With no --scope the run is the whole repository and coverage is asserted over
 # the whole catalogue; a run that names a subset asserts coverage over exactly
-# that subset.  --no-coverage runs the commands and reports the matrix without
-# making an empty cell fatal: that is what a scope still being built uses, and
-# the model README says which obligations it claims so far.
+# that subset.  --no-coverage runs the commands and reports both matrices — the
+# coverage matrix and Q4's removal matrix — without making an empty cell or an
+# unrowed artifact fatal: that is what a scope still being built uses, and the
+# model README says which obligations it claims so far.  It never excuses a
+# BROKEN row; see obligation 4.
 set -euo pipefail
 
 # Associative arrays and `mapfile` are bash 4; macOS ships 3.2 as /bin/bash. A
@@ -87,7 +110,7 @@ while [[ $# -gt 0 ]]; do
     --no-coverage) coverage=0; shift ;;
     --list)   list_only=1; shift ;;
     --quiet)  quiet=1; shift ;;
-    -h|--help) sed -n '2,50p' "$0"; exit 0 ;;
+    -h|--help) awk 'NR > 1 { if (!/^#/) exit; print }' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -120,6 +143,44 @@ manifest=$(awk '
       }
   }' "$catalogue")
 [[ -n "$manifest" ]] || { echo "runner error: the catalogue yielded no obligations" >&2; exit 2; }
+
+# ---------------------------------------------------------------------------
+# Q4's removal-matrix manifest, read out of the catalogue for the same reason
+# the obligation manifest is: the catalogue names the ten removable artifacts in
+# one sentence, and names the README that holds their matrix in the sentence
+# before it (*Q4 needs a matrix, not a claim*).  Transcribing either here would
+# make an artifact the catalogue added invisible to the runner, which is the
+# whole failure this obligation exists to catch.
+#
+# Extraction is a match rather than a parse, outside the fences, over the
+# catalogue joined into one line — the list spans a line break.
+# ---------------------------------------------------------------------------
+catalogue_flat=$(awk '
+  /^```/ { fence = !fence; next }
+  fence  { next }
+  { buf = buf " " $0 }
+  END    { print buf }' "$catalogue")
+
+q4_file=$(grep -oE 'recorded in `[^`]+/README\.md`' <<<"$catalogue_flat" | head -1 | tr -d '`' | sed 's/^recorded in //')
+q4_list=$(grep -oE 'one row per removable artifact or transition — [^—]+ —' <<<"$catalogue_flat" | head -1 |
+          sed -E 's/^one row per removable artifact or transition — //; s/ —$//')
+[[ -n "$q4_file" && -n "$q4_list" ]] || {
+  echo "runner error: the catalogue yielded no removal matrix (no artifact list, or no README named)" >&2; exit 2; }
+
+IFS=',' read -r -a q4_artifacts <<<"$q4_list"
+for i in "${!q4_artifacts[@]}"; do
+  a="${q4_artifacts[$i]}"; a="${a#"${a%%[![:space:]]*}"}"; a="${a%"${a##*[![:space:]]}"}"
+  q4_artifacts[$i]="$a"
+done
+[[ ${#q4_artifacts[@]} -ge 2 ]] || { echo "runner error: the catalogue's removal-matrix list did not split" >&2; exit 2; }
+
+# The scope that owes the matrix is whichever one owns the README the catalogue
+# named; a matrix recorded somewhere no scope reaches is a runner error.
+q4_scope=""
+for s_ in "${all_scopes[@]}"; do
+  [[ "$(scope_dir "$s_")/README.md" == "$q4_file" ]] && { q4_scope="$s_"; break; }
+done
+[[ -n "$q4_scope" ]] || { echo "runner error: the catalogue records the removal matrix in $q4_file, which is in no known scope" >&2; exit 2; }
 
 # obligation identifier -> model spelling: TT-02.b -> TT_02b
 spell() { echo "${1//-/_}" | tr -d '.'; }
@@ -316,6 +377,162 @@ for scope in "${scopes[@]}"; do
         t = substr($0, RSTART, RLENGTH); gsub(/`/, "", t); print t }
     ' "$rm_file")
 done
+
+# ---------------------------------------------------------------------------
+# Q4's removal matrix, read out of the scope README the catalogue named.  Shape,
+# beside the GAP shape above — one row per (family, removable artifact):
+#
+#   | Q4-<n> | <family> | the **<artifact>**[, <gloss>] | <obligation> | <evidence> |
+#
+#   <obligation>  a backticked obligation the catalogue defines, or `none`, or
+#                 empty (an em dash) when the row is `abstracted`
+#   <evidence>    opens with its class — `mutation`, `argument` or `abstracted`
+#                 — and a `mutation` names the mutation-matrix row it fired:
+#                 "mutation — row 17", "mutation — row x2"
+#
+# The artifact cell is keyed on its leading `the`/`its` plus the bolded name, so
+# the gloss after the comma is free prose; the key is what the catalogue's own
+# sentence says, character for character.  Rows of families this run did not
+# select are ignored, exactly as their commands were not run.
+#
+# WHAT THIS CANNOT CHECK, STATED PLAINLY.  A row naming the wrong BUT REAL
+# obligation reports identically to a right one.  No runner can decide *first
+# broken*; that is what the mutation discipline is for.  What a reader reaches
+# instead is the citation — it can check that the cited mutation-matrix row
+# EXISTS, never that its kill was the first.
+# ---------------------------------------------------------------------------
+declare -A q4_ob=() q4_class=() q4_rowid=()
+declare -a q4_errors=()
+q4_readme=""
+
+q4_in_scope=0
+for want in "${scopes[@]}"; do [[ "$want" == "$q4_scope" ]] && q4_in_scope=1 && break; done
+
+if [[ "$q4_in_scope" == 1 ]]; then
+  q4_readme="$repo/$q4_file"
+  if [[ ! -f "$q4_readme" ]]; then
+    echo "removal matrix: $q4_file does not exist, so no family has one" >&2
+    [[ "$coverage" == 1 ]] && fail=1
+  else
+    # The mutation-matrix row ids a `mutation` citation may resolve to: the
+    # leading cell of every table row under the README's *mutation matrix*
+    # heading, up to the next same-level heading.
+    mutation_rows=$(awk '
+      /^```/                 { fence = !fence; next }
+      fence                  { next }
+      /^## /                 { inmm = (tolower($0) ~ /mutation matrix/) ; next }
+      !inmm                  { next }
+      /^\| *x?[0-9]+ *\|/    { match($0, /x?[0-9]+/); print substr($0, RSTART, RLENGTH) }
+    ' "$q4_readme")
+
+    has_abstractions=0
+    grep -qiE '^#+ .*abstractions' "$q4_readme" && has_abstractions=1
+
+    # \037 rather than a tab: TAB is IFS whitespace, so `read` collapses a run
+    # of them and an empty obligation cell — which is exactly what an
+    # `abstracted` row has — silently shifts every later field left.
+    while IFS=$'\037' read -r rid rfam rart rob rclass rcite; do
+      [[ -n "$rid" ]] || continue
+      sel=0; for f in "${families[@]}"; do [[ "$f" == "$rfam" ]] && sel=1 && break; done
+      if [[ "$sel" == 0 ]]; then
+        case "$rfam" in
+          alloy|quint) continue ;;   # a real family this run did not select
+          *) q4_errors+=("row $rid names family '$rfam', which is not a model family"); continue ;;
+        esac
+      fi
+      if [[ -n "${q4_rowid[$rfam $rart]:-}" ]]; then
+        q4_errors+=("row $rid repeats $rfam's row for '$rart' (already ${q4_rowid[$rfam $rart]})")
+        continue
+      fi
+      q4_rowid["$rfam $rart"]="$rid"
+      q4_ob["$rfam $rart"]="$rob"
+      q4_class["$rfam $rart"]="$rclass"
+
+      # direction: every row names an artifact the catalogue names
+      known=0
+      for a in "${q4_artifacts[@]}"; do [[ "$a" == "$rart" ]] && known=1 && break; done
+      [[ "$known" == 1 ]] || q4_errors+=("row $rid ($rfam) names '$rart', which the catalogue does not name as removable")
+
+      # direction: every row's cited obligation is one the catalogue defines,
+      # or `none`, or the row is a declared `abstracted`
+      case "$rob" in
+        none) : ;;
+        "")   [[ "$rclass" == abstracted ]] ||
+                q4_errors+=("row $rid ($rfam, '$rart') names no obligation and is not declared abstracted") ;;
+        *)    # A row may cite a CLAIM rather than one of its sub-identities: the
+              # register's shared-safety list names `TT-24`, and the manifest —
+              # whose unit is the pair `(family, obligation)` — carries only
+              # `TT-24.a` - `TT-24.d`.  `Q4-6` is that case and it is correct.
+              grep -qxF "$rob" <<<"$manifest" || grep -q "^${rob}\\.[a-z]$" <<<"$manifest" ||
+                q4_errors+=("row $rid ($rfam, '$rart') cites $rob, which the catalogue does not define") ;;
+      esac
+
+      # direction: every row's evidence citation resolves
+      case "$rclass" in
+        mutation)
+          if [[ -z "$rcite" ]]; then
+            q4_errors+=("row $rid ($rfam, '$rart') is evidenced by a mutation and cites no mutation-matrix row")
+          elif ! grep -qxF "$rcite" <<<"$mutation_rows"; then
+            q4_errors+=("row $rid ($rfam, '$rart') cites mutation row $rcite, which $q4_file does not have")
+          fi ;;
+        argument)   : ;;
+        abstracted)
+          [[ "$has_abstractions" == 1 ]] ||
+            q4_errors+=("row $rid ($rfam, '$rart') is declared abstracted and $q4_file has no Abstractions section") ;;
+        *)
+          q4_errors+=("row $rid ($rfam, '$rart') carries no evidence class (mutation, argument or abstracted)") ;;
+      esac
+    done < <(awk -F'|' '
+      BEGIN { US = sprintf("%c", 31) }
+      function trim(x) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", x); return x }
+      /^```/ { fence = !fence; next }
+      fence  { next }
+      /^\| *Q4-[0-9]+ *\| *[A-Za-z]+ *\|/ {
+        id = trim($2); fam = trim($3); art = $4; ob = $5; ev = $6
+        akey = ""
+        if (match(art, /(the|its) \*\*[^*]+\*\*/)) { akey = substr(art, RSTART, RLENGTH); gsub(/\*/, "", akey) }
+        okey = ""
+        if (match(ob, /`(TT|FN|SY)-[0-9][0-9](\.[a-z])?`/)) { okey = substr(ob, RSTART, RLENGTH); gsub(/`/, "", okey) }
+        else if (ob ~ /`none`/) { okey = "none" }
+        cls = ""; cite = ""
+        if (match(ev, /mutation|argument|abstracted/)) cls = substr(ev, RSTART, RLENGTH)
+        if (cls == "mutation" && match(ev, /row x?[0-9]+/)) { cite = substr(ev, RSTART + 4, RLENGTH - 4) }
+        print id US fam US akey US okey US cls US cite
+      }' "$q4_readme")
+
+    # direction: every artifact the catalogue names has a row, per family
+    echo
+    echo "-- Q4 removal matrix ($q4_scope), per (family, artifact) — ${#q4_artifacts[@]} artifacts named by the catalogue"
+    for fam in "${families[@]}"; do
+      have=0; none=0; abst=0
+      declare -a absent=()
+      for a in "${q4_artifacts[@]}"; do
+        if [[ -n "${q4_rowid[$fam $a]:-}" ]]; then
+          have=$((have + 1))
+          [[ "${q4_ob[$fam $a]}" == none ]] && none=$((none + 1))
+          [[ "${q4_class[$fam $a]}" == abstracted ]] && abst=$((abst + 1))
+        else
+          absent+=("$a")
+        fi
+      done
+      printf '   %-6s %d of %d rows' "$fam" "$have" "${#q4_artifacts[@]}"
+      [[ "$none" -gt 0 ]] && printf ', %d `none`' "$none"
+      [[ "$abst" -gt 0 ]] && printf ', %d abstracted' "$abst"
+      echo
+      if [[ ${#absent[@]} -gt 0 ]]; then
+        for a in "${absent[@]}"; do echo "      NO ROW  $fam — $a"; done
+        if [[ "$coverage" == 1 ]]; then fail=1
+        else echo "      (matrix not asserted (--no-coverage); ${#absent[@]} unrowed artifacts are this family's remaining work)"; fi
+      fi
+      unset absent
+    done
+    if [[ ${#q4_errors[@]} -gt 0 ]]; then
+      echo "   removal matrix, rows that do not resolve:"
+      printf '      %s\n' "${q4_errors[@]}"
+      fail=1
+    fi
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # The coverage matrix, per (family, obligation), in both directions.

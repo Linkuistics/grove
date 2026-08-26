@@ -6853,6 +6853,278 @@ that authored neither the skill nor its baseline.
 
 ---
 
+### 044 — The first Quint model of grove's own tree, and five things the catalogue does not say (task-tree, component-local)
+
+**Scope.** Task tree, component-local
+(`crates/grove-task-tree/models/task-tree.qnt`). All 43 `TT-` obligations.
+
+**Independence protocol — held, with one disclosure.** This session opened no
+`.als` file, no model-directory `README.md`, and no entry in 026 – 043 while the
+model was being built; it was written from
+[`docs/specs/semantic-contract.md`](specs/semantic-contract.md) alone, exactly as
+the Alloy column was. **The disclosure:** *after* the model was complete and
+green, locating the next free entry number was done with a heading grep, which
+printed the titles of entries 026 – 043 on screen. Several of those titles are
+finding-shaped ("a refusal the closed set cannot name"). No finding below was
+reached after that moment, and nothing below was altered by it — but the breach
+is recorded rather than argued away, and the correct move next time is
+`grep -oE '^### [0-9]+' | tail -1`, which leaks nothing. `cross-model-replay-k15`
+should treat the M1 tags below as this column's own claim and re-derive them.
+
+**Situation.** Build an independent, executable account of grove's task-tree
+claims: current-format initialisation, selection, decomposition,
+insertion/addition, retirement, invalid and foreign roots, opaque entries and
+terminality — with every refusal exercised rather than filtered out, and with
+crash and hand-edit as first-class behaviours. The Alloy column had already
+closed the same scope; this one may not read it.
+
+**Formalism.** Quint 0.32.0, rust evaluator backend, bounded randomized
+simulation. Apalache reached but not completed; see *Missed*. Bounds `MAX_OBJECTS = 14`, `MAX_DEPTH = 6`, `MAX_POS = 6`, trace
+depth 24, 8000 samples, fixed default seed `0x5e0a51d3c0ffee01`. No fairness
+assumptions: nothing here is a liveness claim.
+
+Two structural choices, and they are the same two entry 003 made about the
+library — reached again, independently, about a different subject:
+
+- **Every action is total.** Each computes a `Decision` from its snapshot and
+  transitions in every case, so a refusal is a value rather than an absent
+  transition. Quint's own idiom is the opposite, and taking the idiom would have
+  made every refusal claim in the catalogue unfalsifiable by construction.
+- **The interpreter is a state machine.** Effects land one at a time, `crash` may
+  fire between any two, and every intermediate state is a state the invariants
+  are evaluated at. Everything below about interruption follows from that.
+
+A third choice is this subject's own. `TT-21` says every classification an
+operation makes comes from ONE listing — which an executable model satisfies for
+free, because that is simply how one writes it. So the model carries a
+`ONE_SNAPSHOT` dial and a `mutant_two_listings` instance in which later steps
+classify from the live tree, and the claim dies there. Without it `TT-21` would
+be a green tick over nothing.
+
+**Caught.** Five material findings, one observation, and one instrument that had
+to exist before any of them counted.
+
+*The two that need interleaving, and that a static model cannot pose:*
+
+- **`PartialScaffold` is not robust to a foreign write.** `TT-20` says an
+  interrupted root initialisation classifies `PartialScaffold`, "never as
+  `Current(*)` and never as `Legacy`". `PartialScaffold` is defined by an EXACT
+  closed subset of the root's contents; `EN-13` grants that a foreign entry may
+  appear at any name. Interleave one `foreign-write` with one `crash` during
+  `initialise-root` and the extra entry drops the tree out of the subset and
+  through to `Legacy` — the classification the claim names as forbidden. In the
+  product: an interrupted `root-init` plus any stray file in `.grove/` — an
+  editor swap file, a `.DS_Store`, a half-synced artifact — after which grove
+  reads its own interrupted work as somebody else's legacy tree.
+  The safety argument for the exact subset (every value a completion writes is
+  fixed in advance) survives defining the state by the PRESENCE of the scaffold's
+  own entries instead, because a foreign entry is not something completion
+  writes. *Claim affected:* `TT-20`, and the `PartialScaffold` row of the state
+  table. *Durable correction:* the catalogue, and the classification's shipped
+  behaviour. *M1* `quint-only` (this column's claim). *M2* `interruption`.
+  *M3* **3** — the trace names the four transitions and transcribes directly
+  into a test. *M4* named below.
+- **A bulk mark cannot converge if `AlreadyTerminal` refuses its plan.** `TT-23.a`
+  requires the whole plan validated before the first rename; `AlreadyTerminal` is
+  a refusal for a single mark. Validate a bulk plan the way a single mark is
+  validated, and after an interruption the re-run refuses on the member the
+  interrupted run already marked — so `TT-23.b`'s convergence is not merely
+  unproven, it is **unreachable**, and the property
+  [`bulk-marks-are-not-atomic`](adr/bulk-marks-are-not-atomic.md) exists to buy
+  is gone. A member already in the plan's TARGET state must be admissible and a
+  no-op. That requirement is implied by two claims and stated by neither.
+  *Claim affected:* `TT-23.a`/`TT-23.b`. *Durable correction:* the catalogue,
+  shipped behaviour, and a Rust test. *M1* `quint-only`. *M2* `interruption`.
+  *M3* **2** — the tool reported an unreached witness, which named the situation
+  but not the cause; the cause came from reading the plan validator.
+
+*The three about the catalogue's own text, which needed no interleaving at all:*
+
+- **`TT-17` is contradicted by the catalogue's own `PartialScaffold`.** "The
+  classification SHALL depend only on the format witness, never on any task
+  entry's text" — while `PartialScaffold` is decided by an exact comparison
+  against a task entry's name AND bytes, and is ordered ahead of the format
+  stage. The model checks `TT-17` over the Current/Legacy/Foreign decision, which
+  is what its own witness is about, and declares the narrowing.
+  *Claim affected:* `TT-17`. *Durable correction:* the catalogue. *M1*
+  `quint-only`. *M2* `structure`. *M3* n/a — reached by construction, not by a
+  counterexample.
+- **`EN-11`'s controls column mis-attributes `TT-24.b`.** The row's expected
+  result is that with `hand-edit` removed, every named witness becomes
+  unreachable. `TT-24.b`'s witness is reached in ~2% of traces with `hand-edit`
+  gone, because `EN-13` grants that foreign entries may appear AT ANY NAME and
+  `foreign-write` alone supplies one. The dependency is on `EN-13`. This is
+  structurally the same mistake the catalogue already caught and annotated for
+  `TT-16` **in the same row** — so the row has now been wrong twice, which is
+  worth more than the one-word fix: an assumption's controls column is a list
+  nobody re-derives once written. *Claim affected:* `EN-11`. *Durable
+  correction:* the catalogue. *M1* `quint-only`. *M2* `structure`. *M3* **3** —
+  the control reported "REACHED in 100 trace(s)" against an expectation of zero,
+  which is the whole diagnosis.
+- **Two situations have no member of the closed refusal set.** (a) An ordinary
+  operation meeting a `PartialScaffold` root: `FormatLegacy` is the reason
+  `TT-20` explicitly forbids, and `WitnessPending` names a reserved witness that
+  is not there. The model refuses `WitnessPending(RPreparing)` as least-wrong and
+  declares it. (b) An ordinary mutation whose next create is no longer licensed
+  because a non-cooperating writer took the destination between the listing and
+  the step. The [Outcomes](specs/semantic-contract.md#outcomes) table fixes the
+  three contexts for a foreign artifact at a reserved name, but the mid-flight
+  ordinary mutation is not one of them; the model returns
+  `Blocked(OwnershipConflict)`, on the table's own reasoning that a transaction
+  which has already mutated owes a block rather than a refusal.
+  *Claim affected:* the closed refusal set and the `TT-24` context table.
+  *Durable correction:* the catalogue. *M1* `quint-only`. *M2* `refusal`.
+  *M3* n/a.
+
+*The observation, which carries no claim and is therefore not countable:* the
+catalogue notes that a model needing the guard-wait to be observable must
+introduce it as an abstraction of its own. This model does not need to: the
+waiting caller is a member of `pend`, which is a real transition and keeps
+`TT-22` falsifiable without adding a tree-level twin of `LeaseHeld` to an
+outcome set that has no room for one. The catalogue's note anticipates a cost
+that at least one family does not pay.
+
+*The instrument.* Six premise-break controls, each naming an obligation that must
+DIE, and all six do — `EN-01`→`TT-20`, `EN-10`→`TT-05` and `TT-12`,
+`EN-13`→`TT-04` and `TT-24.d`, and the model-mutation `ONE_SNAPSHOT`→`TT-21.a`.
+Five exercise-removal controls confirm their witnesses go unreachable. Until
+those ran, the 43 green obligations were 43 unfalsifiable greens.
+
+**Missed.** Recorded with the same care, because two of these bound what a green
+run here is worth.
+
+- **No model checking, and it took three distinct barriers to establish that.**
+  This is the entry's largest single cost and its most transferable result, so
+  the barriers are separated rather than summarised, because only the third is
+  about the subject.
+  1. **A reporter, not a checker.** In one file holding the library, `base`, six
+     assumption mutations, a model mutation and four focused scenarios,
+     `quint verify` 0.32.0 died in `json-bigint/stringify` with
+     `RangeError: Invalid string length` at every depth including
+     `--max-steps=2`. Nothing to do with the model; the intermediate JSON simply
+     exceeded V8's maximum string length. **Splitting the controls into a second
+     file removes it entirely** and Apalache then runs. The first reading of this
+     — "Quint cannot model-check this subject" — was wrong, and it was wrong in
+     the direction that would have quietly cost the experiment a whole column.
+  2. **One predicate, spelled naturally, put the model out of reach.** `gapless`
+     was written `ps == 1.to(n)`; Apalache refuses a non-constant integer range
+     outright. Restating it as a cardinality plus a bound — `n` distinct
+     positions all in `[1, n]` ARE `1..n` — is equivalent and constant-range-free.
+     A single line of ordinary Quint decided whether the model was checkable.
+  3. **Reachable, and not affordable.** Past both, the full `base` instance
+     exhausts a 4 GB JVM heap at `--max-steps=3`, and a deliberately tiny
+     `verify_small` — 6 objects, depth 2, a three-action menu, no `hand-edit` —
+     reached `State 3` and then ran past 25 minutes without finishing depth 3, on
+     a 16-core / 128 GB host with a 24 GB heap. The cost is in the encoding
+     rather than the bounds: every transition quantifies over `reached`, a
+     bounded unrolling of set union/filter/flatten that a simulator skips and a
+     symbolic backend must encode in full at every step.
+
+  **Every `TT-` property here is therefore bounded randomized simulation and
+  nothing more.** A green run is evidence over 8000 sampled traces at depth 24,
+  not a proof over reachable states, and the `wit_unreach_` controls are evidence
+  of unreachability *within* that budget rather than the bounded-unreachability
+  instrument `FN-15.d` and `FN-31.a` will need. Had a `TT-` obligation required
+  that instrument, this column could not have supplied it. Alloy's `check` has no
+  equivalent limitation, and that asymmetry between the families is real —
+  but it is an asymmetry of **cost at this encoding**, not of capability, and
+  those are not the same claim.
+- **`TT-18` remains close to a restatement.** Classification order is what
+  `classify` IS in an executable model, and the invariant that reads it back is a
+  transcription. `TT-14` and `TT-17` were rescued from the same fate only by
+  building perturbation functions (`perturbSlugs`, `perturbText`,
+  `mirrorPositions`) and stating each claim as "the answer is unmoved when
+  everything that is not the input is changed" — the general shape for making a
+  *depends-only-on* claim checkable in an executable model. `TT-18` got no such
+  instrument, and is reported green on weaker evidence than its neighbours.
+- **Four witnesses could not be reached by unfocused simulation** at any budget
+  this suite can afford — `TT-07` at 0.03%, `TT-08` and `TT-09.c` at 0.06%,
+  `TT-04`'s renumbering witness at 0.08%. Each needed a `scenario_` instance
+  narrowing the action menu. That is a real Quint cost with no Alloy analogue: a
+  bounded model checker asked for an instance either finds one or reports none,
+  where a sampler reports "not yet" in exactly the shape of "never".
+
+**Cost.** Authoring: one session, roughly one hour wall from bootstrap to a green
+suite, model and runner driver together. Run: **19m 59s wall, 1226s CPU** for
+`models/run.sh --scope task-tree --family quint`, 109 commands plus 43 skipped
+model-checking properties. Against the
+pre-registration's M7 baseline — Experiment 1's Quint suite at 3m 29s wall /
+2527s CPU for 148 claims — this is **5.7× the wall clock for 109 commands**, and
+the pre-registration's own warning ("if its Quint run does not cost materially
+more, the suspicion is that it is not modelling the interesting states") is
+satisfied in the direction it wanted. The CPU figure is *lower* because
+Experiment 1 spent most of its on one instance at six times the sample budget;
+here the cost is spread, and the dominant single item is the base witness run
+evaluating 43 predicates per state.
+
+Model checking, as its own line item: **roughly ninety minutes** across five
+probe runs to establish the three barriers under *Missed*, of which the first
+two were tool defects and the third is the subject's. Two durable artifacts came
+out of it — the file split and the `gapless` restatement — and both survive the
+finding that model checking is unaffordable, which is what makes them cost
+rather than waste.
+
+Wrangling, distinct from run time and from the above: perhaps twenty minutes, in
+three places.
+`nondet x = S.oneOf()` binds only the next expression inside an `all { }` block,
+which silently scoped a binding out of the rest of an action. `--invariants`
+takes an array, and a shell that does not word-split an unquoted variable
+(zsh) hands the whole list to quint as one expression, whose error message
+prints all thirty-six names and says none of them is valid. Doc comments
+(`///`) between the variants of a sum type are a parse error where ordinary
+comments are not.
+
+**Counterfactual.** Four of the five material findings are about *what the
+catalogue says*, and three of those four (`TT-17`, `EN-11`, the two missing
+refusal reasons) needed no execution at all — a careful adversarial read of
+`docs/specs/semantic-contract.md` against itself would have found them, and
+`review-design-model-contract-k31` is where that read happened and did not. What
+the model added there was **not insight but obligation**: every claim had to be
+stated as something that could fail, and stating `TT-17` as a runnable predicate
+is what made its contradiction with `PartialScaffold` unavoidable rather than
+merely available.
+
+The two that needed the model genuinely needed it, and needed this *kind* of
+model. `PartialScaffold`-versus-`foreign-write` is a four-transition interleaving
+of two independently granted assumptions; the bulk-mark convergence failure is
+visible only once "the plan is validated" and "re-running converges" are both
+executable and one is interrupted. Neither is reachable by reading. A structural
+model with no crash action and no world actor reaches neither either — which is
+the pre-registration's `EN-08`/`EN-11` point arriving as evidence rather than as
+a principle.
+
+**Verdict.** Reach for Quint again for exactly this: **claims about what an
+interrupted operation leaves behind, when the world can also write.** Its cost
+here was almost entirely in making rare interleavings land — four scenario
+instances exist for no reason but sampling — and its ceiling is that on a model
+this size there is no model checker behind it at all, so nothing it reports is
+ever more than bounded evidence. Do not reach for it to audit a specification's
+internal consistency; that is a reading task, and the model only forced the
+reading.
+
+**What a green run here does not prove.** Not that any `TT-` property holds — only
+that no counterexample appears in 8000 sampled traces of depth 24, at
+`MAX_OBJECTS = 14`, `MAX_DEPTH = 6`, `MAX_POS = 6`, with two cooperating
+processes, with the digest an opaque equality, and with `hand-edit` drawing from
+an enumerated family of 25 trees rather than from every well-formed tree
+`EN-11` grants. Not that `TT-18` is checked in any strong sense. Not anything at
+all about the finish or lifecycle scopes, whose Quint columns do not exist, and
+whose empty cells keep an unqualified `models/run.sh` red — which remains the
+truth about the repository rather than a defect in the runner.
+
+**Derived tests.** For the implementation phase, in the existing black-box
+binaries rather than in a new seam (`Test seams`, *findings reach the product
+through the existing black-box binaries*):
+
+| finding | test |
+|---|---|
+| `PartialScaffold` vs a foreign write | scaffold a root, interrupt before the format witness lands, drop one foreign file beside the scaffolded entries, and assert the root classifies `PartialScaffold` — not `Legacy`. Red against the exact-subset definition. |
+| bulk-mark convergence | interrupt a bulk mark between two of its renames, re-run the identical invocation, and assert it succeeds and leaves every named entry marked — not that it refuses `AlreadyTerminal`. Red against a validator that treats an already-marked member as invalid. |
+
+The other three findings are catalogue corrections with no shipped defect behind
+them, and legitimately record **`M4 = none`** — the pre-registration's third
+borderline, which each of them therefore falsifies H7 by the terms H7 sets.
+
 # Experiment 2 — pre-registration
 
 **Written before any Experiment 2 model exists.** That is the whole value of the

@@ -880,3 +880,271 @@ there is nothing to `flock` — no guard is taken, the compatibility test has no
 subject, and a mutation lands while an observation is mid-flight. `TT-22.b`
 fails, in 3s. That is the `TT-` half of the expected result; the column's own
 entry names `SY-01`, whose second driver is the lifecycle scope's concern.
+
+---
+
+# The Quint column — `task-tree.qnt`
+
+Written from [`docs/specs/semantic-contract.md`](../../../docs/specs/semantic-contract.md)
+alone, under the independence protocol
+([`docs/formalism-findings.md`](../../../docs/formalism-findings.md), *Experiment 2 —
+pre-registration*, **Independence protocol**): this column's session opened no
+`.als` file, no model-directory `README.md` and no experiment entry from the
+Alloy column's range. Everything below is what a second family reached on its
+own.
+
+## Run line
+
+```sh
+models/run.sh --scope task-tree --family quint
+```
+
+Two files: [`task-tree.qnt`](task-tree.qnt) carries the parameterised library,
+the `base` instance and the `verify_small` model-checking instance;
+[`task-tree-controls.qnt`](task-tree-controls.qnt) carries every assumption
+mutation and focused scenario. The split is not tidiness — see *Verification*.
+
+Coverage is asserted: all 43 `TT-` obligations are answered by a property
+command and at least one witness, and there are no declared gaps.
+
+Knobs, all environment variables read by `models/run.sh`: `QUINT_SAMPLES`
+(default 8000), `QUINT_STEPS` (default 24), `QUINT_SEED` (a fixed default, so a
+green run is replayable and a red one reproduces), `QUINT_VERIFY` (default 0 —
+see below).
+
+## Verification
+
+- **VERIFY** quint (cost-limited) — model checking is REACHABLE and NOT
+  AFFORDABLE for this subject, and the two are different findings. `quint verify`
+  reaches Apalache's `BoundedChecker` and checks state invariants correctly;
+  what it cannot do is finish. Measured on a 16-core / 128 GB host: the full
+  `base` instance exhausts a 4 GB JVM heap at `--max-steps=3`, and the
+  deliberately tiny `verify_small` instance below — 6 objects, depth 2, a
+  three-action menu, no hand-edit — reached `State 3` and then ran past 25
+  minutes without completing `--max-steps=3`. The cost is in the encoding, not
+  the bounds: every transition quantifies over `reached`, a bounded unrolling of
+  set union/filter/flatten that a simulator skips and a symbolic backend must
+  encode in full at every step. **Every `TT-` property in this column is
+  therefore established by bounded randomized simulation, and no green run here
+  is a proof over reachable states.** What would change the answer: an encoding
+  of tree reachability that is not an unrolled fixpoint — which is a modelling
+  change with its own cost, and one `formal-synthesis-k16` should weigh rather
+  than this leaf. `QUINT_VERIFY=1` runs it anyway; `QUINT_VERIFY_STEPS` and
+  `JVM_ARGS` (default `-Xmx16G`) set the depth and the heap.
+
+Two barriers were removed on the way to that measurement, and both are durable:
+
+- **The file split.** In one file holding the library, `base`, six assumption
+  mutations, a model mutation and four focused scenarios, `quint verify` 0.32.0
+  died in its own result reporter — `RangeError: Invalid string length` out of
+  `json-bigint/stringify`, at every depth including `--max-steps=2` — because the
+  intermediate JSON exceeded V8's maximum string length. That is a reporting
+  failure with nothing to do with the model, and it made the whole subject look
+  unverifiable. The controls now live in
+  [`task-tree-controls.qnt`](task-tree-controls.qnt), and `task-tree.qnt` is
+  within Apalache's reach.
+- **`gapless` no longer writes `1.to(n)`.** Apalache refuses a non-constant
+  integer range outright (`Expected a constant integer range in [ .. ]`), so one
+  natural spelling of one predicate put the entire model beyond model checking.
+  It is now stated as a cardinality plus a bound — `n` distinct positions all in
+  `[1, n]` ARE `1..n` — which is equivalent and constant-range-free.
+
+`models/run.sh` reads the `VERIFY` line above and prints it on every Quint run,
+and **fails** a scope whose Quint models exist and which declares nothing — so a
+limit on model checking names itself rather than passing as silence.
+
+## What the model is, and what it is above
+
+`ordinal-fs-tree`'s ordered-tree algebra — append, insert, promotion, rewrite,
+and the shifting and key allocation they imply — is **assumed**, not re-derived;
+it is checked in [`docs/ordinal-fs-tree/models/operations.qnt`](../../../docs/ordinal-fs-tree/models/operations.qnt).
+`TT-09` is the seam itself, stated as the claim that every mutation Grove makes
+is one of those four operations plus a domain precondition. No second filesystem
+model is grown, which is this leaf's own instruction.
+
+**Every action is total.** No action does nothing when its guard is false: each
+computes a `Decision` from its snapshot and transitions in every case, so a
+refusal is a value rather than an absent transition. That is what makes the
+refusal claims falsifiable at all.
+
+## Instances
+
+| module | what it is | why |
+|---|---|---|
+| `base` | every assumption granted | the run every `TT-` obligation is checked in |
+| `scenario_bulk` | action menu narrowed to bulk marks | `TT-23.b`'s witness lands in under 1 trace in 4000 unfocused |
+| `scenario_species_shift` | narrowed to inserts into a mixed-species directory | `TT-07`'s witness, 0.03% unfocused |
+| `scenario_promote` | narrowed to decomposition | `TT-08`, `TT-09.c`, 0.06% unfocused |
+| `scenario_foreign_sibling` | narrowed to inserts beside a foreign entry | `TT-04`'s renumbering witness, 0.08% unfocused |
+| `relax_EN_01` | rename observable half-applied | premise-break |
+| `relax_EN_06` | non-cooperating writer removed | exercise-removal |
+| `relax_EN_08`, `relax_EN_08_bulk` | `crash` removed | exercise-removal |
+| `relax_EN_10` | an entry removed | premise-break |
+| `relax_EN_11`, `relax_EN_11_grove_built` | `hand-edit` removed | exercise-removal, plus its positive half |
+| `relax_EN_13` | reaper sweeps the reserved namespace | premise-break |
+| `mutant_two_listings` | later steps classify from the LIVE tree | a control on the **model**, not the world |
+| `verify_small` | 6 objects, depth 2, a three-action menu | the model-checking instance; see *Verification* for what it can and cannot finish |
+
+A `scenario_` instance removes no behaviour: it narrows the *search*, and every
+claim is still checked unfocused in `base`.
+
+## The controls, and what they establish
+
+Each **premise-break** control names an obligation that must DIE when its
+assumption is removed. All six do:
+
+| control | obligation | result |
+|---|---|---|
+| `inv_fail_EN_01_TT_20_a_torn_witness_is_not_a_partial_scaffold` | `TT-20` | violated |
+| `inv_fail_EN_10_TT_05_allocation_reissues_a_removed_entrys_key` | `TT-05` | violated |
+| `inv_fail_EN_10_TT_12_a_terminal_entry_is_removed` | `TT-12` | violated |
+| `inv_fail_EN_13_TT_04_the_sweep_deletes_foreign_bytes` | `TT-04` | violated |
+| `inv_fail_EN_13_TT_24d_the_reaper_stops_declining` | `TT-24.d` | violated |
+| `inv_fail_MUT_TT_21a_two_listings_disagree` | `TT-21.a` | violated |
+
+`mutant_two_listings` is the one that matters most for reading the rest. `TT-21`
+is otherwise true **by construction** in an executable model — every
+classification is computed from `op.snap` because that is how the model is
+written — and a claim true by construction is the pre-registration's
+*vacuous invariant* hazard wearing a green tick. The mutant makes later steps
+classify from the live tree, and the claim dies. Without that instance, `TT-21`
+would be reported green on no evidence.
+
+**Bounded unreachability, stated as what it is.** The `wit_unreach_` controls
+are randomized simulation, so a zero count is evidence that the witness is
+unreachable *within* 8000 samples at depth 24 — never a proof that it is
+unreachable. Where the catalogue needs the stronger instrument it says so
+(`FN-15.d`, `FN-31.a`), and no `TT-` obligation here rests on one.
+
+## Abstractions
+
+Beyond the catalogue's own [deliberate
+omissions](../../../docs/specs/semantic-contract.md#deliberate-omissions), which
+this model takes as written:
+
+- **`hand-edit` installs one of an enumerated family of well-formed trees**
+  rather than composing single-object edits. `EN-11` grants that any well-formed
+  tree is reachable by hand edit, so this is a *search strategy over exactly the
+  space the assumption already grants*, not a second assumption. It is faithful
+  in the direction that matters for the controls: removing `hand-edit`
+  (`relax_EN_11`) removes the whole family with it.
+- **A guard wait is not an outcome.** The catalogue's outcome set has no member
+  for one, deliberately, because Grove's tree lock blocks and a wait is not a
+  return. The waiting caller is modelled as membership of `pend`, which keeps
+  `TT-22` falsifiable — a failed guard is a real transition — without inventing
+  a tree-level twin of `LeaseHeld`.
+- **Two cooperating processes**, per the catalogue's own omission.
+- **`preorderKey`**: depth-first pre-order is encoded as a positional number
+  over the path from the root, so `TT-11` is checkable as a minimum rather than
+  as a traversal. Quint has no recursion; every tree walk here is a bounded
+  unrolling to `MAX_DEPTH`, and `MAX_DEPTH >= MAX_OBJECTS` makes the bound
+  unreachable.
+- **Bounds**: `MAX_OBJECTS = 14`, `MAX_DEPTH = 6`, `MAX_POS = 6`, trace depth 24,
+  8000 samples.
+
+## Narrowings, each declared
+
+Two obligations are checked over less than their literal text, and in both cases
+the gap between the text and what is checkable is a **finding about the
+catalogue** rather than a gap in the model. Neither is a declared `GAP`: the
+obligation is answered, and the narrowing is recorded here and in the experiment
+log. The catalogue is not edited, because it is frozen under the independence
+barrier.
+
+- **`TT-17`** is checked over the Current/Legacy/Foreign decision only. Its
+  literal text — "the classification SHALL depend only on the format witness,
+  never on any task entry's text" — is contradicted by the catalogue's own
+  `PartialScaffold`, which is defined by an exact comparison against a task
+  entry's name *and* bytes. `TT-17`'s own witness is about the format decision,
+  which is what `formatDecision` isolates and `perturbText` attacks.
+- **`TT-20`** collects only interruptions with no `foreign-write` during the
+  initialisation, and only those with work still pending. See the counterexample
+  below for why the first narrowing exists; the second is not a narrowing of the
+  claim at all — a crash after the last effect landed leaves a complete current
+  root, which is not "the root an interruption leaves behind".
+
+## Counterexamples
+
+Replayable; the runner prints the same line on any failure.
+
+### `PartialScaffold` is not robust to a foreign write — `TT-20`, `EN-13`
+
+```sh
+quint run crates/grove-task-tree/models/task-tree.qnt --main=base \
+  --witnesses wit_finding_partial_scaffold_is_not_robust_to_a_foreign_write \
+  --max-steps=24 --max-samples=8000 --seed=0x5e0a51d3c0ffee01 --verbosity=1
+```
+
+Trace, trimmed to the transitions that matter:
+
+1. `beginOp(TInitRoot)` — the task root, the root charter and the first
+   `requirements` leaf are planned; the format witness is planned last.
+2. `stepOp` ×3 — the three scaffolded entries land. The format witness has not.
+3. `foreignWrite` — a non-cooperating writer creates one foreign entry beneath
+   the task root. `EN-13` grants exactly this.
+4. `crashNow` — interruption, which `EN-08` grants between any two steps.
+
+The root now contains the charter, the first leaf, no format witness, and one
+foreign entry. `isPartialScaffold` requires the root's entries to be a subset of
+`{charter, first leaf}` **and nothing else**, so the extra entry drops the tree
+through to `Legacy` — the classification `TT-20` names as forbidden, in the
+sentence "never as `Current(*)` and never as `Legacy`".
+
+**Why it is a defect rather than a modelling artifact.** The two statements are
+both the catalogue's: `PartialScaffold` is defined by an *exact closed subset* of
+the root's contents, and `EN-13` grants that a foreign entry may appear *at any
+name*. Under interleaving they are inconsistent, and the interleaving is one
+`crash` and one `foreign-write` deep. In the product it is an interrupted
+`root-init` plus any stray file in `.grove/` — an editor swap file, a
+`.DS_Store`, a partially-synced artifact — after which Grove reads its own
+interrupted work as somebody else's legacy tree.
+
+**What a fix would have to decide** (it belongs to `formal-synthesis-k16`, not
+here): whether `PartialScaffold` is defined by the *presence* of the scaffold's
+own entries with their fixed bytes, ignoring entries outside the task grammar,
+rather than by the *absence* of everything else. The safety argument for the
+exact subset — every value a completion writes is fixed in advance — survives
+that change unchanged, because a foreign entry is not something completion
+writes.
+
+### `EN-11` does not gate `TT-24.b`
+
+```sh
+quint run crates/grove-task-tree/models/task-tree.qnt --main=relax_EN_11 \
+  --witnesses wit_finding_EN_11_does_not_gate_TT_24b \
+  --max-steps=24 --max-samples=8000 --seed=0x5e0a51d3c0ffee01 --verbosity=1
+```
+
+The catalogue lists `TT-24.b` in `EN-11`'s controls column, whose stated expected
+result is that with `hand-edit` removed "every witness that posits a tree
+Grove's own actions cannot build is unreachable". `TT-24.b`'s witness — an
+ordinary operation meeting a foreign entry at a name Grove reserves — is reached
+in ~2% of traces with `hand-edit` gone, because `EN-13` grants that foreign
+entries may appear **at any name** and `foreign-write` alone supplies one. The
+dependency is on `EN-13`, not on `EN-11`.
+
+This is structurally the same mistake the catalogue already caught and annotated
+for `TT-16` in the same row. Finding a second instance of it is what a second
+independently built family is for; the correction is one word in a controls
+column and it changes no claim.
+
+### A bulk mark cannot converge if `AlreadyTerminal` refuses its plan
+
+No standing counterexample — the model was corrected before it landed, and the
+observation is recorded because the correction is a **requirement the catalogue
+implies and does not state**.
+
+`TT-23.b` requires that re-running a bulk mark after a partial application
+reaches the same result. `AlreadyTerminal` is a refusal for a single mark, and
+`TT-23.a` requires the *whole plan* validated before the first rename. Validate
+a bulk plan the way a single mark is validated and the re-run refuses on the
+member the interrupted run already marked — so the plan can never converge, and
+the property `bulk-marks-are-not-atomic` exists to buy is unreachable. A bulk
+member already in the plan's **target** state must therefore be admissible and a
+no-op, which is what `bulkMemberOk` implements. `wit_TT_23b` is reached only
+because of it.
+
+**Derived test** (for the implementation phase, in the existing black-box
+binaries rather than a new seam): interrupt a bulk mark between two of its
+renames, re-run the identical invocation, and assert it succeeds and leaves every
+named entry marked — not that it refuses `AlreadyTerminal`.

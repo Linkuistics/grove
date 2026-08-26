@@ -41,23 +41,58 @@
 # always, exactly as a command naming no obligation is fatal always.  A broken
 # row is not an empty cell.
 #
-# COMMAND CONVENTIONS.  Alloy's are the two `docs/ordinal-fs-tree/models/`
-# runners', extended with two controls the assumption table needs:
+# COMMAND CONVENTIONS.  Each family keeps the dialect of the
+# `docs/ordinal-fs-tree/models/` runner it inherits from, extended with the two
+# controls the assumption table needs.  Alloy:
 #
 #   check <OB>_<mnemonic>              must find NO counterexample
 #   run   witness_<OB>_<mnemonic>      must find an instance
 #   check expect_fail_<EN>_<OB>_<m>    must find a counterexample   (premise-break)
 #   run   expect_unreachable_<EN>_<m>  must find NO instance        (exercise-removal)
 #
+# Quint, whose runner spells the same two things `inv`/`wit`:
+#
+#   val inv_<OB>_<mnemonic>            must HOLD
+#   val wit_<OB>_<mnemonic>            must be REACHED
+#   val inv_fail_<EN>_<OB>_<m>         must be VIOLATED             (premise-break)
+#   val wit_unreach_<EN>_<m>           must NOT be reached          (exercise-removal)
+#
 # where <OB> is an obligation spelled without its separators: `TT-02.b` is
-# `TT_02b`, and a claim with no sub-identities is `TT_03`.  The two `expect_`
+# `TT_02b`, and a claim with no sub-identities is `TT_03`.  The two inverted
 # forms are inverted deliberately: an assumption mutation whose control is "this
 # named obligation fails" cannot be reported by a runner that treats every
 # failing check as a defect.
 #
+# WHICH MODULE A QUINT COMMAND RUNS IN, because `quint run` needs one and a
+# `.qnt` file holds several.  A module carrying `const` declarations is a
+# LIBRARY — it cannot be run, it is instantiated.  Every other module is an
+# instance, and a command runs in the module it is TEXTUALLY defined in.  An
+# instance whose name does not begin `relax_`, `mutant_` or `scenario_`
+# additionally inherits the library's commands and must satisfy every one of
+# them; the three prefixes mark instances that exist precisely because some
+# obligation behaves differently there, so they carry only their own.
+#
+# QUINT VERIFICATION.  A module named `verify_<something>` is MODEL-CHECKED with
+# `quint verify` (Apalache) rather than simulated, and inherits the library's
+# property commands only — a witness is a reachability question, and a reduced
+# verification world is the wrong place to ask one.  It runs by default;
+# QUINT_VERIFY=0 skips it and says so on every line.  Whatever a scope's Quint
+# models can and cannot check is declared in its README's `VERIFY` line, which
+# this runner READS AND PRINTS on every run, and a scope whose Quint models
+# exist and which declares nothing is a runner failure — so a limit on model
+# checking names itself instead of passing as silence.
+#
+# An out-of-heap, a backend that never started and a reporter that crashed all
+# print what a violated invariant prints if nobody looks.  They abort the run as
+# DEAD TOOL rather than being recorded as verdicts.
+#
 # Usage:
 #   models/run.sh [--scope task-tree|finish|lifecycle|ordinal]...
 #                 [--family alloy|quint] [--no-coverage] [--list] [--quiet]
+#
+# Quint knobs, all env: QUINT_SAMPLES (default 8000), QUINT_STEPS (default 24),
+# QUINT_SEED (default fixed, so a run is replayable), QUINT_VERIFY (default 0),
+# QUINT_VERIFY_STEPS (default 4), JVM_ARGS (default -Xmx16G, for Apalache).
 #
 # With no --scope the run is the whole repository and coverage is asserted over
 # the whole catalogue; a run that names a subset asserts coverage over exactly
@@ -227,15 +262,23 @@ note() { [[ "$quiet" == 1 ]] || echo "$@"; }
 
 # obligation token out of a command name, or empty.
 # Strips the outcome prefix, then reads a leading TT_nn[a]/FN_../SY_.. token.
-ob_of() {
+strip_outcome() {
   local n="$1"
+  # Order matters: the compound prefixes must come off before the bare ones.
   n="${n#witness_}"; n="${n#expect_fail_}"; n="${n#expect_unreachable_}"
+  n="${n#inv_fail_}"; n="${n#wit_unreach_}"; n="${n#inv_}"; n="${n#wit_}"
+  echo "$n"
+}
+
+ob_of() {
+  local n
+  n=$(strip_outcome "$1")
   [[ "$n" =~ ^(TT|FN|SY)_([0-9][0-9])([a-z]?)(_|$) ]] || { echo ""; return; }
   local id="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}"
   [[ -n "${BASH_REMATCH[3]}" ]] && id="$id.${BASH_REMATCH[3]}"
   echo "$id"
 }
-is_control() { local n="$1"; n="${n#witness_}"; n="${n#expect_fail_}"; n="${n#expect_unreachable_}"; [[ "$n" == EN_* ]]; }
+is_control() { [[ "$(strip_outcome "$1")" == EN_* ]]; }
 
 run_alloy_file() {
   local file="$1" scope="$2" java_bin="$3"
@@ -265,7 +308,7 @@ run_alloy_file() {
     esac
     ran=$((ran + 1))
     local ob; ob=$(ob_of "$name")
-    if [[ -z "$ob" ]] && ! is_control "$name" && [[ "$name" =~ ^(witness_|expect_fail_|expect_unreachable_)?(TT|FN|SY)_ ]]; then
+    if [[ -z "$ob" ]] && ! is_control "$name" && [[ "$(strip_outcome "$name")" =~ ^(TT|FN|SY)_ ]]; then
       bad_commands+=("alloy $file $name")
     fi
     if [[ -n "$ob" ]]; then
@@ -287,6 +330,285 @@ run_alloy_file() {
       fail=1
     fi
   done <<<"$commands"
+}
+
+
+# ---------------------------------------------------------------------------
+# Quint.  Same two obligations as the Alloy driver, in Quint's own dialect.
+#
+# ABORT ON A DEAD TOOL is the reason for `quint_probe`: a `quint` that cannot
+# launch prints to stderr and exits non-zero, which is indistinguishable from a
+# model whose witness never landed unless someone asks the tool first.
+# ---------------------------------------------------------------------------
+
+quint_samples="${QUINT_SAMPLES:-8000}"
+quint_steps="${QUINT_STEPS:-24}"
+# A FIXED default seed, so a green run is replayable and a red one is
+# reproducible from the line the runner prints rather than from a screenshot.
+quint_seed="${QUINT_SEED:-0x5e0a51d3c0ffee01}"
+quint_verify="${QUINT_VERIFY:-0}"
+quint_verify_steps="${QUINT_VERIFY_STEPS:-4}"
+# Apalache is given a heap by default because the default one is not enough for
+# this subject and an OOM is a DEAD TOOL, not a verdict.
+quint_jvm_args="${JVM_ARGS:--Xmx16G}"
+quint_probed=0
+
+quint_probe() {
+  [[ "$quint_probed" == 1 ]] && return 0
+  command -v quint >/dev/null || { echo "quint not on PATH" >&2; exit 2; }
+  local out
+  out=$(quint --version 2>&1) || { echo "quint failed to launch:" >&2; echo "$out" >&2; exit 2; }
+  note "   quint $out, samples=$quint_samples steps=$quint_steps seed=$quint_seed"
+  quint_probed=1
+}
+
+# A skipped verification must NAME ITSELF.  The declaration lives in the scope
+# README beside the models it is about, in one fixed shape:
+#
+#   - **VERIFY** quint (<reason-class>) — <reason>
+#
+# so that a scope whose Quint column is complete and which declares nothing
+# fails the run rather than quietly checking nothing but simulation.
+report_verify_declaration() {
+  local scope="$1" rm_file line
+  rm_file="$repo/$(scope_dir "$scope")/README.md"
+  line=$(awk '
+      /^```/ { fence = !fence; next }
+      fence  { next }
+      /^- \*\*VERIFY\*\* quint / { print; exit }
+    ' "$rm_file" 2>/dev/null || true)
+  if [[ -n "$line" ]]; then
+    echo "   VERIFICATION, declared: ${line#- \*\*VERIFY\*\* quint }"
+    [[ "$quint_verify" == 0 ]] && echo "   (QUINT_VERIFY=0: model checking SKIPPED this invocation)"
+    true
+  else
+    echo "runner error: $scope/quint declares no VERIFY line in $(scope_dir "$scope")/README.md;" >&2
+    echo "              a skipped verification step must name itself" >&2
+    fail=1
+  fi
+}
+
+# A `verify_` instance is model-checked rather than simulated, and inherits the
+# library's PROPERTY commands only: a witness is a reachability question and a
+# reduced verification world is the wrong place to ask it.
+quint_run_verify() {
+  local file="$1" mod="$2"; shift 2
+  local -a names=("$@") n
+  (( ${#names[@]} )) || return 0
+  if [[ "$quint_verify" == 0 ]]; then
+    for n in "${names[@]}"; do
+      printf 'SKIP  %-58s %s\n' "$n" "model checking skipped (QUINT_VERIFY=0)"
+    done
+    return 0
+  fi
+  local out rc=0
+  out=$(JVM_ARGS="$quint_jvm_args" quint verify "$file" --main="$mod" \
+          --invariants "${names[@]}" --max-steps="$quint_verify_steps" 2>&1) || rc=$?
+  # A DEAD TOOL is not a result.  An out-of-heap, a backend that never started
+  # and a reporter that blew up all print what a violated invariant prints if
+  # nobody looks, so they abort rather than being recorded.
+  if grep -qE 'Ran out of heap memory|RangeError|Input error \(see the manual\)|Failed to launch|Connection refused' <<<"$out"; then
+    echo "quint verify failed to complete on $file / $mod (tool failure, not a result):" >&2
+    grep -E 'Ran out of heap memory|RangeError|Input error|Failed to launch|Connection refused' <<<"$out" | head -3 >&2
+    exit 2
+  fi
+  ran=$((ran + ${#names[@]}))
+  if [[ "$rc" == 0 ]]; then
+    for n in "${names[@]}"; do
+      quint_pass "$n" "model-checked to depth $quint_verify_steps, no counterexample"
+    done
+  else
+    for n in "${names[@]}"; do
+      if grep -qF "$n" <<<"$out"; then quint_fail "$n" "counterexample found by quint verify"
+      else quint_pass "$n" "model-checked to depth $quint_verify_steps, no counterexample"; fi
+    done
+    echo "      replay: JVM_ARGS=$quint_jvm_args quint verify $file --main=$mod --invariants <name> --max-steps=$quint_verify_steps"
+  fi
+}
+
+quint_kind() {
+  case "$1" in
+    inv_fail_*)    echo violate ;;
+    wit_unreach_*) echo unreached ;;
+    inv_*)         echo hold ;;
+    wit_*)         echo reached ;;
+    *)             echo unknown ;;
+  esac
+}
+
+# Record one command against the coverage matrix and the placement rule.
+quint_account() {
+  local name="$1" file="$2" scope="$3" ob obscope
+  ob=$(ob_of "$name")
+  if [[ -z "$ob" ]] && ! is_control "$name" && [[ "$(strip_outcome "$name")" =~ ^(TT|FN|SY)_ ]]; then
+    bad_commands+=("quint $file $name")
+  fi
+  [[ -n "$ob" ]] || return 0
+  obscope=$(prefix_scope "${ob:0:2}")
+  if [[ "$obscope" != "$scope" ]]; then
+    echo "placement error: $file ($scope) carries $name, which answers $ob (scope $obscope)" >&2
+    fail=1
+  fi
+  case "$(quint_kind "$name")" in
+    hold)     covered_prop["quint $ob"]=1 ;;
+    reached)  covered_wit["quint $ob"]=1 ;;
+    *)        : ;;   # controls prove nothing about coverage
+  esac
+}
+
+quint_pass() { note "$(printf 'PASS  %-58s %s' "$1" "$2")"; }
+quint_fail() { printf 'FAIL  %-58s %s\n' "$1" "$2"; fail=1; }
+
+# One `quint run` per (module, mode).  Invariants are batched — that is what
+# makes an 8000-sample suite finish — and attributed individually only when the
+# batch goes red, exactly as `docs/ordinal-fs-tree/models/run-quint.sh` does.
+quint_run_invariants() {
+  local file="$1" mod="$2"; shift 2
+  local -a names=("$@") n
+  (( ${#names[@]} )) || return 0
+  if quint run "$file" --main="$mod" --invariants "${names[@]}" \
+       --max-steps="$quint_steps" --max-samples="$quint_samples" \
+       --seed="$quint_seed" --verbosity=0 >/dev/null 2>&1; then
+    for n in "${names[@]}"; do quint_pass "$n" "holds"; ran=$((ran + 1)); done
+  else
+    for n in "${names[@]}"; do
+      ran=$((ran + 1))
+      if quint run "$file" --main="$mod" --invariant "$n" \
+           --max-steps="$quint_steps" --max-samples="$quint_samples" \
+           --seed="$quint_seed" --verbosity=0 >/dev/null 2>&1; then
+        quint_pass "$n" "holds"
+      else
+        quint_fail "$n" "violated"
+        echo "      replay: quint run $file --main=$mod --invariant $n --max-steps=$quint_steps --max-samples=$quint_samples --seed=$quint_seed --verbosity=3"
+      fi
+    done
+  fi
+}
+
+# A premise-break control is inverted: it must go RED, and a green one means the
+# assumption was carrying no weight — which is the finding, not a pass.
+quint_run_violations() {
+  local file="$1" mod="$2"; shift 2
+  local -a names=("$@") n
+  for n in "${names[@]}"; do
+    ran=$((ran + 1))
+    if quint run "$file" --main="$mod" --invariant "$n" \
+         --max-steps="$quint_steps" --max-samples="$quint_samples" \
+         --seed="$quint_seed" --verbosity=0 >/dev/null 2>&1; then
+      quint_fail "$n" "HELD — the mutated assumption broke no obligation"
+    else
+      quint_pass "$n" "violated, as the control requires"
+    fi
+  done
+}
+
+# Witnesses and unreachability controls share one run: both are read off the
+# per-name trace counts, and the only difference is which count is a pass.
+quint_run_witnesses() {
+  local file="$1" mod="$2"; shift 2
+  local -a names=("$@") n
+  (( ${#names[@]} )) || return 0
+  local out line count
+  out=$(quint run "$file" --main="$mod" --witnesses "${names[@]}" \
+          --max-steps="$quint_steps" --max-samples="$quint_samples" \
+          --seed="$quint_seed" --verbosity=1 2>&1) || true
+  if grep -qE '^(error|Error)' <<<"$out" && ! grep -q 'was witnessed' <<<"$out"; then
+    echo "quint failed to run on $file / $mod:" >&2; echo "$out" >&2; exit 2
+  fi
+  for n in "${names[@]}"; do
+    ran=$((ran + 1))
+    line=$(grep -E "^$n was witnessed" <<<"$out" || true)
+    count=$(sed -E 's/.* in ([0-9]+) trace.*/\1/' <<<"$line")
+    [[ -n "$line" ]] || { quint_fail "$n" "not reported by the run"; continue; }
+    if [[ "$(quint_kind "$n")" == unreached ]]; then
+      if [[ "${count:-1}" -eq 0 ]]; then
+        quint_pass "$n" "unreached in $quint_samples samples, as the control requires"
+      else
+        quint_fail "$n" "REACHED in $count trace(s) — the removed dimension was not the one exercising it"
+      fi
+    else
+      if [[ "${count:-0}" -gt 0 ]]; then
+        quint_pass "$n" "reached in $count trace(s)"
+      else
+        quint_fail "$n" "never reached in $quint_samples samples"
+        echo "      replay: quint run $file --main=$mod --witnesses $n --max-steps=$quint_steps --max-samples=$quint_samples --seed=$quint_seed --verbosity=1"
+      fi
+    fi
+  done
+}
+
+run_quint_file() {
+  local file="$1" scope="$2"
+  local parsed lib="" name mod kind
+  # Modules, their `const`-ness, and the commands textually inside each.
+  parsed=$(awk '
+    /^module [A-Za-z_][A-Za-z0-9_]*/ {
+      mod = $2; sub(/\{$/, "", mod); order[++n] = mod; hasconst[mod] = hasconst[mod] + 0; next }
+    /^  const / { hasconst[mod] = 1; next }
+    /^  val (inv|wit)_[A-Za-z0-9_]*:/ {
+      cmd = $2; sub(/:$/, "", cmd); print "CMD " mod " " cmd; next }
+    END { for (i = 1; i <= n; i++) print "MOD " order[i] " " hasconst[order[i]] }
+  ' "$file")
+
+  local -a instances=()
+  while read -r _ mod flag; do
+    [[ -n "$mod" ]] || continue
+    if [[ "$flag" == 1 ]]; then lib="$mod"; else instances+=("$mod"); fi
+  done < <(grep '^MOD ' <<<"$parsed")
+
+  (( ${#instances[@]} )) || { echo "runner error: $file declares no runnable instance (zero work)" >&2; fail=1; return; }
+
+  # A file MAY carry no library — the controls for a model live in a file of
+  # their own so that `quint verify` is not asked to serialise them, and they
+  # import their library across files.  Such a file's instances carry only their
+  # own commands, which is what they would carry anyway: every one of them is
+  # prefixed, and a prefixed instance never inherits.
+  local -a lib_cmds=()
+  if [[ -n "$lib" ]]; then
+    while read -r _ mod name; do
+      [[ "$mod" == "$lib" ]] && lib_cmds+=("$name")
+    done < <(grep '^CMD ' <<<"$parsed")
+    (( ${#lib_cmds[@]} )) || { echo "runner error: $file's library declares no commands (zero work)" >&2; fail=1; return; }
+  fi
+
+  for mod in "${instances[@]}"; do
+    local -a own=() cmds=() invs=() wits=() viol=()
+    while read -r _ m name; do [[ "$m" == "$mod" ]] && own+=("$name"); done < <(grep '^CMD ' <<<"$parsed")
+    if [[ "$mod" =~ ^verify_ ]]; then
+      (( ${#lib_cmds[@]} )) || { echo "runner error: $file / $mod is a verification instance in a file with no library" >&2; fail=1; continue; }
+      local -a props=()
+      for name in "${lib_cmds[@]}"; do
+        [[ "$(quint_kind "$name")" == hold ]] && props+=("$name")
+      done
+      note "-- $(basename "$file")::$mod (${#props[@]} properties, model-checked)"
+      quint_run_verify "$file" "$mod" "${props[@]}"
+      unset props
+      continue
+    fi
+    if [[ "$mod" =~ ^(relax_|mutant_|scenario_) ]]; then
+      cmds=("${own[@]}")
+    elif (( ${#lib_cmds[@]} )); then
+      cmds=("${lib_cmds[@]}" "${own[@]}")
+    else
+      echo "runner error: $file / $mod is an inheriting instance in a file with no library" >&2
+      fail=1; continue
+    fi
+    (( ${#cmds[@]} )) || { echo "runner error: $file / $mod has no commands (zero work)" >&2; fail=1; continue; }
+    note "-- $(basename "$file")::$mod (${#cmds[@]} commands)"
+    for name in "${cmds[@]}"; do
+      quint_account "$name" "$file" "$scope"
+      case "$(quint_kind "$name")" in
+        hold)                 invs+=("$name") ;;
+        violate)              viol+=("$name") ;;
+        reached|unreached)    wits+=("$name") ;;
+        *) echo "runner error: $file / $mod carries $name, which is neither inv_ nor wit_" >&2; fail=1 ;;
+      esac
+    done
+    quint_run_invariants "$file" "$mod" "${invs[@]}"
+    quint_run_violations "$file" "$mod" "${viol[@]}"
+    quint_run_witnesses  "$file" "$mod" "${wits[@]}"
+    unset own cmds invs wits viol
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -335,8 +657,9 @@ for scope in "${scopes[@]}"; do
           [[ "$coverage" == 1 ]] && fail=1
           continue
         fi
-        echo "runner error: the quint driver is not built yet — quint-models-k10 extends this runner" >&2
-        fail=1 ;;
+        quint_probe
+        report_verify_declaration "$scope"
+        for f in "${files[@]}"; do note "== $scope/quint $(basename "$f")"; run_quint_file "$f" "$scope"; done ;;
     esac
   done
 done

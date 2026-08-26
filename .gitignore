@@ -14,3 +14,8 @@
 
 # superpowers brainstorming visual companion (local-only)
 .superpowers/
+
+# Apalache's per-run scratch directory, written into the working tree by
+# `quint verify` (models/run.sh, QUINT_VERIFY=1). Logs and SMT dumps, never an
+# artifact.
+/_apalache-out

@@ -7753,6 +7753,25 @@ already known when it was made.
 ([`models/system/lifecycle.qnt`](../models/system/lifecycle.qnt)). All 25 `SY-`
 obligations.
 
+**REVISED BY `system-k60`, WHICH INTEGRATED `system-k59`'s REVIEW OF THIS
+INSTRUMENT.** The review's subject was the one thing `cross-model-replay-k15`
+will not read — the search shape, the narrowings, and the controls this column's
+green was reached with — and it produced six findings, all six of which were
+verified and applied. **What changed here is marked inline.** Two of the changes
+are downgrades of claims this entry originally made, one is a withdrawal of a
+finding, and one is a correction of a measurement that could not be reproduced.
+The barrier held through the integration too: no `.als` file and no entry in
+026 – 043 was opened.
+
+| review finding | what it was | disposition |
+|---|---|---|
+| F1 | `driverStep` forced a launched finish session through teardown and interpreted the signal before invalidating the epoch | **model repaired** — a live session may now end at any point, the methodology's reopening exit is modelled and witnessed, and reap / invalidate / interpret are two steps in production's order |
+| F2 | the launched session was modelled as continuously holding the launch generation | **abstraction rebuilt** — the epoch is a shared/exclusive lock; `SY-11.b`'s control survives over the faithful graph |
+| F3 | `mutant_no_signal_is_done` was claimed as a bundle control over three endings and killed only one | **claim withdrawn, four isolating controls added** — every obligation now has one, and each new mutant asserts its neighbours green |
+| F4 | the `SY-14.a` sweep read "an action succeeded" as "a block was cleared" | **measurement corrected**, and **finding 3 below is half withdrawn** as a result |
+| F5 | the flat-menu figure came from an uncommitted instrument and did not reproduce | **instrument committed**, measurement re-run; **observation C below is corrected** |
+| F6 | `SY-05.b` checks two values one setter manufactures together | **claim downgraded** to the internal consistency check it is |
+
 **Independence protocol — held, with one disclosure that matters more than
 usual.** This session opened no `.als` file, no Alloy section of any
 model-directory `README.md`, and no entry in 026 – 043. It was written from
@@ -7790,12 +7809,21 @@ either component's internals, and check all 25 `SY-` obligations.
 
 **Formalism.** Quint 0.32.0, rust evaluator backend, bounded randomized
 simulation: 8000 samples at depth 24, fixed seed `0x5e0a51d3c0ffee01`. One
-library (`lifecycle.qnt`, ~1,750 lines) carrying 25 property commands and 21
+library (`lifecycle.qnt`, ~2,250 lines) carrying 25 property commands and 20
 witness commands, one unfocused instance, one verification instance; a controls
-file (`lifecycle-controls.qnt`) carrying three focused scenarios, two assumption
-controls and eighteen model mutations. **72 commands in all, 20 of them inverted
-`inv_fail_`/`wit_unreach_` controls.** Full suite: **2m 05s wall, 149s CPU**,
-green, `models/run.sh --scope lifecycle --family quint`.
+file (`lifecycle-controls.qnt`) carrying five focused scenarios, two assumption
+controls and twenty-three model mutations. **86 commands in all, 35 of them
+controls** — 24 inverted `inv_fail_` mutations, two `wit_unreach_` assumption
+removals, eight neighbour properties asserted green inside the five isolating
+mutants, and one positive control inside `scenario_flat_menu`. Full suite:
+**3m 40s wall, 254s CPU**, green,
+`models/run.sh --scope lifecycle --family quint`.
+
+*(Counts as of `system-k60`'s integration. As the producer left it: ~1,750
+lines, 21 library witnesses, three scenarios, eighteen mutations, 72 commands,
+2m 05s. The growth is `system-k59`'s repairs — the isolating controls and their
+neighbour assertions, the committed flat-menu instrument, and the two witnesses
+that moved into scenarios once a live session could end at any point.)*
 
 **`quint verify` (Apalache 0.56.1) completes and returns a verdict.** On the
 reduced `verify_small` instance, three state invariants at `--max-steps=4`:
@@ -7858,7 +7886,7 @@ require a caller to be told have no member:
 | the stop | required by | what the model had to do |
 |---|---|---|
 | the configuration is invalid | `SY-04.b` — "an invalid configuration leaves the working tree byte-identical", which is a claim about a **refusal** | declared `RConfigInvalid`, outside the closed set |
-| this transition is deferred to the next iteration | `SY-04.a` — "at most one lifecycle transition per iteration" | modelled as a loop-control **guard**, not an outcome, so that half of `SY-04.a` is not falsifiable through the outcome vocabulary at all |
+| this transition is deferred to the next iteration | `SY-04.a` — "at most one lifecycle transition per iteration" | modelled as a loop-control **guard**, not an outcome, so that half of `SY-04.a` is not falsifiable through the outcome vocabulary at all. **NARROWED by `system-k59`**: the review confirmed `mutant_many_transitions` genuinely exercises the counter and makes the invariant fail, and rejected the stronger reading that the catalogue therefore OWES a "deferred" refusal — `SY-04.a` says "at most one", not "refuse the second". What survives is the qualification, not a catalogue debt |
 | the tree is blocked, and here is which block | `SY-14.b` — "every action on a blocked tree SHALL refuse **naming it**" | read `WitnessPending` as `RecoveryPending`'s refusal and `ReservedNameOccupied` as `OwnershipConflict`'s, which is the mapping `TT-24`'s three-context table makes for the same two artifacts — but the catalogue never states it for `SY-14.b` |
 
 The third is the one to watch, because it is the one where two families can
@@ -7869,23 +7897,39 @@ check a different claim and still report green. Affected: the `Refusal` set,
 the same shape, though this finding pre-dates the grep) · *M2* `refusal` · *M3*
 n/a — found by writing the enumeration out, not by a counterexample · *M4* `none`.
 
-**3. `SY-14`'s quantifier reaches the lease, and taken literally it makes a
-blocked tree unexitable.** "**No admitted action** SHALL clear a block, and
+**3. `SY-14.b`'s quantifier reaches the lease, and taken literally it makes a
+blocked tree unexitable — but `SY-14.a` was never the problem, and that half of
+this finding is WITHDRAWN.**
+
+**What `system-k59` found (F4).** The sweep behind this finding defined
+"cleared" as *some admitted action returned `Applied`*. That is not `SY-14.a`,
+whose subject is a block being CLEARED — a state transition. Under the corrected
+measurement, which computes the SUCCESSOR's block through the same `outcomeOn`
+classifier the real actions use, `release-lease` and `validate-config` succeed on
+a blocked tree and change no block, so **neither is a counterexample to
+`SY-14.a` and its narrowing is withdrawn**: the sweep for that half is now over
+the LITERAL admitted set. The narrowing was hiding a faulty measurement rather
+than answering a wide quantifier, and the same defect had been propping up
+`mutant_block_clears`, which stopped firing the moment the measurement was
+fixed. What remains of the finding is below, and it is about `SY-14.b` alone. "**No admitted action** SHALL clear a block, and
 **every action** on a blocked tree SHALL refuse naming it." The admitted action
 set includes `acquire-lease`, `layout-preflight` and `release-lease`. Sweeping
 the literal set against a blocked tree, `release-lease` succeeds — as it must,
-or the blocked driver can never let go of the working tree — and `SY-14.a`
-fails; `validate-config` succeeds and fails it again; a session's
-finish-leaf creation refuses `ReservedKind` rather than the block, and
-`SY-14.b` fails.
+or the blocked driver can never let go of the working tree — and a session's
+finish-leaf creation refuses `ReservedKind` rather than the block, so `SY-14.b`
+fails. **This entry originally said `SY-14.a` failed there too. It does not**,
+and that was the measurement defect: neither `release-lease` nor
+`validate-config` changes the block, and `SY-14.a` forbids CLEARING one rather
+than succeeding at all.
 
-None of those is a defect in the protocol. What they are is a quantifier stated
-one grain too wide: the claim is about actions **on the tree**, and the
+None of those is a defect in the protocol. What `SY-14.b` is, is a quantifier
+stated one grain too wide: the claim is about actions **on the tree**, and the
 catalogue's own `FN-26` — two operator-restorable exits from a block — is
 incompatible with the literal reading, since an operator cannot restore anything
-through a process that may not release its lease. The model sweeps
-`ADMITTED.filter(touchesTree)` and declares the narrowing. Affected: `SY-14.a`,
-`SY-14.b`, and through them `SY-13`'s "terminal disposition".
+through a process that may not release its lease. The naming sweep is
+`ADMITTED.filter(touchesTree)` and the narrowing is declared. Affected:
+`SY-14.b`, and through it `SY-13`'s "terminal disposition". **`SY-14.a` is no
+longer affected.**
 *M1* `quint-only` (pending replay; **contamination risk noted** — post-dates the
 grep) · *M2* `refusal` · *M3* 2 — the runner names the failing obligation and the
 sweep names the action · *M4* `none`.
@@ -7941,6 +7985,20 @@ obligations (`SY-07.a`, `SY-09.a`, `SY-09.b`, and `SY-14.b`) have no isolating
 mutation and die only inside a bundle, and the README says so rather than
 letting a reader read them as separately evidenced.
 
+**REVISED [k59-F3].** The count is now twenty-three, and the qualification that
+went with it is withdrawn — because `system-k59` checked it and found it was
+false in the reader's favour AND against it at once. The entry said four
+obligations (`SY-07.a`, `SY-09.a`, `SY-09.b`, `SY-14.b`) died only inside a
+bundle. Targeted runs showed `mutant_no_signal_is_done` changed only the `k == 3`
+arm of the reap classifier — the other two arms were constants — so
+`inv_SY_09a` and `inv_SY_09b` stayed GREEN under it. **The bundle control was
+not weak evidence; it was no evidence.** Four isolating mutations now exist, and
+each asserts its neighbours green as runner commands, so "this target fails while
+its neighbour holds" is a result rather than a claim. The observation itself
+survives and is strengthened: a deterministic loop satisfies its own claims by
+being written down, AND a reader cannot tell a bundle control from an isolating
+one without running it.
+
 **Observation B — `SY-13.a` is existential reachability, and an executable
 model cannot search for it.** "There EXISTS a bounded sequence of admitted
 actions reaching…" is not an invariant, and a simulator cannot answer it by
@@ -7958,14 +8016,59 @@ determinism of the subject.** Both sibling columns dial the search because their
 subjects are a tree of unknown shape and a twenty-step transaction. A driver
 loop is deterministic, and modelling it as a uniform choice over its whole
 action vocabulary does not model a driver — it models a random walk that shares
-the vocabulary. Measured, at 2000 samples: with a flat 27-disjunct menu, **5 of
-25 witnesses landed**, four of them shallow, while all 25 properties reported
-green. With `driverStep` — the same actions, the same totality, arranged as the
-chain of conditionals a loop is — **23 of 25 land**, and the two that do not have
-scenarios. Nothing was removed from the model to get there.
+the vocabulary. **CORRECTED [k59-F5], AND THE CORRECTION IS A THIRD OF THE ORIGINAL CLAIM.**
+This entry originally reported *5 of 25 witnesses under a flat 27-disjunct menu
+at 2,000 samples, against 23 of 25 under `driverStep`*. Neither figure survived
+review. The flat variant reached no commit and could not be re-run — an
+unreconstructable number cannot support the claim it was quoted for — and a
+reconstruction disagreed with it by a factor of three. `scenario_flat_menu` is
+that instrument now, committed, differing from `base` in the single constant
+`FLAT_MENU`, and the comparison is over the twenty witness commands the library
+carries:
 
-**M8 — false-confidence incidents, and the control arm.** Two incidents, both
-caught inside the session:
+| arrangement | 2,000 samples | 8,000 samples |
+|---|---:|---:|
+| flat menu | 12 of 20 | 17 of 20 |
+| `driverStep` | 20 of 20 | 20 of 20 |
+
+The observation stands and its magnitude does not. Arranging the menu as the
+loop it models buys the whole witness set at a quarter of the samples; it does
+not turn five into twenty-three. A flat menu reaches most shallow and mid-depth
+witnesses given enough samples and misses the deep ones. Nothing was removed
+from the model to get there, and `scenario_flat_menu` is the proof of that,
+being the same model with the menu rearranged.
+
+**The methodological lesson is the one that generalises**: a search-shape
+comparison is an EXPERIMENT, and an experiment whose apparatus is not committed
+is a number, not a result. The runner cannot carry it — a runner command is a
+claim that a witness lands, and this measurement's content is how many do not —
+so it lives as a committed instance plus a replay line in the README.
+
+**M8 — false-confidence incidents, and the control arm.** Two incidents were
+caught inside the producing session; **`system-k59` found four more that had
+survived it, and that is the most useful number in this entry.** A column that
+reports its own two incidents and ships four is exactly what the *vacuous
+invariant* and *scope trap* hazards predict, and it is why an instrument review
+was cut as a leaf rather than left to `cross-model-replay-k15`, which
+re-derives findings and would not have re-derived any of these.
+
+| incident, found by the REVIEW | what made it invisible | how long it stood |
+|---|---|---|
+| `mutant_no_signal_is_done` was documented as a bundle control over three endings and killed only one; `SY-09.a` and `SY-09.b` had NO control at all | the README asserted the bundle in prose, and the runner has no way to ask "does this mutation kill anything else?" | the whole producing session and its green run |
+| the `SY-14.a` sweep read *some action returned `Applied`* as *a block was cleared*, and `mutant_block_clears` was firing THROUGH that defect | a broken instrument propping up its own control: both the claim and its control read the same wrong test | the whole producing session |
+| the launched session was modelled as continuously holding the launch generation, which is what made `SY-11.b`'s cycle reachable — Grove has no such lock | the model was bent mid-build until the control fired, and a fired control reads as evidence | the whole producing session |
+| the flat-menu comparison quoted 5 of 25 from an instrument that reached no commit; reconstruction gave 13–14 | a measurement with no committed apparatus cannot be contradicted by re-running it | the whole producing session |
+
+**And one finding the review could not have reached by re-deriving.**
+`driverStep` forced a launched finish session through teardown, so decline,
+early failure, no signal and the methodology's reopening exit were all
+unreachable — while the Rust loop accepts any of the three signal dispositions
+after any launched session. **Every `SY-` property was checked over a world in
+which a finish session cannot decline.** No obligation came out false; the
+world was simply smaller than the claims, which is the shape of false confidence
+this experiment exists to measure.
+
+The producing session's own two incidents, both caught inside it:
 
 | incident | how it was caught | how long it stood |
 |---|---|---|
@@ -7989,16 +8092,69 @@ the shape of the ledger H10 is about.
   three. `quint verify` completes at `--max-steps=4`, which does not reach a
   scaffold — so the model-checked result covers the lease, configuration and
   epoch gates and nothing past them.
-- The two thinnest witnesses land in **16 and 18 traces of 8000** (`SY-06.b`,
-  `SY-07.a`). They are deterministic under the fixed seed and therefore not
-  flaky, but they have almost no margin, and the *scope trap* hazard says to
-  record that rather than round it to green.
-- The three narrowings are narrowings: `SY-13`'s sweep, `SY-14`'s quantifier and
-  `SY-04.a`'s cap are each checked over less than their literal text, and each
-  gap is a finding above rather than a covered obligation.
-- Nothing here is evidence about the Alloy column, which this session did not
-  read. The `(family, obligation)` matrix is what settles that, and
-  `cross-model-replay-k15` is where the barrier comes down.
+- **Five witnesses land in fewer than a hundred traces of 8000** and two more
+  needed a `scenario_` instance to land at all. They are deterministic under the
+  fixed seed and therefore not flaky, but they have almost no margin, and the
+  *scope trap* hazard says to record that rather than round it to green. The
+  thinning has one cause: once a live session may end at any point, a
+  twenty-one-move march to a proven finish is a coin flip per step. The counts
+  are in the model README's table.
+- **`SY-05.b` is an internal consistency check over the composition
+  abstraction, not a composition result [k59-F6].** It says the summary never
+  records absence before the deletion is proven; it does not say `FN-11` and
+  `FN-19` compose in Grove, because one setter manufactures both operands. The
+  command is named for what it checks.
+- The narrowings are narrowings: `SY-13`'s sweep and `SY-14.b`'s quantifier are
+  each checked over less than their literal text, and `SY-04.a`'s cap is
+  checked over a counter rather than through the outcome vocabulary. Each gap is
+  a finding above rather than a covered obligation. **`SY-14.a` is not narrowed**
+  — that narrowing is withdrawn.
+- Nothing here is evidence about the Alloy column, which neither this session,
+  nor `system-k59`, nor `system-k60` read. The `(family, obligation)` matrix is
+  what settles that, and `cross-model-replay-k15` is where the barrier comes
+  down.
+
+**What the review checked and did NOT break, recorded because a discharged
+doubt is evidence too.** `system-k59` attacked five further conclusions and
+each survived, which is what makes the six it broke worth acting on:
+
+- **The `SY-13` catalogue contradiction (finding 1) is real.** The review
+  re-read the claim's two sentences independently and agrees the definition of
+  *terminal disposition* and its exact two-member enumeration disagree. This is
+  now a finding two readings reached, not one.
+- **`ENV_BUDGET = 3` hides no falsification.** The only two mutants configured
+  with budget 4 — restart-repeat and guard-disorder — still violate their target
+  invariants at budget 3 under the runner's samples, depth and seed. The current
+  mutation set supplies no evidence of a `SY-` falsification hidden by the
+  budget.
+- **The two thin witnesses were real protocol paths**, not focused-scenario
+  constructions: `SY-06.b` completes the normal partial scaffold and then meets
+  a hand-edited legacy tree; `SY-07.a` reaches a spent tree, appends the
+  sentinel, crashes, and reuses it after restart — hostile rather than ordinary,
+  but genuinely `EN-08` and `EN-11`.
+- **`driverStep` conditions on no history flag.** The suspicion that a search
+  guard read `hist` and made a claim about history true by construction is
+  stale against the committed artifact; `hist.envUsed` guards environment
+  actions, which is the declared budget.
+- **The depth-limited `verify` result is quoted with its depth**, and no `SY-`
+  obligation is presented anywhere as model-checked. The shortest-path figures
+  the review verified — eight driver moves to a completed scaffold, nineteen to
+  a proven finish — were re-measured on the repaired model: **eight and
+  twenty-one.** The two extra moves are exactly what putting the epoch
+  invalidation and the signal interpretation in separate steps costs per reap,
+  which is the order `src/loop_driver.rs` takes.
+
+**One thing for `formal-synthesis-k16` that is about the METHOD rather than
+about grove.** This column was reviewed as an INSTRUMENT — not "are the findings
+right" but "does the search shape, the narrowing set and the control set support
+what the column claims" — and the review found six real defects in a suite that
+was green, coverage-asserted, and had already reported its own false-confidence
+ledger. Four of the six were invisible to any run of the suite itself, because
+the suite cannot ask whether a mutation kills anything besides its target,
+whether a measurement measures its subject, or whether a quoted number can be
+re-run. **The unit of that review is the pair (claim, the control that would
+falsify it)**, and it is worth carrying into the synthesis as a general
+obligation rather than as a fact about this scope.
 
 
 ## What is being compared, and what is not

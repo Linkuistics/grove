@@ -64,7 +64,38 @@ shared subject of both families, so no session may edit it under the barrier —
 which means the Alloy column recorded, rather than fixed, every catalogue
 finding it made. **There are now several, they are named in the entries, and
 `formal-synthesis-k16` owns the disposition of all of them.** The second: the
-runner's coverage unit is the pair `(family, obligation)`, so every cell the
-Alloy column filled is still an empty Quint cell, and a whole-repository run
-will stay red until `quint-models-k10` lands. That is the truth about the phase
-rather than a defect in the runner.
+runner's coverage unit is the pair `(family, obligation)`, so a Quint cell an
+Alloy command filled is still an empty cell until a Quint command fills it too.
+That is the truth about the phase rather than a defect in the runner.
+
+## The Quint column is closed too, and the barrier may now come down
+
+`quint-models-k10` retired with all three scopes green, each reviewed as an
+INSTRUMENT and each repaired against what that review found:
+
+| scope | model | run | entry |
+|---|---|---|---|
+| task tree | `crates/grove-task-tree/models/task-tree.qnt` | `models/run.sh --scope task-tree --family quint` | 044 |
+| finish/recovery | `crates/grove-finish/models/finish.qnt` | `models/run.sh --scope finish --family quint` | 045 |
+| system lifecycle | `models/system/lifecycle.qnt` | `models/run.sh --scope lifecycle --family quint` — **86 commands, 25 of 25 cells, exit 0** | 046 |
+
+**Three consequences for the remaining children.**
+
+- **`cross-model-replay-k15` may now read both families.** The protocol was
+  *neither model reads the other before both are green*, and both are. This is
+  the deliberate later step the protocol reserved; nothing before it lifted.
+- **`formal-synthesis-k16` inherits three entries whose claims have already
+  been contested once**, and the contest is itself a measurement. Each Quint
+  column was attacked by a `review-prototype` leaf whose subject was the
+  instrument rather than the findings — the search shape, the narrowings, the
+  controls — and each review found real defects in a suite that was green and
+  coverage-asserted. Entry 046 carries the sharpest ledger: four of its six
+  findings were invisible to any run of the suite itself, because a suite cannot
+  ask whether a mutation kills anything besides its target, whether a
+  measurement measures its subject, or whether a quoted number can be re-run.
+  **The unit of that review — the pair (claim, the control that would falsify
+  it) — is worth carrying into the synthesis as a general obligation.**
+- **A whole-repository run is no longer red by construction**, since no Quint
+  cell is empty for want of a column. Whether it is green is a separate
+  question and no session here has measured it end to end; the per-scope runs
+  above are what has been.

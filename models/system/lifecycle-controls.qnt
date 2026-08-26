@@ -18,22 +18,44 @@
 // this column.  An executable model of a DETERMINISTIC LOOP satisfies most of
 // its own ordering claims by being written in that order — the
 // pre-registration's *vacuous invariant* hazard in the form an executable model
-// takes.  Nineteen MODEL dials exist so that each such claim has somewhere to
+// takes.  Twenty-three dials exist so that each such claim has somewhere to
 // die: a mutant that leaves every obligation green is a finding that the claim
 // was resting on the way the model happened to be written.
 //
+// AND A MUTANT THAT KILLS ITS NEIGHBOUR IS A DIFFERENT FACT FROM ONE THAT KILLS
+// ITS TARGET.  `system-k59` found that `mutant_no_signal_is_done` was DOCUMENTED
+// as a bundle control over all three session endings and in fact changed only
+// one arm of the interpretation, leaving `SY-09.a` and `SY-09.b` with no control
+// at all.  So the five ISOLATING mutants below each carry their neighbours as
+// must-hold commands: "this target fails while its neighbour stays green" is a
+// runner result here rather than a sentence in a README.
+//
 // WHAT THE SCENARIOS ARE FOR.  Every `SY-` PROPERTY is checked unfocused in
-// `base`.  Four WITNESSES are not reachable there at an affordable sample
-// count, and each has a `scenario_` instance that narrows the ENVIRONMENT —
-// how many actions the world may take (`ENV_BUDGET`) and of which kind
-// (`ENV_KINDS`).  A scenario removes no behaviour from the model: it is a
-// search strategy over exactly the space the environment assumptions grant.
+// `base`.  Six WITNESSES are not reachable there at an affordable sample
+// count, and each has a `scenario_` instance that narrows the SEARCH — how many
+// actions the world may take (`ENV_BUDGET`), of which kind (`ENV_KINDS`), at
+// which lifecycle point (`ENV_PHASES`), and whether a live session takes its own
+// work before ending (`FOCUS = 3`).  A scenario removes no behaviour from the
+// model: it is a search strategy over exactly the space the assumptions grant,
+// and every property stays checked unfocused in `base`, which is the discipline
+// `system-k59` found `driverStep` had broken by narrowing in `base` itself.
 // =============================================================================
 
-/// THE UNINTERRUPTED LIFECYCLE, end to end and then some: scaffold, run,
-/// exhaust, finish, and scaffold again on the far side of a proven teardown.
-/// No environment action at all, because `SY-05.a` needs twenty-one driver
-/// moves inside a twenty-four-step trace and every world action spends one.
+/// THE FINISH MARCH AND THE FAR SIDE OF IT: enter a spent grove, append the
+/// finish leaf, run it, prove the teardown, end with no signal, and scaffold
+/// again on the far side.
+///
+/// ONE environment action, and it is a hand edit that installs the SPENT tree
+/// the march starts from.  `EN-11` grants that any well-formed tree is
+/// reachable by hand edit and `relax_EN_11` removes the whole family as a
+/// control, so this is a search strategy over exactly the granted space — and
+/// it buys the six driver moves the ordinary-session iteration would have
+/// spent.  It has to: `system-k59` finding 1's repair costs two moves per reap
+/// (collect, invalidate, then interpret in the next step, which is the order
+/// `src/loop_driver.rs` takes), and the end-to-end march no longer fits inside
+/// a twenty-four-step trace.  `FOCUS = 3` narrows the SEARCH so the finish
+/// session takes its own work while it has any; every ending stays reachable
+/// in `base`, which is where every property is checked.
 module scenario_teardown {
   import lifecycle(
     CRASHES = true,
@@ -49,20 +71,25 @@ module scenario_teardown {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0),
-    FOCUS = 0,
+    FOCUS = 3,
     ESCAPE_BOUND = 3,
-    ENV_BUDGET = 0,
+    ENV_BUDGET = 1,
     ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
-    ENV_KINDS = Set()
+    ENV_KINDS = Set(1)
   ).* from "./lifecycle"
 
   /// `SY-05.a`.  A completed teardown whose driver never observed the signal,
@@ -71,6 +98,14 @@ module scenario_teardown {
   /// one".
   val wit_SY_05a_a_fresh_scaffold_after_an_unobserved_teardown: bool =
     hist.freshAfterUnobservedTeardown
+  /// `SY-09.c`.  The same march reaches it: a teardown this driver PROVED,
+  /// and a session that then ended with no signal at all.  It moved here from
+  /// the library because `system-k59` finding 1's repair — a live session may
+  /// end at any point — makes a twenty-step march a coin flip per step, and a
+  /// witness that lands in one trace of eight thousand is not an instrument.
+  val wit_SY_09c_no_signal_with_a_proven_teardown: bool =
+    hist.noSignalWithProvenTeardown
+
 }
 
 /// CRASH, AND NOTHING ELSE.  `EN-08` grants interruption between any two
@@ -91,14 +126,19 @@ module scenario_crash_points {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -111,6 +151,113 @@ module scenario_crash_points {
   /// continued from.
   val wit_SY_12_a_crash_at_each_lifecycle_point: bool =
     hist.crashPoints.size() >= 4
+}
+
+/// AMBIENT ADMISSION AND NOTHING ELSE.  `SY-10.b`'s situation is an ambient
+/// `grove-llm` operation arriving while the DRIVER holds the epoch lock
+/// exclusively — the post-reap handoff — and that window is two steps wide in a
+/// twenty-four-step trace, so a trace that wants one has to spend its whole
+/// environment budget arriving.
+module scenario_epoch_handoff {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 6,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(6)
+  ).* from "./lifecycle"
+
+  /// `SY-10.b`.  A contended generation reported as a visible timeout rather
+  /// than parked.  It moved here from the library once `system-k59` finding 2's
+  /// repair made the contention window the driver's real exclusive hold rather
+  /// than a session's imagined continuous one.
+  val wit_SY_10b_a_timeout_reported: bool = hist.genTimeoutReported
+}
+
+/// THE NULL HYPOTHESIS, AND IT IS COMMITTED SO THE COMPARISON CAN BE RE-RUN.
+///
+/// `system-k59` finding 5: the producer's "5 of 25 witnesses under a flat menu"
+/// came from an instrument that reached no commit, and a reconstruction
+/// disagreed with it by a factor of three.  This module IS that instrument now.
+/// It differs from `base` in one constant — `FLAT_MENU` — so the comparison is
+/// between two arrangements of the SAME actions with the same totality and the
+/// same environment budget.
+///
+/// The MEASUREMENT is not a runner command, because a runner command is a claim
+/// and this is an experiment: the number it produces is *how many witnesses
+/// fail to land*, and a runner whose obligation is that witnesses land cannot
+/// carry it.  The exact replay line is in the README's *The driver is
+/// deterministic, and that is the search dial*, and it names this module.  The
+/// one command below is the module's own positive control: a witness shallow
+/// enough that the flat menu still reaches it, so a run that reached NOTHING is
+/// distinguishable from a search this arrangement genuinely cannot make.
+module scenario_flat_menu {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = true,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  /// `SY-01.a`, and shallow: two lease acquisitions, which any arrangement of
+  /// the menu reaches.
+  val wit_SY_01a_the_flat_menu_still_reaches_a_shallow_witness: bool =
+    hist.secondDriverRefused
 }
 
 /// ONE CRASH, LANDING INSIDE THE TRANSACTION.  A finish interrupted between
@@ -132,14 +279,19 @@ module scenario_recovery {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -178,14 +330,19 @@ module relax_EN_08 {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -218,14 +375,19 @@ module relax_EN_11 {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -255,14 +417,19 @@ module mutant_lease_queue {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -291,14 +458,19 @@ module mutant_death_holds {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -329,14 +501,19 @@ module mutant_late_layout {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -366,14 +543,19 @@ module mutant_preflight_licence {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -402,14 +584,19 @@ module mutant_many_transitions {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -438,14 +625,19 @@ module mutant_unvalidated {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -460,6 +652,12 @@ module mutant_unvalidated {
 
 /// MODEL mutation, `SY-05.a`.  A missing task root is read as evidence about an EARLIER grove: the driver
   /// consults the completed teardown instead of starting a new one.
+  ///
+  /// SEARCHED LIKE `scenario_teardown`, and it has to be: the dial can fire only
+  /// on a scaffold attempted on the far side of a PROVEN teardown, and
+  /// `system-k59` finding 1's repair — a live session may end at any point —
+  /// turned that march into a coin flip per step.  The mutation is unchanged;
+  /// what changed is the search that reaches it.
 module mutant_absence_is_evidence {
   import lifecycle(
     CRASHES = true,
@@ -475,20 +673,25 @@ module mutant_absence_is_evidence {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0),
-    FOCUS = 0,
+    FOCUS = 3,
     ESCAPE_BOUND = 3,
-    ENV_BUDGET = 0,
+    ENV_BUDGET = 1,
     ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
-    ENV_KINDS = Set()
+    ENV_KINDS = Set(1)
   ).* from "./lifecycle"
 
   val inv_fail_MUT_SY_05a_absence_is_read_as_evidence: bool =
@@ -513,14 +716,19 @@ module mutant_early_deletion {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -530,7 +738,7 @@ module mutant_early_deletion {
   ).* from "./lifecycle"
 
   val inv_fail_MUT_SY_05b_absence_before_the_deletion_is_proven: bool =
-    inv_SY_05b_no_trace_exposes_absence_before_the_deletion_is_proven
+    inv_SY_05b_the_summary_never_records_absence_before_the_deletion_is_proven
 }
 
 /// MODEL mutation, `SY-06.a`.  A fresh grove indistinguishable from a finished one.
@@ -549,14 +757,19 @@ module mutant_charter_only {
     SCAFFOLD_LEAF = false,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -587,14 +800,19 @@ module mutant_absent_witness {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = false,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -623,14 +841,19 @@ module mutant_session_finish {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = false,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -660,14 +883,19 @@ module mutant_recompute_selection {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = false,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -697,14 +925,19 @@ module mutant_no_signal_is_done {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = true,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -715,6 +948,16 @@ module mutant_no_signal_is_done {
 
   val inv_fail_MUT_SY_09c_no_signal_is_inferred_as_done: bool =
     inv_SY_09c_no_signal_stops_and_is_never_inferred_as_done
+
+  /// THE TWO NEIGHBOURS, asserted rather than assumed.  The README used to say
+  /// this dial killed all three endings as a bundle; `system-k59` finding 3
+  /// showed it kills only this one, and these two commands are the evidence
+  /// that it is ISOLATING rather than the evidence it was claimed to be.
+  val inv_SY_09a_the_neighbour_stays_green: bool =
+    inv_SY_09a_relaunch_continues_the_loop
+
+  val inv_SY_09b_the_neighbour_stays_green: bool =
+    inv_SY_09b_done_ends_the_loop
 }
 
 /// MODEL mutation, `SY-10.a`.  An ambient operation touches the tree before matching the live launch
@@ -734,14 +977,19 @@ module mutant_no_gen_check {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = false,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -770,14 +1018,19 @@ module mutant_silent_park {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = false,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -807,14 +1060,19 @@ module mutant_restart_repeats {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = false,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -844,14 +1102,19 @@ module mutant_block_clears {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = false,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -885,14 +1148,19 @@ module mutant_guard_disorder {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = false,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 2,
     ESCAPE_BOUND = 3,
@@ -936,14 +1204,19 @@ module mutant_literal_sy13 {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = true,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -956,3 +1229,197 @@ module mutant_literal_sy13 {
     inv_SY_13b_no_stable_state_is_a_sink
 }
 
+/// MODEL mutation, `SY-07.a`, and ISOLATING.  The DRIVER appends a second
+/// finish leaf beside the one already there.  Session creation is left refused,
+/// so `SY-07.b` is untouched and asserted green below — which is what
+/// `system-k59`'s "each target fails while its neighbour remains green" asks
+/// for, and what the old bundle could not give.
+module mutant_two_finish_leaves {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = false,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_07a_two_driver_owned_finish_leaves: bool =
+    inv_SY_07a_exactly_one_driver_owned_finish_leaf
+
+  /// THE NEIGHBOUR, asserted rather than assumed.
+  val inv_SY_07b_the_neighbour_stays_green: bool =
+    inv_SY_07b_no_session_creates_a_finish_leaf
+}
+
+/// MODEL mutation, `SY-09.a`, and ISOLATING.  Only the RELAUNCH arm of the
+/// signal interpretation moves: a relaunch stops the loop.  `done` and
+/// `no signal` are untouched and both are asserted green below.
+module mutant_relaunch_stops {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = true,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_09a_a_relaunch_stops_the_loop: bool =
+    inv_SY_09a_relaunch_continues_the_loop
+
+  val inv_SY_09b_the_neighbour_stays_green: bool =
+    inv_SY_09b_done_ends_the_loop
+
+  val inv_SY_09c_the_neighbour_stays_green: bool =
+    inv_SY_09c_no_signal_stops_and_is_never_inferred_as_done
+}
+
+/// MODEL mutation, `SY-09.b`, and ISOLATING.  Only the DONE arm moves: a
+/// done continues the loop.  `relaunch` and `no signal` are untouched and both
+/// are asserted green below.
+module mutant_done_continues {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = true,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_09b_a_done_continues_the_loop: bool =
+    inv_SY_09b_done_ends_the_loop
+
+  val inv_SY_09a_the_neighbour_stays_green: bool =
+    inv_SY_09a_relaunch_continues_the_loop
+
+  val inv_SY_09c_the_neighbour_stays_green: bool =
+    inv_SY_09c_no_signal_stops_and_is_never_inferred_as_done
+}
+
+/// MODEL mutation, `SY-14.b`, and ISOLATING.  The block stays STICKY — so
+/// nothing clears it and `SY-14.a` is untouched and asserted green below — but
+/// every refusal on the blocked tree carries `NotLive`, which names no block.
+/// Configured like `scenario_recovery`, because a `SY-14` control needs a
+/// BLOCK, and a block needs one crash landing inside the transaction.
+module mutant_block_unnamed {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = false,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 1,
+    ENV_PHASES = Set(6, 7),
+    ENV_KINDS = Set(0)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_14b_a_blocked_action_does_not_name_the_block: bool =
+    inv_SY_14b_every_action_on_a_blocked_tree_refuses_naming_it
+
+  val inv_SY_14a_the_neighbour_stays_green: bool =
+    inv_SY_14a_no_admitted_action_clears_a_block
+}

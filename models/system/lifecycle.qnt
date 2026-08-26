@@ -21,6 +21,17 @@
 //
 // THE MODULE RULE IS DEFINED IN ONE PLACE — `models/run.sh`, *THE MODULE RULE*
 // — and cited rather than restated here.
+//
+// REVIEWED AND REPAIRED BY `system-k59` / `system-k60`.  The review's subject
+// was this INSTRUMENT rather than its findings, and six defects were real: the
+// search chain removed real finish-session endings and reversed the epoch
+// handoff; the launch generation was modelled as a lock the session holds
+// continuously, which Grove has no such thing as; a control documented as a
+// bundle over three claims killed one; the `SY-14.a` sweep read "succeeded" as
+// "cleared the block"; the flat-menu comparison could not be re-run; and
+// `SY-05.b` checked two values one setter manufactures together.  All six are
+// applied.  Each site carries a `system-k59 finding N` note, and the README's
+// Quint section carries the whole ledger.
 // =============================================================================
 
 module lifecycle {
@@ -76,14 +87,29 @@ module lifecycle {
   /// the format witness rather than by the catalogue's exact subset.
   const PARTIAL_BY_SUBSET: bool
 
-  /// MODEL, `SY-07` — a session may create the finish leaf.
+  /// MODEL, `SY-07.b` — a session may create the finish leaf.
   const DRIVER_OWNS_FINISH: bool
+
+  /// MODEL, `SY-07.a` — the driver appends a SECOND finish leaf instead of
+  /// reusing the one already there.  Isolating for `SY-07.a`: session creation
+  /// stays refused, so `SY-07.b` is untouched.
+  const ONE_FINISH_LEAF: bool
 
   /// MODEL, `SY-08` — selection is recomputed at launch.
   const SELECT_ONCE: bool
 
-  /// MODEL, `SY-09.c` — no signal is inferred as done.
+  /// MODEL, `SY-09.c` — no signal is inferred as done.  ISOLATING: it changes
+  /// only the `no signal` arm of the interpretation, which is why the two
+  /// dials below exist rather than a claim that this one covers all three.
   const NO_SIGNAL_IS_DONE: bool
+
+  /// MODEL, `SY-09.a` — a RELAUNCH stops the loop.  Only the relaunch arm
+  /// moves; `done` and `no signal` are untouched.
+  const RELAUNCH_ENDS_LOOP: bool
+
+  /// MODEL, `SY-09.b` — a DONE continues the loop.  Only the done arm moves;
+  /// `relaunch` and `no signal` are untouched.
+  const DONE_CONTINUES_LOOP: bool
 
   /// MODEL, `SY-10.a` — an ambient operation touches the tree before matching
   /// the live launch generation.
@@ -101,15 +127,38 @@ module lifecycle {
   /// already completed.
   const RESUME_IS_IDEMPOTENT: bool
 
-  /// MODEL, `SY-14` — an admitted action clears a block.
+  /// MODEL, `SY-14.a` — an admitted action clears a block.
   const BLOCK_STICKY: bool
+
+  /// MODEL, `SY-14.b` — a blocked tree refuses, but with a reason that does
+  /// NOT name the block.  Isolating for `SY-14.b`: the block stays sticky, so
+  /// nothing clears it and `SY-14.a` is untouched.
+  const BLOCK_NAMED: bool
 
   /// The two cooperating processes the catalogue's omission fixes.
   const PROCS: Set[int]
 
+  /// THE FLAT MENU, COMMITTED so that the comparison in the README's *The
+  /// driver is deterministic, and that is the search dial* can be RE-RUN rather
+  /// than quoted.  `system-k59` finding 5: the producer's 5-of-25 figure came
+  /// from an instrument that was never committed, and a reconstruction
+  /// disagreed with it by a factor of three.  With `FLAT_MENU` on, `step` is a
+  /// uniform choice over the whole action vocabulary — the null hypothesis
+  /// `driverStep` is measured against — and `scenario_flat_menu` is the
+  /// instance the README's replay line names.
+  const FLAT_MENU: bool
+
   /// The search dial.  0 is the unfocused menu; a `scenario_` instance narrows
   /// it onto one situation.  It removes no behaviour from the world — every
   /// claim is still checked unfocused in `base`.
+  ///
+  /// 2 is the guard-contention menu.  3 is *the session takes its own work
+  /// while it has any* — a narrowing on the SEARCH, added because
+  /// `system-k59` finding 1's repair makes a live session's ending nondeter-
+  /// ministic at every step, and a twenty-step march through a coin flip per
+  /// step lands nowhere.  It is in a `scenario_` and nowhere else, which is the
+  /// discipline the review found `driverStep` had broken by narrowing in
+  /// `base`.
   const FOCUS: int
 
   /// `SY-13`'s escape bound: the length of the bounded sequence the claim
@@ -303,8 +352,13 @@ module lifecycle {
       | BConflict => r == RReservedNameOccupied
     }
 
+  /// The reason a blocked tree actually refuses with.  With `BLOCK_NAMED` off
+  /// it refuses with a reason that names nothing — which is `SY-14.b`'s
+  /// falsification and leaves `SY-14.a` alone, since a refusal still clears no
+  /// block.
   pure def blockRefusal(b: Block): Refusal =
-    match b {
+    if (not(BLOCK_NAMED)) RNotLive
+    else match b {
       | BNone => RNotLive
       | BPending => RWitnessPending
       | BConflict => RReservedNameOccupied
@@ -398,7 +452,21 @@ module lifecycle {
     leaseLayoutOk: bool,
     gen: int,
     genOpen: bool,
-    genHolder: int,
+    // THE EPOCH IS A SHARED/EXCLUSIVE LOCK, NOT A TOKEN ONE PROCESS CARRIES.
+    // `system-k59` finding 2.  Grove gives each ambient `grove-llm` operation
+    // its own SHARED admission, held through that operation and its later tree
+    // guard (`src/driver_lease.rs`, `admit_session` and `SessionEpochGuard`),
+    // and the driver takes the lock EXCLUSIVELY for pre-spawn activation and
+    // for post-reap invalidation (`activate_session_epoch`,
+    // `invalidate_session_epoch`).  The launched session holds nothing
+    // continuously; modelling it as if it did made `SY-11.b`'s counterexample
+    // an artifact of the model rather than a fact about Grove's wait graph.
+    genShared: Set[int],
+    genExclusive: int,
+    // The child has been collected AND the epoch invalidated, and the
+    // completion signal has not been interpreted yet.  `SY-09`'s three endings
+    // are read in this window and never before it.
+    reaped: bool,
     treeGuard: int,
     waits: int -> Wait,
     loopRunning: bool,
@@ -416,23 +484,32 @@ module lifecycle {
   }
 
   pure val NO_DRIVER: Driver = {
-    lease: -1, layoutProved: false, orderStage: 0, loopEnd: 0, leaseLayoutOk: false, gen: 0, genOpen: false, genHolder: -1,
+    lease: -1, layoutProved: false, orderStage: 0, loopEnd: 0,
+    leaseLayoutOk: false, gen: 0, genOpen: false,
+    genShared: Set(), genExclusive: -1, reaped: false,
     treeGuard: -1, waits: Map(), loopRunning: true, iterOpen: false,
     configValidated: false, selected: -2, launchedHandle: -2,
     session: NO_SESSION, transitions: 0, soloTag: ATSelect, ending: 0,
     lastAction: ATSelect, lastOutcome: ONone,
   }
 
-  pure def holderOf(d: Driver, wt: Wait): int =
-    match wt {
-      | WNothing => -1
-      | WLease => d.lease
-      | WGen => d.genHolder
-      | WTree => d.treeGuard
-    }
+  /// WHO A WAITER AT THE EPOCH IS WAITING FOR.  An acquisition conflicts with
+  /// the exclusive holder if there is one, and otherwise with any in-flight
+  /// SHARED holder — which is the wait an exclusive acquisition actually makes.
+  /// Two shared holders do not wait for each other, which is why this is a
+  /// function of the waiter and not a single `genHolder` field.
+  pure def genHolderFor(d: Driver, p: int): int =
+    if (d.genExclusive != -1 and d.genExclusive != p) d.genExclusive
+    else d.genShared.exclude(Set(p)).fold(-1, (acc, q) => if (acc == -1) q else acc)
 
   pure def waitEdge(d: Driver, p: int): int =
-    if (d.waits.keys().contains(p)) holderOf(d, d.waits.get(p)) else -1
+    if (not(d.waits.keys().contains(p))) -1
+    else match d.waits.get(p) {
+      | WNothing => -1
+      | WLease => d.lease
+      | WGen => genHolderFor(d, p)
+      | WTree => d.treeGuard
+    }
 
   /// A cycle in the wait-for graph, within the two-process bound the
   /// catalogue's omission fixes: `p` waits for `q` and `q` waits back.  Stated
@@ -589,6 +666,9 @@ module lifecycle {
     preempted: bool,
     insertedDuringWindow: bool,
     endings: Set[int],
+    // A finish session that found ordinary work left, added it, retired the
+    // finish leaf and signalled relaunch — the methodology's reopening exit.
+    reopened: bool,
     noSignalInferredDone: bool,
     noSignalWithProvenTeardown: bool,
     staleTouchedTree: bool,
@@ -650,7 +730,7 @@ module lifecycle {
     legacyRefused: false, finishAppended: false, finishReused: false,
     twoFinishLeaves: false, sessionCreatedFinish: false,
     sessionRefusedFinish: false, preempted: false, insertedDuringWindow: false,
-    endings: Set(), noSignalInferredDone: false,
+    endings: Set(), reopened: false, noSignalInferredDone: false,
     noSignalWithProvenTeardown: false, staleTouchedTree: false,
     staleRefused: false, silentPark: false, genTimeoutReported: false,
     orderViolated: false, fullOrderReached: false, cycleSeen: false,
@@ -747,6 +827,29 @@ module lifecycle {
       if (d.genOpen) ORefused(REpochStale) else OApplied
     else if (a == ATLaunch and not(d.genOpen)) ORefused(REpochStale)
     else treeGate(w, a)
+
+  /// The block a hypothetical application of `a` would LEAVE BEHIND.
+  ///
+  /// `SY-14.a` says no admitted action CLEARS a block, and clearing is a state
+  /// transition rather than a successful invocation: `release-lease` and
+  /// `validate-config` succeed on a blocked tree and change no block at all.
+  /// A sweep that reads any `Applied` as a clearing is measuring the wrong
+  /// thing — `system-k59` finding 4 — so the sweep computes the SUCCESSOR's
+  /// block here, from the same effects the real actions apply, through the
+  /// same `outcomeOn` classifier that decides whether they apply at all.
+  pure def blockAfter(w: World, d: Driver, p: int, a: ActionTag): Block =
+    if (outcomeOn(w, d, p, d.gen, a) != OApplied) w.fin.block
+    // `scaffoldOp` installs `NO_FIN`, which is the one effect in the model
+    // that takes a block back to `BNone`.
+    else if (a == ATScaffold) BNone
+    else if (a == ATFinishStep and not(BLOCK_STICKY)) BNone
+    else if (a == ATRecover)
+      if (not(BLOCK_STICKY) and w.fin.block != BNone) BNone
+      else if (w.tree.foreignReserved) BConflict
+      else if (not(RESUME_IS_IDEMPOTENT)) w.fin.block
+      else if (w.fin.ticket) w.fin.block
+      else BPending
+    else w.fin.block
 
   pure def phaseNum(f: Fin): int =
     match f.phase {
@@ -865,10 +968,13 @@ module lifecycle {
         h.repeatedCompletedEffect or
         (applied and (a == ATFinishStep or a == ATRecover) and
          wPost.fin.phase != FPIdle and ph < h.maxPhase),
+      // LITERAL over the admitted set, deliberately: `SY-14.a` is about a
+      // block being CLEARED, and once that is a state transition there is
+      // nothing left for a `touchesTree` narrowing to protect.
       blockCleared:
         h.blockCleared or
         (wPre.fin.block != BNone and wPost.fin.block == BNone and
-         ADMITTED.contains(a) and touchesTree(a)),
+         ADMITTED.contains(a)),
       blockedActionNotNaming:
         h.blockedActionNotNaming or
         (wPre.fin.block != BNone and ADMITTED.contains(a) and touchesTree(a) and
@@ -931,7 +1037,8 @@ module lifecycle {
     val d2 =
       if (o == OApplied)
         { ...d, lease: -1, layoutProved: false, orderStage: 0, genOpen: false,
-          genHolder: -1, treeGuard: -1, waits: clearWait(d.waits, p),
+          genShared: Set(), genExclusive: -1,
+          treeGuard: -1, waits: clearWait(d.waits, p),
           iterOpen: false, lastAction: ATReleaseLease, lastOutcome: o }
       else { ...d, lastAction: ATReleaseLease, lastOutcome: o }
     all {
@@ -961,7 +1068,9 @@ module lifecycle {
     val violated = GUARD_ORDER and d.orderStage < 1
     val d2 =
       if (o == OApplied)
-        { ...d, gen: d.gen + 1, genOpen: true, genHolder: p,
+        // Pre-spawn ACTIVATION: the driver takes the epoch lock exclusively,
+        // writes the record and lets go.  Nothing holds it afterwards.
+        { ...d, gen: d.gen + 1, genOpen: true, genExclusive: -1,
           orderStage: if (d.orderStage >= 1) 2 else d.orderStage,
           lastAction: ATOpenEpoch, lastOutcome: o }
       else { ...d, lastAction: ATOpenEpoch, lastOutcome: o }
@@ -977,7 +1086,10 @@ module lifecycle {
     val o = outcomeOn(w, d, p, d.gen, ATCloseEpoch)
     val d2 =
       if (o == OApplied)
-        { ...d, genOpen: false, genHolder: -1, treeGuard: -1,
+        // Closing the epoch is an exclusive rewrite, so it returns only once
+        // every in-flight shared admission has drained.
+        { ...d, genOpen: false, genShared: Set(), genExclusive: -1,
+          treeGuard: -1,
           orderStage: if (d.orderStage > 1) 1 else d.orderStage,
           iterOpen: true, configValidated: false, selected: -2,
           launchedHandle: -2, transitions: 0,
@@ -1078,8 +1190,13 @@ module lifecycle {
 
   action appendFinishOp(p: int): bool =
     val o = outcomeOn(w, d, p, d.gen, ATAppendFinish)
-    val reuse = w.tree.liveFinish > 0
-    val t2 = { ...w.tree, liveFinish: if (reuse) w.tree.liveFinish else 1,
+    // `SY-07.a`'s REUSE, and its dial.  With `ONE_FINISH_LEAF` off the driver
+    // appends a second leaf beside the one already there, which is how "exactly
+    // one driver-owned finish leaf" fails WITHOUT a session creating anything —
+    // the isolating control `SY-07.a` did not have.
+    val reuse = ONE_FINISH_LEAF and w.tree.liveFinish > 0
+    val t2 = { ...w.tree, liveFinish: if (reuse) w.tree.liveFinish
+                                      else w.tree.liveFinish + 1,
                bytes: w.tree.bytes + 1 }
     val w2 = if (o == OApplied) { ...w, tree: t2 } else w
     val d2 = afterTree(w, d, ATAppendFinish, o)
@@ -1151,14 +1268,13 @@ module lifecycle {
     // before launching.  With `SELECT_ONCE` off it recomputes, and a leaf
     // added during the launch window preempts the running one.
     val h = if (SELECT_ONCE) d.selected else selectHandle(w.tree)
-    // The launch generation is held by the LAUNCHED SESSION, which is a
-    // different process from the driver.  That is what makes `SY-11.b`'s cycle
-    // reachable at all: the driver can hold the tree guard while the session
-    // holds the generation, which is the edge the guard order forbids.
+    // The launched session is a different process from the driver, and it
+    // holds NO epoch lock of its own — `system-k59` finding 2.  What it does is
+    // run `grove-llm` operations, and each of those takes its own shared
+    // admission for its own duration; see `ambientAdmit`.
     val sp = if (p == 0) 1 else 0
     val d2 = { ...afterTree(w, d, ATLaunch, o),
                launchedHandle: if (o == OApplied) h else d.launchedHandle,
-               genHolder: if (o == OApplied) sp else d.genHolder,
                session: if (o == OApplied)
                           { live: true, proc: sp, gen: d.gen, handle: h }
                         else d.session }
@@ -1204,31 +1320,71 @@ module lifecycle {
   /// An ambient operation from a session.  It is NOT the lease holder, and
   /// `SY-10.a` is the claim that it matches the live launch generation before
   /// it may touch the tree.
-  action ambientOp(p: int, g: int): bool =
-    val contended = d.genOpen and d.genHolder != -1 and d.genHolder != p
+  /// ADMISSION.  An ambient operation asks for the epoch lock SHARED and holds
+  /// it through the operation and its later tree guard.  It conflicts only with
+  /// the driver's EXCLUSIVE hold — the post-reap handoff — and `SY-10.b` is the
+  /// claim that such a conflict times out visibly rather than parking.
+  action ambientAdmit(p: int): bool =
+    val contended = d.genExclusive != -1 and d.genExclusive != p
     val timedOut = contended and GEN_TIMEOUT
     val parked = contended and not(GEN_TIMEOUT)
+    // ADMISSION TOUCHES NO TREE, and the tag says so.  It is an acquisition of
+    // the epoch lock, so it is folded into the record as an epoch action with a
+    // REPORTED outcome — not as an applied `ATAmbient`, which would tell
+    // `observe` that a tree was touched and make `SY-03` and `SY-14.b` answer
+    // for a lock acquisition.  The tree is touched in `ambientOp`, under the
+    // admission this step won.
     val o = if (timedOut) ORefused(REpochStale)
-            else outcomeOn(w, d, p, g, ATAmbient)
+            else if (parked) ONone
+            else OReported
+    val d2 = { ...d,
+               genShared: if (contended) d.genShared else d.genShared.union(Set(p)),
+               waits: if (parked) d.waits.put(p, WGen) else d.waits,
+               lastAction: ATOpenEpoch, lastOutcome: o }
+    all {
+      // NO `genOpen` PRECONDITION, deliberately.  An arriving operation blocks
+      // on the lock FIRST and reads the record afterwards
+      // (`src/driver_lease.rs`, `admit_session`), so whether the epoch is
+      // active decides the operation's outcome — `SY-10.a` — and not whether it
+      // may queue at all.  Requiring an open epoch here made the driver's own
+      // exclusive window, which is exactly when the record is inactive, the one
+      // window in which nothing could contend.
+      d.lease != -1,
+      p != d.lease,
+      not(d.genShared.contains(p)),
+      hist.envUsed < ENV_BUDGET,
+      w' = w,
+      d' = d2,
+      hist' = {
+        ...observe(hist, w, d, w, d2, ATOpenEpoch, o),
+        envUsed: hist.envUsed + 1,
+        genTimeoutReported: hist.genTimeoutReported or timedOut,
+        silentPark: hist.silentPark or parked,
+      },
+    }
+
+  /// THE OPERATION ITSELF, under the admission it already holds, and it RELEASES
+  /// that admission when it returns.  It costs no environment budget, because
+  /// the budget was spent admitting it and a model that could admit an operation
+  /// it can never let finish would stall the loop rather than perturb it.
+  action ambientOp(p: int, g: int): bool =
+    val o = outcomeOn(w, d, p, g, ATAmbient)
     val stale = not(d.genOpen) or g != d.gen
     val t2 = { ...w.tree, bytes: w.tree.bytes + 1 }
-    val w2 = if (o == OApplied and not(parked)) { ...w, tree: t2 } else w
+    val w2 = if (o == OApplied) { ...w, tree: t2 } else w
     val d2 = { ...afterTree(w, d, ATAmbient, o),
-               waits: if (parked) d.waits.put(p, WGen) else d.waits }
+               genShared: d.genShared.exclude(Set(p)),
+               waits: clearWait(d.waits, p) }
     all {
-      hist.envUsed < ENV_BUDGET,
+      d.genShared.contains(p),
       w' = w2,
       d' = d2,
       hist' = {
         ...observe(hist, w, d, w2, d2, ATAmbient, o),
-        envUsed: hist.envUsed + 1,
-        staleTouchedTree:
-          hist.staleTouchedTree or (o == OApplied and stale and not(parked)),
+        staleTouchedTree: hist.staleTouchedTree or (o == OApplied and stale),
         staleRefused:
           hist.staleRefused or
           (stale and isRefusal(o) and refusalOf(o) == REpochStale),
-        genTimeoutReported: hist.genTimeoutReported or timedOut,
-        silentPark: hist.silentPark or parked,
       },
     }
 
@@ -1236,13 +1392,24 @@ module lifecycle {
   /// what `grove-llm complete` signals, and it is where exhaustion comes from.
   /// `done` and `no signal` retire nothing.
   action sessionEnds(k: int): bool =
-    val retires = k == 1 and w.tree.liveOrdinary > 0 and w.tree.witnessPresent
-    val w2 = if (retires)
-               { ...w, tree: { ...w.tree, liveOrdinary: w.tree.liveOrdinary - 1,
-                               bytes: w.tree.bytes + 1 } }
-             else w
+    // THE METHODOLOGY'S REOPENING EXIT, and `system-k59` finding 1 is why it is
+    // here: a finish session that finds ordinary work left adds it, retires the
+    // finish leaf and signals RELAUNCH.  The model used to be unable to
+    // represent it, because a launched finish session could not end at all.
+    val finishSession = d.launchedHandle == 0
+    val reopens = k == 1 and finishSession and w.fin.phase == FPIdle and
+                  w.tree.liveFinish > 0 and w.tree.witnessPresent
+    val retires = k == 1 and not(reopens) and
+                  w.tree.liveOrdinary > 0 and w.tree.witnessPresent
+    val t2 =
+      if (reopens) { ...w.tree, liveOrdinary: w.tree.liveOrdinary + 1,
+                     liveFinish: 0, bytes: w.tree.bytes + 1 }
+      else if (retires) { ...w.tree, liveOrdinary: w.tree.liveOrdinary - 1,
+                          bytes: w.tree.bytes + 1 }
+      else w.tree
+    val w2 = if (reopens or retires) { ...w, tree: t2 } else w
     val d2 = { ...d, ending: k, session: { ...d.session, live: false },
-               genHolder: -1, lastAction: ATReap, lastOutcome: OReported }
+               lastAction: ATReap, lastOutcome: OReported }
     all {
       d.session.live,
       w' = w2,
@@ -1250,27 +1417,94 @@ module lifecycle {
       hist' = {
         ...observe(hist, w, d, w2, d2, ATReap, OReported),
         endings: hist.endings.union(Set(k)),
+        reopened: hist.reopened or reopens,
         noSignalWithProvenTeardown:
           hist.noSignalWithProvenTeardown or (k == 3 and w.fin.deletionProven),
       },
     }
 
+  /// WHAT A LIVE SESSION DOES NEXT, and it is not always its own work.
+  ///
+  /// `system-k59` finding 1: the chain used to force a launched FINISH session
+  /// through teardown, so decline, early failure, no signal and the reopening
+  /// exit were all unreachable — while the Rust loop accepts any of the three
+  /// signal dispositions after ANY launched session
+  /// (`src/loop_driver.rs:162`, `src/loop_driver.rs:190`).  So a live session
+  /// may end at ANY point, in any of the three ways, and the finish session's
+  /// own work is one alternative among them rather than a forced march.
+  action sessionMove(p: int): bool =
+    val cls = classifyTree(w.tree)
+    val reserved = match cls { RSReserved(_) => true | _ => false }
+    val finishOnly = match cls { RSCurrentFinishOnly => true | _ => false }
+    val finishSession = d.launchedHandle == 0
+    // SEARCH ONLY, and only under `FOCUS = 3`: the session has work of its own
+    // here, so the search takes it rather than ending.  Every ending remains
+    // reachable in `base`, which is where every property is checked.
+    val hasWork = finishSession and (reserved or finishOnly)
+    any {
+      all { FOCUS != 3 or not(hasWork),
+            nondet k = oneOf(Set(1, 2, 3)) sessionEnds(k) },
+      all { finishSession, reserved, w.fin.orphaned, recoverOp(p) },
+      all { finishSession, reserved, not(w.fin.orphaned), finishStepOp(p) },
+      all { finishSession, finishOnly, finishStepOp(p) },
+    }
+
+  /// COLLECT THE CHILD, THEN INVALIDATE THE EPOCH — AND INTERPRET NOTHING.
+  ///
+  /// `system-k59` finding 1's second half.  Grove reaps, then acquires the
+  /// exclusive epoch handoff and invalidates the epoch, and only THEN reads the
+  /// signal file (`src/loop_driver.rs:170`, `src/loop_driver.rs:353`,
+  /// `complete_post_reap_epoch_handoff`).  The model used to interpret the
+  /// ending here while leaving the epoch open, which is that order backwards.
+  /// The invalidation and the interpretation are two STEPS now, so the order is
+  /// a fact about the trace rather than a claim about the source.
   action reapOp(p: int): bool =
     val o = outcomeOn(w, d, p, d.gen, ATReap)
-    val le = if (d.ending == 1) 0
-             else if (d.ending == 2) 1
+    val d2 = { ...afterTree(w, d, ATReap, o),
+               reaped: if (o == OApplied) true else d.reaped,
+               genOpen: if (o == OApplied) false else d.genOpen,
+               gen: if (o == OApplied) d.gen + 1 else d.gen,
+               // The driver holds the exclusive handoff from here until it has
+               // read the signal, which is the window an ambient admission
+               // contends with (`SY-10.b`).
+               genExclusive: if (o == OApplied) p else d.genExclusive,
+               treeGuard: if (o == OApplied) -1 else d.treeGuard,
+               orderStage:
+                 if (o == OApplied and d.orderStage > 1) 1 else d.orderStage }
+    all {
+      d.lease == p,
+      d.ending != 0,
+      not(d.session.live),
+      not(d.reaped),
+      w' = w,
+      d' = d2,
+      hist' = observe(hist, w, d, w, d2, ATReap, o),
+    }
+
+  /// READ THE SIGNAL, in the window the invalidation opened.
+  ///
+  /// THREE ARMS, THREE DIALS, and that is the correction `system-k59` finding 3
+  /// forced.  The arms used to be two constants and one dial, so
+  /// `mutant_no_signal_is_done` could not touch `SY-09.a` or `SY-09.b` at all
+  /// and the "bundle control" the README claimed did not exist.
+  action interpretSignalOp(p: int): bool =
+    val o = outcomeOn(w, d, p, d.gen, ATReap)
+    val le = if (d.ending == 1) (if (RELAUNCH_ENDS_LOOP) 2 else 0)
+             else if (d.ending == 2) (if (DONE_CONTINUES_LOOP) 0 else 1)
              else if (NO_SIGNAL_IS_DONE) 1
              else 2
     val d2 = { ...afterTree(w, d, ATReap, o),
                loopEnd: if (o == OApplied) le else d.loopEnd,
+               reaped: if (o == OApplied) false else d.reaped,
+               genExclusive: if (o == OApplied) -1 else d.genExclusive,
                ending: if (o == OApplied) 0 else d.ending,
                selected: if (o == OApplied) -2 else d.selected,
                launchedHandle: if (o == OApplied) -2 else d.launchedHandle,
                transitions: if (o == OApplied) 0 else d.transitions }
     all {
       d.lease == p,
-      d.ending != 0,
-      not(d.session.live),
+      d.reaped,
+      not(d.genOpen),
       w' = w,
       d' = d2,
       hist' = {
@@ -1293,13 +1527,20 @@ module lifecycle {
   action finishStepOp(p: int): bool =
     val o = outcomeOn(w, d, p, d.gen, ATFinishStep)
     val f = w.fin
+    // MODEL, `SY-14.a`: the block is NOT sticky, so the transaction's own next
+    // step walks straight through it and clears it.  That is an ADMITTED action
+    // clearing a block, which is the whole of what the claim forbids — and it
+    // is the mutation the old dial only *appeared* to make, because the sweep
+    // read any successful invocation as a clearing (`system-k59` finding 4).
+    val unblocked = if (BLOCK_STICKY) f.block else BNone
     val f2 =
       match f.phase {
-        | FPIdle => { ...f, phase: FPPreparing, attempt: f.attempt + 1, handle: 1 }
-        | FPPreparing => { ...f, phase: FPPublished }
-        | FPPublished => { ...f, phase: FPDeleting, ticket: true }
-        | FPDeleting => { ...f, phase: FPProven, deletionProven: true }
-        | FPProven => f
+        | FPIdle => { ...f, block: unblocked, phase: FPPreparing,
+                      attempt: f.attempt + 1, handle: 1 }
+        | FPPreparing => { ...f, block: unblocked, phase: FPPublished }
+        | FPPublished => { ...f, block: unblocked, phase: FPDeleting, ticket: true }
+        | FPDeleting => { ...f, block: unblocked, phase: FPProven, deletionProven: true }
+        | FPProven => { ...f, block: unblocked }
       }
     val t2 =
       match f.phase {
@@ -1329,7 +1570,14 @@ module lifecycle {
     val o = outcomeOn(w, d, p, d.gen, ATRecover)
     val f = w.fin
     val f2 =
-      if (w.tree.foreignReserved) { ...f, block: BConflict, orphaned: false }
+      // MODEL, `SY-14.a`: the block is NOT sticky — a retried recovery clears
+      // it, which is an ADMITTED action clearing a block and is the whole of
+      // what the claim forbids.  The dial used to be read off the sweep's
+      // "some action succeeded" test instead, which is what `system-k59`
+      // finding 4 showed was measuring nothing.
+      if (not(BLOCK_STICKY) and f.block != BNone)
+        { ...f, block: BNone, orphaned: false }
+      else if (w.tree.foreignReserved) { ...f, block: BConflict, orphaned: false }
       else if (not(RESUME_IS_IDEMPOTENT))
         // MODEL: the resume restarts the transaction from its first step,
         // repeating effects the crashed attempt had already completed.
@@ -1356,16 +1604,26 @@ module lifecycle {
   /// mutates nothing — and it is classified through the same `outcomeOn` the
   /// real actions use, so it cannot agree with them by being a second spelling.
   action sweepBlocked(p: int): bool =
-    // NARROWED, and the narrowing is declared: the sweep is over the admitted
-    // actions that TOUCH THE TREE.  `SY-14` says "no admitted action" and
-    // "every action", and taken literally that reaches `acquire-lease`,
-    // `validate-config` and `release-lease` — so a blocked tree could not even
-    // release its own lease, and the operator's two restorable exits would be
-    // unreachable.  See the README's *Narrowings*.
-    val sweepSet = ADMITTED.filter(a => touchesTree(a))
-    val results = sweepSet.map(a => outcomeOn(w, d, p, d.gen, a))
-    val cleared = sweepSet.exists(a => outcomeOn(w, d, p, d.gen, a) == OApplied)
-    val allNamed = sweepSet.forall(a =>
+    // THE TWO HALVES ARE SWEPT OVER DIFFERENT SETS, and that asymmetry is the
+    // corrected experiment `system-k59` finding 4 forced.
+    //
+    // `SY-14.a` — "no admitted action SHALL clear a block" — is swept over the
+    // LITERAL admitted set.  Once clearing is measured as a state transition
+    // rather than as a successful invocation, `release-lease` and
+    // `validate-config` succeeding on a blocked tree stop being counter-
+    // examples, because neither changes the block.  The narrowing this half
+    // used to carry was hiding a faulty measurement, not a wide quantifier.
+    //
+    // `SY-14.b` — "every action on a blocked tree SHALL refuse naming it" — IS
+    // narrowed, and the narrowing is declared: taken literally it reaches
+    // `acquire-lease`, `validate-config` and `release-lease`, so a blocked tree
+    // could not even release its own lease and `FN-26`'s two operator-
+    // restorable exits would be unreachable.  See the README's *Narrowings*.
+    val clearSet = ADMITTED
+    val namingSet = ADMITTED.filter(a => touchesTree(a))
+    val cleared =
+      clearSet.exists(a => blockAfter(w, d, p, a) == BNone)
+    val allNamed = namingSet.forall(a =>
       val o = outcomeOn(w, d, p, d.gen, a)
       isRefusal(o) and namesTheBlock(refusalOf(o), w.fin.block))
     val o = ORefused(blockRefusal(w.fin.block))
@@ -1373,7 +1631,8 @@ module lifecycle {
     all {
       w.fin.block != BNone,
       d.lease == p,
-      results.size() > 0,
+      clearSet.size() > 0,
+      namingSet.size() > 0,
       w' = w,
       d' = d2,
       hist' = {
@@ -1433,9 +1692,8 @@ module lifecycle {
   action contendGen(p: int): bool =
     val d2 = { ...d, waits: d.waits.put(p, WGen) }
     all {
-      d.genOpen,
-      d.genHolder != -1,
-      d.genHolder != p,
+      d.genOpen or d.genExclusive != -1,
+      genHolderFor(d, p) != -1,
       not(d.waits.keys().contains(p)),
       not(GUARD_ORDER) or d.treeGuard != p,
       hist.envUsed < ENV_BUDGET,
@@ -1455,7 +1713,7 @@ module lifecycle {
       if (DEATH_RELEASES)
         { ...NO_DRIVER, gen: d.gen, loopEnd: d.loopEnd, treeGuard: -1 }
       else
-        { ...d, session: NO_SESSION, genHolder: -1 }
+        { ...d, session: NO_SESSION, genShared: Set(), genExclusive: -1 }
     val w2 = { ...w, fin: { ...w.fin, orphaned: finRunning(w.fin) } }
     all {
       CRASHES,
@@ -1551,13 +1809,23 @@ module lifecycle {
   // could ever take does not model a driver, it models a random walk that
   // happens to share its vocabulary — and it puts every deep witness at
   // `(1/k)^15`, which is the *vacuous invariant* hazard in the form an
-  // executable model takes.
+  // executable model takes.  `flatStep` and `scenario_flat_menu` are that
+  // random walk, committed, so the comparison is a measurement rather than a
+  // remembered number; the README carries the replay line and the result.
   //
   // So `driverStep` IS the loop, written as the chain of conditionals a loop
   // is, and every action it can reach is still TOTAL: the branch a failed
-  // guard reaches returns a named refusal rather than being absent.  What stays
-  // nondeterministic is what genuinely is: which of the three endings a session
-  // takes, and what the world does between two steps.
+  // guard reaches returns a named refusal rather than being absent.
+  //
+  // "AND IT REMOVES NO BEHAVIOUR" WAS NOT TRUE, AND `system-k59` FOUND WHERE.
+  // The chain used to force a launched FINISH session through teardown, so a
+  // finish session that declines, fails early, gives no signal, or takes the
+  // methodology's reopening exit was unreachable — and every `SY-` property was
+  // therefore checked over a world in which none of those happens.  A live
+  // session's move is now `sessionMove`, and the ending is one alternative
+  // among its own work at EVERY point.  What stays nondeterministic is what
+  // genuinely is: which of the three endings a session takes, WHEN it takes it,
+  // and what the world does between two steps.
   // ---------------------------------------------------------------------------
 
   /// Whether the next lifecycle move is a TRANSITION, and therefore whether the
@@ -1568,36 +1836,48 @@ module lifecycle {
       | RSPartialScaffold => true
       | RSReserved(_) => wNow.fin.orphaned
       | RSCurrentSpent => true
+      // Only with `ONE_FINISH_LEAF` off: the driver's next move on a
+      // finish-only tree is a second APPEND, which is a transition and must
+      // therefore wait for its own iteration like every other one.
+      | RSCurrentFinishOnly =>
+          not(ONE_FINISH_LEAF) and wNow.fin.phase == FPIdle and
+          dNow.selected == -2 and not(dNow.session.live)
       | _ => false
     }
 
   action driverStep(p: int): bool =
     if (d.lease != p) acquireLease(p)
-    else if (d.ending != 0) reapOp(p)
+    // The reap window, in the order the Rust loop takes it: collect, invalidate,
+    // and only then read the signal.
+    else if (d.reaped) interpretSignalOp(p)
+    else if (d.ending != 0 and not(d.session.live)) reapOp(p)
     else if (CONFIG_FIRST and not(d.configValidated)) validateConfig(p)
     else if (not(d.genOpen)) openEpoch(p)
-    else if (w.fin.block != BNone) sweepBlocked(p)
-    else if (nextIsTransition(w, d) and ONE_TRANSITION and d.transitions >= 1
-             and not(d.session.live))
+    // The sweep IS the loop's next move on a blocked tree, which is what makes
+    // a block terminal.  With `BLOCK_STICKY` off there is no block to be
+    // terminal about, so the driver walks on and the transaction clears it.
+    else if (w.fin.block != BNone and BLOCK_STICKY) sweepBlocked(p)
+    // A LIVE SESSION IS THE FOREGROUND PROCESS, and it may end at any point —
+    // whatever the tree looks like underneath it.  Hoisting this above the
+    // classification is `system-k59` finding 1's repair.
+    else if (d.session.live) sessionMove(p)
+    else if (nextIsTransition(w, d) and ONE_TRANSITION and d.transitions >= 1)
       closeEpoch(p)
     else
       match classifyTree(w.tree) {
-        // Post-teardown, and the session that committed it has not ended yet:
-        // `SY-09.c`'s own situation.
-        | RSAbsent =>
-            if (d.session.live) (nondet k = oneOf(Set(1, 2, 3)) sessionEnds(k))
-            else scaffoldOp(p)
+        | RSAbsent => scaffoldOp(p)
         | RSPartialScaffold => completeScaffoldOp(p)
         | RSReserved(_) => if (w.fin.orphaned) recoverOp(p) else finishStepOp(p)
         | RSCurrentSpent => appendFinishOp(p)
         | RSCurrentFinishOnly =>
-            if (w.fin.phase != FPIdle) finishStepOp(p)
+            if (not(ONE_FINISH_LEAF) and w.fin.phase == FPIdle and
+                d.selected == -2) appendFinishOp(p)
+            else if (w.fin.phase != FPIdle) finishStepOp(p)
             else if (d.selected == -2) selectOp(p)
             else if (d.launchedHandle == -2) launchOp(p)
             else finishStepOp(p)
         | RSCurrentLive =>
-            if (d.session.live) (nondet k = oneOf(Set(1, 2, 3)) sessionEnds(k))
-            else if (d.selected == -2) selectOp(p)
+            if (d.selected == -2) selectOp(p)
             else if (d.launchedHandle == -2) launchOp(p)
             else closeEpoch(p)
         // `Legacy`, `Foreign` and `Malformed` refuse every operation.  The
@@ -1614,6 +1894,7 @@ module lifecycle {
     all { ENV_KINDS.contains(3), topologyChange },
     all { ENV_KINDS.contains(4), configChange },
     all { ENV_KINDS.contains(5), insertDuringWindow },
+    all { ENV_KINDS.contains(6), nondet p = oneOf(PROCS) ambientAdmit(p) },
     all { ENV_KINDS.contains(6),
           nondet p = oneOf(PROCS) (nondet g = oneOf(Set(0, 1, 2, 3)) ambientOp(p, g)) },
     all { ENV_KINDS.contains(7), nondet p = oneOf(PROCS) sessionCreateFinishOp(p) },
@@ -1632,14 +1913,53 @@ module lifecycle {
     // contention, and a launch is ten driver moves in.
     driverStep(0), driverStep(0), driverStep(0),
     driverStep(0), driverStep(0), driverStep(0),
+    nondet p = oneOf(PROCS) ambientAdmit(p),
     nondet p = oneOf(PROCS) holdTree(p),
     nondet p = oneOf(PROCS) releaseTree(p),
     nondet p = oneOf(PROCS) contendTree(p),
     nondet p = oneOf(PROCS) contendGen(p),
   }
 
+  /// THE NULL HYPOTHESIS, COMMITTED.  A uniform choice over the whole action
+  /// vocabulary — twenty-seven disjuncts, the same actions and the same
+  /// totality as `driverStep`, arranged as a random walk rather than as a loop.
+  /// It exists so that the README's search-dial comparison is a REPLAYABLE
+  /// measurement rather than a remembered number (`system-k59` finding 5).
+  action flatStep: bool = any {
+    nondet p = oneOf(PROCS) acquireLease(p),
+    nondet p = oneOf(PROCS) releaseLease(p),
+    nondet p = oneOf(PROCS) validateConfig(p),
+    nondet p = oneOf(PROCS) openEpoch(p),
+    nondet p = oneOf(PROCS) closeEpoch(p),
+    nondet p = oneOf(PROCS) scaffoldOp(p),
+    nondet p = oneOf(PROCS) completeScaffoldOp(p),
+    nondet p = oneOf(PROCS) appendFinishOp(p),
+    nondet p = oneOf(PROCS) sessionCreateFinishOp(p),
+    nondet p = oneOf(PROCS) selectOp(p),
+    nondet p = oneOf(PROCS) launchOp(p),
+    nondet p = oneOf(PROCS) reapOp(p),
+    nondet p = oneOf(PROCS) interpretSignalOp(p),
+    nondet p = oneOf(PROCS) finishStepOp(p),
+    nondet p = oneOf(PROCS) recoverOp(p),
+    nondet p = oneOf(PROCS) sweepBlocked(p),
+    nondet k = oneOf(Set(1, 2, 3)) sessionEnds(k),
+    nondet p = oneOf(PROCS) ambientAdmit(p),
+    nondet p = oneOf(PROCS) (nondet g = oneOf(Set(0, 1, 2, 3)) ambientOp(p, g)),
+    nondet p = oneOf(PROCS) holdTree(p),
+    nondet p = oneOf(PROCS) releaseTree(p),
+    nondet p = oneOf(PROCS) contendTree(p),
+    nondet p = oneOf(PROCS) contendGen(p),
+    nondet p = oneOf(PROCS) crashNow(p),
+    handEdit,
+    foreignWrite,
+    topologyChange,
+    configChange,
+    insertDuringWindow,
+  }
+
   action step: bool =
-    if (FOCUS == 2) guardDance
+    if (FLAT_MENU) flatStep
+    else if (FOCUS == 2) guardDance
     else any {
       nondet p = oneOf(PROCS) driverStep(p),
       nondet p = oneOf(PROCS) driverStep(p),
@@ -1717,11 +2037,26 @@ module lifecycle {
     not(hist.absenceReadAsEvidence)
 
 
-  /// THE COMPOSITION `SY-05` IS ABOUT.  `FN-11` and `FN-19` are checked in
-  /// `crates/grove-finish/models/`; what this scope adds is that the inference
-  /// in `SY-05.a` is SOUND, which is exactly the claim that no trace exposes an
-  /// absent task root before the deletion is proven.
-  val inv_SY_05b_no_trace_exposes_absence_before_the_deletion_is_proven: bool =
+  /// AN INTERNAL CONSISTENCY CHECK, AND THE NAME SAYS SO.  `system-k59`
+  /// finding 6 is right and the claim is downgraded here rather than defended.
+  ///
+  /// What `SY-05.b` wants is that `FN-11`/`FN-19` and task-root absence
+  /// COMPOSE — that the inference `SY-05.a` makes is sound. What this model can
+  /// answer is smaller, because `finishStepOp` chooses BOTH operands: it
+  /// decides when `deletionProven` becomes true and when the summarised tree
+  /// becomes absent, and `inv_SY_05b` then asks whether that one setter ever
+  /// recorded the opposite ordering. `mutant_early_deletion` proves the history
+  /// flag can notice a deliberately reordered setter; it cannot notice an
+  /// `FN-11` or `FN-19` path the five-phase cursor omitted, because the cursor
+  /// is the only thing there is.
+  ///
+  /// The stronger claim needs a seam that IMPORTS independently established
+  /// component outcomes rather than manufacturing both operands together, and
+  /// that is an abstraction change this leaf does not make: it would grow a
+  /// second twenty-step transaction inside the scope whose whole point is not
+  /// to have one. `formal-synthesis-k16` owns the disposition; the README and
+  /// entry 046 carry the downgrade.
+  val inv_SY_05b_the_summary_never_records_absence_before_the_deletion_is_proven: bool =
     not(hist.absentBeforeProven)
 
   val wit_SY_05b_absence_reached_with_the_deletion_proven: bool =
@@ -1769,15 +2104,16 @@ module lifecycle {
 
   val wit_SY_09a_a_relaunch: bool = hist.endings.contains(1)
 
+  /// THE REOPENING EXIT, witnessed rather than asserted.  `system-k59` finding
+  /// 1 found this path unreachable; a witness is how the repair stays honest.
+  val wit_SY_09a_a_finish_session_reopens_the_grove: bool = hist.reopened
+
   val inv_SY_09b_done_ends_the_loop: bool = not(hist.doneContinuedLoop)
 
   val wit_SY_09b_a_done: bool = hist.endings.contains(2)
 
   val inv_SY_09c_no_signal_stops_and_is_never_inferred_as_done: bool =
     not(hist.noSignalInferredDone) and not(hist.noSignalContinuedLoop)
-
-  val wit_SY_09c_no_signal_with_a_proven_teardown: bool =
-    hist.noSignalWithProvenTeardown
 
   // --- `SY-10` — a stale session cannot act -----------------------------------
 
@@ -1788,8 +2124,6 @@ module lifecycle {
 
   val inv_SY_10b_a_contended_generation_never_parks_silently: bool =
     not(hist.silentPark)
-
-  val wit_SY_10b_a_timeout_reported: bool = hist.genTimeoutReported
 
   // --- `SY-11` — the guard order admits no cycle ------------------------------
 
@@ -1875,14 +2209,19 @@ module base {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0, 1),
     FOCUS = 0,
     ESCAPE_BOUND = 3,
@@ -1912,14 +2251,19 @@ module verify_small {
     SCAFFOLD_LEAF = true,
     PARTIAL_BY_SUBSET = true,
     DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
     SELECT_ONCE = true,
     NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
     SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
     PROCS = Set(0),
     FOCUS = 0,
     ESCAPE_BOUND = 3,

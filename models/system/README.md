@@ -1048,6 +1048,14 @@ pre-registration*, **Independence protocol**): this column's session opened no
 entry from the Alloy column's range. Everything below is what a second family
 reached on its own, and entry 046 carries the one disclosure that qualifies it.
 
+**REVIEWED AND REPAIRED.** `system-k59` attacked the INSTRUMENT this column's
+green was reached with, and `system-k60` integrated what it found. Six findings
+were real and all six are applied here; two of them changed what this column
+CLAIMS rather than only how it measures. Each is marked **[k59-Fn]** where it
+bites, and the *What a green run here does not prove* list at the end is the
+short version. The barrier is unchanged: this integration opened no `.als` file
+and no entry in 026 – 043 either.
+
 ## Run line
 
 ```sh
@@ -1056,9 +1064,9 @@ models/run.sh --scope lifecycle --family quint
 
 Two files. [`lifecycle.qnt`](lifecycle.qnt) carries the parameterised library,
 the `base` instance and the `verify_small` model-checking instance;
-[`lifecycle-controls.qnt`](lifecycle-controls.qnt) carries three focused
-scenarios, two assumption controls and eighteen model mutations. The split is
-not tidiness — see *Verification*, and
+[`lifecycle-controls.qnt`](lifecycle-controls.qnt) carries five focused
+scenarios, two assumption controls and twenty-three model mutations. The split
+is not tidiness — see *Verification*, and
 [`crates/grove-task-tree/models/README.md`](../../crates/grove-task-tree/models/README.md),
 which found the reason the hard way.
 
@@ -1076,22 +1084,29 @@ variables read by [`models/run.sh`](../run.sh): `QUINT_SAMPLES` (8000),
   process, crash-only environment, budget 1) with Apalache 0.56.1 and
   `JVM_ARGS=-Xmx16G`: three state invariants at `--max-steps=4`, **`NoError` in
   983s**, on the revision immediately before this column's last five model
-  fixes. **Two things that measurement is not.** It is not the runner's own
+  fixes. **That measurement pre-dates the `system-k59` repairs and has not been
+  re-run**; the repairs lengthen the transition relation rather than shorten it,
+  so it is quoted as a lower bound on cost and never as a current result.
+  **Two further things that measurement is not.** It is not the runner's own
   `QUINT_VERIFY=1` path, which batches all 25 properties into one call: that run
   was started and did not complete inside the session that built this column, so
   **the cost of the full batch is unmeasured and the line says so rather than
   implying it is affordable.** And it is not a green over `base`'s world. Depth 4
   reaches the lease, the configuration gate and the open epoch — and stops
-  there: the shortest path to a completed scaffold is eight driver moves and the
-  shortest to a proven finish is nineteen, so **no obligation about the tree,
-  the finish, the block or the escape map is model-checked at all.** Every `SY-`
-  property in this column is established by bounded randomized simulation, and
-  no green run here is a proof over reachable states. What would change the
-  answer is a smaller world, not a bigger heap: the transition relation branches
-  over roughly a hundred Apalache transitions per step because `driverStep` is a
-  chain of conditionals over a twelve-member classification, and each step costs
-  about five minutes at that width. `QUINT_VERIFY=1` runs it;
-  `QUINT_VERIFY_STEPS` and `JVM_ARGS` set the depth and the heap.
+  there. Measured on the repaired model with `--step=driverStep(0)`, 400 samples
+  at each depth: **the shortest path to a completed scaffold is eight driver
+  moves and the shortest to a proven finish is twenty-one** — the latter was
+  nineteen before **[k59-F1]** put the epoch invalidation and the signal
+  interpretation in two separate steps, which is what production does and costs
+  two moves per reap. So **no obligation about the tree, the finish, the block
+  or the escape map is model-checked at all.** Every `SY-` property in this
+  column is established by bounded randomized simulation, and no green run here
+  is a proof over reachable states. What would change the answer is a smaller
+  world, not a bigger heap: the transition relation branches over roughly a
+  hundred Apalache transitions per step because `driverStep` is a chain of
+  conditionals over a twelve-member classification, and each step costs about
+  five minutes at that width. `QUINT_VERIFY=1` runs it; `QUINT_VERIFY_STEPS` and
+  `JVM_ARGS` set the depth and the heap.
 
 ## What the model is, and what it is above
 
@@ -1109,16 +1124,24 @@ declines to re-derive.
   persistent. Its twenty steps, its manifest, its quarantine and its three VCS
   lanes are not represented, because no `SY-` claim quantifies over them.
 - What this file DOES own is the driver: the lease, the layout gate, the
-  configuration gate, the iteration, the launch generation, the three session
-  endings, the guard order, and the composition of all of that with the two
-  summaries above.
+  configuration gate, the iteration, the epoch, the three session endings, the
+  guard order, and the composition of all of that with the two summaries above.
 
-`SY-05` is the clearest case of why the scope exists at all. `FN-11` and
-`FN-19` are checked next door; `SY-05.b` is the claim that they COMPOSE into a
-sound inference — that no trace exposes an absent task root before the deletion
-is proven, so `SY-05.a` may read absence as *start a new grove*. The model has
-a dial (`DELETION_PROVEN_FIRST`) that removes the root one step early, and both
-obligations die together.
+**`SY-05` is where that composition stops being free, and `system-k59` was right
+about it.** `FN-11` and `FN-19` are checked next door; `SY-05.b` WANTS to be the
+claim that they compose into a sound inference. What the model can answer is
+smaller, because `finishStepOp` chooses BOTH operands — it decides when
+`deletionProven` becomes true and when the summarised tree becomes absent — and
+the property then asks whether that one setter ever recorded the opposite
+ordering. `mutant_early_deletion` proves the history flag can notice a
+deliberately reordered setter; it cannot notice an `FN-11` or `FN-19` path the
+five-phase cursor omitted, because the cursor is the only thing there is. So the
+command is now named for what it checks —
+`inv_SY_05b_the_summary_never_records_absence_before_the_deletion_is_proven` —
+and the stronger claim is **not** made **[k59-F6]**. Making it would need a seam
+that imports independently established component outcomes rather than
+manufacturing both operands together, which is an abstraction change:
+`formal-synthesis-k16` owns the disposition.
 
 **Every action is total**: each computes an outcome from one closed set through
 one classifier (`outcomeOn`) and transitions in every case, so a refusal is a
@@ -1134,32 +1157,63 @@ of unknown shape and a twenty-step transaction. This subject is a **loop**, and
 a loop is deterministic: given a lease, a validated configuration, an open epoch
 and a classified root, exactly one move is next. Modelling it as a uniform
 choice over every action it could ever take does not model a driver — it models
-a random walk that happens to share the vocabulary, and it puts every deep
-witness at `(1/k)^15`.
+a random walk that happens to share the vocabulary.
 
 So `driverStep` **is** the loop, written as the chain of conditionals a loop is.
-What stays nondeterministic is what genuinely is: which of the three endings a
-session takes, and what the world does between two steps. The world's share is
-capped three ways — `ENV_BUDGET` (how many actions one trace may take),
-`ENV_KINDS` (of which kind) and `ENV_PHASES` (at which lifecycle point) — and
-`base` grants all three wide open.
+What stays nondeterministic is what genuinely is: **which of the three endings a
+session takes, at which point it takes it**, and what the world does between two
+steps. The world's share is capped three ways — `ENV_BUDGET` (how many actions
+one trace may take), `ENV_KINDS` (of which kind) and `ENV_PHASES` (at which
+lifecycle point) — and `base` grants all three wide open.
 
-Measured: with the menu flat and unfocused, 5 of 25 witnesses landed at 2000
-samples and 4 of those 5 were the shallow ones. With `driverStep`, 23 of 25 land
-in `base` and the remaining two have scenarios. Nothing was removed from the
-model to get there.
+**The measurement, which is now a committed instrument rather than a remembered
+number [k59-F5].** The producer claimed 5 of 25 witnesses under a flat menu at
+2,000 samples against 23 of 25 under `driverStep`. Neither figure survived:
+the flat variant reached no commit, so it could not be re-run, and the second
+number contradicted this README's own instance table two paragraphs later.
+`scenario_flat_menu` IS that instrument now — the same actions, the same
+totality, the same environment budget, differing from `base` in the single
+constant `FLAT_MENU` — and the comparison is over the twenty witness commands
+the library carries, which are exactly the ones both arrangements can be asked
+for:
+
+```sh
+# the null hypothesis
+quint run models/system/lifecycle-controls.qnt --main=scenario_flat_menu \
+  --witnesses <the twenty library wit_ commands> \
+  --max-steps=24 --max-samples=2000 --seed=0x5e0a51d3c0ffee01 --verbosity=1
+# the loop
+quint run models/system/lifecycle.qnt --main=base \
+  --witnesses <the same twenty> \
+  --max-steps=24 --max-samples=2000 --seed=0x5e0a51d3c0ffee01 --verbosity=1
+```
+
+| arrangement | 2,000 samples | 8,000 samples |
+|---|---:|---:|
+| flat menu (`scenario_flat_menu`) | 12 of 20 | 17 of 20 |
+| `driverStep` (`base`) | **20 of 20** | **20 of 20** |
+
+**The effect is real and it is a third of what was claimed.** The narrowing buys
+the whole witness set at a quarter of the samples; it does not turn 5 into 23.
+The honest statement is that a flat menu reaches most shallow and mid-depth
+witnesses given enough samples and misses the deep ones, and that `driverStep`
+reaches all twenty at every sample count tried. Nothing was removed from the
+model to get there — `scenario_flat_menu` is the proof, since it is the same
+model with the menu rearranged.
 
 ## Instances
 
 | module | what it is | why |
 |---|---|---|
-| `base` | every assumption granted, every environment kind and point, budget 3 | the run all 25 properties and 21 witnesses are checked in |
-| `scenario_teardown` | no environment action at all, one process | `SY-05.a` needs twenty-two consecutive driver moves inside a twenty-four-step trace, and every world action spends one |
+| `base` | every assumption granted, every environment kind and point, budget 3 | the run all 25 properties and 20 witnesses are checked in |
+| `scenario_teardown` | one hand edit, `FOCUS = 3`, one process | `SY-05.a` and `SY-09.c` need the finish march and the far side of it; **[k59-F1]**'s repair costs two driver moves per reap and makes a live session's ending a coin flip per step, so the march no longer fits a twenty-four-step trace unfocused |
 | `scenario_crash_points` | crash and nothing else, budget 8 | `SY-12`'s witness is one crash point per lifecycle step |
 | `scenario_recovery` | one crash, landing inside the transaction (`ENV_PHASES = Set(6, 7)`) | `SY-14`'s sweep needs a BLOCK, and a block needs an interrupted attempt a recovery cannot prove either way |
+| `scenario_epoch_handoff` | ambient admission and nothing else, budget 6 | `SY-10.b`'s contention is an operation arriving while the DRIVER holds the epoch lock exclusively, and **[k59-F2]** made that window the real two-step post-reap handoff |
+| `scenario_flat_menu` | `FLAT_MENU = true`, otherwise `base` | the null hypothesis for the search-dial comparison above **[k59-F5]** |
 | `relax_EN_08` | `crash` removed | exercise-removal |
 | `relax_EN_11` | `hand-edit` removed | exercise-removal, and the evidence behind this column's `SY-13` narrowing |
-| eighteen `mutant_*` | one MODEL dial each | see below |
+| twenty-three `mutant_*` | one dial each | see below |
 | `verify_small` | one process, crash-only environment, budget 1 | the model-checking instance |
 
 **Which module a command runs in** is decided by one rule, defined in
@@ -1168,16 +1222,16 @@ restated here.
 
 ## The controls, and what they establish
 
-**Eighteen model mutations, and the count is itself the observation.** The
+**Twenty-three model mutations, and the count is itself the observation.** The
 task-tree column needed two and the finish column eleven. This one needs
-eighteen, and the reason is structural rather than incidental: **an executable
-model of a deterministic loop satisfies almost every ordering claim it is
-written to satisfy.** "The layout is proved at lease acquisition", "validation
-precedes every transition", "at most one transition per iteration", "selection
-is not recomputed", "a stale operation is refused before it touches the tree" —
-each of those is true of `driverStep` because `driverStep` is written in that
-order, and each would carry a green tick over no evidence at all. Every dial
-below exists so that one named obligation has somewhere to die.
+twenty-three, and the reason is structural rather than incidental: **an
+executable model of a deterministic loop satisfies almost every ordering claim it
+is written to satisfy.** "The layout is proved at lease acquisition",
+"validation precedes every transition", "at most one transition per iteration",
+"selection is not recomputed", "a stale operation is refused before it touches
+the tree" — each of those is true of `driverStep` because `driverStep` is
+written in that order, and each would carry a green tick over no evidence at
+all. Every dial below exists so that one named obligation has somewhere to die.
 
 | control | obligation | result |
 |---|---|---|
@@ -1191,27 +1245,52 @@ below exists so that one named obligation has somewhere to die.
 | `inv_fail_MUT_SY_05b_absence_before_the_deletion_is_proven` | `SY-05.b` | violated |
 | `inv_fail_MUT_SY_06a_a_scaffold_writes_only_a_charter` | `SY-06.a` | violated |
 | `inv_fail_MUT_SY_06b_a_legacy_tree_is_completed_as_a_scaffold` | `SY-06.b` | violated |
+| `inv_fail_MUT_SY_07a_two_driver_owned_finish_leaves` | `SY-07.a` | violated — **isolating, new [k59-F3]** |
 | `inv_fail_MUT_SY_07b_a_session_creates_a_finish_leaf` | `SY-07.b` | violated |
 | `inv_fail_MUT_SY_08_a_leaf_added_during_the_window_preempts` | `SY-08` | violated |
+| `inv_fail_MUT_SY_09a_a_relaunch_stops_the_loop` | `SY-09.a` | violated — **isolating, new [k59-F3]** |
+| `inv_fail_MUT_SY_09b_a_done_continues_the_loop` | `SY-09.b` | violated — **isolating, new [k59-F3]** |
 | `inv_fail_MUT_SY_09c_no_signal_is_inferred_as_done` | `SY-09.c` | violated |
 | `inv_fail_MUT_SY_10a_a_stale_session_touches_the_tree` | `SY-10.a` | violated |
 | `inv_fail_MUT_SY_10b_a_contended_generation_parks_silently` | `SY-10.b` | violated |
 | `inv_fail_MUT_SY_11a_the_guard_order_is_violated` | `SY-11.a` | violated |
-| `inv_fail_MUT_SY_11b_a_generation_wait_under_a_tree_guard_closes_a_cycle` | `SY-11.b` | violated |
+| `inv_fail_MUT_SY_11b_a_generation_wait_under_a_tree_guard_closes_a_cycle` | `SY-11.b` | violated — **over the rebuilt wait graph; see below [k59-F2]** |
 | `inv_fail_MUT_SY_12_a_restart_repeats_a_completed_effect` | `SY-12` | violated |
 | `inv_fail_MUT_SY_13b_a_hand_edited_refusal_state_is_a_sink` | `SY-13.b` | violated — **and this one is a finding about the catalogue**; see below |
 | `inv_fail_MUT_SY_14a_an_admitted_action_clears_a_block` | `SY-14.a` | violated |
+| `inv_fail_MUT_SY_14b_a_blocked_action_does_not_name_the_block` | `SY-14.b` | violated — **isolating, new [k59-F3]** |
 
-**Four obligations have no isolating mutation of their own, and each is stated
-here rather than left to be inferred.** `SY-07.a` dies with
-`mutant_session_finish` (a second finish leaf is how "exactly one" fails);
-`SY-09.a` and `SY-09.b` die with `mutant_no_signal_is_done` (the same reap
-classifier decides all three endings, so a dial on one is a bundle control over
-the three); `SY-13.a` and `SY-14.b` are checked by construction over a declared
-map and a shared classifier, and their falsification is `mutant_literal_sy13`
-and `mutant_block_clears` respectively. **Those are BUNDLE controls, not
-isolating ones**, and a reader should not read a green `SY-09.a` as separately
-evidenced.
+**Every obligation now has an isolating control, and the claim that four did not
+is withdrawn [k59-F3].** The previous version of this README said `SY-07.a`,
+`SY-09.a`, `SY-09.b` and `SY-14.b` died only inside a bundle. The review checked
+that and found it was not even true: `mutant_no_signal_is_done` changed only the
+`k == 3` arm of the reap classifier — the other two arms were constants — so
+targeted runs left `inv_SY_09a` and `inv_SY_09b` GREEN. **The bundle control the
+README claimed did not exist.** The signal interpretation now has three arms and
+three dials, `appendFinishOp` has a dial that lets the DRIVER append a second
+finish leaf with session creation still refused, and `blockRefusal` has a dial
+that refuses without naming. Each of the four new mutants also carries its
+NEIGHBOURS as must-hold commands, so "this target fails while its neighbour
+stays green" is a runner result rather than a claim:
+
+| mutant | fails | neighbours asserted green |
+|---|---|---|
+| `mutant_two_finish_leaves` | `SY-07.a` | `SY-07.b` |
+| `mutant_relaunch_stops` | `SY-09.a` | `SY-09.b`, `SY-09.c` |
+| `mutant_done_continues` | `SY-09.b` | `SY-09.a`, `SY-09.c` |
+| `mutant_no_signal_is_done` | `SY-09.c` | `SY-09.a`, `SY-09.b` |
+| `mutant_block_unnamed` | `SY-14.b` | `SY-14.a` |
+
+**`mutant_block_clears` had to be rebuilt, and why is the sharpest thing in this
+section [k59-F4].** It used to fire through `sweepBlocked`'s `cleared` test,
+which read "some admitted action returned `Applied`" as "a block was cleared".
+That is not `SY-14.a`, whose subject is a block being CLEARED — a state
+transition. Once the sweep was corrected to compute the SUCCESSOR's block
+through the same `outcomeOn` classifier, the mutant stopped firing: the dial had
+never made any action clear a block, it had only made actions succeed. **A
+broken instrument was propping up its own control.** The dial now makes the
+transaction's own next step walk through the block and clear it, which is an
+admitted action clearing a block and is the whole of what the claim forbids.
 
 **The two assumption controls.** `EN-08` (`crash` removed) makes `SY-12`'s
 witness unreachable and leaves every property green — which is exactly why a
@@ -1229,6 +1308,37 @@ this model takes as written:
 - **Two processes**, per the catalogue's own omission, and the wait-for cycle
   test (`waitCycle`) is a bounded closure over exactly two. A cycle among more
   would not be found here, and no `SY-` obligation rests on one.
+- **The epoch is a shared/exclusive lock, not a token one process carries
+  [k59-F2].** The model used to transfer a `genHolder` to the launched session
+  at launch and leave it there, which made `SY-11.b`'s two-process cycle
+  reachable — and the review showed Grove has no such continuously held session
+  lock. Each ambient `grove-llm` operation independently takes the epoch lock
+  SHARED and holds it through that operation and its later tree guard
+  (`src/driver_lease.rs`, `admit_session` and `SessionEpochGuard`); the driver
+  takes it EXCLUSIVELY for pre-spawn activation and for post-reap invalidation
+  (`activate_session_epoch`, `invalidate_session_epoch`). So the model now
+  carries `genShared: Set[int]` and `genExclusive: int`, and a waiter's edge is
+  computed against the holder it actually conflicts with. **`SY-11.b`'s negative
+  control survives that rebuild**: with the guard order off, the driver can hold
+  the tree guard and wait for the exclusive handoff while an in-flight ambient
+  operation holds the shared admission and waits for the tree, which is a
+  reachable cycle in the faithful graph rather than an artifact of the model.
+- **`driverStep` is the loop, and the orderings it cannot produce are audited
+  rather than assumed [k59-F1].** `system-k59` enumerated them and checked each
+  against current Rust source. Four are faithful exclusions and stay excluded: a
+  tree transition before configuration validation (the pre-transition config
+  load is first), a launch before selection, a second lifecycle transition in
+  one driver iteration (root transition/recovery and finish allocation are
+  mutually exclusive at the current tree shapes), and releasing the driver lease
+  between iterations (the lease spans the loop). Four were missing behaviour and
+  are now present: a finish session that declines before teardown, one that adds
+  ordinary work and relaunches, one that fails or gives no signal, and the
+  epoch-invalidation-before-signal-interpretation order. One remains a declared
+  simplification: **an invalid configuration stops the loop in production**
+  (`SessionConfig::load` returns an error that propagates out of the iteration)
+  and the model records a refusal and continues, because `SY-04.b` is a claim
+  about what an invalid configuration leaves the tree looking like and a model
+  that halts on the first one cannot witness it twice.
 - **The task tree is a summary and the finish transaction is a phase cursor**;
   see *What the model is, and what it is above*.
 - **`hand-edit` installs one of four enumerated well-formed trees** — legacy,
@@ -1241,16 +1351,19 @@ this model takes as written:
   leaf's own session. `SY-04.a` is read as a property of the driver's iteration,
   which is what its own words say.
 - **`SY-04.a` is an enabling condition, not an outcome.** See *Narrowings*.
+- **`SY-05.b` is an internal consistency check over the composition
+  abstraction** rather than a composition result **[k59-F6]**; see above.
 - **Bounds**: two processes, four generations, five finish phases, twelve stable
   classes, trace depth 24, 8000 samples, environment budget 3.
 
 ## Narrowings and qualifications, each declared
 
-**Three** obligations are checked over less than their literal text, and in all
-three the gap is a **finding about the catalogue** rather than a gap in the
-model. None is a declared `GAP`: each obligation is answered, and what is
-narrowed is recorded here, in entry 046, and — for the first — in a control that
-fires.
+**Two** obligations are checked over less than their literal text. There were
+three; `SY-14.a`'s narrowing is WITHDRAWN, because the corrected experiment
+showed it was hiding a measurement defect rather than answering a wide
+quantifier **[k59-F4]**. None is a declared `GAP`: each obligation is answered,
+and what is narrowed is recorded here, in entry 046, and — for the first — in a
+control that fires.
 
 ### 1. `SY-13.a` and `SY-13.b` are checked over the ADMITTED-REACHABLE stable classes
 
@@ -1264,21 +1377,26 @@ every one of the three is a sink and both obligations are FALSE.
 `base` narrows the sweep to the classes Grove's own actions can produce
 (`SWEEP_ALL_STABLE = false`). `mutant_literal_sy13` runs the literal text and
 `inv_SY_13b_no_stable_state_is_a_sink` dies — which is what turns "the catalogue
-is wrong here" from a remark into a fired control. `formal-synthesis-k16` owns
-the disposition.
+is wrong here" from a remark into a fired control. `system-k59` read the
+catalogue's two sentences independently and reached the same verdict, so this is
+now a finding two readings agree on rather than one reading's. `formal-synthesis-k16`
+owns the disposition.
 
-### 2. `SY-04.a`'s cap is a loop-control guard, not a refusal
+### 2. `SY-14.b`'s "every action" is read as every action ON THE TREE
 
-"At most one lifecycle transition per iteration" is enforced as an enabling
-condition (`loopAdmits`), because the catalogue's closed refusal set has **no
-member for "deferred to the next iteration"** and inventing one would put a
-second vocabulary beside the contract's. The consequence is that this half of
-`SY-04.a` is not falsifiable through the outcome vocabulary at all — it is
-checked over the iteration counter instead, and `mutant_many_transitions` is
-what makes that check non-vacuous.
+The literal quantifier reaches `acquire-lease`, `validate-config` and
+`release-lease`, so a blocked tree could not release its own lease and `FN-26`'s
+two operator-restorable exits would be unreachable. The naming sweep is
+`ADMITTED.filter(touchesTree)` and the narrowing is declared here.
 
-### 3. `SY-14.b`'s "naming the block" is read through `TT-24`'s table
+**`SY-14.a` is NOT narrowed and no longer needs to be.** Its sweep is over the
+LITERAL admitted set. `release-lease` and `validate-config` do succeed on a
+blocked tree, and once "clears a block" is measured as a state transition rather
+than as a successful invocation, neither is a counterexample, because neither
+changes the block. The two halves are therefore swept over different sets, and
+that asymmetry is the corrected experiment.
 
+**And `SY-14.b`'s "naming the block" is still read through `TT-24`'s table.**
 The closed refusal set carries no reason spelled after a diagnosis. This model
 reads `WitnessPending` as `RecoveryPending`'s refusal and `ReservedNameOccupied`
 as `OwnershipConflict`'s, which is the mapping `TT-24`'s three-context table
@@ -1286,18 +1404,64 @@ makes for the same two artifacts — but the catalogue never states it **for
 `SY-14.b`**, and a family that read it differently would check a different
 claim.
 
+### 3. `SY-04.a`'s cap is a loop-control guard, not a refusal
+
+"At most one lifecycle transition per iteration" is enforced as an enabling
+condition (`loopAdmits`), because the catalogue's closed refusal set has **no
+member for "deferred to the next iteration"** and inventing one would put a
+second vocabulary beside the contract's. The consequence is that this half of
+`SY-04.a` is not falsifiable through the outcome vocabulary at all — it is
+checked over the iteration counter instead, and `mutant_many_transitions` is
+what makes that check non-vacuous. **`system-k59` checked whether that mutant is
+real and found that it is**: it exercises the counter and makes the invariant
+fail. What the review did NOT accept is the stronger claim entry 046 drew from
+it — that the catalogue owes a "deferred" refusal — since `SY-04.a` says "at
+most one" rather than requiring a deferral outcome. The qualification stands;
+the catalogue finding drawn from it is narrowed to what it is, a note that the
+claim is unfalsifiable through outcomes.
+
+## What `system-k59` checked and did not break
+
+Recorded because a review's discharged doubts are evidence too, and this column
+is a measurement of what a formalism catches.
+
+- **The `SY-13` catalogue contradiction is real.** The review re-read the two
+  sentences itself and agrees the definition and the two-member enumeration
+  disagree.
+- **`ENV_BUDGET = 3` hides nothing.** No existing negative control needs four
+  environment actions: the only two mutants configured with budget 4 —
+  restart-repeat and guard-disorder — still violate their target invariants at
+  budget 3 under the runner's samples, depth and seed.
+- **The two thin witnesses were real protocol paths**, not focused-scenario
+  constructions: `SY-06.b` completes the normal partial scaffold and then meets
+  a hand-edited legacy tree, and `SY-07.a` reaches a spent tree, appends the
+  sentinel, crashes, and reuses it after restart.
+- **`driverStep` conditions on no history flag.** The suspicion that a search
+  guard read `hist` and made a claim about history true by construction is
+  stale: `driverStep`, `nextIsTransition` and the `RSCurrentLive` branch read
+  only `w` and `d`. `hist.envUsed` guards environment actions, which is the
+  declared budget.
+- **The depth-4 `verify` result is quoted with its depth and claims nothing
+  past it**, and no `SY-` obligation anywhere is presented as model-checked.
+
 ## The green run this column stands on
 
 ```sh
 models/run.sh --scope lifecycle --family quint
 ```
 
-**72 commands, 25 of 25 cells complete, 0 declared gaps, 0 empty. Exit 0.**
-2m 05s wall, 149s CPU on a 16-core host; quint 0.32.0, 8000 samples, depth 24,
+**86 commands, 25 of 25 cells complete, 0 declared gaps, 0 empty. Exit 0.**
+3m 40s wall, 254s CPU on a 16-core host; quint 0.32.0, 8000 samples, depth 24,
 seed `0x5e0a51d3c0ffee01`.
 
-52 of those commands are the claims — 25 properties and 21 witnesses in `base`,
-plus four witnesses in scenarios — and 20 are inverted controls that must go RED.
+**51 of those commands are the claims** — 25 properties and 20 witnesses in
+`base`, plus six witnesses in scenarios — **and 35 are controls**: 24 inverted
+`inv_fail_` mutations that must go RED, two `wit_unreach_` assumption removals
+that must find nothing, eight neighbour properties that must stay green inside
+the five isolating mutants, and one positive control inside
+`scenario_flat_menu`. The command count rose from 72 because
+**[k59-F3]**'s isolating controls and their neighbour assertions are new
+commands, not renamed ones.
 
 Witness trace counts, out of 8000, because a witness that lands once is a
 different fact from one that lands everywhere and the *scope trap* hazard is
@@ -1305,39 +1469,62 @@ about exactly that difference:
 
 | obligation | traces | | obligation | traces |
 |---|---:|---|---|---:|
-| `SY-01.a` | 6975 | | `SY-09.a` | 381 |
-| `SY-01.b` | 2328 | | `SY-09.b` | 376 |
-| `SY-02` | 2041 | | `SY-09.c` | 59 |
-| `SY-03` | 2457 | | `SY-10.a` | 3361 |
-| `SY-04.a` | 134 | | `SY-10.b` | 353 |
-| `SY-04.b` | 1975 | | `SY-11.a` | 4059 |
-| `SY-05.a` | 904 *(scenario)* | | `SY-11.b` | 772 |
-| `SY-05.b` | 232 | | `SY-12` | 1295 *(scenario)* |
-| `SY-06.a` | 1807 | | `SY-13.a` | 232 |
-| `SY-06.b` | **16** | | `SY-13.b` | 380 |
-| `SY-07.a` | **18** | | `SY-14.a` | 1161 *(scenario)* |
-| `SY-07.b` | 1012 | | `SY-14.b` | 1161 *(scenario)* |
-| `SY-08` | 36 | | | |
+| `SY-01.a` | 7018 | | `SY-09.a` | 412 |
+| `SY-01.b` | 2346 | | `SY-09.a` *(reopening)* | 102 |
+| `SY-02` | 2089 | | `SY-09.b` | 384 |
+| `SY-03` | 2412 | | `SY-09.c` | 694 *(scenario)* |
+| `SY-04.a` | **33** | | `SY-10.a` | 1609 |
+| `SY-04.b` | 2126 | | `SY-10.b` | 268 *(scenario)* |
+| `SY-05.a` | 644 *(scenario)* | | `SY-11.a` | 3986 |
+| `SY-05.b` | **28** | | `SY-11.b` | 171 |
+| `SY-06.a` | 1534 | | `SY-12` | 1270 *(scenario)* |
+| `SY-06.b` | **17** | | `SY-13.a` | **28** |
+| `SY-07.a` | 96 | | `SY-13.b` | 76 |
+| `SY-07.b` | 1092 | | `SY-14.a` | 337 *(scenario)* |
+| `SY-08` | **27** | | `SY-14.b` | 337 *(scenario)* |
 
-**The two bolded rows have almost no margin.** They are deterministic under the
-fixed seed and therefore not flaky, but 16 traces in 8000 is a thin instrument
-and a reader should treat `SY-06.b` and `SY-07.a` as the first two obligations
-to re-check after any change to the model or the sample budget.
+**`SY-09.a` carries two witnesses and that is deliberate.** The second is the
+methodology's REOPENING exit — a finish session that found ordinary work left,
+added it, retired the finish leaf and signalled relaunch. `system-k59` found
+that path unreachable in the model **[k59-F1]**; a witness is how the repair
+stays honest rather than resting on a comment.
+
+**Five rows are bolded and the set has changed.** It used to be `SY-06.b` at 16
+and `SY-07.a` at 18. `SY-07.a` is now comfortable (96) and four more rows are
+thin, all for one reason: **[k59-F1]**'s repair makes a live session's ending
+nondeterministic at every step, so a twenty-one-move march to a proven finish is
+a coin flip per step in `base`. That is the honest world rather than a defect,
+and the two witnesses it pushed below an affordable count — `SY-09.c` and
+`SY-10.b` — moved into `scenario_` instances rather than being propped up in
+`base`, which is where this column's narrowings belong and where the sibling
+columns put theirs. The thin rows are deterministic under the fixed seed and
+therefore not flaky, but they are the first five obligations to re-check after
+any change to the model or the sample budget.
 
 ## What a green run here does not prove
 
 - Every property is established by **bounded randomized simulation** — 8000
   samples, depth 24, two processes, an environment budget of three. `quint
-  verify` completes only at a depth that does not reach a scaffold.
-- The **three narrowings above are narrowings**: `SY-13`'s sweep, `SY-14`'s
-  quantifier and `SY-04.a`'s cap are each checked over less than their literal
-  text.
-- **Four obligations have no isolating mutation** — `SY-07.a`, `SY-09.a`,
-  `SY-09.b` and `SY-14.b` die only inside a bundle control.
-- **Nothing here is evidence about the Alloy column**, which this session did not
-  read. The `(family, obligation)` matrix is what settles that, and
+  verify` completes only at a depth that does not reach a scaffold, and the one
+  `verify` measurement on record pre-dates the `system-k59` repairs.
+- **`SY-05.b` is an internal consistency check, not a composition result
+  [k59-F6].** It says the summary never records absence before the deletion is
+  proven; it does not say `FN-11` and `FN-19` compose in Grove, because one
+  setter manufactures both operands.
+- **The two narrowings above are narrowings**: `SY-13`'s sweep and `SY-14.b`'s
+  quantifier are each checked over less than their literal text, and `SY-04.a`'s
+  cap is checked over a counter rather than through the outcome vocabulary.
+  `SY-14.a`'s narrowing is withdrawn — it is checked over the literal admitted
+  set.
+- **Five witnesses land in fewer than a hundred traces of 8000**, and two more
+  needed a `scenario_` instance to land at all. The counts are in the table and
+  are not rounded to green.
+- **Nothing here is evidence about the Alloy column**, which neither this
+  column's session nor its review nor this integration read. The
+  `(family, obligation)` matrix is what settles that, and
   `cross-model-replay-k15` is where the barrier comes down.
 
 Entry 046 of [`docs/formalism-findings.md`](../../docs/formalism-findings.md)
-carries the five findings, the three observations, the false-confidence ledger,
-and the independence disclosure that qualifies all of it.
+carries the findings, the observations, the false-confidence ledger, the
+independence disclosure that qualifies all of it, and — since `system-k60` —
+the disposition of each of `system-k59`'s six.

@@ -7283,6 +7283,340 @@ fourth context row of its own. A test written before that decision would encode
 the model's least-wrong choice as though it were the contract.
 `formal-synthesis-k16` decides; the witness is runnable in the meantime.
 
+
+### 045 — A protocol whose own steps fall outside the assumption they rest on, and six things the catalogue does not say (finish/recovery, component-local)
+
+**Scope.** Finish and recovery, component-local
+(`crates/grove-finish/models/finish.qnt`). All 61 `FN-` obligations.
+
+**Independence protocol — held, with one disclosure.** This session opened no
+`.als` file, no Alloy section of a model-directory `README.md`, and no entry in
+026 – 043 while the model was being built; it was written from
+[`docs/specs/semantic-contract.md`](specs/semantic-contract.md) alone, exactly as
+the Alloy column was and exactly as entry 044 was. **The disclosure:** *after*
+every finding below had been reached and recorded in the model, locating the next
+free entry number was done with a heading grep, which printed the titles of
+entries 033 – 043 on screen. Several of those titles are finding-shaped, and one
+of them — "a third outcome the closed set cannot name" — is the same *shape* as
+finding 2 below. The timing is checkable and it is why the disclosure is worth
+making rather than waving away: `RRolledBack` and `ONotEntered` were both written
+into the model, with their declaring comments, before the grep was run, and the
+diagnosis-partition counterexample had already been found and fixed. **No finding
+below was reached after that grep**, and none was renamed to match a title. What
+the grep does mean is that this column cannot claim to have been blind to the
+*existence* of Alloy findings in the finish slice — only to their content.
+`cross-model-replay-k15` is where that is settled, and it should treat finding 2
+as an overlap candidate with a known contamination risk rather than as a clean
+`quint-only`.
+
+**Situation.** Build an independent, executable account of Grove's finish and
+recovery protocol — the entry, the preflight, the witness, the evacuation, the
+commit, the two handoffs, the disposal and the recovery — as guarded actions with
+total outcomes, and check all 61 `FN-` obligations under all three VCS lanes,
+with crash and restart as first-class behaviour.
+
+**Formalism.** Quint 0.32.0, rust evaluator backend, bounded randomized
+simulation: 8000 samples at depth 24, fixed seed `0x5e0a51d3c0ffee01`.
+`quint verify` (Apalache 0.56.1) **completes and returns a verdict**, on the
+reduced `verify_small` instance at the runner's own default depth: all 61
+property commands at `--max-steps=4` in 377s, no violation. That is more than
+the task-tree column got — it could not finish depth 3 at all — and less than it
+sounds; see *What a green run here does not prove*. One library (`finish.qnt`,
+2,736 lines) carrying 61 property commands, one unfocused instance, one
+verification instance, and a
+controls file (`finish-controls.qnt`, 1,190 lines) carrying twelve focused
+scenarios (112 witnesses), seven assumption mutations and eight model mutations
+(17 witnesses, 17 retained properties, 16 inverted controls). 223 commands in
+all.
+
+**The model is a protocol step machine, not a filesystem**, and that is the
+structural decision everything else follows from. `crates/grove-task-tree/models/`
+owns what a task tree *is*; this file owns the ORDER of the steps that end one,
+what each makes persistent, and what a crash between two of them leaves behind.
+The task tree is abstracted to the set of entries the transaction evacuates.
+`Step` is a closed twenty-six-member type and `persistentEffect` is a total
+function on it, because `FN-24.b` cannot be answered at all by a model whose
+steps are implicit in its actions.
+
+**Caught.** Six material findings and three observations. Every one is a defect
+in the tool-neutral catalogue rather than in shipped behaviour — this phase
+changes no product behaviour — so each is recorded and **not fixed**: the
+independence barrier freezes `docs/specs/semantic-contract.md`, the Alloy column
+recorded rather than fixed its own, and `formal-synthesis-k16` owns the
+disposition of all of them.
+
+**1. `EN-01` is narrower than the protocol's own steps, and `FN-24.b` is what
+makes that visible.** `EN-01` grants atomicity to *a same-directory rename* and,
+in the catalogue's own words, "to nothing else". `FN-24.b` then requires every
+step of the transaction to make at most one persistent effect, and for that
+effect to be a same-directory rename **or to be decomposed**, with anything else
+declared. Writing the step list out, six of the protocol's most load-bearing
+steps are neither:
+
+| step | effect | why it is not `EN-01`'s |
+|---|---|---|
+| `SEvacuate` | cross-directory rename | `root/<e>` → `root/<witness>/<e>` |
+| `SRestore` | cross-directory rename | the same, backwards |
+| `SCreatePreparing`, `SWriteManifest`, `SCreateMarker`, `SReplaceStage` | create | atomicity rests on `mkdir`/`O_EXCL`, which the catalogue never grants |
+| `SCommit`, `SReproducePreflight` | version-control commit | not a filesystem effect at all — which is what `EN-05` says |
+| `SRemoveWitness`, `SReplaceCleanup`, `SDisposeEntry`, `SRemoveMarker`, `SRemoveQuarantine` | remove | individually atomic and idempotent, which is what makes disposal re-enterable — but not renames |
+
+Nothing here is *wrong* about the protocol: a cross-directory rename is atomic on
+any POSIX filesystem, and `FN-08` already proves the operands are on one device
+before the transaction runs. What is wrong is the assumption the claims are
+stated to rest on. `EN-01` should say *a rename whose operands are proved to be
+on one device*, which is what `FN-08` establishes and what the protocol actually
+uses; or `FN-24.b`'s declared list becomes permanent and the catalogue owes an
+`EN-` assumption for exclusive creation. Affected: `EN-01`, `FN-24.b`, and
+through them `FN-09`, `FN-11`, `FN-17`, `FN-19`.
+*M1* `quint-only` (pending replay) · *M2* `structure` · *M3* n/a (found by
+writing the enumeration, not by a counterexample) · *M4* `none` — a catalogue
+defect with no pre-fix failing behaviour to write a test against, which
+**falsifies H7 by the terms H7 sets for itself**.
+
+**2. The closed refusal-reason set has no member for a clean rollback.** `FN-29`
+requires a `NotCommitted` finish to "leave the grove exactly as it was, with the
+finish leaf live and selectable", and to "be distinguishable by the operator from
+a block". A refusal that says nothing is not distinguishable from anything; and
+of the seventeen refusal reasons, every one names a precondition or a guard and
+none names *the deletion commit is absent*. The model adds `RRolledBack` and
+declares it as an addition.
+*M1* `quint-only`, **with the contamination risk the disclosure above names** ·
+*M2* `refusal` · *M3* n/a · *M4* `none`.
+
+**3. The closed outcome set has no member for a transaction never entered, and
+that makes `FN-01.a` unfalsifiable.** `FN-05.a` says the first preflight member
+"produces no refusal at all — the transaction is simply never entered". In a model
+where every action is total, "never entered" is an *absent transition*, and an
+absent transition makes `FN-01.a` true by construction — which is the exact
+hazard totality exists to remove. The model adds `ONotEntered`, exactly as the
+catalogue anticipates a model naming the guard wait it also refuses to put in the
+set. The catalogue should either name the non-entry or state that `FN-01.a` is
+checked over an abstraction every family must add.
+*M1* `quint-only` (pending replay) · *M2* `refusal` · *M3* n/a · *M4* `none`.
+
+**4. `FN-13`'s witness says "refused" where the catalogue's own rule says
+"blocked".** The witness is "a commit attempted while the witness is tracked,
+refused". But `FN-11` puts a complete evacuation and a ready manifest in front of
+every commit, so by the time one is attempted the transaction has published a
+witness and moved every entry — and *Outcomes*' **One artifact, three contexts,
+one decided outcome** says a caller who has already mutated is owed
+`Blocked(OwnershipConflict)`, because "a transaction has already mutated, so a
+block is the honest stable state". The two statements cannot both hold of this
+transition. The model blocks, and records the tension.
+*M1* `quint-only` (pending replay) · *M2* `refusal` · *M3* n/a · *M4* `none`.
+
+**5. `FN-22`'s table and the blocked-diagnosis definitions disagree about
+`Indeterminate`.** `FN-22`'s last general row says `Indeterminate` observed at any
+point performs no handoff and leaves `Reserved(Published)` carrying
+**`RecoveryPending`**. The `Blocked` diagnoses say `OwnershipConflict` is where
+"the observed topology matches neither the recorded anchor nor the expected
+result". An `Indeterminate` *caused by* a topology drift satisfies both, and it
+is reachable. The model resolves it — a correlated artifact Grove has just proved
+is its own defeats "cannot classify it as its own", so correlation wins — and
+that resolution is a choice the catalogue should make rather than leave to two
+independently written models.
+*M1* `quint-only` (pending replay) · *M2* `refusal` · *M3* 2 — the counterexample
+named the transition · *M4* `none`.
+
+**6. A blocked state the partition does not cover: the mid-transaction root
+swap.** This one was found the way the experiment is supposed to find things.
+`FN-25.b` is stated in this model as the *agreement* between the diagnosis each
+of the ten block sites carries and a diagnosis classified independently from the
+state — so a blocked state the two predicates do not cover is a counterexample
+rather than a definition. It went red within seconds of first running: `FN-06`'s
+identity recheck blocks when the task root is swapped between two steps, and at
+that moment there is no correlated manifest (the swap can precede the write) and
+the topology is untouched, so **neither** diagnosis's predicate holds. The
+resolution is `OwnershipConflict`'s own definition rather than an extension of
+it — whatever sits at the reserved name now sits inside a root Grove did not pin,
+so Grove cannot prove the artifact is its own — but the catalogue does not say
+so, and `FN-25.b` claims exhaustiveness it does not have without it.
+*M1* `quint-only` (pending replay) · *M2* `refusal` · *M3* 2 — the trace named the
+step (`SWriteManifest`) and the state (`WPreparing`, no manifest) · *M4* `none`.
+
+**Three observations, which are not countable findings** because no tool-neutral
+claim changes:
+
+- **`Indeterminate` after a proven commit has exactly one cause.** Found by
+  `FN-22.g`'s witness failing to land. Obscuring the commit's result decides
+  nothing once the exact ticket exists — the evidence classifier reads the ticket
+  first — and dropping the ticket alone restores the anchor, which classifies
+  `NotCommitted`. The only route to `FN-22`'s `Committed -> Indeterminate` row is
+  an operator action that drops the result **and** moves the topology: a rebase
+  over the attempt's own commit. Worth stating because that row is the one
+  `FN-22` insists must not be collapsed into its neighbour.
+- **Eight model mutations were needed, against `task-tree-k11`'s two.** An
+  executable model of a *protocol* satisfies most of its own ordering claims by
+  being written in that order, and the count is the measure of it.
+  `mutant_short_preflight` kills `FN-06`, `FN-07`, `FN-08` and `FN-12.b`
+  simultaneously: four obligations resting on the order the preflight happens to
+  check things in. That is worth knowing before any of the four is cited as
+  evidence about anything.
+- **`FN-31.a`'s witness is forced, not occasional.** The marker records disposal
+  progress, so the FIRST disposal step already carries a value the next must
+  supersede: a state requiring a replacement is reached in 40.9% of
+  `scenario_march` traces against the 28.0% that run a disposal to completion.
+  The replace transition is reachable *before* a disposal can finish. Q3's reachability
+  question therefore answers *reachable* — and Q4's row for the same transition
+  reads `none`, because removing the whole quarantine mechanism breaks no
+  shared-safety obligation. Those are different findings about the same object and
+  `formal-synthesis-k16` owns which one decides Q3.
+
+**Missed.** Recorded with the same care, because two of these bound what a green
+run here is worth.
+
+- **The index image is a flag nothing reads.** The colocated lane backs up the
+  user's Git index before the preflight snapshot can export into it, and restores
+  it on an uncommitted result. In this model that is `repo.indexRestored`, set and
+  never consulted: no obligation is stated over it, so Q4's row for it is declared
+  `abstracted` rather than answered. A whole lane-specific mechanism this column
+  says nothing about, and the one Q4 row this family cannot supply.
+- **No eventuality is checked.** `FN-23`'s idempotence and `FN-21.a`'s
+  resumability are the two claims that read like liveness, and both are checked
+  here as an invariant plus a reachability witness. Nothing in this column is a
+  temporal property, and a claim of the form "recovery *will* terminate" is not
+  made and could not be made without a fairness premise the models have no
+  grounds to grant.
+- **`FN-25.b`'s "exhaustive sweep of the blocked states" is exhaustive only
+  within 8000 samples at depth 24.** The obligation asks for a sweep; what it gets
+  is a bounded search. The direction that *is* strong is the agreement between the
+  ten call sites and the independent classifier, and that is what finding 6 came
+  out of.
+
+**Cost.** Authoring: one session, from bootstrap to a green suite. The
+distribution is worth recording because it is not where it was expected: the
+model's *state and step machine* took about a third of the session, its
+*claims* another third, and the last third went almost entirely on **making
+witnesses reachable** — which is the cost item this scope has and the task-tree
+scope did not.
+
+**The reachability cost is the finding about method, and it is quantified.** The
+subject is a transaction of roughly twenty steps, and while it runs every
+environment action is enabled at every step. An unfocused search therefore
+reaches the end of the transaction with probability `(1/k)^20`, and at 8000
+samples every claim from the commit onward would have been reported green on a
+witness that never landed. The remedy is a *search dial* — `ENV_BUDGET`,
+`ENV_PHASES`, `ENV_KINDS` and per-kind narrowing — and twelve `scenario_`
+instances built on it. It removes no behaviour; `base` grants a budget no trace
+can spend, at every phase, of every kind, and every PROPERTY is checked there
+unfocused. What it cost is twelve instances and four rounds of "this witness
+does not land, why". Two of those rounds were findings in their own right: one
+produced the `Indeterminate`-after-a-commit observation above, and one produced a
+two-transition shortening of the march (`SEvacuate` and `SRestore` now leave for
+the next step on their last entry rather than spending a transition discovering
+there is nothing left to move), without which the refusal branch and the success
+branch could not both fit inside the runner's depth of 24.
+
+**Run cost (M7).** `models/run.sh --scope finish --family quint` — **exit 0,
+4m 05s wall / 293s CPU** on a 16-core host, 223 commands, 61 of 61 coverage
+cells complete, Q4's removal matrix 10 of 10 rows. Bounds: one evacuable entry,
+three lanes, depth 24, 8000 samples, seed `0x5e0a51d3c0ffee01`. Backend: the
+rust evaluator.
+
+That is **an order of magnitude cheaper than the task-tree column's 19m 46s**,
+and the reason is worth recording rather than being read as this scope being
+easier: the task-tree model unrolls a tree walk to `MAX_DEPTH` on every
+transition, and this one does not have a tree. What this scope pays for instead
+is *reachability engineering* — the twelve scenarios — which costs authoring
+hours rather than run seconds, and therefore lands in M7's `wrangling` column
+rather than in its run wall-clock. **A comparison of the two Quint models on run
+cost alone would be measuring the presence of a tree walk.**
+
+**One M8 entry, and it is the runner's rather than the model's.** A full runner
+invocation was first taken as `models/run.sh … | tail -45`, which reports the
+exit status of `tail` — so a run that had gone red printed a summary and was
+read as green. Caught within one command, by noticing the runner was re-running
+invariants individually (which it only does after a batch fails) while its
+output claimed nothing had failed. It stood for about fifteen minutes. The
+runner is not at fault; the pipeline was. Recorded because the pre-registration's
+**dead tool** hazard has a sibling nobody named — *the muffled tool*, a runner
+whose verdict is discarded by the shell around it — and one line of it is worth
+more than a paragraph after it happens again.
+
+**Counterfactual.** For each material finding: would prose have caught it?
+
+1. **`EN-01` narrower than its own steps** — no, and this is the clearest case in
+   the set. The assumption and the steps that rest on it are three sections apart
+   in a 1,537-line document, and nothing in prose makes anyone write the step
+   list out. `FN-24.b` is an obligation that *demands the enumeration exist*, and
+   the finding falls out of writing it. A reviewer reading the catalogue would
+   have to hold "same-directory" and "root/<e> → root/<witness>/<e>" in mind
+   simultaneously and notice they disagree.
+2. **No refusal reason for a clean rollback** — possibly. A careful reader
+   checking `FN-29` against the seventeen reasons could find it. What forced it
+   here is totality: the model had to *return something*.
+3. **No outcome for a transaction never entered** — no. This is only visible once
+   an action is required to be total, and it is the second time in this
+   workstream that totality has produced a missing-member finding.
+4. **`FN-13` refused vs blocked** — possibly, by the same reader as (2). What
+   forced it here is that the model reaches the commit step with a published
+   witness and an evacuated tree in its own state, so the question "what can
+   honestly be said here" is unavoidable.
+5. **`FN-22` vs the diagnoses on `Indeterminate`** — no. Two sections, both
+   correct in isolation, contradicting only on a state that has to be constructed.
+6. **The mid-transaction swap** — no, and it was not caught by reading either.
+   It came from stating `FN-25.b` as an *agreement between two independent
+   encodings of the same partition* rather than as a property of a single one.
+   That is a modelling technique rather than a formalism, and it is the
+   transferable part of this entry.
+
+**Verdict.** Reach for Quint again for exactly this: **a protocol whose claims
+are about the ORDER of its steps and about what an interruption between two of
+them leaves behind.** The step list as a closed type with a total
+`persistentEffect` function turned `FN-24.b` from an unanswerable obligation into
+a table a reader can check, and it produced the largest finding in the set.
+Reach for it also for **partitions that must be exhaustive**: encoding the
+classification twice and checking the agreement is cheap, and it was the only
+thing here that produced a counterexample rather than a reading.
+
+Do **not** reach for it — on this subject, at this size — expecting model
+checking to establish the properties. See below.
+
+**What a green run here does not prove.** Not that any `FN-` property holds over
+the reachable states — only that 8000 randomized traces of depth 24 found no
+counterexample, under one entry, three lanes, and the environment budget each
+instance declares.
+
+**The model-checked result is real and it is shallow, and the gap between those
+two facts is the honest reading.** `quint verify` finishes on `verify_small`
+over all 61 properties at `--max-steps=4` and reports no violation. That is the
+direction simulation cannot give, and it is a result the task-tree column could
+not obtain at any depth. But the incumbent protocol's shortest path from entry
+to a settled refusal is **eleven steps**, so a depth-4 check reaches the
+published witness and stops — it verifies the beginning of the transaction and
+says nothing about the commit, either handoff, disposal, or recovery. Quoting
+"model-checked, no counterexample" without the depth beside it would be the
+pre-registration's *scope trap* stated as a result.
+
+**Depth is what costs, not the number of invariants**, and that is a
+transferable measurement: 3 invariants at depth 3 took 373s and 61 invariants at
+depth 4 took 377s. A reader planning a Quint verification budget on this subject
+should price the depth and treat the property count as free.
+
+And nothing here is evidence about the index image, which is abstracted to a
+flag no obligation reads.
+
+**Derived tests.** For the implementation phase, in the existing black-box
+suites rather than in a new one:
+
+- **`tests/finish_lifecycle.rs`** — a finish whose commit is reported as failure
+  while the exact attempt-bound commit exists must classify `Committed` and settle
+  forward (`FN-15.a`). The model reaches it by nondeterminism in one step; the
+  test needs a seam that lies about the exit status.
+- **`tests/finish_lifecycle.rs`** — a task root swapped between two steps of the
+  transaction must stop with a diagnostic naming the artifact, and must not apply
+  its pending effect anywhere (`FN-06`, and finding 6's diagnosis).
+- **`tests/finish_lifecycle.rs`** — after the quarantine rename, an operator
+  action that both drops the result and moves the topology must return the
+  quarantine atomically and block, not refuse (`FN-22.g`). The observation above
+  is what says this is the only way to reach that row, so it is the only shape
+  the test can take.
+- **`src/finish_cleanup/auxiliary/tests.rs`** — a disposal resumed after an
+  interruption inside the marker replacement must reach the same terminal marker
+  value as an uninterrupted one (`FN-31.c`), and no reader may observe the marker
+  absent (`FN-31.b`).
+
 # Experiment 2 — pre-registration
 
 **Written before any Experiment 2 model exists.** That is the whole value of the

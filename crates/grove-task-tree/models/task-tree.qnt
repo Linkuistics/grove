@@ -635,6 +635,10 @@ module taskTree {
   /// moved the world since (`EN-06`) — so the create is not licensed any more.
   /// It must NOT proceed: overwriting what is there would be a mutation of an
   /// entry whose ownership the operation cannot prove (`TT-24.a`).
+  ///
+  /// WHAT IT PRODUCES INSTEAD IS NOT THE MODEL'S CHOICE — see
+  /// `collisionOutcome`, which reads it off the catalogue's own
+  /// *one artifact, three contexts* table.
   pure def effectBlocked(f: Fs, e: Effect): bool =
     match e {
       | ECreate(c) => has(f, c.id)
@@ -714,6 +718,12 @@ module taskTree {
     declined: Set[Id],
     allocated: int,
     beforeFs: Fs,
+    // What `decide` returned from the operation's OWN arguments and its one
+    // listing, kept because `outcome` is later overwritten by what the world
+    // did (`stepOpBlocked`, `crashNow`).  `TT-10` is a claim about arguments,
+    // and separating the two is what keeps it one.  (A `///` here is a parse
+    // error inside a record type; entry 044 records the same trap.)
+    decided: Outcome,
   }
 
   pure val EMPTY_FS: Fs = { objs: Map(), nextId: 2 }
@@ -723,6 +733,7 @@ module taskTree {
     outcome: Idle, alg: ANone, pending: List(), applied: List(), plan: List(),
     foreignDuring: false, coopDuring: false, preempted: false,
     canonicalNamed: false, declined: Set(), allocated: -1, beforeFs: EMPTY_FS,
+    decided: Idle,
   }
 
   pure def isQuarantined(f: Fs, i: Id): bool =
@@ -883,6 +894,16 @@ module taskTree {
     List(ECreate({ id: f.nextId, parent: ROOT, kind: Quarantined, otype: ODir,
                    atReserved: true, digest: 900 }))
 
+  /// `TT-23.b`'s SECOND DIAL, and it is a dial rather than a decision for the
+  /// same reason `ONE_SNAPSHOT` is: the requirement it encodes is one the
+  /// catalogue implies and does not state, and a requirement asserted only by
+  /// writing the model the right way is unfalsifiable.  On: a bulk member
+  /// already in the plan's target state is admissible and a no-op.  Off: a bulk
+  /// plan is validated exactly the way a single mark is, `AlreadyTerminal`
+  /// refuses the member the interrupted run already marked, and
+  /// `mutant_bulk_strict` is the run that watches `TT-23.b` die.
+  const BULK_TARGET_IDEMPOTENT: bool
+
   /// A bulk member is admissible if it is a markable leaf OR IS ALREADY IN THE
   /// TARGET STATE.  The second half is what `TT-23.b` requires and what a naive
   /// reading of the catalogue denies: `AlreadyTerminal` is a refusal for a
@@ -890,12 +911,13 @@ module taskTree {
   /// partial application refuse — and the plan can then NEVER converge, which
   /// is the property `bulk-marks-are-not-atomic` exists to buy.  Idempotence on
   /// the target state is therefore a requirement the claim implies and the
-  /// catalogue does not say; it is recorded as an observation and as a derived
-  /// test.
+  /// catalogue does not say; it is recorded as an observation, as a derived
+  /// test, and as the mutation above.
   pure def bulkMemberOk(f: Fs, k: int, target: LeafState): bool =
     val i = idOf(f, k)
     i != -1 and nameAt(f, i).species == SLeaf and nameAt(f, i).skind != KFinish and
-    (nameAt(f, i).state == SLive or nameAt(f, i).state == target)
+    (nameAt(f, i).state == SLive or
+     (BULK_TARGET_IDEMPOTENT and nameAt(f, i).state == target))
 
   pure def bulkPlan(f: Fs, ks: List[int]): List[Effect] =
     ks.foldl(List(), (acc, k) =>
@@ -1041,6 +1063,11 @@ module taskTree {
     entryRemoved: bool,
     bulkInvalidApplied: bool,
     bulkPartial: bool,
+    // THE INTERRUPTED REQUEST ITSELF, not a sticky boolean.  `TT-23.b` is
+    // "re-running IT converges", so the ghost has to hold what was run: a flag
+    // that any later bulk mark can set proves that SOME bulk mark completed,
+    // which is a different and much weaker claim.
+    bulkPlanKeys: List[int],
     bulkRepaired: bool,
     bulkDiverged: bool,
     reapWitness: Id -> int,
@@ -1053,9 +1080,25 @@ module taskTree {
     initCrashUnderForeign: Set(), crashed: false,
     handEdited: false, foreignWritten: false, foreignMutated: false,
     unownedMutated: false, entryRemoved: false, bulkInvalidApplied: false,
-    bulkPartial: false, bulkRepaired: false, bulkDiverged: false, reapWitness: Map(),
+    bulkPartial: false, bulkPlanKeys: List(), bulkRepaired: false,
+    bulkDiverged: false, reapWitness: Map(),
     reapDisturbed: false, reapDeclined: false,
   }
+
+  /// The same request, spelled the same way.  `[1, 2]` and `[2, 1]` are two
+  /// requests, and a model that accepted either as the repair of the other
+  /// would be establishing that A bulk mark converges rather than that THE
+  /// interrupted one does.
+  pure def sameRequest(a: List[int], b: List[int]): bool =
+    a.length() == b.length() and
+    range(0, a.length()).foldl(true, (acc, i) => acc and a.nth(i) == b.nth(i))
+
+  /// The retry Grove is being asked about: this operation is a bulk mark, an
+  /// earlier bulk mark was interrupted part-way, and this one carries the
+  /// identical request.
+  pure def isBulkRetry(h: Hist, t: OpTag): bool =
+    h.bulkPartial and
+    match t { TBulkMark(ks) => sameRequest(ks, h.bulkPlanKeys) | _ => false }
 
   var fs: Fs
   var op: Op
@@ -1131,7 +1174,7 @@ module taskTree {
         pending: d.effects, applied: List(), plan: d.effects,
         foreignDuring: false, coopDuring: false, preempted: d.preempted,
         canonicalNamed: d.canonicalNamed, declined: d.declined,
-        allocated: d.allocated, beforeFs: fs,
+        allocated: d.allocated, beforeFs: fs, decided: d.outcome,
       }
       all {
         op' = newOp,
@@ -1146,7 +1189,26 @@ module taskTree {
                   reapWitness: if (t == TReap)
                                  d.declined.mapBy(i => fs.objs.get(i).digest)
                                else hist.reapWitness,
-                  reapDeclined: hist.reapDeclined or d.declined.size() > 0 },
+                  reapDeclined: hist.reapDeclined or d.declined.size() > 0,
+                  // A REFUSED RETRY IS A DIVERGENCE, and it has to be caught
+                  // here: a refusal never becomes a running operation, so it
+                  // never reaches `finishOp`, and a convergence ghost that only
+                  // watches completions cannot see the very failure `TT-23.b`
+                  // is about.  Re-running the identical request after a partial
+                  // application and being told `AlreadyTerminal` is precisely
+                  // "does not reach the same result".
+                  //
+                  // ONLY A REFUSAL THE BULK VALIDATOR ITSELF PRODUCED, which is
+                  // what `gatePassed` qualifies.  Every gate refusal — a
+                  // foreign artifact at a reserved name, a reserved witness, a
+                  // root that is no longer current — refuses EVERY operation,
+                  // and reading those onto `TT-23.b` would make the claim a
+                  // statement about what the world did to the tree rather than
+                  // about whether re-running the plan converges.  `TT-24.b` and
+                  // `TT-19` are the obligations that own those, and they do.
+                  bulkDiverged: hist.bulkDiverged or
+                                (isBulkRetry(hist, t) and isRefusal(d.outcome) and
+                                 gatePassed(gateOutcome(fs, t))) },
       }
 
   /// Release a shared guard.  Observations hold it only long enough for a
@@ -1179,16 +1241,42 @@ module taskTree {
     }
   }
 
-  /// The honest stable state a part-way transaction leaves when its next step
-  /// is no longer licensed: `Blocked`, never a silent overwrite and never a
-  /// pretence that the mutation landed.
+  /// What an operation produces when its next step is no longer licensed.
+  /// Never a silent overwrite and never a pretence that the mutation landed —
+  /// and WHICH non-mutating outcome it is is not the model's choice.  The
+  /// catalogue fixes it by how far the caller had already gone (*Outcomes*,
+  /// **One artifact, three contexts, one decided outcome**):
+  ///
+  ///   - NOTHING APPLIED YET.  The tree is byte-identical, so the honest
+  ///     outcome is a REFUSAL, and `Blocked` — "a transaction stopped part-way
+  ///     and left a stable, recoverable state" — would be a lie about state
+  ///     that never moved.  The reason is `ReservedNameOccupied` exactly when
+  ///     the occupant is the artifact `TT-24.b` is about, and
+  ///     `DestinationOccupied` otherwise.
+  ///   - AN EFFECT HAS ALREADY LANDED, or this is a transaction.  Now nothing
+  ///     can say "nothing happened", and `Blocked(OwnershipConflict)` is the
+  ///     honest stable state — on the table's own reasoning, that a caller who
+  ///     has already mutated is owed a block rather than a refusal.
+  ///
+  /// The ORDINARY half of that second case is the one the table has no row for:
+  /// its three contexts are an ordinary operation *before any transaction*, a
+  /// finish transaction, and the reaper.  A mid-flight ordinary mutation is
+  /// none of them, and that — not the pre-effect collision, which the closed
+  /// set answers perfectly well — is the missing-outcome finding.
+  pure def collisionOutcome(f: Fs, o: Op): Outcome =
+    val i = effTarget(o.pending.head())
+    if (o.applied.length() > 0 or isTransaction(o.tag)) BlockedO(OwnershipConflict)
+    else if (has(f, i) and f.objs.get(i).atReserved and isForeign(f, i))
+      Refused(ReservedNameOccupied(i))
+    else Refused(DestinationOccupied)
+
   action stepOpBlocked: bool = all {
     op.running,
     op.pending.length() > 0,
     effectBlocked(fs, op.pending.head()),
     fs' = fs,
     op' = { ...op, running: false, pending: List(),
-            outcome: BlockedO(OwnershipConflict) },
+            outcome: collisionOutcome(fs, op) },
     guard' = HNone,
     pend' = Set(),
     hist' = hist,
@@ -1206,20 +1294,22 @@ module taskTree {
                       else hist.issued,
               reissued: hist.reissued or
                         (op.allocated >= 0 and hist.issued.contains(op.allocated)),
-              bulkRepaired: hist.bulkRepaired or
-                            (hist.bulkPartial and match op.tag { TBulkMark(_) => true | _ => false }),
+              // Only the IDENTICAL request repairs the interrupted one.
+              bulkRepaired: hist.bulkRepaired or isBulkRetry(hist, op.tag),
               // Convergence is decided HERE, when the repairing run completes,
               // against the tree it produced.  A sticky flag compared against
               // the LIVE tree would be falsified by the next hand edit, which
               // says nothing about whether the bulk mark converged.
+              //
+              // "The same result" is every member of the INTERRUPTED plan in
+              // the target state — not merely "no member still live", which a
+              // member someone abandoned in between would satisfy while the
+              // re-run plainly did not reach the first run's result.
               bulkDiverged: hist.bulkDiverged or
-                (hist.bulkPartial and
-                 match op.tag {
-                   | TBulkMark(ks) =>
-                       ks.foldl(false, (acc, k) =>
-                         acc or nameAt(fs, idOf(fs, k)).state == SLive)
-                   | _ => false
-                 }) },
+                (isBulkRetry(hist, op.tag) and
+                 hist.bulkPlanKeys.foldl(false, (acc, k) =>
+                   acc or idOf(fs, k) == -1 or
+                   nameAt(fs, idOf(fs, k)).state != SDone)) },
   }
 
   /// `EN-08`.  Interruption may occur between any two steps.  What it leaves is
@@ -1245,8 +1335,18 @@ module taskTree {
                                 and op.foreignDuring)
                               hist.initCrashUnderForeign.union(Set(classify(fs)))
                             else hist.initCrashUnderForeign,
+              // The FIRST interruption fixes the request the retry is judged
+              // against; a later one cannot quietly re-point the ghost at a
+              // different plan.
               bulkPartial: hist.bulkPartial or
-                           (match op.tag { TBulkMark(_) => op.applied.length() > 0 | _ => false }) },
+                           (match op.tag { TBulkMark(_) => op.applied.length() > 0 | _ => false }),
+              bulkPlanKeys:
+                if (not(hist.bulkPartial))
+                  match op.tag {
+                    | TBulkMark(ks) => if (op.applied.length() > 0) ks else hist.bulkPlanKeys
+                    | _ => hist.bulkPlanKeys
+                  }
+                else hist.bulkPlanKeys },
   }
 
   // ---------------------------------------------------------------------------
@@ -1458,7 +1558,14 @@ module taskTree {
     // different tree, what has been issued is what that tree's names say.
     // Carrying the previous tree's keys forward would make `TT-05` fail on the
     // model's own hand-edit abstraction rather than on anything Grove did.
+    // The operator installed a DIFFERENT TREE, so a plan interrupted against
+    // the previous one is no longer a plan anyone can re-run; keeping it
+    // pending would falsify `TT-23.b` on the hand-edit abstraction rather than
+    // on anything a bulk mark did.  What was already established — that a
+    // repair happened, or that one diverged — is a fact about a completed
+    // history and stays.
     hist' = { ...hist, handEdited: true, reapWitness: Map(),
+              bulkPartial: false, bulkPlanKeys: List(),
               issued: keysOf(situation(s)) },
   }
 
@@ -1837,8 +1944,19 @@ module taskTree {
   val wit_TT_09d_rewrite: bool = atRest and isApplied(op.outcome) and op.alg == ARewrite
   // --- TT-10 — no algebraic refusal reaches an operator ----------------------
 
+  /// QUALIFIED, AND THE QUALIFICATION IS DECLARED.  Read over `op.outcome`
+  /// this would be a claim about the WORLD as well as about arguments: a
+  /// non-cooperating writer can take a create's destination after the listing
+  /// and before the step, and the refusal the operator then sees is caused by
+  /// `EN-06`, not by an argument the domain failed to pre-empt.  `TT-10`'s own
+  /// text is "no algebraic refusal reaches an operator FROM AN ORDINARY
+  /// ARGUMENT", so it is stated over `op.decided` — what the operation
+  /// concluded from its arguments and its one listing.  This is not a
+  /// catalogue conflict and not a gap: the mid-flight case has its own
+  /// obligations (`TT-21.b`, `TT-24.a`) and its own outcome, decided by
+  /// `collisionOutcome`.
   val inv_TT_10_the_domain_runs_in_front_of_the_algebra: bool =
-    outcomeIsDestinationOccupied(op.outcome) implies (op.tag == TInitRoot)
+    outcomeIsDestinationOccupied(op.decided) implies (op.tag == TInitRoot)
 
   val wit_TT_10_an_argument_that_would_reach_an_algebraic_refusal_preempted: bool =
     atRest and isApplied(op.outcome) and op.preempted
@@ -1927,11 +2045,25 @@ module taskTree {
   val inv_TT_15a_selection_on_a_spent_tree_reports_empty: bool =
     and {
       observationIsClean(op.tag, op.outcome, op.applied, atRest),
-      // `walkStageReached` and not merely `CurrentSpent`: an artifact at a
-      // reserved name that Grove cannot classify makes the tree LOOK spent to
-      // `classify` while the gate refuses `ReservedNameOccupied` two stages
-      // earlier (`TT-18`, `TT-24.b`).  Without the guard this obligation is
-      // really a claim about the classification ORDER wearing selection's name.
+      // NARROWED, AND THE NARROWING IS DECLARED — the third of them, beside
+      // `TT-17` and `TT-20`, and a catalogue conflict of the same kind rather
+      // than a modelling convenience.
+      //
+      // The literal claim is that every snapshot classifying `CurrentSpent`
+      // returns `Empty`.  A current root with no live task and a FOREIGN
+      // artifact at a reserved name classifies `CurrentSpent` — `classify`
+      // reaches its walk stage and finds nothing live — while `TT-24.b`
+      // requires that same tree to refuse `ReservedNameOccupied`, and
+      // `TT-18` puts that refusal two stages ahead of anything the walk says.
+      // Both are the catalogue's; under one tree they are inconsistent, and
+      // `TT-24.b` is the one whose whole purpose is to win.
+      //
+      // `walkStageReached` states the staging premise the claim leaves
+      // implicit: on a tree the gate actually walks, selection on a spent tree
+      // reports `Empty`.  Without it this obligation is a claim about the
+      // classification ORDER wearing selection's name.  Recorded rather than
+      // fixed — the catalogue is frozen under the independence barrier, and
+      // `formal-synthesis-k16` owns the disposition.
       (atRest and op.tag == TSelect and walkStageReached(op.snap) and
        classify(op.snap) == CurrentSpent)
         implies isEmptyO(op.outcome),
@@ -2187,11 +2319,12 @@ module taskTree {
 // a run: every module below binds the assumption dial and is what `quint run
 // --main=` is pointed at.
 //
-// THE RUNNER'S RULE, and it is readable off the names.  An instance whose name
-// does NOT begin `relax_` or `mutant_` inherits the library's obligation
-// commands and must satisfy every one of them.  An instance that DOES is a
-// control: it carries only the commands written inside it, because the whole
-// point of a control is that some obligation behaves differently there.
+// THE MODULE RULE IS DEFINED IN ONE PLACE — `models/run.sh`, *THE MODULE RULE*
+// — and cited here rather than restated, because a convention written out in
+// four files is a convention with four versions.  In brief: a `relax_`,
+// `mutant_` or `scenario_` instance carries only its own commands; a `verify_`
+// instance is model-checked and inherits the library's PROPERTY commands only;
+// every other instance inherits all of them and must satisfy every one.
 // =============================================================================
 
 module base {
@@ -2203,6 +2336,7 @@ module base {
     HAND_EDITS = true,
     REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).*
 }
@@ -2221,6 +2355,7 @@ module verify_small {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = false, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     MAX_OBJECTS = 6, MAX_DEPTH = 2, MAX_POS = 2
   ).*
 }

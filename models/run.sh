@@ -14,7 +14,15 @@
 #   3. ASSERT OBLIGATION COVERAGE IN BOTH DIRECTIONS, PER FAMILY.  Every
 #      obligation the catalogue defines must be answered by each family, and
 #      every TT_/FN_/SY_-prefixed command must name an obligation the catalogue
-#      defines.
+#      defines.  THE SECOND DIRECTION IS CHECKED AGAINST THE MANIFEST, not
+#      merely against the obligation SHAPE: `inv_TT_99_invented` is
+#      syntactically perfect and answers nothing, and a runner that credits it
+#      to a matrix key nothing ever reads has asserted nothing in that
+#      direction at all.  A command may cite a CLAIM rather than one of its
+#      sub-identities (`TT_24` where the manifest carries `TT-24.a` - `TT-24.d`),
+#      which is the same relaxation obligation 4 makes for a matrix row; such a
+#      command is real but credits NO cell, and the run reports it rather than
+#      losing it silently.
 #   4. ASSERT Q4'S REMOVAL MATRIX IN BOTH DIRECTIONS, PER FAMILY.  The
 #      catalogue calls the artifact/transition removal matrix "a runner
 #      obligation like any other: a removable artifact with no row fails the
@@ -66,25 +74,43 @@
 # WHICH MODULE A QUINT COMMAND RUNS IN, because `quint run` needs one and a
 # `.qnt` file holds several.  A module carrying `const` declarations is a
 # LIBRARY — it cannot be run, it is instantiated.  Every other module is an
-# instance, and a command runs in the module it is TEXTUALLY defined in.  An
-# instance whose name does not begin `relax_`, `mutant_` or `scenario_`
-# additionally inherits the library's commands and must satisfy every one of
-# them; the three prefixes mark instances that exist precisely because some
-# obligation behaves differently there, so they carry only their own.
+# instance, and a command runs in the module it is TEXTUALLY defined in.
+#
+# THE MODULE RULE, in one statement.  This is the only place it is DEFINED; the
+# model headers and each scope README cite it rather than restating it, because
+# a convention stated in four places is a convention with four versions.
+#
+#   - a `relax_`, `mutant_` or `scenario_` instance carries ONLY the commands
+#     written inside it.  Each exists precisely because some obligation behaves
+#     differently there, so inheriting the library's would assert the opposite
+#     of what the instance is for.
+#   - a `verify_` instance is MODEL-CHECKED (see QUINT VERIFICATION below) and
+#     inherits the library's PROPERTY commands only.  It is the one prefix that
+#     inherits, which is why a `verify_` module declaring no commands of its own
+#     is correct rather than zero-work.
+#   - every other instance inherits ALL the library's commands and must satisfy
+#     every one of them.
 #
 # QUINT VERIFICATION.  A module named `verify_<something>` is MODEL-CHECKED with
 # `quint verify` (Apalache) rather than simulated, and inherits the library's
 # property commands only — a witness is a reachability question, and a reduced
-# verification world is the wrong place to ask one.  It runs by default;
-# QUINT_VERIFY=0 skips it and says so on every line.  Whatever a scope's Quint
-# models can and cannot check is declared in its README's `VERIFY` line, which
+# verification world is the wrong place to ask one.  It is OFF by default
+# (`QUINT_VERIFY=0`), because on this repository's subject it is reachable and
+# not affordable; every line then says SKIP rather than passing silently, and
+# `QUINT_VERIFY=1` runs it.  Whatever a scope's Quint models can and cannot
+# check is declared in its README's `VERIFY` line, which
 # this runner READS AND PRINTS on every run, and a scope whose Quint models
 # exist and which declares nothing is a runner failure — so a limit on model
 # checking names itself instead of passing as silence.
 #
 # An out-of-heap, a backend that never started and a reporter that crashed all
 # print what a violated invariant prints if nobody looks.  They abort the run as
-# DEAD TOOL rather than being recorded as verdicts.
+# DEAD TOOL rather than being recorded as verdicts.  THE DEFAULT IS DEATH, NOT
+# GREEN: a non-zero `quint verify` becomes a verdict only when the output
+# carries Apalache's own counterexample report, and every other non-zero exit
+# — a JVM that could not read its jar, an OOM whose wording nobody predicted,
+# a reporter that blew up — aborts.  A list of known-fatal strings is the wrong
+# shape for this: it makes the UNRECOGNISED failure the green one.
 #
 # Usage:
 #   models/run.sh [--scope task-tree|finish|lifecycle|ordinal]...
@@ -255,7 +281,8 @@ pick_java() {
 fail=0
 ran=0
 declare -a rows=()          # "family obligation kind command outcome"
-declare -a bad_commands=()  # commands naming no obligation
+declare -a bad_commands=()  # commands naming no obligation the catalogue defines
+declare -a claim_level=()   # commands citing a claim rather than an obligation
 declare -A covered_prop=() covered_wit=()
 
 note() { [[ "$quiet" == 1 ]] || echo "$@"; }
@@ -279,6 +306,34 @@ ob_of() {
   echo "$id"
 }
 is_control() { [[ "$(strip_outcome "$1")" == EN_* ]]; }
+
+# THE SECOND DIRECTION, and the whole of it.  `ob_of` reads a well-SHAPED
+# obligation out of a command name; the catalogue decides whether that
+# obligation EXISTS.  Sets `RESOLVED_OB` to the obligation this command credits,
+# or to the empty string, and records every rejection where the run can see it —
+# by assignment rather than by `echo`, because `$( )` runs a subshell and every
+# `bad_commands+=` inside one is discarded the moment it returns.
+RESOLVED_OB=""
+resolve_ob() {
+  local fam="$1" file="$2" name="$3" ob stripped
+  RESOLVED_OB=""
+  ob=$(ob_of "$name")
+  stripped=$(strip_outcome "$name")
+  if [[ -z "$ob" ]]; then
+    if ! is_control "$name" && [[ "$stripped" =~ ^(TT|FN|SY)_ ]]; then
+      bad_commands+=("$fam $file $name — names no obligation")
+    fi
+    return 0
+  fi
+  if grep -qxF "$ob" <<<"$manifest"; then RESOLVED_OB="$ob"; return 0; fi
+  # A claim rather than one of its sub-identities: real, and credits no cell.
+  if grep -q "^${ob}\.[a-z]$" <<<"$manifest"; then
+    claim_level+=("$fam $file $name — cites the claim $ob, not one of its obligations")
+    return 0
+  fi
+  bad_commands+=("$fam $file $name — names $ob, which the catalogue does not define")
+  return 0
+}
 
 run_alloy_file() {
   local file="$1" scope="$2" java_bin="$3"
@@ -307,10 +362,7 @@ run_alloy_file() {
       *)                     want=no;  label="counterexample" ;;
     esac
     ran=$((ran + 1))
-    local ob; ob=$(ob_of "$name")
-    if [[ -z "$ob" ]] && ! is_control "$name" && [[ "$(strip_outcome "$name")" =~ ^(TT|FN|SY)_ ]]; then
-      bad_commands+=("alloy $file $name")
-    fi
+    local ob; resolve_ob alloy "$file" "$name"; ob="$RESOLVED_OB"
     if [[ -n "$ob" ]]; then
       local obscope; obscope=$(prefix_scope "${ob:0:2}")
       if [[ "$obscope" != "$scope" ]]; then
@@ -404,22 +456,52 @@ quint_run_verify() {
   local out rc=0
   out=$(JVM_ARGS="$quint_jvm_args" quint verify "$file" --main="$mod" \
           --invariants "${names[@]}" --max-steps="$quint_verify_steps" 2>&1) || rc=$?
-  # A DEAD TOOL is not a result.  An out-of-heap, a backend that never started
-  # and a reporter that blew up all print what a violated invariant prints if
-  # nobody looks, so they abort rather than being recorded.
-  if grep -qE 'Ran out of heap memory|RangeError|Input error \(see the manual\)|Failed to launch|Connection refused' <<<"$out"; then
-    echo "quint verify failed to complete on $file / $mod (tool failure, not a result):" >&2
-    grep -E 'Ran out of heap memory|RangeError|Input error|Failed to launch|Connection refused' <<<"$out" | head -3 >&2
+
+  # A DEAD TOOL IS NOT A RESULT, AND AN UNRECOGNISED FAILURE IS DEATH.
+  #
+  # Measured against quint 0.32.0 / Apalache: a run that genuinely found a
+  # counterexample exits non-zero AND prints its own report — `[violation] Found
+  # an issue`, one `❌ <invariant>` line per violated invariant, and
+  # `error: found a counterexample`.  A run whose backend died prints something
+  # else entirely: a JVM stack trace out of `LauncherHelper` when the heap is
+  # too small to read the jar, an OOM, a reporter `RangeError`, a socket that
+  # was never answered.
+  #
+  # So the test is for the VERDICT, not for a list of known deaths.  A list of
+  # known-fatal strings makes the failure nobody predicted the GREEN one, which
+  # is the exact defect this replaces: `JVM_ARGS=-Xmx6m` matched none of the
+  # five strings it used to look for, exited 1, and every invariant in the batch
+  # was recorded "model-checked … no counterexample".
+  local verdict=0
+  grep -qE '\[violation\] Found an issue|error: found a counterexample' <<<"$out" && verdict=1
+  # A zero exit with no verdict line is a completed check with nothing found;
+  # a zero exit that printed a violation report is a contradiction, so it is
+  # also refused rather than being read either way.
+  if [[ "$rc" == 0 && "$verdict" == 1 ]]; then
+    echo "quint verify on $file / $mod exited 0 while reporting a counterexample; refusing to guess:" >&2
+    grep -E '\[violation\]|❌|^error' <<<"$out" | head -5 >&2
     exit 2
   fi
+  if [[ "$rc" != 0 && "$verdict" == 0 ]]; then
+    echo "quint verify failed to complete on $file / $mod (tool failure, not a result; exit $rc):" >&2
+    tail -8 <<<"$out" >&2
+    echo "      replay: JVM_ARGS=$quint_jvm_args quint verify $file --main=$mod --invariants ${names[*]} --max-steps=$quint_verify_steps" >&2
+    exit 2
+  fi
+
   ran=$((ran + ${#names[@]}))
-  if [[ "$rc" == 0 ]]; then
+  if [[ "$verdict" == 0 ]]; then
     for n in "${names[@]}"; do
       quint_pass "$n" "model-checked to depth $quint_verify_steps, no counterexample"
     done
   else
+    # Attribution is read off Apalache's own `❌ <name>` lines, anchored, rather
+    # than by asking whether the name appears anywhere in the output: one
+    # command name is a substring of another the moment two mnemonics share a
+    # stem, and a substring match would then fail the wrong command.
     for n in "${names[@]}"; do
-      if grep -qF "$n" <<<"$out"; then quint_fail "$n" "counterexample found by quint verify"
+      if grep -qE "^[[:space:]]*❌[[:space:]]+${n}[[:space:]]*$" <<<"$out"; then
+        quint_fail "$n" "counterexample found by quint verify"
       else quint_pass "$n" "model-checked to depth $quint_verify_steps, no counterexample"; fi
     done
     echo "      replay: JVM_ARGS=$quint_jvm_args quint verify $file --main=$mod --invariants <name> --max-steps=$quint_verify_steps"
@@ -439,10 +521,7 @@ quint_kind() {
 # Record one command against the coverage matrix and the placement rule.
 quint_account() {
   local name="$1" file="$2" scope="$3" ob obscope
-  ob=$(ob_of "$name")
-  if [[ -z "$ob" ]] && ! is_control "$name" && [[ "$(strip_outcome "$name")" =~ ^(TT|FN|SY)_ ]]; then
-    bad_commands+=("quint $file $name")
-  fi
+  resolve_ob quint "$file" "$name"; ob="$RESOLVED_OB"
   [[ -n "$ob" ]] || return 0
   obscope=$(prefix_scope "${ob:0:2}")
   if [[ "$obscope" != "$scope" ]]; then
@@ -459,6 +538,30 @@ quint_account() {
 quint_pass() { note "$(printf 'PASS  %-58s %s' "$1" "$2")"; }
 quint_fail() { printf 'FAIL  %-58s %s\n' "$1" "$2"; fail=1; }
 
+# ONE SIMULATION, CLASSIFIED.  Runs `quint run` for one invariant batch and
+# answers only "held" (0) or "violated" (1); anything else ABORTS, because the
+# third answer a shell sees — a non-zero exit — is the same one a dead tool
+# gives, and `quint_run_violations` below records a non-zero exit as a control
+# PASSING.  Measured against quint 0.32.0: a real violation prints
+# `error: Invariant violated` and exits 1; a tool that could not run prints its
+# own error (`[QNT405] Main module not found`, a parse error, a missing file)
+# and exits 1 too.  Only the first is a result.
+quint_simulate() {
+  local file="$1" mod="$2"; shift 2
+  local -a names=("$@")
+  local out rc=0 flag=--invariants
+  (( ${#names[@]} == 1 )) && flag=--invariant
+  out=$(quint run "$file" --main="$mod" "$flag" "${names[@]}" \
+          --max-steps="$quint_steps" --max-samples="$quint_samples" \
+          --seed="$quint_seed" --verbosity=0 2>&1) || rc=$?
+  [[ "$rc" == 0 ]] && return 0
+  if grep -qE '^error: Invariant violated' <<<"$out"; then return 1; fi
+  echo "quint run failed to complete on $file / $mod (tool failure, not a result; exit $rc):" >&2
+  tail -5 <<<"$out" >&2
+  echo "      replay: quint run $file --main=$mod $flag ${names[*]} --max-steps=$quint_steps --max-samples=$quint_samples --seed=$quint_seed --verbosity=3" >&2
+  exit 2
+}
+
 # One `quint run` per (module, mode).  Invariants are batched — that is what
 # makes an 8000-sample suite finish — and attributed individually only when the
 # batch goes red, exactly as `docs/ordinal-fs-tree/models/run-quint.sh` does.
@@ -466,16 +569,12 @@ quint_run_invariants() {
   local file="$1" mod="$2"; shift 2
   local -a names=("$@") n
   (( ${#names[@]} )) || return 0
-  if quint run "$file" --main="$mod" --invariants "${names[@]}" \
-       --max-steps="$quint_steps" --max-samples="$quint_samples" \
-       --seed="$quint_seed" --verbosity=0 >/dev/null 2>&1; then
+  if quint_simulate "$file" "$mod" "${names[@]}"; then
     for n in "${names[@]}"; do quint_pass "$n" "holds"; ran=$((ran + 1)); done
   else
     for n in "${names[@]}"; do
       ran=$((ran + 1))
-      if quint run "$file" --main="$mod" --invariant "$n" \
-           --max-steps="$quint_steps" --max-samples="$quint_samples" \
-           --seed="$quint_seed" --verbosity=0 >/dev/null 2>&1; then
+      if quint_simulate "$file" "$mod" "$n"; then
         quint_pass "$n" "holds"
       else
         quint_fail "$n" "violated"
@@ -492,9 +591,7 @@ quint_run_violations() {
   local -a names=("$@") n
   for n in "${names[@]}"; do
     ran=$((ran + 1))
-    if quint run "$file" --main="$mod" --invariant "$n" \
-         --max-steps="$quint_steps" --max-samples="$quint_samples" \
-         --seed="$quint_seed" --verbosity=0 >/dev/null 2>&1; then
+    if quint_simulate "$file" "$mod" "$n"; then
       quint_fail "$n" "HELD — the mutated assumption broke no obligation"
     else
       quint_pass "$n" "violated, as the control requires"
@@ -887,6 +984,10 @@ if [[ ${#bad_commands[@]} -gt 0 ]]; then
   echo "-- commands naming no obligation the catalogue defines:"
   printf '     %s\n' "${bad_commands[@]}"
   fail=1
+fi
+if [[ ${#claim_level[@]} -gt 0 ]]; then
+  echo "-- commands citing a claim rather than one of its obligations (credit no cell):"
+  printf '     %s\n' "${claim_level[@]}"
 fi
 [[ "$ran" -gt 0 ]] || { echo "runner error: zero work" >&2; exit 2; }
 if [[ "$missing" -gt 0 ]]; then

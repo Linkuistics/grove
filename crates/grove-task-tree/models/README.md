@@ -16,15 +16,16 @@ models/run.sh --scope task-tree --family alloy
 | family | file | obligations |
 |---|---|---|
 | Alloy 6 | `task-tree.als` | `TT-01` – `TT-25` |
-| Quint | — | none yet (`quint-models-k10`) |
+| Quint | `task-tree.qnt`, `task-tree-controls.qnt` | `TT-01` – `TT-25` |
 
-**The Alloy column of the task-tree scope is complete**, and the invocation
-above is the one that says so: with `--family alloy` the coverage matrix holds
-only the alloy cells, so it runs **with coverage asserted** and exits 0. The
-unqualified `models/run.sh` stays red until `quint-models-k10` lands, and that
-redness is the truth about the repository rather than a gate to be tolerated —
-which is why the phase's green is spelled as a named subset rather than as an
-expected-red run. A suite anyone is told to ignore the colour of is not a suite.
+**Both columns of the task-tree scope are complete**, and each family's own
+invocation is what says so: with `--family <fam>` the coverage matrix holds only
+that family's cells, so it runs **with coverage asserted** and exits 0. The
+unqualified `models/run.sh` stays red until the **finish** and **lifecycle**
+Quint columns land, and that redness is the truth about the repository rather
+than a gate to be tolerated — which is why a phase's green is spelled as a named
+subset rather than as an expected-red run. A suite anyone is told to ignore the
+colour of is not a suite.
 
 **Declared gaps** — two, both `TT-24`'s, and both because the context the
 obligation names is not this model's. The runner reads them from this file, in
@@ -905,7 +906,17 @@ the `base` instance and the `verify_small` model-checking instance;
 mutation and focused scenario. The split is not tidiness — see *Verification*.
 
 Coverage is asserted: all 43 `TT-` obligations are answered by a property
-command and at least one witness, and there are no declared gaps.
+command and at least one witness, and there are no declared gaps. **In both
+directions**: an `inv_`/`wit_` command naming an obligation the catalogue does
+not define is fatal, and a command citing a *claim* rather than one of its
+sub-identities is reported as crediting no cell. That direction is not a claim
+about the runner to be taken on trust — see *The runner's own controls* below.
+
+The controls on the runner itself:
+
+```sh
+models/run-controls.sh
+```
 
 Knobs, all environment variables read by `models/run.sh`: `QUINT_SAMPLES`
 (default 8000), `QUINT_STEPS` (default 24), `QUINT_SEED` (a fixed default, so a
@@ -953,6 +964,66 @@ Two barriers were removed on the way to that measurement, and both are durable:
 and **fails** a scope whose Quint models exist and which declares nothing — so a
 limit on model checking names itself rather than passing as silence.
 
+## The runner's own controls
+
+```sh
+models/run-controls.sh
+```
+
+A suite that has never been shown to fail is not evidence, and neither is a
+runner. `models/run.sh` claims four things beyond running commands, and each is
+a claim that it goes RED in a situation nobody normally creates. Seven controls
+mutate a **copy** of the repository — the real catalogue, the real models — and
+assert the named fatal diagnostic:
+
+| control | mutation | asserted |
+|---|---|---|
+| `invented-obligation` | a command named `inv_TT_99_…` | `names TT-99, which the catalogue does not define`, run red |
+| `claim-level-citation` | a command named `inv_TT_24_…`, a claim with sub-identities | reported as crediting no cell, and **not** as invented |
+| `deleted-witness` | `TT-19`'s last witness removed | `TT-19  quint:NO-WITNESS`, run red |
+| `deleted-property` | `TT-19`'s last property removed | `TT-19  quint:NO-CHECK`, run red |
+| `dead-quint-launch` | a `quint` on `PATH` that cannot start | `quint failed to launch`, **exit 2** |
+| `dead-quint-run` | a `quint` whose `--version` answers and whose `run` dies | `tool failure, not a result`, **exit 2** |
+| `dead-backend` | Apalache under `JVM_ARGS=-Xmx6m` | `tool failure, not a result`, **exit 2** |
+
+Three of them — `dead-backend`, `dead-quint-run` and `invented-obligation` —
+are worth reading twice, because each was a **false green** before this chain's
+review found it:
+
+- a non-zero `quint verify` whose wording was not on a five-string list was
+  recorded as "model-checked … no counterexample", so a JVM too small to read
+  its own jar reported 43 verified properties;
+- a non-zero `quint run` was read as "violated", which in a **premise-break**
+  control is recorded as *passing* — a dead tool reporting that an assumption
+  was carrying weight;
+- a syntactically valid invented obligation was counted under a matrix key
+  nothing reads, so the model-to-catalogue direction the runner advertised was
+  not asserted at all.
+
+Now a verdict requires Apalache's own counterexample report (`[violation] Found
+an issue`, `❌ <invariant>`) or `error: Invariant violated` from the simulator,
+and **every other non-zero exit aborts**. The default for an unrecognised
+failure is death, not green.
+
+**What these controls do not show.** They run at `QUINT_SAMPLES=1
+QUINT_STEPS=1`, so a full accounting pass takes about a minute rather than
+twenty; at that budget the unmutated suite's witnesses do not land, so each
+assertion is on the exact diagnostic line rather than on the exit code alone.
+The unmutated baseline is the full-budget run recorded below, which exits 0 and
+prints none of those lines.
+
+**And they do not show anything about the other family's column.** The two
+drivers share `resolve_ob`, so the reverse-coverage direction now binds Alloy
+commands too — and the session that wrote these controls was under the
+independence barrier and opened no `.als` file, so it could neither run
+`--family alloy` nor inspect what it declares. The check is deliberately as
+lenient as the Q4 matrix already is (an exact manifest entry, or a claim whose
+sub-identities the catalogue defines), so an Alloy command can only newly fail
+if it names an obligation the catalogue does not define at all — which is the
+defect the check exists to catch rather than a regression in it.
+**`cross-model-replay-k15` is where the barrier comes down, and re-running
+`models/run.sh --family alloy` under this check is its first obligation.**
+
 ## What the model is, and what it is above
 
 `ordinal-fs-tree`'s ordered-tree algebra — append, insert, promotion, rewrite,
@@ -983,10 +1054,21 @@ refusal claims falsifiable at all.
 | `relax_EN_11`, `relax_EN_11_grove_built` | `hand-edit` removed | exercise-removal, plus its positive half |
 | `relax_EN_13` | reaper sweeps the reserved namespace | premise-break |
 | `mutant_two_listings` | later steps classify from the LIVE tree | a control on the **model**, not the world |
+| `mutant_bulk_strict` | bulk validation without target-state idempotence | a control on the **model**: `TT-23.b` must die without the requirement the catalogue implies and does not state |
 | `verify_small` | 6 objects, depth 2, a three-action menu | the model-checking instance; see *Verification* for what it can and cannot finish |
 
 A `scenario_` instance removes no behaviour: it narrows the *search*, and every
 claim is still checked unfocused in `base`.
+
+**Which module a command runs in** is decided by one rule, defined in
+[`models/run.sh`](../../../models/run.sh) under *THE MODULE RULE* and cited
+rather than restated here: a `relax_`, `mutant_` or `scenario_` instance carries
+only the commands written inside it; a `verify_` instance is model-checked and
+inherits the library's **property** commands only; every other instance inherits
+all of the library's commands. So `base` runs 83 inherited commands,
+`verify_small` owns none of its own and inherits 43 properties — which is
+correct rather than zero-work — and each control module runs exactly what is
+written in it.
 
 ## The controls, and what they establish
 
@@ -1001,6 +1083,7 @@ assumption is removed. All six do:
 | `inv_fail_EN_13_TT_04_the_sweep_deletes_foreign_bytes` | `TT-04` | violated |
 | `inv_fail_EN_13_TT_24d_the_reaper_stops_declining` | `TT-24.d` | violated |
 | `inv_fail_MUT_TT_21a_two_listings_disagree` | `TT-21.a` | violated |
+| `inv_fail_MUT_TT_23b_strict_validation_cannot_converge` | `TT-23.b` | violated |
 
 `mutant_two_listings` is the one that matters most for reading the rest. `TT-21`
 is otherwise true **by construction** in an executable model — every
@@ -1009,6 +1092,14 @@ written — and a claim true by construction is the pre-registration's
 *vacuous invariant* hazard wearing a green tick. The mutant makes later steps
 classify from the live tree, and the claim dies. Without that instance, `TT-21`
 would be reported green on no evidence.
+
+`mutant_bulk_strict` is the second of that kind, and it exists for the same
+reason at a different claim. `TT-23.b`'s convergence rests on a requirement the
+catalogue implies and does not state — that a bulk member already in the plan's
+**target** state is admissible and a no-op. With `BULK_TARGET_IDEMPOTENT` off, a
+bulk plan is validated exactly the way a single mark is, the identical re-run is
+refused `AlreadyTerminal`, and `TT-23.b` dies. Until that instance existed the
+requirement was asserted only by the way the model happened to be written.
 
 **Bounded unreachability, stated as what it is.** The `wit_unreach_` controls
 are randomized simulation, so a zero count is evidence that the witness is
@@ -1042,14 +1133,18 @@ this model takes as written:
 - **Bounds**: `MAX_OBJECTS = 14`, `MAX_DEPTH = 6`, `MAX_POS = 6`, trace depth 24,
   8000 samples.
 
-## Narrowings, each declared
+## Narrowings and qualifications, each declared
 
-Two obligations are checked over less than their literal text, and in both cases
-the gap between the text and what is checkable is a **finding about the
-catalogue** rather than a gap in the model. Neither is a declared `GAP`: the
+**Three** obligations are checked over less than their literal text, and in all
+three the gap between the text and what is checkable is a **finding about the
+catalogue** rather than a gap in the model. None is a declared `GAP`: the
 obligation is answered, and the narrowing is recorded here and in the experiment
 log. The catalogue is not edited, because it is frozen under the independence
-barrier.
+barrier; `formal-synthesis-k16` owns the disposition of every one of them.
+
+A fourth item is listed below them and is **not** a narrowing — it is a
+statement qualification, and it is here rather than in a quieter place because
+a guard nobody can find is indistinguishable from a guard nobody declared.
 
 - **`TT-17`** is checked over the Current/Legacy/Foreign decision only. Its
   literal text — "the classification SHALL depend only on the format witness,
@@ -1062,6 +1157,62 @@ barrier.
   below for why the first narrowing exists; the second is not a narrowing of the
   claim at all — a crash after the last effect landed leaves a complete current
   root, which is not "the root an interruption leaves behind".
+- **`TT-15.a`** is guarded by `walkStageReached`. Its literal text requires every
+  snapshot classifying `CurrentSpent` to report `Empty`. A current root with no
+  live task and a **foreign artifact at a name Grove reserves** classifies
+  `CurrentSpent` — `classify` reaches its walk stage and finds nothing live —
+  while `TT-24.b` requires that same tree to refuse
+  `Refused(ReservedNameOccupied(entry))`, and `TT-18` puts that refusal two
+  stages ahead of anything the walk says. Both statements are the catalogue's;
+  under one tree they are inconsistent, and `TT-24.b` is the one whose whole
+  purpose is to win. The guard states the staging premise `TT-15.a` leaves
+  implicit — *on a tree the gate actually walks*, selection on a spent tree
+  reports `Empty` — and without it the obligation is a claim about the
+  classification **order** wearing selection's name.
+
+And the qualification, which is not one of the above:
+
+- **`TT-10`** is checked over `op.decided` — what the operation concluded from
+  its own arguments and its one listing — rather than over the outcome the
+  operator finally sees. Read over the final outcome it would be a claim about
+  the world as well as about arguments: a non-cooperating writer can take a
+  create's destination *after* the listing, and the refusal that follows is
+  caused by `EN-06` rather than by an argument the domain failed to pre-empt.
+  `TT-10`'s own text is "no algebraic refusal reaches an operator **from an
+  ordinary argument**", so this is the claim rather than less than it. The
+  mid-flight case is not left unclaimed: it has `TT-21.b` and `TT-24.a`, and its
+  outcome is decided by `collisionOutcome` (see *Counterexamples*).
+
+## The green run this column stands on
+
+Every claim above is read off one pair of runs, and both are reproducible from
+this file rather than from a screenshot.
+
+```sh
+models/run.sh --scope task-tree --family quint     # the suite
+models/run-controls.sh                             # the controls on the runner
+```
+
+| run | result |
+|---|---|
+| `--scope task-tree --family quint` | **exit 0** — 19m 46s wall / 1209s CPU on a 16-core host, 111 commands, 43 skipped model-checking properties, `-- cells: 43 complete, 0 declared gaps, 0 empty, of 43` |
+| `models/run-controls.sh` | **exit 0** — 7 of 7 controls, each mutation producing its named fatal diagnostic |
+
+Both figures are from an **unmodified** runner — `models/run.sh`'s checksum was
+taken before the run and again after it, and matches. `bash` reads a script
+incrementally, so a run that overlapped an edit to its own runner is not
+evidence of anything, and a chain whose subject is false greens does not get to
+record one.
+
+The suite's 111 commands are the 83 the library declares and `base` inherits,
+plus the 28 written inside the fourteen control instances. `verify_small` owns
+none of its own and inherits the 43 properties, which report `SKIP` under the
+default `QUINT_VERIFY=0` — a skipped verification that names itself on every
+line, and whose reason is the `VERIFY` declaration above. **No module loses
+commands under the runner's parser**: every `val inv_…`/`val wit_…` declaration
+in both files is accounted for, and the ten `val`s that are neither are
+helpers (`atRest`, `allTags`, `tagChoices`, and the like), which is what makes
+the counts above check.
 
 ## Counterexamples
 
@@ -1075,14 +1226,17 @@ quint run crates/grove-task-tree/models/task-tree.qnt --main=base \
   --max-steps=24 --max-samples=8000 --seed=0x5e0a51d3c0ffee01 --verbosity=1
 ```
 
-Trace, trimmed to the transitions that matter:
+Trace — **six transitions**, and this is the count every description of it
+uses (the experiment log's entry 044 and the derived test below included):
 
 1. `beginOp(TInitRoot)` — the task root, the root charter and the first
    `requirements` leaf are planned; the format witness is planned last.
-2. `stepOp` ×3 — the three scaffolded entries land. The format witness has not.
-3. `foreignWrite` — a non-cooperating writer creates one foreign entry beneath
+2. `stepOp` — the task root lands.
+3. `stepOp` — the root charter lands.
+4. `stepOp` — the first `requirements` leaf lands. The format witness has not.
+5. `foreignWrite` — a non-cooperating writer creates one foreign entry beneath
    the task root. `EN-13` grants exactly this.
-4. `crashNow` — interruption, which `EN-08` grants between any two steps.
+6. `crashNow` — interruption, which `EN-08` grants between any two steps.
 
 The root now contains the charter, the first leaf, no format witness, and one
 foreign entry. `isPartialScaffold` requires the root's entries to be a subset of
@@ -1130,21 +1284,89 @@ column and it changes no claim.
 
 ### A bulk mark cannot converge if `AlreadyTerminal` refuses its plan
 
-No standing counterexample — the model was corrected before it landed, and the
-observation is recorded because the correction is a **requirement the catalogue
-implies and does not state**.
+```sh
+quint run crates/grove-task-tree/models/task-tree-controls.qnt \
+  --main=mutant_bulk_strict \
+  --invariant inv_fail_MUT_TT_23b_strict_validation_cannot_converge \
+  --max-steps=24 --max-samples=8000 --seed=0x5e0a51d3c0ffee01 --verbosity=3
+```
 
 `TT-23.b` requires that re-running a bulk mark after a partial application
 reaches the same result. `AlreadyTerminal` is a refusal for a single mark, and
 `TT-23.a` requires the *whole plan* validated before the first rename. Validate
 a bulk plan the way a single mark is validated and the re-run refuses on the
 member the interrupted run already marked — so the plan can never converge, and
-the property `bulk-marks-are-not-atomic` exists to buy is unreachable. A bulk
-member already in the plan's **target** state must therefore be admissible and a
-no-op, which is what `bulkMemberOk` implements. `wit_TT_23b` is reached only
-because of it.
+the property [`bulk-marks-are-not-atomic`](../../../docs/adr/bulk-marks-are-not-atomic.md)
+exists to buy is unreachable. A bulk member already in the plan's **target**
+state must therefore be admissible and a no-op, which is what `bulkMemberOk`
+implements under `BULK_TARGET_IDEMPOTENT`.
+
+**What the instrument establishes, and it is a stronger statement than the
+inference.** The convergence ghost retains the interrupted **request** —
+`hist.bulkPlanKeys`, the key list itself — and not a sticky boolean, so:
+
+- only the **identical** request repairs the interrupted one. `[1, 2]` and
+  `[2, 1]` are two requests; a model that accepted either as the other's repair
+  would be establishing that *a* bulk mark converges, which is a different and
+  much weaker claim.
+- "the same result" is every member of the interrupted plan in the target
+  state — not merely "no member still live", which a member someone abandoned
+  in between would satisfy while the re-run plainly did not reach the first
+  run's result.
+- a **refused retry falsifies the property**, and it has to be caught where the
+  refusal is decided: a refusal never becomes a running operation, so a ghost
+  that only watches completions cannot see the failure `TT-23.b` is about. Only
+  a refusal the bulk validator itself produced counts — a gate refusal
+  (`ReservedNameOccupied`, `WitnessPending`, a root that is no longer current)
+  refuses *every* operation, and reading those onto `TT-23.b` would make it a
+  statement about what the world did to the tree. `TT-24.b` and `TT-19` own
+  those, and they do.
+- the operator installing a different tree (`hand-edit`) clears the pending
+  plan: a plan interrupted against a tree that is gone is not a plan anyone can
+  re-run, and keeping it pending would falsify `TT-23.b` on the hand-edit
+  abstraction rather than on anything a bulk mark did.
+
+With all four in place `inv_TT_23b` holds in `base` and in `scenario_bulk`,
+`wit_TT_23b` is reached in ~1.5% of `scenario_bulk`'s traces, and
+`mutant_bulk_strict` — the same model with idempotence off — **violates** it.
+That last run is what turns the requirement from an argument into a control.
 
 **Derived test** (for the implementation phase, in the existing black-box
 binaries rather than a new seam): interrupt a bulk mark between two of its
-renames, re-run the identical invocation, and assert it succeeds and leaves every
-named entry marked — not that it refuses `AlreadyTerminal`.
+renames, re-run the **identical** invocation, and assert it succeeds and leaves
+every named entry marked — not that it refuses `AlreadyTerminal`.
+
+### An ordinary mutation blocked after it had already mutated — the outcome set's real gap
+
+```sh
+quint run crates/grove-task-tree/models/task-tree-controls.qnt \
+  --main=scenario_foreign_sibling \
+  --witnesses wit_finding_an_ordinary_mutation_blocked_after_a_partial_mutation \
+  --max-steps=24 --max-samples=8000 --seed=0x5e0a51d3c0ffee01 --verbosity=1
+```
+
+Reached in ~12% of that instance's traces. An insert shifts its later siblings,
+and then a non-cooperating writer takes the name the create was going to use
+between the listing and the step (`EN-06`, `EN-13`). The create is no longer
+licensed — proceeding would mutate an entry whose ownership the operation cannot
+prove (`TT-24.a`) — and the tree is **not** byte-identical, because the shifts
+already landed.
+
+The catalogue's [*One artifact, three contexts, one decided
+outcome*](../../../docs/specs/semantic-contract.md#outcomes) table fixes an
+ordinary operation **before any transaction**, a finish or recovery transaction,
+and the reaper. This is none of the three: no refusal is honest once an effect
+has landed (`Refused` means "nothing happened; the tree is byte-identical"), and
+the row that licenses `Blocked` is about a transaction. The model returns
+`Blocked(OwnershipConflict)` on the table's own reasoning — a caller who has
+already mutated is owed a block rather than a refusal — and **that** is the gap.
+
+**What is NOT a gap, and the distinction is the whole finding.** The same
+collision *before* any effect has landed is answered perfectly well by the
+closed set: the tree is byte-identical, so it is a refusal, and the reason is
+`ReservedNameOccupied(entry)` exactly when the occupant is the artifact
+`TT-24.b` is about and `DestinationOccupied` otherwise. `collisionOutcome` draws
+that line. An earlier version of this model returned
+`Blocked(OwnershipConflict)` for both, which overstated the finding: it made a
+pre-effect collision look like evidence of a missing outcome when it was
+evidence of a model that had not read the table's own partition.

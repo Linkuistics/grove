@@ -9,6 +9,10 @@
 // depth, for a reason that has nothing to do with the model.  Splitting the
 // controls out is what puts `task-tree.qnt` back within reach of Apalache.
 //
+// Every module here is prefixed `relax_`, `mutant_` or `scenario_`, so each
+// carries ONLY the commands written inside it — see `models/run.sh`,
+// *THE MODULE RULE*, which is where that convention is defined.
+//
 // The controls themselves are NOT verified and do not need to be: a premise
 // break is a claim that some obligation FAILS, and simulation finding the
 // counterexample is exactly the evidence wanted.  What model checking buys is
@@ -23,6 +27,7 @@ module relax_EN_01 {
     RENAME_ATOMIC = false,
     FOREIGN_WRITES = true, CRASHES = true, ENTRIES_REMOVABLE = false,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -39,6 +44,7 @@ module relax_EN_06 {
     FOREIGN_WRITES = false,
     RENAME_ATOMIC = true, CRASHES = true, ENTRIES_REMOVABLE = false,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -60,6 +66,7 @@ module relax_EN_08 {
     CRASHES = false,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, ENTRIES_REMOVABLE = false,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -78,6 +85,7 @@ module relax_EN_08_bulk {
     FOCUS = 1,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, ENTRIES_REMOVABLE = false,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -92,6 +100,7 @@ module relax_EN_10 {
     ENTRIES_REMOVABLE = true,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -111,6 +120,7 @@ module relax_EN_11 {
     HAND_EDITS = false,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -162,6 +172,7 @@ module relax_EN_11_grove_built {
     CRASHES = false,
     RENAME_ATOMIC = true,
     ENTRIES_REMOVABLE = false, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -177,6 +188,7 @@ module relax_EN_13 {
     REAPER_SWEEPS_RESERVED = true,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -194,6 +206,7 @@ module relax_EN_13 {
 module mutant_two_listings {
   import taskTree(
     ONE_SNAPSHOT = false,
+    BULK_TARGET_IDEMPOTENT = true,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
@@ -201,6 +214,35 @@ module mutant_two_listings {
 
   val inv_fail_MUT_TT_21a_two_listings_disagree: bool =
     inv_TT_21a_every_classification_comes_from_one_listing
+}
+
+/// A control on the MODEL, and the second of its kind.  `TT-23.b`'s
+/// convergence rests on a requirement the catalogue implies and does not
+/// state — that a bulk member already in the plan's TARGET state is admissible
+/// and a no-op.  With `BULK_TARGET_IDEMPOTENT` off, a bulk plan is validated
+/// exactly the way a single mark is, so re-running the identical invocation
+/// after a partial application is refused `AlreadyTerminal` and the plan can
+/// never converge.  Expected: `TT-23.b` FAILS.  Without this instance the
+/// requirement is asserted only by the way the model happens to be written,
+/// which is the pre-registration's vacuous-invariant hazard wearing a green
+/// tick — the same reason `mutant_two_listings` exists.
+///
+/// Focused (`FOCUS = 1`) for the same reason `scenario_bulk` is: the situation
+/// needs a bulk mark interrupted between its two renames and the identical
+/// request re-run, which unfocused simulation reaches far too rarely to be a
+/// control.
+module mutant_bulk_strict {
+  import taskTree(
+    BULK_TARGET_IDEMPOTENT = false,
+    FOCUS = 1,
+    RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
+    ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
+    ONE_SNAPSHOT = true,
+    MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
+  ).* from "./task-tree"
+
+  val inv_fail_MUT_TT_23b_strict_validation_cannot_converge: bool =
+    inv_TT_23b_re_running_after_a_partial_application_converges
 }
 
 /// A focused search, not a different world.  `wit_TT_23b` needs a bulk mark
@@ -215,6 +257,7 @@ module scenario_bulk {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -232,6 +275,7 @@ module scenario_species_shift {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -258,6 +302,7 @@ module scenario_promote {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -281,6 +326,7 @@ module scenario_foreign_sibling {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -293,4 +339,21 @@ module scenario_foreign_sibling {
 
   val inv_TT_04_foreign_subtrees_are_invisible_and_untouched_here: bool =
     inv_TT_04_foreign_subtrees_are_invisible_and_untouched
+
+  /// NOT an obligation command — a finding's counterexample, kept runnable.
+  ///
+  /// An ORDINARY mutation that has already applied an effect and whose next
+  /// create is no longer licensed, because a non-cooperating writer took the
+  /// destination between the listing and the step.  The catalogue's
+  /// *one artifact, three contexts* table fixes the outcome for an ordinary
+  /// operation **before any transaction**, for a finish or recovery
+  /// transaction, and for the reaper.  This is none of the three: the tree is
+  /// NOT byte-identical, so no refusal is honest, and no transaction is running,
+  /// so the row that licenses `Blocked` does not cover it.  The model returns
+  /// `Blocked(OwnershipConflict)` on the table's own reasoning — a caller who
+  /// has already mutated is owed a block — and the gap is entry 044's finding,
+  /// stated over the case that actually supports it.
+  val wit_finding_an_ordinary_mutation_blocked_after_a_partial_mutation: bool =
+    atRest and op.tag != TNone and not(isTransaction(op.tag)) and
+    isBlockedConflict(op.outcome) and op.applied.length() > 0
 }

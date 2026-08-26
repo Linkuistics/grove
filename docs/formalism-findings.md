@@ -7289,6 +7289,29 @@ the model's least-wrong choice as though it were the contract.
 **Scope.** Finish and recovery, component-local
 (`crates/grove-finish/models/finish.qnt`). All 61 `FN-` obligations.
 
+**Revised in place by `integrate-review-prototype-finish-k58`**, after the
+adversarial review `review-prototype-finish-k57` read the model, its twelve
+scenarios and its eight model mutations against this entry. Six things changed
+and each is marked *[k58]* where it appears: **finding 6 is reframed** — half the case it
+rested on is not a `Blocked` outcome at all, so the catalogue conflict is about
+the swap's OUTCOME first; the model now refuses the half the catalogue says is
+refused, and the half that blocks keeps the partition finding; the
+`FN-25.b` instrument gains the comparison its prose always claimed and did not
+make; the rootless completion proof becomes attempt-bound; `Current(Live)`
+stops being an undeclared vacuous branch; the model-mutation count goes from
+eight to eleven, because `FN-14`, `FN-26` and `FN-30` were true by
+construction; and the mutation and Q4 matrices say which of their rows are
+bundles. **What the review did NOT overturn** is the reachability record: all
+129 witnesses were classified protocol-established, 0 construction-established,
+0 unclear — the search dial is not manufacturing this column's witnesses. Every
+weakening below has a run behind it; the replay lines are in
+[`crates/grove-finish/models/README.md`](../crates/grove-finish/models/README.md).
+
+*[k58]* **The integration held the independence barrier.** It opened no `.als`
+file, no Alloy section of any model README, and no entry in 026 – 043; it read
+this entry, the Quint section, the catalogue, the model, the controls and the
+review.
+
 **Independence protocol — held, with one disclosure.** This session opened no
 `.als` file, no Alloy section of a model-directory `README.md`, and no entry in
 026 – 043 while the model was being built; it was written from
@@ -7319,15 +7342,16 @@ with crash and restart as first-class behaviour.
 simulation: 8000 samples at depth 24, fixed seed `0x5e0a51d3c0ffee01`.
 `quint verify` (Apalache 0.56.1) **completes and returns a verdict**, on the
 reduced `verify_small` instance at the runner's own default depth: all 61
-property commands at `--max-steps=4` in 377s, no violation. That is more than
+property commands at `--max-steps=4` in 445s, no violation *[k58: 377s before
+the integration added three consts to the model's state]*. That is more than
 the task-tree column got — it could not finish depth 3 at all — and less than it
 sounds; see *What a green run here does not prove*. One library (`finish.qnt`,
 2,736 lines) carrying 61 property commands, one unfocused instance, one
 verification instance, and a
-controls file (`finish-controls.qnt`, 1,190 lines) carrying twelve focused
-scenarios (112 witnesses), seven assumption mutations and eight model mutations
-(17 witnesses, 17 retained properties, 16 inverted controls). 223 commands in
-all.
+controls file carrying twelve focused
+scenarios, seven assumption mutations and — *[k58]*, after the review —
+**eleven** model mutations. 228 commands in all, 19 of them inverted
+`inv_fail_` controls.
 
 **The model is a protocol step machine, not a filesystem**, and that is the
 structural decision everything else follows from. `crates/grove-task-tree/models/`
@@ -7419,19 +7443,49 @@ independently written models.
 *M1* `quint-only` (pending replay) · *M2* `refusal` · *M3* 2 — the counterexample
 named the transition · *M4* `none`.
 
-**6. A blocked state the partition does not cover: the mid-transaction root
-swap.** This one was found the way the experiment is supposed to find things.
-`FN-25.b` is stated in this model as the *agreement* between the diagnosis each
-of the ten block sites carries and a diagnosis classified independently from the
-state — so a blocked state the two predicates do not cover is a counterexample
-rather than a definition. It went red within seconds of first running: `FN-06`'s
-identity recheck blocks when the task root is swapped between two steps, and at
-that moment there is no correlated manifest (the swap can precede the write) and
-the topology is untouched, so **neither** diagnosis's predicate holds. The
-resolution is `OwnershipConflict`'s own definition rather than an extension of
-it — whatever sits at the reserved name now sits inside a root Grove did not pin,
-so Grove cannot prove the artifact is its own — but the catalogue does not say
-so, and `FN-25.b` claims exhaustiveness it does not have without it.
+**6.** *[k58, reframed — the case this rested on divides, and only half of it is
+a `Blocked` outcome the partition is stated over. The finding survives on both
+halves, for two different reasons.]* **`FN-06` and *One artifact, three contexts*
+disagree about what a mid-transaction root swap PRODUCES, and the disagreement
+is resolvable on a fact the transaction already knows.** `FN-06` says the swap
+is "a refusal rather than a mutation applied elsewhere", and its witness is "a
+swap between two steps, **refused**". *Outcomes*' **One artifact, three
+contexts** says a caller who has already mutated is owed
+`Blocked(OwnershipConflict)`, because "a transaction has already mutated, so a
+block is the honest stable state". Both are stated over the same transition and
+the catalogue never says which governs.
+
+The model first sent **every** identity mismatch to a block, and that is what
+produced the original form of this finding: a blocked state with no correlated
+manifest (the swap can precede the write) and an untouched topology, which
+neither diagnosis's predicate covered. But `FN-25`'s partition is expressly over
+**`Blocked` outcomes and nothing else**, so a case the catalogue calls a refusal
+cannot be evidence about that partition — it is evidence about the outcome, one
+level up. That is the review's point and it stands.
+
+The resolution is that the two statements are not actually in conflict: they
+partition on whether the transaction has made anything **persistent** yet.
+Before its first persistent effect the tree and the repository are
+byte-identical, so `FN-06`'s refusal is available and is what the model now
+returns (`RootIdentityChanged`, witnessed in 3.8% of `scenario_edit_txn`
+traces); after it, the block is the honest stable state (7.4% reach the swap, so
+3.6% block). **What the catalogue owes is that split**, which it does not make
+anywhere — and `FN-06`'s bare "refused" is wrong for half of its own transition.
+This is the same shape as finding 4, which is why the two should be
+dispositioned together.
+
+**And the partition finding survives the reframe, for the other half.** The
+post-persistent swap is a block by the catalogue's own three-contexts rule, so
+it is squarely inside `FN-25` — and at that moment the correlated manifest may
+still be absent and the topology untouched, so **neither** diagnosis's predicate
+holds. That is measured rather than argued: deleting the model's swap clause
+from `unprovable` violates `inv_FN_25b` in `base` and in `scenario_edit_txn`.
+The resolution stays `OwnershipConflict`'s own definition — whatever sits at the
+reserved name now sits inside a root Grove did not pin — and the catalogue still
+does not say so. So finding 6 stays one finding and the entry's count of six is
+unchanged — but the catalogue owes it on **two** counts, and on firmer ground
+than the single one it was recorded as: the outcome split, and the diagnosis for
+the half that blocks.
 *M1* `quint-only` (pending replay) · *M2* `refusal` · *M3* 2 — the trace named the
 step (`SWriteManifest`) and the state (`WPreparing`, no manifest) · *M4* `none`.
 
@@ -7446,13 +7500,26 @@ claim changes:
   an operator action that drops the result **and** moves the topology: a rebase
   over the attempt's own commit. Worth stating because that row is the one
   `FN-22` insists must not be collapsed into its neighbour.
-- **Eight model mutations were needed, against `task-tree-k11`'s two.** An
+- **Eleven model mutations were needed, against `task-tree-k11`'s two** —
+  *[k58]*: eight were written by the producing session and **three more were
+  owed and missing**, which is the sharper form of the same observation. An
   executable model of a *protocol* satisfies most of its own ordering claims by
   being written in that order, and the count is the measure of it.
   `mutant_short_preflight` kills `FN-06`, `FN-07`, `FN-08` and `FN-12.b`
   simultaneously: four obligations resting on the order the preflight happens to
   check things in. That is worth knowing before any of the four is cited as
-  evidence about anything.
+  evidence about anything — and *[k58]* it is a **bundle** control, since it also
+  skips the layout precondition; `mutant_unproven_ownership` is the second, since
+  it also disables the root-identity stop. Six of the eleven are minimal.
+  *[k58]* **The three that were missing are the transferable part.** `FN-14`,
+  `FN-26` and `FN-30` were each asserted over a field **no transition in the
+  model could make bad**: the commit wrote `hooksRan: false` unconditionally, and
+  `unrelatedMutated` and `historyRewritten` were initialised false and only read.
+  Their witnesses landed, and were protocol-fed, and the safety properties were
+  still true by construction — so a reachability audit alone would have passed
+  all three. The test that catches it is not "is the witness fed by a
+  transition" but **"is there any transition that could make this property
+  false"**, and the cheap way to ask it is to try to write one.
 - **`FN-31.a`'s witness is forced, not occasional.** The marker records disposal
   progress, so the FIRST disposal step already carries a value the next must
   supersede: a state requiring a replacement is reached in 40.9% of
@@ -7480,11 +7547,24 @@ run here is worth.
   grounds to grant.
 - **`FN-25.b`'s "exhaustive sweep of the blocked states" is exhaustive only
   within 8000 samples at depth 24.** The obligation asks for a sweep; what it gets
-  is a bounded search. The direction that *is* strong is the agreement between the
-  ten call sites and the independent classifier, and that is what finding 6 came
-  out of.
+  is a bounded search. *[k58]* The witness said `blockedStatesSeen > 0` — **one
+  reached block, reported as an exhaustive sweep** — and now reports the block
+  SITES the search reached instead.
+- *[k58]* **The `FN-25.b` agreement was claimed and was not being checked**, and
+  this is the entry's own worst miss. The instrument is sound in design — two
+  encodings of one partition, compared — but the invariant only asked whether the
+  classifier returns exactly one answer, and every block site derived its
+  diagnosis from that same classifier. One site did not: the tracked-witness
+  commit named `OwnershipConflict` by hand, over a state with a correlated,
+  provably Grove-owned artifact, which is `RecoveryPending`. The comparison now
+  exists (`carriedDisagreed`) and that site classifies like every other. **A
+  claimed instrument that is not wired up produces exactly the output of one that
+  is**, which is the *vacuous invariant* hazard at the level of the property
+  rather than of the witness — a form the pre-registration does not name.
 
-**Cost.** Authoring: one session, from bootstrap to a green suite. The
+**Cost.** Authoring: one session, from bootstrap to a green suite; *[k58]* plus
+one integration session for the review above, whose whole cost was six findings
+triaged, four model changes, three new mutations and two re-runs of the suite. The
 distribution is worth recording because it is not where it was expected: the
 model's *state and step machine* took about a third of the session, its
 *claims* another third, and the last third went almost entirely on **making
@@ -7509,8 +7589,11 @@ there is nothing left to move), without which the refusal branch and the success
 branch could not both fit inside the runner's depth of 24.
 
 **Run cost (M7).** `models/run.sh --scope finish --family quint` — **exit 0,
-4m 05s wall / 293s CPU** on a 16-core host, 223 commands, 61 of 61 coverage
-cells complete, Q4's removal matrix 10 of 10 rows. Bounds: one evacuable entry,
+4m 25s wall / 317s CPU** on a 16-core host, 228 commands, 61 of 61 coverage
+cells complete, Q4's removal matrix 10 of 10 rows. *[k58]* Those are the
+post-integration figures; the producing session's were 4m 05s / 293s over 223
+commands, so the review's three extra mutations and two extra witnesses cost
+about 8% of the run. Bounds: one evacuable entry,
 three lanes, depth 24, 8000 samples, seed `0x5e0a51d3c0ffee01`. Backend: the
 rust evaluator.
 
@@ -7556,10 +7639,15 @@ more than a paragraph after it happens again.
 5. **`FN-22` vs the diagnoses on `Indeterminate`** — no. Two sections, both
    correct in isolation, contradicting only on a state that has to be constructed.
 6. **The mid-transaction swap** — no, and it was not caught by reading either.
-   It came from stating `FN-25.b` as an *agreement between two independent
-   encodings of the same partition* rather than as a property of a single one.
-   That is a modelling technique rather than a formalism, and it is the
-   transferable part of this entry.
+   It came from writing the outcome down and having to choose one: `FN-06` says
+   refused, the three-contexts rule says blocked, and an executable model must
+   return exactly one value. *[k58]* The entry first credited this to the
+   `FN-25.b` agreement instrument; the review showed the agreement was not being
+   checked at the time, so the credit is wrong. What actually produced it is
+   **totality**, for the third time in this entry (findings 2, 3 and 6), and that
+   is the transferable part. The agreement instrument is still worth the two
+   lines it costs — once wired up it found a real disagreement immediately — but
+   it found a different thing.
 
 **Verdict.** Reach for Quint again for exactly this: **a protocol whose claims
 are about the ORDER of its steps and about what an interruption between two of
@@ -7567,8 +7655,12 @@ them leaves behind.** The step list as a closed type with a total
 `persistentEffect` function turned `FN-24.b` from an unanswerable obligation into
 a table a reader can check, and it produced the largest finding in the set.
 Reach for it also for **partitions that must be exhaustive**: encoding the
-classification twice and checking the agreement is cheap, and it was the only
-thing here that produced a counterexample rather than a reading.
+classification twice and checking the agreement is cheap. *[k58]* But encode it
+twice **and then actually compare the two** — this column wrote the second
+encoding, described the comparison in the obligation's own prose, and asserted
+something weaker; a call site that named its own diagnosis went green for the
+whole of the producing session. The property to write is
+`carried == classified`, not `classified.size() == 1`.
 
 Do **not** reach for it — on this subject, at this size — expecting model
 checking to establish the properties. See below.
@@ -7580,7 +7672,8 @@ instance declares.
 
 **The model-checked result is real and it is shallow, and the gap between those
 two facts is the honest reading.** `quint verify` finishes on `verify_small`
-over all 61 properties at `--max-steps=4` and reports no violation. That is the
+over all 61 properties at `--max-steps=4` and reports no violation, and *[k58]*
+still does after the integration. That is the
 direction simulation cannot give, and it is a result the task-tree column could
 not obtain at any depth. But the incumbent protocol's shortest path from entry
 to a settled refusal is **eleven steps**, so a depth-4 check reaches the
@@ -7591,7 +7684,9 @@ pre-registration's *scope trap* stated as a result.
 
 **Depth is what costs, not the number of invariants**, and that is a
 transferable measurement: 3 invariants at depth 3 took 373s and 61 invariants at
-depth 4 took 377s. A reader planning a Quint verification budget on this subject
+depth 4 took 377s — *[k58]* 445s after the integration widened the state by
+three consts, which moves the figure and not the conclusion. A reader planning a
+Quint verification budget on this subject
 should price the depth and treat the property count as free.
 
 And nothing here is evidence about the index image, which is abstracted to a
@@ -7606,7 +7701,15 @@ suites rather than in a new one:
   test needs a seam that lies about the exit status.
 - **`tests/finish_lifecycle.rs`** — a task root swapped between two steps of the
   transaction must stop with a diagnostic naming the artifact, and must not apply
-  its pending effect anywhere (`FN-06`, and finding 6's diagnosis).
+  its pending effect anywhere (`FN-06`). *[k58]* **Two cases, not one**: swapped
+  before the transaction's first persistent effect it must REFUSE and leave the
+  tree and repository byte-identical; swapped after, it must BLOCK with a
+  diagnosis. Which one a given step gets is finding 6.
+- *[k58]* **`tests/finish_lifecycle.rs`** — a retry that has lost every local
+  trace must not settle forward on a deletion commit whose message names this
+  finish handle and a **different attempt** (`FN-03`, `FN-04`). The model cannot
+  reach the state; the test can construct it, and it is the one place the
+  attempt half of the correlation ticket earns its keep.
 - **`tests/finish_lifecycle.rs`** — after the quarantine rename, an operator
   action that both drops the result and moves the topology must return the
   quarantine atomically and block, not refuse (`FN-22.g`). The observation above

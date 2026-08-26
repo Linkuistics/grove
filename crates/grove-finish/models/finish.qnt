@@ -143,6 +143,19 @@ module finish {
   const ENV_KINDS: Set[int]
   /// …and which member of each family.  A scenario that must reach one
   /// situation narrows to the edit that produces it; `base` admits all of them.
+  /// MODEL MUTATION for `FN-30`.  With it off an operator hook installed in the
+  /// repository RUNS during the internal commit.  Without the const, "no hook
+  /// ran" is true because the model never sets the flag — a green on the way
+  /// one line happens to be written.
+  const HOOKS_SUPPRESSED: bool
+  /// MODEL MUTATION for `FN-14`.  With it off the commit is unscoped and takes
+  /// the unrelated working-copy bytes with it.
+  const COMMIT_SCOPED: bool
+  /// MODEL MUTATION for `FN-26`.  With it off a block is "cleared" by rewriting
+  /// the recorded history out from under it, which is the one move `FN-26`
+  /// exists to forbid and which nothing in the model could otherwise perform.
+  const HISTORY_IMMUTABLE: bool
+
   const ENV_EDITS: Set[int]
   const ENV_FOREIGN: Set[int]
   const ENV_TOPOS: Set[int]
@@ -621,6 +634,12 @@ module finish {
     // The deterministic guards `FN-01.b` insists are not a substitute for
     // confirmation: a live finish leaf, and no live ordinary work.
     guardsOk: bool,
+    // The SECOND of those two guards, as a state of the tree rather than as a
+    // verdict about it.  It exists separately because `Current(Live)` is one of
+    // the catalogue's stable task-root states and `FN-24.a` quantifies over
+    // stable classification: a model that can only refuse entry, and can never
+    // BE in that state, leaves a branch the obligation reads unreachable.
+    liveWork: bool,
     // `SY-02`/`SY-03`.  The layout gate at lease acquisition, and the SAME
     // question asked again at the transaction's own rename operands (`FN-08`).
     // Two flags, because the whole content of `FN-08` is that the second is
@@ -654,11 +673,12 @@ module finish {
   pure def evacuated(w: World): Set[EntryId] =
     entryIds(w).filter(e => entryAt(w, e, InWitness))
 
-  /// Ordinary work still live beneath the task root.  In this scope an entry is
-  /// live work exactly while it sits at the root and has not been evacuated:
-  /// what the finish transaction is about is that the tree is SPENT, and the
-  /// deterministic guard (`PCGuards`) is what proves it.
-  pure def liveOrdinaryWork(w: World): bool = false
+  /// Ordinary work still live beneath the task root.  What the finish
+  /// transaction is about is that the tree is SPENT, so this is only ever true
+  /// BEFORE entry — the deterministic guard (`PCGuards`) is what refuses it —
+  /// but it is a state of the world rather than a constant, because
+  /// `Current(Live)` is a stable task-root state `FN-24.a` classifies over.
+  pure def liveOrdinaryWork(w: World): bool = w.liveWork
 
   // ---------------------------------------------------------------------------
   // Classification.  `TT-18`'s order, restricted to what this scope reaches.
@@ -818,6 +838,12 @@ module finish {
     markerSeen: int,
     before: Sig,
     entered: bool,
+    // Whether this launch has already made a PERSISTENT effect.  `FN-06`'s
+    // outcome turns on it: the catalogue says a mid-transaction swap is a
+    // REFUSAL, and *One artifact, three contexts* says a caller who has already
+    // mutated is owed a BLOCK.  Both are satisfiable because the transaction
+    // knows which side of its first persistent step it is on.
+    persisted: bool,
   }
 
   pure val IDLE_TXN: Txn = {
@@ -828,6 +854,7 @@ module finish {
               rootPresent: true, unrelated: 0, tickets: Set(),
               topology: { head: 0, change: 0, parents: 0, index: 0 } },
     entered: false,
+    persisted: false,
   }
 
   // ---------------------------------------------------------------------------
@@ -940,6 +967,9 @@ module finish {
     // `FN-06`: a root identity swap between two steps, whose mutation was not
     // applied elsewhere.
     identitySwapCaught: bool,
+    // `FN-06`'s own witness word: the swap REFUSED, which is available exactly
+    // while the transaction has made nothing persistent.
+    identitySwapRefused: bool,
     mutatedAfterSwap: bool,
     // The preflight preconditions, checked where they are CHECKABLE: at the
     // moment the transaction starts.  Stating them over live state instead
@@ -990,6 +1020,15 @@ module finish {
     blockedWithoutDiagnosis: bool,
     blockedWithBoth: bool,
     nearMissResolvedToOne: bool,
+    // `FN-25.b`, THE COMPARISON.  A blocked state whose CARRIED diagnosis
+    // differs from the one the independent classifier gives that same state.
+    // Without this the obligation checked only that the classifier returns one
+    // answer, which a machine that writes the right word at each call site
+    // satisfies by definition — see this file's `Classification` note.
+    carriedDisagreed: bool,
+    // The distinct block SITES the sweep reached, so a witness can say how wide
+    // the bounded sweep was instead of asserting that one block was exhaustive.
+    blockSitesSwept: Set[str],
   }
 
   pure val EMPTY_HIST: Hist = {
@@ -1020,7 +1059,7 @@ module finish {
     refusedThenSucceeded: false, declinedThenSucceeded: false,
     successWithCleanupOutstanding: false, hooksRanOnInternalCommit: false,
     hookSuppressed: false, unrelatedSurvivedSuccess: false,
-    identitySwapCaught: false, mutatedAfterSwap: false,
+    identitySwapCaught: false, identitySwapRefused: false, mutatedAfterSwap: false,
     startedWithBadLayout: false, startedWithBadOperand: false,
     startedWithEmptyFingerprint: false, startedWithUndigestible: false,
     startedWithUnverifiableIdentity: false,
@@ -1037,6 +1076,7 @@ module finish {
     replaceDeclinedForeign: false, forwardAfterInterruptedEvacuation: false, transactionBlockedReserved: false,
     blockedStatesSeen: 0, blockedWithoutDiagnosis: false,
     blockedWithBoth: false, nearMissResolvedToOne: false,
+    carriedDisagreed: false, blockSitesSwept: Set(),
   }
 
   // ---------------------------------------------------------------------------
@@ -1137,12 +1177,21 @@ module finish {
   /// which is the catalogue's own rule in *One artifact, three contexts*.
   pure def blockNow(f: Frame, why: str): Frame =
     val d = pickDiagnosis(f.w, f.t)
-    { w: f.w,
+    // `FN-26`.  A block stays blocked and operator-restorable.  With
+    // `HISTORY_IMMUTABLE` off the transaction "clears" it by rewriting the
+    // recorded history instead — the one move the obligation forbids, and
+    // otherwise a move nothing in this model can make, which would leave the
+    // claim green on the absence of a transition rather than on the protocol.
+    { w: if (HISTORY_IMMUTABLE) f.w
+         else { ...f.w, repo: { ...f.w.repo, historyRewritten: true,
+                                topology: { ...f.w.repo.topology,
+                                            head: f.w.repo.topology.head - 1 } } },
       t: { ...f.t, running: false, outcome: OBlocked(d) },
       h: { ...f.h,
            transactionBlockedReserved: f.h.transactionBlockedReserved or why == "foreign",
            identitySwapCaught: f.h.identitySwapCaught or why == "identity",
            blockedStatesSeen: f.h.blockedStatesSeen + 1,
+           blockSitesSwept: f.h.blockSitesSwept.union(Set(why)),
            blockedWithoutDiagnosis: f.h.blockedWithoutDiagnosis or diagnose(f.w, f.t).size() == 0,
            blockedWithBoth: f.h.blockedWithBoth or diagnose(f.w, f.t).size() > 1,
            // `FN-26`.  A block names the artifact holding the transaction, the
@@ -1164,8 +1213,15 @@ module finish {
     { ...h, revalPerformed: h.revalPerformed.union(Set(s)) }
 
 
-  pure def deletionProven(w: World): bool =
-    w.repo.tickets.exists(tk => tk.handle == HANDLE)
+  /// `FN-03`, `FN-04`.  The correlation ticket names the finish handle AND the
+  /// attempt identity, and the catalogue's own reason is that this is "what
+  /// lets a retry that has lost every local trace still tell ITS OWN completed
+  /// attempt from someone else's".  A handle-only predicate cannot: an alien
+  /// ticket — same handle, another attempt — would settle this one forward,
+  /// which is exactly what `FN-04` forbids.  So the proof takes the attempt it
+  /// is proving.
+  pure def deletionProvenFor(w: World, at: int): bool =
+    at >= 0 and w.repo.tickets.contains(ticketFor(at))
 
   pure def manifestMatches(w: World): bool =
     w.mani.present and
@@ -1197,7 +1253,9 @@ module finish {
   // ---------------------------------------------------------------------------
 
   pure def bump(f: Frame): Frame =
-    { ...f, h: { ...f.h, stepsVisited: f.h.stepsVisited.union(Set(f.t.pc)) } }
+    { ...f,
+      t: { ...f.t, persisted: f.t.persisted or persistentEffect(f.t.pc) != ENothing },
+      h: { ...f.h, stepsVisited: f.h.stepsVisited.union(Set(f.t.pc)) } }
 
   pure def go(f: Frame, s: Step): Frame = { ...f, t: { ...f.t, pc: s } }
 
@@ -1215,6 +1273,20 @@ module finish {
   pure def settle(f: Frame, o: Outcome): Frame =
     { ...f, t: { ...f.t, running: false, pc: SSettled, outcome: o } }
 
+  /// `FN-06`'s own outcome word.  The catalogue says a mid-transaction swap is
+  /// a REFUSAL; *One artifact, three contexts* says a caller who has already
+  /// mutated is owed a BLOCK.  Read together they are not in conflict on the
+  /// state — they are in conflict only if the outcome is chosen without asking
+  /// whether anything is persistent yet.  Before the transaction's first
+  /// persistent effect the tree and the repository are byte-identical, so the
+  /// refusal the catalogue names is available and is what this returns; after
+  /// it, `blockNow` takes over.  WHAT REMAINS A CATALOGUE FINDING is that the
+  /// catalogue does not make that split itself — see
+  /// `docs/formalism-findings.md` entry 045, finding 6.
+  pure def refuseSwap(f: Frame): Frame =
+    val f1 = settle(f, ORefused(RRootIdentityChanged))
+    { ...f1, h: { ...f1.h, identitySwapCaught: true, identitySwapRefused: true } }
+
   pure def applyStep(f0: Frame): Frame =
     val f = bump(f0)
     val w = f.w
@@ -1223,7 +1295,10 @@ module finish {
     // mid-transaction swap is a stop rather than a mutation applied elsewhere.
     if (persistentEffect(t.pc) != ENothing and w.rootIdentity != t.pinnedIdentity
         and OWNERSHIP_PROVEN)
-      blockNow(f, "identity")
+      // Nothing persistent yet -> the catalogue's own "refused"; otherwise the
+      // honest stable state is a block.  `f0` rather than `f`, because `bump`
+      // has already marked the step ABOUT to run.
+      (if (f0.t.persisted) blockNow(f, "identity") else refuseSwap(f))
     else
     match t.pc {
       | SCreatePreparing =>
@@ -1589,7 +1664,14 @@ module finish {
     // prove the artifact is its own — which is `OwnershipConflict`'s own
     // definition rather than an extension of it.  Found as a counterexample to
     // `FN-25.b`: without this clause a mid-transaction swap blocks with a
-    // diagnosis the catalogue's partition does not cover.
+    // diagnosis the catalogue's partition does not cover — STILL TRUE after the
+    // `FN-06` outcome split, and measured rather than assumed: removing this
+    // line violates `inv_FN_25b` in `base` and in `scenario_edit_txn`.  What the
+    // split changed is WHICH swaps reach here.  A swap caught before the
+    // transaction's first persistent effect is now a refusal (`refuseSwap`) and
+    // is outside `FN-25` entirely, which is where the catalogue's own `FN-06`
+    // wording puts it; a swap caught after one is a block, and the partition
+    // genuinely needs this clause to cover it.
     (t.pinnedIdentity >= 0 and w.rootIdentity != t.pinnedIdentity) or
     (w.repo.recordedSet and w.repo.topology != w.repo.recorded and
      not(exactResult(w.repo, t.settling))) or
@@ -1665,6 +1747,7 @@ module finish {
         rootIdentity: 1,
         finishLeafLive: true,
         guardsOk: true,
+        liveWork: false,
         leaseLayoutOk: true,
         operandSameDevice: true,
         witnessTracked: false,
@@ -1779,7 +1862,7 @@ module finish {
       // `FN-11`, `FN-19`, `SY-05.b`.  No trace exposes an absent task root
       // before the deletion is proven.
       rootAbsentBeforeProof: f.h.rootAbsentBeforeProof or
-        (not(w1.rootPresent) and not(deletionProven(w1))),
+        (not(w1.rootPresent) and not(deletionProvenFor(w1, t1.settling))),
       // `FN-31.b`.  A reader observing the marker absent is a reachable STATE,
       // not an event, so the ghost records the state rather than a moment.
       markerGapObserved: f.h.markerGapObserved or w1.quar.marker == MAbsentDuringReplace,
@@ -1819,6 +1902,14 @@ module finish {
       blockedStatesSeen: f.h.blockedStatesSeen + (if (settled and isBlock(t1.outcome)) 1 else 0),
       blockedWithoutDiagnosis: f.h.blockedWithoutDiagnosis or
         (settled and isBlock(t1.outcome) and diagnose(w1, t1).size() == 0),
+      // `FN-25.b`, THE COMPARISON.  The diagnosis the outcome CARRIES against
+      // the one the independent classifier gives the same state.  A call site
+      // that names its own diagnosis is a counterexample here rather than a
+      // definition — which is what the obligation's prose has always claimed
+      // and what, until this ghost existed, it did not check.
+      carriedDisagreed: f.h.carriedDisagreed or
+        (settled and isBlock(t1.outcome) and
+         diagnose(w1, t1) != diagnosisOf(t1.outcome)),
       blockedWithBoth: f.h.blockedWithBoth or diagnose(w1, t1).size() > 1,
       nearMissResolvedToOne: f.h.nearMissResolvedToOne or
         (groveOwnedCorrelated(w1, t1) and unprovable(w1, t1) and diagnose(w1, t1).size() == 1),
@@ -1865,14 +1956,34 @@ module finish {
         // has already published and evacuated, so what the catalogue's own
         // *One artifact, three contexts* rule licenses here is a BLOCK — see
         // this file's README for why `FN-13`'s "refused" is a finding.
+        // THE DIAGNOSIS IS CLASSIFIED, NOT NAMED.  This site once wrote
+        // `OwnershipConflict` by hand, and it was wrong: the transaction has
+        // published a correlated witness and evacuated every entry, so the
+        // state is a Grove-owned correlated artifact whose outcome cannot yet
+        // be proven — `RecoveryPending`'s own definition.  `inv_FN_25b` now
+        // COMPARES the carried diagnosis with the classifier's, so a site that
+        // names its own is a counterexample; this is the site that proved the
+        // comparison was worth adding.
+        val dTracked = pickDiagnosis(w, t)
         all {
           w' = w,
-          t' = { ...t, running: false, outcome: OBlocked(OwnershipConflict) },
+          t' = { ...t, running: false, outcome: OBlocked(dTracked) },
           hist' = { ...hist,
                     stepsVisited: hist.stepsVisited.union(Set(SCommit)),
                     trackedWitnessRefused: true,
                     blockedStatesSeen: hist.blockedStatesSeen + 1,
-                    ownershipConflictOnLane: hist.ownershipConflictOnLane.union(Set(w.repo.lane)) },
+                    blockSitesSwept: hist.blockSitesSwept.union(Set("tracked-witness")),
+                    blockedWithoutDiagnosis: hist.blockedWithoutDiagnosis or
+                      diagnose(w, t).size() == 0,
+                    blockedWithBoth: hist.blockedWithBoth or diagnose(w, t).size() > 1,
+                    carriedDisagreed: hist.carriedDisagreed or
+                      diagnose(w, t) != Set(dTracked),
+                    recoveryPendingOnLane: if (dTracked == RecoveryPending)
+                      hist.recoveryPendingOnLane.union(Set(w.repo.lane))
+                      else hist.recoveryPendingOnLane,
+                    ownershipConflictOnLane: if (dTracked == OwnershipConflict)
+                      hist.ownershipConflictOnLane.union(Set(w.repo.lane))
+                      else hist.ownershipConflictOnLane },
           nextAttempt' = nextAttempt,
           envUsed' = envUsed,
         }
@@ -1890,8 +2001,13 @@ module finish {
           reported: if (lost) RS_LOST else said,
           // `FN-30`.  No user-supplied hook runs during an internal commit,
           // because such a hook may mutate unrelated working-tree bytes that no
-          // index image restores.
-          hooksRan: false,
+          // index image restores.  `HOOKS_SUPPRESSED` is what makes that a
+          // claim rather than a coding habit.
+          hooksRan: (not(HOOKS_SUPPRESSED)) and w.hookInstalled,
+          // `FN-14`.  The commit is SCOPED: unrelated working-copy work
+          // survives it.  `COMMIT_SCOPED` is the same move at `FN-14`.
+          unrelatedMutated: w.repo.unrelatedMutated or
+            ((not(COMMIT_SCOPED)) and landed and w.repo.unrelatedDirty),
           indexRestored: (not(landed)) and hasIndexImage(w.repo.lane),
         }
         val d = disposition(repo1, t.settling)
@@ -1974,20 +2090,38 @@ module finish {
   action recoverOp: bool = all {
     not(t.running),
     val rp = resumePoint(w)
+    // WITH NO LOCAL TRACE there is no manifest and no quarantine to read the
+    // attempt out of, and the identity does NOT therefore vanish: it is what
+    // this invocation is settling, carried across the crash exactly as
+    // `crashNow` carries it.  Falling back to `-1` here — "any ticket for the
+    // handle will do" — is what let an alien ticket settle this attempt
+    // forward.
     val settling = if (w.mani.present) w.mani.attempt
                    else if (w.quar.present) w.quar.attempt
-                   else -1
+                   else t.settling
     val repaired = if (RECOVERY_IDEMPOTENT) w else { ...w, witness: WPreparing, rootPresent: true }
+    val proven = deletionProvenFor(w, settling)
+    val rootlessTxn = { ...IDLE_TXN, settling: settling }
+    val dRootless = pickDiagnosis(w, rootlessTxn)
     if (rp == SSettled)
       // `FN-03`.  A retry with NO LOCAL TRACE of the attempt, settling forward
       // on the correlation ticket alone.
       all {
         w' = repaired,
         t' = { ...IDLE_TXN, entered: true, settling: settling,
-               outcome: if (deletionProven(w)) OApplied else OBlocked(pickDiagnosis(w, IDLE_TXN)) },
+               outcome: if (proven) OApplied else OBlocked(dRootless) },
         hist' = { ...hist,
                   settledForwardOnTicketAlone: hist.settledForwardOnTicketAlone or
-                    (deletionProven(w) and not(w.quar.present) and w.witness == WNone),
+                    (proven and not(w.quar.present) and w.witness == WNone),
+                  blockSitesSwept: if (proven) hist.blockSitesSwept
+                    else hist.blockSitesSwept.union(Set("rootless")),
+                  blockedStatesSeen: if (proven) hist.blockedStatesSeen
+                    else hist.blockedStatesSeen + 1,
+                  blockedWithoutDiagnosis: hist.blockedWithoutDiagnosis or
+                    (not(proven) and diagnose(w, rootlessTxn).size() == 0),
+                  carriedDisagreed: hist.carriedDisagreed or
+                    (not(proven) and
+                     diagnose(w, rootlessTxn) != Set(dRootless)),
                   noopRecoveries: hist.noopRecoveries + 1,
                   recoveryChangedAtRest: hist.recoveryChangedAtRest or sigOf(repaired) != sigOf(w) },
         nextAttempt' = nextAttempt,
@@ -2122,7 +2256,10 @@ module finish {
   action handEditTo(k: int): bool = all {
     envAdmitted(1),
     w' = (
-      if (k == 0)      { ...w, guardsOk: false }
+      // The guard fails BECAUSE ordinary work is live, which is also the state
+      // `Current(Live)` names.  Two fields rather than one so the refusal and
+      // the classification are separately checkable.
+      if (k == 0)      { ...w, guardsOk: false, liveWork: true }
       else if (k == 1) { ...w, leaseLayoutOk: false }
       // `FN-08`'s witness: a layout that PASSES at lease acquisition and fails
       // at the transaction's own rename operands.
@@ -2280,7 +2417,7 @@ module finish {
   /// The proof that an attempt completed is the deletion commit's own message.
   /// A success is never reported without one.
   val inv_FN_03_the_ticket_is_the_durable_record: bool =
-    (settledNow and t.outcome == OApplied) implies deletionProven(w)
+    (settledNow and t.outcome == OApplied) implies deletionProvenFor(w, t.settling)
 
   // --- `FN-04` ---------------------------------------------------------------
 
@@ -2568,11 +2705,16 @@ module finish {
   val inv_FN_25a_the_diagnoses_are_disjoint: bool =
     diagnose(w, t).size() <= 1 and not(hist.blockedWithBoth)
 
-  /// The two are jointly EXHAUSTIVE over `Blocked`, and the diagnosis the
-  /// machine carried at each of its ten call sites agrees with the one the
-  /// state classifies to.
+  /// The two are jointly EXHAUSTIVE over `Blocked`, and — the second half, and
+  /// the one this obligation's prose always claimed — the diagnosis the machine
+  /// CARRIED at each block site agrees with the one the independent classifier
+  /// gives that same state.  `carriedDisagreed` is what makes the second half a
+  /// comparison rather than a restatement: without it the invariant asked only
+  /// whether the classifier returns one answer, which a machine naming its own
+  /// diagnosis at each site satisfies by definition.
   val inv_FN_25b_the_diagnoses_are_exhaustive: bool =
     not(hist.blockedWithoutDiagnosis) and
+    not(hist.carriedDisagreed) and
     (isBlock(t.outcome) implies diagnose(w, t).size() == 1)
 
   /// Each diagnosis is reachable on each lane — stated as the property that a
@@ -2606,7 +2748,7 @@ module finish {
   /// finish unsuccessful.
   val inv_FN_28_one_successful_exit: bool =
     (t.outcome == OApplied and settledNow) implies
-      (not(w.rootPresent) and deletionProven(w))
+      (not(w.rootPresent) and deletionProvenFor(w, t.settling))
 
   // --- `FN-29` --------------------------------------------------------------
 
@@ -2692,6 +2834,9 @@ module base {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 99,
     ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6),
     ENV_KINDS = Set(0, 1, 2, 3),
@@ -2725,6 +2870,9 @@ module verify_small {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1,
     ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6),
     ENV_KINDS = Set(0, 1, 2, 3),

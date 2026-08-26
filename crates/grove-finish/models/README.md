@@ -2934,7 +2934,7 @@ models/run.sh --scope finish --family quint
 Two files: [`finish.qnt`](finish.qnt) carries the parameterised library, the
 `base` instance and the `verify_small` model-checking instance;
 [`finish-controls.qnt`](finish-controls.qnt) carries the twelve focused
-scenarios, the seven assumption mutations and the eight model mutations. The
+scenarios, the seven assumption mutations and the eleven model mutations. The
 split is not tidiness — see *Verification*.
 
 Coverage is asserted: all 61 `FN-` obligations are answered by a property
@@ -2951,7 +2951,7 @@ fixed default, so a green run is replayable and a red one reproduces),
   runner's own default depth, and this is the strongest statement this column
   makes. `quint verify` (Apalache 0.56.1) checks the `verify_small` instance —
   one lane, one evacuable entry, one environment action per trace — over **all
-  61 property commands at `--max-steps=4` in 377s** on a 16-core host with
+  61 property commands at `--max-steps=4` in 445s** on a 16-core host with
   `-Xmx16G`, reporting no violation; `--max-steps=3` over three of the hardest
   (`FN-24.a`, `FN-25.a`, `FN-25.b`) finishes in 373s. Depth is what costs, not
   the number of invariants. That is the direction simulation cannot give — no
@@ -3023,11 +3023,11 @@ disposal rejoins by the marker it finds.
 | `base` | every assumption granted, every model mutation off, all three lanes, an environment budget larger than any trace can spend at every point | the run every `FN-` PROPERTY is checked in, unfocused |
 | `verify_small` | one lane, one entry, one environment action | the model-checking instance; see *Verification* |
 | `scenario_march` | no environment action at all | both branches of the transaction, end to end |
-| `scenario_gates` | perturbations only while the tree is at rest | the seven preflight preconditions, the reaper, the hook |
+| `scenario_gates` | perturbations only while the tree is at rest | the seven preflight preconditions, the reaper, the hook, `Current(Live)` |
 | `scenario_crash` | one crash in the witness build or at the commit | `FN-09`, `FN-10.a`, `FN-12.a`, six crash boundaries |
 | `scenario_crash_late` | one crash in the handoffs | `FN-19`, `FN-20`, and four crash boundaries |
 | `scenario_crash_disposal` | one crash inside disposal | `FN-21.a`, `FN-31.c`, seven crash boundaries |
-| `scenario_edit_txn` | one hand edit inside the transaction | `FN-06`, `FN-13`, `FN-25.a`, `FN-25.c` |
+| `scenario_edit_txn` | one hand edit inside the transaction | `FN-06` (both outcomes), `FN-13`, `FN-25.a`, `FN-25.c` |
 | `scenario_reval` | one topology change at a revalidation point | `FN-16`, `FN-18`, `FN-22.b`, `.c`, `.e`, `.f`, `.g` |
 | `scenario_foreign_marker` | one foreign write during disposal | `FN-31.d` |
 | `scenario_unclassifiable` | a crash, then a foreign write at the witness's name | `FN-10.b` |
@@ -3035,7 +3035,7 @@ disposal rejoins by the marker it finds.
 | `scenario_return_blocked` | a return that cannot complete | `FN-22.h` |
 | `scenario_return_crash` | a crash inside the quarantine's return | the last crash boundary |
 | seven `relax_EN_*` | the assumption mutations | see *The controls* |
-| eight `mutant_*` | the model mutations | see *The controls* |
+| eleven `mutant_*` | the model mutations | see *The controls* |
 
 **Which module a command runs in** is decided by one rule, defined in
 [`models/run.sh`](../../../models/run.sh) under *THE MODULE RULE* and cited
@@ -3067,6 +3067,22 @@ kind — so nothing is narrowed where the properties are checked. That is the sa
 division `crates/grove-task-tree/models/task-tree.qnt` makes, at a larger scale,
 because the subject is a longer transaction.
 
+**The dial was audited, and it is not manufacturing the record.**
+`review-prototype-finish-k57` classified every one of the 129 `wit_` commands
+this column had at the time against one question — is the ghost set by a
+transition the claim is about, or by the scenario's own setup? — and returned
+**129 protocol-established, 0 construction-established, 0 unclear**. The
+scenario modules bind constants only; none assigns `w`, `t` or `hist`, so no
+witness here lands because its instance arranged for it to. That is the check a
+narrowed instrument most needs and the one a green run cannot supply.
+
+**What it does not establish is that every property is meaningful**, and the
+review said so in the same breath: a protocol-fed witness sits happily beside a
+safety claim that no transition could falsify. Three of them did — see
+*The controls*, rows 916 – 918 — and one instrument claimed a comparison it was
+not making, see *Narrowings*. Reachability and non-vacuity are two audits, and
+passing the first says nothing about the second.
+
 **A budget of one is the sweet spot, and the reason is worth recording.** With
 one perturbation admitted, the world acts at a roughly uniform point of the
 march and the rest of the trace is deterministic — so every crash boundary and
@@ -3097,8 +3113,11 @@ narrowed to that pair. Four of the twelve scenarios exist for exactly that.
 | `inv_fail_MUT_FN_08_the_operand_gate_is_skipped` | `FN-08` | violated |
 | `inv_fail_MUT_FN_12b_an_undigestible_entry_is_evacuated` | `FN-12.b` | violated |
 | `inv_fail_MUT_FN_20_a_leftover_artifact_read_as_a_receipt` | `FN-20` | violated |
+| `inv_fail_MUT_FN_30_a_hook_ran_on_an_internal_commit` | `FN-30` | violated |
+| `inv_fail_MUT_FN_14_the_commit_took_unrelated_work` | `FN-14` | violated |
+| `inv_fail_MUT_FN_26_a_block_cleared_by_rewriting_history` | `FN-26` | violated |
 
-**Eight of the sixteen are MODEL mutations, and they are the ones that matter
+**Eleven of the nineteen are MODEL mutations, and they are the ones that matter
 most for reading the rest.** Each exists because an obligation would otherwise be
 true *by construction* — satisfied by the way an executable model is naturally
 written rather than by anything the protocol does:
@@ -3111,7 +3130,11 @@ written rather than by anything the protocol does:
 - **`mutant_short_preflight`** kills four at once, and that is its content:
   `FN-06`, `FN-07`, `FN-08` and `FN-12.b` are each satisfied by the ORDER the
   model happens to check things in. Four obligations resting on one coding habit
-  is worth knowing.
+  is worth knowing. **It is a BUNDLE control rather than a minimal one**, and
+  the distinction matters when it is cited: the mutation skips the layout
+  precondition too, so what it establishes is that the four claims fall together
+  under a short preflight — not that each rests on a mechanism this dial removes
+  and nothing else.
 - **`mutant_eager_preflight`.** `FN-05.b` and `FN-05.c` are satisfied by a
   failure branch that assigns nothing. The mutant builds the witness and records
   its intent before it has finished checking.
@@ -3120,8 +3143,23 @@ written rather than by anything the protocol does:
   without it — and a two-world comparison proves nothing unless there is a world
   in which the classifier actually reads the artifact.
 - **`mutant_no_revalidation`**, **`mutant_nonatomic_marker`**,
-  **`mutant_unproven_ownership`**, **`mutant_eager_recovery`** are the same move
-  at `FN-22`, `FN-31.b`, `FN-10.b` and `FN-23`.
+  **`mutant_eager_recovery`** are the same move at `FN-22`, `FN-31.b` and
+  `FN-23`, each removing the named mechanism and nothing wider.
+- **`mutant_unproven_ownership`** kills `FN-10.b` in its focused scenario, and it
+  is **the second BUNDLE control**: globally it also disables the root-identity
+  stop, so it is drawn wider than the obligation it is cited for. Read it as
+  "ownership proof removed", not as "this one mechanism removed".
+- **`mutant_hooks_run`**, **`mutant_unscoped_commit`** and
+  **`mutant_history_rewritten`** are the three that were missing, and their
+  absence is the sharper version of the same lesson. `FN-30`, `FN-14` and
+  `FN-26` were each asserted over a field **no transition in the model could
+  make bad**: the commit wrote `hooksRan: false` unconditionally,
+  `unrelatedMutated` and `historyRewritten` were initialised false and only ever
+  read. Their witnesses landed and were protocol-fed, and the safety claims were
+  still true by construction — which is exactly the case where a protocol-fed
+  witness and a meaningful property come apart. Each mutant now supplies the
+  missing mechanism: a hook that runs, a commit that takes the unrelated bytes,
+  and a block "cleared" by rewriting the recorded history.
 
 ### Exercise-removal — named witnesses must become UNREACHABLE
 
@@ -3176,6 +3214,13 @@ this model takes as written:
 - **A precondition-naming observable.** `FN-05.a`'s seven members are not
   distinguishable by their outcomes — the catalogue says so and asks for exactly
   this — so `Precondition` is a state field the seven witnesses read.
+- **`Current(Live)` is NOT one of these, and it used to be.** The classifier
+  read a `liveOrdinaryWork` hard-coded to `false`, so one of the catalogue's own
+  stable task-root states — and a branch `FN-24.a` quantifies over — could not be
+  reached, undeclared. Live ordinary work is now a state of the world set by the
+  same environment edit the `PCGuards` refusal is stated over, the classification
+  is exercised in 15.4% of `scenario_gates` traces, and the abstraction is gone
+  rather than declared.
 - **The index image is a flag nothing reads.** The colocated lane's index backup
   and restore are represented as `repo.indexRestored`, set on an uncommitted
   result, and no obligation is stated over it. Q4's row for it is declared
@@ -3203,12 +3248,34 @@ this model takes as written:
   preconditions are mutually masking — the preflight returns the FIRST failure —
   so no single trace reaches them all, and the catalogue's own wording is "each
   of the seven, reached".
-- **`FN-25.b`'s "exhaustive sweep of the blocked states" is bounded by the
-  sample count**, like everything else in this column. What is *not* bounded is
-  the direction the obligation actually needs: the diagnosis is classified from
-  the STATE by a predicate independent of the ten call sites, and `FN-25.b` is
-  the agreement between them. A call site naming the wrong diagnosis is a
-  counterexample rather than a definition.
+- **`FN-25.b`'s "exhaustive sweep of the blocked states" is a BOUNDED sweep,
+  and the witness now says so.** It reports the block SITES the search reached
+  — `blockSitesSwept` — rather than asserting that one reached block was an
+  exhaustive sweep, which is what it did before and which was not a sweep at
+  all. The obligation asks for exhaustiveness; what this column supplies is
+  8000 samples at depth 24.
+- **`FN-25.b`'s second half IS a comparison, and it was not one until this
+  column was reviewed.** The diagnosis is classified from the STATE by
+  `diagnose`, a predicate independent of the block call sites, and the
+  obligation compares that against the diagnosis each `Blocked` outcome
+  actually CARRIES (`carriedDisagreed`). Until the comparison existed the
+  invariant asked only whether the classifier returns one answer — which a
+  machine deriving every carried diagnosis from that same classifier satisfies
+  by definition. Adding it found a real disagreement immediately: the
+  tracked-witness commit named `OwnershipConflict` by hand while the state was a
+  correlated, provably Grove-owned artifact, which is `RecoveryPending`. That
+  site now classifies like every other.
+- **The correlation ticket's attempt-binding is a CONSTRUCTION fact here, not a
+  controlled one, and that is the honest statement.** `deletionProvenFor` takes
+  the attempt it is proving, so a ticket naming this handle and another attempt
+  cannot satisfy `FN-03` or `FN-28` — the catalogue's own reason for putting the
+  attempt in the ticket is that it "lets a retry that has lost every local trace
+  still tell its own completed attempt from someone else's". What no control in
+  this column can show is that the binding BITES: no reachable state offers a
+  rootless retry a ticket for an attempt other than the one it is settling,
+  because a crash carries `settling` forward and the task root only goes absent
+  after this attempt's own commit has landed. The alien ticket is reachable (a
+  `topology-change`, `EN-09`), the state in which it would be *believed* is not.
 
 ## The green run this column stands on
 
@@ -3219,19 +3286,23 @@ QUINT_VERIFY=1 models/run.sh --scope finish --family quint  # …and model-check
 
 | run | result |
 |---|---|
-| `--scope finish --family quint` | **exit 0** — 4m 05s wall / 293s CPU on a 16-core host, 223 commands, 0 failures, `-- cells: 61 complete, 0 declared gaps, 0 empty, of 61`, Q4 matrix 10 of 10 rows |
-| the same with `QUINT_VERIFY=1` | **exit 0** — 10m 38s wall, 284 commands, 0 failures; the 61 `SKIP` lines become `model-checked to depth 4, no counterexample` |
+| `--scope finish --family quint` | **exit 0** — 4m 25s wall / 317s CPU on a 16-core host, 228 commands, 0 failures, `-- cells: 61 complete, 0 declared gaps, 0 empty, of 61`, Q4 matrix 10 of 10 rows |
+| the same with `QUINT_VERIFY=1` | **exit 0** — 11m 51s wall, 289 commands, 0 failures; the 61 `SKIP` lines become `model-checked to depth 4, no counterexample` |
+
+Both figures are post-integration: `integrate-review-prototype-finish-k58` added
+three model mutations and two witnesses to what `prototype-finish-k12` left, for
+about 8% of the run (the producer's were 4m 05s / 223 commands and 10m 38s / 284).
 
 The second row is the one to quote, **with its depth attached**. See the
 `VERIFY` line above for what depth 4 does and does not reach.
 
-The 223 are the 61 property commands the library declares and `base` inherits,
-plus the 162 written inside `finish-controls.qnt`: **112 witnesses** across the
-twelve scenarios, and **50** across the fifteen mutation instances — 17
-witnesses (13 of them `wit_unreach_`), 17 retained properties and 16 inverted
+The 228 are the 61 property commands the library declares and `base` inherits,
+plus the 167 written inside `finish-controls.qnt`: **114 witnesses** across the
+twelve scenarios, and **53** across the eighteen mutation instances — 17
+witnesses (13 of them `wit_unreach_`), 17 retained properties and 19 inverted
 `inv_fail_` controls. `verify_small` inherits the same 61 properties and
 reports each as `SKIP` under the default `QUINT_VERIFY=0`; the runner does not
-count a skipped command as work, which is why 223 rather than 284. **No module
+count a skipped command as work, which is why 228 rather than 289. **No module
 loses commands under the runner's parser**: every `val inv_…`/`val wit_…`
 declaration in both files is accounted for, and the `val`s that are neither are
 helpers.
@@ -3257,6 +3328,14 @@ One row per control, and what it killed. Q4's rows cite these by number.
 | 913 | `mutant_eager_preflight` | model | the preflight writes before it has finished checking | `FN-05.b` and `FN-05.c` die |
 | 914 | `mutant_short_preflight` | model | the preflight checks only confirmation and the guards | `FN-06`, `FN-07`, `FN-08`, `FN-12.b` die |
 | 915 | `mutant_receipt_reading` | model | the fresh-tree classification reads a leftover artifact | `FN-20` dies |
+| 916 | `mutant_hooks_run` | model | an installed operator hook RUNS during the internal commit | `FN-30` dies |
+| 917 | `mutant_unscoped_commit` | model | the commit takes the unrelated working-copy bytes with it | `FN-14` dies |
+| 918 | `mutant_history_rewritten` | model | a block "cleared" by rewriting the recorded history | `FN-26` dies |
+
+Rows 914 and 911 are **bundle** controls and the rest are minimal: 914 also
+skips the layout precondition, and 911 also disables the root-identity stop.
+Rows 916 – 918 exist because `FN-30`, `FN-14` and `FN-26` were asserted over
+fields no transition could make bad — see *The controls*.
 
 ## `TODO.finish_process.md` Q4 — the removal matrix, Quint's rows
 
@@ -3271,14 +3350,15 @@ evidence the artifact is protecting the user rather than Grove.
 | Q4-102 | quint | the **evacuation manifest** | `FN-17.a` | argument — a rollback with nothing to compare against cannot be exact |
 | Q4-103 | quint | its **ready mark** | `FN-24.a` | argument — a manifest interrupted mid-write is otherwise indistinguishable from a complete one |
 | Q4-104 | quint | the **correlation ticket** | `FN-03` | argument — `FN-03`'s own witness is a retry with no local trace, which has nothing else to settle on |
-| Q4-105 | quint | the **quarantine** | `none` | mutation — row 902 |
-| Q4-106 | quint | the **cleanup marker** | `none` | mutation — row 902 |
-| Q4-107 | quint | the **replace transition** | `none` | mutation — row 902 |
+| Q4-105 | quint | the **quarantine** | `none`, **as part of one bundle** | mutation — row 902, which removes 105, 106 and 107 together |
+| Q4-106 | quint | the **cleanup marker** | `none`, **as part of one bundle** | mutation — row 902, which removes 105, 106 and 107 together |
+| Q4-107 | quint | the **replace transition** | `none`, **as part of one bundle** | mutation — row 902, which removes 105, 106 and 107 together |
 | Q4-108 | quint | the **index image** | — | abstracted |
 | Q4-109 | quint | the **recorded anchor** | `FN-16.a` | argument — the rollback licence is stated over it, and without it no restoration can be refused for want of one |
 | Q4-110 | quint | the **deletion fingerprint** | `FN-07` | mutation — row 914 |
 
-**Three rows read `none`, and they are the same row three times.** The
+**Three rows read `none`, and they are the same row three times — which is why
+each of them says so in the cell rather than only in this paragraph.** The
 quarantine, the cleanup marker and the replace transition are one mechanism:
 `relax_EN_03` removes all three together, because the marker exists to make the
 quarantine's disposal resumable and the replace transition exists to advance the
@@ -3287,6 +3367,17 @@ bound no greater than the incumbent's, and the candidate's own successful exit i
 reached in 46% of traces. What that says is that the three protect **Grove's own
 intermediate artifacts**, not the user — which is `TODO.finish_process.md` Q4's
 question asked precisely.
+
+**What it does NOT say is `none` for each artifact removed on its own**, and the
+matrix's own wording ("the first shared-safety obligation its removal breaks")
+invites exactly that misreading. This column supplies **one bundled candidate
+result**, not three independent removals: no control here removes the quarantine
+while retaining the marker, or the marker while retaining the replace
+transition. Rows Q4-101–104, Q4-109 and Q4-110 name the first direct
+shared-safety obligation their artifact's role supports and are read normally;
+Q4-108 is declared `abstracted`. `formal-synthesis-k16` should read 105 – 107 as
+one row with three names, and commission artifact-specific removals if Q4's
+decision needs them separated.
 
 **And `FN-31.a`'s witness DID land.** The replace transition is *reachable* in
 the incumbent, and not marginally: the marker records disposal progress, so the

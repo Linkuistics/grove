@@ -42,6 +42,9 @@ module scenario_march {
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -123,8 +126,21 @@ module scenario_march {
   val wit_FN_24b_the_success_branchs_step_list_enumerated: bool =
     SUCCESS_BRANCH_STEPS.subseteq(hist.stepsVisited)
 
-  /// `FN-25.b`.  An exhaustive sweep of the blocked states within the bound.
-  val wit_FN_25b_a_blocked_state_swept: bool = hist.blockedStatesSeen > 0
+  /// `FN-25.b`.  THE BOUNDED SWEEP, reported as what it is.  The obligation asks
+  /// for an exhaustive sweep of the blocked states; what randomized simulation
+  /// supplies is a block SITE reached, carrying the diagnosis the independent
+  /// classifier gives its own state.  The previous form was
+  /// `blockedStatesSeen > 0` — one reached block, named as an exhaustive sweep,
+  /// and asserting nothing about the diagnosis it carried.
+  ///
+  /// A TRACE REACHES AT MOST ONE SITE, because a block is terminal; the sweep's
+  /// width is a property of the 8000 samples and of the twelve scenarios, not of
+  /// any one trace.  Which is the honest statement, and it is why this is a
+  /// witness that a site was swept rather than a claim that all of them were.
+  val wit_FN_25b_the_blocked_states_swept_within_the_bound: bool =
+    hist.blockSitesSwept.size() > 0 and
+    not(hist.blockedWithoutDiagnosis) and
+    not(hist.carriedDisagreed)
 
   /// `FN-25.c`.  `RecoveryPending`, on each lane.
   val wit_FN_25c_recovery_pending_on_git: bool = hist.recoveryPendingOnLane.contains(0)
@@ -177,6 +193,9 @@ module scenario_gates {
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -190,6 +209,15 @@ module scenario_gates {
   /// later.
   val wit_FN_04_an_earlier_ticket_rejected_by_a_later_attempt: bool =
     hist.earlierTicketRejected
+
+  /// `FN-24.a`.  `Current(Live)` — the stable task-root state the catalogue
+  /// names for a root with live ordinary work — REACHED and classified to
+  /// exactly one state.  It was previously unreachable: the classifier read a
+  /// function hard-coded to `false`, so a branch `FN-24.a` quantifies over could
+  /// not be exercised.  The state is set by the environment's own hand edit,
+  /// the same edit the `PCGuards` refusal is stated over.
+  val wit_FN_24a_current_live_is_a_reached_stable_state: bool =
+    stableStates(w) == Set(RCurrentLive)
 
   /// `FN-05.a`.  EACH OF THE SEVEN, reached.  Seven commands rather than one:
   /// the catalogue's own wording is "each of the seven", and the seven are
@@ -279,6 +307,9 @@ module scenario_crash {
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(1, 2), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -323,6 +354,9 @@ module scenario_crash_late {
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(3, 4, 5, 6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -361,6 +395,9 @@ module scenario_edit_txn {
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(1, 2), ENV_KINDS = Set(1),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -368,6 +405,14 @@ module scenario_edit_txn {
   /// `FN-06`.  A swap between two steps, whose mutation is not applied
   /// elsewhere.
   val wit_FN_06_a_root_swap_between_two_steps: bool = hist.identitySwapCaught
+
+  /// `FN-06`, IN THE CATALOGUE'S OWN WORD: the swap REFUSED.  Available exactly
+  /// while the transaction has made nothing persistent; past that point
+  /// *One artifact, three contexts* takes over and the outcome is a block.  The
+  /// catalogue states only the first, which is the content of
+  /// `docs/formalism-findings.md` entry 045, finding 6.
+  val wit_FN_06_a_root_swap_between_two_steps_refused: bool =
+    hist.identitySwapRefused
 
   /// `FN-13`.  A commit attempted while the witness is tracked, refused.
   val wit_FN_13_a_commit_attempted_with_the_witness_tracked: bool =
@@ -396,6 +441,9 @@ module scenario_reval {
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(3), ENV_KINDS = Set(3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -465,6 +513,9 @@ module scenario_foreign_marker {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(6), ENV_KINDS = Set(2),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -492,6 +543,9 @@ module scenario_unclassifiable {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 2, ENV_PHASES = Set(0, 1), ENV_KINDS = Set(0, 2),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -521,6 +575,9 @@ module scenario_orphan {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 2, ENV_PHASES = Set(0, 1), ENV_KINDS = Set(0, 1),
     ENV_EDITS = Set(12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -553,6 +610,9 @@ module scenario_return_blocked {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 2, ENV_PHASES = Set(0, 3), ENV_KINDS = Set(1, 3),
     ENV_EDITS = Set(8), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(1), ENTRIES = 1
   ).* from "./finish"
@@ -580,6 +640,9 @@ module scenario_return_crash {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 2, ENV_PHASES = Set(3, 5), ENV_KINDS = Set(0, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(1), ENTRIES = 1
   ).* from "./finish"
@@ -611,6 +674,9 @@ module scenario_crash_disposal {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -674,6 +740,9 @@ module relax_EN_01 {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -713,6 +782,9 @@ module relax_EN_03 {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -763,6 +835,9 @@ module relax_EN_05 {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -811,6 +886,9 @@ module relax_EN_08 {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(1, 2, 3, 4, 5, 6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -851,6 +929,9 @@ module relax_EN_13 {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -887,6 +968,9 @@ module relax_EN_15 {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -925,6 +1009,9 @@ module relax_EN_16 {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -975,6 +1062,9 @@ module mutant_status_classifier {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1003,6 +1093,9 @@ module mutant_no_revalidation {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(3), ENV_KINDS = Set(3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0), ENTRIES = 1
   ).* from "./finish"
@@ -1032,6 +1125,9 @@ module mutant_nonatomic_marker {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1059,6 +1155,9 @@ module mutant_unproven_ownership {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(0, 1, 2), ENV_KINDS = Set(2),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1086,6 +1185,9 @@ module mutant_eager_recovery {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1114,6 +1216,9 @@ module mutant_eager_preflight {
     PREFLIGHT_PURE = false,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1145,6 +1250,9 @@ module mutant_short_preflight {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = false,
     LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1181,10 +1289,111 @@ module mutant_receipt_reading {
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
     LEFTOVERS_ARE_EVIDENCE = true,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(3, 4, 5, 6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
 
   val inv_fail_MUT_FN_20_a_leftover_artifact_read_as_a_receipt: bool =
     inv_FN_20_a_leftover_artifact_is_never_a_receipt
+}
+
+/// An operator hook that RUNS during the internal commit.  Without this
+/// instance `FN-30` is green because the model writes `hooksRan: false` — a
+/// claim about one line rather than about the protocol.  The hook has to be
+/// installed for the mutation to bite, so the instance perturbs at rest.
+module mutant_hooks_run {
+  import finish(
+    RENAME_ATOMIC = true,
+    ATOMIC_DISPOSAL = false,
+    ATOMIC_COMMIT = false,
+    CRASHES = true,
+    FOREIGN_WRITES = true,
+    REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false,
+    LANES = Set(0, 1, 2),
+    REVALIDATE = true,
+    CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true,
+    OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true,
+    PREFLIGHT_PURE = true,
+    PREFLIGHT_COMPLETE = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = false,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  val inv_fail_MUT_FN_30_a_hook_ran_on_an_internal_commit: bool =
+    inv_FN_30_internal_commits_run_without_hooks
+}
+
+/// A commit that is NOT scoped: it takes the unrelated working-copy bytes with
+/// it.  `FN-14` and `FN-27.a` are both asserted over a field no transition
+/// otherwise sets, so without this instance both are green by construction.
+module mutant_unscoped_commit {
+  import finish(
+    RENAME_ATOMIC = true,
+    ATOMIC_DISPOSAL = false,
+    ATOMIC_COMMIT = false,
+    CRASHES = true,
+    FOREIGN_WRITES = true,
+    REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false,
+    LANES = Set(0, 1, 2),
+    REVALIDATE = true,
+    CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true,
+    OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true,
+    PREFLIGHT_PURE = true,
+    PREFLIGHT_COMPLETE = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = false,
+    HISTORY_IMMUTABLE = true,
+    ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  val inv_fail_MUT_FN_14_the_commit_took_unrelated_work: bool =
+    inv_FN_14_the_commit_is_scoped
+}
+
+/// A block "cleared" by rewriting the recorded history out from under it.
+/// `FN-26` forbids exactly that, and nothing else in the model can perform it —
+/// so without this instance the obligation is green on the absence of a
+/// transition rather than on the protocol refusing to make one.
+module mutant_history_rewritten {
+  import finish(
+    RENAME_ATOMIC = true,
+    ATOMIC_DISPOSAL = false,
+    ATOMIC_COMMIT = false,
+    CRASHES = true,
+    FOREIGN_WRITES = true,
+    REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false,
+    LANES = Set(0, 1, 2),
+    REVALIDATE = true,
+    CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true,
+    OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true,
+    PREFLIGHT_PURE = true,
+    PREFLIGHT_COMPLETE = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = false,
+    ENV_BUDGET = 1, ENV_PHASES = Set(1, 2), ENV_KINDS = Set(1),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  val inv_fail_MUT_FN_26_a_block_cleared_by_rewriting_history: bool =
+    inv_FN_26_history_is_never_rewritten
 }

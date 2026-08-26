@@ -992,6 +992,22 @@ of legacy, and the two must be told apart or legacy work gets completed.
 _Avoid_: calling it a transient — an interrupted scaffold is a **stable** state
 an ordinary invocation meets and acts on.
 
+**Admitted action**:
+In the lifecycle claims, an action Grove itself may take — the Observation, Tree
+mutation, Finish and Lifecycle groups of the semantic contract's §*Actions*, and
+**exactly not** its fifth group. The five Environment actions (`crash`,
+`hand-edit`, `foreign-write`, `topology-change`, `confirm`) are the world's, and
+their guard column reads *none*; an operator's hands are not an exit the loop
+has. The exclusion is load-bearing in both claims stated over the set: a sweep
+counting a hand edit as an exit finds no dead end anywhere, and *stays blocked
+until an operator acts* has nothing left to mean.
+_Avoid_: counting **process death** as one. It is `crash`, so it is the world's
+— which matters because the exit a driver stranded by an invalid configuration
+actually takes is to die and let the kernel release its lease, and that exit is
+therefore outside the set every reachability claim quantifies over.
+_Avoid_: reading it as *enabled*. An action is admitted by its group, not by its
+guard; a guard that fails yields a named refusal, which is still the action.
+
 **Terminal disposition**:
 In the lifecycle claims, an ending from which the loop has no further admitted
 action of its own. There are exactly two: a **proven successful finish** (the

@@ -7,20 +7,21 @@ are **not** here: they are
 statements.
 
 ```sh
-models/run.sh --scope lifecycle --family alloy --no-coverage
+models/run.sh --scope lifecycle --family alloy
 ```
 
-`--no-coverage` stays on that line until the whole `SY-` column closes. It is
-the visible signal that a scope's first family is still mid-build, and dropping
-it is what says the column closed.
+**`--no-coverage` is gone from that line, and its absence is the signal that the
+`SY-` column closed.** It stayed there for the three slices while the scope's
+first family was mid-build; the `sessions` slice filled the last eight cells, so
+the run now asserts coverage over the whole catalogue subset and fails if any
+`(alloy, obligation)` cell is empty.
 
 | file | family | covers |
 |---|---|---|
-| `lifecycle.als` | Alloy 6 | `SY-01` – `SY-08`, `SY-10`, `SY-11` — seventeen obligations |
+| `lifecycle.als` | Alloy 6 | `SY-01` – `SY-14` — **all twenty-five obligations** |
 
-Eight of the twenty-five `(alloy, obligation)` cells are empty, and the runner
-names each: `SY-09` and `SY-12` – `SY-14`. They are the `sessions` sibling
-leaf's, not gaps.
+**Zero empty alloy cells for the lifecycle scope, and zero declared gaps.** The
+Quint column is `quint-models-k10`'s and is not this directory's to fill.
 
 ## The composition boundary
 
@@ -38,10 +39,13 @@ What this model does **not** have, and which model owns each:
 | a leaf's state, and the retirement that spends a tree | `crates/grove-task-tree/models/`, `TT-17`. A `Current(Spent)` root is reached here from the free initial state, which `EN-11` is what licenses |
 | the eleven-state classification's `Reserved` members, the quarantine, the correlation ticket, the manifest, the atomic rename | `crates/grove-finish/models/`. `SY-05.b`'s two underlying steps are `FN-11` and `FN-19`, and they reach this file as `doProveCommit` and `doSettleDeletion` — **one opaque step each**, carrying only the observation the obligation reads: the deletion is proven, and the name frees |
 | entry names, positions, kinds, terminality, and the pre-order walk that decides **which** live leaf `select` returns (`TT-11`, `TT-12`, `TT-14`) | `crates/grove-task-tree/models/` — `SY-08` cannot be stated without something for selection to *return*, so `Leaf` is an opaque handle and `World.live` is an **unordered set**. The choice among live leaves is imported as non-determinism, and a signature that grew an order would be this file re-stating the selection contract |
-| `Empty` and `Ambiguous` as distinguishable observation outcomes (`TT-15`) | `crates/grove-task-tree/models/` — `doSelect` is guarded on `some World.live` rather than branching on it, because selection on a spent tree and the finish leaf exhaustion yields (`SY-07`) are both the `roots` sibling's |
+| `Empty` and `Ambiguous` as distinguishable observation outcomes (`TT-15`) | `crates/grove-task-tree/models/` — `doSelect` branches on `some World.live` and reads no value off either arm; **which** live leaf, and the `Empty`/`Ambiguous` distinction, are the task-tree model's |
 | the configuration's contents — kinds, templates, the personal file and the delta | `complete-session-configuration` and `untracked-configuration-delta`. `SY-04.b` reads exactly one bit of it: whether full validation passes |
 | the witness slot, the evacuation manifest, the correlation ticket, the quarantine, the cleanup marker | `crates/grove-finish/models/` |
 | the three lanes and every lane-specific mechanism | `crates/grove-finish/models/` — no `SY-` obligation in this slice differs by lane |
+| the block's **diagnosis** — `FN-25`'s `RecoveryPending`/`OwnershipConflict` partition, its disjointness, its exhaustiveness and its per-lane reachability | `crates/grove-finish/models/`. **`SY-14` reads one bit and one outcome**: *the tree is blocked*, and every tree action on it returns `Blocked`. `World.blocked` is `lone Flag` and carries no diagnosis, because no `SY-` obligation reads which one. A `Blocked` with internals here would be a third copy of the finish contract |
+| what PUT the tree in a block — the recorded and observed topology, the artifact holding the transaction, the two operator-restorable exits (`FN-26`) | `crates/grove-finish/models/`. `doRecover` is **one opaque step** carrying only *recovery ran and could not settle*; which interruptions it can settle is `FN-20`'s classification. **The operator action that CLEARS a block is absent here and that is a limit rather than a gap**: §*Actions* puts operator actions outside the admitted set by construction, so at this scope *until an operator acts* is exactly *never, by anything this file has* |
+| the signal file — its path, its bytes, its collision-resistance, and the loop control channel it lives on | `one-live-driver-per-working-tree`, and `crates/grove-finish/models/` for the correlation between a finish commit and its attempt. `SY-09` reads **two flags and their absence** (`World.signal`), and the driver's conclusion (`World.ending`) is a second field so that the inference `SY-09.c` forbids is statable at all |
 | the finish transaction's own preflight | `crates/grove-finish/models/`, `FN-05.a` member 3. This file's `doLayoutPreflight` is **the later gate as such**, standing for every subsequent revalidation; `SY-03` is the claim that connects them, and `witness_FN_05a_p3_layout_unsupported` is the same claim stated inside the finish scope |
 
 A signature here that grows one of those rows is this file becoming a third copy
@@ -91,6 +95,21 @@ of two contracts rather than the joint of them.
 - **`SY-04.b`'s configuration content — ANSWERED.** `doValidateConfig` was
   opaque in the admission slice and now reads the live configuration, with the
   same biconditional instrument `SY-03` uses on the layout.
+- **`SY-14`'s OPERATOR EXIT is owed to `crates/grove-finish/models/` and is a
+  limit rather than a gap.** *Until an operator acts* names an action this file
+  does not have: §*Actions* puts operator actions outside the admitted set by
+  construction, and `FN-26`'s two restorable exits are the finish model's.
+  `SY-14.a`'s content is that no **admitted** action clears a block, and that is
+  checked here over all twenty-two of them. **This is the sixth instance of the
+  `TT-24` placement shape** — a claim whose remainder belongs to a sibling
+  directory — and it joins `SY-06.b`'s ordering clause (the fourth) and
+  `SY-05.b`'s other half (the fifth) in the closed table below.
+- **`SY-09`'s SIGNAL FILE is `one-live-driver-per-working-tree`'s.** What
+  crosses is two flags and their absence. The path, the bytes, the
+  collision-resistance and the loop control channel are the ADR's, and the
+  correlation between a finish commit and its attempt is the finish model's.
+  **Not a gap** — `SY-09`'s three obligations are about what the driver
+  CONCLUDES, and that is `World.ending` and is entirely here.
 
 ## Tool, solver, bounds
 
@@ -153,9 +172,36 @@ Alloy 6 trace being a lasso whose last state loops.
 | `SY-07.a` | `witness_SY_07a_a_reuse` | 4 | **3** | 1.27 s |
 | `SY-07.b` | `SY_07b_…` | 5 | — | 1.68 s |
 | `SY-07.b` | `witness_SY_07b_a_refused_creation` | 4 | **2** | 1.84 s |
+| `SY-09.a` | `SY_09a_…` | 5 | — | 1.60 s |
+| `SY-09.a` | `witness_SY_09a_relaunch_reached` | 5 | **4** | 1.61 s |
+| `SY-09.b` | `SY_09b_…` | 5 | — | 1.60 s |
+| `SY-09.b` | `witness_SY_09b_done_reached` | 5 | **4** | 1.61 s |
+| `SY-09.c` | `SY_09c_…` | 5 | — | 1.59 s |
+| `SY-09.c` | `witness_SY_09c_no_signal_after_a_proven_teardown` | 5 | **4** | 1.61 s |
+| `SY-12` | `SY_12_…` | 5 | — | 2.01 s |
+| `SY-12` | `witness_SY_12_crash_after_acquire_lease` | 5 | **4** | 1.53 s |
+| `SY-12` | `witness_SY_12_crash_after_layout_preflight` | 5 | **4** | 1.58 s |
+| `SY-12` | `witness_SY_12_crash_after_open_epoch` | 5 | **4** | 1.58 s |
+| `SY-12` | `witness_SY_12_crash_after_launch` | 5 | **4** | 1.53 s |
+| `SY-12` | `witness_SY_12_crash_after_reap` | 5 | **4** | 1.57 s |
+| `SY-12` | `witness_SY_12_crash_after_close_epoch` | 5 | **4** | 1.53 s |
+| `SY-12` | `witness_SY_12_crash_after_release_lease` | 5 | **4** | 1.57 s |
+| `SY-13.a` | `SY_13a_…` | 5 | — | 1.62 s |
+| `SY-13.a` | `witness_SY_13a_the_longest_admitted_sequence_within_the_bound` | **9** | **8** | 5.20 s |
+| `SY-13.b` | `SY_13b_…` | 5 | — | 1.58 s |
+| `SY-13.b` | `witness_SY_13b_no_grove_is_not_a_sink` | 5 | **4** | 1.57 s |
+| `SY-13.b` | `witness_SY_13b_a_partial_scaffold_is_not_a_sink` | 4 | **3** | 1.40 s |
+| `SY-13.b` | `witness_SY_13b_a_spent_tree_is_not_a_sink` | 4 | **3** | 1.39 s |
+| `SY-13.b` | `witness_SY_13b_a_transaction_part_way_is_not_a_sink` | 4 | **3** | 1.43 s |
+| `SY-14.a` | `SY_14a_…` | 5 | — | 1.65 s |
+| `SY-14.a` | `witness_SY_14a_a_block_reached_and_surviving_an_admitted_action` | 5 | **3** | 1.42 s |
+| `SY-14.b` | `SY_14b_…` | 5 | — | 1.69 s |
+| `SY-14.b` | `witness_SY_14b_an_action_on_a_blocked_tree_refuses_naming_the_block` | 4 | **2** | 1.31 s |
 | control | `expect_fail_EN_07_SY_11b_…` | 5 | — | 1.11 s |
 | control | `expect_fail_EN_14_SY_01a_…` | 5 | — | 1.23 s |
 | control | `expect_fail_EN_14_SY_05a_…` | 5 | — | 1.31 s |
+| control | `expect_unreachable_EN_08_no_lifecycle_step_is_a_crash_point` | 7 | — | 1.71 s |
+| control | `expect_unreachable_EN_08_no_property_fails_when_crash_is_removed` | 6 | — | 2.81 s |
 
 **EVERY INHERITED WITNESS STILL LANDS EXACTLY WHERE IT DID**, and the whole sweep
 was re-run from 2 to its declared bound to establish it rather than assumed. That
@@ -219,7 +265,8 @@ requires of a slice that touches a field a guard reads.
 
 **COST STOPPED BEING UNINTERESTING WITH THIS SLICE, AND THE THIRD MEASUREMENT IS
 THE FIRST ONE THAT SAYS ANYTHING.** The JVM-plus-parse floor on this host is
-unchanged at **0.58 s**. The forty-six-command file runs in **105 s and 113 s wall** across two
+unchanged at **0.58 s**. *(The figures in this paragraph are the `roots` slice's and are
+kept as its record; the `sessions` slice's A/B is the table below it.)* The forty-six-command file ran in **105 s and 113 s wall** across two
 runs under `models/run.sh` (222–241% CPU, ~240 s user both times) against the
 thirty-command file's 37 s — so **53% more commands cost roughly 190% more
 wall**, and the gap is where the finding is. **The parallel utilisation fell from
@@ -240,6 +287,62 @@ translation but the SEARCH, in exactly the two commands that quantify over grove
 identities across states. **The placement is still doing its job** — this file
 pays for `Grove` because `SY-05` is about identity, and it pays for nothing about
 witnesses, manifests, quarantines or lanes.
+
+**THE `sessions` SLICE MADE THE FILE BIGGER AND THE SUITE BARELY DEARER, WHICH
+CONFIRMS THE `roots` SLICE'S COST FINDING FROM THE OTHER SIDE.** Measured as an
+A/B on one host in one sitting, which is the only way a suite total means
+anything:
+
+| | before this slice | after |
+|---|---|---|
+| commands | 46 | **73** (+59%) |
+| wall | 104 s | **124 s** (+19%) |
+| CPU | 251% | **361%** |
+
+The `roots` slice was 53% more commands for **190%** more wall. This one is 59%
+more commands for **19%**. The difference is exactly the thing entry 042 named:
+`roots` added `Grove`, a **free `var`-referenced signature** at scope 3, and paid
+a factor of five in the three commands whose search ranges over its atoms across
+states. **This slice added no signature.** What it added is five **static** atoms
+(`Sig`, `Ending`, and `Blocked`), four `var lone` fields on the `one sig World`,
+and three reachable transitions — and the static-atom law (~10 ms per atom per
+command) predicts ~50 ms per command, which is within the noise it was measured
+in. **The prediction held.** The rule to carry: budget a static enumeration by
+counting atoms, budget a `var` field on a `one sig` at nearly nothing, and budget
+a free signature by measuring, because it is the only one of the three that costs
+search rather than translation.
+
+**AND THE CHEAPEST THING THIS SLICE DID TO THE FILE'S RUN TIME WAS TO MAKE A
+TRANSITION MORE CORRECT.** The `doTreeOp` repair — one conjunct, `no
+World.partial and no World.legacy` — is a **narrowing** of the step that
+everything in the file reaches, and it moved the two dearest inherited commands
+more than any bound change ever has:
+
+| command | `roots` | before the repair | after |
+|---|---|---|---|
+| `witness_SY_10a_a_stale_session_refused` | 8.62 s | — | **2.28 s** |
+| `SY_05a_…` | 4.16 s | — | **1.72 s** |
+| `SY_09b_…` (new) | — | 9.68 s | **1.60 s** |
+| `SY_12_…` (new) | — | 9.89 s | **2.01 s** |
+| `SY_13a_…` (new) | — | 3.25 s | **1.62 s** |
+| `SY_10a_…` | 3.23 s | — | 3.43 s (flat) |
+
+`witness_SY_10a` was the file's dearest command after `roots` and is now an
+ordinary one. **A guard on a widely-reached transition buys more than a bound
+does**, because it removes traces from every command at once rather than states
+from one — and the corpus's budgeting advice (prefer a static switch, then a
+narrowed antecedent, then a smaller bound) has been about the *claim's* operands.
+This is the same move applied to a **transition**, and it is a fourth entry on
+that list. It arrived here as a correctness repair and the speed was a
+side-effect, which is the honest order to report it in.
+
+**ONE MEASUREMENT VARIANCE WORTH A LINE, because it would otherwise read as a
+result.** `witness_SY_14b` measured **9.93 s** once and **1.31 s** on each of two
+re-runs of the identical command and file. The table records 1.31 s. Per-command
+wall on this host is not reliable to better than a factor of a few on a single
+reading, which sharpens the sibling scopes' rule — *whole-suite totals do not
+compare across sessions* — into: **a single per-command reading does not compare
+with itself.** Take two.
 
 ## Abstractions, and what a green run does not prove
 
@@ -370,10 +473,78 @@ witnesses, manifests, quarantines or lanes.
   transitions** and is false of the world's, and §*Actions* puts `hand-edit` and
   `foreign-write` in the same table as the transitions the claim is about.
   Recorded in `docs/formalism-findings.md` entry 042 with its counterexample.
-- **A green run of this file is not evidence.** Three of its seventeen
-  obligations have no firing protocol-level mutation or none that is isolating
-  (below), one check was green and vacuous for two rounds before the mutations
-  found it, and one was green at a bound too small to reach its own mutation.
+- **`Blocked` IS THE CATALOGUE'S OWN OUTCOME AND IS THIS FILE'S FIRST IMPORT
+  THAT IS NEITHER AN ABSTRACTION NOR A COPY.** §*Outcomes* lists it beside
+  `Applied` and `Refused`, and its two neighbours in `Result` — `Deferred` and
+  `Stopped` — are the two this file had to invent. It enters as a `Result`
+  member carrying **no diagnosis**, and that is the composition decision:
+  `SY-14` is stated over *a blocked tree* and `FN-25` over *which block*, so
+  only the first crosses.
+- **`doRecover` AND `doBlockedRefusal` ARE ONE OPAQUE STEP EACH, AND THE SECOND
+  IS THE OPPOSITE OF THE `doAllocFinish` RULE.** That rule — *prefer splitting
+  out a named transition to widening an opaque one, wherever a claim is about
+  **which** mutation* — is stated above and this slice is the case it does not
+  cover. `SY-14.b` is about **every** action on a blocked tree, and a per-action
+  refusal branch would be twenty-six copies of one sentence with twenty-six
+  chances to omit it. What carries the claim is a **single conjunct** in
+  `mayTouchTree`, and M24 is its removal. **The rule generalises: split when the
+  claim distinguishes actions, fold when it quantifies over them.**
+- **`SY-13` AND `SY-14.a` ARE EXISTENTIAL-REACHABILITY AND SWEEP INSTRUMENTS,
+  NOT LIVENESS PROPERTIES, AND A READER MUST NOT READ FAIRNESS INTO THEM.** The
+  catalogue is explicit and gives the reason: *the loop WILL reach one* needs a
+  fairness or admission premise these models have no grounds to grant, because
+  nothing schedules the operator and `EN-15` says Grove cannot verify a
+  confirmation. Concretely, in this file:
+  - **the existential half of `SY-13` is carried by `run` commands**, because a
+    `run` **is** an existential over traces. `witness_SY_13a_…` exhibits the
+    longest admitted sequence within the bound; the four `witness_SY_13b_…`
+    runs are the sweep, one per stable class, each reaching a goal.
+  - **the two `SY-13` checks carry the half a run cannot** — that no admitted
+    action of Grove's own destroys the escape (`SY_13a`), and that the four
+    classes are all the non-goal states there are (`SY_13b`).
+  - **`SY_14a`'s sweep is exhaustive BY BEING A CHECK**: `Sys.act' in
+    AdmittedAct` ranges over all twenty-two admitted actions in every state
+    within the bound, which no finite list of runs would give. The run beside it
+    lands the non-vacuity — the division of labour `SY-05.b` uses.
+  - **no command in this slice contains an `eventually` inside an `always`.**
+    That is the mechanical form of the rule and it is checkable by reading.
+- **`AdmittedAct` IS A SET AND ITS COMPLEMENT IS LOAD-BEARING IN BOTH `SY-13`
+  AND `SY-14`.** §*Actions* puts `crash`, `hand-edit`, `foreign-write`,
+  `topology-change` and `confirm` in an Environment group whose guard column
+  reads *none — these are the world's*. A sweep that counted a hand edit as an
+  exit would find no sink anywhere, and `SY-14`'s *until an operator acts* would
+  have nothing to mean. **`IterA` is in neither set**: it is this file's own
+  boundary abstraction, not something the loop *does*, which is why `SY-13.a`'s
+  sequence length is reported twice — five admitted actions, six transitions.
+- **`World.ending` IS A `set` AND `World.halted` IS ITS OWN FIELD, both to keep
+  a claim from being a declaration.** This is the `World.fin` lesson applied to
+  a third and fourth field. A `lone Ending` would have made `SY-09`'s *exactly
+  one of three* true by construction; a `halted` derived from `ending` would
+  have made `SY-09.a`'s *the loop continues* and `SY-09.b`'s *the loop ends*
+  true by construction. Declared as they are, both are things `SY_09a` and
+  `SY_09b` **establish** and things M17 and M18 break.
+- **`World.signal` AND `World.ending` ARE TWO FIELDS BECAUSE `SY-09.c` IS ABOUT
+  AN INFERENCE.** One field for both would make the inference the obligation
+  forbids — reading *done* off something other than the flag — literally
+  unstatable, and the check would be a restatement of a branch. Two fields make
+  M19 (a reap that concludes *done* from a committed teardown) a
+  counterexample instead of an impossibility.
+- **THE EPOCH RECORD'S THIRD WRITE POINT IS STILL COLLAPSED, AND `doReap` NOW
+  HAS A REASON TO WANT IT.** `reap` writes the record inactive in the ADR and
+  does not here — see the entry above. Nothing in `SY-09` reads it: the loop's
+  halt is `World.halted` and the session's ending is `World.ending`, and neither
+  is the epoch. Recorded again because this is the slice where a reader would
+  expect it to have changed.
+- **A green run of this file is not evidence, and this slice is the sharpest
+  demonstration of it in the corpus.** All twenty-one of its new commands were
+  green on their **first** run, before a single mutation was written — and one
+  of the two things the slice found was a defect that had been green in every
+  command of the three preceding slices. Across the file: four of its
+  twenty-five obligations have no firing protocol-level mutation or none that is
+  isolating, one check was green and vacuous for two rounds before the mutations
+  found it, one was green at a bound too small to reach its own mutation, and
+  one was green because a transition let the loop out of a state it cannot
+  really leave.
 
 ## The mutation matrix
 
@@ -410,6 +581,42 @@ does**, so a survivor is investigated rather than recorded.
 | M14 | `SY-06.b` | the completion **decides** on the union: the mere absence of the format witness | **fires** |
 | M15 | `SY-07.a` | the allocation always **appends**, never reuses | **fires** |
 | M16 | `SY-07.b` | a session allocates the finish leaf exactly as a driver does | **fires** |
+| M17 | `SY-09.a` | the relaunch branch halts the loop anyway | **fires** |
+| M18 | `SY-09.b` | the done branch leaves the loop running | **fires** |
+| M19 | `SY-09.c` | the reap **infers** `done` from a committed teardown (`some World.retired`) rather than from the flag | **fires** |
+| M20 | `SY-12` | the reap does not consume the signal slot — a restart re-reads it | **fires** |
+| M21 | `SY-13.a` | `initialise-root` marks the fresh root `legacy` instead of `partial` — Grove scaffolds into a sink | **fires** |
+| M22 | `SY-13.b` | `prove-commit` writes a proof about a grove that is **not** the one at the name | **fires** |
+| M23 | `SY-14.a` | the attempt on a blocked tree **clears** the block | **fires** |
+| M24 | `SY-14.b` | `mayTouchTree` drops its `no World.blocked` conjunct | **fires** |
+| M23b | `SY-14.a` | the **iteration boundary** blocks the tree — a block arriving from something other than recovery's decline | **fires**, and it is the ISOLATING one for `SY-14.a` |
+
+**NINE MUTATIONS FOR THIS SLICE'S EIGHT OBLIGATIONS, NINE FIRINGS, NO
+SURVIVORS — AND THE ISOLATION MATRIX IS PART OF THAT CLAIM RATHER THAN AN
+EXTRA.** Every one of M17 – M24 was run against **all eight** of the slice's
+checks, not only its own, and seven of the eight are **isolating**: they fire
+exactly the obligation they are aimed at and nothing else. That is a better
+result than either sibling scope's and it is worth saying why — this slice's
+obligations are about four different fields (`ending`/`halted`, `signal`,
+`legacy`/`live`, `blocked`), where `SY-05`'s four conjuncts and `SY-11`'s two
+halves were about one apiece.
+
+**M23 is the exception and M23b is the repair.** Clearing the block inside the
+blocked-tree attempt fires `SY-14.a` **and** `SY-14.b`, because `SY_14b`'s
+second conjunct asserts the attempt's frame and clearing the block breaks it.
+That is the finish scope's sixth failure mode again. Rather than record the
+overlap and stop — which the fourth attempt rule permits — a second mutation was
+written against `SY-14.a`'s **other** conjunct, *a block arrives from recovery's
+decline and from nowhere else*: the iteration boundary blocks the tree. It fires
+`SY-14.a` alone. **A claim with two conjuncts about different things has an
+isolating mutation even when one of its conjuncts does not**, and looking for it
+cost one run.
+
+**THE BOUND SWEEP.** Every one of the nine was swept from 2 states upward.
+**Seven first fire at 3, M24 and M23b at 2, and every check runs at 5** — two or
+three states of margin apiece. The number is in the record because *no
+survivors* is only worth something beside it, and because entry 041's `M8`
+incident was a mutation that survived at two bounds and fired at a third.
 
 **SEVEN MUTATIONS, SEVEN FIRINGS, NO SURVIVORS — AND THE BOUND SWEEP IS PART OF
 THAT CLAIM RATHER THAN AN EXTRA.** The third incident below is a check green at a
@@ -502,6 +709,60 @@ or a live mutation the check's shape cannot see — and **only a differential
 probe (satisfiable in the mutant, unsatisfiable in the original) tells the third
 from the first**. This slice met all three in one session.
 
+## The composition boundary, closed — a table for `formal-synthesis-k16`
+
+The `SY-` column is complete, so this is the whole of what this scope imported
+from its two siblings and the whole of what it declined to. **A reader of
+`formal-synthesis-k16` should be able to use this table without opening
+`lifecycle.als`.**
+
+Twenty-five obligations, and **every one of them reads its sibling contracts
+through an observation rather than through machinery.** The count that matters:
+this file has **eleven `World` observations** standing for two contracts whose
+own models carry, between them, filenames, positions, keys, slugs, species,
+digests, an eleven-state classification, a witness slot, an evacuation manifest,
+a correlation ticket, a quarantine, a cleanup marker, three lanes and a
+repository. None of those appears here.
+
+| what a `SY-` claim needs to be true | how it enters this file | who owns it | obligations |
+|---|---|---|---|
+| a task root exists / does not | `World.rooted`, an identity with no contents | `crates/grove-task-tree/models/` (`TT-18`) | `SY-02`, `SY-05`, `SY-06`, `SY-10` |
+| a proven deletion is durable | `World.retired`, monotone; `World.proven`, one opaque step | `crates/grove-finish/models/` (`FN-11`, `FN-19`, `FN-28`) | `SY-05` |
+| a root is a partial scaffold / is legacy | `World.partial`, `World.legacy` — two opaque marks, **not** two of eleven states | `crates/grove-task-tree/models/` (`TT-18`, `TT-20`) | `SY-06` |
+| there is work to run | `World.live`, an **unordered** set of opaque handles | `crates/grove-task-tree/models/` (`TT-11`, `TT-12`, `TT-14`) | `SY-07`, `SY-08`, `SY-13` |
+| exactly one finish leaf | `World.fin`, a **`set`** so the count is checked | `crates/grove-task-tree/models/` (`TT-13`) for the malformity; `SY-07` for the allocation | `SY-07` |
+| the tree is blocked | `World.blocked`, `lone Flag`, **no diagnosis** | `crates/grove-finish/models/` (`FN-25`, `FN-26`) | `SY-13`, `SY-14` |
+| a session reported / did not | `World.signal`, two flags and their absence | `one-live-driver-per-working-tree` | `SY-09` |
+| the workspace layout is supported | `World.layout`, one bit, re-read at every gate | `supported-workspace-layouts` | `SY-02`, `SY-03` |
+| the configuration validates | `World.cfg`, one bit | `complete-session-configuration` | `SY-04.b` |
+| a launch generation is live | `World.gen`, an opaque identity | `one-live-driver-per-working-tree` | `SY-10` |
+| the working-tree root's identity | `WtId`, an open directory and not a path | `one-live-driver-per-working-tree`, `EN-14` | `SY-01` |
+
+**What this file added of its own, and each is an abstraction rather than a
+contract**: `Proc.waits`/`Deferred` (a guard wait as an observable state),
+`Stopped` and `RefConfigInvalid` (two situations the closed outcome and refusal
+sets cannot name — a **finding**, named for `formal-synthesis-k16`), `IterA` (an
+iteration boundary, which is not a catalogue action because a boundary is not
+something the loop *does*), `World.ending`/`World.halted` (the driver's
+conclusion and the loop's halt, two fields so that the inference `SY-09.c`
+forbids is statable), and `initialise-root` as **two** steps.
+
+**Three clauses are imported and unchecked here, and each is the `TT-24`
+placement shape.** They are the fourth, fifth and sixth instances of it and
+`formal-synthesis-k16` inherits the set:
+
+- **`SY-06.b`'s ordering clause** — *completed **before** any format
+  classification runs*. This file reads `partial` and `legacy` as marks already
+  made and has no classification step; the order is `TT-18`'s.
+- **`SY-05.b`'s other half** — the catalogue says `SY-05` and `FN-11`/`FN-19`
+  SHALL be checked together, and an `FN_`-prefixed command here is a placement
+  error. This file states the observation; the finish model states the steps.
+- **`SY-14`'s operator exit** — *until an operator acts*. `FN-26` names the two
+  restorable exits and they are the finish model's; §*Actions* puts operator
+  actions outside the admitted set, so at this scope the phrase is exactly
+  *never, by anything this file has*. **Not a gap** — `SY-14.a`'s content is
+  that no *admitted* action clears a block, and that is checked.
+
 ## Retained counterexamples
 
 **`EN-07`, the shared-lock scope — and it is exactly the option
@@ -593,7 +854,78 @@ answers `SY-08` by construction. Under **M9** — the launch recomputing from
 `World.live` — the same three states produce `World.running = b`, which is the
 claim's *preempting the running one* exactly.
 
-## Three incidents worth carrying forward
+**A `Legacy` TREE IS A SINK, AND THE DIFFERENTIAL PROBE IS WHAT MAKES THAT A
+RESULT RATHER THAN A GUESS.** The un-narrowed `SY-13.b` — the same case analysis
+with `no World.legacy` removed from its antecedent — reports a counterexample
+immediately. Its cheapest form is a free initial state, so the probe was run
+against a **reached** legacy tree instead, and against a reached partial scaffold
+as the positive control:
+
+```text
+run  ... eventually (hand-edit puts a Legacy root at the name
+                     and after (always only admitted actions
+                                and eventually atGoal))
+                                            6 states       9 states
+  from a hand-edited Legacy root            NO INSTANCE    NO INSTANCE
+  from an initialise-root PartialScaffold   instance       instance
+```
+
+The control is the whole point: *no instance* alone would be a statement about
+the probe. Side by side, the pair says the escape exists for one stable class
+and does not exist for the other, at two bounds — which is the third of the
+three survivor causes told from the first, and it is the same instrument
+`admission-k51` used on M5/M5b.
+
+**AND IT WAS MASKED BY A MODEL DEFECT UNTIL THE REPAIR LANDED.** Before
+`doTreeOp` learned the classification (the fourth incident below), the same
+probe found an instance: a plain tree operation appended a live leaf to the
+`Legacy` root, so the sink was not there to find. **A model defect that makes a
+state escapable reports exactly as a design in which it is escapable.**
+
+**A DRIVER HOLDING A LEASE UNDER AN INVALID CONFIGURATION IS A SECOND DEAD END,
+AND IT IS RECORDED RATHER THAN FOLDED IN.** `SY-04.b` gates every Lifecycle
+transition but `acquire-lease` on a valid configuration, so **`release-lease` is
+unreachable while the configuration is invalid**: the driver can neither
+release, nor open an epoch, nor launch, nor reap, nor close. A probe confirms it
+— a driver holding a lease under `InvalidCfg` takes no Lifecycle action for the
+whole trace.
+
+**Whether that is a sink turns on one question and the answer decides it:
+process death is NOT an admitted action.** §*Actions* puts `crash` in the
+Environment group whose guard column reads *none — these are the world's*, so
+the exit the shipped driver actually takes — die, and let the kernel release the
+lease (`SY-01.b`) — is outside the set `SY-13` quantifies over. Under the
+catalogue's own definitions the state is therefore a dead end.
+
+**It is nonetheless not a counterexample to `SY-13` as this file states it, and
+the reason is a scoping decision worth writing down.** §*States*' stable /
+transient distinction is defined **over task-root states** — *a stable state is
+one an ordinary invocation may observe and act on*, and every state in the table
+it introduces is a root classification. A driver's own process state is not a
+§*States* state at all, so `SY-13`'s antecedent is the root classification and
+the loop-side state is out of scope. **The decision is recorded because the
+alternative reading is available and would make `SY-13` false a third way.**
+
+What the finding really is, and it is a **design** one rather than a modelling
+one: `SY-04.b`'s gate is over-applied. `acquire-lease` is already exempt because
+it runs before configuration validation; **`release-lease` deserves the same
+exemption for a stronger reason** — a release touches no tree and launches
+nothing, so there is nothing for a configuration to be valid *for*. Gating it
+means an invalid personal configuration strands a lease that the loop then can
+only escape by dying. Named for `formal-synthesis-k16` with the two available
+repairs — exempt the release, or admit process death — and not fixed here.
+
+**A `PartialScaffold` IS STABLE AND THE SWEEP CONFIRMS IT, which is a
+calibration the next reader can use.** `roots-k53` created the interval between
+`doInitRoot` and `doCompleteScaffold` and `CONTEXT.md` is explicit that it is
+**stable** and not transient: an ordinary invocation observes it and acts on it.
+`witness_SY_13b_a_partial_scaffold_is_not_a_sink` is that sentence as an
+instrument — the state is reached, an ordinary `complete-scaffold` leaves it, and
+a live leaf follows. **`Reserved(*)` is the transient class and it is
+`crates/grove-finish/models/`'s**; this file never enumerates stability, it
+reads the four classes its own observations distinguish.
+
+## Five incidents worth carrying forward
 
 **A `lone` field under `not in` is false when the field is empty.**
 `p.waits not in p.holds` reads as *nobody waits for what they already hold*, and
@@ -636,6 +968,62 @@ state 0 stays wide open. The fix is the file's own idiom, a state-0-only fact
 with no `always` on it — the fourth such, beside `TracesStartWithNobodyBlocked`,
 `LeasesStartBoundToTheLiveRoot` and `SelectionsStartInsideTheTree`.
 
+**AN OPAQUE STEP THAT NEVER LEARNED A CLASSIFICATION THREE OF ITS NEIGHBOURS
+DID — AND A SWEEP IS WHAT WALKED INTO IT.** `doTreeOp` is *any observation,
+creation or mutation of the task tree*, written by the `admission` slice when the
+task root was present-or-absent and nothing more. The `roots` slice introduced
+`World.partial` and `World.legacy` and taught `doInitRoot`, `doAllocFinish` and
+`doProveCommit` about them. **It did not come back to `doTreeOp`**, so in this
+file a plain tree operation would append a live leaf to a `Legacy` root — a tree
+with no format witness, which the shipped `grove-llm` refuses with
+`FormatLegacy` and which §*States* says a whole-tree classification *stops every
+read and mutation* of.
+
+**No inherited obligation could see it, and that is the part worth carrying.**
+None of the seventeen reads a tree operation against a classification: `SY-06.b`
+owns the legacy refusal and owns it at `complete-scaffold`. Every check was
+green, every witness landed, and the defect was invisible to all of them. What
+found it was `SY-13`'s sweep, which asks of **every stable state** what leaves
+it — and got the wrong answer for `Legacy` because the model let an ordinary
+tree operation out of it. **A sweep over a state space finds transitions a
+per-claim check set is not shaped to reach**, and it found this one on its first
+run.
+
+**It masked a design fact, which is the second half.** With `doTreeOp` open, the
+`Legacy` sink below did not exist in the model; the differential probe that
+established it only reported *no instance* after the repair. **A model defect
+that makes a state escapable reports exactly as a design in which it is
+escapable**, and the two are told apart only by asking whether the escape is one
+the shipped system would take. The repair is one conjunct
+(`no World.partial and no World.legacy`), written as a **guard** rather than as
+a refusal branch, because a refusal branch would be a second statement of
+`SY-06.b` in a step no obligation reads.
+
+**A CLAIM QUANTIFIED OVER EVERY STABLE STATE IS QUANTIFIED OVER THE OPERATOR'S
+WHOLE IMAGINATION.** `SY-13` says *from any stable state there SHALL exist a
+bounded sequence of admitted actions reaching either a live leaf to run or a
+terminal disposition*. `EN-11` says any well-formed tree is reachable by hand
+edit. Put together, the antecedent ranges over states the loop never produced,
+and **a `Legacy` tree is one of them and is a sink**: every admitted action
+refuses `FormatLegacy`, and neither terminal disposition is reachable. Under the
+un-narrowed check this reports immediately, and the differential probe
+establishes it is the design rather than the bound — *from a hand-edited
+`Legacy` root, no goal is reachable by admitted actions at six states or at
+nine, while from a `PartialScaffold` one is at both.*
+
+**The catalogue knows the shape and declines both repairs.** Its own note says a
+`Malformed(reason)` tree is not a terminal disposition because folding it in
+"would let the claim be satisfied by a tree nobody can act on" — which is right,
+and which leaves the claim **false** rather than weak, on `Malformed` and on
+`Legacy` and on `Foreign` alike. The repair it does not consider is the one this
+file takes: **quantify over the stable states the loop's own admitted actions
+reach**, and make *Grove never manufactures one of the others* a checked claim
+(`SY_13a` conjunct 1, M21) rather than an assumption. The class is entry 042's
+`SY-04.b` class again — **a claim stated over a system when it is true only of
+what Grove does** — and this is its second instance in this file. Named for
+`formal-synthesis-k16`; not fixed here, because the catalogue is both families'
+shared subject and the independence protocol holds.
+
 **The general shape, and it is worth stating once for `formal-synthesis-k16`:**
 in a model with a free initial state, every checked invariant must be classified
 as *establishable* or *preserve-only*, and a preserve-only invariant needs a
@@ -644,7 +1032,7 @@ fact it asserts the claim and every mutation against it survives; written as
 nothing at all it reports a counterexample that is about the initial state rather
 than about the design. **Both failure modes look like a result.**
 
-All four share one shape: **a check that is green because nothing can reach it —
+All six share one shape: **a check that is green because nothing can reach it —
 or red because something no step reaches can — looks exactly like a check whose
 verdict is about the design.** The mutations are the only thing that told the
 green ones apart, the third needed them run at more than one bound, and the

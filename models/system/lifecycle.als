@@ -8,12 +8,13 @@
  * runner reads the obligation list out of the document rather than out of this
  * file.
  *
- * COVERAGE SO FAR: SY-01, SY-02, SY-03 and SY-11 — the ADMISSION slice, the
- * loop's guard stack — plus SY-04, SY-08 and SY-10, the ITERATION slice, the
- * loop's own step — plus SY-05, SY-06 and SY-07, the ROOTS slice: the task
- * root's own lifecycle.  SY-09 and SY-12 .. SY-14 are the `sessions` sibling
- * leaf's; the runner reports their cells empty, which is the truth about this
- * file rather than a defect in it.
+ * COVERAGE: SY-01 .. SY-14, ALL TWENTY-FIVE OBLIGATIONS, IN FOUR SLICES —
+ * ADMISSION (SY-01, SY-02, SY-03, SY-11), the loop's guard stack; ITERATION
+ * (SY-04, SY-08, SY-10), the loop's own step; ROOTS (SY-05, SY-06, SY-07), the
+ * task root's own lifecycle; and SESSIONS (SY-09, SY-12, SY-13, SY-14), the
+ * session's own ending, the crash, and the two sweeps.  The `SY-` column is
+ * CLOSED: zero empty alloy cells, zero declared gaps, coverage asserted, and
+ * `--no-coverage` is gone from `README.md`'s run line.
  *
  * THIS FILE COMPOSES AT OBSERVATIONS, NEVER AT MACHINERY.  It is the joint of
  * the task-tree and finish contracts, and it reads them through the smallest
@@ -53,8 +54,13 @@
  * state), `Stopped` (SY-10.b's visible stop, which the catalogue's closed
  * outcome set cannot name — as it cannot name `RefConfigInvalid`), and `IterA`
  * (an iteration boundary, which is not a catalogue action because a boundary is
- * not something the loop DOES).  The first is inherited; the other two arrive
- * with this slice and the second of them is a FINDING about the catalogue.
+ * not something the loop DOES).  `Stopped` and `RefConfigInvalid` are FINDINGS
+ * about the catalogue's closed sets and are named for `formal-synthesis-k16`.
+ *
+ * `Blocked` IS NOT ONE OF THEM.  It is the catalogue's own outcome, and the
+ * `sessions` slice's composition decision is that it enters carrying NO
+ * diagnosis: `SY-14` is stated over *a blocked tree* and `FN-25` over *which
+ * block*, so only the first crosses.  `World.blocked` is `lone Flag`.
  *
  * TWO STATIC SWITCHES, BOTH PINNED OFF BY EVERY ORDINARY COMMAND.  `Env.shared`
  * admits the nested acquisition `EN-07` forbids; `Env.rootGone` admits the root
@@ -129,6 +135,33 @@ one sig ValidCfg, InvalidCfg extends Cfg {}
    imported here as a non-deterministic choice among the live ones.  A signature
    that grew an order would be this file re-stating the task-tree contract. */
 sig Leaf {}
+
+/* THE SIGNAL A SESSION WROTE, AND THE ABSENCE OF ONE IS THE THIRD ENDING.
+   `grove-llm complete` writes a relaunch flag to `GROVE_SIGNAL_FILE`;
+   `--done` writes the other; a session that crashed or was interrupted wrote
+   NEITHER, and `SY-09.c` is the claim that the driver reads that difference
+   rather than inferring across it.  The file, its path and its bytes are
+   `one-live-driver-per-working-tree`'s and appear nowhere here: what crosses
+   the boundary is the two flags and their absence.
+
+   IT IS A STATIC ENUMERATION AND NOT A FREE SIGNATURE, deliberately.  Two
+   atoms cost ~10 ms of translation per command each (the static-atom law);
+   `Grove`, the file's one free `var`-referenced sig, cost a factor of five in
+   the commands that quantify over it.  Nothing here quantifies over a signal —
+   it is read, once, by one transition. */
+abstract sig Sig {}
+one sig RelaunchS, DoneS extends Sig {}
+
+/* WHAT THE REAP CONCLUDED, AND IT IS A DIFFERENT THING FROM WHAT THE SESSION
+   WROTE.  `SY-09` is *a session ends in exactly one of three ways*, and the
+   whole content of `SY-09.c` is that the third is not the second: an absent
+   signal STOPS the loop and is NEVER inferred as done, not even when that
+   session committed a teardown.  A model with one field for both would answer
+   that by construction — the inference it forbids would be unstatable — so the
+   input (`World.signal`) and the conclusion (`World.ending`) are two fields and
+   `doReap` is the one place they meet. */
+abstract sig Ending {}
+one sig RelaunchE, DoneE, NoSignalE extends Ending {}
 
 /* A LAUNCH GENERATION, as an opaque identity.  `admission-k51` deliberately read
    no generation VALUE — one transition served both the driver's rotation and an
@@ -259,7 +292,31 @@ one sig World {
      whole content rides on it. `none` remains reachable as a free initial
      state. */
   var gen:     lone Gen,
-  var running: lone Leaf        // the work the live session was launched on
+  var running: lone Leaf,       // the work the live session was launched on
+  /* THE SESSION'S OWN SIGNAL, AS AN INPUT.  `none` is *no signal* — the third
+     ending — and it is `lone` rather than a three-member field for exactly that
+     reason: not writing one is what a crashed session does, and a field that
+     could not be empty would delete the ending the claim is about. */
+  var signal:  lone Sig,
+  /* AND WHAT THE REAP CONCLUDED FROM IT.  Written by `doReap` and by nothing
+     else, which is `SY-12`'s *never silently repeats a completed effect* at
+     this grain: a restart does not re-read a signal an earlier reap consumed. */
+  var ending:  set Ending,
+  /* THE LOOP HAS STOPPED.  `SY-09.a` says relaunch CONTINUES the loop and
+     `SY-09.b`/`SY-09.c` say the other two do not, so halting has to be an
+     observation a mutation can get wrong.  Derived from `ending` it would be
+     true by construction — the file's most-recorded failure mode — so `doReap`
+     writes it, and `doLaunch` reads it. */
+  var halted:  lone Flag,
+  /* THE TREE IS BLOCKED, AND THAT IS THE WHOLE OF WHAT CROSSES THE BOUNDARY.
+     `SY-14` is stated over a blocked tree; WHAT put it there (an interrupted
+     finish transaction recovery could not settle) and WHICH of `FN-25`'s two
+     diagnoses it carries are `crates/grove-finish/models/`'s and are absent
+     here.  A `Blocked` with internals in this file would be a third copy of the
+     finish contract, which is the one thing the node brief exists to prevent.
+     It is `lone Flag` and not a new signature for the cost reason `Grove`
+     taught this file: prefer an opaque observation on an existing signature. */
+  var blocked: lone Flag
 }
 
 /* THE TWO STATIC SWITCHES.  Not `var`: an assumption mutation is a SCOPE, not
@@ -279,11 +336,12 @@ one sig Env {
 // produces a named refusal rather than an absent transition.
 //
 // The catalogue's Lifecycle group is `acquire-lease`, `layout-preflight`,
-// `open-epoch`, `launch`, `reap`, `close-epoch`, `release-lease`.  Five of the
-// seven are below.  `launch` and `reap` are NOT MODELLED HERE and are declared
-// as such in `README.md`: no obligation in this slice reads a spawn, and
-// `SY-08`'s launch window and `SY-09`'s three endings are the `iteration` and
-// `sessions` siblings'.
+// `open-epoch`, `launch`, `reap`, `close-epoch`, `release-lease`.  ALL SEVEN
+// are below, and `LifecycleAct` is the set both `SY-04` obligations quantify
+// over, so an eighth would reach them without either command being edited.
+// `reap` is where `SY-09`'s three endings are decided; `SignalA` is the
+// SESSION's own step and is deliberately not one of the seven, because the
+// Lifecycle group is the driver's.
 // ===========================================================================
 
 abstract sig Action {}
@@ -317,8 +375,14 @@ one sig IdleA,            // the stutter an Alloy lasso needs
         SettleDeletionA,  // the atomic rename's observable effect: the name frees
         ObserveRootA,     // resolve — an observation of the root's presence
         HandEditA,        // the world's (EN-11): a legacy tree at the name
-        ForeignWriteA     // the world's (EN-13): the name RE-OCCUPIED, and with
+        ForeignWriteA,    // the world's (EN-13): the name RE-OCCUPIED, and with
                           //   the retired identity — entry 039's own trace
+        // --- the sessions slice ------------------------------------------
+        SignalA,          // the session's own `grove-llm complete` — SY-09
+        RecoverA,         // recover, AS FAR AS WHAT IT COULD NOT SETTLE: the
+                          //   observation `SY-14` is stated over arrives here
+        BlockedRefusalA   // ANY admitted action attempted on a blocked tree —
+                          //   SY-14.b's subject, and one opaque step ON PURPOSE
   extends Action {}
 
 /* THE CATALOGUE'S LIFECYCLE GROUP, ALL SEVEN, AND EXACTLY THEM.  `SY-04.a` is
@@ -341,6 +405,26 @@ fun LifecycleAct: set Action {
 fun TreeAct: set Action {
   TreeOpA + InitRootA + CompleteScaffoldA + AllocFinishA
   + ProveCommitA + SettleDeletionA + ObserveRootA
+  + RecoverA + BlockedRefusalA
+}
+
+/* THE ADMITTED SET, AND WHAT IT EXCLUDES.  §*Actions* puts `crash`, `hand-edit`,
+   `foreign-write`, `topology-change` and `confirm` in an Environment group whose
+   guard column reads *none — these are the world's*.  `SY-13` and `SY-14` are
+   both quantified over the ADMITTED actions and the exclusion is load-bearing in
+   both: a sweep that counted a hand edit as an exit would find no sink anywhere,
+   and `SY-14`'s *until an operator acts* would have nothing to mean.
+
+   `IterA` IS NOT IN HERE AND IS NOT IN THE ENVIRONMENT SET EITHER.  It is this
+   file's own boundary abstraction — not something the loop DOES — so it is
+   neither admitted nor the world's, and `SY-13`'s sequence lengths are reported
+   both with and without it for that reason. */
+fun AdmittedAct: set Action {
+  AcquireLeaseA + LayoutPreflightA + OpenEpochA + LaunchA + ReapA
+  + CloseEpochA + ReleaseLeaseA
+  + TakeTreeA + DropTreeA + GrantA + ValidateConfigA + TimeoutA + SelectA
+  + SignalA
+  + TreeAct
 }
 
 /* THE ITERATION BOUNDARY IS NOT A CATALOGUE ACTION, and is declared as this
@@ -387,6 +471,14 @@ one sig RefLeaseHeld, RefLayoutUnsupported,
    content.  `RefReservedKind` is `ReservedKind`: the finish leaf's kind is
    Grove's to allocate and a session's to refuse, which is `SY-07.b`'s. */
 one sig RefFormatLegacy, RefReservedKind extends Refused {}
+/* `Blocked` IS THE CATALOGUE'S OWN OUTCOME AND NOT AN ABSTRACTION OF THIS
+   FILE'S.  §*Outcomes* lists it beside `Applied` and `Refused` — *a transaction
+   stopped part-way that left a stable, recoverable state* — and its two
+   neighbours `Stopped` and `Deferred` are the two this file DID have to invent.
+   It enters here as a `Result` member carrying no diagnosis: `FN-25`'s
+   `RecoveryPending`/`OwnershipConflict` partition is the finish model's, and
+   `SY-14` reads only *the tree is blocked*. */
+one sig Blocked extends Result {}
 
 one sig Sys {
   var act:   one Action,
@@ -492,10 +584,25 @@ pred worldSame  { World.wt' = World.wt and World.layout' = World.layout
    one transition forgot is a silent frame hole, and this slice adds six. */
 pred rootSame   { World.rooted' = World.rooted and World.extant' = World.extant
                   and World.retired' = World.retired and World.proven' = World.proven
-                  and World.partial' = World.partial and World.legacy' = World.legacy }
+                  and World.partial' = World.partial and World.legacy' = World.legacy
+                  /* THE BLOCK IS A ROOT OBSERVATION, so it frames with the root
+                     rather than beside it: this slice adds one field and
+                     twenty-six transitions must leave it alone, which is a
+                     silent frame hole per transition if written out. */
+                  and World.blocked' = World.blocked }
 pred entriesSame{ World.live' = World.live and World.fin' = World.fin }
 pred treeSame   { rootSame and entriesSame }
-pred launchSame { World.gen' = World.gen and World.running' = World.running }
+/* THE WHOLE LAUNCH RECORD, and this slice widens it from two fields to five.
+   The session's signal, the ending the reap concluded and the loop's halt are
+   the same record the generation and the running work are — written by the
+   three transitions that own them and framed by every other. */
+pred launchSame { World.gen' = World.gen and World.running' = World.running
+                  and World.signal' = World.signal and World.ending' = World.ending
+                  and World.halted' = World.halted }
+/* What a transition that writes ONE of the launch record's five fields frames of
+   the other four — written once, for the reason `actorSameBut` is written once. */
+pred sessionSame{ World.signal' = World.signal and World.ending' = World.ending
+                  and World.halted' = World.halted }
 pred verdictSame{ World.verdict' = World.verdict }
 pred aliveSame  { Alive.live' = Alive.live }
 pred procSame[p: Proc] {
@@ -606,7 +713,7 @@ pred doOpenEpoch[p: Proc] {
   validated and fresh[p]
   Sys.act' = OpenEpochA and Sys.actor' = p and Sys.gu' = EpochG
   worldSame and treeSame and verdictSame and aliveSame
-  World.running' = World.running
+  World.running' = World.running and sessionSame
   some p.spent'
   procsSameBut[p]
 
@@ -723,6 +830,27 @@ pred doTreeOp[p: Proc] {
   p in Alive.live and TreeG in p.holds and no p.waits
   validated
   p.role = SessionR implies EpochG in p.holds
+  no World.blocked                        // SY-14.b — see `mayTouchTree`
+  /* AND THE ROOT IS CLASSIFIED (`FormatLegacy`, the closed refusal set).  THIS
+     CONJUNCT IS A DEFECT REPAIR AND `SY-13`'s SWEEP IS WHAT FOUND IT.  The
+     opaque step was written by the `admission` slice, before a classification
+     existed; `roots` taught `doInitRoot`, `doAllocFinish` and `doProveCommit`
+     about `partial` and `legacy` and did not come back here.  A tree with no
+     format witness is not operable — the only thing that may touch one is
+     `complete-scaffold`, and it REFUSES the half of them that is `Legacy` —
+     but this step would happily append a live leaf to one, which made a
+     `Legacy` root look like an ordinary tree with work in it.
+
+     NO INHERITED OBLIGATION COULD SEE IT.  None of the seventeen reads a tree
+     operation against a classification; `SY-06.b` owns the legacy refusal and
+     owns it at `complete-scaffold`.  What walked into it is `SY-13`'s sweep,
+     which asks of every stable state what leaves it.
+
+     A GUARD AND NOT A BRANCH, deliberately.  A refusal branch would be a
+     second statement of `SY-06.b` in a step no obligation reads, where the
+     guard says only that the step is not available — which is what *stops
+     every read and mutation* means for a whole-tree classification. */
+  no World.partial and no World.legacy
   Sys.act' = TreeOpA and Sys.actor' = p and no Sys.gu'
   Sys.res' = Applied
   /* IT NEEDS A TREE AND NO LONGER MAKES ONE.  The admission slice wrote `some
@@ -844,6 +972,7 @@ pred doRemoveRoot {
      cannot happen. */
   no World.rooted' and no World.live' and no World.fin'
   no World.partial' and no World.legacy'
+  World.blocked' = World.blocked
   World.extant' = World.extant                 // THE GROVE IS STILL THERE
   World.retired' = World.retired and World.proven' = World.proven
   procsSame and verdictSame and launchSame and aliveSame
@@ -927,9 +1056,19 @@ pred doLaunch[p: Proc] {
   no p.holds & (EpochG + TreeG)
   some World.gen                          // a live launch generation to bind
   no World.running                        // the loop runs one session at a time
+  /* A HALTED LOOP LAUNCHES NOTHING, and this is the operand `SY-09.b`'s and
+     `SY-09.c`'s *the loop ends* / *the loop stops* actually have.  Without it
+     both endings would be a record nobody reads, and the two obligations would
+     be checks about a field rather than about the loop. */
+  no World.halted
   Sys.act' = LaunchA and Sys.actor' = p and no Sys.gu'
   Sys.res' = Applied
   World.running' = p.sel and World.gen' = World.gen
+  /* THE NEW SESSION HAS NOT SIGNALLED YET.  A launch clears the slot rather
+     than inheriting it, which is the other half of *never silently repeats a
+     completed effect*: a signal one session wrote is never read for the next. */
+  no World.signal'
+  World.ending' = World.ending and World.halted' = World.halted
   actorSameBut[p] and some p.spent'
   /* The child binds to the live record.  WHICH process becomes the child is
      machinery no `SY-` obligation reads; what matters is that it carries the
@@ -944,8 +1083,22 @@ pred doLaunch[p: Proc] {
   worldSame and treeSame and verdictSame and aliveSame
 }
 
-/* REAP.  The child is gone; the record is NOT written inactive here, because
-   this file models only the rotation write — see `World.gen`. */
+/* REAP — AND IT IS WHERE THE SESSION ENDS, WHICH IS `SY-09`'S WHOLE SUBJECT.
+   The child is gone; the record is NOT written inactive here, because this file
+   models only the rotation write — see `World.gen`.
+
+   THREE ENDINGS, AND THE BRANCH IS TOTAL ON `World.signal`.  A relaunch flag,
+   a done flag, or NOTHING — and the third is not a missing case but the case
+   `SY-09.c` is about.  The reap READS the slot and CONCLUDES; it never infers
+   across an absence, which is the sentence *no signal ... SHALL never be
+   inferred as done — not even when that session committed a teardown*.  Note
+   what the third branch does NOT consult: `World.retired`, `World.proven` and
+   `World.rooted` appear nowhere in it, and the mutation that puts one there is
+   exactly the implementation the obligation forbids.
+
+   THE SIGNAL IS CONSUMED.  `no World.signal'` in every branch is `SY-12`'s
+   *never silently repeats a completed effect* at this grain: a restart after a
+   crash cannot re-read a signal an earlier reap already acted on. */
 pred doReap[p: Proc] {
   p in Alive.live and p.role = DriverR and some p.leaseOn and no p.waits
   validated and fresh[p]
@@ -953,8 +1106,41 @@ pred doReap[p: Proc] {
   Sys.act' = ReapA and Sys.actor' = p and no Sys.gu'
   Sys.res' = Applied
   no World.running' and World.gen' = World.gen
+  no World.signal'                        // consumed, in every branch
+  World.signal = RelaunchS implies {
+    World.ending' = RelaunchE
+    no World.halted'                      // SY-09.a — the loop CONTINUES
+  } else World.signal = DoneS implies {
+    World.ending' = DoneE
+    some World.halted'                    // SY-09.b — the loop ENDS
+  } else {
+    World.ending' = NoSignalE             // SY-09.c — and never DoneE
+    some World.halted'                    // the loop STOPS
+  }
   actorSameBut[p] and some p.spent'
   procsSameBut[p] and worldSame and treeSame and verdictSame and aliveSame
+}
+
+/* THE SESSION'S OWN LAST ACT — `grove-llm complete`, and the only writer of
+   `World.signal`.  It is the running session's and nobody else's: a driver does
+   not write the slot it reads, and a session that is not the launched one has
+   nothing to report.
+
+   IT IS NOT A LIFECYCLE ACTION and does not spend the iteration's one
+   transition — the seven-member group is the DRIVER's, and this is the child's
+   step.  It takes no guard: the signal file is outside the task tree and
+   outside every lock, which is `one-build-owns-a-session`'s own arrangement and
+   the reason a crashed session simply leaves it unwritten. */
+pred doSignal[p: Proc] {
+  p in Alive.live and p.role = SessionR
+  some World.running and some World.gen and p.gen = World.gen
+  no World.signal                         // one session writes it once
+  Sys.act' = SignalA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Applied
+  some World.signal'
+  World.gen' = World.gen and World.running' = World.running
+  World.ending' = World.ending and World.halted' = World.halted
+  procsSame and worldSame and treeSame and verdictSame and aliveSame
 }
 
 /* THE TIMEOUT — `SY-10.b`'s visible stop.
@@ -1008,6 +1194,13 @@ pred mayTouchTree[p: Proc] {
   p in Alive.live and TreeG in p.holds and no p.waits
   validated
   p.role = SessionR implies EpochG in p.holds
+  /* AND THE TREE IS NOT BLOCKED (`SY-14.b`).  Every admitted action on a
+     blocked tree refuses naming the block, so the whole Grove-side surface is
+     gated here rather than branched in each transition: what a blocked tree
+     admits is `doBlockedRefusal` and nothing else.  The mutation that removes
+     this one conjunct is `SY-14.b`'s, and it is a single edit precisely because
+     the claim is about EVERY action rather than about which. */
+  no World.blocked
 }
 
 /* INITIALISE-ROOT, AS FAR AS THE FORMAT WITNESS — and stopping there is the
@@ -1036,6 +1229,7 @@ pred doInitRoot[p: Proc] {
   no World.legacy'
   no World.live' and no World.fin'        // work arrives with the completion
   World.retired' = World.retired and World.proven' = World.proven
+  World.blocked' = World.blocked
   procsSame and worldSame and verdictSame and launchSame and aliveSame
 }
 
@@ -1062,7 +1256,7 @@ pred doCompleteScaffold[p: Proc] {
   Sys.act' = CompleteScaffoldA and Sys.actor' = p and no Sys.gu'
   World.rooted' = World.rooted and World.extant' = World.extant
   World.retired' = World.retired and World.proven' = World.proven
-  World.fin' = World.fin
+  World.fin' = World.fin and World.blocked' = World.blocked
   some World.partial implies {            // DECIDED BY: the exact known subset
     Sys.res' = Applied
     no World.partial' and no World.legacy'
@@ -1129,6 +1323,7 @@ pred doProveCommit[p: Proc] {
   World.rooted' = World.rooted and World.extant' = World.extant
   World.retired' = World.retired
   World.partial' = World.partial and World.legacy' = World.legacy
+  World.blocked' = World.blocked
   entriesSame
   procsSame and worldSame and verdictSame and launchSame and aliveSame
 }
@@ -1154,6 +1349,7 @@ pred doSettleDeletion[p: Proc] {
   no World.rooted' and no World.proven'
   no World.partial' and no World.legacy'
   no World.live' and no World.fin'
+  World.blocked' = World.blocked
   World.extant'  = World.extant  - World.rooted
   World.retired' = World.retired + World.rooted
   procsSame and worldSame and verdictSame and launchSame and aliveSame
@@ -1191,6 +1387,7 @@ pred doHandEdit {
   no World.partial'
   no World.live' and no World.fin'
   World.retired' = World.retired and World.proven' = World.proven
+  World.blocked' = World.blocked
   procsSame and worldSame and verdictSame and launchSame and aliveSame
 }
 
@@ -1214,9 +1411,62 @@ pred doForeignWrite {
   }
   no World.partial' and no World.legacy'
   no World.live' and no World.fin'
+  World.blocked' = World.blocked
   World.retired' = World.retired        // PRESERVED — see above
   World.proven' = World.proven
   procsSame and worldSame and verdictSame and launchSame and aliveSame
+}
+
+/* RECOVER, AS FAR AS WHAT IT COULD NOT SETTLE — and stopping there is the
+   composition boundary rather than an economy.  `recover` is a Finish action
+   and the whole of its machinery is `crates/grove-finish/models/`'s: the
+   published witness, the manifest, the recorded and observed topology, the two
+   restorable exits, and `FN-25`'s partition of the block into
+   `RecoveryPending` and `OwnershipConflict`.  NONE of that is here.
+
+   What crosses the boundary is one observation and one outcome: **a
+   transaction stopped part-way** — at this scope, a proof standing over a root
+   the settle has not yet freed — **and recovery could not settle it**, so the
+   tree is `Blocked`.  Which diagnosis it carries is not read by any `SY-`
+   obligation, so it is not imported; `SY-14` is stated over *a blocked tree*
+   and `FN-25` over *which block*.
+
+   IT IS NON-DETERMINISTICALLY ENABLED, exactly as `doTimeout` is.  Recovery
+   that CAN settle is `doSettleDeletion` — the ordinary continuation `SY-12` is
+   about — and this is the branch that cannot.  Nothing here says which branch a
+   given interruption takes, because that is `FN-20`'s classification and it is
+   the finish model's. */
+pred doRecover[p: Proc] {
+  mayTouchTree[p]
+  some World.rooted and World.proven = World.rooted   // a transaction, part-way
+  Sys.act' = RecoverA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Blocked
+  some World.blocked'
+  World.rooted' = World.rooted and World.extant' = World.extant
+  World.retired' = World.retired and World.proven' = World.proven
+  World.partial' = World.partial and World.legacy' = World.legacy
+  entriesSame
+  procsSame and worldSame and verdictSame and launchSame and aliveSame
+}
+
+/* ANY ADMITTED ACTION ATTEMPTED ON A BLOCKED TREE, AS ONE OPAQUE STEP — and
+   ONE step on purpose, which is the opposite of the rule `doAllocFinish` was
+   split out under.  That rule is *prefer splitting out a named transition
+   wherever a claim is about WHICH mutation*; `SY-14` is the case it does not
+   cover, because the claim is about EVERY action and a per-action branch would
+   be twenty-six copies of one sentence with twenty-six chances to omit it.
+
+   `SY-14.a` IS THE FRAME, NOT A REMARK.  Nothing changes: the block persists,
+   the root persists, the entries persist.  A blocked tree stays blocked, and
+   the only thing that could clear it is an operator action — which is outside
+   the admitted set by construction, so it is outside this file. */
+pred doBlockedRefusal[p: Proc] {
+  p in Alive.live and TreeG in p.holds and no p.waits
+  p.role = SessionR implies EpochG in p.holds
+  some World.blocked
+  Sys.act' = BlockedRefusalA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Blocked
+  procsSame and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
 pred step {
@@ -1231,7 +1481,8 @@ pred step {
                      or doReap[p] or doTimeout[p]
                      or doInitRoot[p] or doCompleteScaffold[p]
                      or doAllocFinish[p] or doProveCommit[p]
-                     or doSettleDeletion[p] or doObserveRoot[p])
+                     or doSettleDeletion[p] or doObserveRoot[p]
+                     or doSignal[p] or doRecover[p] or doBlockedRefusal[p])
   or doTopologyChange
   or doEditConfig
   or doRemoveRoot
@@ -2199,6 +2450,425 @@ run witness_SY_07b_a_refused_creation {
 } for 3 but 2 WtId, 4 steps
 
 // ===========================================================================
+// CLAIMS — SY-09, SY-12, SY-13, SY-14   (the `sessions` slice)
+//
+// THE SESSION'S OWN ENDING, THE CRASH, AND THE TWO SWEEPS — and with them the
+// `SY-` column closes.
+//
+// THE EIGHT BODIES ARE NAMED PREDICATES AND THE OTHER SEVENTEEN OBLIGATIONS'
+// ARE NOT, which is a departure from the file's style and is here for one
+// reason: `EN-08`'s control owes a demonstration that **every property stays
+// green with `crash` removed**, and a body written inside a `check` cannot be
+// negated by a second command.  The finish scope discharged its half of `EN-08`
+// with the superset argument — no check asserts `EN_08`, so each is already
+// checked over the traces with `crash` and the traces without — and that
+// argument is sound and is repeated in `README.md`.  It is also unfalsifiable
+// as stated, and this slice owes the `SY-12` half rather than a second recital
+// of the finish scope's.  Named bodies make it a command.
+// ===========================================================================
+
+// --- the slice's shared instruments ----------------------------------------
+
+/* A GOAL, IN `SY-13`'s OWN WORDS: *a live leaf to run, or a terminal
+   disposition*.  There are exactly TWO of the latter and the catalogue is
+   emphatic about both — a proven successful finish (`FN-28`) and a blocked tree
+   (`FN-25`/`FN-26`) — and equally emphatic that a `Malformed(reason)` tree is
+   NOT one, because folding it in "would let the claim be satisfied by a tree
+   nobody can act on".
+
+   ABSENCE IS READ HERE AS `retired` AND NOT AS `no World.rooted`, for the
+   reason the `roots` slice's whole section gives: after the rename the name is
+   free and the world may re-occupy it, so a finish that succeeded is a fact
+   Grove established rather than a shape the directory has. */
+pred atGoal {
+  some World.live                                  // a live leaf to run
+  or (no World.rooted and some World.retired)      // a proven successful finish
+  or some World.blocked                            // a blocked tree
+}
+
+/* A CRASH AT ONE LIFECYCLE POINT — `SY-12`'s witness spelled once and applied
+   seven times, exactly as `aloneInAnIteration` is for `SY-04.a`.  The step
+   COMPLETES and the process that took it then dies, which is the situation
+   *restart is ordinary continuation* is about: the effect landed, and the
+   next invocation must neither miss it nor repeat it.
+
+   IT NAMES `CrashA` RATHER THAN POSITING THE STATE ONE LEAVES, deliberately.
+   `finish-k8` found that two of its `FN-31.c` witnesses POSIT the disk an
+   interruption leaves, so removing `crash` left them landing and `EN-08`'s
+   control could say nothing about them.  All seven below REACH their state, so
+   the control below is a statement about this file rather than an assertion. */
+pred crashAfter[a: Action] {
+  some p: Proc |
+    eventually (Sys.act = a and Sys.actor = p and Sys.res = Applied
+                and after (Sys.act = CrashA and Sys.actor = p))
+}
+
+// --- SY-09: a session ends in exactly one of three ways ---------------------
+
+/* SY-09.a — RELAUNCH: the loop continues with the next iteration.  Two
+   conjuncts, and the second is the one that is not about a field.
+
+   `one World.ending'` IS WHY `World.ending` IS A `set`.  *Exactly one of three*
+   is the claim, and a `lone Ending` field would have said *at most one* by
+   construction — which is the `World.fin` lesson from the `roots` slice applied
+   to a second field, and the file's most-recorded failure mode.  Declared
+   `set`, the count is something this check ESTABLISHES and something a mutation
+   can break.
+
+   THE HALT IS A SEPARATE FIELD AND NOT A FUNCTION OF THE ENDING, for the same
+   reason.  Derived, *the loop continues* would be true by construction; written
+   as its own observation that `doReap` sets and `doLaunch` reads, it is a claim
+   with a mutation behind it. */
+pred SY09a {
+  always {
+    (Sys.act' = ReapA and World.signal = RelaunchS)
+      implies (World.ending' = RelaunchE and no World.halted')
+    (Sys.act' = ReapA) implies one World.ending'
+  }
+}
+check SY_09a_a_relaunch_continues_the_loop_and_the_ending_is_one_of_three {
+  Assumed implies SY09a
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witness — *reached* — and it is pinned to the SIGNAL
+   BEING WRITTEN rather than merely being present, because a free initial state
+   can hand out a relaunch flag nobody wrote and the witness would then show a
+   reap reading the world's own scratch rather than a session's report. */
+run witness_SY_09a_relaunch_reached {
+  Assumed
+  eventually (Sys.act = SignalA and World.signal = RelaunchS)
+  eventually (Sys.act = ReapA and World.ending = RelaunchE and no World.halted)
+} for 3 but 2 WtId, 5 steps
+
+/* SY-09.b — DONE: the loop ends.  The second conjunct is what makes *ends* mean
+   something: a halted loop launches nothing.  It is SHARED WITH `SY-09.c` and
+   the sharing is recorded rather than hidden — both endings halt, and what
+   separates them is the record, which is `SY-09.c`'s own second conjunct. */
+pred SY09b {
+  always {
+    (Sys.act' = ReapA and World.signal = DoneS)
+      implies (World.ending' = DoneE and some World.halted')
+    (some World.halted) implies Sys.act' != LaunchA
+  }
+}
+check SY_09b_a_done_signal_ends_the_loop {
+  Assumed implies SY09b
+} for 3 but 2 WtId, 5 steps
+
+run witness_SY_09b_done_reached {
+  Assumed
+  eventually (Sys.act = SignalA and World.signal = DoneS)
+  eventually (Sys.act = ReapA and World.ending = DoneE and some World.halted)
+} for 3 but 2 WtId, 5 steps
+
+/* SY-09.c — NO SIGNAL: the loop stops, and is NEVER INFERRED AS DONE — not even
+   when that session committed a teardown.
+
+   THE SECOND CONJUNCT IS THE OBLIGATION AND THE FIRST IS ONLY ITS BRANCH.
+   Written as the branch alone the check would say *the third case assigns the
+   third value*, which is a restatement of `doReap` and is broken by nothing a
+   real implementation would do.  What a real implementation does is INFER: it
+   sees `.grove/` gone, or a commit whose message names the finish leaf, and
+   concludes the loop is done although no flag was written.  Stated the second
+   way — no reap concludes `done` from anything but the flag — that
+   implementation is a counterexample, and it is the one the mutation writes.
+
+   A COMMITTED TEARDOWN IS NOT THE FLAG, and the model has the teardown: the
+   witness below settles a deletion and never signals.  `CONTEXT.md`'s *Complete
+   finish cycle* carries the same sentence as an `_Avoid_`, and the ADR pair
+   names the no-signal stop as the loop's ordinary failure exit. */
+pred SY09c {
+  always {
+    (Sys.act' = ReapA and no World.signal)
+      implies (World.ending' = NoSignalE and some World.halted')
+    (Sys.act' = ReapA and DoneE in World.ending') implies World.signal = DoneS
+  }
+}
+check SY_09c_no_signal_stops_the_loop_and_is_never_inferred_as_done {
+  Assumed implies SY09c
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witness: REACHED, WITH A PROVEN TEARDOWN.  `always
+   Sys.act != SignalA` is *no signal* stated over the whole trace rather than
+   over one state — the session never wrote one, which is what a crash or a
+   Ctrl-C is — and the settled deletion is the teardown the obligation names.
+   The reap concludes `NoSignalE`, the loop stops, and nothing in the trace read
+   the teardown as evidence. */
+run witness_SY_09c_no_signal_after_a_proven_teardown {
+  Assumed
+  always Sys.act != SignalA
+  eventually (Sys.act = SettleDeletionA and some World.retired)
+  eventually (Sys.act = ReapA and World.ending = NoSignalE and some World.halted)
+} for 3 but 2 WtId, 5 steps
+
+// --- SY-12: restart is ordinary continuation --------------------------------
+
+/* SY-12.  Three groups of conjuncts, and the third is the one no other
+   obligation states.
+
+   1. THE CRASH IS THE WORLD'S AND APPLIES NOTHING OF GROVE'S.  It is not a
+      rollback, not a cleanup path and not a step: the state it leaves is the
+      state the crashed process had already produced, and the process is gone
+      with its guards.  That is what makes the successor's path ORDINARY —
+      there is no recovery transition here, and `witness_SY_06b_an_interrupted_
+      scaffold_completed_by_a_successor` is the same fact seen from the tree.
+   2. NO COMPLETED EFFECT IS APPLIED TWICE.  The three one-shot effects this
+      scope can see are the mint, the proof and the settle, and each is guarded
+      on the WORLD rather than on the process that started it — which is why a
+      successor re-running one finds nothing to do instead of doing it again.
+      **These three conjuncts are neighbours of `SY-05`'s and are not
+      isolating**; they are here because *repeats no completed effect* is what
+      the obligation says, and the neighbour list is in `README.md`.
+   3. AND NO SIGNAL IS READ TWICE.  This one IS `SY-12`'s alone: the ending is
+      written by the reap and by nothing else, and the reap consumes the slot.
+      A restart that re-read a signal an earlier reap had acted on would repeat
+      a completed effect exactly, and no other obligation forbids it. */
+pred SY12 {
+  always {
+    (Sys.act' = CrashA)
+      implies (worldSame and treeSame and verdictSame and launchSame
+               and Sys.actor' not in Alive.live')
+    (Sys.act' = ProveCommitA)    implies no World.proven
+    (Sys.act' = SettleDeletionA) implies World.proven = World.rooted
+    (Sys.act' = InitRootA)       implies no World.rooted
+    (World.ending' != World.ending) implies Sys.act' = ReapA
+    (Sys.act' = ReapA) implies no World.signal'
+  }
+}
+check SY_12_a_crash_applies_nothing_and_no_completed_effect_is_repeated {
+  Assumed implies SY12
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witness: ONE CRASH POINT PER LIFECYCLE STEP.  Seven, and
+   the set is `LifecycleAct` rather than a list, so a slice adding an eighth
+   Lifecycle action reaches this sweep by adding one line beside the others
+   rather than by being forgotten. */
+run witness_SY_12_crash_after_acquire_lease    { Assumed and crashAfter[AcquireLeaseA]    } for 3 but 2 WtId, 5 steps
+run witness_SY_12_crash_after_layout_preflight { Assumed and crashAfter[LayoutPreflightA] } for 3 but 2 WtId, 5 steps
+run witness_SY_12_crash_after_open_epoch       { Assumed and crashAfter[OpenEpochA]       } for 3 but 2 WtId, 5 steps
+run witness_SY_12_crash_after_launch           { Assumed and crashAfter[LaunchA]          } for 3 but 2 WtId, 5 steps
+run witness_SY_12_crash_after_reap             { Assumed and crashAfter[ReapA]            } for 3 but 2 WtId, 5 steps
+run witness_SY_12_crash_after_close_epoch      { Assumed and crashAfter[CloseEpochA]      } for 3 but 2 WtId, 5 steps
+run witness_SY_12_crash_after_release_lease    { Assumed and crashAfter[ReleaseLeaseA]    } for 3 but 2 WtId, 5 steps
+
+// --- SY-13: no stable state is a sink ---------------------------------------
+//
+// EXISTENTIAL REACHABILITY, AND DELIBERATELY NOT LIVENESS.  The catalogue says
+// so in as many words and gives the reason: stating it as *the loop WILL reach
+// one* needs a fairness premise these models have no grounds to grant, because
+// nothing here schedules the operator and `EN-15` says Grove cannot verify a
+// confirmation.  Neither command below contains an `eventually` inside an
+// `always`, and neither is a liveness property.  What carries the EXISTENTIAL
+// half is the four `witness_SY_13b_` runs — a run IS an existential over traces
+// — and what the two checks carry is the half a run cannot: that no admitted
+// action of Grove's own destroys the escape, and that the four classes the
+// sweep ranges over are all the non-goal states there are.
+//
+// A READER WHO TAKES EITHER CHECK FOR A LIVENESS PROPERTY HAS READ FAIRNESS
+// INTO A FILE THAT ASSUMES NONE, exactly as `README.md` says of `SY-10.b`.
+
+/* SY-13.a.  Two conjuncts, and both are about GROVE rather than about the
+   world, which is this obligation's whole shape once the sink below is found.
+
+   1. GROVE NEVER MANUFACTURES THE OPERATOR-ONLY REFUSAL STATE.  `World.legacy`
+      never grows except environmentally.  This is what makes the `no
+      World.legacy` antecedent in `SY-13.b` a BOUNDARY GROVE RESPECTS rather
+      than a hole in the sweep, and it is the conjunct with the isolating
+      mutation (an `initialise-root` that marks the root legacy).
+   2. AND IT NEVER TAKES THE LAST LIVE LEAF AWAY EXCEPT BY REACHING A TERMINAL
+      DISPOSITION.  Losing the last live leaf is the one admitted step that
+      could strand the loop, and the only admitted step that does it is the
+      settle — which lands on the first terminal disposition by construction of
+      the claim rather than of the transition. */
+pred SY13a {
+  always {
+    (Sys.res' != Environmental) implies World.legacy' in World.legacy
+    (some World.live and no World.live' and Sys.res' != Environmental)
+      implies (no World.rooted' and some World.retired')
+  }
+}
+check SY_13a_no_admitted_action_strands_the_loop {
+  Assumed implies SY13a
+} for 3 but 2 WtId, 5 steps
+
+/* THE LONGEST ADMITTED SEQUENCE WITHIN THE BOUND, AND ITS LENGTH — the
+   catalogue's own witness for `SY-13.a`, and the number is in `README.md`
+   beside the bound.  It starts from the emptiest stable state this scope has —
+   no grove at the name, nothing retired, a driver holding nothing — and reaches
+   a live leaf to run.
+
+   FIVE ADMITTED ACTIONS AND ONE BOUNDARY.  `IterA` is in the middle of it and
+   is NOT one of the five: it is this file's own abstraction and not a catalogue
+   action, so the sequence's admitted length is five and its trace length is
+   six.  Both numbers are recorded, because a reader counting states and a
+   reader counting admitted actions would otherwise get different answers and
+   only one of them is the claim's. */
+run witness_SY_13a_the_longest_admitted_sequence_within_the_bound {
+  Assumed
+  some p: Proc {
+    p.role = DriverR
+    no World.rooted and no World.retired and no p.holds and no p.seen
+    eventually (Sys.act = AcquireLeaseA and Sys.actor = p and Sys.res = Applied
+      and after eventually (Sys.act = IterA and Sys.actor = p
+      and after eventually (Sys.act = OpenEpochA and Sys.actor = p and Sys.res = Applied
+      and after eventually (Sys.act = TakeTreeA and Sys.actor = p and Sys.res = Applied
+      and after eventually (Sys.act = InitRootA and Sys.actor = p
+      and after eventually (Sys.act = CompleteScaffoldA and Sys.res = Applied
+                            and some World.live))))))
+  }
+} for 3 but 2 WtId, 9 steps          // lands at 8; 9 is the one state of margin
+
+/* SY-13.b.  THE EXHAUSTIVE SWEEP, AND THE ANTECEDENT IS THIS LEAF'S MATERIAL
+   CATALOGUE FINDING.
+
+   Four arms, each a stable state with a NAMED admitted exit:
+
+     A  no grove and nothing retired          -> initialise-root
+     B  a partial scaffold                    -> complete-scaffold
+     C  a classified root with no live leaf   -> allocate-finish-leaf
+     D  a transaction standing part-way       -> settle-deletion, or recover
+
+   and the check is that within the bound there is NO FIFTH.  It is a case
+   analysis and it is meant to be one: what it forbids is a non-goal state the
+   four `witness_SY_13b_` runs do not speak for, and the mutation that gives the
+   file one is a proof that drifts off the root it is about (`M20` in
+   `README.md`), which leaves a present root with no live leaf, no partial and
+   a proof naming something else — outside C, outside D, and with no exit.
+
+   `no World.legacy` IS A NARROWING AND IT IS THE FINDING.  Without it the check
+   fires immediately, on a trace with no protocol in it: `EN-11` licenses the
+   operator to hand-edit a `Legacy` tree into the name, every admitted action
+   then refuses `FormatLegacy`, and no admitted sequence reaches a live leaf or
+   either terminal disposition.  **A `Legacy` tree is a sink, and `SY-13` as
+   worded is false on it.**  The catalogue knows the shape and declines both
+   repairs: its own note says a `Malformed` tree is not a terminal disposition
+   because folding it in "would let the claim be satisfied by a tree nobody can
+   act on" — which is right, and which leaves the claim false rather than weak.
+   The repair it does not consider is the one taken here: quantify over the
+   stable states THE LOOP'S OWN ADMITTED ACTIONS REACH, and let `SY-13.a`'s
+   first conjunct carry the boundary.  Recorded in `README.md` and in
+   `docs/formalism-findings.md` entry 043; not fixed here, because the catalogue
+   is both families' shared subject and the independence protocol holds. */
+pred SY13b {
+  always {
+    (not atGoal and no World.legacy) implies (
+         (no World.rooted and no World.retired)                        // A
+      or some World.partial                                             // B
+      or (some World.rooted and no World.partial and no World.legacy
+          and no World.live and no World.proven)                        // C
+      or (some World.rooted and World.proven = World.rooted)            // D
+    )
+  }
+}
+check SY_13b_the_stable_states_are_four_and_each_has_a_named_admitted_exit {
+  Assumed implies SY13b
+} for 3 but 2 WtId, 5 steps
+
+/* THE SWEEP ITSELF: one run per arm, each exhibiting the admitted exit and the
+   goal it reaches, at the bound stated beside it.  These are the existential
+   half of `SY-13` and they are runs for exactly that reason. */
+run witness_SY_13b_no_grove_is_not_a_sink {
+  Assumed
+  no World.rooted and no World.retired
+  eventually (Sys.act = InitRootA
+              and after eventually (Sys.act = CompleteScaffoldA and Sys.res = Applied
+                                    and some World.live))
+} for 3 but 2 WtId, 5 steps
+
+run witness_SY_13b_a_partial_scaffold_is_not_a_sink {
+  Assumed
+  some World.partial
+  eventually (Sys.act = CompleteScaffoldA and Sys.res = Applied and some World.live)
+} for 3 but 2 WtId, 4 steps
+
+run witness_SY_13b_a_spent_tree_is_not_a_sink {
+  Assumed
+  some World.rooted and no World.live and no World.partial and no World.legacy
+  eventually (Sys.act = AllocFinishA and Sys.res = Applied and some World.live)
+} for 3 but 2 WtId, 4 steps
+
+run witness_SY_13b_a_transaction_part_way_is_not_a_sink {
+  Assumed
+  some World.rooted and World.proven = World.rooted
+  eventually (Sys.act = SettleDeletionA and no World.rooted and some World.retired)
+} for 3 but 2 WtId, 4 steps
+
+// --- SY-14: a blocked tree stays blocked until an operator acts -------------
+
+/* SY-14.a — NO ADMITTED ACTION CLEARS A BLOCK, and the sweep is EXHAUSTIVE by
+   being a check: `Sys.act' in AdmittedAct` ranges over all twenty-two of them
+   in every state within the bound, which is what *an exhaustive sweep of the
+   action set against a blocked tree* asks for and what no finite list of runs
+   would give.  The run beside it lands the non-vacuity — the same division of
+   labour `SY-05.b` uses, and for the same reason.
+
+   THE SECOND CONJUNCT IS THE OTHER DIRECTION and it is what keeps the first
+   from being about a field nothing writes: a block arrives from recovery's own
+   decline and from nowhere else.
+
+   WHAT IS NOT HERE, AND IT IS A LIMIT RATHER THAN A GAP: the operator action
+   that DOES clear a block.  `FN-26` names the two restorable exits and they are
+   `crates/grove-finish/models/`'s; §*Actions* puts operator actions outside the
+   admitted set by construction, so *until an operator acts* is, at this scope,
+   exactly *never, by anything this file has*. */
+pred SY14a {
+  always {
+    (some World.blocked and Sys.act' in AdmittedAct) implies some World.blocked'
+    (some World.blocked' and no World.blocked) implies Sys.act' = RecoverA
+  }
+}
+check SY_14a_no_admitted_action_clears_a_block {
+  Assumed implies SY14a
+} for 3 but 2 WtId, 5 steps
+
+run witness_SY_14a_a_block_reached_and_surviving_an_admitted_action {
+  Assumed
+  eventually (Sys.act = RecoverA and Sys.res = Blocked and some World.blocked)
+  eventually (Sys.act = BlockedRefusalA and some World.blocked)
+} for 3 but 2 WtId, 5 steps
+
+/* SY-14.b — EVERY ACTION ON A BLOCKED TREE REFUSES, NAMING IT.
+
+   STATED OVER `TreeAct` AND NOT OVER `AdmittedAct`, AND THE NARROWING IS A
+   READING RATHER THAN AN ECONOMY.  A block is a property of the TREE — §*States*
+   attaches the diagnosis to a `Reserved` root — so *every action on a blocked
+   tree* is every action that acts on the tree.  A lease acquisition consults no
+   tree and cannot name a block it has not read; requiring it to would be this
+   file inventing a claim.  `TreeAct` is a set rather than a list for the reason
+   the `roots` slice made it one: a later tree action reaches this conjunct
+   without the command being edited.
+
+   `Sys.res' = Blocked` IS *NAMING IT* AT THIS SCOPE.  The outcome is the
+   catalogue's own and it is what a caller branches on; WHICH of `FN-25`'s two
+   diagnoses it carries is the finish model's and is not imported, because no
+   `SY-` obligation reads it.
+
+   THE ONE-STEP REFUSAL IS DELIBERATE AND IS THE OPPOSITE OF `doAllocFinish`'s
+   SPLIT.  That rule — prefer a named transition to a widened opaque one — is
+   for a claim about WHICH mutation.  This claim is about EVERY action, and a
+   per-action branch would be twenty-six copies of one sentence with
+   twenty-six chances to omit it.  What carries the claim is the single
+   `no World.blocked` conjunct in `mayTouchTree`, and the mutation is its
+   removal. */
+pred SY14b {
+  always {
+    (some World.blocked and Sys.act' in TreeAct) implies Sys.res' = Blocked
+    (Sys.act' = BlockedRefusalA) implies (Sys.res' = Blocked and treeSame)
+  }
+}
+check SY_14b_every_tree_action_on_a_blocked_tree_refuses_naming_the_block {
+  Assumed implies SY14b
+} for 3 but 2 WtId, 5 steps
+
+run witness_SY_14b_an_action_on_a_blocked_tree_refuses_naming_the_block {
+  Assumed
+  some p: Proc | eventually (Sys.act = BlockedRefusalA and Sys.actor = p
+                             and Sys.res = Blocked and some World.blocked
+                             and TreeG in p.holds)
+} for 3 but 2 WtId, 4 steps
+
+
+// ===========================================================================
 // THE ASSUMPTION CONTROLS
 //
 // Both are PREMISE-BREAK, so the expected result is A NAMED OBLIGATION FAILS.
@@ -2240,3 +2910,38 @@ check expect_fail_EN_14_SY_05a_absence_stops_discriminating_a_fresh_tree {
   (some Env.rootGone and EN07)
     implies always (no World.rooted implies no World.extant)
 } for 3 but 2 WtId, 5 steps
+
+/* EN-08 — INTERRUPTION MAY OCCUR BETWEEN ANY TWO STEPS.  Class:
+   EXERCISE-REMOVAL, and the thing removed is `crash` itself.  The assumption
+   table's expected result has TWO halves and the form is `expect_unreachable_`
+   for both — a `run` that must find NO instance, which the runner inverts:
+
+     THE WITNESSES DIE.  All seven of `SY-12`'s crash points, in ONE command
+     rather than seven, because the disjunction lands if ANY of them survives
+     and that is the whole question.  Seven separate commands would report the
+     same fact seven times at seven times the cost.
+     THE PROPERTIES DO NOT.  Every property this slice reports, negated, under
+     the same removal: no instance means each still holds over the crash-free
+     traces.  The finish scope discharged its half of `EN-08` with the superset
+     argument — no check asserts `EN_08`, so each is already checked over both
+     kinds of trace — and that argument is sound and is repeated in
+     `README.md`.  It is also unfalsifiable as stated, which is why the eight
+     bodies above are named predicates and this is a command.
+
+   AND THE FIRST HALF IS EVIDENCE RATHER THAN A TAUTOLOGY BECAUSE OF HOW
+   `crashAfter` IS WRITTEN.  A witness that POSITS the state an interruption
+   leaves, instead of running `crash` to reach it, keeps landing when the action
+   is removed — `finish-k8` found exactly that in two of `FN-31.c`'s witnesses
+   and recorded it as the thing an exercise-removal exists to make visible.  All
+   seven here reach. */
+run expect_unreachable_EN_08_no_lifecycle_step_is_a_crash_point {
+  Assumed and always Sys.act != CrashA
+  crashAfter[AcquireLeaseA] or crashAfter[LayoutPreflightA]
+  or crashAfter[OpenEpochA] or crashAfter[LaunchA] or crashAfter[ReapA]
+  or crashAfter[CloseEpochA] or crashAfter[ReleaseLeaseA]
+} for 3 but 2 WtId, 7 steps
+
+run expect_unreachable_EN_08_no_property_fails_when_crash_is_removed {
+  Assumed and always Sys.act != CrashA
+  not (SY09a and SY09b and SY09c and SY12 and SY13a and SY13b and SY14a and SY14b)
+} for 3 but 2 WtId, 6 steps

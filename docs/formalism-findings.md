@@ -6485,6 +6485,303 @@ whose other half is the finish scope's; `SY-05.a`'s first conjunct has no
 isolating mutation (M12c fires it and `SY-05.b` together); and the three limits
 entry 041 recorded all still stand.
 
+
+### 043 — A step that never learned a classification, and a claim quantified over the operator's imagination (lifecycle sessions)
+
+**Scope.** System lifecycle, **system-level** (`models/system/`). `SY-09.a` –
+`SY-09.c`, `SY-12`, `SY-13.a`, `SY-13.b`, `SY-14.a` and `SY-14.b`: the session's
+three endings, the crash, the stable-state sweep and the `Blocked` persistence
+sweep. Eight obligations, twenty-one new commands (**seventy-three** in the
+file), three new reachable transitions, four new `var` fields on `World`, five
+new static atoms and **no new signature**. **The lifecycle scope's empty alloy
+cells fall from eight to ZERO: the `SY-` column is closed, coverage is asserted,
+and `--no-coverage` is gone from `models/system/README.md`'s run line.**
+
+**Independence protocol: held.** No Quint model of this subject exists, no
+`.qnt` file was opened, and the sibling scopes' Quint columns were not read.
+
+**Formalism.** Alloy 6.2. Not a choice — the node brief fixes both families, and
+this is the Alloy column.
+
+**Situation.** Admission is the guard stack, iteration the turn, roots what the
+loop is holding; this is the session itself — how it ends, what an interruption
+does to it, and the two exhaustive sweeps the catalogue asks for. It is the last
+of four slices in one file, which turns out to matter for the cost result below.
+
+**THE FIRST MATERIAL RESULT IS A MODEL DEFECT THAT THREE SLICES OF CHECKS COULD
+NOT SEE, AND A SWEEP FOUND IT ON ITS FIRST RUN.**
+
+> **`doTreeOp` — *any observation, creation or mutation of the task tree* — never
+> learned the root classification that the `roots` slice introduced.** That slice
+> added `World.partial` and `World.legacy` and taught `doInitRoot`,
+> `doAllocFinish` and `doProveCommit` about them. It did not come back to the
+> opaque step, so in the model a plain tree operation would **append a live leaf
+> to a `Legacy` root** — a tree with no format witness, which the shipped
+> `grove-llm` refuses with `FormatLegacy` and of which §*States* says a
+> whole-tree classification *stops every read and mutation*.
+
+**Every check was green and every witness landed.** None of the seventeen prior
+obligations reads a tree operation against a classification — `SY-06.b` owns the
+legacy refusal and owns it at `complete-scaffold` — so the defect was invisible
+to the entire inherited command set and to its mutation matrix. What walked into
+it was `SY-13`'s sweep, which asks of **every stable state** what leaves it.
+
+**The general form, and it is a new argument for sweeps as instruments:** a
+per-claim check set is shaped by the claims, and a transition no claim mentions
+is checked by nothing. **A sweep over the state space is shaped by the state
+space instead**, so it reaches transitions the claim set does not — which is
+exactly what makes `SY-13` worth having as more than a box to tick. This is the
+first finding in the corpus produced by *state-space* coverage rather than by a
+claim, a mutation or a bound.
+
+**M1** `alloy-only`. **M2** `structure`. **M3 = 3** — the probe's trace names
+`TreeOpA` at the state where `World.live` grows against `World.legacy`, and
+transcribes directly. **M4** `none` — the shipped implementation classifies
+before it operates; the defect is the model's, and the durable correction is the
+one conjunct plus the rule below, not a test. By clause 3 of the material-finding
+rule this is therefore an **observation rather than a countable material
+finding** — recorded in the entry prose, as the rule directs, because the
+durable consequence is methodological.
+
+**THE SECOND RESULT IS A CATALOGUE FINDING, AND IT IS ENTRY 042'S CLASS A SECOND
+TIME.**
+
+> **`SY-13` says *from ANY stable state there SHALL exist a bounded sequence of
+> admitted actions reaching either a live leaf to run or a terminal
+> disposition*, and `EN-11` says any well-formed tree is reachable by hand
+> edit. Together the antecedent ranges over states the loop never produced — and
+> a `Legacy` tree is one of them and is a SINK.** Every admitted action refuses
+> `FormatLegacy`; neither terminal disposition is reachable; the only exit is an
+> operator action, which §*Actions* places outside the admitted set by
+> construction.
+
+**The catalogue knows the shape and declines both repairs.** Its own note says a
+`Malformed(reason)` tree is not a terminal disposition because folding it in
+"would let the claim be satisfied by a tree nobody can act on" — which is right,
+and which leaves the claim **false** rather than weak, on `Malformed`, `Legacy`
+and `Foreign` alike. The repair it does not consider is the one taken here:
+**quantify over the stable states the loop's own admitted actions reach**, and
+make *Grove never manufactures one of the others* a checked claim (`SY_13a`
+conjunct 1, mutation M21) rather than an assumption. The class is entry 038's
+and 042's — **a claim stated over a system when it is true only of a
+component**, here of *what Grove does* as against *what the tree can be in*.
+
+**M1** `alloy-only`. **M2** `structure`. **M3 = 3**. **M4** `none` — there is no
+code defect; the sentence is what is wrong. This is the borderline the
+pre-registration resolves as **material** (*shipped behaviour the model says is
+fine, but a catalogue required to describe it never described it*), and it
+**falsifies H7 by H7's own terms**, as entry 042's did.
+
+**AND THE FIRST RESULT MASKED THE SECOND, WHICH IS THE PAIR'S REAL LESSON.**
+Before the `doTreeOp` repair, the differential probe *found an instance*: the
+opaque step let a live leaf into the `Legacy` root, so the sink was not there.
+**A model defect that makes a state escapable reports exactly as a design in
+which it is escapable**, and the two are separated only by asking whether the
+escape is one the shipped system would take. The corpus's three survivor causes
+have an analogue here for *reachability* probes, and this is it.
+
+The sink is established rather than asserted, by a **differential probe** with a
+positive control — the instrument `admission-k51` used on M5/M5b:
+
+```text
+   ... eventually (X puts the root in that state
+                   and after (always only admitted actions and eventually atGoal))
+                                          6 states      9 states
+  X = hand-edit -> a Legacy root          NO INSTANCE   NO INSTANCE
+  X = initialise-root -> PartialScaffold  instance      instance
+```
+
+*No instance* alone would be a statement about the probe. Side by side and at
+two bounds, the pair is a statement about the design.
+
+**THE THIRD RESULT IS THE SHARP QUESTION THE LEAF WAS HANDED, AND THE ANSWER IS
+A DESIGN FINDING RATHER THAN A MODELLING ONE.**
+
+`roots-k53` left a concrete state to classify: `SY-04.b` gates every Lifecycle
+transition but `acquire-lease` on a valid configuration, so **`release-lease` is
+unreachable while the configuration is invalid** — a driver whose configuration
+goes bad mid-loop can neither release, nor open an epoch, nor launch, nor reap,
+nor close. A probe confirms it. Whether that is a *sink* turns on one question
+and the brief named it: **does process death count as an admitted action?**
+
+**It does not.** §*Actions* puts `crash` in the Environment group whose guard
+column reads *none — these are the world's*. So the exit the shipped driver
+actually takes — die, and let the kernel release the lease, which is `SY-01.b` —
+is outside the set `SY-13` quantifies over, and under the catalogue's own
+definitions the state is a dead end.
+
+**It is nonetheless out of `SY-13`'s scope as this file states it, and the
+scoping decision is the answer rather than an evasion.** §*States*' stable /
+transient distinction is defined over **task-root states**: *a stable state is
+one an ordinary invocation may observe and act on*, and every state in the table
+it introduces is a root classification. A driver's own process state is not a
+§*States* state at all. Recorded because the alternative reading is available
+and would make `SY-13` false a third way.
+
+**What the finding really is: `SY-04.b`'s gate is over-applied.**
+`acquire-lease` is already exempt because it runs before configuration
+validation; **`release-lease` deserves the same exemption for a stronger
+reason** — a release touches no tree and launches nothing, so there is nothing
+for a configuration to be valid *for*. Two repairs are available (exempt the
+release, or admit process death) and `formal-synthesis-k16` inherits the choice.
+**M1** `alloy-only`. **M2** `structure`. **M3 = 2** — the probe names the state
+and the absent transition but not the repair. **M4** `none`.
+
+**THE FOURTH RESULT IS COMPOSITIONAL AND IT INVERTS A RULE THIS FILE WROTE ONE
+SLICE AGO.** `roots-k53` split `allocate-finish-leaf` out of the opaque tree step
+and generalised it: *prefer splitting out a named transition to widening an
+opaque one, wherever a claim is about **which** mutation*. `SY-14.b` is the case
+that rule does not cover — *every* action on a blocked tree refuses, naming it —
+and the right shape is the opposite: **one opaque `doBlockedRefusal`, and a
+single `no World.blocked` conjunct in `mayTouchTree` carrying the whole claim.**
+A per-action branch would be twenty-six copies of one sentence with twenty-six
+chances to omit one. **The rule generalises: split when the claim distinguishes
+actions, fold when it quantifies over them**, and the mutation is the same edit
+in both directions (M24 removes the one conjunct).
+
+**Caught / missed.** Caught: the `doTreeOp` defect and the `SY-13` sink, both by
+the sweep and both on its first run; the invalid-configuration dead end, by a
+probe written because the brief named the question. **Missed by reading, all
+three.** The `doTreeOp` defect is the least available of them — the conjunct
+that is missing is missing from a predicate 400 lines from the claim that would
+have wanted it, and its three sibling transitions each carry the conjunct
+correctly, so a diff review sees three right answers and no fourth question.
+
+Not caught, and stated as a limit: **all twenty-one new commands were green on
+their first run**, before a mutation was written, in a file whose own README
+says a green run is not evidence. Nine mutations were then run against all eight
+checks, and **seven of the eight are isolating** — the best isolation any slice
+in this corpus has produced, for a stated reason: this slice's obligations are
+about four different fields, where `SY-05`'s four conjuncts and `SY-11`'s two
+halves were about one apiece. **M23 is the exception** (clearing a block fires
+`SY-14.a` and `SY-14.b`, because the second asserts the attempt's frame), and
+rather than record the overlap and stop, a second mutation was written against
+`SY-14.a`'s *other* conjunct and it isolates. **A claim with two conjuncts about
+different things has an isolating mutation even when one of its conjuncts does
+not**, and looking for it cost one run. All nine were swept from 2 states
+upward: seven first fire at 3, two at 2, against checks that run at 5.
+
+**Cost.** Authoring ≈ **1 h 5 m** for eight obligations (**M5**: **0.14
+h/obligation**), of which the largest single block was choosing instruments for
+`SY-13` that are not liveness properties. **M6 synchronization: 0** — the Quint
+column does not exist. **M7 wrangling: ~0.2 h**, the bound and isolation sweeps,
+which are instrument time.
+
+> **THE FOURTH H8 POINT CLOSES THE SYSTEM-LEVEL ARM, AND ITS MAIN CONTRIBUTION
+> IS A WARNING ABOUT THE ARM.** The four lifecycle leaves read **0.42**, **0.60**,
+> **0.46** and **0.14** h/obligation. The fourth is a third of the cheapest of
+> the others, and the naive reading — *system-level modelling gets cheap* — is
+> wrong. **The four points are not four independent samples of system-level cost.
+> They are a declining marginal-cost curve inside ONE FILE.** `admission` built
+> the vocabulary, the guard stack and the frame discipline; `iteration` added the
+> loop; `roots` added the tree and the one expensive signature. By the time
+> `sessions` arrived, eight obligations needed **three transitions and four
+> fields**, and every one of them rode on machinery three earlier sessions had
+> paid for.
+>
+> **What follows for H8 is a counting rule, not a number.** *Authoring hours ÷
+> checked claims* aggregated over `models/system/` mixes the cost of building a
+> model with the cost of adding claims to one, and those are different
+> quantities. The component-local arm has the same structure and the same
+> hazard. `formal-synthesis-k16` should either report the arms as curves or
+> compare **first slices to first slices**; the four-point mean (**0.41**) is
+> reported here for continuity and should not be used as a per-obligation
+> estimate for a new scope.
+>
+> **AND THE RUN-COST PREDICTION FROM ENTRY 042 HELD, WHICH IS THE FIRST TIME A
+> COST LAW IN THIS CORPUS PREDICTED BEFORE THE FACT.** Entry 042 concluded that a
+> free `var`-referenced signature, not the transition count, is where
+> system-level run cost lives. This slice was budgeted on that: **no new
+> signature**, five static atoms, four `var lone` fields on the `one sig World`.
+> Measured as an A/B on one host in one sitting — **46 → 73 commands (+59%) for
+> 104 s → 124 s wall (+19%)**, against `roots`' +53% commands for +190% wall.
+> Parallel utilisation went **up**, 251% → 361%, which is the same fact from the
+> runner: the new commands are short enough to overlap.
+>
+> **AND THE CHEAPEST THING THIS SLICE DID TO RUN TIME WAS MAKE A TRANSITION MORE
+> CORRECT.** The `doTreeOp` repair is one conjunct narrowing the step everything
+> reaches, and it moved the file's two dearest inherited commands further than
+> any bound change has: `witness_SY_10a` **8.62 s → 2.28 s**, `SY_05a`
+> **4.16 s → 1.72 s**, and two of this slice's own new checks from ~9.8 s to
+> ~1.8 s. **A guard on a widely-reached transition removes traces from every
+> command at once, where a bound removes states from one.** The corpus's
+> budgeting order (a static switch, a narrowed antecedent, a smaller bound) has
+> been about a *claim's* operands; this is the same move applied to a
+> **transition**, and it is a fourth entry on that list. It arrived as a
+> correctness repair and the speed was a side-effect, which is the honest order.
+>
+> **One variance worth a line.** `witness_SY_14b` measured **9.93 s** once and
+> **1.31 s** on each of two re-runs of the identical command and file. The
+> sibling scopes' rule — *whole-suite totals do not compare across sessions* —
+> sharpens to: **a single per-command reading does not compare with itself.**
+
+**Counterfactual.** The `doTreeOp` defect was not available by reading and was
+not available to any *claim-shaped* instrument either — three slices of checks,
+witnesses and mutations passed over it. It required an instrument shaped by the
+state space, and `SY-13` is the only obligation in the catalogue that is one.
+The `SY-13` sink is available by reading only to a reader who holds the
+catalogue's `terminal disposition` note and `EN-11` in mind at once and thinks
+to compose them; the note's own last sentence shows the author within one step
+of it. The invalid-configuration dead end **was** available by reading — the
+brief found it and handed it over — and what the model added was the answer to
+the question the brief could not settle: whether process death is admitted. That
+is a point for the briefs and a point for §*Actions* being a closed table.
+
+**Verdict.** The slice is green and **the `SY-` column is closed** — **73
+commands, 25 obligations, 25 of 25 alloy cells filled, zero empty, zero declared
+gaps, coverage asserted**, all four assumption controls firing or unreachable as
+their table requires including `EN-08`'s two halves, and nine mutations for eight
+obligations with all nine firing, seven isolating, and each swept for its firing
+bound. One material catalogue finding (`SY-13` quantified over states the loop
+never reaches, M3 = 3, M4 = none, falsifying H7 by its own terms), one design
+finding for `formal-synthesis-k16` (`SY-04.b` over-applied to `release-lease`),
+one model defect found by state-space coverage rather than by a claim, one
+compositional rule inverted with its condition stated, and two cost results (a
+pre-registered budget that held; and a correctness repair that was also the
+file's largest speed-up).
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6.2.0
+`.202501090817` (git `794226d`), `org.alloytools.alloy.dist.jar`, Corretto
+`21.0.12.1+9-LTS`. **Solver**: SAT4J (distribution default), every command with
+`-n` and `-t text`. **Bounds**: `for 3 but 2 WtId, N steps`, `N` from 4 to 9 and
+**N is STATES**; this slice's seventeen witnesses first land at 4 (three
+`SY-09`), 4 (seven `SY-12`), 8 (`SY-13.a`), 4 and 3, 3, 3 (`SY-13.b`), 3
+(`SY-14.a`) and 2 (`SY-14.b`). `witness_SY_13a` is the file's only command at 9
+and the only one whose first-landing bound is 8; **one state of margin cost it
+2.16 s → 5.20 s**, a third data point for *margin is priced per command*. **No
+new signature; no `Int`.** **Fairness**: none assumed — and this is the slice
+where that matters most, see below. **Symmetry**: no `exactly` scope.
+**Abstractions**: `Proc.waits`/`Deferred`, `Stopped`, `RefConfigInvalid`,
+`IterA`, `initialise-root` as two steps, `allocate-finish-leaf` split out (all
+inherited); **new here** — `World.signal` (two flags and their absence) and
+`World.ending`/`World.halted` as **separate** fields, so that the inference
+`SY-09.c` forbids is statable and so that *the loop continues* is not derivable;
+`doRecover` as one opaque step carrying only *recovery ran and could not
+settle*; `doBlockedRefusal` as one opaque step standing for every admitted
+action attempted on a blocked tree. **`Blocked` is NOT an abstraction** — it is
+the catalogue's own outcome, imported as a `Result` member carrying **no
+diagnosis**. **Deliberately omitted**: `FN-25`'s two diagnoses and their
+partition, `FN-26`'s two restorable exits and the operator action that takes
+them, `FN-20`'s recovery classification, the signal file's path and bytes, and
+everything the three earlier slices omitted. **What a green run does not prove**:
+`SY-13`'s antecedent is narrowed and the narrowing is a finding rather than a
+fact; `SY-14`'s *until an operator acts* has no operator action in this file, so
+what is checked is *no admitted action*; `SY-12`'s three no-repeat conjuncts are
+`SY-05`'s neighbours and are not isolating; and the limits entries 041 and 042
+recorded all still stand.
+
+**NOT LIVENESS, STATED ONCE MORE BECAUSE THIS IS THE SLICE THAT COULD HAVE
+CHEATED.** `SY-13` is existential reachability by the catalogue's own words, and
+manufacturing it as liveness — `always (stable implies eventually atGoal)` —
+would have been one line and would have been green on a model with no hostile
+scheduler in it. It is not written that way. The existential half is carried by
+**`run` commands**, a run being an existential over traces: `witness_SY_13a`
+exhibits the longest admitted sequence within the bound (**five admitted
+actions, six transitions, eight states**) and the four `witness_SY_13b` runs are
+the sweep, one per stable class. The checks carry the half a run cannot. **No
+command in this slice contains an `eventually` inside an `always`**, which is
+the mechanical form of the rule and is checkable by reading.
+
 ---
 
 ## Distillation — where each entry landed

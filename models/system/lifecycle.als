@@ -9,9 +9,10 @@
  * file.
  *
  * COVERAGE SO FAR: SY-01, SY-02, SY-03 and SY-11 — the ADMISSION slice, the
- * loop's guard stack.  SY-04 .. SY-10 and SY-12 .. SY-14 are the `iteration`,
- * `roots` and `sessions` sibling leaves'; the runner reports their cells empty,
- * which is the truth about this file rather than a defect in it.
+ * loop's guard stack — plus SY-04, SY-08 and SY-10, the ITERATION slice: the
+ * loop's own step.  SY-05 .. SY-07, SY-09 and SY-12 .. SY-14 are the `roots`
+ * and `sessions` sibling leaves'; the runner reports their cells empty, which is
+ * the truth about this file rather than a defect in it.
  *
  * THIS FILE COMPOSES AT OBSERVATIONS, NEVER AT MACHINERY.  It is the joint of
  * the task-tree and finish contracts, and it reads them through the smallest
@@ -32,6 +33,14 @@
  *     check SY_nn[x]_<mnemonic>            must find NO counterexample
  *     run   witness_SY_nn[x]_<mnemonic>    must find an instance
  *     check expect_fail_EN_nn_<OB>_<m>     must find a counterexample
+ *
+ * THREE ABSTRACTIONS OF THIS FILE'S OWN, all declared in `README.md` and none of
+ * them a contract: `Proc.waits`/`Deferred` (a guard wait as an observable
+ * state), `Stopped` (SY-10.b's visible stop, which the catalogue's closed
+ * outcome set cannot name — as it cannot name `RefConfigInvalid`), and `IterA`
+ * (an iteration boundary, which is not a catalogue action because a boundary is
+ * not something the loop DOES).  The first is inherited; the other two arrive
+ * with this slice and the second of them is a FINDING about the catalogue.
  *
  * TWO STATIC SWITCHES, BOTH PINNED OFF BY EVERY ORDINARY COMMAND.  `Env.shared`
  * admits the nested acquisition `EN-07` forbids; `Env.rootGone` admits the root
@@ -73,6 +82,34 @@ one sig TaskRoot {}
 
 abstract sig Layout {}
 one sig SupportedL, UnsupportedL extends Layout {}
+
+/* THE CONFIGURATION, AS THE ONLY THING `SY-04.b` READS OF IT: whether full
+   validation passes.  `complete-session-configuration` says the personal file is
+   validated IN FULL before every tree mutation and again before every launch, so
+   what a lifecycle transition needs from it is one bit.  It is `var` for the same
+   reason `layout` is: a configuration a gate proved once can change under it, and
+   a model whose configuration cannot change answers *precedes EVERY transition*
+   by construction — which is the `SY-02`/`SY-03` false-confidence shape the
+   sibling gate already met. */
+abstract sig Cfg {}
+one sig ValidCfg, InvalidCfg extends Cfg {}
+
+/* A WORK-ITEM HANDLE, AND NOTHING ELSE ABOUT A LEAF.  `SY-08` cannot be stated
+   without something for selection to RETURN, so this is the smallest observation
+   that decides it: an opaque identity with no name, position, key, kind or
+   terminality.  `World.live` is a SET and never a sequence — WHICH live leaf the
+   walk returns is `TT-11`'s (*selection is a stateless pre-order walk*) and is
+   imported here as a non-deterministic choice among the live ones.  A signature
+   that grew an order would be this file re-stating the task-tree contract. */
+sig Leaf {}
+
+/* A LAUNCH GENERATION, as an opaque identity.  `admission-k51` deliberately read
+   no generation VALUE — one transition served both the driver's rotation and an
+   ambient command's match — and `SY-10` is where the two part company: a stale
+   session is exactly one whose generation is not the record's.  What the identity
+   is made of (a 128-bit nonce, a working-tree identity, a signal path) is
+   `one-live-driver-per-working-tree`'s and is opaque here. */
+sig Gen {}
 
 /* The recorded verdict of the workspace layout preflight.  It EXISTS in this
    model on purpose: `SY-03` is the claim that no later gate consults it, and a
@@ -122,7 +159,20 @@ sig Proc {
   var holds:   set Guard,
   var seen:    set Guard,
   var waits:   lone Guard,
-  var leaseOn: lone WtId
+  var leaseOn: lone WtId,
+  /* THE ITERATION'S ONE LIFECYCLE TRANSITION, SPENT OR NOT.  `SY-04.a` is a
+     claim about a COUNT PER ITERATION, and a count needs a boundary to be
+     counted between; `spent` is that boundary's residue.  It is set by every
+     Lifecycle transition in every branch — a refusal is a turn of the loop as
+     surely as an application is — and cleared only by `doIter`. */
+  var spent:   lone Flag,
+  /* THE ITERATION'S AUTHORITATIVE SELECTION (`SY-08`).  Taken once, never
+     recomputed, and cleared at the boundary rather than by the launch, which is
+     what makes a leaf added during the launch window the NEXT iteration's. */
+  var sel:     lone Leaf,
+  /* THE GENERATION THIS PROCESS WAS LAUNCHED UNDER.  A driver's is empty: the
+     driver owns the record rather than matching it. */
+  var gen:     lone Gen
 }
 
 /* Process liveness.  `SY-01.b` is about ownership released BY PROCESS DEATH as
@@ -135,8 +185,21 @@ one sig Alive { var live: set Proc }
 one sig World {
   var wt:      lone WtId,       // the working-tree root, as an open directory
   var layout:  one Layout,
+  var cfg:     one Cfg,         // whether full configuration validation passes
   var rooted:  lone TaskRoot,   // whether a task tree exists at all
-  var verdict: lone Ok          // what the lease gate recorded
+  var live:    set Leaf,        // the live leaves, unordered — see `Leaf`
+  var verdict: lone Ok,         // what the lease gate recorded
+  /* THE SESSION EPOCH RECORD.  `some` is an active record with that identity;
+     `none` is an inactive one.  ONLY ROTATION IS MODELLED: `open-epoch` writes
+     it active with a fresh identity, and the record's two *inactive* write
+     points (after lease acquisition, after reap) are collapsed away.  That is a
+     deliberate omission and is declared in `README.md`: the glossary names
+     rotation as the stronger mechanism — it "catches stale sessions between
+     every launch as well as after finish plus root recreation" — and `SY-10.a`'s
+     whole content rides on it. `none` remains reachable as a free initial
+     state. */
+  var gen:     lone Gen,
+  var running: lone Leaf        // the work the live session was launched on
 }
 
 /* THE TWO STATIC SWITCHES.  Not `var`: an assumption mutation is a SCOPE, not
@@ -173,21 +236,62 @@ one sig IdleA,            // the stutter an Alloy lasso needs
         DropTreeA,
         GrantA,           // a blocked process proceeding once the guard is free
         TreeOpA,          // ANY observation, creation or mutation of the tree
-        ValidateConfigA,  // opaque here; SY-04.b owns its content
+        ValidateConfigA,  // full configuration validation — SY-04.b
         LayoutPreflightA, // THE LATER GATE — see SY-03
+        LaunchA,          // launch — the spawn, and SY-08's window closes here
+        ReapA,            // reap
+        SelectA,          // select (Observation group) — SY-08
+        IterA,            // THE ITERATION BOUNDARY — see below
+        TimeoutA,         // the contended-generation stop — SY-10.b
         TopologyChangeA,  // the world's
+        ConfigEditA,      // the world's
         CrashA,           // the world's
         NestedAcquireA,   // EN-07's mutation only
         RemoveRootA       // EN-14's mutation only
   extends Action {}
 
+/* THE CATALOGUE'S LIFECYCLE GROUP, ALL SEVEN, AND EXACTLY THEM.  `SY-04.a` is
+   quantified over this set and `SY-11.a` over the acquisition sites, which are
+   different sets and deliberately so: `take-tree` is a GUARD acquisition and not
+   a Lifecycle action, and `select` is an Observation.  A sixth Lifecycle action
+   added by a later slice lands in this function and both claims see it. */
+fun LifecycleAct: set Action {
+  AcquireLeaseA + LayoutPreflightA + OpenEpochA + LaunchA + ReapA
+  + CloseEpochA + ReleaseLeaseA
+}
+
+/* THE ITERATION BOUNDARY IS NOT A CATALOGUE ACTION, and is declared as this
+   file's own abstraction in `README.md` beside `Proc.waits`.  §*Actions* has no
+   boundary in it, because a boundary is not something the loop DOES — but
+   `SY-04.a` says *at most one lifecycle transition PER ITERATION* and an
+   iteration with no observable edge has no referent for the count.  `IterA` is
+   that edge and nothing else: it takes no guard, returns no outcome the
+   catalogue names, and touches no part of the world. */
+
 abstract sig Result {}
 one sig Applied, Environmental extends Result {}
+/* An observation returning a value — the catalogue's `Reported(v)`.  This file
+   reads no value off a selection, so the payload is absent and `TT-15`'s
+   `Empty`/`Ambiguous` distinctions are the task-tree model's. */
+one sig Reported extends Result {}
 /* `Deferred` is the wait, and it is this file's abstraction rather than the
    catalogue's outcome set — see `Proc.waits` above. */
 one sig Deferred extends Result {}
+/* `Stopped` IS THIS FILE'S SECOND ABSTRACTION, AND ITS EXISTENCE IS A FINDING.
+   `SY-10.b` requires a contended generation to time out into a VISIBLE STOP, and
+   the catalogue's closed outcome set cannot name it: it is not a `Refused`,
+   because no refusal reason covers a handoff timeout (`EpochStale` is `SY-10.a`'s
+   MISMATCH, not a contention), and it is not a `Blocked`, because §*Outcomes*
+   scopes blocks to a transaction stopped part-way and `FN-25`'s two diagnoses are
+   both about finish ownership.  Declared here, recorded in `README.md`, and named
+   for `formal-synthesis-k16` — exactly as `SY-05`'s design constraint was. */
+one sig Stopped extends Result {}
 abstract sig Refused extends Result {}
-one sig RefLeaseHeld, RefLayoutUnsupported extends Refused {}
+/* `RefEpochStale` is the catalogue's `EpochStale`.  `RefConfigInvalid` is NOT in
+   the closed refusal-reason set — the second half of the same finding, and the
+   reason the two are recorded together rather than separately. */
+one sig RefLeaseHeld, RefLayoutUnsupported,
+        RefEpochStale, RefConfigInvalid extends Refused {}
 
 one sig Sys {
   var act:   one Action,
@@ -242,6 +346,26 @@ pred mayTake[p: Proc, g: Guard] {
   needs[p, g]
 }
 
+/* THE THREE DISCIPLINES THIS SLICE ADDS, EACH A PREDICATE THE SITES APPLY AND
+   THE CHECKS ARE STATED OVER — never a `fact`, for the reason the header gives.
+
+   `validated` is `SY-04.b`'s: a transition reads the LIVE configuration, exactly
+   as `doLayoutPreflight` reads the live layout.  `doAcquireLease` deliberately
+   does NOT apply it — `SY-02` says an unsupported workspace is refused at lease
+   acquisition *before configuration validation*, so the lease gate is the one
+   Lifecycle transition that runs under an unvalidated configuration, and gating
+   it here would make `SY-02` and `SY-04.b` contradict each other.
+
+   `fresh` is `SY-04.a`'s: this iteration has not yet spent its one transition.
+
+   `stale` is `SY-10.a`'s: an ambient operation whose generation is not the live
+   record's.  A session with NO generation is stale — it was never launched — and
+   an inactive record makes every session stale, which is what the record's
+   inactive state is for. */
+pred validated { World.cfg = ValidCfg }
+pred fresh[p: Proc] { no p.spent }
+pred stale[p: Proc] { p.role = SessionR and (no p.gen or no World.gen or p.gen != World.gen) }
+
 fun holder[g: Guard]: lone Proc { holds.g }
 
 /* The wait-for graph, per state: p waits on q when q holds what p is blocked
@@ -264,13 +388,24 @@ pred Assumed { EN07 and EN14 }
 // FRAME CONDITIONS
 // ===========================================================================
 
-pred worldSame  { World.wt' = World.wt and World.layout' = World.layout }
-pred rootSame   { World.rooted' = World.rooted }
+pred worldSame  { World.wt' = World.wt and World.layout' = World.layout
+                  and World.cfg' = World.cfg }
+pred treeSame   { World.rooted' = World.rooted and World.live' = World.live }
+pred launchSame { World.gen' = World.gen and World.running' = World.running }
 pred verdictSame{ World.verdict' = World.verdict }
 pred aliveSame  { Alive.live' = Alive.live }
 pred procSame[p: Proc] {
   p.holds' = p.holds and p.seen' = p.seen
   p.waits' = p.waits and p.leaseOn' = p.leaseOn
+  p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+}
+/* What a Lifecycle transition leaves alone about its own actor, everything but
+   `spent`.  Written once because six transitions repeat it and a field added to
+   `Proc` that one of them forgot would be a silent frame hole. */
+pred actorSameBut[p: Proc] {
+  p.holds' = p.holds and p.seen' = p.seen
+  p.waits' = p.waits and p.leaseOn' = p.leaseOn
+  p.sel' = p.sel and p.gen' = p.gen
 }
 pred procsSame        { all p: Proc | procSame[p] }
 pred procsSameBut[p: Proc] { all q: Proc - p | procSame[q] }
@@ -282,7 +417,7 @@ pred procsSameBut[p: Proc] { all q: Proc - p | procSame[q] }
 
 pred doIdle {
   Sys.act' = IdleA and no Sys.actor' and no Sys.gu' and Sys.res' = Environmental
-  procsSame and worldSame and rootSame and verdictSame and aliveSame
+  procsSame and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
 /* ACQUIRE-LEASE, and the workspace layout preflight that runs inside it.  Three
@@ -298,21 +433,28 @@ pred doIdle {
    queued as an ordinary tree operation — the glossary's own `_Avoid_` line. */
 pred doAcquireLease[p: Proc] {
   p in Alive.live and no p.leaseOn and no p.waits and p.role = DriverR
+  /* `fresh` and NOT `validated`.  The lease gate spends the iteration's one
+     Lifecycle transition like every other, but it runs BEFORE configuration
+     validation — that is `SY-02`'s own word — so it is the one site `SY-04.b`'s
+     check exempts, and the exemption is stated there rather than assumed here. */
+  fresh[p]
   Sys.act' = AcquireLeaseA and Sys.actor' = p and Sys.gu' = LeaseG
-  worldSame and rootSame and aliveSame
+  worldSame and treeSame and launchSame and aliveSame
+  some p.spent'
 
   World.layout = UnsupportedL implies {
     Sys.res' = RefLayoutUnsupported
-    procsSame and verdictSame
+    actorSameBut[p] and procsSameBut[p] and verdictSame
   } else (some q: Alive.live - p | q.leaseOn = World.wt) implies {
     Sys.res' = RefLeaseHeld
-    procsSame and verdictSame
+    actorSameBut[p] and procsSameBut[p] and verdictSame
   } else {
     mayTake[p, LeaseG]
     Sys.res' = Applied
     World.verdict' = Ok
     p.holds' = p.holds + LeaseG and p.seen' = p.seen + LeaseG
     p.leaseOn' = World.wt and no p.waits'
+    p.sel' = p.sel and p.gen' = p.gen
     procsSameBut[p]
   }
 }
@@ -325,49 +467,86 @@ pred doAcquireLease[p: Proc] {
    model rather than about Grove. */
 pred doReleaseLease[p: Proc] {
   p in Alive.live and p.holds = LeaseG and no p.waits
+  validated and fresh[p]
   Sys.act' = ReleaseLeaseA and Sys.actor' = p and Sys.gu' = LeaseG
   Sys.res' = Applied
   p.holds' = p.holds - LeaseG and p.seen' = p.seen
   no p.leaseOn' and no p.waits'
-  procsSameBut[p] and worldSame and rootSame and verdictSame and aliveSame
+  p.sel' = p.sel and p.gen' = p.gen and some p.spent'
+  procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
-/* OPEN-EPOCH — the driver rotating the launch generation, and an ambient
-   command matching it.  One transition for both because nothing in this slice
-   reads a generation VALUE; `SY-10` is where the two part company.
-   A contended epoch BLOCKS, which is the ordinary tree-guard discipline and the
-   opposite of the lease's. */
+/* OPEN-EPOCH — WHERE THE DRIVER'S ROTATION AND AN AMBIENT COMMAND'S MATCH PART
+   COMPANY, which `admission-k51` said would happen here and could not model
+   because it read no generation VALUE.  Three outcomes now, and they are total:
+
+     STALE (`SY-10.a`)  an ambient operation whose generation is not the live
+                        record's is REFUSED, and it takes nothing — not the
+                        guard, not a wait.  This is the whole of *before it
+                        touches the tree*: `doTreeOp` requires a session to HOLD
+                        the epoch guard, and this is the only site that hands a
+                        session one.
+     FREE               the guard is taken; a DRIVER additionally ROTATES the
+                        record, which is what makes every session launched under
+                        the old identity stale from the next state on.
+     HELD               a contended epoch BLOCKS — the ordinary tree-guard
+                        discipline and the opposite of the lease's — and the
+                        wait's only visible exit is `doGrant` or `doTimeout`.
+
+   `mayTake` MOVED INSIDE THE NON-STALE BRANCH, deliberately.  A stale refusal
+   acquires nothing, so making it wait on the guard ORDER would refuse a stale
+   session for the wrong reason and leave `SY-10.a`'s antecedent unreachable
+   whenever the order happened not to admit the acquisition. */
 pred doOpenEpoch[p: Proc] {
   p in Alive.live and (no p.waits or p.waits = EpochG)
-  mayTake[p, EpochG]
+  validated and fresh[p]
   Sys.act' = OpenEpochA and Sys.actor' = p and Sys.gu' = EpochG
-  worldSame and rootSame and verdictSame and aliveSame
-  no holder[EpochG] implies {
-    Sys.res' = Applied
-    p.holds' = p.holds + EpochG and p.seen' = p.seen + EpochG
-    no p.waits' and p.leaseOn' = p.leaseOn
-  } else {
-    Sys.res' = Deferred
-    p.holds' = p.holds and p.seen' = p.seen
-    p.waits' = EpochG and p.leaseOn' = p.leaseOn
-  }
+  worldSame and treeSame and verdictSame and aliveSame
+  World.running' = World.running
+  some p.spent'
   procsSameBut[p]
+
+  stale[p] implies {
+    Sys.res' = RefEpochStale
+    actorSameBut[p]
+    World.gen' = World.gen
+  } else {
+    mayTake[p, EpochG]
+    no holder[EpochG] implies {
+      Sys.res' = Applied
+      p.holds' = p.holds + EpochG and p.seen' = p.seen + EpochG
+      no p.waits' and p.leaseOn' = p.leaseOn
+      p.sel' = p.sel and p.gen' = p.gen
+      /* THE ROTATION.  A driver writes the record active with a FRESH identity;
+         an ambient command only reads it. */
+      p.role = DriverR implies (some World.gen' and World.gen' != World.gen)
+                        else   World.gen' = World.gen
+    } else {
+      Sys.res' = Deferred
+      p.holds' = p.holds and p.seen' = p.seen
+      p.waits' = EpochG and p.leaseOn' = p.leaseOn
+      p.sel' = p.sel and p.gen' = p.gen
+      World.gen' = World.gen
+    }
+  }
 }
 
 pred doCloseEpoch[p: Proc] {
   p in Alive.live and EpochG in p.holds and TreeG not in p.holds and no p.waits
+  validated and fresh[p]
   Sys.act' = CloseEpochA and Sys.actor' = p and Sys.gu' = EpochG
   Sys.res' = Applied
   p.holds' = p.holds - EpochG and p.seen' = p.seen
   p.waits' = p.waits and p.leaseOn' = p.leaseOn
-  procsSameBut[p] and worldSame and rootSame and verdictSame and aliveSame
+  p.sel' = p.sel and p.gen' = p.gen and some p.spent'
+  procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
 pred doTakeTree[p: Proc] {
   p in Alive.live and (no p.waits or p.waits = TreeG)
   mayTake[p, TreeG]
   Sys.act' = TakeTreeA and Sys.actor' = p and Sys.gu' = TreeG
-  worldSame and rootSame and verdictSame and aliveSame
+  worldSame and treeSame and verdictSame and launchSame and aliveSame
   no holder[TreeG] implies {
     Sys.res' = Applied
     p.holds' = p.holds + TreeG and p.seen' = p.seen + TreeG
@@ -377,6 +556,7 @@ pred doTakeTree[p: Proc] {
     p.holds' = p.holds and p.seen' = p.seen
     p.waits' = TreeG and p.leaseOn' = p.leaseOn
   }
+  p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
   procsSameBut[p]
 }
 
@@ -386,7 +566,8 @@ pred doDropTree[p: Proc] {
   Sys.res' = Applied
   p.holds' = p.holds - TreeG and p.seen' = p.seen
   p.waits' = p.waits and p.leaseOn' = p.leaseOn
-  procsSameBut[p] and worldSame and rootSame and verdictSame and aliveSame
+  p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
 /* GRANT — a blocked process proceeding once its guard is free.  A SEPARATE
@@ -398,38 +579,66 @@ pred doDropTree[p: Proc] {
    wait already satisfied — `seen` does not change while a process is blocked —
    so the clause is a belt on a fastened braces.  It stays because a later slice
    that resets `seen` per iteration would make it load-bearing, and its
-   survival is recorded in `README.md` rather than papered over. */
+   survival is recorded in `README.md` rather than papered over.
+
+   AND IT IS A SECOND ADMISSION SITE FOR THE GENERATION MATCH, which `SY-10.a`
+   does not say and which this slice found by checking it.  A session refused as
+   stale never waits, so a WAITING session was fresh when it asked — but the
+   record can rotate while it is blocked, and a grant that only resumes the wait
+   hands the guard to a session whose generation is no longer live.  The ADR's
+   own words settle it: *shared-guard acquisition is the admission boundary*, and
+   a grant IS an acquisition.  The re-check is here, and `SY_10a`'s second
+   conjunct is what makes the omission of it visible. */
 pred doGrant[p: Proc] {
   p in Alive.live and some p.waits and no holder[p.waits]
   mayTake[p, p.waits]
   Sys.act' = GrantA and Sys.actor' = p and Sys.gu' = p.waits
-  Sys.res' = Applied
-  p.holds' = p.holds + p.waits and p.seen' = p.seen + p.waits
+  (p.waits = EpochG and stale[p]) implies {
+    Sys.res' = RefEpochStale
+    p.holds' = p.holds and p.seen' = p.seen
+  } else {
+    Sys.res' = Applied
+    p.holds' = p.holds + p.waits and p.seen' = p.seen + p.waits
+  }
   no p.waits' and p.leaseOn' = p.leaseOn
-  procsSameBut[p] and worldSame and rootSame and verdictSame and aliveSame
+  p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
 /* ANY observation, creation or mutation of the task tree, as one opaque step.
    What distinguishes the three is the task-tree model's; what this slice needs
-   is that NONE of them happens before the layout is proved. */
+   is that NONE of them happens before the layout is proved, that NONE of them
+   happens under an unvalidated configuration (`SY-04.b`), and that an ambient
+   one happens only through an admission that matched (`SY-10.a`).
+
+   `World.live in World.live'` is `EN-10` at this grain — the names are the
+   counter and entries are never removed — and it is what lets `SY-08`'s witness
+   INSERT a leaf during the launch window.  WHERE the entry lands and what it is
+   called are `TT-01` – `TT-10`'s and appear nowhere here. */
 pred doTreeOp[p: Proc] {
   p in Alive.live and TreeG in p.holds and no p.waits
+  validated
+  p.role = SessionR implies EpochG in p.holds
   Sys.act' = TreeOpA and Sys.actor' = p and no Sys.gu'
   Sys.res' = Applied
   some World.rooted'                      // the tree exists, or is created here
-  procsSame and worldSame and verdictSame and aliveSame
+  World.live in World.live'
+  procsSame and worldSame and verdictSame and launchSame and aliveSame
 }
 
-/* Opaque here.  `SY-04.b` — full configuration validation precedes every
-   transition, so an invalid configuration leaves the working tree
-   byte-identical — is the `iteration` sibling's cell, and this action exists
-   only so `SY-02`'s *before configuration validation* has something to be
-   before. */
+/* FULL CONFIGURATION VALIDATION, and `SY-04.b` owns its content.  It is the
+   configuration's exact analogue of `doLayoutPreflight`: it reads the LIVE
+   configuration and consults no recorded verdict, and `SY_04b`'s biconditional
+   is what turns that absence into a checked fact rather than a coding habit.
+   `complete-session-configuration` is the subject — the personal file is
+   validated in full before every tree mutation and again before every launch —
+   and the model reads one bit of it, which is all any `SY-` obligation does. */
 pred doValidateConfig[p: Proc] {
   p in Alive.live and some p.leaseOn
   Sys.act' = ValidateConfigA and Sys.actor' = p and no Sys.gu'
-  Sys.res' = Applied
-  procsSame and worldSame and rootSame and verdictSame and aliveSame
+  World.cfg = ValidCfg implies Sys.res' = Applied
+                        else   Sys.res' = RefConfigInvalid
+  procsSame and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
 /* THE LATER GATE.  It stands for EVERY subsequent revalidation of the layout —
@@ -441,10 +650,12 @@ pred doValidateConfig[p: Proc] {
    a checked fact rather than a coding habit. */
 pred doLayoutPreflight[p: Proc] {
   p in Alive.live and no p.waits
+  validated and fresh[p]
   Sys.act' = LayoutPreflightA and Sys.actor' = p and no Sys.gu'
   World.layout = UnsupportedL implies Sys.res' = RefLayoutUnsupported
                               else    Sys.res' = Applied
-  procsSame and worldSame and rootSame and verdictSame and aliveSame
+  actorSameBut[p] and some p.spent'
+  procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
 /* The world's.  The layout is mutable while the lease is held — which is the
@@ -453,8 +664,8 @@ pred doTopologyChange {
   Sys.act' = TopologyChangeA and no Sys.actor' and no Sys.gu'
   Sys.res' = Environmental
   World.layout' != World.layout
-  World.wt' = World.wt
-  procsSame and rootSame and verdictSame and aliveSame
+  World.wt' = World.wt and World.cfg' = World.cfg
+  procsSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
 /* The world's.  Death is not a step the process takes: the kernel releases the
@@ -465,7 +676,10 @@ pred doCrash[p: Proc] {
   Sys.res' = Environmental
   Alive.live' = Alive.live - p
   no p.holds' and no p.waits' and no p.leaseOn' and p.seen' = p.seen
-  procsSameBut[p] and worldSame and rootSame and verdictSame
+  /* Death releases what the KERNEL holds and rewrites nothing else: `spent`,
+     `sel` and `gen` are the dead process's own record, not a resource. */
+  p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame
 }
 
 /* EN-07's MUTATION, and nothing else reaches it.  Two open descriptions of one
@@ -481,7 +695,7 @@ pred doNestedAcquire[p: Proc] {
   TreeG in p.holds                       // the back edge, and only it
   EpochG not in p.holds
   Sys.act' = NestedAcquireA and Sys.actor' = p and Sys.gu' = EpochG
-  worldSame and rootSame and verdictSame and aliveSame
+  worldSame and treeSame and verdictSame and launchSame and aliveSame
   no holder[EpochG] implies {
     Sys.res' = Applied
     p.holds' = p.holds + EpochG and p.seen' = p.seen + EpochG
@@ -491,6 +705,7 @@ pred doNestedAcquire[p: Proc] {
     p.holds' = p.holds and p.seen' = p.seen
     p.waits' = EpochG and p.leaseOn' = p.leaseOn
   }
+  p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
   procsSameBut[p]
 }
 
@@ -503,8 +718,145 @@ pred doRemoveRoot {
   Sys.act' = RemoveRootA and no Sys.actor' and no Sys.gu'
   Sys.res' = Environmental
   some World.wt' and World.wt' != World.wt
-  World.layout' = World.layout
-  procsSame and rootSame and verdictSame and aliveSame
+  World.layout' = World.layout and World.cfg' = World.cfg
+  procsSame and treeSame and verdictSame and launchSame and aliveSame
+}
+
+// --- the loop's own step, which is what this slice adds --------------------
+
+/* THE ITERATION BOUNDARY.  Three things end together, and that co-incidence is
+   the definition of an iteration rather than an economy:
+
+     `spent`  the turn's one Lifecycle transition is available again;
+     `sel`    the selection stops being authoritative, which is precisely why a
+              leaf added during the launch window is the NEXT iteration's work;
+     `seen`   RESET, and `admission-k51` named this leaf as its owner.
+
+   `seen' = p.holds` AND NOT `no p.seen'`.  `HeldImpliesTaken` is a construction
+   fact — nothing holds a guard it has not acquired — so emptying `seen` while the
+   driver still holds its lease across the boundary would make the boundary
+   unsatisfiable for exactly the process whose loop it is.  The honest reading is
+   that `seen` records the guards taken IN THIS ITERATION, and an iteration begins
+   holding whatever the last one did not release.
+
+   IT IS GUARDED ON `no p.waits`.  A blocked process has not finished its turn:
+   its only exits are `doGrant` and `doTimeout`, which is what makes `SY-10.b`'s
+   *never a silent park* checkable at all. */
+pred doIter[p: Proc] {
+  p in Alive.live and no p.waits
+  Sys.act' = IterA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Environmental
+  no p.spent' and no p.sel' and p.seen' = p.holds
+  p.holds' = p.holds and p.waits' = p.waits
+  p.leaseOn' = p.leaseOn and p.gen' = p.gen
+  procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
+}
+
+/* SELECT — an Observation, NOT a Lifecycle action, so it does not spend the
+   iteration's one transition.  `no p.sel` is *exactly once per iteration*; the
+   pre-order walk that decides WHICH live leaf is `TT-11`'s and reaches this file
+   as a non-deterministic choice among `World.live`.
+
+   `some World.live` IS A GUARD AND NOT AN OUTCOME.  Selection on a spent tree
+   reports `Empty` (`TT-15.a`) and exhaustion yields a finish leaf (`SY-07`);
+   both are the `roots` sibling's, and answering them here with a third branch
+   would put machinery in this file that no obligation of this slice reads. */
+pred doSelect[p: Proc] {
+  p in Alive.live and p.role = DriverR and some p.leaseOn and no p.waits
+  validated
+  no p.sel and some World.live
+  Sys.act' = SelectA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Reported
+  p.sel' in World.live and some p.sel'
+  p.holds' = p.holds and p.seen' = p.seen and p.waits' = p.waits
+  p.leaseOn' = p.leaseOn and p.spent' = p.spent and p.gen' = p.gen
+  procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
+}
+
+/* LAUNCH — the spawn, and the state that CLOSES `SY-08`'s window.
+
+   `no p.holds & (EpochG + TreeG)` IS THE WINDOW'S SHAPE AND NOT AN OPTIMISATION.
+   The glossary is explicit that the tree access lock is released before a
+   foreground launch, and the ADR that every exclusive guard is released before
+   spawn.  A launch that held the epoch guard would additionally make `SY-10`
+   unstatable — no ambient command could ever match a generation, and the whole
+   session path would be an empty universe.
+
+   `World.running' = p.sel` IS THE CLAIM'S SUBJECT.  The driver launches the
+   value it selected, and does not recompute from `World.live`; that one operand
+   is what a mutation replaces, and `SY_08` is what catches it. */
+pred doLaunch[p: Proc] {
+  p in Alive.live and p.role = DriverR and some p.leaseOn and no p.waits
+  validated and fresh[p]
+  some p.sel
+  no p.holds & (EpochG + TreeG)
+  some World.gen                          // a live launch generation to bind
+  no World.running                        // the loop runs one session at a time
+  Sys.act' = LaunchA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Applied
+  World.running' = p.sel and World.gen' = World.gen
+  actorSameBut[p] and some p.spent'
+  /* The child binds to the live record.  WHICH process becomes the child is
+     machinery no `SY-` obligation reads; what matters is that it carries the
+     identity the record holds now, so the next rotation makes it stale. */
+  some s: Proc - p {
+    s.role = SessionR and s in Alive.live
+    s.gen' = World.gen
+    s.holds' = s.holds and s.seen' = s.seen and s.waits' = s.waits
+    s.leaseOn' = s.leaseOn and s.spent' = s.spent and s.sel' = s.sel
+    all q: Proc - p - s | procSame[q]
+  }
+  worldSame and treeSame and verdictSame and aliveSame
+}
+
+/* REAP.  The child is gone; the record is NOT written inactive here, because
+   this file models only the rotation write — see `World.gen`. */
+pred doReap[p: Proc] {
+  p in Alive.live and p.role = DriverR and some p.leaseOn and no p.waits
+  validated and fresh[p]
+  some World.running
+  Sys.act' = ReapA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Applied
+  no World.running' and World.gen' = World.gen
+  actorSameBut[p] and some p.spent'
+  procsSameBut[p] and worldSame and treeSame and verdictSame and aliveSame
+}
+
+/* THE TIMEOUT — `SY-10.b`'s visible stop.
+
+   IT IS NON-DETERMINISTICALLY ENABLED AND CARRIES NO CLOCK, which is the
+   catalogue's own instruction: §*Deliberate omissions* models clocks, timeouts
+   and retry counts as non-determinism, on the grounds that a bounded handoff
+   wait is a liveness property of the implementation and not of the protocol.
+   SO THIS FILE NEVER SAYS THE TIMEOUT *WILL* FIRE.  What it says is that when a
+   wait ends, it ends visibly — `Stopped` is a result the caller sees — and that
+   the stop performs no tree access and no epoch rewrite, which is the ADR's own
+   sentence.  A reader who takes `SY_10b` for a liveness property has read
+   fairness into a file that assumes none.
+
+   ONLY A GENERATION WAIT TIMES OUT.  The tree access lock BLOCKS — §*Outcomes*
+   says so, and no invocation returns while it is held — so a `TreeG` wait has no
+   stop, and `SY-10.b`'s subject is *a contended generation* and nothing else. */
+pred doTimeout[p: Proc] {
+  p in Alive.live and p.waits = EpochG
+  Sys.act' = TimeoutA and Sys.actor' = p and Sys.gu' = EpochG
+  Sys.res' = Stopped
+  no p.waits'
+  p.holds' = p.holds and p.seen' = p.seen and p.leaseOn' = p.leaseOn
+  p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
+}
+
+/* The world's, and the configuration's exact analogue of `doTopologyChange`.
+   A configuration proved once can change under the loop, which is what makes
+   *validation precedes EVERY transition* a claim with content rather than a
+   statement about a single startup check. */
+pred doEditConfig {
+  Sys.act' = ConfigEditA and no Sys.actor' and no Sys.gu'
+  Sys.res' = Environmental
+  World.cfg' != World.cfg
+  World.wt' = World.wt and World.layout' = World.layout
+  procsSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
 pred step {
@@ -514,8 +866,11 @@ pred step {
                      or doTakeTree[p] or doDropTree[p] or doGrant[p]
                      or doTreeOp[p] or doValidateConfig[p]
                      or doLayoutPreflight[p] or doCrash[p]
-                     or doNestedAcquire[p])
+                     or doNestedAcquire[p]
+                     or doIter[p] or doSelect[p] or doLaunch[p]
+                     or doReap[p] or doTimeout[p])
   or doTopologyChange
+  or doEditConfig
   or doRemoveRoot
 }
 
@@ -602,6 +957,24 @@ fact LeasesStartBoundToTheLiveRoot {
   all p: Proc | some p.leaseOn implies p.leaseOn = World.wt
 }
 
+/* Likewise state 0 only, and likewise WHAT THE STEP ALREADY REQUIRED: `doSelect`
+   returns a member of `World.live`, so a free initial state handing a driver a
+   selection of something that was never in the tree is a state no step produces.
+   NOT `always` — deliberately.  As an invariant it would be doing `SY-08`'s work
+   for it, and `entries are never removed` (`EN-10`) is the task-tree model's
+   claim rather than a fact this file may help itself to. */
+fact SelectionsStartInsideTheTree {
+  all p: Proc | some p.sel implies p.sel in World.live
+}
+
+/* A DRIVER MATCHES NO GENERATION; it owns the record.  `stale` is stated over
+   `SessionR` alone for that reason, and this clause keeps the free initial state
+   from handing a driver a generation binding no step could have given it — the
+   only writer of `Proc.gen` is `doLaunch`, and it writes a session's. */
+fact OnlyASessionCarriesAGeneration {
+  always all p: Proc | p.role = DriverR implies no p.gen
+}
+
 fact Trace {
   Sys.act = IdleA and Sys.res = Environmental and no Sys.actor and no Sys.gu
   always step
@@ -646,7 +1019,7 @@ run witness_SY_01a_a_second_driver_refused_while_the_first_holds {
   Assumed
   eventually (Sys.act = AcquireLeaseA and Sys.res = RefLeaseHeld
               and some q: Alive.live - Sys.actor | some q.leaseOn)
-} for 3 but 2 WtId, 3 steps
+} for 3 but 2 WtId, 4 steps
 
 /* SY-01.b.  Ownership is released by process death AS ORDINARILY AS BY RETURN,
    so the check states the two together: whatever ceases to hold the lease, the
@@ -722,7 +1095,7 @@ run witness_SY_02_a_refusal_leaving_an_empty_working_tree_untouched {
   always no World.verdict
   always Sys.act not in (TreeOpA + ValidateConfigA)
   eventually (Sys.act = AcquireLeaseA and Sys.res = RefLayoutUnsupported)
-} for 3 but 2 WtId, 3 steps
+} for 3 but 2 WtId, 4 steps
 
 // --- SY-03: a preflight is never a licence ----------------------------------
 
@@ -753,7 +1126,7 @@ run witness_SY_03_a_layout_that_changes_between_the_two_gates {
   eventually (Sys.act = TopologyChangeA and World.layout = UnsupportedL)
   eventually (Sys.act = LayoutPreflightA and Sys.res = RefLayoutUnsupported
               and some World.verdict)
-} for 3 but 2 WtId, 5 steps
+} for 3 but 2 WtId, 6 steps
 
 // --- SY-11: the guard order admits no cycle ---------------------------------
 
@@ -793,7 +1166,7 @@ run witness_SY_11a_the_full_order_reached {
     eventually (Sys.act = TakeTreeA and Sys.actor = p and Sys.res = Applied)
     eventually p.seen = LeaseG + EpochG + TreeG
   }
-} for 3 but 2 WtId, 6 steps
+} for 3 but 2 WtId, 7 steps
 
 /* SY-11.b.  Two conjuncts, and the catalogue states them as one obligation
    because the first is the shape the second forbids: no path waits for a
@@ -827,6 +1200,266 @@ run witness_SY_11b_a_real_wait_that_is_not_a_cycle {
   eventually (some waitsOn and Sys.res = Deferred)
   always no p: Proc | p in p.^waitsOn
 } for 3 but 2 WtId, 4 steps
+
+
+// ===========================================================================
+// CLAIMS — SY-04, SY-08, SY-10   (the `iteration` slice)
+//
+// THE LOOP'S OWN STEP.  Everything above is admission — who may hold the loop,
+// on what layout, in what guard order.  Everything here is the turn the loop
+// takes once it holds it: the boundary, the validation ahead of every
+// transition, the selection taken once, the launch window, and the generation
+// staleness with its visible stop.
+//
+// TWO OF THE THREE CLAIMS ARE STATED OVER THE TRANSITION SET RATHER THAN OVER A
+// LIST OF NAMES, for the reason `SY-11.a` already gave: a list goes stale the
+// moment a slice adds a site.  `SY-04.a` quantifies over `LifecycleAct` and
+// `SY-04.b` over the same set minus its one exemption, so the two obligations
+// `sessions` will add reach both without either command being edited.
+// ===========================================================================
+
+// --- SY-04: one lifecycle transition an iteration, under a live config ------
+
+/* SY-04.a.  TWO CONJUNCTS AND THEY ARE COMPLEMENTARY, which is what makes *at
+   most one* a claim rather than a guard restated:
+
+     the PROHIBITION — a Lifecycle transition happens only in an iteration that
+     has not spent one.  Drop the guard from any site and this half fires.
+     the CONSUMPTION — and it spends it.  A site that took its transition
+     without marking the iteration would leave the prohibition true and the
+     claim false, and only this half sees it.
+
+   `Sys.actor'.spent` reads the actor's PRE-state through its post-state
+   identity, which is the file's inherited idiom (`Sys.actor'.waits' =
+   Sys.actor'.waits` in `SY_01a`). */
+check SY_04a_at_most_one_lifecycle_transition_per_iteration {
+  Assumed implies always {
+    (Sys.act' in LifecycleAct)
+      implies (no Sys.actor'.spent and some Sys.actor'.spent')
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witness is *each transition, taken alone* — a witness PER
+   LIFECYCLE TRANSITION and not one witness, so the seven below are one
+   instrument applied seven times.  ONE HELPER RATHER THAN SEVEN COPIES, because
+   the thing being witnessed is identical in each and a reader should be able to
+   see that at a glance: an iteration boundary, one Lifecycle transition, the
+   next boundary, all three the same process's. */
+pred aloneInAnIteration[a: Action] {
+  some p: Proc |
+    eventually (Sys.act = IterA and Sys.actor = p and after (
+      (Sys.act not in LifecycleAct) until (
+        Sys.act = a and Sys.actor = p and after (
+          (Sys.act not in LifecycleAct) until (Sys.act = IterA and Sys.actor = p)))))
+}
+
+run witness_SY_04a_acquire_lease_alone     { Assumed and aloneInAnIteration[AcquireLeaseA]    } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_layout_preflight_alone  { Assumed and aloneInAnIteration[LayoutPreflightA] } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_open_epoch_alone        { Assumed and aloneInAnIteration[OpenEpochA]       } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_launch_alone            { Assumed and aloneInAnIteration[LaunchA]          } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_reap_alone              { Assumed and aloneInAnIteration[ReapA]            } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_close_epoch_alone       { Assumed and aloneInAnIteration[CloseEpochA]      } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_release_lease_alone     { Assumed and aloneInAnIteration[ReleaseLeaseA]    } for 3 but 2 WtId, 6 steps
+
+/* SY-04.b.  Three conjuncts, and together they are *full configuration
+   validation precedes every transition, so an invalid configuration leaves the
+   working tree byte-identical*:
+
+     1  A BICONDITIONAL, exactly as `SY-03`'s is, and for the same reason.
+        Validation that consulted a recorded verdict would pass on a
+        configuration that had since gone invalid, which left-to-right catches;
+        one that refused a valid configuration because no verdict existed is a
+        different bug, which right-to-left catches.
+     2  every Lifecycle transition BUT THE LEASE GATE runs under a valid
+        configuration.  The exemption is not a weakening, it is `SY-02`'s own
+        word: an unsupported workspace is refused at lease acquisition *before
+        configuration validation*, so the gate that runs before validation
+        cannot be gated on it.  The two obligations would otherwise contradict.
+     3  and therefore an invalid configuration LEAVES THE TREE ALONE.
+
+   *BYTE-IDENTICAL*, READ AT THIS SCOPE'S GRAIN, AND THE READING IS PART OF THE
+   CLAIM.  This file's task root is present or absent and its leaves are opaque
+   handles — there is no byte here to compare.  What conjunct 3 says is the
+   strongest thing the composition boundary admits: under an invalid
+   configuration the tree's presence does not change and no entry appears.  A
+   model that could see a byte would say more; this one says what it can and
+   `README.md` records that it is a reading rather than the claim entire. */
+check SY_04b_full_validation_precedes_every_transition {
+  Assumed implies always {
+    (Sys.act' = ValidateConfigA)
+      implies ((Sys.res' in Refused) iff (World.cfg' = InvalidCfg))
+    (Sys.act' in LifecycleAct - AcquireLeaseA)
+      implies World.cfg' = ValidCfg
+    (World.cfg = InvalidCfg)
+      implies (World.rooted' = World.rooted and World.live' = World.live)
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue words this witness *reached*, which a runner can land with
+   almost nothing.  What it lands instead is the situation the claim exists for:
+   A CONFIGURATION THAT GOES INVALID UNDER A RUNNING LOOP.  The refusal must come
+   from a validation that ran AFTER the edit — a model in which the configuration
+   is fixed for the trace witnesses a startup check and calls it *every*. */
+run witness_SY_04b_a_configuration_that_goes_invalid_leaves_the_tree_untouched {
+  Assumed
+  always no World.rooted
+  eventually (Sys.act = ConfigEditA and World.cfg = InvalidCfg
+              and after eventually (Sys.act = ValidateConfigA
+                                    and Sys.res = RefConfigInvalid))
+} for 3 but 2 WtId, 5 steps
+
+// --- SY-08: selection is authoritative once per iteration -------------------
+
+/* SY-08.  Two conjuncts, and the claim's *so that* clause is their consequence
+   rather than a third:
+
+     TAKEN ONCE — a standing selection changes only at ITS OWN process's
+     iteration boundary.  `doSelect` refuses to run with one standing, so this
+     conjunct is what forbids every OTHER site from quietly rewriting it.
+     NOT RECOMPUTED — the launch launches the value selected.  This is the one
+     operand a mutation replaces: a launch that read `World.live` afresh would
+     be indistinguishable from this one on every trace where nothing was
+     inserted, and identical to the bug on every trace where something was.
+
+   Together they are *a leaf added during the launch window becomes the next
+   iteration's work*: the window is the states between the select and the
+   launch, and nothing that happens inside it can reach `p.sel`. */
+check SY_08_selection_is_authoritative_and_is_not_recomputed {
+  Assumed implies always {
+    all p: Proc | (some p.sel and not (Sys.act' = IterA and Sys.actor' = p))
+      implies p.sel' = p.sel
+    (Sys.act' = LaunchA) implies World.running' = Sys.actor'.sel
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witness: A LEAF INSERTED DURING THE LAUNCH WINDOW.  The
+   three states are consecutive on purpose — the insertion must fall STRICTLY
+   between the select and the launch, or the trace witnesses an insertion before
+   selection (which the claim says nothing about) or after the launch (which is
+   the next iteration's ordinary case).  `b not in World.live` at the select and
+   `b in World.live` at the launch is what makes the window a state the trace
+   PASSES THROUGH rather than an atomic step. */
+run witness_SY_08_a_leaf_inserted_during_the_launch_window {
+  Assumed
+  some disj a, b: Leaf | some d: Proc {
+    d.role = DriverR
+    eventually (Sys.act = SelectA and Sys.actor = d and d.sel = a
+                and b not in World.live
+                and after (Sys.act = TreeOpA and b in World.live
+                           and after (Sys.act = LaunchA and Sys.actor = d
+                                      and World.running = a
+                                      and b in World.live)))
+  }
+} for 3 but 2 WtId, 6 steps
+
+// --- SY-10: a stale session cannot act --------------------------------------
+
+/* SY-10.a.  Three conjuncts, and the middle one is the claim's teeth.
+
+     1  the REFUSAL: an ambient operation whose generation is not the record's
+        is refused, and takes nothing — not the guard, not even a wait.  A model
+        that let it queue would satisfy *refused* and lose *before it touches the
+        tree*, since a queued session is granted later.
+     2  A SESSION ACQUIRES THE EPOCH GUARD ONLY AT A MATCHING GENERATION, over
+        every acquisition rather than at the one site — which is `SY-11.a`'s
+        shape borrowed deliberately, and it is what found the grant site.  The
+        catalogue reads as though admission happened once; a wait spans a
+        rotation, and a grant that only resumes the wait admits a session whose
+        generation died while it was blocked.
+     3  and an ambient TREE OPERATION happens only while holding a guard so
+        acquired.  This is the seam `admission-k51` declared owed: `SY-02`'s
+        fourth conjunct is a driver's only, because a session reaches the tree
+        through a generation and not through a lease.  IT LANDS HERE, as
+        `SY-10`'s, and not by widening `SY_02`.
+
+   Conjunct 2 is why 1 and 3 compose into *cannot act* rather than merely
+   *is refused once*: the guard is the only thing that admits a tree operation,
+   and the match is the only thing that admits the guard.
+
+   SEVEN STATES, AND THE NUMBER IS A CORRECTION RATHER THAN A CHOICE.  This
+   check was written at five, was green, and its conjunct-2 mutation SURVIVED —
+   because the defect needs a rotation to happen WHILE a session is blocked, and
+   that is six transitions: the wait, the holder's release, the driver's own
+   iteration boundary, the driver's rotation, the driver's death (a crash, which
+   is not a Lifecycle transition and so needs no second boundary), and the grant.
+   At six it still survived.  The sibling scopes' second vacuity predictor says
+   exactly this — THE BOUND MUST HOLD THE MACHINERY OF THE TRANSITIONS THE
+   OBLIGATION QUANTIFIES OVER, not only the objects it names — and *every
+   acquisition by a session* quantifies over the grant site, whose antecedent no
+   five-state trace can build. */
+check SY_10a_a_stale_session_is_refused_before_it_touches_the_tree {
+  Assumed implies always {
+    (Sys.act' = OpenEpochA and Sys.actor'.role = SessionR
+      and (no Sys.actor'.gen' or Sys.actor'.gen' != World.gen'))
+      implies (Sys.res' = RefEpochStale
+               and Sys.actor'.holds' = Sys.actor'.holds
+               and no Sys.actor'.waits'
+               and World.rooted' = World.rooted
+               and World.live' = World.live)
+    all p: Proc | (p.role = SessionR and EpochG in (p.seen' - p.seen))
+      implies (some p.gen' and p.gen' = World.gen')
+    (Sys.act' = TreeOpA and Sys.actor'.role = SessionR)
+      implies EpochG in Sys.actor'.holds'
+  }
+} for 3 but 2 WtId, 7 steps
+
+/* The catalogue's own witness: A STALE SESSION REFUSED.  `always no World.rooted`
+   is what *before it touches the tree* means at this grain — no task root exists
+   in any state of the trace, so the refusal cannot be one that arrived after a
+   read.  Run through the rotation rather than from a free initial mismatch: the
+   session is launched under the live record, the driver rotates, and the SAME
+   session is then refused, which is the situation the glossary describes and a
+   free state-0 mismatch would only resemble. */
+run witness_SY_10a_a_stale_session_refused {
+  Assumed
+  always no World.rooted
+  some s: Proc {
+    s.role = SessionR
+    eventually (Sys.act = LaunchA and s.gen = World.gen
+                and after eventually (Sys.act = OpenEpochA and Sys.actor = s
+                                      and Sys.res = RefEpochStale))
+  }
+} for 3 but 2 WtId, 7 steps
+
+/* SY-10.b.  Two conjuncts.
+
+   THIS IS NOT A LIVENESS PROPERTY AND MUST NOT BE READ AS ONE.  §*Deliberate
+   omissions* models clocks, timeouts and retry counts as NON-DETERMINISM, on the
+   stated grounds that a bounded handoff wait is a liveness property of the
+   implementation rather than of the protocol.  Nothing below says the timeout
+   will fire; these models assume no fairness and have no grounds to.
+
+     THE STOP IS VISIBLE AND INERT.  `Stopped` is a result the caller sees, and
+     the ADR's own sentence is the rest: *a timeout performs no tree access or
+     epoch rewrite*.
+     AND NO WAIT ENDS SILENTLY.  A generation wait ends only in the WAITER'S OWN
+     step, and that step reports something — never in another process's step and
+     never as an environmental non-event.  That is what *never a silent park*
+     can mean without a clock: the caller is never left having waited and been
+     told nothing. */
+check SY_10b_a_contended_generation_stops_visibly_and_never_parks_silently {
+  Assumed implies always {
+    (Sys.act' = TimeoutA)
+      implies (Sys.res' = Stopped
+               and no Sys.actor'.waits'
+               and World.gen' = World.gen
+               and World.rooted' = World.rooted
+               and World.live' = World.live)
+    all p: Proc | (p.waits = EpochG and no p.waits' and p in Alive.live')
+      implies (Sys.actor' = p and Sys.res' != Environmental)
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witness: A TIMEOUT REPORTED.  Both halves in one trace —
+   a wait a step PRODUCED, and the stop that ends it.  A timeout with no
+   preceding `Deferred` would witness a stop nobody was waiting for. */
+run witness_SY_10b_a_contended_generation_times_out_into_a_visible_stop {
+  Assumed
+  some p: Proc |
+    eventually (Sys.res = Deferred and Sys.actor = p and p.waits = EpochG
+                and after eventually (Sys.act = TimeoutA and Sys.actor = p
+                                      and Sys.res = Stopped))
+} for 3 but 2 WtId, 5 steps
 
 
 // ===========================================================================

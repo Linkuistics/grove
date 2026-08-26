@@ -6022,6 +6022,224 @@ order clauses are unexercised within these bounds, and `SY-11.b`'s back edge is
 unreachable *by construction* with `EN-07` granted — which is what makes the
 `EN-07` control, rather than the check, the evidence that the check can see one.
 
+### 041 — Three survivors with three different causes, and two stops the closed set cannot name (lifecycle iteration)
+
+**Scope.** System lifecycle, **system-level** (`models/system/`). `SY-04.a`,
+`SY-04.b`, `SY-08`, `SY-10.a` and `SY-10.b`: at most one lifecycle transition an
+iteration under a live configuration, selection taken once and not recomputed,
+and a stale session that cannot act. Five obligations, sixteen new commands
+(thirty in the file), six new reachable transitions, seven new `var` fields and
+two new signatures. **The lifecycle scope's empty alloy cells fall from nineteen
+to fourteen.**
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened. The sibling scopes' Quint columns were not read.
+
+**Formalism.** Alloy 6.2. Not a choice — the node brief fixes both families, and
+this is the Alloy column.
+
+**Situation.** The admission slice was the loop's guard stack; this is the turn
+the loop takes once it holds it. The slice was cut around the machinery its
+claims need — an iteration boundary, a configuration that can go invalid under a
+running loop, a launch window that is a state rather than an atomic step, and a
+launch generation with an identity, which `admission-k51` deliberately did not
+have. Two of its inherited obligations were carried into it as open questions:
+`Proc.seen` had never been reset, and two of `SY-11.a`'s five acquisition-site
+clauses had survived every mutation.
+
+**THE MATERIAL RESULT IS THAT THE CLOSED OUTCOME SET CANNOT NAME TWO STOPS THE
+CATALOGUE'S OWN CLAIMS REQUIRE TO BE VISIBLE.**
+
+> **`SY-10.b` says a contended generation *times out into a visible stop*, and
+> §*Outcomes* has no name for that stop.** It is not a `Refused`: the closed
+> refusal-reason list carries `EpochStale`, which is `SY-10.a`'s **mismatch**,
+> and nothing for a handoff timeout. It is not a `Blocked`: §*Outcomes* scopes
+> blocks to *a transaction stopped part-way*, and `FN-25`'s two diagnoses are
+> both about finish ownership, with the partition explicitly *over `Blocked`
+> outcomes and nothing else*. The situation is shipped and documented —
+> `one-live-driver-per-working-tree` says the driver "stops `blocked`" when
+> post-reap invalidation times out against an orphaned shared guard.
+>
+> **`SY-04.b` is the same finding's second instance.** *Full configuration
+> validation SHALL precede every transition* requires validation to be able to
+> fail, and no refusal reason names a configuration failure either.
+>
+> The model declares `Stopped` and `RefConfigInvalid` as its own, exactly as it
+> declares `Deferred`. **Adding the two reasons is not this leaf's call**: a new
+> member of a closed set imposes a matching outcome on the Quint column and
+> changes what `formal-synthesis-k16` reads off the coverage matrix, which is
+> the same reason entry 039's `SY-05` constraint and entry 040's missing `EN`
+> row were recorded rather than acted on.
+
+**M1** `alloy-only`. **M2** `refusal` — and this is the third `refusal`-class
+finding in this experiment reached by writing a total action and discovering the
+outcome set has no member for one of its branches. **M3** — 0 for both: neither
+arrives as a counterexample, both arrive as *there is nothing to write here*,
+which is the second time in this experiment that a zero-score signal was the
+informative one. **M4** `none` — there is no defect to write a failing test
+against; the correction is two rows in a closed set.
+
+**THE METHODOLOGICAL RESULT IS THAT A SURVIVING MUTATION IS THREE DIFFERENT
+THINGS, AND ONLY A DIFFERENTIAL PROBE TELLS THEM APART.** Eleven mutations were
+run for five obligations. Three survived, and each survived for a different
+reason:
+
+1. **An unsatisfiable mutation, and its shape is new.** **M11** added
+   `World.gen' != World.gen` to `doTimeout` — beside that transition's own
+   `launchSame` frame, which says `World.gen' = World.gen`. The transition
+   became unreachable and reported exactly as a survivor. The general rule is
+   cheap to apply before the fact and was not in the finish scope's register:
+   **a mutation that ADDS a conjunct must be checked against the transition's
+   FRAME predicates, because a frame is the one place a model states the
+   opposite of a mutation without naming the field.** Rewritten to replace the
+   frame rather than contradict it, it fires immediately. This is a **seventh**
+   entry for `crates/grove-finish/models/README.md`'s *six ways for a mutation
+   to fail its aim*.
+2. **A bound too small to reach the mutation's antecedent — the *scope trap*,
+   confirmed rather than predicted.** `SY_10a` was written at five states, was
+   green, and **M10b survived at five and again at six**. The defect — a grant
+   admitting a session whose generation rotated while it was blocked — needs six
+   transitions to build: the wait, the holder's release, the driver's iteration
+   boundary, the driver's rotation, the driver's death, and the grant. At seven
+   it fires. The check's bound is now seven. **M8**, stood two rounds.
+3. **A live mutation the check's own shape cannot see.** **M5b** — the take-tree
+   site dropping its order clause — survived, and a differential probe shows the
+   mutation is *not* inert: *a `TakeTreeA` whose predecessor state already had
+   `TreeG in p.seen`* is **unsatisfiable in the original and satisfiable in the
+   mutant**. `admission-k51` predicted this clause would become load-bearing the
+   moment a slice reset `seen`, and it did. But `SY_11a` is stated over
+   `p.seen' - p.seen`, the guards **newly** seen, and a re-acquisition adds
+   nothing to `seen` — so the check's antecedent is empty on exactly the traces
+   the mutation newly admits.
+
+> **THE SHAPE CHOSEN TO BE ROBUST AGAINST A NEW SITE IS BLIND TO A REPEAT AT AN
+> OLD ONE.** `admission-k51` wrote `SY_11a` over every guard newly seen rather
+> than over a list of transition names, deliberately, so that a sixth
+> acquisition site could not silently escape it. That decision was right and it
+> has a cost nobody had priced: the quantifier ranges over *first* acquisitions
+> only. No `SY-` obligation states anything about re-acquisition, so inventing
+> one is not this file's to do; `formal-synthesis-k16` inherits it.
+
+**And the fourth possibility did not occur, which is worth recording too.** M5 —
+the grant site's clause — survived again, and the probe is unsatisfiable in the
+mutant as well as in the original, so it is genuinely still belt on fastened
+braces. The reason is now structural rather than incidental: **`doIter` is
+guarded on `no p.waits`, so a blocked process cannot cross an iteration
+boundary** — the one thing that could have changed `seen` under a wait is
+exactly what the boundary's own guard excludes.
+
+**M1** `alloy-only` for all four. **M2** `structure` for 1 and 3, `ordering` for
+2. **M3** — 0, 2 and 0: the first and third produced no trace at all and had to
+be read against a probe, where the second's trace named the transition once the
+bound admitted it. **M4** `none` — all four are model-level; their durable
+residue is the family README's three incidents, its mutation matrix, and this
+entry.
+
+**A composition seam CLOSED, and it was closed where the catalogue put it rather
+than where it was found.** `admission-k51` recorded `SY-02`'s fourth conjunct —
+*a tree operation happens only under a lease* — as stated **for a driver only**,
+with the session half owed to `SY-10`. It is now `SY_10a`'s third conjunct (an
+ambient tree operation happens only while the session holds an epoch guard)
+composed with its second (a session acquires one only at a matching generation).
+**Widening `SY_02` instead would have been false**: a driver may release its
+lease while a generation it opened is still live, so *some driver holds a lease*
+is not an invariant of the protocol. This is the first seam in this experiment
+that was declared owed by one slice and discharged by the next, and the useful
+part is that the discharge is in a *different* command from the declaration.
+
+**A design observation, recorded and not acted on.** `SY-04.b` gates every
+Lifecycle transition but `acquire-lease` on a valid configuration — the
+exemption is `SY-02`'s own word, *refused at lease acquisition before
+configuration validation* — and `release-lease` is therefore **unreachable under
+an invalid configuration**. A driver whose configuration goes invalid mid-loop
+cannot release its lease by returning. That is not a sink: `SY-01.b` makes
+process death an ordinary release, and it is the exit the shipped driver takes.
+`SY-13` (*no stable state is a sink*) is the `sessions` sibling's and this is
+the first concrete state it will have to classify.
+
+**Caught / missed.** Caught: two refusals the closed set cannot name; three
+survivor causes with three different diagnoses; a check green at a bound too
+small to reach its own mutation; a quantifier blind to re-acquisition; a
+composition seam discharged; and four of six inherited witnesses landing one
+state later than the admission slice measured them. Missed by construction, and
+recorded: the epoch record's two *inactive* write points, collapsed into
+rotation; *byte-identical* read at the grain of a task root that is present or
+absent; and the launch's choice of child process, which no obligation reads.
+
+**Cost.** Thirty commands, **37 s wall** for the whole file under
+`models/run.sh` (355% CPU, 126 s user), or **37 s serially**. Authoring ≈
+**3.0 h** for five obligations (**M5**: **0.60 h/obligation**), of which roughly
+**0.7 h** was the three survivors. **M7 wrangling**: about 25 m, of which the
+larger part was the M11 frame contradiction and the M10b bound sweep — both of
+which present as an ordinary passing mutation and neither of which announces
+itself.
+
+> **THE SECOND H8 POINT, AND IT IS DEARER THAN THE FIRST.** `admission-k51`
+> recorded 0.42 h/obligation; this slice records 0.60. The system-level mean
+> over the two files is **0.50 h/obligation**, against the component-local
+> points already logged (0.18, 0.50, 0.58 at entries 028, 029 and 030). **On two
+> files, system-level placement still costs no more per obligation than
+> component-local placement** — and the rise within the scope has a nameable
+> cause that is not placement: this slice paid for three survivors and a bound
+> correction, where the first paid for three false-confidence incidents. Offered
+> as a second point, not as a trend.
+
+> **THE COST LAW IS STILL UNMEASURABLE AT THIS SIZE, AND THE SECOND MEASUREMENT
+> CONFIRMS THE FIRST.** The JVM-plus-parse floor is 0.58 s, so a thirty-command
+> file spends about 20 s of 37 s actually solving. The slice added **six
+> reachable transitions** — which the task-tree scope priced at +41% CPU for
+> four — and **every command still sits between 0.96 s and 1.43 s**, within
+> 2.5× the floor. The one exception, `SY_10a` at 2.37 s, also had its bound
+> raised from 5 to 7 in the same edit, so the two are not separable and no
+> percentage is carried out of this file. **A model composed at observations
+> does not pay the transition-count law**, because its transitions carry almost
+> no state.
+
+**Counterfactual.** None of the three survivors is available by reading. The
+frame contradiction is two lines forty apart in one predicate, both correct in
+isolation, and the reviewer's eye reads a frame as background. The bound is a
+number a reviewer approves without a model to run it against. The third is the
+worst: **the check, the mutation and the clause are each individually right**,
+and what is wrong is a relationship between a quantifier's range and a
+transition's effect that no reading of any one of them exposes. The differential
+probe that settled it is four lines and took two minutes, and it is the only
+instrument in this session that answered a question the check set could not.
+
+**Verdict.** The slice is green — **30 commands, 11 obligations, 11 of 25 alloy
+cells filled, 14 correctly reported empty**, one mutation per reported
+obligation with nine firing and two investigated to a stated cause, and both
+inherited assumption controls still firing. Two catalogue findings in one shape
+(no closed-set name for either of two required visible stops), one methodological
+result (three survivor causes, and the probe that separates them), one seventh
+mutation failure mode, one `M8` scope-trap incident, one composition seam closed,
+and one design observation handed to `SY-13`.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6.2.0
+`.202501090817` (git `794226d`), `org.alloytools.alloy.dist.jar`, Corretto
+`21.0.12.1+9-LTS`. **Solver**: SAT4J (distribution default), every command with
+`-n` and `-t text`. **Bounds**: `for 3 but 2 WtId, N steps`, `N` from 4 to 7 and
+**N is STATES**; the seventeen witnesses first land at 3, 4, 3, 5, 3, 3, 3, 5, 4,
+4, 4, 3, 5, 6, 4, 6 and 2, measured by sweep from 1 to 8 — **the whole sweep
+re-run, because a slice that touches a field a guard reads owes the full sweep
+rather than a monotonicity argument, and four of the six inherited witnesses did
+move.** `3 Proc` is load-bearing; `Leaf` and `Gen` take the default 3 where 2
+would serve, for margin. No `Int`. **Fairness**: none assumed, and `SY-10.b` is
+deliberately **not** a liveness property — §*Deliberate omissions* models clocks
+and timeouts as non-determinism, so `doTimeout` carries no clock and the check
+says only that a wait ends in the waiter's own step and reports something.
+**Symmetry**: no `exactly` scope. **Abstractions**: `Proc.waits`/`Deferred`
+(inherited, and reused by `SY-10.b` rather than duplicated); `Stopped` and
+`RefConfigInvalid` (this slice's, and a finding); `IterA` as an iteration
+boundary that is not a catalogue action; the task root as present or absent; an
+opaque `Leaf` handle in an unordered `live` set, the walk being `TT-11`'s; the
+epoch record's rotation write only. **Deliberately omitted**: the record's two
+inactive write points; the launch's choice of child; observation outcomes
+(`Empty`, `Ambiguous`) as distinguishable. **What a green run does not prove**:
+`SY-11.a` is blind to re-acquisition at an existing site, `SY_10a`'s conjunct 2
+needed a bound two states above the one first believed, and `SY-01.b` still has
+no protocol-level mutation.
+
+
 
 ---
 

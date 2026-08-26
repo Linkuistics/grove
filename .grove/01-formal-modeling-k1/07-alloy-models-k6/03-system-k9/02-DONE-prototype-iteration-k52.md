@@ -89,3 +89,78 @@ slice adds to it.** `SY_11a_every_acquisition_site_applies_the_guard_order` is
 written over *every guard newly seen*, deliberately, so that a sixth acquisition
 site does not silently escape it. Check that it still holds after `launch` and
 `reap` land, and treat a new acquisition site as a reason to re-run M6a.
+
+
+## Decisions (running log)
+
+**The iteration boundary is an action of this file's own (`IterA`), and it
+clears three things together.** §*Actions* has no boundary in it, correctly — a
+boundary is not something the loop *does* — but `SY-04.a` counts transitions
+*per iteration* and a count needs an edge to be taken between. `doIter` clears
+`spent` (the turn's one Lifecycle transition), `sel` (which is precisely why a
+leaf added during the launch window is the next iteration's work) and resets
+`seen`. Declared as an abstraction in `models/system/README.md` beside
+`Proc.waits`.
+
+**`seen` resets to `p.holds`, not to nothing.** `HeldImpliesTaken` is a
+construction fact, so emptying `seen` while the driver still holds its lease
+across the boundary would make the boundary unsatisfiable for exactly the
+process whose loop it is. The reading is that `seen` records the guards taken
+*in this iteration*, and an iteration begins holding whatever the last one did
+not release.
+
+**`acquire-lease` is exempt from configuration validation, and the exemption is
+`SY-02`'s word rather than a convenience.** *An unsupported workspace is refused
+at lease acquisition, before configuration validation* — so the one gate that
+runs before validation cannot be gated on it. `SY_04b`'s second conjunct states
+the exemption explicitly (`LifecycleAct - AcquireLeaseA`) rather than leaving it
+implicit in the transition, because a reader who did not know would read the
+gap as an oversight.
+
+**The epoch record models only its rotation write.** The ADR has three write
+points; this file has one — `open-epoch` writes the record active with a fresh
+identity. The two *inactive* writes are collapsed away on the glossary's own
+grounds that rotation is the stronger mechanism. `no World.gen` stays reachable
+as a free initial state, so an inactive record is unwritten rather than
+unrepresentable.
+
+**`SY-02`'s declared session seam is closed by `SY-10.a`, and NOT by widening
+`SY_02`.** Widening would have been false: a driver may release its lease while
+a generation it opened is still live, so *some driver holds a lease* is not an
+invariant. The session half is `SY_10a`'s third conjunct (an ambient tree
+operation happens only while holding an epoch guard) composed with its second (a
+session acquires one only at a matching generation).
+
+**The grant site is a SECOND admission site for the generation match**, which
+the catalogue does not say and this file found by checking it. A stale session
+never waits, so a *waiting* session was fresh when it asked — but the record can
+rotate while it is blocked, and a grant that only resumes the wait admits a
+session whose generation is no longer live. The ADR settles it: *shared-guard
+acquisition is the admission boundary*, and a grant is an acquisition.
+
+**`SY-10.b` is stated without a clock, and `Proc.waits`/`Deferred` is reused
+rather than duplicated.** §*Deliberate omissions* models clocks, timeouts and
+retry counts as non-determinism, so `doTimeout` is non-deterministically enabled
+and nothing here says the timeout *will* fire. *Never a silent park* is stated
+as: a generation wait ends only in the waiter's own step, and that step reports
+something.
+
+**Two visible stops the catalogue's closed outcome set cannot name — `Stopped`
+(`SY-10.b`) and `RefConfigInvalid` (`SY-04.b`) — are declared as this file's
+abstractions and named for `formal-synthesis-k16`,** not added to the catalogue.
+A new member of a closed set imposes a matching outcome on the Quint column,
+which is the same reason entry 039's `SY-05` constraint and entry 040's missing
+`EN` row were recorded rather than acted on. Written up as entry 041.
+
+**`SY_10a` runs at seven states, and the number is a correction.** It was
+written at five, was green, and its conjunct-2 mutation survived at five and at
+six. An `M8` false-confidence incident, recorded as the family README's third.
+
+**M5 and M5b both still survive, and for opposite reasons — both established by
+a differential probe rather than asserted.** M5b (take-tree) is now a *live*
+mutation `SY_11a` cannot see, because the check quantifies over `p.seen' -
+p.seen` and a re-acquisition adds nothing to `seen`. M5 (grant) is still inert,
+and the mechanism is now nameable: `doIter` is guarded on `no p.waits`, so a
+blocked process cannot cross an iteration boundary. Neither is fixed here —
+`SY-11.a` is covered and no `SY-` obligation states anything about
+re-acquisition; `formal-synthesis-k16` inherits it.

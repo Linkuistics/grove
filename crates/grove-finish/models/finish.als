@@ -172,8 +172,39 @@ one sig World {
      it (`doTopologyChange` leaves it free) and every Grove step frames it.  A
      `wcWork` that no transition could move would make `FN-14`'s second half a
      tautology rather than a claim. */
-  var wcWork: set Entry
+  var wcWork: set Entry,
+  /* THE OPERATOR'S OWN HOOKS — `FN-30`'s two halves, and they are the exits
+     slice's ONE new observable.  `hookInstalled` is STATIC: a hook is
+     configuration the operator supplied before any of this ran, and what
+     changes is whether it has RUN.  `hookRan` is `var` and is the only `var`
+     field this slice adds.
+
+     WHY IT IS ON `World` AND NOT ON `Repo` OR `Sys`.  Exactly one transition in
+     this file does not frame the world — `doTopologyChange`, the operator's own
+     commit — so putting the observable here makes *a hook can run, and the
+     world is what runs it* true for the cost of one conjunct and no new
+     transition.  That is `FN-26`'s third conjunct's idiom exactly: the half
+     `doCommitMoves` shows the WORLD can do and Grove cannot.  Without it,
+     `FN-30` would be a claim about a field nothing could ever set, which is the
+     false-confidence shape this file has recorded six times.
+
+     IT IS NOT `FN-27`'s SUBJECT AND `FN-27` DOES NOT NAME IT.  The catalogue's
+     reason for `FN-30` — *such a hook may mutate unrelated working-tree bytes
+     that no index image restores* — is a reason to have two claims, not one:
+     `FN-27` is about the bytes and `FN-30` is about the hook, and a claim that
+     described both from one side would be `disposal-k45`'s fourth rule about
+     aim met a third time. */
+  hookInstalled: lone Hook,
+  var hookRan:   lone Hook
 }
+
+/* A user-supplied hook, as ONE static atom.  Nothing here is a hook's content,
+   its trigger or its exit status: `FN-30` is a claim about whether one RAN, and
+   two atoms would say nothing the one says — there is no claim in this scope
+   about *which* hook, the way `2 AttemptId` exists so that recording THIS value
+   is not the same statement as recording SOME value.  So it adds no scope
+   dimension. */
+one sig Hook {}
 
 /* THE THREE LANES, PARTITIONED THE ONE WAY AN OBLIGATION IN THIS SLICE READS
    THEM.  `FN-17.a` is the catalogue's first lane-specific claim: *on a
@@ -1389,7 +1420,12 @@ pred repoSame  { repoHistorySame and Repo.wTracked' = Repo.wTracked }
 /* Releasing the witness: the artifact is gone, so the repository cannot still
    be tracking it. */
 pred repoSameReleasingWitness { repoHistorySame and no Repo.wTracked' }
-pred worldSame { World.lane' = World.lane and World.wcWork' = World.wcWork }
+/* THE WORLD'S FRAME GREW WITH THE HOOK, and every transition that framed the
+   world before frames it now without being touched — which is twenty-eight of
+   the file's twenty-nine transitions.  The twenty-ninth is `doTopologyChange`,
+   and its absence from this list is `FN-30`'s whole falsifiability. */
+pred worldSame { World.lane' = World.lane and World.wcWork' = World.wcWork
+                 and World.hookRan' = World.hookRan }
 pred opSame    { Op.confirmed' = Op.confirmed }
 pred txnSame   { Txn.phase' = Txn.phase and txnCarried and txnResultSame }
 /* The transaction's volatile state, carried across a body step unchanged: the
@@ -1527,6 +1563,14 @@ pred doTopologyChange {
      and `wcWork` are left FREE, because whether a working copy can be put back
      and what unrelated work sits beside it are exactly the world's. */
   Repo.tickets' = Repo.tickets and Repo.reproduced' = Repo.reproduced
+  /* AND IT IS WHERE A USER-SUPPLIED HOOK RUNS.  An operator's own commit runs
+     the operator's own hooks; a hook that was never installed cannot run, which
+     is a guard on the transition rather than a `fact` deliberately — the free
+     initial state may still hand-edit a hook into having run, and a fact
+     forbidding it would take reachable disks away from every other claim.
+     Leaving it free WITHOUT the containment would let the world run a hook
+     nobody supplied, which is not what `EN-11` grants. */
+  World.hookRan' in World.hookInstalled
   treeSame and opSame and txnSame
 }
 
@@ -4955,6 +4999,579 @@ run witness_FN_26_a_block_whose_diagnostic_names_all_four_with_history_unchanged
   always Sys.act != CommitMoves
   eventually (Sys.res' = BlockedOutcome and blockDiagnostic = BlockField)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+
+// ===========================================================================
+// THE EXITS SLICE'S DATA — four funs, four preds, and one posited disk
+//
+// Written apart from every transition, in the discipline the seven
+// preconditions established and `Stable`, `Effect` and `Diagnosis` continued:
+// what the claims range over is here, what the protocol does is above, and a
+// divergence between them is a counterexample rather than a definition.
+//
+// NOTHING HERE IS A `var` FIELD, A TRANSITION OR A `fact`.  The one `var` field
+// this slice adds is `World.hookRan`, at the signature, and what it costs is
+// argued in `README.md` rather than measured: a `lone` field over a `one sig`
+// that no guard reads is MONOTONE on the state space — every instance of the
+// file before it extends to an instance after it by setting the field absent in
+// every state — so no existing witness's first-landing bound can rise.
+// ===========================================================================
+
+/* GROVE'S OWN ACTIONS, as one named thing.  `txnActs` is the TRANSACTION's
+   steps and `FN-01.a` is stated over exactly that set; `FN-27` and `FN-30` are
+   stated about GROVE, which is wider: the decline is Grove reporting, the
+   discard is Grove's recovery of an unpublished witness, and the reaper is
+   Grove's sweep.  The world's four — `Swap`, `TopologyChange`, `CommitMoves`,
+   `RootNameTaken` — and `Crash`, `Confirm` and `ResultArrives` are deliberately
+   outside it: a claim about what a protocol never does is never a claim about
+   what the world never does, which is the narrowing `FN-03` and `FN-26` each
+   had to make and the reason this set is named rather than written out. */
+fun groveActs: set Action { txnActs + Decline + Discard + Reap }
+
+/* THE INTERNAL COMMITS — `FN-30`'s *during an internal commit*, and there are
+   exactly two in this file.  `CommitAttempt` issues the deletion commit;
+   `Settle`'s restore branch reproduces the exact recorded preflight commit on a
+   working-copy-as-commit lane (`preflightCommitReproduced`).  Both are
+   version-control writes Grove performs on the operator's repository, which is
+   what the catalogue means by internal. */
+fun internalCommitActs: set Action { CommitAttempt + Settle }
+
+/* THE RECOVERY ACTIONS — `FN-23`'s subject, and it is a CLASS rather than the
+   marker protocol.  `Discard` recovers an unpublished witness, `Recover` adopts
+   a published one, and `Reap` resumes an interrupted disposal.  `FN-21.a` and
+   `FN-31.c` are the same word at the incumbent's own grain and are *incumbent
+   mechanics*; `FN-23` is shared safety and is stated over the role, which is
+   what keeps a mutation to either from being a control for the other. */
+fun recoveryActs: set Action { Discard + Recover + Reap }
+
+/* `manWritten` AND `leftoverArtifact` IN THE NEXT STATE.  Both exist because
+   `FN-29` is stated about what an outcome LEAVES, and every outcome in this
+   file is written on the primed side. */
+pred manWrittenNext { some Man.mHandle' or some Man.mAttempt' or some Man.mAnchor'
+                      or some Man.mEntries' }
+pred leftoverArtifactNext { some Quar.qRid' or some Slot.occ' or manWrittenNext }
+
+/* WHAT IS UNRELATED, NAMED ONCE.  `FN-27` exempts four things — the task root,
+   the reserved witness, the quarantine and the scoped commit — which in this
+   file are `Root`, `Slot` + `Man`, `Quar` + `Cleanup` and `Repo`.  What is left
+   is the WORKSPACE: the unrelated modified working-copy work, the workspace
+   layout, and the operator's own confirmation.
+
+   THREE THINGS ARE DELIBERATELY ABSENT AND EACH IS ANOTHER OBLIGATION'S
+   SUBJECT.  `World.hookRan` is `FN-30`'s.  `Repo.rev`, `Repo.tracked` and
+   `Repo.tickets` are the scoped commit's, which `FN-14` states over the ticket
+   and `FN-28` states over the topology.  The devices are static.  This is
+   `disposal-k45`'s fourth rule applied before the fact rather than after a
+   neighbour kill: `FN-27`'s subject is the widest in the scope, so what it does
+   NOT describe is the load-bearing half of writing it down. */
+pred unrelatedUnchanged {
+  World.wcWork' = World.wcWork
+  World.lane'   = World.lane
+  Op.confirmed' = Op.confirmed
+}
+
+/* THE SINGLE SUCCESSFUL EXIT, AS THE CATALOGUE'S TWO OPERANDS AND NOT AS A
+   PHASE.  *A finish succeeds exactly when the exact attempt-bound commit is
+   proven and the task root is absent* — `resultProven` is the first and
+   `taskRootAbsent` is the second, and neither is `Txn.phase = Settled`: a finish
+   that has succeeded may still owe its cleanup, which is the whole of the
+   claim's third sentence and of its witness.
+
+   `some Txn.attempt` IS THE SIXTH VACUITY GRAIN PAID OFF, and it is not
+   decoration.  `resultProven` reads `Txn.attempt in ticketedAttempts`, and in a
+   state the transaction has LEFT — which is every state a block or a refusal
+   lands in, because `txnGone` clears the attempt — that reads `none in ...` and
+   is vacuously TRUE.  Without this conjunct every abandoned disk with an absent
+   task root would classify as a success, greenly.  `blocked-k48` found the
+   grain on `Sys.res'`; this is the same grain met on the operand side. */
+/* *THE TASK ROOT IS ABSENT*, AND IT IS `Txn.pinned not in Root.rid` RATHER THAN
+   `no Root.rid` BECAUSE A COUNTEREXAMPLE SAYS SO.  The world can occupy the
+   task-root name while the quarantine holds the root — that is
+   `doRootNameTaken`, which exists for `FN-22.h` — so a success stated as *the
+   name is empty* is FALSE of a protocol that did everything right: the finish
+   is proven, the pinned directory is gone, and a stranger has taken the name
+   one step later.  What the catalogue means by absent is that THE TASK ROOT is
+   no longer there, and the task root is the identity the transaction pinned.
+   This is `FN-19`'s third conjunct's lesson at a new grain — a claim about the
+   protocol's shape has to survive the world's own steps — and `README.md`
+   records the reading as an abstraction. */
+pred taskRootAbsent { Txn.pinned not in Root.rid }
+pred finishSucceeded { some Txn.attempt and resultProven and taskRootAbsent }
+
+/* THE SAME POSITED DISK AS `interruptedMidEvacuation`, UNCONFIRMED.  `FN-02`'s
+   witness is *a decline followed by a later successful attempt on the same
+   handle*, a decline requires `no Op.confirmed`, and nothing in this file can
+   take a confirmation back except `Crash` — which would also take the
+   transaction, and there is none yet.  So the disk is posited without one and
+   the trace confirms before it opens.  Every other conjunct is
+   `interruptedMidEvacuation`'s, unchanged; the two are written apart rather
+   than parameterised because twenty-two commands read the confirmed one and a
+   parameter would have moved all of them. */
+pred interruptedMidEvacuationUnconfirmed {
+  Txn.phase = Fresh
+  no Op.confirmed
+  some World.lane and World.rootDev = World.qDev and World.wtDev = World.qDev
+  some Txn.leaseOk
+  Slot.occ = Published
+  some Slot.owner and Slot.owner = Man.mAttempt
+  some Man.mReady and some Slot.wHolds
+  no Repo.wTracked
+  some Root.rid
+  Root.holds = finishLive and one finishLive and no ordinaryLive
+  no e: Root.holds | e.et = OpaqueT
+  Root.holds in Repo.tracked
+  Man.mHandle = finishLive
+  some Man.mAnchor and Man.mAnchor = Repo.rev
+  some Man.mFinger and Man.mFinger in Repo.tracked
+  Man.mEntries = Slot.wHolds + Root.holds
+}
+
+
+// ===========================================================================
+// `FN-02` — INTENT PERSISTS AS THE FINISH LEAF
+//
+// WHERE THE BOUNDS COME FROM.  The check's antecedent names `Decline` (state 1)
+// and every refusing or blocking member of `txnActs`, whose deepest is
+// `Revalidate`'s completed refusal; the witness is the deepest command this
+// slice adds, because it is the only one that runs a decline AND a whole
+// successful attempt.  Thirteen is the larger of the two rules and is where
+// `FN_24a`, `FN_25a` .. `FN_25c` and `FN_26` already sit.
+//
+// THE LEAF IS `FN-02`'s SUBJECT AND `FN-29` DOES NOT DESCRIBE IT.  The
+// catalogue gives both claims a sentence about the finish leaf being live and
+// selectable; `disposal-k45`'s fourth rule says the one whose subject it is not
+// should not describe it at all, and *intent persists as the finish leaf* is
+// this one.  `FN-29` gets the completeness and the distinguishability instead.
+// ===========================================================================
+
+/* THREE CONJUNCTS, AND THE SECOND IS THE ONE THE CLAIM IS ACTUALLY ABOUT.
+
+   (i) A DECLINE WRITES NOTHING ELSE.  Every frame in the file at once, which is
+   the whole of *and SHALL write nothing else* in a model with no filename
+   grammar.
+   
+   (ii) NO EXIT WITHOUT COMPLETION DESTROYS THE PINNED HANDLE.  Stated over
+   `Txn.handle` — the LIVE SESSION's pin, never an artifact — rather than over
+   `finishLive`, because after the evacuation the root holds nothing and a claim
+   read off the tree would have nothing to read.  The three places the leaf may
+   be are its own name, inside the published witness, and recorded in the
+   manifest: all three are somewhere a later launch reaches it, which is what
+   *live and selectable* is worth across an interruption.
+   
+   IT IS A PRESERVATION AND NOT A PRESENCE, AND A COUNTEREXAMPLE IS WHY.
+   Written as *the handle is findable afterwards*, this conjunct is FALSE under
+   `EN-11` cashed out as a free initial state: state 0 may sit at `Opened` with
+   a handle pinned to an entry the tree does not hold, and the preflight's own
+   refusal then reports an exit that never had a leaf to leave.  Restated as
+   *whatever of the handle was findable stays findable*, it is a claim about the
+   transition relation, which is the witness slice's first retained
+   counterexample applied rather than met again.  Retained in `README.md`.
+   
+   (iii) AND THE COMPLETED REFUSAL PUTS IT BACK AT ITS OWN NAME.  This is the
+   conjunct that would be false under a hand-edited state 0 — a manifest whose
+   recorded entries omit the handle it also records — so it carries the
+   antecedent that says the manifest is well-formed, which is the witness
+   slice's first retained counterexample applied rather than re-learned. */
+check FN_02_declining_or_exiting_without_completing_leaves_the_finish_leaf_live {
+  always {
+    Sys.act' = Decline implies
+      (treeSame and repoSame and worldSame and opSame and txnSame)
+    (Sys.act' in txnActs and Sys.res' in (Refused + BlockedOutcome))
+      implies (Txn.handle & (Root.holds + Slot.wHolds + Man.mEntries))
+                in (Root.holds' + Slot.wHolds' + Man.mEntries')
+    (Sys.res' = RefRollbackNotCommitted and Txn.handle in Man.mEntries)
+      implies Txn.handle in Root.holds'
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* THE CATALOGUE'S OWN WITNESS: *a decline followed by a later successful
+   attempt on the same handle*.  The decline is at state 1 over the same tree
+   the attempt later finishes, so *the same handle* is carried by the tree being
+   untouched rather than by an equality — which is conjunct (i) doing its work
+   in a `run` instead of a `check`.
+   
+   IT IS THE DEEPEST COMMAND THIS SLICE ADDS, and the reason is the node brief's:
+   every witness whose subject is an OUTCOME costs the run-up and nothing else,
+   and this one costs the run-up TWICE OVER — a decline and a confirmation
+   before the transaction can open at all. */
+run witness_FN_02_a_decline_followed_by_a_later_successful_attempt_on_the_same_handle {
+  interruptedMidEvacuationUnconfirmed
+  no Repo.tickets
+  no Cleanup.present
+  eventually (Sys.act = Decline and Sys.res = NoOp and Sys.why = P1Confirm)
+  eventually (Sys.act = QuarRename and Sys.res = Applied and finishSucceeded)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
+
+// ===========================================================================
+// `FN-23` — RECOVERY IS IDEMPOTENT
+//
+// STATED OVER THE ROLE AND NOT OVER THE MARKER PROTOCOL, which is what keeps it
+// apart from `FN-21.a` and `FN-31.c`.  Those two say a resumption of DISPOSAL
+// reaches the same terminal state and are *incumbent mechanics*; this one is
+// shared safety and is a claim about every recovery action a candidate protocol
+// might have: it only ever removes, and it is not enabled once there is nothing
+// left to remove.  Together those two are *reaches the same terminal state, and
+// makes no further change once it has* — for a cleanup, idempotence IS
+// monotone removal plus a guard that goes false.
+//
+// WHERE THE BOUNDS COME FROM.  The antecedent names `Reap`, whose first
+// occurrence is at four states from the posited disk and at twelve from a fresh
+// grove; the witness lands at five.  Thirteen is taken for the check, which is
+// the antecedent rule applied to the deepest member of `recoveryActs` reachable
+// by running the body rather than by positing it.
+// ===========================================================================
+
+/* THREE CONJUNCTS, AND THE FIRST IS THE ONE A CANDIDATE PROTOCOL WOULD HAVE TO
+   SUPPLY.
+   
+   (i) A RECOVERY ONLY EVER REMOVES.  No recovery action creates a quarantine,
+   creates a marker, or puts a witness back at the reserved name.  That is what
+   makes re-running one converge rather than oscillate, and it is stated as
+   three subset conditions rather than as an equality because removing is
+   exactly what these steps are for.
+   
+   (ii) AND IS NOT ENABLED AT ITS OWN TERMINAL STATE.  Written as two
+   implications over the disk rather than as a claim about a phase, because the
+   phase a sweep runs at is `Fresh` and says nothing.  Together with (i) this is
+   *makes no further change once it has*: the second firing has nothing to
+   remove, the third is not available at all.
+   
+   (iii) AND A RECOVERY NEVER WRITES RECORDED HISTORY.  A recovery is a cleanup
+   of the filesystem, and a candidate protocol that recovered by committing
+   would be reaching for `EN-05`'s far side.  `Repo.tickets` is stated as an
+   equality rather than as a subset — a recovery does not append either. */
+check FN_23_recovery_is_idempotent {
+  always {
+    (Sys.act' in recoveryActs) implies {
+      Quar.qRid' in Quar.qRid
+      Cleanup.present' in Cleanup.present
+      Slot.occ' in Slot.occ
+    }
+    (no Cleanup.present and no Quar.qRid) implies Sys.act' != Reap
+    (no Slot.occ) implies Sys.act' != Discard
+    (Sys.act' in recoveryActs) implies repoHistorySame
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* THE CATALOGUE'S WITNESS: *three consecutive recoveries, the second and third
+   changing nothing*.  It is read as the catalogue's sentence rather than as its
+   arithmetic, and the difference is worth a line.  The FIRST firing removes what
+   the marker authorises; the SECOND retires the marker; the THIRD is an
+   INVOCATION over a terminal disk, and in this model an invocation with nothing
+   to sweep is not a `Reap` at all — the guard is false, so what a third
+   invocation does is stutter.  *Changing nothing* is therefore two states of
+   the disk being equal across an idle step, which is the honest reading of the
+   catalogue's sentence in a file where the sweep is a transition rather than a
+   process. */
+run witness_FN_23_three_consecutive_recoveries_the_second_and_third_changing_nothing {
+  interruptedMidDisposal
+  eventually (Sys.act = Reap and Sys.res = Applied
+              and no Quar.qRid and some Cleanup.present)
+  eventually (Sys.act = Reap and Sys.res = Applied
+              and no Quar.qRid and no Cleanup.present)
+  eventually (Sys.act = Idle and no Quar.qRid and no Cleanup.present
+              and no Slot.occ)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
+
+
+// ===========================================================================
+// `FN-27` — NOTHING UNRELATED IS MUTATED, ON ANY OUTCOME
+//
+// THE WIDEST-SUBJECT CLAIM IN THE SCOPE, AND WHAT IT DOES NOT SAY IS WHAT MAKES
+// IT ONE CLAIM RATHER THAN A RESTATEMENT OF SIX.  The node brief predicted the
+// overlap with every frame condition in the file and two slices confirmed it at
+// a smaller scale; the answer taken here is to give the claim a subject of its
+// own — `unrelatedUnchanged`, three fields, none of them another obligation's —
+// rather than to state it over the whole frame and then discover which
+// neighbours it had annexed.
+//
+// THE THREE OBLIGATIONS ARE ONE PROPERTY UNDER THREE ANTECEDENTS, and they are
+// three commands rather than one because the catalogue states them as three and
+// because a single check would report one counterexample where the class
+// register wants to know WHICH outcome leaked.
+//
+// WHERE THE BOUNDS COME FROM.  Each antecedent quantifies over `groveActs`,
+// whose deepest member is `MarkerRemove` at twelve states; the widest
+// first-landing bound among the three witnesses is nine.  Thirteen is the
+// larger of the two.
+// ===========================================================================
+
+check FN_27a_nothing_unrelated_changes_on_success {
+  always ((Sys.act' in groveActs and Sys.res' = Applied) implies unrelatedUnchanged)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* *Reached* is the whole of the catalogue's witness for all three, so each of
+   the three runs asks for the outcome WITH UNRELATED WORK ACTUALLY PRESENT —
+   which is what `witness_FN_14` established is not free: without
+   `always some World.wcWork` the claim is reached over an empty set and the
+   command proves the antecedent rather than the property. */
+run witness_FN_27a_a_success_with_unrelated_work_present {
+  interruptedMidEvacuation
+  no Repo.tickets
+  no Cleanup.present
+  always some World.wcWork
+  eventually (Sys.act = QuarRename and Sys.res = Applied and finishSucceeded
+              and some World.wcWork)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+check FN_27b_nothing_unrelated_changes_on_refusal {
+  always ((Sys.act' in groveActs and Sys.res' in Refused) implies unrelatedUnchanged)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+run witness_FN_27b_a_refusal_with_unrelated_work_present {
+  interruptedMidEvacuation
+  no Cleanup.present
+  always some World.wcWork
+  eventually (Sys.res' = RefRollbackNotCommitted and some World.wcWork)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
+
+check FN_27c_nothing_unrelated_changes_on_a_block {
+  always ((Sys.act' in groveActs and Sys.res' = BlockedOutcome) implies unrelatedUnchanged)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+run witness_FN_27c_a_block_with_unrelated_work_present {
+  interruptedMidEvacuation
+  no Cleanup.present
+  always some World.wcWork
+  eventually (Sys.res' = BlockedOutcome and some World.wcWork)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+
+// ===========================================================================
+// `FN-28` — ONE SUCCESSFUL EXIT
+//
+// FOUR CONJUNCTS, AND THE CLAIM'S FOUR SENTENCES MAP ONTO THEM ONE FOR ONE.
+// The definition, the single door, the outstanding cleanup, and the topology.
+//
+// WHERE THE BOUNDS COME FROM.  Conjunct (c) names every member of
+// `disposalSteps`, whose deepest is `MarkerRemove` at twelve states; the
+// witness lands at nine.  Thirteen is the larger.
+// ===========================================================================
+
+/* THE SECOND OPERAND IS NOT A STATE PREDICATE ANY CLAIM CAN ASSERT, AND THAT IS
+   THIS SLICE'S LARGEST FINDING.  *The task root is absent* reads as a fact
+   about the disk, and it is one the WORLD can forge away at any point after the
+   rename: `doRootNameTaken` puts something at the free name, and `doSwap` may
+   then give that something the QUARANTINED ROOT'S OWN IDENTITY — which at
+   `2 RootId` is one step and is exactly the retained counterexample `FN-19`'s
+   third conjunct carries, *moving the quarantine directory back over `.grove/`
+   as seen from the inside*.  Written as `after finishSucceeded`, `implies
+   finishSucceeded`, or `Txn.pinned not in Root.rid'`, conjuncts (a) and (c)
+   are each FALSE for that reason and for no other.
+   
+   SO THE OPERANDS ARE STATED AS THINGS GROVE ESTABLISHES AND PRESERVES, never
+   as things that hold.  What follows for the shipped protocol is worth more than
+   the check: a finish cannot report success by looking at the task-root NAME,
+   because the name is the world's to occupy.  What it can read is the
+   correlation ticket, which is `FN-03`'s subject and is why that claim exists.
+   Recorded in `README.md` as a finding for `formal-synthesis-k16`.
+   
+   (a) THE STEP THAT COMPLETES THE FINISH IS REACHED ONLY OVER A PROVEN COMMIT.
+   `MarkerRemove` is disposal's last step and the only thing in this file that
+   ends the forward path.  The second operand is (b)'s and (c)'s, for the reason
+   above.
+   
+   (b) AND THE FORWARD PATH HAS EXACTLY ONE DOOR.  Nothing under a transaction
+   takes the task root away except the quarantine rename, and the rename does it
+   only on a proven result.  This is *succeeds EXACTLY when* stated as the only
+   thing a model can state it as: not a definition repeated, but the uniqueness
+   of the transition that establishes it.
+   
+   (c) GROVE NEVER PUTS THE TASK ROOT BACK WHILE THE COMMIT STANDS PROVEN.  A
+   preservation across Grove's own step rather than an assertion about the disk,
+   for the reason above; the one Grove step that DOES put the pinned root back
+   is `doQuarReturn`, and it runs only when the observation is not `Committed`,
+   so `resultProven` is exactly what excludes it.
+   
+   *BEST-EFFORT CLEANUP OUTSTANDING DOES NOT MAKE A PROVEN FINISH UNSUCCESSFUL*
+   IS THE WITNESS'S AND NOT A CONJUNCT'S, AND THE ATTEMPT TO MAKE IT ONE IS A
+   SIXTH GRAIN OF THE VACUITY RULE MET FROM THE OTHER SIDE.  Written as
+   `(finishSucceeded and Sys.act' in disposalSteps) implies after
+   finishSucceeded`, it is FALSE on a `MarkerReplace` that meets a foreign
+   marker: `FN-31.d` blocks, `txnGone` clears the attempt, and
+   `finishSucceeded`'s `some Txn.attempt` — the conjunct added so that a state
+   the transaction has LEFT does not read as a success vacuously — is exactly
+   what stops holding.  The finish has not become unsuccessful; the SESSION has
+   ended.  **An operand added to defeat vacuity can make the property
+   unobservable at the very states it was added for**: `blocked-k48` found the
+   grain where the subject was read too early, and this is the same grain where
+   it is read too late.  What the sentence actually asks for is a REACHABILITY —
+   a success with its cleanup still outstanding — which is the catalogue's own
+   witness and is the `run` below.  Recorded in `README.md`.
+   
+   (d) NO INTEGRATION OR REMOVAL.  Grove's own steps move recorded topology only
+   AT AN INTERNAL COMMIT; branch, bookmark and worktree topology have no
+   separate observable in this file and their absence is declared in `README.md`
+   as an abstraction.  An integration or a removal is a repository write at a
+   step that is not a commit, and this is that sentence.  `FN-14` states the
+   other half — what a landing ticket is scoped to — and the two are written
+   apart so that a mutation to either is a control for one of them.
+   
+   IT WAS FIRST WRITTEN AS *SOME TICKET LANDED* AND THAT IS FALSE, WHICH IS A
+   FINDING RATHER THAN A SLIP.  `commitLands` writes
+   `Repo.tickets' = Repo.tickets + (Txn.handle -> Txn.attempt)`, so an attempt
+   whose handle is EMPTY moves `Repo.rev` and lands no ticket at all — a commit
+   with nothing to correlate.  The state is a hand-edited `Opened` with no
+   handle, which `fact TxnStateWellFormed` permits because the handle is
+   `set Entry` and only its `Fresh` direction is true by construction.  Stating
+   (d) over the ACTION rather than over the ticket says what the claim means
+   and does not rest on the pin.  Retained in `README.md`. */
+check FN_28_a_finish_succeeds_exactly_when_the_commit_is_proven_and_the_root_is_absent {
+  always {
+    (Sys.act' = MarkerRemove and Sys.res' = Applied)
+      implies (some Txn.attempt and resultProven)
+    (Sys.act' in txnActs and some Root.rid and no Root.rid')
+      implies (Sys.act' = QuarRename and resultProven)
+    (Sys.act' in groveActs and resultProven and taskRootAbsent)
+      implies Txn.pinned not in Root.rid'
+    (Sys.act' in groveActs and Repo.rev' != Repo.rev)
+      implies Sys.act' in internalCommitActs
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* THE CATALOGUE'S WITNESS: *a success whose cleanup is still outstanding*.  The
+   quarantine rename has landed, both operands hold, and the quarantine and the
+   witness inside it are still standing with disposal not yet begun — which is
+   the state the claim's third sentence exists for and the state a crash here
+   leaves for the reaper. */
+run witness_FN_28_a_success_whose_cleanup_is_still_outstanding {
+  interruptedMidEvacuation
+  no Repo.tickets
+  no Cleanup.present
+  eventually (Sys.act = QuarRename and Sys.res = Applied
+              and finishSucceeded
+              and some Quar.qRid and Slot.occ = Published and no Cleanup.present)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
+
+
+// ===========================================================================
+// `FN-29` — A REFUSAL IS A COMPLETE OUTCOME
+//
+// TWO CONJUNCTS, AND THE SECOND IS WHERE THE CLAIM'S THIRD SENTENCE STOPS BEING
+// TRUE BY CONSTRUCTION.  *Distinguishable by the operator from a block* is
+// worth nothing stated over the outcome atoms — `RefRollbackNotCommitted` and
+// `BlockedOutcome` are distinct signatures and no model can confuse them.  What
+// an operator actually meets is a DISK, so the claim is stated over what the
+// two outcomes leave on it: a completed refusal leaves no artifact of the
+// transaction, and every block this file can reach leaves one.  That is a claim
+// which can be false, and the mutation below makes it so.
+//
+// THE FIRST CONJUNCT NAMES THE ARTIFACTS THIS OUTCOME OWNS AND NOT EVERY
+// ARTIFACT ON THE DISK, AND A COUNTEREXAMPLE IS WHY.  Written as
+// `not leftoverArtifactNext`, the conjunct is FALSE: a quarantine standing at
+// state 0 — one no transaction created and the restoration path never touches —
+// survives the refusal, and the refusal is reported as incomplete because of
+// bytes that were never its.  `EN-11`'s free initial state again, met on the
+// widest of the three names.  The restoration path owns the reserved witness
+// and the manifest, so those are stated as absences and the quarantine is
+// stated as *not created*.  Retained in `README.md`.
+//
+// IT IS A PAIR WITH `FN-22.d` AND THE PAIR IS DELIBERATE, exactly as `FN-16`
+// and the before-restoration row are one.  `FN-22.d` states the same three
+// absences at ONE REVALIDATION POINT; this states them over the OUTCOME,
+// wherever it arises.  In this file the two coincide because there is exactly
+// one refusing exit — which is itself the finding `RefRollbackNotCommitted`
+// was added for — and in a candidate protocol with two they do not.  Written
+// apart so that a mutation to either is a control for one of them.
+//
+// AND THIS CLAIM HAS NO ISOLATING MUTATION, WHICH WAS ESTABLISHED BY TRYING
+// THREE.  Aimed at the second conjunct it kills `FN-22.a` first, whose own third
+// conjunct is *the witness is only ever released, on the rollback path, at the
+// after-restoration point* — so a block that leaves nothing is a counterexample
+// there before it is one here.  Aimed at the first conjunct's absences it is
+// unsatisfiable against `fact BodyPhaseMatchesDisk`.  Aimed at the task root's
+// own name it fires, and takes `FN-19`, `FN-22.d`, `FN-24.b` and `FN-28` with
+// it.  Every conjunct this claim carries is another claim's subject; the claim
+// is still checked and its mutation is still a control, but not for this claim
+// alone.  `README.md` records it as a sixth way for a mutation to fail its aim.
+//
+// THE FINISH LEAF IS NOT DESCRIBED HERE.  The catalogue gives this claim a
+// clause about the leaf being live and selectable and gives `FN-02` the same
+// clause; `FN-02` owns it, and this claim owns the completeness and the
+// distinction.  `disposal-k45`'s fourth rule, applied before the neighbour kill
+// rather than after it.
+//
+// WHERE THE BOUNDS COME FROM.  Both antecedents name `Revalidate` and every
+// blocking transition, whose deepest is `QuarReturn`'s incomplete return at
+// twelve states; the witness lands at ten.  Thirteen is the larger.
+// ===========================================================================
+
+check FN_29_a_refusal_is_a_complete_outcome_and_is_distinguishable_from_a_block {
+  always {
+    (Sys.res' = RefRollbackNotCommitted)
+      implies (some Root.rid' and no Slot.occ' and manEmptyNext
+               and Quar.qRid' in Quar.qRid)
+    (Sys.act' in txnActs and Sys.res' = BlockedOutcome)
+      implies leftoverArtifactNext
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* THE CATALOGUE'S WITNESS: *a refused attempt followed by a successful one*.
+   The refusal completes at the after-restoration point, leaving nothing of the
+   transaction on disk; the world then lands the commit that was never proven,
+   and a second attempt over the same handle succeeds.  Two attempts in one
+   trace is what makes it the deepest of this claim's commands. */
+run witness_FN_29_a_refused_attempt_followed_by_a_successful_one {
+  interruptedMidEvacuation
+  no Cleanup.present
+  no Quar.qRid
+  eventually (Sys.res' = RefRollbackNotCommitted and not leftoverArtifactNext)
+  eventually (Sys.act = Classify and Txn.disp = Committed)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
+
+
+// ===========================================================================
+// `FN-30` — INTERNAL COMMITS RUN WITHOUT OPERATOR HOOKS
+//
+// THE ONE NEW OBSERVABLE IN THIS SLICE, AND THE ONLY `var` FIELD.  Everything
+// that makes the claim falsifiable is at the signature: a hook is installed
+// statically, `World.hookRan` says whether one has run, and exactly one
+// transition in the file — `doTopologyChange`, the operator's own commit — does
+// not frame the world.  Remove that one conjunct from `worldSame` and the
+// claim is false; without the world's ability to run a hook at all, the claim
+// would be true of a field nothing could set.
+//
+// WHERE THE BOUNDS COME FROM.  Conjunct (ii) names every member of `groveActs`,
+// whose deepest is `MarkerRemove` at twelve states; the witness lands at nine.
+// Thirteen is the larger.
+// ===========================================================================
+
+/* TWO CONJUNCTS, AND THE SECOND IS WIDER THAN THE CLAIM ON PURPOSE.
+   
+   (i) THE CLAIM'S OWN WORDS, over the two internal commits this file has.
+   
+   (ii) AND NO STEP OF GROVE'S RUNS ONE AT ALL.  The catalogue's REASON — *such
+   a hook may mutate unrelated working-tree bytes that no index image restores*
+   — is a reason about every step of a filesystem transaction and not only about
+   the two that commit, and the file can state the wider fact for nothing.  It
+   is stated as a second conjunct rather than instead of the first so that a
+   candidate protocol with a third internal commit is caught by (i) at the
+   grain the catalogue wrote it. */
+check FN_30_no_user_supplied_hook_runs_during_an_internal_commit {
+  always {
+    (Sys.act' in internalCommitActs) implies World.hookRan' = World.hookRan
+    (Sys.act' in groveActs)          implies World.hookRan' = World.hookRan
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* THE CATALOGUE'S WITNESS: *a hook that would have run, shown suppressed*, and
+   it takes THREE conjuncts rather than one because *would have run* is a
+   counterfactual and a model can only show it as a reachability.  A hook is
+   installed; the operator's own commit runs it, so running is something this
+   model can do; and Grove's internal commit happens first, with no hook having
+   run.  Drop the middle conjunct and the command still lands — over a model in
+   which no hook ever runs, which proves nothing at all. */
+run witness_FN_30_a_hook_that_would_have_run_shown_suppressed {
+  interruptedMidEvacuation
+  no Repo.tickets
+  no Cleanup.present
+  some World.hookInstalled
+  eventually (Sys.act = CommitAttempt and Sys.res = Applied
+              and some Repo.tickets and no World.hookRan)
+  eventually (Sys.act = TopologyChange and some World.hookRan)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
+
 
 // ===========================================================================
 // `EN-08` — INTERRUPTION MAY OCCUR BETWEEN ANY TWO STEPS.  Class:

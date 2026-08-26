@@ -8,24 +8,30 @@ which is deliberate — the model is what the crate will be cut against.
 Run them from the repository root:
 
 ```sh
-models/run.sh --scope finish --family alloy --no-coverage
+models/run.sh --scope finish --family alloy
 ```
+
+**The `--no-coverage` is gone, and that is the signal that this column is
+closed.** Every one of the finish scope's sixty-one alloy cells is filled and
+coverage is asserted; the flag was on that line from `entry-k39` to
+`blocked-k48` and its departure is `exits-k49`'s, by construction.
 
 ## What is covered, and what is not
 
 | family | file | obligations |
 |---|---|---|
-| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition**; `FN-19`, `FN-20` — the **quarantine and the atomic root rename**; `FN-22` — the **four revalidation points and the ten-row table**; `FN-21`, `FN-31` — **disposal**: its re-entrancy, the cleanup marker's create / replace / remove transitions, and the reaper; `FN-24` — the **crash slice**: what the disk a crash leaves classifies as, and what one step of the transaction may change; `FN-25`, `FN-26` — the **blocked slice**: the closed diagnosis partition over `RecoveryPending` and `OwnershipConflict`, the strict precedence that resolves the two places its arms meet, and what a block's diagnostic names |
+| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition**; `FN-19`, `FN-20` — the **quarantine and the atomic root rename**; `FN-22` — the **four revalidation points and the ten-row table**; `FN-21`, `FN-31` — **disposal**: its re-entrancy, the cleanup marker's create / replace / remove transitions, and the reaper; `FN-24` — the **crash slice**: what the disk a crash leaves classifies as, and what one step of the transaction may change; `FN-25`, `FN-26` — the **blocked slice**: the closed diagnosis partition over `RecoveryPending` and `OwnershipConflict`, the strict precedence that resolves the two places its arms meet, and what a block's diagnostic names; `FN-02`, `FN-23`, `FN-27` – `FN-30` — the **exits slice**: intent persisting as the finish leaf, recovery as monotone removal with a guard that goes false, the three unrelated-mutation obligations, the single successful exit, the completed refusal and its distinction from a block, and hook suppression |
 | Quint | — | none yet (`quint-models-k10`) |
 
-**The `--no-coverage` on the run line above is the signal that this column is
-still being built**, and it is what leaves it when the column closes. **Eight**
-of the scope's sixty-one alloy cells are empty, and that is the truth about the
-repository rather than a defect in the instrument: all eight belong to the LAST
-remaining child of `exits-k46` (`FN-02`, `FN-23`, `FN-27` – `FN-30`), and with
-the blocked slice landed `FN-24`, `FN-25` and `FN-26` are answered.
+**Zero of the scope's sixty-one alloy cells are empty**, and coverage is
+asserted on every run. The last eight were the `exits` slice's — `FN-02`,
+`FN-23`, `FN-27.a` – `FN-27.c`, `FN-28`, `FN-29` and `FN-30`: intent persisting
+as the finish leaf, recovery's idempotence, *nothing unrelated is mutated on any
+outcome*, the single successful exit, a refusal as a complete outcome, and hook
+suppression.
 
-**`exits-k46` decomposed, and the reason is in this file.** It was cut as one
+**`exits-k46` decomposed, and the reason is in this file.** (Historical, and
+kept because the three slices' costs are measured against the cut.) It was cut as one
 leaf for fourteen obligations; four of them need machinery no sibling slice
 built — a stable-state classification of the disk, a persistent-effect
 enumeration over all sixteen `bodySteps`, the `Blocked` diagnosis partition four
@@ -38,13 +44,19 @@ the run line above — is the last of the three's, by construction: the matrix
 needs `FN-24` and `FN-27` both, and `FN-02`'s witness is a decline followed by a
 **successful** attempt, which does not exist before `FN-28`.
 
-**Two of the three have landed and the cut held.** `crash-k47` took the scope to
-147 commands and forty-nine filled cells; `blocked-k48` takes it to **164** and
-**fifty-three**, and neither needed machinery the other built. What the second of
-the two did NOT find is worth one line, because the node brief predicted it
-would: the `Blocked` partition was expected to be where four slices' abstinence
-paid off, and it was — five counterexamples, three of them about the catalogue's
-own two definitions rather than about the model.
+**All three landed and the cut held.** `crash-k47` took the scope to 147
+commands and forty-nine filled cells; `blocked-k48` to **164** and
+**fifty-three**; `exits-k49` to **180** and **sixty-one**, and no one of the
+three needed machinery another built. What the second did NOT find is worth one
+line, because the node brief predicted it would: the `Blocked` partition was
+expected to be where four slices' abstinence paid off, and it was — five
+counterexamples, three of them about the catalogue's own two definitions rather
+than about the model. The third found four, and **three of the four are one
+counterexample this file has now met from four directions**: `EN-11` cashed out
+as a free initial state and as the world's own transitions makes every claim
+about the DISK false unless it is restated over the protocol's own steps. The
+fourth is `FN-28`'s second operand, and it is the largest single finding of the
+three slices — see *A tenth finding, and it is about the shipped protocol*.
 
 **Declared gaps** — none. The runner reads them from this file, in one shape:
 
@@ -53,12 +65,15 @@ own two definitions rather than about the model.
 ```
 
 **Two obligations of the *task-tree* scope are waiting on this directory, and
-neither can be filled from either side as the placement rule stands.**
+neither can be filled from either side as the placement rule stands — and the
+content each needs is now present under an `FN-` prefix, so the re-statement
+`formal-synthesis-k16` may choose is a citation change and nothing more.**
 `crates/grove-task-tree/models/README.md` declares `TT-24.c` and `TT-24.d`
 `out-of-bounds`, both because the context each names is a finish context: `TT-24.c`
 is `Blocked(OwnershipConflict)` inside a finish or recovery transaction, and
 `TT-24.d`'s subject is the quarantine reaper. This model will have both machineries
-— `FN-25` and `FN-21` are exactly their subjects — but the runner's placement rule
+— `FN-25` states `Blocked(OwnershipConflict)` inside a transaction and `FN-21.c`
+states the reaper's decline, which are exactly their two subjects — but the runner's placement rule
 sends every `TT_`-prefixed command to the task-tree directory, so a `TT_24c`
 command *here* is a placement failure rather than a filled cell. Whether the two
 should be re-stated as `FN-` obligations is `formal-synthesis-k16`'s to settle;
@@ -200,6 +215,32 @@ Measured, by re-running each witness at `2..14 steps` and taking the first that
 lands; the ninety-three rows below carry the disposal slice's sweep of
 sixty-nine plus the crash slice's twenty-four.
 
+**THE EXITS SLICE ADDS A `var` FIELD AND STILL DOES NOT OWE THE FULL SWEEP, AND
+THE REASON IS A STRONGER ARGUMENT RATHER THAN AN EXEMPTION.** The rule the crash
+slice left is *a sibling that adds a `var` field, a transition or a fact does not
+inherit this argument and owes the full sweep*, and this slice adds one:
+`World.hookRan`, a `lone` field over the `one sig Hook`. What replaces the sweep
+is a **monotonicity proof** rather than the crash slice's absence argument. No
+guard, no `fact` and no witness reads the field; twenty-eight of the file's
+twenty-nine transitions frame it through `worldSame` and the twenty-ninth
+(`doTopologyChange`) leaves it free within `World.hookInstalled`. So every
+instance of the file before the field extends to an instance after it by setting
+`hookRan` absent in every state and `hookInstalled` absent throughout — the
+transition relation restricted to those instances is unchanged — and therefore
+**no pre-existing trace can be removed and no witness's first-landing bound can
+rise**. A `var` field that adds only free choice is not the `var` field the rule
+was written about; a field a guard reads is. **The rule is sharpened rather than
+broken**: *a sibling that adds a `var` field ANY GUARD, FACT OR EXISTING COMMAND
+READS owes the full sweep; one that adds free choice alone owes a proof and a
+control.*
+
+**EIGHT INHERITED ROWS WERE RE-MEASURED AS THAT CONTROL** — the same eight the
+crash slice ran, for the same reason it ran them — and every one still lands at
+its recorded bound: `witness_FN_01a` (2), `witness_FN_21c` (2),
+`witness_FN_09b` (7), `witness_FN_11` (10), `witness_FN_15b_git` (11),
+`witness_FN_22h` (12), `witness_FN_31a_the_stale_marker` (12) and
+`witness_FN_03` (12).
+
 **THE CRASH SLICE IS THE FIRST WHOSE INHERITED ROWS COULD NOT MOVE, AND THE
 ARGUMENT IS BETTER EVIDENCE THAN THE SWEEP WOULD HAVE BEEN.** It adds no
 transition, no `var` field and no `fact`; the transition relation and every
@@ -238,6 +279,14 @@ inherit this argument and owes the full sweep.
 | `witness_FN_10a_a_discard` | **7** |
 | `witness_FN_10b_a_refusal_to_discard_unclassifiable_content` | 2 |
 | `witness_FN_11_the_interval_between_publication_and_commit` | **10** |
+| `witness_FN_02_a_decline_followed_by_a_later_successful_attempt_on_the_same_handle` | **11** |
+| `witness_FN_23_three_consecutive_recoveries_the_second_and_third_changing_nothing` | 4 |
+| `witness_FN_27a_a_success_with_unrelated_work_present` | **9** |
+| `witness_FN_27b_a_refusal_with_unrelated_work_present` | **10** |
+| `witness_FN_27c_a_block_with_unrelated_work_present` | **9** |
+| `witness_FN_28_a_success_whose_cleanup_is_still_outstanding` | **9** |
+| `witness_FN_29_a_refused_attempt_followed_by_a_successful_one` | **10** |
+| `witness_FN_30_a_hook_that_would_have_run_shown_suppressed` | **8** |
 | `witness_FN_12a_a_manifest_interrupted_before_its_ready_mark` | **8** |
 | `witness_FN_12b_a_refused_entry_type` | 3 |
 | `witness_FN_13_a_commit_attempted_while_the_witness_is_tracked_refused` | **10** |
@@ -494,6 +543,56 @@ close the lasso, and the predictor was applied before the command was written
 rather than after a mutation survived.
 
 ### Cost
+
+**THE EXITS SLICE ADDS ONE `var` FIELD AND ITS TAX IS BETWEEN −7% AND +18%, WHICH
+IS A DIFFERENT SHAPE FROM THE STATIC LAW RATHER THAN A LARGER NUMBER.** The
+sentinel A/B is the same instrument the last two slices used — the same four
+inherited commands, run against this file and against a copy with
+`World.hookRan`, its `worldSame` conjunct, its `doTopologyChange` conjunct and
+`FN-30`'s two commands removed, best of two:
+
+| sentinel | without the field | with it | delta |
+|---|---|---|---|
+| `FN_01a` | 2.49 s | 2.32 s | **−0.17 s (−6.8%)** |
+| `FN_03` | 8.15 s | 9.57 s | **+1.43 s (+17.5%)** |
+| `FN_22a` | 13.82 s | 14.33 s | **+0.51 s (+3.7%)** |
+| `FN_24b` | 52.46 s | 50.73 s | **−1.73 s (−3.3%)** |
+
+**Read the absolute column, not the percentage, and notice that it does not
+scale.** The static-atom law the last two slices measured is uniform — about
+10 ms of translation per atom per command, so a dear command pays proportionally
+more in seconds and the same in percent. A `var` field does not behave that way:
+the file's **dearest** command moved least, in seconds and in percent, while an
+8-second command moved +1.4 s. The reason is that a `var` field adds a boolean
+**per state**, so what it costs a command tracks that command's TRACE LENGTH and
+the size of its transition-relation encoding rather than the difficulty of its
+own claim, and at a bound of thirteen with a field nothing reads the SAT solver's
+own variance is the same order as the effect. Four sentinels is not enough to
+separate the two, and the honest register entry is the qualitative one:
+
+> **A `var` field is not static structure, even when no guard reads it.** The
+> monotonicity argument above says the field cannot change which INSTANCES exist;
+> it says nothing about what they cost. Budget a `var` field at a few per cent of
+> the whole file, not at zero, and do not expect the static law's per-atom
+> arithmetic to apply to it.
+
+**In aggregate the slice is +2 m 08 s on a 12 m 25 s file, and the sixteen new
+commands account for essentially all of it.** 180 commands, **14 m 33 s**,
+against 164 in 12 m 25 s. The eight new checks cost 45.0 s (`FN_02`), 11 s
+(`FN_23`), 7 s each (`FN_27.a` – `FN_27.c`), 18 s (`FN_28`), 10 s (`FN_29`) and
+6 s (`FN_30`) — 111 s — and the eight witnesses about 4–5 s apiece, for roughly
+2 m 27 s of new work against a 2 m 08 s aggregate delta. The inherited commands
+therefore paid nothing measurable in the aggregate, which is consistent with the
+sentinel table's mixed signs and is why the sentinel table is the one that is
+reported rather than the aggregate.
+
+**`FN_02` IS THE SLICE'S DEAREST COMMAND AT 45 s, AND ITS FIRST FORM WAS 3 s.**
+The 3-second form was the one with a counterexample in it — a check that fails
+early is cheap, and a check that must exhaust the space is not, so **a mutation's
+timing is evidence about the mutation and a green check's timing is evidence
+about the claim.** Worth one line because the reverse mistake is easy: a slice
+that budgeted from its first, red run would have budgeted an order of magnitude
+low.
 
 **THE BLOCKED SLICE COST 1–6%, AND IT IS THE SECOND MEASUREMENT OF THE FLAT LAW
 AND THE ONE THAT GIVES IT A COEFFICIENT.** It adds no transition, no `var` field,
@@ -904,6 +1003,27 @@ this file adopts unchanged:
   be. It is `set Entry` rather than `lone Entry` so that a tree with two live
   finish leaves makes the **preflight refuse** instead of making `TxnOpen`
   silently unavailable.
+- **THE EXITS SLICE'S THREE, AND THE FIRST IS THE ONE A READER SHOULD NOT SKIP.**
+  - ***The task root is absent* is read as `Txn.pinned not in Root.rid`, not as
+    `no Root.rid`.** `FN-28`'s second operand looks like a fact about the disk
+    and is not one the protocol can hold: `doRootNameTaken` lets the world
+    occupy the free name and `doSwap` may then give what it put there the
+    **quarantined root's own identity**, which at `2 RootId` is one step. So
+    *absent* is read as *the task root — the identity this transaction pinned —
+    is no longer at that name*, and the claim is stated as something Grove
+    establishes and preserves rather than as something that holds. See *A tenth
+    finding*.
+  - **A user-supplied hook is one static atom and *has run* is one `var`
+    boolean.** `FN-30` is a claim about whether a hook RAN, not about which one,
+    what it did, or what it returned; `2 Hook` would say nothing `1 Hook` does
+    not, so the slice adds no scope dimension. What the hook would MUTATE is
+    deliberately not modelled — that is `FN-27`'s subject and the catalogue's
+    reason for `FN-30` rather than its content.
+  - **The internal commits are `CommitAttempt` and `Settle`, and there is no
+    third.** `FN-30`'s *during an internal commit* is `internalCommitActs`; a
+    protocol with a third would need the set to grow, and the check's second
+    conjunct — no step of Grove's runs a hook at all — is what would keep the
+    claim true meanwhile.
 - **The repository anchor is lane-blind, and that is a finding rather than a
   shortcut.** The catalogue gives the three lanes three different anchors — a head
   revision; a working-copy change identity with its parents and the exact
@@ -1301,6 +1421,37 @@ this model followed the catalogue, because the catalogue is the sole input.
 
 ## What a green run of this file does not prove
 
+- **Not that `FN-28`'s *branch, bookmark and worktree topology SHALL be
+  unchanged* is checked at the grain the sentence uses.** This file has one
+  `Repo.rev` and no branches, bookmarks or worktrees, so what conjunct (d)
+  checks is *Grove moves recorded topology only at an internal commit*. An
+  integration or a removal performed BY a commit — a merge commit, a
+  `git branch -d` folded into one — is invisible to it. That is the same
+  abstraction `FN-14` declares for the lanes' commit mechanisms, met at the
+  other end of the protocol.
+- **Not that `FN-29`'s second conjunct has an isolating mutation, and the reason
+  is a fact about this file rather than about the claim.** *Every block leaves
+  an artifact standing* is entailed here by `FN-22.a`'s third conjunct — *the
+  witness is only ever released, on the rollback path, at the after-restoration
+  point* — so a mutation that makes a block leave nothing kills `FN-22.a` before
+  it reaches `FN-29`. Row 61 is aimed at the first conjunct instead and pairs
+  with `FN-22.d` by construction. **A conjunct entailed by a neighbour's
+  totality claim has no isolating mutation**, and that is a sixth way for a
+  mutation to fail its aim — the first that is a property of the CHECK SET
+  rather than of the model, of the claim's own data, or of the aim.
+- **Not that `FN-30` says anything about what a hook would do.** The catalogue's
+  reason — *such a hook may mutate unrelated working-tree bytes that no index
+  image restores* — is the motivation and not the claim, and this file
+  deliberately does not model the mutation: `World.hookRan` is disjoint from
+  `unrelatedUnchanged`, so a green `FN-30` and a green `FN-27` are two
+  independent facts rather than one stated twice. What is NOT checked is the
+  implication between them, which would need a hook with an effect.
+- **Not that `FN-23` covers a recovery that runs to a DIFFERENT terminal state
+  from the one an uninterrupted run reaches.** What is checked is that recovery
+  only removes and that its guard goes false, which together give *re-running
+  reaches the same terminal state* for a cleanup. A recovery whose terminal
+  state depended on WHEN it was interrupted would need `FN-21.a`'s third
+  conjunct, which is the incumbent's own and is checked there.
 - **Not that `FN-24.a`'s totality conjunct is doing any work.** `some
   classifiedRaw` is the claim's *classifies into a stable state* half, and with
   the arm set as it stands it is true by construction: `SAbsent` reads *no task
@@ -1463,8 +1614,11 @@ this model followed the catalogue, because the catalogue is the sole input.
   like. `FN-15.b`, `FN-15.c` and `FN-15.d` each have a witness per lane, so the
   three are demonstrably *reachable* under all three; that is weaker than the
   claims *differing* under them. **`EN-16`'s collapse control is what separates
-  the two and it is `exits`'**, and until it runs, "the lane is a model parameter"
-  is a property of the signature rather than a measured fact about the commands.
+  the two, and `blocked-k48` ran it**: every `FN-` property stays green with the
+  lane collapsed to `GitL`, and only the named witnesses stop landing. So "the
+  lane is a model parameter" is now a measured fact about the commands and not a
+  property of the signature — and *a lane-blind model passes every check in this
+  file* is measured too, which is the half worth carrying forward.
 - ~~**Not that `interruptedMidEvacuation` is reachable.**~~ **ANSWERED — see
   *Where a trace starts*.** It is reachable, first landing at eleven states, and
   the command that says so runs the body up to it rather than positing it. This
@@ -1686,6 +1840,102 @@ that sweep, not an assertion.
 | 52 | `FN-25.b` | `dgWitnessNotProvablyThisAttempts` narrows back to `no Slot.owner` — an owned witness whose manifest names another handle falls through both arms | `witness_FN_25b_a_block_whose_only_arm_is_ownership_conflict` | KILLED (also kills `FN-25.a`; left green: `FN-25.c`, `FN-26`) |
 | 53 | `FN-25.c` | `dgUndigestibleEntry` is guarded on `World.lane in wcAsCommitLanes` — one clause of the partition reads the lane | `witness_FN_25c_git_ownership_conflict_reached` | KILLED (left green: `FN-25.a`, `FN-25.b`, `FN-26`) |
 | 54 | `FN-26` | `doQuarRename`'s blocking branch drops `repoSame` for `Repo.wTracked' = Repo.wTracked` — the transition that blocks may write recorded history | `witness_FN_25c_git_recovery_pending_reached` | KILLED (left green: all three `FN-25` checks) |
+| 55 | `FN-02` | `doSettle`'s cannot-reproduce block drops `slotSame` and discards the evacuated tree — the exit takes the finish leaf with it | `witness_FN_17b_a_restoration_that_cannot_reproduce_it_blocks` | KILLED (left green: all 25 others swept) |
+| 56 | `FN-23` | `doReap`'s guard drops *there is something at a reserved name* — the sweep is enabled at every `Fresh` state, so it is available at its own terminal state | `witness_FN_21a_a_disposal_interrupted_mid_disposal_and_resumed` | KILLED (left green: all 25 others swept) |
+| 57 | `FN-27.a` | `doQuarRename`'s **success branch** stops framing the world — the rename mutates unrelated working-copy bytes. Written as a substitution, not an addition: `worldSame` comes out of the common part and back into the three non-success branches | `witness_FN_18_a_proven_commit_reached_after_an_interruption_mid_evacuation` | KILLED (left green: all 25 others, `FN-27.b` and `FN-27.c` included) |
+| 58 | `FN-27.b` | `doRevalidate`'s **completed refusal** stops framing the world, by the same substitution | `witness_FN_22d_a_rollback_that_completes_as_a_refusal` | KILLED (left green: all 25 others) |
+| 59 | `FN-27.c` | `doSettle`'s **cannot-reproduce block** stops framing the world, by the same substitution | `witness_FN_17b_a_restoration_that_cannot_reproduce_it_blocks` | KILLED (left green: all 25 others) |
+| 60 | `FN-28` | `doMarkerRemove` stops framing `Repo.rev` — disposal's last step performs an integration | `witness_FN_03_a_retry_with_no_local_trace_settling_forward_on_the_ticket_alone` | KILLED (also kills `FN-24.b`; left green: 24 others) |
+| 61 | `FN-29` | `doRevalidate`'s completed refusal releases the **task root's own name** along with the witness — the refusal leaves no grove behind | `witness_FN_22a_the_point_after_the_restoration_is_reached` | KILLED (also kills `FN-19`, `FN-22.d`, `FN-24.b` and `FN-28`; left green: 21 others). **The third form tried — see below** |
+| 62 | `FN-30` | `doCommitAttempt` stops framing the hook — the internal commit runs the operator's hooks | `witness_FN_14_unrelated_modified_work_present_across_a_successful_finish` | KILLED (left green: all 25 others, `FN-27.a` – `FN-27.c` included) |
+| x1 | *(not an obligation's row — Q4-6's evidence)* | `reapable` narrows to *there is a quarantine* — the sweep with no document to read | *the kills are the fire evidence* | KILLED `FN-21.b` and `FN-21.c`; left green: all 26 others |
+| x2 | *(not an obligation's row — Q4-2's evidence)* | `doSettle`'s restore branch drops `treeMatchesManifest` for `some Root.holds'` — the restoration puts back something the record did not name | `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | KILLED `FN-02` and `FN-22.d`; **`FN-17.a` survives**; left green: 24 others |
+
+**ROWS 55–62 ARE THE EXITS SLICE'S, AND SIX OF THE EIGHT ISOLATED CLEANLY ON A
+TWENTY-SIX-CHECK SWEEP.** Every one of the eight was run against the other seven
+and against `FN-01.a`, `FN-03`, `FN-14`, `FN-18`, `FN-19`, `FN-20`, `FN-21.a` –
+`FN-21.c`, `FN-22.a`, `FN-22.d`, `FN-22.i`, `FN-22.j`, `FN-24.a`, `FN-24.b`,
+`FN-25.a`, `FN-26` and `FN-31.b`; the *left green* column is that sweep and not
+an assertion. Two did not isolate, and the two failures are the slice's largest
+methodological results.
+
+**ROW 60'S NEIGHBOUR IS `FN-24.b`, AND IT IS THE CRASH SLICE'S PREDICTION COMING
+TRUE.** `FN-24.b` enumerates every persistent effect of every step; freeing
+`Repo.rev'` at `doMarkerRemove` gives that step a second one — the marker and the
+commit — so the enumeration goes red alongside `FN-28`. That is not a failure of
+aim: **`FN-24.b` is the only check in the file that quantifies over the whole
+disk at once, so any mutation that adds a persistent effect to any step kills it
+by construction.** `crash-k47` recorded the shape from the other side (its own row
+50 was swept against fifteen neighbours and left all fifteen green); this is the
+first slice to meet it from a mutation that was not `FN-24.b`'s own. Expect it, do
+not aim around it, and read it as a second confirmation rather than as noise.
+
+**ROW 61 TOOK THREE FORMS AND THE THIRD IS THE ROW, AND WHAT THE THREE ESTABLISH
+IS THAT `FN-29` HAS NO ISOLATING MUTATION IN THIS FILE.** That is a SIXTH way for
+a mutation to fail its aim, and the first that is a property of the **check set**
+rather than of the model, of the claim's own data, or of the aim:
+
+> **A claim every one of whose conjuncts is another claim's subject has no
+> isolating mutation.** The claim is still checked and its mutation is still a
+> control; what it is not is a control *for that claim alone*, and the honest
+> record is the neighbour list rather than a fourth attempt.
+
+The three forms, because the two that failed are worth more than the one that
+worked:
+
+- **First form: the classification's own `Indeterminate` block releases every
+  artifact it owns**, aimed squarely at `FN-29`'s second conjunct (*every block
+  leaves an artifact standing*). It KILLED `FN-29` — and killed `FN-02` and
+  `FN-22.a` with it. `FN-22.a`'s third conjunct is *the witness is only ever
+  released, on the rollback path, at the after-restoration point*, so **a block
+  that releases the witness anywhere else is a counterexample to `FN-22.a`
+  before it is one to `FN-29`**. That is `revalidation-k44`'s fourth rule about
+  aim — *when one obligation states a table's totality, an isolating mutation
+  must aim at the column the totality claim does not carry* — and `FN-29`'s
+  second conjunct has no such column: it IS the totality claim's column.
+- **Second form: the completed refusal leaves the witness standing over the
+  restored tree**, aimed at the first conjunct. It **SURVIVED**, and the reason
+  is `fact BodyPhaseMatchesDisk`: the step produces `Txn.phase' = Settled` and
+  the fact requires `Settled implies (no Slot.occ and manEmpty)`, so the mutated
+  branch was **unsatisfiable**. That is row 42's trap met against the same fact
+  for the second time — *a phase machine's own well-formedness facts are a
+  mutation surface you did not choose* — and it reported exactly as a survivor,
+  except that the fire-evidence witness stopped landing, which is what caught it.
+  **Check the fire evidence even when the mutation looks like it landed**: an
+  unsatisfiable branch and a working mutation differ only in the witness column.
+- **Third form, and the row as run: the completed refusal releases the task
+  root's own NAME.** It fires and it kills, and it kills four neighbours —
+  `FN-19` (*a task root never simply disappears under a transaction step*),
+  `FN-24.b` (a second persistent effect, again), `FN-22.d` (the pair `finish.als`
+  documents beside the claim) and `FN-28` (its own conjunct (b), *the task root
+  leaves its name only by the quarantine rename*). Four neighbours is what
+  `FN-29` costs, and the neighbour list is the finding.
+
+**AND ROW 61'S FIRST TWO FORMS ARE WHY `FN-29` IS WRITTEN AS IT IS.** The claim
+could have been narrowed to its second conjunct alone — the half `FN-22.d` does
+not carry — which would have made it isolating and would have dropped *leaves the
+grove exactly as it was* on the floor. `finish.als` keeps both and records the
+pair, because a claim's job is to say what the catalogue says and a mutation's job
+is to be evidence about it, and only the second of those is negotiable.
+
+**ROWS 57, 58 AND 59 ARE ONE MUTATION AT THREE SITES, AND THE SHAPE IS THE
+FRAME-SUBSTITUTION RULE APPLIED BEFORE IT COULD BITE.** `worldSame` sits in the
+COMMON part of all three transitions, so freeing `World.wcWork'` under it would
+have been unsatisfiable (`entry-k39`'s trap) and freeing it for the whole
+transition would have killed two of the three `FN-27` obligations at once
+(`disposal-k45`'s third way to fail an aim). Each row therefore **substitutes**:
+`worldSame` comes out of the common part, the two fields `FN-27` does not read
+(`World.lane`, `World.hookRan`) are framed unconditionally, and `World.wcWork'`
+is framed on every branch except the one the row is about. All three isolate.
+
+**ROW 62 IS WHY `World.hookRan` IS NOT IN `unrelatedUnchanged`.** The mutation
+that makes the internal commit run the operator's hooks kills `FN-30` and leaves
+`FN-27.a`, `FN-27.b` and `FN-27.c` green, because the two claims read disjoint
+fields. Had `FN-27` described the hook, this row and rows 57–59 would each have
+killed the other's target and neither would have been evidence about anything.
+**The fourth rule about aim is cheaper applied to a claim than to a mutation**,
+and this is the first row in the file that demonstrates it prospectively rather
+than after a neighbour kill.
 
 **ROWS 49–50 ARE THE CRASH SLICE'S, AND BOTH LANDED AS FIRST WRITTEN — BUT ROW
 49 IS THE SECOND THING THAT WAS TRIED, AND THE FIRST IS WORTH MORE THAN THE
@@ -1957,10 +2207,11 @@ fixes, and because rows 10–17 were written against them:
 
 ## Counterexamples retained
 
-**Seventeen: four from the witness slice, one from the handoff slice, five from
-the revalidation slice, TWO from the disposal slice and FIVE from the blocked
-slice — and all seventeen are about the model or the catalogue rather than about
-the protocol** — which is itself the
+**Twenty-one: four from the witness slice, one from the handoff slice, five from
+the revalidation slice, TWO from the disposal slice, FIVE from the blocked slice
+and FOUR from the exits slice — and twenty of the twenty-one are about the model
+or the catalogue rather than about the protocol. The twenty-first is not, and it
+is the tenth finding.** — which is itself the
 observation, because a slice that adds eight transitions and finds no protocol
 defect has still learned something about what its instrument was licensing.
 
@@ -2168,6 +2419,46 @@ check going red. That is now three times in one scope, and it is the strongest
 methodological signal this family has produced: the instrument's value here has
 been the discipline of totality, not the solver.
 
+**THE EXITS SLICE ADDED FOUR, AND THREE OF THEM ARE ONE COUNTEREXAMPLE THIS
+FILE HAS NOW MET FROM FOUR DIRECTIONS.**
+
+18. **`FN-02`'s *the pinned handle is findable after an exit*, written as a
+    presence, fails at state 0.** A hand-edited `Opened` with `Txn.handle`
+    naming an entry the tree does not hold, and the preflight's own refusal is
+    an exit that never had a leaf to leave. `fact TxnStateWellFormed` permits it
+    because the handle is `set Entry` and only its `Fresh` direction is true by
+    construction — the deliberate looseness recorded on the field, met from a
+    direction its note did not anticipate. Restated as a **preservation** —
+    *whatever of the handle was findable stays findable* — it is a claim about
+    the transition relation, which is counterexample 1's rule applied rather
+    than met again.
+19. **`FN-28`'s conjunct (d), written as *some ticket landed*, fails on a commit
+    whose handle is empty.** `commitLands` writes
+    `Repo.tickets' = Repo.tickets + (Txn.handle -> Txn.attempt)`, and at
+    `Txn.handle = none` the product is empty while `Repo.rev' != Repo.rev`
+    still holds — a commit that moves recorded topology and correlates nothing.
+    Same free initial state, different consequence: this one says something about
+    the protocol as well as about the model, and it is the eleventh finding.
+20. **`FN-29`'s *the refusal leaves no artifact*, written over the file's own
+    `leftoverArtifact`, fails on a quarantine standing at state 0.** A quarantine
+    no transaction created and the restoration path never touches survives the
+    refusal, and the refusal reads as incomplete because of bytes that were never
+    its. The restoration path owns the reserved witness and the manifest, so
+    those are stated as absences and the quarantine is stated as **not
+    created**. **A claim about what an outcome LEAVES must name the artifacts
+    that outcome OWNS**, which is counterexample 1's rule at the granularity of a
+    single claim's subject rather than of the whole disk.
+21. **`FN-28`'s second operand — *the task root is absent* — fails on a `Swap`
+    after a `RootNameTaken`, and this one is about the shipped protocol.** Three
+    successive formulations were falsified by one trace: the world occupies the
+    free task-root name and then swaps what it put there for the **quarantined
+    root's own identity**. This is counterexample 5 — *`EN-11` as a transition;
+    a claim about the protocol's shape has to be stated over the protocol's own
+    steps* — met at the operand of a definition rather than at an invariant, and
+    the consequence is a design constraint rather than a restatement: **a finish
+    cannot report success by looking at the task-root name.** See *A tenth
+    finding*.
+
 ## `TODO.finish_process.md` Q3, answered — and the enumeration it asked for
 
 **Q3 asks: *is the marker-replacement sub-transaction reachable?  Enumerate the
@@ -2207,7 +2498,8 @@ result and the other two are what make it evidence:
   `wcAsCommitLanes`, and the witness runs with the lane free, so the instance the
   solver returns is a statement about all three. That is weaker than three
   lane-pinned witnesses and it is what the claim supports; `EN-16`'s collapse
-  control, which is what would make a lane-blind model visible, is still `exits`'.
+  control, which is what would make a lane-blind model visible, was run by
+  `blocked-k48` and its named set was found **exact**.
 
 **What `formal-synthesis-k16` should read this as, and what it should not.** The
 Alloy family says the transition is **reachable under the incumbent protocol at
@@ -2403,7 +2695,153 @@ returns `OwnershipConflict` on the fail-closed rule, and nothing in the catalogu
 decides it. The two places the arms meet are reachable at nine states; both are
 witnessed.
 
-## `TODO.finish_process.md` Q4 — what the blocked slice decides, which is nothing
+## A tenth finding, an eleventh and a twelfth — and the tenth is about the shipped protocol
+
+The three slices of `exits-k46` produced nine findings between them and eight
+were about the catalogue's own words or about this file's instrument. **The tenth
+is not**: it is about what the shipped protocol can and cannot read.
+
+**TENTH — `FN-28`'s second operand is not a state predicate, and a finish
+therefore cannot report success by looking at the task-root name.** The claim
+says *a finish succeeds exactly when the exact attempt-bound commit is proven and
+the task root is absent*, and *absent* reads as a fact about the disk. It is a
+fact the protocol cannot hold: after the quarantine rename the task-root name is
+FREE, `doRootNameTaken` is the world occupying it, and `doSwap` may then give
+what the world put there the **quarantined root's own identity** — at `2 RootId`
+that is one further step. Three separate formulations of `FN-28`'s conjuncts (a)
+and (c) were each falsified by exactly that trace and by nothing else.
+
+What follows for the crates is a sentence, and it is the sharpest thing this
+slice has to hand `formal-synthesis-k16`: **the only durable evidence a finish
+succeeded is the correlation ticket.** `FN-03` says the ticket *SHALL survive the
+destruction of every artifact the transaction owns*; this adds that it must also
+survive the RE-CREATION of one, because a name is not an artifact and the world
+owns the namespace. A `grove finish` that decided success by stat-ing the task
+root would report failure on a grove someone had simply started using again — and
+would report success on one where the quarantine had been moved back over it. The
+model states the operands as things Grove ESTABLISHES and PRESERVES, never as
+things that hold, and `finish.als` records the reading beside `taskRootAbsent`.
+
+This is the witness slice's first retained counterexample and the handoff slice's
+fifth met a **fourth** time, and it is the first of the four whose consequence
+lands on the shipped protocol rather than on the model: *a shape claim under
+`EN-11` must be restated over the protocol's own steps* is now a rule this file
+has paid for four times, and the fourth payment bought a design constraint.
+
+**ELEVENTH — a commit whose handle is empty lands a revision and no ticket.**
+`commitLands` writes `Repo.tickets' = Repo.tickets + (Txn.handle -> Txn.attempt)`,
+and at `Txn.handle = none` that product is empty while `Repo.rev' != Repo.rev`
+still holds. The state is a hand-edited `Opened` with no handle, which
+`fact TxnStateWellFormed` permits because the handle is `set Entry` and only its
+`Fresh` direction is true by construction — the deliberate looseness recorded on
+the field, met from a direction its note did not anticipate. It killed `FN-28`'s
+conjunct (d) in its first form (*some ticket landed*) and the fix was to state
+the conjunct over the ACTION. What it says about the protocol is smaller than the
+tenth finding but not nothing: **nothing in the transaction asserts, at commit
+time, that the record it is about to write can correlate.** `FN-04` is stated
+over a ticket that exists; a commit that writes no ticket at all is outside every
+`FN-` claim in this file.
+
+**TWELFTH — `FN-13` is *shared safety* in the catalogue's class register, and
+this file's own commit-slice note calls it *incumbent mechanics*.** The register
+reads `FN-01`–`FN-07`, `FN-13`–`FN-18`, `FN-20`, `FN-23`–`FN-30`, and `TT-24`;
+the paragraph under *The mutation matrix* that introduces the inherited
+removal-matrix rows says of rows 14 and 17 that *both of those are incumbent
+mechanics claims and neither is yet an answer to Q4*. Row 14's is (`FN-11`);
+**row 17's is not** (`FN-13`). The consequence is a row of Q4's matrix, and it is
+recorded below rather than corrected in place, because the five inherited rows
+are transcribed rather than re-derived and a silent edit would lose the fact that
+the file disagreed with the register for three slices. `formal-synthesis-k16`
+settles which of the two is wrong.
+
+## `TODO.finish_process.md` Q4 — the matrix, and two rows that read `none`
+
+**The catalogue names the ten rows**, so the matrix is not this file's to size:
+*the reserved witness, the evacuation manifest, its ready mark, the correlation
+ticket, the quarantine, the cleanup marker, the replace transition, the index
+image, the recorded anchor, the deletion fingerprint*. Each names the **first
+shared-safety obligation** its removal breaks under the mutation discipline, or
+`none`. Q4's own success criterion is *a row whose artifact or transition can be
+removed without breaking any shared-safety claim*, so a `none` is an answer and
+an obligation is evidence the artifact protects the user.
+
+**Every row carries its evidence class**, because the node brief's warning is
+exact — *the matrix is prose, and a row naming the wrong first-broken obligation
+reports identically to a right one*. `mutation` means a row of the matrix above
+fired and killed the named check; `argument` means the claim's own text names the
+artifact and no mutation in either direction was available; `abstracted` means
+the artifact has no counterpart in this file.
+
+| # | removable artifact or transition | first **shared-safety** obligation its removal breaks | evidence |
+|---|---|---|---|
+| Q4-1 | the **reserved witness**, as the thing every candidate committed tree excludes | `FN-13` | mutation — row 17. **See the twelfth finding**: this row was recorded for three slices as incumbent mechanics and the register says shared safety. Under *total* removal the claim is satisfied **vacuously**, which is `FN-20`'s shape and is why the row is evidence about the mutation discipline rather than about a candidate protocol |
+| Q4-2 | the **evacuation manifest**, as the record a restoration restores *to* | `FN-02` | mutation — row x2, and **not the obligation the argument predicted**. A restore branch that stops matching the manifest was expected to kill `FN-17.a` (*a restoration matches the manifest*) and does not; it kills `FN-02` and `FN-22.d`. Read forward: without the record, the restoration cannot put the **finish leaf** back, and *intent persists as the finish leaf* is the first shared-safety claim that notices. `FN-17.a`'s first conjunct is guarded on entries actually returning and its second on the release, so a restoration that returns nothing slips beneath both — which is itself worth a line to whoever writes the Quint row |
+| Q4-3 | its **ready mark** | `FN-10.a` — **incumbent mechanics, so not yet a Q4 answer** | mutation — row 12 |
+| Q4-4 | the **correlation ticket**, as an *attempt-naming* record | `FN-04` | mutation — row 19, transcribed |
+| Q4-5 | the **quarantine** | **`none`** | argument, and it is the row Q1 exists for — see below |
+| Q4-6 | the **cleanup marker**, as the document a sweep reads to know what is Grove's | `TT-24` | mutation — row x1, and the obligation is **unreachable from this directory**; see below |
+| Q4-7 | the **replace transition** (`doMarkerReplace`) | **`none`** | mutation — row 45, transcribed: narrowing the transition away leaves **every check in the file green** and stops one witness landing. A liveness hole no safety claim sees |
+| Q4-8 | the **index image** | — | abstracted. The three lanes' anchors and commit mechanisms are carried as one `Repo.rev` role and the index image has no counterpart here; declared under *Abstractions* since `commit-k41`. The row exists so that a removable artifact is not silently unrowed |
+| Q4-9 | the **recorded anchor**, as the rollback licence | `FN-16.a` | mutation — row 25, transcribed |
+| Q4-10 | the **deletion fingerprint**, as the commit's scope | `FN-14` | mutation — row 20, transcribed |
+
+**Q4-5 IS THE ROW `exits` WAS CUT TO WRITE, AND IT READS `none`.** Every earlier
+slice recorded the quarantine's row as undecidable-from-here, each with the same
+reason: its own mutations reached only *incumbent mechanics*, and the
+shared-safety claims that could name it — `FN-24` and `FN-27` — did not yet
+exist. Both now do, and neither names it:
+
+- **`FN-20`** — survives vacuously. A protocol that leaves nothing behind
+  satisfies *no artifact a transaction leaves behind is a receipt* by having no
+  artifact. Recorded by `quarantine-k43`.
+- **`FN-24`** — settled by `crash-k47`. `FN-24.b`'s two multi-effect steps are
+  declared abstractions of the incumbent's own machinery, and `FN-24.a`'s only
+  mutation that reaches an artifact reaches the model's classification. Removing
+  the quarantine removes `SReservedQuarantined` and the disks that need it in the
+  same stroke, so the partition stays total and disjoint over what is left.
+- **`FN-27`** — this slice's, and it does not name the quarantine because
+  `unrelatedUnchanged` names three fields of the WORKSPACE and nothing on the
+  task root's side. Disposal-in-place frames all three exactly as the incumbent
+  does; all three of row 57, 58 and 59's kills are frame removals at Grove's own
+  steps, none of which is a quarantine.
+- **`FN-28`** — this slice's, and its conjunct (b) *does* name `QuarRename`. That
+  is the incumbent realisation of a role and the class register says so in as many
+  words: *where a shared-safety claim names a concrete artifact, the artifact is
+  the incumbent realisation of a role*. (b)'s role-form is **the task root leaves
+  its own name only on a proven result**, which disposal-in-place satisfies by
+  never moving it at all.
+- **`FN-23`** and **`FN-29`** — this slice's. Monotone removal with a guard that
+  goes false is satisfiable in place; the blocks that vanish with the rename take
+  their own artifacts with them and the witness-side blocks are untouched.
+- **`TT-24`** — *Grove never mutates what it cannot prove is its own*. The proof
+  is the manifest and the document at the reserved name, neither of which is the
+  quarantine.
+
+So the incumbent quarantine handoff protects Grove and not the user, on this
+family's evidence. **That is Q4's delete/replace criterion met for the first
+time in either family, and it is evidence FOR Q1's candidate rather than a
+decision of it** — Q1's own criterion additionally requires disposal-in-place to
+be *checked* against every retained claim under `relax_EN_03`, with `FN-24`'s
+witnesses reached at a bound no greater than the incumbent's. Nothing here runs
+that candidate. `formal-synthesis-k16` reads the row; the Quint column owes its
+own.
+
+**Q4-6 IS DECIDED AND ITS OBLIGATION CANNOT BE NAMED BY A COMMAND IN THIS
+DIRECTORY, WHICH IS `TT-24.c` AND `TT-24.d`'S PROBLEM MET A THIRD TIME.** Row x1
+strips `reapable` back to *there is a quarantine* — the sweep with no document to
+read — and what dies is `FN-21.b` and `FN-21.c`, both *incumbent mechanics*. What
+the mutation actually demonstrates is the shared-safety sentence behind them:
+with nothing at the reserved name to read, the sweep removes a quarantine whose
+in-tree witness still owns it and a foreign entry at a reserved name alike, which
+is `TT-24` — and `TT-24` is in the register's shared-safety list. **No command in
+this file can be that row's evidence**, because the runner's placement rule sends
+every `TT_`-prefixed command to `crates/grove-task-tree/models/`, and that
+directory declares `TT-24.c` and `TT-24.d` `out-of-bounds` because their contexts
+are finish contexts. The row is therefore decided *by* a mutation and cited *to*
+an obligation no check here answers. That is a third consequence of the placement
+question and it is `formal-synthesis-k16`'s to settle along with the other two.
+
+### What the blocked slice decided, which was nothing (retained)
 
 `FN-25` and `FN-26` are both **shared-safety** claims, so the question is fair
 and the answer is no. Neither obligation names a removable artifact of the
@@ -2419,3 +2857,52 @@ markerless model would lose is `FN-31`, which is incumbent mechanics. The
 quarantine's row is the same shape. `FN-27` — *nothing unrelated is mutated, on
 any outcome* — remains the last shared-safety claim that could move either, and
 it is the third child's.
+
+## Whether `models/run.sh` grows a matrix reader — decided: yes, narrowly, and it is a leaf
+
+The catalogue calls the matrix *a runner obligation like any other: a removable
+artifact with no row fails the run*. The decision is **yes**, and what a reader
+can and cannot do is the whole of it.
+
+**What it can check, and it is worth checking.** The catalogue NAMES the ten
+removable artifacts, in one sentence, in one place — so the row set is derivable
+from the catalogue exactly as the obligation manifest is, which is the runner's
+founding principle (*the catalogue IS the manifest*). A reader can therefore
+assert, per family: every named artifact has a row; every row names an artifact
+the catalogue names; and every row's cited obligation is one the catalogue
+defines, or `none`, or a declared `abstracted`. That is the same two-direction
+assertion the coverage matrix already makes about commands, at a second grain,
+and it catches a typo'd identifier, an invented obligation, an artifact the
+catalogue added with no row, and a matrix that silently disappeared when a
+README was rewritten.
+
+**What it cannot check, stated plainly.** A row naming the wrong *but real*
+obligation reports identically to a right one. No runner can decide *first
+broken*; that is what the mutation discipline is for.
+
+**So what reaches the content is a citation discipline, instituted here and
+carried by the table above.** Every row carries an evidence class and a pointer:
+`mutation` cites a numbered row of the mutation matrix, which carries its own
+fire-evidence and its own *left green* sweep; `argument` cites the claim's text
+and says no mutation was available; `abstracted` cites the *Abstractions* entry.
+A reader can check that the citation RESOLVES — that row 19 exists, that the
+obligation it names is the one the row claims — which is one more direction the
+same reader gets for free. What is left unmechanised is whether the cited
+mutation is the *first* broken, and that is bounded rather than open: a row whose
+mutation killed exactly one check, with the *left green* sweep recorded, has said
+as much as this instrument can say.
+
+**No `review-prototype` is cut**, and the node brief's condition is what decides
+it: the exception it names is *if nothing reaches the matrix*. Something does —
+seven of the ten rows cite a mutation with fire-evidence and a neighbour sweep,
+one is `abstracted`, and the two that rest on argument (`Q4-2`, `Q4-5`) each
+enumerate the claims they considered rather than asserting a conclusion, which is
+the shape a reviewer would have to read anyway. The residual risk is the one
+stated above and it is the same risk the mutation matrix has carried since
+`entry-k39`.
+
+The reader is **a leaf, not inline work**: it touches `models/run.sh`, which is
+shared by four scopes and two families, and it must land before the Quint column
+closes and owes its own matrix. Cut as `matrix-reader`, inserted ahead of
+`quint-models-k10`.
+

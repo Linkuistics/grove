@@ -5651,6 +5651,201 @@ witness name and that the precedence is this file's proposal rather than the
 catalogue's.
 
 
+### 039 — An operand the world can forge, and a claim with no isolating mutation (finish exits)
+
+**Scope.** Finish / recovery, **component-local**
+(`crates/grove-finish/models/`). `FN-02`, `FN-23`, `FN-27.a` – `FN-27.c`,
+`FN-28`, `FN-29` and `FN-30`: intent persisting as the finish leaf, recovery's
+idempotence, *nothing unrelated is mutated on any outcome*, the single successful
+exit, a refusal as a complete outcome, and hook suppression. Eight obligations,
+sixteen new commands, `TODO.finish_process.md` **Q4's ten-row removal matrix**,
+and the runner's matrix-reader question. **The scope's empty alloy cells fall
+from eight to zero and the column closes.**
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened.
+
+**Situation.** The last slice of a column, and the only one in the scope whose
+brief charged it with a deliverable that is not a claim: Q4's matrix, which four
+earlier slices had each declined to write on the grounds that the shared-safety
+obligations that could decide its two hardest rows did not exist yet. `FN-27` and
+`FN-28` are those obligations.
+
+**THE MATERIAL RESULT IS ABOUT THE SHIPPED PROTOCOL AND IT IS THE FIRST IN THIS
+SCOPE THAT IS.** `FN-28` says *a finish succeeds exactly when the exact
+attempt-bound commit is proven and the task root is absent*. The second operand
+reads as a fact about the disk and **is not one the protocol can hold**: after
+the quarantine rename the task-root name is free, one world transition occupies
+it (`doRootNameTaken`, which exists for `FN-22.h`) and a second gives what it put
+there the **quarantined root's own identity** (`doSwap`, constrained only by
+`Root.rid' != Root.rid`). Three successive formulations of the claim's conjuncts
+— *after the completing step both operands hold*, *the completing step is reached
+only over both*, and *no disposal step takes either back* — were each falsified by
+that one trace and by nothing else.
+
+> **A finish cannot report success by looking at the task-root name.** The only
+> durable evidence is the correlation ticket. `FN-03` already says the ticket
+> must survive the *destruction* of every artifact the transaction owns; this
+> adds that it must survive the *re-creation* of one, because a name is not an
+> artifact and the world owns the namespace. A `grove finish` that decided
+> success by stat-ing the task root would report failure on a grove someone had
+> simply started using again, and success on one where the quarantine had been
+> moved back over it.
+
+The model states the operands as things Grove **establishes and preserves**,
+never as things that hold. This is the corpus's *`EN-11` as a transition* rule
+met a fourth time and the first time its consequence lands on the implementation
+rather than on the model.
+
+**THE METHODOLOGICAL RESULT IS A SIXTH WAY FOR A MUTATION TO FAIL ITS AIM, AND
+IT IS THE FIRST THAT IS A PROPERTY OF THE CHECK SET.** `FN-29`'s row took three
+forms and none isolates:
+
+- aimed at *every block leaves an artifact standing*, it kills `FN-22.a` first,
+  whose own third conjunct is *the witness is only ever released, on the rollback
+  path, at the after-restoration point*;
+- aimed at *the completed refusal leaves nothing of the transaction*, it is
+  **unsatisfiable** against `fact BodyPhaseMatchesDisk` (`Settled implies no
+  Slot.occ`) and reports exactly as a survivor — caught only because the
+  fire-evidence witness stopped landing;
+- aimed at the task root's own name, it fires and kills four neighbours.
+
+> **A claim every one of whose conjuncts is another claim's subject has no
+> isolating mutation.** It is still checked and its mutation is still a control;
+> what it is not is a control *for that claim alone*, and the honest record is
+> the neighbour list rather than a fourth attempt. The five earlier ways to miss
+> an aim are properties of the model, of the frame, of the fact set, of the
+> claim's own data, or of reachability. This one is a property of the SUITE.
+
+**A SEVENTH ENTRY IN THE BOUND REGISTER, AND IT SHARPENS THE `var`-FIELD RULE
+RATHER THAN OBEYING IT.** The crash slice left *a sibling that adds a `var`
+field, a transition or a fact owes the full witness sweep*. This slice adds one
+`var` field and does not owe it, and what replaces the sweep is a
+**monotonicity proof**: no guard, no `fact` and no existing command reads
+`World.hookRan`; twenty-eight of twenty-nine transitions frame it and the
+twenty-ninth leaves it free; so every pre-existing instance extends to an
+instance of the new file by setting the field absent throughout, and no
+first-landing bound can rise. Eight inherited witnesses spanning 2 to 12 states
+were re-measured as the control and every one still lands where it did.
+
+> **A `var` field that adds only free choice owes a proof and a control; a
+> `var` field any guard, fact or existing command reads owes the full sweep.**
+
+**AND THE COST MEASUREMENT CONTRADICTS THE SAME ARGUMENT'S OPTIMISTIC READING.**
+Monotonicity is about which instances exist, not about what they cost. The
+four-sentinel A/B gives −6.8%, +17.5%, +3.7% and −3.3%, and the file's **dearest**
+command moved least in both seconds and per cent while an 8-second command moved
++1.4 s. **A `var` field is not static structure even when nothing reads it**: it
+adds a boolean per state, so its cost tracks trace length and the size of the
+transition encoding rather than the difficulty of a command's own claim, and the
+last two slices' uniform 10 ms-per-atom law does not apply to it.
+
+**Q4 IS ANSWERED AND TWO ROWS READ `none`.** The catalogue names the ten
+removable artifacts; the matrix is in the family README with an evidence class
+per row. Seven rows cite a numbered mutation, one is `abstracted`, two rest on
+argument. **The quarantine's row reads `none`** — `FN-20` survives its removal
+vacuously, `FN-24` was settled by the crash slice, `FN-27` names three fields of
+the workspace and nothing on the task root's side, `FN-28`'s naming of
+`QuarRename` is the incumbent realisation of a role the class register explicitly
+discounts, and `TT-24`'s proof is the manifest and the reserved-name document
+rather than the quarantine. **That is Q4's delete/replace criterion met for the
+first time in either family** and it is evidence *for* Q1's candidate rather than
+a decision of it: Q1 additionally requires disposal-in-place to be checked under
+`relax_EN_03` with `FN-24`'s witnesses at no greater a bound, which nothing here
+runs. **The replace transition's row reads `none` too**, transcribed from row 45:
+narrowing it away leaves every check in the file green and stops one witness
+landing — a liveness hole no safety claim sees.
+
+**Two rows of the matrix are the kind of thing a matrix is for.** The evacuation
+manifest's row was predicted by argument to break `FN-17.a` and the mutation
+breaks `FN-02` instead: `FN-17.a`'s first conjunct is guarded on entries actually
+returning and its second on the release, so a restoration that returns nothing
+slips beneath both, and *intent persists as the finish leaf* is the first
+shared-safety claim that notices. And the cleanup marker's row cites **`TT-24`**,
+an obligation **no command in this directory may answer** under the runner's
+placement rule — a third consequence of the `TT-24.c` / `TT-24.d` placement
+question, which `formal-synthesis-k16` now inherits three times over.
+
+**A twelfth finding, and it is about this file's own record.** `FN-13` is
+*shared safety* in the catalogue's class register and this README's commit-slice
+note has called it *incumbent mechanics* for three slices. It changes the
+reserved witness's matrix row from a note into an answer. Recorded rather than
+silently corrected.
+
+**The runner question is decided: yes, narrowly, and it is a leaf.** The
+catalogue names the ten artifacts in one sentence in one place, so the row set is
+derivable from the catalogue exactly as the obligation manifest is — a reader can
+assert, in both directions, that every named artifact has a row, that every row
+names a named artifact, and that every cited obligation exists. It cannot decide
+*first broken*; what reaches that is the **citation discipline** instituted with
+the matrix, where each row cites a numbered mutation with its own fire-evidence
+and neighbour sweep, an argument, or an abstraction. No `review-prototype` was
+cut, and the leaf is `matrix-reader-k50`, placed ahead of the Quint column
+because that column will owe a matrix of its own.
+
+**Formalism.** Alloy 6, temporal, one file, sixteen new commands (eight checks
+and eight witnesses), **180 in total**. One `one sig` (`Hook`), one static field
+and **one `var` field** (`World.hookInstalled`, `World.hookRan`) — the first
+`var` field added to this file since `commit-k41` — four functions, five
+predicates and one posited disk. No transition, no `fact` and no scope dimension;
+the ceiling stays at **thirteen**.
+
+**Caught / missed.** Caught: an operand of a shared-safety claim that the world
+can forge, with a design consequence; a sixth way for a mutation to miss its aim;
+four retained counterexamples, three of them the free-initial-state rule met at
+new granularities; a commit whose handle is empty landing a revision and no
+ticket; the class-register discrepancy on `FN-13`; and the fact that `FN-17.a`
+does not catch a restoration that returns nothing. Missed by construction, and
+recorded: `FN-28`'s *branch, bookmark and worktree topology* is checked as *Grove
+moves recorded topology only at an internal commit*, so an integration performed
+BY a commit is invisible; `FN-30` models whether a hook ran and never what it
+would do, so the implication between `FN-30` and `FN-27` is unchecked; and
+`FN-23` does not cover a recovery whose terminal state depends on when it was
+interrupted, which is `FN-21.a`'s.
+
+**Cost.** 180 commands, **14 m 33 s** for the whole file, against 164 in
+12 m 08 s (`blocked-k48`) — the sixteen new commands account for essentially all
+of the +2 m. `FN_02` is the slice's dearest command at **45 s** and its
+counterexample-carrying first form took **3 s**: a check that fails early is
+cheap and a check that must exhaust the space is not, so a slice that budgeted
+from its first red run would have budgeted an order of magnitude low. The
+session's largest block was neither the bound sweep — argued, with an
+eight-witness control — nor the matrix, but **three claims that each had to be
+restated after a counterexample**, and all three restatements were the same rule.
+
+**Counterfactual.** The tenth finding is not available by reading. It requires
+holding `FN-28`'s two-operand definition against the set of states two *world*
+transitions can produce, one of which (`doRootNameTaken`) exists for an entirely
+different obligation and the other of which (`doSwap`) is constrained only by an
+inequality. No amount of care in reading the catalogue produces *the world can
+put the quarantined root's own identity back at the task-root name*; a solver
+produces it in three seconds, three times running, against three different
+formulations. **This is the clearest single instance in this experiment of the
+model finding something about the implementation rather than about itself.**
+
+**Verdict.** The slice is green — **180 commands, 8 obligations, 61 of 61 alloy
+cells filled, coverage asserted, `--no-coverage` gone from the run line**, one
+mutation per obligation and all eight KILLED, six of the eight isolating cleanly
+on a twenty-six-check sweep. One protocol finding, two catalogue/record findings,
+four retained counterexamples, and the alloy column of the finish scope closed.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6,
+`org.alloytools.alloy.dist.jar`, Corretto `21.0.12.1+9-LTS`. **Solver**: SAT4J
+(distribution default), every command with `-n` and `-t text`. **Bounds**: the
+common shape is unchanged and the ceiling does not move — all eight checks at
+**13**; the eight witnesses first land at 11, 4, 9, 10, 9, 9, 10 and 8, measured
+by sweep from 2 to 14. No `Int`. **Fairness**: none assumed; nothing here is a
+liveness claim. **Symmetry**: no `exactly` scope. **Abstractions**: *the task
+root is absent* read as `Txn.pinned not in Root.rid`; a user-supplied hook as one
+static atom with one `var` boolean for *has run*, with what a hook would mutate
+deliberately unmodelled; the internal commits as exactly `CommitAttempt` and
+`Settle`. **Deliberately omitted**: the index image, which has no counterpart in
+this file and is Q4's one `abstracted` row. **What a green run does not prove**:
+four new entries in the family README, of which the two sharpest are that
+`FN-28`'s topology conjunct cannot see an integration performed by a commit, and
+that `FN-29`'s second conjunct has no isolating mutation.
+
+
 ---
 
 ## Distillation — where each entry landed

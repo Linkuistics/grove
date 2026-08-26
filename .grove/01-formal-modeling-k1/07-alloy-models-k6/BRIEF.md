@@ -73,3 +73,78 @@ slower, where pinning `EN-12` (which empties a relation) made the file cheaper.
 objects the obligation names. Five of the file's nine incidents were a check
 written too narrow, so these are the two questions to ask while writing a
 command rather than after a mutation survives.
+
+
+## What the finish subtree established, and what `system-k9` inherits
+
+`finish-k8` closed with the Alloy column of the finish scope complete — `FN-01` –
+`FN-31`, **180 commands, 61 of 61 cells, coverage asserted**, and
+`--no-coverage` gone from `crates/grove-finish/models/README.md`'s run line.
+Eight slices, nine sessions, and the four things below are this node's rather
+than that subtree's. Everything the task-tree section above carries still
+applies unchanged and none of it is restated.
+
+**A design constraint, not a modelling one — and `SY-05` is where it lands.**
+`FN-28` says *a finish succeeds exactly when the exact attempt-bound commit is
+proven and the task root is absent*, and the second operand is **not a fact the
+protocol can hold**: after the quarantine rename the task-root name is free, the
+world can occupy it, and it can then give what it put there the quarantined
+root's own identity. Three formulations of the claim were falsified by that one
+trace. **The only durable evidence a finish succeeded is the correlation
+ticket** — a name is not an artifact and the world owns the namespace. `SY-05`
+makes *absent root* a first-class lifecycle state; model it as something Grove
+establishes and preserves, never as something that holds, or the lifecycle model
+will re-derive this at its own cost. Recorded in `docs/formalism-findings.md`
+entry 039 and in the family README under *A tenth finding*; no ADR was written,
+because settling it is `formal-synthesis-k16`'s.
+
+**The `TT-24` placement disagreement now has THREE consequences, not two.**
+`TT-24.c` and `TT-24.d` remain declared gaps in the task-tree model and are
+unfillable from either directory; the finish model now states both contents
+under `FN-` prefixes (`FN-25` for the in-transaction `Blocked(OwnershipConflict)`,
+`FN-21.c` for the reaper's decline), so a re-statement would be a citation change
+and nothing more. The third: **Q4's removal matrix has a row whose first-broken
+obligation is `TT-24`**, cited from a directory in which no `TT_`-prefixed
+command may live. `system-k9` should expect the same shape wherever an `SY-`
+claim's content is really a `TT-` or `FN-` one; `formal-synthesis-k16` inherits
+all three.
+
+**Two more entries in the bound register, and the second sharpens a rule this
+node already carried.**
+
+- **A shape claim under `EN-11` must be restated over the protocol's own steps**
+  — the task-tree section's rule — was met **four** more times in the finish
+  subtree, at four different granularities: a free initial state, a world
+  transition, a claim's own subject, and the operand of a definition. It is the
+  single most productive rule in this corpus and it is cheap to apply before the
+  fact: **ask of every conjunct whether state 0 or the world could hand-edit it
+  false.**
+- **A `var` field that adds only free choice owes a proof and a control; a `var`
+  field any guard, fact or existing command reads owes the full witness sweep.**
+  `exits-k49` added `World.hookRan`, framed by twenty-eight of twenty-nine
+  transitions and read by no guard, and discharged the sweep with a
+  **monotonicity argument** — every pre-existing instance extends by setting the
+  field absent throughout, so no first-landing bound can rise — plus an
+  eight-witness control. That replaces the crash slice's blanket rule.
+
+**And a cost correction: a `var` field is NOT static structure.** The static-atom
+law measured twice in the finish subtree is uniform — about **10 ms of
+translation per atom per command** — so budget static signatures by counting
+atoms and stop reading percentages. A `var` field does not obey it: it adds a
+boolean per state, its cost tracks trace length rather than a command's
+difficulty, and a four-sentinel A/B gave −6.8%, +17.5%, +3.7% and −3.3% with the
+**dearest** command moving least. Budget one at a few per cent of the whole file
+and measure rather than predict.
+
+**Six ways for a mutation to fail its aim, and the sixth is new in kind.** The
+register is in `crates/grove-finish/models/README.md` under *The mutation
+matrix* and is worth reading once before writing a control. The sixth: **a claim
+every one of whose conjuncts is another claim's subject has no isolating
+mutation** — a property of the check set rather than of the model, and the
+honest record is the neighbour list rather than a fourth attempt.
+
+**One leaf was cut out of this subtree and it is not under this node.**
+`matrix-reader-k50` teaches `models/run.sh` to read each family's Q4 removal
+matrix; it sits under `formal-modeling-k1` ahead of `quint-models-k10`, because
+the runner is shared by four scopes and two families and the Quint column will
+owe a matrix of its own. `system-k9` needs nothing from it.

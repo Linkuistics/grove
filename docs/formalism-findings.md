@@ -5846,6 +5846,183 @@ four new entries in the family README, of which the two sharpest are that
 that `FN-29`'s second conjunct has no isolating mutation.
 
 
+### 040 — A fact that stated the claim it was protecting, and three greens over nothing (lifecycle admission)
+
+**Scope.** System lifecycle, **system-level** (`models/system/`) — the first
+entry in this experiment whose model is not component-local. `SY-01.a`,
+`SY-01.b`, `SY-02`, `SY-03`, `SY-11.a` and `SY-11.b`: one live driver per
+working tree, the layout proved before any tree exists, a preflight that is
+never a licence, and the guard order. Six obligations, fourteen commands, a new
+`models/system/lifecycle.als`, and the two Alloy assumption mutations this scope
+owns (`EN-07`, `EN-14`). **The lifecycle scope's empty alloy cells fall from
+twenty-five to nineteen.**
+
+**Independence protocol: held.** No Quint model of this subject exists, and no
+`.qnt` file was opened. The sibling scopes' Quint columns were not read.
+
+**Formalism.** Alloy 6.2. Not a choice — the node brief fixes both families, and
+this is the Alloy column.
+
+**Situation.** The first file of a scope whose whole discipline is *compose at
+observations, never at machinery*: a lifecycle model that reads the task-tree and
+finish contracts through the smallest observation that decides a claim, and
+carries none of their machinery. Six obligations is the smallest slice in this
+experiment, and it was chosen small because the file did not exist and three
+foundational decisions had to land with it — how coarse the composition boundary
+is, whether the guard stack is one ordered relation or three acquirable ones, and
+whether a guard *wait* is observable at all.
+
+**THE MATERIAL RESULT IS THAT A CLAIM RESTING ON A PLATFORM PROPERTY HAS NO
+PROTOCOL-LEVEL MUTATION, AND THE ASSUMPTION TABLE HAS NO ROW FOR IT.** `SY-01.b`
+says *ownership is released by process death as ordinarily as by return*. In any
+model that represents an advisory lock honestly, that is a construction fact —
+the kernel releases the lock when the holder ceases to exist — and **two separate
+mutations against it are made unsatisfiable by the model's own facts**, which
+reports exactly as a survivor does. The half that is not construction (a return
+releases too; a successor proceeds) is checked and witnessed; the release half
+cannot be.
+
+> **`EN-01` – `EN-16` contain no row for kernel release of advisory locks on
+> process death, and `SY-01.b` rests entirely on it.** Every other premise a
+> claim's correctness rests on has a row and a mutation with a stated expected
+> result — that is what the table is *for*, and what makes *agreement mistaken
+> for proof* controllable. This one is granted silently, in both families, by
+> whoever writes the crash transition. Adding the row is not this leaf's call:
+> it imposes a mutation on the Quint column and changes what `formal-synthesis-k16`
+> reads off the coverage matrix, so it is recorded here and named for that leaf,
+> exactly as `SY-05`'s design constraint was at entry 039.
+
+**M1** `alloy-only`. **M2** `interruption`. **M3** — no counterexample; the
+finding arrives as *two mutations that will not fire*, which is score **0** by
+the ordinal's own terms and is the second time in this experiment that a
+zero-score signal was the informative one. **M4** `none` — there is no defect to
+write a failing test against; the correction is a catalogue row.
+
+**THE METHODOLOGICAL RESULT IS A THIRD SHAPE OF FALSE CONFIDENCE, AND IT IS THE
+FACT SET RATHER THAN THE BOUND OR THE FRAME.** Three greens over nothing in one
+session, each caught by a different instrument:
+
+1. **A `lone` field under `not in` is false when the field is empty.**
+   `p.waits not in p.holds` reads as *nobody waits for what they already hold*
+   and is **false** exactly when `p.waits` is empty, `none in X` being true for
+   every `X`. The fact therefore said *every process is blocked in every state*,
+   and the file had **no instances at all** — `some Proc` was unsatisfiable.
+   Every check reported *no counterexample*. Caught by the **witnesses**, all six
+   of which returned nothing in the same run; a check-only suite would have
+   reported a perfect green over an empty universe. **M8**, stood one round.
+2. **A construction fact that states a claim makes the claim vacuous.**
+   `SY-11.a` — *every path takes lease, then generation, then tree, in that
+   order* — was green while the free-initial-state fact asserted `TreeG in p.seen
+   implies EpochG in p.seen`, which **is** that order. Three mutations against
+   three different acquisition sites all survived before the cause was found.
+   Caught by the **mutations**, and by nothing else: the check was green, the
+   witness landed, the runner was satisfied. **M8**, stood two rounds.
+3. **A construction fact that states a claim also disarms the control aimed at
+   it.** `always all g: Guard | lone holds.g` says *one live driver per working
+   tree* — `SY-01` — as a fact, and `expect_fail_EN_14_SY_01a` therefore could
+   not fire. Caught by the **assumption control**, which is the one thing in the
+   suite whose expected result is failure. The construction fact is now one
+   holder **per root**, and the lease sits outside the guard exclusivity rule.
+   **M8**, stood two rounds.
+
+> **The three instruments are not redundant and this session needed all three.**
+> Witnesses catch an empty universe. Mutations catch a vacuous check. An
+> assumption control catches a fact that has absorbed the claim — and it is the
+> only one that can, because it is the only command that fails when the model is
+> *too strong*. The sibling scopes recorded the first two; the third is new, and
+> its shape is that **a premise-break control is also a vacuity detector for the
+> claim it names**.
+
+**M1** `alloy-only` for all three. **M2** `structure`. **M3** — 3, 2 and 0
+respectively: the first announced itself as a total absence of instances, the
+second as three surviving mutations that had to be read against the fact set, and
+the third produced no trace at all. **M4** `none` — all three are model-level;
+their durable residue is the family README's two incidents and this entry.
+
+**A composition seam, recorded rather than solved.** `SY-02`'s fourth conjunct —
+*a tree operation happens only under a lease* — is stated **for a driver only**.
+A session reaches the tree by matching a live generation, and a live generation
+exists only because a driver holding a lease opened one; but `launch` is not
+modelled in this slice, and written unqualified the conjunct is **false at state
+0**, which the check reported twice. The session half is `SY-10`'s. This is the
+first instance in the lifecycle scope of the shape the finish subtree predicted:
+a `SY-` claim part of whose content belongs to another obligation's machinery.
+
+**Caught / missed.** Caught: an assumption the table does not carry; three
+false-confidence incidents with three different catching instruments; a vacuous
+conjunct beside a real one (*what a process has taken is totally ordered by
+`below`* is true of any subset of three guards, and read as content); a witness
+first landing at exactly its own bound; and the composition seam above. Missed
+by construction, and recorded: `SY-01.b`'s release half; the session half of
+`SY-02`; and the guard-order clause at two of five acquisition sites, which is
+**unexercised within these bounds** — a grant cannot violate an order the wait
+already satisfied, since `seen` does not change while a process is blocked, and
+the take-tree site's clause can only be violated by a re-acquisition nothing
+admits. Both become load-bearing when a slice resets `seen` per iteration.
+
+**Cost.** Fourteen commands, **13 s wall** for the whole file under
+`models/run.sh` (322% CPU, 39.8 s user), or about **12 s serially**. Authoring
+≈ **2.5 h** for six obligations (**M5**: 0.42 h/obligation), of which roughly
+**1 h** was the three incidents. **M7 wrangling**: about 20 m, essentially all of
+it the `lone`-under-`not-in` bisect, which presents as a silent total
+unsatisfiability with no error and no diagnostic.
+
+> **THE COST LAW IS UNMEASURABLE AT THIS SIZE, AND THAT IS THE H8 DATUM.** The
+> JVM-plus-parse floor on this host is **0.58 s**, measured three times on a
+> one-signature file, so the entire fourteen-command file spends about **4.6 s**
+> actually solving and every command sits within 2× the floor. The sibling
+> scopes' law — states-at-which-a-transition-is-enabled × the bound, plus ~10 ms
+> of translation per static atom per command — has nothing to bite on here, and
+> a percentage carried out of this file would be run-to-run noise. **The reason
+> is the placement.** A system-level model that reads two contracts at their
+> observations is cheap in exactly the way a third copy of them would not be, and
+> **0.42 h/obligation sits inside the component-local range already recorded**
+> (0.18, 0.50, 0.58 at entries 028, 029 and 030). On this one file, system-level
+> placement costs no more per obligation than component-local placement — which
+> is the operand **H8** names, offered as one point rather than as a result.
+
+**Counterfactual.** Two of the three incidents are not available by reading.
+The `lone`-under-`not-in` fault is visible to a careful reader *in principle* and
+was not visible to this one; what made it findable in minutes was that the
+witnesses all went empty at once — a review of the same text would have read the
+fact as its English gloss, which is what the author did while writing it. The
+vacuous `SY-11.a` is worse: the fact and the claim are on different pages of the
+same file, both correct in isolation, and the only thing that connects them is a
+mutation nobody would run by hand. The `EN-14` incident is the clearest — the
+control exists precisely to be run, and it is a **two-line command that
+falsifies a fact a reviewer would have approved**.
+
+**Verdict.** The slice is green — **14 commands, 6 obligations, 6 of 25 alloy
+cells filled, 19 correctly reported empty**, one mutation per obligation with
+four killed, two recorded as unkillable with the reason, and both assumption
+controls firing with the counterexamples retained. One catalogue finding
+(`EN`-table row for kernel lock release), three false-confidence incidents, one
+composition seam, and the lifecycle scope's Alloy column opened.
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6.2.0
+`.202501090817` (git `794226d`), `org.alloytools.alloy.dist.jar`, Corretto
+`21.0.12.1+9-LTS` — the host's default `java` is 16.0.1 and below Alloy 6's
+floor. **Solver**: SAT4J (distribution default), every command with `-n` and
+`-t text`. **Bounds**: `for 3 but 2 WtId, N steps`, `N` from 3 to 6 and **N is
+STATES**; the six witnesses first land at 2, 4, 2, 4, 5 and 2, measured by sweep
+from 1 to 8. `3 Proc` is load-bearing — `SY-11.b`'s cycle needs two blocked
+processes and its non-vacuity witness a third holder. No `Int`. **Fairness**:
+none assumed; nothing in this slice is a liveness claim, and `SY-13`'s
+existential reachability is a sibling's. **Symmetry**: no `exactly` scope.
+**Abstractions**: a guard *wait* as an observable state (`Proc.waits`,
+`Deferred`) — the catalogue is explicit that a wait is not an outcome, and
+`SY-11.b` is a claim about waiting, so the abstraction is this file's own and is
+declared as one, exactly as the task-tree model declared its `Deferred`; the task
+root as *present or absent*; two process roles and no generation value; the later
+layout gate as one action standing for every subsequent revalidation.
+**Deliberately omitted**: `launch` and `reap`, two of the seven Lifecycle
+actions, because no obligation in this slice reads a spawn. **What a green run
+does not prove**: two obligations have no firing protocol-level mutation, two
+order clauses are unexercised within these bounds, and `SY-11.b`'s back edge is
+unreachable *by construction* with `EN-07` granted — which is what makes the
+`EN-07` control, rather than the check, the evidence that the check can see one.
+
+
 ---
 
 ## Distillation — where each entry landed

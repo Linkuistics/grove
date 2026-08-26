@@ -9,10 +9,11 @@
  * file.
  *
  * COVERAGE SO FAR: SY-01, SY-02, SY-03 and SY-11 — the ADMISSION slice, the
- * loop's guard stack — plus SY-04, SY-08 and SY-10, the ITERATION slice: the
- * loop's own step.  SY-05 .. SY-07, SY-09 and SY-12 .. SY-14 are the `roots`
- * and `sessions` sibling leaves'; the runner reports their cells empty, which is
- * the truth about this file rather than a defect in it.
+ * loop's guard stack — plus SY-04, SY-08 and SY-10, the ITERATION slice, the
+ * loop's own step — plus SY-05, SY-06 and SY-07, the ROOTS slice: the task
+ * root's own lifecycle.  SY-09 and SY-12 .. SY-14 are the `sessions` sibling
+ * leaf's; the runner reports their cells empty, which is the truth about this
+ * file rather than a defect in it.
  *
  * THIS FILE COMPOSES AT OBSERVATIONS, NEVER AT MACHINERY.  It is the joint of
  * the task-tree and finish contracts, and it reads them through the smallest
@@ -21,6 +22,19 @@
  * no digest, no manifest, no witness slot, no quarantine and no lane anywhere
  * below, and a signature that grows one is this file becoming a third copy of
  * two contracts rather than the joint of them.
+ *
+ * THE ROOTS SLICE MAKES ONE COMPOSITION DECISION AND IT IS THE FILE'S SHARPEST.
+ * `SY-06.b` is the first obligation that cannot be answered by *present or
+ * absent*: it must complete a `PartialScaffold` and REFUSE a `Legacy` tree,
+ * which is two of `TT-18`'s eleven states.  Importing two is not importing
+ * eleven, and this file imports neither: `World.partial` and `World.legacy` are
+ * OPAQUE OBSERVATIONS whose content — the exact known subset, the byte
+ * comparison, the classification ORDER — is `crates/grove-task-tree/models/`'s
+ * and appears nowhere here.  What this file owns is the difference between the
+ * observation that ENABLES the completion (their union, which is exactly *the
+ * format witness is absent*) and the one that DECIDES it (`partial` alone).
+ * That difference is `SY-06.b`, and it is checkable without a format witness in
+ * the signature.
  *
  * HOW TO READ IT — the house style of `docs/ordinal-fs-tree/models/`, and of
  * both sibling scopes:
@@ -75,10 +89,23 @@ module lifecycle
    the `EN-14` mutation is that it can. */
 sig WtId {}
 
-/* The task root, as this scope observes it.  `TT-18`'s eleven-state
-   classification is the task-tree model's; nothing in the admission slice reads
-   finer than presence, and `roots` is where absence becomes load-bearing. */
-one sig TaskRoot {}
+/* THE IDENTITY OF ONE GROVE — an INCARNATION of the task root, not its path and
+   not its contents.  The admission and iteration slices read no finer than
+   presence, and `roots` is where absence becomes load-bearing: `finish-k8`
+   falsified three formulations of `FN-28` on one trace because after the
+   quarantine rename THE NAME IS FREE, the world can occupy it, and it can give
+   what it put there the quarantined root's OWN IDENTITY
+   (`docs/formalism-findings.md` entry 039).  A model whose task root is a `one
+   sig` cannot state that trace, and a model that states absence as an invariant
+   re-derives the counterexample at its own cost.
+
+   So absence is never something that HOLDS here.  It is something Grove
+   ESTABLISHES — `World.retired`, the groves whose deletion Grove has proven —
+   and PRESERVES — that set is never shrunk, not even when the world puts a tree
+   back at the name carrying a retired identity.  `TT-18`'s eleven states are
+   still the task-tree model's; what a `SY-` obligation reads of a grove is its
+   IDENTITY and nothing else. */
+sig Grove {}
 
 abstract sig Layout {}
 one sig SupportedL, UnsupportedL extends Layout {}
@@ -186,8 +213,41 @@ one sig World {
   var wt:      lone WtId,       // the working-tree root, as an open directory
   var layout:  one Layout,
   var cfg:     one Cfg,         // whether full configuration validation passes
-  var rooted:  lone TaskRoot,   // whether a task tree exists at all
+  var rooted:  lone Grove,      // the grove OCCUPYING the task-root name, if any
+  /* THE GROVES THAT EXIST ANYWHERE, and the field `EN-14` is about.  Under the
+     assumption a grove exists exactly while it occupies the name, so this
+     tracks `rooted` step for step and `SY-05.a`'s third conjunct — *absence is
+     the COMPLETE fresh-tree discriminator* — is green.  `EN-14`'s mutation
+     replaces the working-tree root under the loop: the grove is still there, in
+     the directory Grove can no longer reach, and the two part company.  That
+     divergence IS the mutation's counterexample. */
+  var extant:  set Grove,
+  /* THE DELETIONS GROVE HAS PROVEN.  Monotone, and it is the whole of what
+     `SY-05` means by absence: not a state of the filesystem — the world owns
+     that name the moment the rename lands — but a fact Grove ESTABLISHED and
+     thereafter PRESERVES.  The correlation ticket is its durable realisation and
+     is `crates/grove-finish/models/`'s; what reaches this file is the fact. */
+  var retired: set Grove,
+  /* THE COMMIT WHOSE PROOF `FN-11` AND `FN-19` OWN, as one opaque observation.
+     `some World.proven` is *the deletion of the grove at the name is proven*;
+     the witness slot, the manifest, the evacuation and the atomic rename that
+     make it true are the finish model's and appear nowhere here.  `SY-05.b` is
+     stated over this field and names that model as the owner of the steps. */
+  var proven:  lone Grove,
+  /* THE TWO ROOT STATES THIS SCOPE READS, AS OPAQUE OBSERVATIONS — see the
+     header.  Their content is `TT-18`'s and `TT-20`'s: `partial` is *present, no
+     format witness, and the contents are exactly the known proper subset*, and
+     `legacy` is *present, no format witness, and not that*.  Neither the subset,
+     the bytes, nor the classification ORDER is here; what is here is that they
+     are DIFFERENT and that only one of them is completable. */
+  var partial: lone Grove,
+  var legacy:  lone Grove,
   var live:    set Leaf,        // the live leaves, unordered — see `Leaf`
+  /* THE FINISH LEAF, AND IT IS A `set` ON PURPOSE.  `SY-07.a` claims EXACTLY ONE
+     driver-owned finish leaf, and a `lone` field would say so by construction —
+     which is the failure mode `README.md` records twice.  Declared `set`, the
+     count is something `SY_07a` CHECKS and something a mutation can break. */
+  var fin:     set Leaf,
   var verdict: lone Ok,         // what the lease gate recorded
   /* THE SESSION EPOCH RECORD.  `some` is an active record with that identity;
      `none` is an inactive one.  ONLY ROTATION IS MODELLED: `open-epoch` writes
@@ -247,7 +307,18 @@ one sig IdleA,            // the stutter an Alloy lasso needs
         ConfigEditA,      // the world's
         CrashA,           // the world's
         NestedAcquireA,   // EN-07's mutation only
-        RemoveRootA       // EN-14's mutation only
+        RemoveRootA,      // EN-14's mutation only
+        // --- the roots slice ---------------------------------------------
+        InitRootA,        // initialise-root, AS FAR AS THE FORMAT WITNESS
+        CompleteScaffoldA,// the append that finishes it — and that completes an
+                          //   INTERRUPTED one.  One operation, two arrivals.
+        AllocFinishA,     // allocate-finish-leaf — SY-07
+        ProveCommitA,     // FN-11/FN-19's proof, as ONE opaque step
+        SettleDeletionA,  // the atomic rename's observable effect: the name frees
+        ObserveRootA,     // resolve — an observation of the root's presence
+        HandEditA,        // the world's (EN-11): a legacy tree at the name
+        ForeignWriteA     // the world's (EN-13): the name RE-OCCUPIED, and with
+                          //   the retired identity — entry 039's own trace
   extends Action {}
 
 /* THE CATALOGUE'S LIFECYCLE GROUP, ALL SEVEN, AND EXACTLY THEM.  `SY-04.a` is
@@ -260,6 +331,18 @@ fun LifecycleAct: set Action {
   + CloseEpochA + ReleaseLeaseA
 }
 
+/* EVERY OBSERVATION, CREATION OR MUTATION OF THE TASK TREE, as a set rather than
+   as a list of names — `SY-11.a`'s discipline applied to `SY-02`'s fourth
+   conjunct and `SY-10.a`'s third.  The admission slice stated both over
+   `TreeOpA` alone because `TreeOpA` was the only one; this slice adds six, and a
+   claim written as a list would have gone stale silently rather than loudly.
+   `SY-02` and `SY-10.a` are STRENGTHENED by this and neither was edited
+   otherwise, which is what the set was for. */
+fun TreeAct: set Action {
+  TreeOpA + InitRootA + CompleteScaffoldA + AllocFinishA
+  + ProveCommitA + SettleDeletionA + ObserveRootA
+}
+
 /* THE ITERATION BOUNDARY IS NOT A CATALOGUE ACTION, and is declared as this
    file's own abstraction in `README.md` beside `Proc.waits`.  §*Actions* has no
    boundary in it, because a boundary is not something the loop DOES — but
@@ -270,6 +353,12 @@ fun LifecycleAct: set Action {
 
 abstract sig Result {}
 one sig Applied, Environmental extends Result {}
+/* `Empty` — an observation that matched nothing, AND IT IS A SUCCESS.  §*Outcomes*
+   is explicit, and `TT-15.a` is its claim.  It arrives with this slice because
+   `SY-07` is where `doSelect`'s `some World.live` guard comes off: selection on a
+   spent tree is not an absent transition, it is the observation that PRECEDES
+   the finish leaf's allocation. */
+one sig Empty extends Result {}
 /* An observation returning a value — the catalogue's `Reported(v)`.  This file
    reads no value off a selection, so the payload is absent and `TT-15`'s
    `Empty`/`Ambiguous` distinctions are the task-tree model's. */
@@ -292,6 +381,12 @@ abstract sig Refused extends Result {}
    reason the two are recorded together rather than separately. */
 one sig RefLeaseHeld, RefLayoutUnsupported,
         RefEpochStale, RefConfigInvalid extends Refused {}
+/* Both are the catalogue's own, from the closed refusal-reason set.
+   `RefFormatLegacy` is `FormatLegacy`: a tree with no format witness that is not
+   the known subset is refused rather than completed, which is `SY-06.b`'s whole
+   content.  `RefReservedKind` is `ReservedKind`: the finish leaf's kind is
+   Grove's to allocate and a session's to refuse, which is `SY-07.b`'s. */
+one sig RefFormatLegacy, RefReservedKind extends Refused {}
 
 one sig Sys {
   var act:   one Action,
@@ -390,7 +485,16 @@ pred Assumed { EN07 and EN14 }
 
 pred worldSame  { World.wt' = World.wt and World.layout' = World.layout
                   and World.cfg' = World.cfg }
-pred treeSame   { World.rooted' = World.rooted and World.live' = World.live }
+/* THE ROOT'S OWN FRAME, split out of `treeSame` because six of this slice's
+   transitions change the entries without touching the root's identity or its
+   classification, and three change the root without touching the entries.
+   Written once for the reason `actorSameBut` is: a field added to `World` that
+   one transition forgot is a silent frame hole, and this slice adds six. */
+pred rootSame   { World.rooted' = World.rooted and World.extant' = World.extant
+                  and World.retired' = World.retired and World.proven' = World.proven
+                  and World.partial' = World.partial and World.legacy' = World.legacy }
+pred entriesSame{ World.live' = World.live and World.fin' = World.fin }
+pred treeSame   { rootSame and entriesSame }
 pred launchSame { World.gen' = World.gen and World.running' = World.running }
 pred verdictSame{ World.verdict' = World.verdict }
 pred aliveSame  { Alive.live' = Alive.live }
@@ -621,8 +725,19 @@ pred doTreeOp[p: Proc] {
   p.role = SessionR implies EpochG in p.holds
   Sys.act' = TreeOpA and Sys.actor' = p and no Sys.gu'
   Sys.res' = Applied
-  some World.rooted'                      // the tree exists, or is created here
+  /* IT NEEDS A TREE AND NO LONGER MAKES ONE.  The admission slice wrote `some
+     World.rooted'` — the tree exists OR IS CREATED HERE — because `initialise-
+     root` had nowhere else to be.  It has somewhere now, and leaving creation
+     inside the opaque step would answer `SY-06.a` by construction: a scaffold
+     that is one indivisible mutation always carries whatever it carries. */
+  some World.rooted
+  /* AND IT NEVER ALLOCATES THE FINISH LEAF.  `SY-07.b` is a claim about the
+     ACTOR of one specific mutation, and a single opaque step cannot carry an
+     actor rule for one mutation and not another — so the mutation is split out
+     (`doAllocFinish`) and this step frames the field it is about. */
+  World.fin' = World.fin
   World.live in World.live'
+  rootSame
   procsSame and worldSame and verdictSame and launchSame and aliveSame
 }
 
@@ -719,7 +834,19 @@ pred doRemoveRoot {
   Sys.res' = Environmental
   some World.wt' and World.wt' != World.wt
   World.layout' = World.layout and World.cfg' = World.cfg
-  procsSame and treeSame and verdictSame and launchSame and aliveSame
+  /* AND THE TASK ROOT GOES WITH IT — which is the `SY-05` half of this row and
+     the reason `treeSame` is gone from this predicate.  A new directory at the
+     path has no task tree in it, so Grove now observes ABSENCE; but the grove
+     itself is untouched, sitting in the old directory nobody can reach.
+     `World.extant` keeps it, `World.rooted` loses it, and *absence is the
+     complete fresh-tree discriminator* stops being true.  Grove would start a
+     new grove over a live one, which is precisely what the assumption grants
+     cannot happen. */
+  no World.rooted' and no World.live' and no World.fin'
+  no World.partial' and no World.legacy'
+  World.extant' = World.extant                 // THE GROVE IS STILL THERE
+  World.retired' = World.retired and World.proven' = World.proven
+  procsSame and verdictSame and launchSame and aliveSame
 }
 
 // --- the loop's own step, which is what this slice adds --------------------
@@ -757,17 +884,25 @@ pred doIter[p: Proc] {
    pre-order walk that decides WHICH live leaf is `TT-11`'s and reaches this file
    as a non-deterministic choice among `World.live`.
 
-   `some World.live` IS A GUARD AND NOT AN OUTCOME.  Selection on a spent tree
-   reports `Empty` (`TT-15.a`) and exhaustion yields a finish leaf (`SY-07`);
-   both are the `roots` sibling's, and answering them here with a third branch
-   would put machinery in this file that no obligation of this slice reads. */
+   `some World.live` WAS A GUARD AND IS NOW A BRANCH, and this slice is where it
+   changed.  The `iteration` slice declared exhaustion out of scope by making
+   selection on a spent tree UNREACHABLE rather than by branching on it, and
+   named `roots` as the owner.  `SY-07`'s antecedent is exactly that state — *when
+   no live leaf remains* — so a guard that deletes it deletes the obligation's
+   whole subject.  `Empty` is a SUCCESS (`TT-15.a`, §*Outcomes*), not a refusal;
+   WHICH live leaf the non-empty branch returns is still `TT-11`'s. */
 pred doSelect[p: Proc] {
   p in Alive.live and p.role = DriverR and some p.leaseOn and no p.waits
   validated
-  no p.sel and some World.live
+  no p.sel
   Sys.act' = SelectA and Sys.actor' = p and no Sys.gu'
-  Sys.res' = Reported
-  p.sel' in World.live and some p.sel'
+  some World.live implies {
+    Sys.res' = Reported
+    p.sel' in World.live and some p.sel'
+  } else {
+    Sys.res' = Empty
+    no p.sel'
+  }
   p.holds' = p.holds and p.seen' = p.seen and p.waits' = p.waits
   p.leaseOn' = p.leaseOn and p.spent' = p.spent and p.gen' = p.gen
   procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
@@ -859,6 +994,231 @@ pred doEditConfig {
   procsSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
+
+// --- the task root's own lifecycle, which is what THIS slice adds -----------
+
+/* WHAT EVERY GROVE-SIDE TREE ACTION BELOW REQUIRES, written once.  It is
+   `doTreeOp`'s own preamble and nothing more: the exclusive guard, an unblocked
+   process, a live configuration (`SY-04.b`), and — for an ambient process — an
+   admission that matched (`SY-10.a`).  None of these transitions is a Lifecycle
+   action, so none of them spends the iteration's one transition; `initialise-
+   root` and `allocate-finish-leaf` are Tree-mutation and Finish actions in
+   §*Actions*, and `resolve` is an Observation. */
+pred mayTouchTree[p: Proc] {
+  p in Alive.live and TreeG in p.holds and no p.waits
+  validated
+  p.role = SessionR implies EpochG in p.holds
+}
+
+/* INITIALISE-ROOT, AS FAR AS THE FORMAT WITNESS — and stopping there is the
+   point rather than an economy.  §*States* says root initialisation makes the
+   format witness visible LAST, and `PartialScaffold` is defined by the interval
+   that leaves open.  A model in which scaffolding is one indivisible mutation
+   has no such interval, so `SY-06.b`'s subject does not exist in it and the
+   obligation is answered by construction.  Declared in `README.md` as this
+   slice's abstraction: ONE catalogue action, TWO steps, because the state
+   between them is what two obligations are about.
+
+   THE IDENTITY IS FRESH AND THAT IS `SY-05.a`'s OWN WORD.  A missing task root
+   means *start a NEW grove*: the minted identity is one no grove has ever
+   carried — not a live one, and above all not a RETIRED one, which is the
+   identity `finish-k8`'s counterexample handed back. */
+pred doInitRoot[p: Proc] {
+  mayTouchTree[p]
+  no World.rooted
+  Sys.act' = InitRootA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Applied
+  some g: Grove {
+    g not in (World.extant + World.retired)
+    World.rooted' = g and World.extant' = World.extant + g
+    World.partial' = g                    // the witness has not landed yet
+  }
+  no World.legacy'
+  no World.live' and no World.fin'        // work arrives with the completion
+  World.retired' = World.retired and World.proven' = World.proven
+  procsSame and worldSame and verdictSame and launchSame and aliveSame
+}
+
+/* THE COMPLETION, AND IT IS ONE OPERATION WITH TWO ARRIVALS.  §*States* is
+   explicit that every value the completion would write is fixed in advance, so
+   completing is *a comparison followed by at most one append* — which means the
+   step that finishes a scaffold Grove just started and the step that completes
+   one an interruption left behind are THE SAME STEP.  Modelling them as two
+   would make `SY-06.b`'s witness a different operation from `SY-06.a`'s, and the
+   claim is that they are not.
+
+   THE ENABLING OBSERVATION AND THE DECIDING OBSERVATION ARE DIFFERENT, AND THAT
+   DIFFERENCE IS THE WHOLE OF `SY-06.b`.  What makes Grove LOOK at a root is that
+   the format witness is absent — and at this scope *the format witness is
+   absent* is exactly `partial + legacy`, their union, with no format witness in
+   the signature.  What makes Grove COMPLETE one is `partial` alone: the exact
+   known subset.  A gate that decided on the union would complete a `Legacy` tree
+   as though Grove had scaffolded it, which is the sentence the obligation ends
+   on, and `SY_06b`'s biconditional is what tells the two gates apart. */
+pred doCompleteScaffold[p: Proc] {
+  mayTouchTree[p]
+  some World.rooted
+  some (World.partial + World.legacy)     // ENABLED BY: no format witness
+  Sys.act' = CompleteScaffoldA and Sys.actor' = p and no Sys.gu'
+  World.rooted' = World.rooted and World.extant' = World.extant
+  World.retired' = World.retired and World.proven' = World.proven
+  World.fin' = World.fin
+  some World.partial implies {            // DECIDED BY: the exact known subset
+    Sys.res' = Applied
+    no World.partial' and no World.legacy'
+    some f: Leaf | f not in World.live and World.live' = World.live + f
+  } else {
+    Sys.res' = RefFormatLegacy            // and the tree is byte-identical
+    World.partial' = World.partial and World.legacy' = World.legacy
+    World.live' = World.live
+  }
+  procsSame and worldSame and verdictSame and launchSame and aliveSame
+}
+
+/* ALLOCATE-FINISH-LEAF.  Split out of `doTreeOp` rather than folded into it,
+   because `SY-07.b` is a claim about the ACTOR OF ONE SPECIFIC MUTATION and one
+   opaque step cannot carry an actor rule for one mutation and not another.
+
+   TOTAL FOR A SESSION, GUARDED FOR A DRIVER, and the asymmetry is the
+   catalogue's.  *No session SHALL create one* carries no precondition, so the
+   refusal is reachable on any tree; *when no live leaf remains* is the driver's
+   own precondition, so the driver's branch is exhaustion's.
+
+   APPEND OR REUSE, and `World.fin` is a `set` so that EXACTLY ONE is checked
+   rather than declared.  The reuse branch adds no entry: a finish leaf that
+   already exists is made live again, which is what *appends OR REUSES* is
+   distinguishing between. */
+pred doAllocFinish[p: Proc] {
+  mayTouchTree[p]
+  some World.rooted and no World.partial and no World.legacy
+  Sys.act' = AllocFinishA and Sys.actor' = p and no Sys.gu'
+  rootSame
+  p.role = SessionR implies {
+    Sys.res' = RefReservedKind
+    entriesSame
+  } else {
+    no World.live                         // EXHAUSTION — the claim's antecedent
+    Sys.res' = Applied
+    some World.fin implies {              // REUSE
+      World.fin' = World.fin
+      World.live' = World.live + World.fin
+    } else {                              // APPEND
+      some f: Leaf {
+        f not in World.live
+        World.fin' = f and World.live' = World.live + f
+      }
+    }
+  }
+  procsSame and worldSame and verdictSame and launchSame and aliveSame
+}
+
+/* THE PROOF, AS ONE OPAQUE STEP, AND IT IS `FN-11`/`FN-19`'s.  Everything that
+   makes a commit provable — the witness slot, the manifest written and verified,
+   the evacuation, the commit itself — is `crates/grove-finish/models/`'s and is
+   named there.  What crosses the boundary is the single observation `SY-05.b`
+   reads: the deletion of the grove at the name IS PROVEN.  Note what has NOT
+   happened yet: the root is still present, holding every entry, which is
+   `FN-11`'s own witness interval. */
+pred doProveCommit[p: Proc] {
+  mayTouchTree[p]
+  some World.rooted and no World.proven
+  no World.partial and no World.legacy
+  Sys.act' = ProveCommitA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Applied
+  World.proven' = World.rooted
+  World.rooted' = World.rooted and World.extant' = World.extant
+  World.retired' = World.retired
+  World.partial' = World.partial and World.legacy' = World.legacy
+  entriesSame
+  procsSame and worldSame and verdictSame and launchSame and aliveSame
+}
+
+/* THE ATOMIC RENAME'S OBSERVABLE EFFECT, and only its effect: THE NAME FREES.
+   `FN-19` owns the step — one rename, witness and evacuated tree intact — and
+   the quarantine it renames INTO is the finish model's and is absent here.  What
+   this file needs is that the name becomes free EXACTLY WHEN the deletion is
+   proven, and that the fact Grove keeps about it is `retired` rather than the
+   emptiness of a directory entry.
+
+   THE GROVE LEAVES `extant` AND ENTERS `retired` IN THE SAME STEP, which is what
+   makes absence a fact Grove ESTABLISHES.  Nothing afterwards can take it back:
+   the world may put a tree at the freed name — `doForeignWrite` does exactly
+   that, with this grove's own identity — and `retired` still says the deletion
+   was proven.  That is `SY-05.a`'s second conjunct and it is entry 039 stated as
+   a property. */
+pred doSettleDeletion[p: Proc] {
+  mayTouchTree[p]
+  some World.rooted and World.proven = World.rooted
+  Sys.act' = SettleDeletionA and Sys.actor' = p and no Sys.gu'
+  Sys.res' = Applied
+  no World.rooted' and no World.proven'
+  no World.partial' and no World.legacy'
+  no World.live' and no World.fin'
+  World.extant'  = World.extant  - World.rooted
+  World.retired' = World.retired + World.rooted
+  procsSame and worldSame and verdictSame and launchSame and aliveSame
+}
+
+/* RESOLVE — AN OBSERVATION OF THE ROOT'S PRESENCE, AND THE SITE `SY-05.a` EXISTS
+   TO CONSTRAIN.  It reports and concludes NOTHING: `retired` is untouched here,
+   and a mutant that grows it on an absent root is a driver reading absence as
+   evidence that an earlier grove was torn down.  That mutant is wrong twice over
+   — the name may be free because a finish succeeded, or because the world
+   emptied it, and it may be OCCUPIED by a tree carrying a retired identity — so
+   the only sound reading of the observation is the one below, which is none. */
+pred doObserveRoot[p: Proc] {
+  mayTouchTree[p]
+  Sys.act' = ObserveRootA and Sys.actor' = p and no Sys.gu'
+  some World.rooted implies Sys.res' = Reported else Sys.res' = Empty
+  procsSame and worldSame and treeSame and verdictSame and launchSame and aliveSame
+}
+
+/* THE WORLD'S (`EN-11`: any well-formed tree is reachable by hand edit).  An
+   operator's own tree at the name: present, no format witness, and NOT the known
+   subset — a `Legacy` tree, which is the thing `SY-06.b` refuses to complete.
+   It arrives by hand edit rather than by a Grove step because Grove has no
+   action that builds one, and positing it in the initial state would make the
+   `SY-06.b` refusal a property of state 0 rather than of the gate. */
+pred doHandEdit {
+  Sys.act' = HandEditA and no Sys.actor' and no Sys.gu'
+  Sys.res' = Environmental
+  no World.rooted
+  some g: Grove {
+    g not in (World.extant + World.retired)
+    World.rooted' = g and World.extant' = World.extant + g
+    World.legacy' = g
+  }
+  no World.partial'
+  no World.live' and no World.fin'
+  World.retired' = World.retired and World.proven' = World.proven
+  procsSame and worldSame and verdictSame and launchSame and aliveSame
+}
+
+/* THE WORLD'S, AND IT IS ENTRY 039'S OWN TRACE (`EN-13`: foreign entries may
+   appear at any name).  After the rename the task-root name is FREE.  The world
+   occupies it — and it may give what it puts there the quarantined root's own
+   identity, because an identity is bytes and bytes are copyable.  This is the
+   step that killed three formulations of `FN-28` in the finish scope, and it is
+   here so that `SY-05` is stated against it rather than beside it.
+
+   `World.retired' = World.retired` IS THE CLAIM'S SUBJECT, not a frame.  The
+   whole finding is that the re-occupation changes nothing Grove knows: the
+   deletion was proven, the proof is durable, and a tree at the name is not
+   evidence against it. */
+pred doForeignWrite {
+  Sys.act' = ForeignWriteA and no Sys.actor' and no Sys.gu'
+  Sys.res' = Environmental
+  no World.rooted
+  some g: World.retired {
+    World.rooted' = g and World.extant' = World.extant + g
+  }
+  no World.partial' and no World.legacy'
+  no World.live' and no World.fin'
+  World.retired' = World.retired        // PRESERVED — see above
+  World.proven' = World.proven
+  procsSame and worldSame and verdictSame and launchSame and aliveSame
+}
+
 pred step {
   doIdle
   or (some p: Proc | doAcquireLease[p] or doReleaseLease[p]
@@ -868,10 +1228,15 @@ pred step {
                      or doLayoutPreflight[p] or doCrash[p]
                      or doNestedAcquire[p]
                      or doIter[p] or doSelect[p] or doLaunch[p]
-                     or doReap[p] or doTimeout[p])
+                     or doReap[p] or doTimeout[p]
+                     or doInitRoot[p] or doCompleteScaffold[p]
+                     or doAllocFinish[p] or doProveCommit[p]
+                     or doSettleDeletion[p] or doObserveRoot[p])
   or doTopologyChange
   or doEditConfig
   or doRemoveRoot
+  or doHandEdit
+  or doForeignWrite
 }
 
 
@@ -940,6 +1305,26 @@ fact StateZeroIsAStateTheStepsCouldHaveProduced {
    HELD, and they rest on `needs` plus reverse release rather than on any
    prohibition. */
 
+/* THE CLASSIFICATION IS OF THE ROOT THAT IS THERE, and AT MOST ONE STATE HOLDS.
+   Both are properties of a classification rather than claims about Grove:
+   `TT-18` classifies a task root in a FIXED ORDER, and an ordered classification
+   yields one state.  WHICH one — the subset comparison, the byte equality, the
+   order that puts `PartialScaffold` before `Legacy` — is
+   `crates/grove-task-tree/models/`'s and is imported here as the bare fact that
+   the two are different.  A `SY-` obligation reads no more of `TT-18` than
+   that, and importing more would be this file re-stating it. */
+fact TheClassificationIsOfTheRootThatIsThere {
+  always (World.partial + World.legacy) in World.rooted
+}
+fact AClassificationYieldsOneState {
+  always no World.partial & World.legacy
+}
+
+/* A tree that is not there has no entries in it. */
+fact AnAbsentRootHasNoEntries {
+  always (no World.rooted implies (no World.live and no World.fin))
+}
+
 /* WHERE A TRACE STARTS, and the one narrowing this slice needs.  A process
    starts UNBLOCKED: a wait is something a transition produces, and a free
    initial state that hands out blocked processes hands `SY-11.b` a cycle no
@@ -974,6 +1359,43 @@ fact SelectionsStartInsideTheTree {
 fact OnlyASessionCarriesAGeneration {
   always all p: Proc | p.role = DriverR implies no p.gen
 }
+
+/* State 0 only, and likewise WHAT THE STEPS ALREADY REQUIRE.  Every step keeps
+   `extant` and `rooted` in step — the grove at the name is the grove that
+   exists — so a free initial state handing out a grove that exists nowhere, or a
+   grove existing with no name, is a state no step produces.
+
+   NOT `always`, AND THAT IS THE WHOLE POINT.  As an invariant it would assert
+   `SY-05.a`'s third conjunct — *absence is the COMPLETE fresh-tree
+   discriminator* — as a construction fact, which is the shape `README.md`
+   records twice as making a claim vacuous and every mutation against it survive.
+   `EN-14`'s mutation must break the correspondence BY RUNNING, and it does:
+   `doRemoveRoot` takes the name away and leaves the grove.
+
+   The `proven` clause is the same move: a proof is about the grove at the name,
+   and only `doProveCommit` writes one. */
+fact GrovesStartAtTheirName {
+  World.extant = World.rooted
+  some World.proven implies World.proven = World.rooted
+}
+
+/* Likewise state 0 only, and likewise WHAT THE STEP ALREADY REQUIRED.
+   `doAllocFinish` is the only site that puts a finish leaf into `World.fin` and
+   it writes exactly one; every other site frames the field or empties it with
+   the whole tree.  So a free initial state holding TWO is a state no step
+   produces — and it was `SY_07a`'s first counterexample, at state 0, with no
+   transition in the trace at all.
+
+   NOT `always`, and the distinction is the whole reason `World.fin` is a `set`.
+   As an invariant this would assert `SY-07.a`'s *exactly one* by construction
+   and every mutation against it would survive, which is the shape `README.md`
+   records twice.  As a state-0 fact it says only that the trace starts
+   somewhere the steps could have reached, and the mutation that appends a
+   second finish leaf over an existing one still fires from a legal start.
+   WHAT IT IS NOT: `TT-13`'s *more than one live finish leaf malforms the whole
+   tree*.  That is a task-tree claim about a hand-edited tree, and it is
+   `crates/grove-task-tree/models/`'s. */
+fact TheTreeStartsWithAtMostOneFinishLeaf { lone World.fin }
 
 fact Trace {
   Sys.act = IdleA and Sys.res = Environmental and no Sys.actor and no Sys.gu
@@ -1078,7 +1500,12 @@ check SY_02_an_unsupported_layout_is_refused_before_anything_touches_the_tree {
                and World.verdict' = World.verdict
                and World.rooted' = World.rooted)
     (Sys.act' = ValidateConfigA) implies some Sys.actor'.leaseOn'
-    (Sys.act' = TreeOpA and Sys.actor'.role = DriverR)
+    /* STATED OVER `TreeAct` AND NOT OVER `TreeOpA`, which is this slice's one
+       edit to an inherited check and is a strengthening.  The admission slice
+       had one tree action; `roots` adds six, and a claim written as a list would
+       have gone stale silently.  A seventh added by `sessions` reaches this
+       conjunct without the command being touched. */
+    (Sys.act' in TreeAct and Sys.actor'.role = DriverR)
       implies some Sys.actor'.leaseOn'
   }
 } for 3 but 2 WtId, 4 steps
@@ -1290,7 +1717,14 @@ check SY_04b_full_validation_precedes_every_transition {
       implies ((Sys.res' in Refused) iff (World.cfg' = InvalidCfg))
     (Sys.act' in LifecycleAct - AcquireLeaseA)
       implies World.cfg' = ValidCfg
-    (World.cfg = InvalidCfg)
+    /* `Sys.res' != Environmental` IS NEW WITH THIS SLICE AND IT IS A CORRECTION
+       RATHER THAN A WEAKENING.  `roots` is the first slice to give the WORLD a
+       way to write the tree — `hand-edit` (`EN-11`) and `foreign-write`
+       (`EN-13`), both catalogue Environment actions — and an invalid
+       configuration constrains GROVE, not the operator.  Without the exclusion
+       this conjunct reads *a bad config stops the operator editing their own
+       directory*, which is false and is not what `SY-04.b` says. */
+    (World.cfg = InvalidCfg and Sys.res' != Environmental)
       implies (World.rooted' = World.rooted and World.live' = World.live)
   }
 } for 3 but 2 WtId, 5 steps
@@ -1398,21 +1832,30 @@ check SY_10a_a_stale_session_is_refused_before_it_touches_the_tree {
                and World.live' = World.live)
     all p: Proc | (p.role = SessionR and EpochG in (p.seen' - p.seen))
       implies (some p.gen' and p.gen' = World.gen')
-    (Sys.act' = TreeOpA and Sys.actor'.role = SessionR)
+    (Sys.act' in TreeAct and Sys.actor'.role = SessionR)
       implies EpochG in Sys.actor'.holds'
   }
 } for 3 but 2 WtId, 7 steps
 
-/* The catalogue's own witness: A STALE SESSION REFUSED.  `always no World.rooted`
-   is what *before it touches the tree* means at this grain — no task root exists
-   in any state of the trace, so the refusal cannot be one that arrived after a
-   read.  Run through the rotation rather than from a free initial mismatch: the
-   session is launched under the live record, the driver rotates, and the SAME
-   session is then refused, which is the situation the glossary describes and a
-   free state-0 mismatch would only resemble. */
+/* The catalogue's own witness: A STALE SESSION REFUSED.  Run through the
+   rotation rather than from a free initial mismatch: the session is launched
+   under the live record, the driver rotates, and the SAME session is then
+   refused, which is the situation the glossary describes and a free state-0
+   mismatch would only resemble.
+
+   `always Sys.act not in TreeAct` IS *BEFORE IT TOUCHES THE TREE*, AND IT
+   REPLACES `always no World.rooted`, WHICH THE `roots` SLICE BROKE.  The
+   iteration slice said it with the root's absence — no task root in any state,
+   so the refusal cannot be one that arrived after a read — and that reading
+   stopped being available the moment `AnAbsentRootHasNoEntries` landed: a
+   rootless trace now has no live leaf, so it has no selection, so it has no
+   LAUNCH, and the witness needs one.  The replacement is the stronger statement
+   and the one the claim actually makes: no tree action occurs anywhere in the
+   trace, whether or not a tree is there to act on.  Recorded in `README.md` as
+   this slice's one witness correction. */
 run witness_SY_10a_a_stale_session_refused {
   Assumed
-  always no World.rooted
+  always Sys.act not in TreeAct
   some s: Proc {
     s.role = SessionR
     eventually (Sys.act = LaunchA and s.gen = World.gen
@@ -1462,6 +1905,299 @@ run witness_SY_10b_a_contended_generation_times_out_into_a_visible_stop {
 } for 3 but 2 WtId, 5 steps
 
 
+
+// ===========================================================================
+// CLAIMS — SY-05, SY-06, SY-07   (the `roots` slice)
+//
+// THE TASK ROOT'S OWN LIFECYCLE.  Admission is who may hold the loop; iteration
+// is the turn it takes; this is what the loop is holding — a grove that is
+// scaffolded, worked, exhausted, finished, and whose name then belongs to
+// nobody.
+//
+// ABSENCE IS NOT A STATE HERE, IT IS A FACT GROVE ESTABLISHES.  Every command
+// below is stated over `World.retired` and `World.extant` rather than over the
+// emptiness of `World.rooted`, and the reason is one trace: after the rename the
+// NAME IS FREE, the world may occupy it, and it may give what it puts there the
+// quarantined root's own identity.  `finish-k8` killed three formulations of
+// `FN-28` on it (`docs/formalism-findings.md` entry 039) and
+// `witness_SY_05a_the_name_reoccupied_with_the_retired_identity` reproduces it
+// here — as a WITNESS, because in this formulation it is the ordinary case
+// rather than a counterexample.
+// ===========================================================================
+
+// --- SY-05: absence is the complete fresh-tree discriminator ----------------
+
+/* SY-05.a.  Four conjuncts, and they are the four things *a missing task root
+   means start a new grove, and is never read as evidence about an earlier one*
+   decomposes into once absence is a fact rather than a state:
+
+     ESTABLISHED — `retired` is written by the proven deletion and by nothing
+     else.  This is the conjunct with a driver-shaped mutation behind it: a
+     `resolve` that concluded *the earlier grove was torn down* from an empty
+     directory is a real implementation, and it is wrong in both directions —
+     the name may be free because the world emptied it, and it may be OCCUPIED
+     by a tree carrying a retired identity.
+     PRESERVED — and nothing takes it back.  `doForeignWrite` is the adversary
+     and this conjunct is what it is stated against.
+     COMPLETE — the claim's own title.  Absence discriminates a fresh tree only
+     because a grove that is not at the name does not exist, and that is exactly
+     what `EN-14` grants and what `expect_fail_EN_14_SY_05a` removes.
+     FRESH — *a NEW grove*.  The minted identity is one no grove has carried:
+     not a live one, and above all not a retired one.
+
+   THE THIRD CONJUNCT LOOKS LIKE A CONSTRUCTION FACT AND DELIBERATELY IS NOT
+   ONE.  `GrovesStartAtTheirName` constrains state 0 and says nothing about
+   `always`; written as an invariant it would assert this conjunct, make the
+   `EN-14` control unsatisfiable, and report exactly as a pass.  The file has
+   already made that mistake once — `always all g: Guard | lone holds.g` — and
+   the control caught it then too. */
+check SY_05a_absence_is_established_preserved_complete_and_fresh {
+  Assumed implies always {
+    (World.retired' != World.retired)
+      implies (Sys.act' = SettleDeletionA and World.proven = World.rooted)
+    World.retired in World.retired'
+    no World.rooted implies no World.extant
+    (Sys.act' = InitRootA)
+      implies (no World.rooted and some World.rooted'
+               and World.rooted' not in (World.extant + World.retired))
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witness: A COMPLETED TEARDOWN WHOSE DRIVER NEVER OBSERVED
+   THE SIGNAL, FOLLOWED BY A FRESH SCAFFOLD.  `always Sys.act != ObserveRootA` is
+   *never observed*, and it is what makes the witness say something: the fresh
+   scaffold is not a decision taken on evidence about the old grove, because no
+   observation of the root happens anywhere in the trace.  `g1 != g0` is the
+   *new* in *start a NEW grove*. */
+run witness_SY_05a_a_completed_teardown_and_then_a_fresh_scaffold {
+  Assumed
+  always Sys.act != ObserveRootA
+  some disj g0, g1: Grove |
+    eventually (Sys.act = SettleDeletionA and no World.rooted and g0 in World.retired
+                and after eventually (Sys.act = InitRootA and World.rooted = g1))
+} for 3 but 2 WtId, 6 steps
+
+/* ENTRY 039, REPRODUCED — and it is a WITNESS here rather than a counterexample,
+   which is the whole content of the formulation this leaf was handed.  The
+   finish scope met this trace as the thing that falsified *the task root is
+   absent*; stated over `retired`, the same trace is the ordinary case: the world
+   owns the name, it has given its tree the quarantined root's identity, and
+   Grove's record of the proven deletion is untouched.  A file that had stated
+   absence as an invariant would be reading this instance as a defect. */
+run witness_SY_05a_the_name_reoccupied_with_the_retired_identity {
+  Assumed
+  eventually (Sys.act = SettleDeletionA
+              and after eventually (Sys.act = ForeignWriteA
+                                    and some World.rooted
+                                    and World.rooted in World.retired))
+} for 3 but 2 WtId, 6 steps
+
+/* SY-05.b.  THE JOINT CLAIM, AND ITS PLACEMENT IS THIS SUBTREE'S SHARPEST
+   QUESTION.  The catalogue says `SY-05` and `FN-11`/`FN-19` SHALL be checked
+   together, and an `FN_`-prefixed command in `models/system/` is a placement
+   failure the runner refuses.  What this file owes is therefore the OBSERVATION
+   — no trace exposes an absent task root before the deletion is proven — stated
+   over its OWN transitions, with `crates/grove-finish/models/` named as the
+   owner of the steps underneath: the published witness, the verified manifest,
+   the evacuation and the one atomic rename are `FN-11`'s and `FN-19`'s and are
+   `doProveCommit` and `doSettleDeletion` here.
+
+   THE CHECK IS THE WITNESS.  The catalogue words `SY-05.b`'s witness as *the
+   exhaustive absence of such a trace within the bound*, which no runner lands as
+   an instance; what lands beside it is the non-vacuity run below, because an
+   exhaustive absence over an unreachable antecedent is the vacuous invariant the
+   pre-registration names.  The bound is five states and `README.md` records it,
+   which is what *within the bound* obliges. */
+check SY_05b_no_absent_task_root_before_the_deletion_is_proven {
+  Assumed implies always {
+    (some World.rooted and no World.rooted')
+      implies (Sys.act' = SettleDeletionA
+               and World.proven = World.rooted
+               and World.rooted in World.retired')
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The non-vacuity run: ABSENCE IS REACHED, and only through the proof.  Without
+   it the check above is exhaustive over nothing. */
+run witness_SY_05b_absence_is_reached_and_only_after_a_proven_deletion {
+  Assumed
+  eventually (Sys.act = ProveCommitA
+              and after eventually (no World.rooted and some World.retired))
+} for 3 but 2 WtId, 5 steps
+
+// --- SY-06: a fresh root carries a first live leaf --------------------------
+
+/* SY-06.a.  *Scaffolding SHALL produce work, not only a charter, so a fresh
+   grove is never indistinguishable from a finished one* — and the second clause
+   is what the conjuncts are chosen to make checkable.  At this scope a fresh
+   grove and a finished one differ in exactly one observation, `some World.live`,
+   and the check says the completion lands on the near side of it.  The
+   classification clauses are the same sentence's other half: a completed
+   scaffold is `Current`, so neither of the no-format-witness observations
+   survives it, and a scaffold that completed into a still-partial root would be
+   a grove nobody could tell from an interrupted one. */
+check SY_06a_a_completed_scaffold_carries_a_first_live_leaf {
+  Assumed implies always {
+    (Sys.act' = CompleteScaffoldA and Sys.res' = Applied)
+      implies (some World.rooted' and some World.live'
+               and no World.partial' and no World.legacy')
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witness: A FRESH ROOT, DISTINGUISHABLE FROM A SPENT ONE.
+   Both observations in ONE trace, or the witness shows a fresh grove and leaves
+   *distinguishable* to the reader.  The spent grove is a `Current` root with no
+   live leaf — reached here from the free initial state rather than by retiring
+   leaves one at a time, because retirement is `TT-17`'s and this file has no
+   leaf state; `EN-11` is what makes positing it legitimate. */
+run witness_SY_06a_a_fresh_root_distinguishable_from_a_spent_one {
+  Assumed
+  eventually (some World.rooted and no World.live
+              and no World.partial and no World.legacy)
+  eventually (Sys.act = CompleteScaffoldA and Sys.res = Applied and some World.live)
+} for 3 but 2 WtId, 7 steps
+
+/* SY-06.b.  A BICONDITIONAL AND A REFUSAL, and the biconditional is the whole
+   instrument — as it is in `SY-03` and `SY-04.b`, and for the same reason.
+
+   The transition is ENABLED on `partial + legacy`, which at this scope is
+   exactly *the format witness is absent*.  Left to right, the biconditional
+   catches a gate that decided on that union: it would complete a `Legacy` tree
+   as though Grove had scaffolded it, which is the sentence the obligation ends
+   on.  Right to left, it catches a gate that refused a genuine partial scaffold
+   — the failure `PartialScaffold` was invented to prevent, since the state
+   exists only so that an interrupted `initialise-root` is completable at all.
+   An implication either way would leave one of them invisible.
+
+   The second conjunct is `Refused`'s own definition applied at this grain: the
+   tree is byte-identical, which here is the root, its entries and its
+   classification all unchanged. */
+check SY_06b_the_exact_subset_completes_and_a_legacy_tree_is_refused {
+  Assumed implies always {
+    (Sys.act' = CompleteScaffoldA)
+      implies ((Sys.res' = Applied) iff some World.partial)
+    (Sys.act' = CompleteScaffoldA and some World.legacy)
+      implies (Sys.res' = RefFormatLegacy
+               and World.rooted' = World.rooted
+               and World.live'   = World.live
+               and World.legacy' = World.legacy)
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's first witness: AN INTERRUPTED SCAFFOLD, COMPLETED — and the
+   interruption is a `crash` rather than a trace that simply stops, which is
+   `EN-08` doing the work it exists for.  A SUCCESSOR completes it: the process
+   that started the scaffold is dead, so the completion is not the same
+   invocation finishing its own transaction, which is the situation the state
+   exists for and the one a shorter trace would quietly not show. */
+run witness_SY_06b_an_interrupted_scaffold_completed_by_a_successor {
+  Assumed
+  some disj p, q: Proc {
+    p.role = DriverR and q.role = DriverR
+    eventually (Sys.act = InitRootA and Sys.actor = p and some World.partial
+                and after eventually (Sys.act = CrashA and Sys.actor = p
+                  and after eventually (Sys.act = CompleteScaffoldA and Sys.actor = q
+                                        and Sys.res = Applied)))
+  }
+} for 3 but 2 WtId, 8 steps
+
+/* The catalogue's second witness: A LEGACY TREE, REFUSED RATHER THAN COMPLETED.
+   The hand edit is what puts it there — Grove has no action that builds one —
+   and the refusal is the state after it. */
+run witness_SY_06b_a_legacy_tree_refused_rather_than_completed {
+  Assumed
+  eventually (Sys.act = HandEditA and some World.legacy
+              and after eventually (Sys.act = CompleteScaffoldA
+                                    and Sys.res = RefFormatLegacy))
+} for 3 but 2 WtId, 4 steps          // 5 costs 10.42 s for the same margin — see README
+
+// --- SY-07: exhaustion yields exactly one finish leaf -----------------------
+
+/* SY-07.a.  Five conjuncts inside the implication plus one invariant beside it,
+   and the invariant is the one that could not be a declaration.  `World.fin` is
+   a `set`, so *EXACTLY ONE driver-owned finish leaf* is something the check
+   establishes: `lone World.fin` in every state, and `one World.fin'` at the
+   allocation.  Declared `lone`, the claim would have been true by construction
+   and every mutation against it would have survived — which is the failure this
+   file has recorded twice and predicted once.
+
+   `World.fin' = World.fin or no World.fin` IS *APPENDS OR REUSES* AND NOTHING
+   ELSE: either the finish leaf that was already there is the one that comes
+   back, or there was none and one is appended.  A third possibility — a second
+   leaf appended over an existing one — is what the disjunction excludes and what
+   `one World.fin'` catches from the other side. */
+check SY_07a_exhaustion_yields_exactly_one_driver_owned_finish_leaf {
+  Assumed implies always {
+    (Sys.act' = AllocFinishA and Sys.res' = Applied)
+      implies (Sys.actor'.role = DriverR
+               and no World.live
+               and one World.fin'
+               and World.fin' in World.live'
+               and (World.fin' = World.fin or no World.fin))
+    lone World.fin
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witnesses, and it names TWO — *an append; a reuse* — which
+   is one instrument applied to the two branches the claim distinguishes.  Each
+   pins the PRE-state, because *appends or reuses* is a statement about what was
+   already there and a run that only pinned the post-state would land the same
+   instance twice. */
+run witness_SY_07a_an_append {
+  Assumed
+  eventually (some World.rooted and no World.fin and no World.live
+              and after (Sys.act = AllocFinishA and Sys.res = Applied
+                         and one World.fin and World.fin in World.live))
+} for 3 but 2 WtId, 4 steps
+
+run witness_SY_07a_a_reuse {
+  Assumed
+  some f: Leaf |
+    eventually (World.fin = f and no World.live
+                and after (Sys.act = AllocFinishA and Sys.res = Applied
+                           and World.fin = f and f in World.live))
+} for 3 but 2 WtId, 4 steps
+
+/* SY-07.b.  Two conjuncts, and the second is the one that makes the first mean
+   *no session CREATES one* rather than *no session takes this transition*.
+
+     the REFUSAL — a session's allocation is refused, naming the reserved kind,
+     and the tree is byte-identical.
+     and THE ONLY WAY ONE COMES INTO EXISTENCE is a driver's allocation.  This is
+     stated over every transition, which is why `allocate-finish-leaf` had to be
+     SPLIT OUT of `doTreeOp` rather than folded into it: `doTreeOp` is one opaque
+     step available to both roles, and one opaque step cannot carry an actor rule
+     for one mutation and not another.  Without the split this conjunct would be
+     false on every trace where a session touched the tree at all.
+
+   `some World.fin'` scopes conjunct 2 to a finish leaf ARRIVING.  A finish leaf
+   ceasing to exist is a whole-tree deletion — `doSettleDeletion` and, under its
+   own mutation, `doRemoveRoot` — and neither is a creation. */
+check SY_07b_no_session_creates_a_finish_leaf {
+  Assumed implies always {
+    (Sys.act' = AllocFinishA and Sys.actor'.role = SessionR)
+      implies (Sys.res' = RefReservedKind
+               and World.fin' = World.fin and World.live' = World.live
+               and World.rooted' = World.rooted)
+    (World.fin' != World.fin and some World.fin')
+      implies (Sys.act' = AllocFinishA and Sys.actor'.role = DriverR)
+  }
+} for 3 but 2 WtId, 5 steps
+
+/* The catalogue's own witness: A REFUSED CREATION.  The session must be one that
+   could otherwise have mutated the tree — it holds the epoch guard and the tree
+   guard — or the trace witnesses a refusal that the admission gates had already
+   made unreachable, which is a different claim and a weaker one. */
+run witness_SY_07b_a_refused_creation {
+  Assumed
+  some s: Proc {
+    s.role = SessionR
+    eventually (Sys.act = AllocFinishA and Sys.actor = s
+                and EpochG in s.holds and TreeG in s.holds
+                and Sys.res = RefReservedKind)
+  }
+} for 3 but 2 WtId, 4 steps
+
 // ===========================================================================
 // THE ASSUMPTION CONTROLS
 //
@@ -1483,9 +2219,24 @@ check expect_fail_EN_07_SY_11b_a_shared_lock_scope_reintroduces_the_cycle {
 
 /* EN-14 — the working-tree root exists before the task root and outlives its
    deletion.  Expected: `SY-01.a` fails — ownership has nothing to be held on,
-   so a second driver is admitted.  The assumption table names `SY-05` in the
-   same row; that half is the `roots` sibling's and is declared owed in
-   `README.md` rather than answered here. */
+   so a second driver is admitted. */
 check expect_fail_EN_14_SY_01a_ownership_has_nothing_to_be_held_on {
   (some Env.rootGone and EN07) implies always lone { p: Alive.live | some p.leaseOn }
+} for 3 but 2 WtId, 5 steps
+
+/* EN-14's SECOND HALF, AND IT IS THE ONE THE ADMISSION SLICE DECLARED OWED.  The
+   assumption table's row names `SY-01` and `SY-05` together, and the reason is
+   one step: the working-tree root is replaced under the loop, so the task root
+   goes with it — a new directory at the path has no task tree in it — while the
+   GROVE is untouched, sitting in the directory nobody can reach any more.
+   Expected: `SY-05.a`'s third conjunct fails.  Absence stops discriminating a
+   fresh tree, and Grove would scaffold a new grove over a live one.
+
+   STATED OVER THE THIRD CONJUNCT ALONE, on purpose.  `SY-05.b` fails under the
+   same scope and for the same step, and a control that named both would be
+   reporting one counterexample as two; `README.md` records the second
+   consequence rather than commanding it. */
+check expect_fail_EN_14_SY_05a_absence_stops_discriminating_a_fresh_tree {
+  (some Env.rootGone and EN07)
+    implies always (no World.rooted implies no World.extant)
 } for 3 but 2 WtId, 5 steps

@@ -6240,6 +6240,250 @@ needed a bound two states above the one first believed, and `SY-01.b` still has
 no protocol-level mutation.
 
 
+### 042 — A claim the operator can falsify, and an invariant no transition could establish (lifecycle roots)
+
+**Scope.** System lifecycle, **system-level** (`models/system/`). `SY-05.a`,
+`SY-05.b`, `SY-06.a`, `SY-06.b`, `SY-07.a` and `SY-07.b`: task-root absence as
+the complete fresh-tree discriminator, a fresh root that carries a first live
+leaf, and exhaustion yielding exactly one finish leaf. Six obligations, sixteen
+new commands (forty-six in the file), eight new reachable transitions, six new
+`var` fields on `World` and one new signature. **The lifecycle scope's empty
+alloy cells fall from fourteen to eight.**
+
+**Independence protocol: held.** No Quint model of this subject exists, no
+`.qnt` file was opened, and the sibling scopes' Quint columns were not read.
+
+**Formalism.** Alloy 6.2. Not a choice — the node brief fixes both families, and
+this is the Alloy column.
+
+**Situation.** Admission is the loop's guard stack, iteration is the turn it
+takes, and this is what the loop is holding: a grove scaffolded, worked,
+exhausted, finished, and whose name then belongs to nobody. The leaf arrived
+already constrained by `finish-k8`'s hardest result — **absence is not a fact the
+protocol can hold**, because after the quarantine rename the name is free, the
+world can occupy it, and it can give what it put there the quarantined root's own
+identity (entry 039). Three formulations of `FN-28` died on that one trace, and
+this leaf was told to model absence as something Grove *establishes and
+preserves* rather than as something that *holds*, on pain of re-deriving the same
+counterexample at its own cost. It did not re-derive it. **The trace is a
+`witness` here rather than a counterexample**, and the mutation that turns it
+back into one (M12b) is the evidence that the formulation is doing work rather
+than merely being quiet.
+
+**THE MATERIAL RESULT IS THAT ONE CATALOGUE CLAIM IS FALSE AS WORDED, AND THE
+OPERATOR IS THE COUNTEREXAMPLE.**
+
+> **`SY-04.b` says an invalid configuration *leaves the working tree
+> byte-identical*, and it does not scope that to Grove.** This slice is the first
+> to give the world a way to write the tree — `hand-edit` (`EN-11`) and
+> `foreign-write` (`EN-13`), both first-class Environment actions in §*Actions* —
+> and the check, inherited green from the `iteration` slice, failed immediately.
+> The counterexample is three states long and needs no protocol at all: the
+> configuration is invalid, the operator hand-edits a `Legacy` tree into the task
+> root's name, and the tree is not byte-identical. Grove did nothing. **The claim
+> constrains Grove's transitions, not the operator's hands**, and the wording
+> does not say so.
+
+The correction inside the model is one conjunct (`Sys.res' != Environmental`).
+The correction the catalogue owes is the same distinction in prose, and it is not
+cosmetic: read unqualified, `SY-04.b` promises something no filesystem-hosted
+tool can promise, and a reader building a recovery path on *the tree is unchanged
+after a refusal* would be building on the wrong guarantee. The class is the same
+one entry 038 named — **a claim stated over a system when it is true only of a
+component** — and it is worth noting that the `iteration` slice could not have
+found it: with no environmental writer in the file, the unqualified conjunct was
+green and correct about everything the model could reach.
+
+**M1** `alloy-only` (no Quint model of this scope exists yet). **M2** `structure`
+— it is a scoping error in a claim's subject, not an ordering, interruption or
+eventuality one. **M3 = 3**: the trace names `HandEditA` at state 1 and shows
+`World.cfg = InvalidCfg` in every state; it transcribes directly into a failing
+test. **M4** `none` — there is no code defect to write a test against; the
+shipped implementation does not claim to stop the operator, only the catalogue's
+sentence does.
+
+**THE SECOND RESULT IS METHODOLOGICAL, AND IT IS A NEW FAILURE MODE FOR A FILE
+WITH A FREE INITIAL STATE.**
+
+> **`SY_07a` reported a counterexample at state 0, with no transition in the
+> trace at all**: a free initial state holding two finish leaves. Nothing was
+> wrong with the design, the transitions or the claim — `doAllocFinish` is the
+> only site that writes `World.fin` and it writes exactly one. What was wrong is
+> that *exactly one finish leaf* is an invariant the transitions **preserve** and
+> cannot **establish**.
+
+The general form, and it is the mirror of the failure this file has already
+recorded twice in the other direction: **in a model with a free initial state,
+every checked invariant is either establishable or preserve-only, and a
+preserve-only invariant needs a state-0 fact justified by what the steps already
+require.** Written as an `always` fact it asserts the claim and every mutation
+against it survives (entry 040's shape). Written as nothing at all it reports a
+counterexample about the initial state rather than about the design. **Both
+failure modes look like a result**, and the only thing that separates them is
+reading the trace instead of the verdict — which, in this instance, took under a
+minute because the trace was two lines and one of them said `(loop)` on state 0.
+
+The file now carries four state-0-only facts and the discipline is explicit:
+`TracesStartWithNobodyBlocked`, `LeasesStartBoundToTheLiveRoot`,
+`SelectionsStartInsideTheTree` and `TheTreeStartsWithAtMostOneFinishLeaf`. None
+carries `always`, and each is justified as *what the step already required*.
+
+**THE THIRD RESULT IS THE COMPOSITION DECISION THE LEAF WAS CUT TO MAKE, AND IT
+ANSWERED ITSELF ONCE THE OBSERVATION WAS NAMED CORRECTLY.**
+
+`SY-06.b` must complete a `PartialScaffold` and refuse a `Legacy` tree — two of
+`TT-18`'s eleven root states — and the node brief's rule is compose at
+observations, never at machinery. The question it left open was whether
+`World.rooted` should grow into a small classification or the classification
+should be imported as opaque predicates. **Neither, quite.** The two states enter
+as opaque marks (`World.partial`, `World.legacy`) whose content is entirely the
+task-tree model's, and the thing this file owns turns out to be a **difference
+between two observations rather than a state**:
+
+> the observation that **enables** a completion is `partial + legacy`, their
+> union — which at this scope is *exactly* what *the format witness is absent*
+> means, with no format witness anywhere in the signature. The observation that
+> **decides** it is `partial` alone: the exact known subset.
+
+`SY-06.b`'s own words are *by the exact known subset, never by the mere absence
+of the format witness*, and that sentence is precisely the difference between the
+two. **The mutation writes itself** (M14: decide on the union) and it fires at
+three states. The result generalises: where a claim forbids deciding on a coarser
+signal than the one that should decide, model both signals as observations and
+make the check the biconditional between them — no machinery from the owning
+model is needed, and none was imported.
+
+The one clause this file could not state is recorded rather than solved:
+`SY-06.b` also says the completion runs *before any format classification*, and
+this file has no classification step because the marks arrive already made. The
+ordering is `TT-18`'s. That is the **fourth instance** of the `TT-24` placement
+shape — two `TT-` gaps unfillable from either sibling directory, `finish-k8`'s Q4
+instance, and this — and it is cheap for `formal-synthesis-k16` only because it
+is written down.
+
+**Caught / missed.** Caught: the catalogue scoping error above, at a cost of one
+run; the state-0 counterexample; and the `witness_SY_10a` regression, which is
+the fourth item and is worth its own line — **a construction fact added for one
+obligation made a different obligation's inherited witness unreachable.**
+`AnAbsentRootHasNoEntries` is unarguable (a tree that is not there has no entries
+in it), and it silently killed `witness_SY_10a`, which said `always no
+World.rooted` as its way of spelling *before it touches the tree*: with no root
+there are no live leaves, so no selection, so no **launch**, and the witness needs
+one. It reported *no instance*, which is what a wrong witness reports and also
+what a broken one does. The replacement (`always Sys.act not in TreeAct`) is
+strictly stronger and is what the claim actually says. **Missed by reading, all
+four**: the mutation matrix and the runner found every one, and no review of the
+diff would have caught the third — the fact and the witness are 700 lines apart
+and each is correct.
+
+Not caught, and stated as a limit: this slice's six obligations produced **no
+survivors**, so it contributes nothing new to the three-survivor-causes result
+entry 041 established. Seven mutations, seven firings, each swept from two states
+upward: **all seven first fire at 3 against checks that run at 5**, two states of
+margin apiece. That sweep is part of the *no survivors* claim rather than an
+extra — entry 041's own M8 incident was a mutation that survived at two bounds
+and fired at a third.
+
+**Cost.** Authoring ≈ **2 h 45 m** for six obligations (**M5**: **0.46
+h/obligation**), of which roughly a third was the composition decision above and
+almost none was debugging: the file compiled and ran with two failures, both
+diagnosed from their traces in under five minutes each. **M6 synchronization: 0**
+— the Quint column does not exist. **M7 wrangling: ~0.2 h**, entirely the bound
+sweeps, which are instrument time rather than tool-fighting.
+
+> **THE THIRD H8 POINT, AND THE FIRST TIME THE SYSTEM-LEVEL COST CURVE SAYS
+> ANYTHING.** The three lifecycle leaves now read **0.42**, **0.60** and **0.46**
+> h/obligation (mean **0.49**), against the component-local files' 0.18 – 0.58.
+> The system-level arm is not dearer per obligation; it is **flatter**, and the
+> variance is about the difficulty of the composition question rather than about
+> the number of claims.
+>
+> **WHERE THE RUN COST WENT IS THE NEW DATUM, AND IT IS NOT WHERE THE TRANSITION
+> COUNT LAW PREDICTS.** The file went from thirty commands at **37 s wall** to
+> forty-six at **105 s and 113 s** across two runs — 53% more commands for
+> roughly 190% more wall. The transition-count law would put that on the eight
+> new transitions. It is not there. **Thirty-odd commands did not move at all**,
+> still sitting between 1.27 s and 1.68 s, within 3× the 0.58 s JVM floor. Three
+> commands carry the whole increase: `SY_05a` (new, 4.16 s), `SY_10a`
+> (2.37 → 3.23 s) and `witness_SY_10a` (**1.59 → 8.62 s**). What those three
+> share is not a transition count — it is `Grove`, the one new **free signature**,
+> at the default scope 3. Six new `var` fields on a `one sig` cost nothing
+> measurable; one free `var`-referenced sig costs a factor of five in exactly the
+> commands whose search ranges over its atoms across states. **The static-atom
+> law (~10 ms per atom per command) understates this by two orders of magnitude,
+> because what a free sig costs is search and not translation.** The parallel
+> utilisation falling from 355% to ~230% is the same fact seen from the runner:
+> fewer commands are short enough to overlap.
+>
+> **AND ONE STATE OF MARGIN CAN COST 8×, ON A SATISFIABLE SEARCH.**
+> `witness_SY_06b_a_legacy_tree_refused_rather_than_completed` lands at 3. At 5
+> states it takes **10.42 s**; at 4 it takes **1.27 s**. Nothing about the
+> instance changes — the extra state is pure search space. This matters because
+> the *scope trap* discipline pushes bounds upward by default, and entry 041
+> raised six witnesses' bounds on exactly that reasoning. The rule it suggests is
+> **margin is bought one state at a time and priced per command**: raise a bound
+> where a mutation needs it, and measure rather than round up.
+
+**Counterfactual.** The catalogue scoping error is available by reading, but only
+to a reader who already has both environment actions in front of them and thinks
+to ask what an operator can do while a configuration is invalid — and the two
+slices that wrote and inherited `SY-04.b` had neither action in the file. The
+state-0 counterexample is not available by reading at all: everything about the
+design is right, and what is wrong is a property of the *claim's shape* against a
+*free initial state*, which is a relationship between two design decisions made
+in different sessions. The `witness_SY_10a` regression is the least available of
+the three — the fact and the witness are 700 lines apart, both correct, and the
+failure is a chain of four implications through machinery neither one mentions.
+The composition result is the opposite case and worth saying so: it **was**
+available by reading, once the question was posed precisely enough, and the node
+brief posed it. That is a point for the briefs rather than for the tool.
+
+**Verdict.** The slice is green — **46 commands, 17 obligations, 17 of 25 alloy
+cells filled, 8 correctly reported empty**, one mutation per reported obligation
+with all seven firing and each swept for its firing bound, and all three
+assumption controls firing including `EN-14`'s `SY-05` half, which
+`admission-k51` declared owed. One material catalogue finding (`SY-04.b` scoped
+to a system where it is true only of a component, M3 = 3), two methodological
+results (the establishable/preserve-only invariant classification for a free
+initial state; a construction fact for one obligation breaking another's
+inherited witness), one composition result (a claim about *deciding on the wrong
+signal* modelled as the biconditional between an enabling and a deciding
+observation, importing no machinery), one placement instance recorded for
+`formal-synthesis-k16`, and two cost results (a free signature, not a transition
+count, is where system-level run cost lives; and margin is priced per command).
+
+**Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6.2.0
+`.202501090817` (git `794226d`), `org.alloytools.alloy.dist.jar`, Corretto
+`21.0.12.1+9-LTS`. **Solver**: SAT4J (distribution default), every command with
+`-n` and `-t text`. **Bounds**: `for 3 but 2 WtId, N steps`, `N` from 4 to 8 and
+**N is STATES**; this slice's nine witnesses first land at 4, 4, 4, 5, 7, 3, 3, 3
+and 2, and **the six inherited witnesses and the seven `SY-04.a` ones were all
+re-swept from 2 and every one of them landed exactly where it did before** — the
+expected result, since this slice's one change to an existing transition removed
+a guard (`doSelect`'s `some World.live`) and removing a guard only adds traces.
+`Grove` takes the default 3 and is the file's expensive scope; `3 Proc` is
+load-bearing for `SY-11.b` and for `SY-06.b`'s successor witness; `Leaf` and
+`Gen` take 3 for margin. No `Int`. **Fairness**: none assumed. **Symmetry**: no
+`exactly` scope. **Abstractions**: `Proc.waits`/`Deferred`, `Stopped`,
+`RefConfigInvalid` and `IterA` (inherited); **new here** — `initialise-root` as
+**two** steps, because `PartialScaffold` is defined by the interval between them
+and a single opaque step answers `SY-06.b` by construction; `allocate-finish-leaf`
+split out of the opaque tree step, because one opaque step cannot carry an actor
+rule for one mutation and not another; `World.partial`/`World.legacy` as opaque
+marks owned by `crates/grove-task-tree/models/`; `doProveCommit` and
+`doSettleDeletion` as one opaque step each for `FN-11` and `FN-19`; a grove's
+identity as an atom with no contents. **Deliberately omitted**: the quarantine,
+the correlation ticket, the manifest, the witness slot, the format witness, the
+exact known subset, the classification order, leaf state and retirement, and the
+other nine members of `TT-18`. **Granted about the world**: neither environment
+action deletes the task root — §*States* says a root whose deletion is not proven
+is never `Absent`, and `EN-14` is the one place its negation is exercised; a
+`hand-edit` that could empty the name would put `EN-14`'s counterexample inside
+the assumed scope. **What a green run does not prove**: `SY-06.b`'s ordering
+clause is imported and unchecked here; `SY-05.b` is one half of a joint claim
+whose other half is the finish scope's; `SY-05.a`'s first conjunct has no
+isolating mutation (M12c fires it and `SY-05.b` together); and the three limits
+entry 041 recorded all still stand.
 
 ---
 

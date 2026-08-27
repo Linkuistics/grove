@@ -19,10 +19,24 @@
 #      syntactically perfect and answers nothing, and a runner that credits it
 #      to a matrix key nothing ever reads has asserted nothing in that
 #      direction at all.  A command may cite a CLAIM rather than one of its
-#      sub-identities (`TT_24` where the manifest carries `TT-24.a` - `TT-24.d`),
+#      sub-identities (`TT_24` where the manifest carries `TT-24.a` and
+#      `TT-24.b`),
 #      which is the same relaxation obligation 4 makes for a matrix row; such a
 #      command is real but credits NO cell, and the run reports it rather than
 #      losing it silently.
+#
+#      AND IT REPORTS CONTESTED CELLS, WHICH IS A STATEMENT ABOUT EVIDENCE
+#      RATHER THAN ABOUT COVERAGE.  A cell one family ANSWERS while the other
+#      DECLARES A GAP is where a transcription hides: the answering family may
+#      have imported the machinery the declining family refused to import, in
+#      which case its property restates the import and no mutation can kill it.
+#      That happened — `TT-24.c`, entry 048 — and the matrix printed
+#      `alloy:gap quint:ok`, which reads as the declining family being behind
+#      when the declining family was right.  So the run additionally says
+#      whether the ANSWERING family carries a control naming that obligation.
+#      It is REPORTED, NEVER FATAL: a family may honestly answer what another
+#      cannot express, and a control is not always available.  What it buys is
+#      that the next reader of the coverage matrix meets the fact.
 #   4. ASSERT Q4'S REMOVAL MATRIX IN BOTH DIRECTIONS, PER FAMILY.  The
 #      catalogue calls the artifact/transition removal matrix "a runner
 #      obligation like any other: a removable artifact with no row fails the
@@ -283,7 +297,7 @@ ran=0
 declare -a rows=()          # "family obligation kind command outcome"
 declare -a bad_commands=()  # commands naming no obligation the catalogue defines
 declare -a claim_level=()   # commands citing a claim rather than an obligation
-declare -A covered_prop=() covered_wit=()
+declare -A covered_prop=() covered_wit=() has_control=()
 
 note() { [[ "$quiet" == 1 ]] || echo "$@"; }
 
@@ -306,6 +320,29 @@ ob_of() {
   echo "$id"
 }
 is_control() { [[ "$(strip_outcome "$1")" == EN_* ]]; }
+
+# THE OBLIGATION A CONTROL NAMES, or empty.  A control is not coverage and never
+# credits a cell; what it is evidence of is that the obligation it names can be
+# made to FAIL, which is the one thing a green property command cannot say about
+# itself.  Two shapes carry an obligation — `<EN_nn>_<OB>_<m>` for a premise
+# break and `MUT_<OB>_<m>` for a model mutation — and two do not
+# (`expect_unreachable_<EN>_<m>`, `wit_unreach_<EN>_<m>`), which is correct:
+# those are stated over a removed dimension rather than over one obligation.
+control_ob() {
+  local n
+  n=$(strip_outcome "$1")
+  [[ "$n" =~ ^(EN_[0-9][0-9]|MUT)_(TT|FN|SY)_([0-9][0-9])([a-z]?)(_|$) ]] || { echo ""; return; }
+  local id="${BASH_REMATCH[2]}-${BASH_REMATCH[3]}"
+  [[ -n "${BASH_REMATCH[4]}" ]] && id="$id.${BASH_REMATCH[4]}"
+  echo "$id"
+}
+
+note_control() {
+  local fam="$1" cob
+  cob=$(control_ob "$2")
+  [[ -n "$cob" ]] && has_control["$fam $cob"]=1
+  return 0
+}
 
 # THE SECOND DIRECTION, and the whole of it.  `ob_of` reads a well-SHAPED
 # obligation out of a command name; the catalogue decides whether that
@@ -362,6 +399,7 @@ run_alloy_file() {
       *)                     want=no;  label="counterexample" ;;
     esac
     ran=$((ran + 1))
+    note_control alloy "$name"
     local ob; resolve_ob alloy "$file" "$name"; ob="$RESOLVED_OB"
     if [[ -n "$ob" ]]; then
       local obscope; obscope=$(prefix_scope "${ob:0:2}")
@@ -521,6 +559,7 @@ quint_kind() {
 # Record one command against the coverage matrix and the placement rule.
 quint_account() {
   local name="$1" file="$2" scope="$3" ob obscope
+  note_control quint "$name"
   resolve_ob quint "$file" "$name"; ob="$RESOLVED_OB"
   [[ -n "$ob" ]] || return 0
   obscope=$(prefix_scope "${ob:0:2}")
@@ -882,7 +921,8 @@ if [[ "$q4_in_scope" == 1 ]]; then
         *)    # A row may cite a CLAIM rather than one of its sub-identities: the
               # register's shared-safety list names `TT-24`, and the manifest —
               # whose unit is the pair `(family, obligation)` — carries only
-              # `TT-24.a` - `TT-24.d`.  `Q4-6` is that case and it is correct.
+              # its lettered sub-identities.  `Q4-6` was that case; it now cites
+              # `TT-24.a` directly, and the relaxation stays for the next one.
               grep -qxF "$rob" <<<"$manifest" || grep -q "^${rob}\\.[a-z]$" <<<"$manifest" ||
                 q4_errors+=("row $rid ($rfam, '$rart') cites $rob, which the catalogue does not define") ;;
       esac
@@ -974,6 +1014,43 @@ while read -r ob; do
   [[ "$gaps_here" -eq ${#families[@]} && ${#families[@]} -gt 1 ]] && both_gap=$((both_gap + 1))
   [[ "$line" == *MISSING* || "$line" == *NO-* || "$line" == *gap* ]] && printf '  %-10s%s\n' "$ob" "$line"
 done <<<"$selected_manifest"
+
+# CONTESTED CELLS.  One family answered, another declared a gap.  Reported with
+# whether the answering family can make its own answer fail; never fatal.
+if [[ ${#families[@]} -gt 1 ]]; then
+  contested=0
+  contested_uncontrolled=0
+  contested_lines=""
+  while read -r ob; do
+    [[ -n "$ob" ]] || continue
+    # NOT `declared`/`answered`: those are the coverage counters above, and this
+    # block runs BEFORE the line that prints them.  Reusing either name blanks
+    # the gap count in every run — which is how this comment came to exist.
+    gapped_by=""; answered_by=""
+    for fam in "${families[@]}"; do
+      if [[ -n "${gap[$fam $ob]:-}" ]]; then gapped_by+="$fam "
+      elif [[ -n "${covered_prop[$fam $ob]:-}" ]]; then answered_by+="$fam "; fi
+    done
+    [[ -n "$gapped_by" && -n "$answered_by" ]] || continue
+    contested=$((contested + 1))
+    for fam in $answered_by; do
+      if [[ -n "${has_control[$fam $ob]:-}" ]]; then
+        contested_lines+="  $ob  ${gapped_by% } declared a gap; $fam answered, and carries a control"$'\n'
+      else
+        contested_lines+="  $ob  ${gapped_by% } declared a gap; $fam answered with NO CONTROL"$'\n'
+        contested_uncontrolled=$((contested_uncontrolled + 1))
+      fi
+    done
+  done <<<"$selected_manifest"
+  if [[ "$contested" -gt 0 ]]; then
+    echo
+    echo "-- contested cells: one family answered what another declared out of reach."
+    echo "   Not a failure. An answer no control can kill is a transcription of the"
+    echo "   machinery it imported, and that is what this line exists to show."
+    printf '%s' "$contested_lines"
+    echo "-- $contested contested, of which $contested_uncontrolled have no control on the answering side"
+  fi
+fi
 
 total_cells=$(( $(echo "$selected_manifest" | grep -c .) * ${#families[@]} ))
 echo

@@ -2382,13 +2382,17 @@ run witness_TT_23b_an_interrupted_bulk_mark_is_repaired_by_rerunning_it {
 // false-confidence incident in a fourth set of clothes.
 //
 // `TT-24` IS ONE ARTIFACT MET IN THREE CONTEXTS, and the catalogue fixes the
-// outcome of each rather than letting a model choose.  Two of the three are out
-// of this file's reach and are DECLARED GAPS in the family README with their
-// reason — `TT-24.c`'s outcome is `Blocked(OwnershipConflict)` and its
-// antecedent is *inside a finish or recovery transaction*, which this file has
-// no notion of; `TT-24.d`'s subject is the quarantine reaper, which is
-// `FN-21`'s.  Inventing a fourth outcome to make the cells green is the thing
-// the catalogue's table exists to prevent.
+// outcome of each rather than letting a model choose.  ONLY THE FIRST IS THIS
+// FILE'S, and that is now the catalogue's own arrangement rather than a gap
+// this column declared: `TT-24.c` and `TT-24.d` were declared out-of-bounds
+// here — one had no outcome in this `Result` set, the other no subject — and
+// `obligation-placement-k63` retired both, because a live transaction and the
+// quarantine reaper are `grove-finish`'s actions and that crate depends on this
+// one (`docs/adr/obligations-follow-context-not-artifact.md`).  They are
+// `FN-32` and `FN-21.c`.  Inventing a fourth outcome to make a cell green was
+// the thing the catalogue's table exists to prevent, and declining to was the
+// right call: the sibling column filled them by importing the machinery, and
+// its answer for `TT-24.c` restated its own gate.
 // ===========================================================================
 
 /* WHAT GROVE CANNOT PROVE IS ITS OWN.  A foreign entry anywhere the walk can or

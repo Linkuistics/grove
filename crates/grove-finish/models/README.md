@@ -20,7 +20,7 @@ coverage is asserted; the flag was on that line from `entry-k39` to
 
 | family | file | obligations |
 |---|---|---|
-| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition**; `FN-19`, `FN-20` — the **quarantine and the atomic root rename**; `FN-22` — the **four revalidation points and the ten-row table**; `FN-21`, `FN-31` — **disposal**: its re-entrancy, the cleanup marker's create / replace / remove transitions, and the reaper; `FN-24` — the **crash slice**: what the disk a crash leaves classifies as, and what one step of the transaction may change; `FN-25`, `FN-26` — the **blocked slice**: the closed diagnosis partition over `RecoveryPending` and `OwnershipConflict`, the strict precedence that resolves the two places its arms meet, and what a block's diagnostic names; `FN-02`, `FN-23`, `FN-27` – `FN-30` — the **exits slice**: intent persisting as the finish leaf, recovery as monotone removal with a guard that goes false, the three unrelated-mutation obligations, the single successful exit, the completed refusal and its distinction from a block, and hook suppression |
+| Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition**; `FN-19`, `FN-20` — the **quarantine and the atomic root rename**; `FN-22` — the **four revalidation points and the ten-row table**; `FN-21`, `FN-31` — **disposal**: its re-entrancy, the cleanup marker's create / replace / remove transitions, and the reaper; `FN-24` — the **crash slice**: what the disk a crash leaves classifies as, and what one step of the transaction may change; `FN-25`, `FN-26` — the **blocked slice**: the closed diagnosis partition over `RecoveryPending` and `OwnershipConflict`, the strict precedence that resolves the two places its arms meet, and what a block's diagnostic names; `FN-02`, `FN-23`, `FN-27` – `FN-30` — the **exits slice**: intent persisting as the finish leaf, recovery as monotone removal with a guard that goes false, the three unrelated-mutation obligations, the single successful exit, the completed refusal and its distinction from a block, and hook suppression; `FN-32` — **fail-closed ownership inside a transaction**, `TT-24`'s second context re-stated under an `FN-` prefix by `obligation-placement-k63` |
 | Quint | — | none yet (`quint-models-k10`) |
 
 **Zero of the scope's sixty-one alloy cells are empty**, and coverage is
@@ -68,7 +68,16 @@ three slices — see *A tenth finding, and it is about the shipped protocol*.
 neither can be filled from either side as the placement rule stands — and the
 content each needs is now present under an `FN-` prefix, so the re-statement
 `formal-synthesis-k16` may choose is a citation change and nothing more.**
-`crates/grove-task-tree/models/README.md` declares `TT-24.c` and `TT-24.d`
+**SETTLED BY `obligation-placement-k63`, AND THE PREDICTION BELOW WAS HALF
+RIGHT — WHICH IS WHY IT IS LEFT STANDING.** Both obligations are retired and
+re-stated under `FN-` prefixes: `TT-24.d` is `FN-21.c`, a pure citation change
+exactly as predicted, and `TT-24.c` is the new `FN-32`, which needed a claim
+because `FN-25` is stated over `Blocked` outcomes **and nothing else** — it says
+which diagnosis a block carries, never that this situation blocks. See
+*`FN-32` — `TT-24`'s second context, arriving from the other scope* below. The
+paragraph that follows is the prediction as it stood:
+
+`crates/grove-task-tree/models/README.md` declared `TT-24.c` and `TT-24.d`
 `out-of-bounds`, both because the context each names is a finish context: `TT-24.c`
 is `Blocked(OwnershipConflict)` inside a finish or recovery transaction, and
 `TT-24.d`'s subject is the quarantine reaper. This model will have both machineries
@@ -1848,6 +1857,7 @@ that sweep, not an assertion.
 | 60 | `FN-28` | `doMarkerRemove` stops framing `Repo.rev` — disposal's last step performs an integration | `witness_FN_03_a_retry_with_no_local_trace_settling_forward_on_the_ticket_alone` | KILLED (also kills `FN-24.b`; left green: 24 others) |
 | 61 | `FN-29` | `doRevalidate`'s completed refusal releases the **task root's own name** along with the witness — the refusal leaves no grove behind | `witness_FN_22a_the_point_after_the_restoration_is_reached` | KILLED (also kills `FN-19`, `FN-22.d`, `FN-24.b` and `FN-28`; left green: 21 others). **The third form tried — see below** |
 | 62 | `FN-30` | `doCommitAttempt` stops framing the hook — the internal commit runs the operator's hooks | `witness_FN_14_unrelated_modified_work_present_across_a_successful_finish` | KILLED (left green: all 25 others, `FN-27.a` – `FN-27.c` included) |
+| 63 | `FN-32` | `doDiscard`'s else-branch drops `slotSame` and clears the slot — the discard removes exactly what it just refused to classify | `witness_FN_32_a_transaction_step_meets_an_unprovable_artifact_and_it_stands` | KILLED. **`FN-21.c` survives**, which is the row's point: the two obligations are stated over different antecedents — a transaction step here, a sweep there — so neither mutation can kill the other, and `FN-32` is not a restatement of `FN-21.c` |
 | x1 | *(not an obligation's row — Q4-6's evidence)* | `reapable` narrows to *there is a quarantine* — the sweep with no document to read | *the kills are the fire evidence* | KILLED `FN-21.b` and `FN-21.c`; left green: all 26 others |
 | x2 | *(not an obligation's row — Q4-2's evidence)* | `doSettle`'s restore branch drops `treeMatchesManifest` for `some Root.holds'` — the restoration puts back something the record did not name | `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | KILLED `FN-02` and `FN-22.d`; **`FN-17.a` survives**; left green: 24 others |
 
@@ -2625,12 +2635,14 @@ claim RANGES over rather than about the protocol:
   diagnosis's name is real and is out of scope of `FN-25` by the outcome, not by
   an omission.
 
-`TT-24.c` and `TT-24.d` are the other side of this, and `blocked-k48` leaves them
-one citation away: `FN-25` now states the in-transaction
-`Blocked(OwnershipConflict)` under an `FN-` prefix and `FN-21.c` states the
-sweep's decline, which is the whole content the two `TT-` obligations are
-declared out-of-bounds for. The placement rule itself is
-`formal-synthesis-k16`'s.
+`TT-24.c` and `TT-24.d` were the other side of this, and `blocked-k48` judged
+them one citation away. **`obligation-placement-k63` settled the placement and
+found the citation was enough for one of the two.** `FN-21.c` carries
+`TT-24.d` entire. `FN-25` does **not** carry `TT-24.c`, for the reason this very
+section gives: it is stated over `Blocked` outcomes and nothing else, so it
+fixes the diagnosis a block carries and never that the situation blocks. What
+`TT-24.c` actually had that no `FN-` claim did was its shared-safety half, and
+that is `FN-32`.
 
 ## A seventh finding, an eighth and a ninth — all three from writing one partition down
 
@@ -2787,7 +2799,7 @@ the artifact has no counterpart in this file.
 | Q4-3 | alloy | its **ready mark** | `FN-10.a` — **incumbent mechanics, so not yet a Q4 answer** | mutation — row 12 |
 | Q4-4 | alloy | the **correlation ticket**, as an *attempt-naming* record | `FN-04` | mutation — row 19, transcribed |
 | Q4-5 | alloy | the **quarantine** | **`none`** | argument, and it is the row Q1 exists for — see below |
-| Q4-6 | alloy | the **cleanup marker**, as the document a sweep reads to know what is Grove's | `TT-24` | mutation — row x1, and the obligation is **unreachable from this directory**; see below |
+| Q4-6 | alloy | the **cleanup marker**, as the document a sweep reads to know what is Grove's | `TT-24.a` | mutation — row x1, **cross-scope citation**; see below |
 | Q4-7 | alloy | the **replace transition** (`doMarkerReplace`) | **`none`** | mutation — row 45, transcribed: narrowing the transition away leaves **every check in the file green** and stops one witness landing. A liveness hole no safety claim sees |
 | Q4-8 | alloy | the **index image** | — | abstracted. The three lanes' anchors and commit mechanisms are carried as one `Repo.rev` role and the index image has no counterpart here; declared under *Abstractions* since `commit-k41`. The row exists so that a removable artifact is not silently unrowed |
 | Q4-9 | alloy | the **recorded anchor**, as the rollback licence | `FN-16.a` | mutation — row 25, transcribed |
@@ -2834,20 +2846,28 @@ witnesses reached at a bound no greater than the incumbent's. Nothing here runs
 that candidate. `formal-synthesis-k16` reads the row; the Quint column owes its
 own.
 
-**Q4-6 IS DECIDED AND ITS OBLIGATION CANNOT BE NAMED BY A COMMAND IN THIS
-DIRECTORY, WHICH IS `TT-24.c` AND `TT-24.d`'S PROBLEM MET A THIRD TIME.** Row x1
-strips `reapable` back to *there is a quarantine* — the sweep with no document to
-read — and what dies is `FN-21.b` and `FN-21.c`, both *incumbent mechanics*. What
-the mutation actually demonstrates is the shared-safety sentence behind them:
-with nothing at the reserved name to read, the sweep removes a quarantine whose
-in-tree witness still owns it and a foreign entry at a reserved name alike, which
-is `TT-24` — and `TT-24` is in the register's shared-safety list. **No command in
-this file can be that row's evidence**, because the runner's placement rule sends
-every `TT_`-prefixed command to `crates/grove-task-tree/models/`, and that
-directory declares `TT-24.c` and `TT-24.d` `out-of-bounds` because their contexts
-are finish contexts. The row is therefore decided *by* a mutation and cited *to*
-an obligation no check here answers. That is a third consequence of the placement
-question and it is `formal-synthesis-k16`'s to settle along with the other two.
+**Q4-6 IS DECIDED AND ITS OBLIGATION IS ANSWERED IN ANOTHER SCOPE — A
+CROSS-SCOPE CITATION, WHICH `obligation-placement-k63` MADE A DECLARED CLASS
+RATHER THAN A DEFECT.** Row x1 strips `reapable` back to *there is a quarantine*
+— the sweep with no document to read — and what dies is `FN-21.b` and `FN-21.c`,
+both *incumbent mechanics*. What the mutation actually demonstrates is the
+shared-safety sentence behind them: with nothing at the reserved name to read,
+the sweep removes a quarantine whose in-tree witness still owns it and a foreign
+entry at a reserved name alike, which is **`TT-24.a`** — *no action mutates an
+entry whose ownership it cannot prove* — and `TT-24` is in the register's
+shared-safety list.
+
+No command in this file answers `TT-24.a`, and under the placement rule that is
+**correct rather than a hole**: `grove-finish` sits above `grove-task-tree`, so a
+mutation here may break a lower scope's property, and the property is answered
+where its subject lives. `TT-24.a` is covered by both families in
+`crates/grove-task-tree/models/`. What the row lacked was the class and the
+sub-identity, and it now carries both
+([`obligations-follow-context-not-artifact`](../../../docs/adr/obligations-follow-context-not-artifact.md)).
+
+**The other two instances of the shape are gone rather than declared.**
+`TT-24.c` and `TT-24.d` were stated over this scope's contexts and are retired;
+they are `FN-32` and `FN-21.c`, both answered here.
 
 ### What the blocked slice decided, which was nothing (retained)
 
@@ -2865,6 +2885,68 @@ markerless model would lose is `FN-31`, which is incumbent mechanics. The
 quarantine's row is the same shape. `FN-27` — *nothing unrelated is mutated, on
 any outcome* — remains the last shared-safety claim that could move either, and
 it is the third child's.
+
+## `FN-32` — `TT-24`'s second context, arriving from the other scope
+
+`obligation-placement-k63` retired `TT-24.c` and `TT-24.d` and re-stated them
+under `FN-` prefixes, because both name this crate's actions and `grove-finish`
+depends on `grove-task-tree` rather than the reverse
+([`obligations-follow-context-not-artifact`](../../../docs/adr/obligations-follow-context-not-artifact.md)).
+`TT-24.d` needed no new modelling: `FN-21.c` already states the reaper's decline
+and cites it. `TT-24.c` needed a claim, and writing it found two things.
+
+**First, `TT-24.c` was false as literally worded, and this file is where it is
+false.** It said the entry met inside a transaction returns
+`Blocked(OwnershipConflict)`. `FN_10b_content_the_discard_cannot_classify_fails_closed`
+requires `Sys.res' in Refused` at exactly that situation, and is green. The Quint
+column **blocks** at the same step (`SRemoveWitness`'s discard branch calls
+`blockNow(…, "foreign")`), and is also green — both against `FN-10.b`, whose text
+says only *fails closed*. Two independent readers resolved one sentence in
+opposite directions, which is stronger evidence that the catalogue is
+underdetermined than either column's own account. **The outcome is therefore not
+stated in `FN-32`**; deciding it is `catalogue-disposition-k64`'s, beside the
+other opposite-resolution items.
+
+**Second, the shared-safety half had no shared-safety home.** *Nothing at a
+reserved name Grove cannot prove is its own is mutated by a transaction step* is
+proven in this file twice — `FN_10b`'s `treeSame` and `FN_31d`'s
+`(Sys.act' in disposalSteps and markerForeign) implies markSame` — and **both
+claims are incumbent mechanics**, so neither is evidence about a candidate
+protocol. Q1 retains `TT-24`; `TT-24.a` survives and quantifies over every
+action, but this crate's own transaction steps are not in that model's action
+set. `FN-32` is that home, classed **shared safety**.
+
+**Two reserved names, and the quarantine is deliberately not one of them.**
+A witness slot occupied with no owner, and a cleanup marker with no `cOwner`,
+are the two artifacts here that carry an ownership bit.
+`foreignAtReservedName`'s second arm — *a quarantine no marker authorises* — is
+true on the ordinary forward path between `QuarRename` and `MarkerCreate`, so
+the quarantine has no ownership bit of its own and its case is the reaper's.
+
+**Quint's witness is the only library-level `wit_` in this column, and that is
+declared rather than accidental.** Every other Quint witness here lives in a
+`scenario_` instance in `finish-controls.qnt`, because a narrowed environment is
+what makes it reachable in 8000 samples. `wit_FN_32` lands in `base` — the
+general environment, no narrowing — in **322 of 8000 traces (4.03%)**, which is
+stronger evidence than a scenario-reached witness: the situation arises in the
+ordinary search rather than only under a contrivance. The cost is that any future
+plain instance inherits it and must reach it too.
+
+**And Quint's witness is worded on the contested half.**
+`hist.transactionBlockedReserved` is set where this column **blocks**; the Alloy
+column refuses at the same step. If `catalogue-disposition-k64` settles the
+outcome as a refusal, this witness's predicate moves with the model. `FN-32`
+itself does not: it says only that the artifact stands, which both columns agree
+on.
+
+**`Reap` is excluded from the antecedent, and mutation 63 is why that matters.**
+Dropping `slotSame` from `doDiscard`'s else-branch kills `FN-32` and leaves
+`FN-21.c` green; row x1's mutation kills `FN-21.b` and `FN-21.c` and leaves
+`FN-32` green. Neither obligation is a restatement of the other, and the two
+columns record it the same way: Quint's `inv_FN_32` reads
+`hist.mutatedUnproven`, set only by `noteUnproven` at a transaction step, while
+`FN-21.c` reads `hist.foreignMutated`, which the sweep also sets. One flag for
+both would have made each mutation kill the other.
 
 ## Whether `models/run.sh` grows a matrix reader — decided: yes, narrowly, and it is a leaf
 
@@ -3323,7 +3405,7 @@ One row per control, and what it killed. Q4's rows cite these by number.
 | 908 | `mutant_status_classifier` | model | the exit status read as a receipt | `FN-15.a` dies |
 | 909 | `mutant_no_revalidation` | model | the four revalidation points not performed | `FN-22.b` dies |
 | 910 | `mutant_nonatomic_marker` | model | the marker replaced by a remove then a create | `FN-31.b` dies |
-| 911 | `mutant_unproven_ownership` | model | the transaction mutates what it cannot prove is its own | `FN-10.b` dies |
+| 911 | `mutant_unproven_ownership` | model | the transaction mutates what it cannot prove is its own | `FN-10.b` **and `FN-32`** die. Both read `hist.mutatedUnproven`, which is the transaction-side flag; the reaper's `hist.foreignMutated` is a second field precisely so that `FN-21.c` is not killed here |
 | 912 | `mutant_eager_recovery` | model | a recovery at rest repairs anyway | `FN-23` dies |
 | 913 | `mutant_eager_preflight` | model | the preflight writes before it has finished checking | `FN-05.b` and `FN-05.c` die |
 | 914 | `mutant_short_preflight` | model | the preflight checks only confirmation and the guards | `FN-06`, `FN-07`, `FN-08`, `FN-12.b` die |

@@ -181,8 +181,18 @@ module relax_EN_11_grove_built {
 }
 
 /// `EN-13`, premise-break.  The reaper sweeps the reserved namespace.
-/// Expected: `TT-04` and `TT-24.d` fail — the sweep deletes bytes a refusal
-/// exists to preserve.
+/// Expected: `TT-04` fails — the sweep deletes bytes a refusal exists to
+/// preserve.
+///
+/// `inv_fail_EN_13_TT_24d_the_reaper_stops_declining` WAS THE ROW'S SECOND
+/// CONTROL AND WENT WITH ITS OBLIGATION.  `TT-24.d` is retired: the quarantine
+/// reaper is `grove-finish`'s action, so the obligation is `FN-21.c`
+/// (`docs/adr/obligations-follow-context-not-artifact.md`).  The premise-break
+/// is not lost — `crates/grove-finish/models/finish-controls.qnt`'s own
+/// `relax_EN_13` runs the same dial against the same sweep and carries
+/// `inv_fail_EN_13_FN_21b_the_reaper_stops_asking_whose_it_is` and
+/// `inv_fail_EN_13_FN_27a_the_sweep_deletes_foreign_bytes`.  The sweep stays in
+/// this file because `TT-04` needs it.
 module relax_EN_13 {
   import taskTree(
     REAPER_SWEEPS_RESERVED = true,
@@ -194,9 +204,6 @@ module relax_EN_13 {
 
   val inv_fail_EN_13_TT_04_the_sweep_deletes_foreign_bytes: bool =
     inv_TT_04_foreign_subtrees_are_invisible_and_untouched
-
-  val inv_fail_EN_13_TT_24d_the_reaper_stops_declining: bool =
-    inv_TT_24d_the_reaper_declines_and_continues
 }
 
 /// A control on the MODEL rather than on the world: later steps classify from

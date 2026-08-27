@@ -166,6 +166,18 @@ themselves exist. That is deliberate: the model is what the crate is cut
 against, and a `models/` directory with no `Cargo.toml` beside it is invisible
 to a workspace whose members are listed explicitly.
 
+**An obligation's prefix is a crate assignment, and the rule that decides it is
+[`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md).**
+The runner sends every `TT_` command to `crates/grove-task-tree/models/`, every
+`FN_` command to `crates/grove-finish/models/` and every `SY_` command to
+`models/system/`, and refuses a command whose prefix disagrees with its
+directory. So an obligation belongs to the scope that can execute its context,
+ordered by the approved crate dependency direction; a clause a scope cannot check
+stays in place only as a declared **cross-scope citation** to the obligation that
+owns it, carrying that obligation's declared narrowings. A gap declared by
+**both** families is the signal to apply the rule, not a place an obligation may
+rest.
+
 **`models/run.sh` is the one repository runner**, and it has three obligations
 beyond running commands:
 
@@ -555,15 +567,31 @@ would make the partition neither disjoint nor exhaustive over anything.
 a name Grove reserves is reachable from three places, and the catalogue fixes
 each rather than letting a model choose (`TT-24`):
 
-| context | outcome |
-|---|---|
-| an ordinary tree operation, before any transaction | `Refused(ReservedNameOccupied(entry))` — the tree is byte-identical |
-| inside a finish or recovery transaction | `Blocked(OwnershipConflict)` — a transaction has already mutated, so a block is the honest stable state |
-| the quarantine reaper (`FN-21`) | declines the entry, mutating nothing, and reports it; the sweep continues over entries the reaper *can* prove are Grove's |
+| context | outcome | checked by |
+|---|---|---|
+| an ordinary tree operation, before any transaction | `Refused(ReservedNameOccupied(entry))` — the tree is byte-identical | `TT-24.b` |
+| inside a live finish or recovery transaction | the step stops and the artifact is untouched; **which** stop is not fixed here — see below | `FN-32`, and the step's own obligation |
+| the quarantine reaper (`FN-21`) | declines the entry, mutating nothing, and reports it; the sweep continues over entries the reaper *can* prove are Grove's | `FN-21.c` |
 
-The three agree on what matters — nothing foreign is ever mutated — and differ
-only in what the caller can be told, which is a function of how far the caller
-had already gone. `TT-24`'s obligations check all three.
+The three agree on what matters — nothing foreign is ever mutated, which is
+`TT-24.a` — and differ only in what the caller can be told, which is a function
+of how far the caller had already gone. **The rows are checked in two scopes**,
+because two of the three contexts are `grove-finish`'s
+([`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md)).
+
+**The second row said `Blocked(OwnershipConflict)` flatly and no longer does,
+because both families contradict it and they contradict it in opposite
+directions.** *Inside a transaction* is not itself the discriminator — this
+claim's own preamble says the outcome is fixed by *how far the caller had already
+gone*, and a preflight or an unpublished witness is inside a transaction that has
+moved nothing. `crates/grove-finish/models/finish.als` refuses there
+(`FN_10b_content_the_discard_cannot_classify_fails_closed` requires
+`Sys.res' in Refused`) while `crates/grove-finish/models/finish.qnt` **blocks**
+at the same step (`SRemoveWitness`'s discard branch calls `blockNow(…,
+"foreign")`), and both are green against `FN-10.b`, whose text says only *fails
+closed*. So the outcome per step is **underdetermined and recorded as such**;
+what every context does agree on is `FN-32`. Deciding it is
+`catalogue-disposition-k64`'s, beside the other opposite-resolution items.
 
 **The two diagnoses are a partition the catalogue introduces, and the shipped
 implementation does not yet draw it.** Today's classification yields three
@@ -620,7 +648,7 @@ cell.
 | `EN-10` | The names are the counter: key allocation reads the tree, and entries are never removed. | premise-break | Quint — `relax_EN_10`, an entry removed | `TT-05`, `TT-12` | `TT-05` fails: allocation re-issues a key a removed entry held |
 | `EN-11` | Any well-formed tree is reachable by hand edit. | exercise-removal | Both — `hand-edit` is a first-class action; the mutation is its removal | `TT-02`, `TT-03`, `TT-13.c`, `TT-24.b`, `TT-25` | with `hand-edit` removed, every witness that posits a tree Grove's own actions cannot build is unreachable. **`TT-16` was listed here and has been removed**: a resolved *terminal* entry is something Grove's own actions build — allocate, retire, resolve — so its witness never needed the assumption, and the Alloy run reaches it with `hand-edit` gone ([`crates/grove-task-tree/models/task-tree.als`](../../crates/grove-task-tree/models/task-tree.als), `witness_EN_11_a_resolved_terminal_entry_needs_no_hand_edit`) |
 | `EN-12` | A name renders as exactly one path component. | premise-break | Alloy — a rendering that escapes its level | `TT-01.a`, `TT-06` | `TT-01.a` fails: two spellings denote one entry, and the level's positions stop being a per-directory sequence |
-| `EN-13` | Foreign entries may appear at any name and are not Grove's to delete. | premise-break | Quint — `relax_EN_13`, a sweep of a reserved namespace | `TT-04`, `TT-24.b`, `TT-24.d`, `FN-27` | `TT-04` and `TT-24.d` fail: the sweep deletes bytes a refusal exists to preserve |
+| `EN-13` | Foreign entries may appear at any name and are not Grove's to delete. | premise-break | Quint — `relax_EN_13`, a sweep of a reserved namespace | `TT-04`, `TT-24.b`, `FN-21.b`, `FN-27` | `TT-04` fails in the task-tree scope and `FN-21.b`/`FN-27.a` in the finish scope: the sweep deletes bytes a refusal exists to preserve. **`TT-24.d` was listed here and is retired** — its content is `FN-21.c`'s, per the placement rule; the sweep is `grove-finish`'s action and the row's task-tree half is `TT-04`'s alone |
 | `EN-14` | The working-tree root exists before the task root and outlives its deletion. | premise-break | Alloy — a scope in which the root itself is removed | `TT-22`, `SY-01`, `SY-05` | `SY-01` fails: ownership has nothing to be held on, so a second driver is admitted |
 | `EN-15` | Confirmation is an operator input Grove cannot verify. | counterfactual-capability | Quint — `relax_EN_15`, a machine-attested confirmation | retained: `FN-01.a`, `FN-01.b` | **no obligation becomes stronger and none fails.** A machine attestation replaces nothing: `FN-01.a` still forbids running without confirmation and `FN-01.b` still refuses the deterministic guard as a substitute. A run in which some obligation *does* strengthen is the finding, because it would mean a claim was resting on the attestation rather than on the guard |
 | `EN-16` | The three lanes differ in mechanism and agree on abstract outcome. | exercise-removal | Both — the lane is a model parameter; the mutation is collapsing it to one | `FN-15.b`, `FN-15.c`, `FN-15.d`, `FN-17`, `FN-25.c` | with one lane, `FN-25.c`'s per-lane witnesses are unreachable and `FN-17`'s working-copy-as-commit obligation has no instance; every `FN-` property stays green, which is what makes the collapse invisible without this control |
@@ -867,11 +895,17 @@ already gone, per [Outcomes](#outcomes).
 - `TT-24.b` — an ordinary tree operation meeting a foreign entry at a reserved
   name returns `Refused(ReservedNameOccupied(entry))`, leaving the tree
   byte-identical and naming no recovery. *Witness*: reached.
-- `TT-24.c` — the same entry met **inside** a finish or recovery transaction
-  returns `Blocked(OwnershipConflict)`. *Witness*: reached.
-- `TT-24.d` — the quarantine reaper declines the same entry, mutating nothing and
-  continuing over entries it can prove are Grove's. *Witness*: reached; and the
-  entry's bytes unchanged across the sweep.
+
+**The other two contexts are `FN-`'s, and the letters `c` and `d` are retired.**
+The claim's other two contexts — inside a live transaction, and under the
+quarantine reaper — name `grove-finish`'s actions and outcomes, and
+`grove-finish` depends on `grove-task-tree` rather than the reverse, so an
+obligation stated over them is not one this crate can deliver
+([`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md)).
+They are `FN-32` and `FN-21.c`, which cite this claim back. `TT-24.a` is
+quantified over **every** action, so it still reaches both contexts wherever a
+model admits them, and it is what the shared-safety register means by `TT-24`.
+Neither letter is ever reused.
 
 **`TT-25` — a node is never marked.** Done-ness SHALL be derived from the absence
 of a live leaf beneath it, and no action SHALL write a node's state.
@@ -892,7 +926,7 @@ mechanism. The register is here, in one place, so it cannot drift claim by claim
 
 | class | claims |
 |---|---|
-| **shared safety** | `FN-01`–`FN-07`, `FN-13`–`FN-18`, `FN-20`, `FN-23`–`FN-30`, and `TT-24` |
+| **shared safety** | `FN-01`–`FN-07`, `FN-13`–`FN-18`, `FN-20`, `FN-23`–`FN-30`, `FN-32`, and `TT-24` |
 | **incumbent mechanics** | `FN-08`, `FN-09`, `FN-10`, `FN-11`, `FN-12`, `FN-19`, `FN-21`, `FN-22`, `FN-31` |
 
 Where a **shared-safety** claim names a concrete artifact — the correlation
@@ -1107,7 +1141,9 @@ owns them.
   manifest. *Witness*: a reaper declining an entry whose in-tree witness still
   owns it.
 - `FN-21.c` — a reaper declines a foreign entry at a reserved name, mutating
-  nothing (`TT-24.d`). *Witness*: reached.
+  nothing (`TT-24.a`). *Witness*: reached. **This obligation is where the
+  sweep's context landed**: it was also `TT-24.d`, which is retired, and the
+  sweep is `grove-finish`'s action.
 *Class*: incumbent mechanics — this claim is what Q1 asks about, so it is not
 evidence about a candidate protocol.
 
@@ -1283,6 +1319,43 @@ SHALL run during an internal commit, because such a hook may mutate unrelated
 working-tree bytes that no index image restores.
 *Witness*: a hook that would have run, shown suppressed.
 
+**`FN-32` — a transaction never mutates an artifact it cannot prove is its
+own.** While a finish or recovery transaction is live, an artifact sitting at a
+name Grove reserves and carrying no proof that it is **this attempt's** SHALL be
+left byte-identical by every step of the transaction, whatever outcome that step
+produces.
+*Class*: shared safety.
+*Witness*: such an artifact, met by a transaction step, unchanged across it.
+
+**Which reserved names those are is a fact about the protocol, not a modelling
+choice.** A witness slot with no owner and a cleanup marker with no owner each
+carry an ownership bit that a transaction step can read. The **quarantine name
+does not**: a quarantine no cleanup marker yet authorises is a state the ordinary
+forward path passes through between the root rename and the marker's creation, so
+its presence proves nothing either way. Its own case — a quarantine met when no
+transaction is live — is the reaper's, `FN-21.c`.
+
+**This is `TT-24`'s second context, re-stated where the crate that delivers it
+lives** ([`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md)).
+It is stated as its own claim rather than left to the two obligations that carry
+it today, and the reason is the class register: `FN-10.b` and `FN-31.d` are both
+**incumbent mechanics**, so neither is evidence about a candidate protocol, while
+fail-closed ownership inside a transaction is a property any admissible protocol
+must have. It says nothing about **which** outcome the step produces — the two
+families resolve that in opposite directions and the catalogue does not decide it
+(see [Outcomes](#outcomes), *one artifact, three contexts*).
+
+**Q1's retained list does not yet name it, and extending that list is
+`finish-verdicts-k65`'s.** `FN-32` is shared safety, so a candidate protocol must
+supply it; whether Q1's own row gains it as a named retained claim is a change to
+that question's evidence criteria and belongs to the child that answers Q1.
+
+**`FN-32` is deliberately narrower than the reaper's `FN-21.c`, and the two must
+stay separable.** `FN-21.c`'s subject is a sweep with no transaction live;
+`FN-32`'s is a transaction step. A model that discharges both from one predicate
+has made each other's mutations unable to kill anything, which is the hazard
+`crates/grove-finish/models/finish.als` records beside `foreignAtReservedName`.
+
 ## Claims — system lifecycle (`SY`)
 
 These are the joint. They are stated over sessions, exhaustion, finish,
@@ -1330,6 +1403,12 @@ the two claims SHALL be checked together.
 - `SY-05.b` — no trace exposes an absent task root before the deletion is proven
   (`FN-11`, `FN-19`), so the inference in `SY-05.a` is sound. *Witness*: the
   exhaustive absence of such a trace within the bound.
+  *Cross-scope citation*: the observation is `models/system/`'s and is stated
+  over its own transitions; the two **steps** underneath are `FN-11`'s and
+  `FN-19`'s and are answered in `crates/grove-finish/models/`. An
+  `FN_`-prefixed command in `models/system/` would be a placement error, so
+  *checked together* means each half is checked where its subject lives, not
+  that one directory carries both.
 
 **`SY-06` — a fresh root carries a first live leaf.** Scaffolding SHALL produce
 work, not only a charter, so a fresh grove is never indistinguishable from a
@@ -1343,6 +1422,14 @@ finished one.
   `Legacy` tree is never completed as though Grove had scaffolded it. *Witness*:
   an interrupted scaffold, completed; and a `Legacy` tree, refused rather than
   completed.
+  *Cross-scope citation*: the classification, its exact subset and the **order**
+  that puts `PartialScaffold` before `Legacy` are `TT-18`'s and `TT-20`'s, and
+  `models/system/` has no classification step — it reads `partial` and `legacy`
+  as marks already made. What is checked here is the ordering's consequence.
+  **The citation carries its narrowing**: `TT-20`'s fourth conjunct is checked
+  over an initialisation the world did not touch, declared in both families'
+  READMEs, so this obligation inherits that narrowing and no more strength than
+  it.
 
 **`SY-07` — exhaustion yields exactly one finish leaf.** When no live leaf
 remains the driver SHALL append or reuse exactly one driver-owned finish leaf,
@@ -1428,6 +1515,15 @@ let the claim be satisfied by a tree nobody can act on.
 **`SY-14` — a blocked tree stays blocked until an operator acts.** No admitted
 action SHALL clear a block, and every action on a blocked tree SHALL refuse
 naming it.
+*Cross-scope citation*: *until an operator acts* names the two restorable exits,
+which are `FN-26`'s and are answered in `crates/grove-finish/models/`. Operator
+actions are outside the admitted set by construction (§[Actions](#actions),
+`EN-15`), so at this scope the phrase is exactly *never, by anything the
+lifecycle model has*. That is a **limit of the catalogue rather than a gap in a
+scope**: the checkable halves are *no admitted action clears a block* (here) and
+*the block names both exits* (`FN-26`), and no model claims the operator's own
+act. `models/system/README.md` argued this and the argument is accepted; what it
+lacked was the class and the citation.
 *Obligations*:
 - `SY-14.a` — no admitted action clears a block. *Witness*: an exhaustive sweep
   of the action set against a blocked tree.

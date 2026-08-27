@@ -141,13 +141,26 @@ question.** The coverage section prints:
   TT-24.d    alloy:gap quint:ok
 ```
 
-`TT-24`'s two finish-context obligations are declared `out-of-bounds` by the
+`TT-24`'s two finish-context obligations were declared `out-of-bounds` by the
 task-tree Alloy column because the runner's placement rule sends every `TT_`
 command to that directory while the machinery each names lives in
 `crates/grove-finish/models/`. The Quint column answered both, and one of its
-answers has no control. Whether the two should be re-stated as `FN-`
-obligations, kept as gaps, or given controls is a design question, not a runner
+answers had no control. Whether the two should be re-stated as `FN-`
+obligations, kept as gaps, or given controls was a design question, not a runner
 defect.
+
+**SETTLED, AND THE FIGURES ABOVE ARE THE MEASUREMENT THAT PRECEDED IT.**
+`obligation-placement-k63` retired both obligations and re-stated them under
+`FN-` prefixes — `FN-32` and `FN-21.c` — on the rule that an obligation belongs
+to the scope that can execute its context
+([`obligations-follow-context-not-artifact`](../docs/adr/obligations-follow-context-not-artifact.md)).
+The run line above is left exactly as `experiment-synthesis-k62` measured it,
+because it is Experiment 2's frozen record of the tree **as the formal phase
+built it**; the catalogue now carries **128** obligations rather than 129, and
+these two rows no longer appear. `models/run.sh` also gained a **contested-cell**
+report — one family answering what another declared out of reach, with whether
+the answering family carries a control — so the next instance of this shape says
+so in the runner's own output. After that leaf there are none.
 
 **Why the whole-repository run is still recorded separately from the six cells.**
 A bare `models/run.sh` is not the union of `--scope`/`--family` invocations: it

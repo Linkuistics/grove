@@ -1164,6 +1164,9 @@ module mutant_unproven_ownership {
 
   val inv_fail_MUT_FN_10b_unclassifiable_content_mutated_anyway: bool =
     inv_FN_10b_unclassifiable_content_fails_closed
+
+  val inv_fail_MUT_FN_32_a_transaction_mutates_what_it_cannot_prove: bool =
+    inv_FN_32_a_transaction_never_mutates_what_it_cannot_prove_is_its_own
 }
 
 /// A recovery that finds nothing outstanding and REPAIRS anyway.

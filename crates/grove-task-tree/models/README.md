@@ -27,16 +27,21 @@ than a gate to be tolerated — which is why a phase's green is spelled as a nam
 subset rather than as an expected-red run. A suite anyone is told to ignore the
 colour of is not a suite.
 
-**Declared gaps** — two, both `TT-24`'s, and both because the context the
-obligation names is not this model's. The runner reads them from this file, in
-one shape:
+**No declared gaps, and that is `obligation-placement-k63`'s doing rather than
+new modelling.** The two that stood here were both `TT-24`'s — `TT-24.c`, whose
+antecedent is *inside a finish or recovery transaction*, and `TT-24.d`, whose
+subject is the quarantine reaper — and both were declared `out-of-bounds`
+because the context each named is a finish context. **Both obligations are now
+retired**: their contexts are `grove-finish`'s, `grove-finish` depends on this
+crate rather than the reverse, and an obligation stated over an upper crate's
+actions is not one this crate can deliver
+([`obligations-follow-context-not-artifact`](../../../docs/adr/obligations-follow-context-not-artifact.md)).
+They are `FN-32` and `FN-21.c`. The declarations were right and are simply no
+longer needed; the shape the runner reads is still
 
 ```md
 - **GAP** alloy `TT-nn.x` (inexpressible|abstracted|out-of-bounds|tool-limited) — reason.
 ```
-
-- **GAP** alloy `TT-24.c` (out-of-bounds) — the obligation's antecedent is *inside a finish or recovery transaction* and its outcome is `Blocked(OwnershipConflict)`. This model has no finish transaction and no `Blocked` in its `Result` set; adding a ninth outcome so the cell could be filled would answer `TT-24` by construction, which is what the catalogue's *one artifact, three contexts, one decided outcome* table exists to prevent. It belongs to `crates/grove-finish/models/`, beside `FN-22` and `FN-25`.
-- **GAP** alloy `TT-24.d` (out-of-bounds) — the obligation's subject is the quarantine reaper, which is `FN-21`'s machinery: a sweep, a quarantine, and a per-entry ownership proof, none of which this model has. Stated separately from `TT-24.c` rather than folded into it, because the two are out of reach for different reasons — one lacks an outcome, the other lacks a subject.
 
 **One Alloy narrowing, declared — and it is the same one the Quint column
 declared, reached independently and stated the same way.** `TT-20`'s fourth
@@ -51,22 +56,25 @@ than excluded, so the narrowing is visible rather than merely declared. It is a
 finding about the catalogue (entry 044, replayed at entry 048) and
 `formal-synthesis-k16` owns its disposition. The catalogue is not edited here.
 
-**And one observation this file owes its sibling column.** `TT-24.c` and
-`TT-24.d` are declared out-of-bounds above; the Quint column answered both. Its
-`inv_TT_24c` is a transcription of `gateOutcome`'s own branch and **no control
-kills it**, so the coverage matrix scores a transcription above an honest
-declaration. Which of the two families is doing the right thing here is
-`formal-synthesis-k16`'s, and the prediction below — that "the quint column will
-meet the same wall for the same reason" — turned out false, which is worth
-leaving in place rather than editing away.
+**The disagreement between the two columns is what settled it, and the record
+stays.** This column declared the two cells out of reach; the Quint column
+answered both. Its `inv_TT_24c` was a transcription of `gateOutcome`'s own
+branch that **no control killed** — `task-tree-controls.qnt` declared fourteen
+controls, `TT-24.d` had one and `TT-24.c` had none — so the coverage matrix
+scored a transcription above an honest declaration, and printed
+`TT-24.c alloy:gap quint:ok`, which reads as this column being behind. It was
+not. The prediction that "the quint column will meet the same wall for the same
+reason" turned out **false**, and that is what made the placement question
+visible: a model can always answer an obligation by importing enough machinery
+to state it, at which point its property restates the import.
 
-**Both gaps are an observation about the catalogue, not only about this model.**
-`TT-24` is the one `TT-` claim whose obligations are stated over `FN-` contexts,
-so two of its four cells can only ever be filled by the finish scope while the
-runner's placement rule sends every `TT-` command to this directory. Whether
-`TT-24.c` and `TT-24.d` should be re-stated as `FN-` obligations is
-`formal-synthesis-k16`'s to settle; the gaps are honest either way, and the
-quint column will meet the same wall for the same reason.
+**`models/run.sh` now reports a contested cell** — one family answering what
+another declared out of reach, with whether the answering family carries a
+control — so the next instance of this shape says so in the runner's own output
+rather than waiting for a session to notice. `TT-24` is no longer one: it has
+two obligations, both stated over this crate's own actions, and `TT-24.a` is
+quantified over every action, which is what the shared-safety register means by
+`TT-24`.
 
 ## `task-tree.als`
 
@@ -361,8 +369,8 @@ refusal this catalogue names.
 | what an observation reported | `Sys.got` and `Sys.gotTerm`, written by the transition | *derived* terminality could not be got wrong, and `TT-16` is precisely the claim that the report carries it. Modelling the report as state is what makes the mutation *"a resolved `Done` entry is not reported terminal"* expressible at all |
 | `brief-chain` and `kind` | not represented | both are observations, but no `TT-11` – `TT-16` obligation states anything about either beyond what `select` and `resolve` already carry |
 | the reserved NAME, as a spelling | `Slot.occAt`, a pointer from the slot to the object sitting there | `TT-24.b`'s refusal reason carries the **entry**, so the occupant must be a real filesystem object — but what makes it *reserved* need not be a `Filename`. What makes a witness reserved is that the slot holds it; what makes an occupant reserved is that the slot points at it, and the symmetry is the argument. `one sig ReservedF in Filename` — the reserved spelling as an atom — would consume a `Filename` atom in **every** command in the file, and the nine-minute `TT-07` witness runs at six with nothing spare |
-| the root state `Blocked`, and a finish or recovery transaction | not represented; `TT-24.c` is a declared gap | there is no transaction of that kind here, and a ninth `Result` atom invented to fill the cell would answer `TT-24` by construction. See *Declared gaps* |
-| the quarantine reaper | not represented; `TT-24.d` is a declared gap | `FN-21`'s machinery — a sweep, a quarantine, a per-entry ownership proof. The gap is stated separately from `TT-24.c`'s because the two are out of reach for different reasons: one lacks an outcome, the other lacks a subject |
+| the root state `Blocked`, and a finish or recovery transaction | not represented, and no obligation here needs it | there is no transaction of that kind in this crate, and a ninth `Result` atom invented to fill a cell would answer `TT-24` by construction. The obligation that needed it is `FN-32`, in `crates/grove-finish/models/` |
+| the quarantine reaper | not represented, and no obligation here needs it | `FN-21`'s machinery — a sweep, a quarantine, a per-entry ownership proof. The obligation that needed it is `FN-21.c` |
 | a marked node | **not spellable**: `isShaped` gives a `NodeSp` name no `fOut` field at all | `TT-25`'s prohibition is therefore answered by construction, and the paragraph below says so rather than a command pretending to check it |
 | the witnesses' filesystem placement | `Fmt.fmt` and `Slot.occ`, beside `Obj` rather than in it | see above: no `TT-17` – `TT-20` obligation reads a witness's name, position or key. `TT-24.b` will need a foreign entry **at** a reserved name; `Slot.occ = Unowned` was the seat kept for it, and the `ownership` leaf is cut carrying this slice's answer that it is **not enough on its own** — `TT-24.b`'s reason carries the *entry*, and a `SlotContent` cannot name an `Obj` |
 | the fifteen other task-tree operations, in the concurrent scope | `Open`/`Classify`/`Release` for an observation, `Mark` for a mutation | no `TT-21` – `TT-23` obligation distinguishes *which* mutation holds the exclusive guard, and a second one is a transition every command in the file pays for. A single mutation is a bulk mark with a one-member plan, so `Mark` is both |
@@ -1165,7 +1173,12 @@ written in it.
 ## The controls, and what they establish
 
 Each **premise-break** control names an obligation that must DIE when its
-assumption is removed. All six do:
+assumption is removed. **Five do, and the sixth went with its obligation**:
+`inv_fail_EN_13_TT_24d_the_reaper_stops_declining` was here until `TT-24.d` was
+retired, and its premise-break was not lost — `crates/grove-finish/models/finish-controls.qnt`'s
+own `relax_EN_13` runs the same dial against the same sweep and carries
+`inv_fail_EN_13_FN_21b_the_reaper_stops_asking_whose_it_is` and
+`inv_fail_EN_13_FN_27a_the_sweep_deletes_foreign_bytes`:
 
 | control | obligation | result |
 |---|---|---|
@@ -1173,7 +1186,6 @@ assumption is removed. All six do:
 | `inv_fail_EN_10_TT_05_allocation_reissues_a_removed_entrys_key` | `TT-05` | violated |
 | `inv_fail_EN_10_TT_12_a_terminal_entry_is_removed` | `TT-12` | violated |
 | `inv_fail_EN_13_TT_04_the_sweep_deletes_foreign_bytes` | `TT-04` | violated |
-| `inv_fail_EN_13_TT_24d_the_reaper_stops_declining` | `TT-24.d` | violated |
 | `inv_fail_MUT_TT_21a_two_listings_disagree` | `TT-21.a` | violated |
 | `inv_fail_MUT_TT_23b_strict_validation_cannot_converge` | `TT-23.b` | violated |
 

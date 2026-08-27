@@ -2790,6 +2790,31 @@ module finish {
   /// its own.
   val inv_FN_31d_never_against_a_foreign_marker: bool =
     (w.quar.marker == MForeign) implies not(hist.mutatedUnproven)
+
+  // --- `FN-32` --------------------------------------------------------------
+
+  /// `TT-24`'s SECOND CONTEXT, RE-STATED UNDER AN `FN-` PREFIX.  It was
+  /// `TT-24.c`, whose context is a finish context and whose crate is therefore
+  /// this one (`docs/adr/obligations-follow-context-not-artifact.md`).
+  ///
+  /// It says NOTHING about which outcome the step produces, and that is the
+  /// finding rather than a hedge: `TT-24.c` said `Blocked(OwnershipConflict)`,
+  /// this column blocks at `SRemoveWitness`'s discard branch, and the Alloy
+  /// column REFUSES at the same step — both green against `FN-10.b`, whose text
+  /// says only *fails closed*.  What both columns agree on is that the artifact
+  /// does not move.
+  ///
+  /// `hist.mutatedUnproven` IS THE TRANSACTION-SIDE FLAG and `hist.foreignMutated`
+  /// is not: `noteUnproven` sets both, the reaper's sweep sets only the second.
+  /// Reading the second here would make this obligation and `FN-21.c` the same
+  /// invariant, and a mutation aimed at either would kill both.
+  val inv_FN_32_a_transaction_never_mutates_what_it_cannot_prove_is_its_own: bool =
+    not(hist.mutatedUnproven)
+
+  /// A transaction step meeting an artifact at a reserved name Grove cannot
+  /// prove is its own, with the artifact still standing.
+  val wit_FN_32_a_transaction_step_meets_an_unprovable_artifact: bool =
+    hist.transactionBlockedReserved and not(hist.mutatedUnproven)
 }
 
 // =============================================================================

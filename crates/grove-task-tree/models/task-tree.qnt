@@ -1070,7 +1070,6 @@ module taskTree {
     bulkPlanKeys: List[int],
     bulkRepaired: bool,
     bulkDiverged: bool,
-    reapWitness: Id -> int,
     reapDisturbed: bool,
     reapDeclined: bool,
   }
@@ -1081,7 +1080,7 @@ module taskTree {
     handEdited: false, foreignWritten: false, foreignMutated: false,
     unownedMutated: false, entryRemoved: false, bulkInvalidApplied: false,
     bulkPartial: false, bulkPlanKeys: List(), bulkRepaired: false,
-    bulkDiverged: false, reapWitness: Map(),
+    bulkDiverged: false,
     reapDisturbed: false, reapDeclined: false,
   }
 
@@ -1186,9 +1185,6 @@ module taskTree {
         // issued nothing, because the names are the counter (`EN-10`).  See
         // `finishOp`.
         hist' = { ...hist,
-                  reapWitness: if (t == TReap)
-                                 d.declined.mapBy(i => fs.objs.get(i).digest)
-                               else hist.reapWitness,
                   reapDeclined: hist.reapDeclined or d.declined.size() > 0,
                   // A REFUSED RETRY IS A DIVERGENCE, and it has to be caught
                   // here: a refusal never becomes a running operation, so it
@@ -1501,13 +1497,14 @@ module taskTree {
       .put(5, Ob(ROOT, Lf(1, 1, 1, KDesign, SLive), OFile, false, 20))
       .put(6, Ob(ROOT, Lf(2, 2, 2, KImpl, SLive), OFile, false, 21)))
 
-    // TT-24.b/.c: a foreign artifact at a name Grove reserves.
+    // TT-24.b: a foreign artifact at a name Grove reserves.
     else if (s == 19) fsOf(CURRENT_ROOT
       .put(4, Ob(ROOT, Foreign, OFile, true, 95))
       .put(5, Ob(ROOT, Lf(1, 1, 1, KDesign, SLive), OFile, false, 20)))
 
-    // TT-24.d: the reaper's sweep meets both — Grove's own quarantined
-    // material, and a foreign artifact it cannot prove is its own.
+    // The reaper's sweep meets both — Grove's own quarantined material, and a
+    // foreign artifact it cannot prove is its own.  Kept for `TT-04` and for
+    // `relax_EN_13`; `TT-24.d` itself is retired to `FN-21.c`.
     else if (s == 20) fsOf(CURRENT_ROOT
       .put(4, Ob(ROOT, Quarantined, ODir, true, 96))
       .put(5, Ob(ROOT, Foreign, OFile, true, 95))
@@ -1564,7 +1561,7 @@ module taskTree {
     // on anything a bulk mark did.  What was already established — that a
     // repair happened, or that one diverged — is a fact about a completed
     // history and stays.
-    hist' = { ...hist, handEdited: true, reapWitness: Map(),
+    hist' = { ...hist, handEdited: true,
               bulkPartial: false, bulkPlanKeys: List(),
               issued: keysOf(situation(s)) },
   }
@@ -2246,27 +2243,25 @@ module taskTree {
   val wit_TT_24b_an_ordinary_operation_meets_a_foreign_reserved_name: bool =
     atRest and outcomeIsReservedNameOccupied(op.outcome)
 
-  val inv_TT_24c_inside_a_transaction_the_same_entry_blocks: bool =
-    (atRest and isTransaction(op.tag) and rootPresent(op.snap) and
-     foreignAtReserved(op.snap).size() > 0)
-      implies (isBlockedConflict(op.outcome) and op.applied.length() == 0)
-
-  val wit_TT_24c_a_transaction_meets_the_same_entry: bool =
-    atRest and isBlockedConflict(op.outcome)
-
-  val inv_TT_24d_the_reaper_declines_and_continues: bool =
-    and {
-      hist.reapWitness.keys().forall(i =>
-        has(fs, i) and fs.objs.get(i).digest == hist.reapWitness.get(i)),
-      (atRest and op.tag == TReap and foreignAtReserved(op.snap).size() > 0)
-        implies op.declined == foreignAtReserved(op.snap),
-    }
-
-  val wit_TT_24d_the_reaper_declines_one_entry_and_sweeps_another: bool =
-    atRest and op.tag == TReap and op.declined.size() > 0 and
-    op.applied.length() > 0 and
-    op.declined.forall(i => has(fs, i) and
-      fs.objs.get(i).digest == op.beforeFs.objs.get(i).digest)
+  // `TT-24.c` AND `TT-24.d` WERE HERE AND ARE RETIRED, not deleted for
+  // convenience.  Both are stated over `grove-finish`'s contexts — a live
+  // transaction, and the quarantine reaper — and `grove-finish` depends on
+  // `grove-task-tree` rather than the reverse, so neither is an obligation this
+  // crate can deliver
+  // (`docs/adr/obligations-follow-context-not-artifact.md`).  They are `FN-32`
+  // and `FN-21.c`, both answered in `crates/grove-finish/models/`.
+  //
+  // `inv_TT_24c` was a transcription of `gateOutcome`'s own branch that no
+  // control killed, and the Alloy column declared the same cell out-of-bounds
+  // rather than fill it that way.  The two columns disagreeing about one cell
+  // is what surfaced the placement question; `TT-24.a` above is quantified over
+  // every action and is what the shared-safety register means by `TT-24`.
+  //
+  // `TFinishTxn`, `TReap` and `BlockedO` STAY, because surviving obligations
+  // read them: `wit_TT_24a` accepts either non-mutating outcome, `TT-24.b`
+  // excludes both non-ordinary tags by name, and `relax_EN_13` needs the sweep
+  // for `TT-04`.  What went with the two obligations is `hist.reapWitness`,
+  // whose only reader was `inv_TT_24d`.
 
   // --- TT-25 — a node is never marked ----------------------------------------
 

@@ -79,7 +79,9 @@ of two contracts rather than the joint of them.
   task root before the deletion is proven — over its own transitions;
   `crates/grove-finish/models/` owns the steps underneath, and its `FN_11_…` and
   `FN_19_…` commands are the other half of the pair. **This is not a declared
-  gap**: the obligation is answered, by the half that belongs here.
+  gap**: the obligation is answered, by the half that belongs here — and
+  `obligation-placement-k63` made that a declared **cross-scope citation**, which
+  the catalogue now carries beside `SY-05.b` itself.
 - **`SY-06.b`'s ORDERING CLAUSE IS IMPORTED, AND IT IS THE FOURTH INSTANCE OF THE
   `TT-24` PLACEMENT SHAPE.** The obligation ends *and is completed **before** any
   format classification runs*. This file has no format classification step — it
@@ -88,9 +90,10 @@ of two contracts rather than the joint of them.
   though Grove had scaffolded it) and not the ordering itself. The order that
   puts `PartialScaffold` before `Legacy` is `TT-18`'s and is
   `crates/grove-task-tree/models/`'s to check. **Recorded rather than solved**,
-  in the shape the two `TT-` gaps and `finish-k8`'s Q4 instance are recorded in:
-  `formal-synthesis-k16` inherits the set, and a fourth instance is cheap for it
-  only because it is stated. It is **not** a declared gap — `SY-06.b` has a check
+  in the shape the two `TT-` gaps and `finish-k8`'s Q4 instance are recorded in.
+  **`obligation-placement-k63` settled all six** and this one does not move: it
+  is a declared cross-scope citation to `TT-18`/`TT-20`, and the citation carries
+  `TT-20`'s declared narrowing with it. It is **not** a declared gap — `SY-06.b` has a check
   and a firing mutation here; what is imported is one clause of it.
 - **`SY-04.b`'s configuration content — ANSWERED.** `doValidateConfig` was
   opaque in the admission slice and now reads the live configuration, with the
@@ -100,10 +103,13 @@ of two contracts rather than the joint of them.
   does not have: §*Actions* puts operator actions outside the admitted set by
   construction, and `FN-26`'s two restorable exits are the finish model's.
   `SY-14.a`'s content is that no **admitted** action clears a block, and that is
-  checked here over all twenty-two of them. **This is the sixth instance of the
+  checked here over all twenty-two of them. **This was the sixth instance of the
   `TT-24` placement shape** — a claim whose remainder belongs to a sibling
-  directory — and it joins `SY-06.b`'s ordering clause (the fourth) and
-  `SY-05.b`'s other half (the fifth) in the closed table below.
+  directory — and `obligation-placement-k63` accepted the argument and gave it
+  the class it lacked: a declared cross-scope citation to `FN-26`, with the
+  operator's own act declared a limit of the catalogue rather than a gap in any
+  scope. It joins `SY-06.b`'s ordering clause (the fourth) and `SY-05.b`'s other
+  half (the fifth) in the closed table below.
 - **`SY-09`'s SIGNAL FILE is `one-live-driver-per-working-tree`'s.** What
   crosses is two flags and their absence. The path, the bytes, the
   collision-resistance and the loop control channel are the ADR's, and the
@@ -750,9 +756,19 @@ something the loop *does*), `World.ending`/`World.halted` (the driver's
 conclusion and the loop's halt, two fields so that the inference `SY-09.c`
 forbids is statable), and `initialise-root` as **two** steps.
 
-**Three clauses are imported and unchecked here, and each is the `TT-24`
-placement shape.** They are the fourth, fifth and sixth instances of it and
-`formal-synthesis-k16` inherits the set:
+**Three clauses are imported and unchecked here, and each is now a declared
+CROSS-SCOPE CITATION rather than an open question.** They were the fourth, fifth
+and sixth instances of the `TT-24` placement shape;
+`obligation-placement-k63` decided all six and none of these three moves.
+`models/system/` sits **above** both component scopes, and the rule is that a
+scope above may name a lower scope's *observation* and never its *step*
+([`obligations-follow-context-not-artifact`](../../docs/adr/obligations-follow-context-not-artifact.md)).
+Each clause below names a step, so each stays here as a citation to the
+obligation that owns it — and the catalogue now carries the citation beside the
+obligation, so a reader of `SY-05.b`, `SY-06.b` or `SY-14` meets it there rather
+than here. **`SY-06.b`'s citation carries `TT-20`'s declared narrowing with it**,
+because a citation that hides a narrowing manufactures confidence the cited
+command does not have:
 
 - **`SY-06.b`'s ordering clause** — *completed **before** any format
   classification runs*. This file reads `partial` and `legacy` as marks already
@@ -764,7 +780,10 @@ placement shape.** They are the fourth, fifth and sixth instances of it and
   restorable exits and they are the finish model's; §*Actions* puts operator
   actions outside the admitted set, so at this scope the phrase is exactly
   *never, by anything this file has*. **Not a gap** — `SY-14.a`'s content is
-  that no *admitted* action clears a block, and that is checked.
+  that no *admitted* action clears a block, and that is checked. The argument
+  was accepted; what it lacked was the class, and the residue — the operator's
+  own act — is declared a limit of the **catalogue** rather than a gap in any
+  scope, since no model claims it.
 
 ## Retained counterexamples
 

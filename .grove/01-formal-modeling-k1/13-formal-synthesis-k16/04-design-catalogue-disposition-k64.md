@@ -87,6 +87,32 @@ placement and the five other instances of that shape are
 `obligation-placement-k63`'s, and this leaf applies the rule that leaf lands.
 The ordinal root-lifecycle verdict is `finish-verdicts-k65`'s.
 
+**The rule that leaf landed, and what it changed under this leaf's feet.** It is
+[`obligations-follow-context-not-artifact`](../../../docs/adr/obligations-follow-context-not-artifact.md):
+an obligation belongs to the scope that can execute its context, ordered by the
+approved crate dependency direction; a clause a scope cannot check stays in place
+only as a declared **cross-scope citation**, carrying the cited obligation's
+declared narrowings; and a gap declared by **both** families is the signal to
+apply the rule rather than a place to rest. Four consequences for this leaf:
+
+- **`TT-24.c` and `TT-24.d` are retired**, to the new `FN-32` and to `FN-21.c`.
+  The catalogue carries **128** obligations, not 129. Nothing here reopens that.
+- **A seventh opposite-resolution item joins the list above, and it is sharp.**
+  `finish.als` **refuses** where `finish.qnt` **blocks** — an unclassifiable
+  artifact at a reserved name met inside a transaction — and both are green
+  against `FN-10.b`, whose text says only *fails closed*. `FN-32` states only
+  what both agree on (the artifact is not mutated), so **which outcome the
+  catalogue fixes is this leaf's**, beside `FN-13`'s refuse-or-block. Note that
+  Quint's `wit_FN_32` is worded on the blocking half and moves with the answer.
+- **`EN-13`'s controls row was edited, and only for the retirement.** `TT-24.d`
+  is gone from it; the row now reads `TT-04`, `TT-24.b`, `FN-21.b`, `FN-27`.
+  The **`TT-24.b` mis-attribution on that same row is still this leaf's** — it
+  was not touched, and a row that has been wrong twice is worth more than the
+  one-word fix.
+- **The catalogue's *one artifact, three contexts, one decided outcome* table
+  now has a `checked by` column and a second row that no longer fixes an
+  outcome.** That row is where the refuse-or-block answer lands.
+
 ## Done when
 
 - Every enumerated site is classified, and every disposition is **decide**,

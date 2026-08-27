@@ -51,6 +51,15 @@ The order encodes one dependency and one freeze.
 Children 2 – 5 were cut by child 1's session, which is why their bodies carry the
 specific inherited items rather than a generic goal sentence.
 
+**A sixth entry sits between 2 and 3, and it is a review step rather than a new
+question.** `obligation-placement-k63` cut
+`review-design obligation-placement-k67` and **inserted** it at child 3's slot
+rather than appending it, because child 3 is chartered to edit the very artifact
+under review and this brief says child 2 *gates* child 3 — a gate checked after
+everything it gates is not a gate. The keys are unchanged: `k64`, `k65` and `k66`
+are still children 4, 5 and 6. If the review finds nothing it creates nothing and
+retires.
+
 ## Notes
 
 Retire the formal subtree only after the model commands have been rerun from a clean checkout-equivalent state. Review chains should be added here only for decisions whose uncertainty or blast radius warrants an independent session.

@@ -9938,6 +9938,26 @@ lifecycle scope and checked in neither. This is what *model-to-crate ownership*
 means for the crate boundary the root brief approves, so it is settled before
 the disposition that would otherwise settle it case by case.
 
+  **Outcome, recorded here because this hand-off named it as owed.** The rule is
+  [`obligations-follow-context-not-artifact`](adr/obligations-follow-context-not-artifact.md):
+  an obligation belongs to the scope that can execute its context, ordered by the
+  approved crate dependency direction, and a clause a scope cannot check stays in
+  place only as a declared **cross-scope citation**. Of the six instances, **two
+  moved** — `TT-24.c` and `TT-24.d` are retired to `FN-32` and `FN-21.c` — and
+  four are declared in place. **Two measurements fell out of the move and belong
+  to this record rather than to the ADR.** First, `TT-24.c` was *false as
+  literally worded*: `finish.als` **refuses** at its antecedent
+  (`FN_10b_content_the_discard_cannot_classify_fails_closed` requires
+  `Sys.res' in Refused`) while `finish.qnt` **blocks** at the same step, and both
+  are green against `FN-10.b`, whose text says only *fails closed*. That is a
+  seventh `both`-tagged opposite-resolution pair, found by attempting a
+  re-statement rather than by either column, and it goes to
+  `catalogue-disposition-k64`. Second, the transcription this hand-off names is
+  now visible to the instrument: `models/run.sh` reports a **contested cell** —
+  one family answering what another declared out of reach — with whether the
+  answering family carries a control. It is reported, never fatal, and after this
+  leaf there are none.
+
 **To `catalogue-disposition-k64` — every inherited catalogue finding.**
 Ninety-seven sites across eleven files name `formal-synthesis-k16` and hand it a
 disposition. The classes, so the child can size its own decomposition:

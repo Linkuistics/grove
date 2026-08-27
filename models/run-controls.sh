@@ -117,8 +117,8 @@ PROBE
 }
 
 # ---------------------------------------------------------------------------
-# 2. A CLAIM-LEVEL citation — `TT_24` where the manifest carries `TT-24.a` -
-#    `TT-24.d`.  Real, not invented, and it credits no cell.  The relaxation is
+# 2. A CLAIM-LEVEL citation — `TT_24` where the manifest carries `TT-24.a` and
+#    `TT-24.b`.  Real, not invented, and it credits no cell.  The relaxation is
 #    obligation 4's, and it has to be VISIBLE or it is the first hole again.
 # ---------------------------------------------------------------------------
 ctl_claim_level() {

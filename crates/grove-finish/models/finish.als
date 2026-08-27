@@ -631,9 +631,11 @@ one sig W14QuarantineOccupied extends Why {}
 one sig W15CommittedAfterRestore, W16ReturnIncomplete extends Why {}
 /* THE DISPOSAL SLICE'S ONE, AND IT IS THE FIRST `why` IN THIS FILE THAT THE
    CATALOGUE NAMES.  `FN-21.c` asks for `OwnershipConflict` BY NAME — *a reaper
-   declines a foreign entry at a reserved name* is `TT-24.d`, and the catalogue's
-   three-context table fixes the reaper's answer — and `FN-31.d` asks for the
+   declines a foreign entry at a reserved name*, which the catalogue's
+   three-context table fixes as the reaper's answer — and `FN-31.d` asks for the
    same condition at the other gate: a marker Grove cannot prove is its own.
+   (That sentence was `TT-24.d` until `obligation-placement-k63` retired it here;
+   `FN-32` is the same table's second row.)
 
    IT IS STILL A `Sys.why` MEMBER AND NOT AN EXTENSION OF THE OUTCOME, and that
    is the same decision `quarantine-k43` and `revalidation-k44` each recorded.
@@ -2323,8 +2325,8 @@ pred doMarkerRemove {
   Txn.phase' = Settled and txnCarried and txnResultSame
 }
 
-/* THE REAPER — `FN-21.b`, `FN-21.c`, and `TT-24.d`.  A SWEEP RATHER THAN A
-   TRANSACTION, and the first thing in this file that runs outside the phase
+/* THE REAPER — `FN-21.b` and `FN-21.c`, which is where `TT-24.d`'s content
+   landed when that obligation was retired.  A SWEEP RATHER THAN A TRANSACTION, and the first thing in this file that runs outside the phase
    machine entirely.
 
    WHY IT CANNOT BE A TRANSACTION.  `doTxnOpen` requires `some Root.rid`, and
@@ -4245,10 +4247,11 @@ run witness_FN_21b_a_reaper_declining_an_entry_its_in_tree_witness_still_owns {
 
 // --- FN-21.c: a foreign entry at a reserved name is declined ----------------
 
-/* `TT-24.d`'s SUBJECT, UNDER AN `FN-` PREFIX — and the catalogue's three-context
-   table is what fixes the outcome.  An ordinary tree operation refuses; a
-   transaction blocks; the reaper *declines the entry, mutating nothing, and
-   reports it*.  It is neither a refusal nor a block, because nothing was
+/* THE SWEEP'S CONTEXT, UNDER THE `FN-` PREFIX THAT OWNS IT — this obligation is
+   where `TT-24.d` landed, and the catalogue's three-context table is what fixes
+   the outcome.  An ordinary tree operation refuses (`TT-24.b`); a transaction
+   stops without moving the artifact (`FN-32`); the reaper *declines the entry,
+   mutating nothing, and reports it*.  It is neither a refusal nor a block, because nothing was
    entered, and `NoOp` is the outcome this file already gives an action that
    reports and mutates nothing.
 
@@ -5571,6 +5574,60 @@ run witness_FN_30_a_hook_that_would_have_run_shown_suppressed {
               and some Repo.tickets and no World.hookRan)
   eventually (Sys.act = TopologyChange and some World.hookRan)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
+
+
+// ===========================================================================
+// `FN-32` — A TRANSACTION NEVER MUTATES AN ARTIFACT IT CANNOT PROVE IS ITS OWN
+//
+// `TT-24`'s SECOND CONTEXT, RE-STATED UNDER AN `FN-` PREFIX.  The obligation was
+// `TT-24.c` and this file's sibling declared it `out-of-bounds` because the
+// context it names is a finish context; the placement rule that moved it is
+// `docs/adr/obligations-follow-context-not-artifact.md`.
+//
+// WHAT IT DOES NOT SAY IS AS DELIBERATE AS WHAT IT DOES.  `TT-24.c` said the
+// step returns `Blocked(OwnershipConflict)`, and this file contradicts that at
+// `FN_10b`, where an unclassifiable artifact at the witness name REFUSES.  The
+// Quint column blocks at the same step.  So the OUTCOME is underdetermined by
+// the catalogue and is not stated here; what both columns agree on, and what
+// fail-closed ownership actually needs, is that the artifact does not move.
+//
+// TWO RESERVED NAMES, BECAUSE THEY ARE THE TWO THIS FILE CAN ASK OWNERSHIP OF.
+// A witness slot occupied with no owner, and a cleanup marker with no `cOwner`,
+// are both "at a name Grove reserves and not provably Grove's".  The QUARANTINE
+// is deliberately absent: `foreignAtReservedName`'s second arm is true on the
+// ordinary forward path between `QuarRename` and `MarkerCreate`, so the
+// quarantine carries no ownership bit of its own and its case is the reaper's
+// (`FN-21.c`).
+//
+// `Reap` IS EXCLUDED FROM THE ANTECEDENT and that is what keeps this obligation
+// and `FN-21.c` separable: a mutation aimed at the sweep must not kill this,
+// and one aimed at a transaction step must not kill the sweep.
+//
+// WHERE THE BOUNDS COME FROM.  The antecedent quantifies over `groveActs - Reap`,
+// whose deepest member is `MarkerRemove` at twelve states, so thirteen — where
+// `FN_27a` .. `FN_27c` already sit.  The witness lands at four: a foreign
+// preparing witness met by a `Discard` is reachable from the free initial
+// state, which is `EN-11`'s licence and is how `witness_FN_10b` reaches it.
+// ===========================================================================
+
+check FN_32_a_transaction_never_mutates_an_artifact_it_cannot_prove_is_its_own {
+  always (Sys.act' in (groveActs - Reap) implies {
+    (some Slot.occ and no Slot.owner) implies slotSame
+    markerForeign implies markSame
+  })
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* Reached with BOTH artifacts present at once, which is what makes the witness
+   say something the two conjuncts do not say apart: a foreign preparing witness
+   and a foreign cleanup marker stand together, a transaction step meets them,
+   and neither moves. */
+run witness_FN_32_a_transaction_step_meets_an_unprovable_artifact_and_it_stands {
+  Txn.phase = Fresh and Slot.occ = Preparing and no Slot.owner
+  one Cleanup.present and no Cleanup.present.cOwner
+  eventually (Sys.act = Discard and Sys.act in (groveActs - Reap)
+              and Slot.occ = Preparing and no Slot.owner
+              and one Cleanup.present and no Cleanup.present.cOwner)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
 
 // ===========================================================================

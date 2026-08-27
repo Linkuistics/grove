@@ -38,6 +38,28 @@ one shape:
 - **GAP** alloy `TT-24.c` (out-of-bounds) — the obligation's antecedent is *inside a finish or recovery transaction* and its outcome is `Blocked(OwnershipConflict)`. This model has no finish transaction and no `Blocked` in its `Result` set; adding a ninth outcome so the cell could be filled would answer `TT-24` by construction, which is what the catalogue's *one artifact, three contexts, one decided outcome* table exists to prevent. It belongs to `crates/grove-finish/models/`, beside `FN-22` and `FN-25`.
 - **GAP** alloy `TT-24.d` (out-of-bounds) — the obligation's subject is the quarantine reaper, which is `FN-21`'s machinery: a sweep, a quarantine, and a per-entry ownership proof, none of which this model has. Stated separately from `TT-24.c` rather than folded into it, because the two are out of reach for different reasons — one lacks an outcome, the other lacks a subject.
 
+**One Alloy narrowing, declared — and it is the same one the Quint column
+declared, reached independently and stated the same way.** `TT-20`'s fourth
+conjunct is checked over **an initialisation the world did not touch**. Its
+literal text — the root an interruption leaves "SHALL classify as
+`PartialScaffold` — never as `Current(*)` and never as `Legacy`" — is false when
+one `hand-edit` or `foreign-write` lands during the open transaction, because
+`PartialScaffold` is an EXACT closed subset and `EN-13` grants a foreign entry
+at any name. The situation is retained as
+`witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy` rather
+than excluded, so the narrowing is visible rather than merely declared. It is a
+finding about the catalogue (entry 044, replayed at entry 048) and
+`formal-synthesis-k16` owns its disposition. The catalogue is not edited here.
+
+**And one observation this file owes its sibling column.** `TT-24.c` and
+`TT-24.d` are declared out-of-bounds above; the Quint column answered both. Its
+`inv_TT_24c` is a transcription of `gateOutcome`'s own branch and **no control
+kills it**, so the coverage matrix scores a transcription above an honest
+declaration. Which of the two families is doing the right thing here is
+`formal-synthesis-k16`'s, and the prediction below — that "the quint column will
+meet the same wall for the same reason" — turned out false, which is worth
+leaving in place rather than editing away.
+
 **Both gaps are an observation about the catalogue, not only about this model.**
 `TT-24` is the one `TT-` claim whose obligations are stated over `FN-` contexts,
 so two of its four cells can only ever be filled by the finish scope while the
@@ -656,6 +678,76 @@ into **nodes** only, so the level does not exist. `visited` is the fix, and the
 catalogue's *Entry* now says *reached* rather than *beneath*.
 `witness_TT_04_a_task_name_under_a_foreign_directory_is_not_work` keeps the
 situation reachable.
+
+**ONE COUNTEREXAMPLE CARRIED IN FROM THE OTHER FAMILY, RETAINED — and the two
+model defects it found, both of which had kept it unreachable here.**
+`cross-model-replay-k15` replayed entry 044's `TT-20` counterexample — an
+interrupted `root-init` plus one stray entry, classified `Legacy` — into this
+file. It found no instance, and the cause was neither the bound nor
+inexpressibility:
+
+1. **`step` excluded the world from an open transaction.** It read
+   `some inFlight implies (doInitPublish or doCrash)`, while `concStep`'s own
+   comment two predicates above says `hand-edit` and `foreign-write` "land at
+   any point during an operation and no guard excludes them" — which is `EN-06`
+   and `EN-13`. The file contradicted itself and the exclusion is what made the
+   replay unreachable. `doHandEdit`, `doForeignWrite` and `doIdle` also asserted
+   `no inFlight'`, so on the one path a world action could have fired during a
+   transaction it would have **closed grove's transaction**. Corrected: the two
+   WORLD actions frame `inFlight`, and `step` admits them while one is open —
+   `doForeignWrite` behind `Concurrent`, as `step`'s other branch already gates
+   it. `doIdle` keeps `no inFlight'` and is left alone: `step` does not admit it
+   during a transaction, so the clause is unreachable there rather than wrong.
+2. **`TT-20`'s fourth conjunct was a theorem of `rootState`'s own body.** Given
+   `no Slot.occ`, `no Fmt.fmt` and `isPartialScaffold`, `rootState` returns
+   `PartialScaffoldR` by construction, so the conjunct is green with **no
+   protocol premise at all** — no `GroveGrammar`, no `SingleProc`, no transition
+   relation. Entry 044's counterexample is a tree that STOPS being a partial
+   scaffold, so it never enters the antecedent. The check could not have failed.
+   It is restated over what an interruption LEAVES, which is a fact about
+   `doInitScaffold`'s effects, and **narrowed exactly as entry 044 narrowed it**
+   — an initialisation the world did not touch. The third conjunct went with it:
+   `some inFlight implies no Fmt.fmt` is a claim about the WORLD, and only
+   grove's half is true.
+
+The replay, retained and reachable:
+
+```sh
+java -jar "$ALLOY_JAR" exec -q -n -t text \
+  -c witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy \
+  crates/grove-task-tree/models/task-tree.als
+```
+
+Four states: `InitScaffold` applies and opens the transaction; a `HandEdit`
+lands a stray entry; a `Crash` closes the transaction; the root carries the
+scaffold's own two entries and one foreign one, and classifies `LegacyR`.
+
+**The run this correction stands on.** Not a family suite — `step`'s widening is
+invisible to any command whose scope pins `always no inFlight`, and
+`CurrentRootThroughout` and `Guarding` between them cover **83 of this file's
+104 commands**. The other **22 were each run and all 22 pass**:
+
+| command set | result |
+|---|---|
+| `TT-17` – `TT-20`, `TT-24.a`, `TT-24.b` and their witnesses | 14 of 14, green |
+| the retained replay, `witness_finding_a_world_write_…` | instance found |
+| `expect_fail_EN_14_TT_22b…` | counterexample found — the inverted control still fires |
+| six `expect_unreachable_EN_08`/`EN_11` controls | no instance, each |
+
+`models/run.sh`'s checksum was taken before this session's first run and again
+after its last, and matches — a run that overlapped an edit to its own runner is
+not evidence, and a session whose subject is false greens does not get to record
+one. A full `models/run.sh --family alloy` remains owed and is not this
+session's; the finish and lifecycle `.als` files are byte-unchanged by it.
+
+**The control, and the inert mutation that came first.** The restated conjunct 4
+dies under a scaffold whose leaf carries a differing byte. The first mutation
+tried — a scaffold that writes no charter — **survived**, and it was not the
+check's fault: the catalogue's subset is a *subset*, `isPartialScaffold`'s
+charter clauses are `lone` and `in`, and a charter-less scaffold is legitimately
+inside it. Entry 040's rule — *an unsatisfiable mutation reports exactly as a
+survivor* — extends to a mutation that is merely **inert**, and telling the two
+apart costs a run.
 
 **One counterexample about the model, retained, and it is the guarding slice's
 only finding.** `TT-21.b`'s check found it in 9s, at `4 steps`, on the first run

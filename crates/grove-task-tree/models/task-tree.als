@@ -1011,7 +1011,12 @@ pred doResolve[q: Query] {
 pred doHandEdit {
   EN_11
   Sys.act' = HandEdit and Sys.res' = Environmental and no Sys.tgt'
-  noPending and no inFlight'
+  // `inFlight` is FRAMED, not cleared.  A hand edit is the world's, and the
+  // world does not close grove's open transaction -- writing `no inFlight'`
+  // here let one action of the world's end one of grove's, which is what
+  // `cross-model-replay-k15` found by replaying entry 044's TT-20
+  // counterexample into this file.
+  noPending and inFlight' = inFlight
   no Sys.who' and no Sys.mode' and procAllFrame
   // `Fmt.fmt'`, `Slot.occ'` and `Slot.occAt'` are deliberately UNCONSTRAINED: a
   // witness is a file, and a hand edit reaches it exactly as it reaches any
@@ -1030,7 +1035,7 @@ pred doIdle {
    that re-read the world would see it, and TT-21.b is the claim that none does. */
 pred doForeignWrite {
   Sys.act' = ForeignWrite and Sys.res' = Environmental and no Sys.tgt'
-  noPending and no inFlight'
+  noPending and inFlight' = inFlight   // framed, for `doHandEdit`'s reason
   no Sys.who' and no Sys.mode' and procAllFrame
 }
 
@@ -1299,11 +1304,24 @@ pred ordinaryStep {
   or (some q: Query | doResolve[q])
 }
 
-/* An OPEN transaction admits only its own next step or an interruption.  That
-   is what makes `some inFlight` transient in the catalogue's sense: no ordinary
-   invocation runs while it holds, so no ordinary invocation observes it. */
+/* An OPEN transaction admits only its own next step, an interruption, OR THE
+   WORLD.  The first three are what makes `some inFlight` transient in the
+   catalogue's sense: no ordinary INVOCATION runs while it holds, so no ordinary
+   invocation observes it.  The world is not an invocation and no guard excludes
+   it -- `EN-06` serializes only COOPERATING processes and `EN-13` grants that a
+   foreign entry may appear at any name -- which is exactly what `concStep`'s own
+   comment says two predicates above.
+   Excluding it here is what kept this file from reaching entry 044's TT-20
+   counterexample; `cross-model-replay-k15` found it by replaying that
+   counterexample, and `run TT_20_replay_a_world_write_during_an_open_scaffold`
+   below is the situation the exclusion had made unreachable.
+   `doForeignWrite` stays behind `Concurrent`, exactly as it is in `step`'s
+   other branch: it is the NON-COOPERATING writer, and the single-process scope
+   reaches the world through `doHandEdit`. */
 pred step {
-  some inFlight implies (noReport and procQuiet and (doInitPublish or doCrash))
+  some inFlight implies (noReport and procQuiet and
+                         (doInitPublish or doCrash or doHandEdit
+                          or (Concurrent and doForeignWrite)))
   no inFlight   implies (SingleProc implies (procQuiet and ordinaryStep)
                                     else concStep)
 }
@@ -2059,9 +2077,34 @@ run witness_TT_19_the_matching_recovery_is_admitted_and_settles_the_witness {
 
 /* Four conjuncts.  The first two are *lands last*: the scaffold step never
    publishes, and publication happens only onto a complete scaffold.  The third
-   is *no premature marker* — while the transaction is open there is no witness
-   to observe, torn or otherwise.  The fourth is what the interruption LEAVES:
-   never `Current(*)`, and never `Legacy`. */
+   is *no premature marker*.  The fourth is what the interruption LEAVES: never
+   `Current(*)`, and never `Legacy`.
+
+   THE THIRD AND FOURTH WERE BOTH RESTATED BY `cross-model-replay-k15`, and both
+   for reasons this file had already written down about other claims.
+
+   The third read `some inFlight implies no Fmt.fmt` — *while the transaction is
+   open there is no witness to observe*.  That is a claim about the WORLD, and
+   only grove's half of it is true: `doHandEdit` leaves `Fmt.fmt'` deliberately
+   unconstrained, so once `step` admits the world during an open transaction the
+   conjunct has a three-state counterexample.  It is this file's own rule —
+   A CLAIM ABOUT WHAT A PROTOCOL NEVER DOES IS NEVER A CLAIM ABOUT WHAT THE
+   WORLD NEVER DOES — met for the fourth time, and the first time inside a claim
+   rather than inside a model defect.  It is stated over grove's own applied
+   step instead.
+
+   The fourth was a THEOREM OF `rootState`'s OWN BODY: given `no Slot.occ`, `no
+   Fmt.fmt` and `isPartialScaffold`, the second branch of `rootState` returns
+   `PartialScaffoldR` by construction.  `check` it with NO protocol premise —
+   no `GroveGrammar`, no `SingleProc`, no transition relation — and it is green.
+   It therefore reported nothing about the protocol for the life of this file,
+   and it is why entry 044's TT-20 counterexample was invisible here: that
+   counterexample is a tree which STOPS being a partial scaffold, so it never
+   enters this antecedent at all.  Restated over what an interruption LEAVES,
+   which is a fact about `doInitScaffold`'s effects and dies under a mutation to
+   them.  The narrowing is entry 044's, reached independently and stated the
+   same way: an initialisation THE WORLD DID NOT TOUCH.  The situation the
+   narrowing excludes is retained as a witness below. */
 check TT_20_the_format_witness_lands_last {
   (GroveGrammar and SingleProc) implies always {
     (Sys.act' = InitScaffold and Sys.res' = Applied) implies no Fmt.fmt'
@@ -2069,14 +2112,35 @@ check TT_20_the_format_witness_lands_last {
       isPartialScaffold and no Fmt.fmt
       after (Fmt.fmt = CurrentFmt)
     }
-    some inFlight implies no Fmt.fmt
-    (no inFlight and no Slot.occ and no Fmt.fmt and isPartialScaffold) implies {
-      rootState = PartialScaffoldR
-      rootState not in currentFamily
-      rootState != LegacyR
-    }
+    (Sys.res' = Applied and some inFlight') implies no Fmt.fmt'
+    (Sys.act' = InitScaffold and Sys.res' = Applied) implies
+      after ((Sys.act' = Crash) implies after {
+        rootState = PartialScaffoldR
+        rootState not in currentFamily
+        rootState != LegacyR
+      })
   }
-} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 4 steps
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+
+/* RETAINED COUNTEREXAMPLE — entry 044's TT-20 finding, replayed in Alloy by
+   `cross-model-replay-k15` and reachable here once `step` stopped excluding the
+   world from an open transaction.  Scaffold, one world write, interrupt: the
+   stray entry drops the root out of `isPartialScaffold`'s exact closed subset
+   and it classifies `LegacyR` — the classification TT-20's prose forbids.  It
+   is a `witness_finding_` rather than a `witness_TT_20_` because it credits no
+   cell: it is the situation the narrowing above excludes, kept reachable so the
+   narrowing is visible rather than merely declared. */
+run witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy {
+  GroveGrammar and SingleProc
+  eventually {
+    Sys.act' = InitScaffold and Sys.res' = Applied and some inFlight'
+    after (Sys.act' = HandEdit and some inFlight'
+           and after (Sys.act' = Crash
+                      and after (no inFlight and no Fmt.fmt
+                                 and some foreignEntries
+                                 and rootState = LegacyR)))
+  }
+} for 4 but 4 Int, 4 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
 
 /* The catalogue's witness: scaffold, interrupt, and the STABLE root the
    interruption left.  What makes the last state stable rather than transient is

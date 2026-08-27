@@ -8438,6 +8438,481 @@ implementation leaf before `extract-task-tree-k24`, and carries the narrowed
 successor question that record states.
 
 
+
+### 048 — What the two columns could not have found alone, and a catalogue the second column never saw (cross-model replay, all three scopes)
+
+**Scope.** All three, and the model is neither component-local nor system-level:
+the subject is the **pair**. Every result below is a property of two model
+families read against each other, and none of them is visible from inside
+either.
+
+**Independence protocol — deliberately ended, which is this leaf's whole
+licence.** The protocol was *neither model reads the other before both are
+green*; both are green, so this session read both, exactly as
+`quint-models-k10`'s brief section reserved. Nothing before it lifted, and this
+entry names every place a prior tag has to change as a result.
+
+**Situation.** Replay each column's unique evidence in the other formalism
+rather than compare their prose; re-run the Alloy family under the runner
+`task-tree-k56` repaired while it could not reach Alloy; and decide, for the
+high-risk findings, whether a counterexample is abstract or product-relevant.
+
+**Formalism.** Both, plus the shipped binary. Alloy 6 on Corretto
+`21.0.12.1+9-LTS`, SAT4J, at each command's own bound. Quint read rather than
+re-run, except where a claim about its encoding is made below. Product replay
+against `target/debug/grove-llm` 19.3.0, built from this revision — a fixture,
+not a test, because this phase changes no product behaviour.
+
+**Caught.** Six material findings. Two are corrections to `task-tree.als` and
+one of those is a false-confidence incident; three are about the experiment
+rather than about either tool, and the last of those is the largest thing in
+this entry.
+
+---
+
+**1. The two columns were not written from the same catalogue, and one
+direction of the unique/overlap count is guaranteed by construction.**
+
+The node brief says *"the Alloy column recorded, rather than fixed, every
+catalogue finding it made."* It did not. `docs/specs/semantic-contract.md` was
+**edited by four Alloy sessions** — `names-k33` (2026-08-24 23:10),
+`guards-k37`, `ownership-k38` and `entry-k39` (2026-08-26 01:40) — and the first
+Quint model landed at `task-tree-k11` on **2026-08-26 20:30**, after all four.
+The `names-k33` diff is not a record: it rewrites *Entry* from "anything
+directly or transitively beneath the task root" to "anything the walk
+**reaches**", and it fixes `TT-01.b` to name `Malformed(MalformedEntry(entry))`.
+
+Both are entry 026's findings, and **the Quint column read the corrected text**.
+The same holds for entry 031's seven-preconditions/six-reasons mismatch, whose
+correction `FN-05.a` now carries in the catalogue's own words. Those findings
+are tagged `alloy-only`; the tag is true and it is uninformative, because Quint
+was not in a position to find them — they had been removed from its search
+space before it began. **M1's `alloy-only` count is therefore not a measurement
+in the direction the hypothesis reads it**, and H4's *mutually discriminating*
+test has to be computed over findings that were reachable by both columns or it
+is scoring an artifact of commit order.
+
+The reusable rule is sharper than the incident: **an independence barrier over
+two models is not a barrier at all while their common ancestor is writable.**
+The protocol named the models and forgot the catalogue, and freezing it later —
+which is what the Quint sessions did, and recorded — closed the door after four
+edits had gone through.
+*Claim affected:* none — this is about the experiment. *Durable correction:* the
+pre-registration's independence protocol, and every M1 tag on entries 026 – 033.
+*M1* n/a (a finding about the measure) · *M2* `structure` · *M3* n/a · *M4*
+`none`, and it falsifies **H7** by H7's own terms.
+
+---
+
+**2. `TT-20`'s fourth conjunct was a theorem of `rootState`'s own body, and it
+is why the Alloy column could not see entry 044's counterexample.**
+
+Entry 044's sharpest finding is that `PartialScaffold` is not robust to a
+foreign write: the state is an EXACT closed subset, `EN-13` grants a foreign
+entry at any name, and one stray file during an interrupted `root-init` drops
+the tree out of the subset and through to `Legacy` — the classification `TT-20`
+forbids by name. The Alloy column checked `TT-20` and reported green.
+
+It reported green because its fourth conjunct read
+
+```alloy
+(no inFlight and no Slot.occ and no Fmt.fmt and isPartialScaffold) implies {
+  rootState = PartialScaffoldR ... }
+```
+
+and `rootState`'s own body is `... else (no Fmt.fmt and isPartialScaffold)
+implies PartialScaffoldR ...`. The conjunct is a **theorem of the definition**.
+Checked with **no protocol premise at all** — no `GroveGrammar`, no
+`SingleProc`, no transition relation — it is green at its own bound:
+
+```sh
+# scratch copy of task-tree.als, this command appended:
+check TT20_c4_tautology_at_its_own_bound {
+  always ((no Slot.occ and no Fmt.fmt and isPartialScaffold)
+            implies (rootState = PartialScaffoldR
+                     and rootState not in currentFamily
+                     and rootState != LegacyR))
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 4 steps
+# -> no counterexample
+```
+
+Entry 044's counterexample is a tree that **stops being** a partial scaffold, so
+it never enters this antecedent. The check could not have failed, on any world,
+at any bound.
+
+**This is an M8 false-confidence incident and it stood for the life of the
+file** — through five slices, a mutation matrix, an assumption table and a
+retained-counterexample list, none of which could reach it, because every one of
+those instruments asks whether a check *fails* and this check's antecedent was
+never satisfied by the interesting state. The vacuity classes this corpus
+already carries are *a bound too small to reach a state* and *a state reached
+and empty*; this is a third — **an antecedent that excludes exactly the
+counterexample the claim is about**, and the only thing that found it was a
+second formalism having found the counterexample first.
+*Claim affected:* `TT-20`. *Durable correction:* `task-tree.als` and this entry.
+*M1* — the finding is `both` at the catalogue (entry 044 reached it) and
+**replay-only** as an instrument defect · *M2* `structure` · *M3* **3** — the
+tautology check names it in one command · *M4* `none`.
+
+---
+
+**3. `task-tree.als` excluded the world from an open transaction, and its own
+comment said it should not.**
+
+Replaying entry 044's counterexample found no instance, and the cause is not the
+bound. `step` read
+
+```alloy
+some inFlight implies (noReport and procQuiet and (doInitPublish or doCrash))
+```
+
+— *"an OPEN transaction admits only its own next step or an interruption"* —
+while `concStep`, two predicates above, says *"`EN-06` grants only that
+COOPERATING processes are serialized, so `hand-edit` and `foreign-write` land at
+any point during an operation and no guard excludes them."* Both are in the same
+file. The second is the catalogue's (`EN-06`, `EN-13`); the first silently
+made the world stop while grove scaffolds.
+
+`doHandEdit`, `doForeignWrite` and `doIdle` compounded it by asserting
+`no inFlight'` — so on the one path where a world action *could* fire during a
+transaction, it would have **closed grove's transaction**, which is not
+something the world can do.
+
+Corrected: the two world actions frame `inFlight`, and `step` admits them while
+one is open — `doForeignWrite` behind `Concurrent`, exactly as `step`'s other
+branch already gates it, because it is the non-cooperating writer and the
+single-process scope reaches the world through `doHandEdit`. The replay then
+lands, and is retained as
+`run witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy`:
+scaffold, one hand edit, interrupt, `rootState = LegacyR`, four states.
+
+`TT-20`'s **third** conjunct then failed, and it failed for a reason this file
+had written down three times about other claims: `some inFlight implies no
+Fmt.fmt` — *while the transaction is open there is no witness to observe* — is a
+claim about the WORLD, and only grove's half of it is true, because
+`doHandEdit` leaves `Fmt.fmt'` deliberately unconstrained. **A claim about what
+a protocol never does is never a claim about what the world never does**, met
+for the fourth time and the first time inside a *claim* rather than inside a
+model defect. It is now stated over grove's own applied step.
+
+Conjunct 4 is restated over what an interruption LEAVES, which is a fact about
+`doInitScaffold`'s effects rather than about `rootState`'s definition, and
+narrowed the way entry 044 narrowed it — **an initialisation the world did not
+touch** — reached independently and stated the same way. It now has a control:
+a scaffold whose leaf carries a differing byte kills it, where the charter-less
+mutation tried first did **not**, because the catalogue's subset is a *subset*
+and a charter-less scaffold is legitimately inside it. That inert first attempt
+is worth the line: entry 040's rule — *an unsatisfiable mutation reports exactly
+as a survivor* — applies to a mutation that is merely **inert**, and telling the
+two apart cost one run.
+*Claim affected:* `TT-20`, `EN-06`, `EN-13`. *Durable correction:*
+`task-tree.als` and its README. *M1* replay-only · *M2* `interruption` ·
+*M3* **2** — the trace names the transition; the cause came from reading `step`
+· *M4* `none` in this phase.
+
+---
+
+**4. Six findings this experiment counts as `quint-only` are `both`, and one
+pair resolved the same conflict in opposite directions.**
+
+The Quint entries tag their findings `quint-only (pending replay)` and say so
+honestly. Read against the Alloy column, six are overlaps reached independently:
+
+| the finding | Quint | Alloy | verdict |
+|---|---|---|---|
+| the closed refusal set has no member for a clean rollback | 045-2 `RRolledBack` | 033, `RefRollbackNotCommitted` | **`both`** — same hole, same repair, both declared as additions |
+| `FN-22`'s table and the blocked diagnoses disagree about `Indeterminate` | 045-5 | README ce. 15 | **`both`** — both resolve it the table's way |
+| a blocked state falls through both diagnoses | 045-6 (post-persistent swap) | README ce. 14 (manifest names another handle) | **`both`** — different states, one defect: `FN-25.b` is false as literally worded |
+| `SY-13` is false on `Legacy`/`Foreign`/`Malformed` sinks | 046-1 | 043 result 2 | **`both`**, and both chose the same repair — quantify over the admitted-reachable stable states |
+| no refusal reason names an invalid configuration | 046-2 `RConfigInvalid` | 041, `RefConfigInvalid` | **`both`** |
+| `release-lease` is special because it touches no tree | 046-3 | 043 result 3 | **`both`**, different claims cited (`SY-14.b` / `SY-04.b`), one catalogue gap |
+
+Entry 045's disclosure asked that its finding 2 be treated "as an overlap
+candidate with a known contamination risk rather than as a clean `quint-only`".
+It is an overlap, and the contamination risk does not decide it: `RRolledBack`
+and `ONotEntered` were in the model with their declaring comments before the
+grep, which the commits carry, and the Alloy finding is at a different claim
+(`FN-33`'s disposition mapping) than the title that was visible. Recorded as
+`both` on the evidence, with the risk noted rather than resolved away.
+
+**The pair worth reading is `FN-13`.** Both columns found that its stated
+witness — *a commit attempted while the witness is tracked, **refused*** —
+conflicts with *Outcomes*' rule that a caller who has already mutated is owed
+`Blocked(OwnershipConflict)`. **They resolved it in opposite directions**: Alloy
+followed the catalogue and refused, "because the catalogue is the sole input to
+the formal phase"; Quint blocked, on the three-contexts rule. Two independent
+readings of one document, both reasonable, incompatible. That is stronger
+evidence that the catalogue is underdetermined than either column's own account
+of it, and it is evidence only a replay can produce.
+*Claim affected:* `FN-13`, `FN-25`, `FN-29`, `SY-13`, `SY-14.b`, `SY-04.b`, and
+the closed refusal set. *Durable correction:* the M1 tags on entries 045 and
+046, and `formal-synthesis-k16`'s disposition list. *M1* — this finding **is**
+an M1 correction · *M2* `refusal` · *M3* n/a · *M4* `none`.
+
+---
+
+**5. Where one column made the right choice silently, it learned nothing — and
+that is a property of how the claim was stated, not of the tool.**
+
+Three of Alloy's findings do not replay into Quint, and none of the three is a
+Quint deficiency:
+
+- **`SY-04.b` is false as worded (entry 042).** Alloy states byte-identity over
+  the trace, so a `hand-edit` during an invalid configuration falsifies it and
+  the claim's missing scoping is visible. Quint accumulates
+  `refusalMutated` from **one operation's own before/after pair**
+  (`isRefusal(o) and wPost.tree.bytes != wPre.tree.bytes`), so the world's write
+  is never attributable to a refusal. Quint is **silently correct** and the
+  catalogue's wording is never put under pressure.
+- **`SY-10.b`'s visible stop has no member of the outcome set (entry 041).**
+  Quint discharges the obligation with a history flag, `not(hist.silentPark)`,
+  and so never has to write down what the stop *returns*.
+- **`SY-01.b` rests on kernel lock release, which no `EN-` row grants (entry
+  040).** The catalogue half replays and holds in both. The other half —
+  *"two separate mutations are made unsatisfiable by the model's own facts"* —
+  does **not** replay: Quint's `inv_fail_MUT_SY_01b_the_lease_survives_a_death`
+  fires. What Alloy recorded as a property of the claim is a property of
+  **Alloy's encoding of a lock** as a relation constrained by a `fact`.
+
+The rule underneath all three: **a property stated over one action's own
+before/after pair cannot discover that its claim was quantified too widely; a
+property stated over the trace can.** That is the sharpest available form of
+H5's prediction, and it is about statement shape rather than about temporal
+operators versus guarded actions — which is a *correction* to H5's framing, not
+a confirmation of it.
+*M1* `alloy-only`, confirmed by replay rather than assumed · *M2* `structure` ·
+*M3* n/a · *M4* `none`.
+
+---
+
+**6. `reap` — the two columns resolved one silence in opposite directions, and
+the product settles it.**
+
+Entry 046's finding 4 is that the catalogue never says which lifecycle actions
+are gated on the root's classification, and that gating `reap` makes `SY-05.a`
+**unwitnessable**: the teardown commits, the root goes `Absent`, `reap` refuses
+`RootAbsent`, and the loop never scaffolds the fresh grove a missing task root
+is supposed to MEAN. Quint gates it — `reapOp` runs through `outcomeOn`, the
+gate classifier — and the runner reported `wit_SY_05a … never reached`.
+
+**Alloy's `doReap` reads no tree at all**: its guard is the lease, the role, the
+launch generation and `some World.running`, and nothing else. So the two columns
+read one silence and filled it in opposite directions, which is the strongest
+evidence available that the silence is real — and neither column could have
+produced that evidence alone. Alloy made the right choice and learned nothing;
+Quint made the wrong one and its **witness obligation** turned the mistake into
+the finding. That is the witness discipline paying for itself in the one shape
+nobody predicted: *a witness that never lands is how a model reports its own
+wrong guess about an underdetermined spec.*
+
+Entry 046 left the product question open — "the one finding here that **has** a
+pre-fix behaviour to write against **if the shipped driver shares the gate**".
+**It does not.** `src/loop_driver.rs` reaps by polling `try_wait` and the signal
+file, hands off through `complete_post_reap_epoch_handoff`, and branches on
+`Relaunch` / `Done` / `None`; no root classification is read anywhere on that
+path. So the catalogue gap is real, and there is **no product defect behind it**
+— `M4 = none`, and it falsifies **H7** by H7's own terms, which entry 046
+anticipated for every finding but this one.
+*Claim affected:* the `Actions` table, `SY-05.a`, `SY-09`. *Durable correction:*
+the catalogue. *M1* `both`, by opposite resolutions · *M2* `ordering` ·
+*M3* **3** · *M4* `none`.
+
+---
+
+**The product replay, and the one place an abstract counterexample is already
+shipped behaviour.**
+
+Entry 044's finding (a) — *an ordinary operation meeting a `PartialScaffold`
+root has no member of the closed refusal set, and `FormatLegacy` is the one
+`TT-20` explicitly forbids* — is not abstract. Four fixtures, a real
+`.grove/` scaffolded by `grove-llm root-init` and then cut back to each
+interruption window:
+
+| fixture | window | stray file | `grove-llm pick` reports |
+|---|---|---|---|
+| A | charter only | yes | `…/.grove/FORMAT; this is a legacy tree and must be migrated` |
+| B | charter only | no | the same |
+| C | charter + leaf | yes | the same |
+| D | charter + leaf | no | the same |
+
+**Fixture D is an exact partial scaffold and is reported `Legacy`.** So the
+shipped ordinary read path does not implement `PartialScaffold` at all; only the
+driver's own recovery does, in `tree_lifecycle.rs`, which additionally **refuses**
+with *"ambiguous partial root scaffold … exact fresh-tree content is mixed with
+unexpected entries"* — a fail-closed outcome the catalogue's state table has no
+member for, and a better answer than either model gives.
+
+Reading the two together bounds entry 044's finding rather than confirming it
+whole. The recovery's `unexpected`-entry branch splits: with scaffold-owned
+content present it **refuses**, and with none present it returns `Ok(false)` and
+the root falls through to the legacy path. So the window in which a stray entry
+sends an interrupted `root-init` to `Legacy` rather than to `PartialScaffold` is
+the interval **after the charter and before the leaf** — which
+`create_root_unlocked` and `complete_scaffold` leave unguarded on purpose
+("between phase one and phase two nothing holds the tree"). Two shipped tests
+corroborate both halves:
+`extra_task_structure_makes_an_exact_partial_scaffold_ambiguous` asserts the
+refusal and that nothing is mutated, and
+`an_untouched_root_brief_does_not_hide_a_legacy_v2_tree` asserts the
+fall-through, deliberately, for a charter-only root.
+
+**What that does and does not establish.** It establishes that `TT-20`'s
+prohibition — never `Legacy` — is false of shipped behaviour, in a window the
+code creates on purpose. It does **not** establish harm: the legacy path refuses
+or migrates and does not silently complete somebody's scaffold, and whether the
+window wants a third classification, a guard across the two phases, or nothing
+at all is `formal-synthesis-k16`'s to disposition. The counterexample is
+product-relevant; the severity is not this leaf's to assign.
+*M1* `quint-only`, product-confirmed · *M2* `refusal` · *M3* **3** · *M4* — the
+fixture above, for `formal-synthesis-k16`'s seam work.
+
+---
+
+**The runner obligation entry 044 owed forward, discharged, and the answer is
+negative.** `task-tree-k56` repaired the runner's reverse-coverage direction
+under the barrier, could not run `--family alloy`, and named re-running it as
+this leaf's first obligation. Every `check`/`run` in the three `.als` files was
+resolved against the manifest the runner reads out of the catalogue:
+**129 obligations, 0 commands naming an obligation the catalogue does not
+define, 0 naming none, 0 claim-level citations.** The 29 remaining commands are
+`EN_`-prefixed controls, one vacuity witness, and the `witness_finding_` this
+session added, all legitimately exempt — re-run after the correction, so the
+figure is this revision's. The
+check binds Alloy and Alloy passes it — which is the result, null and worth
+having, because the alternative reading was that a check written blind had been
+written wrong.
+
+**What was NOT replayed, and why that is a result rather than an omission.**
+Rule 3 of the independence protocol says *"not attempted" is not one of the
+outcomes*, so the largest class of unreplayed evidence is accounted for here
+rather than left out.
+
+`crates/grove-finish/models/README.md` retains **twenty-one** counterexamples
+and says of them that "twenty of the twenty-one are about the model or the
+catalogue rather than about the protocol". Of those twenty, **twelve are one
+shape**: a claim about tree *shape* falsified by Alloy's free initial state —
+`FN-09.b`'s preparing witness with something inside it, `FN-12.a`'s manifest
+half-written by no step, `FN-22.d`'s hand-edited manifest, `FN-31.b`'s
+hand-edited marker pair, and so on. The README states the rule they taught as
+*a shape claim under a free initial state must be restated over the transition
+relation*, and records meeting it at five separate grains.
+
+**None of the twelve has a Quint analogue, and the reason is structural: an
+executable model has no free initial state.** `finish.qnt` and `lifecycle.qnt`
+each open with an `action init` that constructs one state; every later state is
+reached by a transition. So the entire class of defect is **unreachable in
+Quint by construction** — which is why Alloy's finish column retained twenty-one
+counterexamples and Quint's retained few, and why that count is not a measure of
+either tool's power. It measures how each family gets its non-protocol states:
+Alloy posits them and must then fence off the ones its protocol cannot build,
+Quint builds them and must then work to reach the rare ones. The costs those two
+strategies pay show up in different columns of this experiment —
+Alloy's as twelve retained counterexamples, Quint's as four
+`scenario_` instances written for no reason but sampling — and reading either
+column's total as a finding count double-counts a modelling strategy.
+
+Recorded as **inexpressible in the other formalism, with the reason**, which is
+rule 3's second branch, and it disposes of twelve of the twenty at once.
+
+**Missed.**
+
+- **The correction is verified over its exact blast radius, not by a full
+  family run, and the distinction is worth stating precisely.** `step`'s
+  widening is visible only to a command whose scope predicate does not pin
+  `always no inFlight`. Two predicates do pin it — `CurrentRootThroughout` and
+  `Guarding` — and between them they cover **83 of the file's 104 commands**,
+  which therefore cannot see the change at all. The remaining **22 were each
+  run, and all 22 pass**: `TT-17` – `TT-20`, `TT-24.a`/`TT-24.b`, their
+  witnesses, the retained replay, and the seven `EN_08`/`EN_11`/`EN_14`
+  controls — including both inverted forms, which still behave (the `EN-14`
+  premise-break finds its counterexample; the six exercise-removals find none).
+  That is a **complete** verification of the change rather than a sample, and it
+  is a stronger claim than a suite run would have made about the same edit.
+  What it is **not** is a green `models/run.sh --family alloy`: that costs hours
+  at these bounds — the run started for it reached 14 commands in seven minutes
+  — and a session is not a good unit for it. The finish and lifecycle `.als`
+  files are byte-unchanged by this session.
+- **No Quint model was corrected, and one probably should be.** Finding 5 says
+  Quint's `SY-04.b` and `SY-10.b` are stated in shapes that cannot fail the way
+  Alloy's did. Restating them is a real change to a green column and it belongs
+  to a session that can re-run it; `formal-synthesis-k16` inherits it.
+- **`TT-24.c` is a filled cell with no falsifier.** The Alloy column declared
+  `TT-24.c` and `TT-24.d` out-of-bounds; Quint answered both. Reading Quint's,
+  `inv_TT_24c` is a transcription of `gateOutcome`'s own branch
+  (`isTransaction(t)` → `BlockedO(OwnershipConflict)`), and **no control kills
+  it** — the task-tree controls file mutates `TT-20`, `TT-05`, `TT-12`, `TT-04`,
+  `TT-24.d`, `TT-21.a` and `TT-23.b`, and not this. So the coverage matrix
+  scores a transcription above an honest declaration, and **the instrument
+  rewards the cheaper move.** Whether the fix is a control, a gap, or restating
+  `TT-24.c`/`TT-24.d` as `FN-` obligations is `formal-synthesis-k16`'s.
+- **Entry 044's `TT-23` finding is an overlap the Alloy column did not write
+  down.** `TT_23b`'s own comment says an already-terminal entry "is skipped
+  silently, which is what makes the re-run idempotent" — which is exactly the
+  requirement entry 044 says is "implied by two claims and stated by neither".
+  Alloy made the choice and left it in a comment; Quint noticed it was unstated
+  and recorded it with a mutation. Under the material-finding rule's clause 3 —
+  both operands recorded at discovery time — only Quint's version scores, and
+  the discovery is the same one. **An unrecorded modelling choice and a recorded
+  catalogue finding are the same event, and only one of them counts.**
+
+**Cost.** One session, and the shape of the cost is the interesting part.
+**The replay itself is reading**: findings 1, 4, 5 and 6 are two records or two
+model files held side by side, and no solver was involved in any of them. The
+solver's whole contribution was to make three readings falsifiable — the
+tautology check, the widened-world probe, and the mutation control — and those
+cost roughly fifteen minutes of Alloy between them, plus about ten for the
+blast-radius verification. What was **not** cheap, and is the transferable
+number: establishing that the first probe's *no instance* was a modelling
+exclusion rather than a bound took three narrowing probes, and the inert
+mutation under finding 3 cost a run to tell from a survivor. Both are the same
+tax — **a negative result from a bounded tool is ambiguous until you spend a run
+disambiguating it**, and a replay session pays that tax on every finding it
+carries across. The product fixtures cost minutes and settled two questions the
+models could not.
+**Ninety per cent of this leaf's value came from reading, and the solver's whole
+contribution was to make three of those readings falsifiable.**
+
+**Counterfactual.** Findings 1, 4 and 6 are unreachable from inside either
+column by construction — they are statements about a pair. Findings 2 and 3
+needed one column's counterexample carried to the other; a careful adversarial
+read of `task-tree.als` alone would plausibly have found the tautology, and
+`review-prototype-task-tree-k55` is where that read happened for the Quint
+column and no equivalent ran for Alloy, which is the asymmetry finding 1 is
+about wearing different clothes. Finding 5 needed both files open at once.
+
+**Verdict.** **Replay is not a comparison step; it is an instrument, and it
+found things neither column's own reviewer could.** Its unit is not the finding
+but the pair *(what one column concluded, what the other concluded about the
+same sentence)*, and its two productive shapes are **opposite resolutions of one
+silence** (`FN-13`, `reap`) and **a check that cannot fail in the direction the
+other column's counterexample points** (`TT-20`). Both are invisible to a
+mutation matrix, an assumption table and a witness obligation alike, because all
+three ask a single model about itself. Schedule replay before synthesis, not as
+a formality after it — and freeze the shared ancestor before the first model,
+not after the fourth edit.
+
+**What a green run here does not prove.** Nothing here re-checks either column.
+The Alloy corrections are verified by the individual commands cited and by the
+family run recorded in the model README, not by a full suite inside this entry.
+The M1 reclassifications in finding 4 are read off the entries and the model
+files; they are as good as those records and no better. The product replay is
+four fixtures and a reading of two functions — it establishes that the window
+exists, not that nothing else does. And finding 1 bounds every count in this
+experiment: the unique/overlap figures are asymmetric by construction in the
+Alloy direction, and no re-tagging in this entry repairs the four catalogue
+edits that made them so.
+
+**Derived tests.**
+
+| finding | test |
+|---|---|
+| the `PartialScaffold` window | scaffold a root, interrupt **after the charter and before the leaf**, drop one foreign file, and assert the root is not classified `Legacy`. Red today. |
+| the ambiguity refusal | **already covered** by `extra_task_structure_makes_an_exact_partial_scaffold_ambiguous`. Nothing to write; what is owed is a *claim*, since this is shipped behaviour the catalogue's state table has no member for. |
+
+The other five record `M4 = none` and each falsifies **H7** by the terms H7 sets
+for itself — which now holds for every material finding in the finish and
+lifecycle scopes and for all but one in the task tree.
+
 ## What is being compared, and what is not
 
 The subject is grove's own modular redesign: **task-tree semantics**, the
@@ -8472,7 +8947,8 @@ green-suite record this pre-registration would otherwise have to carry.
 ## Independence protocol
 
 The comparison is worthless if the second model is written by reading the first.
-Three rules, fixed now:
+Three rules, fixed now — and a fourth, added at entry 048 because the first
+three named the models and forgot the document they descend from:
 
 1. **The claim catalogue is tool-neutral.** `design-model-contract-k5` defines
    state, actions, observations, environment assumptions, stable and transient
@@ -8485,6 +8961,19 @@ Three rules, fixed now:
 3. **Replay is one-directional per finding and recorded either way.** Every
    unique counterexample is replayed in the other formalism, or recorded as
    inexpressible **with the reason**. "Not attempted" is not one of the outcomes.
+
+4. **The shared ancestor is frozen before the first model, not after the
+   fourth edit.** Added at entry 048, which found the rule missing. Rules 1–3
+   name the *models* and say nothing about the document both are written from,
+   and `docs/specs/semantic-contract.md` was edited by four Alloy sessions
+   before the first Quint model existed — including a rewrite of *Entry* and a
+   fix to `TT-01.b`, which are two of entry 026's three findings. The Quint
+   column therefore read a corrected catalogue and could not rediscover them, so
+   their `alloy-only` tags are true and uninformative. **An independence barrier
+   over two models is not a barrier while their common ancestor is writable.**
+   A catalogue finding made before the freeze is recorded and NOT fixed, exactly
+   as the barrier already requires of a model finding; entries 026 – 033 predate
+   this rule and every M1 tag on them is qualified by it.
 
 The rules are recorded as *intended*, and each entry says whether they held.
 Entry 017's lesson is the reason for that last clause: an arm's isolation

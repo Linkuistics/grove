@@ -99,3 +99,38 @@ INSTRUMENT and each repaired against what that review found:
   cell is empty for want of a column. Whether it is green is a separate
   question and no session here has measured it end to end; the per-scope runs
   above are what has been.
+
+## The barrier came down, and what the replay changed for `formal-synthesis-k16`
+
+`cross-model-replay-k15` read both families. Entry 048 is the record; four
+things in it change what the synthesis is reading rather than adding to it.
+
+- **The two columns were not written from the same catalogue.** Four Alloy
+  sessions *edited* `docs/specs/semantic-contract.md` before the first Quint
+  model existed, so the section above — "the Alloy column recorded, rather than
+  fixed, every catalogue finding it made" — **is wrong**, and demonstrably so at
+  `names-k33`, `guards-k37`, `ownership-k38` and `entry-k39`. Entry 026's and
+  031's findings were fixed into the text the Quint column then read. **Their
+  `alloy-only` tags are true and uninformative**, and every unique/overlap count
+  in this experiment is asymmetric by construction in the Alloy direction. The
+  pre-registration gained a fourth independence rule for it.
+- **Six findings tagged `quint-only (pending replay)` are `both`.** They are
+  tabulated in entry 048 finding 4. Two of the six were resolved in **opposite
+  directions** by the two columns — `FN-13`'s refuse-or-block, and whether
+  `reap` is gated on the root — and an opposite resolution is stronger evidence
+  that the catalogue is underdetermined than either column's own account of it.
+  Those two are the disposition list's sharpest items.
+- **One Alloy check was a theorem of its own model.** `TT-20`'s fourth conjunct
+  was green with no protocol premise at all, which is why the Alloy column never
+  saw entry 044's counterexample. `task-tree.als` is corrected, the counterexample
+  is retained and reachable, and the narrowing is declared — the same narrowing
+  the Quint column declared, reached independently.
+- **The product settles two of the questions the models left open.** `reap`
+  reads no tree in the shipped driver, so entry 046's finding 4 has no product
+  defect behind it. And entry 044's `PartialScaffold` finding *is* shipped
+  behaviour, in one narrow window — after the charter, before the leaf — while
+  outside that window the shipped code refuses with an *ambiguous partial root
+  scaffold* diagnostic the catalogue's state table has no member for.
+
+`quint-statement-shape-k61` was cut from the replay and sits ahead of the
+synthesis so the Quint column's evidence is repaired before it is read.

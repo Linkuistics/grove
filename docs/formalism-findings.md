@@ -8157,6 +8157,287 @@ falsify it)**, and it is worth carrying into the synthesis as a general
 obligation rather than as a fact about this scope.
 
 
+### 047 — A contract with no domain words in it, and one interval no library can close (ordinal root lifecycle, an experiment rather than a column)
+
+**Scope.** Neither a scope nor a column. `ordinal-root-lifecycle-k14` is a
+`prototype` leaf whose deliverable is a *decision* — whether atomic root
+lifecycle is a deep, domain-independent `ordinal-fs-tree` capability or stays
+private to `grove-finish` — so this entry records an experiment, not a model
+family. **Nothing here credits a catalogue obligation**, and the prototype's
+claims are deliberately named `RL-` so that no reader and no runner can mistake
+them for `TT-`/`FN-`/`SY-` coverage.
+
+**The instrument is not in the repository, on purpose.** `models/run.sh`'s
+obligation 2 fails the whole run on any `.als` or `.qnt` outside its four known
+scope directories, so a prototype model committed anywhere would either break the
+runner or have to be adopted into a scope — which is the production
+implementation this leaf forbids. It was built in the session scratchpad; the
+dials, the claims, the commands and both retained counterexamples are recorded
+here and in the task file, and the successor leaf named at the foot rebuilds it
+inside a scope if it is ever wanted.
+
+**Situation.** `ordinal-fs-tree` today has no root creation and no removal at
+all, and grove's `root-init` and `finish` both reach past it into `std::fs` and,
+for the cleanup layer, into raw `openat`/`renameat2`/`unlinkat`. The root brief
+says generic filesystem mechanics live in `ordinal-fs-tree` **by default** and
+that any Grove-owned filesystem operation must be a *documented semantic
+exception established by the formal work*. This is that establishment. The
+library's own architecture already reasons about the case and then ships neither
+verb: the advisory lock is taken on `<root>/..` rather than on the root
+explicitly so that "the tree's creation and destruction fall under the same lock
+as every ordinary operation", and that reasoning is called "general rather than
+domain-specific".
+
+**Formalism.** Quint 0.32.0 — one throwaway module, nine assumption dials,
+eleven `RL-` invariants, six outcome witnesses, six instances. Quint rather than
+Alloy because the question is *what does the protocol do when the caller's answer
+moves and the process dies*, which is a guarded-action question; the structural
+half (can the vocabulary be stated at all) is not a model question and was
+answered by an enumeration instead. Simulation via `quint run`, and — decisively,
+as it turned out — symbolic checking via `quint verify` (Apalache backend) at
+`ITEMS = 1`, `--max-steps=14`, ~18 s per claim uncontended.
+
+---
+
+#### The vocabulary result, and why it was enumerated rather than swept
+
+**Done when #1 is answered affirmatively.** Every identifier in the prototype's
+*code* was extracted and classified — 175 non-keyword identifiers — and **none**
+names a workstream, a task, a session, a version control system, a commit, a
+branch, a bookmark, a handle, a ticket, a witness, a quarantine or a manifest.
+Two match the bare word *kind* (`Kind`, `kind`) and mean "whether this item can
+be fingerprinted"; they are classified, not swept away.
+
+The enumeration is the point. A banned-word list is complete only as far as the
+list, and the sibling nobody thought to list is exactly what leaks — so every
+token was extracted first and classified second. **Two controls make the clean
+read evidence rather than a broken instrument reading clean everywhere:**
+
+| corpus | domain-loaded identifiers |
+|---|---|
+| the prototype's **code** — the contract | **0** (2 false positives on *kind*) |
+| the prototype's **comments** — the citations back to the catalogue | 16 |
+| `crates/grove-finish/models/finish.qnt`, code | **103** |
+| `crates/grove-task-tree/models/task-tree.qnt`, code | **70** |
+
+The translation is one-to-one and cost nothing: witness → *reservation*,
+manifest → *ledger*, quarantine → *the root moved aside*, commit outcome →
+*verdict*, finish handle → *identity*, task entry → *item*, `Committed` /
+`NotCommitted` / `RecoveryPending` → `VApplied` / `VAborted` / `VUnknown`. That
+last row is the whole of the caller's participation: a three-valued grade of an
+effect the library never learns anything else about.
+
+#### What was replayed, from both families
+
+| replayed | from | how it lands in the prototype |
+|---|---|---|
+| `TT-20` the format witness lands last; an interrupted init is `PartialScaffold`, never `Current` | Alloy, entry 028 | `RL-1`; creation's identity token is published by one same-directory rename after the scaffold |
+| entry 028's own repair — initialisation runs the **reserved** half of the cascade and not the **format** half | Alloy | the create direction has a `Partial` root state distinct from both `Absent` and `Valid` |
+| `FN-19` restated as *one root identity is never in two places at once*, **over the transition relation and not over the disk** | Alloy, entry 042's retained counterexample | `RL-11`, written as *no step of the protocol produces* rather than *the disk never holds* |
+| `FN-09.b` no preparing witness ever holds an evacuated entry | Alloy | `RL-2` |
+| `FN-11` evacuation precedes deletion | Alloy | `RL-3`, as conservation |
+| `FN-12.b` an undigestible entry type is refused **before any mutation** | Alloy | `RL-4`, with `mutant_opaque_late` as its control |
+| `EN-01` is narrower than the protocol's own steps — evacuation is a **cross-directory** rename and is not granted atomicity | Quint, entry 045 finding 1 | `effectOf` separates `ESameDirRename` from `ECrossDirRename`; evacuation and restoration are the latter, which is what makes `RL-2` and `RL-3` non-trivial |
+| the closed outcome set has no member for a transaction **never entered** | Quint, entry 045 finding 3 | `ORejected`, a distinct terminal outcome |
+| `FN-22`'s four revalidation points, and the two `Committed` departures that are not the same event | Alloy, entry 035 | the four `DReval*` steps and `DReturn` |
+| `FN-20` no artifact a transaction leaves behind is a receipt, stated over the **role** | Alloy | `RL-6` — and this is where it broke |
+
+#### Retained counterexample 1 — the interval no library can close
+
+`RL-6`, `quint verify`, `verify_monotonic`, 14 steps. The trace is eleven states
+and the last three are the whole finding:
+
+```
+ 8  step=DSettle           root=Held    stagePresent=true  moved=false
+ 9  step=DRevalAfterSettle root=Absent  stagePresent=true  moved=true   <- the settle rename
+10  step=SDone (crash)     root=Absent  stagePresent=true  moved=true
+```
+
+Between the settle rename and disposal the container's root is **`Absent`** —
+which no reader can distinguish from a container that was never created — while
+the staging area still holds every item. `moved` and `stagePresent` are *model*
+variables; a reader sees the root and nothing else.
+
+Nothing inside the container closes it. By `FN-20`'s own role the leftover may
+not be read as evidence that anything happened, and the library's entire world is
+`<root>` and `<root>/..`, so it has nowhere to put a receipt that is not the
+leftover. **This is `TODO.finish_process.md`'s "the interval is the whole
+problem", arrived at from the library's side**, and the answer it forces is that
+the receipt is irreducibly the *caller's*: Grove closes it with the correlation
+ticket `FN-03` requires to live outside disposable state, and a library with no
+notion of "outside" cannot own that.
+
+`M1 quint-only` (Alloy did not reach it because no Alloy slice put the library's
+own address space in scope). `M2 interruption`. `M3 = 3` — the trace names the
+transition and transcribes directly. `M4 = none`, and the reason is the third
+borderline in *Measures*: there is no defect to write a failing test against.
+Grove already does the right thing; what changes is a **decision record**, which
+survives both model families being deleted, so it is material.
+
+#### Retained counterexample 2 — four revalidations are necessary and not sufficient
+
+`RL-5`, `quint verify`, `verify_small`, 14 steps:
+
+```
+ 9  DRevalAfterSettle  verdict=VApplied  truth=VApplied   <- last revalidation
+11  DDispose           verdict=VApplied  truth=VAborted   <- the caller ungrades
+12  SDone  outcome=OApplied              truth=VAborted   <- disposed anyway
+```
+
+After the last revalidation there is always a suffix in which the caller's grade
+can move, and by then disposal has destroyed the ability to return. Adding one
+dial — `VERDICT_MONOTONIC`, *once the caller grades an effect applied it never
+ungrades it* — makes `RL-5` hold at every instance and **leaves counterexample 1
+untouched**, which is what proves the two have separate causes rather than one.
+
+The obligation is domain-independent to state and **impossible for the library to
+check**. The catalogue carries it today only in lane-shaped form, as `FN-26`
+— *history is never rewritten to clear a block* — which the Quint finish model
+dials as `HISTORY_IMMUTABLE`; the dial is that family's switch and appears
+nowhere in the catalogue, so a reader chasing this finding chases `FN-26`. `M1 quint-only`. `M2 eventuality`. `M3 = 3`. `M4 = none`.
+
+#### The measurement that nearly did not happen: a control that killed nothing
+
+The first full sweep had `mutant_no_revalidation` killing **no invariant at
+all** — a control asserting nothing, which is the failure entry 046's review
+named. Two causes, and both were in the claims rather than in the model:
+
+- `RL-4` was written `(anyOpaque and REFUSE_OPAQUE_FIRST) implies …`, so it was
+  **vacuously true in exactly the instance meant to falsify it**;
+- `RL-7` carried a literal `or not(REVALIDATE)` escape clause — the control
+  written into the check.
+
+Restated over the contract, `mutant_opaque_late` kills `RL-4` alone and
+`mutant_no_revalidation` kills `RL-5` and `RL-7` and nothing else. **A claim that
+mentions a dial cannot be falsified by turning that dial**, and it reads exactly
+like a claim that holds.
+
+Revalidation only became measurable at all once the caller's *actual* grade
+(`truth`) was separated from the library's last *observation* of it (`verdict`).
+While the model resampled the verdict at each revalidation point, revalidation
+was a coin toss rather than a reading, and no control over it could have meant
+anything.
+
+#### `M8` — a false-confidence incident, and it is about the runner rather than the model
+
+**The same `quint run` command, at the same budget, returns `[ok]` on one run and
+`[violation]` on the next, and nothing in the output distinguishes the two.**
+Measured: ten identical invocations of a *control* that `quint verify` proves
+violated —
+
+```
+quint run … --main=mutant_reentrant_caller --invariant=inv_RL_9_no_reentrancy \
+            --max-samples=20000 --max-steps=30
+   9 [violation]
+   1 [ok]
+```
+
+At 1-in-10 per command, a sweep of ~55 commands is more likely than not to
+contain at least one silent false green per full run. The mechanism is specific
+and worth naming because it is invisible: this model's environment actions
+(`doCrash`, `doForeignWrite`, `doReentrantOp`) are **absorbing** — each ends the
+trace — and **enabled at almost every state**, so a uniform sampler reaches the
+tail of an eleven-step protocol with probability about `(1/3)^11`. Adding one
+further environment action (`doDrift`) part-way through the session silently
+turned four previously-red controls green, with no signal of any kind.
+
+Two consequences, and the second is the transferable one.
+
+1. **A `quint`-simulated negative is not evidence here.** Every negative result in
+   this entry is `quint verify`; simulation was used only for witnesses (a
+   positive result, where a hit is a proof and a miss is merely a miss) and only
+   in the `quiet` instance, which removes the absorbing actions so the tail is
+   reachable at all.
+2. **The enabled-everywhere-and-absorbing shape is a property a reader can spot
+   before running anything**, and it is the same lesson entry 042 reached from the
+   cost side — *price a slice by the program points a transition is enabled at* —
+   arriving from the soundness side instead. It belongs in the synthesis as a
+   general obligation on any simulated column, not as a fact about this
+   prototype.
+
+`M8`: one incident, stood roughly 40 minutes, caught by disagreement between the
+two backends rather than by anything inside the suite.
+
+#### The result matrix
+
+`quint verify`, Apalache, `--max-steps=14`. `verify_monotonic` is the candidate
+as finally proposed; the mutant rows are its controls.
+
+| instance | RL-1 | RL-2 | RL-3 | RL-4 | RL-5 | RL-6 | RL-7 | RL-8 | RL-9 | RL-10 | RL-11 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `verify_monotonic` (the candidate) | ok | ok | ok | ok | ok | **RC1** | ok | ok | ok | ok | ok |
+| `verify_small` (no caller obligation) | · | · | · | · | **RC2** | **RC1** | · | · | · | · | · |
+| `mutant_identity_first` | **kill** | · | · | · | · | · | · | · | · | · | · |
+| `verify_opaque_late` | · | · | · | **kill** | · | · | · | · | · | · | · |
+| `mutant_no_revalidation` | · | · | · | · | **kill** | · | **kill** | · | · | · | · |
+| `mutant_reentrant_caller` | · | · | · | · | · | · | · | · | **kill** | · | · |
+
+All six outcome witnesses — applied, refused, blocked, rejected, created,
+returned — were reached by simulation in the `quiet` instance, so no invariant
+above is vacuous for want of its terminal state.
+
+#### What a green run here does not prove
+
+`ITEMS = 1` for every symbolic result, so nothing about multi-item interleaving
+is established beyond what simulation at `ITEMS = 2` sampled. Depth 14, so a
+protocol suffix longer than that is unexamined. One reservation, one staging
+area, one attempt; no concurrent second caller; the disposal marker protocol, the
+reaper and the three-lane commit seam are **deliberately omitted** as incumbent
+mechanics rather than candidate contract. Fairness is not assumed anywhere and no
+liveness property is claimed — every `RL-` claim is a safety claim.
+
+#### Cost
+
+`M5` — one session, roughly 2 h from bootstrap to decision, of which model
+authoring is about 50 min and the rest is reading the two model families, the
+catalogue and the seam ADR. Eleven claims. `M7` — `quint verify` at `ITEMS = 1`
+runs ~18 s per claim uncontended and times out past 400 s at `ITEMS = 2` or when
+two Apalache processes share the machine, which is what produced four spurious
+`TIMEOUT` rows on the first pass and cost about 15 min of re-running serially.
+`quint run` at 20 000 samples × 30 steps is ~0.6 s per claim and, per the `M8`
+finding above, is not load-bearing for any negative here. Two Quint syntax costs
+worth naming for a later reader: `match` cannot be applied to a primed variable,
+and a `nondet` binding scopes over the single expression that follows it, so
+every draw has to be wrapped in its own `all { … }`.
+
+#### Counterfactual
+
+**Prose would have reached the alternatives and not the interval.** The three
+options and their trade-offs are argued from `entry-name-is-the-only-seam` and
+the two architecture documents without running anything. What prose does not
+produce is retained counterexample 1: the settle-to-disposal window reads as a
+*small* gap in every prose account of the protocol — including
+`TODO.finish_process.md`'s own, which names the interval and treats it as a
+constraint to hold rather than as a boundary that decides ownership. Seeing a
+reader classify that state as a **fresh container** is what turns it from a
+constraint into an argument about where the operation can live.
+
+**Alloy would have reached counterexample 1 and probably not counterexample 2.**
+RC1 is a reachability question over a static shape and is exactly the kind of
+thing entry 042's slice met from the other side; RC2 is about an environment
+value moving *between* two observations, which is a temporal-operator question
+Alloy 6 can pose but which the action-with-a-drift-step shape states in one line.
+
+**The cheapest instrument in this entry is not a model.** The vocabulary
+enumeration took about ten minutes, needed no tool, and answered the leaf's first
+`Done when` outright — with a two-directional control that a model run would not
+have supplied.
+
+#### Verdict
+
+Reach for a **throwaway executable model** again when the question is *where does
+this operation live*, and the deciding evidence is a state the protocol produces
+rather than a property it violates. Two conditions on doing it the same way
+again: check every negative with the symbolic backend, because a simulated green
+on an absorbing-environment model is not a result; and write every claim over the
+contract, because a claim that names a dial cannot be killed by that dial.
+
+**Decided:** [`root-lifecycle-stays-with-its-receipt`](adr/root-lifecycle-stays-with-its-receipt.md).
+`formal-synthesis-k16` therefore inserts **no** ordinal root-lifecycle
+implementation leaf before `extract-task-tree-k24`, and carries the narrowed
+successor question that record states.
+
+
 ## What is being compared, and what is not
 
 The subject is grove's own modular redesign: **task-tree semantics**, the

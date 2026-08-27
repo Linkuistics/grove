@@ -71,6 +71,20 @@ domain hook implies. The containing directory outlives both the root's creation
 and its deletion in every domain, and a rename that a version control system
 must be told about commits a byte-identical tree either way.
 
+**A third pressure on the same rule was tested and did not fire, and what it
+cost is worth recording beside the two above.** Whole-root creation and
+destruction are the case the containing-directory lock was chosen for, so they
+are the strongest candidate a per-domain hook has yet had. The contract turns out
+to be statable with **no domain vocabulary at all** — the measurement is in
+`docs/formalism-findings.md` entry 047 — and creation needs no hook of any kind.
+Destruction does: it must consult the caller's three-valued grade of an external
+effect at four points, which is a callback by another name, and a caller
+consulted from inside the transaction can only be refused. It also needs an
+obligation the library cannot check, and a receipt the library has nowhere to
+put. So the rule holds for the reason it was written rather than by luck, and the
+decision is
+[`root-lifecycle-stays-with-its-receipt`](root-lifecycle-stays-with-its-receipt.md).
+
 **It costs a second thing, measured at `cli-k16` and worth naming because it is
 the half a reader will assume was not paid.** `Error::Malformed` and
 `Error::Reserved` carry `EntryName::Err`, so a *parse* failure reaches an

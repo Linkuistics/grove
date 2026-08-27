@@ -2404,12 +2404,19 @@ fun unprovable: set Obj { foreignEntries + Slot.occAt }
 
 // --- TT-24.a: nothing unprovable is ever mutated ---------------------------
 
-/* Stated over EVERY action and over EVERY root, which is what separates it from
-   `TT-04`.  `TT-04` is a claim about grove's five tree mutations on a root
-   grove may act on at all; this one reaches the root-lifecycle actions and the
-   roots `CurrentRootThroughout` excludes — an `initialise-root` over a
-   directory that already holds someone's bytes is the fail-closed violation
-   nothing else in this file would catch. */
+/* Stated over every action THIS FILE ADMITS and over EVERY root, which is what
+   separates it from `TT-04`.  `TT-04` is a claim about grove's five tree
+   mutations on a root grove may act on at all; this one reaches the
+   root-lifecycle actions and the roots `CurrentRootThroughout` excludes — an
+   `initialise-root` over a directory that already holds someone's bytes is the
+   fail-closed violation nothing else in this file would catch.
+
+   IT DOES NOT REACH A FINISH TRANSACTION'S STEPS OR THE QUARANTINE REAPER, and
+   the catalogue now says so: `action` spans scopes, so an obligation quantified
+   over it is read over its own scope's admitted set
+   (`docs/adr/obligations-follow-context-not-artifact.md`, clause 4).  Those two
+   contexts are `FN-32`'s and `FN-21.c`'s, and a green here is not evidence
+   about either. */
 check TT_24a_no_action_mutates_what_it_cannot_prove_is_its_own {
   (GroveGrammar and SingleProc) implies always (
     Sys.act' not in (HandEdit + ForeignWrite) implies

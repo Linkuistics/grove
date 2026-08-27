@@ -2254,8 +2254,12 @@ module taskTree {
   // `inv_TT_24c` was a transcription of `gateOutcome`'s own branch that no
   // control killed, and the Alloy column declared the same cell out-of-bounds
   // rather than fill it that way.  The two columns disagreeing about one cell
-  // is what surfaced the placement question; `TT-24.a` above is quantified over
-  // every action and is what the shared-safety register means by `TT-24`.
+  // is what surfaced the placement question.  `TT-24.a` above is read over the
+  // actions THIS scope admits — `SY-14`'s *no admitted action* idiom, and what
+  // `inv_TT_24a` actually checks, since `hist.unownedMutated` is set only by
+  // this file's own steps.  The shared-safety register's `TT-24` is the CLAIM,
+  // which `TT-24.a`, `FN-32` and `FN-21.c` deliver between them
+  // (`docs/adr/obligations-follow-context-not-artifact.md`, clause 4).
   //
   // `TFinishTxn`, `TReap` and `BlockedO` STAY, because surviving obligations
   // read them: `wit_TT_24a` accepts either non-mutating outcome, `TT-24.b`

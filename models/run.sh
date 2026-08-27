@@ -37,6 +37,16 @@
 #      It is REPORTED, NEVER FATAL: a family may honestly answer what another
 #      cannot express, and a control is not always available.  What it buys is
 #      that the next reader of the coverage matrix meets the fact.
+#
+#      AND IT SAYS WHAT KIND OF ANSWER THE ANSWERING FAMILY GAVE, because the
+#      first version did not and its own evidence sentence was therefore false.
+#      A cell is COMPLETE only with a property AND a witness; crediting a
+#      property alone as "answered" reported a vacuous property — an antecedent
+#      nothing reaches — as an answer, in the line that exists to expose exactly
+#      that.  A coverage-asserting run fails on it later; a `--no-coverage` run
+#      prints the sentence with no counterweight.  `models/run-controls.sh`
+#      controls 8 – 10 are this line's positive and negative pair, and they
+#      assert the LINE rather than an exit status, since it can never be fatal.
 #   4. ASSERT Q4'S REMOVAL MATRIX IN BOTH DIRECTIONS, PER FAMILY.  The
 #      catalogue calls the artifact/transition removal matrix "a runner
 #      obligation like any other: a removable artifact with no row fails the
@@ -921,8 +931,10 @@ if [[ "$q4_in_scope" == 1 ]]; then
         *)    # A row may cite a CLAIM rather than one of its sub-identities: the
               # register's shared-safety list names `TT-24`, and the manifest —
               # whose unit is the pair `(family, obligation)` — carries only
-              # its lettered sub-identities.  `Q4-6` was that case; it now cites
-              # `TT-24.a` directly, and the relaxation stays for the next one.
+              # its lettered sub-identities.  `Q4-6` was that case; it cited
+              # `TT-24.a` directly until that citation was withdrawn as
+              # cross-scope and the row went to `none`, and the relaxation stays
+              # for the next one.
               grep -qxF "$rob" <<<"$manifest" || grep -q "^${rob}\\.[a-z]$" <<<"$manifest" ||
                 q4_errors+=("row $rid ($rfam, '$rart') cites $rob, which the catalogue does not define") ;;
       esac
@@ -1020,6 +1032,7 @@ done <<<"$selected_manifest"
 if [[ ${#families[@]} -gt 1 ]]; then
   contested=0
   contested_uncontrolled=0
+  contested_nowitness=0
   contested_lines=""
   while read -r ob; do
     [[ -n "$ob" ]] || continue
@@ -1034,10 +1047,23 @@ if [[ ${#families[@]} -gt 1 ]]; then
     [[ -n "$gapped_by" && -n "$answered_by" ]] || continue
     contested=$((contested + 1))
     for fam in $answered_by; do
-      if [[ -n "${has_control[$fam $ob]:-}" ]]; then
-        contested_lines+="  $ob  ${gapped_by% } declared a gap; $fam answered, and carries a control"$'\n'
+      # WHAT KIND OF ANSWER IT IS, by the coverage matrix's own definition: a
+      # cell is COMPLETE only with both a property and a witness, and a property
+      # alone prints `NO-WITNESS` there.  This block credited `covered_prop`
+      # alone and called it "answered", so a vacuous property — an antecedent
+      # nothing reaches — was reported as evidence in the very line introduced to
+      # expose false confidence.  A coverage-asserting run fails on it later; a
+      # `--no-coverage` run prints the sentence with no counterweight at all.
+      if [[ -n "${covered_wit[$fam $ob]:-}" ]]; then
+        kind="answered"
       else
-        contested_lines+="  $ob  ${gapped_by% } declared a gap; $fam answered with NO CONTROL"$'\n'
+        kind="answered WITH A PROPERTY ONLY, no witness"
+        contested_nowitness=$((contested_nowitness + 1))
+      fi
+      if [[ -n "${has_control[$fam $ob]:-}" ]]; then
+        contested_lines+="  $ob  ${gapped_by% } declared a gap; $fam $kind, and carries a control"$'\n'
+      else
+        contested_lines+="  $ob  ${gapped_by% } declared a gap; $fam $kind, with NO CONTROL"$'\n'
         contested_uncontrolled=$((contested_uncontrolled + 1))
       fi
     done
@@ -1048,7 +1074,8 @@ if [[ ${#families[@]} -gt 1 ]]; then
     echo "   Not a failure. An answer no control can kill is a transcription of the"
     echo "   machinery it imported, and that is what this line exists to show."
     printf '%s' "$contested_lines"
-    echo "-- $contested contested, of which $contested_uncontrolled have no control on the answering side"
+    echo "-- $contested contested, of which $contested_uncontrolled have no control on the answering side,"
+    echo "   and $contested_nowitness are answered by a property with no witness beside it"
   fi
 fi
 

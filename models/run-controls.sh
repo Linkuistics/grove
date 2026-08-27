@@ -3,7 +3,14 @@
 #
 # `models/run.sh` is a test seam with four obligations (its own header lists
 # them), and every one of them is a claim that the runner goes RED in a
-# situation nobody normally creates.  A suite that has never been shown to fail
+# situation nobody normally creates.
+#
+# CONTROLS 8 – 10 ARE THE EXCEPTION AND THEY SAY SO, because the thing they
+# control is REPORTED AND NEVER FATAL by design: the contested-cell report.  A
+# line that cannot go red still has to be shown to fire, and to fire correctly —
+# a report whose evidence sentence is false is worse than no report, since it is
+# read as the counterweight.  So those three assert the LINE rather than the
+# exit status.  A suite that has never been shown to fail
 # is not evidence, and a runner that has never been shown to fail is a green
 # tick over nothing — which is the same hazard the model's own `mutant_`
 # instances exist to close, one level up.
@@ -176,6 +183,109 @@ ctl_deleted_property() {
 }
 
 # ---------------------------------------------------------------------------
+# THE CONTESTED-CELL REPORT NEEDS TWO FAMILIES, so it needs a repository copy
+# the `--family quint` copy above cannot give it, and an Alloy that answers in
+# milliseconds.  Both are supplied the way control 5 supplies a dead `quint`: by
+# a SHIM.  What is under test is the RUNNER'S REPORTING LOGIC — which family
+# gapped, which answered, with what kind of answer, and whether a control names
+# the obligation — and every input to that logic is read from the catalogue, the
+# scope README and the command names in the model files.  None of it comes from
+# a solver, so a solver that finds nothing exercises the path exactly.
+#
+# A real `task-tree.als` here would cost about two hours and change no line of
+# the report, so the copy gets a one-command stand-in instead.  Alloy therefore
+# covers no obligation in these three controls, coverage assertion goes red, and
+# that is expected: `expect ... any` asserts the LINE, and the line is the
+# control's whole subject.
+shim_java() {
+  local d="$work/shim-java"
+  mkdir -p "$d"
+  cat >"$d/java" <<'SHIM'
+#!/usr/bin/env bash
+case "$1" in
+  -version) echo 'openjdk version "21.0.0" 2023-09-19' >&2; exit 0 ;;
+  *)        exit 0 ;;   # `exec -c <cmd>`: no `---Trace---`, so every `check` passes
+esac
+SHIM
+  chmod +x "$d/java"
+  echo "$d/java"
+}
+
+# `fresh_repo` plus an Alloy family: a one-command stand-in model, and a GAP
+# declared for `$2` so exactly one cell is contested.
+fresh_repo_both() {
+  local d; d=$(fresh_repo "$1")
+  cat >"$d/crates/grove-task-tree/models/task-tree.als" <<'ALS'
+// Stand-in.  One command so the runner does not report zero work, naming no
+// obligation so it credits no cell and is not a bad command.
+sig Probe {}
+check probe_the_runner_reaches_this_file { no Probe implies no Probe } for 1
+ALS
+  printf '\n- **GAP** alloy `%s` (out-of-bounds) — injected by `models/run-controls.sh`.\n' \
+    "$2" >>"$d/crates/grove-task-tree/models/README.md"
+  echo "$d"
+}
+
+run_copy_both() {
+  local d="$1"; shift
+  local shim; shim=$(shim_java)
+  # The runner checks the jar EXISTS before it will run an Alloy family, so the
+  # stand-in needs a file to point at.  The shim never opens it.
+  : >"$work/stand-in-alloy.jar"
+  set +e
+  QUINT_SAMPLES=1 QUINT_STEPS=1 JAVA="$shim" ALLOY_JAR="$work/stand-in-alloy.jar" \
+    bash "$d/models/run.sh" --scope task-tree --quiet >"$d/out" 2>&1
+  echo $? >"$d/rc"
+  set -e
+}
+
+# ---------------------------------------------------------------------------
+# 8. A CONTESTED CELL ANSWERED BY A PROPERTY ALONE.  The coverage matrix calls
+#    a cell complete only with a property AND a witness; the contested report
+#    credited `covered_prop` by itself and printed "answered".  A property whose
+#    antecedent nothing reaches is exactly what that report exists to expose, so
+#    a report that calls it an answer states the opposite of its own subject.
+#    `TT-19`'s witness is deleted and Alloy declares the gap.
+# ---------------------------------------------------------------------------
+ctl_contested_property_only() {
+  local d; d=$(fresh_repo_both contested_prop 'TT-19')
+  local f="$d/crates/grove-task-tree/models/task-tree.qnt"
+  perl -0pi -e 's/^  val wit_TT_19_a_preparing_tree_that_looks_perfectly_walkable: bool =\n(?:.+\n)+?\n/\n/m' "$f"
+  if grep -q 'wit_TT_19' "$f"; then
+    echo "FAIL  contested-property-only   mutation did not apply"; failed=$((failed + 1)); return
+  fi
+  run_copy_both "$d"
+  expect contested-property-only "$d" any \
+    'TT-19 +alloy declared a gap; quint answered WITH A PROPERTY ONLY, no witness'
+}
+
+# ---------------------------------------------------------------------------
+# 9. `control_ob`, POSITIVELY.  `TT-21.a` is answered by Quint and named by
+#    `inv_fail_MUT_TT_21a_...`, so the line must say the answering family
+#    carries a control.  This is the half of the report that decides whether a
+#    contested answer is a transcription, and it had no durable control at all.
+# ---------------------------------------------------------------------------
+ctl_contested_control_seen() {
+  local d; d=$(fresh_repo_both contested_ctl 'TT-21.a')
+  run_copy_both "$d"
+  expect contested-control-seen "$d" any \
+    'TT-21.a +alloy declared a gap; quint answered, and carries a control'
+}
+
+# ---------------------------------------------------------------------------
+# 10. `control_ob`, NEGATIVELY, and the pair is the instrument.  `TT-19` is a
+#     real obligation Quint answers COMPLETELY and no control names, so the same
+#     line must read NO CONTROL.  Without this half, an extractor that matched
+#     everything would pass control 9 and report every cell controlled.
+# ---------------------------------------------------------------------------
+ctl_contested_control_unseen() {
+  local d; d=$(fresh_repo_both contested_noctl 'TT-19')
+  run_copy_both "$d"
+  expect contested-control-unseen "$d" any \
+    'TT-19 +alloy declared a gap; quint answered, with NO CONTROL'
+}
+
+# ---------------------------------------------------------------------------
 # 5. A DEAD TOOL at the front door: `quint` is on PATH and cannot launch.
 # ---------------------------------------------------------------------------
 ctl_dead_quint_launch() {
@@ -211,7 +321,8 @@ ctl_dead_backend() {
 }
 
 all=(invented_obligation claim_level deleted_witness deleted_property
-     dead_quint_launch dead_quint_run dead_backend)
+     dead_quint_launch dead_quint_run dead_backend
+     contested_property_only contested_control_seen contested_control_unseen)
 want=("${@:-}")
 [[ -n "${want[0]:-}" ]] || want=("${all[@]}")
 

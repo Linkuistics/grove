@@ -493,6 +493,18 @@ the shape of a false-confidence incident rather than a finding. `FN-31` is its
 claim; the [deliberate omission](#deliberate-omissions) covers only the marker's
 byte layout.
 
+**The groups belong to different scopes, so *action* owns none of them, and an
+obligation quantified over it is read prefix-locally.** Observation and Tree
+mutation are `grove-task-tree`'s, Finish is `grove-finish`'s, Lifecycle is the
+application joint's, and Environment is the world's and admitted by each model
+that needs it. A claim stated over *every action* is therefore not placeable as
+one obligation: it becomes one obligation per scope, each ranging over **exactly
+what that scope admits** and saying so in its own text — `SY-14`'s *no admitted
+action*, and `TT-24.a`'s
+([`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md),
+clause 4). The same reading governs every other group-spanning term this
+vocabulary defines.
+
 The environment actions are what make the models behavioural rather than
 structural. `crash` may occur between any two steps of any action; `hand-edit`
 is how an arbitrary well-formed tree is *reached* rather than posited
@@ -889,9 +901,25 @@ rewrite an entry it cannot prove is its own. Which non-mutating outcome it
 produces is **not** the model's choice: it is fixed by how far the caller had
 already gone, per [Outcomes](#outcomes).
 *Class*: shared safety.
+
+**The claim spans every action group; its obligations do not, and that is the
+placement rule rather than a weakening.** *Action* is partitioned by
+§[Actions](#actions) across Observation, Tree mutation, Finish, Lifecycle and
+Environment, so it owns no single scope and an obligation quantified over it is
+read over **exactly what its own scope admits**
+([`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md),
+clause 4) — `SY-14`'s *no admitted action* idiom, applied here. A property this
+broad is therefore one obligation per scope, each checked where its actions
+live: `TT-24.a` below for the observation and tree-mutation groups, `FN-32` for
+a live transaction's steps, `FN-21.c` for the quarantine reaper. **No obligation
+states it over the Lifecycle group**, and that is a declared limit of the
+catalogue rather than a covered claim.
 *Obligations*:
-- `TT-24.a` — no action mutates an entry whose ownership it cannot prove.
-  *Witness*: a mutation attempted against an unprovable entry, shown not taken.
+- `TT-24.a` — no **admitted** action mutates an entry whose ownership it cannot
+  prove. The admitted set is this scope's — the observation and tree-mutation
+  groups, `initialise-root` included — and both families' commands are executed
+  against it and no other. *Witness*: a mutation attempted against an unprovable
+  entry, shown not taken.
 - `TT-24.b` — an ordinary tree operation meeting a foreign entry at a reserved
   name returns `Refused(ReservedNameOccupied(entry))`, leaving the tree
   byte-identical and naming no recovery. *Witness*: reached.
@@ -902,10 +930,22 @@ quarantine reaper — name `grove-finish`'s actions and outcomes, and
 `grove-finish` depends on `grove-task-tree` rather than the reverse, so an
 obligation stated over them is not one this crate can deliver
 ([`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md)).
-They are `FN-32` and `FN-21.c`, which cite this claim back. `TT-24.a` is
-quantified over **every** action, so it still reaches both contexts wherever a
-model admits them, and it is what the shared-safety register means by `TT-24`.
-Neither letter is ever reused.
+They are `FN-32` and `FN-21.c`, which cite this claim back. Neither letter is
+ever reused.
+
+**`TT-24.a` does not reach those contexts, and an earlier revision of this
+paragraph said it did.** It said `TT-24.a` was quantified over *every* action and
+so still reached both contexts wherever a model admits them. That is false of
+what is checked: Alloy's `TT_24a` quantifies over the task-tree file's own
+transitions and Quint's reads a history flag only that file's steps set, so a
+green `TT-24.a` is a statement about the observation and tree-mutation groups
+and about nothing else. It is also incompatible with the placement rule the same
+revision landed — an obligation naming the Finish and Lifecycle groups names
+scopes above `TT-`, which clause 1 forbids. The prefix-local reading is the one
+that survives; what the shared-safety register means by `TT-24` is the **claim**,
+which its three per-scope obligations deliver between them. **A scope above may
+not cite `TT-24.a` as evidence about an action `TT-` does not admit** — the one
+row that did (`crates/grove-finish/models/README.md`, Q4-6) now reads `none`.
 
 **`TT-25` — a node is never marked.** Done-ness SHALL be derived from the absence
 of a live leaf beneath it, and no action SHALL write a node's state.

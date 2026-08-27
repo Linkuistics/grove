@@ -523,6 +523,17 @@ module scenario_foreign_marker {
   /// `FN-31.d`.  A foreign marker, declined: a replacement is never performed
   /// against a marker Grove cannot prove is its own.
   val wit_FN_31d_a_foreign_marker_declined: bool = hist.replaceDeclinedForeign
+
+  /// `FN-32`'s MARKER HALF, WITNESSED WHERE A STEP COULD ACTUALLY MUTATE IT.
+  /// The library witness lands beside a `Discard`, which frames the marker
+  /// unconditionally and so cannot probe the ownership gate at all; this one is
+  /// the replacement meeting a marker it cannot prove is its own and leaving it
+  /// standing.  Same state `wit_FN_31d` reaches — deliberately, because that is
+  /// the ONE reachable site where the marker's ownership bit is read, and
+  /// `FN-32` says so as shared safety where `FN-31.d` says it as incumbent
+  /// mechanics.
+  val wit_FN_32_a_transaction_step_meets_an_unprovable_marker: bool =
+    hist.replaceDeclinedForeign and not(hist.mutatedUnprovenMarker)
 }
 
 module scenario_unclassifiable {
@@ -1165,8 +1176,60 @@ module mutant_unproven_ownership {
   val inv_fail_MUT_FN_10b_unclassifiable_content_mutated_anyway: bool =
     inv_FN_10b_unclassifiable_content_fails_closed
 
-  val inv_fail_MUT_FN_32_a_transaction_mutates_what_it_cannot_prove: bool =
-    inv_FN_32_a_transaction_never_mutates_what_it_cannot_prove_is_its_own
+  /// `FN-32`, THROUGH THE WITNESS SLOT AND ONLY THROUGH IT.  This module's
+  /// environment (`ENV_PHASES = Set(0, 1, 2)`, `ENV_FOREIGN = Set(0)`) never
+  /// reaches a foreign cleanup marker, so the kill this control records is the
+  /// slot site's — which is exactly why it is stated over the slot flag rather
+  /// than over the aggregate.  Stated over the aggregate it read as evidence
+  /// about both artifacts `FN-32` names while probing one, which is the hole
+  /// `obligation-placement-k67` found.  The marker's own control is
+  /// `mutant_unproven_marker` below.
+  val inv_fail_MUT_FN_32_a_transaction_mutates_a_slot_it_cannot_prove: bool =
+    not(hist.mutatedUnprovenSlot)
+}
+
+/// THE SAME DIAL, IN THE ONE ENVIRONMENT THAT REACHES A FOREIGN CLEANUP MARKER.
+/// `scenario_foreign_marker` is what demonstrates that state is reachable at all
+/// (`wit_FN_31d`), and it needs `ENV_PHASES = Set(6)` and `ENV_FOREIGN = Set(2)`
+/// to get there; this module is that scenario with `OWNERSHIP_PROVEN` turned
+/// off, so the replacement that would have DECLINED against a marker it cannot
+/// prove is its own performs it instead.
+///
+/// WHAT IT BUYS, STATED AS THE THING IT WOULD CATCH.  `FN-32`'s marker half is
+/// green in both families, and the only step whose marker mutation is gated on
+/// ownership is the replacement — every other step frames the marker
+/// unconditionally.  So the half could be satisfied by an antecedent nothing
+/// reaches and no run of the suite would say so.  This control is the run that
+/// says so: if the flag is never set, the command does not fail and the RUNNER
+/// goes red on it, because an `inv_fail_` that holds is a control that proved
+/// nothing.
+module mutant_unproven_marker {
+  import finish(
+    RENAME_ATOMIC = true,
+    ATOMIC_DISPOSAL = false,
+    ATOMIC_COMMIT = false,
+    CRASHES = true,
+    FOREIGN_WRITES = true,
+    REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false,
+    LANES = Set(0, 1, 2),
+    REVALIDATE = true,
+    CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true,
+    OWNERSHIP_PROVEN = false,
+    RECOVERY_IDEMPOTENT = true,
+    PREFLIGHT_PURE = true,
+    PREFLIGHT_COMPLETE = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    ENV_BUDGET = 1, ENV_PHASES = Set(6), ENV_KINDS = Set(2),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  val inv_fail_MUT_FN_32_a_transaction_mutates_a_marker_it_cannot_prove: bool =
+    not(hist.mutatedUnprovenMarker)
 }
 
 /// A recovery that finds nothing outstanding and REPAIRS anyway.

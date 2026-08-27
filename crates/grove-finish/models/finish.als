@@ -5629,6 +5629,31 @@ run witness_FN_32_a_transaction_step_meets_an_unprovable_artifact_and_it_stands 
               and one Cleanup.present and no Cleanup.present.cOwner)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
 
+/* THE MARKER HALF, WITNESSED AT THE ONE STEP THAT COULD MUTATE THE MARKER, and
+   the reason it is a SECOND command rather than a stronger constraint on the
+   first.  `witness_FN_32` above lands beside a `Discard`, and `doDiscard` frames
+   the marker with an UNCONDITIONAL `markSame`: the foreign marker stands there
+   because no step in that trace could move it, not because an ownership gate
+   held.  A witness whose relevant step cannot mutate its subject is evidence
+   about the framing and not about the claim, which is what
+   `obligation-placement-k67` found.
+
+   `MarkerReplace` is the only `groveActs - Reap` member whose marker mutation is
+   gated on ownership — every other step frames the marker unconditionally — so
+   this is where the claim has content, and the same state `witness_FN_31d`
+   reaches.  DELIBERATELY THE SAME STATE: `FN-31.d` says it as incumbent
+   mechanics, `FN-32` says it as shared safety, and the class is the whole
+   difference (`docs/specs/semantic-contract.md`, the class register). */
+run witness_FN_32_a_transaction_step_meets_an_unprovable_marker_and_it_stands {
+  interruptedMidEvacuation
+  no Quar.qRid
+  no Repo.tickets
+  one Cleanup.present
+  no Cleanup.present.cOwner
+  eventually (Sys.act' = MarkerReplace and markerForeign
+              and Sys.act' in (groveActs - Reap) and markSame)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
+
 
 // ===========================================================================
 // `EN-08` — INTERRUPTION MAY OCCUR BETWEEN ANY TWO STEPS.  Class:

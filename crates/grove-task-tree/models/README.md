@@ -72,9 +72,24 @@ to state it, at which point its property restates the import.
 another declared out of reach, with whether the answering family carries a
 control — so the next instance of this shape says so in the runner's own output
 rather than waiting for a session to notice. `TT-24` is no longer one: it has
-two obligations, both stated over this crate's own actions, and `TT-24.a` is
-quantified over every action, which is what the shared-safety register means by
-`TT-24`.
+two obligations, both stated over this crate's own actions.
+
+**`TT-24.a` IS READ OVER THIS SCOPE'S ADMITTED ACTIONS AND NOT OVER EVERY
+ACTION**, and an earlier revision of this paragraph said the opposite. *Action*
+is partitioned by the catalogue's own vocabulary across Observation, Tree
+mutation, Finish, Lifecycle and Environment, so it owns no single scope; an
+obligation quantified over it is read prefix-locally, in `SY-14`'s *no admitted
+action* idiom
+([`obligations-follow-context-not-artifact`](../../../docs/adr/obligations-follow-context-not-artifact.md),
+clause 4). That is what both commands here actually check — `TT_24a` quantifies
+over this file's own transitions, and the Quint invariant reads a flag only this
+file's steps set — so the universal reading described no command in the
+repository. What the shared-safety register means by `TT-24` is the **claim**,
+delivered by three per-scope obligations: `TT-24.a` here, `FN-32` for a live
+transaction's steps, `FN-21.c` for the reaper. **A scope above may not cite
+`TT-24.a` as evidence about an action this scope does not admit**; the one row
+that did is `crates/grove-finish/models/README.md`'s Q4-6, and it now reads
+`none`.
 
 ## `task-tree.als`
 

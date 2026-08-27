@@ -162,6 +162,64 @@ report — one family answering what another declared out of reach, with whether
 the answering family carries a control — so the next instance of this shape says
 so in the runner's own output. After that leaf there are none.
 
+**The report's own evidence sentence was false, and `obligation-placement-k68`
+fixed it.** The coverage matrix calls a cell complete only with a property AND a
+witness; the contested block credited a family that had supplied a property
+alone and printed it as *answered*. A vacuous property — an antecedent nothing
+reaches — is precisely what that report exists to expose, so the first version
+could print the opposite of its subject, and a `--no-coverage` run prints it with
+no counterweight at all. The line now distinguishes a complete answer from a
+property-only one and counts the latter. Three durable controls went in with it —
+`models/run-controls.sh` `contested-property-only`, `contested-control-seen` and
+`contested-control-unseen` — the last two being the positive and negative pair
+for `control_ob`, the extractor that decides whether the answering family carries
+a control. They are the first controls in that file to assert a **line** rather
+than a fatal exit, because this report is reported-never-fatal by design; the
+file says so where they are defined.
+
+## The run after the placement integration
+
+Recorded by `obligation-placement-k68`, and it is a **second** whole-repository
+run rather than a correction of the one above: that one is Experiment 2's frozen
+record of the tree as the formal phase built it, and this one is the tree after
+the placement rule, `FN-32`'s controls and the contested-cell fix. Every file the
+runner reads had reached its final state before it was launched.
+
+```text
+models/run.sh
+-- commands run: 794
+-- cells: 256 complete, 0 declared gaps, 0 empty, of 256
+-- Q4 removal matrix (finish): alloy 10 of 10 rows, 3 `none`, 1 abstracted
+                               quint 10 of 10 rows, 3 `none`, 1 abstracted
+exit 0        2h 00m 35s wall / 11931s CPU on a 16-core host
+```
+
+**Read the two runs against each other and three numbers moved, each for a
+recorded reason.** The denominator is **256** rather than 258, because `TT-24.c`
+and `TT-24.d` were retired to `FN-32` and `FN-21.c` and the catalogue carries 128
+obligations; the **two declared gaps are gone** with them, so every cell is
+filled by a command. The Alloy Q4 column reads **3 `none`** rather than 2,
+because `Q4-6` — the cleanup marker — was re-decided from a cross-scope citation
+to `TT-24.a` down to `none`
+([`obligations-follow-context-not-artifact`](../docs/adr/obligations-follow-context-not-artifact.md),
+clause 4, and `crates/grove-finish/models/README.md`). The command count moved
+791 -> 794: three added — an Alloy and a Quint witness for `FN-32`'s marker half,
+and the Quint control that isolates it — against one control replaced in place.
+
+**Exit 0 established by enumeration rather than by the absence of the word
+FAIL**, as `obligation-placement-k63` established it: the runner's distinctive
+fatal diagnostics were searched for together — `placement error:`,
+`runner error:`, `MISSING SCOPE`, `NO ROW`, *rows that do not resolve*,
+*commands naming no obligation*, *declared gaps in BOTH families*, *not reported
+by the run*, *failed to run*, *failed to complete*, *refusing to guess*, and a
+`FAIL ` line. **Zero hits**, and the pattern was controlled against a synthetic
+three-line input, which it matched three times. Both delegated
+`docs/ordinal-fs-tree/models/` runners ran, and the **contested-cell section
+printed nothing**, which is what zero contested cells looks like.
+
+`models/run-controls.sh`: **10 passed, 0 failed** — the seven earlier controls
+and the three the contested-cell report gained.
+
 **Why the whole-repository run is still recorded separately from the six cells.**
 A bare `models/run.sh` is not the union of `--scope`/`--family` invocations: it
 additionally asserts obligation coverage over the **whole** catalogue in one

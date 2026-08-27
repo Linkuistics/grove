@@ -875,6 +875,15 @@ module finish {
     // `TT-24.a` / `FN-21.b` / `FN-31.d`: a mutation against something Grove
     // could not prove is its own.
     mutatedUnproven: bool,
+    // `FN-32`, PER ARTIFACT, and the split is what makes the claim falsifiable
+    // one artifact at a time.  `mutatedUnproven` is set by three call sites —
+    // the witness slot, the quarantine name and the cleanup marker — so a
+    // control that flips the ownership gate globally kills any invariant
+    // reading it, whichever site actually fired.  `FN-32` names the slot and
+    // the marker and deliberately NOT the quarantine, so it reads these two and
+    // each has its own control.
+    mutatedUnprovenSlot: bool,
+    mutatedUnprovenMarker: bool,
     // `EN-13` / `FN-27`: foreign bytes deleted.
     foreignMutated: bool,
     // `FN-27`: bytes outside the task root, the witness, the quarantine and the
@@ -1035,6 +1044,7 @@ module finish {
     stepsVisited: Set(), crashPoints: Set(), preconditionsHit: Set(),
     preflightMovedTree: false, preflightMovedRepo: false,
     mutatedUnproven: false, foreignMutated: false, unrelatedMutated: false,
+    mutatedUnprovenSlot: false, mutatedUnprovenMarker: false,
     unrelatedMutatedOnSuccess: false, unrelatedMutatedOnRefusal: false,
     unrelatedMutatedOnBlock: false, witnessCommitted: false,
     preparingHeldEvacuee: false, rootAbsentBeforeProof: false,
@@ -1270,6 +1280,23 @@ module finish {
       { ...f, h: { ...f.h, mutatedUnproven: true, foreignMutated: true } }
     else f
 
+  /// THE SAME NOTE, AT THE TWO SITES `FN-32` IS STATED OVER, flagged per
+  /// artifact.  A bundle control — one `OWNERSHIP_PROVEN` dial for all three
+  /// sites — cannot say WHICH artifact its kill went through, so an invariant
+  /// reading the aggregate flag stays falsifiable while one of its named
+  /// artifacts could be tautological.  These two are what let a control isolate.
+  pure def noteUnprovenSlot(f: Frame, present: bool): Frame =
+    if (present and not(OWNERSHIP_PROVEN))
+      { ...f, h: { ...f.h, mutatedUnproven: true, foreignMutated: true,
+                   mutatedUnprovenSlot: true } }
+    else f
+
+  pure def noteUnprovenMarker(f: Frame, present: bool): Frame =
+    if (present and not(OWNERSHIP_PROVEN))
+      { ...f, h: { ...f.h, mutatedUnproven: true, foreignMutated: true,
+                   mutatedUnprovenMarker: true } }
+    else f
+
   pure def settle(f: Frame, o: Outcome): Frame =
     { ...f, t: { ...f.t, running: false, pc: SSettled, outcome: o } }
 
@@ -1304,7 +1331,7 @@ module finish {
       | SCreatePreparing =>
         if (meetsUnproven(f, w.foreignAtWitnessName)) blockNow(f, "foreign")
         else
-          val f1 = noteUnproven(f, w.foreignAtWitnessName)
+          val f1 = noteUnprovenSlot(f, w.foreignAtWitnessName)
           go({ ...f1, w: { ...w, witness: WPreparing } }, SWriteManifest)
 
       | SWriteManifest =>
@@ -1561,7 +1588,7 @@ module finish {
           // cannot prove is its own.
           settle({ ...f, h: { ...f.h, replaceDeclinedForeign: true } }, OApplied)
         else
-          val f1 = noteUnproven(f, w.quar.marker == MForeign)
+          val f1 = noteUnprovenMarker(f, w.quar.marker == MForeign)
           // `FN-21.a`.  Disposal is RE-ENTERABLE from any interruption, so this
           // step is where a resumed disposal rejoins the protocol — and what it
           // rejoins is decided by the marker it finds, never by a program
@@ -2804,17 +2831,31 @@ module finish {
   /// says only *fails closed*.  What both columns agree on is that the artifact
   /// does not move.
   ///
-  /// `hist.mutatedUnproven` IS THE TRANSACTION-SIDE FLAG and `hist.foreignMutated`
-  /// is not: `noteUnproven` sets both, the reaper's sweep sets only the second.
-  /// Reading the second here would make this obligation and `FN-21.c` the same
-  /// invariant, and a mutation aimed at either would kill both.
+  /// THE TRANSACTION-SIDE FLAGS AND NOT THE REAPER'S: `noteUnprovenSlot` and
+  /// `noteUnprovenMarker` set `foreignMutated` too, but the reaper's sweep sets
+  /// only that one.  Reading `foreignMutated` here would make this obligation
+  /// and `FN-21.c` the same invariant, and a mutation aimed at either would
+  /// kill both.
+  ///
+  /// IT NAMES ITS TWO ARTIFACTS RATHER THAN THE AGGREGATE, and that is a
+  /// correction `obligation-placement-k68` landed.  `not(hist.mutatedUnproven)`
+  /// was character-for-character `inv_FN_10b`, and it additionally covered the
+  /// QUARANTINE name, which the catalogue's `FN-32` explicitly excludes — a
+  /// quarantine no marker yet authorises is a state the ordinary forward path
+  /// passes through, so it carries no ownership bit.  Reading the two
+  /// per-artifact flags states exactly the claim, and lets a control kill this
+  /// through the slot and through the marker separately.
   val inv_FN_32_a_transaction_never_mutates_what_it_cannot_prove_is_its_own: bool =
-    not(hist.mutatedUnproven)
+    not(hist.mutatedUnprovenSlot) and not(hist.mutatedUnprovenMarker)
 
   /// A transaction step meeting an artifact at a reserved name Grove cannot
-  /// prove is its own, with the artifact still standing.
+  /// prove is its own, with the artifact still standing.  This one is the SLOT's
+  /// — the marker's is `wit_FN_32_a_transaction_step_meets_an_unprovable_marker`
+  /// in `finish-controls.qnt`, because a foreign marker needs a narrowed
+  /// environment to reach.
   val wit_FN_32_a_transaction_step_meets_an_unprovable_artifact: bool =
-    hist.transactionBlockedReserved and not(hist.mutatedUnproven)
+    hist.transactionBlockedReserved and not(hist.mutatedUnprovenSlot)
+      and not(hist.mutatedUnprovenMarker)
 }
 
 // =============================================================================

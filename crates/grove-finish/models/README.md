@@ -1858,6 +1858,7 @@ that sweep, not an assertion.
 | 61 | `FN-29` | `doRevalidate`'s completed refusal releases the **task root's own name** along with the witness — the refusal leaves no grove behind | `witness_FN_22a_the_point_after_the_restoration_is_reached` | KILLED (also kills `FN-19`, `FN-22.d`, `FN-24.b` and `FN-28`; left green: 21 others). **The third form tried — see below** |
 | 62 | `FN-30` | `doCommitAttempt` stops framing the hook — the internal commit runs the operator's hooks | `witness_FN_14_unrelated_modified_work_present_across_a_successful_finish` | KILLED (left green: all 25 others, `FN-27.a` – `FN-27.c` included) |
 | 63 | `FN-32` | `doDiscard`'s else-branch drops `slotSame` and clears the slot — the discard removes exactly what it just refused to classify | `witness_FN_32_a_transaction_step_meets_an_unprovable_artifact_and_it_stands` | KILLED. **`FN-21.c` survives**, which is the row's point: the two obligations are stated over different antecedents — a transaction step here, a sweep there — so neither mutation can kill the other, and `FN-32` is not a restatement of `FN-21.c` |
+| 64 | `FN-32` | `doMarkerReplace`'s **foreign branch** stops framing the marker: the replacement still blocks and still carries `W17OwnershipConflict`, and supersedes the document it cannot prove is its own on its way out | `witness_FN_32_a_transaction_step_meets_an_unprovable_marker_and_it_stands` | KILLED. **Also kills `FN-31.d`**, and that is the finding rather than noise — the replacement is the ONLY `groveActs - Reap` member whose marker mutation is gated on ownership, so `FN-32`'s marker half and `FN-31.d`'s second conjunct have the same content at the same place and differ only in class. Left green: all 60 others, `FN-10.b`, `FN-21.b`, `FN-21.c` and `FN-27.a` – `FN-27.c` included. **Paired with row 63**: 63 kills `FN-32` through the witness slot and leaves the marker untouched, 64 through the marker and leaves the slot untouched, so the claim's two conjuncts are separately falsifiable — which is what `obligation-placement-k67` found row 63 alone could not establish |
 | x1 | *(not an obligation's row — Q4-6's evidence)* | `reapable` narrows to *there is a quarantine* — the sweep with no document to read | *the kills are the fire evidence* | KILLED `FN-21.b` and `FN-21.c`; left green: all 26 others |
 | x2 | *(not an obligation's row — Q4-2's evidence)* | `doSettle`'s restore branch drops `treeMatchesManifest` for `some Root.holds'` — the restoration puts back something the record did not name | `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | KILLED `FN-02` and `FN-22.d`; **`FN-17.a` survives**; left green: 24 others |
 
@@ -2766,7 +2767,7 @@ are transcribed rather than re-derived and a silent edit would lose the fact tha
 the file disagreed with the register for three slices. `formal-synthesis-k16`
 settles which of the two is wrong.
 
-## `TODO.finish_process.md` Q4 — the matrix, and two rows that read `none`
+## `TODO.finish_process.md` Q4 — the matrix, and three rows that read `none`
 
 **The catalogue names the ten rows**, so the matrix is not this file's to size:
 *the reserved witness, the evacuation manifest, its ready mark, the correlation
@@ -2799,7 +2800,7 @@ the artifact has no counterpart in this file.
 | Q4-3 | alloy | its **ready mark** | `FN-10.a` — **incumbent mechanics, so not yet a Q4 answer** | mutation — row 12 |
 | Q4-4 | alloy | the **correlation ticket**, as an *attempt-naming* record | `FN-04` | mutation — row 19, transcribed |
 | Q4-5 | alloy | the **quarantine** | **`none`** | argument, and it is the row Q1 exists for — see below |
-| Q4-6 | alloy | the **cleanup marker**, as the document a sweep reads to know what is Grove's | `TT-24.a` | mutation — row x1, **cross-scope citation**; see below |
+| Q4-6 | alloy | the **cleanup marker**, as the document a sweep reads to know what is Grove's | **`none`** | mutation — row x1, and the row's obligation was `TT-24.a` until `obligation-placement-k68` re-decided it; see below |
 | Q4-7 | alloy | the **replace transition** (`doMarkerReplace`) | **`none`** | mutation — row 45, transcribed: narrowing the transition away leaves **every check in the file green** and stops one witness landing. A liveness hole no safety claim sees |
 | Q4-8 | alloy | the **index image** | — | abstracted. The three lanes' anchors and commit mechanisms are carried as one `Repo.rev` role and the index image has no counterpart here; declared under *Abstractions* since `commit-k41`. The row exists so that a removable artifact is not silently unrowed |
 | Q4-9 | alloy | the **recorded anchor**, as the rollback licence | `FN-16.a` | mutation — row 25, transcribed |
@@ -2846,24 +2847,53 @@ witnesses reached at a bound no greater than the incumbent's. Nothing here runs
 that candidate. `formal-synthesis-k16` reads the row; the Quint column owes its
 own.
 
-**Q4-6 IS DECIDED AND ITS OBLIGATION IS ANSWERED IN ANOTHER SCOPE — A
-CROSS-SCOPE CITATION, WHICH `obligation-placement-k63` MADE A DECLARED CLASS
-RATHER THAN A DEFECT.** Row x1 strips `reapable` back to *there is a quarantine*
-— the sweep with no document to read — and what dies is `FN-21.b` and `FN-21.c`,
-both *incumbent mechanics*. What the mutation actually demonstrates is the
-shared-safety sentence behind them: with nothing at the reserved name to read,
-the sweep removes a quarantine whose in-tree witness still owns it and a foreign
-entry at a reserved name alike, which is **`TT-24.a`** — *no action mutates an
-entry whose ownership it cannot prove* — and `TT-24` is in the register's
-shared-safety list.
+**Q4-6 READS `none`, AND THE ROW CITED `TT-24.a` UNTIL A REVIEW SHOWED THE
+CITATION COULD NOT CARRY IT.** Row x1 strips `reapable` back to *there is a
+quarantine* — the sweep with no document to read — and what dies is `FN-21.b` and
+`FN-21.c`, both *incumbent mechanics*. `obligation-placement-k63` read past them
+to the shared-safety sentence behind them and named `TT-24.a` — *no action
+mutates an entry whose ownership it cannot prove* — on the strength of `TT-24`
+sitting in the register's shared-safety list, and declared the row a cross-scope
+citation.
 
-No command in this file answers `TT-24.a`, and under the placement rule that is
-**correct rather than a hole**: `grove-finish` sits above `grove-task-tree`, so a
-mutation here may break a lower scope's property, and the property is answered
-where its subject lives. `TT-24.a` is covered by both families in
-`crates/grove-task-tree/models/`. What the row lacked was the class and the
-sub-identity, and it now carries both
-([`obligations-follow-context-not-artifact`](../../../docs/adr/obligations-follow-context-not-artifact.md)).
+**`obligation-placement-k67` found the citation invalid, and the argument is one
+sentence: `TT-24.a` is not quantified over this mutation's action.** *Action* is
+partitioned by the catalogue's vocabulary across five groups belonging to three
+scopes, so an obligation stated over it is read over **its own scope's admitted
+set**
+([`obligations-follow-context-not-artifact`](../../../docs/adr/obligations-follow-context-not-artifact.md),
+clause 4). `TT-24.a`'s commands quantify over the task-tree file's own
+transitions and over nothing else; row x1 mutates the **quarantine reaper**.
+A green over one action set is not evidence about another, and clause 2 says a
+citation carries the cited obligation's declared narrowings — which the
+prefix-local reading is. The universal reading is no rescue: under it `TT-24.a`
+names two scopes above `TT-` and clause 1 moves it out of the task-tree scope
+altogether, taking its coverage with it. Either way the row had no obligation.
+
+**So the row reads `none`, and a `none` is an answer rather than a hole.** Q4's
+criterion is *a row whose artifact or transition can be removed without breaking
+any shared-safety claim*, and row x1 is exactly that measurement, executed
+against the action set it changes: the reaper loses its document, and the only
+things that die are two incumbent-mechanics obligations. Every other check in
+the file — twenty-six of them — stayed green, `FN-27` (*nothing unrelated is
+mutated, on any outcome*) included.
+
+**`FN-32` does not rescue it either, and the exclusion is deliberate.** `FN-32`
+is stated over `groveActs - Reap`: `Reap` is excluded precisely so that a
+mutation aimed at the sweep cannot kill it and one aimed at a transaction step
+cannot kill `FN-21.c`. The sweep's own side of fail-closed ownership is
+`FN-21.c`, and `FN-21.c` is incumbent mechanics.
+
+**THE CONSEQUENCE IS A FINDING FOR `finish-verdicts-k65` RATHER THAN A DEFECT
+HERE: no shared-safety obligation in this repository is stated over the
+quarantine reaper's actions.** `TT-24.a` covers the task-tree scope's admitted
+set, `FN-32` covers a live transaction's steps, and the reaper is covered by
+`FN-21.b`/`FN-21.c`, both incumbent mechanics. The cleanup marker therefore joins
+the quarantine (`Q4-5`) and the replace transition (`Q4-7`) as an artifact this
+family's evidence says protects **Grove's own intermediate machinery** and not
+the user — which is `TODO.finish_process.md` Q4's delete/replace criterion met a
+second and third time. Whether that licenses removal is Q1's and Q4's question
+and not this file's.
 
 **The other two instances of the shape are gone rather than declared.**
 `TT-24.c` and `TT-24.d` were stated over this scope's contexts and are retired;
@@ -2912,9 +2942,9 @@ reserved name Grove cannot prove is its own is mutated by a transaction step* is
 proven in this file twice — `FN_10b`'s `treeSame` and `FN_31d`'s
 `(Sys.act' in disposalSteps and markerForeign) implies markSame` — and **both
 claims are incumbent mechanics**, so neither is evidence about a candidate
-protocol. Q1 retains `TT-24`; `TT-24.a` survives and quantifies over every
-action, but this crate's own transaction steps are not in that model's action
-set. `FN-32` is that home, classed **shared safety**.
+protocol. Q1 retains `TT-24`; `TT-24.a` survives, read over the **task-tree
+scope's admitted actions**, and this crate's own transaction steps are not in
+that set. `FN-32` is that home, classed **shared safety**.
 
 **Two reserved names, and the quarantine is deliberately not one of them.**
 A witness slot occupied with no owner, and a cleanup marker with no `cOwner`,
@@ -2923,8 +2953,9 @@ are the two artifacts here that carry an ownership bit.
 true on the ordinary forward path between `QuarRename` and `MarkerCreate`, so
 the quarantine has no ownership bit of its own and its case is the reaper's.
 
-**Quint's witness is the only library-level `wit_` in this column, and that is
-declared rather than accidental.** Every other Quint witness here lives in a
+**Quint's SLOT witness is the only library-level `wit_` in this column, and that
+is declared rather than accidental.** (Its marker witness is a scenario one, for
+the ordinary reason — see below.) Every other Quint witness here lives in a
 `scenario_` instance in `finish-controls.qnt`, because a narrowed environment is
 what makes it reachable in 8000 samples. `wit_FN_32` lands in `base` — the
 general environment, no narrowing — in **322 of 8000 traces (4.03%)**, which is
@@ -2943,10 +2974,79 @@ on.
 Dropping `slotSame` from `doDiscard`'s else-branch kills `FN-32` and leaves
 `FN-21.c` green; row x1's mutation kills `FN-21.b` and `FN-21.c` and leaves
 `FN-32` green. Neither obligation is a restatement of the other, and the two
-columns record it the same way: Quint's `inv_FN_32` reads
-`hist.mutatedUnproven`, set only by `noteUnproven` at a transaction step, while
-`FN-21.c` reads `hist.foreignMutated`, which the sweep also sets. One flag for
-both would have made each mutation kill the other.
+columns record it the same way: Quint's `inv_FN_32` reads flags set only at a
+transaction step, while `FN-21.c` reads `hist.foreignMutated`, which the sweep
+also sets. One flag for both would have made each mutation kill the other.
+
+### `FN-32` NAMES TWO ARTIFACTS AND WAS CONTROLLED ON ONE, WHICH IS WHAT `obligation-placement-k67` FOUND
+
+Everything above was true and none of it was evidence about the **cleanup
+marker**. The claim names two reserved names; mutation 63 removes `slotSame`
+from `doDiscard`, so it kills the first conjunct and says nothing about the
+second. The Alloy witness put both artifacts beside a `Discard` — and `doDiscard`
+frames the marker with an **unconditional** `markSame`, so the marker stood there
+because no step in the trace could move it, not because an ownership gate held. A
+witness whose relevant step cannot mutate its subject is evidence about the
+framing. Quint was worse: `inv_FN_32` read `hist.mutatedUnproven`, an **aggregate**
+flag set by three call sites, so it was character-for-character `inv_FN_10b` and
+covered the quarantine name the catalogue explicitly excludes; its control
+(`mutant_unproven_ownership`) flips one global `OWNERSHIP_PROVEN` dial, so the
+kill it recorded could have come entirely through the slot.
+
+**Both families could therefore have stayed green with the marker half
+tautological**, and no run of either suite could have said so — the failure mode
+entry 046's ledger names, one level down. Four repairs, and the second is the
+measurement.
+
+**1. The Quint invariant now names its two artifacts.** `noteUnprovenSlot` and
+`noteUnprovenMarker` set `mutatedUnprovenSlot` / `mutatedUnprovenMarker` beside
+the aggregate, and `inv_FN_32` reads `not(mutatedUnprovenSlot) and
+not(mutatedUnprovenMarker)`. That is the catalogue's `FN-32` exactly — the
+quarantine name, which carries no ownership bit, is no longer swept in — and it
+is no longer a copy of `inv_FN_10b`.
+
+**2. The marker gate is reachable and load-bearing, and this is the run that
+says so.** `mutant_unproven_ownership`'s environment
+(`ENV_PHASES = Set(0, 1, 2)`, `ENV_FOREIGN = Set(0)`) never reaches a foreign
+cleanup marker at all, so its kill was always the slot's. `mutant_unproven_marker`
+is `scenario_foreign_marker` — the one environment that demonstrably reaches that
+state — with `OWNERSHIP_PROVEN = false`, and
+`inv_fail_MUT_FN_32_a_transaction_mutates_a_marker_it_cannot_prove` is
+**violated** in it. Had the marker half been vacuous the control would have
+*held*, and an `inv_fail_` that holds turns the runner red. `mutant_unproven_ownership`
+keeps the slot's half, now stated over the slot flag so it cannot borrow the
+marker's.
+
+**3. The Alloy witness for the marker sits at a step that could mutate it.**
+`witness_FN_32_a_transaction_step_meets_an_unprovable_marker_and_it_stands`
+reaches a `MarkerReplace` meeting a marker with no `cOwner`, which is the only
+`groveActs - Reap` member whose marker mutation is gated on ownership — every
+other step frames the marker unconditionally. Quint's counterpart is
+`wit_FN_32_a_transaction_step_meets_an_unprovable_marker` in
+`scenario_foreign_marker`, witnessed in **1659 of 8000 traces (20.74%)**, the same
+state and count as `wit_FN_31d`.
+
+**4. An isolating Alloy mutation, row 64.** It is the marker's mutation 63: the
+replacement still blocks and still carries `W17OwnershipConflict`, and supersedes
+the foreign document on its way out. It killed `FN-32` and `FN-31.d` and nothing
+else. **Its *left green* sweep is every `check` command in the file — 62, not a
+named subset** — because the earlier slice sweeps ran twenty-six and this claim's
+neighbours are spread across the discard, disposal and reaper slices; the row
+records the whole set rather than asking a reader to trust the choice of
+twenty-six.
+
+**All four are green in a whole-repository run against final files**, recorded in
+`models/README.md`: 794 commands, `256 complete, 0 declared gaps, 0 empty, of
+256`, Q4 matrix asserted in both families, exit 0.
+
+**THE HONEST RESIDUE, AND IT IS A FINDING RATHER THAN A REPAIR.** The one
+reachable site where a non-`Reap` step reads the marker's ownership bit is the
+replacement, which is `FN-31.d`'s — so `FN-32`'s marker half and `FN-31.d`'s
+second conjunct have the same content at the same place, and mutation 64 kills
+both. The difference is entirely the **class**: `FN-31.d` is incumbent mechanics
+and cannot be evidence about a candidate protocol; `FN-32` is shared safety and
+can. That is the argument the claim was created on, and it is now the argument it
+rests on for this artifact — not an independent second proof.
 
 ## Whether `models/run.sh` grows a matrix reader — decided: yes, narrowly, and it is a leaf
 
@@ -2987,7 +3087,12 @@ it: the exception it names is *if nothing reaches the matrix*. Something does �
 seven of the ten rows cite a mutation with fire-evidence and a neighbour sweep,
 one is `abstracted`, and the two that rest on argument (`Q4-2`, `Q4-5`) each
 enumerate the claims they considered rather than asserting a conclusion, which is
-the shape a reviewer would have to read anyway. The residual risk is the one
+the shape a reviewer would have to read anyway. **A review did come, from the
+other direction, and it moved a row**: `obligation-placement-k67` read `Q4-6`'s
+cross-scope citation rather than its mutation and found the cited obligation
+quantified over a different action set, which is the exact failure mode this
+paragraph called bounded and is not caught by any *left green* sweep. The row now
+reads `none`. The residual risk is the one
 stated above and it is the same risk the mutation matrix has carried since
 `entry-k39`.
 

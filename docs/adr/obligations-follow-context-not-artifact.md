@@ -22,11 +22,47 @@ follows that order in three clauses, applied in sequence:
    citation carries that obligation's declared narrowings with it.
 3. **The joint is for what no crate delivers alone.** `SY-` is for a claim no
    single crate can deliver, not for any claim that merely mentions two.
+4. **A quantifier is read in its own scope's admitted set.** Some terms the
+   catalogue's *Vocabulary* defines are **partitioned across groups that belong
+   to different scopes** — *action* is the one that matters, split across
+   Observation, Tree mutation, Finish, Lifecycle and Environment. Such a term
+   has no single owning scope, so clauses 1 – 3 cannot place an obligation
+   quantified over it. That obligation is read **prefix-locally**: it ranges
+   over exactly what its own scope admits, and its text SHALL say so, in
+   `SY-14`'s idiom — *no **admitted** action*. A property that must hold across
+   every scope's actions is therefore **not one obligation but one per scope**,
+   each stated and checked where its actions live.
 
 The rule is checkable rather than a preference: read the obligation's text, look
 each term up in the catalogue's *Vocabulary*, take the highest owning scope, and
 compare it with the prefix. It is falsifiable by exhibiting a term whose owner
-disagrees, which is what every recorded instance was.
+disagrees, which is what every recorded instance was. Clause 4 is what makes
+that procedure total: without it a group-spanning term returns no owner and the
+lookup has nothing to compare.
+
+## What a cross-scope citation may not do
+
+A citation carries the cited obligation's declared narrowings (clause 2), and
+**clause 4's prefix-local reading is such a narrowing**. So a scope may not cite
+a lower scope's prefix-local obligation as evidence about an **action that
+scope does not admit**. The cited command was executed against a different
+action set; a green over that set says nothing about this one, and a citation
+that hides the difference manufactures exactly the confidence the coverage
+matrix exists to withhold.
+
+This is not hypothetical, and it is why clause 4 exists. `TT-24.a` — *no action
+mutates an entry whose ownership it cannot prove* — was landed under `TT-` with
+prose asserting it "reaches both contexts wherever a model admits them", while
+the finish column simultaneously cited its task-tree coverage as the
+shared-safety evidence for a row whose mutation changes the **quarantine
+reaper**. Both readings cannot stand: under the universal reading `TT-24.a` names
+`grove-finish`'s and the lifecycle's actions and clause 1 moves it out of `TT-`;
+under the prefix-local reading its commands never saw a reaper. The prefix-local
+reading is the one that survives, because it is what both families' commands
+actually check — Alloy's `TT_24a` quantifies over the task-tree file's own
+transitions and Quint's reads a flag only that file's steps set. `TT-24.a` now
+says *no admitted action*, and the row that cited it across the boundary reads
+`none`.
 
 ## The trade-off it settles
 
@@ -80,6 +116,16 @@ changes truth value under translation was never checkable where it sat.
   already has a home; clause 3 is what stops that home absorbing every claim that
   mentions two scopes. Reopen if a claim appears that two crates must *jointly*
   deliver and neither can deliver alone.
+- **Read a group-spanning quantifier universally, and move the obligation to the
+  highest scope any group belongs to.** This is clause 4's live alternative and
+  it was rejected on cost and on truth. `TT-24.a` would become an `SY-`
+  obligation, because the *action* partition reaches the Lifecycle group; the
+  lifecycle model would then owe a fail-closed-ownership property over an action
+  set it abstracts, in both families, and the task-tree column — which has the
+  only model that can actually attempt a mutation against a foreign entry —
+  would carry none. It also states something no command in the repository
+  checks, since no single model admits every group's actions. Reopen if a scope
+  ever appears whose model admits the whole action partition.
 - **Require a control for every obligation, and let falsifiability decide
   placement.** Rejected as the *primary* test because it is necessary and not
   sufficient: it catches `TT-24.c`, whose transcription no control kills, and
@@ -99,3 +145,14 @@ carries a control naming that obligation. It is reported and never fatal: a
 family may honestly answer what another cannot express, and a control is not
 always available. The point is that the next reader of the coverage matrix meets
 the fact instead of reading `gap` as a deficit.
+
+**The report says what kind of answer the answering family gave**, because the
+first version did not and that made its own evidence statement false. The
+coverage matrix calls a cell complete only when a family supplies **both** a
+property and a witness; the contested report credited a family with a
+property alone, so a vacuous property whose antecedent nothing reaches was
+printed as *answered* in the very line introduced to expose false confidence. It
+now distinguishes a complete answer from a property-only one and counts the
+latter separately. `models/run-controls.sh` carries the positive and negative
+controls for both halves of the line — the completeness distinction, and the
+extractor that decides whether the answering family carries a control.

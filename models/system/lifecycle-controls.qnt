@@ -78,6 +78,7 @@ module scenario_teardown {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -133,6 +134,7 @@ module scenario_crash_points {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -180,6 +182,7 @@ module scenario_epoch_handoff {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -240,6 +243,7 @@ module scenario_flat_menu {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -286,6 +290,7 @@ module scenario_recovery {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -337,6 +342,7 @@ module relax_EN_08 {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -382,6 +388,7 @@ module relax_EN_11 {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -424,6 +431,7 @@ module mutant_lease_queue {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -465,6 +473,7 @@ module mutant_death_holds {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -508,6 +517,7 @@ module mutant_late_layout {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -550,6 +560,7 @@ module mutant_preflight_licence {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -591,6 +602,7 @@ module mutant_many_transitions {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -632,6 +644,7 @@ module mutant_unvalidated {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -648,6 +661,17 @@ module mutant_unvalidated {
 
   val inv_fail_MUT_SY_04b_a_transition_runs_without_validation: bool =
     inv_SY_04b_configuration_validation_precedes_every_transition
+
+  /// THE RESTATED HALF, killed by the same dial — and NOT isolating from the
+  /// conjunct above, which is recorded rather than hidden.  It is here because
+  /// the restatement's whole point is that this half now HAS somewhere to die:
+  /// its pair-stated predecessor (`refusalMutated`) was killed by no control in
+  /// this file, because the only step it could look at was the refusal's own.
+  /// With `CONFIG_FIRST` off a grove transition APPLIES under an invalid
+  /// configuration and writes the tree, which the trace form sees and the pair
+  /// form did not.
+  val inv_fail_MUT_SY_04b_grove_writes_under_an_invalid_configuration: bool =
+    inv_SY_04b_grove_never_mutates_the_tree_under_a_configuration_it_has_not_validated
 }
 
 /// MODEL mutation, `SY-05.a`.  A missing task root is read as evidence about an EARLIER grove: the driver
@@ -680,6 +704,7 @@ module mutant_absence_is_evidence {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -723,6 +748,7 @@ module mutant_early_deletion {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -764,6 +790,7 @@ module mutant_charter_only {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -807,6 +834,7 @@ module mutant_absent_witness {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -848,6 +876,7 @@ module mutant_session_finish {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -890,6 +919,7 @@ module mutant_recompute_selection {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -932,6 +962,7 @@ module mutant_no_signal_is_done {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -984,6 +1015,7 @@ module mutant_no_gen_check {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = false,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -1025,6 +1057,7 @@ module mutant_silent_park {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = false,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -1067,6 +1100,7 @@ module mutant_restart_repeats {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = false,
     BLOCK_STICKY = true,
@@ -1109,6 +1143,7 @@ module mutant_block_clears {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = false,
@@ -1155,6 +1190,7 @@ module mutant_guard_disorder {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = false,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -1211,6 +1247,7 @@ module mutant_literal_sy13 {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -1256,6 +1293,7 @@ module mutant_two_finish_leaves {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -1303,6 +1341,7 @@ module mutant_relaunch_stops {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -1352,6 +1391,7 @@ module mutant_done_continues {
     DONE_CONTINUES_LOOP = true,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -1403,6 +1443,7 @@ module mutant_block_unnamed {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -1422,4 +1463,138 @@ module mutant_block_unnamed {
 
   val inv_SY_14a_the_neighbour_stays_green: bool =
     inv_SY_14a_no_admitted_action_clears_a_block
+}
+
+/// THE UNSCOPED CLAIM, WHICH IS THE CATALOGUE'S OWN WORDS, AND IT FIRES.
+///
+/// `SY-04.b` says an invalid configuration *leaves the working tree
+/// byte-identical* and does not scope that to grove.  This module changes NO
+/// dial — every constant is `base`'s — and asserts exactly that sentence: no
+/// step at all, grove's or the operator's, moves a byte under an invalid
+/// configuration.  A hand edit falsifies it, which is entry 042's Alloy
+/// counterexample replayed in Quint, three-and-a-bit states long and needing no
+/// protocol.
+///
+/// It is what makes the narrowing in `inv_SY_04b_grove_never_mutates…` a
+/// DECLARATION rather than a silence: the model states the wide claim, watches
+/// it die, and checks the half that is true.  The pair-stated predecessor could
+/// not have run this control at all — `refusalMutated` never looked at a step
+/// the operator took.
+module mutant_unscoped_bytes {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_04b_the_operator_writes_under_an_invalid_configuration: bool =
+    not(hist.worldMutatedUnderInvalidConfig)
+
+  /// THE SECOND NARROWING'S CONTROL, AND IT IS THIS LEAF'S OWN
+  /// COUNTEREXAMPLE RATHER THAN A REPLAY OF ALLOY'S.
+  ///
+  /// Drop only the *validated* qualifier and the claim still dies, with the
+  /// operator's hands out of it: `configChange` fires after the driver
+  /// recorded its validation, `outcomeOn`'s configuration gate consults that
+  /// RECORDED VERDICT rather than the live configuration, and the next
+  /// transition writes the tree.  A preflight that has become a licence — the
+  /// shape `SY-03` forbids for the layout — with nothing in the catalogue
+  /// forbidding it for the configuration.
+  ///
+  /// The pair-stated predecessor could not have reached this at ANY sample
+  /// count: the offending step is APPLIED, and `refusalMutated` looked only at
+  /// refusals.
+  val inv_fail_MUT_SY_04b_a_validated_configuration_is_a_licence: bool =
+    not(hist.groveMutatedUnderInvalidConfig)
+
+  /// THE NEIGHBOUR, asserted green in the same run, so that the two controls
+  /// above are killing the two narrowings and not the claim itself.
+  val inv_SY_04b_the_neighbour_stays_green: bool =
+    inv_SY_04b_grove_never_mutates_the_tree_under_a_configuration_it_has_not_validated
+}
+
+/// MODEL mutation, `SY-10.b`.  The visible stop borrows `SY-10.a`'s reason.
+///
+/// This is the ISOLATING control for the restated half.  `mutant_silent_park`
+/// turns the timeout off entirely, so the admission parks and returns `ONone`;
+/// under THIS dial the admission still stops, still stops visibly, and still
+/// leaves nobody parked — the single thing wrong is that it answers
+/// `REpochStale`, which is the reason for *this operation named a generation
+/// that is not live*.  The old `not(hist.silentPark)` was green under it,
+/// because a flag derived from `parked` cannot see a name.
+module mutant_borrowed_stop_reason {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = false,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_10b_the_visible_stop_borrows_a_reason: bool =
+    inv_SY_10b_a_contended_generation_never_parks_silently
+
+  /// THE NEIGHBOUR, asserted green: `SY-10.a`'s own claim is untouched by a
+  /// reason borrowed at the admission, which is exactly why borrowing it was
+  /// invisible.
+  val inv_SY_10a_the_neighbour_stays_green: bool =
+    inv_SY_10a_a_stale_operation_is_refused_before_it_touches_the_tree
 }

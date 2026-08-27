@@ -574,6 +574,9 @@ does**, so a survivor is investigated rather than recorded.
 | M10c | `SY-10.a` | an ambient tree operation stops needing an admission it holds | **fires** |
 | M11 | `SY-10.b` | the timeout rewrites the epoch it is forbidden to touch | **fires** — the first attempt did not; see below |
 | M11b | `SY-10.b` | the iteration boundary silently un-parks a blocked process | **fires** |
+| M11c | `SY-10.b` | the visible stop **borrows `SY-10.a`'s reason** (`GEN_STOP_NAMED = false`) | **fires**, and it is the ISOLATING one for the restated half — `SY-10.a` stays green in the same run |
+| M8c | `SY-04.b` | the wide claim, the **operator** included, under `base`'s own constants | **fires** — entry 042's counterexample, replayed |
+| M8d | `SY-04.b` | the wide claim, the operator excluded but a **stale validation** honoured | **fires** — and it is this column's own counterexample, not a replay |
 | M12 | `SY-05.a` | `initialise-root` reuses a **retired** identity | **fires** |
 | M12b | `SY-05.a` | a foreign write **un-retires** the grove whose name it re-occupied | **fires** |
 | M12c | `SY-05.b` | the settle runs **without** the proof | **fires**, and is **not isolating** — see below |
@@ -764,6 +767,38 @@ placement shape.** They are the fourth, fifth and sixth instances of it and
   that no *admitted* action clears a block, and that is checked.
 
 ## Retained counterexamples
+
+**A VALIDATED CONFIGURATION IS A LICENCE, and it is this column's own rather
+than a replay.** Command
+`inv_fail_MUT_SY_04b_a_validated_configuration_is_a_licence`, in
+`mutant_unscoped_bytes` — which moves **no dial**; every constant is `base`'s.
+Eleven states, of which four matter:
+
+```text
+state  2   validate-config              -> Applied,  d.configValidated = true
+                                                     w.configValid     = true
+state  3   config-change (environment)  ->           w.configValid     = false
+state  9   open-epoch                   -> Applied
+state 10   initialise-root              -> APPLIED,  w.tree.bytes 0 -> 1
+                                                     w.configValid  still false
+```
+
+The scaffold is not refused, because `outcomeOn`'s configuration gate asks
+`d.configValidated` — what the driver recorded one step before the world moved —
+where the layout gate three lines below asks `w.layoutOk` live. `SY-03` is the
+catalogue's obligation for exactly this shape and it covers the layout only.
+Reproduce with
+
+```sh
+quint run models/system/lifecycle-controls.qnt --main=mutant_unscoped_bytes \
+  --invariant=inv_fail_MUT_SY_04b_a_validated_configuration_is_a_licence \
+  --max-samples=8000 --max-steps=24 --seed=0x5e0a51d3c0ffee01
+```
+
+**Retained rather than repaired**, because repairing it means deciding what
+`SY-04.b` means, and that is a catalogue change this leaf is forbidden to make.
+`formal-synthesis-k16` owns the disposition.
+
 
 **`EN-07`, the shared-lock scope — and it is exactly the option
 [`bulk-marks-are-not-atomic`](../../docs/adr/bulk-marks-are-not-atomic.md)
@@ -1062,16 +1097,24 @@ and no entry in 026 – 043 either.
 models/run.sh --scope lifecycle --family quint
 ```
 
+**93 commands, 25 of 25 cells, exit 0, 4m27s wall**
+(`quint-statement-shape-k61`, this revision; it was 86 commands and 3m44s before
+`SY-04.b` and `SY-10.b` were restated, and the seven added commands are the two
+restated properties' controls and their asserted-green neighbours).
+
 Two files. [`lifecycle.qnt`](lifecycle.qnt) carries the parameterised library,
 the `base` instance and the `verify_small` model-checking instance;
 [`lifecycle-controls.qnt`](lifecycle-controls.qnt) carries five focused
-scenarios, two assumption controls and twenty-three model mutations. The split
+scenarios, two assumption controls and twenty-five model mutations. The split
 is not tidiness — see *Verification*, and
 [`crates/grove-task-tree/models/README.md`](../../crates/grove-task-tree/models/README.md),
 which found the reason the hard way.
 
 Coverage is asserted: all 25 `SY-` obligations are answered by a property
-command and a witness, and there are no declared gaps. Knobs, all environment
+command and a witness, and there are no declared gaps. Where every property is
+STATED — over the trace, over one operation's pair, or over a single state — is
+swept in its own section below, because a green cell says an obligation was
+answered and says nothing about whether the answer could have been no. Knobs, all environment
 variables read by [`models/run.sh`](../run.sh): `QUINT_SAMPLES` (8000),
 `QUINT_STEPS` (24), `QUINT_SEED` (fixed, so a green run is replayable),
 `QUINT_VERIFY` (0 — see below).
@@ -1214,6 +1257,8 @@ model with the menu rearranged.
 | `relax_EN_08` | `crash` removed | exercise-removal |
 | `relax_EN_11` | `hand-edit` removed | exercise-removal, and the evidence behind this column's `SY-13` narrowing |
 | twenty-three `mutant_*` | one dial each | see below |
+| `mutant_borrowed_stop_reason` | `GEN_STOP_NAMED = false` | the isolating control for `SY-10.b`'s restated half: the visible stop borrows `SY-10.a`'s reason |
+| `mutant_unscoped_bytes` | **no dial** — every constant is `base`'s | `SY-04.b`'s two narrowings, each asserted as the wide claim and each dying |
 | `verify_small` | one process, crash-only environment, budget 1 | the model-checking instance |
 
 **Which module a command runs in** is decided by one rule, defined in
@@ -1222,7 +1267,7 @@ restated here.
 
 ## The controls, and what they establish
 
-**Twenty-three model mutations, and the count is itself the observation.** The
+**Twenty-five model mutations, and the count is itself the observation.** The
 task-tree column needed two and the finish column eleven. This one needs
 twenty-three, and the reason is structural rather than incidental: **an
 executable model of a deterministic loop satisfies almost every ordering claim it
@@ -1241,6 +1286,9 @@ all. Every dial below exists so that one named obligation has somewhere to die.
 | `inv_fail_MUT_SY_03_a_later_gate_honours_the_lease_time_check` | `SY-03` | violated |
 | `inv_fail_MUT_SY_04a_two_transitions_in_one_iteration` | `SY-04.a` | violated |
 | `inv_fail_MUT_SY_04b_a_transition_runs_without_validation` | `SY-04.b` | violated |
+| `inv_fail_MUT_SY_04b_grove_writes_under_an_invalid_configuration` | `SY-04.b` | violated — the restated byte clause, **not isolating** from the row above (same dial) |
+| `inv_fail_MUT_SY_04b_the_operator_writes_under_an_invalid_configuration` | `SY-04.b` | violated — **no dial moved**; entry 042's counterexample replayed, and narrowing 4's first control |
+| `inv_fail_MUT_SY_04b_a_validated_configuration_is_a_licence` | `SY-04.b` | violated — **no dial moved**; this column's own counterexample, and narrowing 4's second |
 | `inv_fail_MUT_SY_05a_absence_is_read_as_evidence` | `SY-05.a` | violated |
 | `inv_fail_MUT_SY_05b_absence_before_the_deletion_is_proven` | `SY-05.b` | violated |
 | `inv_fail_MUT_SY_06a_a_scaffold_writes_only_a_charter` | `SY-06.a` | violated |
@@ -1253,6 +1301,7 @@ all. Every dial below exists so that one named obligation has somewhere to die.
 | `inv_fail_MUT_SY_09c_no_signal_is_inferred_as_done` | `SY-09.c` | violated |
 | `inv_fail_MUT_SY_10a_a_stale_session_touches_the_tree` | `SY-10.a` | violated |
 | `inv_fail_MUT_SY_10b_a_contended_generation_parks_silently` | `SY-10.b` | violated |
+| `inv_fail_MUT_SY_10b_the_visible_stop_borrows_a_reason` | `SY-10.b` | violated — **isolating for the restated half**: the admission still stops, still stops visibly, still parks nobody, and only the NAME is wrong |
 | `inv_fail_MUT_SY_11a_the_guard_order_is_violated` | `SY-11.a` | violated |
 | `inv_fail_MUT_SY_11b_a_generation_wait_under_a_tree_guard_closes_a_cycle` | `SY-11.b` | violated — **over the rebuilt wait graph; see below [k59-F2]** |
 | `inv_fail_MUT_SY_12_a_restart_repeats_a_completed_effect` | `SY-12` | violated |
@@ -1280,6 +1329,8 @@ stays green" is a runner result rather than a claim:
 | `mutant_done_continues` | `SY-09.b` | `SY-09.a`, `SY-09.c` |
 | `mutant_no_signal_is_done` | `SY-09.c` | `SY-09.a`, `SY-09.b` |
 | `mutant_block_unnamed` | `SY-14.b` | `SY-14.a` |
+| `mutant_borrowed_stop_reason` | `SY-10.b` | `SY-10.a` |
+| `mutant_unscoped_bytes` | `SY-04.b`, twice, at two different narrowings | `SY-04.b`'s own narrowed form |
 
 **`mutant_block_clears` had to be rebuilt, and why is the sharpest thing in this
 section [k59-F4].** It used to fire through `sweepBlocked`'s `cleared` test,
@@ -1356,14 +1407,93 @@ this model takes as written:
 - **Bounds**: two processes, four generations, five finish phases, twelve stable
   classes, trace depth 24, 8000 samples, environment budget 3.
 
+## Where every `SY-` property is stated, and what that costs it
+
+**`quint-statement-shape-k61`'s sweep, and it is over all twenty-five rather
+than over the two entry 048 named.** Entry 048's rule is that *a property stated
+over one action's own before/after pair cannot discover that its claim was
+quantified too widely; a property stated over the trace can.* Every property in
+this file folds through one function — `observe(h, wPre, dPre, wPost, dPost, a,
+o, byGrove)` — so where a property is stated is decided entirely by **what its
+flag's setter is allowed to look at**:
+
+- **trace** — the property reads live state, or a flag whose setter reads only
+  the POST-state. Any step in the trace can falsify it, grove's or the world's.
+- **pair** — the setter conjoins a property of the ACTING operation (`applied`,
+  `isRefusal(o)`, `a == AT…`) with a before/after delta, so the claim is
+  attributed to that operation and no other step can falsify it.
+- **state** — computed over one state's hypothetical applications, or over a
+  declared map, so no step falsifies it at all.
+
+A **pair** row is not a defect by itself. It is a defect exactly when the claim's
+subject is wider than one operation, and the table says which is which.
+
+| obligation | stated over | is that the claim's subject? |
+|---|---|---|
+| `SY-01.a` | **trace** — `leaseQueued` off `dPost.waits`, plus live `d.waits` | yes |
+| `SY-01.b` | **pair** — `leaseSurvivedDeath`, off the death step's own post-state | yes; the claim is about what a death leaves |
+| `SY-02` | **pair** — `treeTouchedBeforeLayout`, `configBeforeLayout` | yes; the subject is grove's own gate order |
+| `SY-03` | **pair** — `staleLayoutHonoured` | yes |
+| `SY-04.a` | **trace** — live `d.transitions`, plus `twoTransitionsInOneIteration` off `dPost` | yes |
+| `SY-04.b` (validation) | **pair** — `transitionWithoutConfig` | yes |
+| `SY-04.b` (byte-identity) | **trace**, RESTATED — `groveMutatedUnderUnvalidatedConfig`, over every grove step | **it was not.** See below |
+| `SY-05.a` | **pair** — `absenceReadAsEvidence`, at the scaffold | yes; the subject is an inference grove makes |
+| `SY-05.b` | **trace** — `absentBeforeProven`, a pre/post delta with NO action condition | yes |
+| `SY-06.a` | **pair** — `scaffoldWithoutLeaf` | yes |
+| `SY-06.b` | **pair** — `legacyCompleted` | yes |
+| `SY-07.a` | **trace** — live `w.tree.liveFinish`, plus `twoFinishLeaves` off `w2` | yes |
+| `SY-07.b` | **pair** — `sessionCreatedFinish` | yes |
+| `SY-08` | **pair** — `preempted` | yes |
+| `SY-09.a` | **pair** — `relaunchStoppedLoop` | yes |
+| `SY-09.b` | **pair** — `doneContinuedLoop` | yes |
+| `SY-09.c` | **pair** — `noSignalInferredDone`, `noSignalContinuedLoop` | yes |
+| `SY-10.a` | **pair** — `staleTouchedTree` | yes |
+| `SY-10.b` | **pair**, RESTATED — `contendedStopUnnamed`, over every contended admission's RETURN | yes, and that is the point; see below |
+| `SY-11.a` | **pair** (`orderViolated`) with one **trace** setter at the tree guard | yes |
+| `SY-11.b` | **trace** — live `waitCycle`/`genWaitUnderTreeGuard`, plus `cycleSeen` off `dPost` | yes |
+| `SY-12` | **pair against a trace accumulator** — the step's own operands, compared to `h.maxPhase` | yes, and it is the one property that already read history |
+| `SY-13.a` | **state** — `SWEEP_CLASSES.forall(escapesWithin(…))` over the DECLARED map | it is an existential reachability claim; the witness is what corroborates it |
+| `SY-13.b` | **trace** (`sinkSeen` off `wPost`) plus a **state** half over the declared map | yes |
+| `SY-14.a` | **pair** (`blockCleared`) plus a **state** half (`sweepCleared`, a hypothetical sweep) | yes |
+| `SY-14.b` | **pair** (`blockedActionNotNaming`) plus a **state** half (`sweepAllNamed`) | yes |
+
+**Twelve pair rows survive the sweep and each is the right grain**: their subject
+genuinely is one grove operation, and widening them would assert something about
+the operator that no filesystem-hosted tool can promise — which is the same
+mistake, in the other direction, that `SY-04.b`'s literal wording makes.
+
+### The rule needed a second axis, and `SY-10.b` is why
+
+Entry 048 folded two different defects under one rule. `SY-04.b` was
+**stated at the wrong grain**: its subject is every step under an invalid
+configuration and its predicate looked at one refusal. `SY-10.b` was **stated at
+the right grain and discharged by the wrong thing**: its subject genuinely is one
+admission's return, but `not(hist.silentPark)` read `parked = contended and
+not(GEN_TIMEOUT)` — *the dial spelled backwards*. A property discharged by a
+restatement of its own dial is unfalsifiable at any grain, and no trace/pair
+classification detects it.
+
+So the sweep carries two questions, not one:
+
+1. **Is the property stated at the grain of its claim's subject?** — the table
+   above.
+2. **Is it discharged by an OBSERVATION, or by a restatement of the model's own
+   configuration?** — `SY-10.b` was the only failure, and the repair is that the
+   property now asks what the admission RETURNED.
+
+This is a correction to entry 048's finding 5 rather than a confirmation of it,
+and it is recorded in that entry in place.
+
 ## Narrowings and qualifications, each declared
 
-**Two** obligations are checked over less than their literal text. There were
-three; `SY-14.a`'s narrowing is WITHDRAWN, because the corrected experiment
-showed it was hiding a measurement defect rather than answering a wide
-quantifier **[k59-F4]**. None is a declared `GAP`: each obligation is answered,
-and what is narrowed is recorded here, in entry 046, and — for the first — in a
-control that fires.
+**Three** obligations are checked over less than their literal text, and
+`SY-04.b` is narrowed twice. There were two; `SY-14.a`'s narrowing is WITHDRAWN,
+because the corrected experiment showed it was hiding a measurement defect
+rather than answering a wide quantifier **[k59-F4]**, and `SY-04.b`'s two
+arrived with `quint-statement-shape-k61` when the claim was restated over the
+trace. None is a declared `GAP`: each obligation is answered, and what is
+narrowed is recorded here, in the entries, and — for all three — in a control
+that fires.
 
 ### 1. `SY-13.a` and `SY-13.b` are checked over the ADMITTED-REACHABLE stable classes
 
@@ -1403,6 +1533,76 @@ as `OwnershipConflict`'s, which is the mapping `TT-24`'s three-context table
 makes for the same two artifacts — but the catalogue never states it **for
 `SY-14.b`**, and a family that read it differently would check a different
 claim.
+
+### 4. `SY-04.b`'s byte-identity clause is narrowed twice, and the second narrowing is a finding
+
+`SY-04.b` says *an invalid configuration leaves the working tree
+byte-identical*. Stated over the trace — every step under an invalid
+configuration, not just the refusing one — it is **false twice**, and each
+narrowing has a control under `base`'s own constants with no dial moved.
+
+**First, the operator is excluded.** A hand edit moves a byte while the
+configuration is invalid and grove did nothing.
+`inv_fail_MUT_SY_04b_the_operator_writes_under_an_invalid_configuration` fires
+on it. This is entry 042's Alloy counterexample, replayed here — and it is the
+replay entry 048 finding 5 said was owed. The pair-stated predecessor
+(`not(hist.refusalMutated)`, set from one refusing operation's own before/after
+pair) could not have run this control at all, because the operator's hand never
+entered its predicate.
+
+**Second — and this one is new here — a configuration that goes invalid AFTER
+the driver validated it is excluded.** `outcomeOn` gates transitions on
+`d.configValidated`, the driver's RECORDED VERDICT, while the layout gate three
+lines below reads `w.layoutOk` live. So a `configChange` between the validation
+and the transition leaves the validation standing as a **licence**, and the
+transition writes the tree under an invalid configuration.
+`inv_fail_MUT_SY_04b_a_validated_configuration_is_a_licence` fires on it, with
+the operator's hands out of it.
+
+The catalogue has an obligation for exactly this shape — `SY-03`, *a preflight
+is never a licence* — and states it for the **layout only**. Whether `SY-04.b`
+owes the same, or whether the configuration is deliberately read once per
+iteration, is a catalogue question and `formal-synthesis-k16`'s to disposition.
+The retained counterexample is below.
+
+**Why the pair form could not have found either.** The offending step in the
+second is APPLIED, and `refusalMutated` looked only at refusals; the offending
+step in the first is the operator's, and `refusalMutated` looked only at grove's.
+That is entry 048's rule paying out on its first use, and it paid out twice.
+
+### 5. `SY-10.b`'s trace conjunct over the wait map is WITHDRAWN, and what it found
+
+The restatement tried a second conjunct beside the returned-outcome one: *no
+process is left waiting on the launch generation at any state*, read off
+`dPost.waits`. It **fails in `base`** —
+
+```sh
+quint run models/system/lifecycle.qnt --main=base \
+  --invariant='not(PROCS.exists(q => d.waits.keys().contains(q) and d.waits.get(q) == WGen))' \
+  --max-samples=8000 --max-steps=24 --seed=0x5e0a51d3c0ffee01
+# -> [violation]
+```
+
+— and not for `SY-10.b`'s reason. `contendGen` is `SY-11.b`'s **apparatus**: it
+constructs a generation wait on purpose, so that the cycle claim has a wait-for
+edge to be checked over. The model's `WGen` therefore carries two senses, the
+park `SY-10.b` forbids and the graph edge `SY-11.b` needs, and no predicate over
+`waits` separates them here — including the narrowing to an exclusive hold,
+which also fails:
+
+```sh
+quint run models/system/lifecycle.qnt --main=base \
+  --invariant='not(PROCS.exists(q => d.waits.keys().contains(q) and d.waits.get(q) == WGen and d.genExclusive != -1 and d.genExclusive != q))' \
+  --max-samples=8000 --max-steps=24 --seed=0x5e0a51d3c0ffee01
+# -> [violation]
+```
+
+Stating `SY-10.b` over the wait map would report `SY-11.b`'s scaffolding as a
+protocol defect. **The collision between the two obligations is the finding** —
+one obligation's instrument builds the state another forbids, and neither
+noticed, because `SY-10.b` was stated over its own admission — and it is
+`formal-synthesis-k16`'s to disposition. `SY-10.b` is checked over what the
+admission RETURNS instead, which is the restatement entry 048 actually asked for.
 
 ### 3. `SY-04.a`'s cap is a loop-control guard, not a refusal
 

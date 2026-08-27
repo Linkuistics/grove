@@ -119,6 +119,14 @@ module lifecycle {
   /// timing out into a visible stop.
   const GEN_TIMEOUT: bool
 
+  /// MODEL, `SY-10.b` — the visible stop BORROWS `SY-10.a`'s reason instead of
+  /// naming the contention.  This is the isolating control for the restated
+  /// half of `SY-10.b`: with it off the admission still stops visibly and
+  /// still leaves nobody parked, and the only thing wrong is the NAME it
+  /// returns — which is the thing the old history flag could not ask about,
+  /// and which entry 041 found the closed refusal set has no member for.
+  const GEN_STOP_NAMED: bool
+
   /// MODEL, `SY-11` — the guard order is not enforced: a caller may take the
   /// tree guard and then wait for the launch generation.
   const GUARD_ORDER: bool
@@ -319,6 +327,15 @@ module lifecycle {
     // reason and making the taxonomy claim vacuous.  Recorded in the README and
     // in the experiment entry; `formal-synthesis-k16` owns the disposition.
     | RConfigInvalid
+    // DECLARED ABSTRACTION, and entry 041's catalogue finding replayed into
+    // Quint's own vocabulary.  `SY-10.b` requires a contended generation to
+    // time out into a VISIBLE STOP, and the closed refusal set has NO member
+    // for one: `REpochStale` is `SY-10.a`'s reason and says the operation
+    // named a generation that is not live, which is a different fact.  Naming
+    // the stop is the whole point of stating `SY-10.b` over what the admission
+    // RETURNS rather than over a history flag, so the model names one and
+    // declares it.  `formal-synthesis-k16` owns the disposition.
+    | RGenContended
 
   type Diagnosis = DRecoveryPending | DOwnershipConflict
 
@@ -673,7 +690,29 @@ module lifecycle {
     noSignalWithProvenTeardown: bool,
     staleTouchedTree: bool,
     staleRefused: bool,
-    silentPark: bool,
+    // `SY-10.b`, STATED OVER WHAT THE ADMISSION RETURNS.  The pair-stated
+    // predecessor (`silentPark`, set from `parked = contended and
+    // not(GEN_TIMEOUT)`) was a RESTATEMENT OF THE DIAL: it discharged the
+    // obligation without the model ever writing down what the stop returns,
+    // which is entry 048 finding 5's second case and entry 041's finding.
+    // `contendedStopUnnamed` is quantified over every contended admission in
+    // the trace and is discharged only by a REFUSAL NAMING THE CONTENTION.
+    contendedStopUnnamed: bool,
+    // THE TRACE HALF WAS TRIED AND IS WITHDRAWN, and what it found is the
+    // reason it is named here rather than deleted silently.  Read off the
+    // post-state of every step — `dPost.waits` carrying any `WGen` entry — it
+    // FAILS in `base`, and not because of the epoch-lock park `SY-10.b` is
+    // about: `contendGen` is `SY-11.b`'s apparatus and it constructs a
+    // generation wait ON PURPOSE, to have a wait-for edge to check the cycle
+    // claim over.  The model's `WGen` therefore carries TWO SENSES — the park
+    // `SY-10.b` forbids and the graph edge `SY-11.b` needs — and no predicate
+    // over `waits` separates them here, including the narrowing to an
+    // exclusive hold (`genExclusive != -1 and genExclusive != q`), which also
+    // fails.  Both probes are recorded in the README with their exact
+    // commands.  Stating `SY-10.b` over the wait map would report `SY-11.b`'s
+    // scaffolding as a protocol defect; the collision is a finding for
+    // `formal-synthesis-k16` rather than a counterexample, and `SY-10.b` is
+    // checked over WHAT THE ADMISSION RETURNS instead.
     genTimeoutReported: bool,
     orderViolated: bool,
     fullOrderReached: bool,
@@ -693,9 +732,26 @@ module lifecycle {
     sweepAllNamed: bool,
     blockCleared: bool,
     blockedActionNotNaming: bool,
-    // A refusal that changed the tree's bytes.  `SY-04.b`'s byte-identical
-    // clause, and the general "a refusal mutates nothing" fact it rests on.
-    refusalMutated: bool,
+    // `SY-04.b`'s byte-identical clause, STATED OVER THE TRACE and split by
+    // WHOSE hands moved — which is the whole of entry 048 finding 5 for this
+    // obligation.  The pair-stated predecessor (`refusalMutated`, set from one
+    // refusing operation's own before/after pair) is WITHDRAWN: it could not
+    // reach a byte change made by any step other than the refusal itself, so
+    // the claim's missing scoping was never put under pressure, and no control
+    // in this file killed it.  Both flags below are quantified over EVERY step
+    // of the trace whose pre-state carries an invalid configuration; the
+    // narrowing `SY-04.b` needs is now the SPLIT rather than a silence.
+    groveMutatedUnderInvalidConfig: bool,
+    // The same, and additionally the driver had NOT recorded a validation.
+    // This is the half that is TRUE of the model, and the gap between the two
+    // flags is this leaf's own counterexample: `outcomeOn`'s configuration
+    // gate reads `d.configValidated`, the driver's RECORDED VERDICT, where the
+    // layout gate reads `w.layoutOk` live.  A `configChange` after the
+    // validation and before the transition therefore leaves the validation
+    // standing as a LICENCE — which is the shape `SY-03` forbids for the
+    // layout and which the catalogue states for nothing else.
+    groveMutatedUnderUnvalidatedConfig: bool,
+    worldMutatedUnderInvalidConfig: bool,
     // The furthest finish phase this trace ever reached.  `SY-12`'s "never
     // silently repeats a completed effect" is stated against it.
     maxPhase: int,
@@ -732,14 +788,18 @@ module lifecycle {
     sessionRefusedFinish: false, preempted: false, insertedDuringWindow: false,
     endings: Set(), reopened: false, noSignalInferredDone: false,
     noSignalWithProvenTeardown: false, staleTouchedTree: false,
-    staleRefused: false, silentPark: false, genTimeoutReported: false,
+    staleRefused: false, contendedStopUnnamed: false,
+    genTimeoutReported: false,
     orderViolated: false, fullOrderReached: false, cycleSeen: false,
     waitChainSeen: false, crashPoints: Set(), repeatedCompletedEffect: false,
     unstableAfterCrash: false, resumedAfterCrash: false, stableSeen: Set(),
     escapeEdgesObserved: Set(), walkLen: 0, longestWalk: 0, sinkSeen: false,
     sweepDone: false, sweepCleared: false, sweepAllNamed: false,
     blockCleared: false, blockedActionNotNaming: false,
-    refusalMutated: false, maxPhase: 0, twoDriversLive: false, envUsed: 0,
+    groveMutatedUnderInvalidConfig: false,
+    groveMutatedUnderUnvalidatedConfig: false,
+    worldMutatedUnderInvalidConfig: false,
+    maxPhase: 0, twoDriversLive: false, envUsed: 0,
     deathPending: false, leaseSurvivedDeath: false, lateLayoutRefusal: false,
     launchedAfterInsert: false, relaunchStoppedLoop: false,
     doneContinuedLoop: false, noSignalContinuedLoop: false, leaseQueued: false, secondDriverRefused: false, successorAfterDeath: false,
@@ -921,8 +981,18 @@ module lifecycle {
   // never read back off live state afterwards — the `finish-k12` lesson.
   // ---------------------------------------------------------------------------
 
+  /// `byGrove` IS THE DISCRIMINATOR ALLOY HAS AND THIS FOLD DID NOT, and it is
+  /// the reason entry 042's counterexample could not be replayed here.  The
+  /// world's own actions — `handEditTo`, `foreignWrite`, `topologyChange`, the
+  /// leaf inserted during the launch window, and a driver's death — fold
+  /// themselves in through this same function under an ADMITTED tag
+  /// (`ATAmbient`, `ATReap`) with `ONone`, so no flag written here could tell
+  /// an operator's byte from grove's.  Alloy states the same distinction as one
+  /// conjunct, `Sys.res' != Environmental`.  Passing it explicitly rather than
+  /// inferring it from `o == ONone` keeps the discriminator a declaration
+  /// rather than a coincidence of the call sites.
   pure def observe(h: Hist, wPre: World, dPre: Driver, wPost: World,
-                   dPost: Driver, a: ActionTag, o: Outcome): Hist =
+                   dPost: Driver, a: ActionTag, o: Outcome, byGrove: bool): Hist =
     val c = stableClassOf(wPre)
     val c2 = stableClassOf(wPost)
     val followed = c != c2 and escapeAction(c) == a and escapeTo(c) == c2
@@ -937,8 +1007,25 @@ module lifecycle {
       walkLen: nwalk,
       longestWalk: if (nwalk > h.longestWalk) nwalk else h.longestWalk,
       sinkSeen: h.sinkSeen or sinkAt(wPost, dPost),
-      refusalMutated:
-        h.refusalMutated or (isRefusal(o) and wPost.tree.bytes != wPre.tree.bytes),
+      // `SY-04.b`, OVER THE TRACE.  Every step whose pre-state carries an
+      // invalid configuration is examined — grove's applied steps, its
+      // refusals, and the world's writes alike — and the answer is split by
+      // whose hands moved rather than restricted to the refusing operation's
+      // own pair.  `inv_SY_04b` asserts the GROVE half; the WORLD half is
+      // asserted by a control that must fire, which is where entry 042's
+      // counterexample lands.
+      groveMutatedUnderInvalidConfig:
+        h.groveMutatedUnderInvalidConfig or
+        (byGrove and not(wPre.configValid) and
+         wPost.tree.bytes != wPre.tree.bytes),
+      groveMutatedUnderUnvalidatedConfig:
+        h.groveMutatedUnderUnvalidatedConfig or
+        (byGrove and not(wPre.configValid) and not(dPre.configValidated) and
+         wPost.tree.bytes != wPre.tree.bytes),
+      worldMutatedUnderInvalidConfig:
+        h.worldMutatedUnderInvalidConfig or
+        (not(byGrove) and not(wPre.configValid) and
+         wPost.tree.bytes != wPre.tree.bytes),
       treeTouchedBeforeLayout:
         h.treeTouchedBeforeLayout or (applied and touchesTree(a) and not(dPre.layoutProved)),
       configBeforeLayout:
@@ -1025,7 +1112,7 @@ module lifecycle {
       w' = w,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w, d2, ATAcquireLease, o),
+        ...observe(hist, w, d, w, d2, ATAcquireLease, o, true),
         successorAfterDeath:
           hist.successorAfterDeath or (o == OApplied and hist.deathPending),
         deathPending: hist.deathPending and o != OApplied,
@@ -1045,7 +1132,7 @@ module lifecycle {
       d.lease == p,
       w' = w,
       d' = d2,
-      hist' = observe(hist, w, d, w, d2, ATReleaseLease, o),
+      hist' = observe(hist, w, d, w, d2, ATReleaseLease, o, true),
     }
 
   // ---------------------------------------------------------------------------
@@ -1060,7 +1147,7 @@ module lifecycle {
       d.lease == p,
       w' = w,
       d' = d2,
-      hist' = observe(hist, w, d, w, d2, ATValidateConfig, o),
+      hist' = observe(hist, w, d, w, d2, ATValidateConfig, o, true),
     }
 
   action openEpoch(p: int): bool =
@@ -1079,7 +1166,7 @@ module lifecycle {
       not(violated),
       w' = w,
       d' = d2,
-      hist' = observe(hist, w, d, w, d2, ATOpenEpoch, o),
+      hist' = observe(hist, w, d, w, d2, ATOpenEpoch, o, true),
     }
 
   action closeEpoch(p: int): bool =
@@ -1099,7 +1186,7 @@ module lifecycle {
       d.lease == p,
       w' = w,
       d' = d2,
-      hist' = observe(hist, w, d, w, d2, ATCloseEpoch, o),
+      hist' = observe(hist, w, d, w, d2, ATCloseEpoch, o, true),
     }
 
   // ---------------------------------------------------------------------------
@@ -1151,7 +1238,7 @@ module lifecycle {
       w' = w2,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w2, d2, ATScaffold, o),
+        ...observe(hist, w, d, w2, d2, ATScaffold, o, true),
         absenceReadAsEvidence: hist.absenceReadAsEvidence or readsEvidence,
         freshAfterUnobservedTeardown:
           hist.freshAfterUnobservedTeardown or
@@ -1174,7 +1261,7 @@ module lifecycle {
       w' = w2,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w2, d2, ATCompleteScaffold, o),
+        ...observe(hist, w, d, w2, d2, ATCompleteScaffold, o, true),
         legacyCompleted:
           hist.legacyCompleted or (o == OApplied and notTheSubset),
         partialCompleted:
@@ -1206,7 +1293,7 @@ module lifecycle {
       w' = w2,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w2, d2, ATAppendFinish, o),
+        ...observe(hist, w, d, w2, d2, ATAppendFinish, o, true),
         finishAppended: hist.finishAppended or (o == OApplied and not(reuse)),
         finishReused: hist.finishReused or (o == OApplied and reuse),
         twoFinishLeaves: hist.twoFinishLeaves or w2.tree.liveFinish > 1,
@@ -1228,7 +1315,7 @@ module lifecycle {
       w' = w2,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w2, d2, ATSessionCreateFinish, o),
+        ...observe(hist, w, d, w2, d2, ATSessionCreateFinish, o, true),
         envUsed: hist.envUsed + 1,
         sessionCreatedFinish: hist.sessionCreatedFinish or o == OApplied,
         sessionRefusedFinish:
@@ -1254,7 +1341,7 @@ module lifecycle {
       w' = w,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w, d2, ATSelect, o),
+        ...observe(hist, w, d, w, d2, ATSelect, o, true),
         // `SY-07.a`'s REUSE.  Appending is `appendFinishOp`; reusing is
         // selecting a finish leaf this iteration did not append.
         finishReused:
@@ -1286,7 +1373,7 @@ module lifecycle {
       w' = w,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w, d2, ATLaunch, o),
+        ...observe(hist, w, d, w, d2, ATLaunch, o, true),
         preempted: hist.preempted or (o == OApplied and h != d.selected),
         launchedAfterInsert:
           hist.launchedAfterInsert or (o == OApplied and hist.insertedDuringWindow),
@@ -1311,7 +1398,7 @@ module lifecycle {
         // `ONone`: this is the WORLD's write, not an admitted action's
         // outcome.  Recording it as `OApplied` would make Grove answerable for
         // a leaf a human added, which is the opposite of what `SY-08` says.
-        ...observe(hist, w, d, w2, d, ATAmbient, ONone),
+        ...observe(hist, w, d, w2, d, ATAmbient, ONone, false),
         envUsed: hist.envUsed + 1,
         insertedDuringWindow: true,
       },
@@ -1334,7 +1421,14 @@ module lifecycle {
     // `observe` that a tree was touched and make `SY-03` and `SY-14.b` answer
     // for a lock acquisition.  The tree is touched in `ambientOp`, under the
     // admission this step won.
-    val o = if (timedOut) ORefused(REpochStale)
+    // WHAT THE STOP RETURNS, written down.  `REpochStale` was borrowed here
+    // and it is `SY-10.a`'s reason — *this operation named a generation that
+    // is not live* — which is a different fact from *the epoch lock is held
+    // exclusively and the wait timed out*.  `RGenContended` is declared beside
+    // `RConfigInvalid` for the same reason and with the same disposition
+    // owner.
+    val o = if (timedOut and GEN_STOP_NAMED) ORefused(RGenContended)
+            else if (timedOut) ORefused(REpochStale)
             else if (parked) ONone
             else OReported
     val d2 = { ...d,
@@ -1356,10 +1450,19 @@ module lifecycle {
       w' = w,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w, d2, ATOpenEpoch, o),
+        ...observe(hist, w, d, w, d2, ATOpenEpoch, o, true),
         envUsed: hist.envUsed + 1,
         genTimeoutReported: hist.genTimeoutReported or timedOut,
-        silentPark: hist.silentPark or parked,
+        // `SY-10.b`, DISCHARGED BY THE OUTCOME RATHER THAN BY THE DIAL.  The
+        // predecessor asked `parked`, which is `contended and
+        // not(GEN_TIMEOUT)` — the dial spelled backwards — so the obligation
+        // was met without the closed outcome set ever being consulted.  This
+        // asks what the admission RETURNED, over every contended admission in
+        // the trace, and a park (`ONone`) fails it because `ONone` is not a
+        // refusal naming anything.
+        contendedStopUnnamed:
+          hist.contendedStopUnnamed or
+          (contended and not(isRefusal(o) and refusalOf(o) == RGenContended)),
       },
     }
 
@@ -1380,7 +1483,7 @@ module lifecycle {
       w' = w2,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w2, d2, ATAmbient, o),
+        ...observe(hist, w, d, w2, d2, ATAmbient, o, true),
         staleTouchedTree: hist.staleTouchedTree or (o == OApplied and stale),
         staleRefused:
           hist.staleRefused or
@@ -1415,7 +1518,7 @@ module lifecycle {
       w' = w2,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w2, d2, ATReap, OReported),
+        ...observe(hist, w, d, w2, d2, ATReap, OReported, true),
         endings: hist.endings.union(Set(k)),
         reopened: hist.reopened or reopens,
         noSignalWithProvenTeardown:
@@ -1478,7 +1581,7 @@ module lifecycle {
       not(d.reaped),
       w' = w,
       d' = d2,
-      hist' = observe(hist, w, d, w, d2, ATReap, o),
+      hist' = observe(hist, w, d, w, d2, ATReap, o, true),
     }
 
   /// READ THE SIGNAL, in the window the invalidation opened.
@@ -1508,7 +1611,7 @@ module lifecycle {
       w' = w,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w, d2, ATReap, o),
+        ...observe(hist, w, d, w, d2, ATReap, o, true),
         noSignalInferredDone:
           hist.noSignalInferredDone or (o == OApplied and d.ending == 3 and le == 1),
         relaunchStoppedLoop:
@@ -1563,7 +1666,7 @@ module lifecycle {
       loopAdmits(w, d, ATFinishStep),
       w' = w2,
       d' = d2,
-      hist' = observe(hist, w, d, w2, d2, ATFinishStep, o),
+      hist' = observe(hist, w, d, w2, d2, ATFinishStep, o, true),
     }
 
   action recoverOp(p: int): bool =
@@ -1596,7 +1699,7 @@ module lifecycle {
       loopAdmits(w, d, ATRecover),
       w' = w2,
       d' = d2,
-      hist' = observe(hist, w, d, w2, d2, ATRecover, o),
+      hist' = observe(hist, w, d, w2, d2, ATRecover, o, true),
     }
 
   /// `SY-14`'s instrument: the EXHAUSTIVE sweep of the admitted action set
@@ -1636,7 +1739,7 @@ module lifecycle {
       w' = w,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w, d2, ATAmbient, o),
+        ...observe(hist, w, d, w, d2, ATAmbient, o, true),
         sweepDone: true,
         sweepCleared: hist.sweepCleared or cleared,
         sweepAllNamed: allNamed,
@@ -1723,7 +1826,7 @@ module lifecycle {
       w' = w2,
       d' = d2,
       hist' = {
-        ...observe(hist, w, d, w2, d2, ATReap, ONone),
+        ...observe(hist, w, d, w2, d2, ATReap, ONone, false),
         envUsed: hist.envUsed + 1,
         crashPoints: hist.crashPoints.union(Set(pt)),
         deathPending: true,
@@ -1754,7 +1857,7 @@ module lifecycle {
       hist.envUsed < ENV_BUDGET,
       w' = w2,
       d' = d,
-      hist' = { ...observe(hist, w, d, w2, d, ATAmbient, ONone),
+      hist' = { ...observe(hist, w, d, w2, d, ATAmbient, ONone, false),
                 envUsed: hist.envUsed + 1 },
     }
 
@@ -1773,7 +1876,7 @@ module lifecycle {
       hist.envUsed < ENV_BUDGET,
       w' = w2,
       d' = d,
-      hist' = { ...observe(hist, w, d, w2, d, ATAmbient, ONone),
+      hist' = { ...observe(hist, w, d, w2, d, ATAmbient, ONone, false),
                 envUsed: hist.envUsed + 1 },
     }
 
@@ -1785,7 +1888,7 @@ module lifecycle {
       w' = w2,
       d' = d,
       hist' = {
-        ...observe(hist, w, d, w2, d, ATAmbient, ONone),
+        ...observe(hist, w, d, w2, d, ATAmbient, ONone, false),
         envUsed: hist.envUsed + 1,
         layoutChangedBetweenGates:
           hist.layoutChangedBetweenGates or d.lease != -1,
@@ -2026,7 +2129,42 @@ module lifecycle {
     hist.soloTransitions.size() >= 3
 
   val inv_SY_04b_configuration_validation_precedes_every_transition: bool =
-    not(hist.transitionWithoutConfig) and not(hist.refusalMutated)
+    not(hist.transitionWithoutConfig)
+
+  /// `SY-04.b`'s SECOND HALF, RESTATED OVER THE TRACE — entry 048 finding 5.
+  ///
+  /// The claim is *an invalid configuration leaves the working tree
+  /// byte-identical*.  It used to be checked as `not(refusalMutated)`, set
+  /// from ONE refusing operation's own before/after pair, so the only step
+  /// that could ever falsify it was the refusal itself.  Nothing in this file
+  /// killed it, and — the point — the claim's missing scoping could not be
+  /// discovered from that shape, because the operator's hand never entered the
+  /// predicate at all.
+  ///
+  /// Stated over the trace, EVERY step under an invalid configuration is
+  /// examined — applied steps included — and the claim needs TWO narrowings,
+  /// each declared and each with a control that fires.
+  ///
+  /// 1. **The operator is excluded.** The unscoped sentence is false: a hand
+  ///    edit moves a byte under an invalid configuration and grove did
+  ///    nothing.  `inv_fail_MUT_SY_04b_the_operator_writes_under_an_invalid_configuration`
+  ///    is entry 042's Alloy counterexample, replayed here.
+  /// 2. **A configuration that went invalid AFTER the driver validated it is
+  ///    excluded** — and this one is THIS LEAF'S OWN COUNTEREXAMPLE, which no
+  ///    pair-stated form could have reached.  `outcomeOn` gates transitions on
+  ///    `d.configValidated`, a recorded verdict, while the layout gate beside
+  ///    it reads `w.layoutOk` live.  So `configChange` after the validation
+  ///    leaves the validation standing as a licence and the next transition
+  ///    writes the tree under an invalid configuration.
+  ///    `inv_fail_MUT_SY_04b_a_validated_configuration_is_a_licence` fires on
+  ///    it, under `base`'s own constants with no dial moved.
+  ///
+  /// The catalogue has an obligation for exactly this shape — `SY-03`, *a
+  /// preflight is never a licence* — and states it for the LAYOUT only.
+  /// Whether `SY-04.b` owes the same, or whether the configuration is meant to
+  /// be read once per iteration, is `formal-synthesis-k16`'s to disposition.
+  val inv_SY_04b_grove_never_mutates_the_tree_under_a_configuration_it_has_not_validated: bool =
+    not(hist.groveMutatedUnderUnvalidatedConfig)
 
   val wit_SY_04b_an_invalid_configuration_leaves_the_tree_byte_identical: bool =
     hist.invalidConfigByteIdentical
@@ -2122,8 +2260,25 @@ module lifecycle {
 
   val wit_SY_10a_a_stale_session_refused: bool = hist.staleRefused
 
+  /// `SY-10.b`, RESTATED OVER WHAT THE ADMISSION RETURNS — entry 048 finding 5.
+  ///
+  /// It used to be `not(hist.silentPark)`, and `silentPark` was set from
+  /// `parked = contended and not(GEN_TIMEOUT)`.  That is the dial spelled
+  /// backwards: the obligation was discharged by a boolean the model wrote for
+  /// itself, so the model never had to say what the visible stop RETURNS —
+  /// which is entry 041's finding, and which the closed refusal set has no
+  /// member for.
+  ///
+  /// It is quantified over the trace: of EVERY contended admission, it asks
+  /// whether that admission returned a refusal naming the contention.  A park
+  /// returns `ONone` and fails it, and so does a stop that borrows
+  /// `SY-10.a`'s `REpochStale` — which is what `mutant_borrowed_stop_reason`
+  /// establishes and what the old flag could not have asked.
+  ///
+  /// A SECOND trace conjunct over the wait map was tried and WITHDRAWN; see
+  /// the `Hist` field comment above and the README's *Narrowings*.
   val inv_SY_10b_a_contended_generation_never_parks_silently: bool =
-    not(hist.silentPark)
+    not(hist.contendedStopUnnamed)
 
   // --- `SY-11` — the guard order admits no cycle ------------------------------
 
@@ -2216,6 +2371,7 @@ module base {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,
@@ -2258,6 +2414,7 @@ module verify_small {
     DONE_CONTINUES_LOOP = false,
     GEN_CHECK = true,
     GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
     GUARD_ORDER = true,
     RESUME_IS_IDEMPOTENT = true,
     BLOCK_STICKY = true,

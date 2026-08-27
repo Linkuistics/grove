@@ -8683,6 +8683,88 @@ a confirmation of it.
 *M1* `alloy-only`, confirmed by replay rather than assumed · *M2* `structure` ·
 *M3* n/a · *M4* `none`.
 
+**THE OUTCOME, recorded in place by `quint-statement-shape-k61`, and the rule
+above needed a second axis.**
+
+The leaf swept all twenty-five `SY-` properties rather than the two named here,
+classified each as stated over the trace, over one operation's pair, or over a
+single state, and put the table in
+[`models/system/README.md`](../models/system/README.md). **Twelve pair rows
+survive the sweep and each is the right grain**: their subject genuinely is one
+grove operation, and widening them would assert something about the operator
+that no filesystem-hosted tool can promise — the same mistake `SY-04.b`'s
+literal wording makes, in the other direction. So *pair* is not a defect; it is
+a defect exactly when the claim's subject is wider than one operation.
+
+**The rule as stated above misses `SY-10.b`, and that is a correction rather
+than a caveat.** `SY-04.b` was stated at the wrong grain. `SY-10.b` was stated
+at the **right** grain — its subject genuinely is one admission's return — and
+discharged by the wrong thing: `not(hist.silentPark)` read
+`parked = contended and not(GEN_TIMEOUT)`, which is **the dial spelled
+backwards**. A property discharged by a restatement of the model's own
+configuration is unfalsifiable at any grain, and no trace/pair classification
+detects it. The sweep therefore carries two questions: *is the property stated
+at the grain of its claim's subject*, and *is it discharged by an OBSERVATION or
+by a restatement of a dial*. `SY-10.b` was the only failure of the second.
+
+- **`SY-04.b` is restated over the trace and is now narrowed TWICE, each
+  narrowing with a control that fires under `base`'s own constants with no dial
+  moved.** The first is the replay this finding said was owed: a hand edit moves
+  a byte under an invalid configuration and grove did nothing
+  (`inv_fail_MUT_SY_04b_the_operator_writes_under_an_invalid_configuration`),
+  which is entry 042's counterexample in Quint. **The second is new and is this
+  column's own.** `outcomeOn` gates transitions on `d.configValidated` — the
+  driver's RECORDED VERDICT — where the layout gate three lines below reads
+  `w.layoutOk` live, so a `configChange` between the validation and the
+  transition leaves the validation standing as a **licence** and the transition
+  writes the tree under an invalid configuration. Eleven states, retained and
+  reproducible; the catalogue has an obligation for exactly this shape —
+  `SY-03`, *a preflight is never a licence* — and states it for the **layout
+  only**. **Neither could have been reached by the pair form at any sample
+  count**: the offending step in the second is APPLIED and `refusalMutated`
+  looked only at refusals, and the offending step in the first is the
+  operator's and `refusalMutated` looked only at grove's.
+- **`SY-10.b` is restated over what the admission RETURNS**, quantified over
+  every contended admission in the trace, and the model now has to name the
+  stop. It names `RGenContended`, **declared as an addition to the closed
+  refusal set** exactly as `RConfigInvalid` was, because entry 041 is right that
+  the set has no member for a contention timeout and `REpochStale` is
+  `SY-10.a`'s reason for a different fact. The isolating control is
+  `mutant_borrowed_stop_reason`: the admission still stops, still stops visibly,
+  still parks nobody, and the only thing wrong is the NAME — which the old flag
+  could not have asked about, and under which `SY-10.a` stays green.
+- **A second trace conjunct for `SY-10.b`, over the wait map, was tried and
+  WITHDRAWN, and what it found is a third result.** It fails in `base`, and not
+  for `SY-10.b`'s reason: `contendGen` is `SY-11.b`'s **apparatus**, building a
+  generation wait on purpose so the cycle claim has an edge to be checked over.
+  The model's `WGen` carries two senses — the park `SY-10.b` forbids and the
+  graph edge `SY-11.b` needs — and no predicate over `waits` separates them,
+  including the narrowing to an exclusive hold. **One obligation's instrument
+  constructs the state another obligation forbids, and neither noticed, because
+  `SY-10.b` was stated over its own admission.** Both probes are in the README
+  with their exact commands.
+- **`SY-01.b` needed nothing**, as this finding said. It is listed so the sweep
+  is over all three.
+
+`models/run.sh --scope lifecycle --family quint` is **green with coverage
+asserted at this revision: 93 commands, 25 of 25 cells, exit 0, 4m27s wall**
+(86 and 3m44s before the restatements; the seven added commands are the two
+restated properties' controls and their asserted-green neighbours).
+
+*Claim affected:* `SY-04.b`, `SY-10.b`, `SY-03`, `SY-11.b`, and the closed
+refusal set. *Durable correction:* `models/system/lifecycle.qnt`,
+`models/system/lifecycle-controls.qnt`, `models/system/README.md`, and this
+entry. **Two catalogue findings are added to `formal-synthesis-k16`'s
+disposition list** — whether `SY-04.b` owes `SY-03`'s licence prohibition for
+the configuration, and whether the closed refusal set owes a contention member —
+and **one is about the models rather than the catalogue**: the `SY-10.b` /
+`SY-11.b` collision over `WGen`. *M1* — the `SY-04.b` licence finding is
+`quint-only`, reached after the barrier came down and so **not** a measurement
+of either column's independent reach · *M2* `structure` · *M3* **2** — the
+retained trace names the transition and the gate is two lines of `outcomeOn` ·
+*M4* — not assessed here; the model's configuration gate is an abstraction of a
+product path this leaf did not open.
+
 ---
 
 **6. `reap` — the two columns resolved one silence in opposite directions, and
@@ -8832,10 +8914,14 @@ rule 3's second branch, and it disposes of twelve of the twenty at once.
   at these bounds — the run started for it reached 14 commands in seven minutes
   — and a session is not a good unit for it. The finish and lifecycle `.als`
   files are byte-unchanged by this session.
-- **No Quint model was corrected, and one probably should be.** Finding 5 says
-  Quint's `SY-04.b` and `SY-10.b` are stated in shapes that cannot fail the way
-  Alloy's did. Restating them is a real change to a green column and it belongs
-  to a session that can re-run it; `formal-synthesis-k16` inherits it.
+- **No Quint model was corrected by THIS session, and one needed to be.**
+  Finding 5 says Quint's `SY-04.b` and `SY-10.b` are stated in shapes that
+  cannot fail the way Alloy's did. Restating them is a real change to a green
+  column and belongs to a session that can re-run it. **`quint-statement-shape-k61`
+  was cut for it and has done it**; the outcome is recorded inside finding 5
+  above, and it found a counterexample of its own on the first use of the rule.
+  `formal-synthesis-k16` inherits the two catalogue findings it produced, not
+  the restatement.
 - **`TT-24.c` is a filled cell with no falsifier.** The Alloy column declared
   `TT-24.c` and `TT-24.d` out-of-bounds; Quint answered both. Reading Quint's,
   `inv_TT_24c` is a transcription of `gateOutcome`'s own branch

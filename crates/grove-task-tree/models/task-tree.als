@@ -358,9 +358,20 @@ one sig ScaffoldD in Digest {}
    `SY-05` owns it.  `Reserved` is one state rather than three because TT-18 and
    TT-19 are stated over the reserved CLASS. */
 abstract sig RootState {}
-one sig ReservedR, PartialScaffoldR, LegacyR, ForeignR, MalformedR,
-        CurrentLiveR, CurrentFinishOnlyR, CurrentSpentR extends RootState {}
+one sig ReservedR, PartialScaffoldR, AmbiguousScaffoldR, LegacyR, ForeignR,
+        MalformedR, CurrentLiveR, CurrentFinishOnlyR, CurrentSpentR
+        extends RootState {}
 fun currentFamily: set RootState { CurrentLiveR + CurrentFinishOnlyR + CurrentSpentR }
+
+/* The catalogue's `PartialScaffold(class)`, as TWO atoms where `Reserved(class)`
+   is one, and the asymmetry is the claims rather than the encoding.  No claim in
+   this scope distinguishes `Reserved`'s three members, so collapsing them costs
+   nothing; the scaffold classes are distinguished by two — `SY-06.b` completes
+   `Exact` and must NOT complete `Ambiguous`, and the refusal an ordinary
+   operation gets carries the class.  TT-18 and TT-20 are still stated over the
+   FAMILY, which is what keeps them insensitive to a member being added or
+   removed. */
+fun scaffoldFamily: set RootState { PartialScaffoldR + AmbiguousScaffoldR }
 
 /* The FORMAT family a classification lands in.  TT-17 is stated over this and
    not over the state itself, because the split INSIDE `Current(*)` is
@@ -368,17 +379,25 @@ fun currentFamily: set RootState { CurrentLiveR + CurrentFinishOnlyR + CurrentSp
    entry text moving the root between the families. */
 fun familyOf[s: RootState]: set RootState {
   s = ReservedR                          implies ReservedR
-  else s in (PartialScaffoldR + LegacyR) implies (PartialScaffoldR + LegacyR)
+  else s in (scaffoldFamily + LegacyR)   implies (scaffoldFamily + LegacyR)
   else s = ForeignR                      implies ForeignR
   else                                           (MalformedR + currentFamily)
 }
 
-/* PARTIAL SCAFFOLD, as the catalogue defines it: an exact closed SUBSET, never
-   "present and witnessless".  Anything outside the subset -- a second
-   positioned entry, a differing byte, a foreign entry, a node -- falls through
-   to `Legacy`, and that is what makes completion safe rather than an inference
-   about someone else's tree. */
-pred isPartialScaffold {
+/* THE ORDERED THREE-WAY TEST the catalogue's `States` defines for a witnessless
+   root.  It replaces a single `isPartialScaffold` whose exact closed SUBSET was
+   the whole test: anything outside the subset -- a second positioned entry, a
+   differing byte, a foreign entry, a node -- fell through to `Legacy`, so a
+   stray file beside grove's OWN half-written scaffold made grove read its own
+   interrupted work as somebody else's legacy tree.  That is entry 044's
+   counterexample, replayed here by `cross-model-replay-k15` and disposed by
+   `task-tree-scope-k70`. */
+
+/* Branch one: nothing but the fresh scaffold's own byte-exact entries.  This is
+   the old `isPartialScaffold`, unchanged, and it is what makes completion safe
+   -- every value the completion writes is fixed in advance, so completing is a
+   comparison followed by at most one append. */
+pred isExactScaffold {
   no Fmt.fmt
   no foreignEntries
   no malformedEntries
@@ -397,6 +416,41 @@ pred isPartialScaffold {
   onDisk - TaskRoot = entries + charters
 }
 
+/* ROOT-INIT-EXCLUSIVE: an entry only THIS format's root initialisation writes.
+   The CHARTER IS DELIBERATELY NOT ONE.  Its bytes derive from the working-tree
+   name and every earlier format wrote the same ones, so it is evidence that
+   SOME grove was here and never evidence of THIS format's initialisation --
+   which is the content of the shipped
+   `an_untouched_root_brief_does_not_hide_a_legacy_v2_tree`, where a byte-exact
+   charter beside a legacy leaf migrates rather than completing.
+
+   The catalogue names two exclusives and this model reaches one: it has no
+   reserved format temporary, since `doInitPublish` makes the witness visible in
+   one step.  The abstraction is safe in the direction that matters -- fewer
+   exclusives means MORE roots fall to `Legacy`, so TT-20's declared window is
+   modelled at its widest -- and it coincides exactly with the shipped window,
+   after the charter and before the leaf. */
+pred hasRootInitExclusive {
+  some e: entries & kidsOf[TaskRoot] | {
+    e in FileObj
+    e.nm.fSpec = LeafSp and e.nm.fOut = LiveI and e.nm.fKind = OrdinaryK
+    e.nm.fPos = 1 and e.nm.fKey = 1
+    e.dg = ScaffoldD
+  }
+}
+
+/* Branch two, reached only when branch one fails: proof that initialisation ran,
+   standing beside something a fresh scaffold does not write.  Grove can prove a
+   root-init happened here; what it cannot prove is that the root's WHOLE
+   contents are its own, so it refuses and mutates nothing.  That is TT-24's
+   fail-closed ownership rule at the ROOT grain, and it is what ships --
+   `recover_partial_root_init_unlocked`'s *ambiguous partial root scaffold*. */
+pred isAmbiguousScaffold {
+  no Fmt.fmt
+  not isExactScaffold
+  hasRootInitExclusive
+}
+
 /* CLASSIFICATION, IN THE FIXED ORDER (TT-18): reserved-witness first, then
    format, then walk-derived -- and `PartialScaffold` before `Legacy`.  A `fun`
    rather than a `var` field, so it adds no free state for the solver to search;
@@ -404,7 +458,8 @@ pred isPartialScaffold {
    runs, not because the model leaves the order open. */
 fun rootState: one RootState {
   some Slot.occ                                        implies ReservedR
-  else (no Fmt.fmt and isPartialScaffold)              implies PartialScaffoldR
+  else (no Fmt.fmt and isExactScaffold)                implies PartialScaffoldR
+  else (no Fmt.fmt and isAmbiguousScaffold)            implies AmbiguousScaffoldR
   else no Fmt.fmt                                      implies LegacyR
   else Fmt.fmt = ForeignFmt                            implies ForeignR
   else halted                                          implies MalformedR
@@ -1079,7 +1134,7 @@ pred doInitScaffold[c: FileObj, l: FileObj, lf: Filename] {
 pred doInitPublish {
   Sys.act' = InitPublish and no Sys.tgt'
   reservedRefusal
-  (no Slot.occ and some inFlight and isPartialScaffold) implies {
+  (no Slot.occ and some inFlight and isExactScaffold) implies {
     noPending
     Sys.res' = Applied
     Fmt.fmt' = CurrentFmt
@@ -1087,7 +1142,7 @@ pred doInitPublish {
     Slot.occ' = Slot.occ and Slot.occAt' = Slot.occAt
     no inFlight'
   }
-  (no Slot.occ and not (some inFlight and isPartialScaffold)) implies
+  (no Slot.occ and not (some inFlight and isExactScaffold)) implies
     (Sys.res' = RefNotAnEntry and noTreeChange and noPending and inFlight' = inFlight)
 }
 
@@ -1958,17 +2013,27 @@ run witness_TT_16b_a_resolved_abandoned_entry {
 // have somewhere to appear.
 // ===========================================================================
 
-// --- TT-17: format is decided by the witness's content ---------------------
+// --- TT-17: a format decision reads the witness, a witnessless one reads bytes
 
-/* Two conjuncts, and the second is the falsifiable one.  The first says which
-   family each witness content lands in; a classification that read a task
-   entry's text would still satisfy it on the tree it was tuned for.  The second
-   is what a hand edit cannot do: change every name in the tree, leave the
-   witness alone, and the root does not move between families. */
-check TT_17_format_is_decided_by_the_witness_content_alone {
+/* TT-17 WAS ONE CLAIM AND IS NOW TWO, and the split is `task-tree-scope-k70`'s
+   disposition of the narrowing this file used to declare.  The one-sentence
+   form -- "the classification SHALL depend only on the format witness, never on
+   any task entry's text" -- is FALSE of the catalogue's own state table, which
+   decides a witnessless root by an exact comparison against a task entry's name
+   AND bytes, and doubly false since that decision gained a second branch.  Both
+   families narrowed the check to the Current/Legacy/Foreign decision and
+   declared it; the narrowing was right and the text was wrong.
+
+   `TT-17.a` is that decision, unchanged in force.  Two conjuncts, and the
+   second is the falsifiable one: the first says which family each witness
+   content lands in, which a classification that read a task entry's text would
+   still satisfy on the tree it was tuned for; the second is what a hand edit
+   cannot do -- change every name in the tree, leave the witness alone, and the
+   root does not move between families. */
+check TT_17a_format_is_decided_by_the_witness_content_alone {
   (GroveGrammar and SingleProc) implies always {
     no Slot.occ implies {
-      (no Fmt.fmt)           iff (rootState in (LegacyR + PartialScaffoldR))
+      (no Fmt.fmt)           iff (rootState in (LegacyR + scaffoldFamily))
       (Fmt.fmt = ForeignFmt) iff (rootState = ForeignR)
       (Fmt.fmt = CurrentFmt) iff (rootState in (MalformedR + currentFamily))
     }
@@ -1977,17 +2042,57 @@ check TT_17_format_is_decided_by_the_witness_content_alone {
   }
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
 
-/* The catalogue's witness: a LEGACY tree whose entries would otherwise read as
+/* `TT-17.b` -- the WITNESSLESS decision reads BYTES and not only names.  A root
+   whose entries carry none of the scaffold's own bytes is `Legacy` however its
+   entries are spelled, which is the shipped
+   `a_legacy_v2_slug_beginning_with_requirements_is_not_partial_root_init`: a
+   legacy slug that happens to read as a current session kind is evidence of
+   nothing.  A scaffold test written over names alone dies on this.
+
+   IT WAS FIRST WRITTEN AS A PERTURBATION -- *a hand edit that leaves the digests
+   alone never moves a root INTO a scaffold classification* -- AND THIS TOOL
+   REFUTED IT, in the first command run against the draft.  A rename is such an
+   edit, and a file already holding the scaffold's exact bytes under some other
+   name BECOMES the scaffold leaf when renamed to the scaffold leaf's name --
+   correctly, since grove cannot and must not tell it from the one its own
+   initialisation would have written.  The perturbation form asserted something
+   about renames when the claim is about what is CONSULTED.  The refutation is
+   recorded in the catalogue beside the claim. */
+check TT_17b_a_witnessless_decision_reads_bytes_not_only_names {
+  (GroveGrammar and SingleProc) implies always {
+    (no Fmt.fmt and no Slot.occ
+     and some (onDisk - TaskRoot)
+     and no ((onDisk - TaskRoot) & dg.ScaffoldD))
+      implies rootState not in scaffoldFamily
+  }
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 2 steps
+
+/* `TT-17.b`'s witness: a witnessless root whose entry carries the scaffold's
+   exact NAME and somebody else's BYTES.  It is `Legacy` -- not a scaffold of
+   either class -- because the digest is what is consulted. */
+run witness_TT_17b_a_scaffold_name_over_foreign_bytes_is_still_legacy {
+  GroveGrammar and SingleProc
+  no Slot.occ and no Fmt.fmt
+  some e: entries & kidsOf[TaskRoot] | {
+    e in FileObj
+    e.nm.fSpec = LeafSp and e.nm.fOut = LiveI and e.nm.fKind = OrdinaryK
+    e.nm.fPos = 1 and e.nm.fKey = 1
+    e.dg != ScaffoldD
+  }
+  rootState = LegacyR
+} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
+
+/* `TT-17.a`'s witness: a LEGACY tree whose entries would otherwise read as
    current work.  Every entry is a canonical, known-kind, current-grammar name,
    the tree does not halt, and a reader that classified by looking at the entries
    would call it `Current(Live)`.  It is `Legacy`, because the witness says so
    and nothing else is consulted. */
-run witness_TT_17_a_legacy_tree_whose_entries_read_as_current_work {
+run witness_TT_17a_a_legacy_tree_whose_entries_read_as_current_work {
   GroveGrammar and SingleProc
   no Slot.occ and no Fmt.fmt
   not halted
   some liveOrdinary
-  not isPartialScaffold
+  not isExactScaffold and not hasRootInitExclusive
   rootState = LegacyR
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 1 steps
 
@@ -2001,9 +2106,10 @@ run witness_TT_17_a_legacy_tree_whose_entries_read_as_current_work {
 check TT_18_classification_order_is_fixed {
   (GroveGrammar and SingleProc) implies always {
     some Slot.occ implies rootState = ReservedR
-    (no Slot.occ and no Fmt.fmt)           implies rootState in (PartialScaffoldR + LegacyR)
+    (no Slot.occ and no Fmt.fmt)           implies rootState in (scaffoldFamily + LegacyR)
     (no Slot.occ and Fmt.fmt = ForeignFmt) implies rootState = ForeignR
-    (no Slot.occ and isPartialScaffold)    implies rootState = PartialScaffoldR
+    (no Slot.occ and isExactScaffold)      implies rootState = PartialScaffoldR
+    (no Slot.occ and isAmbiguousScaffold)  implies rootState = AmbiguousScaffoldR
     rootState = MalformedR implies (rootClear and halted)
     rootState in currentFamily implies (rootClear and not halted)
   }
@@ -2094,7 +2200,7 @@ run witness_TT_19_the_matching_recovery_is_admitted_and_settles_the_witness {
    step instead.
 
    The fourth was a THEOREM OF `rootState`'s OWN BODY: given `no Slot.occ`, `no
-   Fmt.fmt` and `isPartialScaffold`, the second branch of `rootState` returns
+   Fmt.fmt` and `isExactScaffold`, the second branch of `rootState` returns
    `PartialScaffoldR` by construction.  `check` it with NO protocol premise —
    no `GroveGrammar`, no `SingleProc`, no transition relation — and it is green.
    It therefore reported nothing about the protocol for the life of this file,
@@ -2102,35 +2208,46 @@ run witness_TT_19_the_matching_recovery_is_admitted_and_settles_the_witness {
    counterexample is a tree which STOPS being a partial scaffold, so it never
    enters this antecedent at all.  Restated over what an interruption LEAVES,
    which is a fact about `doInitScaffold`'s effects and dies under a mutation to
-   them.  The narrowing is entry 044's, reached independently and stated the
-   same way: an initialisation THE WORLD DID NOT TOUCH.  The situation the
-   narrowing excludes is retained as a witness below. */
+   them.
+
+   THE NARROWING THAT STOOD HERE IS DISPOSED, AND BOTH HALVES MOVED.  It read
+   only initialisations THE WORLD DID NOT TOUCH, because with one foreign write
+   the interrupted root classified `Legacy` — which the prose forbids.  The
+   catalogue now classifies that root `AmbiguousScaffoldR`, so the world's write
+   is admitted into the claim rather than fenced out of it, and what survives is
+   a smaller and true prohibition on `Legacy`: never, ONCE A ROOT-INIT-EXCLUSIVE
+   ENTRY HAS LANDED.  Before that the root carries no evidence distinguishing it
+   from a legacy tree — a charter is not evidence — so `Legacy` is honest there.
+   That window is the shipped one, after the charter and before the leaf, and it
+   is kept REACHABLE as a witness below rather than merely declared. */
 check TT_20_the_format_witness_lands_last {
   (GroveGrammar and SingleProc) implies always {
     (Sys.act' = InitScaffold and Sys.res' = Applied) implies no Fmt.fmt'
     (Sys.act' = InitPublish and Sys.res' = Applied) implies {
-      isPartialScaffold and no Fmt.fmt
+      // ONLY an EXACT scaffold is ever published, which is the completion half
+      // of the same disposition: grove completes a root whose whole contents it
+      // can account for and refuses one it cannot.
+      isExactScaffold and no Fmt.fmt
       after (Fmt.fmt = CurrentFmt)
     }
     (Sys.res' = Applied and some inFlight') implies no Fmt.fmt'
     (Sys.act' = InitScaffold and Sys.res' = Applied) implies
       after ((Sys.act' = Crash) implies after {
-        rootState = PartialScaffoldR
+        rootState in (scaffoldFamily + LegacyR)
         rootState not in currentFamily
-        rootState != LegacyR
+        hasRootInitExclusive implies rootState != LegacyR
       })
   }
-} for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+} for 4 but 4 Int, 4 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
 
-/* RETAINED COUNTEREXAMPLE — entry 044's TT-20 finding, replayed in Alloy by
-   `cross-model-replay-k15` and reachable here once `step` stopped excluding the
-   world from an open transaction.  Scaffold, one world write, interrupt: the
-   stray entry drops the root out of `isPartialScaffold`'s exact closed subset
-   and it classifies `LegacyR` — the classification TT-20's prose forbids.  It
-   is a `witness_finding_` rather than a `witness_TT_20_` because it credits no
-   cell: it is the situation the narrowing above excludes, kept reachable so the
-   narrowing is visible rather than merely declared. */
-run witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy {
+/* THE DISPOSED COUNTEREXAMPLE, NOW THE CLAIM'S OWN SECOND WITNESS.  Entry 044's
+   TT-20 finding was that a scaffold, one world write and an interrupt classified
+   `LegacyR` — the classification TT-20's prose forbids — because a stray entry
+   dropped the root out of the exact closed subset.  With the third branch it
+   classifies `AmbiguousScaffoldR`, which REFUSES, where `Legacy` MIGRATES; the
+   trace is the same and the answer is not.  It credits a cell now, so it is a
+   `witness_TT_20_`. */
+run witness_TT_20_a_world_write_during_an_open_scaffold_is_ambiguous_not_legacy {
   GroveGrammar and SingleProc
   eventually {
     Sys.act' = InitScaffold and Sys.res' = Applied and some inFlight'
@@ -2138,6 +2255,26 @@ run witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy {
            and after (Sys.act' = Crash
                       and after (no inFlight and no Fmt.fmt
                                  and some foreignEntries
+                                 and hasRootInitExclusive
+                                 and rootState = AmbiguousScaffoldR)))
+  }
+} for 4 but 4 Int, 4 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
+
+/* THE DECLARED WINDOW, KEPT REACHABLE.  Before any root-init-exclusive entry has
+   landed there is nothing to distinguish the root from a legacy tree, so a
+   concurrent world write DOES send an interrupted initialisation to `LegacyR` —
+   and TT-20 no longer forbids it.  A narrowing nobody can run is
+   indistinguishable from one nobody declared, which is why this is a command
+   rather than a sentence. */
+run witness_TT_20_the_window_before_the_first_exclusive_entry_reaches_legacy {
+  GroveGrammar and SingleProc
+  eventually {
+    Sys.act' = InitScaffold and Sys.res' = Applied and some inFlight'
+    after (Sys.act' = HandEdit and some inFlight'
+           and after (Sys.act' = Crash
+                      and after (no inFlight and no Fmt.fmt
+                                 and some foreignEntries
+                                 and not hasRootInitExclusive
                                  and rootState = LegacyR)))
   }
 } for 4 but 4 Int, 4 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 5 steps
@@ -2152,7 +2289,7 @@ run witness_TT_20_an_interrupted_initialisation_leaves_a_partial_scaffold {
   eventually {
     Sys.act = InitScaffold and Sys.res = Applied and some inFlight
     Sys.act' = Crash
-    after (no inFlight and no Fmt.fmt and isPartialScaffold
+    after (no inFlight and no Fmt.fmt and isExactScaffold
            and rootState = PartialScaffoldR)
   }
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps
@@ -2625,7 +2762,7 @@ run expect_unreachable_EN_08_the_interrupted_initialisation_witness_needs_crash 
   eventually {
     Sys.act = InitScaffold and Sys.res = Applied and some inFlight
     Sys.act' = Crash
-    after (no inFlight and no Fmt.fmt and isPartialScaffold
+    after (no inFlight and no Fmt.fmt and isExactScaffold
            and rootState = PartialScaffoldR)
   }
 } for 4 but 4 Int, 3 FileObj, 2 DirObj, 6 Filename, 2 Slug, 2 Digest, 3 steps

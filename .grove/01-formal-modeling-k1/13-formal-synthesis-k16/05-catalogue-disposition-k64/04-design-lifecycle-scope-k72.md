@@ -186,3 +186,48 @@ checkout-equivalent state") and belongs to `handoff-audit-k66`. Do not absorb a
 chosen repair is *admit process death*, because that changes the admitted-action
 set every lifecycle reachability claim quantifies over, and `CONTEXT.md`'s
 *Admitted action* entry would need reworking with it.
+
+## Handed forward by `task-tree-scope-k70` — one cell, and it is not a decision
+
+**`SY-06.b` is a declared cross-scope citation of `TT-18`/`TT-20`, and both
+narrowings it carries changed under it.**
+[`obligations-follow-context-not-artifact`](../../../../docs/adr/obligations-follow-context-not-artifact.md)
+clause 2 makes a citation carry the cited obligation's declared narrowings, so
+this is a cell you owe rather than a question you must answer — **the decision is
+landed**, in
+[`a-witnessless-root-refuses-what-it-cannot-account-for`](../../../../docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md)
+and in the catalogue's §*States*.
+
+**What changed.** The catalogue had **one** state for a witnessless root where
+the product has three. It now has an ordered three-way test:
+`PartialScaffold(Exact)` (nothing but the fresh scaffold's own byte-exact
+entries — **completed**), `PartialScaffold(Ambiguous)` (a root-init-exclusive
+entry standing beside something else — **refused**, mutating nothing), and
+`Legacy`. `SY-06.b`'s text is updated in place, because leaving a stale citation
+in one document is worse than the split; its **model cell and its run** are
+yours.
+
+**The concrete work, as far as `k70` could see it.**
+
+- `models/system/lifecycle.qnt` carries `RSPartialScaffold` and a
+  `PARTIAL_BY_SUBSET` const whose comment quotes the old subset test. The state
+  needs the class, and `classify`'s `RSPartialScaffold` arm splits.
+- `SY-06.b`'s witness is *an interrupted scaffold, completed; and a `Legacy`
+  tree, refused rather than completed*. There is now a **third** case that must
+  be refused rather than completed, and it is the sharp one: `Ambiguous` is
+  refused **while carrying proof that Grove's own initialisation ran**, which is
+  precisely the case a completing implementation gets wrong. `wit_SY_06b_...`
+  and `hist.partialCompleted` are where that lands.
+- The citation inherits a **different** strength rather than the same one:
+  `TT-20` no longer excludes an initialisation the world touched, and instead
+  narrows its `Legacy` prohibition to the window in which a root-init-exclusive
+  entry has landed. Carry that narrowing, not the retired one.
+- `models/system/lifecycle.als` has no `Partial` state and may owe nothing;
+  `k70` did not verify this beyond a grep and it is yours to establish.
+
+**The new refusal reason costs this scope nothing, and that is checked rather
+than assumed.** The closed set gained `ScaffoldIncomplete(class)` (reasons
+20 → 21). `lifecycle.qnt`'s `type Refusal` spells out only the members this
+scope reaches and no `SY-` obligation quantifies over the type exhaustively, so
+no re-run is owed **for the reason**. The state refinement above is a separate
+matter and is the cell.

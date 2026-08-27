@@ -20,7 +20,9 @@ models/run.sh --scope task-tree --family alloy
 
 **Both columns of the task-tree scope are complete**, and each family's own
 invocation is what says so: with `--family <fam>` the coverage matrix holds only
-that family's cells, so it runs **with coverage asserted** and exits 0. The
+that family's cells, so it runs **with coverage asserted** and exits 0. Both were
+last run by `task-tree-scope-k70` — Alloy 107 commands, Quint 113, 42 of 42 cells
+each — and the lines are in *The green run this column stands on*. The
 unqualified `models/run.sh` stays red until the **finish** and **lifecycle**
 Quint columns land, and that redness is the truth about the repository rather
 than a gate to be tolerated — which is why a phase's green is spelled as a named
@@ -43,43 +45,78 @@ longer needed; the shape the runner reads is still
 - **GAP** alloy `TT-nn.x` (inexpressible|abstracted|out-of-bounds|tool-limited) — reason.
 ```
 
-**One Alloy narrowing, declared — and it is the same one the Quint column
-declared, reached independently and stated the same way.** `TT-20`'s fourth
-conjunct is checked over **an initialisation the world did not touch**. Its
-literal text — the root an interruption leaves "SHALL classify as
-`PartialScaffold` — never as `Current(*)` and never as `Legacy`" — is false when
-one `hand-edit` or `foreign-write` lands during the open transaction, because
-`PartialScaffold` is an EXACT closed subset and `EN-13` grants a foreign entry
-at any name. The situation is retained as
-`witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy` rather
-than excluded, so the narrowing is visible rather than merely declared. It is a
-finding about the catalogue (entry 044, replayed at entry 048) and
-`task-tree-scope-k70` owns its disposition. The catalogue is not edited here.
+**BOTH `PartialScaffold` FINDINGS ARE DISPOSED, AND THE CATALOGUE MOVED RATHER
+THAN EITHER MODEL NARROWING.** `task-tree-scope-k70` decided them together
+because they are one question with two faces, and the referee was the shipped
+product: the catalogue had **one** state for a witnessless root where
+`recover_partial_root_init_unlocked` has **three**.
 
-**A SECOND `PartialScaffold` FINDING SITS BESIDE IT AND HAS THE SAME OWNER, AND
-`closed-set-additions-k74` HANDED IT OVER WITH A RULE RATHER THAN A QUESTION.**
-An ordinary operation *meeting* a `PartialScaffold` has no reason in the
-catalogue's closed refusal set either — `task-tree.qnt`'s `gateOutcome` refuses
-`WitnessPending(RPreparing)` as the least-wrong member while naming a reserved
-witness that is not there. That leaf froze the shared vocabulary (reasons 17 →
-**20**, outcomes and blocked diagnoses unchanged) and found this to be a fourth
-instance of the shape it disposed, but declined to decide it because deciding it
-needs `k70`'s own items settled first: what `PartialScaffold` *is*, and whether
-the state table gains a member for the shipped *ambiguous partial root scaffold*
-refusal. `k70` inherits the frozen set and the rule for adding to it — *a member
-is gained exactly when a scope asks a question no existing member names, and it
-names the **question**, never the gate*
-([`a-refusal-leaves-nothing-standing`](../../../docs/adr/a-refusal-leaves-nothing-standing.md),
-clause 2) — so the collision hazard that put the vocabulary child ahead of the
-scope children does not apply here.
+- `TT-20`'s fourth conjunct was checked over **an initialisation the world did
+  not touch**, because with one `hand-edit` or `foreign-write` the interrupted
+  root classified `Legacy` — the classification the prose forbids. It now
+  classifies `PartialScaffold(Ambiguous)`, so the world's write is **admitted
+  into** the claim rather than fenced out of it, and the retained counterexample
+  became the claim's own second witness
+  (`witness_TT_20_a_world_write_during_an_open_scaffold_is_ambiguous_not_legacy`
+  here; `wit_TT_20_a_concurrent_foreign_write_is_ambiguous_not_legacy` in
+  `scenario_scaffold` there). The Quint column's proposed repair — define the
+  state by *presence* and **ignore** entries outside the task grammar — was
+  refused: completing a root whose contents Grove cannot account for is the
+  mutation-without-proof `TT-24` forbids, and the *every value is fixed in
+  advance* argument establishes that the bytes a completion writes are safe, not
+  that this root is Grove's to write into.
+- The gate's declared deviation is gone with it. The closed refusal set gained
+  `ScaffoldIncomplete(class)`, **one parameterised member rather than two**, on
+  the catalogue's own `Reserved(ResClass)` → `WitnessPending(ResClass)`
+  precedent, so the state's class and the reason's class are one lookup.
 
-**This family's own set is deliberately 17 of the 20, and the omission is
+**A SMALLER PROHIBITION SURVIVES AND IT IS DECLARED HERE.** `TT-20` now forbids
+`Legacy` only **once a root-init-exclusive entry has landed**. Before that the
+root carries no evidence distinguishing it from a legacy tree — the charter is
+deliberately not such evidence — so `Legacy` is honest, and the window is kept
+reachable as
+`witness_TT_20_the_window_before_the_first_exclusive_entry_reaches_legacy`
+rather than merely stated. It is the shipped window: after the charter, before
+the leaf. The severity is a **diagnostic** defect and not a safety one, and the
+product-facing repair is `handoff-audit-k66`'s.
+
+**TWO OF THIS DISPOSITION'S CLAUSES ARE TRUE BY CONSTRUCTION AND BOTH CONTROLS
+ARE THE OTHER COLUMN'S.** `TT-20`'s third conjunct cannot fail given `rootState`
+as written, and `TT-24.b`'s unwind clause cannot fail given an interpreter that
+unwinds; a property no mutation kills is what
+[`obligations-follow-context-not-artifact`](../../../docs/adr/obligations-follow-context-not-artifact.md)
+records as a transcription at `TT-24.c`. The dials are in `task-tree.qnt`:
+`SCAFFOLD_AMBIGUITY_CLASSED = false` (`mutant_scaffold_absence_only`, fires in
+1.5 s) and `MUTATION_UNWINDS = false` (`mutant_no_unwind`, 0.1 s).
+
+**This file could not carry either, and the reason is structural rather than an
+omission.** `task-tree.als` applies every mutation as a **single atomic step**,
+so there is no mid-flight state to leave standing and `TT-24.b`'s second clause
+has no instance here at all; and the scaffold dial needs a parameterised
+instance, which this file's `check`-per-bound shape has no equivalent of.
+Declared so a reader does not take this column's green for independent evidence
+of either disposition — it is evidence that the CLASSIFIER is consistent, not
+that the definition behind it was chosen well.
+
+**This family's own set is deliberately 18 of the 21, and the omission is
 argued at the type.** No `TT-` obligation reaches `DeletionNotCommitted`,
 `ConfigurationInvalid` or `GenerationContended`, nothing here quantifies over the
 refusal type exhaustively, and `task-tree.als` already restricts its own set the
 same way. That was **checked rather than assumed** — it is what
 `closed-set-additions-k74`'s `Done when` asked of the task-tree scope — and the
-conclusion is that this scope owes no re-run for the widening.
+conclusion is that this scope owes no re-run for that widening.
+
+**The twenty-first is this scope's own**, and it is the one exception to the
+pattern the ADR predicts by. `ScaffoldIncomplete(class)` reports a question the
+**task-tree** scope asks — *did this root's initialisation complete* — where the
+other three are later scopes' questions. What the original seventeen missed was
+not a scope but a **state the catalogue had not finished defining**, and the
+converse check was run in both directions: `finish.qnt` and `lifecycle.qnt` each
+spell out only the members their own scope reaches, no `FN-` or `SY-` obligation
+quantifies over the type exhaustively, and neither finish model carries a
+`PartialScaffold` state at all — so **this** widening costs those scopes no
+re-run either. `lifecycle.qnt`'s `RSPartialScaffold` owes a cell, and that is the
+state refinement rather than the reason (`lifecycle-scope-k72`).
 
 **The disagreement between the two columns is what settled it, and the record
 stays.** This column declared the two cells out of reach; the Quint column
@@ -758,17 +795,22 @@ inexpressibility:
    `some inFlight implies no Fmt.fmt` is a claim about the WORLD, and only
    grove's half is true.
 
-The replay, retained and reachable:
+The replay, retained and reachable — and **since disposed, so the command it
+runs under is renamed and the state at the end of it has changed**:
 
 ```sh
 java -jar "$ALLOY_JAR" exec -q -n -t text \
-  -c witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy \
+  -c witness_TT_20_a_world_write_during_an_open_scaffold_is_ambiguous_not_legacy \
   crates/grove-task-tree/models/task-tree.als
 ```
 
 Four states: `InitScaffold` applies and opens the transaction; a `HandEdit`
 lands a stray entry; a `Crash` closes the transaction; the root carries the
-scaffold's own two entries and one foreign one, and classifies `LegacyR`.
+scaffold's own two entries and one foreign one. It classified `LegacyR` — the
+classification `TT-20` forbade — which is what made it a finding. It now
+classifies `AmbiguousScaffoldR`, which **refuses** where `Legacy` **migrates**,
+so it credits `TT-20`'s own cell and is a `witness_TT_20_` rather than a
+`witness_finding_` (`task-tree-scope-k70`; see the README head).
 
 **The run this correction stands on.** Not a family suite — `step`'s widening is
 invisible to any command whose scope pins `always no inFlight`, and
@@ -778,7 +820,7 @@ invisible to any command whose scope pins `always no inFlight`, and
 | command set | result |
 |---|---|
 | `TT-17` – `TT-20`, `TT-24.a`, `TT-24.b` and their witnesses | 14 of 14, green |
-| the retained replay, `witness_finding_a_world_write_…` | instance found |
+| the retained replay, then `witness_finding_a_world_write_…`, now `witness_TT_20_a_world_write_…` | instance found |
 | `expect_fail_EN_14_TT_22b…` | counterexample found — the inverted control still fires |
 | six `expect_unreachable_EN_08`/`EN_11` controls | no instance, each |
 
@@ -787,13 +829,16 @@ after its last, and matches — a run that overlapped an edit to its own runner 
 not evidence, and a session whose subject is false greens does not get to record
 one. A full `models/run.sh --family alloy` remains owed and is not this
 session's; the finish and lifecycle `.als` files are byte-unchanged by it.
+**`task-tree-scope-k70` ran the full `--scope task-tree --family alloy` and its
+line is in *The green run this column stands on*.**
 
 **The control, and the inert mutation that came first.** The restated conjunct 4
 dies under a scaffold whose leaf carries a differing byte. The first mutation
 tried — a scaffold that writes no charter — **survived**, and it was not the
-check's fault: the catalogue's subset is a *subset*, `isPartialScaffold`'s
-charter clauses are `lone` and `in`, and a charter-less scaffold is legitimately
-inside it. Entry 040's rule — *an unsatisfiable mutation reports exactly as a
+check's fault: the catalogue's subset is a *subset*, the exact-scaffold
+predicate's charter clauses are `lone` and `in` (the predicate was
+`isPartialScaffold` when this was written and is now `isExactScaffold`), and a
+charter-less scaffold is legitimately inside it. Entry 040's rule — *an unsatisfiable mutation reports exactly as a
 survivor* — extends to a mutation that is merely **inert**, and telling the two
 apart costs a run.
 
@@ -1281,42 +1326,46 @@ this model takes as written:
 
 ## Narrowings and qualifications, each declared
 
-**Three** obligations are checked over less than their literal text, and in all
-three the gap between the text and what is checkable is a **finding about the
-catalogue** rather than a gap in the model. None is a declared `GAP`: the
-obligation is answered, and the narrowing is recorded here and in the experiment
-log. The catalogue is not edited, because it is frozen under the independence
-barrier; `task-tree-scope-k70` owns the disposition of every one of them.
+**THE THREE NARROWINGS THIS SECTION CARRIED ARE DISPOSED, AND IN EVERY CASE THE
+CATALOGUE MOVED.** Each was recorded as a *finding about the catalogue* rather
+than a gap in the model, and `task-tree-scope-k70` owned the disposition; each
+was landed as an edit to the catalogue's text, so nothing here is checked over
+less than what the claim now says. Their history stays, because a reader meeting
+a counterexample below needs the decision beside it.
 
-A fourth item is listed below them and is **not** a narrowing — it is a
-statement qualification, and it is here rather than in a quieter place because
-a guard nobody can find is indistinguishable from a guard nobody declared.
-
-- **`TT-17`** is checked over the Current/Legacy/Foreign decision only. Its
+- **`TT-17`** was checked over the Current/Legacy/Foreign decision only, its
   literal text — "the classification SHALL depend only on the format witness,
-  never on any task entry's text" — is contradicted by the catalogue's own
-  `PartialScaffold`, which is defined by an exact comparison against a task
-  entry's name *and* bytes. `TT-17`'s own witness is about the format decision,
-  which is what `formatDecision` isolates and `perturbText` attacks.
-- **`TT-20`** collects only interruptions with no `foreign-write` during the
-  initialisation, and only those with work still pending. See the counterexample
-  below for why the first narrowing exists; the second is not a narrowing of the
-  claim at all — a crash after the last effect landed leaves a complete current
-  root, which is not "the root an interruption leaves behind".
-- **`TT-15.a`** is guarded by `walkStageReached`. Its literal text requires every
-  snapshot classifying `CurrentSpent` to report `Empty`. A current root with no
-  live task and a **foreign artifact at a name Grove reserves** classifies
-  `CurrentSpent` — `classify` reaches its walk stage and finds nothing live —
-  while `TT-24.b` requires that same tree to refuse
-  `Refused(ReservedNameOccupied(entry))`, and `TT-18` puts that refusal two
-  stages ahead of anything the walk says. Both statements are the catalogue's;
-  under one tree they are inconsistent, and `TT-24.b` is the one whose whole
-  purpose is to win. The guard states the staging premise `TT-15.a` leaves
-  implicit — *on a tree the gate actually walks*, selection on a spent tree
-  reports `Empty` — and without it the obligation is a claim about the
-  classification **order** wearing selection's name.
+  never on any task entry's text" — being contradicted by the catalogue's own
+  `PartialScaffold`. **The claim SPLIT.** `TT-17.a` is that decision, unchanged
+  in force, and is what `formatDecision` isolates and `perturbText` attacks;
+  `TT-17.b` is the witnessless decision, and says it reads **bytes** and not
+  only names. `TT-17.b` was itself first drafted as a perturbation claim and
+  **the Alloy column refuted it in the first command run against the draft** — a
+  rename is a text edit, and a file already holding the scaffold's exact bytes
+  under another name becomes the scaffold leaf when renamed to its name,
+  correctly. Both columns now state the byte form. A hand-edit situation was
+  added for it (the family is **26** trees, not 25): a witnessless root carrying
+  the scaffold leaf's exact name over somebody else's bytes, which is the
+  shipped `a_legacy_v2_slug_beginning_with_requirements_is_not_partial_root_init`.
+- **`TT-20`** collected only interruptions with no `foreign-write`. **Disposed
+  above**, under *both `PartialScaffold` findings are disposed*: the foreign
+  write is admitted into the claim, and what survives is a smaller prohibition
+  on `Legacy` with its own witness. The second half — only interruptions with
+  work still pending — was never a narrowing of the claim and stands: a crash
+  after the last effect landed leaves a complete current root, which is not "the
+  root an interruption leaves behind".
+- **`TT-15.a`** was guarded by `walkStageReached`, its literal text requiring
+  every snapshot classifying `CurrentSpent` to report `Empty` while `TT-24.b`
+  requires that same tree to refuse. **The catalogue adopted the premise**:
+  `TT-15.a` now reads *selection on a spent tree **the gate admits** reports
+  `Empty`*, so the guard is the claim's own words. The two statements were never
+  in conflict, and saying why is what the disposition added — **classification
+  is a function of the tree and an outcome is a function of the operation**. A
+  tree may classify `Current(Spent)` and still refuse every operation, which is
+  what the classification order is for, and an observation the gate refused
+  never observed.
 
-And the qualification, which is not one of the above:
+And the qualification, which was never one of the above:
 
 - **`TT-10`** is checked over `op.decided` — what the operation concluded from
   its own arguments and its one listing — rather than over the outcome the
@@ -1329,6 +1378,31 @@ And the qualification, which is not one of the above:
   mid-flight case is not left unclaimed: it has `TT-21.b` and `TT-24.a`, and its
   outcome is decided by `collisionOutcome` (see *Counterexamples*).
 
+**AND ONE FINDING THAT WAS DISPOSED IN THE OPPOSITE DIRECTION FROM THE ONE THIS
+COLUMN ARGUED FOR.** The *mid-flight block* — an ordinary mutation that had
+applied an effect, met a destination a non-cooperating writer had taken, and
+returned `Blocked(OwnershipConflict)` — was recorded here as a missing row in
+the catalogue's *one artifact, three contexts* table, on the ground that the
+tree was not byte-identical so no refusal was honest.
+
+**The tree is byte-identical.** Every mutation runs through
+[`crates/ordinal-fs-tree`](../../ordinal-fs-tree), this contract's delegated
+boundary, whose one interpreter unwinds every effect it applied on a reported
+error — `Error::Failed`, "the tree is as it was found", checked there as
+`inv_atomicity` — and whose destination check exists for exactly this collision
+("the lock is advisory: a writer that does not take it can occupy a destination
+between the snapshot and the apply"). This model had built an interpreter
+without that capability **because nothing granted it**, and then read the
+consequence as a gap in the catalogue's outcome table. There was no gap; there
+was an ungranted capability, and it is now `EN-17`. `collisionOutcome` no longer
+splits on `applied`, `stepOpBlocked` unwinds, and `TT-24.b` gained the clause
+that says so.
+
+The general lesson is the one the assumption table already states about itself:
+**an assumption no row names is one a model may quietly decline**, and this is
+the second recorded instance of that shape. The other is process death under
+`SY-01.b`, still open with the model owners.
+
 ## The green run this column stands on
 
 Every claim above is read off one pair of runs, and both are reproducible from
@@ -1339,10 +1413,15 @@ models/run.sh --scope task-tree --family quint     # the suite
 models/run-controls.sh                             # the controls on the runner
 ```
 
-| run | result |
-|---|---|
-| `--scope task-tree --family quint` | **exit 0** — 19m 46s wall / 1209s CPU on a 16-core host, 111 commands, 43 skipped model-checking properties, `-- cells: 43 complete, 0 declared gaps, 0 empty, of 43` |
-| `models/run-controls.sh` | **exit 0** — 7 of 7 controls, each mutation producing its named fatal diagnostic |
+```sh
+models/run.sh --scope task-tree --family alloy     # the other column
+```
+
+| run | result | recorded by |
+|---|---|---|
+| `--scope task-tree --family quint` | **exit 0** — 113 commands, 42 skipped model-checking properties, `-- cells: 42 complete, 0 declared gaps, 0 empty, of 42` | `task-tree-scope-k70` |
+| `--scope task-tree --family alloy` | **exit 0** — 107 commands, `-- cells: 42 complete, 0 declared gaps, 0 empty, of 42` | `task-tree-scope-k70` |
+| `models/run-controls.sh` | **exit 0** — `-- runner controls: 10 passed, 0 failed`, 8m 51s wall | `task-tree-scope-k70` |
 
 Both figures are from an **unmodified** runner — `models/run.sh`'s checksum was
 taken before the run and again after it, and matches. `bash` reads a script
@@ -1350,13 +1429,39 @@ incrementally, so a run that overlapped an edit to its own runner is not
 evidence of anything, and a chain whose subject is false greens does not get to
 record one.
 
-The suite's 111 commands are the 83 the library declares and `base` inherits,
-plus the 28 written inside the fourteen control instances. `verify_small` owns
-none of its own and inherits the 43 properties, which report `SKIP` under the
-default `QUINT_VERIFY=0` — a skipped verification that names itself on every
-line, and whose reason is the `VERIFY` declaration above. **No module loses
-commands under the runner's parser**: every `val inv_…`/`val wit_…` declaration
-in both files is accounted for, and the ten `val`s that are neither are
+**No wall-clock figure is quoted for the two suites, and the omission is
+deliberate.** They were run concurrently on the same host, so each was competing
+with the other for sixteen cores. Command counts, coverage matrices and exit
+status cannot be moved by contention; timings can, and quoting one measured under
+load as though it were the model's cost is the kind of number a later reader
+would compare against. `models/run-controls.sh` ran alone and its figure stands.
+
+**The three counts that moved, each for a recorded reason.** The Quint suite's
+113 commands are the **82** the library declares and `base` inherits, plus the
+**31** written inside the seventeen control instances; the Alloy file's went 104
+to **107**, gaining `TT_17b`, its witness, and `TT-20`'s
+surviving-window witness while the retained replay was renamed rather than
+added.
+
+- `base` was 83 when `experiment-synthesis-k62` recorded it, and 79 after
+  `obligation-placement-k63` retired `TT-24.c` and `TT-24.d` with their four
+  commands. This leaf took it to 82: **−1** for the `PartialScaffold` finding
+  witness, which moved to `scenario_scaffold` where it is four times as common;
+  **+4** for `TT-17.b`'s property and witness, `TT-20`'s surviving-window
+  witness, and `TT-24.b`'s mid-flight witness.
+- The control instances went fourteen to **seventeen**: `mutant_scaffold_absence_only`,
+  `mutant_no_unwind` and `scenario_scaffold`. The first two are the controls for
+  this leaf's two by-construction clauses; the third is where the rare witness
+  went.
+- The **cells** are 42, not 43, and that is arithmetic rather than a loss:
+  `TT-24.c`/`TT-24.d` retired (−2) and `TT-17` split into `.a` and `.b` (+1).
+  `models/run.sh --list` is the live figure and this file is not.
+
+`verify_small` owns none of its own and inherits the 42 properties, which report
+`SKIP` under the default `QUINT_VERIFY=0` — a skipped verification that names
+itself on every line, and whose reason is the `VERIFY` declaration above. **No
+module loses commands under the runner's parser**: every `val inv_…`/`val wit_…`
+declaration in both files is accounted for, and the `val`s that are neither are
 helpers (`atRest`, `allTags`, `tagChoices`, and the like), which is what makes
 the counts above check.
 
@@ -1364,11 +1469,18 @@ the counts above check.
 
 Replayable; the runner prints the same line on any failure.
 
-### `PartialScaffold` is not robust to a foreign write — `TT-20`, `EN-13`
+### `PartialScaffold` is not robust to a foreign write — `TT-20`, `EN-13` · **DISPOSED**
+
+**The trace below is unchanged and the answer at the end of it is not.** The
+same six transitions now classify `PartialScaffold(Ambiguous)`, which **refuses**
+— where `Legacy` **migrates**. It is the claim's own witness rather than a
+finding, and it moved to the init-focused instance because in `base` it lands in
+about one trace in two thousand:
 
 ```sh
-quint run crates/grove-task-tree/models/task-tree.qnt --main=base \
-  --witnesses wit_finding_partial_scaffold_is_not_robust_to_a_foreign_write \
+quint run crates/grove-task-tree/models/task-tree-controls.qnt \
+  --main=scenario_scaffold \
+  --witnesses wit_TT_20_a_concurrent_foreign_write_is_ambiguous_not_legacy \
   --max-steps=24 --max-samples=8000 --seed=0x5e0a51d3c0ffee01 --verbosity=1
 ```
 
@@ -1385,10 +1497,13 @@ uses (the experiment log's entry 044 and the derived test below included):
 6. `crashNow` — interruption, which `EN-08` grants between any two steps.
 
 The root now contains the charter, the first leaf, no format witness, and one
-foreign entry. `isPartialScaffold` requires the root's entries to be a subset of
-`{charter, first leaf}` **and nothing else**, so the extra entry drops the tree
-through to `Legacy` — the classification `TT-20` names as forbidden, in the
-sentence "never as `Current(*)` and never as `Legacy`".
+foreign entry. **Before the disposition** `isPartialScaffold` required the root's
+entries to be a subset of `{charter, first leaf}` **and nothing else**, so the
+extra entry dropped the tree through to `Legacy` — the classification `TT-20`
+named as forbidden. **After it**, the first leaf is a *root-init-exclusive*
+entry, so the root classifies `PartialScaffold(Ambiguous)`: Grove can prove its
+own initialisation ran here and cannot prove the root's whole contents are its
+own, so it refuses and mutates nothing.
 
 **Why it is a defect rather than a modelling artifact.** The two statements are
 both the catalogue's: `PartialScaffold` is defined by an *exact closed subset* of
@@ -1399,13 +1514,45 @@ name*. Under interleaving they are inconsistent, and the interleaving is one
 `.DS_Store`, a partially-synced artifact — after which Grove reads its own
 interrupted work as somebody else's legacy tree.
 
-**What a fix would have to decide** (it belongs to `task-tree-scope-k70`, not
-here): whether `PartialScaffold` is defined by the *presence* of the scaffold's
-own entries with their fixed bytes, ignoring entries outside the task grammar,
-rather than by the *absence* of everything else. The safety argument for the
-exact subset — every value a completion writes is fixed in advance — survives
-that change unchanged, because a foreign entry is not something completion
-writes.
+**What the fix decided, and it is not the fix this section proposed.** The
+proposal was to define the state by the *presence* of the scaffold's own
+entries **ignoring entries outside the task grammar**. That half was refused.
+Ignoring the stray entry means completing a root whose contents Grove cannot
+account for, which is the mutation-without-proof `TT-24` forbids; and the safety
+argument invoked for it — *every value a completion writes is fixed in advance*
+— establishes that the **bytes** a completion writes are safe and says nothing
+about whether **this root** is Grove's to write into. Those are two questions
+and the counterexample answers only the first.
+
+What landed instead is the shipped three-way test, which entry 048 judged "a
+better answer than either model gives": the exact subset completes; the exact
+subset **plus** a root-init-exclusive entry **plus** something else refuses; and
+a root with nothing proving initialisation ran is `Legacy`. The absence clause
+stays and a presence clause joins it, each doing one job. See the README head,
+*both `PartialScaffold` findings are disposed*.
+
+### A mid-flight collision unwinds and refuses — `TT-24.b`, `EN-17`
+
+```sh
+quint run crates/grove-task-tree/models/task-tree-controls.qnt \
+  --main=scenario_foreign_sibling \
+  --witnesses wit_TT_24b_a_mid_flight_collision_unwinds_and_refuses_here \
+  --max-steps=24 --max-samples=8000 --seed=0x5e0a51d3c0ffee01 --verbosity=1
+```
+
+**This command used to witness a finding and now witnesses the claim, and the
+disposition went the opposite way from the one it argued for.** An insert shifts
+its later siblings; a non-cooperating writer takes the name the create was going
+to use, between the listing and the step (`EN-06`, `EN-13`); the create is no
+longer licensed. The model returned `Blocked(OwnershipConflict)` and reported a
+missing row in the catalogue's *one artifact, three contexts* table.
+
+There is no missing row. `EN-17` grants what the delegated boundary supplies:
+the interpreter unwinds every effect it applied, so the tree handed back is the
+tree received and the outcome is a refusal. The shifts are undone; the writer's
+entry is not, because it is not this operation's to undo. What the catalogue was
+missing was the assumption, and a model free to decline an ungranted capability
+declined it.
 
 ### `EN-11` does not gate `TT-24.b`
 

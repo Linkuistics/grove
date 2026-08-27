@@ -417,8 +417,9 @@ of a live leaf anywhere beneath it, and it is never marked.
 | `Reserved(Preparing)` | a finish witness built but not published |
 | `Reserved(Published)` | a finish witness published, holding the evacuated entries |
 | `Reserved(Migrating)` | a session-kind migration interrupted mid-flight |
-| `PartialScaffold` | present, no format witness, and the contents are exactly a known proper subset of a fresh scaffold |
-| `Legacy` | present, no format witness, and not a partial scaffold |
+| `PartialScaffold(Exact)` | present, no format witness, and nothing but the fresh scaffold's own byte-exact entries |
+| `PartialScaffold(Ambiguous)` | present, no format witness, an entry only root initialisation writes, **and** an entry a fresh scaffold does not write |
+| `Legacy` | present, no format witness, and nothing that proves this format's initialisation ran |
 | `Foreign(found)` | the format witness holds something else |
 | `Malformed(reason)` | current format, but a grammar or whole-tree invariant fails |
 | `Current(Live)` | at least one live non-finish leaf |
@@ -433,22 +434,72 @@ once recovery has run and could not settle it.
 Root initialisation makes the format witness visible last, so an interruption
 before it lands leaves a present root with no witness — which the classification
 order would otherwise call `Legacy`, and legacy work would then be *completed* as
-though Grove had scaffolded it. The state is therefore defined by an exact,
-closed subset rather than by the absence of the witness:
+though Grove had scaffolded it.
 
-> the task root exists; it contains no format witness; and its entries are a
-> subset of `{the root charter, exactly one positioned entry, which is the first
-> `requirements` leaf at position 1 with key 1}`, with the charter's and the
-> leaf's bytes equal to what a fresh scaffold writes; and it contains nothing
-> else.
+**One ordered three-way test decides a witnessless root, and the order is what
+makes it fail closed.** The first branch is the exact subset the catalogue
+already had; the second is reached only when that fails, and asks whether the
+root carries positive proof that *this format's* initialisation ran; the third
+is what remains.
 
-Anything outside that subset — a second positioned entry, a differing byte, a
-foreign entry, a node directory — is **not** a partial scaffold and falls
-through to `Legacy`. The subset is what makes completion safe: every value the
-completion would write is fixed in advance, so completing is a comparison
-followed by at most one append, never an inference about someone else's tree.
-`PartialScaffold` is ordered **before** `Legacy` and, per `SY-06`, is completed
-before any format classification runs.
+> **Root-init-exclusive entries** are the reserved format temporary, and the
+> first `requirements` leaf at position 1 with key 1, canonically spelled, with
+> bytes equal to what a fresh scaffold writes. **The root charter is not one of
+> them**: its bytes are derived from the working-tree name and every earlier
+> format wrote the same ones, so a charter is evidence that *some* Grove was
+> here and never evidence of *this* format's initialisation.
+>
+> `PartialScaffold(Exact)` — the task root exists; it contains no format
+> witness; every entry it contains is one a fresh scaffold writes, with bytes
+> equal to what the scaffold writes; and no such entry occurs twice.
+>
+> `PartialScaffold(Ambiguous)` — otherwise, when the root contains at least one
+> root-init-exclusive entry: a second positioned entry, a differing byte, a
+> foreign entry, a node directory, standing beside proof that initialisation
+> ran.
+>
+> `Legacy` — otherwise: present, no format witness, and nothing that proves this
+> format's initialisation ran.
+
+**The exclusivity test gates only the second branch, and that asymmetry is
+deliberate.** Where the root holds nothing but the scaffold's own byte-exact
+entries there is nothing to be ambiguous *about*, so the subset alone licenses
+completion — which is why a root holding only a byte-exact charter is completed
+rather than migrated. Positive proof is demanded exactly where it changes the
+answer: once something else is present, refusing is a strong claim about a root
+that might not be Grove's at all, and a claim that strong needs evidence rather
+than the absence of a witness.
+
+**Only `Exact` is completed, and `Ambiguous` refuses.** For `Exact` the closed
+subset is what makes completion safe: every value the completion would write is
+fixed in advance, so completing is a comparison followed by at most one append,
+never an inference about someone else's tree. For `Ambiguous` that argument
+establishes the wrong thing. It says the bytes the completion writes are safe;
+it says nothing about whether *this root* is Grove's to write into, and an entry
+Grove did not write is exactly the proof it lacks. So the root is left
+byte-identical and the operation refuses
+(`ScaffoldIncomplete(Ambiguous)` — see [Outcomes](#outcomes)), which is `TT-24`'s
+fail-closed ownership rule applied at the **root** grain rather than the entry
+grain. It is the same split §[Outcomes](#outcomes) already draws one grain down,
+between an artifact at a reserved name Grove **can** prove is its own and one it
+cannot classify at all.
+
+**The three-way shape is what the shipped product already implements**, in
+`recover_partial_root_init_unlocked`
+([`src/tree_lifecycle.rs`](../../src/tree_lifecycle.rs)), and the charter
+exclusion is not an inference from the code but a deliberate shipped test:
+`an_untouched_root_brief_does_not_hide_a_legacy_v2_tree` puts a byte-exact
+charter beside a legacy-v2 leaf and **migrates**, because treating the charter as
+proof would write a format witness into somebody else's legacy tree. The catalogue
+had one state where the product has three, and entry 048 judged the shipped
+refusal "a better answer than either model gives"; recording it is
+`task-tree-scope-k70`'s disposition of a finding, not a new design.
+
+`PartialScaffold(_)` is ordered **before** `Legacy` and, per `SY-06`,
+`PartialScaffold(Exact)` is completed before any format classification runs.
+`TT-18` and `TT-20` are stated over the scaffold **class** rather than over its
+members, for the same reason `TT-18` and `TT-19` are stated over the reserved
+class: so that adding or removing a member changes no claim.
 
 **`Malformed` carries a reason, not only an entry**, because not every malformity
 is local to one entry. `TT-13` makes two individually well-formed live finish
@@ -646,7 +697,7 @@ set.
 `AlreadyTerminal` · `ReservedKind` · `NotAnEntry` · `DestinationOccupied` ·
 `LayoutUnsupported` · `LeaseHeld` · `EpochStale` · `NoTrackedDeletion` ·
 `RootIdentityChanged` · `UnsupportedEntryType` · `DeletionNotCommitted` ·
-`ConfigurationInvalid` · `GenerationContended`
+`ConfigurationInvalid` · `GenerationContended` · `ScaffoldIncomplete(class)`
 
 **A reason names the question that was asked and answered no — never the gate
 that asked it.** The catalogue already relies on this at `FN-05.a`, where an
@@ -675,6 +726,24 @@ same fix, it is a different and worse one.
   ([`one-live-driver-per-working-tree`](../adr/one-live-driver-per-working-tree.md)).
   Distinct from `EpochStale`, which is `SY-10.a`'s *mismatch* — the operation
   named a generation that is not live — where this is contention for one that is.
+- **`ScaffoldIncomplete(class)`** — the root's own initialisation did not
+  complete, and the class is the scaffold class [States](#states) assigns. Named
+  by no existing reason: `FormatLegacy` is false and is the answer `TT-20`
+  forbids, `FormatForeign` is false, `RootAbsent` is false, and `WitnessPending`
+  names a reserved witness that is not there — which is why
+  `crates/grove-task-tree/models/task-tree.qnt` had to declare a deviation at
+  `gateOutcome` to report anything at all.
+
+**It is one parameterised member rather than two flat ones, and the argument is
+the catalogue's own shape.** The two classes must be distinguishable by the
+operator, because `Exact` names a completion Grove will run and `Ambiguous` names
+one it has already declined — telling an operator to run the second is a worse
+lie than no reason at all, since it suggests Grove will write into a root it
+refused to touch. But the catalogue already answers that with a parameter rather
+than a member: `Reserved(class)` is three states reported by one
+`WitnessPending(class)`, and `PartialScaffold(class)` → `ScaffoldIncomplete(class)`
+is that correspondence a second time. The state's class and the reason's class
+are one lookup, and the vocabulary gains a regularity instead of a special case.
 
 **Why all three arrive at once, and where the next one will come from.** The
 seventeen were drawn over the questions the task-tree scope asks: preconditions
@@ -682,16 +751,15 @@ and guards on a tree. The set is swept by **three** scopes, and every member
 added here is a question a *later* scope asks — a commit's disposition, a
 configuration, a launch generation. That is the pattern under what the finish
 scope recorded as three separate accidents, and it predicts the remaining gap
-rather than merely listing the closed ones. **A fourth instance is already
-recorded and is deliberately not decided here**: an ordinary operation meeting a
-`PartialScaffold` has no reason either, and
-`crates/grove-task-tree/models/task-tree.qnt` refuses `WitnessPending(RPreparing)`
-as least-wrong while naming a reserved witness that is not there. It is
-`task-tree-scope-k70`'s, because deciding it needs that leaf's own items — what
-`PartialScaffold` *is*, and whether the state table gains a member for the
-shipped *ambiguous partial root scaffold* refusal — settled first. **It inherits
-a frozen set and a stated rule rather than an open question**, which is the whole
-reason the vocabulary was decided ahead of the scopes.
+rather than merely listing the closed ones. **It predicted the fourth correctly,
+and the fourth is the one exception to the pattern**: `ScaffoldIncomplete` is a
+question the **task-tree** scope asks, and the seventeen were supposed to have
+been drawn over exactly those. What the earlier draw missed is not a later
+scope's question but a state the catalogue had not finished defining — a
+witnessless root, which had one state where the product has three. So the
+prediction stands and gains a second clause: **a scope also asks a question no
+member names when a state is refined**, and the reason survives the refinement
+because it names the question rather than the state's extension.
 
 **The rejected alternative is the one both families independently chose, twice.**
 Report the case under the closest true member and keep it distinguishable with a
@@ -729,19 +797,52 @@ about blocks, not about every unhappy result: a refusal is not a block and
 carries a refusal reason instead, and reading `OwnershipConflict` onto a refusal
 would make the partition neither disjoint nor exhaustive over anything.
 
+**Two diagnoses and not three, and the third case is the delegated boundary's to
+report.** `EN-17` grants that a reported mutation failure unwinds what it
+applied, and grants it *bounded*: an unwind that itself fails leaves the tree in
+neither the state it was found in nor the one intended
+([`crates/ordinal-fs-tree`](../../crates/ordinal-fs-tree/src/error.rs),
+`Error::FailedPartiallyRolledBack` — "the one path by which this library damages
+a tree it was handed"). That is an effect standing which the action could
+neither complete nor undo, so it is a `Blocked` in every sense
+§[Outcomes](#outcomes) defines — and it is a **task-tree** one, which is worth
+saying because `FN-29.b` was scoped to `grove-finish` alone on the ground that
+"the task-tree scope has no block to be distinguished from". That ground is
+false; the conclusion stands for a different reason. Grove prints the library's
+errors verbatim rather than re-wording them
+([`CONTEXT-MAP.md`](../../CONTEXT-MAP.md), *the table is read at runtime*), so
+this outcome reaches the operator in the boundary's vocabulary and the catalogue
+absorbs no member for it. It is recorded here as a declared limit rather than
+left as a coincidence, and it is why the set is exhaustive over the blocks
+**Grove names** rather than over every block reachable through Grove.
+
 **One artifact, three contexts, one decided outcome.** A foreign entry sitting at
 a name Grove reserves is reachable from three places, and the catalogue fixes
 each rather than letting a model choose (`TT-24`):
 
 | context | outcome | checked by |
 |---|---|---|
-| an ordinary tree operation, before any transaction | `Refused(ReservedNameOccupied(entry))` — the tree is byte-identical | `TT-24.b` |
+| an ordinary tree operation | `Refused(ReservedNameOccupied(entry))` — the tree is byte-identical, **whether or not the operation had already applied an effect**, because a reported mutation failure unwinds what it applied (`EN-17`) | `TT-24.b` |
 | inside a live finish or recovery transaction | the step stops and the artifact is untouched; **which** stop follows from what the action has left standing — `Refused(ReservedNameOccupied(entry))` while nothing of it stands, `Blocked(OwnershipConflict)` once something does | `FN-32`, `FN-29.b`, and the step's own obligation |
 | the quarantine reaper (`FN-21`) | declines the entry, mutating nothing, and reports it; the sweep continues over entries the reaper *can* prove are Grove's | `FN-21.c` |
 
+**The first row said *before any transaction*, and that was never its
+discriminator either.** The phrase read as a premise the caller could fall out
+of — an ordinary mutation that has already shifted an entry and then meets a name
+it cannot prove is its own is not *before* anything — and both families read it
+that way: `crates/grove-task-tree/models/task-tree.qnt`'s `collisionOutcome`
+returns `Blocked(OwnershipConflict)` once `applied` is non-empty and records the
+missing row as a finding. **There is no missing row.** The mutation is applied
+through `crates/ordinal-fs-tree`, this contract's delegated boundary, whose one
+interpreter unwinds every effect it applied on any reported error — its own
+`Error::Failed` says *the tree is as it was found*, checked as `inv_atomicity`.
+So the tree handed back is the tree received and §[Outcomes](#outcomes)' rule
+returns a refusal. The row's outcome is unconditional; what the catalogue was
+missing is the **assumption** that licenses it, and that is now `EN-17`.
+
 The three agree on what matters — nothing foreign is ever mutated, which is
 `TT-24.a` — and differ only in what the caller can be told, which is a function
-of how far the caller had already gone. **The rows are checked in two scopes**,
+of how far the caller had already gone **and could not get back from**. **The rows are checked in two scopes**,
 because two of the three contexts are `grove-finish`'s
 ([`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md)).
 
@@ -835,6 +936,7 @@ cell.
 | `EN-14` | The working-tree root exists before the task root and outlives its deletion. | premise-break | Alloy — a scope in which the root itself is removed | `TT-22`, `SY-01`, `SY-05` | `SY-01` fails: ownership has nothing to be held on, so a second driver is admitted |
 | `EN-15` | Confirmation is an operator input Grove cannot verify. | counterfactual-capability | Quint — `relax_EN_15`, a machine-attested confirmation | retained: `FN-01.a`, `FN-01.b` | **no obligation becomes stronger and none fails.** A machine attestation replaces nothing: `FN-01.a` still forbids running without confirmation and `FN-01.b` still refuses the deterministic guard as a substitute. A run in which some obligation *does* strengthen is the finding, because it would mean a claim was resting on the attestation rather than on the guard |
 | `EN-16` | The three lanes differ in mechanism and agree on abstract outcome. | exercise-removal | Both — the lane is a model parameter; the mutation is collapsing it to one | `FN-15.b`, `FN-15.c`, `FN-15.d`, `FN-17`, `FN-25.c` | with one lane, `FN-25.c`'s per-lane witnesses are unreachable and `FN-17`'s working-copy-as-commit obligation has no instance; every `FN-` property stays green, which is what makes the collapse invisible without this control |
+| `EN-17` | A reported mutation failure unwinds every effect it applied, so the tree is as it was found. The grant is bounded: an unwind that itself fails is outside it. | premise-break | the delegated boundary — [`docs/ordinal-fs-tree/models/`](../ordinal-fs-tree/models/)'s `operations.qnt`, instance `rollback_fails` | `TT-24.b` | `TT-24.b` fails: an ordinary mutation that has already shifted an entry and then meets a name it cannot prove is its own has no way back to a byte-identical tree, so its refusal becomes a block. The boundary's own `wit_partialRollbackLeavesADuplicateKey` is reached in that instance, and it is the only one there that does not claim key uniqueness at rest |
 
 **An exercise-removal row's controls column is a claim of unreachability, and it
 SHALL be established by running the removal rather than by reading the witness.**
@@ -862,6 +964,18 @@ different, so both are named:
   exists to make visible, and is invisible without one.
 
 Telling the two apart is what running the removal buys, and nothing else does.
+
+**`EN-17` is mutated at the boundary rather than in either family here, and that
+is the point of it.** Every other row's mutation is written in one of this
+repository's three scopes; this one already exists in the model of the component
+that supplies the capability, which is what *consuming a boundary rather than
+restating it* means when the boundary has its own suite. The row is here because
+the assumption was **granted silently** — neither family declared it, and
+`crates/grove-task-tree/models/task-tree.qnt` built an interpreter without it and
+reported the resulting `Blocked` as a gap in the catalogue's own outcome table.
+An assumption no row names is one a model may quietly decline, and this is the
+second instance of that shape the experiment has recorded; the other is process
+death under `SY-01.b`, still open with the model owners.
 
 `EN-08`, `EN-11` and `EN-16` are *exercise-removal* rather than premise-break
 because their negation is not a smaller world but a different one: a model with
@@ -1021,10 +1135,25 @@ spent tree, a resolution matching nothing, and a resolution matching several
 SHALL each mutate nothing, refuse nothing, and be distinguishable from one
 another by their reported value alone.
 *Obligations*:
-- `TT-15.a` — selection on a spent tree reports `Empty`. *Witness*: reached.
+- `TT-15.a` — selection on a spent tree **the gate admits** reports `Empty`.
+  *Witness*: reached.
 - `TT-15.b` — a resolution matching nothing reports `Empty`. *Witness*: reached.
 - `TT-15.c` — a resolution matching several reports `Ambiguous(cs)`. *Witness*:
   reached.
+
+**`TT-15.a`'s premise is load-bearing, and without it the claim is false of a
+tree the catalogue itself constructs.** A current root with no live task and a
+foreign artifact at a name Grove reserves classifies `Current(Spent)`, so the
+literal text requires `Empty`; `TT-24.b` requires that same tree to refuse
+`ReservedNameOccupied(entry)`, and `TT-18` puts that refusal two stages ahead of
+anything the walk says. Both statements are the catalogue's and both are right.
+They are not in conflict, because **classification is a function of the tree and
+an outcome is a function of the operation** — a tree may classify `Current(Spent)`
+and still refuse every operation, which is what the classification order is for.
+`TT-15` is about what a *completed observation* reports, and an observation the
+gate refused never observed. Both families found this and both guarded for it
+before the text said so; the premise is the guard, promoted from a declared
+narrowing into the claim.
 
 **`TT-16` — a resolved terminal entry is never mistaken for live.** A resolution
 that matches a terminal entry SHALL report both the entry and its terminality.
@@ -1034,13 +1163,53 @@ that matches a terminal entry SHALL report both the entry and its terminality.
 
 ### Root identity and guarding
 
-**`TT-17` — format is decided by the witness's content.** The classification
-SHALL depend only on the format witness, never on any task entry's text.
-*Witness*: a legacy tree whose slug text would otherwise read as a current kind.
+**`TT-17` — a format decision reads the witness; a witnessless decision reads
+bytes, never a parse.** Where a format witness exists the classification SHALL
+depend only on its content. Where none exists there is no witness to read, and
+the root is separated from `Legacy` by comparing entries **byte-for-byte against
+what a fresh scaffold writes** — never by what a task entry's name *parses as*.
+*Obligations*:
+- `TT-17.a` — where a format witness exists, `Current` and `Foreign` are decided
+  by its content alone, and no task entry's text moves the root between format
+  families. *Witness*: a legacy tree whose slug text would otherwise read as a
+  current kind.
+- `TT-17.b` — where none exists, the decision SHALL read the entries' **bytes**
+  and not only their names: a witnessless root, none of whose entries carries
+  the scaffold's own bytes, SHALL NOT classify as a scaffold of either class,
+  however its entries are spelled. *Witness*: a root carrying the scaffold
+  leaf's exact name over somebody else's bytes, classified `Legacy`.
+
+**`.b` was first worded as *no perturbation of a task entry's text moves a root
+into a scaffold classification*, and Alloy refuted it in one command.** A
+rename is a perturbation of text, and a file that already holds the scaffold's
+exact bytes under some other name becomes the scaffold leaf when it is renamed
+to the scaffold leaf's name — correctly, since Grove cannot and must not
+distinguish it from the one its own initialisation would have written. The
+perturbation form asserted something about *renames* when the claim is about
+*what is consulted*, and the byte form above says the second without implying
+the first. Recorded because a claim that had to be refuted before it was right
+is worth more to the next reader than the claim alone.
+
+**The one-sentence form was false, and it was false because it collapsed two
+decisions.** "The classification SHALL depend only on the format witness, never
+on any task entry's text" is contradicted by [States](#states) — the witnessless
+decision is defined by an exact comparison against a task entry's name *and*
+bytes, and the scaffold-class refinement above makes it read them twice. Both
+families checked the claim over the Current/Legacy/Foreign decision only and
+declared a narrowing; the narrowing was right and the text was wrong. What
+survives is the hazard the witness always named, and the product has a test for
+it: a legacy slug that happens to read as a current session kind is evidence of
+nothing
+(`a_legacy_v2_slug_beginning_with_requirements_is_not_partial_root_init`,
+[`src/tree_migration_transaction.rs`](../../src/tree_migration_transaction.rs)).
+Splitting the claim is what lets that be *checked* rather than narrowed away.
 
 **`TT-18` — classification order is fixed.** Reserved-witness classification
 SHALL precede format classification, which SHALL precede any walk-derived
-classification.
+classification. *Walk-derived* means the liveness split inside `Current(*)`,
+reached by walking the tree; the format stage's own reading of the root's direct
+children for the exact scaffold comparison (`TT-17.b`) is part of that stage and
+not an early walk.
 *Witness*: a tree carrying both a reserved witness and no format witness,
 reported as the former.
 
@@ -1053,10 +1222,35 @@ place and which therefore looks perfectly walkable.
 **`TT-20` — the format witness lands last.** Root initialisation SHALL make the
 format witness visible only after every other scaffolded entry, by an atomic
 same-directory rename, so no reader observes a torn or premature marker. The
-root it leaves behind on interruption SHALL classify as `PartialScaffold` — never
-as `Current(*)` and never as `Legacy`.
-*Witness*: an interruption before the witness lands, classified as
-`PartialScaffold`.
+root it leaves behind on interruption SHALL **never** classify as `Current(*)`;
+and once any root-init-exclusive entry has landed it SHALL classify as
+`PartialScaffold(_)` and never as `Legacy`.
+*Witness*: an interruption before the witness lands, classified
+`PartialScaffold(Exact)`; and an interruption with a concurrent foreign write,
+classified `PartialScaffold(Ambiguous)`.
+
+**The `Legacy` half is narrowed to the window in which ownership is provable,
+and the narrowing is a fact about the product rather than about the models.**
+Before any root-init-exclusive entry lands, the root carries no evidence at all
+that distinguishes it from a legacy tree — a charter is not such evidence, by
+[States](#states) — so `Legacy` is the honest classification and the claim
+cannot forbid it. The window is real and shipped: interruption after the charter
+and before the leaf, with a concurrent foreign write, and
+`create_root_unlocked`/`complete_scaffold` leave it unguarded on purpose. Two
+repairs were considered and refused. **Treating the charter as proof** is what
+`an_untouched_root_brief_does_not_hide_a_legacy_v2_tree` exists to prevent, and
+its failure mode is worse — a format witness written into somebody else's tree.
+**A guard across the two phases** buys nothing, because `EN-06` grants only that
+*cooperating* processes are serialized and the actor that produces the
+counterexample is `EN-13`'s non-cooperating writer.
+
+**The `Current(*)` half is untouched and is the load-bearing one**: it is what
+stops Grove completing a tree it did not scaffold. What the narrowed half costs
+is a diagnostic — inside the window an operator is told to migrate a tree that
+is not legacy — and it costs more once the approved breaking change removes
+migration and `Legacy` fails closed. Closing the window is a product change
+(make root initialisation's first write a root-init-exclusive one) and is
+`handoff-audit-k66`'s, beside the other product-facing diagnostic questions.
 
 **`TT-21` — one snapshot per operation.** Every classification an operation
 makes SHALL be computed from a single listing taken under that operation's
@@ -1120,7 +1314,10 @@ catalogue rather than a covered claim.
   entry, shown not taken.
 - `TT-24.b` — an ordinary tree operation meeting a foreign entry at a reserved
   name returns `Refused(ReservedNameOccupied(entry))`, leaving the tree
-  byte-identical and naming no recovery. *Witness*: reached.
+  byte-identical and naming no recovery — **whether or not it had already applied
+  an effect**, since a reported mutation failure unwinds what it applied
+  (`EN-17`). *Witness*: reached before any effect; and reached after an applied
+  effect, unwound.
 
 **The other two contexts are `FN-`'s, and the letters `c` and `d` are retired.**
 The claim's other two contexts — inside a live transaction, and under the
@@ -1732,20 +1929,25 @@ finished one.
 *Obligations*:
 - `SY-06.a` — a completed scaffold carries a first live leaf, not only a charter.
   *Witness*: a fresh root, distinguishable from a spent one.
-- `SY-06.b` — an interrupted scaffold classifies as `PartialScaffold` — by the
-  exact known subset in [States](#states), never by the mere absence of the format
-  witness — and is completed **before** any format classification runs, so a
-  `Legacy` tree is never completed as though Grove had scaffolded it. *Witness*:
-  an interrupted scaffold, completed; and a `Legacy` tree, refused rather than
-  completed.
-  *Cross-scope citation*: the classification, its exact subset and the **order**
-  that puts `PartialScaffold` before `Legacy` are `TT-18`'s and `TT-20`'s, and
+- `SY-06.b` — an interrupted scaffold classifies as `PartialScaffold(_)` — by
+  the two tests in [States](#states), never by the mere absence of the format
+  witness — and `PartialScaffold(Exact)` is completed **before** any format
+  classification runs, so a `Legacy` tree is never completed as though Grove had
+  scaffolded it. *Witness*: an interrupted scaffold, completed; and a `Legacy`
+  tree, refused rather than completed.
+  *Cross-scope citation*: the classification, its two tests and the **order**
+  that puts `PartialScaffold(_)` before `Legacy` are `TT-18`'s and `TT-20`'s, and
   `models/system/` has no classification step — it reads `partial` and `legacy`
   as marks already made. What is checked here is the ordering's consequence.
-  **The citation carries its narrowing**: `TT-20`'s fourth conjunct is checked
-  over an initialisation the world did not touch, declared in both families'
-  READMEs, so this obligation inherits that narrowing and no more strength than
-  it.
+  **The citation carries its narrowings, and both of them changed.** `TT-20`'s
+  fourth conjunct is no longer narrowed to an initialisation the world did not
+  touch — a concurrent foreign write now classifies `PartialScaffold(Ambiguous)`
+  rather than `Legacy` — but it is narrowed instead to the window in which a
+  root-init-exclusive entry has landed, and `Ambiguous` is a member this
+  obligation must **not** complete. So the citation inherits a *different*
+  strength rather than the same one, and the cell is
+  [`models/system/`](../../models/system/)'s to re-answer
+  (`lifecycle-scope-k72`).
 
 **`SY-07` — exhaustion yields exactly one finish leaf.** When no live leaf
 remains the driver SHALL append or reuse exactly one driver-owned finish leaf,

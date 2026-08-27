@@ -120,6 +120,15 @@ module taskTree {
 
   type ResClass = RPreparing | RPublished | RMigrating
 
+  /// The class of a witnessless root, per the catalogue's `PartialScaffold`
+  /// rows.  `SExact` is completable — nothing but the fresh scaffold's own
+  /// byte-exact entries — and `SAmbiguous` is not: proof that root
+  /// initialisation ran, standing beside something a fresh scaffold does not
+  /// write.  Parameterising the state rather than adding a sibling is the
+  /// catalogue's own idiom (`Reserved(ResClass)`), and it is what lets `TT-18`
+  /// and `TT-20` be stated over the CLASS.
+  type ScaffoldClass = SExact | SAmbiguous
+
   /// What one directory entry beneath the task root is.
   type EntryKind =
     // The task root directory itself.  Not an entry: its own name is never
@@ -359,7 +368,7 @@ module taskTree {
   type RootState =
     | Absent
     | Reserved(ResClass)
-    | PartialScaffold
+    | PartialScaffold(ScaffoldClass)
     | Legacy
     | ForeignFmt(FormatTag)
     | MalformedRoot(MalReason)
@@ -389,9 +398,28 @@ module taskTree {
     typeOf(f, i) == OFile and
     f.objs.get(i).digest == SCAFFOLD_LEAF_DIGEST
 
-  pure def isPartialScaffold(f: Fs): bool =
-    rootPresent(f) and
-    formatWitnessIds(f).size() == 0 and
+  /// ROOT-INIT-EXCLUSIVE: an entry only THIS format's root initialisation
+  /// writes.  The charter is deliberately NOT one — its bytes derive from the
+  /// working-tree name and every earlier format wrote the same ones, which is
+  /// the content of the shipped
+  /// `an_untouched_root_brief_does_not_hide_a_legacy_v2_tree`.
+  ///
+  /// ABSTRACTED, AND DECLARED.  The catalogue names two exclusives — the
+  /// reserved format temporary and the first `requirements` leaf — and this
+  /// model has no temporary, since `EPublish` makes the witness visible in one
+  /// step.  The abstraction is safe in the direction that matters: FEWER
+  /// exclusives means MORE roots fall to `Legacy`, so the window `TT-20` now
+  /// declares is modelled at its widest rather than at its narrowest, and it
+  /// coincides exactly with the shipped one — after the charter, before the
+  /// leaf.
+  pure def isRootInitExclusive(f: Fs, i: Id): bool = isScaffoldLeaf(f, i)
+
+  pure def hasRootInitExclusive(f: Fs): bool =
+    childIds(f, ROOT).exists(i => isRootInitExclusive(f, i))
+
+  /// The first branch of the catalogue's ordered three-way test: nothing but
+  /// the fresh scaffold's own byte-exact entries, none of them twice.
+  pure def isExactScaffold(f: Fs): bool =
     childIds(f, ROOT).forall(i => isScaffoldCharter(f, i) or isScaffoldLeaf(f, i)) and
     childIds(f, ROOT).filter(i => isScaffoldCharter(f, i)).size() <= 1 and
     childIds(f, ROOT).filter(i => isScaffoldLeaf(f, i)).size() <= 1
@@ -400,11 +428,13 @@ module taskTree {
   /// that this depends only on the format witness's content — never on any task
   /// entry's text — and isolating it is what makes that checkable rather than
   /// asserted.
-  type FormatStage = FLegacy | FPartial | FForeign(FormatTag) | FCurrent
+  type FormatStage = FLegacy | FPartial(ScaffoldClass) | FForeign(FormatTag) | FCurrent
 
   pure def formatStage(f: Fs): FormatStage =
     if (formatWitnessIds(f).size() == 0)
-      (if (isPartialScaffold(f)) FPartial else FLegacy)
+      (if (isExactScaffold(f)) FPartial(SExact)
+       else if (SCAFFOLD_AMBIGUITY_CLASSED and hasRootInitExclusive(f)) FPartial(SAmbiguous)
+       else FLegacy)
     else if (formatTagOf(f) != FORMAT_CURRENT) FForeign(formatTagOf(f))
     else FCurrent
 
@@ -415,7 +445,7 @@ module taskTree {
     if (not(rootPresent(f))) Absent
     else if (reservedWitnessIds(f).size() > 0) Reserved(resClassOf(f))
     else match formatStage(f) {
-      | FPartial    => PartialScaffold
+      | FPartial(c)  => PartialScaffold(c)
       | FLegacy     => Legacy
       | FForeign(t) => ForeignFmt(t)
       | FCurrent    =>
@@ -526,7 +556,7 @@ module taskTree {
         }) }
 
   /// Every task entry's slug AND session kind replaced by something that reads
-  /// as current work.  `TT-17` says the FORMAT decision may not read either.
+  /// as current work.  `TT-17.a` says the FORMAT decision may not read either.
   pure def perturbText(f: Fs): Fs =
     { ...f, objs: f.objs.keys().mapBy(i =>
         val o = f.objs.get(i)
@@ -558,6 +588,7 @@ module taskTree {
     | NoTrackedDeletion
     | RootIdentityChanged
     | UnsupportedEntryType
+    | ScaffoldIncomplete(ScaffoldClass)
     // THREE MEMBERS OF THE CATALOGUE'S SET ARE DELIBERATELY NOT TRANSCRIBED
     // HERE, and the omission is checked rather than assumed.
     // `closed-set-additions-k74` widened the closed reason set to twenty with
@@ -638,6 +669,52 @@ module taskTree {
     }
 
   pure def applyAll(f: Fs, es: List[Effect]): Fs = es.foldl(f, (a, e) => applyEffect(a, e))
+
+  /// `EN-17` — THE UNWIND.  Every mutation is applied through the delegated
+  /// boundary's one interpreter, which unwinds what it applied on any reported
+  /// error, so the tree handed back is the tree it was found in
+  /// (`crates/ordinal-fs-tree`, `Error::Failed`; checked there as
+  /// `inv_atomicity`).  The assumption was granted SILENTLY before it was a
+  /// row: this model built an interpreter without it, returned
+  /// `Blocked(OwnershipConflict)` for an ordinary mid-flight collision, and
+  /// reported the missing outcome as a gap in the catalogue's own three-contexts
+  /// table.  There was no gap; there was an ungranted capability.
+  ///
+  /// ABSTRACTED, AND DECLARED.  The boundary unwinds its own steps in reverse
+  /// order; this restores every id those steps TOUCHED to its state in
+  /// `beforeFs` and leaves every other id exactly as it is.  The two agree on
+  /// what any `TT-` obligation reads — the tree handed back, and that the
+  /// unwind touches only its own (`inv_rollbackRemovesOnlyItsOwn` at the
+  /// boundary) — and differ only in step count, which nothing here reads.
+  /// The world's own writes are deliberately NOT reverted: a `foreign-write`
+  /// that landed mid-operation is not this operation's to undo, which is
+  /// `TT-04` and `TT-24.a` in the same breath.
+  ///
+  /// The grant is BOUNDED and the bound is the boundary's too: an unwind that
+  /// itself fails leaves an effect standing
+  /// (`Error::FailedPartiallyRolledBack`).  That outcome is reported in the
+  /// boundary's own vocabulary and the catalogue absorbs no member for it, so
+  /// it is outside this model as it is outside the closed sets.
+  pure def unwind(f: Fs, before: Fs, applied: List[Effect]): Fs =
+    val touched = applied.foldl(Set(), (acc, e) => acc.union(Set(effTarget(e))))
+    val restored = touched.filter(i => before.objs.keys().contains(i))
+    val kept = f.objs.keys().exclude(touched)
+    { objs: kept.union(restored).mapBy(i =>
+        if (restored.contains(i)) before.objs.get(i) else f.objs.get(i)),
+      nextId: f.nextId }
+
+  /// Every id the operation touched is back to the state it was found in —
+  /// absent if it was absent.  This is what `TT-24.b`'s *leaving the tree
+  /// byte-identical* means once the operation may already have applied
+  /// something, and it is stated over the operation's OWN ids rather than over
+  /// the whole tree, because a non-cooperating writer may have moved the world
+  /// in the meantime and that movement is not the operation's to undo.
+  pure def unwoundCleanly(f: Fs, before: Fs, applied: List[Effect]): bool =
+    applied.foldl(true, (acc, e) =>
+      val i = effTarget(e)
+      acc and (if (before.objs.keys().contains(i))
+                 (f.objs.keys().contains(i) and f.objs.get(i) == before.objs.get(i))
+               else not(f.objs.keys().contains(i))))
 
   /// A step whose destination is already taken.  The plan was licensed by the
   /// operation's own listing (`TT-21`), and a non-cooperating writer may have
@@ -790,28 +867,28 @@ module taskTree {
   // the claim.  `Idle` here means "the gate passed"; every other value is the
   // operation's whole outcome.
   //
-  // DECLARED DEVIATION, recorded as a finding rather than fixed under the
-  // independence barrier: an ordinary operation meeting `PartialScaffold` has
-  // NO reason in the catalogue's closed refusal set.  `FormatLegacy` is the one
-  // `TT-20` explicitly forbids and `WitnessPending` names a reserved witness
-  // that is not there.  The model refuses `WitnessPending(RPreparing)` as the
-  // least-wrong member — Grove-owned, incomplete, and naming a recovery — and
-  // the gap is entry 044's finding.
+  // THE DECLARED DEVIATION THAT STOOD HERE IS DISPOSED, and the catalogue moved
+  // rather than the model.  An ordinary operation meeting a witnessless root
+  // had NO reason in the closed refusal set, so this gate refused
+  // `WitnessPending(RPreparing)` as the least-wrong member while naming a
+  // reserved witness that is not there — entry 044's finding, routed by
+  // `closed-set-additions-k74` to `task-tree-scope-k70` with a frozen set and a
+  // rule rather than as an open question.
   //
-  // ROUTED, NOT DISPOSED, BY `closed-set-additions-k74`, AND WITH A RULE RATHER
-  // THAN A QUESTION.  That leaf froze the shared vocabulary and found this is a
-  // FOURTH instance of the shape it disposed — a scope asking a question the
-  // closed reason set has no member for — but declined to decide it, because
-  // deciding it needs `task-tree-scope-k70`'s own items settled first: what
-  // `PartialScaffold` IS (its definition by absence rather than presence), and
-  // whether the state table gains a member for the shipped *ambiguous partial
-  // root scaffold* refusal.  What `k70` inherits is a frozen set of twenty and
-  // the rule for adding to it — *the set gains a member exactly when a scope
-  // asks a question no member names, and the member names the QUESTION, never
-  // the gate* — so the collision hazard that put the vocabulary ahead of the
-  // scopes does not apply.  Reporting under the least-wrong member is the same
-  // move `finish.als` made twice, and the record says why it is the rejected
-  // alternative: `docs/adr/a-refusal-leaves-nothing-standing.md`, clause 2.
+  // The set gained `ScaffoldIncomplete(class)`, by that rule: the question an
+  // ordinary operation asks of a witnessless root is *did this root's
+  // initialisation complete*, and no member named it.  It is ONE parameterised
+  // member rather than two, on the catalogue's own
+  // `Reserved(ResClass)` -> `WitnessPending(ResClass)` precedent, so the state's
+  // class and the reason's class are one lookup.
+  //
+  // THE TRANSACTION BRANCH IS GONE FROM THIS GATE and that is not this leaf's
+  // decision to make or unmake: `closed-set-additions-k74` decided `FN-32` at
+  // the gate is a REFUSAL, and a branch here returning `Blocked` before any
+  // effect contradicted a landed sibling claim.  `TT-24.c` is retired, so no
+  // `TT-` obligation reads this branch; leaving a model sentence that
+  // contradicts the catalogue is the cost being avoided, not a re-decision.
+  // Cross-scope citation: `FN-32`, `FN-29.b`.
 
   pure def gateOutcome(f: Fs, t: OpTag): Outcome =
     if (t == TInitRoot)
@@ -819,11 +896,10 @@ module taskTree {
     else if (not(rootPresent(f))) Refused(RootAbsent)
     else if (foreignAtReserved(f).size() > 0)
       (if (t == TReap) Idle
-       else if (isTransaction(t)) BlockedO(OwnershipConflict)
        else Refused(ReservedNameOccupied(pick(foreignAtReserved(f)))))
     else if (reservedWitnessIds(f).size() > 0) Refused(WitnessPending(resClassOf(f)))
     else match formatStage(f) {
-      | FPartial    => Refused(WitnessPending(RPreparing))
+      | FPartial(c)  => Refused(ScaffoldIncomplete(c))
       | FLegacy     => Refused(FormatLegacy)
       | FForeign(_) => Refused(FormatForeign)
       | FCurrent    =>
@@ -927,6 +1003,32 @@ module taskTree {
   /// refuses the member the interrupted run already marked, and
   /// `mutant_bulk_strict` is the run that watches `TT-23.b` die.
   const BULK_TARGET_IDEMPOTENT: bool
+
+  /// The disposition of entry 044's `PartialScaffold` finding, as a switch, so
+  /// that the claim it repaired has a control that kills it.  `true` is the
+  /// catalogue: a witnessless root holding a root-init-exclusive entry beside
+  /// something else classifies `PartialScaffold(Ambiguous)` and REFUSES.
+  /// `false` restores the pre-disposition definition — exact subset or
+  /// `Legacy`, nothing between — under which Grove reads its own interrupted
+  /// work as somebody else's legacy tree.  `mutant_scaffold_absence_only` is
+  /// the instance, and `TT-20`'s second conjunct is what dies in it.
+  const SCAFFOLD_AMBIGUITY_CLASSED: bool
+
+  /// `EN-17` as a switch, so the clause it bought has a control that kills it.
+  /// `true` is the delegated boundary's interpreter: a reported mutation failure
+  /// unwinds every effect it applied, so an ordinary operation hands back the
+  /// tree it was given and the outcome is a REFUSAL.  `false` is the
+  /// interpreter this model built for itself while the capability was
+  /// ungranted — it stops where it is, leaving its own shifts standing.
+  /// `mutant_no_unwind` is the instance, and `TT-24.b`'s second clause is what
+  /// dies in it.
+  ///
+  /// It is a MODEL mutation rather than an `EN_` premise break even though it
+  /// switches an assumption, because the assumption's own mutation lives at the
+  /// boundary that supplies it (`operations.qnt`'s `rollback_fails`), which
+  /// `models/run.sh` delegates to.  What this dial controls is THIS model's
+  /// clause, not the capability.
+  const MUTATION_UNWINDS: bool
 
   /// A bulk member is admissible if it is a markable leaf OR IS ALREADY IN THE
   /// TARGET STATE.  The second half is what `TT-23.b` requires and what a naive
@@ -1079,6 +1181,10 @@ module taskTree {
     reissued: bool,
     initCrashCls: Set[RootState],
     initCrashUnderForeign: Set[RootState],
+    // `TT-20`'s narrowed prohibition, recorded as the thing it forbids: an
+    // interrupted initialisation that classified `Legacy` WITH a
+    // root-init-exclusive entry already on disk.
+    initCrashLegacyWithExclusive: bool,
     crashed: bool,
     handEdited: bool,
     foreignWritten: bool,
@@ -1100,7 +1206,8 @@ module taskTree {
 
   pure val EMPTY_HIST: Hist = {
     issued: Set(), reissued: false, initCrashCls: Set(),
-    initCrashUnderForeign: Set(), crashed: false,
+    initCrashUnderForeign: Set(), initCrashLegacyWithExclusive: false,
+    crashed: false,
     handEdited: false, foreignWritten: false, foreignMutated: false,
     unownedMutated: false, entryRemoved: false, bulkInvalidApplied: false,
     bulkPartial: false, bulkPlanKeys: List(), bulkRepaired: false,
@@ -1267,25 +1374,29 @@ module taskTree {
   /// catalogue fixes it by how far the caller had already gone (*Outcomes*,
   /// **One artifact, three contexts, one decided outcome**):
   ///
-  ///   - NOTHING APPLIED YET.  The tree is byte-identical, so the honest
-  ///     outcome is a REFUSAL, and `Blocked` — "a transaction stopped part-way
-  ///     and left a stable, recoverable state" — would be a lie about state
-  ///     that never moved.  The reason is `ReservedNameOccupied` exactly when
-  ///     the occupant is the artifact `TT-24.b` is about, and
-  ///     `DestinationOccupied` otherwise.
-  ///   - AN EFFECT HAS ALREADY LANDED, or this is a transaction.  Now nothing
-  ///     can say "nothing happened", and `Blocked(OwnershipConflict)` is the
-  ///     honest stable state — on the table's own reasoning, that a caller who
-  ///     has already mutated is owed a block rather than a refusal.
+  ///   - AN ORDINARY OPERATION.  The interpreter UNWINDS whatever it applied
+  ///     (`EN-17`), so the tree handed back is the tree it was given and the
+  ///     honest outcome is a REFUSAL — whether or not an effect had landed.
+  ///     The reason is `ReservedNameOccupied` exactly when the occupant is the
+  ///     artifact `TT-24.b` is about, and `DestinationOccupied` otherwise.
+  ///   - A TRANSACTION.  `grove-finish`'s, not this scope's: `FN-32` and
+  ///     `FN-29.b` fix it, refusing while nothing stands and blocking once
+  ///     something does.  Retained only as a cross-scope citation, since
+  ///     `TT-24.c` is retired and no `TT-` obligation reads this branch.
   ///
-  /// The ORDINARY half of that second case is the one the table has no row for:
-  /// its three contexts are an ordinary operation *before any transaction*, a
-  /// finish transaction, and the reaper.  A mid-flight ordinary mutation is
-  /// none of them, and that — not the pre-effect collision, which the closed
-  /// set answers perfectly well — is the missing-outcome finding.
+  /// AN EARLIER REVISION SPLIT ON `o.applied.length() > 0` AND CALLED THE
+  /// ORDINARY HALF A MISSING ROW IN THE CATALOGUE'S *one artifact, three
+  /// contexts* TABLE.  There is no missing row.  The split modelled an
+  /// interpreter with no unwind, which is not the one Grove has — the
+  /// destination check whose collision this is exists at the boundary
+  /// precisely because "the lock is advisory: a writer that does not take it
+  /// can occupy a destination between the snapshot and the apply".  What was
+  /// missing was the ASSUMPTION, and it is now `EN-17`.
   pure def collisionOutcome(f: Fs, o: Op): Outcome =
     val i = effTarget(o.pending.head())
-    if (o.applied.length() > 0 or isTransaction(o.tag)) BlockedO(OwnershipConflict)
+    if (isTransaction(o.tag))
+      (if (o.applied.length() > 0) BlockedO(OwnershipConflict)
+       else Refused(ReservedNameOccupied(i)))
     else if (has(f, i) and f.objs.get(i).atReserved and isForeign(f, i))
       Refused(ReservedNameOccupied(i))
     else Refused(DestinationOccupied)
@@ -1294,7 +1405,11 @@ module taskTree {
     op.running,
     op.pending.length() > 0,
     effectBlocked(fs, op.pending.head()),
-    fs' = fs,
+    // `EN-17`: an ordinary operation unwinds what it applied, so the tree is as
+    // it was found.  A transaction does not — it keeps a witness instead, which
+    // is what makes its stop recoverable and is `grove-finish`'s to state.
+    fs' = if (isTransaction(op.tag) or not(MUTATION_UNWINDS)) fs
+          else unwind(fs, op.beforeFs, op.applied),
     op' = { ...op, running: false, pending: List(),
             outcome: collisionOutcome(fs, op) },
     guard' = HNone,
@@ -1355,6 +1470,10 @@ module taskTree {
                                 and op.foreignDuring)
                               hist.initCrashUnderForeign.union(Set(classify(fs)))
                             else hist.initCrashUnderForeign,
+              initCrashLegacyWithExclusive:
+                hist.initCrashLegacyWithExclusive or
+                (op.tag == TInitRoot and op.pending.length() > 0 and
+                 classify(fs) == Legacy and hasRootInitExclusive(fs)),
               // The FIRST interruption fixes the request the retry is judged
               // against; a later one cannot quietly re-point the ghost at a
               // different plan.
@@ -1418,7 +1537,7 @@ module taskTree {
 
   pure def fsOf(m: Id -> Obj): Fs = { objs: m, nextId: 40 }
 
-  pure val SITUATIONS: Set[int] = 1.to(25)
+  pure val SITUATIONS: Set[int] = 1.to(26)
 
   pure def situation(s: int): Fs =
     if (s == 1) fsOf(CURRENT_ROOT.put(4, Ob(ROOT, Lf(1, 1, 1, KDesign, SLive), OFile, false, 20)))
@@ -1564,9 +1683,21 @@ module taskTree {
 
     // TT-23.b: a two-member bulk plan, both valid, interruptible between the
     // two renames.
-    else fsOf(CURRENT_ROOT
+    else if (s == 25) fsOf(CURRENT_ROOT
       .put(4, Ob(ROOT, Lf(1, 1, 1, KDesign, SLive), OFile, false, 20))
       .put(5, Ob(ROOT, Lf(2, 2, 2, KImpl, SLive), OFile, false, 21)))
+
+    // TT-17.b: a witnessless root whose entry carries the scaffold leaf's EXACT
+    // name — position 1, key 1, the default slug, `requirements`, live — over
+    // somebody ELSE's bytes, beside a charter that is also not the scaffold's.
+    // A classifier that read names would call this a partial scaffold and
+    // COMPLETE it; the decision reads bytes, so it is `Legacy`.  This is the
+    // shipped
+    // `a_legacy_v2_slug_beginning_with_requirements_is_not_partial_root_init`
+    // as a hand-edit situation, added by `task-tree-scope-k70` because the
+    // family had no tree that could tell the two readings apart.
+    else fsOf(LEGACY_ROOT
+      .put(4, Ob(ROOT, Lf(1, 1, 0, KRequirements, SLive), OFile, false, 20)))
 
   action handEditTo(s: int): bool = all {
     HAND_EDITS,
@@ -1741,7 +1872,10 @@ module taskTree {
           | _ => o
         }) }
 
-  /// `TT-17`, narrowed and DECLARED.  The catalogue's `PartialScaffold` is
+  /// `TT-17.a`'s subject: the FORMAT decision, isolated.  The narrowing that
+  /// stood here is DISPOSED — the catalogue split the claim rather than the
+  /// model narrowing it — and the paragraph below is kept because it is the
+  /// argument for the split.  The catalogue's `PartialScaffold` is
   /// defined by an exact comparison against a task entry's name AND bytes, so
   /// the literal reading of `TT-17` — the classification never reads a task
   /// entry's text — is contradicted by the catalogue's own state table.  This
@@ -2066,25 +2200,22 @@ module taskTree {
   val inv_TT_15a_selection_on_a_spent_tree_reports_empty: bool =
     and {
       observationIsClean(op.tag, op.outcome, op.applied, atRest),
-      // NARROWED, AND THE NARROWING IS DECLARED — the third of them, beside
-      // `TT-17` and `TT-20`, and a catalogue conflict of the same kind rather
-      // than a modelling convenience.
+      // NO LONGER A NARROWING — the catalogue adopted the premise.  `TT-15.a`
+      // now reads *selection on a spent tree THE GATE ADMITS reports `Empty`*,
+      // and `walkStageReached` is that premise rather than a guard the model
+      // added to survive.
       //
-      // The literal claim is that every snapshot classifying `CurrentSpent`
-      // returns `Empty`.  A current root with no live task and a FOREIGN
-      // artifact at a reserved name classifies `CurrentSpent` — `classify`
-      // reaches its walk stage and finds nothing live — while `TT-24.b`
-      // requires that same tree to refuse `ReservedNameOccupied`, and
-      // `TT-18` puts that refusal two stages ahead of anything the walk says.
-      // Both are the catalogue's; under one tree they are inconsistent, and
-      // `TT-24.b` is the one whose whole purpose is to win.
-      //
-      // `walkStageReached` states the staging premise the claim leaves
-      // implicit: on a tree the gate actually walks, selection on a spent tree
-      // reports `Empty`.  Without it this obligation is a claim about the
-      // classification ORDER wearing selection's name.  Recorded rather than
-      // fixed — the catalogue is frozen under the independence barrier, and
-      // `task-tree-scope-k70` owns the disposition.
+      // The conflict it resolves, kept because it is the argument for the
+      // premise: a current root with no live task and a FOREIGN artifact at a
+      // reserved name classifies `CurrentSpent` — `classify` reaches its walk
+      // stage and finds nothing live — while `TT-24.b` requires that same tree
+      // to refuse `ReservedNameOccupied`, and `TT-18` puts that refusal two
+      // stages ahead of anything the walk says.  Both are the catalogue's, and
+      // they were never in conflict: CLASSIFICATION is a function of the tree
+      // and an OUTCOME is a function of the operation.  A tree may classify
+      // `CurrentSpent` and still refuse every operation, and an observation the
+      // gate refused never observed.  Both families found this independently
+      // and both guarded for it before the text said so.
       (atRest and op.tag == TSelect and walkStageReached(op.snap) and
        classify(op.snap) == CurrentSpent)
         implies isEmptyO(op.outcome),
@@ -2139,13 +2270,46 @@ module taskTree {
 
   // --- TT-17 — format is decided by the witness's content --------------------
 
-  val inv_TT_17_the_format_decision_reads_no_task_entry_text: bool =
+  val inv_TT_17a_the_format_decision_reads_no_task_entry_text: bool =
     formatDecision(fs) == formatDecision(perturbText(fs))
 
-  val wit_TT_17_a_legacy_tree_whose_text_reads_as_current: bool =
+  val wit_TT_17a_a_legacy_tree_whose_text_reads_as_current: bool =
     classify(fs) == Legacy and
     recognised(fs).exists(i => nameAt(fs, i).skind == KDesign or
                                nameAt(fs, i).skind == KImpl)
+
+  pure def isScaffoldStage(st: FormatStage): bool =
+    match st { FPartial(_) => true | _ => false }
+
+  /// `TT-17.b` — a WITNESSLESS decision reads BYTES and not only names.  A root
+  /// whose entries carry none of the scaffold's own bytes is `Legacy` however
+  /// its entries are spelled, which is the shipped
+  /// `a_legacy_v2_slug_beginning_with_requirements_is_not_partial_root_init`.
+  /// A scaffold test written over names alone dies on this.
+  ///
+  /// IT WAS FIRST WRITTEN AS A PERTURBATION — *no text edit moves a root INTO a
+  /// scaffold classification* — AND THE ALLOY COLUMN REFUTED IT, in the first
+  /// command run against the draft.  A rename is such an edit, and a file
+  /// already holding the scaffold's exact bytes under another name BECOMES the
+  /// scaffold leaf when renamed to the scaffold leaf's name — correctly, since
+  /// Grove cannot tell it from the one its own initialisation would have
+  /// written.  Both columns now state the byte form, which says what the claim
+  /// is about without implying anything about renames.
+  val inv_TT_17b_a_witnessless_decision_reads_bytes_not_only_names: bool =
+    (rootPresent(fs) and formatWitnessIds(fs).size() == 0 and
+     childIds(fs, ROOT).size() > 0 and
+     childIds(fs, ROOT).forall(i =>
+       fs.objs.get(i).digest != SCAFFOLD_LEAF_DIGEST and
+       fs.objs.get(i).digest != SCAFFOLD_CHARTER_DIGEST))
+      implies not(isScaffoldStage(formatStage(fs)))
+
+  val wit_TT_17b_a_scaffold_name_over_foreign_bytes_is_still_legacy: bool =
+    classify(fs) == Legacy and
+    childIds(fs, ROOT).exists(i =>
+      isTask(fs, i) and
+      nameAt(fs, i).pos == 1 and nameAt(fs, i).key == 1 and
+      nameAt(fs, i).skind == KRequirements and
+      fs.objs.get(i).digest != SCAFFOLD_LEAF_DIGEST)
 
   // --- TT-18 — classification order is fixed ---------------------------------
 
@@ -2155,7 +2319,8 @@ module taskTree {
         match classify(fs) { Reserved(_) => true | _ => false },
       (rootPresent(fs) and reservedWitnessIds(fs).size() == 0 and
        formatWitnessIds(fs).size() == 0) implies
-        (classify(fs) == Legacy or classify(fs) == PartialScaffold),
+        (classify(fs) == Legacy or
+         match classify(fs) { PartialScaffold(_) => true | _ => false }),
       isCurrent(classify(fs)) implies formatStage(fs) == FCurrent,
     }
 
@@ -2177,31 +2342,65 @@ module taskTree {
 
   // --- TT-20 — the format witness lands last ---------------------------------
 
-  // `Absent` is admitted alongside `PartialScaffold` and the admission is the
-  // model's, not the catalogue's: an interruption before the FIRST step lands
-  // leaves no task root at all, and `TT-20` is stated over "the root it leaves
-  // behind".  Root absence is a first-class state (`SY-05`), not a torn one.
-  // What the claim forbids — `Current(*)` and `Legacy` — stays forbidden.
+  // `Absent` is admitted alongside `PartialScaffold(_)` and the admission is
+  // the model's, not the catalogue's: an interruption before the FIRST step
+  // lands leaves no task root at all, and `TT-20` is stated over "the root it
+  // leaves behind".  Root absence is a first-class state (`SY-05`), not a torn
+  // one.
   //
-  // NARROWED, AND THE NARROWING IS THE FINDING.  Only interruptions with NO
-  // foreign write during the initialisation are collected here.  With one, the
-  // interrupted root classifies `Legacy` — the classification `TT-20` names as
-  // forbidden — because the catalogue defines `PartialScaffold` by an EXACT
-  // closed subset of the root's contents while `EN-13` grants that a foreign
-  // entry may appear at any name.  The two are inconsistent under interleaving,
-  // and the counterexample is `wit_finding_...` below.  Recorded rather than
-  // fixed: the catalogue is frozen under the independence barrier.
+  // THE NARROWING THAT STOOD HERE IS DISPOSED, AND BOTH HALVES MOVED.  It read
+  // only interruptions with NO foreign write, because with one the interrupted
+  // root classified `Legacy` — the classification `TT-20` named as forbidden.
+  // The catalogue now classifies that root `PartialScaffold(SAmbiguous)`, so
+  // the foreign-write set is collected under the SAME claim rather than fenced
+  // off, and the two sets are kept apart only so each has its own witness.
+  //
+  // WHAT SURVIVES IS A SMALLER AND TRUE PROHIBITION on `Legacy`: never, once a
+  // root-init-exclusive entry has landed.  Before that the root carries no
+  // evidence distinguishing it from a legacy tree — a charter is not evidence,
+  // by the catalogue's own `States` — so `Legacy` is honest there and the claim
+  // cannot forbid it.  That window is the shipped one: after the charter,
+  // before the leaf, with `create_root_unlocked`/`complete_scaffold` leaving it
+  // unguarded on purpose.  It is witnessed below rather than fenced off.
+  //
+  // THE SECOND CONJUNCT IS TRUE BY CONSTRUCTION OF `formatStage` AND SAYS SO.
+  // If a root-init-exclusive entry is present, `formatStage` cannot return
+  // `FLegacy`.  What makes it evidence rather than a tautology is the mutation
+  // that kills it — `mutant_scaffold_absence_only` in
+  // `task-tree-controls.qnt`, which restores the pre-disposition definition and
+  // fails this conjunct.  A property no control kills is exactly the shape the
+  // placement record calls a transcription.
   val inv_TT_20_an_interrupted_scaffold_is_a_partial_scaffold: bool =
-    hist.initCrashCls.forall(c => c == PartialScaffold or c == Absent)
-
-  /// NOT an obligation command — a finding's counterexample, kept runnable.
-  /// A stray foreign entry beside a half-written scaffold makes Grove read its
-  /// own interrupted work as someone else's legacy tree.
-  val wit_finding_partial_scaffold_is_not_robust_to_a_foreign_write: bool =
-    hist.initCrashUnderForeign.exists(c => c != PartialScaffold and c != Absent)
+    and {
+      hist.initCrashCls.union(hist.initCrashUnderForeign).forall(c =>
+        match c {
+          | PartialScaffold(_) => true
+          | Absent => true
+          | Legacy => true
+          | _ => false
+        }),
+      not(hist.initCrashLegacyWithExclusive),
+    }
 
   val wit_TT_20_an_interruption_before_the_witness_lands: bool =
-    hist.initCrashCls.contains(PartialScaffold)
+    hist.initCrashCls.contains(PartialScaffold(SExact))
+
+  // The disposed finding's positive replacement — an interrupted scaffold met by
+  // a foreign write, classified `PartialScaffold(Ambiguous)` rather than
+  // `Legacy` — is NOT declared here.  It lands in about one `base` trace in two
+  // thousand, which at 8000 samples is four expected and a run that fails on
+  // nobody's mistake once in fifty.  It is declared in `scenario_scaffold`
+  // instead, where the init-focused menu reaches it four times as often, and
+  // the reason is recorded here so a reader looking for `TT-20`'s second
+  // witness finds where it went rather than concluding there is none.
+
+  /// The declared window, kept REACHABLE rather than merely stated: before any
+  /// root-init-exclusive entry has landed, a concurrent foreign write does send
+  /// an interrupted initialisation to `Legacy`, and `TT-20` no longer forbids
+  /// it.  A narrowing nobody can run is indistinguishable from one nobody
+  /// declared.
+  val wit_TT_20_the_window_before_the_first_exclusive_entry_reaches_legacy: bool =
+    hist.initCrashUnderForeign.contains(Legacy)
 
   // --- TT-21 — one snapshot per operation ------------------------------------
 
@@ -2259,13 +2458,36 @@ module taskTree {
     atRest and op.applied.length() == 0 and
     (outcomeIsReservedNameOccupied(op.outcome) or isBlockedConflict(op.outcome))
 
+  /// TWO CLAUSES, AND THE SECOND IS WHAT `EN-17` BOUGHT.  The first is the gate
+  /// case: the artifact was already there when the operation listed, so it
+  /// refuses before any effect.  The second is the mid-flight case, which the
+  /// first cannot reach — the collision is with an entry that appeared AFTER
+  /// the snapshot, so `foreignAtReserved(op.snap)` is empty — and which an
+  /// earlier revision of this model answered `Blocked(OwnershipConflict)`,
+  /// reporting the missing outcome as a gap in the catalogue.  It is not a gap.
+  /// The interpreter unwinds, so the tree handed back is the tree received, and
+  /// the honest outcome is a refusal.  Stated over the operation's OWN ids:
+  /// a non-cooperating writer's entry is not this operation's to undo.
   val inv_TT_24b_an_ordinary_operation_refuses_reserved_name_occupied: bool =
-    (atRest and ordinary and not(isTransaction(op.tag)) and op.tag != TReap and
-     rootPresent(op.snap) and foreignAtReserved(op.snap).size() > 0)
-      implies (outcomeIsReservedNameOccupied(op.outcome) and op.applied.length() == 0)
+    and {
+      (atRest and ordinary and not(isTransaction(op.tag)) and op.tag != TReap and
+       rootPresent(op.snap) and foreignAtReserved(op.snap).size() > 0)
+        implies (outcomeIsReservedNameOccupied(op.outcome) and op.applied.length() == 0),
+      (atRest and ordinary and not(isTransaction(op.tag)) and op.tag != TReap and
+       isRefusal(op.outcome))
+        implies unwoundCleanly(fs, op.beforeFs, op.applied),
+    }
 
   val wit_TT_24b_an_ordinary_operation_meets_a_foreign_reserved_name: bool =
     atRest and outcomeIsReservedNameOccupied(op.outcome)
+
+  /// The second clause's own witness, and the disposed finding's replacement:
+  /// an ordinary mutation that HAD applied an effect, met a destination a
+  /// non-cooperating writer had taken, unwound, and refused.
+  val wit_TT_24b_a_mid_flight_collision_unwinds_and_refuses: bool =
+    atRest and ordinary and not(isTransaction(op.tag)) and
+    isRefusal(op.outcome) and op.applied.length() > 0 and
+    unwoundCleanly(fs, op.beforeFs, op.applied)
 
   // `TT-24.c` AND `TT-24.d` WERE HERE AND ARE RETIRED, not deleted for
   // convenience.  Both are stated over `grove-finish`'s contexts — a live
@@ -2359,7 +2581,7 @@ module base {
     HAND_EDITS = true,
     REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).*
 }
@@ -2378,7 +2600,7 @@ module verify_small {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = false, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     MAX_OBJECTS = 6, MAX_DEPTH = 2, MAX_POS = 2
   ).*
 }

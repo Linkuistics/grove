@@ -170,3 +170,39 @@ absorb the product question.
 correlation ticket is the only durable evidence of success* is a positive design
 constraint a later implementer needs, and it is currently stated only inside a
 model comment.
+
+## Handed forward by `task-tree-scope-k70` — no cell, and one correction to a record you inherit
+
+**Nothing is re-scoped into this leaf.** No `TT-` obligation moved to `FN-`, and
+the new closed-set member costs this scope nothing: `finish.qnt`'s `type Refusal`
+spells out "only the members this scope can reach", no `FN-` obligation
+quantifies over the refusal type exhaustively, and neither finish model carries a
+`PartialScaffold` state at all. Checked rather than assumed, which is what
+`closed-set-additions-k74` asked of a scope meeting a widened set.
+
+**One thing you inherit is different from what the node brief hands you, and it
+touches your item 28's neighbourhood.**
+[`a-refusal-leaves-nothing-standing`](../../../../docs/adr/a-refusal-leaves-nothing-standing.md)
+now has a **fourth** consequence under clause 1 — *the action includes its
+unwind* — and a paragraph correcting the argument by which `FN-29.b` was scoped
+to `grove-finish` alone.
+
+- **The conclusion stands and the reasoning does not.** `k74` scoped `FN-29.b`
+  here on the ground that "the task-tree scope has no block to be distinguished
+  from". That ground is false: a task-tree mutation *can* leave an effect
+  standing, when the unwind itself fails
+  (`crates/ordinal-fs-tree`'s `Error::FailedPartiallyRolledBack`). The placement
+  holds for a better reason — that outcome reaches the operator in the delegated
+  boundary's own vocabulary, so the catalogue absorbs no member for it and the
+  **blocked diagnoses stay at 2**.
+- **`EN-17` is new** and grants what the boundary supplies: a reported mutation
+  failure unwinds every effect it applied. Its mutation lives at the boundary
+  (`operations.qnt`'s `rollback_fails`), which `models/run.sh` already delegates
+  to, so it costs neither family here a control.
+- **Why it may matter to you.** Your `doCommitAttempt` `W9SlotPending` item asks
+  whether a branch that refuses with a **published witness standing** is on the
+  right side of `FN-29.b`. The fourth consequence sharpens the test: the question
+  is not whether the step moved anything but whether the **action** can hand back
+  the tree it was given — and unlike an ordinary tree mutation, a finish
+  transaction keeps a witness rather than unwinding, which is exactly why its
+  stop is recoverable. That asymmetry is now stated where you can cite it.

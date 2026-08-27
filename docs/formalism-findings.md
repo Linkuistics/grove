@@ -7270,7 +7270,19 @@ declared narrowing because the catalogue contradicts itself there — nor `TT-10
 over anything but an operation's own arguments, which is a declared
 qualification rather than a narrowing; all four are listed in
 [the model README](../crates/grove-task-tree/models/README.md), *Narrowings and
-qualifications, each declared*. Not anything at
+qualifications, each declared*.
+
+> **[disposed by `task-tree-scope-k70`]** All three narrowings are gone, and in
+> every case the **catalogue** moved rather than either model. `TT-17` split into
+> `.a` (the format decision, unchanged in force) and `.b` (the witnessless
+> decision reads bytes, not only names); `TT-15.a` gained the staging premise its
+> guard had been supplying, because classification is a function of the tree and
+> an outcome is a function of the operation; `TT-20`'s prohibition on `Legacy`
+> narrowed to the window in which ownership is provable, and the interrupted root
+> met by a foreign write now classifies `PartialScaffold(Ambiguous)`. `TT-10`'s
+> qualification stands and was deliberately not reopened. From that revision on,
+> the sentence above is history: no `TT-` obligation here is checked over less
+> than its text. Not anything at
 all about the finish or lifecycle scopes, whose Quint columns do not exist, and
 whose empty cells keep an unqualified `models/run.sh` red — which remains the
 truth about the repository rather than a defect in the runner.
@@ -7281,7 +7293,7 @@ through the existing black-box binaries*):
 
 | finding | test |
 |---|---|
-| `PartialScaffold` vs a foreign write | scaffold a root, interrupt before the format witness lands, drop one foreign file beside the scaffolded entries, and assert the root classifies `PartialScaffold` — not `Legacy`. Red against the exact-subset definition. |
+| `PartialScaffold` vs a foreign write | scaffold a root, interrupt before the format witness lands, drop one foreign file beside the scaffolded entries, and assert the root classifies `PartialScaffold` — not `Legacy`. Red against the exact-subset definition. **[`task-tree-scope-k70`: the decided contract is narrower and the test must be too.** Assert `PartialScaffold(Ambiguous)` — which **refuses** — and only once a root-init-exclusive entry has landed. With the charter alone and no leaf, `Legacy` is the contract and a test asserting otherwise is red against the decision rather than against the code.**]** |
 | bulk-mark convergence | interrupt a bulk mark between two of its renames, re-run the identical invocation, and assert it succeeds and leaves every named entry marked — not that it refuses `AlreadyTerminal`. Red against a validator that treats an already-marked member as invalid. |
 
 *[k56: three, now four.]* The other four findings — `TT-17`, `EN-11`, `TT-15.a`,
@@ -7296,6 +7308,23 @@ ordinary mutation that has already applied an effect owes a `Blocked` or a
 fourth context row of its own. A test written before that decision would encode
 the model's least-wrong choice as though it were the contract.
 `formal-synthesis-k16` decides; the witness is runnable in the meantime.
+
+> **[disposed by `task-tree-scope-k70`]** **Neither.** The withheld test was the
+> right call and the decision went outside the two options this entry framed.
+> `crates/ordinal-fs-tree` — the catalogue's delegated boundary — applies every
+> mutation through one interpreter that **unwinds what it applied** on a reported
+> error (`Error::Failed`, "the tree is as it was found", checked there as
+> `inv_atomicity`), and its destination check exists for precisely this collision
+> because "the lock is advisory". So the outcome is a **refusal**, unconditionally,
+> and the missing thing was never a context row: it was an ungranted assumption,
+> now `EN-17`. The model had built an interpreter without the capability because
+> nothing granted it, then read the consequence as a gap in the catalogue.
+> **The general form is worth more than the instance** — an assumption no `EN-`
+> row names is one a model may quietly decline, and this is the second recorded
+> case (the other is process death under `SY-01.b`). The derived test now exists
+> and is the one this entry could not write: interrupt an insert between its
+> shifts and its create, take the destination from outside the lock, and assert
+> the operation refuses with its own shifts undone and the intruder untouched.
 
 
 ### 045 — A protocol whose own steps fall outside the assumption they rest on, and six things the catalogue does not say (finish/recovery, component-local)
@@ -8850,6 +8879,31 @@ fixture above, for `formal-synthesis-k16`'s seam work.
 > guard across the two phases, or nothing, is **`task-tree-scope-k70`**'s
 > (items 13 and 20 of the node's disposition table); the derived-test/seam half
 > of *M4* is **`handoff-audit-k66`**'s, with the other seam work.
+>
+> **[disposed by `task-tree-scope-k70`]** **A third classification**, and the
+> fixture table above is what decided it: the catalogue had one state for a
+> witnessless root where `recover_partial_root_init_unlocked` has three.
+> `PartialScaffold` gained a class — `Exact` completes, `Ambiguous` refuses — and
+> the closed refusal set gained `ScaffoldIncomplete(class)` to report it, one
+> parameterised member on the `Reserved(class)` → `WitnessPending(class)`
+> precedent. A guard across the two phases was **refused**: `EN-06` grants only
+> that cooperating processes are serialized, and the actor here is `EN-13`'s
+> non-cooperating writer, so a guard buys nothing against the writer that
+> produces the counterexample. Treating the charter as proof was **refused** for
+> a sharper reason — `an_untouched_root_brief_does_not_hide_a_legacy_v2_tree` is
+> a deliberate shipped test, and its failure mode is worse than the one being
+> fixed.
+>
+> **Severity, which this entry left explicitly unassigned: a diagnostic defect,
+> not a safety one, and it gets worse rather than better.** Nothing is silently
+> completed in the surviving window. But once the approved breaking change
+> removes migration, `Legacy` fails closed and the operator is told to migrate a
+> tree that is not legacy, by a command that no longer exists, about a directory
+> Grove created and then failed to recognise. The repair that closes the window
+> is one reordering — make root initialisation's first write a root-init-exclusive
+> one — and `tree_format::write_current_last` already validates and reuses a
+> pre-existing temporary, so the code anticipates it. Product-facing, therefore
+> **`handoff-audit-k66`**'s, beside the other four diagnostic questions.
 
 ---
 

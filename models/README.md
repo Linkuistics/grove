@@ -112,6 +112,16 @@ the producing leaf that wrote the model — which is the whole point of a phase
 gate, since each column's own run line was recorded before the other column
 existed.
 
+**IT IS A FROZEN MEASUREMENT AND THE FIGURES BELOW ARE DELIBERATELY NOT KEPT
+CURRENT.** That was the ordering argument for running the synthesis first: the
+disposition children after it each edit the catalogue and cascade commands into
+both families, so every number here moves, and re-measuring after they land would
+report figures for a set of models no independence protocol ever governed. The
+denominator moves with the obligation count — `models/run.sh --list` is the live
+figure and this table is not — and each disposition child records **its own
+per-scope run line** in the scope README it touched. Read a row here as *what the
+formal phase built*, never as *what is green today*.
+
 | cell | commands | coverage | result |
 |---|---|---|---|
 | `--scope task-tree --family quint` | 111 | 43 complete, 0 declared gaps, 0 empty, of 43 | exit 0 |
@@ -135,7 +145,10 @@ All four scopes and both families, including the two delegated
 `docs/ordinal-fs-tree/models/` runners (20 Alloy commands, 148 Quint). The
 task-tree Alloy file contributes **104** commands here against the 103 its own
 README records; the extra one is `cross-model-replay-k15`'s retained replay,
-`witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy`.
+then `witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy` and
+now `witness_TT_20_a_world_write_during_an_open_scaffold_is_ambiguous_not_legacy`
+— renamed when `task-tree-scope-k70` disposed the finding it witnessed, since it
+credits `TT-20`'s cell rather than standing outside the matrix.
 
 **The two declared gaps are the whole of what this run reports, and they are one
 question.** The coverage section prints:

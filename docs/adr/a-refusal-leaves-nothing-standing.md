@@ -1,6 +1,6 @@
 # A refusal leaves nothing standing, and its reason names the question that failed
 
-The semantic contract fixes three closed sets — six outcomes, twenty refusal
+The semantic contract fixes three closed sets — six outcomes, twenty-one refusal
 reasons, two blocked diagnoses — and, until this record, never stated the **map**
 from a situation onto them. Two independently built model families each supplied
 their own map, and where the two maps disagreed both families were green, because
@@ -16,13 +16,22 @@ neither carry to completion nor reverse. The operational content is the one
 `FN-29` requires an operator to be able to read: **a refusal leaves nothing to
 recover, and a block does.**
 
-Three consequences follow, and each was a live mistake before it was written
+Four consequences follow, and each was a live mistake before it was written
 down.
 
 - **The unit is the action** — not the step, and not the operating-system
   process. A step that mutated nothing inside an action that has moved everything
   is a block, and an effect an *earlier* lifecycle transition applied does not
   make a later transition's clean stop one.
+- **The action includes its unwind**, which is what makes *the tree it hands
+  back* well-defined at all. A tree mutation is applied through
+  `crates/ordinal-fs-tree`'s one interpreter, which unwinds every effect it
+  applied on a reported error — `Error::Failed` says "the tree is as it was
+  found", checked there as `inv_atomicity` — so a mid-flight collision is a
+  refusal however far the operation had gone, and the only outcome that leaves an
+  effect standing is an unwind that itself fails
+  (`Error::FailedPartiallyRolledBack`). That one is the boundary's to report and
+  the contract absorbs no member for it.
 - **A rollback earns the refusal back.** `NotCommitted` reaches the commit and
   still ends `Refused`, because what the caller is handed is the tree it gave.
 - **An intermediate state is not a return.** `FN-22.f`'s quarantine return
@@ -31,6 +40,21 @@ down.
 
 The rule is checkable rather than a preference, and it is now checked:
 `FN-29.b`.
+
+**The second consequence was the last one written and it corrected a scoping
+argument this record had already made.** `FN-29.b` was placed in `grove-finish`
+alone on the ground that "the task-tree scope has no block to be distinguished
+from". A task-tree mutation *can* leave an effect standing — when the unwind
+fails — so the ground is false. The placement stands for a better reason: that
+outcome reaches the operator in the delegated boundary's own vocabulary, because
+Grove prints the library's errors verbatim rather than re-wording them
+([`CONTEXT-MAP.md`](../../CONTEXT-MAP.md)), so it is not a block the contract
+names. **What made this invisible was an ungranted capability.** Two
+independently built model families were free to invent an interpreter without an
+unwind, one did, and it then reported the consequence as a missing row in the
+contract's own outcome table rather than as a model without a capability. The
+grant is now `EN-17`, and the general form is worth more than the instance: an
+assumption no row names is one a model may quietly decline.
 
 **The trade-off it settles.** The rejected reading is the step-local one — *this
 step mutated nothing, therefore refused* — and it is not a straw man. It is
@@ -62,11 +86,24 @@ asked.
 
 The seventeen original reasons were drawn over the questions the **task-tree**
 scope asks: preconditions and guards on a tree. The set is swept by **three**
-scopes. Every member added under this record is a question a *later* scope asks —
-a commit's disposition (`DeletionNotCommitted`), a configuration
-(`ConfigurationInvalid`), a launch generation (`GenerationContended`) — which is
-the pattern under what the finish scope had recorded as three separate accidents,
-and it predicts where the next gap is rather than merely listing the closed ones.
+scopes. Three of the four members added under this record are a question a
+*later* scope asks — a commit's disposition (`DeletionNotCommitted`), a
+configuration (`ConfigurationInvalid`), a launch generation
+(`GenerationContended`) — which is the pattern under what the finish scope had
+recorded as three separate accidents, and it predicts where the next gap is
+rather than merely listing the closed ones.
+
+**The fourth is the exception, and it is what the rule needed to be complete.**
+`ScaffoldIncomplete(class)` is a question the **task-tree** scope asks, and the
+seventeen were supposed to have been drawn over exactly those. What the original
+draw missed was not a later scope's question but a **state the contract had not
+finished defining**: a witnessless root, which had one member where the product
+has three
+([`a-witnessless-root-refuses-what-it-cannot-account-for`](a-witnessless-root-refuses-what-it-cannot-account-for.md)).
+So the widening rule gains a second clause — **a scope also asks a question no
+member names when a state is refined** — and the reason survives the refinement
+without being restated, because it names the question and not the state's
+extension.
 
 **The trade-off it settles.** The rejected alternative is the one both families
 independently chose, twice: report under the closest true member and keep the

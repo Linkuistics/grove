@@ -27,7 +27,7 @@ module relax_EN_01 {
     RENAME_ATOMIC = false,
     FOREIGN_WRITES = true, CRASHES = true, ENTRIES_REMOVABLE = false,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -44,7 +44,7 @@ module relax_EN_06 {
     FOREIGN_WRITES = false,
     RENAME_ATOMIC = true, CRASHES = true, ENTRIES_REMOVABLE = false,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -66,7 +66,7 @@ module relax_EN_08 {
     CRASHES = false,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, ENTRIES_REMOVABLE = false,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -85,7 +85,7 @@ module relax_EN_08_bulk {
     FOCUS = 1,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, ENTRIES_REMOVABLE = false,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -100,7 +100,7 @@ module relax_EN_10 {
     ENTRIES_REMOVABLE = true,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -120,7 +120,7 @@ module relax_EN_11 {
     HAND_EDITS = false,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -172,7 +172,7 @@ module relax_EN_11_grove_built {
     CRASHES = false,
     RENAME_ATOMIC = true,
     ENTRIES_REMOVABLE = false, REAPER_SWEEPS_RESERVED = false, ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -198,7 +198,7 @@ module relax_EN_13 {
     REAPER_SWEEPS_RESERVED = true,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -213,7 +213,7 @@ module relax_EN_13 {
 module mutant_two_listings {
   import taskTree(
     ONE_SNAPSHOT = false,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     FOCUS = 0, MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
@@ -240,7 +240,7 @@ module mutant_two_listings {
 /// control.
 module mutant_bulk_strict {
   import taskTree(
-    BULK_TARGET_IDEMPOTENT = false,
+    BULK_TARGET_IDEMPOTENT = false, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     FOCUS = 1,
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
@@ -264,7 +264,7 @@ module scenario_bulk {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -282,7 +282,7 @@ module scenario_species_shift {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -309,7 +309,7 @@ module scenario_promote {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -333,7 +333,7 @@ module scenario_foreign_sibling {
     RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
     ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
     ONE_SNAPSHOT = true,
-    BULK_TARGET_IDEMPOTENT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
     MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
   ).* from "./task-tree"
 
@@ -347,20 +347,114 @@ module scenario_foreign_sibling {
   val inv_TT_04_foreign_subtrees_are_invisible_and_untouched_here: bool =
     inv_TT_04_foreign_subtrees_are_invisible_and_untouched
 
-  /// NOT an obligation command — a finding's counterexample, kept runnable.
+  /// THE FINDING THIS COMMAND USED TO CARRY IS DISPOSED, AND IN THE OPPOSITE
+  /// DIRECTION FROM THE ONE IT ARGUED FOR.  It witnessed an ORDINARY mutation
+  /// that had applied an effect, met a destination a non-cooperating writer had
+  /// taken, and returned `Blocked(OwnershipConflict)` — reported as a missing
+  /// row in the catalogue's *one artifact, three contexts* table, on the ground
+  /// that the tree was not byte-identical so no refusal was honest.
   ///
-  /// An ORDINARY mutation that has already applied an effect and whose next
-  /// create is no longer licensed, because a non-cooperating writer took the
-  /// destination between the listing and the step.  The catalogue's
-  /// *one artifact, three contexts* table fixes the outcome for an ordinary
-  /// operation **before any transaction**, for a finish or recovery
-  /// transaction, and for the reaper.  This is none of the three: the tree is
-  /// NOT byte-identical, so no refusal is honest, and no transaction is running,
-  /// so the row that licenses `Blocked` does not cover it.  The model returns
-  /// `Blocked(OwnershipConflict)` on the table's own reasoning — a caller who
-  /// has already mutated is owed a block — and the gap is entry 044's finding,
-  /// stated over the case that actually supports it.
-  val wit_finding_an_ordinary_mutation_blocked_after_a_partial_mutation: bool =
-    atRest and op.tag != TNone and not(isTransaction(op.tag)) and
-    isBlockedConflict(op.outcome) and op.applied.length() > 0
+  /// The tree IS byte-identical.  Every mutation runs through the delegated
+  /// boundary's one interpreter, which unwinds what it applied on any reported
+  /// error (`EN-17`, and `crates/ordinal-fs-tree`'s `Error::Failed`: "the tree
+  /// is as it was found").  The model had built an interpreter without that
+  /// capability because nothing granted it, and then read the consequence as a
+  /// gap in the outcome table.  The command is now the POSITIVE witness of the
+  /// repaired claim, in the same instance and reaching the same interleaving.
+  val wit_TT_24b_a_mid_flight_collision_unwinds_and_refuses_here: bool =
+    wit_TT_24b_a_mid_flight_collision_unwinds_and_refuses
+}
+
+/// A MODEL MUTATION, and it is the control for this leaf's own disposition.
+/// `SCAFFOLD_AMBIGUITY_CLASSED = false` restores the pre-disposition
+/// definition of a witnessless root: the exact subset or `Legacy`, nothing
+/// between.  Expected: `TT-20`'s second conjunct fails — an interrupted
+/// initialisation whose first `requirements` leaf had already landed, met by
+/// one `foreign-write`, classifies `Legacy` with a root-init-exclusive entry
+/// on disk, which is what the repaired claim forbids.
+///
+/// It exists because the conjunct is TRUE BY CONSTRUCTION of `formatStage` and
+/// a property no mutation kills is a transcription of the code that satisfies
+/// it, which is the failure `obligations-follow-context-not-artifact` records
+/// at `TT-24.c`.  `FOCUS = 5` is the init-focused menu, and it is load-bearing:
+/// this control was first written at `FOCUS = 4` and reported **no violation**
+/// over 4000 traces, because that dial's action menu is inserts only and
+/// `root-init` therefore never runs.  A mutation that cannot reach the
+/// situation it mutates reads exactly like a mutation that failed to break
+/// anything, which is the same silence this control exists to remove.
+module mutant_scaffold_absence_only {
+  import taskTree(
+    SCAFFOLD_AMBIGUITY_CLASSED = false, MUTATION_UNWINDS = true,
+    FOCUS = 5,
+    RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
+    ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
+    ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true,
+    MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
+  ).* from "./task-tree"
+
+  val inv_fail_MUT_TT_20_absence_only_reads_grove_s_own_work_as_legacy: bool =
+    inv_TT_20_an_interrupted_scaffold_is_a_partial_scaffold
+}
+
+/// A focused search, not a different world — the fourth of them, and the one
+/// this leaf's disposition needed.  `TT-20`'s two new witnesses both require an
+/// interrupted `root-init` with a `foreign-write` inside the same open
+/// initialisation, which the unfocused menu reaches in about one trace in two
+/// thousand.  `FOCUS = 5` narrows the action menu to `root-init`, `retire` and
+/// `resolve`; nothing is removed and every invariant is still checked in
+/// `base`.
+///
+/// The pair is deliberate and it is the whole point of the split state: the
+/// SAME interleaving lands on two different classifications depending on
+/// whether a root-init-exclusive entry had already landed, and both are
+/// witnessed rather than one being fenced off as a narrowing.
+module scenario_scaffold {
+  import taskTree(
+    FOCUS = 5,
+    RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
+    ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
+    ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true, MUTATION_UNWINDS = true,
+    MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
+  ).* from "./task-tree"
+
+  val inv_TT_20_an_interrupted_scaffold_is_a_partial_scaffold_here: bool =
+    inv_TT_20_an_interrupted_scaffold_is_a_partial_scaffold
+
+  /// `TT-20`'s second witness, declared HERE and not in the library, because in
+  /// the unfocused instance it lands in about one trace in two thousand.  The
+  /// disposed finding's positive replacement: a stray foreign entry beside a
+  /// half-written scaffold now classifies `PartialScaffold(Ambiguous)` — which
+  /// refuses — rather than `Legacy`, which migrates.
+  val wit_TT_20_a_concurrent_foreign_write_is_ambiguous_not_legacy: bool =
+    hist.initCrashUnderForeign.contains(PartialScaffold(SAmbiguous))
+}
+
+/// A MODEL MUTATION, and the second control this leaf's disposition needed.
+/// `MUTATION_UNWINDS = false` restores the interpreter this model built for
+/// itself while `EN-17` was ungranted: an ordinary operation whose next step is
+/// no longer licensed stops where it is, leaving its own shifts standing.
+/// Expected: `TT-24.b`'s second clause fails — the operation still returns a
+/// refusal (that is the catalogue's answer and the mutation does not change it)
+/// while the ids it touched are NOT back to the state it found them in, which
+/// is a refusal that leaves something to recover.
+///
+/// It exists because without it the clause is satisfied by the way this file
+/// happens to be written, and the whole content of the disposition is that the
+/// unwind is load-bearing.  `FOCUS = 4` is the insert-and-foreign-write dial,
+/// which is where a mid-flight collision is common.
+module mutant_no_unwind {
+  import taskTree(
+    MUTATION_UNWINDS = false,
+    FOCUS = 4,
+    RENAME_ATOMIC = true, FOREIGN_WRITES = true, CRASHES = true,
+    ENTRIES_REMOVABLE = false, HAND_EDITS = true, REAPER_SWEEPS_RESERVED = false,
+    ONE_SNAPSHOT = true,
+    BULK_TARGET_IDEMPOTENT = true, SCAFFOLD_AMBIGUITY_CLASSED = true,
+    MAX_OBJECTS = 14, MAX_DEPTH = 6, MAX_POS = 6
+  ).* from "./task-tree"
+
+  val inv_fail_MUT_TT_24b_a_refusal_that_leaves_its_own_shifts_standing: bool =
+    inv_TT_24b_an_ordinary_operation_refuses_reserved_name_occupied
 }

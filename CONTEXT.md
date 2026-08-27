@@ -977,20 +977,44 @@ differs only in *reason*, which is prose and belongs in the ADR, not the filenam
 
 ### Formal contract (docs/specs/semantic-contract.md, Experiment 2)
 
-**Partial scaffold** (`PartialScaffold`):
-A task root that exists, carries no [[Tree format witness]], and whose entries are
-exactly a known **proper subset** of what a fresh scaffold writes: the root
-`BRIEF.md`, and at most one positioned entry, which is the first `requirements`
-leaf at position 1 with key 1 — with those bytes, and nothing else present. It is
-what [[root-init]] leaves behind when it is interrupted before the witness lands,
-and it is classified *before* legacy and completed before any format
-classification runs. The subset is what makes completion safe: every value the
-completion would write is fixed in advance, so completing is a comparison
-followed by at most one append, never an inference about someone else's tree.
+**Partial scaffold** (`PartialScaffold(class)`):
+A task root that exists, carries no [[Tree format witness]], and is what
+[[root-init]] leaves behind when it is interrupted before the witness lands. It
+is classified *before* legacy and carries a **class**, because a witnessless root
+has three answers and not two:
+`PartialScaffold(Exact)` holds nothing but the fresh scaffold's own byte-exact
+entries — the root `BRIEF.md` and at most one positioned entry, the first
+`requirements` leaf at position 1 with key 1 — and is **completed**;
+`PartialScaffold(Ambiguous)` holds a [[Root-init-exclusive entry]] standing
+beside something a fresh scaffold does not write, and is **refused**, mutating
+nothing; anything else is legacy.
+The exact subset is what makes completion safe: every value the completion would
+write is fixed in advance, so completing is a comparison followed by at most one
+append, never an inference about someone else's tree.
 _Avoid_: defining it as "a root with no format witness" — that is the definition
 of legacy, and the two must be told apart or legacy work gets completed.
 _Avoid_: calling it a transient — an interrupted scaffold is a **stable** state
 an ordinary invocation meets and acts on.
+_Avoid_: reading the `Ambiguous` class as *probably not a scaffold*. Grove **can**
+prove its own initialisation ran there; what it cannot prove is that the root's
+whole contents are its own, which is why it refuses rather than guessing either
+way (`docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md`).
+
+**Root-init-exclusive entry**:
+An entry only the **current** format's [[root-init]] writes, and therefore the
+only proof a witnessless root carries that *this* format's initialisation ran:
+the reserved format temporary, and the first `requirements` leaf at position 1
+with key 1, canonically spelled, with bytes equal to what a fresh scaffold
+writes. It is what separates `PartialScaffold(Ambiguous)` from legacy.
+_Avoid_: counting the root `BRIEF.md` as one. Its bytes derive from the
+working-tree name and every earlier format wrote the same ones, so a charter is
+evidence that *some* grove was here and never evidence of *this* one — and
+treating it as proof is what
+`an_untouched_root_brief_does_not_hide_a_legacy_v2_tree` exists to prevent.
+_Avoid_: reading its absence as a defect. Before the first one lands there is a
+real window in which an interrupted initialisation is indistinguishable from a
+legacy tree, and `TT-20`'s prohibition on `Legacy` is narrowed to exactly that
+boundary rather than pretending the window is closed.
 
 **Admitted action**:
 In the lifecycle claims, an action Grove itself may take — the Observation, Tree

@@ -55,7 +55,7 @@
  * outcome set cannot name — as it cannot name `RefConfigInvalid`), and `IterA`
  * (an iteration boundary, which is not a catalogue action because a boundary is
  * not something the loop DOES).  `Stopped` and `RefConfigInvalid` are FINDINGS
- * about the catalogue's closed sets and are named for `formal-synthesis-k16`.
+ * about the catalogue's closed sets and are named for `closed-set-additions-k74`.
  *
  * `Blocked` IS NOT ONE OF THEM.  It is the catalogue's own outcome, and the
  * `sessions` slice's composition decision is that it enters carrying NO
@@ -457,7 +457,7 @@ one sig Deferred extends Result {}
    MISMATCH, not a contention), and it is not a `Blocked`, because §*Outcomes*
    scopes blocks to a transaction stopped part-way and `FN-25`'s two diagnoses are
    both about finish ownership.  Declared here, recorded in `README.md`, and named
-   for `formal-synthesis-k16` — exactly as `SY-05`'s design constraint was. */
+   for `closed-set-additions-k74` — exactly as `SY-05`'s design constraint was. */
 one sig Stopped extends Result {}
 abstract sig Refused extends Result {}
 /* `RefEpochStale` is the catalogue's `EpochStale`.  `RefConfigInvalid` is NOT in

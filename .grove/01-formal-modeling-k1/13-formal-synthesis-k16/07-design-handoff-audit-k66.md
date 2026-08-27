@@ -102,3 +102,27 @@ with the finding written into its body.
 
 `TODO.finish_process.md` is `finish-verdicts-k65`'s to dispose. If it is still
 present when this leaf runs, that is a finding about `k65`, not work to absorb.
+
+## Noticed by `routing-and-prose-k73`, and handed here because this leaf owns reachability
+
+**One broken relative link in the durable set, and it is the whole class.**
+`docs/formalism-findings.md:3474` writes
+`[bulk-marks-are-not-atomic](../adr/bulk-marks-are-not-atomic.md)`, which
+resolves to `adr/…` from a file already inside `docs/` — one `../` too many.
+Pre-existing, not introduced by any disposition child, and **not fixed there**
+because that file is a log those children append to rather than edit.
+
+It is enumerated rather than reported as a single instance: every `](../…)` and
+`](./…)` link in the 50 durable markdown, `.als` and `.qnt` files under `docs/`,
+`models/`, `crates/`, plus `CONTEXT.md`, `CONTEXT-MAP.md` and `README.md`, was
+resolved against the filesystem, and **this is the only one that does not
+exist**. So the `Done when` item *every durable formal artifact is reachable
+from its component owner* has exactly one link-level defect outstanding, and the
+sweep that establishes it is one page of Python worth re-running here rather
+than trusting.
+
+**Strip the `#Lnnn` fragment before resolving.** The first run of that sweep
+reported 28 broken links and 25 were `path#L1234` citations in a retired review
+leaf whose paths are fine — a checker that resolves the fragment as part of the
+path reports a clean tree as broken, which is the same instrument failure in the
+opposite direction.

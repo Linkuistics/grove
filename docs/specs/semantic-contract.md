@@ -178,7 +178,7 @@ owns it, carrying that obligation's declared narrowings. A gap declared by
 **both** families is the signal to apply the rule, not a place an obligation may
 rest.
 
-**`models/run.sh` is the one repository runner**, and it has three obligations
+**`models/run.sh` is the one repository runner**, and it has four obligations
 beyond running commands:
 
 1. **Abort on a dead tool.** A tool that failed to launch reports what a tool
@@ -207,6 +207,21 @@ beyond running commands:
    coverage matrix over `(family, obligation)` and fails on any empty cell that
    is not a declared gap, and the evidence record below is written per pair, not
    per claim.
+4. **Assert Q4's removal matrix in both directions, per family.** Every
+   removable artifact this document names has a row; every row names an artifact
+   this document names and cites an obligation this document defines, or `none`,
+   or is declared `abstracted`; and every row's evidence citation resolves. The
+   rule is stated under *Q4 needs a matrix, not a claim* — *a removable artifact
+   with no row fails the run* — and it is an obligation of the runner for the
+   same reason obligation 3 is: it is what makes this document, rather than a
+   README, the source of truth for what is owed.
+
+   **It rides with coverage assertion and has no flag of its own.** A matrix is
+   owed only once a family's column has closed, which is what the absence of
+   `--no-coverage` already says; splitting the two would let a run assert
+   coverage while excusing the matrix. The split that *is* made is the one
+   coverage already makes: an artifact with no row is excused by
+   `--no-coverage`, a broken row never is.
 
 **A scope still being built is run as a NAMED SUBSET, not as an expected-red
 whole.** While one family's column is empty the unqualified `models/run.sh` is
@@ -253,7 +268,7 @@ trace trimmed to the transition that matters.
 ### What the models must be able to decide
 
 [`TODO.finish_process.md`](../../TODO.finish_process.md) asks four questions that
-`formal-synthesis-k16` must answer *keep*, *delete/replace* or *defer* with
+`finish-verdicts-k65` must answer *keep*, *delete/replace* or *defer* with
 evidence — and "the model is smaller" is explicitly not evidence. The catalogue
 fixes which obligations decide each, so the answer is read off the models rather
 than argued — but fixing that required separating two kinds of claim first.
@@ -485,6 +500,29 @@ produces a named refusal rather than an absent transition.
 | **Lifecycle** | `acquire-lease`, `layout-preflight`, `open-epoch`, `launch`, `reap`, `close-epoch`, `release-lease` | lease, then epoch |
 | **Environment** | `crash`, `hand-edit`, `foreign-write`, `topology-change`, `confirm` | none — these are the world's |
 
+**Of the Lifecycle group, only `launch` is gated on the task root's
+classification.** `acquire-lease`, `layout-preflight`, `open-epoch`, `reap`,
+`close-epoch` and `release-lease` read and write no task tree, so none of them is
+refused on an absent, legacy or malformed root. The table said nothing either
+way and the silence was load-bearing: **gating `reap` makes `SY-05.a`
+unwitnessable rather than false.** The driver runs the finish, proves the
+deletion, the root becomes `Absent`, and the session that committed the teardown
+ends — and a gated `reap` is then refused `RootAbsent`, so the loop never
+collects that ending, never opens a new iteration, and never scaffolds the fresh
+grove a missing task root *means*. A suite without a witness obligation reports
+that as a green `SY-05.a` over a lifecycle that physically cannot happen.
+
+**The two families filled the silence in opposite directions, which is how it
+was found, and all three readings now agree.** Quint gated `reap` and its
+`wit_SY_05a` never landed; Alloy's `doReap` reads no tree at all; and the shipped
+reap path — `complete_post_reap_epoch_handoff` in
+[`src/loop_driver.rs`](../../src/loop_driver.rs), whose operands are the launch
+result, `invalidate_session_epoch()` and `complete::read_signal()` — touches no
+task tree and classifies no root. `launch` is
+the exception in both families for the same reason — it consumes a selection,
+and selection is an Observation action that does read the tree — so gating it is
+the tree read arriving one step earlier rather than a second gate.
+
 `replace-cleanup-marker` is in the table rather than folded into
 `dispose-quarantine` because [`TODO.finish_process.md`](../../TODO.finish_process.md)
 Q3 asks whether *replacement* — as against creating a marker or removing one — is
@@ -603,7 +641,7 @@ at the same step (`SRemoveWitness`'s discard branch calls `blockNow(…,
 "foreign")`), and both are green against `FN-10.b`, whose text says only *fails
 closed*. So the outcome per step is **underdetermined and recorded as such**;
 what every context does agree on is `FN-32`. Deciding it is
-`catalogue-disposition-k64`'s, beside the other opposite-resolution items.
+`closed-set-additions-k74`'s, beside the other opposite-resolution items.
 
 **The two diagnoses are a partition the catalogue introduces, and the shipped
 implementation does not yet draw it.** Today's classification yields three
@@ -611,7 +649,7 @@ commit *dispositions* — `Committed`, `NotCommitted`, `Indeterminate` — and
 gathers under one blocked state both of the cases above. The root brief requires
 them distinguished; `FN-25` states the partition as a claim so the models decide
 whether it is total, disjoint and reachable on every lane, and
-`formal-synthesis-k16` decides on that evidence whether the shipped diagnostic
+`handoff-audit-k66` decides on that evidence whether the shipped diagnostic
 adopts two names. Nothing here changes product behaviour.
 
 **Dispositions are not outcomes.** A disposition is the classification of the
@@ -658,12 +696,39 @@ cell.
 | `EN-08` | Interruption may occur between any two steps. Power loss, kernel failure and storage-cache loss are outside the contract. | exercise-removal | Both — `crash` is a first-class action; the mutation is its removal | `FN-09`, `FN-10`, `FN-24`, `FN-31.c`, `SY-12`, `TT-20`, `TT-23.b` | with `crash` removed, every named witness is unreachable and the run fails on zero work rather than reporting green |
 | `EN-09` | A command's exit status is not a receipt: a result may be lost or arrive late. | exercise-removal | Alloy — a trace in which the result arrives after the classification | `FN-15.a` | removing the late-arrival trace makes `FN-15.a`'s witness — a lost result reported as failure while the exact commit exists — unreachable |
 | `EN-10` | The names are the counter: key allocation reads the tree, and entries are never removed. | premise-break | Quint — `relax_EN_10`, an entry removed | `TT-05`, `TT-12` | `TT-05` fails: allocation re-issues a key a removed entry held |
-| `EN-11` | Any well-formed tree is reachable by hand edit. | exercise-removal | Both — `hand-edit` is a first-class action; the mutation is its removal | `TT-02`, `TT-03`, `TT-13.c`, `TT-24.b`, `TT-25` | with `hand-edit` removed, every witness that posits a tree Grove's own actions cannot build is unreachable. **`TT-16` was listed here and has been removed**: a resolved *terminal* entry is something Grove's own actions build — allocate, retire, resolve — so its witness never needed the assumption, and the Alloy run reaches it with `hand-edit` gone ([`crates/grove-task-tree/models/task-tree.als`](../../crates/grove-task-tree/models/task-tree.als), `witness_EN_11_a_resolved_terminal_entry_needs_no_hand_edit`) |
+| `EN-11` | Any well-formed tree is reachable by hand edit. | exercise-removal | Both — `hand-edit` is a first-class action; the mutation is its removal | `TT-02`, `TT-03`, `TT-13.c`, `TT-25` | with `hand-edit` removed, every witness that posits a tree Grove's own actions cannot build is unreachable. **`TT-16` was listed here and has been removed**: a resolved *terminal* entry is something Grove's own actions build — allocate, retire, resolve — so its witness never needed the assumption, and the Alloy run reaches it with `hand-edit` gone ([`crates/grove-task-tree/models/task-tree.als`](../../crates/grove-task-tree/models/task-tree.als), `witness_EN_11_a_resolved_terminal_entry_needs_no_hand_edit`). **`TT-24.b` was listed here and has been removed too, for the same reason and on a fired control**: its witness is an ordinary operation meeting a foreign entry at a name Grove reserves, and `EN-13` grants that foreign entries appear **at any name**, so `foreign-write` alone supplies one — the witness is reached in ~2% of traces with `hand-edit` gone (`crates/grove-task-tree/models/task-tree.qnt`, `wit_finding_EN_11_does_not_gate_TT_24b`). `TT-24.b`'s dependency is `EN-13`, where it is already listed |
 | `EN-12` | A name renders as exactly one path component. | premise-break | Alloy — a rendering that escapes its level | `TT-01.a`, `TT-06` | `TT-01.a` fails: two spellings denote one entry, and the level's positions stop being a per-directory sequence |
 | `EN-13` | Foreign entries may appear at any name and are not Grove's to delete. | premise-break | Quint — `relax_EN_13`, a sweep of a reserved namespace | `TT-04`, `TT-24.b`, `FN-21.b`, `FN-27` | `TT-04` fails in the task-tree scope and `FN-21.b`/`FN-27.a` in the finish scope: the sweep deletes bytes a refusal exists to preserve. **`TT-24.d` was listed here and is retired** — its content is `FN-21.c`'s, per the placement rule; the sweep is `grove-finish`'s action and the row's task-tree half is `TT-04`'s alone |
 | `EN-14` | The working-tree root exists before the task root and outlives its deletion. | premise-break | Alloy — a scope in which the root itself is removed | `TT-22`, `SY-01`, `SY-05` | `SY-01` fails: ownership has nothing to be held on, so a second driver is admitted |
 | `EN-15` | Confirmation is an operator input Grove cannot verify. | counterfactual-capability | Quint — `relax_EN_15`, a machine-attested confirmation | retained: `FN-01.a`, `FN-01.b` | **no obligation becomes stronger and none fails.** A machine attestation replaces nothing: `FN-01.a` still forbids running without confirmation and `FN-01.b` still refuses the deterministic guard as a substitute. A run in which some obligation *does* strengthen is the finding, because it would mean a claim was resting on the attestation rather than on the guard |
 | `EN-16` | The three lanes differ in mechanism and agree on abstract outcome. | exercise-removal | Both — the lane is a model parameter; the mutation is collapsing it to one | `FN-15.b`, `FN-15.c`, `FN-15.d`, `FN-17`, `FN-25.c` | with one lane, `FN-25.c`'s per-lane witnesses are unreachable and `FN-17`'s working-copy-as-commit obligation has no instance; every `FN-` property stays green, which is what makes the collapse invisible without this control |
+
+**An exercise-removal row's controls column is a claim of unreachability, and it
+SHALL be established by running the removal rather than by reading the witness.**
+**The table above has now been wrong three times, across two of its rows and
+found by both families** — which is a rule rather than three typos. `TT-16` and
+`TT-24.b` were listed under `EN-11` and are each reached with `hand-edit` gone
+(the first by Alloy's `task-tree.als`, the second by Quint's
+`task-tree-controls.qnt`); and `EN-08` names `FN-31.c` among the witnesses that
+become unreachable when `crash` is removed, while
+[`crates/grove-finish/models/README.md`](../../crates/grove-finish/models/README.md)
+records that its two land anyway. The shape is the same in all three — a witness
+that *looks* like it needs the assumption because its prose describes a state an
+operator or an interruption would produce — and the two failures it produces are
+different, so both are named:
+
+- **The row is wrong.** The witness has another route to it and never needed the
+  assumption. `TT-16` and `TT-24.b` are this: correct the column, and nothing
+  about either claim changes.
+- **The row is right and a family does not meet it.** The witness *posits* the
+  state rather than reaching it, so removing the action leaves it landing.
+  `FN-31.c` is this, and it is a fact about that family's realisation rather
+  than about the assumption. **A posited state and a reached one are not
+  interchangeable for an assumption's control**, however interchangeable they are
+  for the claim the witness serves — which is exactly what an exercise-removal
+  exists to make visible, and is invisible without one.
+
+Telling the two apart is what running the removal buys, and nothing else does.
 
 `EN-08`, `EN-11` and `EN-16` are *exercise-removal* rather than premise-break
 because their negation is not a smaller world but a different one: a model with
@@ -1040,7 +1105,7 @@ therefore cannot witness seven members. A model that introduces a
 precondition-naming observable to reach them is doing what this obligation
 requires and records it as an abstraction; a model that reports six witnesses and
 calls the set covered has lost a member. Whether the shipped diagnostic should
-distinguish the two gates is `formal-synthesis-k16`'s and is not settled here.
+distinguish the two gates is `handoff-audit-k66`'s and is not settled here.
 
 **`FN-06` — the task root's identity is pinned and rechecked.** The task root
 SHALL be opened as a no-follow directory whose identity is verified against the
@@ -1627,7 +1692,7 @@ material finding yields a Rust test that fails against the pre-fix
 implementation, and it lands in the suite that already covers that surface
 rather than in a new one. This phase changes no product behaviour, so nothing
 here proposes a new Rust seam; the crate-facing seams belong to
-`formal-synthesis-k16`, once the models have shown where the boundaries actually
+`handoff-audit-k66`, once the models have shown where the boundaries actually
 fall.
 
 **Mutation is the control on both.** Per reported obligation: break the

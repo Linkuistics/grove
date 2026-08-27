@@ -2060,7 +2060,7 @@ module taskTree {
       // reports `Empty`.  Without it this obligation is a claim about the
       // classification ORDER wearing selection's name.  Recorded rather than
       // fixed — the catalogue is frozen under the independence barrier, and
-      // `formal-synthesis-k16` owns the disposition.
+      // `task-tree-scope-k70` owns the disposition.
       (atRest and op.tag == TSelect and walkStageReached(op.snap) and
        classify(op.snap) == CurrentSpent)
         implies isEmptyO(op.outcome),

@@ -54,7 +54,7 @@ at any name. The situation is retained as
 `witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy` rather
 than excluded, so the narrowing is visible rather than merely declared. It is a
 finding about the catalogue (entry 044, replayed at entry 048) and
-`formal-synthesis-k16` owns its disposition. The catalogue is not edited here.
+`task-tree-scope-k70` owns its disposition. The catalogue is not edited here.
 
 **The disagreement between the two columns is what settled it, and the record
 stays.** This column declared the two cells out of reach; the Quint column
@@ -1054,8 +1054,10 @@ see below).
   therefore established by bounded randomized simulation, and no green run here
   is a proof over reachable states.** What would change the answer: an encoding
   of tree reachability that is not an unrolled fixpoint — which is a modelling
-  change with its own cost, and one `formal-synthesis-k16` should weigh rather
-  than this leaf. `QUINT_VERIFY=1` runs it anyway; `QUINT_VERIFY_STEPS` and
+  change with its own cost. ROUTED BY `routing-and-prose-k73` TO THE MODEL OWNERS: no
+  catalogue text is contradicted by a column established by simulation, so there
+  is no disposition to make — only an encoding to argue for, against the cost
+  recorded here. `QUINT_VERIFY=1` runs it anyway; `QUINT_VERIFY_STEPS` and
   `JVM_ARGS` (default `-Xmx16G`) set the depth and the heap.
 
 Two barriers were removed on the way to that measurement, and both are durable:
@@ -1259,7 +1261,7 @@ three the gap between the text and what is checkable is a **finding about the
 catalogue** rather than a gap in the model. None is a declared `GAP`: the
 obligation is answered, and the narrowing is recorded here and in the experiment
 log. The catalogue is not edited, because it is frozen under the independence
-barrier; `formal-synthesis-k16` owns the disposition of every one of them.
+barrier; `task-tree-scope-k70` owns the disposition of every one of them.
 
 A fourth item is listed below them and is **not** a narrowing — it is a
 statement qualification, and it is here rather than in a quieter place because
@@ -1372,7 +1374,7 @@ name*. Under interleaving they are inconsistent, and the interleaving is one
 `.DS_Store`, a partially-synced artifact — after which Grove reads its own
 interrupted work as somebody else's legacy tree.
 
-**What a fix would have to decide** (it belongs to `formal-synthesis-k16`, not
+**What a fix would have to decide** (it belongs to `task-tree-scope-k70`, not
 here): whether `PartialScaffold` is defined by the *presence* of the scaffold's
 own entries with their fixed bytes, ignoring entries outside the task grammar,
 rather than by the *absence* of everything else. The safety argument for the

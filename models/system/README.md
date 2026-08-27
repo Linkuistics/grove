@@ -374,7 +374,7 @@ with itself.** Take two.
   timeout, so the situation is real and shipped. **`RefConfigInvalid` is the
   same finding's second instance**: `SY-04.b` requires full configuration
   validation ahead of every transition, and no refusal reason names its failure
-  either. Both are declared here and named for `formal-synthesis-k16`; neither
+  either. Both are declared here and named for `closed-set-additions-k74`; neither
   is this leaf's to add to the catalogue, because a new reason imposes a
   matching outcome on the Quint column.
 - **`IterA` is the third, and it is a boundary rather than an action.**
@@ -471,7 +471,7 @@ with itself.** Take two.
   A `doHandEdit` that could empty the name would put `EN-14`'s counterexample
   inside the assumed scope and `SY-05.b` would report it as an ordinary defect.
 - **THE `SY-04.b` SCOPING ERROR IS A CATALOGUE FINDING AND IS NAMED FOR
-  `formal-synthesis-k16`, NOT FIXED HERE.** The catalogue is the shared subject
+  `lifecycle-scope-k72`, NOT FIXED HERE.** The catalogue is the shared subject
   of both families, and this leaf does not edit it under the independence
   protocol — the same rule that left `Stopped` and `RefConfigInvalid` declared
   rather than added. What the catalogue owes is one clause: *an invalid
@@ -666,9 +666,10 @@ is a construction fact (`TheDeadHoldNothing`, chained through
 and M2b are made unsatisfiable by the facts, which is why they read as
 survivors. What the model does check is the half that is not construction: that
 a return releases as ordinarily as a death, and that a successor proceeds, which
-is what `witness_SY_01b` lands. Recorded for `formal-synthesis-k16`: an
-obligation whose content is a platform property has no protocol-level mutation,
-and the honest record is this paragraph rather than a fourth attempt.
+is what `witness_SY_01b` lands. Recorded as a method result rather than a
+disposition — `routing-and-prose-k73` classified it as such and it needs no catalogue
+edit: an obligation whose content is a platform property has no protocol-level
+mutation, and the honest record is this paragraph rather than a fourth attempt.
 
 **`SY-11.a` and `SY-11.b` share their only firing mutation**, which is the
 finish scope's sixth failure mode — *a claim every one of whose conjuncts is
@@ -701,8 +702,12 @@ prediction is half right, and the half that is wrong is the more interesting.
   on the traces the mutation newly admits. **The shape chosen to be robust
   against a sixth acquisition SITE is blind to a repeat at an existing one.**
   That is a property of the check rather than of the design, no `SY-` obligation
-  states it, and inventing one is not this file's to do —
-  `formal-synthesis-k16` inherits it.
+  states it, and inventing one is not this file's to do. **Routed by
+  `routing-and-prose-k73` as a model finding rather than a catalogue one**: the defect
+  is in `SY_11a`'s shape and not in anything the catalogue says, so it belongs
+  to whoever next revises this column. A re-acquisition property, if it is ever
+  wanted, is a new `SY-` obligation and a new cell in both families — a cost to
+  argue for on its own rather than a disposition to make.
 - **M5 (grant) is still not live, and now for a stated structural reason.** The
   admission slice's reason was that `seen` does not change while a process is
   blocked. The reset does not change that, and the mechanism is now nameable:
@@ -718,11 +723,11 @@ or a live mutation the check's shape cannot see — and **only a differential
 probe (satisfiable in the mutant, unsatisfiable in the original) tells the third
 from the first**. This slice met all three in one session.
 
-## The composition boundary, closed — a table for `formal-synthesis-k16`
+## The composition boundary, closed — a table for the disposition children
 
 The `SY-` column is complete, so this is the whole of what this scope imported
 from its two siblings and the whole of what it declined to. **A reader of
-`formal-synthesis-k16` should be able to use this table without opening
+A reader disposing any `SY-` item should be able to use this table without opening
 `lifecycle.als`.**
 
 Twenty-five obligations, and **every one of them reads its sibling contracts
@@ -750,7 +755,7 @@ repository. None of those appears here.
 **What this file added of its own, and each is an abstraction rather than a
 contract**: `Proc.waits`/`Deferred` (a guard wait as an observable state),
 `Stopped` and `RefConfigInvalid` (two situations the closed outcome and refusal
-sets cannot name — a **finding**, named for `formal-synthesis-k16`), `IterA` (an
+sets cannot name — a **finding**, named for `closed-set-additions-k74`), `IterA` (an
 iteration boundary, which is not a catalogue action because a boundary is not
 something the loop *does*), `World.ending`/`World.halted` (the driver's
 conclusion and the loop's halt, two fields so that the inference `SY-09.c`
@@ -816,7 +821,7 @@ quint run models/system/lifecycle-controls.qnt --main=mutant_unscoped_bytes \
 
 **Retained rather than repaired**, because repairing it means deciding what
 `SY-04.b` means, and that is a catalogue change this leaf is forbidden to make.
-`formal-synthesis-k16` owns the disposition.
+`lifecycle-scope-k72` owns the disposition.
 
 
 **`EN-07`, the shared-lock scope — and it is exactly the option
@@ -966,7 +971,7 @@ it runs before configuration validation; **`release-lease` deserves the same
 exemption for a stronger reason** — a release touches no tree and launches
 nothing, so there is nothing for a configuration to be valid *for*. Gating it
 means an invalid personal configuration strands a lease that the loop then can
-only escape by dying. Named for `formal-synthesis-k16` with the two available
+only escape by dying. Named for `lifecycle-scope-k72` with the two available
 repairs — exempt the release, or admit process death — and not fixed here.
 
 **A `PartialScaffold` IS STABLE AND THE SWEEP CONFIRMS IT, which is a
@@ -1075,10 +1080,11 @@ reach**, and make *Grove never manufactures one of the others* a checked claim
 (`SY_13a` conjunct 1, M21) rather than an assumption. The class is entry 042's
 `SY-04.b` class again — **a claim stated over a system when it is true only of
 what Grove does** — and this is its second instance in this file. Named for
-`formal-synthesis-k16`; not fixed here, because the catalogue is both families'
+`lifecycle-scope-k72`; not fixed here, because the catalogue is both families'
 shared subject and the independence protocol holds.
 
-**The general shape, and it is worth stating once for `formal-synthesis-k16`:**
+**The general shape, and it is worth stating once for any session disposing an
+`SY-` item:**
 in a model with a free initial state, every checked invariant must be classified
 as *establishable* or *preserve-only*, and a preserve-only invariant needs a
 state-0 fact justified by what the steps already require. Written as an `always`
@@ -1202,8 +1208,11 @@ command is now named for what it checks —
 `inv_SY_05b_the_summary_never_records_absence_before_the_deletion_is_proven` —
 and the stronger claim is **not** made **[k59-F6]**. Making it would need a seam
 that imports independently established component outcomes rather than
-manufacturing both operands together, which is an abstraction change:
-`formal-synthesis-k16` owns the disposition.
+manufacturing both operands together, which is an abstraction change. **Routed
+by `routing-and-prose-k73` as a modelling-cost decision rather than a catalogue one**:
+nothing the catalogue says is contradicted by the weaker claim, so there is no
+disposition to make — only a model to grow, at the cost of a second twenty-step
+transaction inside the scope whose whole point is not to have one.
 
 **Every action is total**: each computes an outcome from one closed set through
 one classifier (`outcomeOn`) and transitions in every case, so a refusal is a
@@ -1528,7 +1537,7 @@ every one of the three is a sink and both obligations are FALSE.
 `inv_SY_13b_no_stable_state_is_a_sink` dies — which is what turns "the catalogue
 is wrong here" from a remark into a fired control. `system-k59` read the
 catalogue's two sentences independently and reached the same verdict, so this is
-now a finding two readings agree on rather than one reading's. `formal-synthesis-k16`
+now a finding two readings agree on rather than one reading's. `lifecycle-scope-k72`
 owns the disposition.
 
 ### 2. `SY-14.b`'s "every action" is read as every action ON THE TREE
@@ -1581,7 +1590,7 @@ the operator's hands out of it.
 The catalogue has an obligation for exactly this shape — `SY-03`, *a preflight
 is never a licence* — and states it for the **layout only**. Whether `SY-04.b`
 owes the same, or whether the configuration is deliberately read once per
-iteration, is a catalogue question and `formal-synthesis-k16`'s to disposition.
+iteration, is a catalogue question and `lifecycle-scope-k72`'s to disposition.
 The retained counterexample is below.
 
 **Why the pair form could not have found either.** The offending step in the
@@ -1619,8 +1628,11 @@ quint run models/system/lifecycle.qnt --main=base \
 Stating `SY-10.b` over the wait map would report `SY-11.b`'s scaffolding as a
 protocol defect. **The collision between the two obligations is the finding** —
 one obligation's instrument builds the state another forbids, and neither
-noticed, because `SY-10.b` was stated over its own admission — and it is
-`formal-synthesis-k16`'s to disposition. `SY-10.b` is checked over what the
+noticed, because `SY-10.b` was stated over its own admission. **Routed by
+`routing-and-prose-k73` to the model owners**, on the task file's own rule that a
+finding about two obligations' *apparatus* is not a finding about the catalogue:
+the two texts do not collide, only their realisations do, and the repair named
+next is already in place. `SY-10.b` is checked over what the
 admission RETURNS instead, which is the restatement entry 048 actually asked for.
 
 ### 3. `SY-04.a`'s cap is a loop-control guard, not a refusal

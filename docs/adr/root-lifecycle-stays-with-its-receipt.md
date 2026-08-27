@@ -66,7 +66,10 @@ grades an effect applied it never ungrades it* — statable in general, unverifi
 by the library, and carried in the catalogue today only in lane-shaped form, as
 `FN-26` — *history is never rewritten to clear a block* — which the Quint finish
 model dials as `HISTORY_IMMUTABLE`. A general form is the catalogue's to gain or
-decline; `formal-synthesis-k16` owns that disposition.
+decline; `finish-scope-k71` owns that disposition. It is an `FN-` obligation
+question rather than an ordinal one — gaining the general form adds a claim and
+therefore a cell in both families — so it is separable from the successor
+question below and does not travel with it.
 
 **And the library already says so.** `Error::Reserved` exists for "a name the
 consumer owns that is deliberately not an entry — a transaction witness, a lock
@@ -94,7 +97,7 @@ record decides only that the boundary is not a crate one.
 It needs no coordinator, no receipt and no callback: publish the identity token
 last by one same-directory rename, so an interruption classifies partial and
 never valid. It survived every dial in the prototype. It is deferred to
-`formal-synthesis-k16`, which is sizing the crate boundaries and can weigh what
+`finish-verdicts-k65`, which is sizing the crate boundaries and can weigh what
 it actually removes from grove; the prototype measured that it *works*, not that
 it *earns its place*.
 

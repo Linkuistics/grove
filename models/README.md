@@ -85,11 +85,15 @@ What no runner can check is *first broken*: a row naming the wrong but real
 obligation reports identically to a right one. That is what the mutation
 discipline is for, and the citation is how a reader reaches it.
 
-**A finding about the catalogue, recorded rather than fixed.** The catalogue's
-own *`models/run.sh` is the one repository runner* section still lists **three**
-obligations while the matrix obligation it states under Q4 makes four. The
-runner numbers four; renumbering the catalogue is `formal-synthesis-k16`'s,
-since no session may edit the catalogue under the independence barrier.
+**A finding about the catalogue, recorded rather than fixed — and since
+DISPOSED.** The catalogue's own *`models/run.sh` is the one repository runner*
+section listed **three** obligations while the matrix obligation it states under
+Q4 makes four, and the runner numbers four. `routing-and-prose-k73` landed the fourth
+in the catalogue as a manifest-neutral edit: the section now states *assert Q4's
+removal matrix in both directions, per family* as obligation 4, with the rider
+that it rides with coverage assertion and has no flag of its own. Nothing in
+this runner changed — it already numbered four — so no cell moved and the
+obligation count stayed at 128 across the edit.
 
 ## Reading a counterexample
 

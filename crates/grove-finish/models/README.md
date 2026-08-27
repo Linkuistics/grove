@@ -67,7 +67,7 @@ three slices — see *A tenth finding, and it is about the shipped protocol*.
 **Two obligations of the *task-tree* scope are waiting on this directory, and
 neither can be filled from either side as the placement rule stands — and the
 content each needs is now present under an `FN-` prefix, so the re-statement
-`formal-synthesis-k16` may choose is a citation change and nothing more.**
+`obligation-placement-k63` chose is a citation change and nothing more.**
 **SETTLED BY `obligation-placement-k63`, AND THE PREDICTION BELOW WAS HALF
 RIGHT — WHICH IS WHY IT IS LEFT STANDING.** Both obligations are retired and
 re-stated under `FN-` prefixes: `TT-24.d` is `FN-21.c`, a pure citation change
@@ -85,7 +85,7 @@ is `Blocked(OwnershipConflict)` inside a finish or recovery transaction, and
 states the reaper's decline, which are exactly their two subjects — but the runner's placement rule
 sends every `TT_`-prefixed command to the task-tree directory, so a `TT_24c`
 command *here* is a placement failure rather than a filled cell. Whether the two
-should be re-stated as `FN-` obligations is `formal-synthesis-k16`'s to settle;
+should be re-stated as `FN-` obligations is `obligation-placement-k63`'s to settle;
 the re-statement would be a citation change rather than new modelling, because
 `FN-21.c` and `FN-25` already carry the same content under `FN-` prefixes.
 
@@ -1129,7 +1129,7 @@ this file adopts unchanged:
   **observable** in the state the attempt ends in: the quarantine still holds the
   root, the witness still stands, and `observed` still differs from the recorded
   disposition. Whether the shipped diagnostic names both is
-  `formal-synthesis-k16`'s.
+  `handoff-audit-k66`'s.
 - ~~**The forward settle still passes through `FN-22.i`'s stable state and out of
   it in one step.**~~ **AN ABSTRACTION REMOVED, AND THE SECOND ONE A CLAIM HAS
   FORCED RATHER THAN A SLICE CHOSEN.** `FN-21.a` says disposal is *re-enterable
@@ -1229,7 +1229,7 @@ this file adopts unchanged:
   a consequence of the model's decomposition rather than a defect in the shipped
   protocol, whose settle is one step — but it is exactly the hazard the
   implementation inherits if `FN-24.b` ever forces the same split, and
-  `formal-synthesis-k16` should read it that way.
+  `handoff-audit-k66` should read it that way.
 - **`Blocked` carries no diagnosis here, and the omission is deliberate.** The
   catalogue's closed partition over `RecoveryPending` and `OwnershipConflict` is
   `FN-25`'s, which is `exits`'. A commit slice that named the two would have
@@ -1290,7 +1290,7 @@ this file adopts unchanged:
   chooses `OwnershipConflict`, on the fail-closed rule — *Grove never mutates what
   it cannot prove is its own* — and states it as a two-element relation so that
   deleting the edge leaves two survivors rather than silently reversing.
-  `formal-synthesis-k16` reads it as a proposal, not as a finding.
+  `handoff-audit-k66` reads it as a proposal, not as a finding.
 
 ### Where a trace starts, and the one place this slice narrowed `EN-11`
 
@@ -1388,7 +1388,7 @@ operands, which makes *layout unsupported* and *quarantine target unreachable*
 the same question asked at two gates. What follows is that a reason cannot say
 which member refused — hence `Sys.why` — and that the two are distinguishable to
 an operator only by which gate reported. Whether the shipped diagnostic should
-distinguish them is `formal-synthesis-k16`'s, not this file's.
+distinguish them is `handoff-audit-k66`'s, not this file's.
 
 **A ROLLED-BACK FINISH HAS NO REFUSAL REASON EITHER, AND THIS IS THE SECOND
 INSTANCE OF ONE SHAPE.** The catalogue maps the `NotCommitted` disposition to
@@ -1402,7 +1402,7 @@ named for what it is and reported alongside the model-only
 catalogue's set, and it is recorded here rather than smuggled in.
 
 Two of the three post-flight outcomes this slice reaches therefore have no name
-in the shipped contract, and `formal-synthesis-k16` has the same two exits for
+in the shipped contract, and `closed-set-additions-k74` has the same two exits for
 both: widen the closed reason set, or restate the outcome. **That is now three
 findings of one kind in this scope** — seven preconditions against six reasons
 (entry 031), a tracked witness with no reason (entry 032), and a rolled-back
@@ -1420,7 +1420,7 @@ its own — and keeps the case distinguishable through `Sys.why`
 (`W8WitnessTracked`), exactly the device the two `LayoutUnsupported` members
 already needed. **The consequence is that an operator cannot be told from the
 reason alone that the *repository*, not the filesystem, is what is blocking.**
-There are two exits and `formal-synthesis-k16` picks one: add a reason to the
+There are two exits and `closed-set-additions-k74` picks one: add a reason to the
 closed set, or restate `FN-13`'s outcome as a `Blocked` — which is what
 `task-tree-transactions-fail-closed` says happens ("a different revision,
 **tracked witness**, restoration failure … keeps the witness unwalkable as
@@ -1494,9 +1494,13 @@ this model followed the catalogue, because the catalogue is the sole input.
   running `crash` to reach it, so removing the action leaves them landing. That
   is a fact about this file's realisation rather than about the assumption, and
   it is exactly what an exercise-removal exists to make visible — it is invisible
-  without one. `formal-synthesis-k16` reads it as evidence that a posited disk
-  and a reached one are not interchangeable for an assumption's control, however
-  interchangeable they are for the claim.
+  without one. **`routing-and-prose-k73` disposed it**: the catalogue's assumption
+  table now states that an exercise-removal row's controls column is a claim of
+  unreachability to be established by RUNNING the removal, and names this as the
+  case where the row is right and a family does not meet it — a posited disk and
+  a reached one are not interchangeable for an assumption's control, however
+  interchangeable they are for the claim. Meeting `EN-08`'s row for `FN-31.c` is
+  `finish-scope-k71`'s.
 - **Not that `FN-09.a`'s *exactly one rename* frames the whole tree.** Its
   `WPublish` branch asserts `Slot.owner`, `Slot.wHolds`, `rootSame`, `manSame`,
   `repoSame` and `worldSame` — and **not** the cleanup marker, which did not
@@ -1613,7 +1617,7 @@ this model followed the catalogue, because the catalogue is the sole input.
   interruption points the model has are the marker protocol's; `EN-03` says the
   shipped removal has one per entry. A defect that needs a partial recursive
   deletion is outside what any green above says, and it is the sharpest thing
-  `formal-synthesis-k16` should not read this slice as covering.
+  no reader of this column should read this slice as covering.
 - **Almost nothing about the lane, still.** Twelve more obligations have landed
   and **exactly one of them reads the lane**: `FN-17.a`'s *on a
   working-copy-as-commit lane the exact recorded preflight commit is reproduced*.
@@ -1682,7 +1686,7 @@ this model followed the catalogue, because the catalogue is the sole input.
   hazard**, where the deletion stays in the change and the unselected witness
   moves into a *successor* — are none of them modelled. The hazard in particular
   would need a notion of successor revisions this file does not have, and it is
-  the sharpest thing `formal-synthesis-k16` should not read this green run as
+  the sharpest thing no reader should read this green run as
   covering.
 - ~~**Not that the step list is complete.**~~ **ANSWERED BY THE CRASH SLICE.**
   `FN-24.b` asks whether every step has at most one persistent effect and whether
@@ -1720,7 +1724,7 @@ this model followed the catalogue, because the catalogue is the sole input.
   a slice that reaches one should expect a RED command rather than a silence.
 - **Not that the precedence is the catalogue's.** Where both arms hold, this file
   returns `OwnershipConflict`. Nothing in §*Outcomes* decides that; the fail-closed
-  rule is the argument, and `formal-synthesis-k16` owns whether the shipped
+  rule is the argument, and `handoff-audit-k66` owns whether the shipped
   diagnostic adopts it.
 - **Not that a block is always decided under a supported layout.** `World.lane`
   is `var` because `SY-03` requires a preflight never to be a licence, so the
@@ -2512,7 +2516,7 @@ result and the other two are what make it evidence:
   control, which is what would make a lane-blind model visible, was run by
   `blocked-k48` and its named set was found **exact**.
 
-**What `formal-synthesis-k16` should read this as, and what it should not.** The
+**What `finish-verdicts-k65` should read this as, and what it should not.** The
 Alloy family says the transition is **reachable under the incumbent protocol at
 these bounds**, so *delete the replacement* is not available on this evidence.
 It does **not** say the sub-transaction earns its 960 lines: the catalogue
@@ -2543,7 +2547,7 @@ there and not hypothetical.
 states each arm as the catalogue's row verbatim so that the order is what carries
 the claim, and `FN-24.a`'s third conjunct is what catches the other choice —
 mutation row 49 restores the catalogue's order and the check goes red.
-**`formal-synthesis-k16` reads this as a catalogue finding, not a model
+**`finish-scope-k71` reads this as a catalogue finding, not a model
 decision**: either the table's order is wrong for a scope that reserves names
 beside the task root, or the `Absent` row needs the qualification the property
 below it already implies. It is a one-word edit either way, and it is not this
@@ -2679,7 +2683,7 @@ and *after the rename, a return that cannot complete* — and both are diagnosed
 This file reads it as the elaboration of the common case rather than as a
 condition, and the load-bearing clause is *a correlated Grove-owned attempt is
 INCOMPLETE*. **The seventh and the eighth are the same sentence read from two
-sides**, which is what makes them one finding for `formal-synthesis-k16` and two
+sides**, which is what makes them one finding for `finish-scope-k71` and two
 for anyone editing the catalogue: the sentence belongs to neither definition
 alone.
 
@@ -2695,7 +2699,7 @@ witness name and all of it elsewhere. **A closed set whose members are defined b
 a general sentence plus examples is not a closed set until a model asks which of
 the two it is**, and that question is the ninth finding rather than the answer.
 
-### What `formal-synthesis-k16` inherits from these three
+### What `finish-scope-k71` inherits from these three
 
 The catalogue's §*Outcomes* needs one edit and it is small: move *the outcome
 cannot yet be proven either way* out of `RecoveryPending`'s definition, and add
@@ -2725,7 +2729,7 @@ that is one further step. Three separate formulations of `FN-28`'s conjuncts (a)
 and (c) were each falsified by exactly that trace and by nothing else.
 
 What follows for the crates is a sentence, and it is the sharpest thing this
-slice has to hand `formal-synthesis-k16`: **the only durable evidence a finish
+slice has to hand `finish-scope-k71`: **the only durable evidence a finish
 succeeded is the correlation ticket.** `FN-03` says the ticket *SHALL survive the
 destruction of every artifact the transaction owns*; this adds that it must also
 survive the RE-CREATION of one, because a name is not an artifact and the world
@@ -2764,8 +2768,9 @@ mechanics claims and neither is yet an answer to Q4*. Row 14's is (`FN-11`);
 **row 17's is not** (`FN-13`). The consequence is a row of Q4's matrix, and it is
 recorded below rather than corrected in place, because the five inherited rows
 are transcribed rather than re-derived and a silent edit would lose the fact that
-the file disagreed with the register for three slices. `formal-synthesis-k16`
-settles which of the two is wrong.
+the file disagreed with the register for three slices. `finish-verdicts-k65`
+settles which of the two is wrong, because the consequence is a row of Q4's
+matrix.
 
 ## `TODO.finish_process.md` Q4 — the matrix, and three rows that read `none`
 
@@ -2844,7 +2849,7 @@ time in either family, and it is evidence FOR Q1's candidate rather than a
 decision of it** — Q1's own criterion additionally requires disposal-in-place to
 be *checked* against every retained claim under `relax_EN_03`, with `FN-24`'s
 witnesses reached at a bound no greater than the incumbent's. Nothing here runs
-that candidate. `formal-synthesis-k16` reads the row; the Quint column owes its
+that candidate. `finish-verdicts-k65` reads the row; the Quint column owes its
 own.
 
 **Q4-6 READS `none`, AND THE ROW CITED `TT-24.a` UNTIL A REVIEW SHOWED THE
@@ -2934,7 +2939,7 @@ column **blocks** at the same step (`SRemoveWitness`'s discard branch calls
 says only *fails closed*. Two independent readers resolved one sentence in
 opposite directions, which is stronger evidence that the catalogue is
 underdetermined than either column's own account. **The outcome is therefore not
-stated in `FN-32`**; deciding it is `catalogue-disposition-k64`'s, beside the
+stated in `FN-32`**; deciding it is `closed-set-additions-k74`'s, beside the
 other opposite-resolution items.
 
 **Second, the shared-safety half had no shared-safety home.** *Nothing at a
@@ -2965,7 +2970,7 @@ plain instance inherits it and must reach it too.
 
 **And Quint's witness is worded on the contested half.**
 `hist.transactionBlockedReserved` is set where this column **blocks**; the Alloy
-column refuses at the same step. If `catalogue-disposition-k64` settles the
+column refuses at the same step. If `closed-set-additions-k74` settles the
 outcome as a refusal, this witness's predicate moves with the model. `FN-32`
 itself does not: it says only that the artifact stands, which both columns agree
 on.
@@ -3159,7 +3164,9 @@ fixed default, so a green run is replayable and a red one reproduces),
   What would change the answer: splitting the ghost record out of the state — 94
   fields of write-only bookkeeping that a symbolic backend must nonetheless
   encode at every step — which is a modelling change with its own cost, and one
-  `formal-synthesis-k16` should weigh rather than this leaf.
+  the model owners should weigh rather than this leaf — ROUTED there by
+  `routing-and-prose-k73`, because no catalogue text is contradicted by a column
+  established by simulation.
   `QUINT_VERIFY=1` runs it and **this scope can afford it**; the repository
   default stays 0 because the task-tree scope cannot. `QUINT_VERIFY_STEPS` and
   `JVM_ARGS` (default `-Xmx16G`) set the depth and the heap.
@@ -3562,7 +3569,7 @@ result**, not three independent removals: no control here removes the quarantine
 while retaining the marker, or the marker while retaining the replace
 transition. Rows Q4-101–104, Q4-109 and Q4-110 name the first direct
 shared-safety obligation their artifact's role supports and are read normally;
-Q4-108 is declared `abstracted`. `formal-synthesis-k16` should read 105 – 107 as
+Q4-108 is declared `abstracted`. `finish-verdicts-k65` should read 105 – 107 as
 one row with three names, and commission artifact-specific removals if Q4's
 decision needs them separated.
 
@@ -3574,5 +3581,5 @@ Measured in `scenario_march`, a state requiring a replacement is reached in
 replacement is forced before the disposal can finish, not occasionally after. So Q3's
 answer from this column is not *delete*: the transition is needed by the
 incumbent protocol, and what row Q4-107 says is that the incumbent protocol is
-what needs it. Those are different findings and `formal-synthesis-k16` owns
+what needs it. Those are different findings and `finish-verdicts-k65` owns
 which one decides Q3.

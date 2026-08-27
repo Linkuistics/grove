@@ -5766,6 +5766,8 @@ an obligation **no command in this directory may answer** under the runner's
 placement rule — a third consequence of the `TT-24.c` / `TT-24.d` placement
 question, which `formal-synthesis-k16` now inherits three times over.
 
+> **[disposed by `routing-and-prose-k73`]** The `TT-24.c`/`TT-24.d` placement question was settled by `obligation-placement-k63` (`obligations-follow-context-not-artifact`); the class-register disagreement this paragraph goes on to record is routed to `finish-verdicts-k65`, because its consequence is a row of Q4's matrix.
+
 **A twelfth finding, and it is about this file's own record.** `FN-13` is
 *shared safety* in the catalogue's class register and this README's commit-slice
 note has called it *incumbent mechanics* for three slices. It changes the
@@ -5891,6 +5893,8 @@ cannot be.
 > it imposes a mutation on the Quint column and changes what `formal-synthesis-k16`
 > reads off the coverage matrix, so it is recorded here and named for that leaf,
 > exactly as `SY-05`'s design constraint was at entry 039.
+
+> **[disposed by `routing-and-prose-k73`]** Routed to the model owners rather than disposed as a catalogue finding: an `EN-` row for process death is an assumption-table entry with a mutation in both columns, and no catalogue text is contradicted while it is absent. It stays owed and is now owed by whoever next revises the assumption table.
 
 **M1** `alloy-only`. **M2** `interruption`. **M3** — no counterexample; the
 finding arrives as *two mutations that will not fire*, which is score **0** by
@@ -6119,6 +6123,8 @@ reason:
 > has a cost nobody had priced: the quantifier ranges over *first* acquisitions
 > only. No `SY-` obligation states anything about re-acquisition, so inventing
 > one is not this file's to do; `formal-synthesis-k16` inherits it.
+
+> **[disposed by `routing-and-prose-k73`]** Routed to the model owners: the defect is in `SY_11a`'s shape and not in anything the catalogue says. A re-acquisition property, if ever wanted, is a new `SY-` obligation and a new cell in both families.
 
 **And the fourth possibility did not occur, which is worth recording too.** M5 —
 the grant site's clause — survived again, and the probe is unsatisfiable in the
@@ -7530,6 +7536,8 @@ claim changes:
   shared-safety obligation. Those are different findings about the same object and
   `formal-synthesis-k16` owns which one decides Q3.
 
+> **[disposed by `routing-and-prose-k73`]** Routed to `finish-verdicts-k65`, which owns all four `TODO.finish_process.md` verdicts.
+
 **Missed.** Recorded with the same care, because two of these bound what a green
 run here is worth.
 
@@ -7935,6 +7943,8 @@ teardown and asserts the next invocation scaffolds · *M4* `none` in this phase;
 the derived test belongs to `formal-synthesis-k16`'s seam work, and it is the
 one finding here that **has** a pre-fix behaviour to write against if the
 shipped driver shares the gate.
+
+> **[disposed by `routing-and-prose-k73`]** The seam work is routed to `handoff-audit-k66`. The gate question itself is **disposed**: the catalogue's `Actions` table now states that only `launch` is gated on the root's classification, so the shipped driver does not share the gate and the derived test asserts the un-gated reading.
 
 **5. `SY-03` says "no later gate" without saying what a gate is.** "No later
 gate SHALL consult an earlier layout check; each SHALL revalidate against its
@@ -8410,6 +8420,8 @@ contract, because a claim that names a dial cannot be killed by that dial.
 implementation leaf before `extract-task-tree-k24`, and carries the narrowed
 successor question that record states.
 
+> **[disposed by `routing-and-prose-k73`]** The narrowed root-*creation* successor question is routed to `finish-verdicts-k65`; the general-form obligation the same record defers (*once the caller grades an effect applied it never ungrades it*) is routed separately to `finish-scope-k71`, because gaining it adds an `FN-` claim and a cell in both families.
+
 
 
 ### 048 — What the two columns could not have found alone, and a catalogue the second column never saw (cross-model replay, all three scopes)
@@ -8622,6 +8634,8 @@ the closed refusal set. *Durable correction:* the M1 tags on entries 045 and
 046, and `formal-synthesis-k16`'s disposition list. *M1* — this finding **is**
 an M1 correction · *M2* `refusal` · *M3* n/a · *M4* `none`.
 
+> **[disposed by `routing-and-prose-k73`]** The `reap` half is **disposed**: the catalogue's `Actions` table now states that only `launch` is gated on the root's classification, and that the other six Lifecycle actions read and write no task tree. Both families and `src/loop_driver.rs` already implement it, so the edit was manifest-neutral. `FN-13`'s refuse-or-block half is **not** disposed here and is `closed-set-additions-k74`'s.
+
 ---
 
 **5. Where one column made the right choice silently, it learned nothing — and
@@ -8820,6 +8834,12 @@ at all is `formal-synthesis-k16`'s to disposition. The counterexample is
 product-relevant; the severity is not this leaf's to assign.
 *M1* `quint-only`, product-confirmed · *M2* `refusal` · *M3* **3** · *M4* — the
 fixture above, for `formal-synthesis-k16`'s seam work.
+
+> **[disposed by `routing-and-prose-k73`]** Split between two owners.
+> `TT-20`'s prohibition, and whether the window wants a third classification, a
+> guard across the two phases, or nothing, is **`task-tree-scope-k70`**'s
+> (items 13 and 20 of the node's disposition table); the derived-test/seam half
+> of *M4* is **`handoff-audit-k66`**'s, with the other seam work.
 
 ---
 

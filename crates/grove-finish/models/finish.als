@@ -564,7 +564,7 @@ one sig RefNotLive, RefLayoutUnsupported, RefRootIdentityChanged,
    `RootIdentityChanged` — are each false of it.  Reporting it under one of them
    would be a lie the model could not be caught in, so the atom is added HERE,
    named for what it is, and recorded in `README.md` as a finding for
-   `formal-synthesis-k16` rather than smuggled into the catalogue's set.
+   `closed-set-additions-k74` rather than smuggled into the catalogue's set.
    Nothing but `doSettle`'s rollback branch produces it. */
 one sig RefRollbackNotCommitted extends Refused {}
 
@@ -600,7 +600,7 @@ one sig BlockedOutcome extends Result {}
    prove is its own — and uses `why` to keep it distinguishable, exactly the
    device the two `LayoutUnsupported` members already needed.  What follows is
    that an operator cannot be told from the reason alone that the REPOSITORY is
-   what is blocking, which is `formal-synthesis-k16`'s to settle. */
+   what is blocking, which is `closed-set-additions-k74`'s to settle. */
 abstract sig Why {}
 one sig P1Confirm, P2Work, P3Layout, P4Quarantine, P5Identity, P6Fingerprint,
         P7EntryType extends Why {}
@@ -1030,7 +1030,7 @@ fun tableOutcome[p: RevPoint, d: Disposition]: one Result {
    Adding a member is licensed by the catalogue in as many words: *`TT-18`/
    `TT-19` are stated over the reserved CLASS rather than over its members so
    that removing one member changes no claim*.  `README.md` records it for
-   `formal-synthesis-k16` rather than smuggling it into the catalogue's table. */
+   `finish-scope-k71` rather than smuggling it into the catalogue's table. */
 abstract sig Stable {}
 one sig SAbsent, SReservedPreparing, SReservedPublished, SReservedQuarantined,
         SCurrentLive, SCurrentFinishOnly, SCurrentSpent extends Stable {}
@@ -1080,7 +1080,7 @@ fun classifiedRaw: set Stable {
    situation the finish protocol creates and the task-tree scope never does.
    This file therefore orders the WHOLE RESERVED CLASS BEFORE `Absent`, and
    `FN-24.a`'s third conjunct is what would catch the other order.  `README.md`
-   records it for `formal-synthesis-k16`. */
+   records it for `finish-scope-k71`. */
 fun earlierThan: Stable -> Stable {
     SReservedPreparing   -> (SReservedPublished + SReservedQuarantined + SAbsent
                              + SCurrentLive + SCurrentFinishOnly + SCurrentSpent)
@@ -3268,7 +3268,7 @@ run witness_FN_15c_colocatedjj_notcommitted_reached {
    is outside the transaction, so between the attempt and the classification the
    world may move the repository, and a moved anchor with no ticket for this
    attempt is a state in which NEITHER outcome can be proven.  That is Q2's
-   evidence and `formal-synthesis-k16` reads it as such. */
+   evidence and `finish-verdicts-k65` reads it as such. */
 check FN_15d_indeterminate_is_reached_only_when_neither_outcome_can_be_proven {
   always ((Sys.act' = Classify and Txn.disp' = Indeterminate)
             implies (not anchorHolds and not resultProven))
@@ -5368,7 +5368,7 @@ run witness_FN_27c_a_block_with_unrelated_work_present {
    the check: a finish cannot report success by looking at the task-root NAME,
    because the name is the world's to occupy.  What it can read is the
    correlation ticket, which is `FN-03`'s subject and is why that claim exists.
-   Recorded in `README.md` as a finding for `formal-synthesis-k16`.
+   Recorded in `README.md` as a finding for `finish-scope-k71`.
    
    (a) THE STEP THAT COMPLETES THE FINISH IS REACHED ONLY OVER A PROVEN COMMIT.
    `MarkerRemove` is disposal's last step and the only thing in this file that

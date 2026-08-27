@@ -325,7 +325,7 @@ module lifecycle {
     // catalogue's closed refusal set has NO member for one.  The model needs a
     // value, so it names one and declares it rather than borrowing an unrelated
     // reason and making the taxonomy claim vacuous.  Recorded in the README and
-    // in the experiment entry; `formal-synthesis-k16` owns the disposition.
+    // in the experiment entry; `closed-set-additions-k74` owns the disposition.
     | RConfigInvalid
     // DECLARED ABSTRACTION, and entry 041's catalogue finding replayed into
     // Quint's own vocabulary.  `SY-10.b` requires a contended generation to
@@ -334,7 +334,7 @@ module lifecycle {
     // named a generation that is not live, which is a different fact.  Naming
     // the stop is the whole point of stating `SY-10.b` over what the admission
     // RETURNS rather than over a history flag, so the model names one and
-    // declares it.  `formal-synthesis-k16` owns the disposition.
+    // declares it.  `closed-set-additions-k74` owns the disposition.
     | RGenContended
 
   type Diagnosis = DRecoveryPending | DOwnershipConflict
@@ -710,8 +710,10 @@ module lifecycle {
     // exclusive hold (`genExclusive != -1 and genExclusive != q`), which also
     // fails.  Both probes are recorded in the README with their exact
     // commands.  Stating `SY-10.b` over the wait map would report `SY-11.b`'s
-    // scaffolding as a protocol defect; the collision is a finding for
-    // `formal-synthesis-k16` rather than a counterexample, and `SY-10.b` is
+    // scaffolding as a protocol defect; the collision is a finding ROUTED BY
+    // `routing-and-prose-k73` TO THE MODEL OWNERS — the two obligations' texts do not
+    // collide, only their realisations do — rather than a counterexample, and
+    // `SY-10.b` is
     // checked over WHAT THE ADMISSION RETURNS instead.
     genTimeoutReported: bool,
     orderViolated: bool,
@@ -2162,7 +2164,7 @@ module lifecycle {
   /// The catalogue has an obligation for exactly this shape — `SY-03`, *a
   /// preflight is never a licence* — and states it for the LAYOUT only.
   /// Whether `SY-04.b` owes the same, or whether the configuration is meant to
-  /// be read once per iteration, is `formal-synthesis-k16`'s to disposition.
+  /// be read once per iteration, is `lifecycle-scope-k72`'s to disposition.
   val inv_SY_04b_grove_never_mutates_the_tree_under_a_configuration_it_has_not_validated: bool =
     not(hist.groveMutatedUnderUnvalidatedConfig)
 
@@ -2192,7 +2194,8 @@ module lifecycle {
   /// component outcomes rather than manufacturing both operands together, and
   /// that is an abstraction change this leaf does not make: it would grow a
   /// second twenty-step transaction inside the scope whose whole point is not
-  /// to have one. `formal-synthesis-k16` owns the disposition; the README and
+  /// to have one. ROUTED BY `routing-and-prose-k73` TO THE MODEL OWNERS as a
+  /// modelling-cost decision rather than a catalogue one; the README and
   /// entry 046 carry the downgrade.
   val inv_SY_05b_the_summary_never_records_absence_before_the_deletion_is_proven: bool =
     not(hist.absentBeforeProven)

@@ -557,16 +557,19 @@ one sig RefNotLive, RefLayoutUnsupported, RefRootIdentityChanged,
         RefNoTrackedDeletion, RefUnsupportedEntryType,
         RefWitnessPending, RefReservedNameOccupied extends Refused {}
 
-/* A SECOND FINDING OF THE SAME SHAPE AS `FN-13`'s, and the file's only added
-   refusal atom.  The catalogue maps `NotCommitted` to *rolls back and yields
-   `Refused`*, and NONE of its seventeen closed refusal reasons names a finish
-   that was rolled back: the closest members — `NoTrackedDeletion`,
-   `RootIdentityChanged` — are each false of it.  Reporting it under one of them
-   would be a lie the model could not be caught in, so the atom is added HERE,
-   named for what it is, and recorded in `README.md` as a finding for
-   `closed-set-additions-k74` rather than smuggled into the catalogue's set.
-   Nothing but `doSettle`'s rollback branch produces it. */
-one sig RefRollbackNotCommitted extends Refused {}
+/* NO LONGER AN ADDED ATOM — the catalogue's own member, and this file's
+   declaration is the finding that put it there.  The catalogue maps
+   `NotCommitted` to *rolls back and yields `Refused`*, and none of its
+   SEVENTEEN closed refusal reasons named a finish that was rolled back: the
+   closest members — `NoTrackedDeletion`, `RootIdentityChanged` — are each false
+   of it, so reporting it under one would have been a lie the model could not be
+   caught in.  The Quint column reached the same gap independently
+   under its own name, which is what made it a fact about the catalogue rather than
+   a convenience here.  §*Outcomes* now carries `DeletionNotCommitted` and this
+   is its spelling.  Disposed by `closed-set-additions-k74`; see
+   `docs/adr/a-refusal-leaves-nothing-standing.md`, clause 2.  Nothing but
+   `doSettle`'s rollback branch produces it. */
+one sig RefDeletionNotCommitted extends Refused {}
 
 /* `Blocked` — the catalogue's sixth outcome: *a transaction stopped part-way and
    left a stable, recoverable state*.  IT CARRIES NO DIAGNOSIS HERE, and the
@@ -579,8 +582,9 @@ one sig RefRollbackNotCommitted extends Refused {}
 one sig BlockedOutcome extends Result {}
 
 /* A MODEL-ONLY OBSERVABLE, and declared as one in `README.md`.  The catalogue
-   fixes seven preconditions and seventeen refusal reasons and never states the
-   mapping between them; two of the seven — an unsupported layout and an
+   fixes seven preconditions and TWENTY refusal reasons (seventeen when this was
+   written) and does not state the mapping between them; two of the seven — an
+   unsupported layout and an
    unreachable quarantine operand — are the same reason at different gates.  So
    the reason alone cannot say WHICH member refused, and `FN-05.a` requires the
    seven to be individually reachable.  `why` is what makes them so.  Nothing in
@@ -592,15 +596,20 @@ one sig BlockedOutcome extends Result {}
    situation the catalogue splits, and the third is the one this file could not
    name from the closed set:
 
-   `W8WitnessTracked` IS A FINDING, recorded in `README.md` and in Experiment 2.
+   `W8WitnessTracked` WAS A FINDING AND IS NOW SETTLED, and the settlement went
+   the other way from the one this note expected.  It was recorded because
    `FN-13`'s stated witness is *a commit attempted while the witness is tracked,
-   REFUSED*, and the catalogue's closed refusal-reason set has no member that
-   names a tracked witness.  This file reports it under `WitnessPending`, which
-   is the closest true statement — an artifact at a reserved name that Grove can
-   prove is its own — and uses `why` to keep it distinguishable, exactly the
-   device the two `LayoutUnsupported` members already needed.  What follows is
-   that an operator cannot be told from the reason alone that the REPOSITORY is
-   what is blocking, which is `closed-set-additions-k74`'s to settle. */
+   REFUSED* and the closed refusal-reason set had no member naming a tracked
+   witness — so this file reported it under `WitnessPending`, the closest true
+   statement, and used `why` to keep it distinguishable.  `closed-set-additions-k74`
+   found the wrong half was being fixed: **the outcome was wrong, not the reason
+   set**.  The commit is attempted only after publication and evacuation, so the
+   stop is a `Blocked` (see `FN-13`), a block carries a DIAGNOSIS rather than a
+   reason, and the closed reason set therefore gains nothing here.  `W8` survives
+   as what it always was — a model-only observable naming the branch — and no
+   longer maps through `reasonOf`.  The operator-facing residue, *can the
+   diagnostic say the repository rather than the filesystem stopped this*, is
+   `handoff-audit-k66`'s.  See `docs/adr/a-refusal-leaves-nothing-standing.md`. */
 abstract sig Why {}
 one sig P1Confirm, P2Work, P3Layout, P4Quarantine, P5Identity, P6Fingerprint,
         P7EntryType extends Why {}
@@ -692,10 +701,15 @@ fun reasonOf[p: Why]: lone Refused {
   p = P5Identity    implies RefRootIdentityChanged else
   p = P6Fingerprint implies RefNoTrackedDeletion   else
   p = P7EntryType   implies RefUnsupportedEntryType else
-  p = W8WitnessTracked implies RefWitnessPending      else
+  /* `W8WitnessTracked` NO LONGER MAPS TO A REASON, and that is the disposition
+     rather than an omission.  Its stop is a `Blocked` (`FN-13`), and a block
+     carries a DIAGNOSIS, not a refusal reason — so the closed reason set gained
+     nothing for a tracked witness and this arm is `none`.  The operator-facing
+     residue, *can the diagnostic say the repository rather than the filesystem
+     stopped this*, is `handoff-audit-k66`'s. */
   p = W9SlotPending    implies RefWitnessPending      else
   p = W10SlotForeign   implies RefReservedNameOccupied else
-  p = W11NotCommitted  implies RefRollbackNotCommitted  else none
+  p = W11NotCommitted  implies RefDeletionNotCommitted  else none
 }
 
 /* The deletion fingerprint: the expected, non-empty set of tracked paths the
@@ -993,7 +1007,7 @@ fun tableOutcome[p: RevPoint, d: Disposition]: one Result {
       (d = Committed and some Quar.qRid) implies BlockedOutcome else
       Applied)                                                        else
   p = AfterRestore implies (
-      (d = NotCommitted and reproductionStands) implies RefRollbackNotCommitted
+      (d = NotCommitted and reproductionStands) implies RefDeletionNotCommitted
       else BlockedOutcome)                                                else
   (d = Committed implies (markerForeign implies BlockedOutcome else Applied) else
    (some Root.rid implies BlockedOutcome else Applied))
@@ -1802,9 +1816,27 @@ pred doCommitAttempt {
        that is not a receipt.  `EN-09` is the assumption, and the classification
        below never reads this field. */
   } else {
+    /* `FN-13`, AND THE OUTCOME MOVED.  A tracked witness meets an action that
+       has published and evacuated, so an effect stands and the stop is a
+       `Blocked` rather than a refusal — §*Outcomes*' discriminator, corrected by
+       `closed-set-additions-k74`.  `Sys.why` still names the branch, which is
+       what tells this case from `W9SlotPending` below and is now the ONLY thing
+       that does, since both no longer share a reason. */
     not gateWitnessUntracked implies {
-      Sys.res' = RefWitnessPending and Sys.why' = W8WitnessTracked
+      Sys.res' = BlockedOutcome and Sys.why' = W8WitnessTracked
     } else {
+      /* `W9SlotPending` — a commit attempted before the evacuation is complete.
+         SURFACED BY `closed-set-additions-k74` AND ROUTED TO `finish-scope-k71`
+         RATHER THAN DECIDED.  `FN-29.b` makes this branch a question it was not
+         before: the witness is PUBLISHED here, which is an effect of this
+         action, so whether a refusal is the right outcome now has a stated test
+         instead of no test at all.  It survives `FN-29.b` as written — the
+         antecedent is the completed evacuation and this branch is short of it —
+         and that is a fact about where the line was drawn, not evidence that
+         this branch is on the right side of it.  Deciding it needs the
+         restoration path's own obligations rather than the vocabulary, and no
+         session referred it here, so it is named rather than re-decided under
+         cover of a disposition. */
       Sys.res' = RefWitnessPending and Sys.why' = W9SlotPending
     }
     repoSame and txnSame
@@ -2063,7 +2095,7 @@ pred doRevalidate {
   worldSame and opSame and quarSame and markSame
   observed = NotCommitted implies {
     reproductionStands implies {
-      Sys.res' = RefRollbackNotCommitted and Sys.why' = W11NotCommitted
+      Sys.res' = RefDeletionNotCommitted and Sys.why' = W11NotCommitted
       rootSame
       no Slot.occ' and no Slot.owner' and no Slot.wHolds' and manEmptyNext
       repoSameReleasingWitness
@@ -2862,6 +2894,16 @@ run witness_FN_10a_a_discard {
    `ReservedNameOccupied` half of the catalogue's split, and it names no
    recovery — telling an operator to run one against someone else's bytes is the
    fail-closed violation the split exists to prevent. */
+/* THIS COLUMN WAS RIGHT HERE AND THE OTHER ONE MOVED TO MEET IT.  `finish.qnt`
+   BLOCKED at this step, on the reading that *inside a transaction* is the
+   discriminator; both columns were green against `FN-10.b`, whose text says only
+   *fails closed*.  §*Outcomes* now decides it: a recovery meeting unclassifiable
+   content at the witness slot has persisted nothing, so the tree it hands back
+   is the tree it received and the outcome is `Refused(ReservedNameOccupied)` —
+   which is exactly what this check requires and what `witness_FN_10b` reaches.
+   The catalogue's *one artifact, three contexts* second row now fixes a FUNCTION
+   of the step rather than one outcome, and `FN-29.b` is what checks it.
+   Disposed by `closed-set-additions-k74`. */
 check FN_10b_content_the_discard_cannot_classify_fails_closed {
   always ((Sys.act' = Discard and not gateOwned)
             implies (Sys.res' in Refused and treeSame and repoSame))
@@ -2968,31 +3010,53 @@ run witness_FN_12b_a_refused_entry_type {
 
 /* A candidate committed tree is what the repository would record at the attempt.
    The witness is excluded from every one of them, in both directions: no attempt
-   is ever APPLIED over a tracked witness, and an attempt that meets one is
-   refused with the tree and the repository byte-identical.
+   is ever APPLIED over a tracked witness, and an attempt that meets one STOPS
+   with the tree and the repository byte-identical ACROSS THAT STEP.
 
-   THE REFUSAL REASON IS A FINDING, not a modelling choice — see the note on
-   `Why`.  The catalogue's closed reason set has no member that names a tracked
-   witness, so this reports `WitnessPending` and distinguishes the case by the
-   model-only `why`. */
+   THIS OUTCOME MOVED, AND THE FRAME CONDITION DID NOT.  This file read the
+   catalogue's `FN-13` witness — *a commit attempted while the witness is
+   tracked, REFUSED* — and reported `Refused`, on the ground that the catalogue
+   is the sole input to the formal phase.  That was the right method against the
+   wrong sentence.  `treeSame and repoSame` are TRUE of this step and always
+   were; what they are not is the refuse-or-block discriminator, which
+   §*Outcomes* now states over the ACTION: the commit is attempted only after
+   publication and evacuation (`FN-11`), so an effect stands that the action can
+   neither complete nor undo.  That is a `Blocked`.  The Quint column reached it
+   independently, `task-tree-transactions-fail-closed` says the same, and the
+   shipped post-commit verification rejects a result that still tracks `.grove/`
+   with the evacuation already done.  Corrected by `closed-set-additions-k74`;
+   see `docs/adr/a-refusal-leaves-nothing-standing.md`, clause 1.
+
+   THE DIAGNOSIS IS `RecoveryPending` AND THIS FILE DOES NOT STATE IT.
+   `BlockedOutcome` carries no diagnosis here by the composition decision at its
+   declaration — the `RecoveryPending`/`OwnershipConflict` partition is `FN-25`'s
+   — so the diagnosis half is a DECLARED NARROWING of this column, in `TT-20`'s
+   sense and not a runner `GAP` (this obligation is answered here, with a
+   property and a witness).  It is answered in `finish.qnt`, whose
+   `pickDiagnosis` classifies it rather than naming it.
+   `Sys.why = W8WitnessTracked` keeps the branch identifiable here, which is all
+   this slice needs and all it may honestly claim. */
 check FN_13_every_candidate_committed_tree_excludes_the_witness {
   always {
     (Sys.act' = CommitAttempt and Sys.res' = Applied)
       implies candidateExcludesWitness
     (Sys.act' = CommitAttempt and not candidateExcludesWitness)
-      implies (Sys.res' in Refused and treeSame and repoSame)
+      implies (Sys.res' = BlockedOutcome and treeSame and repoSame)
   }
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
-/* A commit attempted while the witness is tracked, refused.  Seven transitions:
+/* A commit attempted while the witness is tracked, blocked.  Seven transitions:
    the five that build and publish and evacuate, the world's snapshot that takes
-   the witness into the tracked set, and the attempt that meets it. */
-run witness_FN_13_a_commit_attempted_while_the_witness_is_tracked_refused {
+   the witness into the tracked set, and the attempt that meets it.  `no
+   Root.holds` in the last conjunct is the evacuation this outcome turns on —
+   the witness was always reaching a state in which nothing was standing back at
+   the root, and reporting that as a refusal is what the catalogue corrected. */
+run witness_FN_13_a_commit_attempted_while_the_witness_is_tracked_blocked {
   Txn.phase = Fresh and no Slot.occ
   eventually (Sys.act = TopologyChange and some Repo.wTracked
               and Slot.occ = Published)
   eventually (Sys.act' = CommitAttempt and no Root.holds
-              and Sys.res' = RefWitnessPending and Sys.why' = W8WitnessTracked
+              and Sys.res' = BlockedOutcome and Sys.why' = W8WitnessTracked
               and treeSame and repoSame)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
@@ -3386,7 +3450,7 @@ run witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit {
   eventually (Sys.act = Settle and Sys.res = Applied
               and some Root.holds and Slot.occ = Published
               and Repo.reproduced = Txn.anchor)
-  eventually (Sys.act = Revalidate and Sys.res = RefRollbackNotCommitted
+  eventually (Sys.act = Revalidate and Sys.res = RefDeletionNotCommitted
               and some Root.holds and no Slot.occ
               and Repo.reproduced = Txn.anchor)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
@@ -3819,7 +3883,7 @@ run witness_FN_22c_a_late_landing_observed_after_the_restoration {
 check FN_22d_after_the_restoration_an_unchanged_notcommitted_refuses_completely {
   always ((Sys.act' in txnActs and atRevPoint[AfterRestore]
            and observed = NotCommitted and reproductionStands)
-    implies (Sys.res' = RefRollbackNotCommitted
+    implies (Sys.res' = RefDeletionNotCommitted
              and Root.holds' = Man.mEntries and some Root.rid'
              and no Slot.occ' and manEmptyNext))
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
@@ -3830,7 +3894,7 @@ run witness_FN_22d_a_rollback_that_completes_as_a_refusal {
   always some Repo.canReproduce
   eventually (Sys.act = Settle and Sys.res = Applied and Txn.phase = Restored
               and Slot.occ = Published and some Root.holds)
-  eventually (Sys.act = Revalidate and Sys.res = RefRollbackNotCommitted
+  eventually (Sys.act = Revalidate and Sys.res = RefDeletionNotCommitted
               and no Slot.occ and manEmpty and some Root.rid
               and one finishLive)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
@@ -5054,6 +5118,12 @@ pred manWrittenNext { some Man.mHandle' or some Man.mAttempt' or some Man.mAncho
                       or some Man.mEntries' }
 pred leftoverArtifactNext { some Quar.qRid' or some Slot.occ' or manWrittenNext }
 
+/* `gateEvacuated`, read one state on, in this file's `…Next` idiom.  It is the
+   state `FN-29.b` turns on: the entries are out of the root and inside a
+   published witness with a ready manifest, which is the effect no refusal may be
+   returned over. */
+pred gateEvacuatedNext { no Root.holds' and Slot.occ' = Published and some Man.mReady' }
+
 /* WHAT IS UNRELATED, NAMED ONCE.  `FN-27` exempts four things — the task root,
    the reserved witness, the quarantine and the scoped commit — which in this
    file are `Root`, `Slot` + `Man`, `Quar` + `Cleanup` and `Repo`.  What is left
@@ -5182,7 +5252,7 @@ check FN_02_declining_or_exiting_without_completing_leaves_the_finish_leaf_live 
     (Sys.act' in txnActs and Sys.res' in (Refused + BlockedOutcome))
       implies (Txn.handle & (Root.holds + Slot.wHolds + Man.mEntries))
                 in (Root.holds' + Slot.wHolds' + Man.mEntries')
-    (Sys.res' = RefRollbackNotCommitted and Txn.handle in Man.mEntries)
+    (Sys.res' = RefDeletionNotCommitted and Txn.handle in Man.mEntries)
       implies Txn.handle in Root.holds'
   }
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
@@ -5326,7 +5396,7 @@ run witness_FN_27b_a_refusal_with_unrelated_work_present {
   interruptedMidEvacuation
   no Cleanup.present
   always some World.wcWork
-  eventually (Sys.res' = RefRollbackNotCommitted and some World.wcWork)
+  eventually (Sys.res' = RefDeletionNotCommitted and some World.wcWork)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 
 check FN_27c_nothing_unrelated_changes_on_a_block {
@@ -5453,7 +5523,7 @@ run witness_FN_28_a_success_whose_cleanup_is_still_outstanding {
 //
 // TWO CONJUNCTS, AND THE SECOND IS WHERE THE CLAIM'S THIRD SENTENCE STOPS BEING
 // TRUE BY CONSTRUCTION.  *Distinguishable by the operator from a block* is
-// worth nothing stated over the outcome atoms — `RefRollbackNotCommitted` and
+// worth nothing stated over the outcome atoms — `RefDeletionNotCommitted` and
 // `BlockedOutcome` are distinct signatures and no model can confuse them.  What
 // an operator actually meets is a DISK, so the claim is stated over what the
 // two outcomes leave on it: a completed refusal leaves no artifact of the
@@ -5474,7 +5544,7 @@ run witness_FN_28_a_success_whose_cleanup_is_still_outstanding {
 // and the before-restoration row are one.  `FN-22.d` states the same three
 // absences at ONE REVALIDATION POINT; this states them over the OUTCOME,
 // wherever it arises.  In this file the two coincide because there is exactly
-// one refusing exit — which is itself the finding `RefRollbackNotCommitted`
+// one refusing exit — which is itself the finding `RefDeletionNotCommitted`
 // was added for — and in a candidate protocol with two they do not.  Written
 // apart so that a mutation to either is a control for one of them.
 //
@@ -5500,9 +5570,9 @@ run witness_FN_28_a_success_whose_cleanup_is_still_outstanding {
 // twelve states; the witness lands at ten.  Thirteen is the larger.
 // ===========================================================================
 
-check FN_29_a_refusal_is_a_complete_outcome_and_is_distinguishable_from_a_block {
+check FN_29a_a_refusal_is_a_complete_outcome_and_is_distinguishable_from_a_block {
   always {
-    (Sys.res' = RefRollbackNotCommitted)
+    (Sys.res' = RefDeletionNotCommitted)
       implies (some Root.rid' and no Slot.occ' and manEmptyNext
                and Quar.qRid' in Quar.qRid)
     (Sys.act' in txnActs and Sys.res' = BlockedOutcome)
@@ -5510,16 +5580,84 @@ check FN_29_a_refusal_is_a_complete_outcome_and_is_distinguishable_from_a_block 
   }
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
 
+/* `FN-29.b` — THE DISCRIMINATOR, AND THE CHECK THAT WOULD HAVE CAUGHT THIS
+   FILE'S OWN `FN-13`.  `FN-29.a` above is stated over ONE refusal atom, which is
+   what left the general rule uncheckable: this file could report `Refused` over
+   an evacuated tree and stay green, and it did, for as long as `FN-13` said
+   *refused*.  Stated over EVERY refusal a transaction step returns, the same
+   sentence is a counterexample the moment one is returned with the entries out
+   of the root.
+
+   WHY `gateEvacuatedNext` AND NOT `not leftoverArtifactNext`.  The stronger
+   phrasing is FALSE, and for the reason `FN-29.a`'s note gives one screen up: a
+   refusal is stated over the artifacts the OUTCOME owns and not over every
+   artifact on the disk.  `witness_FN_10b`'s discard refuses with a foreign
+   artifact standing in the slot — one this action did not create, does not
+   touch, and is refusing precisely in order to leave alone (`FN-32`) — so
+   requiring an empty slot would make the refusing arm unreachable by fiat and
+   report the fail-closed behaviour as a violation.
+
+   AND WHY THE OWNERSHIP CONJUNCT, WHICH IS THE SAME TRAP MET A THIRD TIME.
+   `gateEvacuatedNext` ALONE IS ALSO FALSE, and this check found it on its first
+   run: `EN-11`'s free initial state supplies a world that starts `Published`
+   with an empty root — an earlier attempt's evacuation, standing at state 0 —
+   and a fresh transaction refusing over it is a counterexample to a rule about
+   what THIS action left.  `FN-29.a`'s note records the identical shape on the
+   quarantine name.  §*Outcomes* says *the tree it hands back equals the tree it
+   was given*, and the operand is the ACTION'S OWN effects; `Slot.owner' =
+   Txn.attempt'` is this file's existing idiom for exactly that (see
+   `correlatedOwn`).  The check keeps its teeth: were `FN-13` still a refusal,
+   the witness is this attempt's, the antecedent holds, and this is a
+   counterexample — which is the whole reason the obligation exists.
+
+   THE SECOND CONJUNCT IS `FN-29.a`'s SECOND, DELIBERATELY REPEATED.  A rule
+   about which of two outcomes is returned is only half stated if it constrains
+   one of them; a mutation that turned every block into a refusal would satisfy
+   a one-sided version of this check by emptying its antecedent. */
+check FN_29b_a_refusal_leaves_nothing_standing {
+  always {
+    (Sys.act' in txnActs and Sys.res' in Refused)
+      implies not (gateEvacuatedNext
+                   and some Slot.owner' and Slot.owner' = Txn.attempt')
+    (Sys.act' in txnActs and Sys.res' = BlockedOutcome)
+      implies leftoverArtifactNext
+  }
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
+
+/* The refusing arm: a transaction step meets an artifact it cannot prove is
+   Grove's own having applied nothing, and REFUSES.  This is `FN-10.b`'s discard,
+   reached from the free initial state — the same instance `witness_FN_10b`
+   finds, run here so that `FN-29.b` carries its own reachability rather than
+   borrowing a neighbour's. */
+run witness_FN_29b_a_stop_with_nothing_applied_refuses {
+  Txn.phase = Fresh and Slot.occ = Preparing and no Slot.owner
+  eventually (Sys.act = Discard and Sys.res = RefReservedNameOccupied
+              and Sys.why = W10SlotForeign and not gateEvacuated)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
+
+/* The blocking arm, and it is the one this disposition MOVED: the same kind of
+   stop after the evacuation has been applied is a block.  `FN-13`'s tracked
+   witness is the instance, which is why this witness names the state rather than
+   the action — any transaction step stopping over an evacuated tree must reach
+   it the same way. */
+run witness_FN_29b_a_stop_after_an_applied_effect_blocks {
+  Txn.phase = Fresh and no Slot.occ
+  eventually (Sys.act = TopologyChange and some Repo.wTracked
+              and Slot.occ = Published)
+  eventually (Sys.act' in txnActs and Sys.res' = BlockedOutcome
+              and no Root.holds and leftoverArtifactNext)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
+
 /* THE CATALOGUE'S WITNESS: *a refused attempt followed by a successful one*.
    The refusal completes at the after-restoration point, leaving nothing of the
    transaction on disk; the world then lands the commit that was never proven,
    and a second attempt over the same handle succeeds.  Two attempts in one
    trace is what makes it the deepest of this claim's commands. */
-run witness_FN_29_a_refused_attempt_followed_by_a_successful_one {
+run witness_FN_29a_a_refused_attempt_followed_by_a_successful_one {
   interruptedMidEvacuation
   no Cleanup.present
   no Quar.qRid
-  eventually (Sys.res' = RefRollbackNotCommitted and not leftoverArtifactNext)
+  eventually (Sys.res' = RefDeletionNotCommitted and not leftoverArtifactNext)
   eventually (Sys.act = Classify and Txn.disp = Committed)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 10 steps
 

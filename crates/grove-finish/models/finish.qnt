@@ -529,13 +529,18 @@ module finish {
     | RNoTrackedDeletion
     | RRootIdentityChanged
     | RUnsupportedEntryType
-    // AN ABSTRACTION THIS MODEL ADDS, declared.  A finish whose commit did not
-    // land rolls back cleanly and ends as a REFUSAL (`FN-29`), and the
-    // catalogue's closed refusal-reason set has no member for it: every one of
-    // the seventeen names a precondition or a guard, and none names "the
-    // deletion commit is absent".  `FN-29` requires the operator to be able to
-    // tell that refusal from a block, which needs the refusal to SAY something.
-    | RRolledBack
+    // NO LONGER AN ABSTRACTION — the catalogue's own member, and this atom is
+    // the finding that put it there.  It was declared here because a finish
+    // whose commit did not land rolls back cleanly and ends as a REFUSAL
+    // (`FN-29`) that none of the seventeen closed reasons named: every one of
+    // them named a precondition or a guard, and none named "the deletion commit
+    // is absent".  `docs/specs/semantic-contract.md` §*Outcomes* now carries
+    // `DeletionNotCommitted`, and this is its spelling.  The Alloy column
+    // reached the same gap independently, under its own name, which is
+    // what made it a fact about the catalogue rather than a convenience here.
+    // Disposed by `closed-set-additions-k74`; see
+    // `docs/adr/a-refusal-leaves-nothing-standing.md`, clause 2.
+    | RDeletionNotCommitted
 
   /// The two blocked diagnoses, closed and exhaustive over blocks (`FN-25`).
   type Diagnosis = RecoveryPending | OwnershipConflict
@@ -552,6 +557,18 @@ module finish {
   /// which is the exact hazard totality exists to remove.  So the model names
   /// the non-entry, exactly as the catalogue anticipates a model naming the
   /// guard wait it also refuses to put in the set.
+  ///
+  /// DISPOSED BY `closed-set-additions-k74`, AND THE ABSTRACTION STANDS.  The
+  /// catalogue declines to gain a member and now says why in as many words:
+  /// GROVE HAS NO CONFIRMATION GATE AT ALL — constraint 5 is *grove guides, it
+  /// does not gate*, `finish_commit`'s own contract puts the confirmation on
+  /// the calling session, and no Grove binary reads standard input anywhere.  A
+  /// transaction not entered for want of confirmation is a call that was never
+  /// made, so `FN-01`'s "produces no refusal at all" is literally true of the
+  /// product, and the closed set — which covers what a COMPLETED INVOCATION
+  /// returns — cannot name it without ceasing to be that set.  §*Outcomes*
+  /// generalises the guard-wait paragraph to govern this case too, so the
+  /// declaration below is now the rule being followed rather than a finding.
   type Outcome =
     | ONone
     | OApplied
@@ -1024,6 +1041,11 @@ module finish {
     replaceDeclinedForeign: bool,
     forwardAfterInterruptedEvacuation: bool,
     transactionBlockedReserved: bool,
+    // `FN-32` / `FN-29.b`: the same meeting, stopped the OTHER way.  A step that
+    // meets an unprovable artifact before this action has persisted anything
+    // REFUSES rather than blocks, so `wit_FN_32` must read both flags or it
+    // witnesses only half its own claim.
+    transactionRefusedReserved: bool,
     // The blocked states swept, for `FN-25.b`'s exhaustive obligation.
     blockedStatesSeen: int,
     blockedWithoutDiagnosis: bool,
@@ -1084,6 +1106,7 @@ module finish {
     ordinaryRefusedReserved: false, leftoverWhileFresh: false,
     blockNamedArtifactAndTopology: false, markerObservedDuringReplace: false,
     replaceDeclinedForeign: false, forwardAfterInterruptedEvacuation: false, transactionBlockedReserved: false,
+    transactionRefusedReserved: false,
     blockedStatesSeen: 0, blockedWithoutDiagnosis: false,
     blockedWithBoth: false, nearMissResolvedToOne: false,
     carriedDisagreed: false, blockSitesSwept: Set(),
@@ -1185,6 +1208,32 @@ module finish {
   /// stands in the way, or because the root was swapped underneath it.  The
   /// transaction has already mutated, so the honest stable state is a BLOCK —
   /// which is the catalogue's own rule in *One artifact, three contexts*.
+  /// `FN-29.b`, IN ONE PLACE.  A step that meets an artifact at a reserved name
+  /// it cannot prove is Grove's own stops either way; WHICH way is decided by
+  /// what this action has left standing, never by the fact of being inside a
+  /// transaction.  Nothing persisted yet -> the tree handed back is the tree
+  /// received, so `Refused(ReservedNameOccupied)`, a member the closed set has
+  /// carried since before either model existed.  Something persisted ->
+  /// `Blocked`, diagnosed by `pickDiagnosis`.
+  ///
+  /// THIS FILE ALREADY ARGUED FOR THE SPLIT AND THEN DID NOT APPLY IT.
+  /// `refuseSwap`'s own comment states it exactly, for `FN-06`, and records that
+  /// the catalogue did not make the split itself (entry 045, finding 6) — while
+  /// three hundred lines below, `SRemoveWitness`'s discard blocked on a
+  /// transaction that had persisted nothing.  The Alloy column refused at that
+  /// same step and was right.  Routing every such stop through ONE function is
+  /// what makes the two answers a consequence of the rule rather than three
+  /// independent choices, which is how they came apart in the first place.
+  /// `persistedBefore` is the caller's `f0.t.persisted` — read BEFORE `bump`,
+  /// exactly as the `FN-06` guard reads it, because `bump` has already marked
+  /// the step that is about to run.
+  pure def stopReserved(f: Frame, persistedBefore: bool): Frame =
+    if (persistedBefore) blockNow(f, "foreign")
+    else
+      val f1 = { ...f, t: { ...f.t, running: false, pc: SSettled,
+                            outcome: ORefused(RReservedNameOccupied) } }
+      { ...f1, h: { ...f1.h, transactionRefusedReserved: true } }
+
   pure def blockNow(f: Frame, why: str): Frame =
     val d = pickDiagnosis(f.w, f.t)
     // `FN-26`.  A block stays blocked and operator-restorable.  With
@@ -1329,7 +1378,9 @@ module finish {
     else
     match t.pc {
       | SCreatePreparing =>
-        if (meetsUnproven(f, w.foreignAtWitnessName)) blockNow(f, "foreign")
+        // `FN-32` + `FN-29.b`.  Nothing of this action has persisted at the
+        // FIRST body step, so this stop is a refusal; `stopReserved` decides.
+        if (meetsUnproven(f, w.foreignAtWitnessName)) stopReserved(f, f0.t.persisted)
         else
           val f1 = noteUnprovenSlot(f, w.foreignAtWitnessName)
           go({ ...f1, w: { ...w, witness: WPreparing } }, SWriteManifest)
@@ -1474,13 +1525,21 @@ module finish {
         // `FN-10.b`.  Content the discard cannot classify as Grove's own fails
         // CLOSED — it is never interpreted, and never removed.
         if (discarding and (w.foreignAtWitnessName or (w.mani.present and w.mani.handle != HANDLE)))
-          blockNow({ ...f, h: { ...f.h, unpublishedRefused: true } }, "foreign")
+          // `FN-10.b` + `FN-29.b`.  THIS SITE MOVED.  It blocked, and the
+          // Alloy column refused at the same step; both were green against text
+          // that said only *fails closed*.  A recovery meeting unclassifiable
+          // content at the witness slot has persisted nothing, so the tree it
+          // hands back is the tree it received and the outcome is
+          // `Refused(ReservedNameOccupied)` — which is what `refuseSwap`'s own
+          // comment in this file already required and what the catalogue now
+          // states.  Disposed by `closed-set-additions-k74`.
+          stopReserved({ ...f, h: { ...f.h, unpublishedRefused: true } }, f0.t.persisted)
         else
           val h1 = { ...f.h,
                      unpublishedDiscarded: f.h.unpublishedDiscarded or discarding,
                      notReadyRecovered: f.h.notReadyRecovered or (w.mani.present and not(w.mani.ready)) }
           settle({ ...f, w: { ...w, witness: WNone, mani: NO_MANIFEST }, h: h1 },
-                 ORefused(RRolledBack))
+                 ORefused(RDeletionNotCommitted))
 
       | SRevalBeforeQuarantine =>
         val h1 = notePoint(f.h, SRevalBeforeQuarantine)
@@ -1510,7 +1569,11 @@ module finish {
           blockNow({ ...f1, h: { ...f1.h, indeterminateBlockedAt: f1.h.indeterminateBlockedAt.union(Set(SRevalBeforeQuarantine)) } }, "indeterminate")
 
       | SQuarantineRename =>
-        if (meetsUnproven(f, w.foreignAtQuarantineName)) blockNow(f, "foreign")
+        // `FN-32` + `FN-29.b`.  Publication, evacuation and the commit are
+        // behind this step, so an effect stands and the stop is a BLOCK.  Same
+        // rule as the witness-slot site above, opposite answer, and that the two
+        // differ is the content of the claim rather than an inconsistency.
+        if (meetsUnproven(f, w.foreignAtQuarantineName)) stopReserved(f, f0.t.persisted)
         else
           val f1 = noteUnproven({ ...f, h: { ...f.h,
                        renamedWithoutCommitted: f.h.renamedWithoutCommitted or t.disp != DCommitted } },
@@ -1979,10 +2042,12 @@ module finish {
       t.pc == SCommit,
       if (w.witnessTracked)
         // `FN-13`.  Every candidate committed tree excludes the witness, so a
-        // tracked witness is refused rather than committed.  The transaction
-        // has already published and evacuated, so what the catalogue's own
-        // *One artifact, three contexts* rule licenses here is a BLOCK — see
-        // this file's README for why `FN-13`'s "refused" is a finding.
+        // tracked witness stops rather than commits.  The transaction has
+        // already published and evacuated, so an effect stands and the stop is a
+        // BLOCK.  THE CATALOGUE NOW SAYS SO: its `FN-13` witness read "refused"
+        // and was corrected by `closed-set-additions-k74` against §*Outcomes*'
+        // own discriminator, with the Alloy column moving to meet this one.
+        // What was a finding here is the contract.
         // THE DIAGNOSIS IS CLASSIFIED, NOT NAMED.  This site once wrote
         // `OwnershipConflict` by hand, and it was wrong: the transaction has
         // published a correlated witness and evacuated every entry, so the
@@ -2668,7 +2733,7 @@ module finish {
   /// After restoration, an unchanged `NotCommitted` settles to a
   /// manifest-matching root with the witness removed and the finish leaf live.
   val inv_FN_22d_notcommitted_after_restoration_settles: bool =
-    (settledNow and t.outcome == ORefused(RRolledBack)) implies
+    (settledNow and t.outcome == ORefused(RDeletionNotCommitted)) implies
       (w.witness == WNone and w.rootPresent and w.finishLeafLive)
 
   /// Before the quarantine rename, `NotCommitted` diverts to the restoration
@@ -2779,12 +2844,67 @@ module finish {
 
   // --- `FN-29` --------------------------------------------------------------
 
-  /// A refusal is a COMPLETE outcome, and is distinguishable from a block.
-  val inv_FN_29_a_refusal_is_a_complete_outcome: bool =
-    (settledNow and t.outcome == ORefused(RRolledBack)) implies
+  /// `FN-29.a`.  `NotCommitted` leaves the grove exactly as it was, with the
+  /// finish leaf live, and is distinguishable from a block.
+  val inv_FN_29a_a_refusal_is_a_complete_outcome: bool =
+    (settledNow and t.outcome == ORefused(RDeletionNotCommitted)) implies
       (w.rootPresent and w.witness == WNone and w.finishLeafLive and
        entryIds(w).forall(e => w.entries.get(e).place == AtRoot) and
        not(isBlock(t.outcome)))
+
+  /// `FN-29.b` — THE DISCRIMINATOR, and the obligation that exists because
+  /// nothing could check it.  Every `Refused` outcome is returned with the tree
+  /// byte-equal to the tree the action received; an effect that stands and can
+  /// be neither completed nor undone is a `Blocked`.  Stated over EVERY refusal
+  /// rather than over `NotCommitted` alone, which is what `.a` already covers
+  /// and what left the rule uncheckable.
+  ///
+  /// THE OPERAND IS THIS ACTION'S OWN EFFECTS, AND SAYING SO TOOK THREE
+  /// COUNTEREXAMPLES.  The obvious phrasing — a refusal implies the world is in
+  /// the untouched shape (root present, not torn, no quarantine, every entry at
+  /// the root) — is FALSE, and this suite found it on the run that introduced
+  /// it: a quarantine standing in the FREE INITIAL STATE, created by no
+  /// transaction, survives a refusal at `SCreatePreparing` and is reported as an
+  /// incomplete outcome because of bytes that were never this action's.
+  /// `finish.als`'s `FN-29.a` note records the identical defect on the identical
+  /// artifact, and its own `FN-29.b` hit it a second time on the witness slot.
+  /// §*Outcomes* says *the tree it hands back equals the tree it was GIVEN*, and
+  /// the operand in that sentence is doing all the work.
+  ///
+  /// WHAT REMAINS IS THE EVACUATION, OWNED.  It is the effect the discriminator
+  /// actually turns on — it is what makes a stop recoverable rather than
+  /// forgettable — and `w.mani` carries the ownership bit that separates this
+  /// attempt's from an earlier one's.  A foreign artifact at a reserved name is
+  /// deliberately outside the claim: it stood before the action began, the
+  /// action leaves it byte-identical (`FN-32`), and excluding it would make
+  /// `stopReserved`'s refusing arm unreachable by fiat.
+  ///
+  /// AND IT SEPARATES.  A mutation making `stopReserved` always refuse settles a
+  /// refusal at `SRevalBeforeQuarantine`, over this attempt's own completed
+  /// evacuation, and is a counterexample.
+  ///
+  /// THE BLOCK HALF IS CHECKED, AND IT IS CHECKED ELSEWHERE IN THIS COLUMN.
+  /// `finish.als` states `FN-29.b` two-sidedly because it has no neighbour that
+  /// does; here `inv_FN_22c` already carries *a block leaves a published
+  /// witness, a quarantine or a torn root*, so restating it would make each
+  /// mutation unable to kill the other — the hazard `FN-32` and `FN-21.c`
+  /// record beside `foreignAtReservedName`.
+  val inv_FN_29b_a_refusal_leaves_nothing_standing: bool =
+    (settledNow and isRefusal(t.outcome)) implies
+      not(evacuationComplete(w) and w.mani.handle == HANDLE
+          and w.mani.attempt == t.attempt)
+
+  /// The refusal arm of `FN-29.b`: a step meets an artifact it cannot prove is
+  /// Grove's own having persisted nothing, and refuses.  THIS ARM IS NEW — the
+  /// site blocked before `closed-set-additions-k74`.
+  val wit_FN_29b_a_stop_with_nothing_persisted_refuses: bool =
+    hist.transactionRefusedReserved
+
+  /// The block arm of the same rule, reached at the same kind of meeting after
+  /// an effect has been applied.  The two arms together are the claim; either
+  /// alone is a constant.
+  val wit_FN_29b_a_stop_after_an_applied_effect_blocks: bool =
+    hist.transactionBlockedReserved
 
   // --- `FN-30` --------------------------------------------------------------
 
@@ -2853,8 +2973,17 @@ module finish {
   /// — the marker's is `wit_FN_32_a_transaction_step_meets_an_unprovable_marker`
   /// in `finish-controls.qnt`, because a foreign marker needs a narrowed
   /// environment to reach.
+  ///
+  /// IT READS BOTH ARMS, AND THAT IS THE DISPOSITION OF `closed-set-additions-k74`
+  /// SHOWING UP IN A WITNESS.  This predicate was worded on the blocking half
+  /// alone, back when this column blocked at the witness slot and the Alloy
+  /// column refused.  `FN-32` says only that the artifact STANDS — which both
+  /// outcomes satisfy — so a witness that lands only on a block was reading the
+  /// contested outcome into a claim that never carried it.  `FN-29.b` owns the
+  /// outcome; this one owns the artifact.
   val wit_FN_32_a_transaction_step_meets_an_unprovable_artifact: bool =
-    hist.transactionBlockedReserved and not(hist.mutatedUnprovenSlot)
+    (hist.transactionBlockedReserved or hist.transactionRefusedReserved)
+      and not(hist.mutatedUnprovenSlot)
       and not(hist.mutatedUnprovenMarker)
 }
 

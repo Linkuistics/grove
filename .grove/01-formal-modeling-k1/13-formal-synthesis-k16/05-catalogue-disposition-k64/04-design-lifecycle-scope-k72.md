@@ -139,6 +139,41 @@ this leaf must not absorb them.
 
 ## Notes
 
+**`closed-set-additions-k74` LANDED TWO REFUSAL REASONS INSIDE YOUR TERRITORY,
+AND THEY CHANGE THE STARTING TEXT OF THREE OF YOUR FIVE ITEMS.** The closed
+reason set is now **twenty**; the closed outcome set and the two blocked
+diagnoses are unchanged.
+
+- **`ConfigurationInvalid`** — `SY-04.b`'s refusal now has a name, and the
+  catalogue says so beside the obligation. Items 15, 16 and 17 are all `SY-04.b`
+  and each now argues against a claim whose refusal is nameable.
+- **`GenerationContended`** — `SY-10.b`'s visible stop is
+  `Refused(GenerationContended)`, **not** a seventh outcome.
+  `models/system/lifecycle.als`'s `Stopped` is gone and its uses are the refusal;
+  `lifecycle.qnt`'s placement was the one kept. If any of your repairs quantify
+  over the outcome set, it is still six.
+- **A word collision is recorded at `SY-10.b` and is worth reading before item
+  18.** `one-live-driver-per-working-tree`'s "stops `blocked`" is the *epoch
+  invalidation* being blocked, not the catalogue's `Blocked(b)`. Item 18 is about
+  `SY-14.b`'s quantifier reaching `release-lease`, which sits in the same
+  neighbourhood of the same ADR.
+
+**And `FN-29.b` is new, which bears on item 18 more than it looks.** *Every
+`Refused` is returned with the tree byte-equal to the tree that action received;
+an effect that stands and can be neither completed nor undone is `Blocked`.* It
+is `grove-finish`'s alone — placement argued at the obligation — but the rule it
+states is the catalogue's, so a `SY-14.b` repair that makes an action on a blocked
+tree do something other than refuse must be consistent with it. See
+[`a-refusal-leaves-nothing-standing`](../../../../docs/adr/a-refusal-leaves-nothing-standing.md).
+
+**Your closing sweep gains two handles.** `closed-set-additions-k74` and
+`routing-and-prose-k73` both retired, and both are named in live artifacts as
+**attributions of work done** rather than as owners of undecided work — which
+`routing-and-prose-k73` established is the correct clean condition, not the
+absence of the name. Check `closed-sets-k69` too: it was a leaf, then a node, and
+a sweep that finds a node handle naming an owner has found the defect `k73`
+caught one level up.
+
 **The whole-repository run is not owed here.** The node brief's `Done when` asks
 for a green **per-scope** run for every scope a child touched; the repository-wide
 invocation with its `ordinal-fs-tree` positive control is

@@ -294,7 +294,7 @@ inherit this argument and owes the full sweep.
 | `witness_FN_27b_a_refusal_with_unrelated_work_present` | **10** |
 | `witness_FN_27c_a_block_with_unrelated_work_present` | **9** |
 | `witness_FN_28_a_success_whose_cleanup_is_still_outstanding` | **9** |
-| `witness_FN_29_a_refused_attempt_followed_by_a_successful_one` | **10** |
+| `witness_FN_29a_a_refused_attempt_followed_by_a_successful_one` | **10** |
 | `witness_FN_30_a_hook_that_would_have_run_shown_suppressed` | **8** |
 | `witness_FN_12a_a_manifest_interrupted_before_its_ready_mark` | **8** |
 | `witness_FN_12b_a_refused_entry_type` | 3 |
@@ -587,7 +587,16 @@ separate the two, and the honest register entry is the qualitative one:
 
 **In aggregate the slice is +2 m 08 s on a 12 m 25 s file, and the sixteen new
 commands account for essentially all of it.** 180 commands, **14 m 33 s**,
-against 164 in 12 m 25 s. The eight new checks cost 45.0 s (`FN_02`), 11 s
+against 164 in 12 m 25 s.
+
+> **After `closed-set-additions-k74` this file is 186 commands, `exit 0`, and
+> `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`** — the `FN-29` split
+> plus `FN-29.b`'s two witnesses. It measured **~18 min** on a 16-core host
+> rather than the 14 m 33 s above, and the difference is the host rather than the
+> six commands: a single witness command timed there took **23 s wall against
+> 7.5 s of CPU (34%)**, so these runs are startup- and IO-bound. Run the four
+> per-family cells CONCURRENTLY — they barely contend, and the batch's wall time
+> becomes this cell alone. The eight new checks cost 45.0 s (`FN_02`), 11 s
 (`FN_23`), 7 s each (`FN_27.a` – `FN_27.c`), 18 s (`FN_28`), 10 s (`FN_29`) and
 6 s (`FN_30`) — 111 s — and the eight witnesses about 4–5 s apiece, for roughly
 2 m 27 s of new work against a 2 m 08 s aggregate delta. The inherited commands
@@ -988,9 +997,13 @@ this file adopts unchanged:
   reads about them: they are two names in one directory, so publication is one
   same-directory rename.
 - **`Sys.why` is a model-only observable, and it now names post-flight
-  conditions too.** The catalogue fixes seven preconditions and seventeen
-  refusal reasons and never states the mapping between them. `why` names which
-  condition refused. Nothing in the shipped contract corresponds to it, and no
+  conditions too.** The catalogue fixes seven preconditions and (now) **twenty**
+  refusal reasons, and — at the time this was written — stated the mapping
+  between them nowhere. `closed-set-additions-k74` changed half of that: a reason
+  now provably names *the question asked, not the gate that asked it*, which is
+  why `Sys.why` survives the widening rather than being replaced by it. Two of
+  the seven preconditions are still one question at two gates, so six reasons
+  still cannot witness seven members. `why` names which condition refused. Nothing in the shipped contract corresponds to it, and no
   claim is stated over it that is not also stated over the outcome.
 - **The digest is an opaque equality**, which is the catalogue's own abstraction
   (§*Deliberate omissions*): `FN-12` needs digests to distinguish entries, not to
@@ -1365,8 +1378,10 @@ actually execute.
 
 ### The refusal-reason mapping this file chose
 
-The catalogue does not state which of its seventeen closed refusal reasons each
-of `FN-05.a`'s seven members produces. This file chose:
+The catalogue does not state which of its **twenty** closed refusal reasons each
+of `FN-05.a`'s seven members produces — it was seventeen when this table was
+written, and none of the three added by `closed-set-additions-k74` is a preflight
+question, so the choice below is unchanged. This file chose:
 
 | condition | reason |
 |---|---|
@@ -1379,8 +1394,8 @@ of `FN-05.a`'s seven members produces. This file chose:
 | an entry type that cannot be digested | `UnsupportedEntryType` |
 | the reserved name holds this attempt's own artifact | `WitnessPending` |
 | the reserved name holds content Grove cannot classify | `ReservedNameOccupied` |
-| **the repository has tracked the witness** | `WitnessPending` — **see below** |
-| **a finish that was rolled back** | *no member fits* — **see below** |
+| **the repository has tracked the witness** | **no reason at all** — the stop is a `Blocked` — **see below** |
+| **a finish that was rolled back** | `DeletionNotCommitted` — **see below** |
 
 **Two members share one reason, and that is not a modelling shortcut.** `SY-03`
 says a preflight is never a licence and every gate revalidates against its own
@@ -1390,43 +1405,77 @@ which member refused — hence `Sys.why` — and that the two are distinguishabl
 an operator only by which gate reported. Whether the shipped diagnostic should
 distinguish them is `handoff-audit-k66`'s, not this file's.
 
-**A ROLLED-BACK FINISH HAS NO REFUSAL REASON EITHER, AND THIS IS THE SECOND
-INSTANCE OF ONE SHAPE.** The catalogue maps the `NotCommitted` disposition to
-*rolls back and yields `Refused`*, and none of the seventeen closed reasons names
-it: `NoTrackedDeletion` and `RootIdentityChanged` are each **false** of a
-transaction whose fingerprint was fine and whose root never moved. Reporting it
-under one of them would be a lie the model could not be caught in, so
-`finish.als` adds **one** refusal atom of its own — `RefRollbackNotCommitted`,
-named for what it is and reported alongside the model-only
-`Sys.why = W11NotCommitted`. It is the only atom this file adds to the
-catalogue's set, and it is recorded here rather than smuggled in.
+**A ROLLED-BACK FINISH HAD NO REFUSAL REASON EITHER, AND THE CATALOGUE NOW
+CARRIES ONE.** The catalogue maps the `NotCommitted` disposition to *rolls back
+and yields `Refused`*, and none of the **seventeen** closed reasons named it:
+`NoTrackedDeletion` and `RootIdentityChanged` are each **false** of a transaction
+whose fingerprint was fine and whose root never moved. Reporting it under one of
+them would have been a lie the model could not be caught in, so `finish.als`
+added one refusal atom of its own and recorded it here rather than smuggling it
+in. `finish.qnt` added the same atom independently, under its own name.
 
-Two of the three post-flight outcomes this slice reaches therefore have no name
-in the shipped contract, and `closed-set-additions-k74` has the same two exits for
-both: widen the closed reason set, or restate the outcome. **That is now three
-findings of one kind in this scope** — seven preconditions against six reasons
-(entry 031), a tracked witness with no reason (entry 032), and a rolled-back
-finish with no reason (this one). The pattern is not three accidents: **the
-catalogue fixes closed sets and never states the map between them**, and every
-place a model has to write down the outcome of a branch is a place that map is
-missing.
+**DISPOSED BY `closed-set-additions-k74`: the reason set gained
+`DeletionNotCommitted`**, and both columns now spell the catalogue's member
+(`RefDeletionNotCommitted` here, `RDeletionNotCommitted` there) rather than their
+own. Two independently built families inventing the same missing member is the
+catalogue being wrong, not a modelling convenience, and that agreement was the
+strongest single piece of evidence on the whole disposition list.
 
-**`FN-13`'s refusal has no reason in the closed set, and that is a finding.**
-`FN-13`'s stated witness is *a commit attempted while the witness is tracked,
-**refused***, and none of the seventeen closed refusal reasons names a tracked
-witness. This file reports it under `WitnessPending`, which is the closest true
-statement the set admits — an artifact at a reserved name that Grove can prove is
-its own — and keeps the case distinguishable through `Sys.why`
-(`W8WitnessTracked`), exactly the device the two `LayoutUnsupported` members
-already needed. **The consequence is that an operator cannot be told from the
-reason alone that the *repository*, not the filesystem, is what is blocking.**
-There are two exits and `closed-set-additions-k74` picks one: add a reason to the
-closed set, or restate `FN-13`'s outcome as a `Blocked` — which is what
-`task-tree-transactions-fail-closed` says happens ("a different revision,
-**tracked witness**, restoration failure … keeps the witness unwalkable as
-Recovery pending") and what `TT-24`'s own context table implies for a transaction
-that has already mutated. The catalogue says *refused*; the ADR says *blocked*;
-this model followed the catalogue, because the catalogue is the sole input.
+**The pattern was not three accidents, and naming it was worth more than the
+members.** Three findings of one kind stood in this scope — seven preconditions
+against six reasons (entry 031), a tracked witness with no reason (entry 032),
+and a rolled-back finish with no reason (this one) — and the lifecycle scope
+produced two more. The disposition separates them rather than granting all five:
+the **reason** vocabulary was answering the right question all along (*a reason
+names the question asked, not the gate that asked it*, which is why `Sys.why` is
+a modelling need and not a contract gap), while the **set** was drawn over one
+scope's questions and swept by three. Three of the five were questions a later
+scope asks and became members; one was the wrong half being fixed (see the next
+section); and one was no gap at all. The record is
+[`a-refusal-leaves-nothing-standing`](../../../docs/adr/a-refusal-leaves-nothing-standing.md).
+
+**`FN-13`'s refusal had no reason in the closed set, and the wrong half was
+being fixed.** `FN-13`'s stated witness was *a commit attempted while the witness
+is tracked, **refused***, and none of the seventeen closed refusal reasons named
+a tracked witness. This file reported it under `WitnessPending` — the closest
+true statement the set admitted — and kept the case distinguishable through
+`Sys.why` (`W8WitnessTracked`), exactly the device the two `LayoutUnsupported`
+members already needed. Two exits were offered: add a reason, or restate the
+outcome as a `Blocked` — which is what
+[`task-tree-transactions-fail-closed`](../../../docs/adr/task-tree-transactions-fail-closed.md)
+says happens ("a different revision, **tracked witness**, restoration failure …
+keeps the witness unwalkable as Recovery pending"). The catalogue said *refused*;
+the ADR said *blocked*; this model followed the catalogue, because the catalogue
+is the sole input.
+
+**DISPOSED BY `closed-set-additions-k74`: the outcome moved and the reason set
+gained nothing.** The commit is attempted only after publication and evacuation
+(`FN-11`), so an effect stands that the action can neither complete nor undo —
+which is a `Blocked` by §*Outcomes*' own definitions, now stated as a
+discriminator and checked as `FN-29.b`. The catalogue's `FN-13` witness is
+corrected, `finish.qnt` reached the same answer independently, and the shipped
+post-commit verification rejects a result that still tracks `.grove/` with the
+evacuation already done. **A block carries a diagnosis rather than a reason**, so
+`W8WitnessTracked` stays what it always was — a model-only observable naming the
+branch — and no longer maps through `reasonOf`. Following the catalogue was the
+right method against a wrong sentence, and this file's correction is the
+sentence's, not the method's.
+
+**The residue is real and has an owner.** An operator still cannot be told from
+the outcome alone that the *repository*, not the filesystem, is what stopped the
+attempt; the diagnosis names the class and the message must name the cause. That
+is a diagnostic question and is `handoff-audit-k66`'s, beside the four it already
+carries.
+
+**The diagnosis half is a declared NARROWING of this column, not a `GAP` in the
+runner's sense** — `FN-13` is answered here with a property and a witness, and a
+`GAP` line would say the opposite. `BlockedOutcome` carries
+no diagnosis here by the composition decision at its declaration — the
+`RecoveryPending`/`OwnershipConflict` partition is `FN-25`'s — so *which* block
+`FN-13` produces is answered in `finish.qnt`, whose `pickDiagnosis` classifies it
+rather than naming it. The catalogue records `RecoveryPending`, on `FN-25`'s own
+first arm: the artifact holding the transaction is this attempt's own published
+witness, correlated by this handle and this attempt identity.
 
 ## What a green run of this file does not prove
 
@@ -1836,7 +1885,7 @@ that sweep, not an assertion.
 | 35 | `FN-22.d` | the completed refusal restores `Root.holds - Man.mHandle` — everything the manifest recorded except the finish leaf | `witness_FN_22a_the_point_after_the_restoration_is_reached` | KILLED |
 | 36 | `FN-22.e` | the before-rename divert writes `Txn.disp' = Indeterminate` — it renames nothing, and sends the attempt to a block rather than to the restoration path | `witness_FN_22i` | KILLED |
 | 37 | `FN-22.f` | the successful return puts *some* root back rather than the one that left (`some Root.rid'` for `Root.rid' = Quar.qRid`) | `witness_FN_22g` | KILLED |
-| 38 | `FN-22.g` | the block at `Classified` with `Indeterminate` reports `RefRollbackNotCommitted` — a block reported as a refusal, which is the collapse the catalogue names | `witness_FN_22f` | KILLED |
+| 38 | `FN-22.g` | the block at `Classified` with `Indeterminate` reports `RefDeletionNotCommitted` — a block reported as a refusal, which is the collapse the catalogue names | `witness_FN_22f` | KILLED |
 | 39 | `FN-22.h` | the incomplete return clears the quarantine while blocking — it reports the change and not the quarantine | `witness_FN_22g` | KILLED |
 | 40 | `FN-22.i` | the forward settle frames the quarantine instead of disposing it — the artifacts go and the quarantine stays | `witness_FN_18` | KILLED |
 | 41 | `FN-22.j` | the `Indeterminate` block at a point stops framing `Repo.rev` — it performs no handoff and moves the repository | `witness_FN_22d` | KILLED |
@@ -2939,8 +2988,20 @@ column **blocks** at the same step (`SRemoveWitness`'s discard branch calls
 says only *fails closed*. Two independent readers resolved one sentence in
 opposite directions, which is stronger evidence that the catalogue is
 underdetermined than either column's own account. **The outcome is therefore not
-stated in `FN-32`**; deciding it is `closed-set-additions-k74`'s, beside the
-other opposite-resolution items.
+stated in `FN-32`.**
+
+**DECIDED BY `closed-set-additions-k74`, AND THIS COLUMN WAS RIGHT.** The
+catalogue's second row now fixes a **function of the step** rather than one
+outcome: a recovery meeting unclassifiable content at the witness slot has
+applied nothing, so the tree it hands back is the tree it received and the
+outcome is `Refused(ReservedNameOccupied)` — a member the closed set has carried
+since before either model existed. A later step, over an evacuation that stands,
+blocks `OwnershipConflict`. *Inside a transaction* was never the discriminator;
+what the action has left standing is, and `FN-29.b` now checks it. `FN_10b`'s
+`Sys.res' in Refused` is unchanged and is now the catalogue's answer rather than
+a reading of it. See
+[`a-refusal-leaves-nothing-standing`](../../../docs/adr/a-refusal-leaves-nothing-standing.md),
+clause 1.
 
 **Second, the shared-safety half had no shared-safety home.** *Nothing at a
 reserved name Grove cannot prove is its own is mutated by a transaction step* is
@@ -2968,12 +3029,17 @@ stronger evidence than a scenario-reached witness: the situation arises in the
 ordinary search rather than only under a contrivance. The cost is that any future
 plain instance inherits it and must reach it too.
 
-**And Quint's witness is worded on the contested half.**
-`hist.transactionBlockedReserved` is set where this column **blocks**; the Alloy
-column refuses at the same step. If `closed-set-additions-k74` settles the
-outcome as a refusal, this witness's predicate moves with the model. `FN-32`
-itself does not: it says only that the artifact stands, which both columns agree
-on.
+**And Quint's witness was worded on the contested half, so it moved.**
+`hist.transactionBlockedReserved` was set where that column **blocked**, and the
+Alloy column refused at the same step. The disposition settled the witness-slot
+step as a **refusal**, so `finish.qnt`'s discard branch now routes through
+`stopReserved` and `wit_FN_32` reads **both** arms —
+`transactionBlockedReserved or transactionRefusedReserved`. That is the repair
+rather than a rename: a witness that lands only on a block was reading the
+contested outcome into a claim that never carried it. `FN-32` itself did not
+move, because it says only that the artifact stands, which both columns agreed on
+throughout — which is exactly why it survived the question and `FN-29.b` had to
+be written to answer it.
 
 **`Reap` is excluded from the antecedent, and mutation 63 is why that matters.**
 Dropping `slotSame` from `doDiscard`'s else-branch kills `FN-32` and leaves
@@ -3403,8 +3469,21 @@ this model takes as written:
   true by construction and unfalsifiable. So the model names the non-entry —
   exactly as the catalogue anticipates a model naming the guard wait it also
   refuses to put in the set.
-- **`RRolledBack` is a refusal reason this model ADDS.** See *Findings*, where it
-  is a finding about the catalogue rather than a modelling convenience.
+  **`closed-set-additions-k74` disposed this one as a DECLINE, and the
+  abstraction stands.** The catalogue gains nothing, and the reason is a fact
+  about the product rather than about the set: **Grove has no confirmation gate
+  at all.** Constraint 5 is *grove guides, it does not gate*, `finish_commit`'s
+  own contract puts the confirmation on the calling session, and no Grove binary
+  reads standard input anywhere. A transaction not entered for want of
+  confirmation is a call that was never made, so the closed set — which covers
+  what a *completed invocation* returns — cannot name it without ceasing to be
+  that set. §*Outcomes* now generalises its guard-wait paragraph to govern every
+  such non-event, so this bullet describes a rule being followed rather than a
+  gap being worked around.
+- **`RDeletionNotCommitted` is NO LONGER a refusal reason this model adds** — it
+  is the catalogue's `DeletionNotCommitted`, and this model's declaration (with
+  `finish.als`'s independent one) is the finding that put it there. Disposed by
+  `closed-set-additions-k74`; see *Findings*.
 - **A precondition-naming observable.** `FN-05.a`'s seven members are not
   distinguishable by their outcomes — the catalogue says so and asks for exactly
   this — so `Precondition` is a state field the seven witnesses read.
@@ -3481,6 +3560,7 @@ QUINT_VERIFY=1 models/run.sh --scope finish --family quint  # …and model-check
 | run | result |
 |---|---|
 | `--scope finish --family quint` | **exit 0** — 4m 25s wall / 317s CPU on a 16-core host, 228 commands, 0 failures, `-- cells: 61 complete, 0 declared gaps, 0 empty, of 61`, Q4 matrix 10 of 10 rows |
+| `--scope finish --family quint`, after `closed-set-additions-k74` | **exit 0** — **236 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Eight more commands and two more cells: `FN-29` split into `.a` and `.b`, `FN-29.b` carries a witness per arm, and `wit_FN_32` now reads both arms because the witness-slot step moved from a block to a refusal |
 | the same with `QUINT_VERIFY=1` | **exit 0** — 11m 51s wall, 289 commands, 0 failures; the 61 `SKIP` lines become `model-checked to depth 4, no counterexample` |
 
 Both figures are post-integration: `integrate-review-prototype-finish-k58` added

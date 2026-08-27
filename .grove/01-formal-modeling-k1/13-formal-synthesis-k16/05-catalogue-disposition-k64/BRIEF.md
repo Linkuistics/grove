@@ -183,6 +183,51 @@ landed, so `lifecycle-scope-k72` re-runs the instrument with both controls as
 its closing act. It is not a fifth child: a session whose whole content is a
 grep is the empty session laziness exists to remove.
 
+## The vocabulary is frozen, and this is what child 1 promoted upward on closing
+
+`closed-sets-k69` closed with both halves retired — `routing-and-prose-k73`
+(items 8, 19, 25 and the whole routed set) and `closed-set-additions-k74` (items
+1 – 7). Children 2 – 4 open on a settled §*Vocabulary*, which was the entire
+argument for putting a vocabulary child first, so what they inherit is stated
+here rather than left in a retired subtree.
+
+**The closed sets, as frozen.** Refusal reasons **17 → 20** —
+`DeletionNotCommitted`, `ConfigurationInvalid`, `GenerationContended`. Outcomes
+**6 → 6**. Blocked diagnoses **2 → 2**. Obligations **128 → 129**: `FN-29` gained
+`.a` and `.b`.
+
+**The rule for adding a member, which is what makes the freeze usable rather than
+merely final.** A reason names *the question that was asked and answered no*,
+never the gate that asked it; and **the set gains a member exactly when a scope
+asks a question no existing member names**. The seventeen were drawn over the
+task-tree scope's questions and are swept by three scopes, so every gap found so
+far is a question a *later* scope asks. Reporting under the closest true member
+and distinguishing with a model-only observable is the **rejected** alternative,
+and it is what both families did twice.
+
+**The refuse-or-block discriminator, which was the real content of items 6 and
+7.** `Refused` and `Blocked` are separated by **what the action leaves**, never
+by where it stopped — a step's own frame condition is not the test. It settled
+the two sharpest items in **opposite** directions from one rule, and it is now
+checked (`FN-29.b`) rather than carried in prose, having been controlled against
+the exact divergence it exists to prevent. Both clauses are
+[`a-refusal-leaves-nothing-standing`](../../../../docs/adr/a-refusal-leaves-nothing-standing.md).
+
+**Two items were routed out of child 1 into children 2 and 3**, each with the
+frozen set rather than as an open question: the `PartialScaffold` refusal gap to
+`task-tree-scope-k70` (a fourth instance of the shape, decidable only after that
+leaf's items 20 and 21), and `doCommitAttempt`'s `W9SlotPending` branch to
+`finish-scope-k71` (which `FN-29.b` turns from invisible into a question). Both
+are written into those leaves' bodies.
+
+**One measurement worth carrying: *manifest-changing* has two meanings and only
+one moves a number.** `models/run.sh` extracts its manifest by matching claim
+headings and obligation bullets, so a **closed-set** addition leaves `--list`
+unchanged while still costing both families a matching outcome. `--list` printed
+`128` across all five member decisions and moved only when an obligation was
+added. A child that marks items by the count alone will mark the expensive kind
+as neutral.
+
 ## Notes
 
 **Expect this leaf to decompose, most likely by scope.** Three scopes, two

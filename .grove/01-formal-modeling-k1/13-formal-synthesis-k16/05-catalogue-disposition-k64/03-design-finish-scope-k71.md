@@ -126,6 +126,39 @@ cost decision routed to the model owners, not a catalogue disposition.
 
 ## Notes
 
+**`closed-set-additions-k74` LEFT YOU A BRANCH THAT IS ONLY NOW A QUESTION, AND
+THAT IS THE POINT OF IT.** The catalogue gained `FN-29.b` — *every `Refused` is
+returned with the tree byte-equal to the tree that action received, and an effect
+that stands and can be neither completed nor undone is `Blocked`* — and
+`crates/grove-finish/models/finish.als`'s `doCommitAttempt` has a second else
+branch, `W9SlotPending`: **a commit attempted while the witness is published but
+the evacuation is not complete, reported as a `Refused`.** The published witness
+is an effect of that action.
+
+It **survives** `FN-29.b` as written, because that obligation's antecedent is the
+completed evacuation (`gateEvacuatedNext`) and this branch is short of it. That
+is a fact about where the line was drawn, not evidence that the branch is on the
+right side of it. Deciding it needs the restoration path's own obligations — is a
+published-but-empty witness an effect the action can still *undo*, and does the
+restoration path undo it before returning? — which is scope work rather than
+vocabulary, and no session referred it to `k74`, which is why it was named rather
+than re-decided under cover of a disposition. The site carries the note in place.
+
+**Item 28's general form now has a neighbour worth reading beside it.** *Once the
+caller grades an effect applied it never ungrades it* is the same subject as
+`FN-29.b` from the other side: `.b` says what an outcome may be given what
+stands, and 28 asks whether a grading may be withdrawn. If both land they should
+be stated so that neither is the other restated —
+[`a-refusal-leaves-nothing-standing`](../../../../docs/adr/a-refusal-leaves-nothing-standing.md)
+is the record to cite rather than to re-argue.
+
+**Item 9 and `FN-29.b` touch one sentence from opposite ends.** `FN-25.b`'s third
+sentence (*the outcome cannot yet be proven either way*) is item 9's, and
+`closed-set-additions-k74` deliberately did **not** lean on it when it fixed
+`FN-13`'s diagnosis as `RecoveryPending`: that argument rests on `FN-25`'s
+**first** sentence — the artifact is provably this attempt's — precisely so that
+your repair of the third does not disturb it.
+
 **Item 9's edit is citation-sized and its finding is not.** The finish README is
 explicit that what is *not* citation-sized is whether the shipped diagnostic
 adopts the `OwnershipConflict` precedence where both arms hold — and that is

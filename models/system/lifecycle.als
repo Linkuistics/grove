@@ -49,13 +49,17 @@
  *     run   witness_SY_nn[x]_<mnemonic>    must find an instance
  *     check expect_fail_EN_nn_<OB>_<m>     must find a counterexample
  *
- * THREE ABSTRACTIONS OF THIS FILE'S OWN, all declared in `README.md` and none of
- * them a contract: `Proc.waits`/`Deferred` (a guard wait as an observable
- * state), `Stopped` (SY-10.b's visible stop, which the catalogue's closed
- * outcome set cannot name — as it cannot name `RefConfigInvalid`), and `IterA`
- * (an iteration boundary, which is not a catalogue action because a boundary is
- * not something the loop DOES).  `Stopped` and `RefConfigInvalid` are FINDINGS
- * about the catalogue's closed sets and are named for `closed-set-additions-k74`.
+ * TWO ABSTRACTIONS OF THIS FILE'S OWN, both declared in `README.md` and neither
+ * a contract: `Proc.waits`/`Deferred` (a guard wait as an observable state) and
+ * `IterA` (an iteration boundary, which is not a catalogue action because a
+ * boundary is not something the loop DOES).
+ *
+ * THERE WERE THREE.  `Stopped` and `RefConfigInvalid` were findings about the
+ * catalogue's closed sets, and `closed-set-additions-k74` disposed both: the
+ * catalogue's REASON set gained `ConfigurationInvalid` and `GenerationContended`,
+ * its OUTCOME set gained nothing, and `Stopped` is now `Refused(RefGenContended)`.
+ * The declarations below carry the argument; the record is
+ * `docs/adr/a-refusal-leaves-nothing-standing.md`.
  *
  * `Blocked` IS NOT ONE OF THEM.  It is the catalogue's own outcome, and the
  * `sessions` slice's composition decision is that it enters carrying NO
@@ -450,21 +454,35 @@ one sig Reported extends Result {}
 /* `Deferred` is the wait, and it is this file's abstraction rather than the
    catalogue's outcome set — see `Proc.waits` above. */
 one sig Deferred extends Result {}
-/* `Stopped` IS THIS FILE'S SECOND ABSTRACTION, AND ITS EXISTENCE IS A FINDING.
-   `SY-10.b` requires a contended generation to time out into a VISIBLE STOP, and
-   the catalogue's closed outcome set cannot name it: it is not a `Refused`,
-   because no refusal reason covers a handoff timeout (`EpochStale` is `SY-10.a`'s
-   MISMATCH, not a contention), and it is not a `Blocked`, because §*Outcomes*
-   scopes blocks to a transaction stopped part-way and `FN-25`'s two diagnoses are
-   both about finish ownership.  Declared here, recorded in `README.md`, and named
-   for `closed-set-additions-k74` — exactly as `SY-05`'s design constraint was. */
-one sig Stopped extends Result {}
 abstract sig Refused extends Result {}
-/* `RefEpochStale` is the catalogue's `EpochStale`.  `RefConfigInvalid` is NOT in
-   the closed refusal-reason set — the second half of the same finding, and the
-   reason the two are recorded together rather than separately. */
+/* `RefEpochStale` is the catalogue's `EpochStale`.
+   `RefConfigInvalid` and `RefGenContended` WERE THIS FILE'S ABSTRACTIONS AND ARE
+   NOW THE CATALOGUE'S OWN MEMBERS, `ConfigurationInvalid` and
+   `GenerationContended`.  Disposed by `closed-set-additions-k74`; see
+   `docs/adr/a-refusal-leaves-nothing-standing.md`, clause 2.
+
+   `RefGenContended` REPLACES A `Stopped` THAT WAS DECLARED AS A SEVENTH
+   OUTCOME, AND THE CORRECTION IS WORTH THE SPACE.  This file argued that
+   `SY-10.b`'s visible stop is neither a `Refused` (no reason covered a handoff
+   timeout) nor a `Blocked` (§*Outcomes* scopes blocks to a transaction stopped
+   part-way), and therefore that the closed OUTCOME set was short.  The second
+   half of that argument holds and the first was circular: it rested on the
+   REASON set being closed against the case, which is a fact about the reason
+   set.  The catalogue widened the reason set and left the six outcomes alone,
+   which is much the narrower blast radius — `SY-14`'s exhaustive sweep runs
+   through the same classifier the real actions use.  `models/system/lifecycle.qnt`
+   placed it as a refusal independently and is the column that had it right.
+
+   ONE WORD MADE THE WIDER READING LOOK NECESSARY.
+   `one-live-driver-per-working-tree` says the driver "stops `blocked`" on a
+   post-reap invalidation timeout, and that `blocked` is NOT the catalogue's
+   `Blocked(b)` — it is the epoch invalidation being blocked.  The shipped path
+   returns an error, the loop stops, and the ADR's own next sentence is that a
+   timeout performs no tree access or epoch rewrite.  Nothing stands, so it is a
+   refusal by §*Outcomes*' discriminator.  A word collision cost a proposed
+   widening of the most load-bearing closed set in the catalogue. */
 one sig RefLeaseHeld, RefLayoutUnsupported,
-        RefEpochStale, RefConfigInvalid extends Refused {}
+        RefEpochStale, RefConfigInvalid, RefGenContended extends Refused {}
 /* Both are the catalogue's own, from the closed refusal-reason set.
    `RefFormatLegacy` is `FormatLegacy`: a tree with no format witness that is not
    the known subset is refused rather than completed, which is `SY-06.b`'s whole
@@ -474,7 +492,7 @@ one sig RefFormatLegacy, RefReservedKind extends Refused {}
 /* `Blocked` IS THE CATALOGUE'S OWN OUTCOME AND NOT AN ABSTRACTION OF THIS
    FILE'S.  §*Outcomes* lists it beside `Applied` and `Refused` — *a transaction
    stopped part-way that left a stable, recoverable state* — and its two
-   neighbours `Stopped` and `Deferred` are the two this file DID have to invent.
+   neighbour `Deferred` is the one this file DID have to invent.
    It enters here as a `Result` member carrying no diagnosis: `FN-25`'s
    `RecoveryPending`/`OwnershipConflict` partition is the finish model's, and
    `SY-14` reads only *the tree is blocked*. */
@@ -1150,7 +1168,7 @@ pred doSignal[p: Proc] {
    and retry counts as non-determinism, on the grounds that a bounded handoff
    wait is a liveness property of the implementation and not of the protocol.
    SO THIS FILE NEVER SAYS THE TIMEOUT *WILL* FIRE.  What it says is that when a
-   wait ends, it ends visibly — `Stopped` is a result the caller sees — and that
+   wait ends, it ends visibly — `Refused(RefGenContended)` is a result the caller sees — and that
    the stop performs no tree access and no epoch rewrite, which is the ADR's own
    sentence.  A reader who takes `SY_10b` for a liveness property has read
    fairness into a file that assumes none.
@@ -1161,7 +1179,7 @@ pred doSignal[p: Proc] {
 pred doTimeout[p: Proc] {
   p in Alive.live and p.waits = EpochG
   Sys.act' = TimeoutA and Sys.actor' = p and Sys.gu' = EpochG
-  Sys.res' = Stopped
+  Sys.res' = RefGenContended
   no p.waits'
   p.holds' = p.holds and p.seen' = p.seen and p.leaseOn' = p.leaseOn
   p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
@@ -2123,7 +2141,7 @@ run witness_SY_10a_a_stale_session_refused {
    implementation rather than of the protocol.  Nothing below says the timeout
    will fire; these models assume no fairness and have no grounds to.
 
-     THE STOP IS VISIBLE AND INERT.  `Stopped` is a result the caller sees, and
+     THE STOP IS VISIBLE AND INERT.  `Refused(RefGenContended)` is a result the caller sees, and
      the ADR's own sentence is the rest: *a timeout performs no tree access or
      epoch rewrite*.
      AND NO WAIT ENDS SILENTLY.  A generation wait ends only in the WAITER'S OWN
@@ -2134,7 +2152,7 @@ run witness_SY_10a_a_stale_session_refused {
 check SY_10b_a_contended_generation_stops_visibly_and_never_parks_silently {
   Assumed implies always {
     (Sys.act' = TimeoutA)
-      implies (Sys.res' = Stopped
+      implies (Sys.res' = RefGenContended
                and no Sys.actor'.waits'
                and World.gen' = World.gen
                and World.rooted' = World.rooted
@@ -2152,7 +2170,7 @@ run witness_SY_10b_a_contended_generation_times_out_into_a_visible_stop {
   some p: Proc |
     eventually (Sys.res = Deferred and Sys.actor = p and p.waits = EpochG
                 and after eventually (Sys.act = TimeoutA and Sys.actor = p
-                                      and Sys.res = Stopped))
+                                      and Sys.res = RefGenContended))
 } for 3 but 2 WtId, 5 steps
 
 

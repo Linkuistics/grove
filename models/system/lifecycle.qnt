@@ -320,21 +320,27 @@ module lifecycle {
     | RReservedNameOccupied
     | RNotLive
     | RAlreadyTerminal
-    // DECLARED ABSTRACTION, and a catalogue finding.  `SY-04.b` requires an
+    // NO LONGER AN ABSTRACTION — the catalogue's `ConfigurationInvalid`, and
+    // this declaration is the finding that put it there.  `SY-04.b` requires an
     // invalid configuration to refuse with the tree byte-identical, and the
-    // catalogue's closed refusal set has NO member for one.  The model needs a
-    // value, so it names one and declares it rather than borrowing an unrelated
-    // reason and making the taxonomy claim vacuous.  Recorded in the README and
-    // in the experiment entry; `closed-set-additions-k74` owns the disposition.
+    // catalogue's closed refusal set had NO member for one; the model named one
+    // and declared it rather than borrowing an unrelated reason and making the
+    // taxonomy claim vacuous.  The Alloy column reached the same gap
+    // independently.  Disposed by `closed-set-additions-k74`; see
+    // `docs/adr/a-refusal-leaves-nothing-standing.md`, clause 2.
     | RConfigInvalid
-    // DECLARED ABSTRACTION, and entry 041's catalogue finding replayed into
-    // Quint's own vocabulary.  `SY-10.b` requires a contended generation to
-    // time out into a VISIBLE STOP, and the closed refusal set has NO member
-    // for one: `REpochStale` is `SY-10.a`'s reason and says the operation
-    // named a generation that is not live, which is a different fact.  Naming
-    // the stop is the whole point of stating `SY-10.b` over what the admission
-    // RETURNS rather than over a history flag, so the model names one and
-    // declares it.  `closed-set-additions-k74` owns the disposition.
+    // NO LONGER AN ABSTRACTION — the catalogue's `GenerationContended`, and
+    // THIS COLUMN'S PLACEMENT IS THE ONE THAT WAS KEPT.  `SY-10.b` requires a
+    // contended generation to time out into a VISIBLE STOP, and the closed
+    // refusal set had NO member for one: `REpochStale` is `SY-10.a`'s reason and
+    // says the operation named a generation that is not live, which is a
+    // different fact.  `lifecycle.als` read the same gap as evidence that the
+    // closed OUTCOME set was short and declared a seventh outcome, `Stopped`;
+    // this column read it as a missing REASON and was right — nothing stands
+    // after a timeout, so §*Outcomes*' discriminator makes it a refusal, and
+    // widening the six outcomes would have swept `SY-14`'s exhaustive
+    // classifier for nothing.  Disposed by `closed-set-additions-k74`; see
+    // `docs/adr/a-refusal-leaves-nothing-standing.md`.
     | RGenContended
 
   type Diagnosis = DRecoveryPending | DOwnershipConflict

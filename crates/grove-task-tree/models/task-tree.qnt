@@ -558,6 +558,15 @@ module taskTree {
     | NoTrackedDeletion
     | RootIdentityChanged
     | UnsupportedEntryType
+    // THREE MEMBERS OF THE CATALOGUE'S SET ARE DELIBERATELY NOT TRANSCRIBED
+    // HERE, and the omission is checked rather than assumed.
+    // `closed-set-additions-k74` widened the closed reason set to twenty with
+    // `DeletionNotCommitted`, `ConfigurationInvalid` and `GenerationContended`;
+    // all three are questions the FINISH and LIFECYCLE scopes ask, no `TT-`
+    // obligation reaches them, and nothing here quantifies over this type
+    // exhaustively — so adding them would widen the search space for variants
+    // no command can construct.  `task-tree.als` already restricts its own set
+    // the same way and says so.  A later `TT-` claim that needs one adds it.
 
   type Blocked = RecoveryPending | OwnershipConflict
 
@@ -788,6 +797,21 @@ module taskTree {
   // that is not there.  The model refuses `WitnessPending(RPreparing)` as the
   // least-wrong member — Grove-owned, incomplete, and naming a recovery — and
   // the gap is entry 044's finding.
+  //
+  // ROUTED, NOT DISPOSED, BY `closed-set-additions-k74`, AND WITH A RULE RATHER
+  // THAN A QUESTION.  That leaf froze the shared vocabulary and found this is a
+  // FOURTH instance of the shape it disposed — a scope asking a question the
+  // closed reason set has no member for — but declined to decide it, because
+  // deciding it needs `task-tree-scope-k70`'s own items settled first: what
+  // `PartialScaffold` IS (its definition by absence rather than presence), and
+  // whether the state table gains a member for the shipped *ambiguous partial
+  // root scaffold* refusal.  What `k70` inherits is a frozen set of twenty and
+  // the rule for adding to it — *the set gains a member exactly when a scope
+  // asks a question no member names, and the member names the QUESTION, never
+  // the gate* — so the collision hazard that put the vocabulary ahead of the
+  // scopes does not apply.  Reporting under the least-wrong member is the same
+  // move `finish.als` made twice, and the record says why it is the rejected
+  // alternative: `docs/adr/a-refusal-leaves-nothing-standing.md`, clause 2.
 
   pure def gateOutcome(f: Fs, t: OpTag): Outcome =
     if (t == TInitRoot)

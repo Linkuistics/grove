@@ -4060,6 +4060,8 @@ distinguishable by outcome, that a family answering it needs an observable of it
 own, and that introducing one is what the obligation requires rather than a gap.
 This model's is `Sys.why`, declared as an abstraction in the family `README.md`.
 
+> **[disposed by `closed-set-additions-k74`]** **This entry is the first of the three that made the pattern, and it is the one the disposition DECLINED to treat as a set gap.** Read together with 032 and 033 the shape looked like an under-populated reason set; read against this entry's own sentence — *the reason names the question; only the gate distinguishes them* — it is the set answering the right question at the right grain. `Sys.why` distinguishes **gates**, which is a modelling need, and a device invented to tell two gates apart is not evidence that the contract owes a reason per gate. So the catalogue's rule is now stated rather than merely relied on (*a reason names the question that was asked and answered no, never the gate that asked it*), and the widening rule that follows from it is narrow: the set gains a member exactly when a **scope** asks a question no member names. Three of the five referred cases were that; this one was not, and neither was `FN-01`'s. Record: `docs/adr/a-refusal-leaves-nothing-standing.md`, clause 2.
+
 > `M1 alloy-only` · `M2 refusal` · `M3 = 2` — the trace names the transition and
 > the reported precondition, but the *absence* of a seventh distinguishable
 > outcome is read off the signature rather than out of any one trace ·
@@ -4333,6 +4335,8 @@ catalogue says **refused**. This model followed the catalogue, because the
 catalogue is the sole input to the formal phase. `formal-synthesis-k16` picks the
 exit: add a reason to the closed set, or restate `FN-13` as a block.
 
+> **[disposed by `closed-set-additions-k74`]** **The second exit was taken, and the reason set gained nothing here.** The commit is attempted only after publication and evacuation (`FN-11`), so an effect stands that the action can neither complete nor undo — a `Blocked`, diagnosis `RecoveryPending`. The catalogue's `FN-13` witness is corrected, `finish.als` moved to meet `finish.qnt`, and `task-tree-transactions-fail-closed` and the shipped post-commit verification both already said so. A block carries a diagnosis rather than a reason, so `W8WitnessTracked` stays a model-only observable and no longer maps through `reasonOf`. **This model's method was right and the sentence it followed was wrong**, which is why the correction landed in the catalogue rather than in this column. The operator-facing residue — telling the repository from the filesystem in the diagnostic — is `handoff-audit-k66`'s. Record: `docs/adr/a-refusal-leaves-nothing-standing.md`.
+
 > `M1 alloy-only` · `M2 refusal` · `M3 = 2` — the trace names the transition and
 > the outcome, but the *absence* of a fitting reason is read off the closed set
 > rather than out of any trace · `M4 = none` — there is no defect to write a
@@ -4502,6 +4506,8 @@ tracked witness, that is three, and the diagnosis is now specific: **the
 catalogue fixes closed sets and never states the map between them**, and every
 place a model is forced to write down what a branch returns is a place the map is
 missing.
+
+> **[disposed by `closed-set-additions-k74`]** The catalogue's reason set gained **`DeletionNotCommitted`**, and both columns now spell the member rather than their own atom. **This entry's diagnosis was right and was the disposition's starting point**: the catalogue fixes closed sets and never states the map between them. What the disposition adds is which half of the map was missing where. The *reason* vocabulary was answering the right question all along — a reason names the question asked, not the gate that asked it, which is why `Sys.why` is a modelling need rather than a contract gap. The *set* was drawn over the **task-tree** scope's questions and is swept by three, so every gap so far is a question a later scope asks: a commit's disposition (this one), a configuration, a launch generation. Of the five referred members, three were granted, one dissolved (`FN-13`'s stop is a block, and a block carries a diagnosis), and one was no gap at all (Grove has no confirmation gate). Record: `docs/adr/a-refusal-leaves-nothing-standing.md`.
 
 > `M1 alloy-only` · `M2 refusal` · `M3 = 2` — the absence of a fitting reason is
 > read off the closed set, not out of a trace · `M4 = none`. Like 031 and 032 this
@@ -6067,6 +6073,8 @@ CATALOGUE'S OWN CLAIMS REQUIRE TO BE VISIBLE.**
 > **`SY-04.b` is the same finding's second instance.** *Full configuration
 > validation SHALL precede every transition* requires validation to be able to
 > fail, and no refusal reason names a configuration failure either.
+>
+> **[disposed by `closed-set-additions-k74`]** **Both are now catalogue members, and one of them changed level on the way.** The reason set gained `ConfigurationInvalid` and `GenerationContended`; the closed **outcome** set gained nothing, so `Stopped` is now `Refused(RefGenContended)` in `lifecycle.als`. The *not a `Refused`* half of the `Stopped` argument was circular — it rested on the reason set being closed against the case — and `lifecycle.qnt`, which placed it as a refusal, was the column that had it right. A word collision drove the wider reading: `one-live-driver-per-working-tree`'s "stops `blocked`" is the *epoch invalidation* being blocked, not the catalogue's `Blocked(b)`. Record: `docs/adr/a-refusal-leaves-nothing-standing.md`.
 >
 > The model declares `Stopped` and `RefConfigInvalid` as its own, exactly as it
 > declares `Deferred`. **Adding the two reasons is not this leaf's call**: a new
@@ -8605,11 +8613,11 @@ honestly. Read against the Alloy column, six are overlaps reached independently:
 
 | the finding | Quint | Alloy | verdict |
 |---|---|---|---|
-| the closed refusal set has no member for a clean rollback | 045-2 `RRolledBack` | 033, `RefRollbackNotCommitted` | **`both`** — same hole, same repair, both declared as additions |
+| the closed refusal set has no member for a clean rollback | 045-2 `RRolledBack` | 033, `RefRollbackNotCommitted` | **`both`** — same hole, same repair, both declared as additions. **[disposed by `closed-set-additions-k74`]** the catalogue gained `DeletionNotCommitted`; two independent families inventing one missing member was the strongest single item on the whole disposition list |
 | `FN-22`'s table and the blocked diagnoses disagree about `Indeterminate` | 045-5 | README ce. 15 | **`both`** — both resolve it the table's way |
 | a blocked state falls through both diagnoses | 045-6 (post-persistent swap) | README ce. 14 (manifest names another handle) | **`both`** — different states, one defect: `FN-25.b` is false as literally worded |
 | `SY-13` is false on `Legacy`/`Foreign`/`Malformed` sinks | 046-1 | 043 result 2 | **`both`**, and both chose the same repair — quantify over the admitted-reachable stable states |
-| no refusal reason names an invalid configuration | 046-2 `RConfigInvalid` | 041, `RefConfigInvalid` | **`both`** |
+| no refusal reason names an invalid configuration | 046-2 `RConfigInvalid` | 041, `RefConfigInvalid` | **`both`**. **[disposed by `closed-set-additions-k74`]** the catalogue gained `ConfigurationInvalid` |
 | `release-lease` is special because it touches no tree | 046-3 | 043 result 3 | **`both`**, different claims cited (`SY-14.b` / `SY-04.b`), one catalogue gap |
 
 Entry 045's disclosure asked that its finding 2 be treated "as an overlap
@@ -8635,6 +8643,8 @@ the closed refusal set. *Durable correction:* the M1 tags on entries 045 and
 an M1 correction · *M2* `refusal` · *M3* n/a · *M4* `none`.
 
 > **[disposed by `routing-and-prose-k73`]** The `reap` half is **disposed**: the catalogue's `Actions` table now states that only `launch` is gated on the root's classification, and that the other six Lifecycle actions read and write no task tree. Both families and `src/loop_driver.rs` already implement it, so the edit was manifest-neutral. `FN-13`'s refuse-or-block half is **not** disposed here and is `closed-set-additions-k74`'s.
+
+> **[disposed by `closed-set-additions-k74`]** `FN-13` **blocks**, `RecoveryPending`; Quint was right and `finish.als` moved. But the finding above is sharper than the answer, and the sharper part is what the disposition kept: **neither column was reading a discriminator, because the catalogue never stated one.** Alloy's `treeSame` is a *step* frame condition; Quint's test is *action*-level. Both are correct readings of *fails closed*, and both stayed green — the failure a suite cannot report. §*Outcomes* now says `Refused` and `Blocked` are separated by what the **action** leaves, never by where it stopped, and `FN-29.b` checks it. The two other opposite-resolution items fall out of the same rule and fall out in **opposite directions**: `FN-10.b`'s discard refuses (nothing applied), a later step blocks. **The obligation was controlled against this very finding**: reverting `finish.als`'s `FN-13` to a refusal makes `FN_29b` produce a counterexample, so the rule that took a cross-model replay to find is now one a single family's run would catch. Record: `docs/adr/a-refusal-leaves-nothing-standing.md`.
 
 ---
 

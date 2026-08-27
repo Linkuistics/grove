@@ -56,6 +56,31 @@ than excluded, so the narrowing is visible rather than merely declared. It is a
 finding about the catalogue (entry 044, replayed at entry 048) and
 `task-tree-scope-k70` owns its disposition. The catalogue is not edited here.
 
+**A SECOND `PartialScaffold` FINDING SITS BESIDE IT AND HAS THE SAME OWNER, AND
+`closed-set-additions-k74` HANDED IT OVER WITH A RULE RATHER THAN A QUESTION.**
+An ordinary operation *meeting* a `PartialScaffold` has no reason in the
+catalogue's closed refusal set either — `task-tree.qnt`'s `gateOutcome` refuses
+`WitnessPending(RPreparing)` as the least-wrong member while naming a reserved
+witness that is not there. That leaf froze the shared vocabulary (reasons 17 →
+**20**, outcomes and blocked diagnoses unchanged) and found this to be a fourth
+instance of the shape it disposed, but declined to decide it because deciding it
+needs `k70`'s own items settled first: what `PartialScaffold` *is*, and whether
+the state table gains a member for the shipped *ambiguous partial root scaffold*
+refusal. `k70` inherits the frozen set and the rule for adding to it — *a member
+is gained exactly when a scope asks a question no existing member names, and it
+names the **question**, never the gate*
+([`a-refusal-leaves-nothing-standing`](../../../docs/adr/a-refusal-leaves-nothing-standing.md),
+clause 2) — so the collision hazard that put the vocabulary child ahead of the
+scope children does not apply here.
+
+**This family's own set is deliberately 17 of the 20, and the omission is
+argued at the type.** No `TT-` obligation reaches `DeletionNotCommitted`,
+`ConfigurationInvalid` or `GenerationContended`, nothing here quantifies over the
+refusal type exhaustively, and `task-tree.als` already restricts its own set the
+same way. That was **checked rather than assumed** — it is what
+`closed-set-additions-k74`'s `Done when` asked of the task-tree scope — and the
+conclusion is that this scope owes no re-run for the widening.
+
 **The disagreement between the two columns is what settled it, and the record
 stays.** This column declared the two cells out of reach; the Quint column
 answered both. Its `inv_TT_24c` was a transcription of `gateOutcome`'s own

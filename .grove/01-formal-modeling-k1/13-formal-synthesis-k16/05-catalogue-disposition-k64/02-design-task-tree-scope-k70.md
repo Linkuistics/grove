@@ -99,6 +99,39 @@ model work, and it rides with the other manifest-neutral cross-scope items.
 
 ## Notes
 
+**A NINETEENTH ITEM ARRIVED FROM `closed-set-additions-k74`, AND IT COMES WITH A
+FROZEN SET AND A RULE RATHER THAN AN OPEN QUESTION.** That leaf, sweeping the
+closed sets, found a **fourth** instance of the shape it disposed and declined to
+decide it because deciding it needs your items 20 and 21 settled first: **an
+ordinary operation meeting a `PartialScaffold` has no reason in the catalogue's
+closed refusal set.** `crates/grove-task-tree/models/task-tree.qnt` refuses
+`WitnessPending(RPreparing)` as the least-wrong member while naming a reserved
+witness that is not there, and the deviation is declared at `gateOutcome` and is
+entry 044's finding.
+
+What you inherit rather than re-derive:
+
+- **The set is twenty and it is frozen.** `DeletionNotCommitted`,
+  `ConfigurationInvalid` and `GenerationContended` were added; the closed
+  *outcome* set and the two blocked diagnoses were not touched.
+- **The rule for adding a member**, which is why this is no longer three children
+  editing one list in ignorance of each other: *the set gains a member exactly
+  when a scope asks a question no existing member names, and the member names the
+  **question**, never the gate.* The rejected alternative — report under the
+  closest true member and distinguish with a model-only observable — is what both
+  families did twice and is argued against in
+  [`a-refusal-leaves-nothing-standing`](../../../../docs/adr/a-refusal-leaves-nothing-standing.md),
+  clause 2.
+- **A member survives a redefinition of the state it reports on**, because it
+  names the question and not the state's extension. So deciding items 20 and 21
+  first costs this item nothing.
+
+It is **manifest-changing in the cascade sense and manifest-neutral in the
+count**: a closed-set member adds no obligation line, so `models/run.sh --list`
+does not move, but every family command that classifies the state must answer it.
+`closed-set-additions-k74` measured that distinction and its running log records
+it.
+
 **`TT-10` is deliberately not an item.** It sits in the same README block as 11
 – 13 under one `formal-synthesis-k16` sentence, and the README argues it is a
 statement qualification rather than a narrowing — `TT-10`'s own text is "no

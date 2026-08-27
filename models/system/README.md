@@ -363,20 +363,34 @@ with itself.** Take two.
   **reuses it rather than introducing a second wait** — the timeout is an exit
   from `Proc.waits`, which is the answer the `iteration` leaf was asked to give
   explicitly.
-- **`Stopped` IS THE SECOND ABSTRACTION, AND ITS EXISTENCE IS A FINDING ABOUT
-  THE CATALOGUE.** `SY-10.b` requires a contended generation to time out into a
-  *visible stop*, and the closed outcome set cannot name one. It is not a
-  `Refused`: the closed refusal-reason list has `EpochStale`, which is
-  `SY-10.a`'s **mismatch**, and nothing for a handoff timeout. It is not a
-  `Blocked`: §*Outcomes* scopes blocks to *a transaction stopped part-way*, and
-  `FN-25`'s two diagnoses are both about finish ownership. `one-live-driver-per-
-  working-tree` says the driver "stops `blocked`" on a post-reap invalidation
-  timeout, so the situation is real and shipped. **`RefConfigInvalid` is the
-  same finding's second instance**: `SY-04.b` requires full configuration
-  validation ahead of every transition, and no refusal reason names its failure
-  either. Both are declared here and named for `closed-set-additions-k74`; neither
-  is this leaf's to add to the catalogue, because a new reason imposes a
-  matching outcome on the Quint column.
+- **`Stopped` WAS THE SECOND ABSTRACTION, AND IT IS GONE — the finding was real
+  and the level was wrong.** `SY-10.b` requires a contended generation to time
+  out into a *visible stop*, and this file argued the closed **outcome** set
+  could not name one: not a `Refused`, because the reason list has `EpochStale`
+  (which is `SY-10.a`'s **mismatch**) and nothing for a handoff timeout; not a
+  `Blocked`, because §*Outcomes* scopes blocks to *a transaction stopped
+  part-way*. **`closed-set-additions-k74` kept the second half and rejected the
+  first as circular**: *not a `Refused` because no reason covers it* is a fact
+  about the **reason** set, and the catalogue widened that instead. `Stopped` is
+  now `Refused(RefGenContended)`, and the six outcomes are untouched — much the
+  narrower blast radius, since `SY-14`'s exhaustive sweep runs through the same
+  classifier the real actions use. `models/system/lifecycle.qnt` placed it as a
+  refusal independently and is the column that had it right.
+  **One word made the wider reading look necessary.**
+  [`one-live-driver-per-working-tree`](../../docs/adr/one-live-driver-per-working-tree.md)
+  says the driver "stops `blocked`", and that `blocked` is **not** the
+  catalogue's `Blocked(b)` — it is the *epoch invalidation* being blocked. The
+  shipped path returns an error, the loop stops, and the ADR's next sentence is
+  that a timeout performs no tree access or epoch rewrite. Nothing stands, so it
+  is a refusal.
+  **`RefConfigInvalid` was the same finding's second instance and is also the
+  catalogue's now**: `SY-04.b` requires full configuration validation ahead of
+  every transition, no refusal reason named its failure, and the set gained
+  `ConfigurationInvalid`. Both members are recorded in
+  [`a-refusal-leaves-nothing-standing`](../../docs/adr/a-refusal-leaves-nothing-standing.md),
+  whose clause 2 is why they arrived together: the seventeen were drawn over the
+  **task-tree** scope's questions and are swept by three scopes, so every gap so
+  far has been a question a *later* scope asks.
 - **`IterA` is the third, and it is a boundary rather than an action.**
   §*Actions* has no iteration boundary in it, correctly — a boundary is not
   something the loop *does*. But `SY-04.a` says *at most one lifecycle
@@ -754,12 +768,15 @@ repository. None of those appears here.
 
 **What this file added of its own, and each is an abstraction rather than a
 contract**: `Proc.waits`/`Deferred` (a guard wait as an observable state),
-`Stopped` and `RefConfigInvalid` (two situations the closed outcome and refusal
-sets cannot name — a **finding**, named for `closed-set-additions-k74`), `IterA` (an
-iteration boundary, which is not a catalogue action because a boundary is not
-something the loop *does*), `World.ending`/`World.halted` (the driver's
-conclusion and the loop's halt, two fields so that the inference `SY-09.c`
-forbids is statable), and `initialise-root` as **two** steps.
+`IterA` (an iteration boundary, which is not a catalogue action because a
+boundary is not something the loop *does*), `World.ending`/`World.halted` (the
+driver's conclusion and the loop's halt, two fields so that the inference
+`SY-09.c` forbids is statable), and `initialise-root` as **two** steps.
+**Two more were here and are not abstractions any longer.** `Stopped` and
+`RefConfigInvalid` were findings about the catalogue's closed sets;
+`closed-set-additions-k74` disposed both, the reason set gained
+`GenerationContended` and `ConfigurationInvalid`, the outcome set gained nothing,
+and `Stopped` became `Refused(RefGenContended)`.
 
 **Three clauses are imported and unchecked here, and each is now a declared
 CROSS-SCOPE CITATION rather than an open question.** They were the fourth, fifth
@@ -1122,7 +1139,13 @@ and no entry in 026 – 043 either.
 models/run.sh --scope lifecycle --family quint
 ```
 
-**93 commands, 25 of 25 cells, exit 0, 4m27s wall**
+**93 commands, 25 of 25 cells, exit 0, 4m27s wall** — re-confirmed unchanged
+after `closed-set-additions-k74` (93 commands, 25 of 25 cells, exit 0): that leaf
+turned `RConfigInvalid` and `RGenContended` from this column's declared
+abstractions into catalogue members without moving a command, because this column
+had already placed both as refusals. The Alloy cell re-ran at **73 commands, 25
+of 25 cells, exit 0**, where `Stopped` was removed and its uses became
+`Refused(RefGenContended)`.
 (`quint-statement-shape-k61`, this revision; it was 86 commands and 3m44s before
 `SY-04.b` and `SY-10.b` were restated, and the seven added commands are the two
 restated properties' controls and their asserted-green neighbours).

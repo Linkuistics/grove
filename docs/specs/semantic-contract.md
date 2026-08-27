@@ -559,13 +559,52 @@ The closed set. Every action returns exactly one.
 | `Reported(v)` | an observation returning a value |
 | `Empty` | an observation matched nothing — **a success** |
 | `Ambiguous(cs)` | an observation matched several — **a success** |
-| `Refused(r)` | nothing happened; the tree is byte-identical |
-| `Blocked(b)` | a transaction stopped part-way and left a stable, recoverable state |
+| `Refused(r)` | the action left nothing standing; the tree it returns is byte-identical to the tree it received |
+| `Blocked(b)` | an effect of the action stands that it could neither complete nor undo, in a stable, recoverable state |
 
 `Empty` and `Ambiguous` are outcomes rather than refusals because that is the
 shipped contract and callers branch on it: selection on a spent grove and a
 resolution that matched nothing are both successes that mutate nothing and
 report nothing to standard output (`TT-15`).
+
+**`Refused` and `Blocked` are separated by what the action leaves, never by
+where it stopped**, and this sentence is the whole of the discriminator. An
+action returns `Refused(r)` when the tree it hands back equals the tree it was
+given — whether because no step ran at all, or because every step that ran was
+undone. It returns `Blocked(b)` when an effect stands that the action could
+neither carry to completion nor reverse. The operational content is the one
+`FN-29` requires the operator to be able to read: **a refusal leaves nothing to
+recover, and a block does.**
+
+Three consequences, and each was a live mistake before it was written down.
+
+- **The unit is the action, not the step and not the process.** A step's own
+  frame condition — *this step mutated nothing* — is not the discriminator. The
+  finish transaction publishes a witness, evacuates every entry and then attempts
+  a commit; a stop at that commit is a stop by a step that moved nothing inside
+  an action that has moved everything, and it is a `Blocked`. Equally, the
+  driver's loop is many actions in one process, so an effect an *earlier*
+  transition applied does not make a later transition's clean stop a block.
+- **A rollback earns the refusal back.** `NotCommitted` restores the tree and
+  ends `Refused` (`FN-29`) even though the action reached the commit, because
+  what the caller is handed is the tree it gave. `FN-22`'s table applies exactly
+  this rule to all ten of its rows, and applied it before the rule was stated.
+- **An intermediate state is not a return.** `FN-22.f`'s successful quarantine
+  return settles to `Reserved(Published)` and the attempt then completes as
+  `Refused` from the restoration path; the outcome belongs to the attempt, not
+  to the state it passed through.
+
+**This was found, not designed, and the way it was found is the argument for
+stating it.** `crates/grove-finish/models/finish.als` read the discriminator
+step-locally and answered `FN-13` `Refused` with `treeSame` true of the step;
+`crates/grove-finish/models/finish.qnt` read it action-locally and answered
+`Blocked`. **Both were green**, because the catalogue supplied no predicate for
+either to be wrong against. Where it happened to supply one in the neighbouring
+sentence — `FN-17.b`'s *blocks rather than proceeds*, three lines below
+`FN-16`'s *refused* — the two families agreed without ever discussing it. An
+unstated discriminator is not a small omission in a catalogue two independent
+families descend from; it is the one thing they cannot check each other on.
+*See*: [`a-refusal-leaves-nothing-standing`](../adr/a-refusal-leaves-nothing-standing.md).
 
 **A guard wait is not an outcome, and the omission is deliberate.** `TT-22`
 serializes an observation against a mutation, and nothing in the closed set above
@@ -580,13 +619,90 @@ construction — introduces it as an abstraction of its own and records it as on
 ([`crates/grove-task-tree/models/task-tree.als`](../../crates/grove-task-tree/models/task-tree.als),
 `Deferred`).
 
+**That paragraph states a rule and not a special case, and it governs every
+situation in which Grove is never invoked at all.** The closed set covers what a
+*completed invocation returns*. A situation in which no invocation happens is
+therefore outside it by construction and gains no member — but a model that
+leaves it as an **absent transition** makes the obligation about it true by
+construction and unfalsifiable, which is the exact hazard `Each action is total`
+exists to remove. So the model names the non-event, declares it as an
+abstraction, and the catalogue gains nothing. There are exactly two such
+situations and the second is `FN-01`'s: **Grove has no confirmation gate at
+all.** Constraint 5 is *grove guides, it does not gate*; `finish_commit`'s own
+contract is that "whether a human confirmed teardown is the calling finish
+session's responsibility"
+([`src/tree_lifecycle.rs`](../../src/tree_lifecycle.rs)), no Grove binary reads
+standard input anywhere, and `EN-15` grants that Grove cannot verify a
+confirmation. A transaction not entered for want of confirmation is a call that
+was never made, so `FN-01`'s *produces no refusal at all* is literally true of
+the product, and `crates/grove-finish/models/finish.qnt`'s `ONotEntered` is the
+guard wait's rule applied a second time rather than a second finding about the
+set.
+
 **Refusal reasons**, closed:
 
 `RootAbsent` · `FormatLegacy` · `FormatForeign` · `WitnessPending(class)` ·
 `ReservedNameOccupied(entry)` · `Malformed(reason)` · `NotLive` ·
 `AlreadyTerminal` · `ReservedKind` · `NotAnEntry` · `DestinationOccupied` ·
 `LayoutUnsupported` · `LeaseHeld` · `EpochStale` · `NoTrackedDeletion` ·
-`RootIdentityChanged` · `UnsupportedEntryType`
+`RootIdentityChanged` · `UnsupportedEntryType` · `DeletionNotCommitted` ·
+`ConfigurationInvalid` · `GenerationContended`
+
+**A reason names the question that was asked and answered no — never the gate
+that asked it.** The catalogue already relies on this at `FN-05.a`, where an
+unsupported layout and an unreachable quarantine operand are the *same* reason
+because `SY-03` makes them one question asked at two gates. What follows, and is
+the last three members' whole justification, is that **the set gains a member
+exactly when a scope asks a question no member names** — and that reporting such
+a case under the closest true member instead is not a smaller version of the
+same fix, it is a different and worse one.
+
+- **`DeletionNotCommitted`** — the deletion commit did not land, and the
+  transaction rolled back. Distinct from `NoTrackedDeletion`, which is the
+  preflight question *is there anything tracked to delete* (`FN-07`); this is
+  the post-commit question *did the delete land*. `NoTrackedDeletion` and
+  `RootIdentityChanged` are each **false** of a transaction whose fingerprint was
+  fine and whose root never moved, so reporting under either is a lie no run
+  could catch.
+- **`ConfigurationInvalid`** — session configuration failed validation
+  (`SY-04.b`,
+  [`complete-session-configuration`](../adr/complete-session-configuration.md)).
+  Shipped and operator-visible today, with its own diagnostics
+  ([`src/session_config.rs`](../../src/session_config.rs)), and named by no
+  existing reason.
+- **`GenerationContended`** — the launch-generation handoff timed out against an
+  operation already admitted under the previous epoch
+  ([`one-live-driver-per-working-tree`](../adr/one-live-driver-per-working-tree.md)).
+  Distinct from `EpochStale`, which is `SY-10.a`'s *mismatch* — the operation
+  named a generation that is not live — where this is contention for one that is.
+
+**Why all three arrive at once, and where the next one will come from.** The
+seventeen were drawn over the questions the task-tree scope asks: preconditions
+and guards on a tree. The set is swept by **three** scopes, and every member
+added here is a question a *later* scope asks — a commit's disposition, a
+configuration, a launch generation. That is the pattern under what the finish
+scope recorded as three separate accidents, and it predicts the remaining gap
+rather than merely listing the closed ones. **A fourth instance is already
+recorded and is deliberately not decided here**: an ordinary operation meeting a
+`PartialScaffold` has no reason either, and
+`crates/grove-task-tree/models/task-tree.qnt` refuses `WitnessPending(RPreparing)`
+as least-wrong while naming a reserved witness that is not there. It is
+`task-tree-scope-k70`'s, because deciding it needs that leaf's own items — what
+`PartialScaffold` *is*, and whether the state table gains a member for the
+shipped *ambiguous partial root scaffold* refusal — settled first. **It inherits
+a frozen set and a stated rule rather than an open question**, which is the whole
+reason the vocabulary was decided ahead of the scopes.
+
+**The rejected alternative is the one both families independently chose, twice.**
+Report the case under the closest true member and keep it distinguishable with a
+model-only observable — `Sys.why` in `crates/grove-finish/models/finish.als` and
+its Quint counterpart. It is cheaper, it keeps the set small, and it is what a
+model must do while the set is closed against it. Its cost is that **the reason
+stops naming the question**: an operator told `WitnessPending` cannot learn from
+it that the *repository*, not the filesystem, is what refused. A device a model
+has to invent twice to say what an outcome could not is evidence about the
+vocabulary, not about the model.
+*See*: [`a-refusal-leaves-nothing-standing`](../adr/a-refusal-leaves-nothing-standing.md).
 
 `WitnessPending` and `ReservedNameOccupied` are the two halves of one situation
 and the split is deliberate: `WitnessPending` is an artifact at a reserved name
@@ -620,7 +736,7 @@ each rather than letting a model choose (`TT-24`):
 | context | outcome | checked by |
 |---|---|---|
 | an ordinary tree operation, before any transaction | `Refused(ReservedNameOccupied(entry))` — the tree is byte-identical | `TT-24.b` |
-| inside a live finish or recovery transaction | the step stops and the artifact is untouched; **which** stop is not fixed here — see below | `FN-32`, and the step's own obligation |
+| inside a live finish or recovery transaction | the step stops and the artifact is untouched; **which** stop follows from what the action has left standing — `Refused(ReservedNameOccupied(entry))` while nothing of it stands, `Blocked(OwnershipConflict)` once something does | `FN-32`, `FN-29.b`, and the step's own obligation |
 | the quarantine reaper (`FN-21`) | declines the entry, mutating nothing, and reports it; the sweep continues over entries the reaper *can* prove are Grove's | `FN-21.c` |
 
 The three agree on what matters — nothing foreign is ever mutated, which is
@@ -629,19 +745,36 @@ of how far the caller had already gone. **The rows are checked in two scopes**,
 because two of the three contexts are `grove-finish`'s
 ([`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md)).
 
-**The second row said `Blocked(OwnershipConflict)` flatly and no longer does,
-because both families contradict it and they contradict it in opposite
-directions.** *Inside a transaction* is not itself the discriminator — this
-claim's own preamble says the outcome is fixed by *how far the caller had already
-gone*, and a preflight or an unpublished witness is inside a transaction that has
-moved nothing. `crates/grove-finish/models/finish.als` refuses there
-(`FN_10b_content_the_discard_cannot_classify_fails_closed` requires
-`Sys.res' in Refused`) while `crates/grove-finish/models/finish.qnt` **blocks**
-at the same step (`SRemoveWitness`'s discard branch calls `blockNow(…,
-"foreign")`), and both are green against `FN-10.b`, whose text says only *fails
-closed*. So the outcome per step is **underdetermined and recorded as such**;
-what every context does agree on is `FN-32`. Deciding it is
-`closed-set-additions-k74`'s, beside the other opposite-resolution items.
+**The second row said `Blocked(OwnershipConflict)` flatly, was then recorded as
+underdetermined, and is now decided — by the rule above rather than by picking a
+column.** *Inside a transaction* was never the discriminator, and this claim's
+own preamble said so all along: the outcome is fixed by *how far the caller had
+already gone*. What was missing was a predicate for *how far*, and
+[§Outcomes](#outcomes)' opening now supplies it. The row therefore fixes no
+single outcome and fixes something better — **a function of the step**, which is
+what a claim quantified over every step of a transaction needs:
+
+- **`FN-10.b`'s discard is a refusal.** Recovery meets unclassifiable content at
+  the witness slot before it has moved anything, so the tree it hands back is the
+  tree it received, and the closed set has named this exact case since before
+  either model existed: `ReservedNameOccupied(entry)` — *an artifact at a
+  reserved name Grove cannot classify at all*.
+  `crates/grove-finish/models/finish.als` is right here, and
+  `crates/grove-finish/models/finish.qnt`'s `SRemoveWitness` discard branch moves
+  to the refusal.
+- **A later step is a block.** A transaction that has published, evacuated or
+  renamed and then meets such an artifact leaves an effect standing, so it stops
+  `Blocked`. The diagnosis is `FN-25`'s own partition applied and not a new one:
+  `OwnershipConflict`, because the artifact is by hypothesis one Grove **cannot**
+  classify as its own.
+
+**The two columns disagreed because they were answering two different questions
+and neither knew it.** Alloy's `treeSame` is a step frame condition; Quint's
+block test is an action-level one. Both are correct readings of *fails closed*,
+which is all `FN-10.b` said, and both stayed green — the failure mode a suite
+cannot report. The repair is not to pick a column but to state the predicate the
+two were guessing at, and to give it an obligation so the next divergence is a
+counterexample rather than two green runs: `FN-29.b`.
 
 **The two diagnoses are a partition the catalogue introduces, and the shipped
 implementation does not yet draw it.** Today's classification yields three
@@ -1165,7 +1298,37 @@ cannot digest SHALL be refused before any mutation.
 
 **`FN-13` — the witness is never committed.** Every candidate committed tree
 SHALL exclude the witness.
-*Witness*: a commit attempted while the witness is tracked, refused.
+*Witness*: a commit attempted while the witness is tracked, **blocked
+`RecoveryPending`**.
+
+**This witness said *refused* and the word was wrong**, by
+[§Outcomes](#outcomes)' own discriminator. The commit is attempted only after
+publication and evacuation (`FN-11`), so the tree at that moment holds every
+entry inside the witness and is not the tree the action was given; an effect
+stands that the action can neither complete nor undo, which is a `Blocked`. The
+diagnosis is `RecoveryPending` and not `OwnershipConflict`: the artifact holding
+the transaction is this attempt's own published witness, correlated by this
+finish handle and this attempt identity, which is `FN-25`'s first arm word for
+word.
+
+**Three readings now agree and the odd one out was this sentence.**
+`crates/grove-finish/models/finish.qnt` blocks here;
+[`task-tree-transactions-fail-closed`](../adr/task-tree-transactions-fail-closed.md)
+says a tracked witness "keeps the witness unwalkable as **Recovery pending**";
+and the shipped post-commit verification rejects a result that still tracks
+`.grove/` with the evacuation already done
+([`src/repo/finish_commit.rs`](../../src/repo/finish_commit.rs)).
+`crates/grove-finish/models/finish.als` refused, "because the catalogue is the
+sole input to the formal phase" — which was the right method against the wrong
+sentence, and is why the correction lands here rather than in that model's
+judgement.
+
+**It follows that the closed reason set gains nothing for a tracked witness.** A
+block carries a diagnosis, not a reason, so `finish.als`'s `W8WitnessTracked`
+stays what it always was — a model-only observable naming which branch was
+taken — and the operator-facing question it raised, *can the diagnostic say the
+repository rather than the filesystem is what stopped this*, is a diagnostic
+question and is `handoff-audit-k66`'s, beside the other four.
 
 ### Commit and disposition
 
@@ -1201,6 +1364,16 @@ recorded anchor to still hold **and** the attempt-bound result to be absent.
   *Witness*: reached.
 - `FN-16.b` — restoration is refused when the attempt-bound result is present.
   *Witness*: reached.
+
+**Both letters say *refused* of a step declining, not of the action returning
+`Refused(r)`**, and the distinction is [§Outcomes](#outcomes)'. A restoration
+declined leaves the witness and the evacuated tree exactly where they were, so
+the *action* blocks — `FN-17.b` says so three lines below, and `FN-22`'s table
+gives the diagnosis. Both families read it that way without being told
+(`witness_FN_16a_…` in `crates/grove-finish/models/finish.als` requires
+`Sys.res = BlockedOutcome`), which is the same neighbouring-sentence effect that
+kept them together here and let them diverge at `FN-13`, where no such sentence
+stood. Nothing about either obligation changes; only what the word was doing.
 
 **`FN-17` — rollback is exact.** After restoration the tree SHALL match the
 manifest, and on a working-copy-as-commit lane the exact recorded preflight
@@ -1416,8 +1589,39 @@ is deliberately not modelled.
 
 **`FN-29` — a refusal is a complete outcome.** `NotCommitted` SHALL leave the
 grove exactly as it was, with the finish leaf live and selectable, and SHALL be
-distinguishable by the operator from a block.
-*Witness*: a refused attempt followed by a successful one.
+distinguishable by the operator from a block; and no action SHALL return
+`Refused` while an effect of that action still stands.
+*Obligations*:
+- `FN-29.a` — `NotCommitted` leaves the grove exactly as it was, with the finish
+  leaf live and selectable, and is distinguishable by the operator from a block.
+  *Witness*: a refused attempt followed by a successful one.
+- `FN-29.b` — every `Refused` outcome is returned with the tree byte-equal to the
+  tree that action received, and an effect that stands and can be neither
+  completed nor undone is `Blocked`. *Witness*: **both arms of the
+  discriminator** — a stop that has applied nothing, refused; and a stop after an
+  applied effect, blocked. The third state a refusal can be returned from — an
+  effect applied and then **undone** — is `FN-29.a`'s witness, and the two
+  obligations therefore cover the three between them rather than each covering
+  part of one.
+
+**`.b` is [§Outcomes](#outcomes)' discriminator, stated once where something can
+check it, and it exists because nothing could.** Two independently built
+families answered `FN-13` in opposite directions and **both stayed green**;
+`FN-22`'s ten-row table applies the rule row by row and never names it. A rule
+carried only by prose is a rule a model can contradict without a counterexample,
+which is the failure this obligation removes.
+
+**It is `grove-finish`'s alone, and that is placement rather than convenience**
+([`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md)).
+`Blocked` is produced by the finish and recovery protocol and by nothing else —
+§[Outcomes](#outcomes) scopes it to a transaction, and `FN-25`'s two diagnoses
+are both about finish ownership. The task-tree scope has no block to be
+distinguished from, and `models/system/` reads *blocked* as a mark already made
+(`SY-13`, `SY-14`). So the claim stated over *every action* becomes **one**
+obligation here rather than one per scope, because only one scope can execute
+its context.
+*Class*: shared safety. The discriminator is a property any admissible protocol
+must have, not a fact about the incumbent's steps.
 
 **`FN-30` — internal commits run without operator hooks.** No user-supplied hook
 SHALL run during an internal commit, because such a hook may mutate unrelated
@@ -1446,9 +1650,12 @@ It is stated as its own claim rather than left to the two obligations that carry
 it today, and the reason is the class register: `FN-10.b` and `FN-31.d` are both
 **incumbent mechanics**, so neither is evidence about a candidate protocol, while
 fail-closed ownership inside a transaction is a property any admissible protocol
-must have. It says nothing about **which** outcome the step produces — the two
-families resolve that in opposite directions and the catalogue does not decide it
-(see [Outcomes](#outcomes), *one artifact, three contexts*).
+must have. It says nothing about **which** outcome the step produces, and
+that is deliberate rather than unfinished: the outcome is a function of what the
+action has left standing, not a constant, so [Outcomes](#outcomes)' *one
+artifact, three contexts* decides it per step against `FN-29.b`. `FN-32` is the
+conjunct every step shares whatever its outcome, which is why it stayed
+separable from the outcome question and survived it.
 
 **Q1's retained list does not yet name it, and extending that list is
 `finish-verdicts-k65`'s.** `FN-32` is shared safety, so a candidate protocol must
@@ -1495,6 +1702,10 @@ leaves the working tree byte-identical.
 - `SY-04.b` — full configuration validation precedes every transition, so an
   invalid configuration leaves the working tree byte-identical. *Witness*:
   reached.
+
+The refusal is `Refused(ConfigurationInvalid)`. Both families had to name this
+outcome and neither could from the closed set; the set now carries it
+([Outcomes](#outcomes)).
 
 **`SY-05` — task-root absence is the complete fresh-tree discriminator.** A
 missing task root SHALL mean *start a new grove*, and SHALL never be read as
@@ -1569,6 +1780,30 @@ SHALL time out into a visible stop rather than a silent park.
   before it touches the tree. *Witness*: a stale session refused.
 - `SY-10.b` — a contended generation times out into a visible stop, never a
   silent park. *Witness*: a timeout reported.
+
+**The visible stop is `Refused(GenerationContended)`, and the closed *outcome*
+set gains nothing.** `models/system/lifecycle.als` introduced a seventh outcome
+for it, `Stopped`, on the ground that it is neither a `Refused` nor a `Blocked`.
+Half of that was right: it is not a `Blocked`, because §[Outcomes](#outcomes)
+scopes blocks to an effect that stands and `FN-25`'s two diagnoses are both about
+finish ownership. The other half rested on the reason set being closed against
+it, which is a fact about the *reason* set and is now fixed there —
+`models/system/lifecycle.qnt` reached that placement independently and is the
+column that had it right.
+
+**A word collision is what made the wider reading look necessary, and it is
+worth naming because it cost a proposed widening of the most load-bearing closed
+set in the catalogue.**
+[`one-live-driver-per-working-tree`](../adr/one-live-driver-per-working-tree.md)
+says the driver "stops `blocked`" on a post-reap invalidation timeout, and that
+`blocked` is not this catalogue's `Blocked(b)` — it describes the *epoch
+invalidation* being blocked. The shipped path is
+`complete_post_reap_epoch_handoff` in
+[`src/loop_driver.rs`](../../src/loop_driver.rs): it returns an error, the loop
+stops, the completion signal is left unconsumed, and — per that ADR — "a timeout
+performs no tree access or epoch rewrite". Nothing stands, so it is a refusal by
+the discriminator, and no tree is left carrying a diagnosis for an operator to
+recover.
 
 **`SY-11` — the guard order admits no cycle.** Lease, then launch generation,
 then tree; and no path SHALL wait for a generation while holding a tree guard.

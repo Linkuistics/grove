@@ -165,7 +165,7 @@ module scenario_march {
     hist.successWithCleanupOutstanding
 
   /// `FN-29`.  A refused attempt followed by a successful one.
-  val wit_FN_29_a_refusal_then_a_success: bool = hist.refusedThenSucceeded
+  val wit_FN_29a_a_refusal_then_a_success: bool = hist.refusedThenSucceeded
 
   /// `FN-31.a`.  The source state from which disposal must REPLACE an existing
   /// marker rather than create or remove one.  This is Q3's evidence, and it is

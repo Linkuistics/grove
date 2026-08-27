@@ -166,6 +166,21 @@ report — one family answering what another declared out of reach, with whether
 the answering family carries a control — so the next instance of this shape says
 so in the runner's own output. After that leaf there are none.
 
+**The count has since moved to 129, and the frozen record above is deliberately
+not rewritten.** `closed-set-additions-k74` split `FN-29` into `FN-29.a` (its old
+content) and `FN-29.b` — *every `Refused` is returned with the tree byte-equal to
+the tree that action received; an effect that stands and can be neither completed
+nor undone is `Blocked`*. It exists because two independently built families
+answered `FN-13` in opposite directions and **both stayed green**: the catalogue
+fixed `Refused` and `Blocked` and never stated what separates them. That leaf also
+widened the closed refusal-reason set from seventeen to **twenty**, which is a
+change the runner's own `--list` is silent about — a closed-set member matches
+neither of the two patterns the manifest is extracted by — while still costing
+both families a matching outcome. **The cheap check is blind to exactly the
+expensive kind of change**, which is worth knowing before reading `--list` as a
+blast-radius estimate. See
+[`a-refusal-leaves-nothing-standing`](../docs/adr/a-refusal-leaves-nothing-standing.md).
+
 **The report's own evidence sentence was false, and `obligation-placement-k68`
 fixed it.** The coverage matrix calls a cell complete only with a property AND a
 witness; the contested block credited a family that had supplied a property

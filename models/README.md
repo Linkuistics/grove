@@ -99,3 +99,67 @@ grid — the tool reports a counterexample and shows nothing of it:
 ```sh
 java -jar "$ALLOY_JAR" exec -q -t text -c <command> -o - <model.als>
 ```
+
+## The phase's own run record
+
+Recorded by `experiment-synthesis-k62`, the session that closed the formal
+phase's measurement. **Every row was executed by that session**, not quoted from
+the producing leaf that wrote the model — which is the whole point of a phase
+gate, since each column's own run line was recorded before the other column
+existed.
+
+| cell | commands | coverage | result |
+|---|---|---|---|
+| `--scope task-tree --family quint` | 111 | 43 complete, 0 declared gaps, 0 empty, of 43 | exit 0 |
+| `--scope finish --family alloy` | 180 | 61 complete, 0 gaps, 0 empty, of 61; Q4 matrix asserted | exit 0 |
+| `--scope finish --family quint` | 228 | 61 complete, 0 gaps, 0 empty, of 61; Q4 matrix asserted | exit 0 |
+| `--scope lifecycle --family alloy` | 73 | 25 complete, 0 gaps, 0 empty, of 25 | exit 0 |
+| `--scope lifecycle --family quint` | 93 | 25 complete, 0 gaps, 0 empty, of 25 | exit 0 |
+
+**The whole repository, in one invocation.**
+
+```text
+models/run.sh
+-- commands run: 791
+-- cells: 256 complete, 2 declared gaps, 0 empty, of 258
+-- Q4 removal matrix (finish): alloy 10 of 10 rows, 2 `none`, 1 abstracted
+                               quint 10 of 10 rows, 3 `none`, 1 abstracted
+exit 0
+```
+
+All four scopes and both families, including the two delegated
+`docs/ordinal-fs-tree/models/` runners (20 Alloy commands, 148 Quint). The
+task-tree Alloy file contributes **104** commands here against the 103 its own
+README records; the extra one is `cross-model-replay-k15`'s retained replay,
+`witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy`.
+
+**The two declared gaps are the whole of what this run reports, and they are one
+question.** The coverage section prints:
+
+```text
+  TT-24.c    alloy:gap quint:ok
+  TT-24.d    alloy:gap quint:ok
+```
+
+`TT-24`'s two finish-context obligations are declared `out-of-bounds` by the
+task-tree Alloy column because the runner's placement rule sends every `TT_`
+command to that directory while the machinery each names lives in
+`crates/grove-finish/models/`. The Quint column answered both, and one of its
+answers has no control. Whether the two should be re-stated as `FN-`
+obligations, kept as gaps, or given controls is a design question, not a runner
+defect.
+
+**Why the whole-repository run is still recorded separately from the six cells.**
+A bare `models/run.sh` is not the union of `--scope`/`--family` invocations: it
+additionally asserts obligation coverage over the **whole** catalogue in one
+invocation, delegates to the two `docs/ordinal-fs-tree/models/` runners — a
+positive control, since those suites are known green, so a repository run that
+reports them clean while finding nothing anywhere else is reporting a broken
+instrument — and fails on any `.als` or `.qnt` file in no known scope.
+
+**No wall-clock figure is recorded here, deliberately.** The cells above were
+run concurrently, and for part of that session the measurement host was also
+compiling an unrelated package across sixteen processes. Command counts,
+coverage matrices and exit status cannot be moved by contention; timings can.
+The per-column timings that *are* worth having stay where they were measured, in
+each scope's own README, each beside the run that produced it.

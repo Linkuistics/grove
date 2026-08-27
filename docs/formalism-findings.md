@@ -7720,33 +7720,6 @@ suites rather than in a new one:
   value as an uninterrupted one (`FN-31.c`), and no reader may observe the marker
   absent (`FN-31.b`).
 
-# Experiment 2 — pre-registration
-
-**Written before any Experiment 2 model exists.** That is the whole value of the
-section: a comparison decided after the results are in is a story, and this log's
-standing complaint is that "Quint was helpful here" is worth nothing. Everything
-below — hypotheses, counting rules, controls, and what would *falsify* each
-prediction — is fixed now, at jj change `uwuvxpkowmpumtukrknzxqptvpklmlwp`
-(commit `149994afa5f3a8d6fd04178b60754e085dfb960f`), 2026-08-24, before
-`design-model-contract-k5` writes the claim catalogue.
-
-Registered by `experiment-baseline-k4`. Nothing in Experiment 1 is revised;
-entries 001–025, H1–H3 and the distillation stand as written.
-
-**Revised once, before any Experiment 2 model existed.**
-`experiment-baseline-k29` reviewed this section against the artifacts and
-`experiment-baseline-k30` applied the result: the *material finding* rule, the
-falsifiers of H4, H5, H6, H8, H9 and H10, and the M3, M5, M6, M7 and M8
-counting rules were corrected because they did not decide their own outcomes.
-The revision is legitimate **only** because of where it sits — the review was
-inserted *ahead of* `design-model-contract-k5`, so no claim catalogue, no model
-and no result existed to tune the measures towards; there was nothing to see.
-That window closes when `design-model-contract-k5` becomes selectable.
-**As corrected, this pre-registration is fit to bind Experiment 2**, and it is
-now fixed: any later change to a hypothesis, a falsifier or a counting rule is
-a post-hoc amendment and must be recorded as one, in place, naming what was
-already known when it was made.
-
 ### 046 — A claim that contradicts its own definition, and a loop that satisfies eighteen of its claims by being written down (system lifecycle, cross-component)
 
 **Scope.** The system lifecycle, cross-component
@@ -8999,6 +8972,33 @@ The other five record `M4 = none` and each falsifies **H7** by the terms H7 sets
 for itself — which now holds for every material finding in the finish and
 lifecycle scopes and for all but one in the task tree.
 
+# Experiment 2 — pre-registration
+
+**Written before any Experiment 2 model exists.** That is the whole value of the
+section: a comparison decided after the results are in is a story, and this log's
+standing complaint is that "Quint was helpful here" is worth nothing. Everything
+below — hypotheses, counting rules, controls, and what would *falsify* each
+prediction — is fixed now, at jj change `uwuvxpkowmpumtukrknzxqptvpklmlwp`
+(commit `149994afa5f3a8d6fd04178b60754e085dfb960f`), 2026-08-24, before
+`design-model-contract-k5` writes the claim catalogue.
+
+Registered by `experiment-baseline-k4`. Nothing in Experiment 1 is revised;
+entries 001–025, H1–H3 and the distillation stand as written.
+
+**Revised once, before any Experiment 2 model existed.**
+`experiment-baseline-k29` reviewed this section against the artifacts and
+`experiment-baseline-k30` applied the result: the *material finding* rule, the
+falsifiers of H4, H5, H6, H8, H9 and H10, and the M3, M5, M6, M7 and M8
+counting rules were corrected because they did not decide their own outcomes.
+The revision is legitimate **only** because of where it sits — the review was
+inserted *ahead of* `design-model-contract-k5`, so no claim catalogue, no model
+and no result existed to tune the measures towards; there was nothing to see.
+That window closes when `design-model-contract-k5` becomes selectable.
+**As corrected, this pre-registration is fit to bind Experiment 2**, and it is
+now fixed: any later change to a hypothesis, a falsifier or a counting rule is
+a post-hoc amendment and must be recorded as one, in place, naming what was
+already known when it was made.
+
 ## What is being compared, and what is not
 
 The subject is grove's own modular redesign: **task-tree semantics**, the
@@ -9255,3 +9255,783 @@ result (H3, at entry 017) is a hypothesis that was *not* supported.
   already the thing being hunted. Any claim that a model beat prose here is
   confounded by the whole v1.0.0 → v19.3.0 history of this code being read,
   reviewed and revised; say so rather than implying a comparison was run.
+
+# Experiment 2 — synthesis
+
+**This section answers the pre-registration above, clause by clause, and nothing
+else.** Every hypothesis is decided by the falsifier it fixed for itself before
+any model existed; every measure is aggregated from the entries that recorded it
+and reported as unavailable where they did not. Written by
+`experiment-synthesis-k62`, the first child of `formal-synthesis-k16`, which was
+decomposed because the phase gate is more than one session's work.
+
+**It is a synthesis, not an amendment.** The pre-registration is closed. Nothing
+below changes a hypothesis, a falsifier or a counting rule; where a rule turned
+out not to decide what it was meant to decide, that is reported as a **result
+about the instrument** and the rule is still applied as written.
+
+**The conclusions are local to this experiment.** The subject is one repository,
+one pair of tools at two pinned versions, and one team of sessions working under
+one methodology. Nothing here is a claim about Quint, Alloy 6 or formal methods
+in general, and the places where a general-sounding sentence is warranted are
+marked as *transferable* explicitly.
+
+## The runs this synthesis stands on
+
+Re-run at this revision, from the repository root, by this session. **The
+provenance column is not decoration**: a synthesis that quotes a producing
+session's run line and calls it a re-run has measured nothing.
+
+| cell | commands | coverage | result | provenance |
+|---|---|---|---|---|
+| `--scope task-tree --family quint` | 111 | 43 complete, 0 declared gaps, 0 empty, of 43 | exit 0 | this session |
+| `--scope finish --family alloy` | 180 | 61 complete, 0 gaps, 0 empty, of 61; Q4 matrix asserted | exit 0 | this session |
+| `--scope finish --family quint` | 228 | 61 complete, 0 gaps, 0 empty, of 61; Q4 matrix asserted | exit 0 | this session |
+| `--scope lifecycle --family alloy` | 73 | 25 complete, 0 gaps, 0 empty, of 25 | exit 0 | this session |
+| `--scope lifecycle --family quint` | 93 | 25 complete, 0 gaps, 0 empty, of 25 | exit 0 | this session |
+| `--scope task-tree --family alloy` | 104 | 41 complete, **2 declared gaps** (`TT-24.c`, `TT-24.d`) | exit 0 | measured inside the whole-repository run |
+
+**And the whole repository, in one invocation: `models/run.sh` — 791 commands,
+256 cells complete, 2 declared gaps, 0 empty, of 258. Exit 0.** Both delegated
+`docs/ordinal-fs-tree/models/` runners ran (20 Alloy commands and 148 Quint),
+which is the positive control: those suites are known green, so a repository run
+reporting them clean while finding nothing anywhere else would be reporting a
+broken instrument. Q4's removal matrix is asserted in both directions per family
+— alloy 10 of 10 rows, 2 `none`, 1 abstracted; quint 10 of 10 rows, 3 `none`, 1
+abstracted.
+
+**Its only blemish is the placement problem, and the runner surfaces it
+itself.** The coverage section prints exactly two lines:
+
+```text
+  TT-24.c    alloy:gap quint:ok
+  TT-24.d    alloy:gap quint:ok
+```
+
+That is entry 048's observation rendered by the instrument rather than argued in
+prose — *the coverage matrix scores a transcription above an honest
+declaration*, since Quint's `inv_TT_24c` fills a cell with a transcription of
+`gateOutcome`'s own branch that no control kills, while Alloy's honest
+`out-of-bounds` declaration reads as the gap. It is
+`obligation-placement-k63`'s to settle.
+
+**The task-tree Alloy file is 104 commands here against the 103 its README
+records.** The extra one is entry 048's retained replay,
+`witness_finding_a_world_write_during_an_open_scaffold_reaches_legacy`, added
+when that session corrected `step`. The README's figure predates it.
+
+**No wall-clock figure is taken from these runs.** They were executed
+concurrently, and for part of the session the host was also compiling an
+unrelated package with sixteen `cc1` processes; load averages passed 140 on a
+16-core machine. Command counts, coverage matrices and exit status are immune to
+that. Timings are not, so every timing cited anywhere below is quoted from the
+producing session's README and labelled as such.
+
+**129 obligations across the three scopes** — `TT` 43, `FN` 61, `SY` 25 — and
+the matrix is `(family, obligation)`, so the phase's unit of coverage is 258
+cells and not 129.
+
+**The whole-repository run is the phase's own instrument and is reported
+separately**, in [`models/README.md`](../models/README.md), because a bare
+`models/run.sh` additionally asserts coverage over the *whole* catalogue in one
+invocation and delegates to the two `docs/ordinal-fs-tree/models/` runners — a
+positive control the per-cell runs do not carry.
+
+**The cost asymmetry between the two families is real and is not about the
+tools.** Alloy's task-tree cell is 6888 s of CPU for 103 commands; Quint's is
+1209 s for 111. Alloy's finish cell is 14 m 33 s for 180; Quint's is 4 m 25 s for
+228. Reading either ratio as "tool X is faster" would be wrong in both
+directions at once: the task-tree Quint model unrolls a tree walk to `MAX_DEPTH`
+on every transition and the finish one has no tree at all, while the Alloy
+task-tree file is the only one in the corpus carrying `Int` — positions and keys
+— and the bitwidth arithmetic dominates it. That last claim is enumerated rather
+than inferred: across all four `.als` files in the repository,
+`crates/grove-task-tree/models/task-tree.als` declares an integer scope on
+**104** commands and `finish.als`, `lifecycle.als` and
+`docs/ordinal-fs-tree/models/structure.als` declare **none**. **Run cost in this
+corpus tracks the data structure in the model, not the family.**
+
+## What the ledger supports, and where it is not there
+
+The pre-registration fixed eight measures. **Two were kept as specified (M1,
+M4), one is a structural zero (M6), and five were kept unevenly (M2, M3, M5,
+M7, M8).** Saying so is a precondition for reading any figure below — a
+synthesis that averages over a partly-empty ledger reports a number where it has
+a gap.
+
+| measure | state of the ledger |
+|---|---|
+| **M1** unique vs overlapping | **kept**, and corrected once by entry 048 finding 4. Every material finding carries a tag. |
+| **M2** class | **kept for all but nine.** The Alloy finish column numbers twelve findings in its README; findings **4 – 12** live in entries 034 – 039, which record them in prose with no `M2`/`M3` tag at all. Every other material finding in the experiment carries a class. |
+| **M3** counterexample usefulness | **same gap as M2**, and it is the gap that costs most, because M3 is H6's whole operand. |
+| **M4** derived tests | **kept**, and its result is uniform: see H7. |
+| **M5** authoring hours ÷ checked claims | **kept as an hours-per-obligation figure in nine entries of twenty-three** — 026 – 030 (Alloy, task-tree) and 040 – 043 (Alloy, lifecycle). Entries 044 and 047 give a session-level estimate instead. **Not recorded at all:** the whole Alloy finish column (031 – 039), and the Quint finish and lifecycle columns. |
+| **M6** synchronization | **recorded as `0` wherever it is recorded**, and the reason is structural rather than a lapse — see H9. |
+| **M7** state-space and tooling | **run wall-clock kept everywhere; `wrangling` hours kept in six entries.** The two are different columns and H9 compares the second. |
+| **M8** false-confidence incidents | **incidents kept; durations kept in a mixture of hours and "rounds"; the control arm — genuine failing checks with hours — is almost empty.** See H10. |
+
+**The M2/M3 gap has one cause and it is worth naming, because it is a lesson
+about a recording protocol rather than about either tool.** The
+pre-registration's recording protocol says *every material finding carries its
+M1 tag, M2 class and M3 score, recorded before the fix*. Entries 031 – 033 do
+this in a blockquote form; entries 034 – 039 switched to numbering findings in
+the model README (*"a fourth finding"*, *"a seventh, an eighth and a ninth"*) and
+carried the prose across into the entry without the tag line. Nothing detected
+it: the runner checks obligations, not entries, and each slice's own reviewer
+was checking the model. **A per-finding recording obligation with no instrument
+behind it decays into the shape of whatever the previous entry looked like**,
+and it decayed at exactly the boundary where one leaf handed off to the next.
+
+## The M1 census, after entry 048's corrections
+
+Entry 048 changed two things about this census, and neither is optional.
+
+1. **Six findings tagged `quint-only (pending replay)` are `both`** — reached
+   independently by each column before either read the other (048, finding 4).
+2. **Findings whose correction had already been written into
+   `docs/specs/semantic-contract.md` before the first Quint model existed are
+   not measurements of Alloy's unique reach.** Four Alloy sessions edited the
+   shared catalogue; the Quint column read the corrected text and could not
+   rediscover what had been removed from its search space. Their `alloy-only`
+   tags are true and uninformative, and H4's test must be computed over findings
+   **reachable by both columns** or it scores commit order.
+
+Each column's own reach: **Alloy 29** (3 task-tree, 12 finish, 14 lifecycle) and
+**Quint 17** (6, 6, 5). Replay found **seven** pairs, so the two columns between
+them hold **39 distinct** findings; entry 048's own findings about the pair and
+the instruments bring the experiment to roughly **45**.
+
+**The finish column has two counting surfaces and they disagree by two, which is
+the recording gap showing up as a number.** Its README numbers twelve findings.
+Entries 031 – 033 additionally carry two M1-tagged items the numbering does not
+include — the rule that *every "never" claim about tree shape is false under a
+free initial state unless restated over the transition relation*, and a
+correction to the corpus's own cost model. Both land in durable documentation, so
+the material-finding rule counts them and the README's numbering does not. **12
+is used above because it is the column's own count**; 14 is defensible and
+changes no verdict, since every hypothesis that reads these numbers reads them
+for non-emptiness rather than for magnitude.
+
+| scope | `alloy-only`, reachable by both | `quint-only` | `both` | excluded as unreachable-by-both |
+|---|---|---|---|---|
+| task tree (`TT`) | **0** | 6 | 0 | 3 (entry 026, fixed into the catalogue by `names-k33`) |
+| finish (`FN`) | **8** | 3 | 3 | 1 (entry 031's `FN-05.a`, fixed by `entry-k39`) |
+| lifecycle (`SY`) | **10** | 1 | 4 | 0 |
+
+Raw, uncorrected, the census would read `alloy-only` 29, `quint-only` 17,
+`both` **0** — the two columns sharing nothing at all. That figure is an
+artifact of the tagging discipline (each column tagging its own findings
+`X-only (pending replay)` in good faith) and it is what entry 048 was cut to
+repair. **A pre-replay M1 census is not a measurement; it is a pair of
+self-reports.**
+
+## The hypotheses, each decided by its own falsifier
+
+| # | prediction | verdict |
+|---|---|---|
+| **H4** | the blind spots differ — at least two scopes mutually discriminating | **supported** |
+| **H5** | temporal Alloy and executable Quint fail differently on the same question | **falsified**, and the correct axis identified |
+| **H6** | counterexample usefulness is a property of the tool | **inconclusive**, by the pre-registered thin-result rule |
+| **H7** | findings convert to tests | **falsified**, and almost universally |
+| **H8** | placement is a real trade-off | **supported on the one family the ledger can compute** |
+| **H9** | synchronization is the dominant hidden cost | **falsified**, and the reason is the protocol rather than the tools |
+| **H10** | a green run's silence is the main hazard | **supported**, but decided by the pre-registration's zero-rule rather than by a measurement |
+
+### H4 — the blind spots differ. **Supported.**
+
+Two of the three scopes are mutually discriminating on the corrected census:
+**finish** (8 `alloy-only`, 3 `quint-only`) and **lifecycle** (10 `alloy-only`,
+1 `quint-only`). The prediction was *at least two of three*; the falsifier was
+*fewer than two*. Two.
+
+**Lifecycle passes on a single finding, and it is worth naming which.** Four of
+entry 046's five findings became `both` at replay; the survivor is finding 5,
+*`SY-03` says "no later gate" without saying what a gate is*. H4's test is
+non-emptiness in both directions, so one is enough — but a reader should know
+the margin is one finding wide, and that entry 048 discharged rule 3 for the
+non-overlaps **collectively** (*"six are overlaps"*, with `reap` making a
+seventh) rather than recording a per-finding reason for each of the ten that
+were not.
+
+**The scope that fails is the informative one.** Task-tree is not mutually
+discriminating because its `alloy-only` count, computed over findings reachable
+by both columns, is **zero** — every Alloy task-tree finding had been written
+into the catalogue before the Quint column read it. So the one scope where H4
+fails, fails for a reason that is not about blind spots at all. Had the
+independence protocol carried its fourth rule from the start, task-tree would
+have been the third discriminating scope or the honest absence of one; as run,
+it can be neither.
+
+**What the support is worth.** The `alloy-only` counts are inflated by the
+Alloy column having nine finish slices and four lifecycle slices to Quint's one
+apiece, and by six of the nine finish slices recording findings the counting
+rule can still count but the class rules cannot. H4 is a claim about
+*non-emptiness in both directions*, which is robust to all of that; a claim
+about the *ratio* would not be, and none is made.
+
+### H5 — temporal Alloy and executable Quint fail differently. **Falsified.**
+
+H5 made two directional predictions and required both. The second fails twice
+over.
+
+- **Quint reaches interruption/ordering defects Alloy does not: HELD.** Entry
+  044's two sharpest findings — `PartialScaffold` against a foreign write, and
+  bulk-mark convergence against `AlreadyTerminal` — are both `quint-only` and
+  both classed `interruption`.
+- **Alloy reaches eventuality claims bounded simulation cannot: FAILED.** The
+  corpus contains exactly two findings classed `eventuality`, at entries 046 and
+  047. **Both are `quint-only`.** No `alloy-only` finding anywhere carries the
+  class. H5's falsifier fires on both of its own clauses at once: *no
+  `alloy-only` finding carries the M2 class `eventuality`*, **and** *the class
+  lands in the opposite formalism*.
+
+**And the reason is not that Alloy cannot do eventualities. It is that the
+catalogue both columns were written from contains none, deliberately**, which is
+checkable at the source rather than inferred from the tags. `SY-13` is the one
+claim that reads like a liveness property, and
+[`docs/specs/semantic-contract.md`](specs/semantic-contract.md) states in its own
+words that it is **existential reachability and deliberately not a liveness
+property**: *"Stating it as 'the loop will reach one' would need a fairness or
+admission premise the models have no grounds to grant."* The deliberate-omissions
+table then removes the other candidate — *clocks, timeouts and retry counts* are
+omitted because *a bounded handoff wait is a liveness property of the
+implementation, not of the protocol*. Entry 045 records the same for the finish
+scope (*"No eventuality is checked"* — `FN-23`'s idempotence and `FN-21.a`'s
+resumption are stated as safety), and no model in the corpus assumes fairness
+anywhere.
+
+**So the arm of H5 that depended on eventualities had nothing to run on, and the
+decision that removed it was made in the shared ancestor before either model
+existed.** That is a property of the subject and of the catalogue's own
+modelling choices, not of Alloy 6 — and it is exactly the confound a
+pre-registration exists to expose rather than to hide. H5 is falsified on the
+ledger as kept; what it actually measured is that **a catalogue written to be
+checkable without fairness cannot discriminate two tools on their handling of
+fairness.**
+
+**One honesty note on the ledger behind this.** Seven of the Alloy finish
+column's twelve findings (entries 034 – 039) carry no `M2` tag at all, so they
+cannot carry the class either. The catalogue check above is what makes the
+verdict safe against that gap: there is no eventuality claim for an untagged
+finding to have been about.
+
+**The axis H5 should have named, supplied by entry 048 finding 5.** What
+separated the two columns was not temporal operators versus guarded actions. It
+was **the shape a property is stated in**:
+
+> A property stated over **one action's own before/after pair** cannot discover
+> that its claim was quantified too widely. A property stated over **the trace**
+> can.
+
+Quint's `SY-04.b` accumulated `refusalMutated` from one operation's pair and was
+*silently correct*; Alloy stated the same claim over the trace and the
+catalogue's missing scoping became visible as a counterexample. Neither is a
+tool property: `quint-statement-shape-k61` restated the property over the trace
+in Quint and it immediately found a counterexample **of its own** that no Alloy
+command had — a validated configuration standing as a licence across a
+`configChange`. **The same tool, the same model, a different statement shape,
+and a finding appears.**
+
+That leaf also added a second axis the rule above misses. `SY-10.b` was stated
+at the *right* grain and discharged by `not(hist.silentPark)` — a restatement of
+the model's own dial spelled backwards. **A property discharged by a
+configuration rather than by an observation is unfalsifiable at any grain**, and
+no trace/pair classification detects it. Twelve of the twenty-five `SY-`
+properties are pair-shaped and each is the right grain; *pair* is a defect only
+when the claim's subject is wider than one operation.
+
+**Transferable, and it is this experiment's most reusable result:** when
+comparing two behavioural formalisms, control for statement shape and for what
+discharges the property, or the comparison measures the modeller.
+
+### H6 — counterexample usefulness is a property of the tool. **Inconclusive.**
+
+H6 needs the **paired** population: findings tagged `both`, each carrying an M3
+score per formalism. The corrected census has **seven** paired findings, which is
+already above the pre-registered floor of five — but **none of the seven carries
+two M3 scores**. Three cannot even in principle: their Alloy counterparts are
+retained counterexamples in `crates/grove-finish/models/README.md` rather than
+entry-recorded findings, and a retained counterexample carries no M3. For the
+rest, entry 048 records the re-tagging itself with a single score or `M3 n/a`.
+The usable paired population is therefore **zero**.
+
+`inconclusive` was pre-registered for "fewer than five paired findings", and it
+is recorded here rather than rescued with a different statistic — which is what
+the clause was fixed in advance to prevent.
+
+**What made it uncomputable is worth more than the verdict.** M3 is scored *at
+the moment of reading, before any fix*, per `(finding, formalism)`. A finding
+only becomes paired at **replay**, which is many sessions later and by
+construction after both fixes. So the operand H6 needs and the moment H6's
+population is determined **cannot both be satisfied by a protocol that forbids
+cross-reading until both columns are green**. H6 is not thin by accident; it is
+incompatible with independence rule 2 as written. A future experiment wanting
+H6 must have each column score M3 for *every* finding it reaches, whether or not
+it believes the finding unique — which costs nothing and is the only way the
+scores exist when the pairing arrives.
+
+### H7 — findings convert to tests. **Falsified.**
+
+The falsifier is *any* material finding that yields no executable Rust test
+failing against the pre-fix implementation. There are many, and the pattern is
+uniform: **`M4 = none` is the modal value across every entry that records
+M4** — entries 031 – 033 and 040 – 048 alike — and the
+reason is nearly always the same one the pre-registration's third borderline
+anticipated — *shipped behaviour the model says is fine, but a catalogue
+required to describe it never described it*. There is no defect to write a test
+against; the correction is a catalogue row.
+
+Counting the exceptions is quicker than counting the falsifications. Findings
+that **did** derive a failing test:
+
+- entry 044, `PartialScaffold` vs a foreign write, and bulk-mark convergence —
+  two, in the black-box binaries;
+- entry 045, five tests across `tests/finish_lifecycle.rs` and
+  `src/finish_cleanup/auxiliary/tests.rs`;
+- entry 048, the `PartialScaffold` window, **red today**.
+
+Every other material finding in the experiment records `M4 = none`.
+
+**This is the single most important result for the phases that follow.** A
+formal phase run against an implementation that already exists and is green
+produces, overwhelmingly, **corrections to the specification rather than defects
+in the code** — and H7 was written on the assumption that a finding worth having
+is a finding a test can catch. On this subject that assumption is false about
+four findings in five. The value the models delivered is almost entirely in
+`docs/specs/semantic-contract.md`, and the phase that consumes it is
+documentation, not implementation.
+
+### H8 — placement is a real trade-off. **Supported, on one family.**
+
+Both conjuncts hold, computed as pre-registered — *authoring hours ÷ checked
+claims*, aggregated separately:
+
+| arm | entries | hours | obligations | h/obligation |
+|---|---|---|---|---|
+| component-local (Alloy, task-tree) | 026 – 030 | 11.83 | 41 | **0.289** |
+| system-level (Alloy, lifecycle) | 040 – 043 | 9.33 | 25 | **0.373** |
+
+**Both arms are complete sums rather than partial ones**, which is checkable and
+was checked: the component-local slices' obligation counts are 16 + 11 + 4 + 6 +
+4 = **41**, and entry 030's two declared gaps make **43** — the whole `TT-`
+scope. The system-level slices' are 6 + 5 + 6 + 8 = **25** — the whole `SY-`
+scope. Neither aggregate is missing a slice.
+
+Component-local is strictly lower, which is the operand H8 names. And the system
+model produced material findings the component models did not — fifteen distinct
+ones, about the joint rather than about either component: the two situations the closed
+outcome and refusal sets cannot name, the licence a validated configuration
+becomes, `SY-13`'s sinks, and the `reap` gate.
+
+**Three narrowings, each of which the reader needs.**
+
+1. **This is one family's arm.** The Alloy finish column (031 – 039) and every
+   Quint column recorded no authoring hours, so "component-local" here means
+   *the Alloy task-tree file* and nothing else. Entry 026 also folded **1 h of
+   runner work** into its 3 h, and the runner is not a model file; excluding it
+   gives 10.83 h over 41 obligations = **0.264**, which is lower still. The
+   verdict is unchanged in either reading, which is the only reason it is
+   reported.
+2. **Entry 043's warning is applied rather than ignored.** The four lifecycle
+   points — 0.42, 0.60, 0.46, 0.14 — are a **declining marginal-cost curve
+   inside one file**, not four samples of system-level cost: by the fourth slice
+   eight obligations needed three transitions and four fields, riding on
+   machinery three earlier sessions paid for. The component-local arm has the
+   same structure. Comparing **first slice to first slice**, as entry 043 asked:
+   **0.19 (entry 026) against 0.42 (entry 040)** — the same direction, roughly
+   twice the ratio. The verdict does not depend on which counting rule is used,
+   which is the only reason it is reported at all.
+3. **Neither figure is a per-obligation estimate for a new scope.** Both arms
+   mix the cost of *building* a model with the cost of *adding claims to one*.
+
+### H9 — synchronization is the dominant hidden cost. **Falsified.**
+
+Two of the three falsifying clauses fire.
+
+- **M6 is `0` for the entire construction phase**, recorded as such in every
+  entry that records it (026 – 030, 042, 043). Not a lapse: the Alloy column had
+  no sibling to synchronize with, and the Quint column was **forbidden** to read
+  it. Synchronization was structurally unavailable until entry 048.
+- **Post-barrier, M6 is one replay session plus one restatement session** —
+  entry 048's two corrections to `task-tree.als` and
+  `quint-statement-shape-k61`'s two restatements in `lifecycle.qnt`. Entry 048
+  prices its own solver time at ~25 minutes; generously bounding the pair at two
+  sessions puts M6 at roughly **4 h**.
+- Against a denominator of M5 (≥ 22 h recorded, certainly higher) + M6 + M7
+  wrangling (≈ 4.2 h recorded), M6's share is **≈ 10%**, below the 30% floor.
+  And M6 does not exceed `max(authoring_alloy ≈ 21 h, authoring_quint)`.
+
+**The finding under the falsification.** H9 predicted the cost of *keeping two
+models in agreement*. This experiment never paid it, because the independence
+protocol replaced continuous synchronization with **one deliberate replay**, and
+that is a different and much cheaper operation — entry 048: *"ninety per cent of
+this leaf's value came from reading, and the solver's whole contribution was to
+make three of those readings falsifiable."*
+
+**But it is not free, and the tax is nameable.** Entry 048: *a negative result
+from a bounded tool is ambiguous until you spend a run disambiguating it*, and a
+replay session pays that on every finding it carries across — three narrowing
+probes to establish that one *no instance* was a modelling exclusion rather than
+a bound, and one run to tell an inert mutation from a surviving one.
+
+**Transferable:** running two formalisms independently and replaying once is
+cheaper than maintaining them in step, and it buys a measurement that
+maintaining them in step destroys. H9's premise — that two models must be kept
+in agreement as they are written — is a description of a workflow this
+experiment deliberately did not run.
+
+### H10 — a green run's silence is the main hazard. **Supported, by the zero-rule.**
+
+| arm | recorded |
+|---|---|
+| false-confidence incidents, standing hours | 026 ≈ 0.5 h · 031 ≈ 0.33 h · 040 ≈ 1.0 h · 041 ≈ 0.7 h · 045 ≈ 0.25 h — **≈ 2.8 h** |
+| genuine failing checks, hours spent | **nothing recorded anywhere** — counted as **0** |
+
+`2.8 > 0`, so H10 is supported on the ledger as kept. **It is supported by the
+pre-registration's own rule that an unrecorded duration counts as zero, not by a
+comparison**, and that is stated plainly because the alternative is to present a
+default as a result. The control arm was specified precisely — M8 was revised
+before any model existed *because* it was one-sided — and it was then almost
+never populated. Entry 046 lists five genuine failing checks with no hours
+against any of them.
+
+**The uncounted half is larger than the counted half, and it points the same
+way.** The 2.8 h above omits every incident recorded in *rounds* or as *the
+whole producing session*: entry 048's `TT-20` tautology **stood for the life of
+the file**, through five slices, a mutation matrix, an assumption table and a
+retained-counterexample list, none of which could reach it. And two entire
+review-plus-integration chains — `task-tree-k55`/`k56` and `system-k59`/`k60` —
+exist because a column that reported its own incidents shipped more: `k55` found
+**three false greens in the runner**, and `k59` found **four further
+false-confidence incidents that had survived the producing session** — inside
+six findings of which four were invisible to any run of the suite itself. Those
+are four sessions whose entire cost is the price of green runs that meant less
+than they appeared to. Counted in sessions rather than in
+hours, the false-confidence arm dominates by a wide margin.
+
+**Transferable, and it is the discipline this experiment would keep above all
+others:** the unit worth reviewing is not the model and not the finding, it is
+**the pair `(claim, the control that would falsify it)`**. Four of `system-k59`'s
+six findings were invisible to the suite because a suite cannot ask whether a
+mutation kills anything besides its target, whether a measurement measures its
+subject, or whether a quoted number can be re-run.
+
+## Which formalism caught what, stated as shapes rather than as counts
+
+The census says *how many*. What a reader can act on is *which shape of
+question each family was in a position to answer*, and the two families differ
+by one structural property that no hypothesis predicted.
+
+**Alloy posits states; Quint builds them.** `finish.als` retains **twenty-one**
+counterexamples, of which the README says twenty are about the model or the
+catalogue rather than about the protocol — and **twelve are a single shape**: a
+claim about tree *shape* falsified by Alloy's free initial state. A preparing
+witness with something already inside it, a manifest half-written by no step, a
+hand-edited marker pair. Their lesson is one rule met at five separate grains:
+*a shape claim under a free initial state must be restated over the transition
+relation.*
+
+**None of the twelve has a Quint analogue, and the reason is structural rather
+than a difference in power.** `finish.qnt` and `lifecycle.qnt` each open with an
+`action init` that constructs one state; every later state is reached by a
+transition. **The entire class is unreachable in Quint by construction.**
+
+So each family pays for its non-protocol states in a different currency:
+
+| | how non-protocol states arise | what it costs | where the cost shows up |
+|---|---|---|---|
+| **Alloy 6** | posited by the solver from a free initial state | fencing off the states the protocol cannot build | twelve retained counterexamples in one file |
+| **Quint** | built by transitions from one `init` | reaching the rare ones | twelve `scenario_` instances in the finish column, four in task-tree |
+
+**Reading either column's retained-counterexample total as a finding count
+double-counts a modelling strategy.** That is the single most likely misreading
+of this experiment's raw numbers, and it is why the census above counts
+*material findings* and not counterexamples.
+
+**Quint's own productive shape is the witness obligation, and it paid off in a
+way nobody predicted.** The catalogue never says which lifecycle actions are
+gated on the root's classification. Quint gated `reap`; Alloy's `doReap` reads
+no tree at all. The Quint model's `wit_SY_05a` then **never landed**, and the
+unlanded witness is what turned a wrong guess into a finding. *A witness that
+never lands is how a model reports its own wrong guess about an underdetermined
+specification* — and the shipped driver settles it: `src/loop_driver.rs` reads
+no root classification on the reap path, so the catalogue gap is real and there
+is no product defect behind it.
+
+**And the pair produced two findings neither column could have produced alone**,
+which is the strongest available argument for running two:
+
+- **Two opposite resolutions of one silence.** `FN-13`'s stated witness
+  conflicts with *Outcomes*' rule that a caller who has already mutated is owed
+  `Blocked(OwnershipConflict)`. Alloy followed the catalogue and **refused**;
+  Quint followed the three-contexts rule and **blocked**. Two independent
+  readings of one document, both reasonable, incompatible. `reap` is the same
+  shape. **An opposite resolution is stronger evidence that a specification is
+  underdetermined than either column's own account of it.**
+- **A check that cannot fail in the direction the other column's counterexample
+  points.** `TT-20`'s fourth conjunct was a theorem of `rootState`'s own body —
+  green with no protocol premise at all, at its own bound. Entry 044's
+  counterexample is a tree that *stops being* a partial scaffold, so it never
+  entered the antecedent. **A third vacuity class**, beside *a bound too small*
+  and *a state reached and empty*: **an antecedent that excludes exactly the
+  counterexample the claim is about.** No mutation matrix, assumption table or
+  witness obligation can reach it, because each of those asks whether a check
+  *fails*.
+
+## What neither formalism established
+
+Recorded with the care the pre-registration demands of misses, because these are
+what the documentation and implementation phases inherit as *unmodelled*.
+
+- **No eventuality is checked anywhere in the experiment.** The catalogue's
+  claims are safety claims; `FN-23`'s idempotence and `FN-21.a`'s resumption
+  read as liveness and are stated as safety. Any "recovery always terminates"
+  reading of these models is unsupported.
+- **Nothing is model-checked past shallow depth.** Quint's task-tree column is
+  bounded randomized simulation and nothing more — Apalache is reachable only
+  after splitting the controls into a second file and restating `gapless`, and
+  even then the full instance exhausts a 24 GB heap past `--max-steps=3`.
+  Quint's finish column model-checks to depth 4; the lifecycle column's `verify`
+  completes at `--max-steps=4`, **which does not reach a scaffold**. Alloy's
+  `check` is exhaustive only within each command's own scope.
+- **A lane-blind model passes every `FN-` check.** `EN-16`'s collapse control is
+  measured: with the lane collapsed to `GitL`, every `FN-` property stays green
+  and only the named witnesses stop landing. The three lanes are demonstrably
+  *reachable*; the claims *differing* under them is not established.
+- **Native jj's partial-commit hazard is unmodelled** — the deletion staying in
+  the change while the unselected witness moves into a *successor* revision
+  needs a notion of successor revisions no file here has. Entry 033 calls this
+  the sharpest thing not to read a green run as covering, and this synthesis
+  repeats it rather than softening it.
+- **The marker-replacement protocol's byte layout** is a deliberate catalogue
+  omission; `EN-01` *grants* same-directory rename atomicity rather than the
+  model establishing it.
+- **Disposal's removal is not shown re-enterable *within* a step.** `EN-03`
+  gives the shipped removal one interruption point per entry; a defect needing a
+  partial recursive deletion is outside every green above.
+- **`FN-21.b`'s in-tree-witness condition is checked at a coarser grain than the
+  shipped lease-owned reaper uses.** The model errs towards declining, so a
+  shipped reaper that proceeds where the model declines satisfies every check.
+- **The four revalidation points are not shown to be the right four.** A
+  protocol with a third filesystem handoff would need a fifth and sixth, and
+  nothing would notice.
+- **The experiment has no control arm and cannot acquire one.** The shipped
+  implementation *is* the prose-driven arm, and any claim that a model beat
+  prose here is confounded by the whole v1.0.0 → v19.3.0 history of this code
+  being read, reviewed and revised. **H2 — the model leads profitably — is not
+  retested and cannot be**, on a subject whose implementation was green before
+  the first model was written.
+
+## Cost, counterfactual, verdict — for the experiment as a whole
+
+**Cost.** Twenty-three entries (026 – 048) across **more** sessions than that —
+three of the Quint columns were each revised by a `review-prototype` and an
+`integrate-review-prototype` leaf, and two more leaves were cut downstream — over
+two model families, 129 obligations, 258 `(family, obligation)` cells and
+approximately 30 000 lines of model and model documentation. Authoring hours are
+recorded for nine slices and total **21.2 h**; the true total is materially
+higher and unrecoverable. Run cost at this revision is dominated by one file:
+Alloy's task-tree cell at 6888 s CPU against every other cell's minutes.
+**Wrangling — hours lost to the tool rather than to the problem — is ≈ 4.2 h
+recorded**, and its single largest item is entry 026's 3 h of performance
+cliffs, output-format discovery and a dead end in which every check ran at three
+steps before the unconstrained initial state was noticed.
+
+**Counterfactual.** Stated per shape rather than as one claim, because the
+answer differs sharply:
+
+- **Available by careful reading**: most of the catalogue's textual
+  contradictions — `TT-17` against `PartialScaffold`, `TT-15.a` against
+  `TT-24.b`, `FN-25.b`'s literal wording. A sufficiently adversarial reader with
+  the catalogue open finds these. What the models supplied was the *forcing
+  function* that made someone read that closely, which is real but is not a
+  claim about formalism.
+- **Not available by reading**: every finding that needs an interleaving.
+  Entry 043 is explicit — the `doTreeOp` defect is missing a conjunct in a
+  predicate 400 lines from the claim that wanted it, and its three sibling
+  transitions carry the conjunct correctly, so *a diff review sees three right
+  answers and no fourth question*.
+- **Not available from either column alone**: the pair findings above.
+- **Not available from any model**: the two questions the product fixtures
+  settled in minutes — whether `reap` reads a tree in the shipped driver, and
+  which window of an interrupted `root-init` actually reaches `Legacy`.
+
+**Verdict — three sentences, and the third is the one to carry.**
+
+1. **On this subject the two formalisms were complementary in the finish and
+   lifecycle scopes and indistinguishable in the task-tree scope**, and the
+   task-tree result is an artifact of a writable shared ancestor rather than a
+   fact about the tools.
+2. **The value delivered was overwhelmingly specification correction rather
+   than defect detection** — `M4 = none` is the modal outcome — which is what a
+   formal phase should be expected to deliver against an implementation that is
+   already shipped and green.
+3. **The most productive single instrument in the whole experiment was neither
+   tool.** It was the **pair `(claim, the control that would falsify it)`**,
+   applied adversarially by a fresh context: `system-k59` found six real defects
+   in a suite that was green, coverage-asserted and had already published its
+   own false-confidence ledger, and four of the six were invisible to any run of
+   that suite.
+
+## The combined workflow this subject would actually use
+
+H4, H5 and H8 were declared load-bearing because *they decide what the eventual
+routing advice says*. This is that advice, bounded to subjects like this one — a
+stateful protocol with crash recovery and a VCS boundary, modelled against an
+implementation that already exists.
+
+1. **Write the tool-neutral catalogue first, and freeze it before the first
+   model.** This is independence rule 4, and it was added at entry 048 *after*
+   four sessions had already edited the shared ancestor. The cost of learning it
+   late is that one of three scopes can no longer be scored. **An independence
+   barrier over two models is not a barrier while their common ancestor is
+   writable.**
+2. **Run the two families independently and replay once. Do not maintain them in
+   step.** H9's predicted synchronization cost never materialised because the
+   protocol replaced it with one deliberate replay, and the replay is where the
+   two findings neither column could reach came from. Budget the replay's own
+   tax honestly: **a negative result from a bounded tool is ambiguous until you
+   spend a run disambiguating it**, and a replay pays that per finding carried
+   across.
+3. **Route by statement shape, not by tool.** Before choosing a formalism, ask
+   two questions of the claim, both of which cut across both tools:
+   - *Is the claim's subject wider than one operation?* If so, state it over the
+     trace. A property stated over one action's own before/after pair cannot
+     discover that its claim was quantified too widely.
+   - *Is the property discharged by an observation, or by a restatement of the
+     model's own configuration?* The second is unfalsifiable at any grain and no
+     shape classification detects it.
+4. **Then route by where non-protocol states come from.** For a claim about
+   *shape* that must hold from arbitrary starting states, a free initial state
+   is the cheap instrument and Alloy has one. For a claim about whether a rare
+   interleaving is *reachable at all*, a constructed initial state plus a
+   witness obligation is the cheap instrument and Quint has one — and an
+   unlanded witness is a first-class result, not a failure to measure.
+5. **Every property carries a control that would falsify it, and the
+   `(claim, control)` pair is what a fresh context reviews.** This produced more
+   than either tool did. A suite cannot ask whether a mutation kills anything
+   besides its target, whether a measurement measures its subject, or whether a
+   quoted number can be re-run.
+6. **Score M3 for every finding at reading time**, not only for findings
+   believed unique — otherwise the paired population exists only after the
+   scores can no longer be taken, which is what made H6 uncomputable here.
+7. **Reach for a product fixture before reaching for a wider bound.** Four
+   fixtures and a reading of two functions settled two questions the models could
+   not, in minutes.
+8. **Check whether your subject has any eventuality claims before paying for a
+   temporal tool on that ground.** This one had none, and half of H5 had nothing
+   to run on.
+
+## Concrete changes to design, tests and documentation
+
+Named here, executed by this node's siblings. This leaf decides no catalogue
+question; the list is the hand-off, and every item names its owner.
+
+**To `obligation-placement-k63` — the placement shape, at six recorded
+instances.** An obligation whose subject spans two component scopes currently
+has no home rule, and the consequences are already visible in three different
+ways: `TT-24.c` and `TT-24.d` are declared out-of-bounds by the task-tree Alloy
+column and answered by the Quint one; Q4 row 6 in the finish column is *decided
+by a mutation and cited to an obligation no check in that directory can name*;
+and `SY-06.b`, `SY-05.b` and `SY-14`'s operator exit are imported into the
+lifecycle scope and checked in neither. This is what *model-to-crate ownership*
+means for the crate boundary the root brief approves, so it is settled before
+the disposition that would otherwise settle it case by case.
+
+**To `catalogue-disposition-k64` — every inherited catalogue finding.**
+Ninety-seven sites across eleven files name `formal-synthesis-k16` and hand it a
+disposition. The classes, so the child can size its own decomposition:
+
+- **Closed-set additions.** `RRolledBack`, `RConfigInvalid`, `RGenContended`,
+  `ONotEntered`, `Stopped` — each declared by a model as an addition the closed
+  refusal or outcome set has no member for. **Each of these changes the runner's
+  manifest**, so each cascades into commands in both families.
+- **Claims false as literally worded.** `FN-25.b`, `SY-13` on the
+  `Legacy`/`Foreign`/`Malformed` sinks, `TT-17` against `PartialScaffold`,
+  `TT-15.a` against `TT-24.b` and `TT-18`.
+- **Underdetermined claims the two columns resolved in opposite directions.**
+  `FN-13`'s refuse-or-block, and whether `reap` is gated on the root's
+  classification. These are the sharpest items on the list precisely because
+  neither reading is unreasonable.
+- **Scoping.** Whether `SY-04.b` owes `SY-03`'s licence prohibition for the
+  configuration as well as for the layout; `SY-14.b`/`SY-04.b` against
+  `release-lease`, which touches no tree; `EN-11`'s controls column
+  mis-attributing `TT-24.b` to `hand-edit` where the dependency is `EN-13`.
+- **State-table completeness.** The shipped *ambiguous partial root scaffold*
+  refusal is a fail-closed outcome the catalogue's state table has no member
+  for, and it is a better answer than either model gives.
+- **Prose, manifest-neutral.** The catalogue's *`models/run.sh` is the one
+  repository runner* section says **three** obligations where Q4's own paragraph
+  makes **four**.
+- **Model-only, not catalogue.** The `SY-10.b` / `SY-11.b` collision over
+  `WGen`: one obligation's apparatus constructs the state another forbids.
+  `TT-24.c`'s Quint invariant is a transcription of `gateOutcome`'s own branch
+  with no control — a control, a declared gap, or a re-scoping, and the third is
+  `obligation-placement-k63`'s.
+
+**To `finish-verdicts-k65` — `TODO.finish_process.md` Q1 – Q4.** The catalogue
+pre-committed the evidence that classifies each, so these are read rather than
+argued. What is already on the record, and what is missing, is set out in this
+session's running log; the verdicts are that child's.
+
+**To `handoff-audit-k66` — reachability of the durable artifacts, and three
+recorded documentation gaps.** This session checked all six model files against
+the seven fields the node brief requires — tool version, bounds or trace limits,
+solver/backend, fairness assumptions, abstractions, deliberate omissions, and
+*what a green run does not prove*. **All three Alloy halves carry all seven.**
+The three Quint halves are missing the same two or three each, and every one of
+them is a gap of **placement rather than of substance**:
+
+- **No explicit fairness statement in any Quint half.** Each Alloy half has one
+  (`crates/grove-finish/models/README.md`: *"Fairness. None assumed, and none
+  needed"*). The Quint halves state it nowhere, though entry 044 does — *"No
+  fairness assumptions: nothing here is a liveness claim"* — and the catalogue
+  settles it for the whole experiment at `SY-13`.
+- **Tool version stated only incidentally** in the task-tree and finish Quint
+  halves — `quint verify 0.32.0` appears inside a *Verification* paragraph
+  rather than as a stated field. `models/system/README.md` gets this right, with
+  `quint 0.32.0` on its run line beside the samples, depth and seed.
+- **No *what a green run does not prove* section in the task-tree Quint half.**
+  Its *Narrowings and qualifications, each declared* carries much of the
+  material and entry 044's *Missed* carries the rest, so the
+  pre-registration's recording obligation is met at the entry level.
+
+The Alloy task-tree half also states its own version of that section as a bolded
+paragraph inside *The mutation matrix* rather than as a heading — findable by
+reading, not by scanning, which is the same weakness one degree milder.
+
+**Tests — eight, and every one of them belongs to the implementation phase.**
+Two from entry 044 (the `PartialScaffold`/foreign-write classification, and
+bulk-mark convergence across an interruption), five from entry 045 (four in
+`tests/finish_lifecycle.rs`, one in `src/finish_cleanup/auxiliary/tests.rs`), and
+one from entry 048 (the `PartialScaffold` window — **red today**). Against the
+roughly forty-five material findings this experiment produced, eight derived
+tests is H7's falsification stated as a number.
+
+**One test that must not be written yet.** The mid-flight block — an ordinary
+mutation that has already applied an effect and whose next create is no longer
+licensed — has no derived test *on purpose*: what it asks for is a decision the
+catalogue has not made, and a test written first would encode the model's
+least-wrong choice as though it were the contract.
+
+## What this synthesis does not claim
+
+- **Nothing about Quint or Alloy 6 in general.** One subject, one pair of
+  pinned versions, one team, one methodology.
+- **No comparison against prose was run**, and none can be: the shipped
+  implementation is the prose arm, and its whole revision history confounds the
+  comparison. H2 is untestable on this subject and is not tested.
+- **The M-derived figures are as good as the ledger**, which is partly empty:
+  no authoring hours for the Alloy finish column or for any Quint column beyond
+  one estimate, no `M2`/`M3` tags for seven of the twelve Alloy finish findings,
+  and an M8 control arm with no hours in it at all.
+- **The finding counts are not a fair race.** The Alloy column ran nine finish
+  slices and four lifecycle slices to Quint's one apiece, and the entry-level
+  counting rule scores *what was written down as a finding*, not what was
+  reached. Entry 048 has the worked example: `TT-23`'s idempotence requirement
+  is a choice Alloy made and left in a code comment, and Quint recorded as a
+  catalogue finding with a mutation behind it. **An unrecorded modelling choice
+  and a recorded catalogue finding are the same event, and only one of them
+  counts.**
+- **Neither column is re-checked here.** This section re-ran the matrix and read
+  the entries; it verified no model's reasoning.

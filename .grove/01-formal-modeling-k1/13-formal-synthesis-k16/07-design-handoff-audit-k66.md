@@ -126,3 +126,44 @@ reported 28 broken links and 25 were `path#L1234` citations in a retired review
 leaf whose paths are fine — a checker that resolves the fragment as part of the
 path reports a clean tree as broken, which is the same instrument failure in the
 opposite direction.
+
+## Routed here by `finish-scope-k71` — a fifth product-facing question, and it is about the reaper rather than a diagnostic
+
+The four you already carry are diagnostic-naming questions. **This one is a
+behavioural gap and it was found by reading the shipped code against the
+catalogue rather than by any model run**, so it arrives with evidence rather than
+as a suspicion.
+
+**`FN-22` requires four revalidation points and the fourth runs after the
+quarantine rename.** In the transaction it does: `proof.revalidate()` runs after
+`cleanup.handoff()` and a failure calls `cleanup.restore()`
+(`src/finish_transaction.rs:1949-1969`). **On the crash path it does not.** After
+an interruption there is no in-tree cleanup owner, so
+`finish_cleanup::reap_orphaned` matches the marker, finds no live owner, and
+calls `cleanup.dispose()` — **it never re-reads the disposition**
+(`src/finish_cleanup/reaper.rs`). The same is true on the driver's best-effort
+reap-failure path: `transition_driver_to_current` warns and classifies anyway
+(`src/tree_lifecycle.rs:85-96`).
+
+**Why it is yours and not the catalogue's.** `finish-scope-k71` landed
+`Reserved(Quarantined)` and the classification reorder, so the **contract** now
+says the post-rename disk is a reserved state and not `Absent`, which is what
+`SY-05.b` needs. What the contract cannot say is what a *sweep* outside a
+transaction owes: `FN-21` charters the reaper as marker-guarded and bounded to
+Grove's own, and `FN-21.a`'s re-enterability is about resuming disposal, not
+about re-deciding whether disposal should happen. Whether the shipped reaper
+should re-read the disposition before disposing — or whether the marker's
+existence is itself the settled decision, which is the defensible reading and
+probably the intended one — is a product decision on the evidence, which is your
+charter's own wording.
+
+**Two things to weigh, both stated so you can disagree with them.** In favour of
+the incumbent: the marker is written only after the fourth revalidation returned
+`Committed` in the transaction that wrote it, so its existence *is* a record of
+that decision, and re-reading would make the reaper need a repository read it
+currently does not take. Against: `FN-20` says no artifact a transaction leaves
+behind is a receipt for it, and the cleanup marker is such an artifact — so
+treating its existence as the settled disposition is exactly the inference
+`FN-20` forbids, at one remove. `finish-scope-k71` did not resolve that and
+deliberately did not try: it is a claim about the shipped protocol's own
+evidence, which is what this leaf audits.

@@ -41,6 +41,8 @@ module scenario_march {
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -192,6 +194,8 @@ module scenario_gates {
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -306,6 +310,8 @@ module scenario_crash {
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -353,6 +359,8 @@ module scenario_crash_late {
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -394,6 +402,8 @@ module scenario_edit_txn {
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -440,6 +450,8 @@ module scenario_reval {
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
     MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
     RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -512,6 +524,8 @@ module scenario_foreign_marker {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -553,6 +567,8 @@ module scenario_unclassifiable {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -585,6 +601,8 @@ module scenario_orphan {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -620,6 +638,8 @@ module scenario_return_blocked {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -650,6 +670,8 @@ module scenario_return_crash {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -684,6 +706,8 @@ module scenario_crash_disposal {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -750,6 +774,8 @@ module relax_EN_01 {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -792,6 +818,8 @@ module relax_EN_03 {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -845,6 +873,8 @@ module relax_EN_05 {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -896,6 +926,8 @@ module relax_EN_08 {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -939,6 +971,8 @@ module relax_EN_13 {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -978,6 +1012,8 @@ module relax_EN_15 {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1019,6 +1055,8 @@ module relax_EN_16 {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1072,6 +1110,8 @@ module mutant_status_classifier {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1103,6 +1143,8 @@ module mutant_no_revalidation {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1135,6 +1177,8 @@ module mutant_nonatomic_marker {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1165,6 +1209,8 @@ module mutant_unproven_ownership {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1220,6 +1266,8 @@ module mutant_unproven_marker {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1250,6 +1298,8 @@ module mutant_eager_recovery {
     RECOVERY_IDEMPOTENT = false,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1281,6 +1331,8 @@ module mutant_eager_preflight {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = false,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1315,6 +1367,8 @@ module mutant_short_preflight {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = false,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1354,6 +1408,8 @@ module mutant_receipt_reading {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = true,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1387,6 +1443,8 @@ module mutant_hooks_run {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = false,
     COMMIT_SCOPED = true,
@@ -1419,6 +1477,8 @@ module mutant_unscoped_commit {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = false,
@@ -1452,6 +1512,8 @@ module mutant_history_rewritten {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -1462,4 +1524,84 @@ module mutant_history_rewritten {
 
   val inv_fail_MUT_FN_26_a_block_cleared_by_rewriting_history: bool =
     inv_FN_26_history_is_never_rewritten
+}
+
+
+/// §*States* WITHOUT `Reserved(Quarantined)` — the six rows this scope reaches
+/// without it, as the table stood before `finish-scope-k71`.  This is
+/// `FN-24.a`'s fourth conjunct's own alternative, and what it produces is the
+/// finding: a disposal that has released its reserved witness while its
+/// quarantine still stands, and `EN-11`'s orphaned quarantine beside a task root
+/// that is still present, both read as an ORDINARY grove.  That is what
+/// §*States*' load-bearing property forbids, and without the row nothing in this
+/// column said so.
+module mutant_no_quarantined_state {
+  import finish(
+    RENAME_ATOMIC = true,
+    ATOMIC_DISPOSAL = false,
+    ATOMIC_COMMIT = false,
+    CRASHES = true,
+    FOREIGN_WRITES = true,
+    REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false,
+    LANES = Set(0, 1, 2),
+    REVALIDATE = true,
+    CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true,
+    OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true,
+    PREFLIGHT_PURE = true,
+    PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = false,
+    RESERVED_BEFORE_ABSENT = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    ENV_BUDGET = 1, ENV_PHASES = Set(1, 2, 3, 4, 5, 6), ENV_KINDS = Set(0),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  val inv_fail_MUT_FN_24a_a_standing_quarantine_reads_as_an_ordinary_grove: bool =
+    inv_FN_24a_every_interruption_lands_in_exactly_one_state
+}
+
+/// §*States*' FORMER table ORDER, taken literally: `Absent` first and the whole
+/// `Reserved` class after it.  It is a mutation to the ranking rather than to
+/// one edge of it, which is the point — a precedence relation is transitively
+/// redundant by construction, so a disk's classification survives the loss of
+/// any single pair on a neighbouring one.  What it produces is `FN-24.a`'s third
+/// conjunct: the disk an interruption immediately after the quarantine rename
+/// leaves reads `Absent` while `FN-22`'s fourth revalidation point is still
+/// ahead of it — which is the trace `SY-05.b` says does not exist and which
+/// `SY-05.a` would scaffold a fresh grove over.
+module mutant_absent_classified_first {
+  import finish(
+    RENAME_ATOMIC = true,
+    ATOMIC_DISPOSAL = false,
+    ATOMIC_COMMIT = false,
+    CRASHES = true,
+    FOREIGN_WRITES = true,
+    REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false,
+    LANES = Set(0, 1, 2),
+    REVALIDATE = true,
+    CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true,
+    OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true,
+    PREFLIGHT_PURE = true,
+    PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = false,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    ENV_BUDGET = 1, ENV_PHASES = Set(1, 2, 3, 4, 5, 6), ENV_KINDS = Set(0),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  val inv_fail_MUT_FN_24a_the_post_rename_disk_reads_as_absent: bool =
+    inv_FN_24a_every_interruption_lands_in_exactly_one_state
 }

@@ -363,11 +363,16 @@ it must restore, never that the attempt completed. That is the
 
 **Correlation ticket**:
 The deletion commit's own message, naming the finish [[Work-item handle]] and the
-[[Finish-attempt identity]]. It is the durable record that a given attempt
-completed, and it survives in version-control history after every artifact the
-transaction owns has been destroyed.
+[[Finish-attempt identity]]. It is the **only** durable record that a given
+attempt completed: it survives the destruction of every artifact the transaction
+owns, and it must also survive the **re-creation** of one, because after the
+quarantine rename the task-root name is free and the world owns the namespace
+(`docs/adr/success-is-proved-by-the-ticket-not-the-tree.md`).
 _Avoid_: the post-commit cleanup [[Quarantine]], or any control-directory
 artifact, as a substitute — those are cleanup garbage and prove nothing.
+_Avoid_: deciding success by looking for the task root. A `stat` reports failure
+on a grove someone simply started using again, and success on one where the
+quarantine had been moved back over it.
 
 **Finish disposition**:
 The classification of the *commit*, derived from the recorded anchor, the
@@ -381,13 +386,19 @@ _Avoid_: an exit status as the boundary — a lost or late result can report
 failure after the exact commit exists.
 
 **Recovery pending** / **Ownership conflict**:
-The two diagnoses a blocked [[Finish transaction]] leaves. **Recovery pending**
-means a correlated Grove-owned attempt is incomplete: the artifact holding the
-transaction is provably Grove's, named by this handle and this
-[[Finish-attempt identity]], and the outcome cannot yet be proven either way.
-**Ownership conflict** means state is unrelated, ambiguous, or cannot be proved
-safe to mutate. Both are stable and operator-restorable; Grove never rewrites
-history to clear either.
+The two diagnoses a blocked [[Finish transaction]] leaves, **each defined by its
+own first sentence** — the instances the contract prints after it illustrate and
+do not exhaust it. **Recovery pending** means a correlated Grove-owned attempt is
+incomplete: the artifact holding the transaction is provably Grove's, named by
+this handle and this [[Finish-attempt identity]]. **Ownership conflict** means
+state is unrelated, ambiguous, or cannot be proved safe to mutate. Where both
+hold of one disk, ownership conflict wins — the outcome names the strongest thing
+Grove cannot account for. Both are stable and operator-restorable; Grove never
+rewrites history to clear either.
+_Avoid_: reading *the outcome cannot yet be proven either way* as part of recovery
+pending's definition. It is the ordinary case and not a condition: two rows of the
+contract's own revalidation table are blocks whose outcome **is** proven and are
+diagnosed recovery pending.
 _Avoid_: reading the pair as shipped diagnostics. The shipped classification
 gathers both under one blocked state; the split is required by
 `docs/specs/semantic-contract.md` and its adoption is a decision the formal phase
@@ -399,9 +410,18 @@ directory into which a proven [[Finish transaction]] atomically renames the whol
 `.grove/` root — witness and evacuated tree intact — before descriptor-rooted
 disposal. Same-device by [[Workspace layout preflight]]'s constraint, and revalidated
 against the transaction's own operands.
-_Avoid_: reading a quarantine's presence as evidence a finish happened, or its
-absence as evidence one did not; it is cleanup garbage, never a finish receipt or
-a workflow input.
+A standing quarantine classifies the task root **`Reserved(Quarantined)`** — the
+fourth member of the reserved class — because the disposition is not settled
+until the fourth revalidation point, which runs *after* the rename; the whole
+reserved class is classified before `Absent` for that reason. It stops nothing:
+unlike a reserved witness, its recovery is the reaper's sweep, which refuses no
+operation.
+_Avoid_: reading a quarantine's presence as evidence a finish **happened**, or
+its absence as evidence one did not; it is cleanup garbage, never a finish
+receipt or a workflow input. *Evidence a finish happened* is the
+[[Correlation ticket]] and nothing else — a different question from *evidence a
+finish is unfinished*, and conflating the two makes one claim forbid the
+classification another requires.
 
 **Grove name**:
 The working-tree directory's basename — never a branch, a bookmark, or a

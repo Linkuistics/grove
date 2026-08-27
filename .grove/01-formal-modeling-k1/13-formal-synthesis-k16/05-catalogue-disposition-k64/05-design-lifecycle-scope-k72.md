@@ -231,3 +231,102 @@ than assumed.** The closed set gained `ScaffoldIncomplete(class)` (reasons
 scope reaches and no `SY-` obligation quantifies over the type exhaustively, so
 no re-run is owed **for the reason**. The state refinement above is a separate
 matter and is the cell.
+
+## Handed forward by `finish-scope-k71` — one cell to establish or declare, and one correction to a record you inherit
+
+**Nothing is re-scoped upward.** No `FN-` obligation moved to `SY-`, and no
+`SY-` obligation's text changed. What travels is a **§*Vocabulary*-level change
+that all three scopes sweep**, exactly as `closed-sets-k69`'s did, plus one ADR
+edit in your reading chain.
+
+### §*States* gained a row and changed its order
+
+The task-root state table now reads: the **four** `Reserved` classes first —
+`Preparing`, `Published`, **`Quarantined`** (new), `Migrating` — then `Absent`,
+then the format rows, then the three `Current` rows. Both halves are one repair
+and either alone leaves the other's disk misclassified.
+
+**The argument that decided it is one you will meet again, because `SY-05` is
+yours.** `FN-22`'s **fourth** revalidation point runs *after* the quarantine
+rename, and two of its three rows return the quarantine — so between the rename
+and that point the task-root name is free and the disposition is **unsettled**.
+The shipped protocol has the same shape (`proof.revalidate()` after
+`cleanup.handoff()`, `cleanup.restore()` on failure,
+`src/finish_transaction.rs:1949-1969`). With `Absent` classified first, that disk
+reads `Absent` — which is exactly the trace **`SY-05.b`** says does not exist
+(*no trace exposes an absent task root before the deletion is proven (`FN-11`,
+`FN-19`)*) and over which **`SY-05.a`** would scaffold a fresh grove. The
+reorder is what makes `SY-05.b` true rather than aspirational.
+
+**Two `TT-` consequences were checked and both are that nothing changed**, so do
+not re-derive them: `TT-19`'s refusal is stated over a reserved **witness** and
+does not reach a standing quarantine (whose recovery is the reaper's sweep, which
+refuses nothing); and `TT-18`'s three stages are unchanged, because its reserved
+stage reads a reserved **witness**, which lives beneath the task root, so a free
+task-root name has none — and the order over a disk only the finish protocol
+creates is `FN-24.a`'s
+([`obligations-follow-context-not-artifact`](../../../../docs/adr/obligations-follow-context-not-artifact.md)).
+`FN-19`'s own witness was reworded from *an absent task root* to *a free
+task-root name* for the same reason.
+
+### The cell, and it may well be a declaration rather than model work
+
+**`models/system/lifecycle.qnt`'s `classifyTree` returns `RSAbsent` first and
+returns it unconditionally on `not(t.present)`**, so a tree whose root name is
+free while a reserved name is occupied classifies `RSAbsent` there — the same
+defect the finish column had, and the one `SY-05.b` is stated against. Whether
+that disk is **representable** in this scope is what you owe, and `k71` looked
+far enough to say the question is real and not far enough to answer it:
+
+- `NO_TREE` sets `reserved: RNone`, and every transition that clears the root
+  (`finishStepOp`'s `FPDeleting` branch, `FPPublished` under
+  `DELETION_PROVEN_FIRST = false`, `recoverOp`'s idempotent resume) assigns
+  `NO_TREE` whole. So the summary appears to conflate the root's presence with
+  the reserved name's, which would make the disk unrepresentable and `SY-05.b`
+  true **as a modelling fact rather than as a claim**. If that holds it is a
+  declared narrowing, not a green run — say so in the README rather than leaving
+  the order reading as the catalogue's.
+- **`SY-05.b` is the obligation to look at first.** It is *the exhaustive absence
+  of such a trace within the bound*, and a model that cannot represent the trace
+  discharges it by construction. That is precisely the shape the corpus keeps
+  finding (`crates/grove-finish/models/README.md`, the fourth finding), so it is
+  worth a sentence either way.
+- If the disk *is* representable, the repair is the finish column's: the arm
+  verbatim, the order carrying the claim, and a mutant that restores the old
+  ranking. `crates/grove-finish/models/finish.qnt`'s `classifiesHonestly`,
+  `groveReservationStands` and rows 919/920 of its mutation matrix are the worked
+  example.
+- **`models/system/lifecycle.als` has no root-state classification at all** — it
+  abstracts to `rooted`/`partial`/`legacy` and imports `TT-18` as the bare fact
+  that the states differ (`fact TheClassificationIsOfTheRootThatIsThere`). It
+  most likely owes nothing; `k71` established that by reading, not by running.
+- **The task-tree scope owes nothing and that was checked in both files**:
+  `task-tree.als` carries no `Absent` state at all ("no `TT-` obligation reads it
+  and `SY-05` owns it"), and `task-tree.qnt`'s `classify` puts `Absent` first
+  over arms that cannot both hold, since a reserved witness lives *beneath* the
+  root.
+
+### `FN-20`'s witness was clarified, and it is worth reading before you cite it
+
+`FN-20`'s subject is the **commit's disposition** and never the task root's
+state, and the catalogue's witness now says so. The two finish columns were green
+on two different claims: `finish.als` stated it over the disposition, `finish.qnt`
+compared the *task-root classification* with the leftover and without it — which
+is *never observed* rather than *never a receipt*, and which the new state-table
+row makes false, because the task-root classification **must** read the
+quarantine. The wide reading would also forbid `FN-21.b`'s reaper reading its own
+cleanup marker. `models/system/README.md` cites `FN-20` as a scope boundary
+(*which interruptions recovery can settle is `FN-20`'s classification*); that
+citation is about the finish scope's own reach and is unaffected, but read it
+against the clarified wording before relying on it.
+
+### One record in your reading chain changed
+
+[`root-lifecycle-stays-with-its-receipt`](../../../../docs/adr/root-lifecycle-stays-with-its-receipt.md)
+lost its open question. The general form of *once the caller grades an effect
+applied it never ungrades it* was **declined**, and the argument is now stronger
+than the one that record carried: `FN-22`'s table has two rows that are exactly
+the transition the obligation forbids, so Grove could not honour it even if it
+wanted to. A new record,
+[`success-is-proved-by-the-ticket-not-the-tree`](../../../../docs/adr/success-is-proved-by-the-ticket-not-the-tree.md),
+carries `FN-28`'s restated operands and is cited from both.

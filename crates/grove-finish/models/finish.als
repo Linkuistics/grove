@@ -661,6 +661,17 @@ one sig W15CommittedAfterRestore, W16ReturnIncomplete extends Why {}
    transaction.  What an operator cannot learn from the `why` alone is which
    gate refused, and `README.md` records that. */
 one sig W17OwnershipConflict extends Why {}
+/* THE EXITS SLICE'S ONE, AND IT NAMES A BRANCH THAT RETURNS NO OUTCOME.
+   `doCommitAttempt` is enabled from `PublishedP` as well as from `Evacuated` on
+   purpose, so that `FN-11` is refused by a gate rather than true by
+   construction; the branch that gate takes is an INTERNAL ORDERING GUARD and the
+   transaction carries on from where it was.  §*Outcomes* says the closed set
+   covers what a completed invocation returns, so this branch gets `NoOp` and a
+   `why` of its own.  It used to borrow `doWPrepare`'s `W9SlotPending`, which
+   names a different situation entirely — Grove's own artifact already at the
+   reserved witness name, nothing mutated, the attempt over — and that sharing is
+   what `finish-scope-k71` separated. */
+one sig W18EvacuationIncomplete extends Why {}
 
 one sig Sys { var act: one Action, var res: one Result, var why: lone Why }
 
@@ -1027,24 +1038,22 @@ fun tableOutcome[p: RevPoint, d: Disposition]: one Result {
 // that cannot disagree with one.
 // ---------------------------------------------------------------------------
 
-/* THE STABLE STATES THIS FILE'S DISK CAN BE IN.  The catalogue's task-root state
-   table (§*States*) has eleven rows; six of them are reachable here, and one is
-   this file's own — see below.  `Reserved(Migrating)`, `PartialScaffold`,
-   `Legacy`, `Foreign` and `Malformed` are the task-tree scope's and no finish
-   transition produces one, which `README.md` records as a deliberate omission
-   rather than a gap.
+/* THE STABLE STATES THIS FILE'S DISK CAN BE IN.  Every row of the catalogue's
+   task-root state table (§*States*) that a finish transition can produce, and
+   nothing else.  `Reserved(Migrating)`, `PartialScaffold`, `Legacy`, `Foreign`
+   and `Malformed` are the task-tree scope's and no finish transition produces
+   one, which `README.md` records as a deliberate omission rather than a gap.
 
-   `SReservedQuarantined` IS A MODEL-ONLY MEMBER OF THE RESERVED CLASS, AND IT
-   IS LOAD-BEARING RATHER THAN DECORATIVE — mutation 50 is the evidence.  A
-   disposal that has released the reserved witness while its quarantine is still
-   standing is a disk the catalogue's table has no row for: the task root is
-   present, nothing is at the witness's name, and Grove's own quarantine is.
-   Without this member that disk classifies `Current(Spent)` — an ordinary spent
-   grove — which is exactly what §*States*' load-bearing property forbids.
-   Adding a member is licensed by the catalogue in as many words: *`TT-18`/
-   `TT-19` are stated over the reserved CLASS rather than over its members so
-   that removing one member changes no claim*.  `README.md` records it for
-   `finish-scope-k71` rather than smuggling it into the catalogue's table. */
+   `SReservedQuarantined` WAS THIS FILE'S OWN AND IS NOW THE CATALOGUE'S —
+   `finish-scope-k71` landed it as the reserved class's fourth member, and the
+   argument that decided it is `FN-22`'s FOURTH revalidation point: it runs AFTER
+   the quarantine rename and two of its three rows return the quarantine, so the
+   post-rename disk has a free task-root name and an unsettled deletion.  That is
+   the trace `SY-05.b` says does not exist and that `SY-05.a` would scaffold a
+   fresh grove over.  The member IS LOAD-BEARING RATHER THAN DECORATIVE, and the
+   evidence is the mutation `README.md` records beside the fifth finding: remove
+   this arm and `FN-24.a` goes red on the disk a disposal leaves when it has
+   released the reserved witness while its quarantine still stands. */
 abstract sig Stable {}
 one sig SAbsent, SReservedPreparing, SReservedPublished, SReservedQuarantined,
         SCurrentLive, SCurrentFinishOnly, SCurrentSpent extends Stable {}
@@ -1083,18 +1092,21 @@ fun classifiedRaw: set Stable {
    one* red rather than silently weaker.  `s -> t` reads *`s` is classified
    before `t`*.
 
-   IT DEPARTS FROM THE CATALOGUE'S TABLE ORDER IN ONE PLACE, AND THE DEPARTURE
-   IS THIS SLICE'S SECOND FINDING.  §*States* lists `Absent` FIRST and the whole
-   `Reserved` class after it.  Taken literally that classifies the disk an
-   interruption after the quarantine rename leaves — the task-root name free,
-   Grove's own quarantine holding the root — as `Absent`, which is exactly what
-   the same section's load-bearing property forbids: *a task root whose deletion
-   is not yet proven is never `Absent`*.  The two are in tension only once a
-   reserved name can be occupied while the task-root name is free, which is a
-   situation the finish protocol creates and the task-tree scope never does.
-   This file therefore orders the WHOLE RESERVED CLASS BEFORE `Absent`, and
-   `FN-24.a`'s third conjunct is what would catch the other order.  `README.md`
-   records it for `finish-scope-k71`. */
+   IT WAS A DEPARTURE FROM THE CATALOGUE'S TABLE ORDER AND IS NOW THAT ORDER.
+   §*States* used to list `Absent` FIRST and the whole `Reserved` class after it,
+   which classifies the disk an interruption after the quarantine rename leaves —
+   the task-root name free, Grove's own quarantine holding the root — as
+   `Absent`, exactly what the same section's load-bearing property forbids: *a
+   task root whose deletion is not yet proven is never `Absent`*.  The deletion
+   is not yet proven there because `FN-22`'s fourth revalidation point is still
+   ahead of it, and `SY-05.b` names this claim by identifier for that reason.
+   `finish-scope-k71` landed the reorder rather than the alternative repair —
+   qualifying the `Absent` ROW — precisely so that this order stays a claim: an
+   `SAbsent` arm narrowed to *and nothing at a reserved name either* would make
+   `FN-24.a`'s third conjunct true by construction, and so would declining to
+   carry the quarantine in the vector at all.  Both were tried and both were
+   rejected as the same defect.  Matrix row 49 restores the former order and the
+   check goes red. */
 fun earlierThan: Stable -> Stable {
     SReservedPreparing   -> (SReservedPublished + SReservedQuarantined + SAbsent
                              + SCurrentLive + SCurrentFinishOnly + SCurrentSpent)
@@ -1820,24 +1832,31 @@ pred doCommitAttempt {
        has published and evacuated, so an effect stands and the stop is a
        `Blocked` rather than a refusal — §*Outcomes*' discriminator, corrected by
        `closed-set-additions-k74`.  `Sys.why` still names the branch, which is
-       what tells this case from `W9SlotPending` below and is now the ONLY thing
-       that does, since both no longer share a reason. */
+       what tells this case from the ordering guard below; the two share neither
+       a reason nor a result now that `finish-scope-k71` gave that branch its own
+       `why` and took its outcome away. */
     not gateWitnessUntracked implies {
       Sys.res' = BlockedOutcome and Sys.why' = W8WitnessTracked
     } else {
-      /* `W9SlotPending` — a commit attempted before the evacuation is complete.
-         SURFACED BY `closed-set-additions-k74` AND ROUTED TO `finish-scope-k71`
-         RATHER THAN DECIDED.  `FN-29.b` makes this branch a question it was not
-         before: the witness is PUBLISHED here, which is an effect of this
-         action, so whether a refusal is the right outcome now has a stated test
-         instead of no test at all.  It survives `FN-29.b` as written — the
-         antecedent is the completed evacuation and this branch is short of it —
-         and that is a fact about where the line was drawn, not evidence that
-         this branch is on the right side of it.  Deciding it needs the
-         restoration path's own obligations rather than the vocabulary, and no
-         session referred it here, so it is named rather than re-decided under
-         cover of a disposition. */
-      Sys.res' = RefWitnessPending and Sys.why' = W9SlotPending
+      /* AN INTERNAL ORDERING GUARD, AND IT RETURNS NOTHING — `finish-scope-k71`
+         decided it, and the branch used to report `RefWitnessPending` under
+         `W9SlotPending`.  Two things were wrong with that and they are one
+         thing.  The outcome set is over ACTIONS: the transaction is still at
+         `PublishedP` here (`txnSame`), the next step may still complete or
+         unwind it, and nothing has been returned to a caller — so a `Refused`
+         at this branch puts a completed-invocation outcome over a tree the
+         action has already published a witness into and part-evacuated, which is
+         what §*Outcomes*' discriminator forbids at the action grain.  It escaped
+         `FN-29.b` only because that check's antecedent names the COMPLETED
+         evacuation.  And `W9SlotPending` is `doWPrepare`'s, where it means what
+         its name says — a reserved witness slot occupied by Grove's own artifact,
+         nothing mutated, the attempt over — so this branch had been sharing a
+         `why` with a situation it is not.  `NoOp` is the result this file
+         already gives a step that reports and mutates nothing (`doDecline`,
+         `doReap`'s decline), and `W18EvacuationIncomplete` names the branch.
+         `FN-11` is unaffected: `gateEvacuated` still refuses the early attempt,
+         which is what keeps the claim from being true by construction. */
+      Sys.res' = NoOp and Sys.why' = W18EvacuationIncomplete
     }
     repoSame and txnSame
   }
@@ -5438,7 +5457,10 @@ run witness_FN_27c_a_block_with_unrelated_work_present {
    the check: a finish cannot report success by looking at the task-root NAME,
    because the name is the world's to occupy.  What it can read is the
    correlation ticket, which is `FN-03`'s subject and is why that claim exists.
-   Recorded in `README.md` as a finding for `finish-scope-k71`.
+   `finish-scope-k71` LANDED THIS: `FN-28`'s own text now states the operands
+   over Grove's own steps, and the design constraint is
+   `docs/adr/success-is-proved-by-the-ticket-not-the-tree.md`.  The three
+   conjuncts below are the catalogue's three sentences one for one.
    
    (a) THE STEP THAT COMPLETES THE FINISH IS REACHED ONLY OVER A PROVEN COMMIT.
    `MarkerRemove` is disposal's last step and the only thing in this file that

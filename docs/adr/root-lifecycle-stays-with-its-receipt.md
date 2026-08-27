@@ -46,9 +46,10 @@ happened, and the library's whole world is `<root>` and `<root>/..`, so it has
 nowhere to put a receipt that is not the leftover. This is
 `TODO.finish_process.md`'s *"the interval is the whole problem"* reached from the
 library's side, and what it decides is ownership: the receipt must live outside
-the container, Grove's correlation ticket is that receipt, and a component with
-no notion of "outside" cannot own an operation whose completion only that receipt
-establishes.
+the container, Grove's correlation ticket is that receipt
+([`success-is-proved-by-the-ticket-not-the-tree`](success-is-proved-by-the-ticket-not-the-tree.md)),
+and a component with no notion of "outside" cannot own an operation whose
+completion only that receipt establishes.
 
 **The coordinator is a callback, which is the shape the one seam rules out.** A
 destroy verb must consult the caller's three-valued grade of an external effect
@@ -58,18 +59,35 @@ caller consulted from inside the transaction — while the library holds the loc
 and the root is unwalkable — can only be refused, converting an attempt whose
 verdict was *applied* into a block.
 
-**It also needs an obligation the library cannot check.** Four revalidation
-points are necessary and not sufficient: after the last one there is always a
-suffix in which the caller's grade can move, and by then disposal has destroyed
-the ability to return. The prototype closes that only by adding *once the caller
-grades an effect applied it never ungrades it* — statable in general, unverifiable
-by the library, and carried in the catalogue today only in lane-shaped form, as
-`FN-26` — *history is never rewritten to clear a block* — which the Quint finish
-model dials as `HISTORY_IMMUTABLE`. A general form is the catalogue's to gain or
-decline; `finish-scope-k71` owns that disposition. It is an `FN-` obligation
-question rather than an ordinal one — gaining the general form adds a claim and
-therefore a cell in both families — so it is separable from the successor
-question below and does not travel with it.
+**It also needs an obligation no caller in this system can honour, and that is
+stronger than *the library cannot check it*.** Four revalidation points are
+necessary and not sufficient: after the last one there is always a suffix in
+which the caller's grade can move, and by then disposal has destroyed the ability
+to return. The prototype closes that only by adding *once the caller grades an
+effect applied it never ungrades it*.
+
+**The catalogue was asked whether to gain a general form of that obligation and
+declined it, on a refutation rather than on cost**
+([`docs/specs/semantic-contract.md`](../specs/semantic-contract.md), beside
+`FN-26`). `FN-22`'s revalidation table has **two rows that are exactly the
+transition the obligation forbids** — after the quarantine rename,
+`Committed -> NotCommitted` and `Committed -> Indeterminate` — and the contract
+goes out of its way to say the two must not be collapsed, because collapsing them
+would let a block be reported as a refusal. Granting the obligation as an
+environment assumption instead deletes the states those rows need, which one
+model column paid for already: an append-only history under every step made the
+disposition monotone and left both rows answerable **by construction**.
+
+So the coordinator's caller obligation is not merely unverifiable here. **Grove
+could not honour it even if it wanted to**, because this protocol's correctness
+depends on the grade being re-read and being allowed to move. What Grove supplies
+instead is narrower and is already stated twice — history is never rewritten to
+clear a block (`FN-26`), and no grade is ever carried forward as a licence
+(`FN-22.a`'s four points, which is `SY-03`'s *a preflight is never a licence* at
+this grain). Grove's answer to a grade that can move is to **survive** the move,
+and the residue it leaves is why the correlation ticket rather than the tree is
+the evidence of success
+([`success-is-proved-by-the-ticket-not-the-tree`](success-is-proved-by-the-ticket-not-the-tree.md)).
 
 **And the library already says so.** `Error::Reserved` exists for "a name the
 consumer owns that is deliberately not an entry — a transaction witness, a lock

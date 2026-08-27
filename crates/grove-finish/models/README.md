@@ -12,7 +12,7 @@ models/run.sh --scope finish --family alloy
 ```
 
 **The `--no-coverage` is gone, and that is the signal that this column is
-closed.** Every one of the finish scope's sixty-one alloy cells is filled and
+closed.** Every one of the finish scope's sixty-three alloy cells is filled and
 coverage is asserted; the flag was on that line from `entry-k39` to
 `blocked-k48` and its departure is `exits-k49`'s, by construction.
 
@@ -21,9 +21,9 @@ coverage is asserted; the flag was on that line from `entry-k39` to
 | family | file | obligations |
 |---|---|---|
 | Alloy 6 | `finish.als` | `FN-01`, `FN-05` – `FN-08` — the transaction's **entry surface**; `FN-09` – `FN-13` — the **reserved witness**; `FN-03`, `FN-04`, `FN-14` – `FN-18` — the **commit and its disposition**; `FN-19`, `FN-20` — the **quarantine and the atomic root rename**; `FN-22` — the **four revalidation points and the ten-row table**; `FN-21`, `FN-31` — **disposal**: its re-entrancy, the cleanup marker's create / replace / remove transitions, and the reaper; `FN-24` — the **crash slice**: what the disk a crash leaves classifies as, and what one step of the transaction may change; `FN-25`, `FN-26` — the **blocked slice**: the closed diagnosis partition over `RecoveryPending` and `OwnershipConflict`, the strict precedence that resolves the two places its arms meet, and what a block's diagnostic names; `FN-02`, `FN-23`, `FN-27` – `FN-30` — the **exits slice**: intent persisting as the finish leaf, recovery as monotone removal with a guard that goes false, the three unrelated-mutation obligations, the single successful exit, the completed refusal and its distinction from a block, and hook suppression; `FN-32` — **fail-closed ownership inside a transaction**, `TT-24`'s second context re-stated under an `FN-` prefix by `obligation-placement-k63` |
-| Quint | — | none yet (`quint-models-k10`) |
+| Quint | `finish.qnt`, `finish-controls.qnt` | every `FN-` obligation in the scope, built independently of the Alloy column under the barrier `formal-modeling-k1`'s brief describes. The column is closed; see **The Quint column** below for its run line, its verification depth, its instances and its narrowings |
 
-**Zero of the scope's sixty-one alloy cells are empty**, and coverage is
+**Zero of the scope's sixty-three alloy cells are empty**, and coverage is
 asserted on every run. The last eight were the `exits` slice's — `FN-02`,
 `FN-23`, `FN-27.a` – `FN-27.c`, `FN-28`, `FN-29` and `FN-30`: intent persisting
 as the finish leaf, recovery's idempotence, *nothing unrelated is mutated on any
@@ -589,6 +589,16 @@ separate the two, and the honest register entry is the qualitative one:
 commands account for essentially all of it.** 180 commands, **14 m 33 s**,
 against 164 in 12 m 25 s.
 
+> **After `finish-scope-k71` this file is still 186 commands, `exit 0`, and
+> `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`** — that leaf changed
+> comments, one branch's `Sys.res'`/`Sys.why'` and nothing else, so the command
+> set did not move. It measured **27 m 44 s wall / 1935 s CPU** on a 16-core
+> host, run **concurrently with this scope's `QUINT_VERIFY=1` cell**, which is
+> where the extra wall time over the ~18 min below went: Apalache is heap- and
+> CPU-hungry in a way the simulator is not, and *concurrent cells barely contend*
+> stops being true when one of them is a model checker. Budget the two serially,
+> or budget the verify cell alone.
+>
 > **After `closed-set-additions-k74` this file is 186 commands, `exit 0`, and
 > `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`** — the `FN-29` split
 > plus `FN-29.b`'s two witnesses. It measured **~18 min** on a 16-core host
@@ -947,18 +957,20 @@ Beyond the catalogue's own [deliberate
 omissions](../../../docs/specs/semantic-contract.md#deliberate-omissions), which
 this file adopts unchanged:
 
-- **THE STABLE-STATE CLASSIFICATION IS SEVEN ROWS OF THE CATALOGUE'S ELEVEN, PLUS
-  ONE THIS FILE ADDS.** §*States* classifies a task root in a fixed order over
-  `Absent`, three `Reserved` classes, `PartialScaffold`, `Legacy`, `Foreign`,
-  `Malformed` and three `Current` classes. No finish transition produces a
-  `Migrating`, a partial scaffold, a legacy tree, a foreign format witness or a
-  malformity — all five are the task-tree scope's — so `classifiedRaw` carries
-  `Absent`, `Reserved(Preparing)`, `Reserved(Published)`, the three `Current`
-  rows, and **`Reserved(Quarantined)`**, which is this file's own and is
-  described under *A fifth finding* below. Each arm is the catalogue's row
-  verbatim and the arms **overlap**; the classification ORDER is what resolves
-  them, and it is written as a strict precedence relation so that deleting a pair
-  leaves two survivors rather than silently changing which one wins.
+- **THE STABLE-STATE CLASSIFICATION IS EVERY ROW OF THE CATALOGUE'S TABLE A
+  FINISH TRANSITION CAN PRODUCE, AND NOTHING ELSE.** §*States* classifies a task
+  root in a fixed order over the four `Reserved` classes, `Absent`,
+  `PartialScaffold`, `Legacy`, `Foreign`, `Malformed` and three `Current`
+  classes. No finish transition produces a `Migrating`, a partial scaffold, a
+  legacy tree, a foreign format witness or a malformity — all five are the
+  task-tree scope's — so `classifiedRaw` carries `Absent`,
+  `Reserved(Preparing)`, `Reserved(Published)`, `Reserved(Quarantined)` and the
+  three `Current` rows. **`Reserved(Quarantined)` was this file's own and is now
+  the catalogue's**, landed by `finish-scope-k71` along with the order; see *A
+  fifth finding* below. Each arm is the catalogue's row verbatim and the arms
+  **overlap**; the classification ORDER is what resolves them, and it is written
+  as a strict precedence relation so that deleting a pair leaves two survivors
+  rather than silently changing which one wins.
 - **A step's PERSISTENT EFFECTS are counted at the grain `FN-24.b` states them,
   which is the effect and not the field.** Three consequences, and each of them
   is a case where a field-by-field count would report a correct protocol as a
@@ -1548,8 +1560,26 @@ witness, correlated by this handle and this attempt identity.
   unreachability to be established by RUNNING the removal, and names this as the
   case where the row is right and a family does not meet it — a posited disk and
   a reached one are not interchangeable for an assumption's control, however
-  interchangeable they are for the claim. Meeting `EN-08`'s row for `FN-31.c` is
-  `finish-scope-k71`'s.
+  interchangeable they are for the claim.
+
+  **`finish-scope-k71` closed it, and the answer is that this column CANNOT meet
+  the row without paying a different assumption's price — declared here rather
+  than left open.** Reaching the interrupted replacement through `crash` means
+  running the whole six-step body, the commit, the classification, the quarantine
+  rename and disposal from state 0 before the crash, because
+  `fact TransactionsStartWhereAProcessStarts` narrows `EN-11` for the
+  transaction's volatile phase: every trace starts at *no transaction, or one
+  just opened*, and everything past `Opened` is reached by running the steps.
+  That is about seventeen states against this file's thirteen-state maximum, on
+  the dearest cell in the repository. **A model that POSITS a disk under `EN-11`
+  cannot also EXERCISE `EN-08` at that disk** — the two controls are in tension
+  by construction rather than by oversight, and the catalogue's assumption table
+  now carries the general form. The row is **met by `finish.qnt`**, whose
+  `wit_unreach_EN_08_an_interrupted_replacement_resumed` runs the protocol and
+  stops landing when `crash` is removed; this column's two `FN-31.c` witnesses
+  posit the disk, and that is a declared narrowing of this realisation rather
+  than a gap in the obligation, which is answered here with a property and two
+  witnesses.
 - **Not that `FN-09.a`'s *exactly one rename* frames the whole tree.** Its
   `WPublish` branch asserts `Slot.owner`, `Slot.wHolds`, `rootSame`, `manSame`,
   `repoSame` and `worldSame` — and **not** the cleanup marker, which did not
@@ -2596,25 +2626,77 @@ there and not hypothetical.
 states each arm as the catalogue's row verbatim so that the order is what carries
 the claim, and `FN-24.a`'s third conjunct is what catches the other choice —
 mutation row 49 restores the catalogue's order and the check goes red.
-**`finish-scope-k71` reads this as a catalogue finding, not a model
-decision**: either the table's order is wrong for a scope that reserves names
-beside the task root, or the `Absent` row needs the qualification the property
-below it already implies. It is a one-word edit either way, and it is not this
-subtree's to make.
+
+**`finish-scope-k71` LANDED THE REORDER, and it rejected two one-word repairs
+rather than one.** Qualifying the `Absent` ROW — *no task root, and nothing of
+Grove's at a reserved name either* — is the same repair from the other end, and
+so is narrowing the model's own **state vector** to stop classifying the
+quarantine at all. Both make `FN-24.a`'s third conjunct true **by construction**,
+so the departure this section records becomes invisible to the check that exists
+to catch it. Both were tried and both were reverted; the second survived long
+enough to reach the spec and both model files before the argument below broke it.
+
+**What decided it is that the rename is not the end of the protocol.** `FN-22`'s
+**fourth** revalidation point runs *after* the quarantine rename and two of its
+three rows return the quarantine, so between the rename and that point the
+task-root name is free and the disposition is unsettled. The shipped protocol has
+the same shape — `proof.revalidate()` runs after `cleanup.handoff()` and a
+failure calls `cleanup.restore()` (`src/finish_transaction.rs:1949-1969`). And
+`SY-05.b` names `FN-19` by identifier for exactly this: *no trace exposes an
+absent task root before the deletion is proven*, which is what makes `SY-05.a`'s
+*a missing task root means start a new grove* sound. With `Absent` first, that
+trace exists.
+
+**The Quint column had departed the same way without declaring it** —
+`finish.qnt`'s `classify` already put the two `Reserved` arms ahead of `RAbsent`
+under a comment reading *in the catalogue's own order*, which was false of the
+catalogue — so both families were on the right side of a document that was on the
+wrong one, and only one of them knew.
 
 **AND THE STATE TABLE HAS NO ROW FOR A DISK THE PROTOCOL ROUTINELY PRODUCES.**
 A disposal that has released its reserved witness while its quarantine is still
 standing — the task root present, nothing at the witness's name, Grove's own
 quarantine holding a root — matches no row: it is not `Reserved`, because
 `Reserved(Preparing)` and `Reserved(Published)` are about the witness; and every
-`Current` row would call it an ordinary grove. `finish.als` adds
+`Current` row would call it an ordinary grove. `finish.als` added
 **`Reserved(Quarantined)`** as a model-only member of the reserved class, which
-the catalogue licenses in as many words (*`TT-18`/`TT-19` are stated over the
+the catalogue licensed in as many words (*`TT-18`/`TT-19` are stated over the
 reserved CLASS rather than over its members so that removing one member changes
 no claim*). It is **load-bearing rather than decorative**, and the evidence is a
 mutation that is not a matrix row: remove the arm and `FN-24.a` goes red on
-exactly that disk. Recorded here rather than smuggled into the catalogue's
-table.
+exactly that disk.
+
+**`finish-scope-k71` LANDED IT INTO §*States* as the reserved class's fourth
+member**, together with the reorder above — the two are one repair, and either
+alone leaves the other's disk misclassified.
+
+**The near-miss is worth as much as the landing, and it is recorded rather than
+tidied away.** The disposition was provisionally decided the *other* way — that
+the quarantine lives in the VCS control directory
+(`.git/grove/FINISHED-<handle>-<attempt>`, `src/finish_transaction.rs:322-329`),
+that §*States* classifies a task root and so reaches it in neither direction, and
+that both of this file's findings were consequences of its own state vector. Two
+arguments looked decisive and both were wrong:
+
+- *The deletion is proven when the rename lands, so the post-rename disk is not
+  an instance of the load-bearing property.* **False.** `FN-22`'s fourth
+  revalidation point runs after the rename and two of its three rows return the
+  quarantine; the shipped protocol runs `proof.revalidate()` after
+  `cleanup.handoff()` and restores on failure (`src/finish_transaction.rs:1949-1969`).
+- *The reserved class has only `TT-18` and `TT-19` over it and neither reaches a
+  standing quarantine, so it is not a member.* **The premise is false**:
+  `FN-24.a`'s third and fourth conjuncts are stated over *something of Grove's at
+  a reserved name*, and `SY-05.b` names `FN-19` by identifier. And the inference
+  is wrong: membership is intensional — `SY-06.b` reaches `PartialScaffold(Exact)`
+  and must not complete `PartialScaffold(Ambiguous)`, and both are members.
+
+`TT-19` still does not reach the new member, and that is now recorded in
+§*States* as a fact about `TT-19` rather than about the membership: a standing
+quarantine's recovery is `FN-21`'s sweep, which refuses nothing. **The Quint
+column had neither the member nor the order** and classified the post-rename disk
+`RAbsent` and `EN-11`'s orphaned quarantine `Current(Spent)`; both are repaired
+there, with `mutant_no_quarantined_state` and `mutant_absent_classified_first` as
+the controls that kill them (rows 919 and 920).
 
 Both findings are the same shape as the four above it — *the catalogue fixes a
 closed set and the model reaches a member of it the set does not name* — and both
@@ -2721,7 +2803,9 @@ them. Read literally the two definitions are not a partition at all: every
 definition. **The disambiguation exists and is six hundred lines away in a table
 about something else**, and nothing in either place cross-references the other.
 `FN-25.a` is red at nine states without a proviso naming which of the two wins,
-and mutation 51 is that proviso removed.
+and mutation 51 is that proviso removed. **`finish-scope-k71` landed the
+proviso** into `OwnershipConflict`'s second instance: it applies when Grove
+cannot correlate the state to its own attempt.
 
 **EIGHTH. `RecoveryPending`'s third sentence is false of two of the table's own
 rows.** *And the outcome cannot yet be proven either way* reads as a conjunct of
@@ -2732,9 +2816,19 @@ and *after the rename, a return that cannot complete* — and both are diagnosed
 This file reads it as the elaboration of the common case rather than as a
 condition, and the load-bearing clause is *a correlated Grove-owned attempt is
 INCOMPLETE*. **The seventh and the eighth are the same sentence read from two
-sides**, which is what makes them one finding for `finish-scope-k71` and two
-for anyone editing the catalogue: the sentence belongs to neither definition
-alone.
+sides**, which is what made them one finding and two edits: the sentence belongs
+to neither definition alone. **`finish-scope-k71` moved it out of
+`RecoveryPending`'s definition** and kept it as the elaboration of the common
+case, which is how this file had already read it — **and it tightened the
+argument while landing it.** Only ONE of the two rows is the catalogue's own
+counterexample: the after-restoration `Committed` row settles to
+*`Reserved(Published)` carrying `RecoveryPending`*, so the table itself diagnoses
+a proven-outcome block `RecoveryPending`, and one such row is enough to make the
+conjunct reading contradict the document. `FN-22.h`'s incomplete return is a
+second instance in **this file's** reading and in `finish.qnt`'s, but the table
+names no diagnosis on that row — so *both diagnosed `RecoveryPending` by the
+table*, above, claims more than the table says. The finding stands on the first
+row alone.
 
 **NINTH. `OwnershipConflict`'s three printed examples are not exhaustive of its
 own general clause, and the file needed the general clause.** *An artifact sits
@@ -2748,18 +2842,30 @@ witness name and all of it elsewhere. **A closed set whose members are defined b
 a general sentence plus examples is not a closed set until a model asks which of
 the two it is**, and that question is the ninth finding rather than the answer.
 
-### What `finish-scope-k71` inherits from these three
+### How the three were disposed, and the one that was not this scope's
 
-The catalogue's §*Outcomes* needs one edit and it is small: move *the outcome
-cannot yet be proven either way* out of `RecoveryPending`'s definition, and add
-to `OwnershipConflict`'s second clause the proviso that it applies when Grove
-cannot correlate the state to its own attempt. Both are citation-sized. What is
-NOT citation-sized, and is the decision this slice hands up, is **whether the
-shipped diagnostic adopts the precedence**: where a correlated incomplete attempt
-and an unclassifiable artifact at a reserved name are both present, this file
-returns `OwnershipConflict` on the fail-closed rule, and nothing in the catalogue
-decides it. The two places the arms meet are reachable at nine states; both are
-witnessed.
+`finish-scope-k71` landed all three into §*Outcomes* as **one** repair, because
+all three are the same defect: **the partition was carried by the diagnoses'
+illustrations rather than by their definitions.** The sentence left
+`RecoveryPending`; `OwnershipConflict`'s second instance gained the correlation
+proviso; and the instances are now declared **non-exhaustive** of the general
+sentence, which is the ninth finding answered rather than restated — a
+Grove-**owned** artifact whose manifest names another handle is caught by *cannot
+be proved safe to mutate* and by no printed instance.
+
+**A fourth edit followed that this slice had not asked for, and `FN-25.a` is why.**
+Where a correlated incomplete attempt and an unclassifiable artifact at a
+reserved name are both present, both definitions hold and disjointness was a
+model's choice; this file returns `OwnershipConflict` on the fail-closed rule and
+so does `finish.qnt`, independently. The catalogue now states the precedence —
+*the outcome names the strongest thing Grove cannot account for* — because
+without it `FN-25.a` is not a claim. The two places the arms meet are reachable
+at nine states; both are witnessed.
+
+**What was NOT absorbed is the product question**, and this file was right to
+name it as the one that is not citation-sized: whether the **shipped diagnostic**
+adopts the precedence, and the two names at all, is `handoff-audit-k66`'s, beside
+the other four.
 
 ## A tenth finding, an eleventh and a twelfth — and the tenth is about the shipped protocol
 
@@ -2777,9 +2883,14 @@ what the world put there the **quarantined root's own identity** — at `2 RootI
 that is one further step. Three separate formulations of `FN-28`'s conjuncts (a)
 and (c) were each falsified by exactly that trace and by nothing else.
 
-What follows for the crates is a sentence, and it is the sharpest thing this
-slice has to hand `finish-scope-k71`: **the only durable evidence a finish
-succeeded is the correlation ticket.** `FN-03` says the ticket *SHALL survive the
+What follows for the crates is a sentence, and it was the sharpest thing this
+slice had to hand up: **the only durable evidence a finish succeeded is the
+correlation ticket.** `finish-scope-k71` landed it in both places it belongs —
+`FN-28`'s own text now states its operands over Grove's own steps, and the design
+constraint is
+[`success-is-proved-by-the-ticket-not-the-tree`](../../../docs/adr/success-is-proved-by-the-ticket-not-the-tree.md),
+whose rejected alternative is the cheap one an implementer reaches for: decide
+success with a `stat`. `FN-03` says the ticket *SHALL survive the
 destruction of every artifact the transaction owns*; this adds that it must also
 survive the RE-CREATION of one, because a name is not an artifact and the world
 owns the namespace. A `grove finish` that decided success by stat-ing the task
@@ -2820,6 +2931,61 @@ are transcribed rather than re-derived and a silent edit would lose the fact tha
 the file disagreed with the register for three slices. `finish-verdicts-k65`
 settles which of the two is wrong, because the consequence is a row of Q4's
 matrix.
+
+## A thirteenth finding and a fourteenth — both produced by landing a disposition
+
+Neither was visible to either column before `finish-scope-k71` edited the
+catalogue, and that is the point of recording them here: **a disposition is a
+measurement too.** Both are the same shape as the fourth finding above — a check
+stated over the wrong subject does not fail, it silently answers a different
+claim — met once in each column.
+
+**THIRTEENTH. `FN-20`'s subject is the COMMIT'S DISPOSITION, and the two columns
+were green on two different claims.** The obligation is *no classification reads
+the quarantine, or any other artifact the transaction owns, as evidence that a
+finish **happened***. `finish.als` states it over `Txn.disp` and its witness is a
+leftover present while the classification settles `NotCommitted`. `finish.qnt`
+built a two-world instrument over the **task-root classification** — the same
+question asked with the artifact and without it — which is *never OBSERVED*
+rather than *never a RECEIPT*, strictly stronger, and green for as long as no row
+of the state table read the quarantine.
+
+`Reserved(Quarantined)` is exactly such a row, and the collision is instructive
+rather than awkward: **the task-root classification MUST read the quarantine**,
+because that row is how the contract says a finish is *incomplete*, while `FN-20`
+forbids reading it as evidence a finish *completed*. Two opposite requirements on
+one artifact, and only one of them is `FN-20`'s. The wide reading has a second
+cost that settles it independently: it would also forbid `FN-21.b`'s reaper
+reading its own cleanup marker, which `FN-21.b` requires. The Quint instrument
+now compares the DISPOSITION with the artifact and without it, its witness reads
+*a leftover standing while the evidence says no finish of this attempt happened*,
+and row 915 still kills it. The catalogue's witness sentence says which reading it
+meant, so the next model does not have to guess.
+
+**FOURTEENTH. `doCommitAttempt`'s ordering guard returned an outcome, and the
+closed set is over ACTIONS.** The step is enabled from `PublishedP` as well as
+from `Evacuated` on purpose, so that `FN-11` is refused by a gate rather than
+true by construction; the branch that gate took reported
+`Refused(WitnessPending)` while the witness stood published and the root stood
+part-evacuated. Two things were wrong and they are one thing. **The transaction
+is still live at that branch** (`txnSame`) — nothing was returned to a caller,
+and the next step may still complete or unwind it — so a completed-invocation
+outcome there is the step/action confusion §*Outcomes*' discriminator forbids,
+met from the inside. And it escaped `FN-29.b` only because that check's
+antecedent names the **completed** evacuation, which is a fact about where the
+line was drawn rather than evidence the branch was on the right side of it.
+
+`closed-set-additions-k74` named the branch and routed it rather than deciding it
+under cover of a disposition, which was right: deciding it needed the restoration
+path's obligations. The answer is that the branch returns **nothing** — `NoOp`,
+the result this file already gives a step that reports and mutates nothing — and
+it gained its own `why`, `W18EvacuationIncomplete`, because it had been sharing
+`W9SlotPending` with `doWPrepare`'s branch, where that name means a genuinely
+different situation: Grove's own artifact already at the reserved witness name,
+nothing mutated, the attempt over. **This is the second time the same confusion
+has been found at the same step** — the first was `FN-13`, whose outcome moved to
+a block — and it is the last branch there. The catalogue carries the general rule
+beside *a guard wait is not an outcome*.
 
 ## `TODO.finish_process.md` Q4 — the matrix, and three rows that read `none`
 
@@ -3192,10 +3358,10 @@ models/run.sh --scope finish --family quint
 Two files: [`finish.qnt`](finish.qnt) carries the parameterised library, the
 `base` instance and the `verify_small` model-checking instance;
 [`finish-controls.qnt`](finish-controls.qnt) carries the twelve focused
-scenarios, the seven assumption mutations and the eleven model mutations. The
+scenarios, the seven assumption mutations and the thirteen model mutations. The
 split is not tidiness — see *Verification*.
 
-Coverage is asserted: all 61 `FN-` obligations are answered by a property
+Coverage is asserted: all 63 `FN-` obligations are answered by a property
 command and at least one witness, and there are no declared gaps.
 
 Knobs, all environment variables read by [`models/run.sh`](../../../models/run.sh):
@@ -3549,6 +3715,29 @@ this model takes as written:
   because a crash carries `settling` forward and the task root only goes absent
   after this attempt's own commit has landed. The alien ticket is reachable (a
   `topology-change`, `EN-09`), the state in which it would be *believed* is not.
+- **`FN-24.a` reads *exactly one* as the ORDER's answer and not as arm
+  disjointness, and it used to read the second.** The catalogue fixes an order
+  and says the order is itself a claim (`TT-18`), so *exactly one* is what the
+  order resolves to; *never into a state indistinguishable from a different one*
+  is the separate half, and in this model the only thing that produces it is one
+  artifact answering to two **names** at once, which is what `EN-01` buys and
+  what `relax_EN_01` takes away (`sameNameAmbiguity`). The disjointness reading
+  was stronger than the catalogue and became false the moment the table gained a
+  row that overlaps `Absent` by design. Totality and single-valuedness are now
+  near-true by construction here exactly as in `finish.als`, kept against a row
+  added later with a narrower guard; what carries the obligation is §*States*'
+  load-bearing property, one conjunct for `Absent` and one for the `Current`
+  class, and rows 919 and 920 are what kill them.
+- **`FN-28`'s third sentence is true by construction here, and the reason is a
+  world this column cannot build.** *Grove never puts the pinned task root back
+  while the commit stands proven* is `SReturnQuarantine`'s own guard
+  (`d != DCommitted`), so no trace can violate it. Nothing in this world
+  re-occupies a freed task-root name either, which is why the operand
+  `finish.als` had falsified three times — *the task root is absent* — was true
+  here for a reason that is a property of the model rather than of the protocol.
+  The invariant now states what the catalogue states, over Grove's own steps;
+  what carries it is `deletionProvenFor`, and the step operand is declared here
+  rather than presented as a conjunct that can fail.
 
 ## The green run this column stands on
 
@@ -3562,6 +3751,7 @@ QUINT_VERIFY=1 models/run.sh --scope finish --family quint  # …and model-check
 | `--scope finish --family quint` | **exit 0** — 4m 25s wall / 317s CPU on a 16-core host, 228 commands, 0 failures, `-- cells: 61 complete, 0 declared gaps, 0 empty, of 61`, Q4 matrix 10 of 10 rows |
 | `--scope finish --family quint`, after `closed-set-additions-k74` | **exit 0** — **236 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Eight more commands and two more cells: `FN-29` split into `.a` and `.b`, `FN-29.b` carries a witness per arm, and `wit_FN_32` now reads both arms because the witness-slot step moved from a block to a refusal |
 | the same with `QUINT_VERIFY=1` | **exit 0** — 11m 51s wall, 289 commands, 0 failures; the 61 `SKIP` lines become `model-checked to depth 4, no counterexample` |
+| `--scope finish --family quint`, after `finish-scope-k71`, with `QUINT_VERIFY=1` | **exit 0** — 12m 53s wall / 376s CPU, **301 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. All 63 properties `model-checked to depth 4, no counterexample`, the restated `inv_FN_24a` among them. Two more commands than the batch above's non-verify count: `mutant_no_quarantined_state` and `mutant_absent_classified_first`, both reported `violated, as the control requires` |
 
 Both figures are post-integration: `integrate-review-prototype-finish-k58` added
 three model mutations and two witnesses to what `prototype-finish-k12` left, for
@@ -3605,11 +3795,22 @@ One row per control, and what it killed. Q4's rows cite these by number.
 | 916 | `mutant_hooks_run` | model | an installed operator hook RUNS during the internal commit | `FN-30` dies |
 | 917 | `mutant_unscoped_commit` | model | the commit takes the unrelated working-copy bytes with it | `FN-14` dies |
 | 918 | `mutant_history_rewritten` | model | a block "cleared" by rewriting the recorded history | `FN-26` dies |
+| 919 | `mutant_no_quarantined_state` | model | §*States* without `Reserved(Quarantined)` — the six rows this scope reaches without it, as the table stood before `finish-scope-k71` | `FN-24.a` dies: a standing quarantine reads as an ordinary grove |
+| 920 | `mutant_absent_classified_first` | model | §*States*' former table ORDER taken literally — `Absent` first, the whole `Reserved` class after it | `FN-24.a` dies: the post-rename disk reads `Absent` while `FN-22`'s fourth revalidation point is still ahead of it |
 
 Rows 914 and 911 are **bundle** controls and the rest are minimal: 914 also
 skips the layout precondition, and 911 also disables the root-identity stop.
 Rows 916 – 918 exist because `FN-30`, `FN-14` and `FN-26` were asserted over
 fields no transition could make bad — see *The controls*.
+
+**Rows 919 and 920 are `finish-scope-k71`'s, and they are two rows against one
+obligation on purpose**: the two halves of the catalogue repair they control are
+separable defects, and a single combined dial could not say which half a green
+run rested on. Row 920 mutates the **ranking** rather than one edge of it, which
+is the lesson `finish.als`'s row 49 paid for — a precedence relation is
+transitively redundant by construction, so a disk's classification survives the
+loss of any single pair on a neighbouring one.
+
 
 ## `TODO.finish_process.md` Q4 — the removal matrix, Quint's rows
 

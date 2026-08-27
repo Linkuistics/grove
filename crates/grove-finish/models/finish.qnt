@@ -101,6 +101,22 @@ module finish {
   /// and not a claim; with this off, all four die at once.
   const PREFLIGHT_COMPLETE: bool
 
+  /// MODEL mutation.  With this false §*States*' `Reserved(Quarantined)` row is
+  /// gone and the classification is the six rows this scope reaches without it —
+  /// the table as it stood before `finish-scope-k71`.  It is the alternative
+  /// `FN-24.a`'s fourth conjunct is stated against: without the row, a disposal
+  /// that has released its reserved witness with the quarantine still standing
+  /// reads as an ordinary spent grove.
+  const QUARANTINE_IS_A_RESERVED_STATE: bool
+
+  /// MODEL mutation.  With this false `Absent` is classified FIRST and the whole
+  /// `Reserved` class after it — §*States*' former table order, taken literally.
+  /// It is the alternative `FN-24.a`'s third conjunct is stated against, and it
+  /// is a mutation to the ORDER rather than to one pair of it: a precedence
+  /// relation is transitively redundant, so any single edge a disk's
+  /// classification rests on has understudies.
+  const RESERVED_BEFORE_ABSENT: bool
+
   /// MODEL mutation.  With this true the fresh-tree classification reads a
   /// leftover artifact as evidence that a finish happened — which is exactly
   /// what `FN-20` forbids, and what a two-world comparison cannot catch unless
@@ -614,10 +630,20 @@ module finish {
   /// The stable states this scope can classify a task root into.  The task-tree
   /// scope owns the rest of the table; what matters here is that a crash lands
   /// in exactly ONE of them (`FN-24.a`).
+  ///
+  /// `RReservedQuarantined` IS THE RESERVED CLASS'S FOURTH MEMBER, landed in
+  /// the catalogue by `finish-scope-k71`.  The class is *an artifact at a name
+  /// Grove reserves says a Grove transaction is incomplete*, and the quarantine
+  /// is one: `FN-22`'s FOURTH revalidation point runs after the rename and two
+  /// of its three rows return the quarantine, so between the rename and that
+  /// point the task-root name is free and the deletion is not settled.  This
+  /// column classified that disk `RAbsent`, which is the trace `SY-05.b` says
+  /// does not exist and which `SY-05.a` would scaffold a fresh grove over.
   type RootState =
     | RAbsent
     | RReservedPreparing
     | RReservedPublished
+    | RReservedQuarantined
     | RCurrentLive
     | RCurrentFinishOnly
     | RCurrentSpent
@@ -702,44 +728,105 @@ module finish {
   // ---------------------------------------------------------------------------
 
   /// EVERY classification the state satisfies, not the first one an ordered
-  /// `if` would return.  That is the whole instrument for `FN-24.a`: a state
-  /// classifiable two ways is exactly "a state indistinguishable from a
-  /// different one", and an ordered classifier would hide it behind its own
-  /// precedence.
+  /// `if` would return — and EVERY ARM IS THE CATALOGUE'S ROW VERBATIM, which is
+  /// what puts the weight on the ORDER rather than on how the arms were phrased.
+  /// Written this way the post-rename disk matches `RAbsent` AND
+  /// `RReservedQuarantined` at once and `classify`'s order has to resolve it; an
+  /// `absent` arm strengthened to *and nothing of Grove's at a reserved name
+  /// either* would answer `FN-24.a`'s third conjunct by construction, and so
+  /// would declining to carry the quarantine in the vector at all.  Both were
+  /// tried by `finish-scope-k71` and both were rejected as the same defect.
   pure def stableStates(w: World): Set[RootState] =
     // A torn quarantine rename (`EN-01` relaxed) leaves the task root half
     // moved: it answers to its own name AND to the quarantine's, so `RAbsent`
-    // and a reserved state are BOTH true of it.  That is `FN-24.a`'s
-    // counterexample, and it has to be expressible for the claim to be
-    // falsifiable at all.
+    // is true of a root that is also present.  That is a NAME answering two
+    // ways, which is what `EN-01` forbids and what `sameNameAmbiguity` below
+    // catches; it has to be expressible for the claim to be falsifiable at all.
     val absent = if (not(w.rootPresent) or w.rootTorn) Set(RAbsent) else Set()
     // A torn rename (`EN-01` relaxed) leaves BOTH reserved names present, or
-    // neither: the first is two stable states, the second is a published
-    // witness's contents beneath a root that classifies as current.
+    // neither: the first is the witness's own name answering two ways, the
+    // second is a published witness's contents beneath a root that classifies
+    // as current.
     val preparing =
       if (w.rootPresent and (w.witness == WPreparing or w.witness == WTorn))
         Set(RReservedPreparing) else Set()
     val published =
       if (w.rootPresent and (w.witness == WPublished or w.witness == WTorn))
         Set(RReservedPublished) else Set()
+    // `Reserved(Quarantined)`, the reserved class's fourth member and the row
+    // this column did not have.  Grove's own quarantine standing, holding a root
+    // a finish transaction moved and has not finished disposing of.  Reached
+    // three ways here: between the quarantine rename and `SRemoveQuarantine`, by
+    // a crash anywhere inside disposal, and by `EN-11`'s orphaned quarantine
+    // beside a task root that is still present (`handEditTo(12)`).  `owned`
+    // rides with `present` in this model — `NO_QUARANTINE` is the only unowned
+    // value and it is absent — so the arm is written on presence, exactly as the
+    // catalogue's row reads.
+    val quarantined =
+      if (QUARANTINE_IS_A_RESERVED_STATE and w.quar.present)
+        Set(RReservedQuarantined) else Set()
     val current =
       if (w.rootPresent and w.witness == WNone)
         (if (liveOrdinaryWork(w)) Set(RCurrentLive)
          else if (rootEntries(w).size() > 0) Set(RCurrentFinishOnly)
          else Set(RCurrentSpent))
       else Set()
-    absent.union(preparing).union(published).union(current)
+    absent.union(preparing).union(published).union(quarantined).union(current)
+
+  /// Something of Grove's stands at a name Grove reserves.  `FN-24.a`'s third
+  /// and fourth conjuncts are stated over this: neither `Absent` nor any
+  /// `Current(*)` row may be the classification while it holds, which is
+  /// §*States*' load-bearing property written as a check.
+  pure def groveReservationStands(w: World): bool =
+    w.witness != WNone or w.quar.present
+
+  /// A single NAME answering two rows at once, which is a different thing from
+  /// two rows about two names that the order resolves.  This is the whole of
+  /// what `EN-01` buys, and it is what `relax_EN_01` takes away: a half-applied
+  /// rename leaves one artifact at two names, and no classification order can
+  /// honestly resolve a disk that really is both.
+  pure def sameNameAmbiguity(w: World): bool =
+    // the witness's own name
+    (w.witness == WTorn) or
+    // the task root's own name: free and occupied at the same time
+    (w.rootTorn and w.rootPresent)
 
   /// The classification an ordinary invocation returns.  Defined over the same
-  /// predicates as `stableStates`, in the catalogue's own order.
+  /// predicates as `stableStates`, in the catalogue's order — the whole
+  /// `Reserved` class, then `Absent`, then the walk-derived `Current` split.
+  /// This file put the two witness arms ahead of `RAbsent` under a comment
+  /// claiming this was the catalogue's order, which it was not until
+  /// `finish-scope-k71` landed the reorder; the third arm is new with it.
   pure def classify(w: World): RootState =
     val ss = stableStates(w)
-    if (ss.contains(RReservedPreparing)) RReservedPreparing
+    if (not(RESERVED_BEFORE_ABSENT) and ss.contains(RAbsent)) RAbsent
+    else if (ss.contains(RReservedPreparing)) RReservedPreparing
     else if (ss.contains(RReservedPublished)) RReservedPublished
+    else if (ss.contains(RReservedQuarantined)) RReservedQuarantined
     else if (ss.contains(RAbsent)) RAbsent
     else if (ss.contains(RCurrentLive)) RCurrentLive
     else if (ss.contains(RCurrentFinishOnly)) RCurrentFinishOnly
     else RCurrentSpent
+
+  /// A `Current(*)` row, named as one thing because `FN-24.a`'s fourth conjunct
+  /// is stated over the class rather than over a member: what it forbids is a
+  /// disk with something of Grove's at a reserved name reading as an ORDINARY
+  /// tree, and which of the three it would read as depends only on what the root
+  /// happens to hold.
+  pure def isCurrent(r: RootState): bool =
+    r == RCurrentLive or r == RCurrentFinishOnly or r == RCurrentSpent
+
+  /// `FN-24.a`'s four conjuncts over one disk, written apart from the invariant
+  /// so that the SAME question can be asked of the disk a crash left behind and
+  /// of the disk the trace is standing on.  Totality and the order's
+  /// single-valuedness are near-true by construction and are kept for the row
+  /// added later with a narrower guard; the two that can fail are §*States*'
+  /// load-bearing property, one for `Absent` and one for the `Current` class.
+  pure def classifiesHonestly(w: World): bool =
+    stableStates(w).size() >= 1 and
+    not(sameNameAmbiguity(w)) and
+    ((classify(w) == RAbsent) implies not(groveReservationStands(w))) and
+    (isCurrent(classify(w)) implies not(groveReservationStands(w)))
 
   // ---------------------------------------------------------------------------
   // The commit, its evidence, and its classification
@@ -1030,8 +1117,13 @@ module finish {
     neverEnteredForConfirmation: bool,
     refusedByDeterministicGuard: bool,
     confirmationClaimed: bool,
-    // `FN-24.a`: the classification of the state each crash left behind.
-    crashClassCounts: Set[int],
+    // `FN-24.a`: whether the disk any crash left behind was classified
+    // DISHONESTLY — read as `Absent` or as an ordinary tree while something of
+    // Grove's stood at a reserved name, or read two ways off one name.  A flag
+    // rather than a count, because the claim's antecedent is *from a crash at
+    // each step boundary* and what it asserts there is the load-bearing
+    // property, not an arity.
+    crashMisclassified: bool,
     // `TT-24`-shaped: an ordinary operation, a transaction and the reaper each
     // meeting a foreign artifact at a reserved name.
     ordinaryRefusedReserved: bool,
@@ -1102,7 +1194,7 @@ module finish {
     unpublishedRefused: false, notReadyRecovered: false,
     operandGateCaughtWhatLeaseMissed: false,
     neverEnteredForConfirmation: false, refusedByDeterministicGuard: false,
-    confirmationClaimed: false, crashClassCounts: Set(),
+    confirmationClaimed: false, crashMisclassified: false,
     ordinaryRefusedReserved: false, leftoverWhileFresh: false,
     blockNamedArtifactAndTopology: false, markerObservedDuringReplace: false,
     replaceDeclinedForeign: false, forwardAfterInterruptedEvacuation: false, transactionBlockedReserved: false,
@@ -1149,9 +1241,22 @@ module finish {
   pure def withoutLeftovers(w: World): World =
     { ...w, quar: NO_QUARANTINE }
 
-  pure def freshTreeVerdict(w: World): RootState =
-    if (LEFTOVERS_ARE_EVIDENCE and not(w.rootPresent) and w.quar.present) RCurrentSpent
-    else classify(w)
+  /// WHAT `FN-20` IS ABOUT, AND THIS COLUMN HAD THE WRONG SUBJECT — a finding of
+  /// `finish-scope-k71`, produced by the state table gaining
+  /// `Reserved(Quarantined)`.  The claim is *no classification reads the
+  /// quarantine as evidence that a finish HAPPENED*, and evidence that a finish
+  /// happened is the COMMIT's disposition, never the task root's state.  This
+  /// column compared the task-root classification with and without the leftover,
+  /// which is *never OBSERVED* rather than *never a RECEIPT* — strictly stronger,
+  /// and demonstrably too strong once the table has a row for the quarantine,
+  /// since the task-root classification then MUST read it.  Read that widely the
+  /// claim would also forbid `FN-21.b`'s reaper reading its own cleanup marker,
+  /// which `FN-21.b` requires.  `finish.als` read it over the disposition from
+  /// the start and the two columns were green on different claims; the
+  /// catalogue's witness now says which.
+  pure def finishHappenedVerdict(w: World, at: int): Disposition =
+    if (LEFTOVERS_ARE_EVIDENCE and w.quar.present) DCommitted
+    else evidenceDisposition(w.repo, at)
 
   /// The three contexts a foreign artifact at a reserved name is met from, and
   /// the catalogue fixes each.  This is the transaction's own context.
@@ -2157,7 +2262,8 @@ module finish {
     t' = { ...IDLE_TXN, settling: t.settling, outcome: ONone },
     hist' = { ...hist,
               crashPoints: hist.crashPoints.union(Set(t.pc)),
-              crashClassCounts: hist.crashClassCounts.union(Set(stableStates(w).size())),
+              crashMisclassified:
+                hist.crashMisclassified or not(classifiesHonestly(w)),
               replaceInterruptedAt:
                 if (t.pc == SReplaceStage or t.pc == SReplaceExchange or t.pc == SReplaceCleanup)
                   hist.replaceInterruptedAt.union(Set(t.pc))
@@ -2308,8 +2414,8 @@ module finish {
     // the transaction owns — as evidence that a finish happened.  Checked by
     // asking the classifier the SAME question twice, once with the leftover
     // artifact and once without it.
-    val withArtifact = freshTreeVerdict(w)
-    val withoutArtifact = freshTreeVerdict(withoutLeftovers(w))
+    val withArtifact = finishHappenedVerdict(w, t.settling)
+    val withoutArtifact = finishHappenedVerdict(withoutLeftovers(w), t.settling)
     all {
       w' = w,
       t' = { ...IDLE_TXN,
@@ -2319,10 +2425,13 @@ module finish {
                       else ORefused(RNotLive) },
       hist' = { ...hist,
                 artifactReadAsReceipt: hist.artifactReadAsReceipt or withArtifact != withoutArtifact,
-                // `FN-20`'s witness: a leftover artifact PRESENT while the tree
-                // is classified fresh.
+                // `FN-20`'s witness: a leftover artifact PRESENT while the
+                // tree is classified fresh — *fresh* being the evidence's own
+                // answer that no finish of this attempt happened, not the task
+                // root's state, which reads `Reserved(Quarantined)` here and is
+                // supposed to.
                 leftoverWhileFresh: hist.leftoverWhileFresh or
-                  (w.quar.present and not(w.rootPresent) and withArtifact == RAbsent),
+                  (w.quar.present and withArtifact != DCommitted),
                 ordinaryRefusedReserved: hist.ordinaryRefusedReserved or w.foreignAtWitnessName },
       nextAttempt' = nextAttempt,
       envUsed' = envUsed,
@@ -2689,7 +2798,8 @@ module finish {
   /// TWO-WORLD comparison, not as a promise about the classifier's source.
   val inv_FN_20_a_leftover_artifact_is_never_a_receipt: bool =
     not(hist.artifactReadAsReceipt) and
-    freshTreeVerdict(w) == freshTreeVerdict(withoutLeftovers(w))
+    finishHappenedVerdict(w, t.settling) ==
+      finishHappenedVerdict(withoutLeftovers(w), t.settling)
 
   // --- `FN-21` --------------------------------------------------------------
 
@@ -2779,9 +2889,28 @@ module finish {
   /// From a crash at each step boundary, the next invocation classifies the
   /// result into EXACTLY ONE stable state — never into a state that is
   /// indistinguishable from a different one.
+  ///
+  /// THE CLAIM'S TWO HALVES ARE TWO DIFFERENT CONJUNCTS, AND THIS COLUMN HAD
+  /// ONLY ONE.  It read *exactly one* as arm DISJOINTNESS — the disk satisfies
+  /// exactly one row's condition — which is stronger than the catalogue makes it
+  /// and became false the moment the table gained a row that overlaps `Absent`
+  /// by design.  §*States* fixes an ORDER and says the order is itself a claim
+  /// (`TT-18`), so *exactly one* is what the order resolves to; *never into a
+  /// state indistinguishable from a different one* is the separate half, and in
+  /// this model the only thing that produces it is one artifact answering to two
+  /// NAMES at once.
+  ///
+  /// SO THE CONJUNCTS ARE FOUR, AND THE LAST TWO CARRY THE WEIGHT.  Totality and
+  /// single-valuedness are near-true by construction here, exactly as in
+  /// `finish.als`, and are kept because a row added later with a narrower guard
+  /// would break the first.  What can fail is §*States*' load-bearing property:
+  /// a disk with something of Grove's at a reserved name must not read as
+  /// `Absent` and must not read as an ordinary tree.  Before the catalogue
+  /// gained `Reserved(Quarantined)` and the reorder, BOTH failed here — the
+  /// post-rename disk classified `RAbsent`, which is the trace `SY-05.b` says
+  /// does not exist, and `EN-11`'s orphaned quarantine classified `RCurrentSpent`.
   val inv_FN_24a_every_interruption_lands_in_exactly_one_state: bool =
-    stableStates(w).size() == 1 and
-    hist.crashClassCounts.forall(n => n == 1)
+    classifiesHonestly(w) and not(hist.crashMisclassified)
 
   /// Every step of the transaction has at most one persistent effect, and that
   /// effect is a same-directory rename (`EN-01`) or is itself DECLARED.
@@ -2835,12 +2964,30 @@ module finish {
   // --- `FN-28` --------------------------------------------------------------
 
   /// A finish succeeds exactly when the exact attempt-bound commit is proven
-  /// and the task root is absent; branch, bookmark and worktree topology are
-  /// unchanged; and outstanding best-effort cleanup does not make a proven
-  /// finish unsuccessful.
+  /// and GROVE has taken the task root away and not put it back; branch,
+  /// bookmark and worktree topology are unchanged; and outstanding best-effort
+  /// cleanup does not make a proven finish unsuccessful.
+  ///
+  /// THE SECOND OPERAND WAS `not(w.rootPresent)` AND THAT IS A FACT ABOUT THE
+  /// DISK, WHICH THE PROTOCOL CANNOT HOLD.  After the quarantine rename the
+  /// task-root NAME is free and the world owns the namespace: something else may
+  /// be created there, and it may then be given the quarantined root's own
+  /// identity.  `finish.als` had three formulations falsified by exactly that
+  /// trace; this column's world cannot produce it — nothing here re-occupies a
+  /// freed task-root name — so the old phrasing was true HERE for a reason that
+  /// is a property of this model rather than of the protocol, which is the
+  /// weakest way for a claim to be green.  `finish-scope-k71` restated the
+  /// catalogue's operands over GROVE'S OWN STEPS, and this follows it: success
+  /// is reached only over a proven commit, and only through the step that takes
+  /// the root away.  The third sentence — Grove never puts the pinned root back
+  /// while the commit stands proven — is `SReturnQuarantine`'s guard
+  /// (`d != DCommitted`) and is true by construction here, declared as such in
+  /// `README.md` rather than restated as a conjunct that cannot fail.
+  /// See `docs/adr/success-is-proved-by-the-ticket-not-the-tree.md`.
   val inv_FN_28_one_successful_exit: bool =
     (t.outcome == OApplied and settledNow) implies
-      (not(w.rootPresent) and deletionProvenFor(w, t.settling))
+      (deletionProvenFor(w, t.settling) and
+       (ATOMIC_DISPOSAL or hist.appliedAfterQuarantine))
 
   // --- `FN-29` --------------------------------------------------------------
 
@@ -3028,6 +3175,8 @@ module base {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
@@ -3064,6 +3213,8 @@ module verify_small {
     RECOVERY_IDEMPOTENT = true,
     PREFLIGHT_PURE = true,
     PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
     LEFTOVERS_ARE_EVIDENCE = false,
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,

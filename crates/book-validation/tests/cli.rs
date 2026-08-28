@@ -35,6 +35,47 @@ fn invalid_scope_is_exit_two_and_uses_json_when_requested() {
     assert!(output.stderr.is_empty());
     assert_eq!(value["status"], "invocation-error");
     assert_eq!(value["diagnostics"][0]["code"], "U001");
+    assert_eq!(
+        value["diagnostics"][0],
+        serde_json::json!({
+            "code": "U001",
+            "phase": "parse",
+            "message": value["diagnostics"][0]["message"],
+            "primary": { "path": "<command>", "byte": 0, "line": null, "column": null },
+            "fragment_id": null,
+            "root_id": null,
+            "source": null,
+            "related": [],
+            "remedy": "run `book-check --help` for accepted arguments"
+        })
+    );
+}
+
+#[test]
+fn load_failure_has_path_category_and_complete_json_schema() {
+    let temporary = tempfile::tempdir().unwrap();
+    let output = run_from([
+        "book-check",
+        "--repo",
+        temporary.path().to_str().unwrap(),
+        "--book",
+        "docs/ordinal-fs-tree/book",
+        "--final",
+        "--output",
+        "json",
+    ]);
+    let value: serde_json::Value = serde_json::from_str(&output.stdout).unwrap();
+    let diagnostic = &value["diagnostics"][0];
+
+    assert_eq!(output.exit, 2);
+    assert_eq!(diagnostic["code"], "U002");
+    assert_eq!(diagnostic["primary"]["path"], "docs/ordinal-fs-tree/book");
+    assert!(diagnostic["message"]
+        .as_str()
+        .unwrap()
+        .contains("not-found"));
+    assert!(diagnostic["source"].is_null());
+    assert_eq!(diagnostic["related"], serde_json::json!([]));
 }
 
 #[test]

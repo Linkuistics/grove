@@ -33,3 +33,23 @@ rendering, and internal-failure boundary.
 
 Do not absorb Markdown diagnostic codes here; `markdown-validation-k9` owns
 that phase and extends the same envelope later.
+
+## Decisions (running log)
+
+- Diagnostic values use one complete record shape for validation, invocation,
+  and internal failures. Command-only null line and column values serialize
+  from the record's zero sentinel; ordinary Markdown locations remain concrete.
+- Graph reachability and expansion use iterative worklists. Byte expansion is
+  bounded to the authoritative source length plus one byte, and structurally
+  invalid roots are excluded while independent roots continue.
+- Byte comparison emits at most one `F008` per source root. The record names the
+  emitting literal fragment, owner, root-to-fragment path, first source byte and
+  line, and expected/actual byte or EOF.
+- CLI input enumeration is sorted before loading. The internal-failure boundary
+  serializes panic-hook replacement so a caught invariant panic produces only
+  the stable `I001` text or JSON record and no panic-hook stderr.
+- `cargo fmt --check`, workspace clippy with warnings denied, and every
+  `book-validation` test pass. The repository suite reaches only the pre-existing
+  `relative/path` Markdown-reference failure owned by live sibling
+  `reference-navigation-literal-k31`; two unrelated special-file setup tests
+  are also denied by the execution sandbox before their assertions run.

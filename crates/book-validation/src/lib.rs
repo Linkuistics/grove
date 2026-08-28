@@ -103,15 +103,69 @@ pub struct Diagnostic {
     pub primary: Location,
     pub fragment_id: Option<String>,
     pub root_id: Option<String>,
+    pub source: Option<SourceLocation>,
+    pub related: Vec<RelatedLocation>,
     pub remedy: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize)]
 pub struct Location {
     pub path: String,
     pub byte: usize,
     pub line: usize,
     pub column: usize,
+}
+
+impl Serialize for Location {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+
+        let mut map = serializer.serialize_map(Some(4))?;
+        map.serialize_entry("path", &self.path)?;
+        map.serialize_entry("byte", &self.byte)?;
+        if self.line == 0 {
+            map.serialize_entry("line", &Option::<usize>::None)?;
+        } else {
+            map.serialize_entry("line", &self.line)?;
+        }
+        if self.column == 0 {
+            map.serialize_entry("column", &Option::<usize>::None)?;
+        } else {
+            map.serialize_entry("column", &self.column)?;
+        }
+        map.end()
+    }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct SourceLocation {
+    pub path: String,
+    pub byte: usize,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct RelatedLocation {
+    pub path: String,
+    pub byte: usize,
+    pub line: usize,
+    pub column: usize,
+    pub label: String,
+}
+
+impl RelatedLocation {
+    pub(crate) fn from_location(location: &Location, label: impl Into<String>) -> Self {
+        Self {
+            path: location.path.clone(),
+            byte: location.byte,
+            line: location.line,
+            column: location.column,
+            label: label.into(),
+        }
+    }
 }
 
 impl Diagnostic {
@@ -130,7 +184,41 @@ impl Diagnostic {
             primary,
             fragment_id: fragment_id.map(str::to_owned),
             root_id: root_id.map(str::to_owned),
-            remedy: None,
+            source: None,
+            related: Vec::new(),
+            remedy: default_remedy(code).map(str::to_owned),
         }
     }
+
+    pub(crate) fn with_source(mut self, source: SourceLocation) -> Self {
+        self.source = Some(source);
+        self
+    }
+
+    pub(crate) fn with_related(mut self, related: Vec<RelatedLocation>) -> Self {
+        self.related = related;
+        self
+    }
+}
+
+fn default_remedy(code: &str) -> Option<&'static str> {
+    Some(match code {
+        "P001" => "replace the line with the exact reserved directive form",
+        "P002" => "move or close the construct so the directive is in a valid context",
+        "P003" => "encode the page as UTF-8 with LF line endings and one final LF",
+        "F001" => "give every fragment and source root a unique ID",
+        "F002" => "define exactly one target with this ID or correct the insert",
+        "F003" => "make the defer match a named later ownership block",
+        "F004" => "remove one insertion edge from the reported cycle",
+        "F005" => "attach the fragment once beneath its declared source root",
+        "F006" => "restore the fixed source-root inventory and authoritative path",
+        "F007" => "restore a gapless, ordered, single-owner source partition",
+        "F008" => "restore the literal bytes from the declared source range",
+        "F009" => "make the ledger row and directive describe the same value",
+        "F010" => "move the fragment definition to its owner's assigned numbered page",
+        "U001" => "run `book-check --help` for accepted arguments",
+        "U002" => "restore read access to the required repository input",
+        "I001" => "retry has no defined remedy; report the stable internal category",
+        _ => return None,
+    })
 }

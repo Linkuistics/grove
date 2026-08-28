@@ -188,15 +188,19 @@ fn a_named_later_slice_that_arrives_without_filling_its_hole_is_overdue_not_unre
 
 #[test]
 fn literal_newline_and_whitespace_drift_is_byte_failure() {
-    let markdown = concat!(
-        "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-1\" -->\n",
-        "<!-- insert «library-crate-surface» -->\n",
-        "<!-- /source-root -->\n",
-        "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-1\" parent=\"source-library\" -->\n",
-        "````rust\nline \n````\n<!-- /fragment -->\n",
+    let markdown = format!(
+        concat!(
+            "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-94\" -->\n",
+            "<!-- insert «library-crate-surface» -->\n",
+            "<!-- /source-root -->\n",
+            "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-94\" parent=\"source-library\" -->\n",
+            "````rust\nline \n{}````\n<!-- /fragment -->\n",
+        ),
+        "line\n".repeat(93)
     );
 
-    let snapshot = snapshot(markdown, "line\n");
+    let source = format!("line\n{}", "line\n".repeat(93));
+    let snapshot = snapshot(&markdown, &source);
     let request = Request {
         scope: Scope::Through("orientation-k11".into()),
         check: Check::Fragments,

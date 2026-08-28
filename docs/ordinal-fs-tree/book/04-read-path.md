@@ -1,6 +1,6 @@
 # Read path
 <!-- book-page id="read-path" slice="read-path-k14" order="4" -->
-[Previous: Reference domain](03-reference-domain.md) | [Contents](README.md)
+[Previous: Reference domain](03-reference-domain.md) | [Contents](README.md) | [Next: Mutation algebra](05-mutation-algebra.md)
 
 A read turns one directory tree into an immutable set of names under a shared
 advisory lock. The filesystem layer observes directory entries without following
@@ -1322,4 +1322,4 @@ descriptor already created is dropped during error propagation, and no
 filesystem mutation has been attempted. `NoContainingDirectory`, identity
 failure, and lock-acquisition failure can occur before either resource exists.
 
-[Previous: Reference domain](03-reference-domain.md) | [Contents](README.md)
+[Previous: Reference domain](03-reference-domain.md) | [Contents](README.md) | [Next: Mutation algebra](05-mutation-algebra.md)

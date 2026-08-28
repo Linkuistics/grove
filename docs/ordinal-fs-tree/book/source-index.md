@@ -47,16 +47,16 @@
 <!-- insert «name-seam-source» -->
 <!-- /source-root -->
 <!-- source-root «source-operations» source="crates/ordinal-fs-tree/src/ops.rs" lines="1-543" -->
-<!-- defer «mutation-operations-source» owner="mutation-algebra-k15" lines="1-543" -->
+<!-- insert «mutation-operations-source» -->
 <!-- /source-root -->
 <!-- source-root «source-plan» source="crates/ordinal-fs-tree/src/plan.rs" lines="1-568" -->
-<!-- defer «mutation-plan-source» owner="mutation-algebra-k15" lines="1-568" -->
+<!-- insert «mutation-plan-source» -->
 <!-- /source-root -->
 <!-- source-root «source-reference» source="crates/ordinal-fs-tree/src/reference.rs" lines="1-555" -->
 <!-- insert «reference-domain-source» -->
 <!-- /source-root -->
 <!-- source-root «source-report» source="crates/ordinal-fs-tree/src/report.rs" lines="1-152" -->
-<!-- defer «mutation-report-source» owner="mutation-algebra-k15" lines="1-152" -->
+<!-- insert «mutation-report-source» -->
 <!-- /source-root -->
 <!-- source-root «source-snapshot» source="crates/ordinal-fs-tree/src/snapshot.rs" lines="1-650" -->
 <!-- insert «read-snapshot-source» -->
@@ -96,10 +96,10 @@
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-636` | 636 | `resolved` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `deferred` |
 | `name-seam-source` | `source-name` | `name-seam-k12` | `1-700` | 700 | `resolved` |
-| `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-543` | 543 | `deferred` |
-| `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `deferred` |
+| `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-543` | 543 | `resolved` |
+| `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `resolved` |
 | `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-555` | 555 | `resolved` |
-| `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-152` | 152 | `deferred` |
+| `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-152` | 152 | `resolved` |
 | `read-snapshot-source` | `source-snapshot` | `read-path-k14` | `1-650` | 650 | `resolved` |
 | `filesystem-read-opening` | `source-filesystem-module` | `read-path-k14` | `1-86` | 86 | `resolved` |
 | `filesystem-write-acquire` | `source-filesystem-module` | `filesystem-interpreter-k16` | `87-105` | 19 | `deferred` |
@@ -142,7 +142,19 @@
 | `entry-name-derived-readings` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `603-674` | `name-seam-source` | `—` |
 | `name-component-check` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `675-700` | `name-seam-source` | `—` |
 | `source-operations` | `source-index` | `source-operations` | `root` | `—` | `1-543` | `—` | `mutation-operations-source` |
+| `ops-surface-and-inputs` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `1-68` | `mutation-operations-source` | `—` |
+| `mutation-operations-source` | `mutation-algebra` | `source-operations` | `composite` | `mutation-algebra-k15` | `1-543` | `source-operations` | `ops-surface-and-inputs`, `ops-append`, `ops-insert`, `ops-promote`, `ops-rewrite`, `ops-resolution-and-allocation` |
+| `ops-append` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `69-144` | `mutation-operations-source` | `—` |
+| `ops-insert` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `145-251` | `mutation-operations-source` | `—` |
+| `ops-promote` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `252-396` | `mutation-operations-source` | `—` |
+| `ops-rewrite` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `397-476` | `mutation-operations-source` | `—` |
+| `ops-resolution-and-allocation` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `477-543` | `mutation-operations-source` | `—` |
 | `source-plan` | `source-index` | `source-plan` | `root` | `—` | `1-568` | `—` | `mutation-plan-source` |
+| `plan-effects` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `1-118` | `mutation-plan-source` | `—` |
+| `mutation-plan-source` | `mutation-algebra` | `source-plan` | `composite` | `mutation-algebra-k15` | `1-568` | `source-plan` | `plan-effects`, `plan-guarded`, `plan-decision-and-refusals`, `plan-refusal-messages` |
+| `plan-guarded` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `119-229` | `mutation-plan-source` | `—` |
+| `plan-decision-and-refusals` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `230-419` | `mutation-plan-source` | `—` |
+| `plan-refusal-messages` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `420-568` | `mutation-plan-source` | `—` |
 | `source-reference` | `source-index` | `source-reference` | `root` | `—` | `1-555` | `—` | `reference-domain-source` |
 | `reference-vocabulary` | `reference-domain` | `source-reference` | `literal` | `reference-domain-k13` | `1-210` | `reference-domain-source` | `—` |
 | `reference-domain-source` | `reference-domain` | `source-reference` | `composite` | `reference-domain-k13` | `1-555` | `source-reference` | `reference-vocabulary`, `reference-name-and-errors`, `reference-parser`, `reference-seam-methods`, `reference-parser-helpers` |
@@ -151,6 +163,9 @@
 | `reference-seam-methods` | `reference-domain` | `source-reference` | `literal` | `reference-domain-k13` | `474-505` | `reference-domain-source` | `—` |
 | `reference-parser-helpers` | `reference-domain` | `source-reference` | `literal` | `reference-domain-k13` | `506-555` | `reference-domain-source` | `—` |
 | `source-report` | `source-index` | `source-report` | `root` | `—` | `1-152` | `—` | `mutation-report-source` |
+| `report-structure-and-order` | `mutation-algebra` | `source-report` | `literal` | `mutation-algebra-k15` | `1-119` | `mutation-report-source` | `—` |
+| `mutation-report-source` | `mutation-algebra` | `source-report` | `composite` | `mutation-algebra-k15` | `1-152` | `source-report` | `report-structure-and-order`, `report-debug` |
+| `report-debug` | `mutation-algebra` | `source-report` | `literal` | `mutation-algebra-k15` | `120-152` | `mutation-report-source` | `—` |
 | `source-snapshot` | `source-index` | `source-snapshot` | `root` | `—` | `1-650` | `—` | `read-snapshot-source` |
 | `snapshot-storage` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `1-104` | `read-snapshot-source` | `—` |
 | `read-snapshot-source` | `read-path` | `source-snapshot` | `composite` | `read-path-k14` | `1-650` | `source-snapshot` | `snapshot-storage`, `snapshot-builder`, `snapshot-entry-views`, `snapshot-containers`, `snapshot-queries` |
@@ -179,6 +194,6 @@
 | `Ordinal`, `Key`, `Found`, `Verdict`, `Species`, `EntryName` | `01-orientation.md#working-vocabulary` | `name-seam-k12` | Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam. | `explained` |
 | `Label`, `Status`, `Parts`, `SyllabusName` | `01-orientation.md#insert-tour` | `reference-domain-k13` | These values are the syllabus consumer's vocabulary and seam implementation, not library defaults. | `explained` |
 | `Snapshot`, `Entry`, `ReadGuard` | `01-orientation.md#insert-tour` | `read-path-k14` | A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot. | `explained` |
-| `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `pending` |
+| `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `explained` |
 | `WriteGuard`, `Error`, `apply::Faults`, `apply::Run` | `01-orientation.md#insert-tour` | `filesystem-interpreter-k16` | A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state. | `pending` |
 | `Cli`, `Verb`, `Streams`, `Failure` | `01-orientation.md#insert-tour` | `syllabus-cli-k17` | Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category. | `pending` |

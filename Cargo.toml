@@ -38,6 +38,7 @@
 # load-bearing rather than a restatement of what 2021 implies.
 [workspace]
 members = [
+    "crates/book-validation",
     "crates/grove",
     "crates/grove-llm",
     "crates/grove-loop",

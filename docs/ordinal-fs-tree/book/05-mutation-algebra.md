@@ -1,6 +1,6 @@
 # Mutation algebra
 <!-- book-page id="mutation-algebra" slice="mutation-algebra-k15" order="5" -->
-[Previous: Read path](04-read-path.md) | [Contents](README.md)
+[Previous: Read path](04-read-path.md) | [Contents](README.md) | [Next: Filesystem interpreter](06-filesystem-interpreter.md)
 
 A mutation begins from the immutable `Snapshot` described on the previous page.
 The algebra receives that snapshot and the operation's arguments, and returns a
@@ -1639,4 +1639,4 @@ plan or a refusal. The plan records what must happen; the filesystem interpreter
 on the next page determines whether those effects land and records what actually
 happened in a report.
 
-[Previous: Read path](04-read-path.md) | [Contents](README.md)
+[Previous: Read path](04-read-path.md) | [Contents](README.md) | [Next: Filesystem interpreter](06-filesystem-interpreter.md)

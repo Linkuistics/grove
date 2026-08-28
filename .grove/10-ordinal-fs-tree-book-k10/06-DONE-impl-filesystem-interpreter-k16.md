@@ -30,3 +30,20 @@ and the error taxonomy.
 Do not call the operation atomic. State exactly which intermediate filesystem
 states can exist under the exclusive lock and what rollback promises after each
 failure class.
+
+## Decisions (running log)
+
+Keep each ledger-owned top-level block stable as a composite and refine it into
+intent-named, gapless literal fragments. Present the chapter in dependency
+order: lock and snapshot acquisition, consuming write guard, mutation dispatch,
+ordered application, effect-specific filesystem steps, reverse unwind,
+intermediate-state limits, then the error taxonomy.
+
+Reuse the established insert as both the successful interpreter trace and the
+clean-unwind trace, failing its final create only after both highest-first moves
+have landed. Use promotion for the failed-unwind trace because its empty created
+node and original leaf make the partial state and mechanical repair concrete.
+
+State recovery as a reported-error guarantee with explicit exclusions for
+process termination and writers that ignore the advisory lock. Do not describe
+the multi-effect filesystem operation as atomic.

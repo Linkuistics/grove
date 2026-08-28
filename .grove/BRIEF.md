@@ -40,10 +40,26 @@ as a deployable Linkuistics skill.
 
 ## Decomposition
 
-The requirements agreement is intentionally followed by a fresh `planning`
-session. That session will turn the two coupled deliverables, their research and
-their review obligations into small ordered leaves without making this
-human-in-the-loop session carry the implementation context.
+The requirements agreement is followed by five dependency-ordered increments:
+
+- two independent surveys and one synthesis establish the external evidence for
+  concept ordering, worked examples, cognitive load, progressive disclosure,
+  local repetition, cross-references, and precise technical prose;
+- a book-system design fixes the chapter and fragment contracts before tooling
+  or prose depends on them;
+- deterministic fragment and Markdown validators land before authoring, so each
+  book slice can leave a mechanically checkable artifact;
+- concept-oriented book slices build from purpose and the public seam through
+  reads, mutations, the filesystem interpreter, and the CLI, followed by whole-
+  corpus assembly and independent technical and editorial review;
+- the validated method is tested first without a skill, authored generically,
+  then tested with the skill enabled against the same behavioural rubric.
+
+Research is an eager vendor pair because one evidence base informs both
+deliverables and the split-attention/redundancy question benefits from
+independent corpora. Review chains remain lazy: the complete book commissions
+technical review, findings are integrated before editorial review, and the
+editorial reviewer commissions integration only when it has findings.
 
 ## Pointers
 

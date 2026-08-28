@@ -248,6 +248,21 @@ each found what the previous two missed were **not independent** — each wrote 
 doubt into the next one's charter, and a chain of three *unaimed* readers is a
 different experiment this workstream never ran.
 
+**Landed by `doubt-driven-development-k95`, and two of the sentences above did
+not survive contact with the record.** The contract rule, its residue, the
+different-instrument test with the four evidenced declines, the counting cautions
+and the relay caveat are all in the skill; the Grove alignment is a citation to
+`references/decompose.md` and `references/integrate-review.md` rather than a
+restatement, as §C reads it. What changed on the way in: **the 6.2 → 3.5
+sentence above overstates its source** — `review-yield.md`'s verdict is that the
+gap *cannot be read* as decay at all (≈1.8σ, unmatched subjects, rising review
+rate), of which the selection effect is one reason of three, so the skill carries
+all three rather than the mechanism alone; and **the relay result is weakened
+twice, not once** — it is also one node, selected for review a third time
+because it was the hardest. The skill also separates the two channels' counting
+instruments, which this section's figures silently merge: the tree-level counts
+are derived, the in-session ones are a hand count.
+
 ### C · The governance constraint on doing either
 
 [`grove-binds-without-the-plugin`](adr/grove-binds-without-the-plugin.md) makes

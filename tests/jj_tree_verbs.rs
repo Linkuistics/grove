@@ -214,7 +214,6 @@ fn rel_line(stdout: &str, repo: &Path, n: usize) -> PathBuf {
 fn build_grove(repo: &Path) {
     let g = repo.join(".grove");
     touch(&g.join("BRIEF.md"), "# proj — brief\n\n## Goal\n");
-    touch(&g.join("FORMAT"), "session-kinds-v1\n");
     touch(&g.join("01-impl-alpha-k1.md"), "# alpha-k1\n\nalpha body\n");
     touch(
         &g.join("02-node-k2/BRIEF.md"),
@@ -253,8 +252,6 @@ fn root_init_scaffolds_a_grove_in_a_jj_native_tree() {
         rel_line(&stdout, repo, 1),
         PathBuf::from(".grove/01-requirements-plan-k1.md")
     );
-    assert_eq!(rel_line(&stdout, repo, 2), PathBuf::from(".grove/FORMAT"));
-    assert_eq!(read(repo, ".grove/FORMAT"), "session-kinds-v1\n");
     assert!(!read(repo, ".grove/01-requirements-plan-k1.md").contains("**Kind:**"));
     assert!(
         !exists(repo, ".git"),
@@ -305,7 +302,6 @@ fn leaf_insert_renumbers_siblings_in_a_jj_native_tree() {
             "03-node-k2/BRIEF.md",
             "04-design-omega-k5.md",
             "BRIEF.md",
-            "FORMAT",
         ],
         "every sibling shifted up one, the node's subtree riding along untouched"
     );
@@ -375,7 +371,6 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
     let tmp = jj_native();
     let repo = tmp.path();
     let grove = repo.join(".grove");
-    touch(&grove.join("FORMAT"), "session-kinds-v1\n");
     // Flat siblings, which is what a review chain is (flat-lazy-review): the
     // review was cut by the producer's own session as an ordinary `leaf-add`.
     touch(&grove.join("01-impl-build-k1.md"), "# build-k1\n");
@@ -440,65 +435,6 @@ fn leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree() {
         exists(repo, ".grove/02-node-k2/BRIEF.md"),
         "a node is never marked — its brief stays exactly where it is"
     );
-}
-
-/// Lay down a **kind-less v2** tree — the one legacy layout still migrated. Its
-/// directories are already the v2 shape; what is legacy is that its leaves carry
-/// no session-kind segment and its bodies still carry `**Kind:**` markers.
-///
-/// So the conversion this drives is a rename **inside each directory** plus a
-/// body rewrite, which is the whole of what migration does now. It replaced a
-/// v1-flat fixture, which in turn replaced an `NNN-slug/` one, as each of those
-/// layouts was withdrawn; the property that went with them is relocation — no
-/// directory is created or removed here, and `expected_migrated_tree` names the
-/// same directory it started in.
-fn build_kindless_v2_grove(repo: &Path) {
-    let g = repo.join(".grove");
-    touch(&g.join("BRIEF.md"), "# proj — brief\n");
-    touch(
-        &g.join("01-DONE-first-k1.md"),
-        "# first-k1\n\n**Kind:** impl\n\nbody one\n",
-    );
-    touch(&g.join("02-second-k2/BRIEF.md"), "# second-k2 — brief\n");
-    touch(
-        &g.join("02-second-k2/01-child-k3.md"),
-        "# child-k3\n\nchild body\n",
-    );
-}
-
-/// The current-format shape `build_kindless_v2_grove` must lower to. The child
-/// body carries no `**Kind:**` marker, so it takes the read-side default `impl`;
-/// the retired root leaf declares `impl` and keeps it, minus the marker line.
-fn expected_migrated_tree() -> Vec<String> {
-    [
-        "01-DONE-impl-first-k1.md",
-        "02-second-k2/01-impl-child-k3.md",
-        "02-second-k2/BRIEF.md",
-        "BRIEF.md",
-        "FORMAT",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect()
-}
-
-#[test]
-fn the_lifecycle_transition_migrates_a_legacy_tree_in_a_jj_native_tree() {
-    // The pre-v2 layout conversion, in a tree with no git anywhere — so a git
-    // fallback in the rename seam or the commit seam fails outright rather than
-    // quietly working. This is the same claim the other cases in this file make
-    // for the agent verbs, made for the one mutation the *driver* performs
-    // before it selects anything.
-    let tmp = jj_native();
-    let repo = tmp.path();
-    build_kindless_v2_grove(repo);
-
-    assert_eq!(
-        grove::tree_lifecycle::transition_to_current(repo).unwrap(),
-        grove::tree_lifecycle::CurrentTransition::Migrated
-    );
-
-    assert_eq!(tree(repo), expected_migrated_tree());
 }
 
 #[test]
@@ -627,27 +563,3 @@ fn leaf_prune_in_a_colocated_tree_leaves_the_git_index_alone() {
     );
 }
 
-#[test]
-fn the_lifecycle_transition_in_a_colocated_tree_leaves_the_git_index_alone() {
-    // jj-first where git is genuinely available: the conversion must move
-    // entries with a plain rename, since a `git mv` would stage into an index
-    // jj ignores. The transition commits as well as renames, and the *commit*
-    // half of the same claim — that a colocated jj commit leaves git's index
-    // where the user left it — is `tests/migration_commit.rs`'s subject; here
-    // the index is the fixture's own, staged before the transition runs.
-    let tmp = colocated(build_kindless_v2_grove);
-    let repo = tmp.path();
-    let before = git_index(repo);
-
-    assert_eq!(
-        grove::tree_lifecycle::transition_to_current(repo).unwrap(),
-        grove::tree_lifecycle::CurrentTransition::Migrated
-    );
-
-    assert_eq!(tree(repo), expected_migrated_tree());
-    assert_eq!(
-        git_index(repo),
-        before,
-        "jj-first: git's index is untouched"
-    );
-}

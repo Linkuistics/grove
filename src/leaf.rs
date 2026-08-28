@@ -8,16 +8,15 @@
 //
 // Everything else this module once held — the `NNN-slug` / `done/` reader and
 // grower (`add`, `insert`, header rewriting, cross-ref surfacing) — was the old
-// verb path, made dead by the migration and deleted with it. Its last lodger,
-// the `NNN-slug` prefix parser, went when that layout stopped being migrated:
-// what recognises a withdrawn layout now is a private matcher beside its refusal
-// in `tree_migrate`, which is where the only caller is.
+// verb path, made dead by the migration and deleted with it. Its last lodgers,
+// the `NNN-slug` prefix parser and the lenient read-side kind parser, went with
+// migration itself (`delete-migration-k6`).
 
 use anyhow::{bail, Result};
 
-/// The previous spelling of `impl`, still accepted on **read** so a live grove's
-/// task files keep working across the rename (task-kind-taxonomy). Refused on
-/// write, with an error naming the replacement — see [`Kind::parse`].
+/// The previous spelling of `impl` (task-kind-taxonomy). No longer a spelling
+/// grove reads — it is kept only so [`Kind::parse`] can name the replacement
+/// rather than list the whole set at someone who typed the old word.
 const WORK_ALIAS: &str = "work";
 
 /// A leaf's session kind — a closed, **parameterised** set of nineteen
@@ -120,20 +119,9 @@ impl Kind {
             return Ok(kind);
         }
         if s == WORK_ALIAS {
-            bail!(
-                "--kind `work` was renamed `impl` (task-kind-taxonomy); use `--kind impl`. \
-                 Legacy migration still reads `work` as `impl`."
-            );
+            bail!("--kind `work` was renamed `impl` (task-kind-taxonomy); use `--kind impl`");
         }
         bail!("--kind must be one of {}, got {:?}", Kind::label_list(), s)
-    }
-
-    /// Compatibility parser for legacy migration and installed-driver wire
-    /// values. Current filename parsing uses the strict known-label set.
-    pub(crate) fn parse_read(s: &str) -> Option<Kind> {
-        Kind::from_label(s)
-            .or_else(|| (s == WORK_ALIAS).then_some(Kind::Impl))
-            .or_else(|| (s == "research").then_some(Kind::ResearchA))
     }
 
     /// The lowercase label written into a task filename and printed by
@@ -443,7 +431,6 @@ mod inline_tests {
     fn every_kind_label_round_trips_through_parse() {
         for k in Kind::ALL {
             assert_eq!(Kind::parse(k.label()).unwrap(), k);
-            assert_eq!(Kind::parse_read(k.label()), Some(k));
         }
     }
 
@@ -521,13 +508,12 @@ mod inline_tests {
         }
     }
 
-    // The `work` → `impl` rename, both halves. The asymmetry *is* the decision
-    // (task-kind-taxonomy): read silently accepts the previous spelling so the
-    // six live groves whose task files say `work` keep working untouched; write
-    // refuses it so a human authoring a new leaf is retrained once.
+    // The `work` → `impl` rename (task-kind-taxonomy). Nothing reads the old
+    // spelling any more — the lenient read-side parser went with migration
+    // (`delete-migration-k6`) — but `parse` still recognises the word, so a
+    // human who types it is told what replaced it rather than handed the set.
     #[test]
-    fn work_reads_as_impl_but_is_refused_on_write() {
-        assert_eq!(Kind::parse_read("work"), Some(Kind::Impl));
+    fn work_is_refused_on_write_by_naming_its_replacement() {
         let err = Kind::parse("work").unwrap_err().to_string();
         assert!(
             err.contains("impl"),
@@ -537,8 +523,7 @@ mod inline_tests {
     }
 
     #[test]
-    fn legacy_research_reads_as_research_a_but_is_refused_on_write() {
-        assert_eq!(Kind::parse_read("research"), Some(Kind::ResearchA));
+    fn bare_research_is_refused_by_naming_the_two_vendors() {
         let err = Kind::parse("research").unwrap_err().to_string();
         assert!(err.contains("research-a"), "{err}");
         assert!(err.contains("research-b"), "{err}");
@@ -569,15 +554,13 @@ mod inline_tests {
         // could be written whose filename names a step of nothing.
         for prefix in ["review", "integrate-review"] {
             assert!(Kind::parse(prefix).is_err(), "{prefix}");
-            assert_eq!(Kind::parse_read(prefix), None, "{prefix}");
+            assert_eq!(Kind::from_label(prefix), None, "{prefix}");
         }
     }
 
     #[test]
-    fn parse_read_rejects_a_genuinely_unknown_label() {
-        // The alias must not turn `parse_read` into "anything goes" — an
-        // unrecognised wire or legacy-migration token still comes back `None`.
-        assert_eq!(Kind::parse_read("reserch"), None);
-        assert_eq!(Kind::parse_read(""), None);
+    fn from_label_rejects_a_genuinely_unknown_label() {
+        assert_eq!(Kind::from_label("reserch"), None);
+        assert_eq!(Kind::from_label(""), None);
     }
 }

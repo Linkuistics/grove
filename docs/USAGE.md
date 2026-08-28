@@ -34,12 +34,11 @@ session, press Ctrl-C, or the process dies — stops the loop.
 
 Because `grove` takes no arguments, **the working directory is the only thing
 that selects a workstream**. There is no tree to name and no confirmation step:
-Grove adopts, migrates, and commits against whichever working tree encloses the
+Grove scaffolds and commits against whichever working tree encloses the
 directory you ran it from. That is what makes the command short, and it is worth
 knowing before you run it in a repository that holds several linked worktrees or
-Jujutsu workspaces — running it in the wrong one migrates that tree, not the one
-you meant. `jj op restore` and `git reset` recover the migration commit if it
-happens.
+Jujutsu workspaces — running it in the wrong one starts a grove there, not in the
+one you meant. `jj op restore` and `git reset` recover it if that happens.
 
 To resume, run `grove` again. Grove has no progress database; it re-derives its
 position from the task tree every iteration, which is what makes restart and
@@ -48,11 +47,11 @@ continuation the same thing.
 Full configuration validation precedes every one of those tree mutations, so a
 missing or malformed `config.kdl` leaves your working tree byte-identical.
 
-Grove makes two commits of its own — the migration commit above and the teardown
-commit at the end. Both touch only `.grove/`, and in plain Git both run with your
-Git hooks disabled: an arbitrary hook can modify unrelated files even while
-rejecting the commit, and neither commit's rollback could put those files back.
-Signing and other repository failures still surface normally.
+Grove makes one commit of its own — the teardown commit at the end. It touches
+only `.grove/`, and in plain Git it runs with your Git hooks disabled: an
+arbitrary hook can modify unrelated files even while rejecting the commit, and
+the commit's rollback could not put those files back. Signing and other
+repository failures still surface normally.
 
 ### One driver per working tree
 
@@ -94,7 +93,6 @@ A small workstream might look like this:
 ```text
 .grove/
 ├── BRIEF.md
-├── FORMAT
 ├── 01-DONE-requirements-plan-k1.md
 ├── 02-DONE-design-auth-k2.md
 ├── 03-review-design-auth-k3.md
@@ -119,8 +117,10 @@ NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
   the way a work item is named in commit messages; it survives renumbering and
   slug edits.
 
-`.grove/FORMAT` records the filename grammar in use. Grove writes and reads it;
-it is not a status or phase file.
+There is no witness file and no format stamp: the filenames *are* the format. A
+tree whose names this grammar does not spell is refused by name, with the
+offending path and the shape it should have had — Grove does not migrate an
+older layout.
 
 Grove picks the first live leaf in depth-first pre-order. There is no hidden
 scheduler and no dependency inference from prose: ordering in a grove is

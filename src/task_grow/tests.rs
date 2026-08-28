@@ -16,7 +16,6 @@
 //!     resolver's rather than the appender's, and say something different.
 
 use super::*;
-use crate::tree_format;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -28,7 +27,6 @@ fn grove() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join(".grove");
     fs::create_dir_all(&root).unwrap();
-    tree_format::write_current_last(&root).unwrap();
     (tmp, root)
 }
 
@@ -44,7 +42,6 @@ fn git_grove() -> (TempDir, PathBuf) {
     run_git(&repo, &["config", "user.name", "Test"]);
     let root = repo.join(".grove");
     fs::create_dir_all(&root).unwrap();
-    tree_format::write_current_last(&root).unwrap();
     (tmp, root)
 }
 

@@ -1,38 +1,55 @@
-# A witnessless root refuses what it cannot account for, and only Grove's own bytes prove the root is Grove's
+# A witnessless root refuses what it cannot account for
 
-Root initialisation makes the format witness visible last, so an interruption
-leaves a present task root with no witness. The semantic contract had **one**
-state for that condition — `PartialScaffold`, an exact closed subset of what a
-fresh scaffold writes — and everything outside the subset fell through to
-`Legacy`. A stray file beside Grove's own half-written scaffold therefore made
-Grove read its own interrupted work as somebody else's legacy tree, one `crash`
-and one `foreign-write` deep.
+**Every root is witnessless now.** `delete-migration-k6` removed the format
+witness along with migration, so the qualifier in this record's name no longer
+narrows anything — it names the only kind of root there is. The rule it states
+is unchanged, and its mechanism is what got simpler.
 
-A witnessless root is now classified by an **ordered three-way test**, and the
-order is what makes it fail closed:
+Root initialisation still makes its first leaf visible last, so an interruption
+still leaves a present task root that initialisation has not finished with. That
+condition is classified by an **ordered three-way test**, and the order is what
+makes it fail closed:
 
-1. **`PartialScaffold(Exact)`** — nothing but the fresh scaffold's own
-   byte-exact entries. Completed, because every value the completion writes is
-   fixed in advance.
-2. **`PartialScaffold(Ambiguous)`** — otherwise, when the root carries at least
-   one **root-init-exclusive** entry. Refused, mutating nothing.
-3. **`Legacy`** — otherwise. Nothing proves this format's initialisation ran.
+1. **`PartialScaffold`** — the root holds nothing but its charter, if even that.
+   Completed, because every value the completion writes is fixed in advance.
+2. **`ATree`** — the root holds at least one name the grammar owns: an entry, or
+   one it refuses. Left alone; a name Grove refuses is *held*, not absent, and
+   the next reader states it in the domain's own words.
+3. **`Unrecognised`** — the root holds names Grove disclaims, and nothing else.
+   Refused, mutating nothing.
 
-**Root-init-exclusive** means an entry only *this format's* root initialisation
-writes: the reserved format temporary, and the first `requirements` leaf at
-position 1 with key 1, canonically spelled, byte-equal to what a fresh scaffold
-writes. **The root charter is deliberately excluded.** Its bytes derive from the
-working-tree name and every earlier format wrote the same ones, so a charter is
-evidence that *some* Grove was here and never evidence of *this* one.
+`tree_lifecycle::root_shape` ([`src/tree_lifecycle.rs`](../../src/tree_lifecycle.rs))
+is that test.
 
-The middle branch is `TT-24`'s fail-closed ownership rule applied at the **root**
-grain rather than the entry grain, and it is the same split the contract already
-draws one grain down: `WitnessPending` is an artifact at a reserved name Grove
-**can** prove is its own, `ReservedNameOccupied` one it cannot classify at all.
-Its refusal reason follows the same correspondence — `Reserved(class)` reports as
-`WitnessPending(class)`, so `PartialScaffold(class)` reports as
-`ScaffoldIncomplete(class)`, one parameterised member rather than two flat ones,
-and the operator reads the class instead of guessing from the reason.
+## What the witness's removal changed, and what it did not
+
+**The middle branch's job moved and its principle did not.** The witnessed
+version distinguished `PartialScaffold(Exact)` from `PartialScaffold(Ambiguous)`
+by a byte-exact comparison against what a fresh scaffold writes, and needed
+**root-init-exclusive** entries — the reserved format temporary, and the first
+`requirements` leaf at position 1 with key 1, byte-equal — because a witnessless
+root was *also* how a legacy tree presented, and the two got opposite treatment.
+Migration is gone, so nothing is discriminating against legacy any more, and the
+byte comparison went with the thing it was discriminating against.
+
+What replaces it is cheaper and rests on a different guarantee:
+[`entries-are-never-removed`](entries-are-never-removed.md). A tree that has ever
+held a leaf still holds one, so *this root holds no Grove entry* can only mean
+initialisation did not finish. The charter stays excluded from the evidence for
+the reason it always was — its bytes derive from the working-tree name and every
+earlier format wrote the same ones, so a charter is evidence that *some* Grove
+was here and never evidence of *this* one — which is why a charter-only root is
+`PartialScaffold` rather than proof of ownership, and why the completion appends
+beside the charter rather than rewriting it.
+
+**The refusal branch is now load-bearing in a way it was not.** Under the witness
+it caught a stray file beside Grove's own half-written scaffold. It now also
+catches the whole class the `Legacy` branch used to absorb: the layouts Grove
+wrote before this grammar are positioned but *unkeyed*, so every one of their
+names is `Foreign` — invisible to the reader rather than refused by it. Without
+the third branch such a tree would read as an empty grove and take the driver's
+finish sentinel. Refusing is the same fail-closed ownership rule applied to a
+larger set.
 
 ## The trade-off it settles
 
@@ -51,88 +68,86 @@ prove, which is the one thing `TT-24` forbids everywhere else. The counterexampl
 that motivated the proposal is real; only its second half is.
 
 **The product had already answered, and answering the same way twice from
-different evidence is what settled it.**
-`recover_partial_root_init_unlocked` ([`src/tree_lifecycle.rs`](../../src/tree_lifecycle.rs))
-runs exactly this test and refuses with an *ambiguous partial root scaffold*
-diagnostic that the contract's state table had no member for. The charter
-exclusion is not an inference from that code but a deliberate shipped test:
-`an_untouched_root_brief_does_not_hide_a_legacy_v2_tree` puts a byte-exact
-charter beside a legacy-v2 leaf and **migrates**, because the alternative is
-writing a format witness into somebody else's tree.
+different evidence is what settled it.** The witnessed implementation
+(`recover_partial_root_init_unlocked`) ran exactly this test and refused with an
+*ambiguous partial root scaffold* diagnostic the contract's state table had no
+member for. That function is gone with migration, and the argument survived it
+intact: `root_shape` refuses the same class for the same reason, having reached
+it from the tree's shape rather than from a byte comparison.
 
-## What it costs, which is a window it does not close
+## What it cost, and what removal settled
 
-`TT-20`'s prohibition on `Legacy` narrows to *once a root-init-exclusive entry
-has landed*. Before that the root carries no evidence distinguishing it from a
-legacy tree, so `Legacy` is honest — and the window is real and shipped: after
-the charter, before the leaf, which `create_root_unlocked` and
-`complete_scaffold` leave unguarded on purpose.
+The witnessed version carried a **diagnostic** defect it could not close.
+`TT-20`'s prohibition on `Legacy` narrowed to *once a root-init-exclusive entry
+has landed*; before that — after the charter, before the leaf — the root carried
+no evidence distinguishing it from a legacy tree, so an operator inside that
+window was told to migrate a tree that was not legacy. Wrong but actionable,
+because migration existed and did something coherent.
 
-The cost is a **diagnostic** defect rather than a safety one, and it is
-bounded. Nothing is silently completed in the window. Inside it an operator is
-told to migrate a tree that is not legacy — which is wrong but actionable,
-because migration exists and does something coherent.
+**This record named the removal as its own reopen condition, and the removal
+happened.** The concern recorded here was that removing migration would make
+`Legacy` fail closed and tell an operator to migrate by a command that no longer
+exists, about a directory Grove created and then failed to recognise. That
+concern is answered rather than realised, and by construction rather than by
+care: the window it describes is now `PartialScaffold` — a root holding its
+charter and nothing else is exactly the shape the first branch completes, so
+there is no diagnostic to get wrong. The incoherent message the removal was
+feared to produce has no branch to appear on.
 
-**The removal that would have made it worse is withdrawn.** An earlier plan
-would have removed legacy migration, after which `Legacy` would have failed closed and the
-operator would have been told to migrate by a command that no longer exists,
-about a directory Grove created and then failed to recognise. That removal was
-approved and never implemented: the phase that owned it was abandoned on a
-cost-against-value judgement, not on a finding that it was wrong. Migration
-commands and compatibility paths stand as they are, so the window's cost stays
-the merely-wrong diagnostic rather than the incoherent one. Reopen this only
-with the removal itself.
+What survives of the cost is smaller and stated plainly: a charter-only root
+whose charter Grove did not write is completed rather than refused. Nothing is
+overwritten — the completion appends a first leaf and leaves the charter as it
+found it — and the shape cannot arise from Grove's own operation, because entries
+are marked and never removed. Reopen if the charter gains bytes that distinguish
+the format that wrote it, which would let the first branch demand ownership
+evidence it currently cannot ask for.
 
 ## Alternatives rejected
 
-- **Treat the charter as root-init-exclusive**, which closes the window
-  entirely. Rejected on a fired control rather than on taste: it is what
-  `an_untouched_root_brief_does_not_hide_a_legacy_v2_tree` exists to prevent,
-  and its failure mode — completing somebody's legacy tree as a fresh current
-  root — is strictly worse than the one it fixes. Reopen only if the charter
-  gains bytes that distinguish the format that wrote it.
+- **Treat the charter as ownership evidence**, which would let a charter-only
+  root be refused rather than completed. Rejected because the charter cannot
+  carry that weight: its bytes derive from the working-tree name, so every format
+  Grove ever wrote produced the same ones. Under the witness this was enforced by
+  a shipped test that put a byte-exact charter beside a legacy-v2 leaf and
+  migrated rather than completing; that test went with migration, and what
+  replaces it is structural — a legacy leaf beside the charter now lands in
+  `ATree` or `Unrecognised` on its own name, so the charter never hides one.
+  Reopen only if the charter gains bytes that distinguish the format that wrote
+  it.
 - **A guard across root initialisation's two phases.** Rejected because it buys
   nothing against the actor that produces the counterexample: `EN-06` grants
   only that *cooperating* processes are serialized, and the writer here is
   `EN-13`'s non-cooperating one. A guard would close a window against exactly
   the writers that were never in it. Reopen if the lock becomes mandatory.
-- **A twelfth state beside `PartialScaffold` rather than a class of it.**
-  Rejected because it asserts more than Grove knows in the wrong direction: the
-  root *is* a partial scaffold — Grove can prove its own initialisation ran —
-  and what it cannot prove is that the root's whole contents are its own. As a
-  class, `TT-18` and `TT-20` stay stated over the scaffold **family** and are
-  insensitive to a member being added or removed, which is the property
-  `Reserved(class)` was given for the same reason.
-- **Two flat refusal reasons instead of one parameterised member.** Rejected as
-  unnecessary once the state carried the class. The operator distinction is real
-  and must survive — telling an operator `ScaffoldIncomplete` about an ambiguous
-  root would point them at a completion Grove has already declined — but
-  `Reserved(class)` → `WitnessPending(class)` is the contract's own idiom for
-  exactly that, and reusing it makes the vocabulary regular where a second member
-  would make it lumpy. Reopen if a scaffold class ever needs a recovery the
-  class parameter cannot name.
-- **Reorder root initialisation so its first write is root-init-exclusive**,
-  which closes the surviving window at the cost of one product change — and
-  `tree_format::write_current_last` already validates and reuses a pre-existing
-  temporary, so the code anticipates it. Not rejected on the merits: the formal
-  phase alters no product behaviour, and the question is product-facing, so it
-  sits with `handoff-audit-k66`'s other diagnostic questions. This record is
-  where it comes back.
+- **A class parameter on `PartialScaffold`, rather than a separate refusal
+  state.** This is what the witnessed version did, and the witness's removal
+  retired it: with no byte comparison there is no `Exact`/`Ambiguous` split to
+  carry, and the two outcomes are now different branches reached from different
+  evidence rather than two classes of one state. The distinction the parameter
+  protected — never telling an operator *scaffold incomplete* about a root Grove
+  has declined to complete — survives as the third branch's own message.
+- **Reorder root initialisation so its first write proves ownership**, closing
+  the surviving cost above. Retired rather than rejected: the witnessed version
+  could have made the reserved format temporary the first write, and there is no
+  witness to reorder any more. What would replace it is giving the charter bytes
+  that name the format that wrote it, which is the reopen condition stated in
+  *What it cost* — one product change, still not taken.
 
 ## What enforces it
 
-`TT-17.b` states that the witnessless decision reads **bytes** and not only
-names, so a name-only implementation fails a check rather than a review;
-`TT-20`'s witnesses reach all three branches, including the surviving `Legacy`
-window, so the narrowing is runnable rather than merely declared. Both families
-answer both.
+Three unit tests in `src/tree_lifecycle.rs`, one per branch, each asserting the
+mutation as well as the verdict:
+`transition_completes_a_partial_root_scaffold_before_pick` (branch 1),
+`transition_does_not_scaffold_over_a_name_grove_refuses` (branch 2), and
+`transition_refuses_a_root_holding_no_grove_entry_at_all` (branch 3), which also
+holds that the refusal names the disclaimed entries and the grammar Grove reads.
+`tests/lifecycle_cutover.rs`'s `a_withdrawn_layout_is_refused_without_touching_the_tree`
+drives the third branch black-box over both withdrawn layouts and asserts the
+tree is byte-identical afterwards.
 
-The prohibition's own conjunct is true by construction of each model's
-classifier, which is the shape that hides a transcription, so it carries a
-mutation: `crates/grove-task-tree/models/task-tree.qnt`'s
-`SCAFFOLD_AMBIGUITY_CLASSED = false` restores the pre-decision definition and
-`mutant_scaffold_absence_only` fails on it in 1.5 s. That control was itself
-first written against an instance whose action menu never runs `root-init`, where
-it reported no violation over 4000 traces — a control that cannot reach its
-subject reads exactly like a control that found nothing, which is why the dial it
-runs under is recorded beside it.
+**The model controls that first established the three-way test are not what
+enforces it now.** They were the formal-modelling campaign's, and the campaign's
+apparatus was retired once its lessons were distilled into the `linkuistics`
+skills; the decision survived the instrument that found it, which is the outcome
+that campaign was run to test. `docs/formalism-findings.md` keeps the record of
+how it was found.

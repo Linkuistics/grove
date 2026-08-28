@@ -4,8 +4,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command as ProcessCommand;
 use tempfile::TempDir;
 
-const CURRENT_FORMAT: &str = "session-kinds-v1\n";
-
 fn init_repo() -> TempDir {
     let temporary_directory = TempDir::new().unwrap();
     ProcessCommand::new("git")
@@ -20,7 +18,6 @@ fn init_repo() -> TempDir {
 fn current_grove(repository: &Path) -> PathBuf {
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), CURRENT_FORMAT).unwrap();
     grove
 }
 
@@ -201,54 +198,6 @@ fn pick_refuses_duplicate_live_finish_leaves() {
 
     assert!(!output.status.success());
     assert!(stderr(&output).contains("multiple live `finish` leaves"));
-}
-
-#[test]
-fn current_tree_reader_refuses_a_missing_format_witness() {
-    let repository = init_repo();
-    let grove = repository.path().join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    write_leaf(&grove, "01-impl-work-k1.md", "# work-k1\n");
-
-    let output = grove_llm(repository.path(), &["pick"]);
-
-    assert!(!output.status.success());
-    assert!(stderr(&output).contains("FORMAT"));
-}
-
-#[test]
-fn current_tree_reader_refuses_an_unknown_format_witness() {
-    let repository = init_repo();
-    let grove = repository.path().join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v2\n").unwrap();
-    write_leaf(&grove, "01-impl-work-k1.md", "# work-k1\n");
-
-    let output = grove_llm(repository.path(), &["pick"]);
-
-    assert!(!output.status.success());
-    let error = stderr(&output);
-    assert!(error.contains("session-kinds-v2"), "{error}");
-    assert!(error.contains("session-kinds-v1"), "{error}");
-}
-
-#[test]
-fn current_tree_reader_exposes_a_missing_format_witness_newline() {
-    let repository = init_repo();
-    let grove = repository.path().join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1").unwrap();
-    write_leaf(&grove, "01-impl-work-k1.md", "# work-k1\n");
-
-    let output = grove_llm(repository.path(), &["pick"]);
-
-    assert!(!output.status.success());
-    let error = stderr(&output);
-    assert!(error.contains("found \"session-kinds-v1\""), "{error}");
-    assert!(
-        error.contains("requires \"session-kinds-v1\\n\""),
-        "{error}"
-    );
 }
 
 #[test]
@@ -484,34 +433,31 @@ fn every_agent_side_mutation_refuses_the_driver_reserved_finish_kind() {
     }
 }
 
-/// A pending session-kind migration is a fail-closed malformed-tree condition
-/// for **every** agent-side verb, reader and mutator alike, and it is checked
-/// *before* the format witness. The ordering is the load-bearing half: the tree
-/// a migration interrupted is legacy by definition, so a `FORMAT` complaint —
-/// the failure waiting one step later — would send the operator to the wrong
-/// recovery. `src/tree_access.rs` unit-proves one reader; this is the seam a
-/// session actually calls, swept whole so a verb added later has to opt in.
+/// A pending finish transaction is a fail-closed condition for **every**
+/// agent-side verb, reader and mutator alike — the tree is mid-teardown and
+/// proceeding past one is a guess. It is the only such witness left; migration's
+/// went with migration (`delete-migration-k6`). `src/tree_access.rs` unit-proves
+/// one reader; this is the seam a session actually calls, swept whole so a verb
+/// added later has to opt in.
 #[test]
-fn every_tree_verb_refuses_a_pending_migration_before_format_validation() {
+fn every_tree_verb_refuses_a_pending_finish_transaction() {
     for arguments in [
         vec!["pick"],
         vec!["kind"],
         vec!["resolve", "task-k1"],
-        vec!["brief-chain", ".grove/01-task-k1.md"],
+        vec!["brief-chain", ".grove/01-impl-task-k1.md"],
         vec!["leaf-add", ".", "later"],
         vec!["leaf-insert", "task-k1", "earlier"],
-        vec!["leaf-decompose", ".grove/01-task-k1.md", "first"],
-        vec!["leaf-retire", ".grove/01-task-k1.md"],
-        vec!["leaf-prune", ".grove/01-task-k1.md"],
+        vec!["leaf-decompose", ".grove/01-impl-task-k1.md", "first"],
+        vec!["leaf-retire", ".grove/01-impl-task-k1.md"],
+        vec!["leaf-prune", ".grove/01-impl-task-k1.md"],
         vec!["leaf-add-pair", ".", "stem"],
     ] {
         let repository = init_repo();
-        // Deliberately *not* `current_grove`: an interrupted migration leaves a
-        // legacy tree, with no format witness to validate.
-        let grove = repository.path().join(".grove");
-        fs::create_dir_all(grove.join("MIGRATING-session-kinds")).unwrap();
+        let grove = current_grove(repository.path());
+        fs::create_dir_all(grove.join("FINISHING-finish-k2")).unwrap();
         fs::write(grove.join("BRIEF.md"), "# demo — brief\n").unwrap();
-        write_leaf(&grove, "01-task-k1.md", "# task-k1\n\n**Kind:** impl\n");
+        write_leaf(&grove, "01-impl-task-k1.md", "# task-k1\n");
         let before = tree_snapshot(&grove);
 
         let output = grove_llm(repository.path(), &arguments);
@@ -519,16 +465,12 @@ fn every_tree_verb_refuses_a_pending_migration_before_format_validation() {
         assert!(!output.status.success(), "{arguments:?} was admitted");
         let error = stderr(&output);
         assert!(
-            error.contains("pending Grove session-kind migration"),
+            error.contains("pending Grove finish transaction"),
             "{arguments:?}: {error}"
         );
         assert!(
-            error.contains("rerun bare `grove`"),
+            error.contains("finish-commit handle"),
             "{arguments:?} named no recovery: {error}"
-        );
-        assert!(
-            !error.contains("FORMAT"),
-            "{arguments:?} reached format validation first: {error}"
         );
         assert_eq!(
             tree_snapshot(&grove),

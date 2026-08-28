@@ -5,8 +5,8 @@
 // scaffold.
 //
 // The verb's output contract:
-// - stdout: three absolute paths: root `BRIEF.md`, first requirements leaf,
-//   then the `FORMAT` witness that makes the scaffold current.
+// - stdout: two absolute paths: root `BRIEF.md`, then the first requirements
+//   leaf.
 // - working-tree change only — makes NO git commit; the scaffold is left
 //   untracked for the first session's commit to fold in.
 // - refuses (non-zero exit) if `.grove/` already exists.
@@ -95,18 +95,14 @@ fn root_init_creates_root_brief_and_first_requirements_leaf() {
         rel_line(&stdout, tmp.path(), 1),
         PathBuf::from(".grove/01-requirements-plan-k1.md")
     );
-    assert_eq!(
-        rel_line(&stdout, tmp.path(), 2),
-        PathBuf::from(".grove/FORMAT")
-    );
+    assert_eq!(stdout.lines().count(), 2, "two paths and no more: {stdout:?}");
 
-    // Both entries and the format witness exist on disk.
+    // Both entries exist on disk.
     assert!(tmp.path().join(".grove/BRIEF.md").is_file());
     assert!(tmp
         .path()
         .join(".grove/01-requirements-plan-k1.md")
         .is_file());
-    assert_eq!(read(tmp.path(), ".grove/FORMAT"), "session-kinds-v1\n");
 
     // The root brief carries the BRIEF-FORMAT headers and a `— brief` title.
     let brief = read(tmp.path(), ".grove/BRIEF.md");

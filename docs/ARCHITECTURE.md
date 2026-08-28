@@ -87,7 +87,7 @@ human: grove
              ├─ load and fully validate ~/.config/grove/config.kdl, then
              │    resolve any untracked .grove.kdl delta over it
              ├─ reap orphaned finish quarantine, then recover or perform the one
-             │    lifecycle transition (root-init, migration, or nothing)
+             │    lifecycle transition (root-init or nothing)
              ├─ one authoritative pick — or materialize the finish leaf
              ├─ reload configuration and expand the selected kind's template
              ├─ allocate a fresh signal channel and activate the session epoch
@@ -202,8 +202,8 @@ this launch's `GROVE_SIGNAL_FILE`; everything else the caller had, including Git
 repository selectors, is preserved as the configuration owner's policy.
 Driver-internal VCS children follow the opposite rule — they scrub both the
 loop controls and the repository selectors and anchor Git explicitly to the
-leased working tree — so personal launch context cannot redirect a migration or
-teardown commit.
+leased working tree — so personal launch context cannot redirect a teardown
+commit.
 
 ## Process ownership
 
@@ -281,7 +281,6 @@ The task tree is the state:
 
 ```text
 .grove/
-  FORMAT                     # positive format witness: `session-kinds-v1`
   BRIEF.md
   NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
   NN-<slug>-k<key>/
@@ -329,23 +328,19 @@ what a sibling is, without which a subtree the reader refuses could stay
 invisible to key allocation, lowering the visible maximum key so the next
 `leaf-add` re-issues a live one.
 
-`FORMAT` makes "already current" independent of slug text, so a legacy
-`01-design-notes-k3.md` cannot masquerade as a kind-bearing current leaf merely
-because `design` is a valid kind. It is format metadata inside the tree, not
-lifecycle state; root initialization and migration write it last, by atomic
-same-directory rename. Task bodies carry no launch metadata at all — only the
-`**Reviews:**` and `**Integrates:**` composition relationships below.
+There is no format witness and no format metadata inside the tree: **the
+filenames are the format**. A tree whose names this grammar does not spell is
+refused by name — `TaskNameError` carries what is on disk and the shape it should
+have had — rather than classified and converted; Grove does not migrate an older
+layout. Task bodies carry no launch metadata at all — only the `**Reviews:**` and
+`**Integrates:**` composition relationships below.
 
 `task_name` parses identities, `task_tree` walks and resolves them and owns the
 read and write seams onto the library, `task_grow` creates leaves and composition
 shapes, `tree_lifecycle` applies terminal outcomes and owns the grove-only
-lifecycle, `tree_access` owns grove's own guard, and `tree_format` owns the
-witness. Every entry that moves, moves inside an `ordinal-fs-tree` operation, so
-no module performs a VCS-aware move — see
-[the withdrawn tree algebra](#withdrawn-tree-algebra) below.
-`tree_migrate` plans the conversion of prior layouts and
-`tree_migration_transaction` is its only mutation owner; neither is another live
-storage model.
+lifecycle, and `tree_access` owns grove's own guard. Every entry that moves,
+moves inside an `ordinal-fs-tree` operation, so no module performs a VCS-aware
+move — see [the withdrawn tree algebra](#withdrawn-tree-algebra) below.
 
 <a id="withdrawn-tree-algebra"></a>
 ### The withdrawn tree algebra
@@ -358,14 +353,14 @@ stage deleted what was left — `src/tree_id.rs`, `src/tree_read.rs`,
 implementation and nothing else; there is no second reader to choose between and
 no second grammar to keep in step.
 
-**Three things that look like algebra deliberately survive**, and deleting one
+**Two things that look like algebra deliberately survive**, and deleting one
 because its name begins `tree_` is the available mistake. `tree_lifecycle` keeps
 the lifecycle *around* the tree — the semantics task-tree-scheme fixed, and the
 root's own creation, which the library cannot perform because it has to reach the
 root in order to snapshot it. `tree_access` keeps grove's own guard, its
-transaction sentinels, and the grove-specific refusals that halt a tree with a
-pending migration or teardown. `tree_format` keeps `FORMAT`. None of the three
-has a library counterpart, and none of them is about ordinals or keys.
+transaction sentinel, and the grove-specific refusal that halts a tree with a
+pending teardown. Neither has a library counterpart, and neither is about
+ordinals or keys.
 
 **The deletion is checked rather than asserted**, in `tests/removed_surface.rs`,
 by the method that file already used for the removed launch environment:
@@ -540,7 +535,7 @@ message that collides is one no argument produces.
 | non-`Io` `Error` variant | reachable from Grove's verbs? |
 |---|---|
 | `Malformed` | **yes** — a hand-edited name. Carries `TaskNameError` and therefore already speaks Grove's words, which is the whole reason that variant is generic. |
-| `Reserved` | **yes** — `MIGRATING-session-kinds`, `FINISHING-*`, `PREPARING-FINISH-*`. Carries `TaskNameError` likewise. |
+| `Reserved` | **yes** — `FINISHING-*`, `PREPARING-FINISH-*`. Carries `TaskNameError` likewise. |
 | `Failed` | **yes in the wild, from no argument** — the filesystem refuses mid-apply and the run unwinds. **The tree is as it was found**, so a retry is safe. |
 | `FailedPartiallyRolledBack` | **yes in the wild, from no argument** — and the one message whose *recovery advice* is stated in the library's words. See below. |
 | `NonUtf8Name` | **not on macOS** — APFS refuses such a filename, so the branch cannot be reached from a test on this host. Assert that fact rather than skipping it; `docs/formalism-findings.md` entry 006. |
@@ -657,7 +652,7 @@ and the slug names the artifact; a step marker in the slug would restate the kin
 beside it, giving a second and unvalidated statement of a fact Grove already
 parses and routes on. That is convention rather than grammar in both directions:
 nothing generates or checks it for a chain, and a leaf slugged under the older
-`<stem>-review` spelling remains a well-formed name that no migration rewrites.
+`<stem>-review` spelling remains a well-formed name.
 The one consequence is that a bare stem stops naming one leaf: `resolve <stem>`
 on a chain is ambiguous and lists each match's kind-bearing path — pick-style, so
 empty stdout, the diagnostic on stderr and **exit zero**, since a listing is
@@ -732,12 +727,11 @@ initialization and survives finish deletion, so a single seam covers creation,
 ordinary mutation, and teardown. A contended caller prints one waiting
 diagnostic and then waits.
 
-The lock serializes live processes and adds no crash atomicity. Two operations
-need more than that and carry their own in-tree witness: the finish teardown
-(`FINISHING-*`, below) and the one-time session-kind migration
-(`MIGRATING-session-kinds`). Every other task-tree command refuses while either
-witness exists and names its recovery. The contract in both cases is
-process-interruption consistency, not power-loss durability. See [Task-tree
+The lock serializes live processes and adds no crash atomicity. One operation
+needs more than that and carries its own in-tree witness: the finish teardown
+(`FINISHING-*`, below). Every other task-tree command refuses while that witness
+exists and names its recovery. The contract is process-interruption consistency,
+not power-loss durability. See [Task-tree
 transactions fail closed](adr/task-tree-transactions-fail-closed.md).
 
 Composite grow verbs need neither, and the promise they make is correspondingly
@@ -755,8 +749,8 @@ That guarantee covers the error return path and nothing else. **Process death
 mid-run is not recovered**: the interpreter unwinds only when control returns
 through the `Err` branch, so a `SIGKILL` after the first pair leaf lands leaves a
 partial shape a reader cannot distinguish from a deliberately hand-cut one.
-Finish teardown and the session-kind migration remain the only operations that
-promise process-interruption recovery, which is why they alone carry a witness.
+Finish teardown remains the only operation that promises process-interruption
+recovery, which is why it alone carries a witness.
 The residue is a hand-editable file in a directory tree, and recovering it is
 deleting it.
 
@@ -772,9 +766,8 @@ library's reader would block on itself forever. The rule that follows is per
 verb, not per module: a verb uses one guard or the other, never both at once,
 which is why the migrate stage moved whole verb groups at a time. Both guards
 are still live and both are still needed: the library's is the authority on the
-tree, and grove's covers the two things the library cannot reach — the root's own
-creation, and the session-kind migration that converts a tree the live grammar
-cannot yet read.
+tree, and grove's covers the one thing the library cannot reach — the root's own
+creation, which needs the root to not exist yet.
 
 Two consumer-side obligations came out of that move, and every later flip leaf
 inherits both.
@@ -791,13 +784,13 @@ arrive, and the cost of that window is a missing message and nothing else.
 
 **Refusal precedence is grove's; the halt is the library's.** The library halts
 the whole tree on a name grove's grammar refuses, wherever it sits — that is the
-decision, and it is taken under the lock. But a legacy tree's leaves are
-task-shaped names carrying no session kind, so they are `Malformed`, and an
-operator holding one needs to be told to migrate rather than to fix a filename.
-So `task_tree::diagnose` re-states a *failed* read in the order grove owes its
-operator — root, pending transaction, format witness, then the library's own
-message — and chooses only the wording. The pending-transaction sentence itself
-is the domain's: `tree_access::refuse_pending_*` raises `task_name`'s own
+decision, and it is taken under the lock. But the library can only say *this
+filename is wrong*, and an absent root or a tree held by the finish transaction
+are conditions grove states in its own words.
+So `task_tree::restate` re-states a *failed* read in the order grove owes its
+operator — root, pending transaction, then the library's own message — and
+chooses only the wording. The pending-transaction sentence itself
+is the domain's: `tree_access::refuse_pending` raises `task_name`'s own
 `TaskNameError`, which is the identical value the library carries when it halts
 on a `Verdict::Reserved` mid-tree, so the pre-check and the halt cannot drift
 into two wordings of one condition.
@@ -899,17 +892,21 @@ releases the first before taking the second:
 
 1. Under `tree_access::write_for_lifecycle` — refuse an existing `.grove/`,
    create it, write the root `BRIEF.md`.
-2. Under `task_tree::write_scaffold` — `append` the first `requirements` leaf,
-   then install `.grove/FORMAT` while the tree is held.
+2. Under `task_tree::reopen_write` — `append` the first `requirements` leaf.
 
-**`FORMAT` is written last, and that ordering is what pays for the release.** A
-root without its format witness is a *partial* root: every ordinary verb refuses
-it, and bare `grove` completes it through
-`tree_lifecycle::recover_partial_root_init_unlocked`. So the tree the window
-exposes is precisely the tree that recovery already existed to handle — the shape
-a process death used to be the only route to. Do not move the witness earlier to
-close the window; that would make the partial root unrecognisable, which is the
-condition the ordering exists to create.
+**The tree's own shape is what makes the window legible.** A root holding its
+charter and no keyed entry is a *partial* root, and bare `grove` completes it —
+`tree_lifecycle::root_shape` classifies it `PartialScaffold` and
+`complete_partial_root_unlocked` writes back whatever half is missing. Nothing
+else produces that shape: entries are marked and never removed
+([`entries-are-never-removed`](adr/entries-are-never-removed.md)), so a tree that
+has ever held a leaf still holds one.
+
+That classification used to be a byte-exact match against the deterministic
+fresh-tree content, gated on a missing `.grove/FORMAT` witness. It had to be,
+because a witnessless root was *also* how a legacy tree presented and the two got
+opposite treatment. Migration is gone (`delete-migration-k6`), and the
+discrimination it needed went with it.
 
 Two consequences follow, and both are held by tests rather than by this
 paragraph.
@@ -919,20 +916,17 @@ paragraph.
   positioned entry at all; appending unconditionally would give the tree two
   first leaves and no refusal, since the second would land at ordinal 2 with key
   2 quite legally.
-- **A reader can now meet a partial root without anyone having died.** Between
-  the phases a concurrent `pick` is told the tree is legacy and must be migrated,
-  where it used to block on Grove's guard and then read a complete tree. The
-  window is two lock acquisitions and two small writes wide, the refusal fails
-  closed, and one bare `grove` repairs it — but it is a behaviour change and not
-  merely an implementation one.
+- **A reader can meet a partial root without anyone having died.** Between the
+  phases a concurrent `pick` reads a root with a charter and no leaf and reports
+  the grove finished, where it used to block on Grove's guard and then read a
+  complete tree. The window is two lock acquisitions and two small writes wide,
+  and one bare `grove` closes it — but it is a behaviour change and not merely an
+  implementation one.
 
-`recover_partial_root_init_unlocked` itself does **not** go through the library,
-and that is not an omission. It runs inside the session-kind migration
-transaction, which holds Grove's exclusive guard, so reaching for the library's
-would be exactly the nesting above; and there is nothing there to allocate — the
-ordinal, the key, the slug and the bytes are all fixed, and every file has already
-been compared byte for byte before anything is written. It completes a scaffold;
-it does not grow a tree.
+`root_shape` itself does **not** go through the library, and that is not an
+omission. It runs while Grove's exclusive guard is held, so reaching for the
+library's would be exactly the nesting above — and all it needs is the root's own
+listing, classified through the same `TaskName::parse` every reader uses.
 
 `finish-commit` is the fourth verb and the only one whose guard changed what it
 refuses. It now opens the tree through `task_tree::write`, so a `FINISHING-*` or
@@ -987,46 +981,28 @@ guessing, reporting the child's exit status and elapsed time — and does not
 infer `done` even if that child successfully committed teardown. The filesystem
 and VCS already say what completed, and a later `grove` continues from there.
 
-### Legacy migration
+<a id="legacy-migration"></a>
+<a id="no-migration"></a>
+### No migration
 
-Migration is automatic inside bare `grove`; there is no human-facing migrate
-command. **One** legacy shape is still converted: a current-layout tree whose
-leaves lack filename kinds. One planning pass maps each legacy
-body's `**Kind:**` to a filename kind (absent defaults to `impl`; `work` maps to
-`impl`; the two children of an unambiguous legacy vendor pair map to `research-a`
-and `research-b`, and a standalone legacy `research` maps to `research-a`,
-because the kind names one configured research discipline rather than structural
-membership in a pair). It strips every `**Kind:**`, `**Harness:**`, and
-`**Producer launch:**` line while preserving all other bytes, including the
-composition relationships. An ambiguous pair or unknown marker stops migration
-with exact paths rather than guessing a target.
+Grove does not migrate. A tree whose names the current grammar cannot spell is
+**refused by name**: `TaskNameError` carries the filename on disk and the shape
+it should have had, and the operator renames it or starts a fresh grove. There is
+no migrate command, no automatic conversion inside bare `grove`, and no format
+witness to classify a tree by. Recovery machinery is not written where a sentence
+and a human will do.
 
-**Two layouts are classified and refused**: the original `NNN-slug/` + `done/`
-tree, and the v1 flat dotted-decimal tree. Each gets the same exact-paths
-diagnostic and no mutation. Classification is the load-bearing part and is why
-those shapes are still recognised at all: a tree Grove could not classify would
-read as having no task entries, and migration would then install the format
-witness over it, after which every entry is foreign and picking reports a
-finished grove. Recognition costs a private name matcher per layout; the
-alternative costs a workstream.
-
-Because both withdrawn layouts were the ones that **relocated** entries — the
-`done/` mirror folded in, flat files becoming node directories — what remains
-never creates or removes a directory. Every planned move keeps its parent, which
-is the assumption the migration transaction's remaining directory handling rests
-on.
-
-Directory and kind migration are planned together, so no successful invocation
-exposes an intermediate layout as current. Landing runs beneath a reserved
-`MIGRATING-session-kinds/` witness holding both the untouched originals and the
-staged destination; recovery infers progress from each entry's location and
-never reallocates keys. The witness alone makes every other reader and mutator
-refuse. The format witness lands last, inside the same focused commit, whose
-message identifies the grove and the migration rather than a work-item handle —
-migration precedes any task session. In plain Git that commit runs with the same
-empty hooks path as the finish commit: rollback restores `.grove/` from an index
-image, which cannot undo what a rejecting `pre-commit` reformatter did to
-unrelated files.
+One shape needs saying because it is not a name the grammar refuses. The layouts
+Grove wrote before this grammar — the original `NNN-slug/` + `done/` tree and the
+v1 flat dotted-decimal tree — are positioned but *unkeyed*, so every one of their
+names is `Foreign` and invisible to the reader rather than refused by it. A root
+holding nothing but such names would read as an empty grove and take the driver's
+finish sentinel. So the lifecycle transition treats *a root with no Grove entry
+at all* as the anomaly and stops on it, naming the entries it disclaimed and the
+grammar it does read (`tree_lifecycle::root_shape`). That is one classification
+over the listing, not a per-layout matcher: what went with migration
+(`delete-migration-k6`) was the recognition of *which* withdrawn layout this is,
+which the operator does not need in order to act.
 
 <a id="pruning"></a>
 <a id="confirmation-boundary"></a>
@@ -1101,9 +1077,8 @@ handoff, so no caller acts on a stale one. A retry that has lost the helper's
 result does not trust task-root absence either: with `.grove/` gone it verifies
 the immediate VCS result against the same handle and attempt identity, which
 binds the proof to the still-active session epoch. Plain Git runs this internal
-commit — and the migration commit below — with an empty hooks path, because an
-arbitrary hook could mutate the unrelated working-tree bytes those transactions
-promise to preserve. See
+commit with an empty hooks path, because an arbitrary hook could mutate the
+unrelated working-tree bytes the transaction promises to preserve. See
 [Task-tree transactions fail closed](adr/task-tree-transactions-fail-closed.md).
 
 <a id="user-owned-worktrees"></a>
@@ -1129,8 +1104,8 @@ the three outcomes rather than describing them. See
 [`grove-does-not-stage-its-own-renames`](adr/grove-does-not-stage-its-own-renames.md).
 Grove's own trackedness-dispatching move is gone — it survived the migrate stage
 only for the verbs that had not yet flipped, and the contract stage deleted it,
-so `repo::vcs_of` now branches the lane for launch, `llm_cli` and migration
-planning and for nothing that renames.
+so `repo::vcs_of` now branches the lane for launch and `llm_cli` and for nothing
+that renames.
 
 Grove resolves that marker before a session exists and **states** the result in
 `${prompt}`, which is why sessions do not probe: every launch is told whether its
@@ -1148,8 +1123,7 @@ The line carries identity and root only. Which commands each lane uses stays in
 the embedded methodology's Commit step, so a rebuild moves one source of truth
 rather than two.
 
-Migration and finish commits are path- or fileset-scoped so unrelated user work
-survives: Git uses `--only` with an explicit `.grove` pathspec excluding the live
+The finish commit is path- or fileset-scoped so unrelated user work survives: Git uses `--only` with an explicit `.grove` pathspec excluding the live
 witness, and Jujutsu commits a `.grove/` fileset with the same exclusion,
 leaving unrelated working-copy changes in the successor commit. A colocated
 workspace backs up the user's Git index before jj's preflight snapshot and
@@ -1564,8 +1538,7 @@ prescribing one command.
 | `repo` | Git/Jujutsu detection, scoped commits, and the read-only trackedness probe. |
 | `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has. |
 | `task_tree`, `task_grow` | The reading and growing verbs expressed through the library: one snapshot per command, path construction, key prediction, and the cross-reference lint. |
-| `tree_lifecycle`, `tree_access`, `tree_format` | The grove-only lifecycle around the tree, grove's own guard and its transaction sentinels, and the format witness. |
-| `tree_migrate`, `tree_migration_transaction` | Legacy classification, planning and admission, and its fail-closed mutation owner. |
+| `tree_lifecycle`, `tree_access` | The grove-only lifecycle around the tree, grove's own guard, and its transaction sentinel. |
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |

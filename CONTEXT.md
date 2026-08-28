@@ -482,8 +482,7 @@ _Avoid_: treating a redirected `cargo test` as evidence the guard works — a re
 **root-init** / **fresh-grove start**:
 The mechanical first step of bare `grove` when the provided working tree has no
 `.grove/`: before launching any agent the driver creates `.grove/`, the root
-`BRIEF.md` stub, `01-requirements-plan-k1.md`, and the [[Tree format witness]],
-then runs the ordinary authoritative [[Pick]] and launches that requirements
+`BRIEF.md` stub and `01-requirements-plan-k1.md`, then runs the ordinary authoritative [[Pick]] and launches that requirements
 leaf through [[Grove configuration]]. There is no special rootless session —
 every session owns a real selected leaf, and a grove begins with requirements
 gathering by construction.
@@ -572,22 +571,20 @@ lives in a `**Kind:**` task-file field.
 _Avoid_: plain `research` — a vendor pair uses the independently configurable
 `research-a` and `research-b` kinds.
 
-**Session-kind migration**:
-The one-time, fail-closed conversion bare `grove` applies before ordinary
-selection to the one **migratable** legacy task-tree shape — current-layout
-leaves that still carry body markers rather than a filename kind — landing as one
-recoverable
-transaction and one focused commit, never as a runnable mixed grammar. It
-renames every deterministic leaf, live or terminal, and removes the obsolete
-`**Kind:**`, `**Harness:**`, and `**Producer launch:**` lines while
-preserving `Reviews` and `Integrates`. The positive `.grove/FORMAT` value is the
-only legacy/current discriminator, and an unknown kind or structurally ambiguous
-pair stops before mutation rather than guessing a configured target.
-_Avoid_: reading "legacy" as "migratable". The original `NNN-slug/` + `done/`
-layout and the v1 flat dotted-decimal layout are both legacy and both **refused**
-— still classified, so each is named rather than mistaken for a tree with no work
-in it, but neither is converted. Both were the layouts that *relocated* entries,
-so what migration still does never creates or removes a directory.
+**No migration**:
+Grove converts no task tree. A tree whose names the current grammar cannot spell
+is **refused by name** — `TaskNameError` carries the filename on disk and the
+shape it should have had — and the operator renames it or starts a fresh grove.
+There is no migrate command, no automatic conversion inside bare `grove`, and no
+format witness to classify a tree by: the filenames *are* the format.
+_Avoid_: assuming a legacy tree is therefore silently skipped. The layouts grove
+wrote before this grammar are positioned but *unkeyed*, so their names are
+`Foreign` rather than malformed — invisible to the reader. So the lifecycle
+transition treats a root holding **no grove entry at all** as the anomaly and
+stops on it, naming what it disclaimed and the grammar it reads.
+_Avoid_: expecting the refusal to say *which* withdrawn layout this is. That
+classifier was migration's and went with it; the operator does not need it in
+order to act.
 
 **Review chain** / **vendor pair**:
 The two composition patterns over the [[Session kind]] set. The **review chain**
@@ -630,8 +627,8 @@ _Avoid_: a **step token in the slug** at all — trailing (`<stem>-review`,
 `<stem>-a`) or leading (`review-<stem>`). It restates the kind sitting beside it,
 so it is a second and *unvalidated* source of truth for a fact grove parses and
 routes on, and `leaf-add <parent> foo-review --kind impl` is a perfectly legal way
-to make the two disagree. Both spellings remain legal filenames and nothing was
-migrated; a suffixed slug in an existing tree stays as it is.
+to make the two disagree. Both spellings remain legal filenames; a suffixed slug
+in an existing tree stays as it is.
 _Avoid_: claiming the step suffix ever kept a [[Work-item handle]] unique. A
 handle is `<slug>-k<key>` and a [[Permanent key]] is unique tree-wide, so handles
 were always unique; only *bare slugs* could collide, and grove enforces no slug
@@ -851,22 +848,6 @@ spec, an ADR set, or both; `planning` consumes it and cuts the leaves.
 
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 
-**Tree format witness** (`.grove/FORMAT`):
-The positive discriminator for the current session-kind filename grammar, with
-exact LF-terminated content `session-kinds-v1\n`, written last by root
-initialization and migration once the rest of the tree is complete. It is format
-metadata inside the artifact tree, not a phase, status, or counter file; an
-unknown value means a newer or foreign format that stops work without mutation.
-Absence means [[Partial scaffold]] **or** legacy, in that order — a root whose
-contents are exactly a known proper subset of a fresh scaffold is Grove's own
-interrupted `root-init` and is completed, and only a root outside that subset is
-legacy.
-_Avoid_: inferring current format by parsing a filename prefix — a legacy slug
-such as `design-notes` makes that test silently change both kind and handle.
-_Avoid_: "no witness means legacy" as the whole rule — that reading completes
-someone else's legacy tree as though Grove had scaffolded it, which is the
-fail-closed violation [[Partial scaffold]] exists to prevent.
-
 **Node directory** / **node**:
 A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding its numbered children (leaf files and child node directories), headed by a `BRIEF.md` charter; `.grove/` is itself the root node (its charter is `.grove/BRIEF.md`). The filesystem carries the hierarchy, so a name encodes only its *per-level* position — not a global path (task-tree-scheme).
 **One species, and it always carries a charter.** A node is a leaf that proved
@@ -901,10 +882,10 @@ A single unit of work — a file `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<k
 **Pick** (`grove-llm pick`):
 The loop's dispatcher: the **first
 eligible live [[Leaf]] in depth-first pre-order** over `.grove/`, read from
-filenames and never from task-file contents. A pending transaction witness
-([[Finish transaction]], session-kind migration) is not a scheduling input: it is
-a fail-closed malformed-tree condition every reader and mutator refuses until the
-interrupted operation is recovered. Eligibility has one
+filenames and never from task-file contents. A pending transaction witness (the
+[[Finish transaction]]'s) is not a scheduling input: it is a fail-closed
+malformed-tree condition every reader and mutator refuses until the interrupted
+operation is recovered. Eligibility has one
 lifecycle exception — a driver-owned `finish` sentinel is skipped while any
 non-finish leaf is live — and among non-finish leaves nothing modulates the
 walk: no priority, no grouping, no set of leaves that must finish before another
@@ -963,11 +944,10 @@ The process-scoped advisory lock every task-tree reader and mutator takes on an
 open descriptor for the **working-tree root** before inspecting names — shared
 for readers, exclusive for mutators. The root rather than `.grove/`, because it
 exists before the task tree is created and through its deletion, so root
-initialization, migration, finish allocation and deletion, and the agent tree
-verbs all share one invariant. It serializes live processes but adds no crash
-atomicity; the only operations that promise process-interruption recovery — the
-[[Finish transaction]] and the one-time session-kind migration — each use their
-own in-tree witness. A grow verb has neither and promises neither: it unwinds on
+initialization, finish allocation and deletion, and the agent tree verbs all
+share one invariant. It serializes live processes but adds no crash atomicity;
+the only operation that promises process-interruption recovery — the
+[[Finish transaction]] — uses its own in-tree witness. A grow verb has neither and promises neither: it unwinds on
 a *reported* error, and a process killed mid-run can leave a partial shape. See
 ADR *task-tree-transactions-fail-closed*.
 _Avoid_: locking `.grove/BRIEF.md` — root briefs are lazy, optional artifacts,
@@ -1009,44 +989,36 @@ differs only in *reason*, which is prose and belongs in the ADR, not the filenam
 
 ### Formal contract (docs/specs/semantic-contract.md, Experiment 2)
 
-**Partial scaffold** (`PartialScaffold(class)`):
-A task root that exists, carries no [[Tree format witness]], and is what
-[[root-init]] leaves behind when it is interrupted before the witness lands. It
-is classified *before* legacy and carries a **class**, because a witnessless root
-has three answers and not two:
-`PartialScaffold(Exact)` holds nothing but the fresh scaffold's own byte-exact
-entries — the root `BRIEF.md` and at most one positioned entry, the first
-`requirements` leaf at position 1 with key 1 — and is **completed**;
-`PartialScaffold(Ambiguous)` holds a [[Root-init-exclusive entry]] standing
-beside something a fresh scaffold does not write, and is **refused**, mutating
-nothing; anything else is legacy.
-The exact subset is what makes completion safe: every value the completion would
-write is fixed in advance, so completing is a comparison followed by at most one
-append, never an inference about someone else's tree.
-_Avoid_: defining it as "a root with no format witness" — that is the definition
-of legacy, and the two must be told apart or legacy work gets completed.
+**Partial scaffold** (`PartialScaffold`):
+A task root that exists and holds **nothing but its charter, if even that** — no
+entry the grammar owns. It is what [[root-init]] leaves behind when it is
+interrupted between its two phases, and bare `grove` completes it by appending
+the first `requirements` leaf. Nothing else produces the shape: entries are
+marked and never removed, so a tree that has ever held a leaf still holds one.
+_Avoid_: defining it by a missing format witness. There is no witness — it went
+with migration — and every root is witnessless now, so absence discriminates
+nothing. The question is what the root **holds**.
 _Avoid_: calling it a transient — an interrupted scaffold is a **stable** state
 an ordinary invocation meets and acts on.
-_Avoid_: reading the `Ambiguous` class as *probably not a scaffold*. Grove **can**
-prove its own initialisation ran there; what it cannot prove is that the root's
-whole contents are its own, which is why it refuses rather than guessing either
-way (`docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md`).
+_Avoid_: treating the charter as proof the root is Grove's. Its bytes derive from
+the working-tree name and every earlier format wrote the same ones, so completion
+appends beside it and never rewrites it
+(`docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md`).
 
-**Root-init-exclusive entry**:
-An entry only the **current** format's [[root-init]] writes, and therefore the
-only proof a witnessless root carries that *this* format's initialisation ran:
-the reserved format temporary, and the first `requirements` leaf at position 1
-with key 1, canonically spelled, with bytes equal to what a fresh scaffold
-writes. It is what separates `PartialScaffold(Ambiguous)` from legacy.
-_Avoid_: counting the root `BRIEF.md` as one. Its bytes derive from the
-working-tree name and every earlier format wrote the same ones, so a charter is
-evidence that *some* grove was here and never evidence of *this* one — and
-treating it as proof is what
-`an_untouched_root_brief_does_not_hide_a_legacy_v2_tree` exists to prevent.
-_Avoid_: reading its absence as a defect. Before the first one lands there is a
-real window in which an interrupted initialisation is indistinguishable from a
-legacy tree, and `TT-20`'s prohibition on `Legacy` is narrowed to exactly that
-boundary rather than pretending the window is closed.
+**Unrecognised root** (`Unrecognised`):
+A task root holding names Grove **disclaims** — foreign at every species — and
+nothing else. It is **refused**, mutating nothing, and the refusal names the
+entries it disclaimed and the grammar Grove does read.
+It exists because the layouts Grove wrote before the current grammar are
+positioned but *unkeyed*, so every one of their names is foreign — invisible to
+the reader rather than refused by it. Without this state such a tree would read
+as an empty grove and take the driver's [[Finish transaction]] sentinel.
+_Avoid_: expecting the refusal to name *which* withdrawn layout it met. That
+per-layout classifier was migration's and went with it; the operator needs the
+grammar and the offending names, not the layout's history.
+_Avoid_: confusing it with a [[Partial scaffold]]. A scaffold holds nothing;
+this holds something Grove cannot account for, and the two get opposite
+treatment.
 
 **Lifecycle transition**:
 In the lifecycle claims, a step that advances the grove's own lifecycle

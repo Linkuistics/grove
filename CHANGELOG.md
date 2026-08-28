@@ -73,6 +73,48 @@ stood at the graft — a closed record, not part of the versioned sequence above
   which were reachable only from `.grove/` — a directory `grove finish` deletes.
   The paragraph below the table no longer counts the files under `docs/`.
 
+- **Grove no longer migrates task trees, and `.grove/FORMAT` is gone.** The
+  session-kind migration, its fail-closed transaction, the
+  `MIGRATING-session-kinds` witness, its focused commit and the format witness
+  are all deleted — `src/tree_migrate.rs`, `src/tree_migration_transaction.rs`,
+  `src/tree_format.rs` and `src/repo/migration_commit.rs` — about 1,800 lines of
+  non-test source and 1,600 of tests, and around 5,500 lines net across the
+  change. A tree whose names the current grammar cannot spell is now **refused
+  by name**: `TaskNameError` already carries the filename on disk and the shape
+  it should have had, which is what an operator needs in order to rename it or
+  start a fresh grove. Existing current-format trees are unaffected and need no
+  action; a tree still carrying body `**Kind:**` markers must be brought current
+  by an older `grove` before upgrading, or renamed by hand.
+
+  Three consequences worth knowing:
+
+  - **`.grove/FORMAT` is no longer written, read or required.** The filenames are
+    the format. Deleting it from an existing tree is optional and can wait: a
+    stray `FORMAT` is an ordinary foreign entry every reader ignores, which is
+    also what lets a tree stay readable by both this build and the one before it
+    while an upgrade is in flight. `grove-llm root-init` now prints two paths —
+    the charter, then the leaf — where it printed three.
+  - **A partial `root-init` is recognised by shape rather than by content.** A
+    root holding its charter and no keyed entry is the one thing bare `grove`
+    completes; the byte-exact match against the deterministic fresh-tree content
+    existed only to tell that shape apart from a legacy tree, and went with the
+    thing it was discriminating against.
+  - **A root holding no grove entry at all is refused rather than scaffolded
+    over.** The withdrawn `NNN-slug/` + `done/` and v1-flat layouts are positioned
+    but unkeyed, so every one of their names is *foreign* — invisible to the
+    reader rather than refused by it — and such a tree would otherwise read as an
+    empty grove and take the driver's finish sentinel. The refusal names the
+    entries it disclaimed and the grammar it does read. It no longer names *which*
+    withdrawn layout this is: that per-layout classifier was migration's.
+
+  Also gone with it: the `work` → `impl` and bare-`research` read-side aliases
+  (both were migration's lenient parser; `--kind` still names the replacement
+  when you type the old word), and the driver's second configuration load within
+  one iteration is no longer separately covered — nothing mutates configuration
+  between the two now that the transition takes no commit. Decisions:
+  `docs/adr/task-tree-transactions-fail-closed.md` loses its migration half;
+  `docs/ARCHITECTURE.md#no-migration` states what replaces it.
+
 ## v19.3.0
 
 - **`leaf-retire` and `leaf-prune` no longer stage their rename, and on Git that

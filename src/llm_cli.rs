@@ -14,10 +14,10 @@
 // one of them dispatches to `task_tree` / `task_grow` / `tree_lifecycle`, all of
 // which run through `ordinal-fs-tree`: the directory-walking modules the flip
 // replaced group by group are deleted, so there is no second reader left to
-// choose between. There is
-// no transitional dual-format reader — `tree_migrate` is the only thing that
-// reads a legacy tree, once, on adoption, and the only legacy shape it still
-// converts is a v2 tree whose leaves predate filename kinds.
+// choose between. There is no transitional dual-format reader and no migration:
+// a tree whose names this grammar does not spell is refused by `TaskNameError`,
+// which already names what is on disk and what it should be
+// (`delete-migration-k6`).
 
 use crate::complete;
 use crate::driver_lease;
@@ -73,7 +73,7 @@ pub enum Command {
     /// `grove-llm pick` returns the new
     /// leaf — a fresh grove is no longer indistinguishable from a finished
     /// one. Refuses if `.grove/` already exists. Working-tree change only —
-    /// no commit. Writes `.grove/FORMAT` last and prints it as the third path.
+    /// no commit. Prints the charter's path, then the leaf's.
     RootInit(RootInitArgs),
     /// Print the absolute path of the next live leaf in this grove's tree — a
     /// recursive depth-first **pre-order** walk over the directory tree (a node

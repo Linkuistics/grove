@@ -144,7 +144,6 @@ const MANDATED_LEAF: &str = "Grove mandate: the leaf selected for this session i
 fn plant_tree(worktree: &Path, leaf: &str) {
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(grove.join(leaf), "# planted\n").unwrap();
 }

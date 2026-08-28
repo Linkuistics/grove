@@ -64,7 +64,6 @@ const REVIEW_BODY: &str =
 fn build_review_chain(repo: &Path) -> PathBuf {
     let grove = repo.join(".grove");
     let producer = grove.join("01-impl-build-k1.md");
-    write(&grove.join("FORMAT"), "session-kinds-v1\n");
     write(&grove.join("BRIEF.md"), "# build — brief\n");
     write(&producer, "# build-k1\n\n## Goal\n\nBuild it.\n");
     write(&grove.join("02-review-impl-build-k2.md"), REVIEW_BODY);

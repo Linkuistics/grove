@@ -9,10 +9,8 @@ multi-path filesystem or VCS mutation crash-atomic. Any operation that promises
 process-interruption recovery therefore keeps a reserved, explicit witness
 inside `.grove/` until its result is safe to expose.
 
-The witness is ordinary artifact state with operation-specific contents:
+One operation makes that promise, and the witness is ordinary artifact state:
 
-- session-kind migration uses `MIGRATING-session-kinds/` to retain the original
-  and staged trees until its focused migration commit is proven; and
 - finish teardown uses `FINISHING-<finish-handle>/` to evacuate every ordinary
   root entry beneath a manifest-backed original-tree directory before the
   deletion commit, and `PREPARING-FINISH-<finish-handle>-<attempt-identity>/`
@@ -21,13 +19,11 @@ The witness is ordinary artifact state with operation-specific contents:
   `.grove/`-scoped commit is proven and the whole root can atomically move to
   post-commit cleanup quarantine.
 
-Every ordinary reader and mutator refuses while any reserved witness exists.
-Only the matching recovery path is admitted, and it runs before format,
-selection, liveness, kind, or normal root-absence classification. This ordering
-is load-bearing: an evacuated finish tree
-is not a malformed or fresh grove, a legacy tree mid-migration is not a
-current-format tree with a bad `FORMAT`, and files hidden beneath a witness still
-own their permanent keys. Generic diagnostics name the exact witness and the
+Every ordinary reader and mutator refuses while a reserved witness exists.
+Only the matching recovery path is admitted, and it runs before selection,
+liveness, kind, or normal root-absence classification. This ordering is
+load-bearing: an evacuated finish tree is not a malformed or fresh grove, and
+files hidden beneath a witness still own their permanent keys. Generic diagnostics name the exact witness and the
 operation that can recover it.
 
 A finish transaction makes the commit boundary explicit. Preflight repository
@@ -123,12 +119,13 @@ manifest and only after confirming that no matching in-tree witness owns them.
 A proven commit plus task-root absence remains successful even when best-effort
 cleanup must be retried.
 
-Every internal plain-Git commit Grove makes — migration and finish alike — runs
-with an empty internal hooks path. Both are unattended, path-scoped, and roll
-back from an index image; user hooks are arbitrary programs and can mutate
-unrelated working-tree bytes that no index image restores, so allowing them
-would contradict the scoped-preservation contract either commit makes. The rule
-therefore belongs to the shared repository seam rather than to one transaction.
+The internal plain-Git commit Grove makes — finish teardown's — runs with an
+empty internal hooks path. It is unattended, path-scoped, and rolls back from an
+index image; user hooks are arbitrary programs and can mutate unrelated
+working-tree bytes that no index image restores, so allowing them would
+contradict the scoped-preservation contract the commit makes. The rule belongs
+to the shared repository seam rather than to one transaction, so a second
+internal commit added later inherits it.
 Signing and repository failures remain visible and recover through the
 transaction. Jujutsu runs no Git hooks, so its adapters need no equivalent.
 
@@ -227,12 +224,12 @@ contract.
   changes per run.
 - **Run user Git hooks during Grove's internal commits.** Rejected because a
   hook may mutate unrelated working-tree files even when it rejects the commit,
-  and Grove cannot safely snapshot and restore arbitrary user data. Suppressing
-  them for finish alone was also rejected: migration is unattended, path-scoped
-  and index-rollback-backed in exactly the same way, so a common `pre-commit`
-  reformatter would rewrite unrelated files that migration's rollback restores
-  `.grove/` without. Reopen only if hooks become side-effect-free or unrelated
-  working-tree preservation is removed from these commits' contract.
+  and Grove cannot safely snapshot and restore arbitrary user data. Scoping the
+  suppression to the one commit that exists today was also rejected: the property
+  that earns it — unattended, path-scoped, index-rollback-backed — belongs to any
+  internal commit, so the rule sits at the seam. Reopen only if hooks become
+  side-effect-free or unrelated working-tree preservation is removed from these
+  commits' contract.
 - **Use reserved-prefix detection without serializing tree access.** Rejected
   because validation and key allocation can race before either command creates
   its witness, while a reader can pass its witness scan before entries move.

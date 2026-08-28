@@ -2082,7 +2082,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         fs::write(repository.join("outside"), "before\n").unwrap();
         run_vcs_command(repository, "jj", &["commit", "-m", "fixture"]).unwrap();
         fs::write(repository.join(".grove/finish"), "finish\n").unwrap();
@@ -2111,7 +2111,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         fs::write(repository.join("outside"), "before\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
@@ -2172,7 +2172,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         fs::write(repository.join("outside"), "keep\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
@@ -2229,7 +2229,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         fs::write(repository.join("outside"), "keep\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
@@ -2321,7 +2321,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         fs::write(repository.join("outside"), "before\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
@@ -2392,7 +2392,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
         fs::remove_file(repository.join(".git/index")).unwrap();
@@ -2448,7 +2448,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         fs::write(repository.join("outside"), "first\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
@@ -2484,7 +2484,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
 
@@ -2524,7 +2524,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
         let original_index = fs::read(repository.join(".git/index")).unwrap();
@@ -2566,7 +2566,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
         fs::rename(
@@ -2608,7 +2608,7 @@ mod tests {
         )
         .unwrap();
         fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
 

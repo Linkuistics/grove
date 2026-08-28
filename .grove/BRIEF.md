@@ -122,13 +122,42 @@ k21/k22 split one crate in two, k16/k17/k19 are the plugin's expand and contract
 ## Standing notes for every leaf below
 
 **This repo is a meta-grove.** A session here runs against the **installed**
-binaries, which on this machine are Homebrew's at `/opt/homebrew/bin/`. So any
-leaf that changes the tree's shape, the grammar, or the verb surface a session
-invokes must rebuild **and install in the same session**, and prove the installed
-build by behaviour before committing. The cutover sequence below is the whole of
-that protocol; five leaves run it — `delete-migration-k6`, `grammar-separator-k15`,
-`prompt-names-the-kind-k18`, `delete-provisioning-k19` and `open-kind-k20` — and
-no leaf outside that list may reinstall.
+binaries, which on this machine are Homebrew's at `/opt/homebrew/bin/`. So a leaf
+that makes a **tree-visible** change the installed build cannot read must see the
+new build deployed before it makes that change.
+
+**Two corrections, both from `delete-migration-k6`, which was the first leaf to
+attempt this and found the protocol wrong.**
+
+*First: deployment is a release, never a local overwrite.* This section used to
+say *overwrite the two Cellar files, or re-point the two `/opt/homebrew/bin`
+symlinks*. Do neither. Overwriting `/opt/homebrew/Cellar/grove/<version>/bin/`
+makes `grove --version` lie and desyncs Homebrew's manifest from the bytes on
+disk. The route is **cut a minor release, publish, update through Homebrew** —
+and before publishing, check the new build against every other live grove on the
+machine, because they all resolve the same binaries. There were three during k6
+(`gh-issue-12`, `code-walkthrough-for-ordinal-fs-tree`, and the default
+workspace), each with a driver that re-provisions **its own** embedded methodology
+every iteration; a swap under a live loop is undone by the old process and fought
+over by every other one.
+
+*Second: most of the five leaves may not need deployment at all.* The list was
+`delete-migration-k6`, `grammar-separator-k15`, `prompt-names-the-kind-k18`,
+`delete-provisioning-k19` and `open-kind-k20`. **k6 is off it**: the tree-visible
+half of that leaf was deleting `.grove/FORMAT`, and a stray `FORMAT` is a foreign
+entry every reader ignores, so *not deleting it* avoided the whole problem at no
+cost (`08-impl-delete-migration-k6.md`, `## Why this leaf does not install
+anything`, carries the measured four-cell matrix).
+
+So each remaining leaf must **re-derive** whether it is a cutover leaf rather than
+inherit the label, and the test is the matrix k6 ran: is there a cell where the
+*installed* build meets the tree this leaf leaves and fails? If the tree-visible
+change can simply be deferred, defer it and do not deploy.
+
+`grammar-separator-k15` is the one that cannot defer — the rename onto the new
+grammar **is** its deliverable, and 19.3.0 cannot parse the result. It therefore
+owns the release, and `.grove/FORMAT`'s deletion from this tree rides with it:
+one published release, one tree-visible cutover, both together.
 
 ### The cutover sequence
 
@@ -148,23 +177,24 @@ a session ends **without** a completion signal (`src/loop_driver.rs:49`, and
 own stderr line — *"session ended without a completion signal … loop stopped"* —
 and entirely under the session's control. It is the handoff boundary.
 
-Every one of the five cutover leaves runs these steps, in this order:
+A leaf that has re-derived that it genuinely is a cutover leaf runs these steps,
+in this order:
 
 1. Land the source change with the tree still in the shape the **old installed**
    binaries accept. `cargo test` and `cargo clippy --all-targets` clean.
-2. `cargo build --release`, then put both binaries where this machine's `PATH`
-   resolves them. `command -v grove-llm` resolves `/opt/homebrew/bin/grove-llm`,
-   a symlink to `../Cellar/grove/19.3.0/bin/grove-llm`, **ahead of**
-   `~/.cargo/bin` — so `cargo install --path .` alone installs a build no session
-   reaches. Overwrite the two Cellar files, or re-point the two `/opt/homebrew/bin`
-   symlinks at the cargo-installed binaries; either is reversible with
-   `brew reinstall grove`, and the leaf's commit message names the restore.
-3. **Prove the installed build by behaviour, never by version.** The workspace
-   version does not move within this grove, so `grove --version` still prints
-   `19.3.0` after every install and witnesses nothing. Two checks instead, both
-   mechanical: `readlink -f "$(command -v grove-llm)"` names the file just
-   written, and one probe the *old* build fails and the new one passes — each
-   cutover leaf names its own probe.
+2. **Cut and publish a minor release, and update through Homebrew** — not a local
+   overwrite. Before publishing, run the new build read-only against every other
+   live grove's tree on the machine and confirm it picks what their drivers are
+   already on; a release strands them otherwise. `command -v grove-llm` resolves
+   `/opt/homebrew/bin/grove-llm` ahead of `~/.cargo/bin`, so `cargo install
+   --path .` installs a build no session reaches and is not a route either.
+3. **Prove the installed build.** A published release moves the version, so
+   `grove --version` is a real witness again — it was not while this section
+   still said *overwrite the Cellar files*, which is why it used to forbid the
+   check. Take it **and** a behavioural probe, because a version is a claim about
+   provenance and not about behaviour: one probe the *old* build fails and the new
+   one passes, named by the leaf itself. `readlink -f "$(command -v grove-llm)"`
+   still confirms which file `PATH` resolves.
 4. Make the tree-visible cutover (delete `FORMAT`, rename onto the grammar,
    install the plugin) **after** step 3, using the newly installed `grove-llm`,
    never the old one.
@@ -173,9 +203,9 @@ Every one of the five cutover leaves runs these steps, in this order:
    cannot run another iteration against a tree or a delivery it no longer
    understands. Say so in the commit message: the human restarts `grove`, and the
    new build drives from there. This is the only sanctioned non-signalling exit in
-   the tree, and it is a deliverable of these five leaves rather than a fault.
+   the tree, and it is a deliverable of a cutover leaf rather than a fault.
 
-**Why every cutover needs step 5, not just the tree-shape ones.** The running
+**Why a cutover needs step 5, not just the tree-shape ones.** The running
 driver is the old build in memory: it composes the old prompt, classifies the tree
 with old code, holds the old kind set, and re-provisions its own embedded
 methodology over the plugin every iteration. Nothing a session installs reaches

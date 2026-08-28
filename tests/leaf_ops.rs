@@ -73,9 +73,11 @@ fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
 }
 
 fn stage_all(repo: &Path) {
+    // The root charter, which every real grove holds and which keeps `.grove/`
+    // itself a tracked directory once the fixture's leaf is retired away.
     let grove = repo.join(".grove");
-    if grove.is_dir() {
-        fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    if grove.is_dir() && !grove.join("BRIEF.md").exists() {
+        touch(&grove.join("BRIEF.md"), "# fixture — brief\n");
     }
     git(repo, &["add", "-A"]);
     git(repo, &["commit", "-m", "fixture"]);

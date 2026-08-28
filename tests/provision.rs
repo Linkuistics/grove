@@ -201,7 +201,6 @@ fn git_worktree_with_one_leaf(fixture: &Path) -> std::path::PathBuf {
         .success());
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# worktree — brief\n").unwrap();
     fs::write(grove.join("01-impl-first-k1.md"), "# first-k1\n").unwrap();
     worktree

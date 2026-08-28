@@ -296,7 +296,7 @@ fn init_jj(repository: &Path, colocated: bool) {
 fn seed_committed_terminal_grove(repository: &Path) {
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("NOTES.md"), "notes\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# finish-test — brief\n").unwrap();
     fs::write(grove.join("01-DONE-impl-finished-k1.md"), "# finished-k1\n").unwrap();
     fs::write(repository.join("kept.txt"), "kept\n").unwrap();
@@ -312,7 +312,7 @@ fn seed_committed_terminal_grove(repository: &Path) {
 fn seed_jj_terminal_grove(repository: &Path) {
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("NOTES.md"), "notes\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# finish-test — brief\n").unwrap();
     fs::write(grove.join("01-DONE-impl-finished-k1.md"), "# finished-k1\n").unwrap();
     fs::write(repository.join("outside.txt"), "before\n").unwrap();
@@ -439,7 +439,7 @@ fn plain_git_finish_commit_deletes_only_the_grove_and_preserves_other_work() {
         "{subject}"
     );
     let committed = git(&repository, &["show", "--pretty=", "--name-only", "HEAD"]);
-    assert!(committed.contains(".grove/FORMAT"));
+    assert!(committed.contains(".grove/NOTES.md"));
     assert!(!committed.contains("staged.txt"));
     assert_eq!(
         git(&repository, &["diff", "--cached", "--name-only"]),
@@ -496,7 +496,7 @@ fn plain_git_finish_deletes_a_finish_leaf_a_broad_task_commit_already_tracked() 
         committed.contains("D\t.grove/02-finish-finish-k2.md"),
         "{committed}"
     );
-    assert!(committed.contains("D\t.grove/FORMAT"), "{committed}");
+    assert!(committed.contains("D\t.grove/NOTES.md"), "{committed}");
     assert_eq!(git(&repository, &["ls-files", "--", ".grove"]), "");
 }
 
@@ -519,56 +519,6 @@ fn finish_commit_refuses_byte_identically_when_ordinary_work_appeared() {
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("late-work-k3"));
     assert_eq!(tree_snapshot(&repository.join(".grove")), before);
-    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
-}
-
-#[test]
-fn finish_commit_refuses_a_pending_migration_before_deleting_the_tree() {
-    // The one reserved non-finish witness left. Promotion's `PROMOTING-*` went
-    // with the verb that wrote it (flat-lazy-review), so this single case is now
-    // the whole class rather than one of two.
-    let witness_name = "MIGRATING-session-kinds";
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join(witness_name);
-    init_git(&repository);
-    seed_committed_terminal_grove(&repository);
-    let grove = repository.join(".grove");
-    fs::create_dir(grove.join(witness_name)).unwrap();
-    let before = tree_snapshot(&grove);
-    let head_before = git(&repository, &["rev-parse", "HEAD"]);
-
-    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
-
-    assert!(!output.status.success(), "{witness_name} was admitted");
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("pending Grove session-kind migration"),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(tree_snapshot(&grove), before);
-    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
-}
-
-#[test]
-fn finish_commit_refuses_an_unknown_tree_format_before_deleting_the_tree() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("unknown-format");
-    init_git(&repository);
-    seed_committed_terminal_grove(&repository);
-    let grove = repository.join(".grove");
-    fs::write(grove.join("FORMAT"), "session-kinds-v2\n").unwrap();
-    let before = tree_snapshot(&grove);
-    let head_before = git(&repository, &["rev-parse", "HEAD"]);
-
-    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
-
-    assert!(!output.status.success());
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("unsupported Grove tree format"),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(tree_snapshot(&grove), before);
     assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
 }
 
@@ -992,8 +942,8 @@ fn rootless_finish_retry_refuses_a_matching_message_that_still_tracks_the_grove(
     let (status, output) = run_amended_teardown_retry(
         fixture.path(),
         &repository,
-        "mkdir -p .grove\nprintf 'session-kinds-v1\\n' > .grove/FORMAT\n\
-         git add .grove/FORMAT\ngit commit -q --amend --no-edit\nrm -rf .grove",
+        "mkdir -p .grove\nprintf 'notes\\n' > .grove/NOTES.md\n\
+         git add .grove/NOTES.md\ngit commit -q --amend --no-edit\nrm -rf .grove",
     );
 
     assert_ne!(
@@ -1033,7 +983,7 @@ fn assert_jj_finish_commit_preserves_other_work(colocated: bool) {
     );
     assert!(!repository.join(".grove").exists());
     let committed = git_like_jj_output(&repository, &["diff", "-r", "@-", "--summary"]);
-    assert!(committed.contains(".grove/FORMAT"));
+    assert!(committed.contains(".grove/NOTES.md"));
     assert!(!committed.contains("outside.txt"));
     let successor = git_like_jj_output(&repository, &["diff", "-r", "@", "--summary"]);
     assert!(successor.contains("outside.txt"));
@@ -1234,7 +1184,7 @@ fn plain_git_unborn_finish_is_refused_before_deleting_the_tree() {
     init_git(&repository);
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("NOTES.md"), "notes\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# unborn-git — brief\n").unwrap();
     fs::write(
         grove.join("01-finish-finish-k1.md"),
@@ -1347,7 +1297,7 @@ fn finish_preflight_refuses_a_symlinked_task_root_before_deleting_the_tree() {
         .file_type()
         .is_symlink());
     assert!(store.join("02-finish-finish-k2.md").is_file());
-    assert!(store.join("FORMAT").is_file());
+    assert!(store.join("NOTES.md").is_file());
     assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
     assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
 }
@@ -1544,7 +1494,7 @@ fn the_finish_route_is_not_taken_by_an_ordinary_leaf_whose_slug_is_finish() {
     init_git(&repository);
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("NOTES.md"), "notes\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# ordinary-finish-slug — brief\n").unwrap();
     fs::write(grove.join("01-impl-finish-k1.md"), "# finish-k1\n").unwrap();
     run("git", &repository, &["add", "-A"]);
@@ -2154,7 +2104,7 @@ fn plain_git_restart_recovers_a_ready_witness_before_evacuation() {
     assert!(!interrupted.status.success());
     let witness = repository.join(".grove/FINISHING-finish-k2");
     assert!(witness.is_dir());
-    assert!(repository.join(".grove/FORMAT").is_file());
+    assert!(repository.join(".grove/NOTES.md").is_file());
     assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
     assert_eq!(auxiliary_markers(&repository).len(), 1);
 
@@ -2376,7 +2326,7 @@ fn a_death_before_the_quarantine_rename_keeps_the_complete_in_tree_witness() {
         "the task root must hold nothing but its blocking witness"
     );
     for entry in [
-        "FORMAT",
+        "NOTES.md",
         "BRIEF.md",
         "01-DONE-impl-finished-k1.md",
         "02-finish-finish-k2.md",
@@ -2440,7 +2390,7 @@ fn a_death_after_the_quarantine_rename_leaves_the_complete_quarantine() {
         panic!("the rename must leave exactly one complete quarantine, found {quarantines:?}");
     };
     for entry in [
-        "FORMAT",
+        "NOTES.md",
         "BRIEF.md",
         "01-DONE-impl-finished-k1.md",
         "02-finish-finish-k2.md",

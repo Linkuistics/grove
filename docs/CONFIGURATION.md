@@ -221,7 +221,7 @@ including `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, and a repository-local
 directory but makes no promise to rewrite its repository context; express any
 such policy with literal `env` arguments or in a wrapper. Grove's own internal
 lifecycle VCS commands are separate and do scrub repository selectors, so your
-personal launch context cannot redirect a migration or teardown commit.
+personal launch context cannot redirect a teardown commit.
 
 ## Provisioned methodology is a prerequisite
 
@@ -296,12 +296,12 @@ grove: session ended without a completion signal — status exit status: 127, el
 ### When configuration is read
 
 Grove reads and fully validates the whole file — and resolves the delta, if there
-is one — before **every** task-tree mutation (root initialization, legacy
-migration, and finish-leaf materialization) and again immediately before every
+is one — before **every** task-tree mutation (root initialization, partial-root
+recovery, and finish-leaf materialization) and again immediately before every
 launch. Nothing is cached between loop iterations, so editing either file affects
 the next session.
 
-A failed pre-mutation read leaves a rootless, legacy, or pending-migration tree
+A failed pre-mutation read leaves a rootless, partial, or complete tree
 byte-identical. If either file becomes invalid after a mutation but before the
 launch read, that mutation stays as resumable tree state and no session launches.
 Either way an existing selected leaf remains live and resumable.

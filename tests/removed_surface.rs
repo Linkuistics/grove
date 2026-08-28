@@ -666,7 +666,6 @@ impl Fixture {
         }
         let grove = worktree.join(".grove");
         fs::create_dir_all(&grove).unwrap();
-        fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
         fs::write(grove.join("BRIEF.md"), "# removed-surface — brief\n").unwrap();
         fs::write(grove.join("01-impl-subject-k1.md"), "# subject-k1\n").unwrap();
 
@@ -869,14 +868,24 @@ fn the_launch_fixture_still_observes_a_configuration_driven_change() {
 // classification comes off disk rather than from a constant, so a module added
 // tomorrow classifies without anyone editing this file.
 
-/// The modules `sweep-k37` deleted.
+/// The modules deleted from the tree layer — the four `sweep-k37` took with the
+/// withdrawn algebra, and the three `delete-migration-k6` took with migration and
+/// the format witness.
 ///
 /// Listed, unlike the live set, because absence cannot be enumerated: nothing on
 /// disk can tell you the name of a file that is not there. What keeps the list
 /// from becoming a fossil is the cross-tree control below — each of these must
 /// still be discussed somewhere in `docs/` or the changelog, so an entry naming
 /// a module grove never had fails here.
-const WITHDRAWN_TREE_MODULES: &[&str] = &["tree_id", "tree_read", "tree_grow", "tree_rename"];
+const WITHDRAWN_TREE_MODULES: &[&str] = &[
+    "tree_id",
+    "tree_read",
+    "tree_grow",
+    "tree_rename",
+    "tree_format",
+    "tree_migrate",
+    "tree_migration_transaction",
+];
 
 /// Every module-shaped `tree_*` / `task_*` token on one line.
 ///
@@ -1005,9 +1014,9 @@ fn no_withdrawn_tree_module_is_named_anywhere_in_grove_code() {
     );
     assert!(
         findings.is_empty(),
-        "these name a tree module `sweep-k37` deleted — the algebra is \
-         `ordinal-fs-tree`'s now, and an essay arguing about a module that no \
-         longer exists is worse than no essay:\n{}",
+        "these name a deleted tree module — the algebra is `ordinal-fs-tree`'s \
+         now and migration is gone entirely, and an essay arguing about a module \
+         that no longer exists is worse than no essay:\n{}",
         render(&findings)
     );
 }

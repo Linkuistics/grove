@@ -41,15 +41,10 @@
 //   - `BRIEF.md`                              -> the distinguished child
 //   - `NN-…-k<key>[.md]`                      -> an entry, or `Malformed` if it
 //                                                does not parse completely
-//   - `MIGRATING-session-kinds`,
-//     `FINISHING-*`, `PREPARING-FINISH-*`     -> `Reserved`: a transaction is in
+//   - `FINISHING-*`, `PREPARING-FINISH-*`     -> `Reserved`: a transaction is in
 //                                                flight, and proceeding past one
 //                                                is a guess
-//   - `FORMAT`, `README.md`, anything else    -> `Foreign`
-//
-// `FORMAT` is the one to get wrong: it is grove's own file, but it is present in
-// every *healthy* tree, and `Reserved` halts — so classifying it `Reserved` would
-// make every grove command refuse every grove tree.
+//   - `README.md`, anything else              -> `Foreign`
 
 use core::fmt;
 
@@ -58,7 +53,7 @@ use ordinal_fs_tree::{
 };
 
 use crate::leaf::Kind;
-use crate::tree_access::{FINISHING_PREFIX, MIGRATION_TRANSACTION, PREPARING_FINISH_PREFIX};
+use crate::tree_access::{FINISHING_PREFIX, PREPARING_FINISH_PREFIX};
 
 /// The name of a node's distinguished child: the charter every node directory is
 /// headed by.
@@ -355,11 +350,6 @@ pub enum TaskNameError {
         /// The witness on disk.
         name: String,
     },
-    /// A session-kind migration is in flight or was interrupted.
-    PendingMigration {
-        /// The witness on disk.
-        name: String,
-    },
 }
 
 impl fmt::Display for TaskNameError {
@@ -410,11 +400,6 @@ impl fmt::Display for TaskNameError {
                 "pending Grove finish transaction: {name:?}. Recover it with the same \
                  finish-commit handle or rerun bare `grove`"
             ),
-            Self::PendingMigration { name } => write!(
-                f,
-                "pending Grove session-kind migration: {name:?}. To recover it, rerun bare \
-                 `grove`"
-            ),
         }
     }
 }
@@ -435,16 +420,9 @@ impl EntryName for TaskName {
                 None => Verdict::Entry(Self::Brief),
             };
         }
-        // `Reserved` regardless of what the listing found: every one of these is
-        // a directory today, but the verdict halts either way, and a witness
-        // that is somehow a file is still a witness. Matching the migration
-        // witness exactly rather than by prefix is what `tree_access`'s guard
-        // does today, and the flip is a pure refactor.
-        if name == MIGRATION_TRANSACTION {
-            return Verdict::Reserved(TaskNameError::PendingMigration {
-                name: name.to_string(),
-            });
-        }
+        // `Reserved` regardless of what the listing found: both of these are a
+        // directory today, but the verdict halts either way, and a witness that
+        // is somehow a file is still a witness.
         if name.starts_with(FINISHING_PREFIX) || name.starts_with(PREPARING_FINISH_PREFIX) {
             return Verdict::Reserved(TaskNameError::PendingFinish {
                 name: name.to_string(),
@@ -461,7 +439,7 @@ impl EntryName for TaskName {
         // and keyed** — a leading digit run, and a terminal `-k<digits>`. That
         // shape is the one only Grove's grow verbs write, so everything else is
         // Foreign and skipped, which is safe precisely because we are
-        // disclaiming it. `.grove/FORMAT` and a stray `README.md` land here.
+        // disclaiming it. A stray `README.md` lands here.
         // Everything that *is* this shape and does not parse is Malformed,
         // whichever species it declares: a task-shaped name Grove skips is lost
         // work, and a whole subtree when the name is a directory.
@@ -652,9 +630,8 @@ mod tests {
     // ---- the conformance kit ------------------------------------------------
 
     /// Every shape a real `.grove/` holds, in the proportions one holds them:
-    /// the charter, a live leaf, both terminal marks, a node directory, the
-    /// `FORMAT` stamp, a foreign `README.md`, and each of the three transaction
-    /// sentinels.
+    /// the charter, a live leaf, both terminal marks, a node directory, a
+    /// foreign `README.md`, and both transaction sentinels.
     ///
     /// **The last two lines are the load-bearing ones, and they are not shapes a
     /// healthy tree holds.** They are the near-misses the grammar is meant to
@@ -673,9 +650,7 @@ mod tests {
             ("02-impl-domain-k29.md", Found::File),
             ("03-ABANDONED-design-refusals-k30.md", Found::File),
             ("07-grove-flip-k28", Found::Dir),
-            ("FORMAT", Found::File),
             ("README.md", Found::File),
-            ("MIGRATING-session-kinds", Found::Dir),
             ("FINISHING-finish-k2", Found::Dir),
             ("PREPARING-FINISH-finish-k2-1111", Found::Dir),
             ("5-impl-domain-k29.md", Found::File),
@@ -743,14 +718,6 @@ mod tests {
         assert_eq!(TaskName::distinguished(), Some(TaskName::Brief));
     }
 
-    /// `FORMAT` is Grove's own file and is **Foreign**, not Reserved. It is
-    /// present in every healthy tree and `Reserved` halts, so the other reading
-    /// makes every Grove command refuse every Grove tree.
-    #[test]
-    fn the_format_stamp_is_foreign() {
-        assert_eq!(verdict("FORMAT", Found::File), Verdict::Foreign);
-    }
-
     #[test]
     fn a_name_that_is_not_task_shaped_is_foreign() {
         for name in [
@@ -765,18 +732,12 @@ mod tests {
         }
     }
 
-    /// The transaction witnesses halt, which is what `tree_access::refuse_pending_*`
+    /// The transaction witnesses halt, which is what `tree_access::refuse_pending`
     /// does by hand today. Reserved rather than Malformed: the name is Grove's
     /// and is deliberately not an entry.
     #[test]
     fn the_transaction_witnesses_are_reserved() {
         let cases = [
-            (
-                "MIGRATING-session-kinds",
-                TaskNameError::PendingMigration {
-                    name: "MIGRATING-session-kinds".to_string(),
-                },
-            ),
             (
                 "FINISHING-finish-k2",
                 TaskNameError::PendingFinish {
@@ -801,17 +762,10 @@ mod tests {
         }
     }
 
-    /// Each witness's advice is the wording `tree_access` already gives, because
+    /// The witness's advice is the wording `tree_access` already gives, because
     /// the flip is a pure refactor and the operator meets the same sentence.
     #[test]
     fn a_reserved_witness_carries_its_recovery_advice() {
-        let migration = match verdict("MIGRATING-session-kinds", Found::Dir) {
-            Verdict::Reserved(error) => error.to_string(),
-            other => panic!("{other:?}"),
-        };
-        assert!(migration.contains("pending Grove session-kind migration"));
-        assert!(migration.contains("rerun bare `grove`"));
-
         let finish = match verdict("FINISHING-finish-k2", Found::Dir) {
             Verdict::Reserved(error) => error.to_string(),
             other => panic!("{other:?}"),

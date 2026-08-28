@@ -417,7 +417,6 @@ fn driver_uses_the_on_disk_worktree_while_the_configured_command_inherits_git_co
         &["config", "core.worktree", foreign.to_str().unwrap()],
     );
     fs::create_dir_all(intended.join(".grove")).unwrap();
-    fs::write(intended.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(intended.join(".grove/BRIEF.md"), "# intended — brief\n").unwrap();
     fs::write(intended.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
 
@@ -474,7 +473,7 @@ fn driver_uses_the_on_disk_worktree_while_the_configured_command_inherits_git_co
 }
 
 #[test]
-fn bare_migration_is_anchored_before_the_configured_command_inherits_git_context() {
+fn bare_scaffolding_is_anchored_before_the_configured_command_inherits_git_context() {
     let tmp = TempDir::new().unwrap();
     let intended = tmp.path().join("intended");
     let foreign = tmp.path().join("foreign");
@@ -491,13 +490,12 @@ fn bare_migration_is_anchored_before_the_configured_command_inherits_git_context
         &intended,
         &["config", "core.worktree", foreign.to_str().unwrap()],
     );
+    // A *partial* root — the charter and nothing else — so the driver's
+    // lifecycle transition has a mutation to anchor: completing the scaffold.
+    // It is the only tree mutation the driver still performs, migration having
+    // gone (`delete-migration-k6`).
     fs::create_dir_all(intended.join(".grove")).unwrap();
     fs::write(intended.join(".grove/BRIEF.md"), "# intended — brief\n").unwrap();
-    fs::write(
-        intended.join(".grove/01-test-k1.md"),
-        "# test-k1\n\n**Kind:** impl\n",
-    )
-    .unwrap();
 
     let launch_log = tmp.path().join("launch-log");
     let fake_harness = tmp.path().join("fake-claude.sh");
@@ -519,7 +517,7 @@ fn bare_migration_is_anchored_before_the_configured_command_inherits_git_context
 
     assert!(
         output.status.success(),
-        "bare migration was redirected by ambient Git context: {}",
+        "bare scaffolding was redirected by ambient Git context: {}",
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!(
@@ -531,12 +529,9 @@ fn bare_migration_is_anchored_before_the_configured_command_inherits_git_context
             foreign.join(".git").display()
         )
     );
-    assert_eq!(
-        fs::read_to_string(intended.join(".grove/FORMAT")).unwrap(),
-        "session-kinds-v1\n"
-    );
-    assert!(!intended.join(".grove/01-test-k1.md").exists());
-    assert!(intended.join(".grove/01-impl-test-k1.md").is_file());
+    assert!(intended
+        .join(".grove/01-requirements-plan-k1.md")
+        .is_file());
     assert!(!foreign.join(".grove").exists());
 }
 
@@ -908,7 +903,6 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     init_git_worktree(&root);
     fs::create_dir_all(root.join(".claude")).unwrap();
     fs::create_dir_all(root.join(".grove")).unwrap();
-    fs::write(root.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(root.join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
     fs::write(root.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
     run_command("git", &root, &["add", ".grove"]);
@@ -948,13 +942,10 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     let mut first = DriverProcess::spawn(&mut first_command, &tmp.path().join("first-driver-log"));
     first.wait_for_ready(&first_ready);
     first.wait_for_ready(&harness_pid);
-    fs::remove_file(root.join(".grove/FORMAT")).unwrap();
+    // Leave the tree *partial* — the charter and nothing else — which is the
+    // one shape the lifecycle transition would mutate. A driver that refuses
+    // before tree access leaves it exactly so.
     fs::remove_file(root.join(".grove/01-impl-test-k1.md")).unwrap();
-    fs::write(
-        root.join(".grove/1-[1]-test.md"),
-        "# test-k1\n\n**Kind:** impl\n",
-    )
-    .unwrap();
     let head_before_second = command_stdout("git", &root, &["rev-parse", "HEAD"]);
     fs::remove_file(skill_dir.join("SKILL.md")).unwrap();
     fs::write(skill_dir.join(".grove-content-hash"), "stale-hash\n").unwrap();
@@ -976,17 +967,13 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
         "second driver launched a harness"
     );
     assert!(
-        root.join(".grove/1-[1]-test.md").exists(),
-        "second driver migrated the live driver's task tree"
-    );
-    assert!(
-        !root.join(".grove/FORMAT").exists(),
-        "second driver wrote the current-format witness"
+        !root.join(".grove/01-requirements-plan-k1.md").exists(),
+        "second driver scaffolded the live driver's task tree"
     );
     assert_eq!(
         command_stdout("git", &root, &["rev-parse", "HEAD"]),
         head_before_second,
-        "second driver committed a migration before acquiring ownership"
+        "second driver committed before acquiring ownership"
     );
     drop(first);
     let harness_pid: libc::pid_t = fs::read_to_string(harness_pid).unwrap().parse().unwrap();
@@ -1019,7 +1006,6 @@ fn lease_replacement_before_the_foreground_launch_refuses_to_launch() {
     let root = tmp.path().join("worktree");
     init_git_worktree(&root);
     fs::create_dir_all(root.join(".grove")).unwrap();
-    fs::write(root.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(root.join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
     fs::write(root.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
 
@@ -1081,7 +1067,6 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     init_git_worktree(&root);
     let grove = root.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# test — brief\n").unwrap();
     fs::write(grove.join("01-impl-test-k1.md"), "# test-k1\n").unwrap();
     let ready = tmp.path().join("harness-ready");

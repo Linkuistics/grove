@@ -2172,10 +2172,10 @@ mod tests {
         );
         let grove_root = repository.join(".grove");
         fs::create_dir(&grove_root).unwrap();
-        fs::write(grove_root.join("FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(grove_root.join("NOTES.md"), "notes\n").unwrap();
         fs::write(grove_root.join("BRIEF.md"), "# fixture — brief\n").unwrap();
         fs::write(grove_root.join("01-DONE-impl-work-k1.md"), "# work-k1\n").unwrap();
-        symlink("FORMAT", grove_root.join("current-format")).unwrap();
+        symlink("NOTES.md", grove_root.join("current-format")).unwrap();
         run_git(repository, &["add", "-A"]);
         run_git(repository, &["commit", "-q", "-m", "fixture"]);
         fs::write(grove_root.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
@@ -2388,7 +2388,7 @@ mod tests {
             format!("{error:#}").contains("not fully evacuated"),
             "{error:#}"
         );
-        assert!(repository.join(".grove/FORMAT").is_file());
+        assert!(repository.join(".grove/NOTES.md").is_file());
         assert!(repository.join(".grove/FINISHING-finish-k2").is_dir());
     }
 
@@ -2433,7 +2433,7 @@ mod tests {
 
         assert!(format!("{error:#}").contains("recorded start"), "{error:#}");
         assert!(transaction.witness_path.is_dir());
-        assert!(transaction.grove_root.join("FORMAT").is_file());
+        assert!(transaction.grove_root.join("NOTES.md").is_file());
     }
 
     fn finish_witness(repository: &Path) -> PathBuf {
@@ -2624,9 +2624,9 @@ mod tests {
             let repository = fixture.path();
             let original_tree = finish_witness(repository).join("original");
             match case {
-                "content" => fs::write(original_tree.join("FORMAT"), "tampered\n").unwrap(),
+                "content" => fs::write(original_tree.join("NOTES.md"), "tampered\n").unwrap(),
                 "mode" => {
-                    let path = original_tree.join("FORMAT");
+                    let path = original_tree.join("NOTES.md");
                     let mode = fs::metadata(&path).unwrap().permissions().mode();
                     fs::set_permissions(path, fs::Permissions::from_mode(mode ^ 0o100)).unwrap();
                 }
@@ -2655,7 +2655,7 @@ mod tests {
             let repository = fixture.path();
             let original_tree = finish_witness(repository).join("original");
             match case {
-                "missing" => fs::remove_file(original_tree.join("FORMAT")).unwrap(),
+                "missing" => fs::remove_file(original_tree.join("NOTES.md")).unwrap(),
                 "foreign" => fs::write(original_tree.join("foreign"), "preserve\n").unwrap(),
                 _ => unreachable!(),
             }
@@ -2713,7 +2713,7 @@ mod tests {
         );
         let grove_root = repository.join(".grove");
         fs::create_dir(&grove_root).unwrap();
-        fs::write(grove_root.join("FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(grove_root.join("NOTES.md"), "notes\n").unwrap();
         fs::write(grove_root.join("01-DONE-impl-work-k1.md"), "# work-k1\n").unwrap();
         run_git(repository, &["add", "-A"]);
         run_git(repository, &["commit", "-q", "-m", "fixture"]);
@@ -2787,7 +2787,7 @@ mod tests {
         let original_root = repository.join("original-grove");
         fs::rename(&grove_root, &original_root).unwrap();
         fs::create_dir(&grove_root).unwrap();
-        fs::write(grove_root.join("FORMAT"), "replacement format\n").unwrap();
+        fs::write(grove_root.join("NOTES.md"), "replacement format\n").unwrap();
         fs::write(grove_root.join("BRIEF.md"), "replacement brief\n").unwrap();
         fs::write(
             grove_root.join("01-DONE-impl-work-k1.md"),
@@ -2819,7 +2819,7 @@ mod tests {
             assert!(message.contains(required), "{message}");
         }
         assert_eq!(
-            fs::read(grove_root.join("FORMAT")).unwrap(),
+            fs::read(grove_root.join("NOTES.md")).unwrap(),
             b"replacement format\n"
         );
         assert_eq!(
@@ -2863,8 +2863,8 @@ mod tests {
             "witness substitution created recovery state outside the task root"
         );
         assert_eq!(
-            fs::read_to_string(grove_root.join("FORMAT")).unwrap(),
-            "session-kinds-v1\n"
+            fs::read_to_string(grove_root.join("NOTES.md")).unwrap(),
+            "notes\n"
         );
         assert!(displaced_witness.is_dir());
     }
@@ -2899,8 +2899,8 @@ mod tests {
             assert!(format!("{error:#}").contains(description), "{error:#}");
             assert_eq!(fs::read_to_string(&external_file).unwrap(), "external\n");
             assert_eq!(
-                fs::read_to_string(grove_root.join("FORMAT")).unwrap(),
-                "session-kinds-v1\n"
+                fs::read_to_string(grove_root.join("NOTES.md")).unwrap(),
+                "notes\n"
             );
             assert!(displaced_file.is_file());
         }
@@ -2933,12 +2933,12 @@ mod tests {
             "external\n"
         );
         assert!(
-            !external.path().join("FORMAT").exists(),
+            !external.path().join("NOTES.md").exists(),
             "recovery-tree substitution evacuated task bytes outside the witness"
         );
         assert_eq!(
-            fs::read_to_string(grove_root.join("FORMAT")).unwrap(),
-            "session-kinds-v1\n"
+            fs::read_to_string(grove_root.join("NOTES.md")).unwrap(),
+            "notes\n"
         );
         assert!(displaced_original_tree.is_dir());
     }
@@ -2964,7 +2964,7 @@ mod tests {
             "{error:#}"
         );
         assert_eq!(fs::read_to_string(&foreign).unwrap(), "preserve\n");
-        for expected in ["FORMAT", "BRIEF.md", "01-DONE-impl-work-k1.md"] {
+        for expected in ["NOTES.md", "BRIEF.md", "01-DONE-impl-work-k1.md"] {
             assert!(
                 grove_root.join(expected).exists(),
                 "foreign-entry refusal moved {expected}"
@@ -2981,9 +2981,9 @@ mod tests {
             let result = evacuate_with_checkpoint(transaction, |checkpoint| {
                 if checkpoint == "after-ready" {
                     match case {
-                        "content" => fs::write(grove_root.join("FORMAT"), "changed\n")?,
+                        "content" => fs::write(grove_root.join("NOTES.md"), "changed\n")?,
                         "mode" => {
-                            let path = grove_root.join("FORMAT");
+                            let path = grove_root.join("NOTES.md");
                             let mode = fs::metadata(&path)?.permissions().mode();
                             fs::set_permissions(path, fs::Permissions::from_mode(mode ^ 0o100))?;
                         }
@@ -3014,7 +3014,7 @@ mod tests {
                     .is_none(),
                 "{case} moved a source entry"
             );
-            for expected in ["FORMAT", "BRIEF.md", "01-DONE-impl-work-k1.md"] {
+            for expected in ["NOTES.md", "BRIEF.md", "01-DONE-impl-work-k1.md"] {
                 assert!(
                     grove_root.join(expected).exists(),
                     "{case} moved {expected}"
@@ -3156,7 +3156,7 @@ mod tests {
             format!("{error:#}").contains("finish recovery tree"),
             "{error:#}"
         );
-        for expected in ["FORMAT", "BRIEF.md", "01-DONE-impl-work-k1.md"] {
+        for expected in ["NOTES.md", "BRIEF.md", "01-DONE-impl-work-k1.md"] {
             assert!(
                 external_tree.join(expected).exists(),
                 "recovery moved {expected} through a substituted original-tree path"
@@ -3182,11 +3182,11 @@ mod tests {
         assert_eq!(fs::read_to_string(&foreign).unwrap(), "preserve\n");
         assert!(
             grove_root
-                .join("FINISHING-finish-k2/original/FORMAT")
+                .join("FINISHING-finish-k2/original/NOTES.md")
                 .exists(),
             "foreign-entry refusal must happen before rollback"
         );
-        assert!(!grove_root.join("FORMAT").exists());
+        assert!(!grove_root.join("NOTES.md").exists());
     }
 
     #[test]
@@ -3316,7 +3316,7 @@ mod tests {
             assert_eq!(recovered, FinishRecovery::RolledBack, "prefix {prefix}");
             assert!(!witness.exists(), "prefix {prefix} left a witness behind");
             for expected in [
-                "FORMAT",
+                "NOTES.md",
                 "BRIEF.md",
                 "01-DONE-impl-work-k1.md",
                 "02-finish-finish-k2.md",
@@ -3336,7 +3336,7 @@ mod tests {
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let witness = grove_root.join("FINISHING-finish-k2");
-        let collision = grove_root.join("FORMAT");
+        let collision = grove_root.join("NOTES.md");
 
         let error = recover_pending_with_checkpoint(repository, &grove_root, |checkpoint| {
             if checkpoint == restoration_checkpoint(0) {
@@ -3358,7 +3358,7 @@ mod tests {
         );
         assert_eq!(fs::read_to_string(&collision).unwrap(), "collision\n");
         assert!(
-            witness.join("original/FORMAT").is_file(),
+            witness.join("original/NOTES.md").is_file(),
             "the evacuated copy must stay beneath the witness"
         );
     }
@@ -3387,7 +3387,7 @@ mod tests {
             fs::read_to_string(repository.join("divergent")).unwrap(),
             "preserve\n"
         );
-        for expected in ["FORMAT", "BRIEF.md", "02-finish-finish-k2.md"] {
+        for expected in ["NOTES.md", "BRIEF.md", "02-finish-finish-k2.md"] {
             assert!(
                 witness.join("original").join(expected).exists(),
                 "{expected} left the witness after a blocked rollback"
@@ -3421,7 +3421,7 @@ mod tests {
         assert!(message.contains("observed HEAD"), "{message}");
         assert_pending_diagnostic(&message, &witness);
         assert!(witness.is_dir());
-        assert!(grove_root.join("FORMAT").is_file());
+        assert!(grove_root.join("NOTES.md").is_file());
 
         let retry = recover_pending(repository, &grove_root)
             .expect_err("a retry against divergent history must stay fail-closed");
@@ -3484,7 +3484,7 @@ mod tests {
         let message = format!("{error:#}");
         assert!(message.contains("observed parent"), "{message}");
         assert_pending_diagnostic(&message, &transaction.witness_path);
-        assert!(transaction.witness_path.join("original/FORMAT").is_file());
+        assert!(transaction.witness_path.join("original/NOTES.md").is_file());
         assert!(!transaction.quarantine_path.exists());
     }
 
@@ -3509,7 +3509,7 @@ mod tests {
             "{message}"
         );
         assert_pending_diagnostic(&message, &transaction.witness_path);
-        assert!(transaction.witness_path.join("original/FORMAT").is_file());
+        assert!(transaction.witness_path.join("original/NOTES.md").is_file());
         assert_eq!(
             fs::read_to_string(quarantine_path.join("foreign")).unwrap(),
             "preserve\n"
@@ -3535,9 +3535,9 @@ mod tests {
         assert!(message.contains("restored"), "{message}");
         assert_pending_diagnostic(&message, &transaction.witness_path);
         assert!(!transaction.quarantine_path.exists());
-        assert!(transaction.witness_path.join("original/FORMAT").is_file());
+        assert!(transaction.witness_path.join("original/NOTES.md").is_file());
         assert!(
-            !transaction.grove_root.join("FORMAT").exists(),
+            !transaction.grove_root.join("NOTES.md").exists(),
             "the restored root must stay blocked by its witness"
         );
     }
@@ -3564,7 +3564,7 @@ mod tests {
         assert_pending_diagnostic(&message, &transaction.quarantine_path);
         assert!(transaction
             .quarantine_path
-            .join("FINISHING-finish-k2/original/FORMAT")
+            .join("FINISHING-finish-k2/original/NOTES.md")
             .is_file());
         assert_eq!(
             fs::read_to_string(grove_root.join("foreign")).unwrap(),
@@ -3602,8 +3602,8 @@ mod tests {
         let message = format!("{error:#}");
         assert!(message.contains("observed HEAD"), "{message}");
         assert_pending_diagnostic(&message, &witness);
-        assert!(witness.join("original/FORMAT").is_file());
-        assert!(!grove_root.join("FORMAT").exists());
+        assert!(witness.join("original/NOTES.md").is_file());
+        assert!(!grove_root.join("NOTES.md").exists());
     }
 
     #[test]

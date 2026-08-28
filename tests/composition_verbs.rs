@@ -37,7 +37,6 @@ fn grove() -> TempDir {
     let root = tmp.path().join(".grove");
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("BRIEF.md"), "# root — brief\n").unwrap();
-    fs::write(root.join("FORMAT"), "session-kinds-v1\n").unwrap();
     tmp
 }
 
@@ -103,7 +102,6 @@ fn a_review_chain_is_three_leaf_adds_landing_as_flat_siblings() {
             "02-review-design-sync-k2.md",
             "03-integrate-review-design-sync-k3.md",
             "BRIEF.md",
-            "FORMAT",
         ],
         "flat siblings — no chain node was created for them"
     );
@@ -161,7 +159,7 @@ fn there_is_no_chain_constructor_left_to_call() {
         );
         assert_eq!(
             tree(t.path()),
-            vec!["BRIEF.md", "FORMAT"],
+            vec!["BRIEF.md"],
             "{argv:?} touched the tree"
         );
     }
@@ -650,7 +648,6 @@ fn unmigrated_research_pair_filenames_still_pick_resolve_and_report_their_kinds(
             "02-research-b-survey-b-k2.md",
             "03-combine-research-survey-combine-k3.md",
             "BRIEF.md",
-            "FORMAT",
         ],
         "the legacy pair names must be untouched"
     );
@@ -682,7 +679,7 @@ fn a_failed_run_prints_no_path_at_all() {
     );
     assert_eq!(
         tree(t.path()),
-        vec!["01-research-a-survey-k1.md", "BRIEF.md", "FORMAT"],
+        vec!["01-research-a-survey-k1.md", "BRIEF.md"],
         "no half-built pair left behind"
     );
 }
@@ -702,7 +699,7 @@ fn pair_refuses_a_kind_because_its_kinds_are_fixed() {
     );
     assert_eq!(
         tree(t.path()),
-        vec!["BRIEF.md", "FORMAT"],
+        vec!["BRIEF.md"],
         "nothing created"
     );
 }
@@ -739,7 +736,7 @@ fn pair_rejects_removed_harness_flags() {
     );
     assert_eq!(
         tree(t.path()),
-        vec!["BRIEF.md", "FORMAT"],
+        vec!["BRIEF.md"],
         "nothing created"
     );
 }
@@ -753,7 +750,7 @@ fn pair_requires_parent_and_stem() {
     assert!(stderr.contains("<STEM>"), "{stderr}");
     assert_eq!(
         tree(t.path()),
-        vec!["BRIEF.md", "FORMAT"],
+        vec!["BRIEF.md"],
         "a malformed command must not leave a partial pair on disk"
     );
 }

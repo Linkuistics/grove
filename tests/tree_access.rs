@@ -137,7 +137,10 @@ fn concurrent_root_initializers_wait_before_observing_or_creating_the_grove() {
     assert_eq!(success_count, 1, "{first_stderr}\n{second_stderr}");
     assert_eq!(first_stderr.matches(WAITING_DIAGNOSTIC).count(), 1);
     assert_eq!(second_stderr.matches(WAITING_DIAGNOSTIC).count(), 1);
-    assert!(worktree.path().join(".grove/FORMAT").is_file());
+    assert!(worktree
+        .path()
+        .join(".grove/01-requirements-plan-k1.md")
+        .is_file());
 }
 
 #[test]
@@ -281,11 +284,10 @@ fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
     callers.sort();
     assert_eq!(
         callers,
-        vec![("src/task_tree.rs".to_string(), 5)],
+        vec![("src/task_tree.rs".to_string(), 4)],
         "the library's lock is `task_tree`'s to take: two guard type aliases and \
-         the three acquisitions themselves — shared, exclusive, and the \
-         scaffolding writer `root-init` completes a formatless root through — and \
-         every reader in Grove goes through them. The count is the control — a \
-         pattern that stopped matching would leave this empty rather than clean."
+         the two acquisitions themselves — shared and exclusive — and every \
+         reader in Grove goes through them. The count is the control — a pattern \
+         that stopped matching would leave this empty rather than clean."
     );
 }

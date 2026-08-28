@@ -77,10 +77,6 @@ fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
 }
 
 fn stage_all(repo: &Path) {
-    let grove = repo.join(".grove");
-    if grove.is_dir() {
-        fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
-    }
     git(repo, &["add", "-A"]);
     git(repo, &["commit", "-m", "fixture"]);
 }

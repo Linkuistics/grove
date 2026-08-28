@@ -96,3 +96,24 @@ deliverable rather than advice.
 **A standing consequence starts here**: from this leaf onward, every later leaf
 that changes the verb surface sessions invoke must reinstall in the same session.
 The root brief records this.
+
+## This leaf owns the release, and `.grove/FORMAT`'s deletion with it
+
+Added by `delete-migration-k6`, which withdrew its own cutover and pushed the
+consequence here.
+
+**This is the first leaf that genuinely cannot defer its tree-visible half.** The
+rename onto the new grammar *is* the deliverable, and the installed build cannot
+parse the result — there is no *skip the tree half* option of the kind k6 found
+for itself. So this leaf owns the first published release of the refactor: cut a
+minor release, publish, update through Homebrew, per the root brief's corrected
+`### The cutover sequence`. Do **not** overwrite a released version's Cellar
+files, and before publishing run the new build read-only against every other live
+grove on the machine, confirming it picks what each driver is already on.
+
+**`.grove/FORMAT` is deleted here.** `delete-migration-k6` removed everything that
+writes, reads or requires it, but deliberately left the file in this tree so the
+installed 19.3.0 could keep driving — a stray `FORMAT` is a foreign entry every
+reader ignores. Once this leaf's release is published the file has no reader on
+any build, and deleting it is a one-line tree-visible change that belongs with the
+rename: one deployment, one cutover.

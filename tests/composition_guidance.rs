@@ -664,8 +664,9 @@ fn llm_help_teaches_the_lazy_review_chain_on_the_verb_that_builds_it() {
 /// Receipts and the diversity warning were a real contract once: retirement
 /// rewrote its producer's linked review with a `**Producer launch:**` line, and
 /// review launch compared that record against the scheduled target. Both are
-/// gone from `src/` — `**Producer launch:**` survives only in `tree_migrate`, as
-/// a line to *delete* from a legacy body. Prose is therefore the only place the
+/// gone from `src/`: the last thing that so much as named `**Producer launch:**`
+/// was migration's body rewrite, which stripped it, and migration is gone too
+/// (`delete-migration-k6`). Prose is therefore the only place the
 /// contract can still exist, and prose that describes it sends a session looking
 /// for a marker no verb emits and waiting on a warning no launch raises.
 ///
@@ -757,10 +758,14 @@ fn grove_and_doubt_state_one_mandate_based_ownership_predicate() {
 #[test]
 fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
     for (surface, text, expected) in [
+        // The composition relationships used to be *preserved* by the one thing
+        // that rewrote task bodies — migration's marker strip. That is gone
+        // (`delete-migration-k6`), so the stronger claim is the one to hold: no
+        // code writes or reads them at all.
         (
             "CONTEXT.md",
             CONTEXT,
-            "preserving `Reviews` and `Integrates`",
+            "the session authoring the body, and **no code reads them**",
         ),
         (
             "CONTEXT.md",

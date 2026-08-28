@@ -32,7 +32,6 @@ fn init_repo() -> TempDir {
         .unwrap();
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), b"session-kinds-v1\n").unwrap();
     tmp
 }
 

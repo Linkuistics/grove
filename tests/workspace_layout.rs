@@ -192,7 +192,6 @@ fn write_no_config(home: &Path) {
 fn plant_tree(worktree: &Path, leaf: &str) {
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# layout — brief\n").unwrap();
     fs::write(grove.join(leaf), "# planted\n").unwrap();
 }
@@ -571,7 +570,6 @@ fn terminal_grove(repository: &Path) {
     init_git(repository);
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# layout — brief\n").unwrap();
     fs::write(grove.join("01-DONE-impl-finished-k1.md"), "# finished-k1\n").unwrap();
     fs::write(repository.join("kept.txt"), "kept\n").unwrap();

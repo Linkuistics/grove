@@ -31,13 +31,12 @@
 // # Refusal precedence is grove's, and the halt is the library's
 //
 // The library halts the whole tree on a name grove recognises and refuses,
-// wherever it sits. That is the decision, and it is taken under the lock. But a
-// legacy tree's leaves are task-shaped names with no session kind, so they are
-// `Malformed` — and an operator holding one needs to be told to migrate rather
-// than to fix a filename. So [`diagnose`] re-states a *failed* read in the order
-// grove owes its operator: root, then a pending transaction, then the format
-// witness, then the library's own message. Only the wording is chosen here; the
-// refusal itself already happened.
+// wherever it sits. That is the decision, and it is taken under the lock. But
+// the library can only say *this filename is wrong*, and an absent root or a
+// tree held by the finish transaction are conditions grove states in its own
+// words. So [`restate`] re-states a *failed* read in the order grove owes its
+// operator: root, then a pending transaction, then the library's own message.
+// Only the wording is chosen here; the refusal itself already happened.
 
 use std::fs::File;
 use std::os::fd::AsRawFd;
@@ -49,7 +48,6 @@ use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Verdict};
 use crate::leaf::Kind;
 use crate::task_name::{Outcome, Parts, TaskName};
 use crate::tree_access;
-use crate::tree_format;
 
 /// The task tree, read once under the library's shared lock.
 ///
@@ -67,20 +65,13 @@ thread_local! {
 /// Read the task tree under a shared lock.
 ///
 /// One lock and one snapshot, and every read verb below takes exactly one of
-/// these. The format witness is checked while the guard is held, so a tree
-/// cannot be migrated out from under a reader between the two observations.
+/// these.
 pub fn read(grove_root: &Path) -> Result<Tree> {
     #[cfg(test)]
     READ_COUNT.with(|count| count.set(count.get() + 1));
 
     announce_contention(grove_root, libc::LOCK_SH);
-    match ordinal_fs_tree::fs::read::<TaskName>(grove_root) {
-        Ok(tree) => {
-            tree_format::require_current(grove_root)?;
-            Ok(tree)
-        }
-        Err(error) => Err(diagnose(grove_root, &error)),
-    }
+    ordinal_fs_tree::fs::read::<TaskName>(grove_root).map_err(|error| restate(grove_root, &error))
 }
 
 /// The task tree, read once under the library's **exclusive** lock — the
@@ -95,9 +86,7 @@ pub type TreeWrite = ordinal_fs_tree::fs::WriteGuard<TaskName>;
 
 /// Read the task tree under an exclusive lock, announcing contention first.
 ///
-/// The write-side twin of [`read`], and the same two observations in the same
-/// order: the library's snapshot, then the format witness while the guard is
-/// held, so a tree cannot be migrated out from under a writer between them.
+/// The write-side twin of [`read`].
 pub fn write(grove_root: &Path) -> Result<TreeWrite> {
     announce_contention(grove_root, libc::LOCK_EX);
     reopen_write(grove_root)
@@ -114,40 +103,12 @@ pub(crate) fn reopen_write(grove_root: &Path) -> Result<TreeWrite> {
     #[cfg(test)]
     READ_COUNT.with(|count| count.set(count.get() + 1));
 
-    match ordinal_fs_tree::fs::write::<TaskName>(grove_root) {
-        Ok(tree) => {
-            tree_format::require_current(grove_root)?;
-            Ok(tree)
-        }
-        Err(error) => Err(diagnose(grove_root, &error)),
-    }
-}
-
-/// The exclusive guard a tree that has no format witness **yet** is completed
-/// through — `root-init`'s second phase, and nothing else.
-///
-/// **The one writer that cannot require `FORMAT`, because it is the writer
-/// `FORMAT` is written after.** `.grove/FORMAT` is installed last precisely so
-/// that a root missing it is recognisable as partial
-/// (`tree_format::write_current_last`), so a scaffolding writer demanding one
-/// would be demanding the outcome of its own last step. Every other clause
-/// [`reopen_write`] applies still applies: the snapshot is the library's, and a
-/// name grove refuses still halts.
-///
-/// No waiting diagnostic, for [`reopen_write`]'s reason — the command announced
-/// its wait when it took grove's own guard to create the root, and the
-/// diagnostic is about the command's wait rather than about each lock it needs.
-pub(crate) fn write_scaffold(grove_root: &Path) -> Result<TreeWrite> {
-    #[cfg(test)]
-    READ_COUNT.with(|count| count.set(count.get() + 1));
-
-    ordinal_fs_tree::fs::write::<TaskName>(grove_root)
-        .map_err(|error| restate(grove_root, &error, Witness::NotYetWritten))
+    ordinal_fs_tree::fs::write::<TaskName>(grove_root).map_err(|error| restate(grove_root, &error))
 }
 
 /// Turn a library error raised by a *mutation* into Grove's own.
 ///
-/// Not [`diagnose`]: that one re-states a failed **read**, whose precedence
+/// Not [`restate`]: that one re-states a failed **read**, whose precedence
 /// question is which of several conditions to name. A mutation's guard has
 /// already read the tree successfully, so what arrives here is a `Refusal`, a
 /// failed apply, or an unwind — and every one of those is printed unchanged
@@ -198,41 +159,16 @@ fn announce_contention(grove_root: &Path, mode: libc::c_int) {
 
 /// Re-state a failed read in the order grove owes its operator.
 ///
-/// The library halted, and it halted for the right reason; what it cannot know
-/// is that a task-shaped name with no session kind means *this tree predates
-/// filename kinds and must be migrated*, not *fix this filename*. Each clause
-/// below is a condition grove states in its own words, tried in the precedence
-/// the path-walking reader had. The checks are unlocked, deliberately: the
-/// decision to refuse was already taken under the lock, and only the wording is
-/// chosen here.
-fn diagnose(grove_root: &Path, error: &Error<TaskName>) -> anyhow::Error {
-    restate(grove_root, error, Witness::Required)
-}
-
-/// Whether the format witness is one of the conditions this failed read owes a
-/// sentence about.
-///
-/// [`Witness::NotYetWritten`] is [`write_scaffold`]'s alone: a tree being
-/// scaffolded has no `FORMAT` by construction, so naming its absence would
-/// answer *this tree is legacy and must be migrated* to a caller that is in the
-/// middle of creating it.
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum Witness {
-    Required,
-    NotYetWritten,
-}
-
-fn restate(grove_root: &Path, error: &Error<TaskName>, witness: Witness) -> anyhow::Error {
+/// Each clause below is a condition grove states in its own words, tried in the
+/// precedence the path-walking reader had. The checks are unlocked,
+/// deliberately: the decision to refuse was already taken under the lock, and
+/// only the wording is chosen here.
+fn restate(grove_root: &Path, error: &Error<TaskName>) -> anyhow::Error {
     if !grove_root.is_dir() {
         return anyhow!("grove root not found: {}", grove_root.display());
     }
     if let Err(refusal) = tree_access::refuse_pending(grove_root) {
         return refusal;
-    }
-    if witness == Witness::Required {
-        if let Err(refusal) = tree_format::require_current(grove_root) {
-            return refusal;
-        }
     }
     match error {
         // The domain's own advice *is* the message (`Error`'s `Display` says
@@ -1042,7 +978,6 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join(".grove");
         fs::create_dir_all(&root).unwrap();
-        crate::tree_format::write_current_last(&root).unwrap();
         (tmp, root)
     }
 

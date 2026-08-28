@@ -4,7 +4,7 @@
 // beside it (colocated) — the symmetric VCS rule the using-jujutsu skill also
 // follows. Git remains the interface only in not-jj-enabled trees. The probe
 // is a thin filesystem walk, not an abstraction layer: the handful of call
-// sites (launch, llm_cli, tree_migrate) each branch on it where the two VCSes
+// sites (launch, llm_cli) each branch on it where the two VCSes
 // genuinely differ. Renaming is no longer among them: since the flip every
 // entry moves inside an `ordinal-fs-tree` operation, which is a plain
 // `rename(2)` on either lane (`docs/adr/grove-does-not-stage-its-own-renames.md`).
@@ -15,14 +15,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 mod finish_commit;
-mod migration_commit;
 
 pub(crate) use finish_commit::{
     abort_preparing_finish, git_index_path, prepare_finish, recover_finish,
     verify_lost_finish_result, FinishCommitOutcome, FinishProof, FinishRecoveryOutcome,
     FinishStartAnchor, FinishStartProof, PreparedFinish,
 };
-pub use migration_commit::commit_session_kind_migration;
 
 /// The VCS that owns a working tree.
 #[derive(Clone, Debug, PartialEq, Eq)]

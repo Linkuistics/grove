@@ -27,8 +27,9 @@
 //!
 //! Two limits, stated rather than papered over. A filename whose *slug* begins
 //! with a kind word (`01-design-notes-k4.md`) is indistinguishable from a kinded
-//! name by inspection; that ambiguity is in the grammar itself, which is why
-//! `.grove/FORMAT` and not a prefix test decides a real tree's format. And the
+//! name by inspection; that ambiguity is in the grammar itself, and nothing
+//! outside the filename resolves it — the format witness that used to went with
+//! migration (`delete-migration-k6`). And the
 //! flag sweep only judges a line that names a hyphenated `grove-llm` verb, so a
 //! flag discussed in bare prose is out of scope — the check under-covers rather
 //! than lying about coverage.

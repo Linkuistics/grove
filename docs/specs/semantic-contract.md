@@ -1611,12 +1611,12 @@ decision is defined by an exact comparison against a task entry's name *and*
 bytes, and the scaffold-class refinement above makes it read them twice. Both
 families checked the claim over the Current/Legacy/Foreign decision only and
 declared a narrowing; the narrowing was right and the text was wrong. What
-survives is the hazard the witness always named, and the product has a test for
-it: a legacy slug that happens to read as a current session kind is evidence of
-nothing
-(`a_legacy_v2_slug_beginning_with_requirements_is_not_partial_root_init`,
-[`src/tree_migration_transaction.rs`](../../src/tree_migration_transaction.rs)).
-Splitting the claim is what lets that be *checked* rather than narrowed away.
+survives is the hazard the witness always named: a legacy slug that happens to
+read as a current session kind is evidence of nothing. The test that guarded it
+went with migration (`delete-migration-k6`), along with the byte comparison it
+guarded — a root is now classified by whether it holds any Grove entry at all,
+which consults no slug. Splitting the claim is what let that be *checked* rather
+than narrowed away.
 
 **`TT-18` — classification order is fixed.** Reserved-witness classification
 SHALL precede format classification, which SHALL precede any walk-derived

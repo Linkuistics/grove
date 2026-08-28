@@ -41,7 +41,7 @@ use crate::task_tree;
 use crate::tree_access;
 use anyhow::{bail, Context, Result};
 use ordinal_fs_tree::{
-    Entry, EntryName, Found, Key, NewEntry, Ordinal, Report, Snapshot, Target, Verdict,
+    Entry, EntryName, Found, Key, NewEntry, Report, Snapshot, Target, Verdict,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -54,7 +54,6 @@ const DEFAULT_ROOT_SLUG: &str = "plan";
 pub enum CurrentTransition {
     RootInitialized,
     RootInitRecovered,
-    Migrated,
     AlreadyCurrent,
 }
 
@@ -107,8 +106,10 @@ pub(crate) fn transition_driver_to_current(worktree: &Path) -> Result<CurrentTra
 /// and says so, and [`settle`] finishes the job once the guard is gone.
 enum Classification {
     /// The root and its charter exist and the first leaf does not:
-    /// [`complete_scaffold`] owes this tree a leaf and a format witness.
-    Scaffolded,
+    /// [`scaffold_first_leaf`] owes this tree a leaf. The carried transition is
+    /// the one to report once it has one — whether this root was created here or
+    /// found half-built.
+    Scaffolded(CurrentTransition),
     /// Nothing further is owed; this is the transition to report.
     Settled(CurrentTransition),
 }
@@ -117,9 +118,9 @@ enum Classification {
 fn settle(worktree: &Path, classified: Classification) -> Result<CurrentTransition> {
     match classified {
         Classification::Settled(transition) => Ok(transition),
-        Classification::Scaffolded => {
-            complete_scaffold(&worktree.join(".grove"), &default_root_slug())?;
-            Ok(CurrentTransition::RootInitialized)
+        Classification::Scaffolded(transition) => {
+            scaffold_first_leaf(&worktree.join(".grove"), &default_root_slug())?;
+            Ok(transition)
         }
     }
 }
@@ -129,7 +130,9 @@ fn classify_unlocked(worktree: &Path) -> Result<Classification> {
     match fs::symlink_metadata(&grove_root) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             create_root_unlocked(worktree, &grove_root)?;
-            return Ok(Classification::Scaffolded);
+            return Ok(Classification::Scaffolded(
+                CurrentTransition::RootInitialized,
+            ));
         }
         Err(error) => {
             return Err(error)
@@ -144,23 +147,26 @@ fn classify_unlocked(worktree: &Path) -> Result<Classification> {
         == crate::finish_transaction::FinishRecovery::Committed
     {
         create_root_unlocked(worktree, &grove_root)?;
-        return Ok(Classification::Scaffolded);
+        return Ok(Classification::Scaffolded(
+            CurrentTransition::RootInitialized,
+        ));
     }
-    let name = grove_name(worktree);
-    let transaction = crate::tree_migration_transaction::run_unlocked(&grove_root, || {
-        crate::repo::commit_session_kind_migration(worktree, &name)
-    })?;
-    Ok(Classification::Settled(match transaction {
-        crate::tree_migration_transaction::TransactionOutcome::RootInitRecovered => {
-            CurrentTransition::RootInitRecovered
+    match root_shape(&grove_root)? {
+        RootShape::PartialScaffold => {
+            complete_partial_root_unlocked(worktree, &grove_root)?;
+            Ok(Classification::Scaffolded(
+                CurrentTransition::RootInitRecovered,
+            ))
         }
-        crate::tree_migration_transaction::TransactionOutcome::Migrated => {
-            CurrentTransition::Migrated
-        }
-        crate::tree_migration_transaction::TransactionOutcome::AlreadyCurrent => {
-            CurrentTransition::AlreadyCurrent
-        }
-    }))
+        RootShape::ATree => Ok(Classification::Settled(CurrentTransition::AlreadyCurrent)),
+        RootShape::Unrecognised(names) => bail!(
+            "the task tree in {} holds no Grove entries, only {}. Grove reads \
+             `NN-<kind>-<slug>-k<key>` names and does not migrate older layouts: rename these \
+             entries to that grammar, or move them aside and let `grove` scaffold a fresh tree",
+            grove_root.display(),
+            names.join(", ")
+        ),
+    }
 }
 
 /// Materialize the driver-owned finish sentinel after a shared selection found
@@ -328,8 +334,8 @@ fn finish_commit_refusal(
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root
 /// `BRIEF.md` (the one unkeyed singleton) and a first **requirements** leaf
 /// `01-requirements-<slug>-k1.md`. Returns the absolute paths created:
-/// `BRIEF.md`, the leaf, then `FORMAT` (written last). Refuses to clobber an
-/// existing `.grove/`. Working-tree only — no commit.
+/// `BRIEF.md`, then the leaf. Refuses to clobber an existing `.grove/`.
+/// Working-tree only — no commit.
 ///
 /// The kind is fixed, with no `--kind` flag: a brand-new grove's first session
 /// takes the human's own words as its only input — nothing else is on disk —
@@ -367,12 +373,11 @@ pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
 
     // **Phase two, under the library's: the first leaf.** The guard is released
     // between the phases because grove cannot nest its lock inside the library's,
-    // and the window that opens is the one `FORMAT` already exists to make
-    // legible — a root without a format witness is a *partial* root, which every
-    // other verb refuses and which `recover_partial_root_init_unlocked`
-    // completes.
-    let (leaf_path, format_path) = complete_scaffold(&grove_root, &slug)?;
-    Ok(vec![brief_path, leaf_path, format_path])
+    // and the window that opens is legible in the tree's own shape — a root
+    // holding its charter and no keyed entry is a *partial* root, which
+    // `recover_partial_root_init_unlocked` completes.
+    let leaf_path = scaffold_first_leaf(&grove_root, &slug)?;
+    Ok(vec![brief_path, leaf_path])
 }
 
 /// The slug `root-init` uses when nobody supplied one, and the only slug the
@@ -397,34 +402,18 @@ fn create_root_unlocked(worktree: &Path, grove_root: &Path) -> Result<PathBuf> {
 }
 
 /// Complete a root that has its charter and nothing else: the first
-/// `requirements` leaf, then the format witness, in that order.
+/// `requirements` leaf, under the library's lock.
 ///
 /// # It is idempotent, and that is what makes releasing the guard safe
 ///
-/// Between phase one and phase two nothing holds the tree, so a second process
+/// Between `root-init`'s two phases nothing holds the tree, so a second process
 /// can meet the partial root and complete it — `bare grove` does exactly that,
-/// through the migration transaction's partial-scaffold recovery. Appending
-/// unconditionally would then give the tree *two* first leaves. So the append
-/// happens only when the snapshot holds no positioned entry at all, and the
-/// witness write is a same-directory rename that is safe to repeat.
-///
-/// # The witness is still written last, and still under the guard
-///
-/// `.grove/FORMAT` is what makes a partial root recognisable as partial
-/// (`tree_format::write_current_last`), so it cannot move earlier. The append
-/// consumed the guard that could have covered it — one guard is one operation —
-/// so a second is taken for the write, which is the same answer `leaf-insert`'s
-/// lint and `leaf-decompose`'s retitle give to the same shape: reopen, do not run
-/// the tail unheld.
-fn complete_scaffold(grove_root: &Path, slug: &Slug) -> Result<(PathBuf, PathBuf)> {
-    let leaf_path = scaffold_first_leaf(grove_root, slug)?;
-    let _guard = task_tree::write_scaffold(grove_root)?;
-    let format_path = crate::tree_format::write_current_last(grove_root)?;
-    Ok((leaf_path, format_path))
-}
-
+/// through [`recover_partial_root_init_unlocked`]. Appending unconditionally
+/// would then give the tree *two* first leaves. So the append happens only when
+/// the snapshot holds no positioned entry at all, which is the same observation
+/// the recovery takes by hand a moment earlier under grove's own guard.
 fn scaffold_first_leaf(grove_root: &Path, slug: &Slug) -> Result<PathBuf> {
-    let tree = task_tree::write_scaffold(grove_root)?;
+    let tree = task_tree::reopen_write(grove_root)?;
     let existing = tree
         .snapshot()
         .walk()
@@ -446,202 +435,87 @@ fn scaffold_first_leaf(grove_root: &Path, slug: &Slug) -> Result<PathBuf> {
     Ok(task_grow::allocated(&report, &[key])?.remove(0))
 }
 
-/// Complete only the deterministic fresh-tree scaffold that `root_init` owns.
-/// The caller must hold the universal exclusive tree guard. `Ok(false)` leaves
-/// a non-scaffold tree untouched so the migration planner can classify it.
-pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bool> {
+/// Complete the half of `root-init`'s scaffold only grove's own guard can write.
+///
+/// Only the charter is written here; the first leaf is [`scaffold_first_leaf`]'s,
+/// under the library's lock, for the reason [`Classification`] gives.
+fn complete_partial_root_unlocked(worktree: &Path, grove_root: &Path) -> Result<()> {
     #[cfg(test)]
     tree_access::assert_guard_held(grove_root);
 
-    let worktree = grove_root.parent().with_context(|| {
-        format!(
-            "partial root scaffold {} has no working-tree parent",
-            grove_root.display()
-        )
-    })?;
-    let brief_path = grove_root.join("BRIEF.md");
-    let mut entries = fs::read_dir(grove_root)
-        .with_context(|| format!("reading partial root scaffold {}", grove_root.display()))?
-        .collect::<std::io::Result<Vec<_>>>()?;
-    entries.sort_by_key(std::fs::DirEntry::file_name);
-    let mut scaffold_leaf_candidates = entries.iter().filter_map(|entry| {
-        let name = entry.file_name();
-        Some((entry.path(), scaffold_leaf_slug(name.to_str()?)?))
-    });
-    let scaffold_leaf = scaffold_leaf_candidates.next();
-    if let Some((duplicate_path, _)) = scaffold_leaf_candidates.next() {
-        bail!(
-            "ambiguous partial root scaffold at {}: multiple first requirements leaves, including {}",
-            grove_root.display(),
-            duplicate_path.display()
-        );
-    }
-    let scaffold_slug = scaffold_leaf
-        .as_ref()
-        .map_or_else(default_root_slug, |(_, slug)| slug.clone());
-    let leaf_name = scaffold_leaf_name(&scaffold_slug).to_string();
-    let leaf_path = grove_root.join(&leaf_name);
-    let format_temporary_path = grove_root.join(".FORMAT.tmp");
-    let expected_brief = root_brief_body(&grove_name(worktree));
-    let expected_leaf = task_grow::task_template_body(scaffold_slug.as_str(), SCAFFOLD_KEY);
-
-    let expected = [
-        (brief_path.as_path(), expected_brief.as_bytes()),
-        (leaf_path.as_path(), expected_leaf.as_bytes()),
-        (
-            format_temporary_path.as_path(),
-            crate::tree_format::CURRENT_FILE_CONTENTS.as_bytes(),
-        ),
-    ];
-
-    // `.FORMAT.tmp` is writer-owned transaction state, never legacy tree
-    // content. Validate it before deciding that the surrounding entries belong
-    // to a legacy tree; otherwise `write_current_last` could follow and truncate
-    // a near-match symlink during migration.
-    let temporary_is_present = validate_partial_scaffold_file(
-        &format_temporary_path,
-        crate::tree_format::CURRENT_FILE_CONTENTS.as_bytes(),
-    )?;
-    let scaffold_leaf_is_present = if scaffold_leaf.is_some() {
-        match partial_scaffold_file_match(&leaf_path, expected_leaf.as_bytes())? {
-            Some(true) => true,
-            Some(false)
-                if !temporary_is_present
-                    && crate::tree_migrate::has_explicit_legacy_kind(&leaf_path)? =>
-            {
-                // Legacy-v2 slugs are kind-free. A valid legacy slug such as
-                // `requirements-design` therefore overlaps the current
-                // `requirements` filename prefix without being root-init state.
-                return Ok(false);
-            }
-            Some(false) => {
-                validate_partial_scaffold_file(&leaf_path, expected_leaf.as_bytes())?;
-                unreachable!("a differing scaffold leaf is rejected")
-            }
-            None => false,
-        }
-    } else {
-        false
-    };
-    let brief_match = partial_scaffold_file_match(&brief_path, expected_brief.as_bytes())?;
-
-    let mut unexpected = Vec::new();
-    for entry in entries {
-        if !expected.iter().any(|(path, _)| path == &entry.path()) {
-            unexpected.push(entry.path());
-        }
-    }
-
-    if !unexpected.is_empty() {
-        if scaffold_leaf_is_present || temporary_is_present {
-            bail!(
-                "ambiguous partial root scaffold at {}: exact fresh-tree content is mixed with \
-                 unexpected entries: {}",
-                grove_root.display(),
-                unexpected
-                    .iter()
-                    .map(|path| path.display().to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
-        }
-        return Ok(false);
-    }
-    if scaffold_leaf.is_none() && !temporary_is_present && matches!(brief_match, Some(false)) {
-        return Ok(false);
-    }
-
-    for (path, expected_body) in expected {
-        validate_partial_scaffold_file(path, expected_body)?;
-    }
-
+    let brief_path = grove_root.join(crate::task_name::BRIEF);
     if !brief_path.exists() {
         write_root_brief(&brief_path, &grove_name(worktree))?;
     }
-    if !leaf_path.exists() {
-        // **Recovery completes a scaffold; it does not grow a tree.** There is
-        // nothing here for the library to allocate — the ordinal, the key and the
-        // bytes are all fixed, and `validate_partial_scaffold_file` has already
-        // established that the destination is absent rather than merely
-        // unfollowable. Delegating it would mean taking the library's lock while
-        // the migration transaction holds grove's, which is the nesting the two
-        // guards forbid, and the tree being recovered is one the library cannot
-        // read anyway: it has no format witness, which is what makes it partial.
-        fs::write(&leaf_path, &expected_leaf)
-            .with_context(|| format!("writing {}", leaf_path.display()))?;
-    }
-    crate::tree_format::write_current_last(grove_root)?;
-    Ok(true)
+    Ok(())
 }
 
-/// The fixed ordinal and key of a fresh grove's first leaf. A root holding only
-/// its charter has no keyed name, so these are what the library's own `append`
-/// composes — written down here only because recovery has to *recognise* the
-/// result rather than produce it.
-const SCAFFOLD_ORDINAL: u32 = 1;
-const SCAFFOLD_KEY: u32 = 1;
-
-/// The name a fresh grove's first leaf carries, for this slug.
-fn scaffold_leaf_name(slug: &Slug) -> TaskName {
-    TaskName::Positioned {
-        ordinal: Ordinal::new(SCAFFOLD_ORDINAL),
-        key: Key::new(SCAFFOLD_KEY),
-        parts: Parts::leaf(Outcome::Live, Kind::Requirements, slug.clone()),
-    }
-}
-
-/// The slug of a filename that is a fresh grove's first leaf, or `None`.
+/// What an existing `.grove/` is, as far as the lifecycle transition is
+/// concerned. Three shapes, and the classification is the whole of what the
+/// transition decides now.
 ///
-/// Matched on the **name alone**, which is what makes a directory wearing the
-/// name a scaffold-file collision — reported by `partial_scaffold_file_match` in
-/// its own words — rather than something this filter silently drops.
-fn scaffold_leaf_slug(name: &str) -> Option<Slug> {
-    let Verdict::Entry(TaskName::Positioned {
-        ordinal,
-        key,
-        parts:
-            Parts::Leaf {
-                outcome: Outcome::Live,
-                kind: Kind::Requirements,
-                slug,
-            },
-    }) = TaskName::parse(name, Found::File)
-    else {
-        return None;
-    };
-    (ordinal.get() == SCAFFOLD_ORDINAL && key.get() == SCAFFOLD_KEY).then_some(slug)
+/// It used to be a byte-exact match against the deterministic fresh-tree content
+/// under a missing `.grove/FORMAT`, because a witnessless root was *also* how a
+/// legacy tree presented and the two got opposite treatment. Migration is gone
+/// (`delete-migration-k6`), and the discrimination it needed went with it.
+enum RootShape {
+    /// Nothing but the charter, if even that — `root-init` has not finished
+    /// here.
+    ///
+    /// **The verb's two phases are why this shape exists.** It creates the root
+    /// and its charter under grove's guard, releases it — the two `flock`s are
+    /// on one directory and do not nest — and appends the first leaf under the
+    /// library's, so a death between the phases leaves exactly this. Nothing
+    /// else does: entries are marked and never removed
+    /// (`docs/adr/entries-are-never-removed.md`), so a tree that has ever held a
+    /// leaf still holds it.
+    PartialScaffold,
+    /// At least one name the grammar owns — an entry, or one it refuses. A name
+    /// grove refuses is *held*, not absent: the next reader states it properly
+    /// in the domain's own words, and scaffolding past it would bury that.
+    ATree,
+    /// Names grove disclaims, and nothing else. A `.grove/` in one of the
+    /// layouts grove wrote before the current grammar reads exactly so, since
+    /// none of those names are positioned-and-keyed.
+    Unrecognised(Vec<String>),
 }
 
-fn validate_partial_scaffold_file(path: &Path, expected_body: &[u8]) -> Result<bool> {
-    match partial_scaffold_file_match(path, expected_body)? {
-        None => Ok(false),
-        Some(true) => Ok(true),
-        Some(false) => bail!(
-            "partial root scaffold file {} differs from the deterministic fresh-tree content; \
-             refusing to overwrite it",
-            path.display()
-        ),
-    }
-}
-
-fn partial_scaffold_file_match(path: &Path, expected_body: &[u8]) -> Result<Option<bool>> {
-    let metadata = match fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => {
-            return Err(error)
-                .with_context(|| format!("checking partial root scaffold path {}", path.display()))
+/// Classify an existing root by its listing alone.
+///
+/// Read by hand rather than through [`task_tree`]: the caller holds grove's
+/// guard, and the library `flock`s the same directory, so a snapshot taken here
+/// would be a lock nested inside a lock.
+fn root_shape(grove_root: &Path) -> Result<RootShape> {
+    let listing = fs::read_dir(grove_root)
+        .with_context(|| format!("reading grove root {}", grove_root.display()))?;
+    let mut disclaimed = Vec::new();
+    for entry in listing {
+        let entry =
+            entry.with_context(|| format!("reading grove root {}", grove_root.display()))?;
+        let found = if entry
+            .file_type()
+            .with_context(|| format!("checking {}", entry.path().display()))?
+            .is_dir()
+        {
+            Found::Dir
+        } else {
+            Found::File
+        };
+        let name = entry.file_name();
+        // A name that is not UTF-8 is not one this grammar can spell, which is
+        // the same answer `TaskName::parse` reaches for anything else foreign.
+        let name = name.to_string_lossy().into_owned();
+        match TaskName::parse(&name, found) {
+            Verdict::Entry(TaskName::Brief) => {}
+            Verdict::Foreign => disclaimed.push(name),
+            _ => return Ok(RootShape::ATree),
         }
-    };
-    if !metadata.file_type().is_file() {
-        bail!(
-            "partial root scaffold path collision at {}: expected a regular file",
-            path.display()
-        );
     }
-    let body = fs::read(path)
-        .with_context(|| format!("reading partial root scaffold file {}", path.display()))?;
-    Ok(Some(body == expected_body))
+    if disclaimed.is_empty() {
+        return Ok(RootShape::PartialScaffold);
+    }
+    disclaimed.sort();
+    Ok(RootShape::Unrecognised(disclaimed))
 }
 
 /// `leaf-decompose <leaf-path> <first-child-slug>`: convert a live leaf file
@@ -1217,7 +1091,6 @@ mod tests {
         run_git(&repo, &["config", "user.name", "Test"]);
         let root = repo.join(".grove");
         fs::create_dir_all(&root).unwrap();
-        crate::tree_format::write_current_last(&root).unwrap();
         (tmp, root)
     }
 
@@ -1306,14 +1179,10 @@ mod tests {
         let created = root_init(&wt, "plan").unwrap();
         assert_eq!(name_of(&created[0]), "BRIEF.md");
         assert_eq!(name_of(&created[1]), "01-requirements-plan-k1.md");
-        assert_eq!(name_of(&created[2]), "FORMAT");
+        assert_eq!(created.len(), 2);
         let g = wt.join(".grove");
         assert!(g.join("BRIEF.md").is_file());
         assert!(g.join("01-requirements-plan-k1.md").is_file());
-        assert_eq!(
-            fs::read_to_string(g.join("FORMAT")).unwrap(),
-            "session-kinds-v1\n"
-        );
     }
 
     // fresh-grove-start-contract: the bootstrap leaf is `requirements` — the
@@ -1384,25 +1253,23 @@ mod tests {
         let grove_root = worktree.join(".grove");
         assert_eq!(outcome, CurrentTransition::RootInitialized);
         // One of grove's own, for the classification and the root's creation.
-        // The library's are the scaffold's second phase and are counted by
+        // The library's is the scaffold's second phase and is counted by
         // `root_init_scaffolds_the_root_itself_and_the_first_leaf_through_the_library`;
         // what this holds is that classifying still takes exactly one.
         assert_eq!(tree_access::acquisition_count(), 1);
-        assert_eq!(body(&grove_root.join("FORMAT")), "session-kinds-v1\n");
         assert_eq!(
             name_of(&crate::task_tree::pick(&grove_root).unwrap().unwrap()),
             "01-requirements-plan-k1.md"
         );
     }
 
-    /// **The scaffold takes one guard of grove's and two of the library's, and
+    /// **The scaffold takes one guard of grove's and one of the library's, and
     /// the split is the point.** `ordinal_fs_tree::fs` locks the directory
     /// *containing* the root but still has to reach the root to snapshot it, so
     /// it can create neither the root nor its distinguished child; grove's own
     /// guard covers those, and is released before the library's is taken because
     /// the two `flock` one directory through different descriptions and would
-    /// deadlock nested. The library's two are the `append` and the format
-    /// witness the append's consumed guard could not cover.
+    /// deadlock nested. The library's one is the `append`.
     #[test]
     fn root_init_scaffolds_the_root_itself_and_the_first_leaf_through_the_library() {
         let (_t, wt) = worktree();
@@ -1418,8 +1285,8 @@ mod tests {
         );
         assert_eq!(
             crate::task_tree::read_count(),
-            2,
-            "the library appends the first leaf, then holds the tree while FORMAT lands"
+            1,
+            "the library appends the first leaf under one guard of its own"
         );
         assert_eq!(name_of(&created[1]), "01-requirements-plan-k1.md");
     }
@@ -1442,8 +1309,7 @@ mod tests {
     /// says so.** Releasing grove's guard between them means another process can
     /// meet the root mid-scaffold — which used to happen only when one died — so
     /// the shape it meets has to be one that recovers. It is: the root, its
-    /// charter, and nothing else, which is `partial_root_scaffold(ROOT_BRIEF)` in
-    /// the migration transaction's own fixture.
+    /// charter, and nothing else.
     #[test]
     fn phase_one_leaves_the_partial_root_recovery_completes() {
         let (_t, wt) = worktree();
@@ -1463,7 +1329,6 @@ mod tests {
 
         assert_eq!(outcome, CurrentTransition::RootInitRecovered);
         assert!(grove_root.join("01-requirements-plan-k1.md").is_file());
-        assert_eq!(body(&grove_root.join("FORMAT")), "session-kinds-v1\n");
     }
 
     /// **Completing a scaffold twice appends one leaf, not two**, which is what
@@ -1482,8 +1347,8 @@ mod tests {
         }
         let slug = default_root_slug();
 
-        let (first, _) = complete_scaffold(&grove_root, &slug).unwrap();
-        let (second, _) = complete_scaffold(&grove_root, &slug).unwrap();
+        let first = scaffold_first_leaf(&grove_root, &slug).unwrap();
+        let second = scaffold_first_leaf(&grove_root, &slug).unwrap();
 
         assert_eq!(first, second);
         let leaves = fs::read_dir(&grove_root)
@@ -1502,8 +1367,8 @@ mod tests {
 
     /// **The race the released guard actually admits, sequenced.** Between
     /// `root-init`'s two phases another process can run bare `grove`, whose
-    /// partial-scaffold recovery completes the tree — leaf, format witness and
-    /// all. The first process then arrives with a scaffold to complete and must
+    /// partial-scaffold recovery completes the tree. The first process then
+    /// arrives with a scaffold to complete and must
     /// find there is nothing left to do, rather than appending a second first
     /// leaf or reporting a path that is not the one on disk.
     #[test]
@@ -1521,13 +1386,12 @@ mod tests {
         let recovered = grove_root.join("01-requirements-plan-k1.md");
         let recovered_body = body(&recovered);
 
-        let (leaf, format) = complete_scaffold(&grove_root, &default_root_slug()).unwrap();
+        let leaf = scaffold_first_leaf(&grove_root, &default_root_slug()).unwrap();
 
         assert_eq!(leaf, recovered);
         assert_eq!(body(&leaf), recovered_body);
-        assert_eq!(body(&format), "session-kinds-v1\n");
         let entries = fs::read_dir(&grove_root).unwrap().count();
-        assert_eq!(entries, 3, "BRIEF.md, one leaf, FORMAT — and nothing else");
+        assert_eq!(entries, 2, "BRIEF.md and one leaf — and nothing else");
     }
 
     /// The driver's sentinel embeds its own key in its handle, its body and the
@@ -1571,14 +1435,13 @@ mod tests {
             "01-DONE-impl-old-k4294967295.md",
             "old-k4294967295",
         );
-        crate::tree_format::write_current_last(&grove_root).unwrap();
 
         let error = materialize_finish(&wt).unwrap_err().to_string();
 
         assert!(error.contains("greatest a key can be"), "got {error}");
         assert_eq!(
             fs::read_dir(&grove_root).unwrap().count(),
-            3,
+            2,
             "a refusal writes nothing"
         );
     }
@@ -1590,13 +1453,12 @@ mod tests {
         fs::create_dir(&grove_root).unwrap();
         touch(&grove_root, "BRIEF.md", "my-grove — brief");
         touch(&grove_root, "4294967295-DONE-impl-last-k1.md", "last-k1");
-        crate::tree_format::write_current_last(&grove_root).unwrap();
 
         assert!(materialize_finish(&wt).is_err());
 
         assert_eq!(
             fs::read_dir(&grove_root).unwrap().count(),
-            3,
+            2,
             "nothing was created"
         );
     }
@@ -1629,7 +1491,6 @@ mod tests {
         fs::create_dir(&grove_root).unwrap();
         touch(&grove_root, "BRIEF.md", "my-grove — brief");
         let leaf = touch(&grove_root, "01-impl-task-k1.md", "task-k1");
-        crate::tree_format::write_current_last(&grove_root).unwrap();
         tree_access::reset_acquisition_count();
 
         let outcome = transition_to_current(&worktree).unwrap();
@@ -1640,10 +1501,10 @@ mod tests {
     }
 
     #[test]
-    fn transition_completes_an_exact_partial_root_scaffold_before_pick() {
+    fn transition_completes_a_partial_root_scaffold_before_pick() {
         let (_temporary, worktree) = worktree();
         let created = root_init(&worktree, "plan").unwrap();
-        fs::remove_file(&created[2]).unwrap();
+        fs::remove_file(&created[1]).unwrap();
         tree_access::reset_acquisition_count();
 
         let outcome = transition_to_current(&worktree).unwrap();
@@ -1651,116 +1512,67 @@ mod tests {
         let grove_root = worktree.join(".grove");
         assert_eq!(outcome, CurrentTransition::RootInitRecovered);
         assert_eq!(tree_access::acquisition_count(), 1);
-        assert_eq!(body(&grove_root.join("FORMAT")), "session-kinds-v1\n");
         assert_eq!(
             name_of(&crate::task_tree::pick(&grove_root).unwrap().unwrap()),
             "01-requirements-plan-k1.md"
         );
     }
 
+    /// **A tree grove cannot read is not a tree grove scaffolds over.** The
+    /// classification's one question is whether this root holds an entry, and a
+    /// malformed name is one — held badly. Answering *no* would append a first
+    /// leaf beside it and hand the operator two problems; answering *yes* leaves
+    /// the next read to state the real one in the domain's own words
+    /// (principle 2: a message, not machinery).
     #[test]
-    fn transition_migrates_a_legacy_leaf_then_exposes_the_current_pick() {
+    fn transition_does_not_scaffold_over_a_name_grove_refuses() {
         let (_temporary, worktree) = worktree();
-        run_git(&worktree, &["init", "-q"]);
-        run_git(&worktree, &["config", "user.email", "t@example.com"]);
-        run_git(&worktree, &["config", "user.name", "Test"]);
         let grove_root = worktree.join(".grove");
         fs::create_dir(&grove_root).unwrap();
         touch(&grove_root, "BRIEF.md", "my-grove — brief");
-        touch_body(
-            &grove_root,
-            "01-task-k1.md",
-            "# task-k1\n\n**Kind:** impl\n\n## Goal\nShip.\n",
-        );
-        tree_access::reset_acquisition_count();
+        touch(&grove_root, "01-task-k1.md", "task-k1");
 
         let outcome = transition_to_current(&worktree).unwrap();
 
-        let migrated = grove_root.join("01-impl-task-k1.md");
-        assert_eq!(outcome, CurrentTransition::Migrated);
-        assert_eq!(tree_access::acquisition_count(), 1);
-        assert!(!grove_root.join("01-task-k1.md").exists());
-        assert!(!body(&migrated).contains("**Kind:**"));
-        assert_eq!(crate::task_tree::pick(&grove_root).unwrap(), Some(migrated));
-        let subject = Command::new("git")
-            .args(["log", "-1", "--format=%s"])
-            .current_dir(&worktree)
-            .output()
-            .unwrap();
-        assert!(subject.status.success());
-        assert_eq!(
-            String::from_utf8(subject.stdout).unwrap(),
-            "grove(my-grove): migrate task tree to session-kind filenames\n"
+        assert_eq!(outcome, CurrentTransition::AlreadyCurrent);
+        assert!(
+            !grove_root.join("01-requirements-plan-k1.md").exists(),
+            "a refused name must not be scaffolded past"
+        );
+        let error = crate::task_tree::pick(&grove_root).unwrap_err();
+        assert!(
+            format!("{error:#}").contains("01-task-k1.md"),
+            "the refusal must name the file on disk: {error:#}"
         );
     }
 
+    /// **A tree grove cannot spell at all stops with a sentence.** The layouts
+    /// grove wrote before the current grammar are positioned but unkeyed, so
+    /// every one of their names is `Foreign` — invisible to the reader rather
+    /// than refused by it. Left at that, an old tree would read as an empty
+    /// grove and the driver would materialize a finish sentinel into it. So the
+    /// listing having no Grove entry at all is itself the anomaly, and it is
+    /// named rather than repaired (principle 2; migration is gone).
     #[test]
-    fn transition_refuses_an_unknown_format_before_mutation_or_commit() {
+    fn transition_refuses_a_root_holding_no_grove_entry_at_all() {
         let (_temporary, worktree) = worktree();
         let grove_root = worktree.join(".grove");
         fs::create_dir(&grove_root).unwrap();
-        touch(&grove_root, "BRIEF.md", "my-grove — brief");
-        let leaf = touch(&grove_root, "01-impl-task-k1.md", "task-k1");
-        fs::write(grove_root.join("FORMAT"), "session-kinds-v99\n").unwrap();
-        let leaf_before = body(&leaf);
-        tree_access::reset_acquisition_count();
+        touch(&grove_root, "030-ship.md", "030-ship");
+        fs::create_dir(grove_root.join("020-spec")).unwrap();
+        let before = list(&grove_root);
 
         let error = transition_to_current(&worktree).unwrap_err();
 
+        let message = format!("{error:#}");
+        assert!(message.contains("holds no Grove entries"), "{message}");
+        assert!(message.contains("020-spec"), "{message}");
+        assert!(message.contains("030-ship.md"), "{message}");
         assert!(
-            format!("{error:#}").contains("unsupported Grove tree format"),
-            "unexpected error: {error:#}"
+            message.contains("NN-<kind>-<slug>-k<key>"),
+            "the refusal must say what a name should look like: {message}"
         );
-        assert_eq!(tree_access::acquisition_count(), 1);
-        assert_eq!(body(&leaf), leaf_before);
-        assert_eq!(body(&grove_root.join("FORMAT")), "session-kinds-v99\n");
-    }
-
-    #[test]
-    fn transition_checks_an_unknown_format_before_recovering_a_pending_witness() {
-        let (_temporary, worktree) = worktree();
-        let grove_root = worktree.join(".grove");
-        fs::create_dir(&grove_root).unwrap();
-        touch(&grove_root, "BRIEF.md", "my-grove — brief");
-        fs::write(grove_root.join("FORMAT"), "session-kinds-v99\n").unwrap();
-        let witness = grove_root.join(crate::tree_access::MIGRATION_TRANSACTION);
-        fs::create_dir(&witness).unwrap();
-
-        let error = transition_to_current(&worktree).unwrap_err();
-
-        assert!(
-            format!("{error:#}").contains("unsupported Grove tree format"),
-            "unexpected error: {error:#}"
-        );
-        assert!(
-            witness.is_dir(),
-            "unknown format must prevent recovery mutation"
-        );
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn transition_refuses_a_dangling_pending_witness_in_a_current_tree() {
-        use std::os::unix::fs::symlink;
-
-        let (_temporary, worktree) = worktree();
-        let grove_root = worktree.join(".grove");
-        fs::create_dir(&grove_root).unwrap();
-        touch(&grove_root, "BRIEF.md", "my-grove — brief");
-        fs::write(grove_root.join("FORMAT"), "session-kinds-v1\n").unwrap();
-        let witness = grove_root.join(crate::tree_access::MIGRATION_TRANSACTION);
-        symlink(grove_root.join("missing-witness"), &witness).unwrap();
-
-        let error = transition_to_current(&worktree).unwrap_err();
-
-        assert!(
-            format!("{error:#}").contains("migration witness is not a directory"),
-            "unexpected error: {error:#}"
-        );
-        assert!(fs::symlink_metadata(witness)
-            .unwrap()
-            .file_type()
-            .is_symlink());
+        assert_eq!(list(&grove_root), before, "a refusal writes nothing");
     }
 
     #[cfg(unix)]

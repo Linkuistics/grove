@@ -38,7 +38,7 @@ impl Fixture {
         let control_directory = temporary.path().join("control");
         fs::create_dir(&grove_root).unwrap();
         fs::create_dir(&control_directory).unwrap();
-        fs::write(grove_root.join("FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(grove_root.join("NOTES.md"), "notes\n").unwrap();
         fs::create_dir(grove_root.join("FINISHING-finish-k2")).unwrap();
         fs::write(
             grove_root.join("FINISHING-finish-k2/MANIFEST.json"),

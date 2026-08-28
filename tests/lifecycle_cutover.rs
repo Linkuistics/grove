@@ -196,7 +196,6 @@ fn bare_grove_launches_the_selected_filename_kind_with_one_mandate_argument() {
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# cutover — brief\n").unwrap();
     fs::write(
         grove.join("01-impl-selected-work-k7.md"),
@@ -324,7 +323,6 @@ fn linked_worktree_expands_scalars_through_literal_env_word_zero() {
 
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# linked — brief\n").unwrap();
     fs::write(grove.join("01-impl-scalars-k7.md"), "# scalars-k7\n").unwrap();
 
@@ -374,7 +372,7 @@ printf 'mode=%s\nrepo=%s\nprompt=%s\nworktree=%s\nsession=%s\n' \
     assert!(argv.contains(&mandate_naming("scalars-k7")), "{argv}");
 }
 
-fn assert_bare_grove_migrates_and_launches_a_jj_legacy_tree(colocate: bool) {
+fn assert_bare_grove_launches_a_session_in_a_jj_worktree(colocate: bool) {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -390,8 +388,8 @@ fn assert_bare_grove_migrates_and_launches_a_jj_legacy_tree(colocate: bool) {
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# native-jj — brief\n").unwrap();
     fs::write(
-        grove.join("01-legacy-k1.md"),
-        "# legacy-k1\n\n**Kind:** impl\n\n## Goal\nLaunch after migration.\n",
+        grove.join("01-impl-task-k1.md"),
+        "# task-k1\n\n## Goal\nLaunch.\n",
     )
     .unwrap();
 
@@ -414,24 +412,16 @@ fn assert_bare_grove_migrates_and_launches_a_jj_legacy_tree(colocate: bool) {
         fs::read_to_string(cwd_log).unwrap().trim(),
         worktree.canonicalize().unwrap().to_str().unwrap()
     );
-    assert_eq!(
-        fs::read_to_string(grove.join("FORMAT")).unwrap(),
-        "session-kinds-v1\n"
-    );
-    assert!(!grove.join("01-legacy-k1.md").exists());
-    let migrated = grove.join("01-impl-legacy-k1.md");
-    assert!(migrated.is_file());
-    assert!(!fs::read_to_string(migrated).unwrap().contains("**Kind:**"));
 }
 
 #[test]
-fn bare_grove_migrates_and_launches_a_native_jj_legacy_tree() {
-    assert_bare_grove_migrates_and_launches_a_jj_legacy_tree(false);
+fn bare_grove_launches_a_session_in_a_native_jj_worktree() {
+    assert_bare_grove_launches_a_session_in_a_jj_worktree(false);
 }
 
 #[test]
-fn bare_grove_migrates_and_launches_a_colocated_jj_legacy_tree() {
-    assert_bare_grove_migrates_and_launches_a_jj_legacy_tree(true);
+fn bare_grove_launches_a_session_in_a_colocated_jj_worktree() {
+    assert_bare_grove_launches_a_session_in_a_jj_worktree(true);
 }
 
 #[test]
@@ -454,7 +444,7 @@ fn invalid_config_cannot_create_a_fresh_grove() {
 }
 
 #[test]
-fn invalid_config_leaves_legacy_current_empty_and_pending_trees_byte_identical() {
+fn invalid_config_leaves_current_empty_and_partial_trees_byte_identical() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -462,30 +452,22 @@ fn invalid_config_leaves_legacy_current_empty_and_pending_trees_byte_identical()
     fs::create_dir_all(&config_dir).unwrap();
     fs::write(config_dir.join("config.kdl"), "impl \"runner ${prompt}\"\n").unwrap();
 
-    for state in ["legacy", "current", "empty", "pending"] {
+    for state in ["current", "empty", "partial"] {
         let worktree = fixture.path().join(format!("{state}-worktree"));
         init_git_worktree(&worktree);
         let grove = worktree.join(".grove");
         fs::create_dir_all(&grove).unwrap();
         fs::write(grove.join("BRIEF.md"), format!("# {state} — brief\n")).unwrap();
         match state {
-            "legacy" => {
-                fs::write(grove.join("01-task-k1.md"), "# task-k1\n\n**Kind:** impl\n").unwrap()
-            }
             "current" => {
-                fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
                 fs::write(grove.join("01-impl-task-k1.md"), "# task-k1\n").unwrap();
             }
             "empty" => {
-                fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
                 fs::write(grove.join("01-DONE-impl-task-k1.md"), "# task-k1\n").unwrap();
             }
-            "pending" => {
-                fs::write(grove.join("01-task-k1.md"), "# task-k1\n\n**Kind:** impl\n").unwrap();
-                let witness = grove.join("MIGRATING-session-kinds");
-                fs::create_dir(&witness).unwrap();
-                fs::write(witness.join("partial"), "must remain\n").unwrap();
-            }
+            // The charter alone: `root-init`'s scaffold half-run, which is the
+            // one shape the lifecycle transition still completes.
+            "partial" => {}
             _ => unreachable!(),
         }
         let before = tree_snapshot(&grove);
@@ -574,10 +556,6 @@ exit 0
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(
-        fs::read_to_string(worktree.join(".grove/FORMAT")).unwrap(),
-        "session-kinds-v1\n"
-    );
     assert!(worktree.join(".grove/01-requirements-plan-k1.md").is_file());
     let prompt = fs::read_to_string(log).unwrap();
     assert!(prompt.contains(&mandate_naming("plan-k1")), "{prompt}");
@@ -591,8 +569,13 @@ fn partial_fresh_scaffold_recovers_before_selection_and_launch() {
     let worktree = fixture.path().join("partial-scaffold");
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
-    grove::tree_lifecycle::root_init(&worktree, "custom-plan").unwrap();
-    fs::remove_file(grove.join("FORMAT")).unwrap();
+    // The window `root-init` leaves between its two phases: the root and its
+    // charter, and no first leaf. The operator's slug lived only in the leaf, so
+    // the recovery has nothing to read it from and uses the driver's own default
+    // — which is the same answer the old byte-matching recovery gave, since a
+    // partial root by definition has no leaf to take a slug from.
+    let created = grove::tree_lifecycle::root_init(&worktree, "custom-plan").unwrap();
+    fs::remove_file(&created[1]).unwrap();
     let prompt_log = fixture.path().join("partial.log");
     let fake = fixture.path().join("partial-command.sh");
     write_executable(
@@ -618,13 +601,10 @@ exit 0
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(
-        fs::read_to_string(grove.join("FORMAT")).unwrap(),
-        "session-kinds-v1\n"
-    );
+    assert!(grove.join("01-requirements-plan-k1.md").is_file());
     assert!(fs::read_to_string(prompt_log)
         .unwrap()
-        .contains(&mandate_naming("custom-plan-k1")));
+        .contains(&mandate_naming("plan-k1")));
 }
 
 #[test]
@@ -636,7 +616,6 @@ fn relaunch_reloads_config_and_uses_the_new_filename_kind() {
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# reload — brief\n").unwrap();
     fs::write(grove.join("01-impl-first-k1.md"), "# first-k1\n").unwrap();
 
@@ -706,7 +685,6 @@ fn insertion_during_launch_does_not_change_the_session_mandate() {
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# insertion — brief\n").unwrap();
     fs::write(grove.join("02-impl-selected-k7.md"), "# selected-k7\n").unwrap();
 
@@ -749,7 +727,6 @@ fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf(
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# failure — brief\n").unwrap();
     let leaf = grove.join("01-impl-still-live-k9.md");
     fs::write(&leaf, "# still-live-k9\n").unwrap();
@@ -810,7 +787,6 @@ fn nonsignalled_nonzero_exit_reports_status_elapsed_and_launch_identity() {
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# nonzero — brief\n").unwrap();
     fs::write(grove.join("01-design-crashing-k4.md"), "# crashing-k4\n").unwrap();
     let fake = fixture.path().join("exit-23.sh");
@@ -1012,7 +988,6 @@ fn the_checked_grove_llm_is_the_one_on_path_not_the_drivers_own_sibling() {
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# sibling — brief\n").unwrap();
     fs::write(grove.join("01-impl-sibling-k3.md"), "# sibling-k3\n").unwrap();
     let launched = fixture.path().join("launched");
@@ -1095,7 +1070,6 @@ fn a_relative_path_entry_resolves_from_the_worktree_the_session_is_spawned_in() 
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# nested-path — brief\n").unwrap();
     fs::write(
         grove.join("01-impl-nested-path-k2.md"),
@@ -1219,7 +1193,6 @@ fn a_skill_directory_clobbered_mid_loop_is_restored_before_the_next_launch() {
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# clobber — brief\n").unwrap();
     fs::write(grove.join("01-impl-first-k1.md"), "# first-k1\n").unwrap();
     fs::write(grove.join("02-impl-second-k2.md"), "# second-k2\n").unwrap();
@@ -1278,182 +1251,6 @@ exit 0
     );
 }
 
-#[test]
-fn legacy_tree_is_migrated_committed_and_launched_by_filename_kind() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    let worktree = fixture.path().join("legacy-worktree");
-    init_git_worktree(&worktree);
-    configure_git_identity(&worktree);
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# legacy-worktree — brief\n").unwrap();
-    fs::write(
-        grove.join("01-legacy-task-k1.md"),
-        "# legacy-task-k1\n\n**Kind:** prototype\n\n## Goal\nMigrate.\n",
-    )
-    .unwrap();
-    let prompt_log = fixture.path().join("legacy-prompt.log");
-    let fake = fixture.path().join("legacy-command.sh");
-    write_executable(
-        &fake,
-        r#"#!/bin/sh
-printf '%s' "$2" > "$1"
-exit 0
-"#,
-    );
-    write_complete_config(
-        &home,
-        &format!(
-            "{} {} '${{prompt}}'",
-            shell_quote(&fake),
-            shell_quote(&prompt_log)
-        ),
-    );
-
-    let output = run_grove(&home, &worktree);
-
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let migrated = grove.join("01-prototype-legacy-task-k1.md");
-    assert!(migrated.is_file());
-    assert!(!grove.join("01-legacy-task-k1.md").exists());
-    assert!(!fs::read_to_string(migrated).unwrap().contains("**Kind:**"));
-    assert_eq!(
-        fs::read_to_string(grove.join("FORMAT")).unwrap(),
-        "session-kinds-v1\n"
-    );
-    assert!(fs::read_to_string(prompt_log)
-        .unwrap()
-        .contains(&mandate_naming("legacy-task-k1")));
-    let subject = Command::new("git")
-        .args(["log", "-1", "--format=%s"])
-        .current_dir(&worktree)
-        .output()
-        .unwrap();
-    assert!(subject.status.success());
-    assert_eq!(
-        String::from_utf8(subject.stdout).unwrap(),
-        "grove(legacy-worktree): migrate task tree to session-kind filenames\n"
-    );
-}
-
-/// Everything one adopted pre-v2 tree must show after a single bare `grove`
-/// invocation. The two grammars below differ only in how they are seeded, so the
-/// assertions they share live here rather than being written twice.
-struct AdoptedTree {
-    /// Relative paths under `.grove/`, sorted — directories included, so a node
-    /// that failed to materialize is visible rather than implied by its child.
-    entries: Vec<String>,
-    /// Task-file bodies by relative path, for the body-marker sweep.
-    bodies: Vec<(String, String)>,
-    /// The `.grove/FORMAT` witness's contents, absent if it was never written.
-    format: Option<String>,
-    /// Every commit subject added by the run, oldest first.
-    new_subjects: Vec<String>,
-    /// The full mandate prompt the configured command received.
-    mandate: String,
-    /// The session kind whose *configured template* was selected and executed,
-    /// reported by the command itself rather than inferred from the driver's
-    /// announcement — the two are separate readers of the selected leaf.
-    executed_kind: String,
-    /// The driver's own announcement, which names the routed session kind.
-    stderr: String,
-}
-
-/// Drive the real bare `grove` process over an already-seeded legacy `worktree`
-/// and collect what the adoption produced.
-///
-/// The configured command writes its mandate and exits without signalling, so
-/// the loop stops after exactly one launch — one adoption, one routed session,
-/// nothing racing a second iteration.
-///
-/// Unlike [`write_complete_config`], every kind gets a *distinguishable*
-/// template: each carries its own kind as a literal argument, which the command
-/// reports back. That is what makes the configuration lookup observable at all.
-/// With one template shared across all nineteen kinds, a driver that looked up
-/// the wrong kind would execute a byte-identical command and no assertion here
-/// could tell — the mutation that established this is why the fixture is shaped
-/// this way.
-fn adopt_with_bare_grove(fixture: &Path, home: &Path, worktree: &Path) -> AdoptedTree {
-    let grove = worktree.join(".grove");
-    let seeded_subjects = git_subjects(worktree);
-
-    let mandate_log = fixture.join("adopted-mandate.log");
-    let configured = fixture.join("adopted-command.sh");
-    write_executable(
-        &configured,
-        r#"#!/bin/sh
-printf '%s\n%s' "$2" "$3" > "$1"
-exit 0
-"#,
-    );
-    let config_dir = home.join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let document = SESSION_KINDS
-        .iter()
-        .map(|kind| {
-            let template = format!(
-                "{} {} '{kind}' '${{prompt}}'",
-                shell_quote(&configured),
-                shell_quote(&mandate_log)
-            );
-            format!("{kind} {template:?}\n")
-        })
-        .collect::<String>();
-    fs::write(config_dir.join("config.kdl"), document).unwrap();
-
-    let output = run_grove(home, worktree);
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    assert!(output.status.success(), "{stderr}");
-
-    let mut entries = Vec::new();
-    let mut bodies = Vec::new();
-    let mut format = None;
-    for (relative, contents) in tree_snapshot(&grove) {
-        if let Some(contents) = contents {
-            if relative.ends_with(".md") {
-                bodies.push((
-                    relative.clone(),
-                    String::from_utf8(contents).expect("a task file is UTF-8"),
-                ));
-            } else if relative == "FORMAT" {
-                format = Some(String::from_utf8(contents).expect("FORMAT is UTF-8"));
-            }
-        }
-        entries.push(relative);
-    }
-    entries.sort();
-
-    // `git log` is newest-first; the run's own commits are that prefix, reversed
-    // back into the order they were made. Named rather than left to an unsigned
-    // underflow, so a run that *lost* history says so.
-    let subjects = git_subjects(worktree);
-    let added = subjects
-        .len()
-        .checked_sub(seeded_subjects.len())
-        .unwrap_or_else(|| panic!("adoption removed commits: {seeded_subjects:?} -> {subjects:?}"));
-    let mut new_subjects = subjects[..added].to_vec();
-    new_subjects.reverse();
-
-    let logged = fs::read_to_string(&mandate_log).unwrap_or_default();
-    let (executed_kind, mandate) = logged.split_once('\n').unwrap_or(("", ""));
-
-    AdoptedTree {
-        entries,
-        bodies,
-        format,
-        new_subjects,
-        mandate: mandate.to_string(),
-        executed_kind: executed_kind.to_string(),
-        stderr,
-    }
-}
-
 /// Commit subjects in `worktree`, newest first (`git log`'s own order).
 fn git_subjects(worktree: &Path) -> Vec<String> {
     let output = Command::new("git")
@@ -1475,163 +1272,28 @@ fn git_subjects(worktree: &Path) -> Vec<String> {
         .collect()
 }
 
-impl AdoptedTree {
-    /// The single migration commit this adoption is allowed to add. Naming the
-    /// whole added-subject list rather than only `HEAD` is what makes this a
-    /// *boundary* assertion: a transition that split its work across two commits,
-    /// or swept the launched session's output into a second one, fails here.
-    fn assert_one_migration_commit(&self, grove_name: &str) {
-        assert_eq!(
-            self.new_subjects,
-            vec![format!(
-                "grove({grove_name}): migrate task tree to session-kind filenames"
-            )],
-            "adoption must add exactly one migration commit"
-        );
-    }
-
-    /// The current session-kind format, proven positively (the `FORMAT` witness)
-    /// and negatively (no body routing markers, no transaction witness left
-    /// behind by a fail-closed transition that completed).
-    fn assert_reached_current_format(&self) {
-        assert_eq!(
-            self.format.as_deref(),
-            Some("session-kinds-v1\n"),
-            "the current-format witness must be written: {:?}",
-            self.entries
-        );
-        assert!(
-            !self
-                .entries
-                .iter()
-                .any(|entry| entry.starts_with("MIGRATING-session-kinds")),
-            "a completed transition must leave no migration witness: {:?}",
-            self.entries
-        );
-        for (relative, body) in &self.bodies {
-            for marker in ["**Kind:**", "**Harness:**", "**Producer launch:**"] {
-                assert!(
-                    !body.contains(marker),
-                    "{relative} still carries the obsolete {marker} line"
-                );
-            }
-        }
-    }
-
-    /// The first routed launch after adoption: the driver read the session kind
-    /// strictly, from the *migrated* filename, and mandated the migrated handle.
-    ///
-    /// This is the assertion the tree shape alone cannot make. Renaming the files
-    /// correctly and then refusing to route is exactly the failure this leaf was
-    /// cut for, and it leaves a perfectly current-looking tree on disk.
-    fn assert_routed_launch(&self, kind: &str, handle: &str) {
-        assert_eq!(
-            self.executed_kind, kind,
-            "the first session after adoption must execute {kind}'s configured template"
-        );
-        assert!(
-            self.stderr
-                .contains(&format!("grove: launching {kind} with")),
-            "the first session after adoption must route as {kind}: {}",
-            self.stderr
-        );
-        assert!(
-            self.mandate.contains(&mandate_naming(handle)),
-            "the mandate must name the migrated handle {handle}: {:?}",
-            self.mandate
-        );
-    }
-}
-
-/// A **kind-less v2** tree carried all the way to a routed session by one bare
-/// `grove` — the one legacy shape still migrated.
-///
-/// Two things about this fixture are load-bearing rather than decorative. It
-/// carries a **node directory** with a child, so the run has to rename inside a
-/// subtree rather than only at the root. And its permanent keys are **already
-/// assigned**, so `draft-k3` in the mandate is the seeded key surviving adoption,
-/// not a counter that happened to land on the same number.
-///
-/// The routed kind is `design`, deliberately not the `impl` a lost kind would
-/// fall back to — and it comes from the body marker, since a kind-less leaf
-/// filename cannot carry it. That is the whole of what this migration does:
-/// promote each body's `**Kind:**` into the filename and drop the marker.
-#[test]
-fn a_kindless_v2_tree_is_adopted_migrated_and_routed_by_its_migrated_filename() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    let worktree = fixture.path().join("kindless-v2-worktree");
-    init_git_worktree(&worktree);
-    configure_git_identity(&worktree);
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(grove.join("02-spec-k2")).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# kindless-v2-worktree — brief\n").unwrap();
-    fs::write(
-        grove.join("01-DONE-groundwork-k1.md"),
-        "# groundwork-k1\n\n**Kind:** impl\n\n## Goal\nAlready done.\n",
-    )
-    .unwrap();
-    fs::write(
-        grove.join("02-spec-k2/BRIEF.md"),
-        "# spec-k2 — brief\n\n## Goal\nSpec it.\n",
-    )
-    .unwrap();
-    fs::write(
-        grove.join("02-spec-k2/01-draft-k3.md"),
-        "# draft-k3\n\n**Kind:** design\n\n## Goal\nDraft.\n",
-    )
-    .unwrap();
-    fs::write(
-        grove.join("03-ship-k4.md"),
-        "# ship-k4\n\n**Kind:** impl\n\n## Goal\nShip.\n",
-    )
-    .unwrap();
-    run_command("git", &worktree, &["add", "-A"]);
-    run_command(
-        "git",
-        &worktree,
-        &["commit", "-q", "-m", "seed kind-less v2"],
-    );
-
-    let adopted = adopt_with_bare_grove(fixture.path(), &home, &worktree);
-
-    assert_eq!(
-        adopted.entries,
-        [
-            "01-DONE-impl-groundwork-k1.md",
-            "02-spec-k2",
-            "02-spec-k2/01-design-draft-k3.md",
-            "02-spec-k2/BRIEF.md",
-            "03-impl-ship-k4.md",
-            "BRIEF.md",
-            "FORMAT",
-        ]
-    );
-    adopted.assert_reached_current_format();
-    adopted.assert_one_migration_commit("kindless-v2-worktree");
-    adopted.assert_routed_launch("design", "draft-k3");
-}
-
 /// Each **withdrawn** layout is refused by one bare `grove`, and the refusal is
 /// the whole of what happens.
 ///
-/// Both used to migrate. What replaces that coverage is the property that matters
-/// now their readers are gone: the shape is still **classified** rather than
-/// falling through as a tree with nothing in it. That distinction is not
-/// cosmetic — a tree that classified as empty would be stamped with a
-/// current-format witness, after which every entry in it is foreign and `pick`
-/// reports a finished grove. So this asserts the refusal *and* that the tree is
-/// byte-identical afterwards, which is the claim a silent misclassification would
-/// break while an error message alone would not.
+/// Both used to migrate. What replaces that coverage now their readers are gone
+/// is the property that matters: such a tree is still **stopped on** rather than
+/// falling through as a tree with nothing in it. The distinction is not
+/// cosmetic — every name in these layouts is positioned but unkeyed, so the
+/// grammar disclaims all of them, and a root that read as empty would have the
+/// driver's finish sentinel written into it. So this asserts the refusal *and*
+/// that the tree is byte-identical afterwards, which is the claim a silent
+/// misclassification would break while an error message alone would not.
+///
+/// The refusal no longer names which withdrawn layout it met — that classifier
+/// was migration's, and went with it (`delete-migration-k6`). What it names
+/// instead is the grammar grove does read and the entries that are not in it,
+/// which is what an operator needs either way (principle 2).
 #[test]
 fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
-    /// Worktree name, seeded files, the layout the refusal must name, and the
-    /// entries it must list.
+    /// Worktree name, seeded files, and the entries the refusal must list.
     type Case = (
         &'static str,
         &'static [(&'static str, &'static str)],
-        &'static str,
         &'static [&'static str],
     );
 
@@ -1650,8 +1312,7 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
                 ),
                 ("030-ship.md", "# 030-ship\n\n## Goal\nShip.\n"),
             ],
-            "NNN-slug",
-            &["020-spec", "030-ship.md"],
+            &["020-spec", "030-ship.md", "done"],
         ),
         (
             "v1-flat-worktree",
@@ -1666,12 +1327,11 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
                     "# 2.1-[3]-draft\n\n**Kind:** design\n\n## Goal\nDraft.\n",
                 ),
             ],
-            "v1-flat",
             &["1-[1]-groundwork.DONE.md", "2.1-[3]-draft.md"],
         ),
     ];
 
-    for (name, files, layout, entries) in cases {
+    for (name, files, entries) in cases {
         let fixture = TempDir::new().unwrap();
         let home = fixture.path().join("home");
         fs::create_dir_all(home.join(".codex")).unwrap();
@@ -1710,11 +1370,12 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
 
         assert!(
             !output.status.success(),
-            "bare grove must stop on a {layout} tree; stderr was {stderr}"
+            "bare grove must stop on a {name} tree; stderr was {stderr}"
         );
         assert!(
-            stderr.contains("no longer migrates") && stderr.contains(layout),
-            "the refusal must name the layout: {stderr}"
+            stderr.contains("holds no Grove entries")
+                && stderr.contains("NN-<kind>-<slug>-k<key>"),
+            "the refusal must name the grammar grove reads: {stderr}"
         );
         for entry in entries {
             assert!(
@@ -1724,20 +1385,12 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
         }
         assert!(
             !launched.exists(),
-            "no session may be launched over a tree Grove refused to bring current"
+            "no session may be launched over a tree Grove refused to read"
         );
         assert_eq!(
             tree_snapshot(&grove),
             before,
-            "a refused {layout} tree is byte-identical afterwards"
-        );
-        assert!(
-            !grove.join("FORMAT").exists(),
-            "no current-format witness may be installed over a tree that was not migrated"
-        );
-        assert!(
-            !grove.join("MIGRATING-session-kinds").exists(),
-            "a refusal happens before the transaction witness exists"
+            "a refused {name} tree is byte-identical afterwards"
         );
         assert_eq!(
             git_subjects(&worktree),
@@ -1745,69 +1398,6 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
             "a refusal commits nothing"
         );
     }
-}
-
-#[test]
-fn config_is_reloaded_after_a_completed_legacy_transition_before_launch() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    let worktree = fixture.path().join("reload-after-transition");
-    init_git_worktree(&worktree);
-    configure_git_identity(&worktree);
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(
-        grove.join("BRIEF.md"),
-        "# reload-after-transition — brief\n",
-    )
-    .unwrap();
-    fs::write(grove.join("01-task-k1.md"), "# task-k1\n\n**Kind:** impl\n").unwrap();
-    let launch_marker = fixture.path().join("must-not-launch");
-    let configured = fixture.path().join("configured.sh");
-    write_executable(
-        &configured,
-        &format!(
-            "#!/bin/sh\nprintf launched > {}\n",
-            shell_quote(&launch_marker)
-        ),
-    );
-    write_complete_config(
-        &home,
-        &format!("{} '${{prompt}}'", shell_quote(&configured)),
-    );
-    let invalid = fixture.path().join("invalid-after-transition.kdl");
-    fs::write(&invalid, "impl \"runner ${prompt}\"\n").unwrap();
-    let active = home.join(".config/grove/config.kdl");
-    // Grove's migration commit runs with user hooks disabled, so the corruption
-    // is injected from a `git` stand-in on PATH. It has to land between the
-    // transition's commit and the launch, and Grove drives no other process in
-    // that window.
-    let fake_bin = fixture.path().join("fake-bin");
-    fs::create_dir_all(&fake_bin).unwrap();
-    let real_git = resolve_real_git();
-    write_executable(
-        &fake_bin.join("git"),
-        &format!(
-            "#!/bin/sh\nfor argument in \"$@\"; do\n    if [ \"$argument\" = commit ]; then\n        {git} \"$@\" || exit $?\n        cp {invalid} {active}\n        exit 0\n    fi\ndone\nexec {git} \"$@\"\n",
-            git = shell_quote(&real_git),
-            invalid = shell_quote(&invalid),
-            active = shell_quote(&active),
-        ),
-    );
-
-    let output = Command::new(env!("CARGO_BIN_EXE_grove"))
-        .current_dir(&worktree)
-        .env("HOME", &home)
-        .env("PATH", path_with_front(&fake_bin))
-        .output()
-        .unwrap();
-
-    assert!(!output.status.success());
-    assert!(grove.join("01-impl-task-k1.md").is_file());
-    assert!(!launch_marker.exists());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("missing session kinds"), "{stderr}");
 }
 
 #[test]
@@ -1819,7 +1409,6 @@ fn empty_current_tree_allocates_and_launches_one_resumable_finish_leaf() {
     init_git_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# empty-current — brief\n").unwrap();
     fs::write(grove.join("01-DONE-impl-finished-k1.md"), "# finished-k1\n").unwrap();
     let launch_log = fixture.path().join("resume.log");

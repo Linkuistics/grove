@@ -242,7 +242,7 @@ closes. Add the corresponding check to `book-assembly-k18`'s `Done when`.
 
 ### F8 — Medium — repo-level registration of both new artifacts is unowned
 
-**Location.** `.grove/09-.../08-impl-book-assembly-k18.md` and
+**Location.** `.grove/10-.../09-impl-book-assembly-k18.md` and
 `.grove/10-walkthrough-skill-delivery-k19/02-impl-writing-code-walkthroughs-k21.md`,
 `Done when` sections.
 

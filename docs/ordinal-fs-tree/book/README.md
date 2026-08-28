@@ -33,7 +33,7 @@ an unresolved reference and not reconstructed source.
 4. [Read path](04-read-path.md)
 5. [Mutation algebra](05-mutation-algebra.md)
 6. [Filesystem interpreter](06-filesystem-interpreter.md)
-7. Syllabus CLI
+7. [Syllabus CLI](07-syllabus-cli.md)
 8. Invariants and trade-offs
 
 Optional lookup:

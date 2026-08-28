@@ -31,3 +31,27 @@ including every verb, output stream, exit category, and end-to-end operation.
 ## Notes
 
 Keep operator terminology distinct from the library's consumer terminology.
+
+## Decisions (running log)
+
+The CLI file is reconstructed by one composite over seven contiguous literal
+ranges aligned with its command-line, parsing/failure, streams/paths,
+mutation-output, dispatch, read, and mutation sections. The two CLI-owned
+manifest ranges remain separate literals because the manifest root crosses
+slice ownership.
+
+The chapter completes the orientation insert before cataloguing the remaining
+verbs. It repeats the exact command and starting tree locally, then follows the
+same values through CLI parsing and dispatch before briefly restating the
+already-explained library layers.
+
+The source and CLI contract required no production change. Consumer-side
+filtering, path construction, refusal rendering, stream policy, and exit
+classification are explained as properties of the demonstration binary rather
+than additions to the library interface.
+
+The fresh-context review found that arbitrary platform paths and terminal write
+failures exceed the binary's advertised record and exit contracts. This chapter
+states the current limitations without changing frozen source, and
+`cli-stream-boundaries-k33` is inserted before assembly to repair the source,
+contract tests, CLI design document, and every affected book fragment together.

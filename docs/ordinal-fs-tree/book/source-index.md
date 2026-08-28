@@ -26,13 +26,13 @@
 
 <!-- source-root «source-crate-manifest» source="crates/ordinal-fs-tree/Cargo.toml" lines="1-116" -->
 <!-- insert «manifest-package-and-library-dependency» -->
-<!-- defer «manifest-cli-feature» owner="syllabus-cli-k17" lines="43-45" -->
+<!-- insert «manifest-cli-feature» -->
 <!-- insert «manifest-library-cli-boundary» -->
-<!-- defer «manifest-cli-binary» owner="syllabus-cli-k17" lines="62-65" -->
+<!-- insert «manifest-cli-binary» -->
 <!-- insert «manifest-development-and-release» -->
 <!-- /source-root -->
 <!-- source-root «source-syllabus-cli» source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1128" -->
-<!-- defer «syllabus-cli-source» owner="syllabus-cli-k17" lines="1-1128" -->
+<!-- insert «syllabus-cli-source» -->
 <!-- /source-root -->
 <!-- source-root «source-library» source="crates/ordinal-fs-tree/src/lib.rs" lines="1-94" -->
 <!-- insert «library-crate-surface» -->
@@ -87,11 +87,11 @@
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
 | `manifest-package-and-library-dependency` | `source-crate-manifest` | `orientation-k11` | `1-42` | 42 | `resolved` |
-| `manifest-cli-feature` | `source-crate-manifest` | `syllabus-cli-k17` | `43-45` | 3 | `deferred` |
+| `manifest-cli-feature` | `source-crate-manifest` | `syllabus-cli-k17` | `43-45` | 3 | `resolved` |
 | `manifest-library-cli-boundary` | `source-crate-manifest` | `orientation-k11` | `46-61` | 16 | `resolved` |
-| `manifest-cli-binary` | `source-crate-manifest` | `syllabus-cli-k17` | `62-65` | 4 | `deferred` |
+| `manifest-cli-binary` | `source-crate-manifest` | `syllabus-cli-k17` | `62-65` | 4 | `resolved` |
 | `manifest-development-and-release` | `source-crate-manifest` | `orientation-k11` | `66-116` | 51 | `resolved` |
-| `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1128` | 1,128 | `deferred` |
+| `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1128` | 1,128 | `resolved` |
 | `library-crate-surface` | `source-library` | `orientation-k11` | `1-94` | 94 | `resolved` |
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-636` | 636 | `resolved` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `resolved` |
@@ -120,9 +120,19 @@
 |---|---|---|---|---|---|---|---|
 | `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-116` | `—` | `manifest-package-and-library-dependency`, `manifest-cli-feature`, `manifest-library-cli-boundary`, `manifest-cli-binary`, `manifest-development-and-release` |
 | `manifest-package-and-library-dependency` | `orientation` | `source-crate-manifest` | `literal` | `orientation-k11` | `1-42` | `source-crate-manifest` | `—` |
+| `manifest-cli-feature` | `syllabus-cli` | `source-crate-manifest` | `literal` | `syllabus-cli-k17` | `43-45` | `source-crate-manifest` | `—` |
 | `manifest-library-cli-boundary` | `orientation` | `source-crate-manifest` | `literal` | `orientation-k11` | `46-61` | `source-crate-manifest` | `—` |
+| `manifest-cli-binary` | `syllabus-cli` | `source-crate-manifest` | `literal` | `syllabus-cli-k17` | `62-65` | `source-crate-manifest` | `—` |
 | `manifest-development-and-release` | `orientation` | `source-crate-manifest` | `literal` | `orientation-k11` | `66-116` | `source-crate-manifest` | `—` |
 | `source-syllabus-cli` | `source-index` | `source-syllabus-cli` | `root` | `—` | `1-1128` | `—` | `syllabus-cli-source` |
+| `cli-command-line` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1-482` | `syllabus-cli-source` | `—` |
+| `syllabus-cli-source` | `syllabus-cli` | `source-syllabus-cli` | `composite` | `syllabus-cli-k17` | `1-1128` | `source-syllabus-cli` | `cli-command-line`, `cli-parsing-and-failure`, `cli-streams-and-paths`, `cli-mutation-output`, `cli-main-dispatch`, `cli-reading`, `cli-mutations` |
+| `cli-parsing-and-failure` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `483-618` | `syllabus-cli-source` | `—` |
+| `cli-streams-and-paths` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `619-744` | `syllabus-cli-source` | `—` |
+| `cli-mutation-output` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `745-789` | `syllabus-cli-source` | `—` |
+| `cli-main-dispatch` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `790-862` | `syllabus-cli-source` | `—` |
+| `cli-reading` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `863-1005` | `syllabus-cli-source` | `—` |
+| `cli-mutations` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1006-1128` | `syllabus-cli-source` | `—` |
 | `source-library` | `source-index` | `source-library` | `root` | `—` | `1-94` | `—` | `library-crate-surface` |
 | `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-94` | `source-library` | `—` |
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-636` | `—` | `reference-conformance-source` |
@@ -225,4 +235,4 @@
 | `Snapshot`, `Entry`, `ReadGuard` | `01-orientation.md#insert-tour` | `read-path-k14` | A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot. | `explained` |
 | `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `explained` |
 | `WriteGuard`, `Error`, `apply::Faults`, `apply::Run` | `01-orientation.md#insert-tour` | `filesystem-interpreter-k16` | A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state. | `explained` |
-| `Cli`, `Verb`, `Streams`, `Failure` | `01-orientation.md#insert-tour` | `syllabus-cli-k17` | Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category. | `pending` |
+| `Cli`, `Verb`, `Streams`, `Failure` | `01-orientation.md#insert-tour` | `syllabus-cli-k17` | Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category. | `explained` |

@@ -1,6 +1,6 @@
 # Filesystem interpreter
 <!-- book-page id="filesystem-interpreter" slice="filesystem-interpreter-k16" order="6" -->
-[Previous: Mutation algebra](05-mutation-algebra.md) | [Contents](README.md)
+[Previous: Mutation algebra](05-mutation-algebra.md) | [Contents](README.md) | [Next: Syllabus CLI](07-syllabus-cli.md)
 
 The pure algebra produces an ordered `Plan`; the filesystem layer interprets
 that value while holding the exclusive lock captured with its source
@@ -1656,4 +1656,4 @@ distinguishes no-effects refusal, clean restoration, partial restoration, and
 pre-apply boundary failures without describing a multi-effect operation as
 atomic against process termination.
 
-[Previous: Mutation algebra](05-mutation-algebra.md) | [Contents](README.md)
+[Previous: Mutation algebra](05-mutation-algebra.md) | [Contents](README.md) | [Next: Syllabus CLI](07-syllabus-cli.md)

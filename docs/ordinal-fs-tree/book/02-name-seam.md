@@ -1,6 +1,6 @@
 # Name seam
 <!-- book-page id="name-seam" slice="name-seam-k12" order="2" -->
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Reference domain](03-reference-domain.md)
 
 The filename seam converts filesystem observations into values the algebra can
 use, and converts algebraic values back into filenames. The consumer owns every
@@ -933,4 +933,4 @@ pub(crate) fn not_one_component(rendered: &str) -> Option<&'static str> {
 ````
 <!-- /fragment -->
 
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Reference domain](03-reference-domain.md)

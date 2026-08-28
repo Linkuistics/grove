@@ -17,13 +17,36 @@ The work is deliberately evidence-led: build and compare executable Quint and Al
 - The preserved external contract, release constraints, model checks, workspace tests, and real Git/native-jj/colocated-jj finish scenarios pass.
 - `TODO.finish_process.md` has been resolved into models, current-state documentation, tests, and code, then removed. **The file is already gone**: `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md` carries the four questions, their dispositions — Q2 and Q3 `keep`, Q1 and Q4's three cleanup rows `defer` — the cost table and the four binding constraints. What remains of this item is the documentation and implementation half.
 
+## The refactor is stopped after the formal phase — human decision, 2026-08-28
+
+**`documentation-k2` and `implementation-k3` are `ABANDONED`, on explicit
+instruction, and no part of the Rust refactor will be built from this tree.** The
+reason is cost against value: the formal phase has consumed several days of LLM
+work, and its output that the human judges worth having is the **method** — what
+this campaign learned about driving an LLM loop to produce checkable work — not
+the crate split it was commissioned to justify. So the `Done when` clauses above
+about current-state documentation, the Cargo workspace shape, `ordinal-fs-tree`
+ownership, legacy-migration removal and `TODO.finish_process.md`'s implementation
+half **will not be met, and are not owed**. The first two clauses — the green
+models and `docs/formalism-findings.md` — stand, and the formal phase runs to its
+end so that Q1 and Q4 are *answered* rather than abandoned mid-question.
+
+**What still runs**, in `formal-modeling-k1`: `sweep-ownership-k81`,
+`alloy-candidate-k82`, `q1-q4-verdict-k83`, `quarantine-gate-control-k86` and
+`handoff-audit-k66`. Nothing was added to them by this decision, and
+`handoff-audit-k66`'s reachability clause should now be read against a repository
+whose implementation phase is not coming.
+
 ## Decomposition
 
-The top-level order is a hard gate:
+The top-level order **was** a hard gate, and items 2 and 3 are now abandoned:
 
 1. `formal-modeling-k1` defines and checks the design. No user documentation or product-code redesign begins before it is retired.
-2. `documentation-k2` turns the checked design into current-state architecture, decisions, component guidance, and a user guide. No implementation begins before it is retired.
-3. `implementation-k3` changes the product against those models and documents.
+2. ~~`documentation-k2`~~ — abandoned.
+3. ~~`implementation-k3`~~ — abandoned.
+
+The dependency direction below is what the formal work was checking *against*; it
+is retained as the design the models judge, not as a build target.
 
 The approved target dependency direction is:
 
@@ -51,6 +74,53 @@ The tree is intentionally lazy. `formal-synthesis-k16` creates an ordinal root-l
 - `docs/adr/task-tree-transactions-fail-closed.md` and the rest of `docs/adr/` — current decision set to edit, merge, split, or delete in place.
 - `docs/ordinal-fs-tree/ARCHITECTURE.md` — existing component boundary to reconcile with crate-local ownership.
 - GitHub issue #13 — source context for the finish-process work; the repository files and models remain authoritative.
+
+## On the horizon
+
+**A lessons workstream, to be chartered before it is cut.** The human's
+instruction is to rework this grove into an investigation of what the formal
+campaign taught about driving LLM loops, and how to improve them in general. It is
+not yet cut because one question is unanswered: **is the deliverable a write-up, a
+set of changes to the grove methodology and its skill, or both?** The harvest's
+shape depends on the answer, so nothing is leafed until a human gives it.
+
+**The evidence base already exists in this repository**, and one part of it is
+perishable:
+
+- `.grove/` itself — which sessions decomposed, which cut reviews, what each
+  review found, and what each integration found while applying it. This is the
+  only record of how the *loop* behaved, and **grove deletes `.grove/` at
+  finish**, so harvesting it is time-critical and belongs in the first leaf.
+- `docs/formalism-findings.md` — the bounded Alloy-6 vs Quint comparison, with
+  per-entry findings, costs and retained counterexamples.
+- `crates/*/models/README.md` — mutation matrices, run tables with wall times and
+  command counts, declared narrowings, and *what a green run does not prove*.
+- `docs/specs/semantic-contract.md` and `models/run.sh` — 130 obligations and a
+  runner whose four self-checking obligations are themselves a method artifact.
+- The `docs/adr/` records that are **methodological rather than about Grove**:
+  `a-shared-safety-claim-names-the-role-not-the-artifact`,
+  `a-lifecycle-claim-says-what-it-is-over`,
+  `a-closed-partition-is-over-outcomes-not-states`,
+  `obligations-follow-context-not-artifact`.
+
+**Candidate lessons — claims to test in the harvest, not conclusions.** A green
+suite is not evidence; only a control that can kill the claim is. A claim stated
+over the model's own history or classifier is self-certifying, and the repair
+recreates the hazard one level down. **False greens are found by narrowing, not
+widening** — `honest-classification-k85` violated a shared-safety claim in a
+strict *subset* of the widest world's traces, which that world's 8000 samples had
+never drawn. A module that changes what the model does must be run against every
+claim, not the ones it declares. Measure, freeze, then repair — a predicate is a
+subject too. And the one that is about the loop rather than the models: **review
+yield did not decay** — a producer's own reviewer found three substantive defects
+in a green suite, the review leaf beside it found five more in the repairs, and
+the integration found two more while applying them.
+
+**A shape was proposed and is awaiting a human answer**: a `requirements` leaf
+(where the write-up/methodology/both question is settled), a
+`harvest-the-evidence` leaf cut first because `.grove/` is perishable, one leaf
+per lesson cluster that survives the harvest, a `loop-changes` leaf for the
+transferable half, and a closing audit.
 
 ## Notes
 

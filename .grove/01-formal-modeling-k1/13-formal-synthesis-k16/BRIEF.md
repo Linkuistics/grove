@@ -186,3 +186,58 @@ and each scope README for its `GAP` lines, so all of them are subjects. Freeze,
 record digests, run, record again. A run line written *after* its run is a record
 of a run rather than a moved subject, and the check that tells the two apart is
 the GAP-line count either side.
+
+## `finish-verdicts-k65` is closed, and this is what `handoff-audit-k66` inherits
+
+`finish-verdicts-k65` answered `TODO.finish_process.md` Q1 – Q4 **keep**, upheld
+the ordinal root-lifecycle rejection and extended it to root *creation*, and
+**inserted no `impl` leaf at either target**.
+
+**It did cut a review, and inserted it at `handoff-audit-k66`'s slot rather than
+appending it** — the same move `obligation-placement-k63` made, for the same
+reason. `review-design finish-verdicts-k77` now holds position 07 and `k66` has
+shifted to 08; the keys are unchanged. The argument for insertion is that `k66`
+is chartered to certify *the documentation phase carries no unresolved semantic
+question*, and an audit that certifies a conclusion a pending review might move
+has certified nothing. The doubt written into `k77`'s body is specific and it is
+not a general request for a second opinion: `k65` declared a **pre-registered
+criterion mis-typed** and its four verdicts follow from that declaration, which
+is exactly the self-serving shape a fresh context exists to attack — and `k65`
+could spend no in-session reviewer, because the harness it ran under forbade
+subagents. If `k77` finds nothing it creates nothing and retires.
+
+**The file is gone.** `TODO.finish_process.md` is deleted and
+[`docs/adr/finish-layers-are-forced-not-chosen.md`](../../../docs/adr/finish-layers-are-forced-not-chosen.md)
+replaces it — the four questions with their verdicts, the module-by-module cost
+table, the four binding constraints, the rejected alternatives and the reopener.
+Every citation outside `.grove/` was enumerated and repointed; `k66` should find
+**zero** references to the removed file in the durable set, and one deliberate
+survivor: `docs/formalism-findings.md`, which is an append-only log and keeps its
+historical mentions plus one forward-pointing annotation at the entry that routed
+the questions here.
+
+**One pre-existing link defect remains and it is still `k66`'s** —
+`docs/formalism-findings.md`'s `](../adr/bulk-marks-are-not-atomic.md)`, one
+`../` too many. A 227-link resolve over the files this child touched found that
+one and nothing else.
+
+**The manifest did not move and neither did the other two scopes.** Every
+catalogue edit here is a table cell or prose; `models/run.sh --list` prints
+**130 obligations**, unchanged. `--scope finish --family quint` is **exit 0**,
+240 commands, 63 of 63 cells, Q4 matrix 10 of 10, re-run after the one model
+change this child made (`relax_EN_03` gained `FN-32`). **The whole-repository run
+is still owed and is `k66`'s**, and nothing here has been measured end to end.
+
+**Two things `k66` should not re-derive.**
+
+- **The root-init window stays `k66`'s and the root-creation verdict does not
+  close it.** Library-owned creation was rejected on depth, and a lock does not
+  survive a crash in any case; the repair the catalogue names — make root
+  initialisation's first write a root-init-exclusive one — is unchanged and is
+  still a product change.
+- **A `defer` was available and was not taken, deliberately.** Q1's criterion is
+  genuinely unmet in one place (`FN-24`'s witnesses are not re-run under the
+  candidate) and the commission is named in the finish README. It was left unrun
+  because completing it could not change the answer: the candidate is admissible
+  and unavailable. If `k66`'s audit reads that as an unresolved semantic
+  question, it is not one — the ADR carries why.

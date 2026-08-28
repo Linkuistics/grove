@@ -15,7 +15,7 @@ The work is deliberately evidence-led: build and compare executable Quint and Al
 - Generic ordered-tree algebra and filesystem mechanics live in `ordinal-fs-tree` by default. Any Grove-owned filesystem operation is a documented semantic exception established by the formal work.
 - Legacy tree migration is gone. Fresh roots use the current format; an absent, legacy, or foreign format fails closed and is never silently rewritten.
 - The preserved external contract, release constraints, model checks, workspace tests, and real Git/native-jj/colocated-jj finish scenarios pass.
-- `TODO.finish_process.md` has been resolved into models, current-state documentation, tests, and code, then removed.
+- `TODO.finish_process.md` has been resolved into models, current-state documentation, tests, and code, then removed. **The file is already gone**: `finish-verdicts-k65` answered its four questions `keep`, and `docs/adr/finish-layers-are-forced-not-chosen.md` carries the questions, the verdicts, the cost table and the four binding constraints. What remains of this item is the documentation and implementation half.
 
 ## Decomposition
 
@@ -45,7 +45,7 @@ The tree is intentionally lazy. `formal-synthesis-k16` creates an ordinal root-l
 
 ## Pointers
 
-- `TODO.finish_process.md` — required finish/recovery concerns and open design pressure.
+- `docs/adr/finish-layers-are-forced-not-chosen.md` — the required finish/recovery concerns and the settled design pressure, replacing the deleted `TODO.finish_process.md`.
 - `docs/formalism-findings.md` — findings from the previous formal-method experiment; append this experiment rather than overwriting it.
 - `docs/ARCHITECTURE.md`, `docs/USAGE.md`, and `docs/CONFIGURATION.md` — current-state documentation to reconcile in place.
 - `docs/adr/task-tree-transactions-fail-closed.md` and the rest of `docs/adr/` — current decision set to edit, merge, split, or delete in place.

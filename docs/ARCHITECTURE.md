@@ -30,8 +30,11 @@ A `TODO.<subject>.md` is a **scoping note with an expiry**: measurements and ope
 questions for work a future grove will grill, written so the evidence is not
 re-gathered, and deleted when the work lands or the question is settled in an
 ADR. It is not a plan, not a backlog, and never the canonical description of
-anything that exists — those rows are above.
-[`TODO.finish_process.md`](../TODO.finish_process.md) is the current one.
+anything that exists — those rows are above. **There is none at present.**
+`TODO.finish_process.md` was the last, and it ended the second way: its four
+questions are answered in
+[`docs/adr/finish-layers-are-forced-not-chosen.md`](adr/finish-layers-are-forced-not-chosen.md)
+and the note is gone.
 
 The four files directly under `docs/` are the maintained project guides. This is
 not a ban on durable artifacts produced by future Grove work: when a real

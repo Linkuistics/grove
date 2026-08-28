@@ -808,12 +808,19 @@ module relax_EN_01 {
 /// Granting an atomic recursive directory deletion lets a proven commit be
 /// settled by disposing of the evacuation witness IN PLACE: no quarantine, no
 /// handoff, no cleanup marker, and the three nested transactions
-/// `TODO.finish_process.md` measures collapse to one.
+/// `docs/adr/finish-layers-are-forced-not-chosen.md` measures collapse to one.
 ///
 /// What is checked here is the RETAINED shared-safety set and nothing else.
 /// `FN-19`, `FN-21` and `FN-31` are the incumbent mechanics the candidate
 /// REPLACES; their failure under it would not be evidence, and their absence
 /// from this module is deliberate rather than an omission.
+///
+/// THE RETAINED SET NAMES `FN-32` WHERE IT ONCE NAMED `TT-24`, and the swap is
+/// `finish-verdicts-k65`'s.  `TT-24`'s transaction context IS `FN-32` — the
+/// letters `c` and `d` are retired — and a `TT-` obligation cannot be
+/// discharged from this scope at all, so a retained set naming it was a
+/// criterion this module could never meet.  Nothing is dropped: the claim is
+/// asserted where its context lives.
 module relax_EN_03 {
   import finish(
     RENAME_ATOMIC = true,
@@ -854,6 +861,8 @@ module relax_EN_03 {
     inv_FN_27b_nothing_unrelated_changes_on_refusal
   val inv_FN_27c_nothing_unrelated_on_a_block_under_the_candidate: bool =
     inv_FN_27c_nothing_unrelated_changes_on_a_block
+  val inv_FN_32_ownership_still_proven_under_the_candidate: bool =
+    inv_FN_32_a_transaction_never_mutates_what_it_cannot_prove_is_its_own
 
   /// The candidate's own successful exit, reached — which is what makes the
   /// green above mean something rather than being green over a world in which

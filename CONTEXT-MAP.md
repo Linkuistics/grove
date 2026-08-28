@@ -132,6 +132,7 @@ mean something else in grove's, and its crate ships by no path of its own —
   [`success-is-proved-by-the-ticket-not-the-tree`](docs/adr/success-is-proved-by-the-ticket-not-the-tree.md),
   [`a-closed-partition-is-over-outcomes-not-states`](docs/adr/a-closed-partition-is-over-outcomes-not-states.md),
   [`a-lifecycle-claim-says-what-it-is-over`](docs/adr/a-lifecycle-claim-says-what-it-is-over.md),
+  [`finish-layers-are-forced-not-chosen`](docs/adr/finish-layers-are-forced-not-chosen.md),
   and the three specs
   [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md),
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)

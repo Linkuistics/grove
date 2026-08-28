@@ -10187,6 +10187,20 @@ pre-committed the evidence that classifies each, so these are read rather than
 argued. What is already on the record, and what is missing, is set out in this
 session's running log; the verdicts are that child's.
 
+> **[answered by `finish-verdicts-k65`]** All four are **keep**, and
+> `TODO.finish_process.md` is deleted: the questions, the verdicts, the cost
+> table and the four binding constraints are now
+> [`docs/adr/finish-layers-are-forced-not-chosen.md`](adr/finish-layers-are-forced-not-chosen.md).
+> **Every earlier entry in this log that names `TODO.finish_process.md` names it
+> as it stood when that entry was written and is left alone; this annotation is
+> the one pointer forward.** The finding worth carrying past the verdicts: Q1's
+> and Q2's pre-registered `delete/replace` criteria are each stated over a
+> **counterfactual-capability** control, which measures whether a cheaper
+> protocol would be *admissible* — so as pre-registered neither question could
+> ever have returned `delete/replace` against a world where `EN-03` and `EN-05`
+> hold, however green the run. A green counterfactual says a claim set does not
+> depend on a mechanism; it does not say the mechanism can go.
+
 **To `handoff-audit-k66` — reachability of the durable artifacts, and three
 recorded documentation gaps.** This session checked all six model files against
 the seven fields the node brief requires — tool version, bounds or trace limits,

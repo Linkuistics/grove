@@ -3,9 +3,13 @@
 Whole-root creation and destruction stay **private to grove**, and
 `ordinal-fs-tree` gains no root-lifecycle capability. This is the documented
 semantic exception the root brief requires for a Grove-owned filesystem
-operation, and it is narrow: the exception is **destruction**, and it is owned
-not because the mechanics are Grove-shaped — they are not — but because the
-operation cannot be *terminated* by anything that does not also hold the receipt.
+operation, and it is **two** exceptions on separate grounds, neither of which is
+that the mechanics are Grove-shaped — they are not, in either half.
+**Destruction** is owned because the operation cannot be *terminated* by anything
+that does not also hold the receipt. **Creation** is owned because, with the
+coordinator gone, what is left is about thirty lines of `std::fs` with no
+algorithm behind them and three new library concepts to hide them — a shallow
+module, and the correctness half stays with grove regardless.
 
 The evidence is `docs/formalism-findings.md` entry 047, an executable prototype
 of the candidate contract stated in fully domain-neutral vocabulary.
@@ -42,11 +46,15 @@ a commit message.
 disposal, the container's root is absent — indistinguishable, to any reader, from
 a container that was never created — while the staging area still holds every
 entry. `FN-20`'s role forbids reading that leftover as evidence that anything
-happened, and the library's whole world is `<root>` and `<root>/..`, so it has
-nowhere to put a receipt that is not the leftover. This is
-`TODO.finish_process.md`'s *"the interval is the whole problem"* reached from the
-library's side, and what it decides is ownership: the receipt must live outside
-the container, Grove's correlation ticket is that receipt
+happened, and **no filesystem receipt fixes it**: the thing that decides whether
+the destruction should have happened is an *external* effect the library cannot
+observe, so a library-written receipt could only say *I removed the root*, never
+*the removal is committed*. Grove's receipt is the correlation ticket, and it
+lives in the repository's own history — the one place that survives both the
+container's destruction and its re-creation at the same name. This is
+[`finish-layers-are-forced-not-chosen`](finish-layers-are-forced-not-chosen.md)'s
+*"the interval is the whole problem"* reached from the library's side, and what
+it decides is ownership: the receipt must live outside the container, Grove's correlation ticket is that receipt
 ([`success-is-proved-by-the-ticket-not-the-tree`](success-is-proved-by-the-ticket-not-the-tree.md)),
 and a component with no notion of "outside" cannot own an operation whose
 completion only that receipt establishes.
@@ -109,17 +117,77 @@ The chosen option is the middle one, and it is not the same as the third: the
 adapter is a boundary this workstream still owes inside `grove-finish`, and this
 record decides only that the boundary is not a crate one.
 
-## What is deferred, and what would reopen this
+## The verdict was contested and stands
 
-**Root *creation* is a genuinely narrower question and it was not decided here.**
-It needs no coordinator, no receipt and no callback: publish the identity token
-last by one same-directory rename, so an interruption classifies partial and
-never valid. It survived every dial in the prototype. It is deferred to
-`finish-verdicts-k65`, which is sizing the crate boundaries and can weigh what
-it actually removes from grove; the prototype measured that it *works*, not that
-it *earns its place*.
+`finish-verdicts-k65` was chartered to contest this rejection rather than inherit
+it, and the ground of the contest was the obvious one: **the prototype is gone,
+so the instrument cannot be attacked and the argument has to carry itself.** It
+does, and which parts do is worth recording.
 
-Reopen the rejection if a consumer appears that needs whole-root destruction
-**without an external effect to coordinate with** — a destroy whose only verdict
-is the filesystem's own. That consumer has no receipt problem, no coordinator and
-no callback, and the argument above does not reach it.
+- **The first argument is independent of the prototype.** `FN-20`'s role is
+  mutation-killed in both families, `FN-03`'s ticket is checked in both, and
+  [`success-is-proved-by-the-ticket-not-the-tree`](success-is-proved-by-the-ticket-not-the-tree.md)
+  was reached by falsifying three separate formulations of `FN-28` against a
+  trace, not by the prototype.
+- **The third argument is independent too**, and doubly so: `FN-22`'s two
+  `Committed -> …` departure rows are in the catalogue with witnesses in both
+  columns, and the append-only-history incident that made them answerable *by
+  construction* is a recorded model failure rather than a prototype result.
+- **The second argument is the one that dies with the prototype.** The
+  re-entrancy cost — a caller consulted mid-transaction can only be refused — was
+  measured there and nowhere else. It is not load-bearing: the first and third
+  each suffice alone.
+
+**One sentence was found too strong and is corrected above rather than defended.**
+It read *the library's whole world is `<root>` and `<root>/..`, so it has nowhere
+to put a receipt that is not the leftover* — but `<root>/..` **is** in the
+library's world, and a receipt there would outlive the root. The rejection does
+not need that claim and is stronger without it: the problem is not where a
+receipt can sit but what it can attest, and no filesystem artifact can attest an
+external effect.
+
+## Root creation is rejected too, and the measurement is what decides it
+
+The deferred question was whether *creation alone* — no coordinator, no receipt,
+no callback, just publish the identity token last by one same-directory rename —
+earns a place in the library. It does not, and the reason is depth rather than
+correctness: **once the coordinator is removed there is nothing left to hide.**
+
+What would move out of grove, measured: `create_root_unlocked` is ten lines
+(`create_dir_all`, then the charter); `write_root_brief` and `root_brief_body`
+are eleven and are *entirely* domain content that would have to be passed back in
+as bytes; and `tree_format::write_current_last` is thirty-six, of which the
+generic residue is *create a same-directory temporary idempotently and rename it
+into place* — about thirty lines of `std::fs` calls with no algorithm behind
+them. Against that, the library's interface would gain three concepts it does not
+have: creating a root at all, a distinguished child that arrives at creation
+rather than through `promote`, and a consumer-supplied identity token with a
+publish-last contract.
+
+**And the half that makes the operation correct cannot move.** `TT-20`'s
+load-bearing clauses are stated over grove's format taxonomy — the interrupted
+root SHALL never classify `Current(*)`, and once a root-init-exclusive entry has
+landed it SHALL classify `PartialScaffold(_)` and never `Legacy` — and the
+library has no vocabulary for any of those words. Nor would library ownership
+close the two-phase window: a lock does not survive a crash, `EN-06` grants only
+that *cooperating* processes are serialized, and the catalogue already records
+that closing it is a **product** change — make root initialisation's first write
+a root-init-exclusive one. The guard release between the two phases is
+load-bearing in the other direction as well, since it is what lets a second
+cooperating process meet a partial root and complete it.
+
+So both halves of root lifecycle stay with grove, for different reasons:
+destruction because it cannot be terminated without the receipt, creation because
+it is too shallow to be worth an interface.
+
+## What would reopen this
+
+Reopen the **destruction** rejection if a consumer appears that needs whole-root
+destruction **without an external effect to coordinate with** — a destroy whose
+only verdict is the filesystem's own. That consumer has no receipt problem, no
+coordinator and no callback, and the argument above does not reach it.
+
+Reopen the **creation** rejection on depth rather than on need: a second consumer
+whose own root creation has the same publish-last shape turns thirty shallow
+lines into a duplicated contract, and duplication across consumers is what makes
+a thin interface earn its place. One consumer is not evidence of that.

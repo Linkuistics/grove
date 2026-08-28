@@ -267,9 +267,12 @@ trace trimmed to the transition that matters.
 
 ### What the models must be able to decide
 
-[`TODO.finish_process.md`](../../TODO.finish_process.md) asks four questions that
-`finish-verdicts-k65` must answer *keep*, *delete/replace* or *defer* with
-evidence — and "the model is smaller" is explicitly not evidence. The catalogue
+`TODO.finish_process.md` asked four questions that `finish-verdicts-k65` had to
+answer *keep*, *delete/replace* or *defer* with evidence — and "the model is
+smaller" is explicitly not evidence. That file is gone;
+[`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md)
+is where the four questions and their answers now live, and every `Decides:` line
+below cites it. The catalogue
 fixes which obligations decide each, so the answer is read off the models rather
 than argued — but fixing that required separating two kinds of claim first.
 
@@ -298,10 +301,33 @@ green — the reachability answers *is this needed*, and the retained claims ans
 
 | question | shared safety retained | incumbent mechanics at stake | what would classify it *delete/replace* |
 |---|---|---|---|
-| **Q1 — does the quarantine need to exist?** | `FN-20`, `FN-24`, `FN-27`, `TT-24` | `FN-19`, `FN-21`, `FN-31` | both candidate strategies — the incumbent quarantine handoff, and disposal-in-place under `relax_EN_03` — checked against the shared-safety claims, and disposal-in-place holding every one of them with each of `FN-24`'s obligations' witnesses reached at a bound no greater than the incumbent's |
+| **Q1 — does the quarantine need to exist?** | `FN-20`, `FN-24`, `FN-27`, `FN-32` | `FN-19`, `FN-21`, `FN-31` | both candidate strategies — the incumbent quarantine handoff, and disposal-in-place under `relax_EN_03` — checked against the shared-safety claims, and disposal-in-place holding every one of them with each of `FN-24`'s obligations' witnesses reached at a bound no greater than the incumbent's |
 | **Q2 — can the three dispositions become two?** | `FN-15`, `FN-25` | — | `FN-15.d`'s bounded-unreachability check passing for `Indeterminate` on a lane, at a bound strictly greater than the one at which `FN-15.b` and `FN-15.c` first land their witnesses, in **both** families |
 | **Q3 — is the marker-replacement sub-transaction reachable?** | `FN-24` | `FN-31`, `FN-21`, `FN-22` | `FN-31.a`'s bounded-unreachability branch establishing that no state requires a *replace* rather than a create or a remove, at a bound strictly greater than the one at which `FN-21.a` and `FN-31.b` first land their witnesses, in **both** families. `FN-31.a`'s witness merely failing to land is a `defer`, for the reason Q2 gives |
 | **Q4 — what does finish still owe the user?** | `FN-27`, `FN-28`, `SY-05` | every artifact and transition in the matrix below | a row of the removal matrix whose artifact or transition can be removed without breaking **any** shared-safety claim |
+
+**ALL FOUR ARE ANSWERED, AND ALL FOUR ANSWER `keep`**
+([`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md),
+which replaced `TODO.finish_process.md`). The table above stays because it is
+what the answers were read against, and because the two things
+`finish-verdicts-k65` had to change in it are worth more than the verdicts:
+
+- **Q1's retained set names `FN-32` where it named `TT-24`.** The claim is
+  retained, in the context the finish scope can actually state it: `TT-24`'s
+  transaction context *is* `FN-32`, the letters `c` and `d` are retired, and
+  [`obligations-follow-context-not-artifact`](../adr/obligations-follow-context-not-artifact.md)
+  forbids a scope above citing `TT-24.a` as evidence about an action `TT-` does
+  not admit — the row of Q4's matrix that did so was withdrawn for exactly that.
+  A retained set naming a claim the mutating family cannot check is a criterion
+  that cannot be met, and `relax_EN_03` now asserts `FN-32` in its place.
+- **A counterfactual-capability control measures admissibility, never
+  availability, and Q1's and Q2's criteria above were written as if it measured
+  the second.** Both are stated over a control that *grants* a capability the
+  [environment table](#environment-assumptions) records as absent — `EN-03` and
+  `EN-05` — so as pre-registered neither question could return `delete/replace`
+  against the shipped world however green the run. The criteria are left standing
+  rather than rewritten, because what they measure is real and the defect is in
+  what was read off them; the ADR carries the rule.
 
 **Q2 needs an instrument, not an absent witness.** "The witness never landed" and
 "no trace reaches it" are different statements, and only the second decides
@@ -711,7 +737,8 @@ and selection is an Observation action that does read the tree — so gating it 
 the tree read arriving one step earlier rather than a second gate.
 
 `replace-cleanup-marker` is in the table rather than folded into
-`dispose-quarantine` because [`TODO.finish_process.md`](../../TODO.finish_process.md)
+`dispose-quarantine` because
+[`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md)
 Q3 asks whether *replacement* — as against creating a marker or removing one — is
 reachable at all. A model that folds it away answers Q3 by construction, which is
 the shape of a false-confidence incident rather than a finding. `FN-31` is its
@@ -1161,7 +1188,7 @@ cell.
 |---|---|---|---|---|---|
 | `EN-01` | A same-directory rename is atomic with respect to namespace visibility. | premise-break | Quint — `relax_EN_01`, a rename observable half-applied | `FN-09.a`, `FN-19`, `FN-24.a`, `TT-20` | `FN-09.a` fails — a published witness is observable half-renamed — and `FN-24.a` fails with it, since the torn state is classifiable as two stable states |
 | `EN-02` | A rename cannot cross a filesystem boundary. | exercise-removal | Alloy — a two-device scope | `FN-08` | with a single-device scope, `FN-08`'s witness — a layout that passes at lease acquisition and fails at the transaction's own operands — is unreachable; the property stays green |
-| `EN-03` | There is no atomic recursive directory deletion. | counterfactual-capability | Quint — `relax_EN_03`, disposal as one step (this is Q1's counterfactual) | retained: `FN-20`, `FN-24`, `FN-27`, `TT-24`. replaced: `FN-19`, `FN-21`, `FN-31` | every retained obligation stays green under the candidate, at bounds no greater than the incumbent's; the replaced claims are not checked against the candidate and their failure under it is not evidence |
+| `EN-03` | There is no atomic recursive directory deletion. | counterfactual-capability | Quint — `relax_EN_03`, disposal as one step (this is Q1's counterfactual) | retained: `FN-20`, `FN-24`, `FN-27`, `FN-32`. replaced: `FN-19`, `FN-21`, `FN-31` | every retained obligation stays green under the candidate, at bounds no greater than the incumbent's; the replaced claims are not checked against the candidate and their failure under it is not evidence |
 | `EN-04` | There is no atomic replacement of a file by a differently named directory. | counterfactual-capability | Alloy — the promotion structure, inherited from the delegated boundary | retained: `TT-07`, `TT-08`, `TT-09`. exercised: `TT-02.b` | with promotion atomic, `TT-07`, `TT-08` and `TT-09` stay green, and `TT-02.b`'s witness still lands by `hand-edit` (`EN-11`) rather than through a half-promoted entry — which records that `EN-04` buys step count, not safety, and that no claim in this catalogue depends on it |
 | `EN-05` | No filesystem transaction can include a version-control commit. | counterfactual-capability | Quint — `relax_EN_05`, commit and evacuation as one step (this is Q2's counterfactual) | retained: `FN-03`, `FN-15`, `FN-24`, `FN-25`, `FN-27`. replaced: `FN-09`, `FN-11`, `FN-22` | every retained obligation stays green; `FN-15.d`'s bounded-unreachability check passes for `Indeterminate` on every lane, and `FN-25.b` is then exhaustive over one diagnosis — which is the evidence Q2 reads |
 | `EN-06` | Locks are advisory: only cooperating processes are serialized, and a direct edit is outside the guarantee. | exercise-removal | Quint — `relax_EN_06`, a non-cooperating writer | `TT-21.b`, `TT-22` | removing the non-cooperating writer makes `TT-21.b`'s witness unreachable, while `TT-22`'s obligations stay green — which is exactly the content of the assumption, and the reason `TT-21` cannot claim to exclude one |
@@ -1836,8 +1863,8 @@ fingerprint and the exact immediate result.
   fails to land satisfies neither branch and is a `defer`.
   *Witness*: reached on each lane, **or** the unreachability check's bound and
   result recorded per lane.
-*Decides*: [`TODO.finish_process.md`](../../TODO.finish_process.md) Q2, jointly
-with `FN-25`. What the unreachability branch can decide is bounded by its own
+*Decides*: [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md)
+Q2, jointly with `FN-25`. What the unreachability branch can decide is bounded by its own
 bound and never more.
 
 **`FN-16` — rollback is licensed only by proof.** Restoration SHALL require the
@@ -2009,7 +2036,7 @@ rather than by construction whether it is needed.
 - `FN-31.d` — a replacement is never performed against a marker Grove cannot
   prove is its own (`TT-24.a`). *Witness*: a foreign marker, declined.
 *Class*: incumbent mechanics.
-*Decides*: [`TODO.finish_process.md`](../../TODO.finish_process.md) Q3.
+*Decides*: [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md) Q3.
 
 ### Recovery, refusal and the exits
 
@@ -2044,7 +2071,7 @@ alone, which is why it is not the whole claim.
   *Witness*: the step list, enumerated, each step's persistent effect named.
 *Class*: shared safety — this is the claim a candidate protocol is judged
 against, and it names no artifact of the incumbent one.
-*Decides*: [`TODO.finish_process.md`](../../TODO.finish_process.md) Q1 — a cheaper
+*Decides*: [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md) Q1 — a cheaper
 protocol is admissible only if both obligations still hold under it, with
 `FN-24.a`'s witnesses reached at a bound no greater than the incumbent's.
 
@@ -2072,8 +2099,8 @@ the partition neither disjoint nor exhaustive.
 - `FN-25.c` — each diagnosis is reachable on **each** lane. *Witness*: each
   diagnosis, on each lane.
 *Class*: shared safety.
-*Decides*: [`TODO.finish_process.md`](../../TODO.finish_process.md) Q2, jointly
-with `FN-15`.
+*Decides*: [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md)
+Q2, jointly with `FN-15`.
 
 **`FN-26` — history is never rewritten to clear a block.** A block SHALL stay
 blocked and operator-restorable, naming the artifact holding the transaction,
@@ -2230,10 +2257,13 @@ artifact, three contexts* decides it per step against `FN-29.b`. `FN-32` is the
 conjunct every step shares whatever its outcome, which is why it stayed
 separable from the outcome question and survived it.
 
-**Q1's retained list does not yet name it, and extending that list is
-`finish-verdicts-k65`'s.** `FN-32` is shared safety, so a candidate protocol must
-supply it; whether Q1's own row gains it as a named retained claim is a change to
-that question's evidence criteria and belongs to the child that answers Q1.
+**Q1's retained list names it, in place of `TT-24`, and
+`finish-verdicts-k65` made that swap rather than an addition.** `FN-32` is shared
+safety, so a candidate protocol must supply it — and it is the obligation the
+*finish* scope can state and check, which `TT-24` is not: the same placement rule
+that retired `TT-24.c` and `TT-24.d` into `FN-32` and `FN-21.c` is what stops
+`relax_EN_03` discharging a `TT-` obligation. Nothing is dropped from the
+retained set; the claim is named where its context lives.
 
 **`FN-32` is deliberately narrower than the reaper's `FN-21.c`, and the two must
 stay separable.** `FN-21.c`'s subject is a sweep with no transaction live;
@@ -2686,9 +2716,9 @@ remove only the proved-owned branch/worktree". No such exit is modelled, and
 `FN-28` states the single successful exit instead. Grove reads no branch or
 bookmark, creates no working tree and performs no integration; the user owns
 topology, and describing finish as merging anything version-control-topological
-describes the cycle Grove replaced. `TODO.finish_process.md`, which the brief
-names as the authoritative pointer for the required finish concerns, asks the
-opposite question — how much of the machinery protects the repository as against
+describes the cycle Grove replaced. [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md),
+which carries the finish concerns the root brief pointed at
+`TODO.finish_process.md` for, asks the opposite question — how much of the machinery protects the repository as against
 Grove's own intermediate artifacts. This was put to the human, who confirmed
 today's contract. Reopening it is a brief change plus a rework of
 [`task-tree-transactions-fail-closed`](../adr/task-tree-transactions-fail-closed.md)

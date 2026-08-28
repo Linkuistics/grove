@@ -1725,7 +1725,8 @@ witness, correlated by this handle and this attempt identity.
   running in this process*. Nothing here models a second process, a lease, or the
   file lock that `TT-22` is about, so what is checked is that a sweep run when
   Grove believes nothing is in flight touches only what it can prove is its own.
-  The shipped reaper is **lease-owned** (`TODO.finish_process.md`,
+  The shipped reaper is **lease-owned** ([`finish-layers-are-forced-not-chosen`](../../../docs/adr/finish-layers-are-forced-not-chosen.md),
+ 
   `src/finish_cleanup/reaper.rs`) and that is exactly the machinery this file
   does not have. `SY-` is where the two would meet.
 - **Not that the marker's own byte layout is crash-safe.** The catalogue lists
@@ -2175,7 +2176,7 @@ right.
 SURVIVES ROW 45, WHICH IS THE POINT OF HAVING IT.** The mutation removes the
 protocol's ability to *act on* a stale marker, not its ability to *produce* one.
 Two commands, two different things: one says the source state is reachable, the
-other says the transition that needs it exists. `TODO.finish_process.md` Q3 needs
+other says the transition that needs it exists. The finish questions' Q3 needs
 both.
 
 **THE DISPOSAL SLICE DECIDES NO `Q4` ROW EITHER, AND THE CLASS REGISTER IS WHY.**
@@ -2637,7 +2638,10 @@ FILE HAS NOW MET FROM FOUR DIRECTIONS.**
     cannot report success by looking at the task-root name.** See *A tenth
     finding*.
 
-## `TODO.finish_process.md` Q3, answered — and the enumeration it asked for
+## Q3, answered — and the enumeration it asked for
+
+These are the four questions [`finish-layers-are-forced-not-chosen`](../../../docs/adr/finish-layers-are-forced-not-chosen.md)
+settles; the sections below are the evidence it reads.
 
 **Q3 asks: *is the marker-replacement sub-transaction reachable?  Enumerate the
 states that require replacing rather than creating or removing a marker.*** The
@@ -3032,9 +3036,30 @@ mechanics claims and neither is yet an answer to Q4*. Row 14's is (`FN-11`);
 **row 17's is not** (`FN-13`). The consequence is a row of Q4's matrix, and it is
 recorded below rather than corrected in place, because the five inherited rows
 are transcribed rather than re-derived and a silent edit would lose the fact that
-the file disagreed with the register for three slices. `finish-verdicts-k65`
-settles which of the two is wrong, because the consequence is a row of Q4's
-matrix.
+the file disagreed with the register for three slices.
+
+**SETTLED BY `finish-verdicts-k65`: THE REGISTER IS RIGHT AND THIS FILE'S NOTE
+WAS WRONG. `FN-13` IS SHARED SAFETY.** Its role-form is *a transaction never
+lands its own in-flight artifacts in the user's history, and blocks rather than
+proceed if it would* — a property any admissible protocol must have, not a fact
+about the incumbent's steps. That it names a concrete artifact decides nothing:
+the register's own rule is that a shared-safety claim naming an artifact names
+*the incumbent realisation of a role*, exactly as it does for the correlation
+ticket, the manifest and the recorded anchor. It also sits with the two claims it
+was corrected against — `FN-14` (the commit is scoped) and `FN-29.b` (a refusal
+is complete) — both shared safety, and `finish-scope-k71`'s repair restated its
+outcome as `Blocked(RecoveryPending)`, which is a statement about the outcome
+discriminator rather than about a step list.
+
+**The consequence for Q4-1 is that the row IS a Q4 answer**, where the
+commit-slice note said neither of rows 14 and 17 yet was. Row 14's is still not
+(`FN-11` is incumbent mechanics); row 17's is. What the row does **not** become
+is evidence about a candidate protocol, and the reason is unchanged and is
+already in the cell: row 17 mutates the **gate**, and under a *total* removal of
+the reserved witness `FN-13` is satisfied vacuously. So Q4-1 reads *the reserved
+witness protects the user, under any protocol that still has one* — which is what
+it should have read all along, and which Quint's Q4-101 reaches independently by
+a different obligation.
 
 ## A thirteenth finding and a fourteenth — both produced by landing a disposition
 
@@ -3106,7 +3131,7 @@ returned `Applied`; the evidence that the antecedent is satisfiable at all is
 (command, the reachability witness that keeps it non-vacuous) is what a later
 reader should check rather than the prose.
 
-## `TODO.finish_process.md` Q4 — the matrix, and three rows that read `none`
+## Q4 — the matrix, and three rows that read `none`
 
 **The catalogue names the ten rows**, so the matrix is not this file's to size:
 *the reserved witness, the evacuation manifest, its ready mark, the correlation
@@ -3134,7 +3159,7 @@ the artifact has no counterpart in this file.
 
 | # | family | removable artifact or transition | first **shared-safety** obligation its removal breaks | evidence |
 |---|---|---|---|---|
-| Q4-1 | alloy | the **reserved witness**, as the thing every candidate committed tree excludes | `FN-13` | mutation — row 17. **See the twelfth finding**: this row was recorded for three slices as incumbent mechanics and the register says shared safety. Under *total* removal the claim is satisfied **vacuously**, which is `FN-20`'s shape and is why the row is evidence about the mutation discipline rather than about a candidate protocol |
+| Q4-1 | alloy | the **reserved witness**, as the thing every candidate committed tree excludes | `FN-13` | mutation — row 17. **See the twelfth finding**, now settled: the register is right, `FN-13` is shared safety, and this row is therefore a Q4 answer. Under *total* removal the claim is satisfied **vacuously**, which is `FN-20`'s shape and is why the row is evidence about the mutation discipline rather than about a candidate protocol |
 | Q4-2 | alloy | the **evacuation manifest**, as the record a restoration restores *to* | `FN-02` | mutation — row x2, and **not the obligation the argument predicted**. A restore branch that stops matching the manifest was expected to kill `FN-17.a` (*a restoration matches the manifest*) and does not; it kills `FN-02` and `FN-22.d`. Read forward: without the record, the restoration cannot put the **finish leaf** back, and *intent persists as the finish leaf* is the first shared-safety claim that notices. `FN-17.a`'s first conjunct is guarded on entries actually returning and its second on the release, so a restoration that returns nothing slips beneath both — which is itself worth a line to whoever writes the Quint row |
 | Q4-3 | alloy | its **ready mark** | `FN-10.a` — **incumbent mechanics, so not yet a Q4 answer** | mutation — row 12 |
 | Q4-4 | alloy | the **correlation ticket**, as an *attempt-naming* record | `FN-04` | mutation — row 19, transcribed |
@@ -3230,7 +3255,7 @@ set, `FN-32` covers a live transaction's steps, and the reaper is covered by
 `FN-21.b`/`FN-21.c`, both incumbent mechanics. The cleanup marker therefore joins
 the quarantine (`Q4-5`) and the replace transition (`Q4-7`) as an artifact this
 family's evidence says protects **Grove's own intermediate machinery** and not
-the user — which is `TODO.finish_process.md` Q4's delete/replace criterion met a
+the user — which is Q4's delete/replace criterion met a
 second and third time. Whether that licenses removal is Q1's and Q4's question
 and not this file's.
 
@@ -3671,7 +3696,7 @@ written rather than by anything the protocol does:
   `FN-15.a` because that is how one writes it. The mutant reads the reported
   exit status instead, and the claim dies. Without it, `FN-15.a` would be
   reported green on no evidence at all — and `FN-15.a` is the claim
-  `TODO.finish_process.md` Q2 partly turns on.
+  Q2 of the finish questions partly turns on.
 - **`mutant_short_preflight`** kills four at once, and that is its content:
   `FN-06`, `FN-07`, `FN-08` and `FN-12.b` are each satisfied by the ORDER the
   model happens to check things in. Four obligations resting on one coding habit
@@ -3722,7 +3747,7 @@ relaxing it.
 
 | control | retained | result |
 |---|---|---|
-| `relax_EN_03` (atomic recursive deletion — **Q1**) | `FN-20`, `FN-24.a`, `FN-24.b`, `FN-27.a`–`.c` | all hold; the candidate's own successful exit reached in 46% of traces |
+| `relax_EN_03` (atomic recursive deletion — **Q1**) | `FN-20`, `FN-24.a`, `FN-24.b`, `FN-27.a`–`.c`, `FN-32` | all hold; the candidate's own successful exit reached in 46% of traces. **`FN-32` is `finish-verdicts-k65`'s addition**, in place of the `TT-24` Q1's retained set named and this scope cannot discharge |
 | `relax_EN_05` (commit inside the transaction — **Q2**) | `FN-03`, `FN-15.a`, `FN-24.a`, `FN-25.a`, `FN-25.b`, `FN-27.a` | all hold; `Indeterminate` unreached on every lane |
 | `relax_EN_15` (machine-attested confirmation) | `FN-01.a`, `FN-01.b` | both hold, both witnesses still land; **no obligation strengthened** |
 
@@ -3870,6 +3895,7 @@ QUINT_VERIFY=1 models/run.sh --scope finish --family quint  # …and model-check
 | `--scope finish --family quint` | **exit 0** — 4m 25s wall / 317s CPU on a 16-core host, 228 commands, 0 failures, `-- cells: 61 complete, 0 declared gaps, 0 empty, of 61`, Q4 matrix 10 of 10 rows |
 | `--scope finish --family quint`, after `closed-set-additions-k74` | **exit 0** — **236 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Eight more commands and two more cells: `FN-29` split into `.a` and `.b`, `FN-29.b` carries a witness per arm, and `wit_FN_32` now reads both arms because the witness-slot step moved from a block to a refusal |
 | the same with `QUINT_VERIFY=1` | **exit 0** — 11m 51s wall, 289 commands, 0 failures; the 61 `SKIP` lines become `model-checked to depth 4, no counterexample` |
+| `--scope finish --family quint`, after `finish-verdicts-k65` | **exit 0** — **240 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows (3 `none`, 1 abstracted). **5m 07s wall** (`2026-08-28T04:33:02Z` → `04:38:09Z`). One more command than the row below: `relax_EN_03` gained `inv_FN_32_ownership_still_proven_under_the_candidate`, which **holds**, so Q1's retained set is now checked in full by the family the assumption table assigns `EN-03`'s mutation to. Provenance: `docs/specs/semantic-contract.md`, this README and both `.qnt` files were digested before the run and re-digested after, byte-identical either side, and the GAP-line count was 4 both times; this row was written after the run |
 | `--scope finish --family quint`, after `finish-scope-k76` | **exit 0** — **239 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Three more than the row above: `mutant_correlation_wins_the_overlap`'s `inv_fail_MUT_FN_25a_correlation_wins_the_overlap`, plus the two `mutant_*` commands the k71 row already counted under verify |
 | the same with `QUINT_VERIFY=1`, after `finish-scope-k76` | **exit 0** — **14m 35s wall** (`2026-08-28T01:37:28Z` → `01:52:03Z`), **302 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. All **63** properties `model-checked to depth 4, no counterexample`, the restated `inv_FN_25a_the_carried_diagnosis_is_the_one_precedence_selects` among them — so the precedence is model-checked and not only simulated. One more command than k71's 301 and ~1m 40s dearer; the extra wall time is `models/run-controls.sh` running concurrently for part of it, which the k71 note predicts. **`inv_fail_MUT_FN_25a_correlation_wins_the_overlap` reports `violated, as the control requires`**, and its module carries `scenario_edit_txn`'s environment rather than its neighbours' — with the neighbours' it reports green, because the overlap is unreached there |
 | `--scope finish --family quint`, after `finish-scope-k71`, with `QUINT_VERIFY=1` | **exit 0** — 12m 53s wall / 376s CPU, **301 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. All 63 properties `model-checked to depth 4, no counterexample`, the restated `inv_FN_24a` among them. Two more commands than the batch above's non-verify count: `mutant_no_quarantined_state` and `mutant_absent_classified_first`, both reported `violated, as the control requires` |
@@ -3899,7 +3925,7 @@ One row per control, and what it killed. Q4's rows cite these by number.
 | row | control | class | what it does | result |
 |---|---|---|---|---|
 | 901 | `relax_EN_01` | premise-break | a rename observable half-applied | `FN-09.a` and `FN-24.a` die |
-| 902 | `relax_EN_03` | counterfactual | atomic recursive deletion: disposal in place, no quarantine, no marker, no replace transition | every retained shared-safety obligation holds |
+| 902 | `relax_EN_03` | counterfactual | atomic recursive deletion: disposal in place, no quarantine, no marker, no replace transition | every retained shared-safety obligation holds, `FN-32` included. **It is one `const`**: `ATOMIC_DISPOSAL`'s true branch replaces `SQuarantineRename` and every step after it with one `SDisposeInPlace`, which is why rows Q4-105 – 107 cannot be separated — see below |
 | 903 | `relax_EN_05` | counterfactual | the commit inside the filesystem transaction | every retained obligation holds; `Indeterminate` unreached on every lane |
 | 904 | `relax_EN_08` | exercise-removal | `crash` removed | six interruption witnesses unreachable |
 | 905 | `relax_EN_13` | premise-break | the reaper sweeps its reserved namespace | `FN-27.a` and `FN-21.b` die |
@@ -3933,7 +3959,7 @@ transitively redundant by construction, so a disk's classification survives the
 loss of any single pair on a neighbouring one.
 
 
-## `TODO.finish_process.md` Q4 — the removal matrix, Quint's rows
+## Q4 — the removal matrix, Quint's rows
 
 One row per removable artifact, naming the **first shared-safety obligation** its
 removal breaks under the mutation discipline, or `none`. A row reading `none` in
@@ -3961,7 +3987,7 @@ quarantine's disposal resumable and the replace transition exists to advance the
 marker. Under the candidate every retained shared-safety obligation holds at a
 bound no greater than the incumbent's, and the candidate's own successful exit is
 reached in 46% of traces. What that says is that the three protect **Grove's own
-intermediate artifacts**, not the user — which is `TODO.finish_process.md` Q4's
+intermediate artifacts**, not the user — which is Q4's
 question asked precisely.
 
 **What it does NOT say is `none` for each artifact removed on its own**, and the
@@ -3985,3 +4011,59 @@ answer from this column is not *delete*: the transition is needed by the
 incumbent protocol, and what row Q4-107 says is that the incumbent protocol is
 what needs it. Those are different findings and `finish-verdicts-k65` owns
 which one decides Q3.
+
+## The four verdicts, and what each one leaves this file owing
+
+`finish-verdicts-k65` answered `TODO.finish_process.md` Q1 – Q4 **keep**, and the
+durable record is
+[`finish-layers-are-forced-not-chosen`](../../../docs/adr/finish-layers-are-forced-not-chosen.md).
+Four things this file handed up are settled here rather than left in a retired
+task file.
+
+**Q3 is decided by `FN-31.a`'s witness and not by row Q4-107.** The section above
+names the two findings and asks which decides. It is the witness: Q4-107 says the
+*incumbent* protocol is what needs the replace transition, which is a
+classification of the artifact, while `FN-31.a` says a state requiring
+replacement is **reached**, which is the reachability question Q3 actually asks.
+The two do not conflict — Q3 is answered *within* the incumbent, and Q1 is the
+only thing that could have made it moot. Q1 answers keep, so it does not.
+
+**The commission this column offered for Q4-105 – 107 is DECLINED, and the reason
+is stronger than "no verdict needs it".** The README warns that no control here
+removes the quarantine while retaining the marker. The deeper fact is that no
+control **can**: `ATOMIC_DISPOSAL` is a single `const` whose true branch replaces
+`SQuarantineRename` and every step after it with one `SDisposeInPlace`
+([`finish.qnt`](finish.qnt), the `SRevalBeforeQuarantine` arm), and of the
+thirty-four instance modules in [`finish-controls.qnt`](finish-controls.qnt)
+**exactly one sets it true** — enumerated rather than sampled. So an
+artifact-specific removal is not a mutation of the incumbent at all; it is a
+fourth candidate protocol (in-place *non-atomic* disposal, keeping the marker)
+with the quarantine's resumption problem **and** an observable partial task root,
+which nothing pre-registered and which is strictly worse than both candidates
+already checked. **That the artifacts and the missing capability are the same
+parameter is itself the measurement**: they exist to compensate for its absence.
+
+**Q1's criterion is unmet in one place that is now closed and one that is left
+open with the reason.** Closed: the retained set named `TT-24`, which this scope
+cannot discharge, and `relax_EN_03` now asserts `FN-32` in its place. Open:
+Q1's criterion asks for **each of `FN-24`'s obligations' witnesses** reached at a
+bound no greater than the incumbent's, and `relax_EN_03` asserts six invariants
+and one witness — `wit_FN_28_the_candidate_reaches_its_successful_exit`, which
+is `FN-28`'s and not `FN-24`'s. The commission, if anyone ever needs it, is
+named: a `wit_FN_24a_crash_at_<step>` per step of the **candidate's** step list —
+`SDisposeInPlace` standing where `SQuarantineRename`, `SCreateMarker`,
+`SReplace*`, `SDisposeEntry` and `SRemoveMarker` stand in the incumbent — plus
+`wit_FN_24b_*` for the candidate's enumerated list. It was **not** run, because
+running it cannot change the verdict: `EN-03` is granted-absent, so the candidate
+is admissible and unavailable, and no strengthening of an admissibility result
+makes a mechanism removable.
+
+**And the Alloy column's `none` for Q4-5 is not a gap either.** *"Nothing here
+runs that candidate"* reads as a shortfall and is not one: the assumption table
+assigns `EN-03`'s mutation to **Quint**, one family per row, and
+[`finish.als`](finish.als) runs no counterfactual-capability mutation at all —
+every `EN_`-named command in it is `EN-02`, `EN-08`, `EN-09` or `EN-16`. The
+positive control is `crates/grove-task-tree/models/task-tree.als`, which carries
+`expect_unreachable_EN_04_promotion_is_never_observed_half_applied`, Alloy's own
+assigned counterfactual. Q1's row is also the only one of the four whose
+criterion does not say *in both families*.

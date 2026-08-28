@@ -1172,8 +1172,9 @@ The concentration the target dependency direction is meant to break up.
 | 1,257 | `src/finish_cleanup/auxiliary.rs` |
 
 The finish/recovery concern alone is **10,366 production lines — 34% of `src/`** —
-plus 6,701 lines of test. `TODO.finish_process.md` carries that breakdown and the
-four questions it raises; this row is here so the count is anchored to a revision.
+plus 6,701 lines of test. [`docs/adr/finish-layers-are-forced-not-chosen.md`](adr/finish-layers-are-forced-not-chosen.md)
+carries that breakdown and the four questions it settles; this row is here so the
+count is anchored to a revision.
 
 `src/tree_migrate.rs` (1,534) and `src/tree_migration_transaction.rs` (1,497) —
 3,031 lines — are the approved deletion. Nothing else in this table is scheduled

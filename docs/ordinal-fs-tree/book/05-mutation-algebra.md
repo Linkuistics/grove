@@ -121,12 +121,12 @@ impl<P> NewEntry<P> {
 <a id="effects-and-levels"></a>
 ## Effects and levels
 
-A plan names a destination level as the root, a snapshot node, or a node created
-by an earlier effect in the same plan. The last form is required by promotion:
-the destination for the promoted content does not exist when planning begins.
-`Effect` contains only forward `Create` and `MoveTo` actions. Removal belongs to
-the interpreter's private undo type, so no forward operation can construct a
-removal plan.
+`Level` names a destination as the root, a snapshot node, or
+`Level::Created(effect_index)`, a node created by an earlier effect in the same
+plan. The last form is required by promotion: the destination for the promoted
+content does not exist when planning begins. `Effect` contains only forward
+`Create` and `MoveTo` actions. Removal belongs to the interpreter's private undo
+type, so no forward operation can construct a removal plan.
 
 The plan module owns this vocabulary. The fragment turns snapshot identities
 and composed names into two primitive forward effects, establishes their written
@@ -259,8 +259,9 @@ impl<N: EntryName> Effect<N> {
 <a id="worked-insert-decision"></a>
 ## One complete insert decision
 
-The opening command inserts the draft lesson `limits` at ordinal 2 in the module
-with key 2. The relevant level in the captured snapshot is:
+The opening command returns to the orientation tree, not the read-path variant,
+and inserts the draft lesson `limits` at ordinal 2 in the module with key 2. The
+relevant level in the captured snapshot is:
 
 ```text
 02-linear-algebra-i2/
@@ -595,9 +596,9 @@ paths():
 
 The names expose key 6 followed by key 5 in `renamed()` and key 7 in
 `created()`. The caller-spelled paths expose the same two moves followed by the
-create in `paths()`. The separate `Landing` sequence is necessary because two
-species-specific vectors cannot reconstruct an interleaving such as promotion's
-create, move, create.
+create in `paths()`. The separate `Landing` sequence records each landed create
+or move in complete effect order because two species-specific vectors cannot
+reconstruct an interleaving such as promotion's create, move, create.
 
 The report module owns the consumer-visible record written during application.
 This fragment turns landed creates and moves into names and caller-spelled paths,

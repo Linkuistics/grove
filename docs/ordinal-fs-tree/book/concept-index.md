@@ -6,8 +6,12 @@
 <a id="concepts"></a>
 ## Concepts
 
+- [Fragment notation](README.md#reading-fragments)
 - [Consumer and operator](01-orientation.md#purpose-and-boundary)
 - [Root, entry, leaf, node, and level](01-orientation.md#working-vocabulary)
+- [Package and dependency boundary](01-orientation.md#package-contract)
+- [Public crate surface](01-orientation.md#public-surface)
+- [Complete insert tour](01-orientation.md#insert-tour)
 - [Ordinal and key](02-name-seam.md#ordinal-and-key)
 - [Distinguished child](02-name-seam.md#triple-and-view)
 - [EntryName and the consumer seam](02-name-seam.md#entry-name-contract)
@@ -52,6 +56,7 @@
 - [CLI dispatch and verbs](07-syllabus-cli.md#dispatch-and-verbs)
 - [CLI parsing, refusals, and exits](07-syllabus-cli.md#parsing-and-failures)
 - [CLI records, advisories, and paths](07-syllabus-cli.md#streams-and-records)
+- [Terminal-failure contract tests](07-syllabus-cli.md#stream-contract-tests)
 - [CLI omissions and retry limits](07-syllabus-cli.md#omitted-features)
 - [Architecture summary](08-invariants-and-trade-offs.md#architecture-summary)
 - [Cross-cutting invariants](08-invariants-and-trade-offs.md#invariant-scope)
@@ -59,7 +64,3 @@
 - [Formal model evidence](08-invariants-and-trade-offs.md#model-evidence)
 - [Design trade-offs](08-invariants-and-trade-offs.md#design-trade-offs)
 - [Final verification](08-invariants-and-trade-offs.md#final-verification)
-- [Package and dependency boundary](01-orientation.md#package-contract)
-- [Public crate surface](01-orientation.md#public-surface)
-- [Complete insert tour](01-orientation.md#insert-tour)
-- [Fragment notation](README.md#reading-fragments)

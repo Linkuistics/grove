@@ -30,8 +30,10 @@ the previous occupants at ordinals 2 and above, so a durable reference cannot
 use an ordinal. The key identifies one entry across shifts, moves, relabelling,
 and promotion. It is unique across the whole tree rather than within one level.
 
-For a consumer rendering `02-draft-plan-k6.note`, the leading `02` can change
-while `k6` cannot. A shift to ordinal 3 composes
+For a second consumer whose grammar is `<ordinal>-<state>-<label>-k<key>.note`,
+the sigil and extension are consumer choices rather than library rules. In its
+rendering `02-draft-plan-k6.note`, the leading `02` can change while `k6`
+cannot. A shift to ordinal 3 composes
 `03-draft-plan-k6.note`: the entry moved, but every reference to key 6 still
 resolves to it. `Ordinal` and `Key` wrap `u32` without imposing a filename
 format; their `Display` implementations exist for diagnostics.
@@ -494,10 +496,12 @@ Each `view` result is one complete positioned-or-distinguished choice, and
 `positioned_species` receives only `&Parts`, leaving the triple's ordinal and
 key out of scope. Rust does not prove that consumer methods are deterministic
 or free of hidden mutable state; stability across calls remains part of the
-semantic trait contract. The conformance kit reports the two structural forms
-as discharged and exercises the five remaining consumer obligations. The
-filesystem layer additionally enforces the seventh before a rendering can
-become a path.
+semantic trait contract. The remaining five are semantic assumptions Rust
+cannot check; the reference domain's reusable conformance kit exercises them on
+consumer-supplied samples. The filesystem layer separately enforces the seventh
+before a rendering can become a path. The [reference-domain
+chapter](03-reference-domain.md#conformance-obligations) defines both mechanisms
+where their implementation is introduced.
 
 Composition is total and infallible. In the orientation insert, the algebra
 reads the triple for `02-published-vectors-i5.md` and composes ordinal 3 with the

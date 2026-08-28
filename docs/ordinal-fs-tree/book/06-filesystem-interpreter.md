@@ -99,8 +99,11 @@ pub fn write<N: EntryName>(root: &Path) -> Result<WriteGuard<N>, Error<N>> {
 ````
 <!-- /fragment -->
 
-The lock module fixes the lock location, inode-identity behavior, shared and
-exclusive modes, blocking semantics, and descriptor lifetime.
+The lock module owns the common contract used by shared reads and this page's
+exclusive write. This fragment turns a resolved containing-directory identity
+into a descriptor-held advisory lock, establishes one lock object across root
+spellings and root creation or removal, and supplies the lifetime boundary that
+keeps the worked insert locked from snapshot through application.
 
 <!-- fragment «lock-contract» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/lock.rs" lines="1-40" parent="filesystem-lock-source" -->
 ````rust
@@ -272,8 +275,10 @@ pub struct WriteGuard<N> {
 ````
 <!-- /fragment -->
 
-The accessors preserve the caller's spelling of the root and expose the exact
-snapshot used by the later decision.
+`WriteGuard` owns access to the caller-spelled root and captured snapshot. This
+fragment turns shared borrows of the guard into references to those unchanged
+inputs, preserving the invariant that the worked insert plans from the snapshot
+taken after its exclusive lock was acquired.
 
 <!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="169-181" parent="filesystem-write-guard-api" -->
 ````rust
@@ -323,7 +328,11 @@ consumed guard releases the lock after `run` returns. This sequential plan
 guard is distinct from `apply`'s later pre-effect check that every rendered name
 is one path component.
 
-Append and append-many share this dispatch shape.
+`WriteGuard` owns the public append dispatch. This fragment turns a consumed
+guard, target, and one or many new entries into one algebraic `Decision` and
+then one `Report` or `Error`; guard consumption keeps one captured snapshot
+behind one decision, while `append_many` supplies the page's multi-entry form
+under a single rollback boundary alongside the worked insert.
 
 <!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="182-220" parent="filesystem-write-guard-api" -->
 ````rust
@@ -539,8 +548,11 @@ the report entry.
 ````
 <!-- /fragment -->
 
-The private dispatch is the only place a pure `Decision` becomes an ordinary
-Rust `Result`.
+The private `WriteGuard::run` dispatch owns the boundary between pure algebra
+and filesystem interpretation. This fragment turns `Decision::Refuse` into
+`Error::Refused` or applies a guarded plan to produce `Report` or an application
+`Error`, preserving total algebra without exposing a plan and carrying the
+worked insert into its ordered effect trace.
 
 <!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="365-378" parent="filesystem-write-guard-api" -->
 ````rust
@@ -562,7 +574,12 @@ Rust `Result`.
 <!-- /fragment -->
 
 <a id="worked-apply-and-unwind"></a>
-## Successful application and failed unwind
+## Successful application and reverse unwind
+
+The guarded three-effect insert plan from the previous page starts over the
+orientation module level. The first trace applies its two moves and create to
+produce a `Report`; the second fails before the create, reverses both landed
+moves, and produces `Error::Failed` over the restored starting tree.
 
 <a id="ordered-application"></a>
 ### Ordered application
@@ -579,8 +596,11 @@ The interpreter then creates one `Run`. Its `landed` vector maps
 `undo` records inverse actions in landing order, and `report` records public
 outcomes in the same forward sequence.
 
-The module contract states why every operation shares this interpreter and
-states the exact limits of rollback and destination claiming.
+The interpreter module owns the common application and rollback contract. This
+fragment turns a root, captured snapshot, and guarded plan into either an
+ordered `Report` or an `Error` after reverse unwind, establishing bounded
+plan-level recovery and exclusive destination claims for both the successful
+insert and its failed-forward trace.
 
 <!-- fragment «apply-contract» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="1-49" parent="filesystem-interpreter-source" -->
 ````rust
@@ -1294,9 +1314,11 @@ After `Failed`, the consumer first addresses the reported forward cause; after
 acquiring that guard. A refusal also requires a new guard, but no filesystem
 effect from the refused operation needs recovery.
 
-The enum carries consumer errors for domain-owned malformed and reserved names,
-filesystem sources for boundary and interpreter failures, and separate fields
-for the failed forward and unwind actions.
+The error module owns the boundary for operation failures. This fragment turns
+domain refusals, malformed or reserved names, filesystem causes, and interpreter
+failures into typed `Error` outcomes, preserving the distinction between no
+effect, complete unwind, and partial unwind that the worked failure traces
+require.
 
 <!-- fragment «error-boundary» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="1-23" parent="filesystem-error-source" -->
 ````rust
@@ -1480,9 +1502,11 @@ pub enum Error<N: EntryName> {
 ````
 <!-- /fragment -->
 
-The manual `Debug` implementation avoids imposing `N: Debug`; the enum stores
-the name type only through `N::Err`, which is already an error and therefore
-debuggable.
+The error module also owns structural debug rendering. This fragment turns a
+borrowed `Error<N>` into variant-specific debug fields without imposing
+`N: Debug`, preserving the generic consumer seam while making the worked
+failure's path, action, and causes inspectable and completing that representation
+for the taxonomy.
 
 <!-- fragment «error-debug» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="164-238" parent="filesystem-error-source" -->
 ````rust

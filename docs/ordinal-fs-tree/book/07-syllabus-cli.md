@@ -182,11 +182,11 @@ occupied slot. The consumer chooses a lesson or module through the verb and
 constructs the corresponding parts; the generic library continues to derive
 file-versus-directory species from those parts.
 
-The command-line range is present here because the binary owns its argument
-contract and help, argv becomes typed `Cli` and `Verb` values, target syntax
-keeps stable identity separate from mutable position, and these are the exact
-inputs that initiated the worked insert. It also records the twelve commands
-without restating clap mechanics in prose.
+The binary owns its argument contract, help, and twelve-command grammar. This
+fragment turns argv into typed `Cli` and `Verb` values, preserves the separation
+between stable target identity and mutable position, and supplies the exact
+inputs that initiate the worked insert without restating clap mechanics in
+prose.
 
 <!-- fragment «cli-command-line» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-488" parent="syllabus-cli-source" -->
 ````rust
@@ -692,10 +692,10 @@ mutation helpers. It constructs `Parts` only for commands where the operator
 chooses a species. `publish` and `unpublish` are domain spellings of `rewrite`;
 both add commands use `append_many`, including for one label.
 
-This range is present because the binary owns domain dispatch, a typed verb
-becomes one helper call with fully constructed consumer parts, exhaustive enum
-matching keeps every command routed exactly once, and `LessonInsert` follows
-the worked command into the helper rather than exposing a plan to the operator.
+The binary owns domain dispatch and construction of consumer parts. This
+fragment turns each typed verb into one helper call, uses exhaustive enum
+matching to route every command exactly once, and carries the worked
+`LessonInsert` into its helper without exposing a plan to the operator.
 
 <!-- fragment «cli-main-dispatch» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="905-997" parent="syllabus-cli-source" -->
 ````rust
@@ -812,11 +812,10 @@ entry, while stdout remains empty. A missing key instead constructs the public
 `Refusal::TargetMissing` so all read verbs use the library's established
 message and exit category.
 
-The read-helper range is present because the consumer owns filtering and path
-rendering around generic snapshot queries, a locked snapshot becomes ordered
-records or one explicit missing-target refusal, filters never widen the
-library's name seam, and it supplies the read half of the same consumer that
-the insert example exercises.
+The consumer owns filtering and path rendering around generic snapshot queries.
+This fragment turns a locked snapshot into ordered records or one explicit
+missing-target refusal, keeps filters within the library's name seam, and
+supplies the read half of the same consumer exercised by the insert example.
 
 <!-- fragment «cli-reading» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="998-1136" parent="syllabus-cli-source" -->
 ````rust
@@ -983,11 +982,11 @@ so the three rewrite-based commands remain idempotent and still report their
 subject. Add, insert, and promote allocate or change structure and are not
 idempotent.
 
-The mutation-helper range is present because the consumer owns construction of
-domain parts around public mutation calls, one exclusive guard plus its
-snapshot becomes one `Report` or categorized `Failure`, same-guard inspection
-preserves the rewrite species invariant, and the local `insert` function is the
-worked operation's final consumer-to-library handoff.
+The consumer owns construction of domain parts around public mutation calls.
+This fragment turns one exclusive guard and its snapshot into one `Report` or
+categorized `Failure`, uses same-guard inspection to preserve the rewrite
+species invariant, and provides the worked operation's final
+consumer-to-library handoff in the local `insert` function.
 
 <!-- fragment «cli-mutations» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1137-1259" parent="syllabus-cli-source" -->
 ````rust
@@ -1145,11 +1144,10 @@ consumer has no module status parts to pass to `rewrite`, so both `publish` and
 | `6` | Forward failure with complete unwind | The tree was restored; retry is safe |
 | `7` | Forward failure with incomplete unwind | Repair from the reported intermediate state; do not retry |
 
-The parsing and failure range is present because the binary owns usage
-validation and process categories, strings become domain/library values or an
-operator-facing `Failure`, the mapping preserves the library's distinctions
-without rewording them, and it determines both the pre-dispatch and error exits
-of the worked insert.
+The binary owns usage validation and process categories. This fragment turns
+strings into domain or library values or an operator-facing `Failure`, preserves
+the library's distinctions without rewording them, and determines the worked
+insert's pre-dispatch and error exits.
 
 <!-- fragment «cli-parsing-and-failure» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="489-632" parent="syllabus-cli-source" -->
 ````rust
@@ -1332,11 +1330,10 @@ constructed from the root spelling, ancestor module names, and the entry name;
 every name admitted to the snapshot has already passed one-component
 validation, so this consumer-side join remains inside the tree.
 
-The streams-and-paths range is present because the consumer owns terminal I/O
-and reconstruction of paths absent from algebraic entries, snapshots and
-reports become stable records or optional advice, validated name components
-preserve tree confinement, and this range produces the stdout and stderr values
-observed in the worked insert.
+The consumer owns terminal I/O and reconstruction of paths absent from
+algebraic entries. This fragment turns snapshots and reports into stable records
+or optional advice, uses validated name components to preserve tree confinement,
+and produces the stdout and stderr values observed in the worked insert.
 
 <!-- fragment «cli-streams-and-paths» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="633-859" parent="syllabus-cli-source" -->
 ````rust
@@ -1577,11 +1574,11 @@ the command subject and remain in the advisory landing trace. The trace follows
 against `Report::renamed()`; guarded plans make destinations exclusive within
 one report.
 
-The mutation-output range is present because the consumer owns the distinction
-between a command subject and its incidental moves, a `Report` becomes reusable
-stdout records plus an ordered trace, exclusive destination claims make the
-correlation unambiguous, and `lesson-insert` therefore prints key 7 while still
-showing both highest-first shifts.
+The consumer owns the distinction between a command subject and its incidental
+moves. This fragment turns a `Report` into reusable stdout records plus an
+ordered trace, relies on exclusive destination claims for unambiguous
+correlation, and lets `lesson-insert` print key 7 while still showing both
+highest-first shifts.
 
 <!-- fragment «cli-mutation-output» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="860-904" parent="syllabus-cli-source" -->
 ````rust
@@ -1633,8 +1630,8 @@ fn target_of_name(name: &SyllabusName) -> String {
 ````
 <!-- /fragment -->
 
-<a id="omitted-features"></a>
-## Deliberate omissions and retry limits
+<a id="stream-contract-tests"></a>
+## Terminal-failure contract tests
 
 The in-file contract tests inject writers that fail on write or flush. Their
 inputs include parser output, one record, or one stderr message; their outputs
@@ -1829,6 +1826,9 @@ mod stream_contract_tests {
 }
 ````
 <!-- /fragment -->
+
+<a id="omitted-features"></a>
+## Deliberate omissions and retry limits
 
 The binary has no removal command. Keys are allocated as tree-wide maximum plus
 one, so deleting the maximum can reissue an identity still held by an external

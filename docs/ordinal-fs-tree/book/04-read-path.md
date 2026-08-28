@@ -25,10 +25,11 @@ read. The snapshot contains names, hierarchy, depth, and ordered child lists.
 <a id="worked-read"></a>
 ## One complete read
 
-The reference tree from the previous page is the worked input:
+The read-path variant from the previous page is the worked input. Its handed-in
+root is spelled `s`, matching the orientation example:
 
 ```text
-syllabus/
+s/
 ├── OVERVIEW.md
 ├── 01-published-orientation-i1.md
 ├── 02-linear-algebra-i2/
@@ -38,10 +39,10 @@ syllabus/
 └── 03-draft-assessment-i9.md
 ```
 
-A call to `fs::read::<SyllabusName>(Path::new("syllabus"))` performs this
+A call to `fs::read::<SyllabusName>(Path::new("s"))` performs this
 sequence:
 
-1. `containing_directory` resolves `syllabus/..` through the kernel and
+1. `containing_directory` resolves `s/..` through the kernel and
    identifies the directory whose lock covers this tree.
 2. `acquire` takes a shared advisory lock on that directory and calls
    `read::snapshot` while the lock is held.
@@ -82,7 +83,7 @@ path and produces a finished `Snapshot` by classifying every reachable,
 unfollowed directory entry through the consumer seam. Its whole-tree invariant
 is that foreign names are absent while any malformed, reserved, non-UTF-8, or
 non-component owned name halts construction; here it processes the complete
-`syllabus` example before a guard can return.
+`s` example before a guard can return.
 
 <!-- fragment «read-tree-discovery» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-81" parent="read-filesystem-source" -->
 ````rust
@@ -1030,7 +1031,7 @@ contains no accepted entry at all.
 The public filesystem module owns guarded reads. It turns a caller-spelled root
 into `ReadGuard<N>` only after taking a shared lock and constructing the whole
 snapshot under it, establishing that the lock token and immutable names cross
-the API boundary together. The example's `syllabus` spelling therefore remains
+the API boundary together. The example's `s` spelling therefore remains
 available beside the exact snapshot used by its public walk.
 
 <!-- fragment «filesystem-read-opening» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="1-86" parent="source-filesystem-module" -->
@@ -1226,9 +1227,9 @@ the shared lock remains held for that interval.
 `containing_directory` and `identity` own lock-location resolution. They turn
 the caller's root spelling into a containing-directory path while comparing
 device/inode pairs, establishing one lock identity for direct, roundabout, and
-symlinked spellings and refusing a root with no distinct parent. For the
-`syllabus` example, this produces `syllabus/..` without canonicalizing the root
-later returned by the guard.
+symlinked spellings and refusing a root with no distinct parent. For the `s`
+example, this produces `s/..` without canonicalizing the root later returned by
+the guard.
 
 <!-- fragment «read-lock-location» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="125-179" parent="read-filesystem-source" -->
 ````rust

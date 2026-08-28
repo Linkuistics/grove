@@ -46,11 +46,12 @@ name to skip and a malformed or reserved name that must stop the read.
 
 An **ordinal** is the mutable position among siblings in one level. It is the
 leading number in the syllabus names and changes when insertion shifts an entry.
-A **key** is tree-wide identity, written after `i`; it remains unchanged by
-shifts, moves, and rewrites. `EntryName` is the only consumer seam: it parses an
-observed name, exposes ordinal, key, opaque parts, and species, and composes a
-name from those values. Species determines leaf, node, or distinguished shape;
-the library never interprets the consumer's parts.
+A **key** is tree-wide identity, written after `i` in the syllabus names; it
+remains unchanged by shifts, moves, and rewrites. `EntryName` is the only
+consumer seam: it parses an observed name, exposes ordinal, key, opaque parts,
+and species, and composes a name from those values. Species determines leaf,
+node, or distinguished shape; the library never interprets the consumer's
+parts.
 
 <a id="package-contract"></a>
 ## Package contract
@@ -355,8 +356,8 @@ The operation builds this guarded plan:
 ```
 
 The displaced siblings move highest ordinal first. Each move recomposes only the
-ordinal and preserves the key and parts. This ordering vacates every destination
-before it is needed and leaves distinct ordinals after every landed effect.
+ordinal and preserves the key and parts. A mutation stopped between these moves
+therefore leaves a gap rather than two siblings sharing an ordinal.
 `Plan::guarded` folds the effects through the snapshot in the same order the
 interpreter will meet them, rejecting a conflicting destination before any
 filesystem action begins.

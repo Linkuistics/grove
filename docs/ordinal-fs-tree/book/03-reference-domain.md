@@ -46,7 +46,9 @@ need not be unique. `Status` is the domain's only attribute and applies only to
 lessons. The `Parts` variants carry the species distinction, so the library
 learns leaf versus node without learning what a lesson or module means.
 
-The tree the read path reads on the next page is:
+The read path uses a variant of the orientation tree. It adds a second
+root-level lesson so the walk crosses from a module subtree to a later root
+sibling, and omits `foundations` to keep the module small:
 
 ```text
 OVERVIEW.md

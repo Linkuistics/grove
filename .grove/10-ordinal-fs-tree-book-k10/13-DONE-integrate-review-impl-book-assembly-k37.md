@@ -86,3 +86,57 @@ beside this leaf rather than inside it.
 If the checks all pass and every finding is settled, this node's `Done when` is
 met and no further review step is created: the editorial review is the last one
 the node brief schedules.
+
+## Decisions (running log)
+
+All twelve findings survived independent comparison with the cited prose
+contract and book passages. They were repaired without changing any fragment
+directive, ownership range, production source, or source total:
+
+1. The read-path tree is now identified as a deliberate variant of the
+   orientation tree; page 04 uses `s` consistently in authored prose, and page
+   05 marks the return to the orientation setup. Exact quoted source examples
+   that use `syllabus` remain byte-for-byte unchanged.
+2. The seven named page-06 introductions now state actor, input/output,
+   invariant, and example role as well as placement. The complete fragment-index
+   enumeration contains 79 current literal rows, not the review's stated 68;
+   all 79 were swept, including the eleven CLI-page rows omitted by that count.
+3. The worked application heading now distinguishes successful application and
+   successful reverse unwind from the following failed-unwind section, and its
+   lead states the plan, starting level, two traces, and outcomes.
+4. Page 02 retains the seven obligations but reduces the enforcement split to a
+   minimum contract and link. Its behavioral use of `conformance` now has an
+   `explained` early-use row in first-use order.
+5. The terminal-failure contract tests have their own anchor, H2, and concept
+   index entry before the omissions section.
+6. Orientation now states the observable highest-first consequence already
+   stated precisely on page 08: interruption leaves a gap rather than duplicate
+   ordinals.
+7. The model-boundary list no longer carries a stale count, and the string
+   boundary appears inside the list before its Rust-evidence sentence.
+8. Orientation scopes `-i` to the syllabus grammar, while page 02 introduces
+   the second consumer's `-k` grammar at its first example.
+9. All seven cited page-07 introductions were split into ownership plus
+   transformation/invariant/example sentences without dropping a contract
+   answer.
+10. Page 05 introduces `Level::Created` at the destination vocabulary and
+    defines `Landing` through the complete effect order it preserves.
+11. The concept index is again in reading-path and anchor order, including the
+    new terminal-failure entry.
+12. The trade-off was settled in favor of the durable reader-facing record:
+    authoring-run workaround detail was removed, while the Grove history keeps
+    its reproduction detail. The final-verification section now states the
+    commands and the results observed in this run without duplicated totals.
+
+No in-session reviewer was materialised. The changes are direct applications of
+the editorial review and the specification, and no finding required the
+substantial redesign that would create another producer/review chain.
+
+The final book validator completed successfully with fifteen source roots,
+6,929 resolved source lines, and zero deferred ranges. `cargo test -p
+ordinal-fs-tree` passed every library, binary, integration, CLI-contract, and
+documentation test, including all five doc tests and the non-UTF-8 filesystem
+test, without a harness workaround. Alloy passed all seven no-counterexample
+checks and found all thirteen witnesses without a solver workaround. Quint
+reported every configured invariant holding and every configured witness
+reached across all scenarios.

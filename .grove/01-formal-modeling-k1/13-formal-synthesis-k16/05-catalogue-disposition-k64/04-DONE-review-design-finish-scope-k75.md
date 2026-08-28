@@ -103,3 +103,88 @@ before disposing — is that leaf's and re-arguing it here duplicates it. Nor is
 this a re-run: both cells are green, the digests are recorded either side, and
 `k71`'s run lines are in its body. **If a finding needs a run, say which command
 and why, rather than re-running the scope to look.**
+
+## Findings
+
+1. **[P1] `FN-25.a` still does not state a disjoint partition, and the Alloy
+   check now exempts the reached counterexamples.** The contract says that each
+   diagnosis is its broad first sentence and that the following instances do not
+   exhaust it (`docs/specs/semantic-contract.md:891-904`), then says both that
+   `OwnershipConflict` wins when both definitions hold and that no blocked state
+   satisfies both (`docs/specs/semantic-contract.md:946-955`, `1950-1959`). The
+   correlation proviso added to one illustrated topology instance cannot narrow
+   the declared first-sentence definition *state is unrelated, ambiguous, or
+   cannot be proved safe to mutate*. Alloy exposes the contradiction directly:
+   `diagnosedRaw` permits both arms, `declaredDiagnosisOverlap` names two reached
+   overlap classes, and `FN_25a` weakens `lone diagnosedRaw` by exempting them
+   (`crates/grove-finish/models/finish.als:1339-1382`, `4906-4931`). Quint instead
+   makes correlation win over every `unprovable` state except its much narrower
+   `cannotClassify` predicate (`crates/grove-finish/models/finish.qnt:1837-1888`).
+   Both models can therefore return one diagnosis, but neither establishes the
+   contract's stronger claim that the definitions themselves are disjoint.
+
+2. **[P1] `Reserved(Quarantined)` collapses an unsettled handoff and a proven
+   success-with-cleanup-outstanding into one state whose documented meaning fits
+   only the first.** The new table and prose define every standing quarantine as
+   a transaction that is incomplete (`docs/specs/semantic-contract.md:414-418`,
+   `454-464`, `487-489`), and the glossary and ticket ADR repeat that it is
+   evidence a finish is unfinished (`CONTEXT.md:407-424`,
+   `docs/adr/success-is-proved-by-the-ticket-not-the-tree.md:50-56`). Yet the same
+   contract says an unchanged `Committed` after the fourth revalidation is
+   `Applied` with the quarantine still holding the root, and that cleanup still
+   outstanding must not undo success (`docs/specs/semantic-contract.md:1845-1848`,
+   `2023-2034`). The Quint transition records exactly that state before disposal
+   (`crates/grove-finish/models/finish.qnt:1722-1731`), while both classifiers put
+   **any** standing quarantine in `Reserved(Quarantined)`
+   (`crates/grove-finish/models/finish.qnt:756-767`,
+   `crates/grove-finish/models/finish.als:1076-1082`). The product also returns
+   success after the fourth proof even when disposal fails
+   (`src/finish_transaction.rs:1953-1974`). Thus a cleanup failure after proven
+   success is simultaneously `Applied` and a reserved state defined as
+   unfinished. The handoff to `lifecycle-scope-k72` covers only the pre-fourth-
+   revalidation window, so it would carry this conflation into lifecycle
+   classification (`06-design-lifecycle-scope-k72.md:242-259`).
+
+3. **[P2] The Alloy `EN-08`/`FN-31.c` disposition promotes an unrun scope-cost
+   estimate into a logical incompatibility.** The catalogue and README say a
+   model that posits the disk under `EN-11` *cannot* also exercise `EN-08`, but
+   their supporting argument is that reaching the disk takes about seventeen
+   states while the current expensive scope stops at thirteen
+   (`docs/specs/semantic-contract.md:1130-1150`,
+   `crates/grove-finish/models/README.md:1565-1582`). That establishes a current
+   bound gap, not that the assumptions conflict: the described seventeen-state
+   trace is itself a candidate that uses both. The deciding evidence is an Alloy
+   `run` for the two `FN-31.c` resumptions at the calculated deeper bound, with
+   `crash` removed as the negative control. Until that measurement exists, the
+   honest column disposition is an unmeasured/dear bound gap rather than
+   “unmeetable.”
+
+4. **[P2] The `W9SlotPending` reversal left `FN-11`'s own non-vacuity argument
+   describing behavior the model no longer has.** `doCommitAttempt` now returns
+   `NoOp` with `W18EvacuationIncomplete`, but the same branch's comment says
+   `gateEvacuated` “still refuses” the early attempt
+   (`crates/grove-finish/models/finish.als:1841-1859`), and the `FN-11` command
+   says the early attempt is a “REACHABLE refusal”
+   (`crates/grove-finish/models/finish.als:2940-2950`). The core decision that an
+   internal wait is not a completed outcome is sound; the defect is that the
+   artifact still claims refusal is what keeps `FN-11` from holding by
+   construction. Its explanation must be restated at the step/action grain and
+   the existing applied-after-evacuation witness retained as the reachability
+   evidence.
+
+## Disposition verdicts
+
+- Item 9 / `FN-25`: **defect**, finding 1.
+- Item 14 / `FN-28`: **confirmed**. The contract makes the exact ticket and
+  Grove's own steps the operands, preserves success across outstanding cleanup,
+  and the ADR gives the two disk-shape counterexamples that rule out a `stat`
+  receipt (`docs/specs/semantic-contract.md:2023-2050`,
+  `docs/adr/success-is-proved-by-the-ticket-not-the-tree.md:1-41`).
+- Items 23 + 24 / `Reserved(Quarantined)` and precedence: **defect**, finding 2.
+- Item 28 / monotonic grade: **confirmed declined**. `FN-22` deliberately needs
+  both post-rename `Committed -> NotCommitted` and `Committed -> Indeterminate`,
+  so the proposed monotonic premise would remove required states
+  (`docs/adr/root-lifecycle-stays-with-its-receipt.md:62-89`).
+- `W9SlotPending`: **semantic decision confirmed; cross-artifact defect**,
+  finding 4.
+- `EN-08` / `FN-31.c`: **defect**, finding 3.

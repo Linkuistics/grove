@@ -733,9 +733,10 @@ about the list, not a licence to invent a seventh.
 
 `Reserved(Migrating)` is in the table because it is a state a tree can be in
 today, and the models must be able to say what an ordinary reader does with one.
-The approved breaking change removes migration itself; what survives it is the
-refusal, and `TT-18`/`TT-19` are stated over the reserved *class* rather than
-over its members so that removing one member changes no claim.
+Migration itself stays: the breaking change that would have removed it was
+approved and then abandoned with the phase that owned it. The claims do not
+depend on that either way — `TT-18`/`TT-19` are stated over the reserved *class*
+rather than over its members, so removing one member would change no claim.
 
 **A MEMBER FOR A PARTIALLY DISPOSED TASK ROOT IS ADMISSIBLE, AND THE TABLE IS NOT
 WHAT DECIDES IT.** `finish-verdicts-k65` rejected Q1's candidate on the ground
@@ -1660,8 +1661,10 @@ counterexample is `EN-13`'s non-cooperating writer.
 **The `Current(*)` half is untouched and is the load-bearing one**: it is what
 stops Grove completing a tree it did not scaffold. What the narrowed half costs
 is a diagnostic — inside the window an operator is told to migrate a tree that
-is not legacy — and it costs more once the approved breaking change removes
-migration and `Legacy` fails closed. Closing the window is a product change
+is not legacy — and it would cost more under the migration removal that was
+approved and then abandoned, where `Legacy` fails closed and the command the
+diagnostic names does not exist. Migration stands, so that cost is not
+incurred. Closing the window is a product change
 (make root initialisation's first write a root-init-exclusive one) and is
 `handoff-audit-k66`'s, beside the other product-facing diagnostic questions.
 
@@ -2903,9 +2906,9 @@ and the glossary's `Complete finish cycle` entry, and it would add a
 branch/bookmark surface to workspace identity; it is not an inline widening of a
 model.
 
-**Legacy migration as a capability.** The approved breaking change removes it.
-`Reserved(Migrating)` remains in the state table because a tree can be in that
-state today and the models must say what an ordinary reader does with one, but
+**Legacy migration as a capability.** It stays — the breaking change that would
+have removed it was approved and never implemented. `Reserved(Migrating)` is in
+the state table because a tree can be in that state today and the models must say what an ordinary reader does with one, but
 `TT-18` and `TT-19` are stated over the reserved *class*, so removing a member
 changes no claim. Nothing here models a migration's own transitions.
 

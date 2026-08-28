@@ -68,11 +68,20 @@ legacy tree, so `Legacy` is honest — and the window is real and shipped: after
 the charter, before the leaf, which `create_root_unlocked` and
 `complete_scaffold` leave unguarded on purpose.
 
-The cost is a **diagnostic** defect rather than a safety one, and it grows.
-Nothing is silently completed in the window. But the approved breaking change
-removes migration, after which `Legacy` fails closed and the operator is told to
-migrate a tree that is not legacy, by a command that no longer exists, about a
-directory Grove created and then failed to recognise.
+The cost is a **diagnostic** defect rather than a safety one, and it is
+bounded. Nothing is silently completed in the window. Inside it an operator is
+told to migrate a tree that is not legacy — which is wrong but actionable,
+because migration exists and does something coherent.
+
+**The removal that would have made it worse is withdrawn.** An earlier plan
+would have removed legacy migration, after which `Legacy` would have failed closed and the
+operator would have been told to migrate by a command that no longer exists,
+about a directory Grove created and then failed to recognise. That removal was
+approved and never implemented: the phase that owned it was abandoned on a
+cost-against-value judgement, not on a finding that it was wrong. Migration
+commands and compatibility paths stand as they are, so the window's cost stays
+the merely-wrong diagnostic rather than the incoherent one. Reopen this only
+with the removal itself.
 
 ## Alternatives rejected
 

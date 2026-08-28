@@ -1,10 +1,24 @@
 # Preservation baseline — grove v19.3.0
 
 The observable contract of this repository **before** the modularity refactor,
-measured rather than described. The root brief's *Preservation ledger* says what
+measured rather than described. The workstream's *Preservation ledger* said what
 must survive; this file is that ledger with the values filled in, so a later
 phase can check a change against a recorded fact instead of against an
 impression.
+
+**The ledger itself, recorded here because its original home does not
+outlive the workstream.** Preserve unless a change explicitly records an
+approved exception:
+
+- CLI verb names, arguments, help shape, structured/human output fields, and
+  exit-status meanings.
+- Configuration keys, environment overrides, defaults, and the current
+  `session-kinds-v1` `.grove` format.
+- Abstract outcomes across Git, native jj, and colocated jj workspaces.
+- Methodology embedding/provisioning, package and binary names, release/install
+  behaviour, MSRV 1.85, and the Linux glibc 2.17 compatibility target.
+- Fail-closed ownership: Grove never resets, merges, deletes, or rewrites work
+  it cannot prove belongs to the current finish attempt.
 
 **How to use it.** Every claim below is either a *captured* transcript — a real
 command, its real streams, its real exit status — or a *read* fact with the file
@@ -209,13 +223,18 @@ refuses it. It is named here because `extract-task-tree-k24` and
 apart, and a ledger listing two of three reserved classes would license
 dropping one.
 
-**Note for `remove-migration-k22`.** The legacy diagnostic instructs the operator
-to migrate. The approved breaking change deletes migration, so that string will
-point at a capability the binary no longer has; the brief requires it be replaced
-with how to start a current-format root. The `MIGRATING-session-kinds/` witness
-class, its refusal, and the driver-only transition in `src/tree_lifecycle.rs` are
-in the same scope. There is **no user-facing migrate verb** today — migration
-happens inside bare `grove`'s driver path only.
+**Note on the legacy diagnostic, and the removal that was withdrawn.** The
+legacy diagnostic instructs the operator to migrate. A planned breaking change
+would have deleted migration, leaving that string pointing at a capability the
+binary no longer had, and the leaf that owned the replacement wording —
+`remove-migration-k22` — was to rewrite it as how to start a current-format
+root. **That leaf never ran and the removal is not owed:** its phase was
+abandoned on a cost-against-value judgement, so migration, the
+`MIGRATING-session-kinds/` witness class, its refusal, and the driver-only
+transition in `src/tree_lifecycle.rs` all stand as measured here. The
+diagnostic therefore still names something the binary can do. There is **no
+user-facing migrate verb** — migration happens inside bare `grove`'s driver
+path only.
 
 ## 6. The observable command surface
 
@@ -1178,12 +1197,13 @@ pending a control neither model family runs yet; this row is here so the count i
 anchored to a revision.
 
 `src/tree_migrate.rs` (1,534) and `src/tree_migration_transaction.rs` (1,497) —
-3,031 lines — are the approved deletion. Nothing else in this table is scheduled
-to shrink by removal rather than by moving.
+3,031 lines — were the approved deletion, and **the approval was withdrawn with
+the phase that owned it**: both files stand. Nothing in this table is scheduled
+to shrink by removal.
 
 ## 10. Where each preserved claim is checked today
 
-Not every promise in the root brief's ledger has a test behind it. Recorded so
+Not every promise in the ledger above has a test behind it. Recorded so
 the refactor knows which ones a green suite actually defends.
 
 | preserved claim | checked by |

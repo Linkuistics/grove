@@ -49,6 +49,24 @@ module finish {
   /// the quarantine handoff has nothing left to protect.
   const ATOMIC_DISPOSAL: bool
 
+  /// STRATEGY, NOT CAPABILITY — and the distinction is the whole reason this
+  /// `const` is separate from `ATOMIC_DISPOSAL`.
+  ///
+  /// `ATOMIC_DISPOSAL` grants a capability `EN-03` records as ABSENT, so a run
+  /// under it measures ADMISSIBILITY and never availability
+  /// (`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`, the
+  /// headline rule).  This dial grants nothing.  It selects a different
+  /// STRATEGY inside the same environment: after a proven commit the task root
+  /// is emptied ENTRY BY ENTRY AT ITS OWN NAME, with no quarantine rename, no
+  /// cleanup marker and no replace transition, each removal individually atomic
+  /// and idempotent exactly as `DECLARED_STEPS` already says the incumbent's
+  /// removals are.  It is the only no-quarantine strategy the environment table
+  /// permits, and Q1's availability-typed criterion is stated over it.
+  ///
+  /// It is read ONLY at `SRevalBeforeQuarantine`, and only when
+  /// `ATOMIC_DISPOSAL` is false, so the two dials never both fire.
+  const IN_PLACE_DISPOSAL: bool
+
   /// `EN-05`.  No filesystem transaction can include a version-control commit.
   /// Granting the opposite is Q2's counterfactual capability: the commit and
   /// the evacuation settle together, and no window exists in which the result
@@ -389,6 +407,10 @@ module finish {
     | SRemoveQuarantine
     // ---- `EN-03` relaxed: Q1's counterfactual, disposal in place ----------
     | SDisposeInPlace
+    // ---- `IN_PLACE_DISPOSAL`: Q1's AVAILABLE candidate, stepwise in place --
+    | SDisposeRootEntry
+    | SRemoveRootWitness
+    | SRemoveRoot
     // ---- terminal ---------------------------------------------------------
     | SSettled
 
@@ -429,6 +451,9 @@ module finish {
       | SRemoveMarker           => ERemove
       | SRemoveQuarantine       => ERemove
       | SDisposeInPlace         => ERemove
+      | SDisposeRootEntry       => ERemove
+      | SRemoveRootWitness      => ERemove
+      | SRemoveRoot             => ERemove
       | SSettled                => ENothing
     }
 
@@ -442,7 +467,8 @@ module finish {
     SRevalAfterRestore, SRemoveWitness, SRevalBeforeQuarantine,
     SQuarantineRename, SRevalAfterQuarantine, SReturnQuarantine, SCreateMarker,
     SReplaceStage, SReplaceExchange, SReplaceCleanup, SDisposeEntry,
-    SRemoveMarker, SRemoveQuarantine, SDisposeInPlace, SSettled)
+    SRemoveMarker, SRemoveQuarantine, SDisposeInPlace,
+    SDisposeRootEntry, SRemoveRootWitness, SRemoveRoot, SSettled)
 
   /// THE DECLARED STEPS, and this is `FN-24.b`'s honest half.
   ///
@@ -491,11 +517,21 @@ module finish {
   ///     assumption that the recursive whole is not one step; the members are.
   ///
   ///   `SCreateMarker`, `SReplaceStage`  ECreate — as `SCreatePreparing`.
+  ///
+  ///   `SDisposeRootEntry`, `SRemoveRootWitness`, `SRemoveRoot`  ERemove — Q1's
+  ///     AVAILABLE candidate's three removals.  They are declared on exactly the
+  ///     argument the incumbent's own `ERemove` steps are declared on and on no
+  ///     other: each is individually atomic and each is IDEMPOTENT, so the
+  ///     enumeration is honest.  **That is also the whole of what `FN-24.b` can
+  ///     say about them.**  Whether a protocol whose removals are individually
+  ///     atomic is SAFE is `FN-24.a`'s question and not this one, and reading
+  ///     this set's green as evidence about the candidate would be a claim
+  ///     stated over a static table this file's own modeller wrote.
   pure val DECLARED_STEPS: Set[Step] = Set(
     SCreatePreparing, SWriteManifest, SEvacuate, SRestore, SCommit,
     SReproducePreflight, SRemoveWitness, SCreateMarker, SReplaceStage,
     SReplaceCleanup, SDisposeEntry, SRemoveMarker, SRemoveQuarantine,
-    SDisposeInPlace)
+    SDisposeInPlace, SDisposeRootEntry, SRemoveRootWitness, SRemoveRoot)
 
   /// The steps of the restoration branch, and of the quarantine branch.  Both
   /// are enumerated because `FN-24.b`'s witness is the enumeration and no one
@@ -521,6 +557,17 @@ module finish {
     SPreflight, SCreatePreparing, SWriteManifest, SPublish, SEvacuate,
     SMarkReady, SCommit, SRevalBeforeQuarantine, SDisposeInPlace)
 
+  /// THE SAME LIST FOR THE AVAILABLE CANDIDATE — `IN_PLACE_DISPOSAL`, which
+  /// grants no capability.  The shared prefix is the incumbent's; from a proven
+  /// commit at `SRevalBeforeQuarantine` the candidate empties the published
+  /// witness one entry at a time, releases the witness, and removes the root.
+  /// The refusal branch is untouched and `REFUSAL_BRANCH_STEPS` serves all three
+  /// protocols.
+  pure val IN_PLACE_SUCCESS_BRANCH_STEPS: Set[Step] = Set(
+    SPreflight, SCreatePreparing, SWriteManifest, SPublish, SEvacuate,
+    SMarkReady, SCommit, SRevalBeforeQuarantine,
+    SDisposeRootEntry, SRemoveRootWitness, SRemoveRoot)
+
   /// The coarse phase a step belongs to.  `ENV_PHASES` is written over these
   /// rather than over the steps themselves so that an instantiation is a short
   /// set of integers rather than a transcription of the step list — and so that
@@ -541,6 +588,7 @@ module finish {
       | SCreateMarker => 6 | SReplaceStage => 6 | SReplaceExchange => 6
       | SReplaceCleanup => 6 | SDisposeEntry => 6 | SRemoveMarker => 6
       | SRemoveQuarantine => 6 | SDisposeInPlace => 6
+      | SDisposeRootEntry => 6 | SRemoveRootWitness => 6 | SRemoveRoot => 6
     }
 
   /// The steps at which a crash is a DISTINCT crash boundary: the ones with a
@@ -812,6 +860,85 @@ module finish {
   pure def groveReservationStands(w: World): bool =
     w.witness != WNone or w.quar.present
 
+  /// THE SECOND WAY GROVE'S OUTSTANDING WORK SHOWS UP, AND THE ONE A CANDIDATE
+  /// PROTOCOL CAN FAIL — the user's own tree is not where the user left it, and
+  /// the transaction that moved it has not settled.
+  ///
+  /// It names no artifact of the incumbent.  `Place` is the tree's, not Grove's:
+  /// an entry that is `InWitness` or `Disposed` is an entry a live transaction
+  /// has taken out of the root, and `t.persisted` is that transaction having
+  /// made at least one persistent effect.  A protocol that leaves nothing at a
+  /// name Grove reserves is still caught by this, which is precisely what
+  /// `groveReservationStands` alone cannot do.
+  ///
+  /// **AND HALF OF IT IS THE MODEL'S PROGRAM STATE, WHICH IS A NARROWING AND IS
+  /// DECLARED.** `t.running and t.persisted` is not a fact about the disk, and
+  /// `crashNow` resets `t`, so on a post-crash disk this disjunct is identically
+  /// false and `groveWorkOutstanding` collapses back to the artifact guard.
+  /// What carries the crash boundary is `hist.crashMisclassified`, which
+  /// `crashNow` computes from the PRE-crash `w` and `t` — so the judgement is
+  /// made while the transaction is live and then frozen.  The consequence to
+  /// state rather than hide: **no environment action in this model presents a
+  /// half-disposed root to a LATER invocation** — no `handEditTo` produces one —
+  /// so the strengthened claim is checkable inside the trace that created the
+  /// state and not from outside it.  The disk-only half cannot stand alone
+  /// either: `Disposed` is terminal, so `place != AtRoot` is true forever after
+  /// any successful finish.  `wit_FN_18_and_then_reads_as_nothing_outstanding`
+  /// is where that gap shows itself as a reachability fact.
+  ///
+  /// THE RESTORATION BRANCH IS WHY THE PREDICATE IS OVER `Place` AND NOT OVER
+  /// `t.persisted` ALONE.  After `SRestore` every entry is back `AtRoot` and the
+  /// tree really is an ordinary grove again, so a rolled-back transaction that
+  /// has released its witness may — and must — read as `Current(*)`.  A
+  /// predicate over "has this transaction written anything" would forbid that
+  /// and turn the incumbent's own refusal path red.
+  pure def unsettledRootWork(w: World, t: Txn): bool =
+    t.running and t.persisted and
+    entryIds(w).exists(e => w.entries.get(e).place != AtRoot)
+
+  /// `FN-24.a`'S FAILABLE CONJUNCTS ARE STATED OVER THIS, AND THE CHANGE IS THE
+  /// CLASS REGISTER APPLIED WHERE IT HAD NOT BEEN.  `FN-24` is SHARED SAFETY —
+  /// the catalogue says in as many words that it *names no artifact of the
+  /// incumbent* — while `groveReservationStands` names both of them, so a
+  /// candidate protocol holding neither made the two failable conjuncts vacuous
+  /// and the claim returned green over the one disk it was supposed to judge.
+  /// That is the `FN-32` defect `finish-verdicts-k78` found, in a second place.
+  /// Measured, not argued:
+  /// `scenario_in_place_march`'s `wit_FN_24a_the_artifact_guarded_encoding_accepts_it`.
+  ///
+  /// The role is *Grove has work outstanding over the task root*, and the two
+  /// disjuncts are its two realisations rather than two claims: an artifact of
+  /// Grove's standing at a name it reserves, which is what the incumbent leaves,
+  /// and a tree entry a live transaction has moved and not settled, which is
+  /// what any protocol leaves.
+  ///
+  /// **THE FIRST DISJUNCT IS UNCONTROLLED IN THIS COLUMN, AND THAT IS DECLARED
+  /// RATHER THAN ARGUED AWAY.** This definition first carried a justification
+  /// for keeping it — *dropping it would lose `mutant_no_quarantined_state`'s
+  /// kill* — and this leaf's in-session reviewer measured that claim false in
+  /// both halves.  All three inherited `FN-24.a` kills
+  /// (`mutant_no_quarantined_state`, `mutant_absent_classified_first`,
+  /// `relax_EN_01`) still fire with `unsettledRootWork` **alone**, `base` stays
+  /// green, and no reachable state in `base` has the first disjunct true, the
+  /// second false, and the classification in the set the conjuncts bite on.  The
+  /// disk that justification named — `EN-11`'s orphan beside a live root with no
+  /// transaction running — is not even admitted in the module it was attributed
+  /// to (`ENV_KINDS = Set(0)`, crash only).
+  ///
+  /// It is kept anyway, on the reason that survives measurement: §*States*'
+  /// `Reserved` class sentence is *an artifact at a name Grove reserves says
+  /// Grove has work outstanding at that name*, so dropping the disjunct would
+  /// make this model's guard NARROWER than the contract's role for the sake of a
+  /// difference no trace here exhibits.  What that costs is honest and is the
+  /// same cost this file's README already declares for the ticket's
+  /// attempt-binding: a conjunct no control can kill.  A control that separates
+  /// them needs a reachable disk carrying a Grove artifact at a reserved name
+  /// with no transaction live AND a classification in the biting set — which
+  /// `QUARANTINE_IS_A_RESERVED_STATE` currently prevents by classifying it
+  /// `Reserved(Quarantined)`.  Owed by whoever next widens this column.
+  pure def groveWorkOutstanding(w: World, t: Txn): bool =
+    groveReservationStands(w) or unsettledRootWork(w, t)
+
   /// A single NAME answering two rows at once, which is a different thing from
   /// two rows about two names that the order resolves.  This is the whole of
   /// what `EN-01` buys, and it is what `relax_EN_01` takes away: a half-applied
@@ -861,11 +988,11 @@ module finish {
   /// single-valuedness are near-true by construction and are kept for the row
   /// added later with a narrower guard; the two that can fail are §*States*'
   /// load-bearing property, one for `Absent` and one for the `Current` class.
-  pure def classifiesHonestly(w: World): bool =
+  pure def classifiesHonestly(w: World, t: Txn): bool =
     stableStates(w).size() >= 1 and
     not(sameNameAmbiguity(w)) and
-    ((classify(w) == RAbsent) implies not(groveReservationStands(w))) and
-    (isCurrent(classify(w)) implies not(groveReservationStands(w)))
+    ((classify(w) == RAbsent) implies not(groveWorkOutstanding(w, t))) and
+    (isCurrent(classify(w)) implies not(groveWorkOutstanding(w, t)))
 
   // ---------------------------------------------------------------------------
   // The commit, its evidence, and its classification
@@ -1135,6 +1262,15 @@ module finish {
     // The handoff guards, recorded where the handoff is TAKEN.
     restoredWithoutLicence: bool,
     renamedWithoutCommitted: bool,
+    // `FN-28`, ROLE-FORM, and these two exist because the claim's second
+    // operand was an ENUMERATION OF THE PROTOCOLS THAT HAPPENED TO EXIST.
+    // `(ATOMIC_DISPOSAL or appliedAfterQuarantine)` names the incumbent's
+    // handoff and `EN-03`'s counterfactual, so a third protocol satisfying the
+    // ROLE — *the task root leaves its own name only on a proven result* —
+    // falsified a shared-safety claim silently.  Recorded at every step that
+    // frees the task-root name, whichever protocol's step it is.
+    rootTakenAway: bool,
+    rootTakenWithoutCommitted: bool,
     reproducedWhileImpossible: bool,
     // `FN-16`: restoration refused for want of the anchor, and for a present
     // attempt-bound result.
@@ -1232,6 +1368,7 @@ module finish {
     startedWithEmptyFingerprint: false, startedWithUndigestible: false,
     startedWithUnverifiableIdentity: false,
     restoredWithoutLicence: false, renamedWithoutCommitted: false,
+    rootTakenAway: false, rootTakenWithoutCommitted: false,
     reproducedWhileImpossible: false, rollbackRefusedAnchor: false,
     rollbackRefusedResult: false, restorationExact: false,
     restorationBlocked: false, unpublishedDiscarded: false,
@@ -1261,6 +1398,24 @@ module finish {
   pure def nextRestoree(w: World): int = leastOf(evacuated(w))
   pure def nextDisposable(w: World): int =
     leastOf(w.quar.entries.filter(e => w.entries.get(e).place != Disposed))
+
+  /// `nextDisposable`'S COUNTERPART FOR THE AVAILABLE CANDIDATE, which has no
+  /// quarantine to enumerate.  The candidate's disposal walks what the TASK ROOT
+  /// still holds, at the root's own name.
+  ///
+  /// **EVERY entry that is not yet `Disposed`, and not only the evacuated ones.**
+  /// The incumbent's `nextDisposable` walks `w.quar.entries`, which the rename
+  /// snapshots as `entryIds` — the whole root, evacuated or not — and
+  /// `SDisposeInPlace` sets every entry `Disposed`. Both existing disposals are
+  /// TOTAL, and the first draft of this one was not: it walked `evacuated(w)`,
+  /// so a `SRevalBeforeQuarantine` reached with evacuation incomplete (which
+  /// `base` reaches — crash after `SPublish`, recover, a late ticket makes it
+  /// `DCommitted`, divert forward) fell straight through to `SRemoveRoot` and
+  /// settled `OApplied` with the root gone and a user entry still `AtRoot`.
+  /// Found by this leaf's in-session reviewer; it was latent only because
+  /// `scenario_in_place_march` runs at `ENTRIES = 1` with no environment action.
+  pure def nextInPlaceDisposable(w: World): int =
+    leastOf(entryIds(w).filter(e => w.entries.get(e).place != Disposed))
 
   pure def disposedCount(w: World): int =
     w.quar.entries.filter(e => w.entries.get(e).place == Disposed).size()
@@ -1714,7 +1869,10 @@ module finish {
                            not(exactResult(w.repo, t.settling))) },
                    t: { ...t, disp: d } }
         if (d == DCommitted)
-          go(f1, if (ATOMIC_DISPOSAL) SDisposeInPlace else SQuarantineRename)
+          go(f1,
+             if (ATOMIC_DISPOSAL) SDisposeInPlace
+             else if (IN_PLACE_DISPOSAL) SDisposeRootEntry
+             else SQuarantineRename)
         else if (d == DNotCommitted)
           // `FN-22.e`.  Divert to the restoration path and rename nothing.
           go({ ...f1, h: { ...f1.h, divertedBeforeQuarantine: true } }, SRevalBeforeRestore)
@@ -1729,7 +1887,14 @@ module finish {
         if (meetsUnproven(f, w.foreignAtQuarantineName)) stopReserved(f, f0.t.persisted)
         else
           val f1 = noteUnproven({ ...f, h: { ...f.h,
-                       renamedWithoutCommitted: f.h.renamedWithoutCommitted or t.disp != DCommitted } },
+                       renamedWithoutCommitted: f.h.renamedWithoutCommitted or t.disp != DCommitted,
+                       // `FN-28`'s role, recorded at the step rather than
+                       // inferred from which protocol is running.  Set in BOTH
+                       // arms: a torn rename still took the root's name away —
+                       // that it also left it answering is `EN-01`'s business
+                       // and `sameNameAmbiguity`'s, not this claim's.
+                       rootTakenAway: true,
+                       rootTakenWithoutCommitted: f.h.rootTakenWithoutCommitted or t.disp != DCommitted } },
                      w.foreignAtQuarantineName)
           // `FN-19`.  The WHOLE task root — witness and evacuated tree intact —
           // moves in ONE step.  No partial or empty task root is ever
@@ -1875,7 +2040,55 @@ module finish {
         // handoff, no cleanup marker.
         settle({ ...f, w: { ...w, rootPresent: false, witness: WNone,
                             mani: NO_MANIFEST,
-                            entries: entryIds(w).mapBy(e => { ...w.entries.get(e), place: Disposed }) } },
+                            entries: entryIds(w).mapBy(e => { ...w.entries.get(e), place: Disposed }) },
+                 h: { ...f.h, rootTakenAway: true,
+                      rootTakenWithoutCommitted: f.h.rootTakenWithoutCommitted or t.disp != DCommitted } },
+               OApplied)
+
+      // ---- Q1'S AVAILABLE CANDIDATE, and it grants no capability -----------
+      //
+      // THE ORDER IS THE CANDIDATE'S BEST CASE AND IT IS ALSO FORCED.  The ADR
+      // predicts the interesting violation only "for a candidate that retires
+      // the witness first"; a candidate cannot, because after `SEvacuate` every
+      // entry is INSIDE the published witness and `EN-03` denies the recursive
+      // removal that would take the witness and its contents together.  So the
+      // entries go one at a time, the witness is released when it is empty, and
+      // the root's own name is released last.  If a retained claim fails under
+      // THIS order it fails under every available order.
+
+      | SDisposeRootEntry =>
+        // One entry, unlinked from inside the published witness, at the root's
+        // own name.  Individually atomic and idempotent, exactly as the
+        // incumbent's `SDisposeEntry` is — the resumption point `FN-21.a` needs
+        // is reused rather than reinvented.  No marker records the progress,
+        // because a candidate that keeps one has not removed the cleanup layer.
+        if (nextInPlaceDisposable(w) == BIG) go(f, SRemoveRootWitness)
+        else
+          val e = nextInPlaceDisposable(w)
+          go({ ...f, w: { ...w,
+                 entries: w.entries.set(e, { ...w.entries.get(e), place: Disposed }) } },
+             SDisposeRootEntry)
+
+      | SRemoveRootWitness =>
+        // The witness directory, now empty of entries, released by one step
+        // that also clears its manifest.  THAT IS THE INCUMBENT'S OWN SHAPE, not
+        // an appeal to the recursive removal `EN-03` withholds: `SRemoveWitness`
+        // sets `witness: WNone, mani: NO_MANIFEST` in exactly one step too, and
+        // the manifest's own decomposition is `SMarkReady` (`FN-12.a`), which is
+        // where a crash inside the write is caught.  Declared as an abstraction
+        // shared with the incumbent rather than argued for.
+        go({ ...f, w: { ...w, witness: WNone, mani: NO_MANIFEST } }, SRemoveRoot)
+
+      | SRemoveRoot =>
+        // The task root's own name, released by one `rmdir`.  THE STEP BEFORE
+        // THIS ONE IS WHERE THE CANDIDATE IS DECIDED: between releasing the
+        // witness and releasing the root there is a disk with a present task
+        // root, no witness, no quarantine and nothing of Grove's at any reserved
+        // name, and a proven-committed finish's disposal still outstanding over
+        // it.  What `classify` returns there is measured, not asserted.
+        settle({ ...f, w: { ...w, rootPresent: false },
+                 h: { ...f.h, rootTakenAway: true,
+                      rootTakenWithoutCommitted: f.h.rootTakenWithoutCommitted or t.disp != DCommitted } },
                OApplied)
 
       | _ => settle(f, t.outcome)
@@ -2379,7 +2592,7 @@ module finish {
     hist' = { ...hist,
               crashPoints: hist.crashPoints.union(Set(t.pc)),
               crashMisclassified:
-                hist.crashMisclassified or not(classifiesHonestly(w)),
+                hist.crashMisclassified or not(classifiesHonestly(w, t)),
               replaceInterruptedAt:
                 if (t.pc == SReplaceStage or t.pc == SReplaceExchange or t.pc == SReplaceCleanup)
                   hist.replaceInterruptedAt.union(Set(t.pc))
@@ -3026,7 +3239,7 @@ module finish {
   /// post-rename disk classified `RAbsent`, which is the trace `SY-05.b` says
   /// does not exist, and `EN-11`'s orphaned quarantine classified `RCurrentSpent`.
   val inv_FN_24a_every_interruption_lands_in_exactly_one_state: bool =
-    classifiesHonestly(w) and not(hist.crashMisclassified)
+    classifiesHonestly(w, t) and not(hist.crashMisclassified)
 
   /// Every step of the transaction has at most one persistent effect, and that
   /// effect is a same-directory rename (`EN-01`) or is itself DECLARED.
@@ -3112,10 +3325,22 @@ module finish {
   /// (`d != DCommitted`) and is true by construction here, declared as such in
   /// `README.md` rather than restated as a conjunct that cannot fail.
   /// See `docs/adr/success-is-proved-by-the-ticket-not-the-tree.md`.
+  ///
+  /// AND THE SECOND OPERAND WAS AN ENUMERATION OF THE PROTOCOLS THAT HAPPENED TO
+  /// EXIST, WHICH IS THE SAME DEFECT AT A THIRD CLAIM.  It read `(ATOMIC_DISPOSAL
+  /// or hist.appliedAfterQuarantine)` — the incumbent's handoff, or `EN-03`'s
+  /// counterfactual — so the AVAILABLE candidate, which satisfies the role by
+  /// releasing the root's own name over a proven disposition, falsified a
+  /// SHARED-SAFETY claim and nothing reported it: a `scenario_` module carries
+  /// only its own commands, and this one did not declare `inv_FN_28`.  Found by
+  /// `honest-classification-k80`'s in-session reviewer, which is the third site
+  /// of the shape `docs/adr/a-shared-safety-guard-names-the-role-not-the-artifact.md`
+  /// records — after `FN-32`'s and `FN-24.a`'s.  Stated now over the two facts
+  /// each root-freeing step records for itself.
   val inv_FN_28_one_successful_exit: bool =
     (t.outcome == OApplied and settledNow) implies
       (deletionProvenFor(w, t.settling) and
-       (ATOMIC_DISPOSAL or hist.appliedAfterQuarantine))
+       hist.rootTakenAway and not(hist.rootTakenWithoutCommitted))
 
   // --- `FN-29` --------------------------------------------------------------
 
@@ -3290,6 +3515,7 @@ module base {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -3329,6 +3555,7 @@ module verify_small {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,

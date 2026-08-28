@@ -70,14 +70,21 @@ is specific, and §*Q1* below states it.
 **And an impossibility argued from the shape of one `const` is a statement about
 the model.** The previous record said no control *can* remove the quarantine
 while `EN-03` holds, "because in this protocol the artifacts and the missing
-capability are the same parameter". They are the same parameter in
+capability are the same parameter". They were the same parameter in
 [`finish.qnt`](../../crates/grove-finish/models/finish.qnt): one `const`
 `ATOMIC_DISPOSAL`, whose true branch replaces `SQuarantineRename` and every step
-after it with a single `SDisposeInPlace`, itself one atomic `settle`. **What is
-missing is a transition, not expressivity** — `Place = AtRoot | InWitness |
-Disposed` is already per-entry and `SDisposeEntry` already removes entry at a
-time — so the true sentence is *no command runs the candidate*, and that the
-model has no dial for it is a fact about the model.
+after it with a single `SDisposeInPlace`, itself one atomic `settle`. **What was
+missing was a transition, not expressivity** — `Place = AtRoot | InWitness |
+Disposed` was already per-entry and `SDisposeEntry` already removed entry at a
+time — so the true sentence was *no command runs the candidate*, and that the
+model had no dial for it was a fact about the model.
+
+**`honest-classification-k80` built the dial and the sentence is no longer true
+of the Quint column.** `IN_PLACE_DISPOSAL` grants nothing — every `EN-`
+assumption is `base`'s, `ATOMIC_DISPOSAL` included — and selects the strategy:
+the published witness emptied one entry at a time at the task root's own name,
+the witness released, the root released. Alloy still runs no such candidate and
+`alloy-candidate-k82` owes it.
 
 ## Q1 — what is decided, and what the deferral is waiting for
 
@@ -106,39 +113,83 @@ than methodological:
   phase. *Our table has no row for it* is therefore a statement about the table,
   which is the same move this record forbids two sections up. A candidate that
   proposes `Reserved(Disposing)` — the root at its own name, a document at a
-  reserved name — is not refuted by it.
-- **Its predicted failure is order-dependent, and the model says so.**
-  `classifiesHonestly` guards both of its failable conjuncts on
-  `groveReservationStands`, which is *a witness or a quarantine is present*. A
-  stepwise disposal that retires the published witness **last** keeps that true
-  throughout and classifies as `Reserved(Published)` — no leak to `Current(*)`,
-  and no violation. The predicted violation holds only for a candidate that
-  retires the witness first.
+  reserved name — is not refuted by it. **`honest-classification-k80` settled
+  that in the catalogue and it settles the leg rather than the question**:
+  membership is the `Reserved` class sentence — *an artifact at a name Grove
+  reserves says Grove has work outstanding at that name* — so such a candidate
+  has the member on exactly `Reserved(Quarantined)`'s terms, and the table
+  refuses nothing. What survives is a question about the protocol, not the table:
+  a candidate keeping a reserved-name progress document has not removed the
+  cleanup layer's document, it has moved it.
+- **Its predicted failure was called order-dependent, and the run withdrew
+  that.** The reasoning was that `classifiesHonestly` guards both of its failable
+  conjuncts on `groveReservationStands` — *a witness or a quarantine is present* —
+  so a stepwise disposal retiring the published witness **last** keeps that true
+  throughout, and the predicted violation would hold only for a candidate that
+  retires the witness first. Two things are now measured. **No available
+  candidate can retire the witness first**: after evacuation every entry is
+  *inside* the published witness, and `EN-03` denies the recursive removal that
+  would take both together, so witness-last is the candidate's only order. And
+  the leak is **after** the witness, not before it — between releasing the empty
+  witness and releasing the root there is a present task root with no witness, no
+  quarantine and a proven-committed finish's disposal outstanding, which classifies
+  `Current(*)` in 3410 of 8000 traces with no interruption anywhere
+  (`scenario_in_place_march`). What the old guard did was accept that disk, which
+  is a defect in the claim rather than a property of the candidate —
+  [`a-shared-safety-guard-names-the-role-not-the-artifact`](a-shared-safety-guard-names-the-role-not-the-artifact.md).
 
-**Not decided.** The candidate that reasoning aims at — in-place disposal that is
-*non-atomic*, keeping neither the quarantine nor the marker — is the only
-no-quarantine strategy the environment table actually permits, and **no command
-in either family runs it.** No dial in Quint selects it; Alloy runs no
-counterfactual-capability mutation at all, and its `EN-03` row is assigned to
-Quint one family per row.
+**Not decided, and the commission is now half executed.** The candidate that
+reasoning aims at — in-place disposal that is *non-atomic*, keeping neither the
+quarantine nor the marker — is the only no-quarantine strategy the environment
+table actually permits. The commission was stated in two halves because the first
+half alone would produce a false green. **`honest-classification-k80` ran both
+halves in the Quint column**, and the second half turned out to need something
+other than what this record predicted.
 
-**The commission, stated so it can be executed rather than re-derived**, and
-stated in two halves because the first half alone would produce a false green:
+1. **The strategy — done, and it cost what was estimated.** `IN_PLACE_DISPOSAL`
+   in [`finish.qnt`](../../crates/grove-finish/models/finish.qnt) is a `const`
+   independent of `ATOMIC_DISPOSAL` selecting stepwise in-place disposal with no
+   quarantine and no marker, reusing the per-entry `Disposed` place and
+   `SDisposeEntry`'s resumption point: three step arms and the bookkeeping in
+   `persistentEffect`, `ALL_STEPS`, `DECLARED_STEPS`, `phaseOf` and a branch list.
+   The candidate reaches its own successful exit in 3266 of 8000 traces.
+2. **The apparatus — the diagnosis was right and the prescription was wrong.**
+   The prediction holds exactly: with no quarantine and no in-tree witness
+   `groveReservationStands` is false and `classifiesHonestly`'s two failable
+   conjuncts are vacuous, which
+   `wit_FN_24a_the_artifact_guarded_encoding_accepts_it` reaches. But what the
+   control needed was **not** a §*States* member and **not** a manifest cascade.
+   It needed `FN-24.a`'s failable half stated over the **role** — *work
+   outstanding over the task root* — instead of over the incumbent's two
+   artifacts, which is a defect in a shared-safety claim rather than a gap in the
+   state table
+   ([`a-shared-safety-guard-names-the-role-not-the-artifact`](a-shared-safety-guard-names-the-role-not-the-artifact.md)).
+   **The member is admissible and is not what refutes or rescues anything**: the
+   `Reserved` class sentence admits `Reserved(Disposing)` for any protocol that
+   leaves a document at a reserved name, and the runnable candidate leaves none,
+   so there is no condition such a row could be written over. `models/run.sh
+   --list` printed **130** obligations before and after; no cell opened and no
+   cascade was paid.
 
-1. **The strategy.** A dial in `finish.qnt` independent of `ATOMIC_DISPOSAL`,
-   selecting stepwise in-place disposal with no quarantine and no marker, reusing
-   the per-entry `Disposed` place and the resumption point `SDisposeEntry`
-   already has. Cheap: one `const`, one or two step arms, and the bookkeeping in
-   `persistentEffect`, `ALL_STEPS`, `DECLARED_STEPS` and `phaseOf`.
-2. **The apparatus that can judge it, which is the expensive half.** Run as it
-   stands, the retained set returns green for structural reasons: with no
-   quarantine and no in-tree witness `groveReservationStands` is false, so
-   `classifiesHonestly`'s two failable conjuncts are vacuous, and `FN-32` is
-   trivial for the reason given above. So the control additionally needs a
-   §*States* member for the partially disposed root — with the manifest cascade
-   that implies in **both** families — and an `FN-32` site the candidate can
-   actually reach. **A commission that skips this manufactures the false green
-   this record exists to prevent.**
+**What the commission still owes**, and it is the half this record's own
+`FN-32` paragraph predicted would be hardest:
+
+- **An `FN-32` site the candidate can reach.** Unrepaired. The candidate's site
+  can only be the resumed disposal's ownership proof, which is the same artifact
+  Q4-6's reaper hole is about — `sweep-ownership-k81`'s, as one question.
+- **The Alloy column.** `FN_24a`'s conjuncts (c) and (d) carry the same artifact
+  guard (`no Slot.occ and no Quar.qRid`), reached independently, and Alloy runs
+  no in-place candidate at all — `alloy-candidate-k82`'s.
+
+**And one reading the commission would have produced has already been closed off.**
+Under the repaired claim the candidate is red, and under `relax_EN_03` — the
+*counterfactual* candidate, one atomic `settle` with no intermediate disk —
+`inv_FN_24a_one_stable_state_under_the_candidate` still **holds**. The admissible
+protocol passes and the available one does not, which is the difference this
+record's headline rule is about, arriving as a measurement. **It is not yet a
+verdict**: `FN-32` is still blind to this candidate, so no run has checked it
+against a *complete* retained set, and a red claim under an incomplete set is
+evidence about the instrument.
 
 Both families owe an answer. Q1's is the only row of the four whose criterion
 does not say *in both families*, which stopped mattering when it went `defer`: an
@@ -294,6 +345,12 @@ recorded here because the scoping note that carried them is gone.
 **Closing:** the commissioned control above, run in both families. That is the
 one thing that turns Q1 and the three Q4 rows into a verdict rather than a
 disposition, and it is queued in the formal phase rather than left to the reader.
+It is now a subtree rather than a leaf — `quarantine-necessity-k79` —
+and `honest-classification-k80` has closed the first of its four children. What
+remains before a verdict is `FN-32`'s candidate-reachable site with Q4-6's reaper
+hole (`sweep-ownership-k81`, one question), the Alloy column
+(`alloy-candidate-k82`), and the verdict itself with this record's rework
+(`q1-q4-verdict-k83`).
 
 **Reopening, if it closes as `keep`:** a filesystem primitive that makes recursive
 removal atomic with respect to namespace visibility, or a version-control lane

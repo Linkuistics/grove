@@ -133,6 +133,7 @@ mean something else in grove's, and its crate ships by no path of its own —
   [`a-closed-partition-is-over-outcomes-not-states`](docs/adr/a-closed-partition-is-over-outcomes-not-states.md),
   [`a-lifecycle-claim-says-what-it-is-over`](docs/adr/a-lifecycle-claim-says-what-it-is-over.md),
   [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md),
+  [`a-shared-safety-guard-names-the-role-not-the-artifact`](docs/adr/a-shared-safety-guard-names-the-role-not-the-artifact.md),
   and the three specs
   [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md),
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)

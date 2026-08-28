@@ -3698,6 +3698,7 @@ narrowed to that pair. Four of the twelve scenarios exist for exactly that.
 | `inv_fail_MUT_FN_22b_a_committed_result_restored_anyway` | `FN-22.b` | violated |
 | `inv_fail_MUT_FN_31b_a_reader_observes_the_marker_absent` | `FN-31.b` | violated |
 | `inv_fail_MUT_FN_10b_unclassifiable_content_mutated_anyway` | `FN-10.b` | violated |
+| `inv_fail_MUT_FN_24a_the_available_candidate_leaves_an_ordinary_tree` | `FN-24.a` | violated — **and nothing is mutated**, see *The available candidate* below |
 | `inv_fail_MUT_FN_23_a_recovery_at_rest_changes_the_tree` | `FN-23` | violated |
 | `inv_fail_MUT_FN_05b_a_failing_precondition_moved_the_tree` | `FN-05.b` | violated |
 | `inv_fail_MUT_FN_05c_a_failing_precondition_moved_the_repository` | `FN-05.c` | violated |
@@ -3777,6 +3778,132 @@ relaxing it.
 `relax_EN_15`'s result is the unusual one and it is the expected one: an
 attestation replaces nothing. A run in which some obligation *did* strengthen
 would have been the finding.
+
+### The available candidate — a strategy dial, and what it measured
+
+`IN_PLACE_DISPOSAL` is **not** a counterfactual capability and does not belong in
+the table above. It grants nothing: every `EN-` assumption
+`scenario_in_place_march` imports is the one `base` imports, `ATOMIC_DISPOSAL`
+included. What differs is the **strategy** after a proven commit — the published
+witness emptied entry by entry at the task root's own name, the witness released,
+the root released — which is the only no-quarantine protocol the environment
+table permits and the one Q1's availability-typed criterion is stated over.
+`finish-verdicts-k65` read `ATOMIC_DISPOSAL`'s single `const` as proof that no
+control could separate the quarantine from the capability; **that was a fact
+about this encoding, and this dial is the measurement that says so.**
+
+**The order is the candidate's best case and it is also forced.** After
+`SEvacuate` every entry is inside the published witness, and `EN-03` denies the
+recursive removal that would take the witness and its contents together — so the
+entries go one at a time, the witness is released when it is empty, and the
+root's own name is released last. The ADR predicted the interesting violation
+only "for a candidate that retires the witness first"; no available candidate
+can. If a retained claim fails under this order it fails under every available
+order.
+
+| command | what it measures | result |
+|---|---|---|
+| `wit_FN_28_the_available_candidate_reaches_its_successful_exit` | the candidate runs to `SRemoveRoot`, so everything below is over a world in which it happened | reached, 3266 traces |
+| `wit_FN_24b_the_in_place_branch_enumerated` | `FN-24.b`'s enumeration over the candidate's own step list | reached, 3266 traces |
+| `wit_FN_24a_the_in_place_candidate_exposes_an_ordinary_current_tree` | a present task root, no witness, no quarantine, disposal outstanding — classified `Current(*)` | reached, 3410 traces |
+| `wit_FN_24a_the_artifact_guarded_encoding_accepts_it` | **the false green**: `FN-24.a` as this file encoded it accepts that disk | reached |
+| `wit_FN_18_a_root_being_disposed_reads_as_a_restoration` | with at least one entry removed and the witness still standing, `resumePoint` reads the disk as `SRevalBeforeRestore` — a proven-committed finish, read as one to roll back | reached |
+| `inv_FN_28_still_holds_under_the_available_candidate` | the repaired `FN-28`, over the world its witness above is counted in | holds |
+| `wit_FN_18_and_then_reads_as_nothing_outstanding` | once the witness is released, `resumePoint` reads `SIdle` while the root still stands and disposal is unfinished | reached, 3410 traces |
+| `inv_fail_MUT_FN_24a_the_available_candidate_leaves_an_ordinary_tree` | the **repaired** `FN-24.a`, over the same world | violated, as the control requires |
+
+**A THIRD SITE OF THE SAME SHAPE TURNED UP AFTER THE REPAIR, AND IT IS WHY THE
+`FN-28` ROW IS IN THAT TABLE.** `inv_FN_28`'s second operand read
+`(ATOMIC_DISPOSAL or hist.appliedAfterQuarantine)` — **an enumeration of the two
+protocols that happened to exist**, not a guard on a role. The available
+candidate satisfies `FN-28`'s role (*the task root leaves its own name only on a
+proven result*) and **falsified the claim**, and nothing reported it: a
+`scenario_` module carries only its own commands, and this one declared
+`FN-28`'s **witness** while never checking its property — so the run credited a
+coverage cell from a world in which the claim was false, which is run.sh's
+obligation-3 hazard one grain down. Found by this leaf's in-session reviewer,
+after the `FN-24.a` repair had landed. The claim is now stated over two facts
+each root-freeing step records for itself (`rootTakenAway`,
+`rootTakenWithoutCommitted`), it is green in `base` and in every `scenario_` and
+`relax_` module, and it is asserted inside the candidate's own module so the
+witness and the property cannot come apart again. **Adding a third disjunct would
+have been the wrong repair**, and that it was available is what makes the rule
+worth recording.
+
+**WHAT THE TWO `FN-24.a` ROWS ARE, TOGETHER, IS AN A/B ON THE REPAIR AND NOT TWO
+FINDINGS.** One disk; the artifact-guarded encoding accepts it and the
+role-guarded one rejects it. That is the whole of what
+[`a-shared-safety-guard-names-the-role-not-the-artifact`](../../../docs/adr/a-shared-safety-guard-names-the-role-not-the-artifact.md)
+records. All three inherited `FN-24.a` kills — `mutant_no_quarantined_state`,
+`mutant_absent_classified_first` and `relax_EN_01` — are green beside the new one,
+which is what says the claim was strengthened rather than moved.
+
+**AND `groveReservationStands` IS RETAINED AS AN UNCONTROLLED CONJUNCT, WHICH IS
+A CORRECTION.** This paragraph first said it was kept because dropping it would
+lose `mutant_no_quarantined_state`'s kill. This leaf's in-session reviewer
+measured that false in both halves: all three inherited kills fire with
+`unsettledRootWork` **alone**, `base` stays green, and the disk the justification
+named — `EN-11`'s orphan beside a live root with no transaction running — is not
+admitted in that module at all (`ENV_KINDS = Set(0)`, crash only). It is kept on
+the reason that survives measurement — §*States*' `Reserved` class sentence has
+two realisations and a guard narrower than the role errs the wrong way — and it
+is declared here as **a conjunct no control in this column can kill**, exactly as
+the correlation ticket's attempt-binding is declared under *Narrowings*. What
+would control it is a reachable disk carrying a Grove artifact at a reserved name
+with no transaction live **and** a classification in the biting set.
+
+**THE NEW KILL NEEDS NO INTERRUPTION, AND THAT IS THE SHARPEST THING HERE.**
+`scenario_in_place_march` runs at `ENV_BUDGET = 0` with `ENV_PHASES` and
+`ENV_KINDS` empty — no crash, no hand edit, no foreign write, no topology change.
+Every other `FN-24.a` counterexample in this suite needs a crash. The candidate
+produces its dishonest disk on its own uninterrupted happy path.
+
+**AND THAT NARROWING IS NOT THE ONE `finish-verdicts-k78` HAD TO REPAIR, THOUGH
+IT IS THE SAME THREE `const`s.** What that leaf found in `relax_EN_03` was an
+**invariant set** asserted in a world narrowed until its retained claims had no
+antecedent to be about; the rule it left is that a control may narrow to its own
+site, and may not narrow the world an invariant set is checked in. This module
+asserts no retained set — six witnesses, which belong at their own site, and one
+kill — and the narrowing makes the kill **strictly stronger**: with no
+environment action admitted its traces are a **subset** of `base`'s, so a
+violation found here is a violation there. Checked rather than asserted: the
+module differs from `base` in exactly one non-search `const`,
+`IN_PLACE_DISPOSAL`.
+
+**AND `unsettledRootWork` CARRIES A NARROWING, DECLARED HERE RATHER THAN FOUND
+LATER.** Its *a live transaction* half is the model's program state, not the
+disk, and `crashNow` resets it — so on a **post-crash** disk the disjunct is
+false and `groveWorkOutstanding` falls back to the artifact form. What carries
+the crash boundary is `hist.crashMisclassified`, which `crashNow` computes from
+the **pre-crash** `w` and `t`, so the judgement is made while the transaction is
+live and then frozen. No `handEditTo` in this column presents a half-disposed
+root to a *later* invocation, so the strengthened claim is checkable inside the
+trace that creates the state and not from outside it; and the disk-only half
+cannot stand alone, because `Disposed` is terminal and would be true forever
+after any successful finish. Closing that needs an environment action producing
+the disk, and it is owed.
+
+**AND THE `FN-18` PAIR IS A SECOND INSTRUMENT ON THE SAME PROTOCOL, WORTH ITS OWN
+LINE.** `FN-24`'s header states the premise the whole claim rests on: *a crash
+does not hand the next invocation a program counter, it hands it a tree, and what
+the tree says has to be enough.* `resumePoint` is this file's reading of that
+tree, over the persistent state and nothing else. Under the candidate it says
+**restore** while the entries are half gone and the commit is proven, and then
+says **nothing is outstanding** while the root still stands. Neither reading is
+constrained by any command in this suite today, because the shared-safety claim
+that could constrain them — an ownership proof over a resumed sweep — is the hole
+`sweep-ownership-k81` owns. Recorded here rather than acted on.
+
+**WHAT THIS SECTION DOES NOT ESTABLISH, AND THE LIST IS SHORT AND LOAD-BEARING.**
+Q1 is not classified here and neither are Q4's rows. The retained set is
+`FN-20`, `FN-24`, `FN-27`, `FN-32`, and **`FN-32` still has no
+candidate-reachable site** — the defect `finish-verdicts-k78` found at
+`relax_EN_03` is unrepaired for this candidate too, and repairing it is
+`sweep-ownership-k81`'s. So no run in this file yet checks the candidate against
+a *complete* retained set, and a red `FN-24.a` under an incomplete set is
+evidence about the instrument rather than a verdict on the protocol.
+The Alloy column has neither the dial nor the repair and owes both
+(`alloy-candidate-k82`).
 
 **Bounded unreachability, stated as what it is.** Every `wit_unreach_` control
 here is randomized simulation, so a zero count is evidence that the witness is
@@ -3919,6 +4046,8 @@ QUINT_VERIFY=1 models/run.sh --scope finish --family quint  # …and model-check
 | `--scope finish --family quint`, after `closed-set-additions-k74` | **exit 0** — **236 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Eight more commands and two more cells: `FN-29` split into `.a` and `.b`, `FN-29.b` carries a witness per arm, and `wit_FN_32` now reads both arms because the witness-slot step moved from a block to a refusal |
 | the same with `QUINT_VERIFY=1` | **exit 0** — 11m 51s wall, 289 commands, 0 failures; the 61 `SKIP` lines become `model-checked to depth 4, no counterexample` |
 | `--scope finish --family quint`, after `finish-verdicts-k65` | **exit 0** — **240 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows (3 `none`, 1 abstracted). **5m 07s wall** (`2026-08-28T04:33:02Z` → `04:38:09Z`). One more command than the row below: `relax_EN_03` gained `inv_FN_32_ownership_still_proven_under_the_candidate`, which **holds**, so Q1's retained set is now checked in full by the family the assumption table assigns `EN-03`'s mutation to. Provenance: `docs/specs/semantic-contract.md`, this README and both `.qnt` files were digested before the run and re-digested after, byte-identical either side, and the GAP-line count was 4 both times; this row was written after the run |
+| `--scope finish --family quint`, after `honest-classification-k80`'s review integration | **exit 0** — **262 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. **5m 49s wall / 416s user** (`2026-08-28T06:52:00Z` → `06:57:49Z`). One more command than the row below: `inv_FN_28_still_holds_under_the_available_candidate`, which exists because the row below's run was green while `FN-28` was **false** under the candidate — the claim's second operand enumerated two protocols, and a `scenario_` module carries only its own commands, so the witness credited a cell the property would have failed. Provenance: the same four subjects digested before and after, **byte-identical either side**, declared gaps 0 both times; this row was written after the run |
+| `--scope finish --family quint`, after `honest-classification-k80` **before its review was integrated** | **exit 0** — **261 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows (3 `none`, 1 abstracted). **5m 47s wall / 413s user** (`2026-08-28T06:17:02Z` → `06:22:48Z`). Seven more commands than the 254 the previous leaf left, all in the new `scenario_in_place_march`: six `wit_` measurements and one `inv_fail_`. The obligation manifest did **not** move — `models/run.sh --list` prints 130 before and after — because every catalogue edit is prose, a table decision or an obligation's own text. Provenance: `docs/specs/semantic-contract.md`, this README and both `.qnt` files were digested before the run and re-digested after, **byte-identical either side**, and the declared-gap count the run itself reports was **0 both times** — the figure to compare is the runner's own `-- cells:` line rather than a grep for the word, which this row would otherwise have moved by containing it. This row was written after the run. The baseline it is measured against is the same command on the unmodified tree at `wkzptosn`: **exit 0, 254 commands, 63 of 63 cells, 5m 25s**, re-measured in the same session rather than recalled |
 | `--scope finish --family quint`, after `finish-scope-k76` | **exit 0** — **239 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Three more than the row above: `mutant_correlation_wins_the_overlap`'s `inv_fail_MUT_FN_25a_correlation_wins_the_overlap`, plus the two `mutant_*` commands the k71 row already counted under verify |
 | the same with `QUINT_VERIFY=1`, after `finish-scope-k76` | **exit 0** — **14m 35s wall** (`2026-08-28T01:37:28Z` → `01:52:03Z`), **302 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. All **63** properties `model-checked to depth 4, no counterexample`, the restated `inv_FN_25a_the_carried_diagnosis_is_the_one_precedence_selects` among them — so the precedence is model-checked and not only simulated. One more command than k71's 301 and ~1m 40s dearer; the extra wall time is `models/run-controls.sh` running concurrently for part of it, which the k71 note predicts. **`inv_fail_MUT_FN_25a_correlation_wins_the_overlap` reports `violated, as the control requires`**, and its module carries `scenario_edit_txn`'s environment rather than its neighbours' — with the neighbours' it reports green, because the overlap is unreached there |
 | `--scope finish --family quint`, after `finish-scope-k71`, with `QUINT_VERIFY=1` | **exit 0** — 12m 53s wall / 376s CPU, **301 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. All 63 properties `model-checked to depth 4, no counterexample`, the restated `inv_FN_24a` among them. Two more commands than the batch above's non-verify count: `mutant_no_quarantined_state` and `mutant_absent_classified_first`, both reported `violated, as the control requires` |

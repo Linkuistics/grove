@@ -5762,6 +5762,19 @@ runs. **The replace transition's row reads `none` too**, transcribed from row 45
 narrowing it away leaves every check in the file green and stops one witness
 landing — a liveness hole no safety claim sees.
 
+> **[annotated by `honest-classification-k80`]** *`FN-24` was settled by the
+> crash slice* is true of that slice and is not a clearance for a candidate
+> protocol. `FN-24.a`'s two **failable** conjuncts were guarded on the
+> incumbent's own artifacts — `no Slot.occ and no Quar.qRid` here,
+> `groveReservationStands` in the Quint column, reached independently — so a
+> candidate holding neither satisfies them vacuously. Measured under the
+> available in-place candidate the Quint column now runs
+> (`wit_FN_24a_the_artifact_guarded_encoding_accepts_it`), and the rule is
+> [`a-shared-safety-guard-names-the-role-not-the-artifact`](adr/a-shared-safety-guard-names-the-role-not-the-artifact.md).
+> **Nothing in this entry's counts moves**: the annotation adds no command, and
+> Alloy's own repair is `alloy-candidate-k82`'s, so this row's `none` stands as
+> the measurement this slice made.
+
 **Two rows of the matrix are the kind of thing a matrix is for.** The evacuation
 manifest's row was predicted by argument to break `FN-17.a` and the mutation
 breaks `FN-02` instead: `FN-17.a`'s first conjunct is guarded on entries actually

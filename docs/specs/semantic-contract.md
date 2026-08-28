@@ -737,6 +737,36 @@ The approved breaking change removes migration itself; what survives it is the
 refusal, and `TT-18`/`TT-19` are stated over the reserved *class* rather than
 over its members so that removing one member changes no claim.
 
+**A MEMBER FOR A PARTIALLY DISPOSED TASK ROOT IS ADMISSIBLE, AND THE TABLE IS NOT
+WHAT DECIDES IT.** `finish-verdicts-k65` rejected Q1's candidate on the ground
+that this table has no member for a task root that is being removed at its own
+name; `finish-verdicts-k78` withdrew that as *an argument from a table this
+experiment authored*, and the class sentence above is why. **Membership is that
+sentence** — *an artifact at a name Grove reserves says Grove has work
+outstanding at that name* — so a protocol that leaves a document at a reserved
+name recording its disposal's progress has a member, `Reserved(Disposing)`, on
+exactly the terms `Reserved(Quarantined)` has one. Nothing about the table
+refuses it.
+
+**What the table does not supply is a row whose condition tests nothing.** The
+in-place candidate this experiment can actually run — the task root emptied entry
+by entry at its own name, **no quarantine and no cleanup marker** — puts no
+artifact at any reserved name at all, so there is no condition a `Disposing` arm
+could be written over and the disk falls to the `Current(*)` rows — which is what
+[`finish.qnt`](../../crates/grove-finish/models/finish.qnt) measures at
+`scenario_in_place_march`, **and which `FN-24.a` rejects**: the classification the
+table gives that disk is the one the obligation forbids while work is
+outstanding, which is the finding rather than the table's answer being right. **No row is added here**, and the reason is recorded
+rather than the row: a member with no discriminating condition is not a member,
+and a member for a state no protocol in scope produces is a row with no witness,
+which this catalogue's own runner obligation rejects.
+
+**So the question the table was being asked to answer is a question about the
+protocol.** *Is a candidate that keeps a reserved-name progress document still a
+candidate that has removed the cleanup layer?* is what remains of it, and it is
+[`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
+Q1's, not §*States*'.
+
 **Stable and transient.** A **stable** state is one an ordinary invocation may
 observe and act on. A **transient** state exists only inside one operation, while
 its exclusive guard is held, or between two filesystem steps of one transaction:
@@ -746,7 +776,10 @@ The load-bearing property, and the reason the distinction is in the vocabulary
 rather than in a note, is that **no transient state may be observable as a
 different stable state**. An evacuated tree is `Reserved(Published)` and never
 `Malformed` or `Current(Spent)`; a task root whose deletion is not yet proven is
-never `Absent`. `SY-05` is where that cashes out.
+never `Absent`. `SY-05` is where that cashes out, and `FN-24.a` is what checks
+it — over the role, *work outstanding over the task root*, rather than over the
+artifacts a particular protocol happens to leave
+([`a-shared-safety-guard-names-the-role-not-the-artifact`](../adr/a-shared-safety-guard-names-the-role-not-the-artifact.md)).
 
 ### Actions
 
@@ -2130,8 +2163,10 @@ alone, which is why it is not the whole claim.
 
 *Obligations*:
 - `FN-24.a` — from a crash at each step boundary, the next invocation classifies
-  the result into exactly one stable state. *Witness*: the full interruption
-  sequence, one crash point per step.
+  the result into exactly one stable state, and **while Grove has work
+  outstanding over the task root that state is neither `Absent` nor any
+  `Current(*)` row**. *Witness*: the full interruption sequence, one crash point
+  per step.
 - `FN-24.b` — every step of the transaction has at most one persistent effect,
   and that effect is a same-directory rename (`EN-01`) or is itself decomposed.
   A step that is neither is declared, with what it would take to decompose it.
@@ -2141,6 +2176,66 @@ against, and it names no artifact of the incumbent one.
 *Decides*: [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md) Q1 — a cheaper
 protocol is admissible only if both obligations still hold under it, with
 `FN-24.a`'s witnesses reached at a bound no greater than the incumbent's.
+
+**`FN-24.a`'S FAILABLE HALF USED TO LIVE ONLY IN THE CLAIM'S HEADLINE, AND BOTH
+FAMILIES GUARDED IT ON THE INCUMBENT'S ARTIFACTS.** *Never into a state that is
+indistinguishable from a different one* was stated above and instantiated in
+[States](#states)' load-bearing property, and the obligation carried neither — so
+each column filled the silence the same way, over *a witness or a quarantine is
+present*
+([`finish.qnt`](../../crates/grove-finish/models/finish.qnt)'s
+`groveReservationStands`;
+[`finish.als`](../../crates/grove-finish/models/finish.als)'s
+`no Slot.occ and no Quar.qRid`). A candidate protocol holding neither makes both
+conjuncts vacuous, and the claim retained to judge it returns green over exactly
+the difference it is judging. **That is measured rather than argued**:
+`scenario_in_place_march`'s `wit_FN_24a_the_artifact_guarded_encoding_accepts_it`
+lands under the available in-place candidate, with no interruption anywhere in
+the trace. The obligation now carries the failable half in its own text, over the
+role; the rule is
+[`a-shared-safety-guard-names-the-role-not-the-artifact`](../adr/a-shared-safety-guard-names-the-role-not-the-artifact.md),
+and it is the second instance of the shape `finish-verdicts-k78` found at
+`FN-32`.
+
+**WORK OUTSTANDING OVER THE TASK ROOT** — the role `FN-24.a`'s failable half is
+stated over, and it has **two** realisations rather than one:
+
+> **an artifact of Grove's standing at a name it reserves**, which is what the
+> incumbent leaves — [States](#states)' `Reserved` class sentence, verbatim; **or
+> an entry of the tree a live transaction has moved or removed and not settled**,
+> which any protocol leaves, including one that reserves no name at all.
+
+The second is stated over the **user's** tree rather than over Grove's machinery,
+which is what lets the obligation reach a candidate that keeps no artifact of its
+own. It is guarded on the entry having *moved* rather than on the transaction
+having *written*, because the incumbent's restoration branch legitimately reads
+as `Current(*)` once every entry is back at the root and the reserved witness is
+released. **Both realisations are kept, and the first is currently
+uncontrolled** — every `FN-24.a` kill in the Quint column fires with the second
+alone, and no reachable state there has the first true, the second false, and the
+classification in the set the conjuncts bite on. It stays because this role has
+two realisations and a model guard narrower than the role is the wrong direction
+to err; that it cannot be killed is declared beside it rather than defended.
+
+**And the second realisation carries a narrowing, stated here because a reader
+would otherwise take the obligation to be stronger than the models check.** *A
+live transaction* is a fact about the running operation, not about the disk, so
+on a **post-crash** disk it is false and the guard falls back to the first
+realisation — exactly where this obligation quantifies. What carries the crash
+boundary is a judgement the crash records from the state it interrupted. No
+environment action in either family presents a partially disposed root to a
+*later* invocation, so the obligation is checkable inside the trace that produces
+such a state and not from outside it. Closing that is model work and is owed.
+
+**THE TWO FAMILIES ARE NOT YET CHECKING THE SAME CLAIM, AND THE RUNNER CANNOT SEE
+IT.** `crates/grove-finish/models/finish.qnt` carries the role-form above;
+`crates/grove-finish/models/finish.als` still carries `no Slot.occ and no
+Quar.qRid`. Both report `FN-24.a` green, and the coverage matrix's contested-cell
+line fires only when one family *declares a gap* — so a divergence in what a
+shared obligation MEANS is invisible there. The same holds for `FN-28`, whose own
+second operand enumerated the incumbent and `EN-03`'s counterfactual and was
+falsified by the available candidate in the same session. Both are the Alloy
+column's to repair.
 
 **`FN-25` — a block is exactly one of the two diagnoses.** Every `Blocked`
 outcome SHALL carry exactly one of `RecoveryPending` and `OwnershipConflict`.

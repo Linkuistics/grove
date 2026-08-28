@@ -36,6 +36,7 @@
 module scenario_march {
   import finish(
     RENAME_ATOMIC = true, ATOMIC_DISPOSAL = false, ATOMIC_COMMIT = false,
+    IN_PLACE_DISPOSAL = false,
     CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
     ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
@@ -190,6 +191,7 @@ module scenario_march {
 module scenario_gates {
   import finish(
     RENAME_ATOMIC = true, ATOMIC_DISPOSAL = false, ATOMIC_COMMIT = false,
+    IN_PLACE_DISPOSAL = false,
     CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
     ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
@@ -307,6 +309,7 @@ module scenario_gates {
 module scenario_crash {
   import finish(
     RENAME_ATOMIC = true, ATOMIC_DISPOSAL = false, ATOMIC_COMMIT = false,
+    IN_PLACE_DISPOSAL = false,
     CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
     ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
@@ -357,6 +360,7 @@ module scenario_crash {
 module scenario_crash_late {
   import finish(
     RENAME_ATOMIC = true, ATOMIC_DISPOSAL = false, ATOMIC_COMMIT = false,
+    IN_PLACE_DISPOSAL = false,
     CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
     ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
@@ -401,6 +405,7 @@ module scenario_crash_late {
 module scenario_edit_txn {
   import finish(
     RENAME_ATOMIC = true, ATOMIC_DISPOSAL = false, ATOMIC_COMMIT = false,
+    IN_PLACE_DISPOSAL = false,
     CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
     ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
@@ -450,6 +455,7 @@ module scenario_edit_txn {
 module scenario_reval {
   import finish(
     RENAME_ATOMIC = true, ATOMIC_DISPOSAL = false, ATOMIC_COMMIT = false,
+    IN_PLACE_DISPOSAL = false,
     CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
     ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
@@ -517,6 +523,7 @@ module scenario_foreign_marker {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -561,6 +568,7 @@ module scenario_unclassifiable {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -596,6 +604,7 @@ module scenario_orphan {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -634,6 +643,7 @@ module scenario_return_blocked {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -667,6 +677,7 @@ module scenario_return_crash {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -704,6 +715,7 @@ module scenario_crash_disposal {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -773,6 +785,7 @@ module relax_EN_01 {
   import finish(
     RENAME_ATOMIC = false,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -862,6 +875,7 @@ module relax_EN_03 {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = true,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -964,6 +978,7 @@ module relax_EN_03 {
 module scenario_march_under_the_candidate {
   import finish(
     RENAME_ATOMIC = true, ATOMIC_DISPOSAL = true, ATOMIC_COMMIT = false,
+    IN_PLACE_DISPOSAL = false,
     CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
     ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
     REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
@@ -1019,6 +1034,7 @@ module mutant_unproven_ownership_under_the_candidate {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = true,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1047,6 +1063,139 @@ module mutant_unproven_ownership_under_the_candidate {
     not(hist.mutatedUnprovenSlot)
 }
 
+/// Q1'S AVAILABLE CANDIDATE, UNINTERRUPTED — the measurement module, and it is
+/// deliberately NOT a verdict instrument.
+///
+/// `IN_PLACE_DISPOSAL` grants no capability: every `EN-` assumption this module
+/// imports is the one `base` imports, `ATOMIC_DISPOSAL` included.  What differs
+/// is the STRATEGY after a proven commit — the published witness emptied entry
+/// by entry at the task root's own name, the witness released, the root
+/// released — which is the only no-quarantine protocol the environment table
+/// permits and the one Q1's availability-typed criterion is stated over.
+///
+/// WHAT THIS MODULE IS FOR IS THE DISK BETWEEN THE LAST TWO STEPS.  The
+/// candidate's own record predicts that retiring the witness LAST keeps
+/// `groveReservationStands` true throughout the removals, so the interesting
+/// state is the one after `SRemoveRootWitness` and before `SRemoveRoot`: a
+/// present task root, no witness, no quarantine, nothing of Grove's at any
+/// reserved name, and a proven-committed finish's disposal still outstanding
+/// over it.  The commands below MEASURE what `classify` returns there and
+/// whether `classifiesHonestly` accepts it.  They assert no retained claim and
+/// decide nothing about Q1; `honest-classification-k80` reads them as evidence
+/// about the INSTRUMENT.
+module scenario_in_place_march {
+  import finish(
+    RENAME_ATOMIC = true, ATOMIC_DISPOSAL = false, ATOMIC_COMMIT = false,
+    IN_PLACE_DISPOSAL = true,
+    CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
+    REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
+    ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  /// The candidate's own successful exit, reached — so that everything measured
+  /// below is measured over a world in which the candidate actually ran.
+  val wit_FN_28_the_available_candidate_reaches_its_successful_exit: bool =
+    hist.stepsVisited.contains(SRemoveRoot)
+
+  /// …AND `FN-28`'S PROPERTY, CHECKED HERE, BECAUSE A WITNESS WITHOUT IT WAS
+  /// WORSE THAN NEITHER.  A `scenario_` module carries only the commands written
+  /// inside it, so the witness above credited `FN-28`'s cell from a world in
+  /// which the claim's own property was **false** — the claim's second operand
+  /// enumerated the two protocols that existed, and this is a third.  Found by
+  /// this leaf's in-session reviewer, repaired in the library, and asserted here
+  /// so the pair can never come apart again.  The antecedent is reached rather
+  /// than vacuous: `OApplied` at settle is what the witness above counts.
+  val inv_FN_28_still_holds_under_the_available_candidate: bool =
+    inv_FN_28_one_successful_exit
+
+  /// `FN-24.b` over the candidate's own step list, on the branch it changes.
+  /// The refusal branch is the incumbent's and is enumerated by
+  /// `scenario_march`.
+  val wit_FN_24b_the_in_place_branch_enumerated: bool =
+    IN_PLACE_SUCCESS_BRANCH_STEPS.subseteq(hist.stepsVisited)
+
+  /// THE MEASUREMENT.  The disk the candidate exposes with its disposal still
+  /// outstanding, classified.  `t.pc == SRemoveRoot` while `t.running` is
+  /// exactly "`SRemoveRootWitness` has completed and `SRemoveRoot` has not".
+  val wit_FN_24a_the_in_place_candidate_exposes_an_ordinary_current_tree: bool =
+    t.running and t.pc == SRemoveRoot and isCurrent(classify(w))
+
+  /// …AND THE ARTIFACT-GUARDED ENCODING ACCEPTS IT.  This is the false green
+  /// stated as a reachability question rather than as an argument: the
+  /// shared-safety claim retained to judge a candidate protocol returns green
+  /// over the one disk that candidate is judged on.
+  ///
+  /// THE PREDICATE IS WRITTEN OUT RATHER THAN CALLED, AND THE FIRST DRAFT'S
+  /// FAILURE IS WHY.  It began as `classifiesHonestly(w, t)`, and the repair in
+  /// the same session moved that definition out from under it — the witness went
+  /// from reached in 3410 traces to unreached in 8000 samples, not because the
+  /// defect went away but because the sentence had come to mean something else.
+  /// A measurement of a defect must survive the fix, so the four conjuncts below
+  /// are the encoding **as `honest-classification-k80` found it**, frozen:
+  /// `groveReservationStands` in the guard slot where `groveWorkOutstanding` now
+  /// stands.  It is the same provenance rule the node brief states for files,
+  /// one grain down.
+  val wit_FN_24a_the_artifact_guarded_encoding_accepts_it: bool =
+    t.running and t.pc == SRemoveRoot and isCurrent(classify(w)) and
+    stableStates(w).size() >= 1 and
+    not(sameNameAmbiguity(w)) and
+    ((classify(w) == RAbsent) implies not(groveReservationStands(w))) and
+    (isCurrent(classify(w)) implies not(groveReservationStands(w)))
+
+  /// WHAT A NEW INVOCATION WOULD DO WITH A HALF-DISPOSED ROOT, and `FN-24`'s own
+  /// header is why this is asked here: *a crash does not hand the next
+  /// invocation a program counter, it hands it a tree, and what the tree says
+  /// has to be enough*.  `resumePoint` is that reading, over the persistent
+  /// state and nothing else.  Under the candidate, mid-disposal, the disk still
+  /// carries a published witness — so the tree says RESTORE, on a finish whose
+  /// commit is proven.
+  /// THE GUARD IS OVER WHAT DISPOSAL HAS ACTUALLY REMOVED, and the first draft
+  /// was not: it read `evacuated(w).size() < entryIds(w).size()`, which is also
+  /// satisfied by a root that was never evacuated, and at `ENTRIES = 1` cannot
+  /// name a state that is *half* disposed at all.  A witness whose name and
+  /// whose guard disagree is a measurement of something other than its subject.
+  val wit_FN_18_a_root_being_disposed_reads_as_a_restoration: bool =
+    t.running and t.pc == SDisposeRootEntry and
+    entryIds(w).exists(e => w.entries.get(e).place == Disposed) and
+    resumePoint(w) == SRevalBeforeRestore
+
+  /// …AND ONCE THE WITNESS IS GONE THE TREE SAYS NOTHING AT ALL.  `SIdle` is
+  /// `resumePoint`'s "nothing of Grove's is outstanding", read off a disk whose
+  /// task root is still standing and whose disposal is not finished.
+  val wit_FN_18_and_then_reads_as_nothing_outstanding: bool =
+    t.running and t.pc == SRemoveRoot and resumePoint(w) == SIdle
+
+  /// THE KILL, AND WHAT MAKES IT UNUSUAL IS THAT NOTHING IS MUTATED.  The
+  /// runner's grammar spells a control that must make a named obligation FAIL
+  /// `inv_fail_MUT_<OB>_<mnemonic>` (`models/run.sh`, *COMMAND CONVENTIONS*),
+  /// and `MUT` is its word for a dial on the model.  **The dial here is on the
+  /// PROTOCOL, not on the model's fidelity**: every `EN-` assumption is granted
+  /// exactly as `base` grants it, every model mutation is off, and what makes
+  /// the obligation die is an available alternative strategy rather than a
+  /// broken instrument.  A green here would mean `FN-24.a` cannot tell the two
+  /// protocols apart, which is what it meant before `honest-classification-k80`
+  /// restated the two failable conjuncts over `groveWorkOutstanding`.
+  ///
+  /// THIS MODULE ADMITS NO ENVIRONMENT ACTION AT ALL (`ENV_BUDGET = 0`), which
+  /// makes the kill stronger rather than narrower: every other `FN-24.a`
+  /// counterexample in this suite needs an interruption, and this one is on the
+  /// candidate's uninterrupted happy path.
+  val inv_fail_MUT_FN_24a_the_available_candidate_leaves_an_ordinary_tree: bool =
+    inv_FN_24a_every_interruption_lands_in_exactly_one_state
+
+}
+
 /// `EN-05`, COUNTERFACTUAL CAPABILITY — Q2's instrument.  With the commit inside
 /// the filesystem transaction, the transaction's own atomicity is the receipt:
 /// it applied or it did not, and there is no third answer to read.
@@ -1059,6 +1208,7 @@ module relax_EN_05 {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = true,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1113,6 +1263,7 @@ module relax_EN_08 {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = false,
     FOREIGN_WRITES = true,
@@ -1159,6 +1310,7 @@ module relax_EN_13 {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1201,6 +1353,7 @@ module relax_EN_15 {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1245,6 +1398,7 @@ module relax_EN_16 {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1301,6 +1455,7 @@ module mutant_status_classifier {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1335,6 +1490,7 @@ module mutant_no_revalidation {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1370,6 +1526,7 @@ module mutant_nonatomic_marker {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1403,6 +1560,7 @@ module mutant_unproven_ownership {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1461,6 +1619,7 @@ module mutant_unproven_marker {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1494,6 +1653,7 @@ module mutant_eager_recovery {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1528,6 +1688,7 @@ module mutant_eager_preflight {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1565,6 +1726,7 @@ module mutant_short_preflight {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1607,6 +1769,7 @@ module mutant_receipt_reading {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1643,6 +1806,7 @@ module mutant_hooks_run {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1678,6 +1842,7 @@ module mutant_unscoped_commit {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1714,6 +1879,7 @@ module mutant_history_rewritten {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1755,6 +1921,7 @@ module mutant_no_quarantined_state {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1796,6 +1963,7 @@ module mutant_absent_classified_first {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,
@@ -1840,6 +2008,7 @@ module mutant_correlation_wins_the_overlap {
   import finish(
     RENAME_ATOMIC = true,
     ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
     ATOMIC_COMMIT = false,
     CRASHES = true,
     FOREIGN_WRITES = true,

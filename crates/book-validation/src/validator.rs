@@ -335,8 +335,25 @@ fn check_inventory(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     for (id, source, lines) in ROOTS {
-        if !snapshot.source_files.contains_key(*source) {
-            diagnostics.push(Diagnostic::new(
+        match snapshot.source_files.get(*source) {
+            Some(bytes) if source_line_count(bytes) == *lines => {}
+            Some(bytes) => diagnostics.push(Diagnostic::new(
+                "F006",
+                "inventory",
+                format!(
+                    "authoritative source `{source}` has {} lines; fixed inventory requires {lines}",
+                    source_line_count(bytes)
+                ),
+                crate::Location {
+                    path: (*source).into(),
+                    byte: 0,
+                    line: 1,
+                    column: 1,
+                },
+                None,
+                Some(id),
+            )),
+            None => diagnostics.push(Diagnostic::new(
                 "F006",
                 "inventory",
                 format!("required authoritative source `{source}` is missing"),
@@ -348,7 +365,7 @@ fn check_inventory(
                 },
                 None,
                 Some(id),
-            ));
+            )),
         }
         match parsed.roots.get(*id) {
             Some(roots)
@@ -919,6 +936,11 @@ fn source_range(source: &[u8], range: LineRange) -> Option<Vec<u8>> {
     Some(source[start..end].to_vec())
 }
 
+fn source_line_count(source: &[u8]) -> usize {
+    source.iter().filter(|byte| **byte == b'\n').count()
+        + usize::from(!source.is_empty() && !source.ends_with(b"\n"))
+}
+
 fn all_children(parsed: &ParsedBook) -> Vec<(&str, Option<&str>, &[Child])> {
     let mut result = Vec::new();
     for roots in parsed.roots.values() {
@@ -959,7 +981,11 @@ fn coverage(parsed: &ParsedBook, final_: bool) -> Coverage {
         for child in &roots[0].children {
             match child {
                 Child::Insert { id, .. } => {
-                    if let Some(fragment) = parsed.fragments.get(id).and_then(|items| items.first())
+                    if let Some(fragment) = parsed
+                        .fragments
+                        .get(id)
+                        .filter(|items| items.len() == 1)
+                        .and_then(|items| items.first())
                     {
                         resolved_lines += fragment.range.last - fragment.range.first + 1;
                     }

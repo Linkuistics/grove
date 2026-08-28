@@ -28,3 +28,10 @@ for the multi-page book.
 
 Use the repository's actual Markdown conventions for anchor generation rather
 than inventing a subtly different renderer model.
+
+Repository-wide verification currently fails
+`reference_navigation::every_repository_markdown_reference_resolves` because
+the specification's illustrative inline-code destination `relative/path` is
+classified as a repository reference. This predates `fragment-engine-k30` and
+belongs at this Markdown/link-validation seam; reconcile the example and the
+repository-wide scanner while implementing the shared link contract.

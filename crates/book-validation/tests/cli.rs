@@ -13,6 +13,7 @@ fn help_documents_scoped_and_final_read_only_workflows() {
     assert!(output.stdout.contains("read-only"));
     assert!(output.stdout.contains("Exit status"));
     assert!(output.stdout.contains("JSON"));
+    assert!(output.stdout.contains("markdown-validation-k9"));
 }
 
 #[test]

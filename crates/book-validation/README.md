@@ -28,3 +28,8 @@ diagnostic-contract increment completes its stable evidence and ordering. Exit s
 `0` means valid, `1` means deterministic validation findings, `2` means invalid
 invocation or an input load failure, and `3` is reserved for an internal
 validator failure. The command is non-interactive and read-only.
+
+The current staged `--check` surface accepts only `fragments` and defaults to
+it. `markdown-validation-k9` adds `markdown` and `all`, then changes the default
+to `all`; until that increment lands, passing either future value is an
+invocation error rather than a fragment-only false success.

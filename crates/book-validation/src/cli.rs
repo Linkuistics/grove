@@ -40,7 +40,7 @@ struct Cli {
     /// Validate the complete fifteen-file corpus with no deferred holes.
     #[arg(long = "final")]
     final_: bool,
-    /// Select fragment checks. Markdown checks land in the next validator increment.
+    /// Select fragment checks. Only `fragments` is available until `markdown-validation-k9`.
     #[arg(long, value_enum, default_value_t = CheckArg::Fragments)]
     check: CheckArg,
     /// Render deterministic human text or the stable JSON envelope.

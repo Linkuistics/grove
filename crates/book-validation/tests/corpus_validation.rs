@@ -19,6 +19,30 @@ fn the_frozen_fifteen_file_corpus_expands_byte_for_byte() {
 }
 
 #[test]
+fn source_growth_beyond_the_frozen_range_is_an_inventory_failure() {
+    let mut snapshot = support::corpus(true);
+    snapshot
+        .source_files
+        .get_mut("crates/ordinal-fs-tree/src/lib.rs")
+        .unwrap()
+        .extend_from_slice(b"added line\n");
+
+    let report = validate(
+        &snapshot,
+        Request {
+            scope: Scope::Final,
+            check: Check::Fragments,
+        },
+    );
+
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "F006"
+            && diagnostic.root_id.as_deref() == Some("source-library")
+            && diagnostic.message.contains("95 lines")
+    }));
+}
+
+#[test]
 fn orientation_scope_reports_resolved_and_deferred_bytes_separately() {
     let report = validate(
         &support::corpus(false),

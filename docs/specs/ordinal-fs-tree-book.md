@@ -652,29 +652,32 @@ working directory and uses that directory as the only repository root.
 no `..` component, and is joined to `--repo`; all ledger source paths are joined
 to the same root. The validator neither searches ancestors nor consults VCS.
 
-The stable author command is:
+During the fragment-validator stage, the runnable author command is:
 
 ```console
 cargo run --quiet -p book-validation --bin book-check -- \
   --repo . \
   --book docs/ordinal-fs-tree/book \
   --through read-path-k14 \
-  --check all
+  --check fragments
 ```
 
-The final command is:
+The corresponding runnable final command is:
 
 ```console
 cargo run --quiet -p book-validation --bin book-check -- \
   --repo . \
   --book docs/ordinal-fs-tree/book \
   --final \
-  --check all
+  --check fragments
 ```
 
-`--through` and `--final` are mutually exclusive and one is required. `--check`
-accepts `fragments`, `markdown`, or `all` and defaults to `all`. `--output`
-accepts `text` or `json` and defaults to `text`.
+`--through` and `--final` are mutually exclusive and one is required. In the
+current staged surface, `--check` accepts only `fragments` and defaults to it;
+rejecting `markdown` and `all` prevents a fragment-only false success.
+`markdown-validation-k9` adds `markdown` and `all`, changes the default to
+`all`, and updates the two commands above to use `--check all`. `--output`
+accepts `text` or `json` and defaults to `text` throughout.
 
 The accepted `--through` values, in order, are `orientation-k11`,
 `name-seam-k12`, `reference-domain-k13`, `read-path-k14`,
@@ -683,13 +686,14 @@ The accepted `--through` values, in order, are `orientation-k11`,
 seven. `book-assembly-k18` is final-only; passing it to `--through`, or passing
 an unknown slice, is an invocation error with exit status 2.
 
-`book-check --help` contains the scoped and final invocations above, explains
-that validation is read-only, lists the exit statuses, and describes the JSON
-schema. The command is always non-interactive, never starts a pager or spinner,
-and emits no color. Validation reports go to stdout. Invocation and internal
-load failures go to stderr in text mode; after `--output json` has been
-recognized, they use the same versioned JSON envelope on stdout and leave
-stderr empty.
+`book-check --help` contains the currently runnable scoped and final
+invocations above, identifies the staged check surface and the increment that
+completes it, explains that validation is read-only, lists the exit statuses,
+and describes the JSON schema. The command is always non-interactive, never
+starts a pager or spinner, and emits no color. Validation reports go to stdout.
+Invocation and internal load failures go to stderr in text mode; after
+`--output json` has been recognized, they use the same versioned JSON envelope
+on stdout and leave stderr empty.
 
 Exit statuses are stable:
 

@@ -42,6 +42,32 @@ fn duplicate_fragment_ids_are_ambiguous() {
 }
 
 #[test]
+fn duplicate_top_level_fragments_do_not_contribute_resolved_coverage() {
+    let markdown = concat!(
+        "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-94\" -->\n",
+        "<!-- insert «library-crate-surface» -->\n",
+        "<!-- /source-root -->\n",
+        "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-94\" parent=\"source-library\" -->\n",
+        "````rust\nfirst\n````\n<!-- /fragment -->\n",
+        "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-94\" parent=\"source-library\" -->\n",
+        "````rust\nsecond\n````\n<!-- /fragment -->\n",
+    );
+    let report = validate(
+        &snapshot(markdown, "first\n"),
+        Request {
+            scope: Scope::Through("orientation-k11".into()),
+            check: Check::Fragments,
+        },
+    );
+
+    assert!(report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "F001"));
+    assert_eq!(report.coverage.resolved_lines, 0);
+}
+
+#[test]
 fn absent_insert_targets_are_unresolved() {
     let markdown = concat!(
         "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-1\" -->\n",

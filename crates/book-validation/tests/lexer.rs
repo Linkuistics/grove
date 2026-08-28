@@ -72,6 +72,78 @@ fn valid_book_page_directives_are_available_to_later_markdown_checks() {
 }
 
 #[test]
+fn exact_book_page_directives_inside_roots_are_context_findings() {
+    let markdown = concat!(
+        "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-94\" -->\n",
+        "<!-- book-page id=\"source-index\" role=\"lookup\" -->\n",
+        "<!-- defer «library-crate-surface» owner=\"name-seam-k12\" lines=\"1-94\" -->\n",
+        "<!-- /source-root -->\n",
+    );
+
+    assert!(codes(markdown.as_bytes()).contains(&"P002".into()));
+}
+
+#[test]
+fn a_misclosed_literal_recovers_to_a_later_root() {
+    let markdown = concat!(
+        "<!-- fragment «broken» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-1\" parent=\"source-library\" -->\n",
+        "````rust\n",
+        "line\n",
+        "````\n",
+        "not the fragment close\n",
+        "<!-- source-root «later-root» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-1\" -->\n",
+        "<!-- defer «later» owner=\"name-seam-k12\" lines=\"1-1\" -->\n",
+        "<!-- /source-root -->\n",
+    );
+    let report = validate(
+        &BookSnapshot {
+            book_files: BTreeMap::from([(
+                "docs/ordinal-fs-tree/book/source-index.md".into(),
+                markdown.as_bytes().to_vec(),
+            )]),
+            source_files: BTreeMap::new(),
+        },
+        Request {
+            scope: Scope::Through("orientation-k11".into()),
+            check: Check::Fragments,
+        },
+    );
+
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "F006" && diagnostic.root_id.as_deref() == Some("later-root")
+    }));
+}
+
+#[test]
+fn an_unclosed_literal_recovers_to_a_later_root() {
+    let markdown = concat!(
+        "<!-- fragment «broken» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-1\" parent=\"source-library\" -->\n",
+        "````rust\n",
+        "line\n",
+        "<!-- source-root «later-root» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-1\" -->\n",
+        "<!-- defer «later» owner=\"name-seam-k12\" lines=\"1-1\" -->\n",
+        "<!-- /source-root -->\n",
+    );
+    let report = validate(
+        &BookSnapshot {
+            book_files: BTreeMap::from([(
+                "docs/ordinal-fs-tree/book/source-index.md".into(),
+                markdown.as_bytes().to_vec(),
+            )]),
+            source_files: BTreeMap::new(),
+        },
+        Request {
+            scope: Scope::Through("orientation-k11".into()),
+            check: Check::Fragments,
+        },
+    );
+
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "F006" && diagnostic.root_id.as_deref() == Some("later-root")
+    }));
+}
+
+#[test]
 fn numeric_hyphen_components_are_valid_fragment_ids() {
     let markdown = concat!(
         "<!-- fragment «part-1» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-1\" parent=\"source-library\" -->\n",

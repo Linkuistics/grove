@@ -163,6 +163,9 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
             }
         }
         if valid_book_page(line) {
+            if active.is_some() {
+                invalid_context(parsed, here, "book-page directive is inside a construct");
+            }
             index += 1;
             continue;
         }
@@ -222,7 +225,12 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
                     || lines.get(close + 1).copied() != Some("<!-- /fragment -->\n")
                 {
                     invalid_context(parsed, here, "literal fragment is not closed exactly");
-                    return;
+                    index = if close < lines.len() {
+                        close + 1
+                    } else {
+                        index + 1
+                    };
+                    continue;
                 }
                 fragment.body =
                     FragmentBody::Literal(lines[body_start..close].concat().into_bytes());

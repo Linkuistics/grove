@@ -174,3 +174,38 @@ deep or diamond-shaped fragment graph can overflow the stack or expand
 exponentially before any finding is reported. That is `k28`'s "Deep or
 adversarial graphs cannot stack-overflow or expand exponentially" criterion, and
 the two function names above are where it lands.
+
+## Decisions (running log)
+
+All five findings survived verification. F-1 is an inventory defect: validation
+now compares each loaded frozen source's actual physical-line count with the
+fixed corpus before range comparison. Its regression appends an independently
+known extra line to the final corpus; the existing hand-written recursive
+fixture remains the byte expectation not derived from live source.
+
+F-2 is a lexer recovery defect. A literal with a delimiter but no exact fragment
+close resumes at the delimiter's following line; one with no delimiter resumes
+after the fragment opener. Both malformed forms discard the incomplete
+definition, retain `P002`, and expose a later root to the shared lexer.
+
+F-3 is a context-gating defect. Exact `book-page` directives remain recognized
+tokens only outside an active root or composite; inside one they emit `P002`
+without also becoming malformed `P001` directives.
+
+F-4 is a contract stated unclearly rather than a missing check implementation.
+The spec, CLI help, and crate README now name the current fragments-only stage,
+its `fragments` default, and `markdown-validation-k9` as the increment that adds
+`markdown` and `all` and restores the `all` default. The help regression checks
+the staged boundary is visible to an operator.
+
+F-5 is a reporting defect. Coverage now credits an inserted definition only
+when its ID resolves uniquely, matching expansion and the other validator
+passes; an ambiguous top-level ID contributes zero resolved lines beside its
+`F001`.
+
+Repository-wide tests reached an unrelated pre-existing failure in
+`reference_navigation::every_repository_markdown_reference_resolves`: the
+specification's illustrative `relative/path` is treated as a real repository
+reference. The parent revision contains the same example. The issue is recorded
+on `markdown-validation-k9`, whose local-link contract owns the reconciliation;
+this integration does not absorb it.

@@ -2,7 +2,9 @@
 
 One row per **kind of question**, naming the instrument that answered it and the
 evidence that says so. Keys like `[003]` name entries in the log this skill was
-distilled from (`docs/formalism-findings.md` in `Linkuistics/grove`).
+distilled from (`docs/formalism-findings.md` in `Linkuistics/grove`);
+`[synthesis]` names its closing sections and `[c1]`–`[c5]` the adjudication in
+`docs/candidate-lessons.md`. The skill's provenance block defines all three.
 
 Read it as a lookup, not as a reading order. **Empty and *untested* rows are
 honest**; a row with no evidence behind it would be a guess, and the whole point
@@ -26,6 +28,7 @@ of accumulating before distilling was to have none.
 | **how much will a model be worth to this work?** | the fraction of it inside the model's stated scope | 5 of 23 tests named a claim where the model barely reached; 28 of 42 where the subject *was* the model's. Legible from the handoff block before the work starts `[009]` |
 | **what will I have to get right unaided?** | the model's own recorded misses | one sentence — *walk order is unmodelled* — located every line of undefended prose in a leaf before any code existed `[006]` |
 | **what refusal will I need that no model can name?** | the model's stated idealisations, read as a list | no strings, no bytes, unbounded integers — three refusal classes, one per idealisation, and the model lists them itself `[009]` |
+| **what will the findings be worth *to*, on code that already ships?** | ask whether a finding here can be a failing test at all, or only a catalogue row | *no derived test* is the modal outcome — about four material findings in five — because the model says the shipped behaviour is fine and the catalogue never described it. The consuming phase is documentation, not implementation `[synthesis]` |
 
 ## Questions that go to a formalism
 
@@ -38,6 +41,9 @@ of accumulating before distilling was to have none.
 | **ordering** — does the order of these steps matter, and why? | Quint | the stated reason was wrong and the real one was unwritten; a model in which an operation can stop halfway is the only thing that separates them `[003]` |
 | **dead branch** — is this refusal reachable at all? | either, via a reachability witness | one refusal fires in 0% of traces on any tree the library builds. Sampled, so evidence and not proof `[003]` |
 | **universal** — does this hold for all inputs, not just those a checker reached? | Lean *(untested)* | — |
+| **my claim is about more than one operation** | state it over the **trace**, not over one action's before/after pair | a claim accumulated from one operation's pair was silently correct; restated over the trace — same tool, same model — it produced a counterexample nothing else had. Pair-shaped is right whenever the subject *is* one operation `[synthesis]` |
+| **what would have to be observed for this to fail?** | if the answer names a constant you set, the claim is a restatement | one property was discharged by the model's own dial spelled backwards, and no grain check detects that `[synthesis]` |
+| **comparing two behavioural formalisms** | control for statement shape and for what discharges the property | otherwise the comparison measures the modeller. The one arm that depended on eventualities had nothing to run on: the shared catalogue deliberately contains none `[synthesis]` |
 
 ## Questions that are free
 
@@ -90,6 +96,16 @@ No formalism, no run. These retired more work per minute than anything else here
 | **a case the platform makes untestable** | assert which fact is true on the host, never skip | APFS refuses non-UTF-8 filenames, so a halting branch is unreachable on macOS; a skipped test reports what a passing one reports `[006]` |
 | **the bytes did not change** | the inode, not the content | bytes read and written back identically compare equal; an unchanged inode says nothing read them `[016]` |
 | **a written law nobody holds the code against** | an adversarial reader briefed to attack one named judgement | five of six findings, including both trait-shape defects, which neither model could reach: the models supplied the law and a reader supplied the comparison `[005]` |
+| **it went red — but for the reason I claim?** | the isolating run: each part of the claim as its own check over the same world, the others shown to stay green | three controls killed their obligation through the wrong mechanism and read identically from outside — a defect in the coverage sweep, a second half the world could not reach, and an operand that was never exercised `[c1]` |
+| **is this narrowed module still evidence?** | check both halves by hand — a strict subset, *and* still reaching the subject | five modules were narrowed past reachability and reported green over nothing. A mutant module's environment is part of its control `[c3]` |
+| **this family cannot meet this catalogue row** | run the deeper attempt; never cost it in prose | a state-count argument said the check could not be run. Run, the state was reached in fourteen states and 8.9 s — contradicted twice inside the file that made the claim `[c3]` |
+| **does this module falsify a claim it does not declare?** | sweep the whole claim library against it | a module carries only its own commands *by design*, so it hides the rest; two sweeps of one candidate returned four unlooked-for findings and no clean result. Run the sweep and record it — repairing what it finds is a separate and possibly larger cost `[c4]` |
+| **a claim stated over facts my own steps record** | ask for the control that makes a step **omit or falsify** the fact | the flags are written by exactly the steps the claim is about, so it is one edit from satisfied-by-construction — and *record it at the establishing step* recreates the hazard one level down `[c2]` |
+| **a witness that calls the definition it is about** | write its conjuncts out inline and freeze them, then rename | one witness went from reached in 3,410 traces to unreached in 8,000 samples across its subject's repair, with no error and no red `[c5]` |
+| **a witness that never lands** | a search dial that removes no behaviour, plus focused instances built on it | over a ~20-step transaction with every environment action enabled, an unfocused search reaches the end with probability `(1/k)^20`; every claim past the commit would have read green on a witness that never landed `[045]` |
+| **budgeting a bounded model check** | price the **depth**; treat the property count as free, and quote the depth beside the result | 3 invariants at depth 3 took 373 s, 61 at depth 4 took 377 s — and a depth-4 result on an eleven-step path verifies the beginning of the transaction and nothing after it `[045]` |
+| **a pre-registered measure** | an instrument that reads the **ledger**, not the obligations | two of eight measures survived as specified; the decay landed exactly at a session handoff and nothing detected it, because the runner checks obligations and each reviewer was checking the model `[synthesis]` |
+| **two models, one shared catalogue** | freeze the document both descend from, before the first model | four sessions of one column edited the shared catalogue before the other column existed, so its uniqueness tags there are true and uninformative `[synthesis]` |
 
 ## Consumer-side questions
 

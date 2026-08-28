@@ -38,12 +38,25 @@ original to Linkuistics.
 
 Original to Linkuistics, and unusual in this file for having **no external prior
 art at all**. Every rule in it is distilled from `docs/formalism-findings.md` in
-this repository — a 25-entry log kept across one workstream that extracted a
-tree-on-disk library under two formalisms (Alloy 6.2 on its structure, Quint
-0.32.0 on its operations), with the model written before each operation was
-implemented. The citation keys inside the skill (`[003]`, `[017]`, …) are that
-log's entry numbers, and the log's own distillation note records where each entry
-landed. The named tools are third-party: [Alloy](https://alloytools.org/) and
+this repository, across **two** modelling campaigns and in two passes.
+
+- **Entries 001 – 025**, distilled by `formalism-skill-k38`: one workstream
+  extracting a tree-on-disk library under two formalisms (Alloy 6.2 on its
+  structure, Quint 0.32.0 on its operations), with the model written before each
+  operation was implemented.
+- **Entries 026 – 048 and the log's closing synthesis**, distilled by
+  `model-led-development-k94`: Alloy 6 and Quint on the *same* behavioural
+  questions about this repository's own protocols, 129 obligations across 258
+  `(family, obligation)` cells, against an implementation already shipped and
+  green. Its rules are cited to the adjudication in `docs/candidate-lessons.md`
+  as well as to the log, because that document re-opened the model files and
+  falsified or weakened three of the six claims the producing sessions believed —
+  including one the skill had shipped as a caution.
+
+The citation keys inside the skill are `[003]` for a log entry, `[synthesis]` for
+the log's closing sections and `[c1]` – `[c5]` for the adjudicated candidates;
+the log's two distillation notes record where each entry landed and what did not
+survive. The named tools are third-party: [Alloy](https://alloytools.org/) and
 [Quint](https://quint-lang.org/) are cited as instruments, not adapted from.
 
 ### `doubt-driven-development`

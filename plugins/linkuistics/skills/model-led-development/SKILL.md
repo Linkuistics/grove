@@ -13,13 +13,26 @@ sentence is the whole reason this skill exists and it is also its own honesty
 clause: what follows is prose about how to write specifications, and nothing
 checks it.
 
-> **Provenance.** Every rule here is traceable to a numbered entry in a 25-entry
-> log kept while extracting a tree-on-disk library under two formalisms — Alloy
-> on its structure, Quint on its operations — with the model written *before*
-> each operation was implemented. Keys like `[003]` name that entry. The log is
-> `docs/formalism-findings.md` in `Linkuistics/grove`; its six-field entry format
-> is in [`references/keeping-a-log.md`](references/keeping-a-log.md), and the
-> full evidence table is in
+> **Provenance.** Every rule here is traceable to a numbered entry in a log kept
+> across two modelling campaigns — `docs/formalism-findings.md` in
+> `Linkuistics/grove`. **Entries 001–025** extract a tree-on-disk library under
+> two formalisms — Alloy on its structure, Quint on its operations — with the
+> model written *before* each operation was implemented. **Entries 026–048 and
+> the synthesis closing the log** put Alloy 6 *and* Quint on the same
+> behavioural questions about a workstream tool's own protocols, against a
+> catalogue of 129 obligations checked in both families — 258
+> `(family, obligation)` cells — with the implementation **already shipped and
+> green**, which changes what a finding is: usually a correction to the
+> specification rather than a defect in the code.
+>
+> **Three key forms, each naming where to check a rule.** `[003]` is a log
+> entry; `[synthesis]` is the log's closing sections, from *What is being
+> compared* onward; `[c1]`–`[c5]` are the five candidate lessons adjudicated in
+> `docs/candidate-lessons.md`, which re-opened every model file it cites rather
+> than trusting the sessions' own accounts of them, and which weakened or
+> falsified some of what those sessions believed. The six-field entry format is
+> in [`references/keeping-a-log.md`](references/keeping-a-log.md), and the full
+> evidence table is in
 > [`references/routing-table.md`](references/routing-table.md). **Rules with no
 > entry behind them were not written**, and the two instruments the log names
 > without ever running are marked *untested* wherever they appear.
@@ -39,6 +52,14 @@ checks it.
 Count states, not verbs. The earlier version of this rule sorted by *shape versus
 operation* and mis-sorted "no key is ever reissued" — which reads structural and
 quantifies over every past state `[002, 003]`.
+
+**This table rests on the first campaign and was not retested by the second**,
+which deliberately put *both* tools on behavioural questions to stress the split
+rather than confirm it `[synthesis]`. What that campaign supports is narrower and
+sits below: the two families' blind spots do differ, on two of three scopes — but
+what separated them was **the shape a property was stated in**, not temporal
+operators against guarded actions. So route with this table, and do not read a
+two-family comparison as evidence for it.
 
 ### Six free questions, before any model
 
@@ -94,6 +115,29 @@ its review — three of the four were revised upward by the leaf that reviewed t
 crate's claim labels left 22 of 204 tests unclassified and every one of them was
 labelled, in a form the pattern did not hold `[019]`.
 
+**Then ask what the findings will be worth *to*, because on existing code it is
+not the tests.** The second campaign modelled an implementation that was already
+shipped and green, and **no derived executable test is the modal outcome across
+every entry that records the measure**: about four material findings in five
+yielded nothing to run, because the finding is that the catalogue never described
+behaviour the model says is fine — there is no defect, and the correction is a
+catalogue row `[synthesis]`. So a model run against existing code buys
+**specification correction**, and **the phase that consumes it is documentation,
+not implementation**. Budget that phase, or the model's output has no consumer.
+
+**Two cost figures and one anti-figure, quoted rather than estimated.** Authoring
+ran **0.289 h per obligation** component-scoped against **0.373 h**
+system-scoped — the same direction comparing first slice to first slice, 0.19
+against 0.42 — though both arms mix the cost of *building* a model with the cost
+of *adding claims to one*, so neither is an estimate for a new scope
+`[synthesis]`. Roughly **4.2 h** went to *wrangling* — the tool rather than the
+problem — its largest single item three hours of performance cliffs,
+output-format discovery and a dead end in one session `[synthesis]`. The
+anti-figure is machine time: one family's column cost 6888 s of CPU against the
+other's 1209 s for *more* commands, and the difference is that only one of the
+two files carries integers, whose bitwidth arithmetic dominates it. **Run cost
+tracks the data structure in the model, not the tool family** `[synthesis]`.
+
 ### Questions no model can hold
 
 Recording these is as load-bearing as recording the wins: a log without them lets
@@ -143,11 +187,27 @@ modelled as an impossibility can never be shown reachable *or* dead. Every
 operation enabled for every argument, returning an outcome, is what gives
 totality a pass/fail `[003]`.
 
+**State a property at the grain of its subject, not at the grain of an action.**
+A property stated over **one action's own before/after pair** cannot discover
+that its claim was quantified too widely; a property stated over **the trace**
+can. One claim accumulated its evidence from a single operation's pair and was
+*silently correct*; restated over the trace — same tool, same model, only the
+statement shape changed — it immediately produced a counterexample nothing else
+had found `[synthesis]`. Pair-shaped is not a defect in itself: twelve of that
+scope's twenty-five properties are pair-shaped and each is the right grain. It is
+a defect exactly when **the claim's subject is wider than one operation**.
+
+**And a property discharged by a configuration rather than by an observation is
+unfalsifiable at any grain.** One was satisfied by `not(hist.silentPark)` — the
+model's own dial spelled backwards — which no grain check detects `[synthesis]`.
+Ask what would have to be *observed* for the claim to fail; if the answer names a
+constant you set, the claim is a restatement.
+
 **Record what the model does not establish, in the model file.** This is the
 worklist the implementation reads first `[006]`, and two of its entries were still
 paying out five leaves later `[022]`.
 
-### Four traps
+### Six traps
 
 | trap | what it looks like | evidence |
 |---|---|---|
@@ -155,12 +215,64 @@ paying out five leaves later `[022]`.
 | **A scope constant in the specification** | A bound meant to limit *exploration*, used inside a pure function of the design, does not limit the search — it changes the spec | `[003]` |
 | **Checking your own plumbing** | An executable state machine must *maintain* facts a structural model can assert; checking those tests your transition relation, not the design | `[003]` |
 | **Prose inside a checked file is not checked** | A witness's doc comment said "a gap in the middle"; its predicate said only `at < max`. The refusal message transcribed the comment and was wrong for every leading hole | `[013]` |
+| **A self-certifying claim** | A claim stated over the model's own history, flags or classifier cannot fail — the facts it reads are written by exactly the steps it is about. **And the repair carries the trap one level down**: *record the fact at the step that establishes it* puts the flag in the hands of the same steps, so **every recorded fact owes a control that can make a step omit or falsify it**. One node hit this four times — three places in one claim's expression, and a fourth time in the repair of the first three | `[c2]` |
+| **A self-calling witness** | A witness written by calling the definition it is about stops measuring the moment that definition is repaired. One went from reached in 3,410 traces to unreached in 8,000 samples the instant its subject was fixed — *"not because the defect went away but because the sentence had come to mean something else"*. No error, no red, no signal at all; the repair is to write the pre-repair conjuncts out **inline** and rename, which makes it an A/B on one world | `[c5]` |
 
 Two sampling notes: unreachability under `quint run` is **sampled, not proved**
 `[003]`; and a failure mode enabled at every step starves every interesting trace,
 so put it behind a constant and give the rare instance its own sample budget
-`[003]`. Small scopes lie quietly, and cost is a cliff rather than a slope
-`[002]`.
+`[003]`. Cost is a cliff rather than a slope `[002]`.
+
+**A long transaction starves its own witnesses, and the arithmetic is the whole
+warning.** Over a transaction of roughly twenty steps with every environment
+action enabled at every one, an unfocused search reaches the end with probability
+`(1/k)^20`; at 8,000 samples **every claim from the commit onward would have been
+reported green on a witness that never landed** `[045]`. The remedy is a *search
+dial* — a budget, a phase set, a kind set — plus focused instances built on it,
+and the dial must **remove no behaviour**: the unfocused world grants a budget no
+trace can spend, at every phase, of every kind, and every property is still
+checked there. A third of that model's authoring cost went to making witnesses
+reachable, and two rounds of *this witness does not land, why* were findings in
+their own right `[045]`.
+
+**Quote a model-checked result with its depth, or it is the scope trap restated
+as a result.** A bounded check reported no violation over all 61 properties at
+depth 4 — while the protocol's shortest path from entry to a settled refusal is
+**eleven steps**, so it verified the beginning of the transaction and said
+nothing about the commit, either handoff, disposal or recovery `[045]`. And when
+budgeting such a run: **depth is what costs, not the number of invariants** —
+3 invariants at depth 3 took 373 s, 61 invariants at depth 4 took 377 s. Price
+the depth and treat the property count as free `[045]`.
+
+### Narrowing the world — the conditional, not the caution
+
+> **A narrowed world is evidence about the wide one only when the narrowing is a
+> strict subset that still reaches the subject** `[c3]`.
+
+Both halves are load-bearing and this corpus violated each of them. The **subset**
+property is what makes a violation found narrow a violation wide; it is
+established by hand, and twice it had to be established after the fact `[c3]`.
+**Reachability** is what makes a *green* mean anything, and **five modules failed
+it** — each narrowed until the thing it was mutating could no longer happen: an
+environment that never reaches the foreign marker its control names, a budget
+under which the mutated write can never fire, a focus constant whose action menu
+excludes the operation being controlled, a scenario at one entry that hid an
+un-evacuated-entry defect from the session that wrote it `[c3]`. So narrowing is
+a sound way to **hunt a counterexample the sampler never drew**, and an unsound
+way to **read a green**. The corpus's own compression, reached independently
+three times, is the sentence to carry: **a mutant module's environment is part of
+its control.**
+
+**The earlier form — *false greens are found by narrowing, not widening* — is
+retired, not softened.** The first half runs five to one against, and the second
+half is falsified twice: a dead control was repaired by *widening* its bound and
+fired in 1.5 s; and a declared impossibility — an argument from a state-count
+estimate that a check could not be run — died when someone simply ran the deeper
+attempt, reaching the state in **fourteen states and 8.9 seconds**, against two
+commands already in the same file that had reached both boundaries `[c3]`. The
+rule the catalogue gained from it generalises past that one cell: **a modelling
+language's failure to meet a catalogue row is established by running the deeper
+attempt, never by costing it in prose** `[c3]`.
 
 ## Implementing against a checked model
 
@@ -236,11 +348,21 @@ reads clean when it is broken.
 Most of what this corpus found was found by these. Detail, and when each fails,
 in [`references/instruments.md`](references/instruments.md).
 
-- **Mutation controls** — break the implementation and watch the tests go red.
-  Minutes, no tooling, any suite, and the only thing that distinguishes a suite
-  that holds from one written to pass `[006]`. Mutate the **assumption**, not the
-  happy path `[007]`, and use **one control per mechanism**, not per property
-  `[009]`.
+- **Mutation controls, in their isolating form.** Breaking the implementation and
+  watching the tests go red is minutes, no tooling, any suite, and still the only
+  thing that distinguishes a suite that holds from one written to pass `[006]`.
+  **But going red is not enough.** A control earns a claim only when it is shown
+  to kill that claim **for the reason claimed** `[c1]`, and three named controls
+  were found doing the other thing while reading identically from outside: one
+  turning its obligation red through a defect in the coverage sweep rather than
+  through the behaviour it named; one always firing through *one half* of a
+  two-part claim because its world could never reach the other half; one going
+  red under both the old wording and the repaired one, *"which is evidence that
+  the new operand was never exercised rather than that it was controlled"*
+  `[c1]`. What establishes the link is the **isolating** measurement — **run each
+  part of the claim as its own check over the same world, and show the others
+  stay green.** Mutate the **assumption**, not the happy path `[007]`, and use
+  **one control per mechanism**, not per property `[009]`.
 - **An adversarial reader briefed to attack one named judgement** — five of six
   findings in one pass, including two the models could not reach `[005]`. See
   the sibling skill `linkuistics:doubt-driven-development`.
@@ -253,10 +375,27 @@ in [`references/instruments.md`](references/instruments.md).
 - **An error message read as a specification** — for every error variant whose
   message describes a *persistent* state, ask which of your own commands can meet
   that state later `[024]`.
-- **A coverage report needs one mutation per reported obligation.** A conformance
-  kit can distinguish *no samples* from *samples*; it cannot distinguish *samples*
-  from *samples that pose the question*, and the distinction is invisible from
-  inside `[020]`.
+- **A coverage report needs one mutation per reported obligation** — and even
+  then it is not sufficient. A conformance kit can distinguish *no samples* from
+  *samples*; it cannot distinguish *samples* from *samples that pose the
+  question*, and the distinction is invisible from inside `[020]`. A
+  **two-direction** coverage assertion — built precisely to stop a cell being
+  credited without evidence, and asserting the manifest in both directions —
+  passed while one cell's evidence came from a world in which the obligation was
+  **false** `[c4]`.
+- **Run every module against every claim the model has, not the ones it
+  declares.** A `mutant_`, `relax_` or `scenario_` instance carries only the
+  commands written inside it, and that rule is correct — each exists precisely
+  because some obligation behaves differently there, so inheriting the library's
+  would assert the opposite of what the instance is for. The hazard is that
+  rule's shadow: **a module that falsifies a claim it does not declare hides it
+  by design** `[c4]`. Two sweeps of the full claim library against one candidate
+  module returned **four unlooked-for findings and no clean result** `[c4]`. And
+  the obligation is bounded, which the sweep's advocates usually leave out: **run
+  the sweep and record what it says** — repairing what it finds may cost far
+  more, and one such repair, needing a new constant in *every* module
+  instantiation (2 in one file, 37 in another), was cut as its own task and then
+  abandoned `[c4]`.
 
 ## What this evidence does not support
 
@@ -282,3 +421,29 @@ in [`references/instruments.md`](references/instruments.md).
   counterfactual written at the moment of a falsification describes *that*
   mechanism, and across four leaves the mechanisms did not repeat once — a
   predictive record of 0 for 2, stated plainly `[024]`.
+- **How many greens were sound is unmeasured, and the hit rate is not it.** No
+  arm ever ran without controls, so what the second campaign measured is the hit
+  rate of **looking**: ten sessions went looking for an empty green and **ten
+  found one**, across fifteen named obligations plus three defects in the runner
+  itself `[c1]`. That is a strong argument for looking. It is *not* a measurement
+  of how much rot there was, and reading it as one is the same error the rest of
+  this skill is about.
+- **Nothing about either tool in general.** One subject, one pair of pinned
+  versions, one team, one methodology `[synthesis]` — and the second campaign
+  could not retest *the model leads profitably* at all, because its
+  implementation already existed and was green, so the counterfactual was
+  unavailable `[synthesis]`.
+- **The two families' finding counts are not a fair race.** One column ran nine
+  finish slices and four lifecycle slices to the other's one apiece, and the
+  counting rule scores *what was written down as a finding*: an unrecorded
+  modelling choice and a recorded catalogue finding are the same event, and only
+  one of them counts `[synthesis]`. Uncorrected, the census read the two columns
+  as sharing **nothing at all** — an artifact of each column tagging its own
+  findings in good faith before replay. **A pre-replay census is not a
+  measurement; it is a pair of self-reports** `[synthesis]`.
+- **An independence barrier over two models is not a barrier while their common
+  ancestor is writable.** Four sessions of one column edited the shared claim
+  catalogue before the other column existed, so the second column read corrected
+  text and could not rediscover what had been removed from its search space — its
+  competitor's uniqueness tags there are true and uninformative `[synthesis]`.
+  **Freeze the document both models descend from, not just the models.**

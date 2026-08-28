@@ -178,6 +178,16 @@ this campaign falsified or sharpened:
 | four modelling traps | two more are evidenced: the self-certifying claim with its recursion, and the self-calling witness |
 | provenance: "a 25-entry log" | the log is now about twice that, and the second half has never been distilled |
 
+**The left column is the skill as it stood when this was written, and it no
+longer stands.** `model-led-development-k94` ran §3A's distillation: the log's
+second half now has a *Distillation, second pass* section, and every row above
+has moved — the isolating control rule, the narrowing conditional, six traps, the
+module sweep with its cost, the corrected routing economics, and a provenance
+block spanning both campaigns. That leaf also landed four rules §3A does not
+name, and records each as such. The table is kept in its original tense because
+it is the statement of the gap; *Distillation, second pass* is the account of
+closing it.
+
 **This is not a defect in the harvest.** The harvest asked what binds on Grove,
 answered that correctly, and shipped three rules into `content/`. It is a gap in
 scope, and it is what §3 exists to close.

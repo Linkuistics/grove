@@ -46,3 +46,21 @@ The review leaf is created only after verification evidence and the complete
 artifact exist. Its body must be specific enough that the reviewer can identify
 the book commit by this handle and distinguish technical accuracy from the later
 editorial read.
+
+## Decisions (running log)
+
+The assembly page owns no source fragments. It synthesises the already-owned
+source into six local surfaces: the four-stage architecture, invariant scope,
+failure and refusal outcomes, model evidence and limits, explicit design
+trade-offs, and reproducible final verification. This closes the book without
+duplicating source or making an internal link carry required context.
+
+Model claims are stated as bounded evidence rather than proofs of the Rust or
+filesystem implementation. The page distinguishes Alloy's single-state shape
+checks, Quint's reachable transition checks, the behaviours each model omits,
+and the executable crate tests that cover those omitted boundaries.
+
+The completed book is registered as an ordinal-fs-tree artifact by linking it
+from the context map's ordinal-fs-tree entry and from the context glossary's
+opening artifact paragraph. No new term or durable architectural decision is
+introduced, so neither the glossary vocabulary nor the ADR set changes.

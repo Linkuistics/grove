@@ -1,6 +1,6 @@
 # Syllabus CLI
 <!-- book-page id="syllabus-cli" slice="syllabus-cli-k17" order="7" -->
-[Previous: Filesystem interpreter](06-filesystem-interpreter.md) | [Contents](README.md)
+[Previous: Filesystem interpreter](06-filesystem-interpreter.md) | [Contents](README.md) | [Next: Invariants and trade-offs](08-invariants-and-trade-offs.md)
 
 The `syllabus` binary is a concrete consumer of `ordinal-fs-tree`. It gives the
 opaque `Parts` type the syllabus vocabulary of lessons, modules, publication
@@ -1852,4 +1852,4 @@ the tree before deciding whether a non-idempotent add, insert, or promote can be
 repeated. The advisory lock coordinates cooperating processes but does not hide
 intermediate states from uncooperative writers or survive process termination.
 
-[Previous: Filesystem interpreter](06-filesystem-interpreter.md) | [Contents](README.md)
+[Previous: Filesystem interpreter](06-filesystem-interpreter.md) | [Contents](README.md) | [Next: Invariants and trade-offs](08-invariants-and-trade-offs.md)

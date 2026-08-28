@@ -34,7 +34,7 @@ an unresolved reference and not reconstructed source.
 5. [Mutation algebra](05-mutation-algebra.md)
 6. [Filesystem interpreter](06-filesystem-interpreter.md)
 7. [Syllabus CLI](07-syllabus-cli.md)
-8. Invariants and trade-offs
+8. [Invariants and trade-offs](08-invariants-and-trade-offs.md)
 
 Optional lookup:
 

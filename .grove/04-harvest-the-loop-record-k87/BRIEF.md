@@ -1,4 +1,4 @@
-# harvest-the-loop-record-k87
+# harvest-the-loop-record-k87 — brief
 
 ## Goal
 
@@ -79,6 +79,70 @@ in `.grove/01-formal-modeling-k1/13-formal-synthesis-k16/11-ABANDONED-design-han
   How many there are is this leaf's finding, not a number to hit.
 - Nothing in `.grove/` is edited. Retired and abandoned bodies are the record;
   reading them is the work, rewriting them would destroy the subject.
+
+## Decomposition
+
+**The trigger fired, and it fired on the derivation exactly as this charter
+predicted.** The parent body's own Notes named three separable pieces and one
+condition: *if the derivation turns out to need its own instrument with its own
+controls, it is a child and not a section.* It does. Four ways the obvious
+instrument reads clean and lies were measured before any child was cut, and each
+is recorded under Pointers below. So the harvest is a node, and its children are
+cut lazily — one at a time, each by the session that has just learned what the
+next one is.
+
+The ordering is by **perishability first, then consumption**:
+
+1. `loop-record-k88` — the structural record and the cost account. First because
+   `.grove/` is the perishable input and because every later child consumes the
+   enumeration this one produces. Cut and executed by the decomposing session.
+2. **The review-yield question.** Cut by `k88`, which will know how many chains
+   there are and where each chain's findings are actually written down. Held
+   separate because counting findings needs a *classification* instrument with
+   its own two-direction control, and because the count is the parent's most
+   load-bearing claim.
+3. **The candidate-lesson adjudication.** Evidenced or dropped, one verdict per
+   candidate, each citing where it is measured and what would have falsified it.
+   Held separate because it reads the model artifacts as well as the tree, and
+   because it must be able to contradict (2) rather than inherit it.
+4. **Cutting the lesson leaves** — the root decomposition's step 2. Last, because
+   how many clusters there are is a finding of (2) and (3) rather than a number
+   to hit. It may fold into (3) if the clusters are obvious by then.
+
+Only child 1 exists. Do not pre-cut the rest: a leaf here is cut by the session
+that can write the specific evidence into its body, which is the whole payoff of
+cutting late.
+
+## Pointers
+
+- `docs/loop-record.md` and its derivation script — child 1's output. Every later
+  child reads the record rather than re-walking `.grove/`, and re-derives rather
+  than trusting it when a count matters.
+- **Four instrument hazards, all measured, all of which read clean.** A session
+  here that reaches for a count meets at least one of them:
+  - **The commit store is shared by four jj workspaces**, and their key spaces
+    collide — `blinded-read-k27` belongs to a different workstream while this
+    grove's `k27` is `impl-collapse-application-k27`. A join on `k<key>` alone
+    silently imports another grove's commit. Scope every revset to this
+    workspace's own ancestry, and join on the full `<slug>-k<key>` handle.
+  - **This repository has run at least seven groves in the same directory.**
+    Commits touching `.grove/` across that ancestry number in the hundreds; this
+    grove's window is a small fraction of them, anchored at the commit that
+    scaffolded this tree. An unanchored `files(".grove")` overcounts by more
+    than an order of magnitude and reports a plausible number.
+  - **An earlier grove used a different filename grammar** (`NNN-<slug>.md`, no
+    kind and no key). Any parser applied outside this grove's window must refuse
+    rather than degrade.
+  - **A review's findings are not always written in the review leaf.** Several
+    chains record them only in the integration body. A file-scoped counter scores
+    those chains zero and reports a *decaying* yield curve — the opposite of the
+    truth. Count per chain, over the review body and its integration together.
+- `handoff-audit-k66` (abandoned, in this tree) — the two-direction control
+  discipline stated as a working sweep, and the `#Lnnn`-fragment note: the same
+  instrument failing in the opposite direction, reporting 28 broken links of
+  which 25 were fine.
+- `finish-verdicts-k65` (retired, in this tree) — the leaf that burned a handle
+  by letting a sweep's report live inside the sweep's own subject.
 
 ## Notes
 

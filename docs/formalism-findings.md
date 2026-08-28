@@ -3471,7 +3471,7 @@ guard — so neither was expressible before this slice, and the layer that makes
 them expressible is the whole of what it cost.
 
 **What the ADR decided, before the model did.**
-[`bulk-marks-are-not-atomic`](../adr/bulk-marks-are-not-atomic.md) says a
+[`bulk-marks-are-not-atomic`](adr/bulk-marks-are-not-atomic.md) says a
 mutating method **consumes** its `WriteGuard`: *N* marks are *N* critical
 sections. That is not a detail — it fixes the shape of the entire layer. An
 exclusive guard never spans a state boundary, so `holds` only ever carries

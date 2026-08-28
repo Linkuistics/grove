@@ -204,6 +204,7 @@ name = "grove"
 version = "20.0.0"
 dependencies = [
  "anyhow",
+ "book-validation",
  "clap",
  "grove-loop",
  "libc",

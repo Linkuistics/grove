@@ -11,7 +11,7 @@ use serde_json::json;
 
 use crate::{validate, BookSnapshot, Check, Request, Scope, SOURCE_PATHS};
 
-const AFTER_HELP: &str = "Exit status:\n  0  valid\n  1  deterministic findings\n  2  invalid invocation or input load failure\n  3  internal validator failure\n\nJSON output uses a versioned envelope with status, scope, coverage, and diagnostics.\n\nExamples:\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/ordinal-fs-tree/book --through read-path-k14 --check fragments\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/ordinal-fs-tree/book --final --check fragments";
+const AFTER_HELP: &str = "Exit status:\n  0  valid\n  1  deterministic findings\n  2  invalid invocation or input load failure\n  3  internal validator failure\n\nJSON output uses a versioned envelope with status, scope, coverage, and diagnostics.\n\nExamples:\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/ordinal-fs-tree/book --through read-path-k14 --check all\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/ordinal-fs-tree/book --final --check all";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -42,8 +42,8 @@ struct Cli {
     /// Validate the complete fifteen-file corpus with no deferred holes.
     #[arg(long = "final")]
     final_: bool,
-    /// Select fragment checks. Only `fragments` is available until `markdown-validation-k9`.
-    #[arg(long, value_enum, default_value_t = CheckArg::Fragments)]
+    /// Select fragment checks, Markdown/link checks, or both.
+    #[arg(long, value_enum, default_value_t = CheckArg::All)]
     check: CheckArg,
     /// Render deterministic human text or the stable JSON envelope.
     #[arg(long, value_enum, default_value_t = OutputArg::Text)]
@@ -53,6 +53,8 @@ struct Cli {
 #[derive(Clone, Copy, Debug, ValueEnum)]
 enum CheckArg {
     Fragments,
+    Markdown,
+    All,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
@@ -135,15 +137,18 @@ fn run_arguments(arguments: Vec<OsString>, wants_json: bool) -> RunOutput {
             }
         }
     };
-    let snapshot = match load_snapshot(&repository, &cli.book) {
+    let check = match cli.check {
+        CheckArg::Fragments => Check::Fragments,
+        CheckArg::Markdown => Check::Markdown,
+        CheckArg::All => Check::All,
+    };
+    let snapshot = match load_snapshot(&repository, &cli.book, !matches!(check, Check::Fragments)) {
         Ok(snapshot) => snapshot,
         Err(error) => return input_error(error, cli.output == OutputArg::Json),
     };
     let request = Request {
         scope: cli.through.map_or(Scope::Final, Scope::Through),
-        check: match cli.check {
-            CheckArg::Fragments => Check::Fragments,
-        },
+        check,
     };
     let report = validate(&snapshot, request);
     let exit = if report.valid { 0 } else { 1 };
@@ -161,9 +166,20 @@ fn run_arguments(arguments: Vec<OsString>, wants_json: bool) -> RunOutput {
     }
 }
 
-fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFailure> {
+fn load_snapshot(
+    repository: &Path,
+    book: &Path,
+    load_links: bool,
+) -> Result<BookSnapshot, LoadFailure> {
+    let canonical_repository = fs::canonicalize(repository)
+        .map_err(|error| LoadFailure::new(repository, "repository root", &error))?;
     let book_root = repository.join(book);
-    let entries = fs::read_dir(&book_root)
+    let canonical_book_root = fs::canonicalize(&book_root)
+        .map_err(|error| LoadFailure::new(book, "book directory", &error))?;
+    if !canonical_book_root.starts_with(&canonical_repository) {
+        return Err(LoadFailure::outside(book, "book directory"));
+    }
+    let entries = fs::read_dir(&canonical_book_root)
         .map_err(|error| LoadFailure::new(book, "book directory", &error))?;
     let mut paths = Vec::new();
     for entry in entries {
@@ -175,25 +191,96 @@ fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFai
     for path in paths {
         if path.extension().is_some_and(|extension| extension == "md") {
             let relative = path
-                .strip_prefix(repository)
-                .expect("book path was joined to repository")
+                .strip_prefix(&canonical_repository)
+                .expect("book path is confined to the canonical repository")
                 .to_string_lossy()
                 .replace('\\', "/");
-            let bytes = fs::read(&path)
-                .map_err(|error| LoadFailure::new(&relative, "book file", &error))?;
+            let bytes = read_confined(repository, &canonical_repository, &relative, "book file")?;
             book_files.insert(relative, bytes);
         }
     }
     let mut source_files = BTreeMap::new();
     for relative in SOURCE_PATHS {
-        let bytes = fs::read(repository.join(relative))
-            .map_err(|error| LoadFailure::new(relative, "ledger source", &error))?;
+        let bytes = read_confined(repository, &canonical_repository, relative, "ledger source")?;
         source_files.insert((*relative).into(), bytes);
     }
+    let linked_files = if load_links {
+        load_linked_files(repository, &book_files, &source_files)?
+    } else {
+        BTreeMap::new()
+    };
     Ok(BookSnapshot {
         book_files,
         source_files,
+        linked_files,
     })
+}
+
+fn read_confined(
+    repository: &Path,
+    canonical_repository: &Path,
+    relative: impl AsRef<Path>,
+    subject: &'static str,
+) -> Result<Vec<u8>, LoadFailure> {
+    let relative = relative.as_ref();
+    let path = repository.join(relative);
+    let canonical =
+        fs::canonicalize(&path).map_err(|error| LoadFailure::new(relative, subject, &error))?;
+    if !canonical.starts_with(canonical_repository) {
+        return Err(LoadFailure::outside(relative, subject));
+    }
+    let metadata =
+        fs::metadata(&canonical).map_err(|error| LoadFailure::new(relative, subject, &error))?;
+    if !metadata.is_file() {
+        return Err(LoadFailure::unsupported(relative, subject));
+    }
+    fs::read(canonical).map_err(|error| LoadFailure::new(relative, subject, &error))
+}
+
+fn load_linked_files(
+    repository: &Path,
+    book_files: &BTreeMap<String, Vec<u8>>,
+    source_files: &BTreeMap<String, Vec<u8>>,
+) -> Result<BTreeMap<String, Vec<u8>>, LoadFailure> {
+    let canonical_repository = fs::canonicalize(repository)
+        .map_err(|error| LoadFailure::new(repository, "repository root", &error))?;
+    let mut targets = std::collections::BTreeSet::new();
+    for (source, bytes) in book_files {
+        let Ok(markdown) = std::str::from_utf8(bytes) else {
+            continue;
+        };
+        for link in crate::scan_markdown_links(markdown) {
+            if !link.valid_syntax || crate::markdown::external_destination(&link.destination) {
+                continue;
+            }
+            if let Some((target, _)) = crate::markdown::resolve_local(source, &link.destination) {
+                if !book_files.contains_key(&target) && !source_files.contains_key(&target) {
+                    targets.insert(target);
+                }
+            }
+        }
+    }
+    let mut linked_files = BTreeMap::new();
+    for target in targets {
+        let path = repository.join(&target);
+        let canonical = match fs::canonicalize(&path) {
+            Ok(path) if path.starts_with(&canonical_repository) => path,
+            Ok(_) | Err(_) => continue,
+        };
+        if !fs::metadata(&canonical).is_ok_and(|metadata| metadata.is_file()) {
+            continue;
+        }
+        match fs::read(&canonical) {
+            Ok(bytes) => {
+                linked_files.insert(target, bytes);
+            }
+            Err(error) if matches!(error.kind(), std::io::ErrorKind::IsADirectory) => {}
+            Err(error) => {
+                return Err(LoadFailure::new(&target, "linked repository file", &error));
+            }
+        }
+    }
+    Ok(linked_files)
 }
 
 fn normalized_relative(path: &Path) -> bool {
@@ -261,6 +348,22 @@ impl LoadFailure {
             path: path.as_ref().to_string_lossy().replace('\\', "/"),
             subject,
             category: io_category(error.kind()),
+        }
+    }
+
+    fn outside(path: impl AsRef<Path>, subject: &'static str) -> Self {
+        Self {
+            path: path.as_ref().to_string_lossy().replace('\\', "/"),
+            subject,
+            category: "outside-explicit-repository",
+        }
+    }
+
+    fn unsupported(path: impl AsRef<Path>, subject: &'static str) -> Self {
+        Self {
+            path: path.as_ref().to_string_lossy().replace('\\', "/"),
+            subject,
+            category: "not-a-regular-file",
         }
     }
 

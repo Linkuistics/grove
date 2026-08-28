@@ -44,6 +44,7 @@ grove-loop = { path = "../grove-loop" }
 # `grove` itself is driven as a *process* by the loop fixtures, so the only
 # harness they need is a real spawn against a temporary tree.
 [dev-dependencies]
+book-validation = { path = "../book-validation" }
 # `libc` for the loop fixtures' own `kill(2)`: they signal the driver process to
 # drive its interrupt path, which `std::process::Child::kill` cannot express.
 libc = "0.2"

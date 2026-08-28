@@ -35,3 +35,13 @@ the specification's illustrative inline-code destination `relative/path` is
 classified as a repository reference. This predates `fragment-engine-k30` and
 belongs at this Markdown/link-validation seam; reconcile the example and the
 repository-wide scanner while implementing the shared link contract.
+
+## Decisions
+
+- The fragment parser's opaque ranges are also the authority for Markdown
+  headings, anchors, links, and production-looking fences. A public shared link
+  scanner applies the same fence and inline-code rules to repository docs.
+- All filesystem inputs are canonicalized beneath the explicitly supplied
+  repository root. Fragment-only runs do not load Markdown link targets.
+- `--check all` is the documented and default combined validation mode; the
+  narrower `fragments` and `markdown` modes remain available for diagnosis.

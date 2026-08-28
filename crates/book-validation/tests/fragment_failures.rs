@@ -12,6 +12,7 @@ fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
             "crates/ordinal-fs-tree/src/lib.rs".into(),
             source.as_bytes().to_vec(),
         )]),
+        linked_files: BTreeMap::new(),
     }
 }
 

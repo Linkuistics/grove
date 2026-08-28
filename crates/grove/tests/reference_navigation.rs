@@ -142,40 +142,16 @@ fn explicit_anchors(markdown: &str) -> HashSet<String> {
 /// bare fragments are out of scope: the first is not this repository's to
 /// verify, and the second resolves within the rendering page.
 fn relative_link_targets(markdown: &str) -> Vec<(String, usize)> {
-    let mut open_fence = None;
-    let mut targets = Vec::new();
-
-    for (line_index, line) in markdown.lines().enumerate() {
-        if open_fence.is_some_and(|fence| closes_fence(line, fence)) {
-            open_fence = None;
-            continue;
-        }
-        if open_fence.is_some() {
-            continue;
-        }
-        if let Some(fence) = fence_start(line) {
-            open_fence = Some(fence);
-            continue;
-        }
-
-        for candidate in line.split("](").skip(1) {
-            let Some((target, _)) = candidate.split_once(')') else {
-                continue;
-            };
-            // A Markdown link may carry a title after the destination.
-            let target = target.split_whitespace().next().unwrap_or_default();
-            if target.is_empty()
-                || target.starts_with('#')
-                || target.contains("://")
-                || target.starts_with("mailto:")
-            {
-                continue;
-            }
-            targets.push((target.to_owned(), line_index + 1));
-        }
-    }
-
-    targets
+    book_validation::scan_markdown_links(markdown)
+        .into_iter()
+        .filter(|link| {
+            !link.destination.is_empty()
+                && !link.destination.starts_with('#')
+                && !link.destination.contains("://")
+                && !link.destination.starts_with("mailto:")
+        })
+        .map(|link| (link.destination, link.line))
+        .collect()
 }
 
 /// Resolve one relative link against the repository, returning the reason it
@@ -286,6 +262,7 @@ fn user_documentation_reference_check_rejects_dangling_targets() {
 fn relative_link_scan_ignores_fenced_examples_and_absolute_urls() {
     let markdown = concat!(
         "See [real](docs/USAGE.md).\n",
+        "Inline `[illustrative](relative/path)` is not a repository reference.\n",
         "```text\n",
         "[fenced](docs/NEVER.md)\n",
         "```\n",
@@ -294,6 +271,14 @@ fn relative_link_scan_ignores_fenced_examples_and_absolute_urls() {
 
     assert_eq!(
         relative_link_targets(markdown),
+        [("docs/USAGE.md".to_owned(), 1)]
+    );
+}
+
+#[test]
+fn relative_link_scan_keeps_the_destination_of_titled_links() {
+    assert_eq!(
+        relative_link_targets(r#"See [usage](docs/USAGE.md "guide")."#),
         [("docs/USAGE.md".to_owned(), 1)]
     );
 }

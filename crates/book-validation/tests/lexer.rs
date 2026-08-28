@@ -10,6 +10,7 @@ fn codes(bytes: &[u8]) -> Vec<String> {
                 bytes.to_vec(),
             )]),
             source_files: BTreeMap::new(),
+            linked_files: BTreeMap::new(),
         },
         Request {
             scope: Scope::Through("orientation-k11".into()),
@@ -102,6 +103,7 @@ fn a_misclosed_literal_recovers_to_a_later_root() {
                 markdown.as_bytes().to_vec(),
             )]),
             source_files: BTreeMap::new(),
+            linked_files: BTreeMap::new(),
         },
         Request {
             scope: Scope::Through("orientation-k11".into()),
@@ -131,6 +133,7 @@ fn an_unclosed_literal_recovers_to_a_later_root() {
                 markdown.as_bytes().to_vec(),
             )]),
             source_files: BTreeMap::new(),
+            linked_files: BTreeMap::new(),
         },
         Request {
             scope: Scope::Through("orientation-k11".into()),
@@ -174,6 +177,7 @@ fn invalid_utf8_reports_its_first_byte_and_recovers_after_the_line() {
                 bytes.to_vec(),
             )]),
             source_files: BTreeMap::new(),
+            linked_files: BTreeMap::new(),
         },
         Request {
             scope: Scope::Through("orientation-k11".into()),

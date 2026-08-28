@@ -1,5 +1,6 @@
 pub mod cli;
 mod ledger;
+mod markdown;
 mod parser;
 mod validator;
 
@@ -7,12 +8,14 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+pub use markdown::{scan_markdown_links, MarkdownLink};
 pub use validator::validate;
 
 #[derive(Clone, Debug, Default)]
 pub struct BookSnapshot {
     pub book_files: BTreeMap<String, Vec<u8>>,
     pub source_files: BTreeMap<String, Vec<u8>>,
+    pub linked_files: BTreeMap<String, Vec<u8>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -67,6 +70,8 @@ pub const SOURCE_PATHS: &[&str] = &[
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Check {
     Fragments,
+    Markdown,
+    All,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -216,6 +221,11 @@ fn default_remedy(code: &str) -> Option<&'static str> {
         "F008" => "restore the literal bytes from the declared source range",
         "F009" => "make the ledger row and directive describe the same value",
         "F010" => "move the fragment definition to its owner's assigned numbered page",
+        "M101" => "restore the canonical page inventory, identity, and required structure",
+        "M102" => "restore the required heading and explicit-anchor structure",
+        "M103" => "restore canonical contents and previous/contents/next navigation",
+        "M104" => "move production source into a declared four-backtick fragment",
+        "M201" => "correct the link destination or restore its local target",
         "U001" => "run `book-check --help` for accepted arguments",
         "U002" => "restore read access to the required repository input",
         "I001" => "retry has no defined remedy; report the stable internal category",

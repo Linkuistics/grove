@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::ops::Range;
 
 use crate::{BookSnapshot, Diagnostic, Location};
 
@@ -6,7 +7,29 @@ use crate::{BookSnapshot, Diagnostic, Location};
 pub(crate) struct ParsedBook {
     pub(crate) roots: BTreeMap<String, Vec<Root>>,
     pub(crate) fragments: BTreeMap<String, Vec<Fragment>>,
+    pub(crate) documents: BTreeMap<String, ParsedDocument>,
     pub(crate) diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ParsedDocument {
+    pub(crate) path: String,
+    pub(crate) text: String,
+    pub(crate) page_directives: Vec<PageDirective>,
+    pub(crate) opaque_ranges: Vec<Range<usize>>,
+    pub(crate) ordinary_fences: Vec<OrdinaryFence>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct PageDirective {
+    pub(crate) raw: String,
+    pub(crate) location: Location,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct OrdinaryFence {
+    pub(crate) info: String,
+    pub(crate) location: Location,
 }
 
 #[derive(Clone, Debug)]
@@ -64,6 +87,7 @@ pub(crate) fn parse(snapshot: &BookSnapshot) -> ParsedBook {
     let mut parsed = ParsedBook {
         roots: BTreeMap::new(),
         fragments: BTreeMap::new(),
+        documents: BTreeMap::new(),
         diagnostics: Vec::new(),
     };
     for (path, bytes) in &snapshot.book_files {
@@ -118,8 +142,15 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
         offset += line.len();
     }
 
+    let mut document = ParsedDocument {
+        path: path.into(),
+        text: text.to_owned(),
+        page_directives: Vec::new(),
+        opaque_ranges: Vec::new(),
+        ordinary_fences: Vec::new(),
+    };
     let mut active: Option<Active> = None;
-    let mut ordinary_fence: Option<(String, Location)> = None;
+    let mut ordinary_fence: Option<(String, String, Location, usize)> = None;
     let mut index = 0;
     while index < lines.len() {
         let raw = lines[index];
@@ -131,17 +162,23 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
             column: 1,
         };
 
-        if let Some((delimiter, _)) = &ordinary_fence {
+        if let Some((delimiter, _, _, _)) = &ordinary_fence {
             if line == delimiter {
-                ordinary_fence = None;
+                let (_, info, location, start) = ordinary_fence.take().unwrap();
+                document
+                    .opaque_ranges
+                    .push(start..offsets[index] + raw.len());
+                document
+                    .ordinary_fences
+                    .push(OrdinaryFence { info, location });
             }
             index += 1;
             continue;
         }
         if active.is_none() {
             match fence_start(line) {
-                Some(FenceStart::Ordinary(delimiter)) => {
-                    ordinary_fence = Some((delimiter, here));
+                Some(FenceStart::Ordinary { delimiter, info }) => {
+                    ordinary_fence = Some((delimiter, info, here, offsets[index]));
                     index += 1;
                     continue;
                 }
@@ -165,6 +202,11 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
         if valid_book_page(line) {
             if active.is_some() {
                 invalid_context(parsed, here, "book-page directive is inside a construct");
+            } else {
+                document.page_directives.push(PageDirective {
+                    raw: line.into(),
+                    location: here,
+                });
             }
             index += 1;
             continue;
@@ -234,6 +276,11 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
                 }
                 fragment.body =
                     FragmentBody::Literal(lines[body_start..close].concat().into_bytes());
+                if body_start < close {
+                    document
+                        .opaque_ranges
+                        .push(offsets[body_start]..offsets[close]);
+                }
                 parsed
                     .fragments
                     .entry(fragment.id.clone())
@@ -306,7 +353,12 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
         index += 1;
     }
 
-    if let Some((_, location)) = ordinary_fence {
+    if let Some((_, info, location, start)) = ordinary_fence {
+        document.opaque_ranges.push(start..text.len());
+        document.ordinary_fences.push(OrdinaryFence {
+            info,
+            location: location.clone(),
+        });
         invalid_context(
             parsed,
             location,
@@ -328,6 +380,8 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
             None,
         ));
     }
+    document.opaque_ranges.sort_by_key(|range| range.start);
+    parsed.documents.insert(path.into(), document);
 }
 
 fn push_child(parsed: &mut ParsedBook, active: Option<&mut Active>, child: Child) {
@@ -420,7 +474,7 @@ fn parse_range(text: &str) -> Option<LineRange> {
 }
 
 enum FenceStart {
-    Ordinary(String),
+    Ordinary { delimiter: String, info: String },
     ReservedFour,
     Invalid,
 }
@@ -449,9 +503,10 @@ fn fence_start(line: &str) -> Option<FenceStart> {
     {
         return Some(FenceStart::Invalid);
     }
-    Some(FenceStart::Ordinary(
-        (marker as char).to_string().repeat(count),
-    ))
+    Some(FenceStart::Ordinary {
+        delimiter: (marker as char).to_string().repeat(count),
+        info: info.into(),
+    })
 }
 
 fn valid_id(id: &str) -> bool {

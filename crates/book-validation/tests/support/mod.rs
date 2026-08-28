@@ -441,6 +441,7 @@ pub fn corpus(final_: bool) -> BookSnapshot {
     BookSnapshot {
         book_files,
         source_files,
+        linked_files: BTreeMap::new(),
     }
 }
 

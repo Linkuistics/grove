@@ -12,6 +12,7 @@ fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
             "crates/ordinal-fs-tree/src/lib.rs".into(),
             source.as_bytes().to_vec(),
         )]),
+        linked_files: BTreeMap::new(),
     }
 }
 
@@ -149,6 +150,7 @@ fn a_deep_graph_is_processed_without_recursion() {
                 "crates/ordinal-fs-tree/src/lib.rs".into(),
                 b"line\n".to_vec(),
             )]),
+            linked_files: BTreeMap::new(),
         },
         Request {
             scope: Scope::Through("orientation-k11".into()),
@@ -237,6 +239,7 @@ fn an_invalid_root_suppresses_only_its_byte_cascade() {
                     report_source.into_bytes(),
                 ),
             ]),
+            linked_files: BTreeMap::new(),
         },
         Request {
             scope: Scope::Final,
@@ -312,6 +315,7 @@ fn branching_invalid_graphs_do_not_expand_exponentially() {
                 "crates/ordinal-fs-tree/src/lib.rs".into(),
                 b"line\n".to_vec(),
             )]),
+            linked_files: BTreeMap::new(),
         },
         Request {
             scope: Scope::Through("orientation-k11".into()),

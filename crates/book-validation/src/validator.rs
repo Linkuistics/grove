@@ -280,7 +280,6 @@ const fn block(
 }
 
 pub fn validate(snapshot: &BookSnapshot, request: Request) -> ValidationReport {
-    let crate::Check::Fragments = request.check;
     let parsed = parser::parse(snapshot);
     let mut diagnostics = parsed.diagnostics.clone();
     if let Scope::Through(slice) = &request.scope {
@@ -300,15 +299,20 @@ pub fn validate(snapshot: &BookSnapshot, request: Request) -> ValidationReport {
             ));
         }
     }
-    check_inventory(snapshot, &parsed, &mut diagnostics);
-    check_identities(&parsed, &mut diagnostics);
-    check_references(&parsed, &request.scope, &mut diagnostics);
-    check_ownership(&parsed, &request.scope, &mut diagnostics);
-    crate::ledger::check(snapshot, &parsed, &request.scope, &mut diagnostics);
-    check_graph(&parsed, &mut diagnostics);
-    check_coverage(&parsed, &mut diagnostics);
-    let invalid_roots = structurally_invalid_roots(&parsed, &diagnostics);
-    check_bytes(snapshot, &parsed, &invalid_roots, &mut diagnostics);
+    if matches!(request.check, crate::Check::Fragments | crate::Check::All) {
+        check_inventory(snapshot, &parsed, &mut diagnostics);
+        check_identities(&parsed, &mut diagnostics);
+        check_references(&parsed, &request.scope, &mut diagnostics);
+        check_ownership(&parsed, &request.scope, &mut diagnostics);
+        crate::ledger::check(snapshot, &parsed, &request.scope, &mut diagnostics);
+        check_graph(&parsed, &mut diagnostics);
+        check_coverage(&parsed, &mut diagnostics);
+        let invalid_roots = structurally_invalid_roots(&parsed, &diagnostics);
+        check_bytes(snapshot, &parsed, &invalid_roots, &mut diagnostics);
+    }
+    if matches!(request.check, crate::Check::Markdown | crate::Check::All) {
+        crate::markdown::check(snapshot, &parsed, &request.scope, &mut diagnostics);
+    }
     diagnostics.sort_by(compare_diagnostics);
     diagnostics.dedup();
     let coverage = coverage(&parsed, matches!(request.scope, Scope::Final));

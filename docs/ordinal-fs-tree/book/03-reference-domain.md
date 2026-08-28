@@ -1,6 +1,6 @@
 # Reference domain
 <!-- book-page id="reference-domain" slice="reference-domain-k13" order="3" -->
-[Previous: Name seam](02-name-seam.md) | [Contents](README.md)
+[Previous: Name seam](02-name-seam.md) | [Contents](README.md) | [Next: Read path](04-read-path.md)
 
 The reference domain is a complete consumer of the `EntryName` seam. It models a
 course syllabus so the library, its tests, and the demonstration CLI use one
@@ -1457,4 +1457,4 @@ cover malformed labels, terminal-key ambiguity, noncanonical padding, and
 recovery advice. These samples establish the vocabulary later pages reuse; they
 do not replace the crate tests or the formal model.
 
-[Previous: Name seam](02-name-seam.md) | [Contents](README.md)
+[Previous: Name seam](02-name-seam.md) | [Contents](README.md) | [Next: Read path](04-read-path.md)

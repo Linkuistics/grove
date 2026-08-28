@@ -59,20 +59,20 @@
 <!-- defer «mutation-report-source» owner="mutation-algebra-k15" lines="1-152" -->
 <!-- /source-root -->
 <!-- source-root «source-snapshot» source="crates/ordinal-fs-tree/src/snapshot.rs" lines="1-650" -->
-<!-- defer «read-snapshot-source» owner="read-path-k14" lines="1-650" -->
+<!-- insert «read-snapshot-source» -->
 <!-- /source-root -->
 <!-- source-root «source-filesystem-module» source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="1-393" -->
-<!-- defer «filesystem-read-opening» owner="read-path-k14" lines="1-86" -->
+<!-- insert «filesystem-read-opening» -->
 <!-- defer «filesystem-write-acquire» owner="filesystem-interpreter-k16" lines="87-105" -->
-<!-- defer «filesystem-read-acquire-and-guard» owner="read-path-k14" lines="106-131" -->
+<!-- insert «filesystem-read-acquire-and-guard» -->
 <!-- defer «filesystem-write-guard» owner="filesystem-interpreter-k16" lines="132-154" -->
-<!-- defer «filesystem-read-guard-api» owner="read-path-k14" lines="155-168" -->
+<!-- insert «filesystem-read-guard-api» -->
 <!-- defer «filesystem-write-guard-api» owner="filesystem-interpreter-k16" lines="169-378" -->
-<!-- defer «filesystem-read-deref» owner="read-path-k14" lines="379-386" -->
+<!-- insert «filesystem-read-deref» -->
 <!-- defer «filesystem-write-deref» owner="filesystem-interpreter-k16" lines="387-393" -->
 <!-- /source-root -->
 <!-- source-root «source-filesystem-read» source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-179" -->
-<!-- defer «read-filesystem-source» owner="read-path-k14" lines="1-179" -->
+<!-- insert «read-filesystem-source» -->
 <!-- /source-root -->
 <!-- source-root «source-filesystem-apply» source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="1-471" -->
 <!-- defer «filesystem-interpreter-source» owner="filesystem-interpreter-k16" lines="1-471" -->
@@ -100,16 +100,16 @@
 | `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `deferred` |
 | `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-555` | 555 | `resolved` |
 | `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-152` | 152 | `deferred` |
-| `read-snapshot-source` | `source-snapshot` | `read-path-k14` | `1-650` | 650 | `deferred` |
-| `filesystem-read-opening` | `source-filesystem-module` | `read-path-k14` | `1-86` | 86 | `deferred` |
+| `read-snapshot-source` | `source-snapshot` | `read-path-k14` | `1-650` | 650 | `resolved` |
+| `filesystem-read-opening` | `source-filesystem-module` | `read-path-k14` | `1-86` | 86 | `resolved` |
 | `filesystem-write-acquire` | `source-filesystem-module` | `filesystem-interpreter-k16` | `87-105` | 19 | `deferred` |
-| `filesystem-read-acquire-and-guard` | `source-filesystem-module` | `read-path-k14` | `106-131` | 26 | `deferred` |
+| `filesystem-read-acquire-and-guard` | `source-filesystem-module` | `read-path-k14` | `106-131` | 26 | `resolved` |
 | `filesystem-write-guard` | `source-filesystem-module` | `filesystem-interpreter-k16` | `132-154` | 23 | `deferred` |
-| `filesystem-read-guard-api` | `source-filesystem-module` | `read-path-k14` | `155-168` | 14 | `deferred` |
+| `filesystem-read-guard-api` | `source-filesystem-module` | `read-path-k14` | `155-168` | 14 | `resolved` |
 | `filesystem-write-guard-api` | `source-filesystem-module` | `filesystem-interpreter-k16` | `169-378` | 210 | `deferred` |
-| `filesystem-read-deref` | `source-filesystem-module` | `read-path-k14` | `379-386` | 8 | `deferred` |
+| `filesystem-read-deref` | `source-filesystem-module` | `read-path-k14` | `379-386` | 8 | `resolved` |
 | `filesystem-write-deref` | `source-filesystem-module` | `filesystem-interpreter-k16` | `387-393` | 7 | `deferred` |
-| `read-filesystem-source` | `source-filesystem-read` | `read-path-k14` | `1-179` | 179 | `deferred` |
+| `read-filesystem-source` | `source-filesystem-read` | `read-path-k14` | `1-179` | 179 | `resolved` |
 | `filesystem-interpreter-source` | `source-filesystem-apply` | `filesystem-interpreter-k16` | `1-471` | 471 | `deferred` |
 | `filesystem-lock-source` | `source-filesystem-lock` | `filesystem-interpreter-k16` | `1-91` | 91 | `deferred` |
 
@@ -152,8 +152,22 @@
 | `reference-parser-helpers` | `reference-domain` | `source-reference` | `literal` | `reference-domain-k13` | `506-555` | `reference-domain-source` | `—` |
 | `source-report` | `source-index` | `source-report` | `root` | `—` | `1-152` | `—` | `mutation-report-source` |
 | `source-snapshot` | `source-index` | `source-snapshot` | `root` | `—` | `1-650` | `—` | `read-snapshot-source` |
+| `snapshot-storage` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `1-104` | `read-snapshot-source` | `—` |
+| `read-snapshot-source` | `read-path` | `source-snapshot` | `composite` | `read-path-k14` | `1-650` | `source-snapshot` | `snapshot-storage`, `snapshot-builder`, `snapshot-entry-views`, `snapshot-containers`, `snapshot-queries` |
+| `snapshot-builder` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `105-267` | `read-snapshot-source` | `—` |
+| `snapshot-entry-views` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `268-440` | `read-snapshot-source` | `—` |
+| `snapshot-containers` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `441-532` | `read-snapshot-source` | `—` |
+| `snapshot-queries` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `533-650` | `read-snapshot-source` | `—` |
 | `source-filesystem-module` | `source-index` | `source-filesystem-module` | `root` | `—` | `1-393` | `—` | `filesystem-read-opening`, `filesystem-write-acquire`, `filesystem-read-acquire-and-guard`, `filesystem-write-guard`, `filesystem-read-guard-api`, `filesystem-write-guard-api`, `filesystem-read-deref`, `filesystem-write-deref` |
+| `filesystem-read-opening` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `1-86` | `source-filesystem-module` | `—` |
+| `filesystem-read-acquire-and-guard` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `106-131` | `source-filesystem-module` | `—` |
+| `filesystem-read-guard-api` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `155-168` | `source-filesystem-module` | `—` |
+| `filesystem-read-deref` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `379-386` | `source-filesystem-module` | `—` |
 | `source-filesystem-read` | `source-index` | `source-filesystem-read` | `root` | `—` | `1-179` | `—` | `read-filesystem-source` |
+| `read-tree-discovery` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `1-86` | `read-filesystem-source` | `—` |
+| `read-filesystem-source` | `read-path` | `source-filesystem-read` | `composite` | `read-path-k14` | `1-179` | `source-filesystem-read` | `read-tree-discovery`, `read-directory-listing`, `read-lock-location` |
+| `read-directory-listing` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `87-131` | `read-filesystem-source` | `—` |
+| `read-lock-location` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `132-179` | `read-filesystem-source` | `—` |
 | `source-filesystem-apply` | `source-index` | `source-filesystem-apply` | `root` | `—` | `1-471` | `—` | `filesystem-interpreter-source` |
 | `source-filesystem-lock` | `source-index` | `source-filesystem-lock` | `root` | `—` | `1-91` | `—` | `filesystem-lock-source` |
 
@@ -164,7 +178,7 @@
 |---|---|---|---|---|
 | `Ordinal`, `Key`, `Found`, `Verdict`, `Species`, `EntryName` | `01-orientation.md#working-vocabulary` | `name-seam-k12` | Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam. | `explained` |
 | `Label`, `Status`, `Parts`, `SyllabusName` | `01-orientation.md#insert-tour` | `reference-domain-k13` | These values are the syllabus consumer's vocabulary and seam implementation, not library defaults. | `explained` |
-| `Snapshot`, `Entry`, `ReadGuard` | `01-orientation.md#insert-tour` | `read-path-k14` | A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot. | `pending` |
+| `Snapshot`, `Entry`, `ReadGuard` | `01-orientation.md#insert-tour` | `read-path-k14` | A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot. | `explained` |
 | `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `pending` |
 | `WriteGuard`, `Error`, `apply::Faults`, `apply::Run` | `01-orientation.md#insert-tour` | `filesystem-interpreter-k16` | A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state. | `pending` |
 | `Cli`, `Verb`, `Streams`, `Failure` | `01-orientation.md#insert-tour` | `syllabus-cli-k17` | Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category. | `pending` |

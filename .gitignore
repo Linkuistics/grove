@@ -14,7 +14,6 @@
 
 # superpowers brainstorming visual companion (local-only)
 .superpowers/
-
 # Apalache's per-run scratch directory, written into the working tree by
 # `quint verify`. The runner that set `QUINT_VERIFY=1` (`models/run.sh`) went
 # with the formal-methods apparatus, and the surviving
@@ -22,3 +21,5 @@
 # in the repo writes this now. Kept because the directory is scratch either way,
 # and anyone re-running Quint by hand against those models would recreate it.
 /_apalache-out
+
+.grove.kdl

@@ -3524,8 +3524,8 @@ models/run.sh --scope finish --family quint
 
 Two files: [`finish.qnt`](finish.qnt) carries the parameterised library, the
 `base` instance and the `verify_small` model-checking instance;
-[`finish-controls.qnt`](finish-controls.qnt) carries the twelve focused
-scenarios, the seven assumption mutations and the thirteen model mutations. The
+[`finish-controls.qnt`](finish-controls.qnt) carries the fifteen focused
+scenarios, the seven assumption mutations and the seventeen model mutations. The
 split is not tidiness — see *Verification*.
 
 Coverage is asserted: all 63 `FN-` obligations are answered by a property
@@ -3627,8 +3627,11 @@ disposal rejoins by the marker it finds.
 | `scenario_orphan` | an orphaned quarantine beside a live witness | `FN-21.b` |
 | `scenario_return_blocked` | a return that cannot complete | `FN-22.h` |
 | `scenario_return_crash` | a crash inside the quarantine's return | the last crash boundary |
+| `scenario_march_under_the_candidate` | `EN-03`'s counterfactual candidate, marched | `FN-24.b` over the candidate's step lists |
+| `scenario_in_place_march` | the AVAILABLE candidate, no environment action at all | `FN-24.a`'s kill, `FN-28`, `FN-18`'s pair — see *The available candidate* |
+| `scenario_in_place_late_result` | the available candidate, one crash and one late result | `FN-29.b`: the candidate blocks rather than disposing what it never evacuated |
 | seven `relax_EN_*` | the assumption mutations | see *The controls* |
-| eleven `mutant_*` | the model mutations | see *The controls* |
+| seventeen `mutant_*` | the model mutations | see *The controls* |
 
 **Which module a command runs in** is decided by one rule, defined in
 [`models/run.sh`](../../../models/run.sh) under *THE MODULE RULE* and cited
@@ -3812,6 +3815,50 @@ order.
 | `wit_FN_18_and_then_reads_as_nothing_outstanding` | once the witness is released, `resumePoint` reads `SIdle` while the root still stands and disposal is unfinished | reached, 3410 traces |
 | `inv_fail_MUT_FN_24a_the_available_candidate_leaves_an_ordinary_tree` | the **repaired** `FN-24.a`, over the same world | violated, as the control requires |
 
+**AND THE CANDIDATE NO LONGER SUCCEEDS OVER BYTES IT HAS NOT PROVED.** This
+module admits no environment action, which is what makes its `FN-24.a` kill
+strong and is also what hid a second defect from it. `nextInPlaceDisposable`
+walked **every** entry not yet `Disposed`, `AtRoot` included, and
+`SDisposeRootEntry` unlinked the selected entry without consulting its place,
+type, digest or manifest membership. The path is reachable and the model records
+it: a crash after publication, recovery, and a late result that makes the
+disposition `Committed` reaches `SRevalBeforeQuarantine` with **evacuation
+incomplete** and diverts forward into the candidate's disposal, over a task root
+whose entries the transaction never moved. The incumbent may walk the whole root
+because the rename **moved** it to a name Grove owns; the candidate performs no
+such move and can point at nothing for an entry still at a user-visible path.
+
+The walk is now `evacuated(w)` — what this transaction's own evacuation moved —
+and the fall-through the first draft had is closed at the other end: with an
+entry still `AtRoot` when the evacuated ones are gone, the candidate **blocks**.
+Publication and the commit both stand, so `FN-29.b` makes the stop a block rather
+than a refusal, and the diagnosis is `RecoveryPending` because the witness is
+Grove's and names this attempt. `scenario_in_place_late_result` is that
+measurement: the block is reached in **56 of 8000** traces with the published
+witness standing and the entry unlinked by nothing, every one of them carrying
+`RecoveryPending`, while the candidate's ordinary successful exit is still
+reached in **2130** — so the stop discriminates rather than walls. Found by
+`honest-classification-k84`, finding 2.
+
+**Deciding whether a resumed sweep may prove ownership over such an entry is not
+this section's, and was deliberately not decided here**; it is
+`sweep-ownership-k81`'s either/or. What was removed is only the candidate
+reporting **success** over a deletion it had not proved, which would have made
+that later proof irrelevant to the transition already doing the deleting.
+
+**AND ONE CLAIM IS RED UNDER THE CANDIDATE AND IS DECLARED HERE RATHER THAN LEFT
+TO THE MODULE RULE.** `inv_FN_25b` fails in
+`scenario_in_place_late_result`'s world: once the candidate has released the task
+root, a recovery meeting an absent root with no correlation ticket blocks through
+`recoverOp`'s `rootless` site with `diagnose` returning the **empty set**,
+because nothing of Grove's is left at a reserved name for `groveOwnedCorrelated`
+to read. The incumbent leaves a quarantine there and never reaches it.
+**Pre-existing, and measured as such**: the same module run against the committed
+model at `6d0188dd` — before this leaf touched anything — violates it
+identically. It is the same disk `wit_FN_18_and_then_reads_as_nothing_outstanding`
+reads as `SIdle`, so it is the resumption hole `sweep-ownership-k81` owns, and it
+is recorded in that leaf's body rather than repaired here.
+
 **A THIRD SITE OF THE SAME SHAPE TURNED UP AFTER THE REPAIR, AND IT IS WHY THE
 `FN-28` ROW IS IN THAT TABLE.** `inv_FN_28`'s second operand read
 `(ATOMIC_DISPOSAL or hist.appliedAfterQuarantine)` — **an enumeration of the two
@@ -3824,33 +3871,104 @@ coverage cell from a world in which the claim was false, which is run.sh's
 obligation-3 hazard one grain down. Found by this leaf's in-session reviewer,
 after the `FN-24.a` repair had landed. The claim is now stated over two facts
 each root-freeing step records for itself (`rootTakenAway`,
-`rootTakenWithoutCommitted`), it is green in `base` and in every `scenario_` and
+`rootTakenWithoutProof`), it is green in `base` and in every `scenario_` and
 `relax_` module, and it is asserted inside the candidate's own module so the
 witness and the property cannot come apart again. **Adding a third disjunct would
 have been the wrong repair**, and that it was available is what makes the rule
 worth recording.
 
+**AND THE FIRST REPAIR WAS SELF-CERTIFYING, WHICH IS WHAT `honest-classification-k84`
+CAME BACK FOR.** `rootTakenAway` was set in `SQuarantineRename` **before** the
+branch on `RENAME_ATOMIC`, on the reading that a torn rename still took the
+root's name away. It did not: the false arm leaves `rootPresent` **true**,
+creates no quarantine, and sets `rootTorn` — a name free and occupied at once,
+which is precisely what `EN-01` is bought to prevent. Recording that as a removal
+let a proven-result trace settle `OApplied` with `FN-28` satisfied while Grove had
+never taken the task root away, **laundering `EN-01`'s premise break into the fact
+the claim exists to test**. `inv_FN_22i` says the same thing about the same arm
+one claim over, and had been failing there, unreported, for as long as
+`relax_EN_01` has existed — a `relax_` module carries only the commands written
+inside it. Both flags now sit in the arm that completes the removal, and both
+failures are declared:
+`inv_fail_EN_01_FN_28_a_torn_rename_is_not_a_removal` and
+`inv_fail_EN_01_FN_22i_a_torn_rename_applies_over_a_present_root`.
+
+**AND EACH OPERAND NOW HAS AN ISOLATING KILL, MEASURED AS ISOLATING RATHER THAN
+ASSERTED TO BE.** The review's test is exact — *a control independently falsifies
+each new load-bearing operand; an unrelated failure common to the old and new
+predicates is not credited as that control* — and `relax_EN_13`, which the
+producer offered, fails `FN-28` under the old formulation and the new one alike,
+through the operand neither changed.
+
+| operand | control | what makes it isolating |
+|---|---|---|
+| `rootTakenAway` | `relax_EN_01` | the OLD predicate — `deletionProvenFor and (ATOMIC_DISPOSAL or appliedAfterQuarantine)`, written out inline — is **green** over that module, and so is the new predicate's other operand on its own. Only this one decides it |
+| `rootTakenWithoutProof` | `mutant_status_classifier` | the disposition read off an exit status runs the removal with no ticket (the flag is set in **683 of 8000** traces) and the same status settles `OApplied`; `rootTakenAway` alone over that module is **green** |
+
+**AND THE FIRST OPERAND WAS A FACT ABOUT THE REPOSITORY, WHICH THE CATALOGUE
+ALREADY SAYS THE PROTOCOL CANNOT HOLD — IT JUST SAID IT ABOUT THE SECOND.**
+`inv_FN_28` read `deletionProvenFor(w, t.settling)` over the world the invariant
+was **evaluated** in, and the correlation ticket is not Grove's to keep:
+`topologyChangeAt(1)` and `(5)` are the operator dropping the result, admitted at
+any point. So a finish that did everything right went red the moment the operator
+dropped the ticket afterwards. **This is a false green found by narrowing, not by
+widening, and it was `base`'s**: with every `EN-` assumption granted and every
+model mutation off, in a world whose only difference from `base` is an
+environment restricted to topology changes with a budget of 2 — a strict
+**subset** of `base`'s traces — `inv_FN_28_one_successful_exit` is violated with
+the ticket set empty, `shape` `CSAbsent` and `rootTakenAway` true. `base`'s 8000
+samples never drew it. The proof is now recorded at the step that acts on it
+(`rootTakenWithoutProof`), and the same narrowed world is green.
+
+**AND THE CATALOGUE NOW STATES THE SAME `FN-28` THE MODEL IMPLEMENTS.** The
+semantic contract said *the only transition under a transaction that takes the
+task root away SHALL be the quarantine rename* while the repaired predicate
+accepted `SRemoveRoot` through generic history flags — the Quint column green
+against a role-form its source-of-truth obligation did not contain, with the
+runner's coverage claim over two different propositions and no declared gap
+(`honest-classification-k84`, finding 3). `FN-28` is restated over the role, an
+attempted removal is excluded in the catalogue's own words, and the claim now
+carries the `*Class*: shared safety` line every other claim of its class does —
+which is what makes
+[`a-shared-safety-claim-names-the-role-not-the-artifact`](../../../docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md)
+visibly apply to it.
+
 **WHAT THE TWO `FN-24.a` ROWS ARE, TOGETHER, IS AN A/B ON THE REPAIR AND NOT TWO
 FINDINGS.** One disk; the artifact-guarded encoding accepts it and the
 role-guarded one rejects it. That is the whole of what
-[`a-shared-safety-guard-names-the-role-not-the-artifact`](../../../docs/adr/a-shared-safety-guard-names-the-role-not-the-artifact.md)
+[`a-shared-safety-claim-names-the-role-not-the-artifact`](../../../docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md)
 records. All three inherited `FN-24.a` kills — `mutant_no_quarantined_state`,
 `mutant_absent_classified_first` and `relax_EN_01` — are green beside the new one,
 which is what says the claim was strengthened rather than moved.
 
-**AND `groveReservationStands` IS RETAINED AS AN UNCONTROLLED CONJUNCT, WHICH IS
-A CORRECTION.** This paragraph first said it was kept because dropping it would
-lose `mutant_no_quarantined_state`'s kill. This leaf's in-session reviewer
-measured that false in both halves: all three inherited kills fire with
+**AND `groveReservationStands` NOW HAS ITS OWN WITNESS AND KILL, WHICH RETIRES A
+DECLARED GAP RATHER THAN RESTATING ONE.** This paragraph twice said less than it
+should have. It first claimed the disjunct was kept because dropping it would
+lose `mutant_no_quarantined_state`'s kill; `honest-classification-k80`'s reviewer
+measured that false in both halves — all three inherited kills fire with
 `unsettledRootWork` **alone**, `base` stays green, and the disk the justification
-named — `EN-11`'s orphan beside a live root with no transaction running — is not
-admitted in that module at all (`ENV_KINDS = Set(0)`, crash only). It is kept on
-the reason that survives measurement — §*States*' `Reserved` class sentence has
-two realisations and a guard narrower than the role errs the wrong way — and it
-is declared here as **a conjunct no control in this column can kill**, exactly as
-the correlation ticket's attempt-binding is declared under *Narrowings*. What
-would control it is a reachable disk carrying a Grove artifact at a reserved name
-with no transaction live **and** a classification in the biting set.
+named is not admitted in that module at all (`ENV_KINDS = Set(0)`, crash only).
+It then called the conjunct *declared uncontrolled*, and
+`honest-classification-k84`'s finding 4 is that **an honest limitation is not a
+verification**, and that the missing control was never an expressivity limit:
+`handEditTo(12)` already constructs `EN-11`'s orphaned, Grove-owned quarantine
+beside a task root that is still present, with no transaction live over it. What
+no module did was combine that disk with the classifier mutation.
+
+`mutant_orphan_is_not_a_reserved_state` does. It admits that hand edit and
+**nothing else** — crashes off, one environment action, `ENV_EDITS = Set(12)` —
+and it carries a pair rather than a bare red:
+`wit_FN_24a_the_artifact_realisation_bites_where_the_moved_tree_one_cannot` is
+reached in **7230 of 8000** traces and holds `groveReservationStands` true,
+`unsettledRootWork` **false**, and the classification in the set the conjuncts
+bite on; `inv_fail_MUT_FN_24a_an_orphaned_quarantine_reads_as_an_ordinary_grove`
+is the kill. **The isolation is carried by the witness, deliberately, and the
+reason is stated rather than hidden**: with the quarantine no longer a reserved
+state every trace reaching the rename also fails through the moved-tree
+realisation, so which disjunct the invariant died on is not attributable from the
+kill alone — what is attributable is a reached state that only the first
+realisation catches. So the disjunct is retained on §*States*' `Reserved` class
+sentence having two realisations, and it is no longer retained on faith.
 
 **THE NEW KILL NEEDS NO INTERRUPTION, AND THAT IS THE SHARPEST THING HERE.**
 `scenario_in_place_march` runs at `ENV_BUDGET = 0` with `ENV_PHASES` and
@@ -4046,6 +4164,7 @@ QUINT_VERIFY=1 models/run.sh --scope finish --family quint  # …and model-check
 | `--scope finish --family quint`, after `closed-set-additions-k74` | **exit 0** — **236 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Eight more commands and two more cells: `FN-29` split into `.a` and `.b`, `FN-29.b` carries a witness per arm, and `wit_FN_32` now reads both arms because the witness-slot step moved from a block to a refusal |
 | the same with `QUINT_VERIFY=1` | **exit 0** — 11m 51s wall, 289 commands, 0 failures; the 61 `SKIP` lines become `model-checked to depth 4, no counterexample` |
 | `--scope finish --family quint`, after `finish-verdicts-k65` | **exit 0** — **240 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows (3 `none`, 1 abstracted). **5m 07s wall** (`2026-08-28T04:33:02Z` → `04:38:09Z`). One more command than the row below: `relax_EN_03` gained `inv_FN_32_ownership_still_proven_under_the_candidate`, which **holds**, so Q1's retained set is now checked in full by the family the assumption table assigns `EN-03`'s mutation to. Provenance: `docs/specs/semantic-contract.md`, this README and both `.qnt` files were digested before the run and re-digested after, byte-identical either side, and the GAP-line count was 4 both times; this row was written after the run |
+| `--scope finish --family quint`, after `honest-classification-k85` integrated `k84`'s review | **exit 0** — **272 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. **6m 39s wall / 481s user** (`2026-08-28T07:54:39Z` → `08:01:18Z`). Ten more commands than the row below, every one accounted for: 2 in `relax_EN_01` (`FN-28`'s isolating kill and `FN-22.i`, which had been failing there unreported), 1 in `mutant_status_classifier` (`FN-28`'s second isolating kill), 5 in the new `scenario_in_place_late_result`, 2 in the new `mutant_orphan_is_not_a_reserved_state`. The obligation manifest did **not** move — `models/run.sh --list` prints **130** before and after — because the catalogue's `FN-28` edit is that obligation's own text plus the `*Class*` line every claim of its class already carries. **The baseline it is measured against was re-measured in this same session on the unmodified tree at `6d0188dd`, not recalled: exit 0, 262 commands, 63 of 63 cells, 5m 55s wall / 419s user.** Provenance: the same four subjects digested before the run and re-digested after, **byte-identical either side**, and the runner's own `-- cells:` line reported 0 declared gaps both times; this row was written after the run |
 | `--scope finish --family quint`, after `honest-classification-k80`'s review integration | **exit 0** — **262 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. **5m 49s wall / 416s user** (`2026-08-28T06:52:00Z` → `06:57:49Z`). One more command than the row below: `inv_FN_28_still_holds_under_the_available_candidate`, which exists because the row below's run was green while `FN-28` was **false** under the candidate — the claim's second operand enumerated two protocols, and a `scenario_` module carries only its own commands, so the witness credited a cell the property would have failed. Provenance: the same four subjects digested before and after, **byte-identical either side**, declared gaps 0 both times; this row was written after the run |
 | `--scope finish --family quint`, after `honest-classification-k80` **before its review was integrated** | **exit 0** — **261 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows (3 `none`, 1 abstracted). **5m 47s wall / 413s user** (`2026-08-28T06:17:02Z` → `06:22:48Z`). Seven more commands than the 254 the previous leaf left, all in the new `scenario_in_place_march`: six `wit_` measurements and one `inv_fail_`. The obligation manifest did **not** move — `models/run.sh --list` prints 130 before and after — because every catalogue edit is prose, a table decision or an obligation's own text. Provenance: `docs/specs/semantic-contract.md`, this README and both `.qnt` files were digested before the run and re-digested after, **byte-identical either side**, and the declared-gap count the run itself reports was **0 both times** — the figure to compare is the runner's own `-- cells:` line rather than a grep for the word, which this row would otherwise have moved by containing it. This row was written after the run. The baseline it is measured against is the same command on the unmodified tree at `wkzptosn`: **exit 0, 254 commands, 63 of 63 cells, 5m 25s**, re-measured in the same session rather than recalled |
 | `--scope finish --family quint`, after `finish-scope-k76` | **exit 0** — **239 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Three more than the row above: `mutant_correlation_wins_the_overlap`'s `inv_fail_MUT_FN_25a_correlation_wins_the_overlap`, plus the two `mutant_*` commands the k71 row already counted under verify |
@@ -4058,6 +4177,10 @@ about 8% of the run (the producer's were 4m 05s / 223 commands and 10m 38s / 284
 
 The second row is the one to quote, **with its depth attached**. See the
 `VERIFY` line above for what depth 4 does and does not reach.
+
+**The command count moved four times since; the arithmetic below is the 228 row's
+and is kept because it is the only place the accounting method is written down.**
+Read it as *how* to reconcile a count, not as the current one.
 
 The 228 are the 61 property commands the library declares and `base` inherits,
 plus the 167 written inside `finish-controls.qnt`: **114 witnesses** across the

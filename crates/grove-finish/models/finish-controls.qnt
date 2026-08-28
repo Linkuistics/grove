@@ -815,6 +815,33 @@ module relax_EN_01 {
 
   val inv_fail_EN_01_FN_24a_a_torn_rename_is_two_stable_states: bool =
     inv_FN_24a_every_interruption_lands_in_exactly_one_state
+
+  /// `FN-28`, AND IT IS THE ISOLATING KILL FOR `rootTakenAway`.  A torn rename
+  /// leaves `rootPresent` TRUE, creates no quarantine, and sets only `rootTorn`
+  /// — the task root still answers at its own name — while the disposition the
+  /// next revalidation point re-reads can still be `Committed`, so the
+  /// transaction settles `OApplied` over a root Grove never took away.
+  ///
+  /// **WHY IT IS THE CONTROL AND `relax_EN_13` IS NOT.** `EN-13`'s module
+  /// violates `FN-28` under the OLD formulation and the new one alike, through
+  /// the operand neither changed; a failure common to both is evidence that the
+  /// new operand was never exercised.  This one separates them: the OLD
+  /// predicate — `deletionProvenFor and (ATOMIC_DISPOSAL or
+  /// appliedAfterQuarantine)`, written out inline rather than called — is GREEN
+  /// here, and so is the new predicate's other operand on its own.  Only
+  /// `rootTakenAway` decides it.  Owed to `honest-classification-k84`, finding 1.
+  val inv_fail_EN_01_FN_28_a_torn_rename_is_not_a_removal: bool =
+    inv_FN_28_one_successful_exit
+
+  /// `FN-22.i`, DECLARED RATHER THAN LEFT HIDDEN BY THE MODULE RULE.  It says
+  /// an applied post-rename state has no task root, and the torn arm settles
+  /// `OApplied` with `rootPresent` still true — so it has been failing here
+  /// since `EN-01`'s module existed, unreported because a `relax_` module
+  /// carries only the commands written inside it.  It is the same fact as the
+  /// kill above, one claim over, and a module that changes what the model does
+  /// must be run against every claim the model has.
+  val inv_fail_EN_01_FN_22i_a_torn_rename_applies_over_a_present_root: bool =
+    inv_FN_22i_committed_after_the_rename_applies
 }
 
 /// `EN-03`, COUNTERFACTUAL CAPABILITY — and this is Q1's whole instrument.
@@ -1196,6 +1223,89 @@ module scenario_in_place_march {
 
 }
 
+/// THE PATH `honest-classification-k84`'S FINDING 2 NAMES, RUN RATHER THAN
+/// ARGUED — and the module exists because `scenario_in_place_march` cannot reach
+/// it.  That module admits no environment action at all, which is what makes its
+/// `FN-24.a` kill strong and also what hid this: a crash after publication,
+/// recovery, and a LATE result that makes the disposition `Committed` reaches
+/// `SRevalBeforeQuarantine` with evacuation INCOMPLETE and diverts forward into
+/// the candidate's disposal, over a task root whose entries were never moved
+/// into the witness.
+///
+/// **WHAT IS MEASURED IS THAT THE CANDIDATE STOPS INSTEAD OF DELETING.**  The
+/// disposal walks what its own evacuation moved; an entry still `AtRoot` is one
+/// no transition of this transaction ever claimed, and the incumbent's answer —
+/// a rename that takes the whole root at once, to a name Grove owns — is exactly
+/// what the candidate does not have.  Publication and the commit both stand, so
+/// `FN-29.b` makes the stop a BLOCK.  The candidate's ordinary successful exit
+/// is still reached here, so the block is a discrimination rather than a wall.
+///
+/// **AND ONE CLAIM IS RED IN THIS WORLD AND IS NOT ASSERTED BELOW, WHICH IS
+/// DECLARED HERE RATHER THAN LEFT TO THE MODULE RULE.**  `inv_FN_25b` fails
+/// under the candidate: after the candidate has released the root, a recovery
+/// that meets an absent task root with no correlation ticket blocks through
+/// `recoverOp`'s `rootless` site with `diagnose` returning the EMPTY set,
+/// because nothing of Grove's is left at a reserved name for
+/// `groveOwnedCorrelated` to read.  The incumbent leaves a quarantine there and
+/// so never reaches it.  MEASURED AS PRE-EXISTING: the same module against the
+/// committed model at `6d0188dd`, before this leaf touched anything, violates it
+/// identically.  It is the resumption hole `sweep-ownership-k81` owns — the same
+/// disk `wit_FN_18_and_then_reads_as_nothing_outstanding` reads as `SIdle` — and
+/// it is recorded in that leaf's body and in `README.md` rather than repaired
+/// here, where deciding it would decide `k81`'s either/or.
+module scenario_in_place_late_result {
+  import finish(
+    RENAME_ATOMIC = true, ATOMIC_DISPOSAL = false, ATOMIC_COMMIT = false,
+    IN_PLACE_DISPOSAL = true,
+    CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
+    REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
+    ENV_BUDGET = 2, ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6), ENV_KINDS = Set(0, 3),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0), ENTRIES = 1
+  ).* from "./finish"
+
+  /// THE MEASUREMENT.  The candidate reaches disposal with an entry evacuation
+  /// never moved, and stops: blocked, the published witness still standing, the
+  /// entry still `AtRoot` and unlinked by nothing.
+  val wit_FN_29b_the_candidate_blocks_rather_than_disposing_what_it_never_evacuated: bool =
+    not(t.running) and isBlock(t.outcome) and
+    hist.blockSitesSwept.contains("unevacuated") and
+    rootEntries(w).size() > 0 and w.witness == WPublished
+
+  /// …AND THE BLOCK CARRIES THE DIAGNOSIS THE STATE IMPLIES.  The witness is
+  /// Grove's, present, and names this attempt, so `groveOwnedCorrelated` holds
+  /// and what the operator is owed is a resumption, not an ownership conflict.
+  val wit_FN_25c_the_unevacuated_block_is_recovery_pending: bool =
+    not(t.running) and hist.blockSitesSwept.contains("unevacuated") and
+    t.outcome == OBlocked(RecoveryPending)
+
+  /// …AND THE STOP IS A DISCRIMINATION RATHER THAN A WALL: the candidate's
+  /// ordinary successful exit is still reached in this same world.
+  val wit_FN_28_the_candidate_still_reaches_its_exit_under_a_late_result: bool =
+    hist.stepsVisited.contains(SRemoveRoot)
+
+  /// `FN-28` over that world.  It is asserted where the witness above is
+  /// counted, which is the pairing `honest-classification-k80`'s reviewer found
+  /// missing and the reason a `scenario_` module may never carry a witness
+  /// without the property it credits.
+  val inv_FN_28_the_candidate_never_succeeds_over_an_unevacuated_entry: bool =
+    inv_FN_28_one_successful_exit
+
+  /// `FN-27.a`.  The point of the repair: nothing the transaction had not
+  /// claimed is unlinked on the way to a success.
+  val inv_FN_27a_nothing_unclaimed_is_unlinked_on_success: bool =
+    inv_FN_27a_nothing_unrelated_changes_on_success
+}
+
 /// `EN-05`, COUNTERFACTUAL CAPABILITY — Q2's instrument.  With the commit inside
 /// the filesystem transaction, the transaction's own atomicity is the receipt:
 /// it applied or it did not, and there is no third answer to read.
@@ -1479,6 +1589,18 @@ module mutant_status_classifier {
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
+
+  /// `FN-28`, AND IT IS THE ISOLATING KILL FOR `rootTakenWithoutProof`.  With
+  /// the disposition read off the reported exit status, the step that takes the
+  /// task root away runs while no attempt-bound ticket exists — the flag is set
+  /// in 683 of 8000 traces — and the same status then settles `OApplied`.  The
+  /// OTHER operand, `rootTakenAway`, is green over this module on its own, so
+  /// this kill and `relax_EN_01`'s isolate `FN-28`'s two operands against each
+  /// other rather than sharing a cause.  Owed to `honest-classification-k84`,
+  /// finding 1: a claim stated over flags its own steps set is not controlled
+  /// by a green.
+  val inv_fail_MUT_FN_28_the_root_is_taken_away_before_the_result_is_proven: bool =
+    inv_FN_28_one_successful_exit
 
   val inv_fail_MUT_FN_15a_the_exit_status_read_as_a_receipt: bool =
     inv_FN_15a_the_classification_never_reads_an_exit_status
@@ -1947,6 +2069,74 @@ module mutant_no_quarantined_state {
   ).* from "./finish"
 
   val inv_fail_MUT_FN_24a_a_standing_quarantine_reads_as_an_ordinary_grove: bool =
+    inv_FN_24a_every_interruption_lands_in_exactly_one_state
+}
+
+/// THE SAME CLASSIFIER MUTATION, OVER THE DISK THE OTHER ONE CANNOT REACH — and
+/// it exists because `groveWorkOutstanding`'s FIRST realisation was retained as
+/// a declared-uncontrolled conjunct while `FN-24.a`'s cell was reported
+/// complete.  `honest-classification-k84`, finding 4: *calling the branch
+/// declared uncontrolled is an honest limitation; it is not verification.*
+///
+/// The missing control was never an expressivity limit.  `handEditTo(12)` already
+/// constructs `EN-11`'s orphaned, Grove-owned quarantine beside a task root that
+/// is still present, with no transaction of Grove's live over it —
+/// `groveReservationStands` true and `unsettledRootWork` FALSE, which is exactly
+/// the state only the first realisation catches.  What no module combined with it
+/// was the classifier mutation: `mutant_no_quarantined_state` admits `ENV_KINDS =
+/// Set(0)`, crashes only.  This one admits that hand edit and NOTHING else,
+/// crashes included, so the disk it bites on is the orphan and not a torn or
+/// half-recovered state.
+///
+/// **AND THE ISOLATION IS A WITNESS RATHER THAN A CLAIM ABOUT THE KILL.**  With
+/// the quarantine no longer a reserved state, every trace that reaches the
+/// rename also fails through the moved-tree realisation, so *which* disjunct the
+/// invariant died on is not attributable from the kill alone.  What is
+/// attributable is the state: `wit_` below is reached in 90% of traces and has
+/// the first realisation true, the second FALSE, and the classification in the
+/// set the conjuncts bite on — the disk the retained conjunct is retained FOR.
+/// That pair — a reached state only this realisation catches, and a kill — is
+/// what the finding asked for, and it is why the conjunct is no longer declared
+/// uncontrolled in `finish.qnt` or in `README.md`.
+module mutant_orphan_is_not_a_reserved_state {
+  import finish(
+    RENAME_ATOMIC = true,
+    ATOMIC_DISPOSAL = false,
+    IN_PLACE_DISPOSAL = false,
+    ATOMIC_COMMIT = false,
+    CRASHES = false,
+    FOREIGN_WRITES = true,
+    REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false,
+    LANES = Set(0, 1, 2),
+    REVALIDATE = true,
+    CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true,
+    OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true,
+    PREFLIGHT_PURE = true,
+    PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = false,
+    RESERVED_BEFORE_ABSENT = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
+    ENV_BUDGET = 1, ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6), ENV_KINDS = Set(1),
+    ENV_EDITS = Set(12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  /// THE STATE ONLY THE ARTIFACT REALISATION CATCHES, written out inline rather
+  /// than as a call, for the reason `scenario_in_place_march` states: a
+  /// measurement of a defect must survive the definition it is about being
+  /// edited.
+  val wit_FN_24a_the_artifact_realisation_bites_where_the_moved_tree_one_cannot: bool =
+    w.quar.present and not(unsettledRootWork(w, t)) and
+    isCurrent(classify(w)) and stableStates(w).size() >= 1 and
+    not(sameNameAmbiguity(w))
+
+  val inv_fail_MUT_FN_24a_an_orphaned_quarantine_reads_as_an_ordinary_grove: bool =
     inv_FN_24a_every_interruption_lands_in_exactly_one_state
 }
 

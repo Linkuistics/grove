@@ -48,6 +48,16 @@ The order encodes one dependency and one freeze.
    question, and every durable formal artifact is reachable from its component
    owner.
 
+**And `quarantine-gate-control-k86` was inserted immediately before it**, by
+`integrate-review-design honest-classification-k85`, which measured
+`FN-22.e`'s `renamedWithoutCommitted` unreachable in `base` — 0 of 8000 traces —
+while building `FN-28`'s isolating kills. It is an instrument leaf and not a new
+question: one claim in the Quint finish column is green because no reachable
+state can falsify it, which is the shape this node has now met four times. It is
+inserted rather than appended because `handoff-audit-k66` is the phase's closing
+audit and an instrument gap found after the audit is a gap the audit missed. Keys
+are unchanged; `k66` is now position 11.
+
 Children 2 – 5 were cut by child 1's session, which is why their bodies carry the
 specific inherited items rather than a generic goal sentence.
 

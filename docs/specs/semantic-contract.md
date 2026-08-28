@@ -779,7 +779,7 @@ different stable state**. An evacuated tree is `Reserved(Published)` and never
 never `Absent`. `SY-05` is where that cashes out, and `FN-24.a` is what checks
 it — over the role, *work outstanding over the task root*, rather than over the
 artifacts a particular protocol happens to leave
-([`a-shared-safety-guard-names-the-role-not-the-artifact`](../adr/a-shared-safety-guard-names-the-role-not-the-artifact.md)).
+([`a-shared-safety-claim-names-the-role-not-the-artifact`](../adr/a-shared-safety-claim-names-the-role-not-the-artifact.md)).
 
 ### Actions
 
@@ -2193,7 +2193,7 @@ the difference it is judging. **That is measured rather than argued**:
 lands under the available in-place candidate, with no interruption anywhere in
 the trace. The obligation now carries the failable half in its own text, over the
 role; the rule is
-[`a-shared-safety-guard-names-the-role-not-the-artifact`](../adr/a-shared-safety-guard-names-the-role-not-the-artifact.md),
+[`a-shared-safety-claim-names-the-role-not-the-artifact`](../adr/a-shared-safety-claim-names-the-role-not-the-artifact.md),
 and it is the second instance of the shape `finish-verdicts-k78` found at
 `FN-32`.
 
@@ -2323,13 +2323,28 @@ attempt-bound commit is proven and Grove itself has taken the task root away and
 not put it back. **Both operands are things Grove establishes and preserves, and
 neither may be read off the disk**, so the claim is stated over Grove's own
 steps: the step that completes a finish SHALL be reached only over a proven
-commit; the only transition under a transaction that takes the task root away
-SHALL be the quarantine rename, and it SHALL do so only on a proven result; and
-while the commit stands proven Grove SHALL never put the pinned task root back.
-Branch, bookmark and worktree topology SHALL be unchanged, and no integration or
-removal SHALL be performed. Best-effort cleanup that must be retried SHALL NOT
-make a proven finish unsuccessful.
+commit; a finish SHALL complete only after a transition of its own transaction
+has **taken the task root away**, and every transition that takes the task root
+away SHALL do so only on a proven result; and while the commit stands proven
+Grove SHALL never put the pinned task root back. Branch, bookmark and worktree
+topology SHALL be unchanged, and no integration or removal SHALL be performed.
+Best-effort cleanup that must be retried SHALL NOT make a proven finish
+unsuccessful.
 *Witness*: a success whose cleanup is still outstanding.
+*Class*: shared safety.
+
+**The removal clause names the ROLE, and an attempt is not a removal.** It said
+*the only transition that takes the task root away SHALL be the quarantine
+rename*, which names the incumbent's artifact where the claim needs the part it
+plays — the defect
+[`a-shared-safety-claim-names-the-role-not-the-artifact`](../adr/a-shared-safety-claim-names-the-role-not-the-artifact.md)
+records, met here for the third time. The quarantine rename is the incumbent's
+realisation; an in-place candidate's is the release of the task root's own name
+after its last entry; a protocol with a third is judged by the same sentence.
+**And *takes away* means the root has left its own name**: a half-applied rename
+that leaves the root still answering there has attempted a removal and not
+performed one, and SHALL NOT be counted as one — otherwise `EN-01`'s premise
+break is laundered into the very fact this claim exists to test.
 
 **The second operand said *the task root is absent*, and that is a fact about
 the disk this protocol cannot hold.** After the quarantine rename the task-root

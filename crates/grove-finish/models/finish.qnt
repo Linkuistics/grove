@@ -1269,8 +1269,32 @@ module finish {
     // ROLE — *the task root leaves its own name only on a proven result* —
     // falsified a shared-safety claim silently.  Recorded at every step that
     // frees the task-root name, whichever protocol's step it is.
+    //
+    // AT EVERY STEP THAT FREES IT, AND AT NO STEP THAT ONLY ATTEMPTS TO.  The
+    // three sites are `SQuarantineRename`'s ATOMIC arm, `SDisposeInPlace` and
+    // `SRemoveRoot`, and each of the three leaves `rootPresent` false in the
+    // same frame it sets these.  A torn rename does not, and recording one here
+    // made `EN-01`'s premise-break look like the fact the claim tests
+    // (`honest-classification-k84`, finding 1).
+    //
+    // AND THE PROOF IS RECORDED AT THE STEP FOR THE SAME REASON THE REMOVAL IS.
+    // `FN-28`'s FIRST operand read `deletionProvenFor(w, t.settling)` over the
+    // world the claim was EVALUATED in, and the correlation ticket is not
+    // Grove's to keep: `topologyChangeAt(1)` and `(5)` are the operator dropping
+    // the result, admitted at any point.  So a finish that did everything right
+    // — proven commit, root taken away, settled `OApplied` — went red the moment
+    // the operator dropped the ticket afterwards.  MEASURED, not argued: with
+    // every `EN-` assumption granted and every model mutation off, in a world
+    // that narrows `base`'s environment to topology changes (a strict SUBSET of
+    // `base`'s traces, so the counterexample is `base`'s too),
+    // `inv_FN_28_one_successful_exit` is VIOLATED with the ticket set empty,
+    // `shape` `CSAbsent` and `rootTakenAway` true.  `base`'s 8000 samples never
+    // drew it.  The catalogue already says this about the SECOND operand — *a
+    // fact about the disk this protocol cannot hold* — and this is the same
+    // sentence at the first.  Recorded where Grove ESTABLISHES the proof, which
+    // is the step that acts on it.
     rootTakenAway: bool,
-    rootTakenWithoutCommitted: bool,
+    rootTakenWithoutProof: bool,
     reproducedWhileImpossible: bool,
     // `FN-16`: restoration refused for want of the anchor, and for a present
     // attempt-bound result.
@@ -1368,7 +1392,7 @@ module finish {
     startedWithEmptyFingerprint: false, startedWithUndigestible: false,
     startedWithUnverifiableIdentity: false,
     restoredWithoutLicence: false, renamedWithoutCommitted: false,
-    rootTakenAway: false, rootTakenWithoutCommitted: false,
+    rootTakenAway: false, rootTakenWithoutProof: false,
     reproducedWhileImpossible: false, rollbackRefusedAnchor: false,
     rollbackRefusedResult: false, restorationExact: false,
     restorationBlocked: false, unpublishedDiscarded: false,
@@ -1400,22 +1424,35 @@ module finish {
     leastOf(w.quar.entries.filter(e => w.entries.get(e).place != Disposed))
 
   /// `nextDisposable`'S COUNTERPART FOR THE AVAILABLE CANDIDATE, which has no
-  /// quarantine to enumerate.  The candidate's disposal walks what the TASK ROOT
-  /// still holds, at the root's own name.
+  /// quarantine to enumerate.  The candidate's disposal walks what its OWN
+  /// EVACUATION MOVED — the entries now inside the published witness — and
+  /// unlinks them from there, at the task root's own name.
   ///
-  /// **EVERY entry that is not yet `Disposed`, and not only the evacuated ones.**
-  /// The incumbent's `nextDisposable` walks `w.quar.entries`, which the rename
-  /// snapshots as `entryIds` — the whole root, evacuated or not — and
-  /// `SDisposeInPlace` sets every entry `Disposed`. Both existing disposals are
-  /// TOTAL, and the first draft of this one was not: it walked `evacuated(w)`,
-  /// so a `SRevalBeforeQuarantine` reached with evacuation incomplete (which
-  /// `base` reaches — crash after `SPublish`, recover, a late ticket makes it
-  /// `DCommitted`, divert forward) fell straight through to `SRemoveRoot` and
-  /// settled `OApplied` with the root gone and a user entry still `AtRoot`.
-  /// Found by this leaf's in-session reviewer; it was latent only because
-  /// `scenario_in_place_march` runs at `ENTRIES = 1` with no environment action.
+  /// **THE WALK IS NARROWER THAN THE INCUMBENT'S BECAUSE THE OWNERSHIP STANDING
+  /// IS.** The incumbent's `nextDisposable` walks `w.quar.entries`, which the
+  /// rename snapshots as `entryIds` — the whole root, evacuated or not — and it
+  /// may, because the rename MOVED that whole root to a name Grove reserves and
+  /// owns: the transition is itself the proof that every byte under it is
+  /// Grove's to unlink.  The candidate performs no such move.  What it can point
+  /// at for an entry it evacuated is its own transition plus the manifest digest
+  /// it recorded; for an entry still `AtRoot` it can point at nothing, because
+  /// the entry sits at a user-visible path the transaction never claimed.
+  ///
+  /// **AND BOTH DRAFTS BEFORE THIS ONE WERE WRONG, IN OPPOSITE DIRECTIONS.**
+  /// The first walked `evacuated(w)` and then fell straight through to
+  /// `SRemoveRoot`, settling `OApplied` with the root gone and a user entry
+  /// still `AtRoot`.  The repair for that walked EVERY entry not yet `Disposed`
+  /// — which stopped the fall-through by DELETING the entry instead, at the
+  /// user-visible root, without checking its manifest membership, digest or
+  /// type.  The reachable path is the same one either way: crash after
+  /// `SPublish`, recover, a late ticket makes the disposition `DCommitted`, the
+  /// restoration point diverts forward, and `SRevalBeforeQuarantine` is reached
+  /// with evacuation INCOMPLETE.  Deleting there is the unproved cleanup
+  /// `honest-classification-k84`'s finding 2 names.  The walk is the first
+  /// draft's again; what stops the fall-through is the guard at
+  /// `SDisposeRootEntry`, which BLOCKS rather than deleting or succeeding.
   pure def nextInPlaceDisposable(w: World): int =
-    leastOf(entryIds(w).filter(e => w.entries.get(e).place != Disposed))
+    leastOf(evacuated(w))
 
   pure def disposedCount(w: World): int =
     w.quar.entries.filter(e => w.entries.get(e).place == Disposed).size()
@@ -1887,14 +1924,7 @@ module finish {
         if (meetsUnproven(f, w.foreignAtQuarantineName)) stopReserved(f, f0.t.persisted)
         else
           val f1 = noteUnproven({ ...f, h: { ...f.h,
-                       renamedWithoutCommitted: f.h.renamedWithoutCommitted or t.disp != DCommitted,
-                       // `FN-28`'s role, recorded at the step rather than
-                       // inferred from which protocol is running.  Set in BOTH
-                       // arms: a torn rename still took the root's name away —
-                       // that it also left it answering is `EN-01`'s business
-                       // and `sameNameAmbiguity`'s, not this claim's.
-                       rootTakenAway: true,
-                       rootTakenWithoutCommitted: f.h.rootTakenWithoutCommitted or t.disp != DCommitted } },
+                       renamedWithoutCommitted: f.h.renamedWithoutCommitted or t.disp != DCommitted } },
                      w.foreignAtQuarantineName)
           // `FN-19`.  The WHOLE task root — witness and evacuated tree intact —
           // moves in ONE step.  No partial or empty task root is ever
@@ -1908,7 +1938,27 @@ module finish {
                              // correlation that survives is the quarantine's.
                              witness: WNone,
                              quar: { present: true, handle: HANDLE, attempt: t.settling,
-                                     owned: true, marker: MNone, entries: entryIds(f1.w) } } },
+                                     owned: true, marker: MNone, entries: entryIds(f1.w) } },
+                 // `FN-28`'s role, recorded by the step that COMPLETES the
+                 // removal and by NEITHER of the two that only attempt one.
+                 // It was first set before this branch, in both arms, on the
+                 // reading that "a torn rename still took the root's name
+                 // away".  IT DID NOT: the false arm leaves `rootPresent` TRUE,
+                 // creates no quarantine, and sets `rootTorn` — a name that is
+                 // free and occupied at once, which is what `sameNameAmbiguity`
+                 // catches and what `EN-01` is bought to prevent.  Recording it
+                 // as a removal let a proven-result trace carry `OApplied`
+                 // through the tail with `FN-28` satisfied while Grove had
+                 // never taken the task root away, LAUNDERING `EN-01`'s failure
+                 // into the very fact the claim exists to test.  `FN-22.i` says
+                 // the same thing about the same arm one claim over —
+                 // `appliedAfterQuarantine` and `OApplied` imply
+                 // `not(rootPresent)` — so the two now agree instead of
+                 // disagreeing silently.  Found by `review-design
+                 // honest-classification-k84`, finding 1.
+                 h: { ...f1.h, rootTakenAway: true,
+                      rootTakenWithoutProof: f1.h.rootTakenWithoutProof or
+                        not(deletionProvenFor(f1.w, t.settling)) } },
                SRevalAfterQuarantine)
           else
             go({ ...f1, w: { ...f1.w, rootTorn: true } }, SRevalAfterQuarantine)
@@ -2042,7 +2092,8 @@ module finish {
                             mani: NO_MANIFEST,
                             entries: entryIds(w).mapBy(e => { ...w.entries.get(e), place: Disposed }) },
                  h: { ...f.h, rootTakenAway: true,
-                      rootTakenWithoutCommitted: f.h.rootTakenWithoutCommitted or t.disp != DCommitted } },
+                      rootTakenWithoutProof: f.h.rootTakenWithoutProof or
+                        not(deletionProvenFor(w, t.settling)) } },
                OApplied)
 
       // ---- Q1'S AVAILABLE CANDIDATE, and it grants no capability -----------
@@ -2062,7 +2113,29 @@ module finish {
         // incumbent's `SDisposeEntry` is — the resumption point `FN-21.a` needs
         // is reused rather than reinvented.  No marker records the progress,
         // because a candidate that keeps one has not removed the cleanup layer.
-        if (nextInPlaceDisposable(w) == BIG) go(f, SRemoveRootWitness)
+        //
+        // AND WHEN EVACUATION LEFT SOMETHING BEHIND, THE CANDIDATE STOPS.  An
+        // entry still `AtRoot` at disposal time is one this transaction's
+        // evacuation never claimed; nothing the candidate holds proves the bytes
+        // at that name are still the manifest's, and the incumbent's answer —
+        // the rename that takes the whole root at once — is the transition this
+        // candidate does not have.  Publication and the commit both stand, so
+        // the stop is a BLOCK and not a refusal, which is `FN-29.b`'s
+        // discriminator applied rather than restated.  The diagnosis is
+        // `RecoveryPending`: the witness is present, the manifest is Grove's and
+        // names this attempt, so `groveOwnedCorrelated` holds and the operator
+        // is owed a resumption rather than an ownership conflict.
+        //
+        // WHAT THIS DELIBERATELY DOES NOT DO IS SUPPLY THE PROOF.  Whether a
+        // resumed sweep may establish ownership over such an entry — and over
+        // the evacuated ones this step already unlinks — is the shared-safety
+        // obligation `sweep-ownership-k81` owns, and its either/or is untouched
+        // here.  What is removed is only the candidate reporting SUCCESS over a
+        // deletion it has not proved, which would have made that later proof
+        // irrelevant to the transition already doing the deleting.
+        if (nextInPlaceDisposable(w) == BIG)
+          if (rootEntries(w).size() > 0) blockNow(f, "unevacuated")
+          else go(f, SRemoveRootWitness)
         else
           val e = nextInPlaceDisposable(w)
           go({ ...f, w: { ...w,
@@ -2088,7 +2161,8 @@ module finish {
         // it.  What `classify` returns there is measured, not asserted.
         settle({ ...f, w: { ...w, rootPresent: false },
                  h: { ...f.h, rootTakenAway: true,
-                      rootTakenWithoutCommitted: f.h.rootTakenWithoutCommitted or t.disp != DCommitted } },
+                      rootTakenWithoutProof: f.h.rootTakenWithoutProof or
+                        not(deletionProvenFor(w, t.settling)) } },
                OApplied)
 
       | _ => settle(f, t.outcome)
@@ -3334,13 +3408,36 @@ module finish {
   /// SHARED-SAFETY claim and nothing reported it: a `scenario_` module carries
   /// only its own commands, and this one did not declare `inv_FN_28`.  Found by
   /// `honest-classification-k80`'s in-session reviewer, which is the third site
-  /// of the shape `docs/adr/a-shared-safety-guard-names-the-role-not-the-artifact.md`
+  /// of the shape `docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md`
   /// records — after `FN-32`'s and `FN-24.a`'s.  Stated now over the two facts
   /// each root-freeing step records for itself.
+  ///
+  /// AND THE CONTROL THAT KILLS THE NEW OPERAND IS `relax_EN_01`'S, WHICH IS
+  /// WHY THE FLAGS MOVED.  A claim stated over flags its own steps set is the
+  /// shape this node has been burned by three times, so `rootTakenAway` needs a
+  /// world where a transaction reaches `OApplied` WITHOUT one — and `EN-01`
+  /// supplies exactly that: a torn rename leaves the root answering at its own
+  /// name, and the disposition it re-reads can still be `Committed`.  The old
+  /// encoding set the flag in both arms and so could not be killed there; the
+  /// only failure `relax_EN_01` produced was one the OLD and NEW predicates
+  /// share, through `deletionProvenFor`, which is evidence that the new operand
+  /// was never exercised rather than that it was controlled.
+  /// `inv_fail_EN_01_FN_28_a_torn_rename_is_not_a_removal` is the isolating
+  /// kill, measured as such: the OTHER operand, run as its own predicate over
+  /// that same module, is GREEN, so only `rootTakenAway` decides it.
+  ///
+  /// AND THE FIRST OPERAND MOVED FOR THE SAME REASON — see
+  /// `rootTakenWithoutProof` in `Hist`.  `deletionProvenFor(w, t.settling)` was
+  /// read over the world the invariant was EVALUATED in, and the operator may
+  /// drop the correlation ticket AFTER a correct success; the claim then went
+  /// red on a protocol that had done everything right.  It is now asked at the
+  /// step that acts on the proof, and its own isolating kill is
+  /// `mutant_status_classifier`'s: with the disposition read off an exit status
+  /// the removal runs with no ticket, the flag is set (683 of 8000 traces), the
+  /// claim dies, and `rootTakenAway` alone over that same module is green.
   val inv_FN_28_one_successful_exit: bool =
     (t.outcome == OApplied and settledNow) implies
-      (deletionProvenFor(w, t.settling) and
-       hist.rootTakenAway and not(hist.rootTakenWithoutCommitted))
+      (hist.rootTakenAway and not(hist.rootTakenWithoutProof))
 
   // --- `FN-29` --------------------------------------------------------------
 

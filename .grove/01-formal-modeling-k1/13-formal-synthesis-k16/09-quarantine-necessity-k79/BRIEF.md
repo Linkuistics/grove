@@ -272,7 +272,7 @@ shape.** The claim classed *shared safety* — the one the catalogue says *names
 artifact of the incumbent* — accepted a present task root with no witness, no
 quarantine and its disposal outstanding. Measured, not argued:
 `wit_FN_24a_the_artifact_guarded_encoding_accepts_it`. The rule is
-[`a-shared-safety-guard-names-the-role-not-the-artifact`](../../../../docs/adr/a-shared-safety-guard-names-the-role-not-the-artifact.md);
+[`a-shared-safety-claim-names-the-role-not-the-artifact`](../../../../docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md);
 the repair is `groveWorkOutstanding`, which keeps `groveReservationStands` as one
 disjunct **deliberately** — dropping it loses `mutant_no_quarantined_state`'s
 kill. `inv_fail_MUT_FN_24a_the_available_candidate_leaves_an_ordinary_tree` fires
@@ -336,7 +336,7 @@ a suite that was green**:
   credited `FN-28`'s coverage cell from a world in which `FN-28` was false,
   because a `scenario_` module carries only the commands written inside it and
   that one declared the witness without the property. **This is the third site of
-  the shape `a-shared-safety-guard-names-the-role-not-the-artifact` records**, and
+  the shape `a-shared-safety-claim-names-the-role-not-the-artifact` records**, and
   it is what turns that record from an observation into a rule: adding a third
   disjunct was available and would have been the wrong repair.
 - **The stated justification for retaining `groveReservationStands` was false in
@@ -372,3 +372,80 @@ that changes what the model does must be run against **every** claim the model
 has, not only the ones it declares.* That sweep — all 63 library `inv_` commands
 against the candidate's module — is what found `FN-28` at all, and no suite run
 under the module rule can find it for you.
+
+
+## `honest-classification-k85` closed the review chain, and this is what `k81` – `k83` inherit
+
+All five of `k84`'s findings were verified and integrated, and the sweep that
+verifying them required returned **two more**, neither of which the review had.
+The run: **exit 0, 272 commands, 63 of 63 cells, 0 declared gaps, 6m 39s wall /
+481s user**, against a baseline re-measured in the same session on the unmodified
+tree at `6d0188dd` — **262 commands, 5m 55s** — with all four subjects
+byte-identical either side and `--list` printing **130** before and after.
+
+**`FN-28` is now one claim in four places, and each operand can be killed.** The
+history flags moved out of `SQuarantineRename`'s pre-branch into the arm that
+completes the removal, so a torn rename no longer records one; the catalogue
+states the role rather than the quarantine rename and excludes an *attempted*
+removal in its own words; and the two operands have one isolating control each —
+`relax_EN_01` for `rootTakenAway` (the OLD predicate, written out inline, is
+**green** there, so the kill is not the one `relax_EN_13` shares) and
+`mutant_status_classifier` for `rootTakenWithoutProof` (the other operand is
+green there). `inv_FN_22i` had been failing in `relax_EN_01` since that module
+existed, unreported by the module rule, and is now declared.
+
+**THE FIRST FINDING THE REVIEW DID NOT HAVE, AND IT IS THE METHOD RESULT WORTH
+CARRYING.** `inv_FN_28` was violated **with no model mutation at all** — every
+`EN-` assumption granted — because `deletionProvenFor(w, t.settling)` was read
+over the world the invariant was *evaluated* in, and `topologyChangeAt(1)`/`(5)`
+are the operator dropping the correlation ticket at any time. A finish that had
+done everything right went red the moment they did. **It was found by NARROWING,
+not widening**: the world that produced it restricts `base`'s environment to
+topology changes with a budget of 2 — a strict **subset** of `base`'s traces, so
+the counterexample was always `base`'s — and `base`'s 8000 samples at
+`ENV_BUDGET = 99` never drew it. *A property checked in the widest world is not
+therefore checked hardest; a wide environment dilutes the sampler.* The repair is
+the same one the claim's second operand already had: record the fact at the step
+that establishes it.
+
+**THE SECOND IS `k81`'s, and it is in that leaf's body with its measurement.**
+`inv_FN_25b` is **red** under the in-place candidate — a recovery meeting an
+absent root with no ticket blocks with `diagnose` returning the empty set,
+because the candidate leaves nothing at a reserved name to correlate to.
+Pre-existing: measured identically against the committed model at `6d0188dd`.
+`scenario_in_place_late_result` declares it in prose rather than asserting it.
+
+**What `k81` gains and what it must still decide.** The candidate no longer
+succeeds over bytes it has not proved: `nextInPlaceDisposable` walks only what
+this transaction's evacuation moved, and an entry still `AtRoot` when those are
+gone makes the candidate **block** (`RecoveryPending`) rather than unlink it — 56
+of 8000 traces, with the ordinary successful exit still reached in 2130, so the
+stop discriminates rather than walls. **The either/or is untouched.** The block is
+the honest placeholder for an ownership proof that does not exist yet, not a
+finding that none can exist.
+
+**`groveReservationStands` is no longer a declared-uncontrolled conjunct.**
+`mutant_orphan_is_not_a_reserved_state` admits `handEditTo(12)` and nothing else
+— crashes off — and carries a pair: a state reached in **7230 of 8000** traces
+with the artifact realisation true, the moved-tree one **false**, and the
+classification in the biting set, beside the kill. The isolation is carried by
+the witness deliberately, and the reason is stated: with the quarantine no longer
+a reserved state, every trace reaching the rename also fails through the second
+realisation, so the kill alone cannot say which disjunct decided it.
+
+**`alloy-candidate-k82`'s target moved, and it should read the corrected
+contract rather than `k80`'s.** The Alloy column owes the role-form repair for
+`FN-24.a` **and** `FN-28`, and `FN-28`'s Quint form is now *the task root leaves
+its own name only on a proven result, recorded at the step that frees it and at
+no step that only attempts to* — not the flag pair `k80` landed. The ADR carrying
+the rule was reworked in place and its slug changed with its title:
+[`a-shared-safety-claim-names-the-role-not-the-artifact`](../../../../docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md).
+Every live citation was repointed; the two retired task bodies in this directory
+keep the old slug as the frozen record of what those sessions wrote.
+
+**And one gap was externalised rather than absorbed.** `FN-22.e`'s
+`renamedWithoutCommitted` is unreachable in `base` — **0 of 8000 traces** — so
+the claim is green because nothing can falsify it. That is the same shape this
+node has now met four times, it is not one of `k84`'s five findings, and it is
+`quarantine-gate-control-k86`, inserted before `handoff-audit-k66` with the dial
+that supplies the kill measured and written down.

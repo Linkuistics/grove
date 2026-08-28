@@ -36,9 +36,22 @@ by nothing else.
 
 `FN-28`'s operands are therefore stated over **Grove's own steps** rather than
 over the disk: the step that completes a finish is reached only over a proven
-commit; the only transition under a transaction that takes the task root away is
-the quarantine rename, and it does so only on a proven result; and while the
-commit stands proven Grove never puts the pinned task root back.
+commit; a finish completes only after a transition of its own transaction has
+taken the task root away, and every transition that takes it away does so only on
+a proven result; and while the commit stands proven Grove never puts the pinned
+task root back.
+
+**Over Grove's own steps, and not over the repository either.** The removal
+clause named the quarantine rename until `honest-classification-k85`, which is
+the incumbent's artifact standing in for the role it plays
+([`a-shared-safety-claim-names-the-role-not-the-artifact`](a-shared-safety-claim-names-the-role-not-the-artifact.md));
+and the *proven commit* half was read off the repository at the moment the claim
+was evaluated, which is the same mistake this record is about, one operand over.
+The correlation ticket survives the destruction of Grove's own artifacts — that
+is `FN-03` — but it does not survive the **operator**, who may drop the result at
+any time, so a finish that had done everything right went red the moment they
+did. The proof is recorded where Grove acts on it, at the step that takes the
+root away.
 
 `FN-20` — *a leftover artifact is garbage, never a receipt* — is this record's
 converse, and the pair is complete only together: `FN-20` says no artifact the

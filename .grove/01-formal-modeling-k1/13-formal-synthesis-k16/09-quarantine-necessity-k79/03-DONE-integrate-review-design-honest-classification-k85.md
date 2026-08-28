@@ -34,7 +34,7 @@ replace with a fresh general review:
 4. `groveReservationStands` is retained as a declared-uncontrolled branch while
    the `FN-24.a` cell is reported complete. `handEditTo(12)` supplies the
    first-realisation-only disk, but no classifier mutation admits it.
-5. `a-shared-safety-guard-names-the-role-not-the-artifact.md` preserves the
+5. `a-shared-safety-claim-names-the-role-not-the-artifact.md` preserves the
    producer/reviewer chronology and an obsolete rationale, and uses a
    consequent operand at `FN-28` to establish a rule stated only about guards.
    It is not yet a minimum current-state decision record.
@@ -80,3 +80,32 @@ changes what it must match.
 This integration is adjacent by construction: it was inserted at
 `sweep-ownership-k81`'s former slot, so no sibling has changed the cited source
 since review commit `04ea4af5`.
+
+## Outcome
+
+All five findings verified and integrated; the sweep required to verify them
+returned two more. What the remaining children inherit is in this node's
+`BRIEF.md` rather than here, because a retired task body is not in anyone's brief
+chain.
+
+| finding | verdict | what it became |
+|---|---|---|
+| 1 — `FN-28` self-certifying, torn arm launders a removal | **real issue** | flags moved into the completing arm; two isolating kills, each measured green on the *other* operand; `inv_FN_22i`'s long-hidden failure in `relax_EN_01` declared |
+| 2 — total in-place disposal deletes an unproved entry | **real issue** | the walk is `evacuated(w)`; an unevacuated entry makes the candidate **block** (`RecoveryPending`), measured in `scenario_in_place_late_result`. `k81`'s either/or deliberately not decided |
+| 3 — catalogue and Quint state different `FN-28`s | **contract stated unclearly** | `FN-28` restated over the role, an attempted removal excluded in the catalogue's words, `*Class*: shared safety` added |
+| 4 — `groveReservationStands` uncontrolled while the cell reads complete | **real issue** | `mutant_orphan_is_not_a_reserved_state`: an isolating witness (7230/8000) and a kill; the declared gap retired |
+| 5 — the ADR keeps chronology, and uses a consequent to establish a rule about guards | **real issue** | reworked in place to the broader rule its evidence supports; title and slug changed together, every live citation repointed |
+
+**Two findings the review did not have.** `inv_FN_28` was violated with **no
+model mutation at all**, found by *narrowing* `base`'s environment rather than
+widening it — a strict subset of `base`'s traces, so the counterexample was
+always `base`'s. And `inv_FN_25b` is red under the in-place candidate,
+pre-existing at `6d0188dd`, routed to `sweep-ownership-k81` with its measurement.
+
+**One gap externalised**: `FN-22.e` is green because nothing can falsify it —
+`quarantine-gate-control-k86`.
+
+**The run**: exit 0, **272 commands**, 63 of 63 cells, 0 declared gaps, Q4 matrix
+10 of 10, 6m 39s wall / 481s user; baseline re-measured this session at
+`6d0188dd` was 262 commands / 5m 55s / 419s user. Four subjects digested
+byte-identical either side; `--list` prints 130 before and after.

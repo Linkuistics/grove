@@ -62,6 +62,36 @@ prints **130** obligations today. The Alloy finish cell is the long pole
 (180 commands, ~15-18 min alone); budget an Apalache cell on its own if
 `QUINT_VERIFY=1` is needed.
 
+**And `integrate-review-design honest-classification-k85` left you two measured
+facts rather than a tidier instrument, both of which are yours.**
+
+- **The candidate no longer succeeds over bytes it has not proved, and the gap it
+  leaves is the shape of your question.** `nextInPlaceDisposable` now walks only
+  what this transaction's own evacuation moved, and when an entry is still
+  `AtRoot` once those are gone the candidate **blocks** (`RecoveryPending`)
+  rather than unlinking it — `scenario_in_place_late_result`, 56 of 8000 traces,
+  with the candidate's ordinary successful exit still reached in 2130. That
+  removes an unsafe success from your inheritance and **decides nothing of your
+  either/or**: whether a resumed sweep may prove ownership over such an entry —
+  and over the evacuated ones `SDisposeRootEntry` already unlinks — is still
+  exactly your question. The block is the honest placeholder for a proof that
+  does not exist yet, not a decision that none can.
+- **`inv_FN_25b` is RED under the candidate, and it is pre-existing.** Once the
+  candidate has released the task root, a recovery meeting an absent root with no
+  correlation ticket blocks through `recoverOp`'s `rootless` site with `diagnose`
+  returning the **empty set** — nothing of Grove's is left at a reserved name for
+  `groveOwnedCorrelated` to read, so the block carries no diagnosis and `FN-25.b`
+  fails. The incumbent leaves a quarantine there and never reaches it. Measured
+  on the committed model at `6d0188dd`, **before** `k85` touched anything, so it
+  is `honest-classification-k80`'s candidate rather than `k85`'s repair. It is
+  the same disk `wit_FN_18_and_then_reads_as_nothing_outstanding` reads as
+  `SIdle`, which is why it is yours: a candidate that leaves nothing at a
+  reserved name has nothing for a resumed invocation to correlate to, and
+  *that* is the ownership proof's absence showing up in a second claim.
+  `scenario_in_place_late_result` declares the red in prose rather than asserting
+  it, and `crates/grove-finish/models/README.md` says so where the module is
+  documented.
+
 ## Done when
 
 - The either/or is **decided and executed**, not described: either a

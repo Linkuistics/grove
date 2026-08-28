@@ -136,7 +136,7 @@ than methodological:
   `Current(*)` in 3410 of 8000 traces with no interruption anywhere
   (`scenario_in_place_march`). What the old guard did was accept that disk, which
   is a defect in the claim rather than a property of the candidate —
-  [`a-shared-safety-guard-names-the-role-not-the-artifact`](a-shared-safety-guard-names-the-role-not-the-artifact.md).
+  [`a-shared-safety-claim-names-the-role-not-the-artifact`](a-shared-safety-claim-names-the-role-not-the-artifact.md).
 
 **Not decided, and the commission is now half executed.** The candidate that
 reasoning aims at — in-place disposal that is *non-atomic*, keeping neither the
@@ -163,7 +163,7 @@ other than what this record predicted.
    outstanding over the task root* — instead of over the incumbent's two
    artifacts, which is a defect in a shared-safety claim rather than a gap in the
    state table
-   ([`a-shared-safety-guard-names-the-role-not-the-artifact`](a-shared-safety-guard-names-the-role-not-the-artifact.md)).
+   ([`a-shared-safety-claim-names-the-role-not-the-artifact`](a-shared-safety-claim-names-the-role-not-the-artifact.md)).
    **The member is admissible and is not what refutes or rescues anything**: the
    `Reserved` class sentence admits `Reserved(Disposing)` for any protocol that
    leaves a document at a reserved name, and the runnable candidate leaves none,

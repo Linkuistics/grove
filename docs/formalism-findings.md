@@ -5770,7 +5770,7 @@ landing — a liveness hole no safety claim sees.
 > candidate holding neither satisfies them vacuously. Measured under the
 > available in-place candidate the Quint column now runs
 > (`wit_FN_24a_the_artifact_guarded_encoding_accepts_it`), and the rule is
-> [`a-shared-safety-guard-names-the-role-not-the-artifact`](adr/a-shared-safety-guard-names-the-role-not-the-artifact.md).
+> [`a-shared-safety-claim-names-the-role-not-the-artifact`](adr/a-shared-safety-claim-names-the-role-not-the-artifact.md).
 > **Nothing in this entry's counts moves**: the annotation adds no command, and
 > Alloy's own repair is `alloy-candidate-k82`'s, so this row's `none` stands as
 > the measurement this slice made.

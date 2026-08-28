@@ -81,8 +81,18 @@ each leaf cuts what follows it once it knows what that is.
 
 ## Pointers
 
-- `.grove/` — **read it before it is gone.** The session tree, its briefs, its
-  retired task bodies and its abandonment marks.
+- **The harvest, in three durable documents under `docs/` — read these rather
+  than `.grove/`.** [`loop-record.md`](../docs/loop-record.md) enumerates every
+  session with its kind, node, outcome and commit, plus the cost account;
+  [`review-yield.md`](../docs/review-yield.md) opens all eighteen review-chain
+  bodies and answers the yield question; and
+  [`candidate-lessons.md`](../docs/candidate-lessons.md) adjudicates the six
+  candidates below, three of which moved. The first two are derived by scripts
+  that read `.grove/` **at a pinned revision**, so they re-derive after teardown.
+- `.grove/` — the session tree, its briefs, its retired task bodies and its
+  abandonment marks. Still the primary source, and still perishable; but every
+  claim the lessons workstream rests on has been lifted out of it, so a session
+  reads it now to check a citation rather than to avoid losing one.
 - `docs/formalism-findings.md` — the bounded Alloy-6 vs Quint comparison, with
   per-entry findings, costs, false confidence and retained counterexamples.
 - `crates/*/models/README.md` — mutation matrices, run tables with wall times and
@@ -149,3 +159,13 @@ decision records before its task retires. But this grove's own history is now
 *subject matter*, so the usual disposability cuts the wrong way: **nothing may run
 `finish` until `harvest-the-loop-record` has landed**, because finish deletes the
 evidence.
+
+**It has landed** — `harvest-the-loop-record-k87` closed with
+`candidate-lessons-k90`, and the evidence is in the three `docs/` documents named
+under Pointers. What discharges the hazard is not that the documents were written
+but that **the two derivations are pinned to a change id and re-run after
+teardown**: finish removes `.grove/` from the tip, never from history. So the
+embargo's reason is met. The remaining leaves consume `docs/`, not `.grove/`, and
+whether the grove is finished is the driver's call and not a leaf's — this note
+records that the condition is satisfied, not that anything should now be torn
+down.

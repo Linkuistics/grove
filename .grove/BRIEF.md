@@ -25,10 +25,113 @@ and nothing else.
 
 ## Decomposition
 
-Ordering is by what unblocks what. The tree store's new operations are the
-precondition for deleting grove's second lock layer; the runner's extraction is
-independent of it; the skills question depends on both, because it is what makes
-a task type a label rather than a compiled variant.
+Ordering is by what unblocks what. `docs/specs/module-decomposition.md` is the
+input to every leaf below and is **not to be redesigned**; each leaf implements
+the decisions it names.
+
+### The ordered run
+
+| # | leaf | what it lands |
+|---|---|---|
+| 1 | `delete-migration-k6` | migration and the legacy tree format, deleted |
+| 2 | `drop-git-lane-k7` | jj is the only lane; git-index machinery deleted |
+| 3 | `delete-finish-transaction-k8` | the hand-built finish transaction, deleted |
+| 4 | `extract-jj-workspace-k9` | the VCS seam as a crate |
+| 5 | `keyed-launch-templates-k10` | the runner's template half + per-kind configuration |
+| 6 | `keyed-launch-run-k11` | the runner's channel, spawn and escalation |
+| 7 | `store-operations-k12` (node) | `sought-k24`, `open-shape-k25`, `root-delete-k26` |
+| 8 | `collapse-tree-access-k13` | grove's second lock layer, deleted |
+| 9 | `name-ownership-k14` | one type owns the name; the handle is a rendering |
+| 10 | `grammar-separator-k15` | the `--` grammar, the tree rename, the reinstall |
+| 11 | `plugin-spine-k16` | the plugin, the shared spine, the conformance runner |
+| 12 | `plugin-kind-skills-k17` | one `grove-<kind>` skill per kind |
+| 13 | `prompt-names-the-kind-k18` | the prompt names one skill and publishes a version |
+| 14 | `delete-provisioning-k19` | provisioning, the harness registry, the embed |
+| 15 | `open-kind-k20` | `Kind` opens; the kind list add; `--kind` required |
+| 16 | `loop-crate-verbs-k21` | the tree layer and the twelve verbs as a crate |
+| 17 | `loop-crate-driver-k22` | the driver, the lease, the loop; thin binaries |
+| 18 | `spec-to-current-state-k23` | the spec rewritten; the whole set closed out |
+
+### Where each spec decision lands
+
+Written down so coverage can be checked without re-reading both documents.
+
+| spec decision | leaf |
+|---|---|
+| 1 — four library crates, two binaries, one plugin | k9, k10, k16, k21, k22 |
+| 2 — the tree store's four new operations | the `store-operations-k12` node |
+| 3 — the filename grammar gains a separator | k15 |
+| 4 — one type owns the name; the handle renders through it | k14 |
+| 5 — grove names a kind only where grove writes the leaf | k20, with the two interpreted sites dying at k18 |
+| 6 — configuration completeness becomes per-kind and just-in-time | k10 |
+| 7 — the runner | k10 (templates), k11 (launch) |
+| 8 — the VCS seam | k7, k8, k9 |
+| 9 — the loop | k21 (verbs), k22 (driver) |
+| 10 — grove publishes its version in the prompt | k18 |
+| 11 — the methodology ships as a plugin; skill fatness | k16, k17, with the old path deleted at k19 |
+| requirement: one reading per filename | k15 |
+| requirement: grove names only the kinds it writes | k20 |
+| requirement: an overlay overrides and never supplies | k10 |
+| requirement: no module implements a VCS guarantee | k8 |
+| test seam 1 — each crate's public interface | k9, k10, k11, k21, k22, and each store leaf |
+| test seam 2 — one composed loop over a fake harness | k22 |
+| test seam 3 — conformance kits as the cross-crate seam | k10 (the store's already exists) |
+| test seam 4 — the methodology's delivery assertion | k16, k17 |
+| out of scope: migration deleted | k6 |
+| out of scope: the plain-git lane dropped | k7 |
+| out of scope: the harness-registry row answered by deletion | k19 |
+| out of scope: the release manifest exclusion removed | k23 |
+
+`minimalism-k1`'s `## Deletion list` — roughly 15,200 non-test lines — is spread
+across k6, k7, k8, k13, k18 and k19; its one awkward row, `tree_access`'s seven
+surviving call sites, is k13's alone.
+
+### The orderings that are forced
+
+Everything else in the run above is convenience. These are not.
+
+| constraint | why |
+|---|---|
+| k6, k8 and the store node all precede k13 | grove's second lock layer has three recorded reasons — *absent*, *legacy*, *mid transaction* — and they dissolve **at once**, not one at a time |
+| k14 precedes k15 precedes k20 | the handle needs one owner before the grammar moves; the grammar must be unambiguous before the kind opens |
+| k15's rename and its reinstall are **one leaf** | this is a meta-grove: the tree cannot wear a grammar the installed binary does not parse, and a session that renames and stops has wedged the loop |
+| k17 precedes k18 | the prompt may not name a skill that does not exist |
+| k16 and k17 precede k19 | deleting provisioning before the plugin is installed leaves the next session with no methodology, and the failure is silent |
+| k7 precedes k8 and k9 | the seam cannot claim *fully domain-free*, or state its own precondition as a refusal, while a git lane sits behind it |
+| k10 and k11 precede k22; k9 precedes k22 | the driver consumes all three |
+
+Three starting points depend on nothing and could run in any order: the runner
+(k10), the VCS seam once the git lane is dropped (k9), and the store's new
+operations (the k12 node).
+
+### Every leaf lands green
+
+There is no stage in this run that cannot land with the suite passing. That is
+not an accident of the work: expand → migrate → contract is applied **per crate
+boundary** rather than per symbol, and a crate is small enough that all three
+stages fit one session — except where the leaf bodies say otherwise (k10/k11 and
+k21/k22 split one crate in two, k16/k17/k19 are the plugin's expand and contract).
+
+## Standing notes for every leaf below
+
+**This repo is a meta-grove.** A session here runs against the **installed**
+binaries, which on this machine are Homebrew's at `/opt/homebrew/bin/`. So any
+leaf that changes the grammar or the verb surface a session invokes must rebuild
+**and reinstall in the same session**, and verify from the resolved `PATH` before
+committing. `grammar-separator-k15` carries the sequence; later leaves follow it.
+
+**Reinstalling stops the loop until `prompt-names-the-kind-k18` lands, and stops
+stopping it afterwards.** The driver's build-pairing guard runs at the top of the
+loop body, so a mid-session reinstall lets that session finish and halts the loop
+before the next one — expected, recoverable by restarting `grove`, and not a
+fault. k18 retires that guard, so from k20 onward a reinstall is silent and the
+session must check the installed binary itself.
+
+**No ADR is rewritten ahead of the code that makes it true.** `docs/adr/` describes
+the design's current state; the leaf that lands a change reworks its record **in
+place, in the same commit**. The spec's `## ADR reconciliation` table names who
+owns each one, and `spec-to-current-state-k23` walks the whole table as a
+checklist at the end.
 
 ## Principles
 

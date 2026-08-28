@@ -9,8 +9,8 @@ authoring before `writing-code-walkthroughs` exists.
 
 - Inputs: the completed and reviewed book, `walkthrough-method-k5`, and this
   subtree's brief.
-- The baseline must not load draft skill instructions or book-specific task
-  files into the evaluated context.
+- The evaluated context excludes draft skill instructions, the completed book,
+  `walkthrough-method-k5`'s research synthesis, and the whole `.grove/` tree.
 
 ## Done when
 
@@ -20,6 +20,9 @@ authoring before `writing-code-walkthroughs` exists.
   links, validation, and independent review planning.
 - Each behavior-shaping case is run at least five times in fresh no-skill
   contexts with contamination controls recorded.
+- At least one scenario targets a codebase outside this repository, and every
+  run records exactly what files and contextual material the evaluated agent
+  could read.
 - Raw outcomes, scores, recurring omissions, and rationalizations are preserved
   in a compact durable artifact.
 - The report distinguishes failures the new skill should address from behavior

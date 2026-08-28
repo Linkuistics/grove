@@ -29,6 +29,8 @@ validated book method and observed baseline failures.
   disclosure or reuse earns them, stay one level deep, and carry required source
   citations.
 - Skill structure, plugin installation, and all deterministic tests pass.
+- `plugins/linkuistics/.claude-plugin/plugin.json` registers the new capability
+  in its hand-maintained `description` and `keywords` fields.
 
 ## Notes
 

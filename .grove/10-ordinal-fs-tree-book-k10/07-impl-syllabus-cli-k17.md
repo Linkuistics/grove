@@ -20,7 +20,9 @@ including every verb, output stream, exit category, and end-to-end operation.
   advisory traces, refusal/error rendering, exit codes, idempotency, and omitted
   features are covered without restating clap or standard terminal concepts.
 - One command is traced from clap dispatch through reference parts, guard,
-  snapshot, algebra, plan, interpreter, report, stdout/stderr, and exit status.
+  snapshot, algebra, plan, interpreter, report, stdout/stderr, and exit status,
+  resolving in full the same operation `orientation-k11` introduced at low
+  resolution.
 - All CLI source fragments are owned exactly once and the chapter remains
   intelligible without requiring the repository CLI design document.
 - Assigned fragments tangle exactly and scoped source, Markdown/link, CLI

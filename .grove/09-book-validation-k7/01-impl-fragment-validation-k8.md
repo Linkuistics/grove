@@ -19,11 +19,15 @@ for the book format settled by `book-system-k6`.
 - Recursive expansion of every declared source root can be compared byte for
   byte with its repository source file.
 - Scoped mode verifies only the fragment/source ownership claimed by an
-  authoring leaf; exhaustive mode requires exactly the fifteen files in the book
-  brief and rejects extras or omissions.
+  authoring leaf. It accepts a hole declared as deferred to a named later slice
+  and reports that hole as deferred rather than unresolved. Exhaustive mode
+  requires exactly the fifteen files in the book brief, zero deferred holes,
+  and rejects extras or omissions.
+- Failure fixtures include a deferred hole whose named later slice never fills
+  it, distinct from an ordinary unresolved reference.
 - Diagnostics identify the fragment ID, source root, and relevant book location
   deterministically.
-- The real book scaffold passes the scoped check available at this stage, all
+- The design's committed example or fixture book passes the scoped check, all
   validator tests pass, and invocation is documented for later leaves.
 
 ## Notes

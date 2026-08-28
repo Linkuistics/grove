@@ -21,8 +21,8 @@ for the multi-page book.
 - External URLs are syntax-checked only; the command performs no network fetch.
 - Diagnostics are deterministic and name the source page and link or structure
   at fault.
-- The book scaffold passes, tests pass, and one documented command runs both the
-  Markdown/link checks and fragment checks.
+- The design's committed example or fixture book passes, tests pass, and one
+  documented command runs both the Markdown/link checks and fragment checks.
 
 ## Notes
 

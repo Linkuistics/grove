@@ -22,6 +22,9 @@ and crate-level criterion, and commission fresh-context technical review.
 - Exhaustive fragment validation reconstructs exactly all fifteen source files
   in the subtree brief, with no extra, missing, duplicated, unresolved, cyclic,
   or unreachable fragment.
+- The in-scope source still matches the node's frozen corpus. If an accepted
+  source change landed during authoring, every affected slice has been updated
+  and exhaustive fragment validation has been rerun against the new bytes.
 - Markdown structure and every local link pass validation.
 - The crate's complete existing verification, including CLI contract tests and
   the no-filesystem boundary guard, passes; relevant Alloy/Quint runners are run
@@ -34,6 +37,8 @@ and crate-level criterion, and commission fresh-context technical review.
 - The created technical-review task carries the conditional handoff in the node
   brief: integrate real findings first, then commission editorial review; if no
   technical findings exist, commission editorial review directly.
+- `CONTEXT-MAP.md` and `docs/ordinal-fs-tree/CONTEXT.md` register the completed
+  book as an artifact of the ordinal-filesystem-tree context.
 
 ## Notes
 

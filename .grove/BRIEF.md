@@ -49,9 +49,10 @@ The requirements agreement is followed by five dependency-ordered increments:
   or prose depends on them;
 - deterministic fragment and Markdown validators land before authoring, so each
   book slice can leave a mechanically checkable artifact;
-- concept-oriented book slices build from purpose and the public seam through
-  reads, mutations, the filesystem interpreter, and the CLI, followed by whole-
-  corpus assembly and independent technical and editorial review;
+- concept-oriented book slices open with purpose, the public seam, and a
+  low-resolution complete-operation tour, then expand reads, mutations, the
+  filesystem interpreter, and the CLI before whole-corpus assembly and
+  independent technical and editorial review;
 - the validated method is tested first without a skill, authored generically,
   then tested with the skill enabled against the same behavioural rubric.
 

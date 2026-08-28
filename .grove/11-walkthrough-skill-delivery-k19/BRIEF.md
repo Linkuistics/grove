@@ -54,3 +54,8 @@ intended to shape behavior, run at least five no-skill repetitions; if the
 control does not exhibit the target failure, do not add guidance for it. Run the
 enabled evaluation against the same cases and distinguish deterministic checks
 from judgment scored over agent outputs.
+
+`skill-baseline-k20` and `skill-evaluation-k22` are expected
+`leaf-decompose` candidates split by scenario group when the campaign exceeds a
+focused session. The first baseline child commits the rubric once; all remaining
+baseline and enabled-evaluation children share it unchanged.

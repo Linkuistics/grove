@@ -37,7 +37,8 @@ general Rust or filesystem basics.
 ## Decomposition
 
 - `orientation-k11` establishes the purpose, reader contract, notation,
-  package, and public surface.
+  package, and public surface, then follows one complete operation end to end at
+  low resolution.
 - `name-seam-k12` explains filename algebra, identity/order, parsing, and the
   consumer seam.
 - `reference-domain-k13` makes the abstraction concrete through the syllabus
@@ -49,14 +50,15 @@ general Rust or filesystem basics.
 - `filesystem-interpreter-k16` explains locking, application order,
   intermediate states, rollback, concurrency, and error taxonomy.
 - `syllabus-cli-k17` explains the demonstration consumer, verbs, streams, exit
-  codes, and a complete operation across all layers.
+  codes, and resolves the opening slice's operation across all layers.
 - `book-assembly-k18` supplies cross-cutting invariants and trade-offs, closes
   every ledger row, runs whole-book verification, and commissions review.
 
 Every slice leaves a readable book increment and passes the scoped validators
-for the fragment ownership it claims. `book-system-k6` may refine which source
-fragments each conceptual slice owns; it may not weaken this sequence or the
-whole-corpus criterion.
+for the fragment ownership it claims. `book-system-k6` places the
+complete-operation tour in `orientation-k11` before the layer sequence and may
+refine which source fragments each conceptual slice owns; it may not weaken the
+subsequent layer order or the whole-corpus criterion.
 
 ## Pointers
 
@@ -95,6 +97,17 @@ reproduced.
 
 ## Notes
 
+The fifteen in-scope source files are frozen for this node's duration. A defect
+found in crate source is externalised as a leaf rather than fixed inside a book
+slice. If an accepted source change lands, every affected slice is updated and
+exhaustive fragment validation is rerun before this node closes.
+
+`reference-domain-k13`, `mutation-algebra-k15`,
+`filesystem-interpreter-k16`, and `syllabus-cli-k17` are expected
+`leaf-decompose` candidates. If one exceeds a focused session, decomposition at
+a stated conceptual seam is the intended response rather than extending the
+session.
+
 `book-assembly-k18` creates the technical `review-impl` leaf as its final act.
 The technical reviewer inspects accuracy and completeness without editing or
 running checks. If it has findings, it creates an adjacent
@@ -106,3 +119,11 @@ self-containedness, repetition/link choices, and the prose contract. It creates
 an integration leaf only for real findings; editorial integration reruns the
 whole-book and crate checks. Every review or integration body names the exact
 producer/review handle through `**Reviews:**` or `**Integrates:**`.
+
+Both reviews use kind `review-impl`, both integrations use kind
+`integrate-review-impl`, and all four use the bare stem `book-assembly`; each
+step is therefore referenced by its full `<slug>-k<key>` handle, never by the
+stem alone. The editorial leaf's `**Reviews:**` names the session that last
+wrote the book: `book-assembly-k18` when technical review had no findings, or
+the technical integration handle when it did. Its body explicitly scopes the
+read to the whole book rather than only that handle's diff.

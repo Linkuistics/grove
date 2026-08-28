@@ -390,3 +390,11 @@ choice to explain `src/fs/mod.rs` in two halves: each is a defensible editorial
 call that creates no dependency, completeness or single-session defect.
 
 ## Decisions (running log)
+
+- F1–F4, F7–F9, and F11 were verified as real contract defects and repaired in
+  the named existing briefs and task bodies.
+- F5 was a contract stated unclearly. The book-node brief now fixes the kinds,
+  shared stem, full-handle references, editorial target, and whole-book scope.
+- F6 and F10 are real sizing trade-offs. The affected node briefs now make
+  decomposition at explicit seams the intended response and state what shared
+  ledger or rubric survives across children.

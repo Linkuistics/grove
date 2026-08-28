@@ -25,9 +25,15 @@ and deterministic validation contracts before tooling or prose depends on them.
   source.
 - The design states how an authoring leaf can prove scoped progress while the
   final assembly proves exhaustive coverage of all fifteen in-scope files.
-- Conceptual order follows reader dependencies rather than file order and maps a
-  complete operation through CLI, public guard, algebra, plan, interpreter,
-  report, and error/refusal surfaces before expanding each layer.
+- The ownership ledger declares every deferred hole in a source file split
+  across slices, names the later slice that fills it, and records each slice's
+  owned-source line count. The fragment grammar represents a deferred reference
+  distinctly from an unresolved reference.
+- Conceptual order follows reader dependencies rather than file order. The
+  opening slice maps one complete operation at low resolution through CLI,
+  public guard, snapshot, decision, plan, interpreter, report, and exit before
+  later slices expand those layers; the CLI slice resolves the same operation
+  in full.
 - The prose contract is operational: self-containedness, direct declarative
   style, local-context repetition, optional cross-references, worked examples,
   and audience assumptions each have reviewable criteria.
@@ -37,6 +43,9 @@ and deterministic validation contracts before tooling or prose depends on them.
 - The design assigns every planned book slice a non-overlapping conceptual and
   fragment-ownership scope, while allowing a source file to be explained out of
   file order.
+- For every type first used before the slice owning its source, the ledger names
+  the owning later slice and the minimum definition or behavior that the
+  earlier chapter must restate locally.
 
 ## Notes
 

@@ -23,8 +23,12 @@ lesson from memory is exactly the failure the log prevents. Write it continuousl
 and you generalise from a single data point, encoding the accidents of one design
 as principles.
 
-So: **every session that reaches for a formalism appends an entry before it
-finishes, and one later session turns the whole log into the skill.**
+So: **every session that reaches for a formalism *or runs one* appends an entry
+before it finishes, and one later session turns the whole log into the skill.**
+The *or runs one* is not decoration — a sweep, a control, a scope run and a
+review are each an instrument reading, and the campaign that measured this
+practice on itself found that exactly those sessions are the ones that stop
+appending (below).
 
 ## Six fields, and the last two are the ones that matter
 
@@ -86,10 +90,11 @@ all.
 ### The sessions that check a model are the ones that stop appending
 
 The same campaign shows the gap in a second place, and it is worse than the decay
-because it is invisible from inside the log. **Every entry in its second half is
-a producer's entry** — one per model column, each written by the session that
-built that model. The leaves that afterwards *scoped*, *reviewed*, *integrated*
-and adjudicated those models appended **none**, reaching the log at most as an
+because it is invisible from inside the log. **Its second half was written by
+producers and by nobody else**: five entries, three of them one per model column
+and two of them a producer's account of an experiment and of a cross-model
+replay. The leaves that afterwards *scoped*, *reviewed*, *integrated* and
+adjudicated those models appended **none**, reaching the log at most as an
 in-place annotation on somebody else's entry; and two of the findings the
 campaign is now most known for — a dead control repaired by widening its bound,
 and a declared impossibility killed by running the deeper attempt — appear in the
@@ -103,11 +108,9 @@ been renamed out of the source `[c1]`. A log that only the producers write is a
 log of what was *built*, and a campaign's sharpest evidence is usually about what
 was *checked*.
 
-So state the obligation over the work rather than over the role: **every session
-that reaches for a formalism *or runs one* appends an entry** — a sweep, a
-control, a scope run and a review are each an instrument reading, and an
-instrument reading with no entry is the finding that gets reconstructed from
-recollection later, or not at all.
+That measurement is why the rule at the top of this file is stated over the work
+rather than over the role. An instrument reading with no entry is the finding
+that gets reconstructed from recollection later, or not at all.
 
 ## State the hypotheses up front, so they can be judged rather than quietly confirmed
 

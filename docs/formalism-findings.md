@@ -10321,8 +10321,10 @@ each. Giving them rows here would restate an enumeration that already exists in 
 more checkable form, and the enumeration is the thing a later reader should open.
 
 **No session after the producers appended an entry**, and that is a fact about
-this log rather than about the campaign. Entries 044 – 048 are producers'
-entries. Every leaf that afterwards *scoped*, *reviewed*, *integrated* or
+this log rather than about the campaign. Entries 044 – 048 were all written by
+the sessions that built or ran the models they describe — 044, 045 and 046 one
+per model column, 047 a prototype experiment that is no column, and 048 the
+cross-model replay whose subject is the pair. Every leaf that afterwards *scoped*, *reviewed*, *integrated* or
 adjudicated a model recorded its work in a task body or a commit message, and
 reached this file — where it reached it at all — only as an in-place
 `[disposed by …]` annotation on somebody else's entry. Some of the campaign's
@@ -10333,11 +10335,11 @@ for rules the skill now states. `[c1]` – `[c5]` is where they are enumerated,
 with a session handle and commit for each, and that is why the adjudication
 rather than this log is the authority for this pass.
 
-**So the instruction in
+**So the instruction
 [`keeping-a-log.md`](../plugins/linkuistics/skills/model-led-development/references/keeping-a-log.md)
-— every session that reaches for a formalism appends an entry before it
-finishes — was kept by the sessions that *built* models and not by the sessions
-that *checked* them.** The recovery cost was one whole leaf re-opening model
+then carried — every session that reaches for a formalism appends an entry
+before it finishes — was kept by the sessions that *built* or *ran* models and
+not by the sessions that *checked* them.** The recovery cost was one whole leaf re-opening model
 files to rebuild what those entries would have carried, and it is the reason that
 file now states the obligation over the work rather than over the role.
 
@@ -10345,19 +10347,20 @@ file now states the obligation over the work rather than over the role.
 
 | entry | where it landed | what did not survive, and why |
 |---|---|---|
-| 044 | its two derived tests, as one of the three exceptions quoted in the routing-economics correction; and its `ONE_SNAPSHOT` dial with `mutant_two_listings`, as the worked answer to a claim an executable model satisfies for free — the dial is what stops `TT-21` being a green tick over nothing | the six catalogue findings themselves, which are grove's design and not routing evidence. **And its two structural choices — every action total, the interpreter as a state machine — deliberately.** The skill already carries both from `[003]`, and this entry reached them independently on a different subject. That is corroboration of an existing rule; it does not make the rule stronger in a reader's hands, so it is recorded here rather than added there |
-| 045 | the starved-witness arithmetic — `(1/k)^20` over a twenty-step transaction, and every claim past the commit green on a witness that never landed — with the search-dial remedy that removes no behaviour; *quote a model-checked result with its depth*, on the eleven-step path a depth-4 check does not reach; and *depth is what costs, not the number of invariants* (373 s at 3 invariants and depth 3, 377 s at 61 and depth 4). Its five derived tests are the largest of H7's three exceptions | the six findings and three observations about the finish protocol, which are grove's; and its M8 runner incident, which is `[048]`'s in a sharper form |
+| 044 | the aggregate it contributes to the routing-economics correction — its share of the four-in-five *no derived test* ratio, which the skill states as the ratio and not entry by entry | its two derived tests **and** its `ONE_SNAPSHOT` dial with `mutant_two_listings`, neither of which is quoted anywhere in the skill: the correction landed the ratio rather than an exception list, and no worked example of a satisfied-by-construction dial was carried. Recorded here as a silent omission caught at review rather than a considered one — the material is still available to a later pass. Also the six catalogue findings themselves, which are grove's design and not routing evidence. **And its two structural choices — every action total, the interpreter as a state machine — deliberately.** The skill already carries both from `[003]`, and this entry reached them independently on a different subject. That is corroboration of an existing rule; it does not make the rule stronger in a reader's hands, so it is recorded here rather than added there |
+| 045 | the starved-witness arithmetic — `(1/k)^20` over a twenty-step transaction, and every claim past the commit green on a witness that never landed — with the search-dial remedy that removes no behaviour; *quote a model-checked result with its depth*, on the eleven-step path a depth-4 check does not reach; and the budget rule in its narrowed form — *58 extra invariants were nearly free* (373 s at 3 invariants and depth 3 against 377 s at 61 and depth 4), read as a bound on the property count rather than as an isolation of depth, since that pair moves both operands and 445 s followed from three constants widening the state at no extra depth | its five derived tests, which the routing-economics correction carries only inside its aggregate ratio — the skill quotes no exception list; the six findings and three observations about the finish protocol, which are grove's; and its M8 runner incident, which is `[048]`'s in a sharper form |
 | 046 | through `[c1]` and `[c3]`: `driverStep`'s forced teardown, which checked a whole scope over a world in which a finish session cannot decline, and `mutant_block_clears` firing through a defect in the sweep — the first of the three wrong-mechanism controls behind the isolating rule | *a deterministic loop satisfies twenty-three of its own claims by being written down*, and the search-dial-is-a-shape observation. Both are instances of traps the skill already states — satisfied-by-construction, and the sampling note — and neither adds a move a reader does not already have |
 | 047 | one line: it is the corpus's clearest instance of *sampled, not proved*, and its cheapest instrument was a vocabulary enumeration rather than a model, which the skill already routes as *enumerate, then classify* `[025]` | almost all of it, on purpose. It is an experiment rather than a column: a throwaway module, nine assumption dials, two retained counterexamples about one library's root lifecycle. Its M8 incident — the same command at the same budget returning `[ok]` on one run and not the next — is real and is **not** landed as a rule, because one observation of a tool's nondeterminism at one pinned version is a bug report, not routing evidence |
-| 048 | *an independence barrier over two models is not a barrier while their common ancestor is writable* and *a pre-replay census is not a measurement but a pair of self-reports*, both in *What this evidence does not support*; and finding 5's statement-shape result, which is the largest single rule this pass added — see below | its two corrections to `task-tree.als`, the `FN-13` pair and the `doReap` product replay, which are grove's. **And its own verdict — *replay is not a comparison step, it is an instrument* — which did not land as a rule**, because the skill routes questions to instruments and a reader with one model has no second column to replay into. It is a rule for running a two-family comparison, and it is stated in the synthesis for anyone who is |
+| 048 | *an independence barrier over two models is not a barrier while their common ancestor is writable* and *a pre-replay census is not a measurement but a pair of self-reports*, both in *What this evidence does not support*; and finding 5's statement-shape result, which is the largest single rule this pass added — see below | its two corrections to `task-tree.als`, the `FN-13` pair and the `doReap` product replay, which are grove's. Its own verdict — *replay is not a comparison step, it is an instrument* — **was first declined and then landed at review**: the ground for declining it was that a reader with one model has no second column, and that ground does not reach a reader who has arrived at the two-formalism comparison route, who by construction holds two. It is now a row of its own in `references/routing-table.md`, conditioned on holding two families |
 | *synthesis* | the routing economics in *How much will a model be worth to this work?* — four findings in five yielding no test, so the consuming phase is documentation rather than implementation; the two per-obligation figures with their three narrowings; the ≈ 4.2 h of wrangling; and *run cost tracks the data structure in the model, not the family*. In *Writing a model that can be read*: statement shape, and *a property discharged by a configuration is unfalsifiable at any grain*. In *What this evidence does not support*: the not-a-fair-race caveat and the frozen-ancestor rule. In `references/keeping-a-log.md`: the ledger decay, H6's *score every finding on every measure*, and — evidenced by this log's own producer-only shape rather than by the synthesis — *the sessions that check a model are the ones that stop appending* | H5's verdict as a verdict, H9 and H10, *the combined workflow this subject would actually use*, and *concrete changes to design, tests and documentation*. The first three decide a hypothesis about **these two tools on this one subject**, and the routing table sorts by the shape of the question rather than by a head-to-head; the last two are grove's design work. What was taken from H5 is the axis it identified, not the race it lost |
 
 ### What this pass added that no bullet of § 3A asked for
 
 [`results-of-formal-methods-trial.md`](results-of-formal-methods-trial.md) § 3A
 proposed seven changes to the skill and this pass landed all seven. It landed
-**four more**, listed here because an addition outside a proposal is exactly the
-kind of thing a later reader should be able to find and dispute. § 3A is a
+**five more** — the fifth added by the integration of this pass's review — listed
+here because an addition outside a proposal is exactly the kind of thing a later
+reader should be able to find and dispute. § 3A is a
 reading of this log, and a reading is not exhaustive over what it reads.
 
 1. **State a property at the grain of its subject, not at the grain of an
@@ -10373,14 +10376,22 @@ reading of this log, and a reading is not exhaustive over what it reads.
    `(1/k)^20`, and every claim past the commit green on a witness that never
    landed. It is a *generator* of empty greens, which is the skill's central
    subject, and the entry quantifies it.
-3. **Quote a model-checked result with its depth, and price the depth rather
-   than the property count** — entry 045 again, 373 s at 3 invariants and depth
-   3 against 377 s at 61 invariants and depth 4, over a protocol whose shortest
-   settled path is eleven steps.
+3. **Quote a model-checked result with its depth, and treat the property count
+   as cheap** — entry 045 again, 373 s at 3 invariants and depth 3 against 377 s
+   at 61 invariants and depth 4, over a protocol whose shortest settled path is
+   eleven steps. The pair bounds the marginal cost of properties; it does not
+   isolate depth, since it moves depth too and the same model took 445 s when
+   three added constants widened its state.
 4. **`keeping-a-log.md`'s *the sessions that check a model are the ones that
    stop appending***, evidenced by this log's own shape — see *Entries 026 – 043
    have no rows of their own*, above. It is the one rule here whose evidence is
    the artifact being distilled rather than anything inside it.
+5. **Replay as the instrument for a reader holding two families**, from entry
+   048's own verdict by way of the synthesis's combined workflow. Added by
+   `model-led-development-k98` while integrating `model-led-development-k96`,
+   which observed that the ground for declining it — a reader with one model has
+   no second column — cannot reach a reader who has arrived at this pass's own
+   two-formalism comparison route.
 
 ### What did not survive from § 3A's own wording
 
@@ -10405,7 +10416,8 @@ is a silent dependency and an aggregate answer is one.
 of them.** Each is an obligation on a session that runs a model suite — a control
 shown to kill for the reason claimed, a narrowed module's reachability, a claim's
 statement grain, a module sweep, a search dial, a ledger instrument, a
-per-obligation cost figure. **Grove's methodology runs no model suites**, so
+per-obligation cost figure, and the replay route added at integration, which
+presupposes two model families. **Grove's methodology runs no model suites**, so
 there is no Grove session that could violate one, and the plugin's absence
 changes nothing a Grove session writes.
 

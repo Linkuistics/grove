@@ -184,7 +184,7 @@ second half now has a *Distillation, second pass* section, and every row above
 has moved — the isolating control rule, the narrowing conditional, six traps, the
 module sweep with its cost, the corrected routing economics, and a provenance
 block spanning both campaigns. That leaf also landed four rules §3A does not
-name, and records each as such. The table is kept in its original tense because
+name, and records each as such; its review added a fifth. The table is kept in its original tense because
 it is the statement of the gap; *Distillation, second pass* is the account of
 closing it.
 
@@ -227,6 +227,31 @@ check a rule instead of trusting it.
 - **`references/keeping-a-log.md` should carry finding 8.** That file instructs a
   six-field log; this campaign measured what becomes of that instruction, and the
   measurement belongs beside it.
+
+**Integrated by `model-led-development-k98`.** `model-led-development-k96` was
+the first adversarial read of that distillation — the producer's own review
+allowance could not be spent — and it raised six findings, all six of which
+reproduce from source and survive triage. Two are about what the artifacts
+*claim*: `keeping-a-log.md` had **added** the strengthened appending rule instead
+of replacing the weaker one, leaving a complete rule a reader can follow and
+never reach the repair, and the evidence offered for it ("every entry in the
+second half is one producer entry per model column") is false of entries 047 and
+048, which are an experiment and a cross-model pair. Two are provenance
+overstatements: 129 obligations were *matrixed* across both families for 256
+complete cells and two declared Alloy gaps, not 258 checked; and the
+second-pass table credited entry 044 with landing material — its two derived
+tests, its `ONE_SNAPSHOT` dial and `mutant_two_listings` — that appears nowhere
+in the skill, in the very column whose job is to separate considered omission
+from silent. One is an over-read of a measurement: 373 s at 3 invariants and
+depth 3 against 377 s at 61 and depth 4 moves both operands, so it bounds the
+marginal cost of properties rather than isolating depth, and 445 s after three
+constants widened the state names a third operand. One is an arithmetic slip —
+five narrowed modules, four enumerated. And the review re-opened a declined
+rule: *replay is an instrument* was declined because a reader with one model has
+no second column, which cannot reach a reader who has arrived at the pass's own
+two-formalism comparison route; it is now a routing row conditioned on holding
+two families, and it defers to the plugin like every other rule in the cluster.
+Nothing was rejected, and no ownership row moved.
 
 ### B · `doubt-driven-development` — smaller, sharper
 

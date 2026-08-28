@@ -20,9 +20,10 @@ checks it.
 > model written *before* each operation was implemented. **Entries 026–048 and
 > the synthesis closing the log** put Alloy 6 *and* Quint on the same
 > behavioural questions about a workstream tool's own protocols, against a
-> catalogue of 129 obligations checked in both families — 258
-> `(family, obligation)` cells — with the implementation **already shipped and
-> green**, which changes what a finding is: usually a correction to the
+> catalogue of 129 obligations matrixed across both families — 258
+> `(family, obligation)` cells, of which **256 are complete and two are declared
+> Alloy gaps** (`TT-24.c`, `TT-24.d`) — with the implementation **already
+> shipped and green**, which changes what a finding is: usually a correction to the
 > specification rather than a defect in the code.
 >
 > **Three key forms, each naming where to check a rule.** `[003]` is a log
@@ -240,9 +241,13 @@ as a result.** A bounded check reported no violation over all 61 properties at
 depth 4 — while the protocol's shortest path from entry to a settled refusal is
 **eleven steps**, so it verified the beginning of the transaction and said
 nothing about the commit, either handoff, disposal or recovery `[045]`. And when
-budgeting such a run: **depth is what costs, not the number of invariants** —
-3 invariants at depth 3 took 373 s, 61 invariants at depth 4 took 377 s. Price
-the depth and treat the property count as free `[045]`.
+budgeting such a run: **adding properties was nearly free and depth was not** —
+3 invariants at depth 3 took 373 s against 61 invariants at depth 4 at 377 s, so
+58 extra properties cost almost nothing there. Read it as a bound on the
+*property count*, not as an isolation of depth: that pair moves both operands at
+once, and the same model took 445 s when three added constants widened its state
+at no extra depth. Price the property count as cheap, expect depth and state
+width to be where the time goes, and quote the depth beside the result `[045]`.
 
 ### Narrowing the world — the conditional, not the caution
 
@@ -256,8 +261,9 @@ established by hand, and twice it had to be established after the fact `[c3]`.
 it** — each narrowed until the thing it was mutating could no longer happen: an
 environment that never reaches the foreign marker its control names, a budget
 under which the mutated write can never fire, a focus constant whose action menu
-excludes the operation being controlled, a scenario at one entry that hid an
-un-evacuated-entry defect from the session that wrote it `[c3]`. So narrowing is
+excludes the operation being controlled, a crash-only environment that cannot
+reach the in-transaction hand edit its overlap needs, and a scenario at one entry
+that hid an un-evacuated-entry defect from the session that wrote it `[c3]`. So narrowing is
 a sound way to **hunt a counterexample the sampler never drew**, and an unsound
 way to **read a green**. The corpus's own compression, reached independently
 three times, is the sentence to carry: **a mutant module's environment is part of

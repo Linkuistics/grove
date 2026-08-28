@@ -147,6 +147,14 @@ use std::path::Path;
 ````
 <!-- /fragment -->
 
+`Mode` is present here because lock acquisition must translate the reader or
+writer selected by `fs::read` and `fs::write` into the kernel's shared or
+exclusive `flock` operation. The lock layer owns that mapping: a `Mode` becomes
+one libc flag without changing the caller-spelled path, preserving the page's
+invariant that cooperating readers may overlap while a writer excludes every
+cooperating access. The worked write uses `Exclusive` before its snapshot is
+read.
+
 <!-- fragment «lock-modes» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/lock.rs" lines="41-58" parent="filesystem-lock-source" -->
 ````rust
 
@@ -169,6 +177,13 @@ impl Mode {
 }
 ````
 <!-- /fragment -->
+
+`take` performs the lock transition used by the worked write. The lock layer
+opens the containing directory and combines that handle with the selected mode
+to produce a `File` whose lifetime is the lock; interrupted waits retry, while
+other operating-system failures return unchanged. This establishes that the
+exclusive lock remains held across snapshot, decision, and application and is
+released by dropping the guard rather than by a separate unlock path.
 
 <!-- fragment «lock-take» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/lock.rs" lines="59-91" parent="filesystem-lock-source" -->
 ````rust
@@ -621,6 +636,14 @@ use crate::{EntryName, EntryNameExt, Error, Snapshot, Species};
 ````
 <!-- /fragment -->
 
+`apply` is the interpreter's entry point for the worked insert. It receives the
+caller-spelled root, the locked snapshot, and the algebra's guarded plan; it
+first refuses any rendering that is not one path component, then turns the
+ordered effects into either the accumulated `Report` or an `Error` produced by
+unwind. The preflight loop preserves the no-partial-application invariant for a
+bad rendered name, while the effect loop preserves plan order for the two moves
+and final create.
+
 <!-- fragment «apply-plan» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="50-87" parent="filesystem-interpreter-source" -->
 ````rust
 /// Apply a plan under the exclusive lock, or leave the tree as it was found.
@@ -663,6 +686,13 @@ pub(super) fn apply<N: EntryName>(
 }
 ````
 <!-- /fragment -->
+
+`Run` holds the mutable state for that single application. The interpreter owns
+the current destinations of landed and repeatedly moved entries, the inverse
+actions captured before each effect, and the report built from successful
+steps. Those collections turn the plan and snapshot into forward progress that
+can be unwound in reverse without consulting a changed directory, which is the
+state needed for both the page's successful insert and its failure trace.
 
 <!-- fragment «apply-run-state» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="88-105" parent="filesystem-interpreter-source" -->
 ````rust
@@ -1295,6 +1325,15 @@ use crate::{EntryName, Refusal};
 /// [`std::error::Error::source`] as well.
 ````
 <!-- /fragment -->
+
+`Error<N>` is the public taxonomy for operation failures in this page. The
+library maps an algebraic `Refusal` to `Error::Refused`, and maps consumer
+parsing failures, filesystem operations, invalid path components,
+forward-application failures, and unwind failures into distinct variants whose
+fields retain the path, action, and original cause needed for recovery. This
+separation preserves the invariant that a cleanly rolled-back worked failure is
+distinguishable from a partially rolled-back tree, while keeping domain-owned
+advice in `N::Err`.
 
 <!-- fragment «error-taxonomy» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="24-163" parent="filesystem-error-source" -->
 ````rust

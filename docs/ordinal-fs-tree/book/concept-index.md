@@ -16,6 +16,7 @@
 - [Derived name readings](02-name-seam.md#derived-readings)
 - [Filename boundary enforcement](02-name-seam.md#surrounding-flow)
 - [Syllabus vocabulary](03-reference-domain.md#syllabus-vocabulary)
+- [One reference name through the seam](03-reference-domain.md#worked-reference-name)
 - [Reference-domain classification](03-reference-domain.md#classification-walkthrough)
 - [EntryName conformance obligations](03-reference-domain.md#conformance-obligations)
 - [Conformance findings and sample coverage](03-reference-domain.md#findings-and-coverage)

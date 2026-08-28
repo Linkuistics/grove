@@ -84,7 +84,7 @@ is that foreign names are absent while any malformed, reserved, non-UTF-8, or
 non-component owned name halts construction; here it processes the complete
 `syllabus` example before a guard can return.
 
-<!-- fragment «read-tree-discovery» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-86" parent="read-filesystem-source" -->
+<!-- fragment «read-tree-discovery» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-81" parent="read-filesystem-source" -->
 ````rust
 //! Turning a directory tree into a [`Snapshot`].
 //!
@@ -167,11 +167,6 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
     Ok(builder.finish())
 }
 
-/// One directory's names and what is under each, sorted.
-///
-/// Sorted because the halt has to be deterministic: a tree carrying two names
-/// the consumer cannot parse would otherwise report whichever one `read_dir`
-/// reached first, so the recovery advice a consumer sees would depend on the
 ````
 <!-- /fragment -->
 
@@ -196,8 +191,13 @@ links, establishing a total order and retaining the observed filesystem species
 for the consumer's parser. On the example root it supplies the four direct
 names and marks only `02-linear-algebra-i2` as a directory.
 
-<!-- fragment «read-directory-listing» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="87-131" parent="read-filesystem-source" -->
+<!-- fragment «read-directory-listing» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="82-124" parent="read-filesystem-source" -->
 ````rust
+/// One directory's names and what is under each, sorted.
+///
+/// Sorted because the halt has to be deterministic: a tree carrying two names
+/// the consumer cannot parse would otherwise report whichever one `read_dir`
+/// reached first, so the recovery advice a consumer sees would depend on the
 /// filesystem rather than on the tree.
 fn listing<N: EntryName>(directory: &Path) -> Result<Vec<(OsString, Found)>, Error<N>> {
     let reading = fs::read_dir(directory).map_err(|source| Error::<N>::Io {
@@ -236,13 +236,6 @@ fn listing<N: EntryName>(directory: &Path) -> Result<Vec<(OsString, Found)>, Err
     Ok(found)
 }
 
-/// The directory whose lock covers this tree: the one **containing** the root,
-/// as the *kernel* resolves it.
-///
-/// Asked for as `<root>/..`, and that spelling is the whole of the fix
-/// `reading-k19` found necessary. A lexical `Path::parent` chops a component
-/// off a string, but `..` and symbolic links are resolved by the kernel, one
-/// component at a time, against the directory actually reached — so the
 ````
 <!-- /fragment -->
 
@@ -578,7 +571,7 @@ distinguished-chain readings without cloning stored names. Its identity is the
 same index in the same snapshot, and the matrices entry demonstrates both the
 root-first ancestor chain and the two-overview distinguished chain.
 
-<!-- fragment «snapshot-entry-views» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="268-440" parent="read-snapshot-source" -->
+<!-- fragment «snapshot-entry-views» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="268-438" parent="read-snapshot-source" -->
 ````rust
 
 /// One entry in a snapshot.
@@ -751,8 +744,6 @@ impl<'a, N: EntryName> Entry<'a, N> {
     }
 }
 
-/// A level of the tree: the root, or a node.
-///
 ````
 <!-- /fragment -->
 
@@ -780,8 +771,10 @@ iterators, preserving every stored name even when a consumer violates the
 one-distinguished-name obligation. In the example, the module container yields
 its overview before vectors and matrices while the root uses no entry index.
 
-<!-- fragment «snapshot-containers» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="441-532" parent="read-snapshot-source" -->
+<!-- fragment «snapshot-containers» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="439-532" parent="read-snapshot-source" -->
 ````rust
+/// A level of the tree: the root, or a node.
+///
 /// The root is a node that is not an entry — it is the directory the consumer
 /// handed the library, it has no ordinal, no key and no parts, and its own name
 /// is never parsed. That is why this type exists at all: a chain of containing
@@ -1237,8 +1230,15 @@ symlinked spellings and refusing a root with no distinct parent. For the
 `syllabus` example, this produces `syllabus/..` without canonicalizing the root
 later returned by the guard.
 
-<!-- fragment «read-lock-location» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="132-179" parent="read-filesystem-source" -->
+<!-- fragment «read-lock-location» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="125-179" parent="read-filesystem-source" -->
 ````rust
+/// The directory whose lock covers this tree: the one **containing** the root,
+/// as the *kernel* resolves it.
+///
+/// Asked for as `<root>/..`, and that spelling is the whole of the fix
+/// `reading-k19` found necessary. A lexical `Path::parent` chops a component
+/// off a string, but `..` and symbolic links are resolved by the kernel, one
+/// component at a time, against the directory actually reached — so the
 /// accepted spelling `syllabus/02-linear-algebra-i2/..` reads the tree
 /// `syllabus` while its lexical parent is `syllabus/02-linear-algebra-i2`, a
 /// different directory from the one the direct spelling locks. Two spellings of

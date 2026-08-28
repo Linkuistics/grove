@@ -74,3 +74,49 @@ The review spent no in-session reviewer. This session may spend one narrow
 reviewer if a fix turns out to need judgement the compiler cannot settle;
 substantial rework of a page belongs in a new producer chain beside this leaf
 rather than inside it.
+
+## Decisions (running log)
+
+All six findings survived verification. Finding 1 is a verification-contract
+defect: Cargo documents `--all-targets` as excluding doc tests, and the corrected
+`cargo test -p ordinal-fs-tree` command discovers all five reproduced doc tests.
+Finding 2 is a missing normative worked-example anchor and end-to-end trace.
+Finding 3 violates the specification's immediate prose-introduction rule at all
+five cited directives. Finding 4 splits three source doc comments from their
+items; the corrected descendant boundaries are `read.rs` 1-81 / 82-124 /
+125-179 and `snapshot.rs` 268-438 / 439-532, leaving both top-level ownership
+blocks unchanged. Finding 5 contradicts the reproduced `Cli::try_parse` call.
+Finding 6 is a false cross-page promise; an enumeration of every numbered page
+that prints either tree confirms that page 04 alone reuses page 03's tree, while
+pages 01, 05, 06, and 07 consistently use the key-6 worked-insert tree.
+
+The book validator passes in final mode with fifteen files, 6,929 resolved
+source lines, and zero deferred lines. Quint reports every configured invariant
+holding and every configured witness reached across all scenarios.
+
+The corrected Cargo command executes the documentation tests and every crate
+suite in this harness. With the session temp directory it passes every test
+except `reading_on_disk::a_filename_that_is_not_utf8_halts`, whose setup receives
+sandbox `EPERM` while creating the non-UTF-8 filename; that exact unmodified test
+passes with `TMPDIR=/private/tmp`. The full command cannot use that alternate
+temp root here because Seatbelt then prevents the CLI-contract tests' spawned
+binary from accessing their temporary trees. This is a harness path-policy
+conflict, not a crate assertion or doc-test failure; no crate source or test is
+changed.
+
+The Alloy runner passes all seven no-counterexample checks and finds all thirteen
+named witnesses. Alloy 6.2.0 initially stalled before model execution because
+`SATFactory.getSolvers()` probes every service-loaded native solver and Seatbelt
+hangs the trivial Glucose probe. The passing run sets `ALLOY_JAR` to a temporary
+copy of the same distribution jar with only the native-solver service
+registration removed; Alloy's built-in SAT4J remains its default. The model,
+runner, Alloy classes, and solver semantics are unchanged.
+
+The one permitted narrow adversarial reviewer found one actionable wording
+error in a new fragment introduction: `Error<N>` was called the taxonomy for
+every non-refusal outcome even though it contains `Error::Refused` and excludes
+successful reports. The corrected paragraph calls it the operation-failure
+taxonomy and names the algebraic `Refusal` to `Error::Refused` boundary. The
+reviewer reported no other contract violation; this local prose correction is
+fully checkable against the reproduced enum and does not earn another review
+cycle.

@@ -96,7 +96,7 @@ s/
 syllabus --root s lesson-insert 2 2 limits
 ```
 
-`Cli::parse` leaves the root spelling as `PathBuf::from("s")` and produces
+`Cli::try_parse` leaves the root spelling as `PathBuf::from("s")` and produces
 `Verb::LessonInsert`. The custom value parsers turn the first `2` into
 `Target::Key(Key::new(2))`, the second into `Ordinal::new(2)`, and `limits`
 into a validated `Label`. The absent `--status` uses `Status::Draft`. `run`

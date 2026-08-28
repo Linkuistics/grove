@@ -46,7 +46,7 @@ need not be unique. `Status` is the domain's only attribute and applies only to
 lessons. The `Parts` variants carry the species distinction, so the library
 learns leaf versus node without learning what a lesson or module means.
 
-A stable example tree for later pages is:
+The tree the read path reads on the next page is:
 
 ```text
 OVERVIEW.md
@@ -277,6 +277,31 @@ impl Parts {
 }
 ````
 <!-- /fragment -->
+
+<a id="worked-reference-name"></a>
+## One reference name through the seam
+
+The lesson `02-draft-matrices-i6.md` starts as the consumer-owned parts
+`Parts::lesson(Status::Draft, Label::new("matrices")?)`, paired with ordinal 2
+and key 6. `SyllabusName::compose` forms the positioned name, and its `Display`
+arm renders those values as `{ordinal:02}-{status}-{label}-i{key}.md`, producing
+the exact filename above.
+
+When the filesystem reports that filename as `Found::File`, `parse` removes the
+`.md` suffix and `split_shape` returns the three strings `("02",
+"draft-matrices", "6")`. The parser reads the middle token as draft lesson
+parts, rebuilds the positioned name, and compares its rendering byte for byte
+with the input. That whole-grammar comparison establishes the canonical
+spelling rather than accepting another representation of ordinal 2 or key 6.
+
+The parts determine `PositionedSpecies::Leaf`; the positioned name therefore
+has `Species::Leaf`, whose required filesystem observation is `Found::File`.
+The agreeing observation yields `Verdict::Entry`. Presenting the same owned
+filename as a directory or other object yields `Verdict::Malformed` instead.
+The conformance kit exercises this boundary as
+`ParseRefusesWhatFoundContradicts`: each supplied name is parsed under all three
+`Found` values, and every contradiction must halt as `Malformed` rather than be
+silently skipped as `Foreign` or treated as a deliberately reserved name.
 
 <a id="rendered-names"></a>
 ## Rendering names and carrying recovery advice

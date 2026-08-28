@@ -187,8 +187,8 @@
 | `snapshot-storage` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `1-104` | `read-snapshot-source` | `—` |
 | `read-snapshot-source` | `read-path` | `source-snapshot` | `composite` | `read-path-k14` | `1-650` | `source-snapshot` | `snapshot-storage`, `snapshot-builder`, `snapshot-entry-views`, `snapshot-containers`, `snapshot-queries` |
 | `snapshot-builder` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `105-267` | `read-snapshot-source` | `—` |
-| `snapshot-entry-views` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `268-440` | `read-snapshot-source` | `—` |
-| `snapshot-containers` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `441-532` | `read-snapshot-source` | `—` |
+| `snapshot-entry-views` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `268-438` | `read-snapshot-source` | `—` |
+| `snapshot-containers` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `439-532` | `read-snapshot-source` | `—` |
 | `snapshot-queries` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `533-650` | `read-snapshot-source` | `—` |
 | `source-filesystem-module` | `source-index` | `source-filesystem-module` | `root` | `—` | `1-393` | `—` | `filesystem-read-opening`, `filesystem-write-acquire`, `filesystem-read-acquire-and-guard`, `filesystem-write-guard`, `filesystem-read-guard-api`, `filesystem-write-guard-api`, `filesystem-read-deref`, `filesystem-write-deref` |
 | `filesystem-read-opening` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `1-86` | `source-filesystem-module` | `—` |
@@ -206,10 +206,10 @@
 | `filesystem-read-deref` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `379-386` | `source-filesystem-module` | `—` |
 | `filesystem-write-deref` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `387-393` | `source-filesystem-module` | `—` |
 | `source-filesystem-read` | `source-index` | `source-filesystem-read` | `root` | `—` | `1-179` | `—` | `read-filesystem-source` |
-| `read-tree-discovery` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `1-86` | `read-filesystem-source` | `—` |
+| `read-tree-discovery` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `1-81` | `read-filesystem-source` | `—` |
 | `read-filesystem-source` | `read-path` | `source-filesystem-read` | `composite` | `read-path-k14` | `1-179` | `source-filesystem-read` | `read-tree-discovery`, `read-directory-listing`, `read-lock-location` |
-| `read-directory-listing` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `87-131` | `read-filesystem-source` | `—` |
-| `read-lock-location` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `132-179` | `read-filesystem-source` | `—` |
+| `read-directory-listing` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `82-124` | `read-filesystem-source` | `—` |
+| `read-lock-location` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `125-179` | `read-filesystem-source` | `—` |
 | `source-filesystem-apply` | `source-index` | `source-filesystem-apply` | `root` | `—` | `1-471` | `—` | `filesystem-interpreter-source` |
 | `apply-contract` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `1-49` | `filesystem-interpreter-source` | `—` |
 | `filesystem-interpreter-source` | `filesystem-interpreter` | `source-filesystem-apply` | `composite` | `filesystem-interpreter-k16` | `1-471` | `source-filesystem-apply` | `apply-contract`, `apply-plan`, `apply-run-state`, `apply-effect-step`, `apply-unwind-and-paths`, `apply-undo`, `apply-destination-claim`, `apply-fault-seam` |

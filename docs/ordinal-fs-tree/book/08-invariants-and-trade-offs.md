@@ -220,17 +220,32 @@ cargo run --quiet -p book-validation --bin book-check -- \
   --book docs/ordinal-fs-tree/book \
   --final \
   --check all
-cargo test -p ordinal-fs-tree --all-targets
+cargo test -p ordinal-fs-tree
 docs/ordinal-fs-tree/models/run-alloy.sh
 docs/ordinal-fs-tree/models/run-quint.sh
 ```
 
+In this restricted macOS harness, the Cargo command passed every suite except
+the setup of `a_filename_that_is_not_utf8_halts`: Seatbelt returned `EPERM` when
+the test created its non-UTF-8 filename under the session temp root. The same
+unmodified test passed with `TMPDIR=/private/tmp`; using that root for the whole
+command instead prevented the CLI-contract tests' child process from accessing
+its temporary trees. The combined runs therefore exercised every crate and doc
+test without changing source or test code.
+
+The installed Alloy distribution also probes every registered native solver
+before selecting its default SAT4J solver, and Seatbelt stalled its native
+Glucose probe before model execution. The Alloy command passed with `ALLOY_JAR`
+set to a temporary copy of the same distribution jar with only the native-solver
+service registration removed. The Alloy classes, model, runner, and built-in
+SAT4J solver were unchanged.
+
 The final book check reports all fifteen source files and all 6,929 source lines
-complete with zero deferred ranges. The crate test command includes the CLI
-contract tests and the guard proving that algebra modules cannot reach the
-filesystem. The Alloy runner reports no counterexample for each check and an
-instance for every named witness. The Quint runner reports every configured
-invariant holding and every configured witness reached in its designated
-instance.
+complete with zero deferred ranges. The crate test command runs the library,
+binary, integration, CLI-contract, and documentation tests, including the guard
+proving that algebra modules cannot reach the filesystem. The Alloy runner
+reports no counterexample for each check and an instance for every named
+witness. The Quint runner reports every configured invariant holding and every
+configured witness reached in its designated instance.
 
 [Previous: Syllabus CLI](07-syllabus-cli.md) | [Contents](README.md)

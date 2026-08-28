@@ -599,6 +599,25 @@ against 164 in 12 m 25 s.
 > stops being true when one of them is a model checker. Budget the two serially,
 > or budget the verify cell alone.
 >
+> **After `finish-scope-k76` this file is 187 commands, `exit 0`, and
+> `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`.** The one new command
+> is `expect_unreachable_EN_08_no_resumption_of_an_interrupted_disposal_is_reachable`,
+> the control that establishes the `FN-31.c` row this column had declared
+> unmeetable; the two `FN-31.c` witnesses were rewritten from 3 and 4 steps to 14
+> and `FN_25a` was restated, so the command COUNT moved by one and three
+> commands got dearer. **18 m 48 s wall** (`2026-08-28T02:03:05Z` →
+> `02:21:53Z`) on a 16-core host, run alone; this file's digest is identical
+> either side of it. The three changed commands cost 7 s, 6 s and 9 s, so the run
+> is within noise of the ~18 min below and the edits are not what moves it.
+>
+> **It is the SECOND run of this cell in that leaf, and the first is worth
+> keeping.** The first (187 commands, exit 0, 20 m 12 s, run concurrently with
+> the non-verify Quint cell) measured an `FN_25a` with three conjuncts; re-reading
+> the edit found that deleting `lone diagnosedRaw or declaredDiagnosisOverlap`
+> along with the false label it carried had dropped a true claim — *no undeclared
+> overlap* — so the clause went back and the cell was re-run rather than
+> re-argued.
+>
 > **After `closed-set-additions-k74` this file is 186 commands, `exit 0`, and
 > `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`** — the `FN-29` split
 > plus `FN-29.b`'s two witnesses. It measured **~18 min** on a 16-core host
@@ -1546,40 +1565,69 @@ witness, correlated by this handle and this attempt identity.
   does and for the same reason. The exclusion was right; the reason offered for
   it was one sentence too generous, and the sentence has been corrected in
   `finish.als`.
-- **Not that `EN-08`'s control reaches every obligation the assumption table
-  names — and `FN-31.c` is the one it does not.** The table names `FN-09`,
-  `FN-10`, `FN-24`, `FN-31.c`, `SY-12`, `TT-20` and `TT-23.b` as the witnesses
-  that become unreachable when `crash` is removed. In this file `FN-09.a`,
-  `FN-09.b`, `FN-10.a` and all sixteen of `FN-24.a`'s do; **`FN-31.c`'s two do
-  not**, because both **posit** the disk an interruption leaves rather than
-  running `crash` to reach it, so removing the action leaves them landing. That
-  is a fact about this file's realisation rather than about the assumption, and
-  it is exactly what an exercise-removal exists to make visible — it is invisible
-  without one. **`routing-and-prose-k73` disposed it**: the catalogue's assumption
-  table now states that an exercise-removal row's controls column is a claim of
+- **`EN-08`'s control now reaches every obligation the assumption table names,
+  and `FN-31.c` — the one it did not — is where this file learned what a
+  declaration is worth.** The table names `FN-09`, `FN-10`, `FN-24`, `FN-31.c`,
+  `SY-12`, `TT-20` and `TT-23.b` as the witnesses that become unreachable when
+  `crash` is removed. `FN-09.a`, `FN-09.b`, `FN-10.a` and all sixteen of
+  `FN-24.a`'s always did; **`FN-31.c`'s two did not**, because both **posited**
+  the disk an interruption leaves rather than running `crash` to reach it, so
+  removing the action left them landing. That is a fact about this file's
+  realisation rather than about the assumption, and it is exactly what an
+  exercise-removal exists to make visible — it is invisible without one.
+  **`routing-and-prose-k73` disposed it**: the catalogue's assumption table
+  states that an exercise-removal row's controls column is a claim of
   unreachability to be established by RUNNING the removal, and names this as the
-  case where the row is right and a family does not meet it — a posited disk and
-  a reached one are not interchangeable for an assumption's control, however
-  interchangeable they are for the claim.
+  case where the row is right and a family does not meet it.
 
-  **`finish-scope-k71` closed it, and the answer is that this column CANNOT meet
-  the row without paying a different assumption's price — declared here rather
-  than left open.** Reaching the interrupted replacement through `crash` means
-  running the whole six-step body, the commit, the classification, the quarantine
-  rename and disposal from state 0 before the crash, because
-  `fact TransactionsStartWhereAProcessStarts` narrows `EN-11` for the
-  transaction's volatile phase: every trace starts at *no transaction, or one
-  just opened*, and everything past `Opened` is reached by running the steps.
-  That is about seventeen states against this file's thirteen-state maximum, on
-  the dearest cell in the repository. **A model that POSITS a disk under `EN-11`
-  cannot also EXERCISE `EN-08` at that disk** — the two controls are in tension
-  by construction rather than by oversight, and the catalogue's assumption table
-  now carries the general form. The row is **met by `finish.qnt`**, whose
-  `wit_unreach_EN_08_an_interrupted_replacement_resumed` runs the protocol and
-  stops landing when `crash` is removed; this column's two `FN-31.c` witnesses
-  posit the disk, and that is a declared narrowing of this realisation rather
-  than a gap in the obligation, which is answered here with a property and two
-  witnesses.
+  **`finish-scope-k71` then closed it by DECLARING the row unmeetable in this
+  column, and the declaration was wrong.** Its argument was that reaching the
+  interrupted replacement through `crash` means running the whole six-step body,
+  the commit, the classification, the quarantine rename and disposal **from state
+  0** before the crash — because `fact TransactionsStartWhereAProcessStarts`
+  narrows `EN-11` for the transaction's volatile phase — at about seventeen
+  states against this file's thirteen-state maximum, and hence that *a model that
+  POSITS a disk under `EN-11` cannot also EXERCISE `EN-08` at that disk*.
+  **The seventeen was estimated and never run.** `finish-scope-k75` said so, and
+  `finish-scope-k76` ran it.
+
+  **The measurement, and it kills the declaration twice over.** The run-up does
+  not have to start from a pristine root: `EN-11`'s licence still covers the TREE
+  at `Fresh`, so the honest run-up starts at `interruptedMidEvacuation` — the
+  same posit `witness_FN_21a_the_interrupted_disposal_disk_is_reachable` and
+  `witness_FN_31a_the_stale_marker_is_what_an_interrupted_disposal_leaves`
+  already use — and runs the rename, the marker and the removal to the crash.
+  **Those two commands were already in this file, at eleven and twelve states,
+  reaching exactly the two disks the declaration said were out of reach.** And
+  even from a genuinely pristine root the estimate was high: the mid-disposal
+  disk is reached through `crash` in **fourteen states**, `Idle · Confirm ·
+  TxnOpen · Preflight · WPrepare · WManifest · WReady · WPublish · WEvacuate ·
+  CommitAttempt · Classify · QuarRename · MarkerCreate · Crash`, found in 8.9 s
+  at a 16-step bound.
+
+  | command | bound | result | wall |
+  |---|---|---|---|
+  | `witness_FN_31c_an_interruption_before_the_replacement_is_resumed` | 14 steps | instance found | 7 s |
+  | `witness_FN_31c_an_interruption_after_the_replacement_is_resumed` | 14 steps | instance found | 6 s |
+  | `expect_unreachable_EN_08_no_resumption_of_an_interrupted_disposal_is_reachable` | 14 steps | **no instance**, as the control requires | 6 s |
+  | the same run over the earlier boundary with `crash` removed (measured, not kept — the later boundary subsumes its run-up) | 14 steps | **no instance** | 5 s |
+
+  Same scope bounds as the rest of the file (`3 but 2 Device, 2 RootId, 2 Rev,
+  3 Entry, 2 AttemptId, 2 Digest, 2 CMark`), Alloy 6 on the corretto-21 JVM the
+  runner picks. **Both `FN-31.c` witnesses now run the protocol, so the row is
+  MET in this column**, and the fourth `expect_unreachable_EN_08_*` command is
+  what establishes it — a witness that depends on `crash` is a claim only the
+  removal can check. The row is met in the Quint column too, by
+  `wit_unreach_EN_08_an_interrupted_replacement_resumed`, so the cell is
+  uncontested.
+
+  **What this cost and what it bought.** It cost about 25 s of solver time and
+  two rewritten witness preambles; the previous disposition cost nothing and
+  asserted an impossibility. **The rule it leaves — now in the catalogue's
+  assumption table — is that a family's failure to meet an exercise-removal row
+  is established by running the deeper attempt, never by costing it in prose. A
+  bound too dear to pay is a declared and MEASURED gap; an unpaid estimate is
+  neither.**
 - **Not that `FN-09.a`'s *exactly one rename* frames the whole tree.** Its
   `WPublish` branch asserts `Slot.owner`, `Slot.wHolds`, `rootSame`, `manSame`,
   `repoSame` and `worldSame` — and **not** the cleanup marker, which did not
@@ -1853,6 +1901,41 @@ Grove step rewrites history* has two reachable steps after it and a dozen that
 are not. Every one of the four was also run against the other three; the *left
 green* column is that sweep.
 
+**`FN-25.a`'s CHECK WAS AN EXEMPTION AND IS NOW AN OBLIGATION, AND ROW 65 IS
+WHAT MEASURES THE DIFFERENCE.** `finish-scope-k71` landed the catalogue's
+precedence — *where both definitions hold of one disk, `OwnershipConflict` wins*
+— beside an `FN-25.a` that still read *the two diagnoses are disjoint: no
+blocked state satisfies both*. This file followed the document into the same
+shape: `declaredDiagnosisOverlap` named the two reachable overlap classes and
+`FN_25a` then **weakened itself by exempting them**, so the command tested least
+exactly where the claim was hardest. `finish-scope-k75` found it; the repair is
+in `finish-scope-k76`.
+
+**What the exemption cost, measured rather than argued.** Reverse the precedence
+relation — `earlierDiagnosis` becomes `DRecoveryPending -> DOwnershipConflict`,
+so a disk carrying an artifact Grove cannot classify is reported as a recovery
+the operator should go and run — and **the old check is green**. It is satisfied
+by the declaration on one conjunct and by either winner on the other, so it did
+not test the precedence at all. The repaired check is red on the same mutation
+(row 65). The check now carries **four** conjuncts. Three are falsified by their own
+mutation: `one diagnosed` by row 52, the precedence by row 65, and the floor — *a
+correlated block with nothing unaccountable beside it carries `RecoveryPending`*
+— by row 51.
+
+**The fourth is the OLD clause, kept, and keeping it is a correction made against
+this leaf's own first edit.** `lone diagnosedRaw or declaredDiagnosisOverlap` was
+labelled with the disjointness the catalogue asserted, and that label was false —
+so it was deleted with the label attached. Read as a check it says something else
+and true: *the arms meet only where this file says they meet*. Without it a
+THIRD overlap class appearing later would satisfy `one diagnosed`, fall outside
+the precedence conjunct's antecedent, and pass in silence, because
+`earlierDiagnosis` resolves any pair to one atom. **A clause can be load-bearing
+for a claim other than the one it is labelled with**, which is the sibling of
+this file's own rule about a clause rescued by its neighbour. **The floor is not decoration**: without it the
+precedence conjunct would absorb row 51 and that mutation would report as a
+survivor, so removing `dgTopologyUnmatched`'s proviso would have become
+invisible in the same edit that made the precedence checkable.
+
 **Two of the four kill a neighbour, and both neighbours are stated over the arm
 the mutation edits.** Row 51 kills `FN-25.b` as well as its target because
 `FN-25.b`'s second conjunct is a bounded-unreachability statement ABOUT
@@ -1928,7 +2011,7 @@ that sweep, not an assertion.
 | 48 | `FN-31.d` | the foreign document is **superseded anyway** while the attempt blocks — it reports the conflict and mutates the thing it could not prove is its own | `witness_FN_31a_a_source_state_from_which_disposal_must_replace_a_marker` | KILLED |
 | 49 | `FN-24.a` | the classification order is the catalogue's table order taken **literally** — `Absent` first, the whole `Reserved` class after it | `witness_FN_24a_a_crash_after_the_quarantine_rename` | KILLED |
 | 50 | `FN-24.b` | `doWPublish` drops `markSame` and removes a standing cleanup marker — the publication is still exactly one rename and now has two persistent effects | `witness_FN_09a_an_interruption_immediately_after_publication` | KILLED |
-| 51 | `FN-25.a` | `dgTopologyUnmatched` drops its `not dgCorrelatedIncompleteAttempt` proviso — the catalogue's second `OwnershipConflict` clause taken literally | `witness_FN_25c_git_recovery_pending_reached` | KILLED (also kills `FN-25.b`; left green: `FN-25.c`, `FN-26`) |
+| 51 | `FN-25.a` | `dgTopologyUnmatched` drops its `not dgCorrelatedIncompleteAttempt` proviso — the catalogue's second `OwnershipConflict` clause taken literally | `witness_FN_25c_git_recovery_pending_reached` | KILLED (also kills `FN-25.b`; left green: `FN-25.c`, `FN-26`). **Re-run by `finish-scope-k76` against the repaired `FN_25a` and still KILLED — by the new THIRD conjunct rather than by the old first one.** Under the repair's second conjunct alone this mutation would have been absorbed by the precedence and reported as a survivor, which is why the floor clause exists |
 | 52 | `FN-25.b` | `dgWitnessNotProvablyThisAttempts` narrows back to `no Slot.owner` — an owned witness whose manifest names another handle falls through both arms | `witness_FN_25b_a_block_whose_only_arm_is_ownership_conflict` | KILLED (also kills `FN-25.a`; left green: `FN-25.c`, `FN-26`) |
 | 53 | `FN-25.c` | `dgUndigestibleEntry` is guarded on `World.lane in wcAsCommitLanes` — one clause of the partition reads the lane | `witness_FN_25c_git_ownership_conflict_reached` | KILLED (left green: `FN-25.a`, `FN-25.b`, `FN-26`) |
 | 54 | `FN-26` | `doQuarRename`'s blocking branch drops `repoSame` for `Repo.wTracked' = Repo.wTracked` — the transition that blocks may write recorded history | `witness_FN_25c_git_recovery_pending_reached` | KILLED (left green: all three `FN-25` checks) |
@@ -1942,6 +2025,7 @@ that sweep, not an assertion.
 | 62 | `FN-30` | `doCommitAttempt` stops framing the hook — the internal commit runs the operator's hooks | `witness_FN_14_unrelated_modified_work_present_across_a_successful_finish` | KILLED (left green: all 25 others, `FN-27.a` – `FN-27.c` included) |
 | 63 | `FN-32` | `doDiscard`'s else-branch drops `slotSame` and clears the slot — the discard removes exactly what it just refused to classify | `witness_FN_32_a_transaction_step_meets_an_unprovable_artifact_and_it_stands` | KILLED. **`FN-21.c` survives**, which is the row's point: the two obligations are stated over different antecedents — a transaction step here, a sweep there — so neither mutation can kill the other, and `FN-32` is not a restatement of `FN-21.c` |
 | 64 | `FN-32` | `doMarkerReplace`'s **foreign branch** stops framing the marker: the replacement still blocks and still carries `W17OwnershipConflict`, and supersedes the document it cannot prove is its own on its way out | `witness_FN_32_a_transaction_step_meets_an_unprovable_marker_and_it_stands` | KILLED. **Also kills `FN-31.d`**, and that is the finding rather than noise — the replacement is the ONLY `groveActs - Reap` member whose marker mutation is gated on ownership, so `FN-32`'s marker half and `FN-31.d`'s second conjunct have the same content at the same place and differ only in class. Left green: all 60 others, `FN-10.b`, `FN-21.b`, `FN-21.c` and `FN-27.a` – `FN-27.c` included. **Paired with row 63**: 63 kills `FN-32` through the witness slot and leaves the marker untouched, 64 through the marker and leaves the slot untouched, so the claim's two conjuncts are separately falsifiable — which is what `obligation-placement-k67` found row 63 alone could not establish |
+| 65 | `FN-25.a` | **the precedence itself is reversed**: `earlierDiagnosis` becomes `DRecoveryPending -> DOwnershipConflict`, so correlation wins the declared overlap and a disk carrying an artifact Grove cannot classify is reported as a recovery the operator should run | `witness_FN_25a_a_correlated_attempt_at_a_name_grove_also_reserves_resolved_to_one` | KILLED. **THIS ROW IS THE MEASUREMENT `finish-scope-k76` EXISTS FOR.** Run against the OLD exempted `FN_25a` the same mutation is **GREEN** — `lone diagnosedRaw or declaredDiagnosisOverlap` is satisfied by the declaration and `one diagnosed` by either winner, so the check did not test the precedence the catalogue states, at all. Both runs are recorded above the matrix. Left green: `FN-25.b`, `FN-25.c`, `FN-26` |
 | x1 | *(not an obligation's row — Q4-6's evidence)* | `reapable` narrows to *there is a quarantine* — the sweep with no document to read | *the kills are the fire evidence* | KILLED `FN-21.b` and `FN-21.c`; left green: all 26 others |
 | x2 | *(not an obligation's row — Q4-2's evidence)* | `doSettle`'s restore branch drops `treeMatchesManifest` for `some Root.holds'` — the restoration puts back something the record did not name | `witness_FN_17a_a_restoration_that_reproduces_the_exact_preflight_commit` | KILLED `FN-02` and `FN-22.d`; **`FN-17.a` survives**; left green: 24 others |
 
@@ -2690,6 +2774,26 @@ arguments looked decisive and both were wrong:
   is wrong: membership is intensional — `SY-06.b` reaches `PartialScaffold(Exact)`
   and must not complete `PartialScaffold(Ambiguous)`, and both are members.
 
+**AND THE MEMBER'S MEANING WAS WRONG WHEN IT LANDED, WHICH IS A THIRD THING THE
+EPISODE PRODUCED.** `finish-scope-k71` wrote the class sentence as *an artifact
+at a name Grove reserves says a Grove transaction is INCOMPLETE*, on the strength
+of the window between the rename and the fourth revalidation point. The window is
+real and it is what the ORDER needs; it is not what the MEMBER means. The same
+disk is reached on the other side of that point — a `Committed` returned
+unchanged makes the finish `Applied` with the quarantine still standing, and the
+shipped protocol returns success there even when disposal fails
+(`src/finish_transaction.rs:1953-1974`) — so under that sentence one disk was a
+proven success and evidence of an unfinished transaction at once.
+`finish-scope-k75` found it; `finish-scope-k76` repaired the class sentence to
+*says Grove has WORK OUTSTANDING at that name*. **The error is this scope's own
+`FN-28` committed one section later**: a disposition read off the tree. Both
+families now witness the coexistence rather than arguing it —
+`witness_FN_28_a_success_whose_cleanup_is_still_outstanding` requires
+`classified in reservedClass` beside `finishSucceeded`, written over the CLASS so
+a later member changes no claim, and Quint's `successWithCleanupOutstanding`
+records `isReserved(classify(w))` instead of the literal `true` it used to set,
+which witnessed the branch rather than the state.
+
 `TT-19` still does not reach the new member, and that is now recorded in
 §*States* as a fact about `TT-19` rather than about the membership: a standing
 quarantine's recovery is `FN-21`'s sweep, which refuses nothing. **The Quint
@@ -2964,8 +3068,9 @@ meant, so the next model does not have to guess.
 
 **FOURTEENTH. `doCommitAttempt`'s ordering guard returned an outcome, and the
 closed set is over ACTIONS.** The step is enabled from `PublishedP` as well as
-from `Evacuated` on purpose, so that `FN-11` is refused by a gate rather than
-true by construction; the branch that gate took reported
+from `Evacuated` on purpose, so that `FN-11` has an antecedent an early attempt
+could have satisfied rather than being true by construction; the branch that
+gate took reported
 `Refused(WitnessPending)` while the witness stood published and the root stood
 part-evacuated. Two things were wrong and they are one thing. **The transaction
 is still live at that branch** (`txnSame`) — nothing was returned to a caller,
@@ -2986,6 +3091,20 @@ nothing mutated, the attempt over. **This is the second time the same confusion
 has been found at the same step** — the first was `FN-13`, whose outcome moved to
 a block — and it is the last branch there. The catalogue carries the general rule
 beside *a guard wait is not an outcome*.
+
+**`FN-11`'s own non-vacuity sentence had to move with the outcome, and
+`finish-scope-k75` found that it had not.** Both `doCommitAttempt`'s branch
+comment and the `FN_11` command still said `gateEvacuated` *refuses* the early
+attempt and that the early attempt is a *reachable refusal* — behaviour the model
+no longer has. The semantic decision is unaffected; the argument is restated at
+the **step** grain by `finish-scope-k76`. What keeps `FN-11` off being true by
+construction is that `doCommitAttempt` is **enabled** at `PublishedP`, so the
+early step occurs and its guard returns `NoOp` where a different model would have
+returned `Applied`; the evidence that the antecedent is satisfiable at all is
+`witness_FN_11`'s applied-after-evacuation trace, which is retained unchanged.
+**A shrinking antecedent is how a check becomes vacuous**, so the pair
+(command, the reachability witness that keeps it non-vacuous) is what a later
+reader should check rather than the prose.
 
 ## `TODO.finish_process.md` Q4 — the matrix, and three rows that read `none`
 
@@ -3751,6 +3870,8 @@ QUINT_VERIFY=1 models/run.sh --scope finish --family quint  # …and model-check
 | `--scope finish --family quint` | **exit 0** — 4m 25s wall / 317s CPU on a 16-core host, 228 commands, 0 failures, `-- cells: 61 complete, 0 declared gaps, 0 empty, of 61`, Q4 matrix 10 of 10 rows |
 | `--scope finish --family quint`, after `closed-set-additions-k74` | **exit 0** — **236 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Eight more commands and two more cells: `FN-29` split into `.a` and `.b`, `FN-29.b` carries a witness per arm, and `wit_FN_32` now reads both arms because the witness-slot step moved from a block to a refusal |
 | the same with `QUINT_VERIFY=1` | **exit 0** — 11m 51s wall, 289 commands, 0 failures; the 61 `SKIP` lines become `model-checked to depth 4, no counterexample` |
+| `--scope finish --family quint`, after `finish-scope-k76` | **exit 0** — **239 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. Three more than the row above: `mutant_correlation_wins_the_overlap`'s `inv_fail_MUT_FN_25a_correlation_wins_the_overlap`, plus the two `mutant_*` commands the k71 row already counted under verify |
+| the same with `QUINT_VERIFY=1`, after `finish-scope-k76` | **exit 0** — **14m 35s wall** (`2026-08-28T01:37:28Z` → `01:52:03Z`), **302 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. All **63** properties `model-checked to depth 4, no counterexample`, the restated `inv_FN_25a_the_carried_diagnosis_is_the_one_precedence_selects` among them — so the precedence is model-checked and not only simulated. One more command than k71's 301 and ~1m 40s dearer; the extra wall time is `models/run-controls.sh` running concurrently for part of it, which the k71 note predicts. **`inv_fail_MUT_FN_25a_correlation_wins_the_overlap` reports `violated, as the control requires`**, and its module carries `scenario_edit_txn`'s environment rather than its neighbours' — with the neighbours' it reports green, because the overlap is unreached there |
 | `--scope finish --family quint`, after `finish-scope-k71`, with `QUINT_VERIFY=1` | **exit 0** — 12m 53s wall / 376s CPU, **301 commands**, 0 failures, `-- cells: 63 complete, 0 declared gaps, 0 empty, of 63`, Q4 matrix 10 of 10 rows. All 63 properties `model-checked to depth 4, no counterexample`, the restated `inv_FN_24a` among them. Two more commands than the batch above's non-verify count: `mutant_no_quarantined_state` and `mutant_absent_classified_first`, both reported `violated, as the control requires` |
 
 Both figures are post-integration: `integrate-review-prototype-finish-k58` added

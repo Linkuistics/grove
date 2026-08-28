@@ -47,13 +47,25 @@ behind is either. `FN-03` says the ticket survives the destruction of every
 artifact the transaction owns; this adds that it must also survive the
 **re-creation** of one, because a name is not an artifact.
 
-**None of this makes the leftover invisible, and the distinction is easy to lose.**
-A standing quarantine is evidence that a finish is **unfinished** — the contract's
-state table classifies that disk `Reserved(Quarantined)`, ahead of `Absent`,
-precisely so the next invocation does not read a free task-root name as a fresh
-grove. What it is never evidence of is that a finish **happened**. Those are
-different questions with different answers, and reading either onto the other is
-how one claim comes to forbid what another requires.
+**None of this makes the leftover invisible, and the distinction is easy to lose
+— this record lost it once itself.** A standing quarantine is evidence that Grove
+has **work outstanding at a name it reserves**: the contract's state table
+classifies that disk `Reserved(Quarantined)`, ahead of `Absent`, precisely so the
+next invocation does not read a free task-root name as a fresh grove. What it is
+never evidence of is a **disposition** — neither that a finish happened nor that
+one did not.
+
+This paragraph first read *a standing quarantine is evidence that a finish is
+unfinished*, which is this record's own error committed against itself: after
+`FN-22`'s fourth revalidation point returns `Committed` unchanged the finish is
+`Applied` with the quarantine still standing, and the shipped protocol returns
+success there even when disposal fails. Under that reading one disk was
+simultaneously a proven success and evidence of an unfinished transaction.
+`finish-scope-k75` found it and `finish-scope-k76` repaired it, in the contract's
+class sentence and here. **The rule is the one this record already states: the
+tree answers questions about names, and the ticket answers questions about
+outcomes.** Reading either onto the other is how one claim comes to forbid what
+another requires.
 
 This is also why whole-root destruction cannot move behind a filesystem library's
 interface

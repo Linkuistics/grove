@@ -399,6 +399,13 @@ _Avoid_: reading *the outcome cannot yet be proven either way* as part of recove
 pending's definition. It is the ordinary case and not a condition: two rows of the
 contract's own revalidation table are blocks whose outcome **is** proven and are
 diagnosed recovery pending.
+*See*: `docs/adr/a-closed-partition-is-over-outcomes-not-states.md`.
+_Avoid_: reading the two definitions as a **partition of states**. They overlap,
+reachably and by design, and `FN-25.a` claims only that the diagnosis a block
+**carries** is unique and is the one precedence selects. A model that narrows one
+arm until it cannot meet the other answers the obligation by construction, and a
+check that exempts the overlap tests nothing where the claim is hardest — both
+were found in place and repaired.
 _Avoid_: reading the pair as shipped diagnostics. The shipped classification
 gathers both under one blocked state; the split is required by
 `docs/specs/semantic-contract.md` and its adoption is a decision the formal phase
@@ -411,17 +418,22 @@ directory into which a proven [[Finish transaction]] atomically renames the whol
 disposal. Same-device by [[Workspace layout preflight]]'s constraint, and revalidated
 against the transaction's own operands.
 A standing quarantine classifies the task root **`Reserved(Quarantined)`** — the
-fourth member of the reserved class — because the disposition is not settled
-until the fourth revalidation point, which runs *after* the rename; the whole
-reserved class is classified before `Absent` for that reason. It stops nothing:
-unlike a reserved witness, its recovery is the reaper's sweep, which refuses no
+fourth member of the reserved class. The whole reserved class is classified
+before `Absent` because between the rename and the fourth revalidation point the
+task-root name is free while the disposition is unsettled, and `SY-05.a` would
+otherwise scaffold a fresh grove over it. **The state is a fact about the NAME
+and not about the disposition**: the same member is reached after a proven
+`Committed`, where the finish is `Applied` and only the cleanup is outstanding,
+so reading a standing quarantine as evidence the transaction is unfinished makes
+one claim forbid what another requires. It stops nothing either: unlike a
+reserved witness, its recovery is the reaper's sweep, which refuses no
 operation.
-_Avoid_: reading a quarantine's presence as evidence a finish **happened**, or
-its absence as evidence one did not; it is cleanup garbage, never a finish
-receipt or a workflow input. *Evidence a finish happened* is the
-[[Correlation ticket]] and nothing else — a different question from *evidence a
-finish is unfinished*, and conflating the two makes one claim forbid the
-classification another requires.
+_Avoid_: reading a quarantine's presence or absence as evidence about a
+**disposition** at all — that a finish happened, or that one did not, or that one
+is unfinished. It is cleanup garbage, never a finish receipt or a workflow input.
+*Evidence about a disposition* is the [[Correlation ticket]] and nothing else; the
+quarantine answers only *is there work outstanding at this name*, and conflating
+the two makes one claim forbid the classification another requires.
 
 **Grove name**:
 The working-tree directory's basename — never a branch, a bookmark, or a

@@ -258,6 +258,47 @@ reads `Absent` — which is exactly the trace **`SY-05.b`** says does not exist
 `FN-19`)*) and over which **`SY-05.a`** would scaffold a fresh grove. The
 reorder is what makes `SY-05.b` true rather than aspirational.
 
+### The member's MEANING was repaired after that handoff was written — read this half too
+
+`finish-scope-k75` reviewed the change above and `finish-scope-k76` integrated
+its findings, and one of them lands squarely in your scope.
+
+**A `Reserved` state is a fact about a NAME, not about a disposition.** The class
+sentence `finish-scope-k71` landed read *an artifact at a name Grove reserves
+says a Grove transaction is **incomplete***, and it is false past `FN-22`'s
+fourth revalidation point: a `Committed` returned unchanged makes the finish
+`Applied` with the quarantine still standing, and the shipped protocol returns
+success there even when disposal fails (`src/finish_transaction.rs:1953-1974`).
+Under that sentence one disk was a proven success and evidence of an unfinished
+transaction at once. The sentence now reads *says Grove has **work outstanding at
+that name***, and §*States*' `Reserved(Quarantined)` row says in place that it is
+reached on **both** sides of the fourth point.
+
+**Why this is yours and not merely context.** `SY-05` is your obligation and the
+paragraph above hands you the ORDER argument; the order is unchanged and still
+rests on the window between the rename and the fourth point. What changed is that
+you may not infer *the transaction is unfinished* from the classification —
+`SY-05.a`'s *a missing task root means start a new grove* is sound because the
+disk is not `Absent`, not because the disk proves an attempt is outstanding. The
+disposition is `FN-28`'s and is proved by the correlation ticket
+([`success-is-proved-by-the-ticket-not-the-tree`](../../../../docs/adr/success-is-proved-by-the-ticket-not-the-tree.md),
+whose own paragraph carried the same error and is repaired).
+
+**Both families now witness the coexistence** rather than arguing it:
+`witness_FN_28_a_success_whose_cleanup_is_still_outstanding` requires
+`classified in reservedClass` beside `finishSucceeded`, and Quint's
+`successWithCleanupOutstanding` records `isReserved(classify(w))`. If a `SY-`
+claim you write reads a reserved classification as evidence about an outcome,
+that is the counterexample.
+
+**One other repair may reach you and is recorded so you do not re-derive it.**
+`FN-25.a` no longer claims the two blocked diagnoses are disjoint — the
+definitions overlap reachably and the obligation is now that the **carried**
+diagnosis is the one precedence selects, `OwnershipConflict` winning. Alloy's
+check carried the overlap as an *exemption* and was measurably green under a
+fully reversed precedence; it is not any more (`crates/grove-finish/models/README.md`,
+matrix row 65). Quint's classifier moved to meet the same rule.
+
 **Two `TT-` consequences were checked and both are that nothing changed**, so do
 not re-derive them: `TT-19`'s refusal is stated over a reserved **witness** and
 does not reach a standing quarantine (whose recovery is the reaper's sweep, which

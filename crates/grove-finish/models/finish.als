@@ -1053,7 +1053,16 @@ fun tableOutcome[p: RevPoint, d: Disposition]: one Result {
    fresh grove over.  The member IS LOAD-BEARING RATHER THAN DECORATIVE, and the
    evidence is the mutation `README.md` records beside the fifth finding: remove
    this arm and `FN-24.a` goes red on the disk a disposal leaves when it has
-   released the reserved witness while its quarantine still stands. */
+   released the reserved witness while its quarantine still stands.
+
+   THE WINDOW IS WHAT THE ORDER NEEDS AND IT IS NOT WHAT THE MEMBER MEANS.
+   `finish-scope-k76` corrected the catalogue's class sentence, which had read
+   *says a Grove transaction is INCOMPLETE*: the same member is reached past the
+   fourth point too, where a `Committed` returned unchanged makes the finish
+   `Applied` with the quarantine still standing.  A `Reserved` state is a fact
+   about a NAME; the disposition is `FN-28`'s and is proved by the ticket.
+   `witness_FN_28_a_success_whose_cleanup_is_still_outstanding` is where the two
+   are shown holding of one state. */
 abstract sig Stable {}
 one sig SAbsent, SReservedPreparing, SReservedPublished, SReservedQuarantined,
         SCurrentLive, SCurrentFinishOnly, SCurrentSpent extends Stable {}
@@ -1129,6 +1138,15 @@ fun currentStates: set Stable { SCurrentLive + SCurrentFinishOnly + SCurrentSpen
 /* WHAT THE NEXT INVOCATION READS: what the disk matches, less everything
    something it matches is classified before. */
 fun classified: set Stable { classifiedRaw - classifiedRaw.earlierThan }
+
+/* THE RESERVED CLASS AS A SET, so a claim about the CLASS is written over the
+   class rather than over a list of its members that a later member would leave
+   silently incomplete — which is the discipline §*States* itself asks for when
+   it says `TT-18`/`TT-19` are stated over the class *so that removing one member
+   changes no claim*. */
+fun reservedClass: set Stable {
+  SReservedPreparing + SReservedPublished + SReservedQuarantined
+}
 
 /* ---------------------------------------------------------------------------
    A STEP'S PERSISTENT EFFECTS, AT THE GRAIN `FN-24.b` STATES THEM
@@ -1361,10 +1379,14 @@ fun diagnosedRaw: set Diagnosis {
    restores a manifest recording an undigestible entry reaches a correlated
    block with `dgUndigestibleEntry` true.  `README.md` records it.
 
-   WHAT THIS DECLARATION LEAVES CHECKABLE is the clause it does NOT name:
-   `FN_25a`'s first conjunct now says the arms never meet through
-   `dgTopologyUnmatched`, which is false the moment that predicate's proviso is
-   removed.  That is mutation 5. */
+   WHAT THIS DECLARATION IS FOR, SINCE `finish-scope-k76` STOPPED IT BEING AN
+   EXEMPTION.  It is `FN_25a`'s second conjunct's antecedent: these two classes
+   and no others are where the precedence is claimed to fire.  A third class
+   reaching a block is then a change to this predicate rather than a silent pass,
+   which is the same discipline `declaredMultiEffect` is written under.  The
+   clause it does NOT name — `dgTopologyUnmatched` — is covered by `FN_25a`'s
+   LAST conjunct instead (the floor), which is false the moment that predicate's
+   proviso is removed.  That is mutation 5, and it is row 51 of `README.md`'s matrix. */
 pred declaredDiagnosisOverlap {
   dgCorrelatedIncompleteAttempt
   and (dgUnclassifiableAtReservedName or dgUndigestibleEntry)
@@ -1854,8 +1876,16 @@ pred doCommitAttempt {
          `why` with a situation it is not.  `NoOp` is the result this file
          already gives a step that reports and mutates nothing (`doDecline`,
          `doReap`'s decline), and `W18EvacuationIncomplete` names the branch.
-         `FN-11` is unaffected: `gateEvacuated` still refuses the early attempt,
-         which is what keeps the claim from being true by construction. */
+         `FN-11`'s NON-VACUITY ARGUMENT MOVED WITH THE OUTCOME AND IS RESTATED
+         AT THE STEP GRAIN, which `finish-scope-k76` is repairing: the guard no
+         longer REFUSES anything, so *`gateEvacuated` refuses the early attempt*
+         is no longer what keeps `FN-11` off being true by construction.  What
+         keeps it off is that `doCommitAttempt` is ENABLED at `PublishedP` — the
+         early step occurs, and its ordering guard returns `NoOp` instead of
+         `Applied`.  The antecedent `Sys.res' = Applied` is therefore one this
+         file could have satisfied early and does not, rather than one no
+         transition can reach; the reachability evidence that it is satisfiable
+         at all is `witness_FN_11`'s applied-after-evacuation trace. */
       Sys.res' = NoOp and Sys.why' = W18EvacuationIncomplete
     }
     repoSame and txnSame
@@ -2942,8 +2972,18 @@ run witness_FN_10b_a_refusal_to_discard_unclassifiable_content {
 /* Every ordinary root entry is inside the PUBLISHED witness, beneath a manifest
    written and verified, before any commit is attempted.  `doCommitAttempt` is
    deliberately enabled at `PublishedP` as well as at `Evacuated`, so the early
-   attempt is a REACHABLE refusal rather than an absent transition and this check
-   has an antecedent it could fail on. */
+   attempt is a REACHABLE STEP rather than an absent transition, and this check
+   has an antecedent it could fail on.
+
+   THE EARLY ATTEMPT IS NOT A REFUSAL AND SAYING SO WAS STALE.  Its ordering
+   guard returns `NoOp` (`finish-scope-k71`; the comment here was left behind and
+   is corrected by `finish-scope-k76`), so what stops this check being true by
+   construction is the step's ENABLEDNESS, not an outcome it produces: the early
+   attempt happens and the guard declines to apply it, so `Sys.res' = Applied` is
+   an antecedent the file could have satisfied before the evacuation completed
+   and does not.  That the antecedent is satisfiable AT ALL is
+   `witness_FN_11`'s applied-after-evacuation trace, and it is the reachability
+   evidence this command rests on. */
 check FN_11_evacuation_precedes_any_attempted_commit {
   always ((Sys.act' = CommitAttempt and Sys.res' = Applied)
             implies evacuationComplete)
@@ -4547,29 +4587,58 @@ check FN_31c_an_interruption_at_either_boundary_of_the_replacement_is_resumable 
   }
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 11 steps
 
-/* THE EARLIER BOUNDARY, RESUMED: the interruption left the marker the
-   replacement was going to supersede — Grove's own, its target already gone —
-   and the sweep retires it in one firing.  Terminal. */
+/* BOTH RESUMPTIONS RUN `crash` RATHER THAN POSITING THE DISK IT LEAVES, AND
+   THAT IS `finish-scope-k76`'s REPAIR OF `EN-08`'s ROW.  `finish-scope-k71`
+   declared this cell unmeetable in this column — *a model that POSITS a disk
+   under `EN-11` cannot also EXERCISE `EN-08` at that disk* — on an ESTIMATE of
+   about seventeen states against this file's thirteen-state maximum.  The
+   estimate was never run and it is wrong.  Two commands already in this file
+   reach exactly these two disks through `crash`
+   (`witness_FN_21a_the_interrupted_disposal_disk_is_reachable`, eleven states;
+   `witness_FN_31a_the_stale_marker_is_what_an_interrupted_disposal_leaves`,
+   twelve), so the general claim was contradicted twice over by its own file.
+   Both witnesses below are those run-ups with the sweep on the end: fourteen
+   states, six and seven seconds.  The measurement, its commands and its cost
+   are in `README.md`.
+
+   WHAT THIS BUYS is the thing an exercise-removal is for: with `crash` removed
+   these two stop landing, which the fourth `expect_unreachable_EN_08_*` command
+   asserts.  Under the posited disks they kept landing, and the assumption
+   table's controls column was a claim about `FN-31.c` that nothing in this
+   column established. */
+
+/* THE EARLIER BOUNDARY, REACHED AND RESUMED: the protocol runs from the disk an
+   interruption mid-evacuation leaves, through the rename, the marker and the
+   removal the marker authorises, and crashes before the marker is retired —
+   leaving the marker the replacement was going to supersede, Grove's own, its
+   target already gone.  The sweep then retires it in one firing.  Terminal. */
 run witness_FN_31c_an_interruption_before_the_replacement_is_resumed {
-  staleMarkerLeftBehind
-  no Root.rid
-  no Slot.occ
+  interruptedMidEvacuation
+  no Quar.qRid
+  no Repo.tickets
+  no Cleanup.present
+  eventually (Sys.act = Crash and staleMarkerLeftBehind)
   eventually (Sys.act = Reap and Sys.res = Applied
               and no Cleanup.present and no Quar.qRid)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 3 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 14 steps
 
-/* THE LATER BOUNDARY, RESUMED: the interruption left the marker the replacement
-   WROTE, naming a quarantine that is still standing, and the sweep runs
-   disposal's remaining two steps in that order.  Terminal, and it is the same
-   terminal state. */
+/* THE LATER BOUNDARY, REACHED AND RESUMED: the same run-up one step further —
+   the crash lands after the marker is written, so the interruption leaves the
+   marker the replacement WROTE, naming a quarantine that is still standing, and
+   the sweep runs disposal's remaining two steps in that order.  Terminal, and it
+   is the same terminal state. */
 run witness_FN_31c_an_interruption_after_the_replacement_is_resumed {
-  interruptedMidDisposal
+  interruptedMidEvacuation
+  no Quar.qRid
+  no Repo.tickets
+  no Cleanup.present
+  eventually (Sys.act = Crash and interruptedMidDisposal)
   eventually (Sys.act = Reap and Sys.res = Applied
               and no Quar.qRid and some Cleanup.present)
   eventually (Sys.act = Reap and Sys.res = Applied
               and no Cleanup.present and no Quar.qRid
               and no Slot.occ and manEmpty)
-} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 4 steps
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 14 steps
 
 // --- FN-31.d: never against a marker Grove cannot prove is its own ----------
 
@@ -4903,16 +4972,56 @@ run witness_FN_24b_the_declared_step_with_two_persistent_effects {
 // two and gives thirteen, which is also where `FN_24a` sits.
 // ===========================================================================
 
-/* FN-25.a.  TWO CONJUNCTS, AND THE FIRST IS THE CLAIM'S OWN WORDS.  *No blocked
-   state satisfies both* is `lone diagnosedRaw`; the file's one exception is
-   named in `declaredDiagnosisOverlap` and nowhere else, so weakening the check
-   and declaring the overlap are the same edit.  The second conjunct is what the
-   catalogue's witness means by *resolved to exactly one*, and it is the strict
-   precedence doing its work. */
-check FN_25a_the_two_diagnoses_are_disjoint_and_the_declared_overlap_resolves_to_one {
+/* FN-25.a.  THREE CONJUNCTS, AND NONE OF THEM IS AN EXEMPTION — WHICH IS
+   `finish-scope-k76`'s REPAIR.
+
+   THE OLD FIRST CONJUNCT WAS `lone diagnosedRaw or declaredDiagnosisOverlap`,
+   and it was the wrong shape twice over.  The catalogue said *no blocked state
+   satisfies both* while declaring, four hundred lines away, two reachable
+   states that satisfy both; this file named those two in
+   `declaredDiagnosisOverlap` and then WEAKENED ITS OWN CHECK BY EXEMPTING THEM,
+   so the command tested least exactly where the claim was hardest — a green run
+   whose greenness came from the disjunct rather than from the model.
+   `finish-scope-k75` found both, and the catalogue now claims what is true: the
+   definitions OVERLAP, the carried diagnosis is UNIQUE, and precedence is what
+   makes it unique.  The exemption's content is an obligation here instead.
+
+   (a) `one diagnosed` — the block carries exactly one.  Unconditional now.
+
+   (a2) AND NO UNDECLARED OVERLAP, WHICH IS THE OLD CLAUSE KEPT FOR THE CLAIM IT
+   ACTUALLY MADE.  `lone diagnosedRaw or declaredDiagnosisOverlap` was labelled
+   with the disjointness the catalogue asserted and was false; read as a check it
+   says something else and true — *the arms meet only where this file says they
+   meet*.  Deleting it with the false label attached lost that: `earlierDiagnosis`
+   resolves ANY pair to one atom, so a THIRD overlap class appearing later would
+   satisfy (a), fall outside (b)'s antecedent, and pass in silence.  Kept, so that
+   a new overlap class is a red command and an edit to `declaredDiagnosisOverlap`
+   rather than an unremarked green — which is the discipline that predicate exists
+   for.
+
+   (b) THE PRECEDENCE, POSITIVELY.  Where both definitions hold the carried
+   diagnosis is `OwnershipConflict`.  Stated over `declaredDiagnosisOverlap`
+   because that predicate names the two overlap classes and nothing else, so a
+   third class reaching this state is a change to the declaration rather than a
+   quiet pass.
+
+   (c) AND ITS FLOOR, WHICH IS WHERE `OwnershipConflict`'s SECOND INSTANCE'S
+   PROVISO IS CHECKED.  *`OwnershipConflict` wins the overlap* must not become
+   *`OwnershipConflict` wins*: `FN-22`'s table diagnoses every `Indeterminate`
+   block `RecoveryPending`, and those are correlated attempts with nothing
+   unaccountable beside them.  Without this conjunct, mutation row 51 — which
+   drops `dgTopologyUnmatched`'s proviso and turns exactly those rows into
+   `OwnershipConflict`s — would be ABSORBED by (b) and report as a survivor.
+   With it, row 51 is killed here, which is where the proviso's falsifiability
+   lives now that the exemption is gone. */
+check FN_25a_the_carried_diagnosis_is_unique_and_is_the_one_precedence_selects {
   always (Sys.res' = BlockedOutcome implies {
-    lone diagnosedRaw or declaredDiagnosisOverlap
     one diagnosed
+    lone diagnosedRaw or declaredDiagnosisOverlap
+    declaredDiagnosisOverlap implies diagnosed = DOwnershipConflict
+    (dgCorrelatedIncompleteAttempt
+       and not dgUnclassifiableAtReservedName
+       and not dgUndigestibleEntry) implies diagnosed = DRecoveryPending
   })
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 13 steps
 
@@ -5529,13 +5638,33 @@ check FN_28_a_finish_succeeds_exactly_when_the_commit_is_proven_and_the_root_is_
    quarantine rename has landed, both operands hold, and the quarantine and the
    witness inside it are still standing with disposal not yet begun — which is
    the state the claim's third sentence exists for and the state a crash here
-   leaves for the reaper. */
+   leaves for the reaper.
+
+   AND IT NOW NAMES THE CLASSIFICATION, WHICH IS `finish-scope-k76`'s HALF OF
+   `finish-scope-k75`'s SECOND FINDING.  `finishSucceeded` and
+   a RESERVED classification HOLD OF THE SAME STATE, and this command is what
+   says so rather than a paragraph.  The state it lands in is
+   `Reserved(Published)` — the witness is still inside the quarantine here — and
+   the conjunct is written over the CLASS rather than over that member, because
+   the claim is about the class: A RESERVED STATE SAYS GROVE HAS WORK OUTSTANDING
+   AT A NAME AND SAYS NOTHING ABOUT WHETHER THE TRANSACTION SUCCEEDED.  It is
+   also §*States*' own discipline — `TT-18`/`TT-19` are stated over the class so
+   that removing a member changes no claim.  `finish-scope-k71` landed
+   §*States*' new member with prose reading every standing quarantine as a
+   transaction that is INCOMPLETE — which is false here and false of the shipped
+   protocol, which returns success after the fourth proof even when disposal
+   fails.  The repair is in the catalogue: a `Reserved` state says Grove has work
+   outstanding AT A NAME, never that the transaction is unfinished.  The
+   disposition is `FN-28`'s and is proved by the ticket, and the two claims stop
+   colliding the moment the state stops carrying one of them.  A model in which
+   this conjunction is unreachable has the collision back. */
 run witness_FN_28_a_success_whose_cleanup_is_still_outstanding {
   interruptedMidEvacuation
   no Repo.tickets
   no Cleanup.present
   eventually (Sys.act = QuarRename and Sys.res = Applied
               and finishSucceeded
+              and classified in reservedClass
               and some Quar.qRid and Slot.occ = Published and no Cleanup.present)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 9 steps
 
@@ -5821,15 +5950,22 @@ run witness_FN_32_a_transaction_step_meets_an_unprovable_marker_and_it_stands {
 // table's expected result is that every NAMED witness becomes unreachable and
 // the run fails on zero work rather than reporting green.
 //
-// Three commands, run against the named witness sets rather than against the
+// FOUR commands, run against the named witness sets rather than against the
 // whole file: `FN-24`'s step-boundary sweep, `FN-09`'s and `FN-10`'s
-// interruptions inside the build, and `FN-31.c`'s two resumptions.  The third
-// is a FINDING and is recorded in `README.md`: `FN-31.c`'s witnesses POSIT the
-// disk an interruption leaves rather than running `crash` to reach it, so they
-// keep landing with `crash` removed.  The assumption table names `FN-31.c`
-// among `EN-08`'s controlled obligations and this file's realisation of it does
-// not depend on the action — which is exactly the kind of thing an
-// exercise-removal exists to make visible, and it is invisible without one.
+// interruptions inside the build, and `FN-31.c`'s two resumptions.
+//
+// THE FOURTH IS NEW AND ITS HISTORY IS THE POINT OF IT.  `FN-31.c`'s two
+// witnesses USED TO POSIT the disk an interruption leaves rather than running
+// `crash` to reach it, so they kept landing with `crash` removed — a real
+// finding, and one only an exercise-removal makes visible.  `finish-scope-k71`
+// then disposed that finding by declaring the row UNMEETABLE in this column, on
+// an estimate of about seventeen states against this file's thirteen-state
+// maximum.  `finish-scope-k75` said the estimate had never been run, and
+// `finish-scope-k76` ran it: both disks are reachable through `crash` at
+// FOURTEEN states in six or seven seconds, and two commands already in this
+// file reached them at eleven and twelve.  The witnesses now run the protocol,
+// so the row is MET here — and the command below is what says so, because a
+// witness that depends on `crash` is a claim only its removal can check.
 // ===========================================================================
 
 run expect_unreachable_EN_08_no_step_boundary_is_an_interruption_point {
@@ -5853,6 +5989,24 @@ run expect_unreachable_EN_08_no_unpublished_witness_is_discarded_after_an_interr
   eventually (Sys.act = Crash and Slot.occ = Preparing)
   eventually (Sys.act = Discard and Sys.res = Applied)
 } for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 8 steps
+
+/* `FN-31.c`'s TWO RESUMPTIONS, WITH `crash` REMOVED.  The witnesses' own bound
+   and run-up, so this is the negative control for exactly the commands above
+   and not for a weaker pair: with the action gone neither disk is reached and
+   neither resumption lands.  Written as one command over the LATER boundary's
+   disk, which is the deeper of the two and subsumes the earlier one's run-up;
+   the earlier boundary was measured separately in the same shape and is
+   likewise empty (`README.md`). */
+run expect_unreachable_EN_08_no_resumption_of_an_interrupted_disposal_is_reachable {
+  always Sys.act != Crash
+  interruptedMidEvacuation
+  no Quar.qRid
+  no Repo.tickets
+  no Cleanup.present
+  eventually (Sys.act = Crash and interruptedMidDisposal)
+  eventually (Sys.act = Reap and Sys.res = Applied
+              and no Quar.qRid and some Cleanup.present)
+} for 3 but 2 Device, 2 RootId, 2 Rev, 3 Entry, 2 AttemptId, 2 Digest, 2 CMark, 14 steps
 
 
 

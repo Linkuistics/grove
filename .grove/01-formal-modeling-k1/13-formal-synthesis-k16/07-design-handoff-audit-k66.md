@@ -167,3 +167,19 @@ treating its existence as the settled disposition is exactly the inference
 `FN-20` forbids, at one remove. `finish-scope-k71` did not resolve that and
 deliberately did not try: it is a claim about the shipped protocol's own
 evidence, which is what this leaf audits.
+
+**`finish-scope-k76` did not moot it and did sharpen the second argument, which
+is why this note is here rather than a silent edit.** Integrating
+`finish-scope-k75`'s second finding moved the `Reserved` class's meaning: it now
+says *Grove has **work outstanding at that name***, and explicitly **not** that
+the transaction is unfinished — because the same member is reached after a proven
+`Committed`, where the finish is `Applied` and only the cleanup is outstanding.
+So the contract now says, in as many words, that **nothing on the disk carries a
+disposition**: not the classification, not the quarantine, and by `FN-20` not the
+marker either. The disposition is `FN-28`'s and is proved by the correlation
+ticket. That does not decide your question — the defensible reading is still that
+the marker records a decision already taken rather than being read as evidence
+about the world — but it does mean the *in favour* argument can no longer be
+stated as "the marker tells the reaper the finish succeeded". It has to be stated
+as "the marker is an instruction, not evidence", which is a different claim and a
+narrower one.

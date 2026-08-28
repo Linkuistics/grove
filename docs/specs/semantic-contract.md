@@ -415,7 +415,7 @@ of a live leaf anywhere beneath it, and it is never marked.
 |---|---|
 | `Reserved(Preparing)` | a finish witness built but not published |
 | `Reserved(Published)` | a finish witness published, holding the evacuated entries |
-| `Reserved(Quarantined)` | Grove's own quarantine stands, holding a task root a finish transaction moved and has not finished disposing of |
+| `Reserved(Quarantined)` | Grove's own quarantine stands, holding a task root a finish transaction moved and has not finished disposing of. **Says nothing about whether that transaction succeeded** — it is reached both before the fourth revalidation point, where the disposition is unsettled, and after a proven `Committed`, where the finish is `Applied` and only the cleanup is outstanding |
 | `Reserved(Migrating)` | a session-kind migration interrupted mid-flight |
 | `Absent` | no task root |
 | `PartialScaffold(Exact)` | present, no format witness, and nothing but the fresh scaffold's own byte-exact entries |
@@ -457,7 +457,11 @@ quarantine rename, and two of its three rows return the quarantine: a
 re-observed `NotCommitted` rolls the whole handoff back, and an `Indeterminate`
 returns it and blocks. So between the rename and that point the task-root name is
 free and the disposition is **not settled**, which is exactly *a task root whose
-deletion is not yet proven*. The shipped protocol has the same shape —
+deletion is not yet proven*. **That window is why `Absent` cannot be classified
+first; it is not what the member MEANS.** The member is reached on both sides of
+the fourth point — the class sentence below says why — and the ordering argument
+needs only the window, not a reading of every standing quarantine as an
+unfinished transaction. The shipped protocol has the same shape —
 `proof.revalidate()` runs after `cleanup.handoff()` and a failure calls
 `cleanup.restore()`
 ([`src/finish_transaction.rs`](../../src/finish_transaction.rs)) — so the window
@@ -484,9 +488,31 @@ the classification is a claim a mutation can kill — and one does
 ([`crates/grove-finish/models/README.md`](../../crates/grove-finish/models/README.md),
 matrix row 49, which restores this table's former order and turns `FN-24.a` red).
 
-**The `Reserved` class is *an artifact at a name Grove reserves says a Grove
-transaction is incomplete*, and membership is that sentence rather than a list of
-the claims that happen to reach a member.** The class already carried a member
+**The `Reserved` class is *an artifact at a name Grove reserves says Grove has
+work outstanding at that name*, and membership is that sentence rather than a
+list of the claims that happen to reach a member.**
+
+**The class sentence used to read *says a Grove transaction is incomplete*, and
+that was false of a state the protocol reaches by design.** `FN-22`'s fourth
+revalidation point returns `Committed` unchanged; the finish is then `Applied`
+and disposal is best-effort cleanup that may be outstanding or may fail
+(`FN-28`; `src/finish_transaction.rs` returns success there even when disposal
+fails). The quarantine is still standing, so the disk is in this class — and
+under the old sentence the same disk was simultaneously a proven success and
+evidence of an unfinished transaction. **A `Reserved` state is a fact about a
+NAME, never about a disposition.** Whether the transaction succeeded is `FN-28`'s
+and is proved by the correlation ticket and nothing else; reading it off the tree
+is the exact error
+[`success-is-proved-by-the-ticket-not-the-tree`](../adr/success-is-proved-by-the-ticket-not-the-tree.md)
+records, and the old sentence committed it one section later in the same
+document. **A disposal failure after the fourth successful proof therefore cannot
+turn `Applied` back into unfinished**, and both families witness the two holding
+of one state ([`crates/grove-finish/models/finish.als`](../../crates/grove-finish/models/finish.als),
+`witness_FN_28_a_success_whose_cleanup_is_still_outstanding`, whose conjunct is
+written over the class rather than over a member;
+[`crates/grove-finish/models/finish.qnt`](../../crates/grove-finish/models/finish.qnt),
+`successWithCleanupOutstanding`, which records the classification rather than the
+branch). Found by `finish-scope-k75`, repaired by `finish-scope-k76`. The class already carried a member
 whose claims differ from its siblings' — `SY-06.b` reaches
 `PartialScaffold(Exact)` and must **not** complete `PartialScaffold(Ambiguous)`,
 and both are members. What the new member changes and does not change:
@@ -890,7 +916,12 @@ run a recovery against someone else's bytes is exactly the fail-closed violation
 
 **Blocked diagnoses**, closed and exhaustive over blocks. **Each diagnosis is
 its first sentence; the instances that follow are illustrations and are not
-exhaustive of it.**
+exhaustive of it.** **The two sentences OVERLAP, deliberately and reachably** —
+what is closed and exhaustive is the diagnosis a block *carries*, which is fixed
+by the precedence below and is `FN-25.a`'s subject. A reader who takes the two
+sentences for a partition of the states will find them false; a reader who takes
+them for a partition of the *outcomes* will find them true, and that is the
+reading the obligations are stated in.
 
 - **`RecoveryPending`** — a correlated Grove-owned attempt is incomplete. The
   artifact holding the transaction is provably Grove's, named by *this* finish
@@ -946,13 +977,40 @@ document to decide it with.
 **Where both definitions hold of one disk, `OwnershipConflict` wins.** A
 correlated incomplete attempt and, beside it, an artifact at a reserved name
 Grove cannot classify, are both present at two reachable states; the first
-sentence is true of the attempt and the second of the artifact, and without a
-rule `FN-25.a`'s disjointness is a model's choice rather than a claim. The rule
-is `TT-24`'s applied to a diagnosis: **the outcome names the strongest thing
-Grove cannot account for**, because that is what decides what the operator must
-not be told to run. Both families reached it independently. Whether the
-**shipped** diagnostic adopts the precedence — and the two names at all — is a
-product question and is `handoff-audit-k66`'s, beside the other four.
+sentence is true of the attempt and the second of the artifact. The rule is
+`TT-24`'s applied to a diagnosis: **the outcome names the strongest thing Grove
+cannot account for**, because that is what decides what the operator must not be
+told to run. Both families reached it independently. Whether the **shipped**
+diagnostic adopts the precedence — and the two names at all — is a product
+question and is `handoff-audit-k66`'s, beside the other four.
+
+**The precedence is what `FN-25.a` CLAIMS, not an exemption from it, and saying
+so is `finish-scope-k76`'s repair.** `finish-scope-k71` landed this paragraph
+beside an `FN-25.a` that still read *the two diagnoses are disjoint: no blocked
+state satisfies both* — so this document asserted a partition and, four hundred
+lines away, declared two reachable states that break it. **The model followed
+the document into the same shape**: `finish.als` named the two overlap classes
+in `declaredDiagnosisOverlap` and then *weakened its own check by exempting
+them*, which is a green command that tests less exactly where the claim is
+hardest. `finish-scope-k75` found both. The repair is to claim what is true:
+**the definitions overlap; the carried diagnosis is unique; precedence is what
+makes it unique.** The check is correspondingly stronger rather than weaker — it
+now carries the exemption's content as an obligation, and it is falsifiable in
+both directions, which the exempted form was not.
+
+*See*: [`a-closed-partition-is-over-outcomes-not-states`](../adr/a-closed-partition-is-over-outcomes-not-states.md).
+
+**And the precedence has a floor, which is where the second `OwnershipConflict`
+instance's proviso is now checked.** *`OwnershipConflict` wins the overlap* must
+not become *`OwnershipConflict` wins*: `FN-22`'s table diagnoses every
+`Indeterminate` block `RecoveryPending`, and those blocks are correlated
+attempts with nothing at a reserved name Grove cannot classify. So `FN-25.a`
+carries the converse too — a correlated block with no unaccountable artifact
+beside it carries `RecoveryPending` — and that clause is what the proviso on
+`OwnershipConflict`'s second instance exists to make true. Removing the proviso
+turns every one of those rows into an `OwnershipConflict` and the obligation
+red; under the old exempted check it would have gone quietly green, because the
+precedence would simply have absorbed it.
 
 **The partition is over `Blocked` outcomes and nothing else.** `FN-25` states it
 about blocks, not about every unhappy result: a refusal is not a block and
@@ -1107,19 +1165,18 @@ found by both families** — which is a rule rather than three typos. `TT-16` an
 `TT-24.b` were listed under `EN-11` and are each reached with `hand-edit` gone
 (the first by Alloy's `task-tree.als`, the second by Quint's
 `task-tree-controls.qnt`); and `EN-08` names `FN-31.c` among the witnesses that
-become unreachable when `crash` is removed, while
-[`crates/grove-finish/models/README.md`](../../crates/grove-finish/models/README.md)
-records that its two land anyway. The shape is the same in all three — a witness
-that *looks* like it needs the assumption because its prose describes a state an
-operator or an interruption would produce — and the two failures it produces are
-different, so both are named:
+become unreachable when `crash` is removed, while Alloy's two *posited* the disk
+an interruption leaves and therefore landed anyway. The shape is the same in all
+three — a witness that *looks* like it needs the assumption because its prose
+describes a state an operator or an interruption would produce — and the two
+failures it produces are different, so both are named:
 
 - **The row is wrong.** The witness has another route to it and never needed the
   assumption. `TT-16` and `TT-24.b` are this: correct the column, and nothing
   about either claim changes.
 - **The row is right and a family does not meet it.** The witness *posits* the
   state rather than reaching it, so removing the action leaves it landing.
-  `FN-31.c` is this, and it is a fact about that family's realisation rather
+  `FN-31.c` was this, and it is a fact about that family's realisation rather
   than about the assumption. **A posited state and a reached one are not
   interchangeable for an assumption's control**, however interchangeable they are
   for the claim the witness serves — which is exactly what an exercise-removal
@@ -1127,28 +1184,53 @@ different, so both are named:
 
 Telling the two apart is what running the removal buys, and nothing else does.
 
-**And `FN-31.c` is the second kind for a reason that is about two assumptions
-rather than about one family's care, which is why the row stays as it is.**
+**AND THERE IS A THIRD FAILURE, WHICH IS THE ONE THIS TABLE PRODUCED ITSELF: a
+family that does not meet a row may DECLARE the miss unmeetable, and a
+declaration is not a measurement.** `finish-scope-k71` closed `FN-31.c`'s Alloy
+miss by arguing a general impossibility — *a model that posits a disk under
+`EN-11` cannot also exercise `EN-08` at that disk* — from one instance and a
+state count that was **estimated rather than run**: about seventeen states
+against `finish.als`'s thirteen-state maximum. `finish-scope-k75` said so and
+`finish-scope-k76` ran it. **Both disks are reached through `crash` at fourteen
+states in six or seven seconds**, and two commands already in that file reached
+the same two disks at eleven and twelve, so the general claim was contradicted
+twice over inside the file that made it. Alloy's two `FN-31.c` witnesses now run
+the protocol, a fourth `expect_unreachable_EN_08_*` command asserts that they
+stop landing with `crash` removed, and the row is met in **both** columns
+([`crates/grove-finish/models/README.md`](../../crates/grove-finish/models/README.md)
+carries the commands, the bound, the result and the cost). **The rule this
+leaves is the table's own, one turn further on: an exercise-removal row is
+established by running the removal, and a family's failure to meet it is
+established by running the deeper attempt — never by costing it in prose.** A
+bound too dear to pay is a declared and *measured* gap; an unpaid estimate is
+neither.
+
+**The tension between `EN-08` and `EN-11` is real and it is a COST rather than
+an incompatibility, which is the correction `finish-scope-k76` landed.**
 `EN-11` — *any well-formed tree is reachable by hand edit* — is what lets a model
 **posit** the disk an interruption leaves instead of running up to it, and
 [`crates/grove-finish/models/finish.als`](../../crates/grove-finish/models/finish.als)
 takes that licence for the disk while narrowing it for the transaction's own
 volatile phase (`fact TransactionsStartWhereAProcessStarts`: every trace starts
-at *no transaction, or one just opened*). The two together mean the interrupted
-replacement can only be **reached** by running the whole six-step body, the
-commit, the classification, the quarantine rename and disposal from state 0
-before the crash — about seventeen states against that file's thirteen-state
-maximum, on the scope whose cell is already the dearest in the repository. So:
-**a model that posits a disk under `EN-11` cannot also exercise `EN-08` at that
-disk**, and the two assumptions' controls are in tension by construction rather
-than by oversight. The row is met by
+at *no transaction, or one just opened*). So a witness that wants the disk
+**reached** rather than posited must run the protocol up to the crash, and
+`EN-11`'s licence buys it nothing past `Opened`. **That makes the reached witness
+dearer, and nothing more.** It does not make the two controls incompatible: the
+run-up need not start from a pristine root, because the licence still covers the
+TREE at `Fresh` — starting from the disk an interruption mid-evacuation leaves
+and running the rename, the marker and the removal reaches both of `FN-31.c`'s
+boundaries at **fourteen states**, in six or seven seconds. The row is therefore
+met in **both** columns: by
 [`crates/grove-finish/models/finish.qnt`](../../crates/grove-finish/models/finish.qnt),
 whose `wit_unreach_EN_08_an_interrupted_replacement_resumed` runs the protocol
-and stops landing when `crash` is removed; it is declared unmet in the Alloy
-column, with this reason, in that scope's `README.md`. **An exercise-removal row
-is a claim about the assumption and is met once a family establishes it** — what
-a second family's failure to meet it reports is a fact about that family's
-realisation, which is the distinction this section already draws.
+and stops landing when `crash` is removed, and by `finish.als`'s two
+`witness_FN_31c_*` commands, whose removal control is
+`expect_unreachable_EN_08_no_resumption_of_an_interrupted_disposal_is_reachable`.
+**An exercise-removal row is a claim about the assumption and is met once a
+family establishes it** — what a second family's failure to meet it reports is a
+fact about that family's realisation, which is the distinction this section
+already draws; and what a second family's *declaration* that it cannot reports is
+nothing at all until the attempt is run.
 
 **`EN-17` is mutated at the boundary rather than in either family here, and that
 is the point of it.** Every other row's mutation is written in one of this
@@ -1844,7 +1926,7 @@ not an absence of a result.
 | after restoration | `Committed` | leave the witness blocking the restored tree | `Reserved(Published)` carrying `RecoveryPending` | `Blocked` |
 | before quarantine rename | `Committed` | proceed with the rename | — (continues) | — |
 | before quarantine rename | `NotCommitted` | do not rename; take the restoration path | — (continues to the restoration) | — |
-| after quarantine rename | `Committed` (unchanged) | complete: dispose (`FN-21`) | task root `Absent`, quarantine holding the root | `Applied` |
+| after quarantine rename | `Committed` (unchanged) | complete: dispose (`FN-21`) | the task-root NAME free and Grove's quarantine holding the root — `Reserved(*)` while any part of it stands, `Absent` once disposal completes | `Applied` |
 | after quarantine rename | `NotCommitted` | return the quarantine atomically | `Reserved(Published)`, disposition `NotCommitted` — the exact pre-rename state, from which the restoration path runs | `Refused` |
 | after quarantine rename | `Indeterminate` | return the quarantine atomically | `Reserved(Published)` carrying `RecoveryPending` | `Blocked` |
 | any point | `Indeterminate` (except the row above) | no handoff is performed | `Reserved(Published)` carrying `RecoveryPending` | `Blocked` |
@@ -1954,9 +2036,17 @@ block and carries a refusal reason instead, so a `Refused(ReservedNameOccupied)`
 is outside this claim entirely and reading `OwnershipConflict` onto it would make
 the partition neither disjoint nor exhaustive.
 *Obligations*:
-- `FN-25.a` — the two diagnoses are **disjoint**: no blocked state satisfies
-  both. *Witness*: a state that nearly does — a Grove-owned, correlated artifact
-  sitting at a name Grove also reserves — resolved to exactly one.
+- `FN-25.a` — every block carries **exactly one** diagnosis, and where both
+  definitions hold of one disk the one it carries is the one **precedence**
+  selects: `OwnershipConflict`. Where only `RecoveryPending`'s definition holds
+  the block carries `RecoveryPending`, which is what stops the precedence from
+  being *always answer `OwnershipConflict`*. **The two definitions are NOT
+  disjoint and this obligation does not claim they are**: the overlap is
+  declared above, it is reachable, and a claim of disjointness would be false of
+  the very states §*Outcomes* fixes the precedence for. *Witness*: a state where
+  both hold — a Grove-owned, correlated artifact sitting at a name Grove also
+  reserves — carrying `OwnershipConflict`. *Control*: the same model with either
+  half reversed.
 - `FN-25.b` — the two are **jointly exhaustive** over `Blocked`: no blocked state
   carries neither. *Witness*: an exhaustive sweep of the blocked states within
   the bound.

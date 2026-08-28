@@ -172,6 +172,18 @@ module finish {
   /// exists to forbid and which nothing in the model could otherwise perform.
   const HISTORY_IMMUTABLE: bool
 
+  /// `FN-25.a`'s PRECEDENCE, as a dial so it can be reversed and measured.
+  /// True is the catalogue: where BOTH diagnosis definitions hold of one disk,
+  /// the block carries `OwnershipConflict` — *the outcome names the strongest
+  /// thing Grove cannot account for*.  False makes correlation win the overlap,
+  /// which is what this column USED to do (`diagnose`'s first branch tested
+  /// `correlated and not cannotClassify`, so every `unprovable` state outside
+  /// the narrow `cannotClassify` predicate was reported as a recovery the
+  /// operator should run).  `finish-scope-k75` found the two columns answering
+  /// the same disk differently; `finish-scope-k76` fixed the answer here and
+  /// kept the reversal as the isolating control.
+  const OWNERSHIP_WINS_THE_OVERLAP: bool
+
   const ENV_EDITS: Set[int]
   const ENV_FOREIGN: Set[int]
   const ENV_TOPOS: Set[int]
@@ -633,12 +645,22 @@ module finish {
   ///
   /// `RReservedQuarantined` IS THE RESERVED CLASS'S FOURTH MEMBER, landed in
   /// the catalogue by `finish-scope-k71`.  The class is *an artifact at a name
-  /// Grove reserves says a Grove transaction is incomplete*, and the quarantine
-  /// is one: `FN-22`'s FOURTH revalidation point runs after the rename and two
-  /// of its three rows return the quarantine, so between the rename and that
-  /// point the task-root name is free and the deletion is not settled.  This
-  /// column classified that disk `RAbsent`, which is the trace `SY-05.b` says
-  /// does not exist and which `SY-05.a` would scaffold a fresh grove over.
+  /// Grove reserves says Grove has WORK OUTSTANDING at that name*, and the
+  /// quarantine is one.  The order is what `SY-05.b` needs: `FN-22`'s FOURTH
+  /// revalidation point runs after the rename and two of its three rows return
+  /// the quarantine, so between the rename and that point the task-root name is
+  /// free and the deletion is not settled.  This column classified that disk
+  /// `RAbsent`, which is the trace `SY-05.b` says does not exist and which
+  /// `SY-05.a` would scaffold a fresh grove over.
+  ///
+  /// THE CLASS SENTENCE USED TO READ *says a Grove transaction is INCOMPLETE*
+  /// and `finish-scope-k76` corrected it, because the same member is reached on
+  /// the OTHER side of that fourth point too: a `Committed` returned unchanged
+  /// makes the finish `Applied` with the quarantine still standing, and the
+  /// shipped protocol returns success there even when disposal fails.  Under
+  /// the old sentence one disk was a proven success and evidence of an
+  /// unfinished transaction at once.  A `Reserved` state is a fact about a NAME;
+  /// the disposition is `FN-28`'s and is proved by the ticket.
   type RootState =
     | RAbsent
     | RReservedPreparing
@@ -815,6 +837,13 @@ module finish {
   /// happens to hold.
   pure def isCurrent(r: RootState): bool =
     r == RCurrentLive or r == RCurrentFinishOnly or r == RCurrentSpent
+
+  /// THE RESERVED CLASS, NAMED AS ONE THING FOR THE SAME REASON `isCurrent` IS.
+  /// A claim about the class is written over the class so that adding or
+  /// removing a member changes no claim — §*States*' own discipline for
+  /// `TT-18`/`TT-19`, and the reason the fourth member could be landed at all.
+  pure def isReserved(r: RootState): bool =
+    r == RReservedPreparing or r == RReservedPublished or r == RReservedQuarantined
 
   /// `FN-24.a`'s four conjuncts over one disk, written apart from the invariant
   /// so that the SAME question can be asked of the disk a crash left behind and
@@ -1143,6 +1172,11 @@ module finish {
     blockedWithoutDiagnosis: bool,
     blockedWithBoth: bool,
     nearMissResolvedToOne: bool,
+    // `FN-25.a`'s PRECEDENCE, as a falsifiable ghost.  Set at a blocked state
+    // where BOTH definitions hold and the diagnosis carried is the weaker one.
+    // With `OWNERSHIP_WINS_THE_OVERLAP` off this fires and `inv_FN_25a` goes
+    // red, which is what makes the precedence a claim rather than a comment.
+    overlapCarriedRecoveryPending: bool,
     // `FN-25.b`, THE COMPARISON.  A blocked state whose CARRIED diagnosis
     // differs from the one the independent classifier gives that same state.
     // Without this the obligation checked only that the classifier returns one
@@ -1201,6 +1235,7 @@ module finish {
     transactionRefusedReserved: false,
     blockedStatesSeen: 0, blockedWithoutDiagnosis: false,
     blockedWithBoth: false, nearMissResolvedToOne: false,
+    overlapCarriedRecoveryPending: false,
     carriedDisagreed: false, blockSitesSwept: Set(),
   }
 
@@ -1358,6 +1393,9 @@ module finish {
            blockSitesSwept: f.h.blockSitesSwept.union(Set(why)),
            blockedWithoutDiagnosis: f.h.blockedWithoutDiagnosis or diagnose(f.w, f.t).size() == 0,
            blockedWithBoth: f.h.blockedWithBoth or diagnose(f.w, f.t).size() > 1,
+           overlapCarriedRecoveryPending: f.h.overlapCarriedRecoveryPending or
+             (groveOwnedCorrelated(f.w, f.t) and unprovable(f.w, f.t) and
+              diagnose(f.w, f.t) == Set(RecoveryPending)),
            // `FN-26`.  A block names the artifact holding the transaction, the
            // recorded and the observed topology, and the two restorable exits.
            blockNamedArtifactAndTopology: f.h.blockNamedArtifactAndTopology or
@@ -1726,7 +1764,17 @@ module finish {
           go({ ...f1,
                t: { ...f1.t, outcome: OApplied },
                h: { ...f1.h, appliedAfterQuarantine: true,
-                    successWithCleanupOutstanding: true,
+                    // `finish-scope-k76`.  The flag USED TO BE `true`, which
+                    // witnessed the branch rather than the state.  What
+                    // `finish-scope-k75`'s second finding is about is that this
+                    // same disk is in the RESERVED class — Grove's quarantine
+                    // stands at a name it reserves — while the outcome is
+                    // `Applied`.  Recording the classification is what makes
+                    // the coexistence a reachability fact instead of a
+                    // paragraph, and it is why a `Reserved` state cannot be
+                    // allowed to mean *the transaction is unfinished*.
+                    successWithCleanupOutstanding:
+                      f1.h.successWithCleanupOutstanding or isReserved(classify(w)),
                     unrelatedSurvivedSuccess: f1.h.unrelatedSurvivedSuccess or w.repo.unrelatedDirty } },
              SCreateMarker)
         else go(f1, SReturnQuarantine)
@@ -1852,6 +1900,38 @@ module finish {
     w.foreignAtWitnessName or w.foreignAtQuarantineName or w.quar.marker == MForeign
 
   /// State that is unrelated, ambiguous, or cannot be proved safe to mutate.
+  ///
+  /// TWO OF THE FIVE CLAUSES CARRY THE CATALOGUE'S CORRELATION PROVISO AND
+  /// THREE DO NOT, AND THE SPLIT IS THE CATALOGUE'S RATHER THAN THIS FILE'S.
+  /// `OwnershipConflict`'s SECOND printed instance reads *the observed topology
+  /// matches neither the recorded anchor nor the expected result **and Grove
+  /// cannot correlate that state to its own attempt***.  The proviso was landed
+  /// by `finish-scope-k71` and this column did not carry it, which is one half
+  /// of why the two families answered the same disk differently
+  /// (`finish-scope-k75`, finding 1).  Without it the clause holds at every
+  /// `Indeterminate` block, all of which `FN-22`'s table diagnoses
+  /// `RecoveryPending` — so under the precedence below it would turn the whole
+  /// table into `OwnershipConflict`s.  ONE clause carries it, and the count is
+  /// measured rather than argued.
+  ///
+  /// THE INCOMPLETE RETURN LOOKED LIKE THE SAME SHAPE AND IS NOT.
+  /// `finish-scope-k76` first gave `not(w.returnCanComplete)` the same proviso,
+  /// on the reading that `FN-22.h`'s row is a correlated Grove-owned block — and
+  /// `inv_FN_25b` went RED in `scenario_return_blocked`. The state that row
+  /// reaches here is NOT `groveOwnedCorrelated`, so with a proviso it fell
+  /// through BOTH diagnoses and the partition stopped being exhaustive. The
+  /// catalogue's `FN-22` table deliberately names no diagnosis on that row and
+  /// says so — *it is the classifiers' and not this document's* — so this column
+  /// keeps its own answer and the Alloy column keeps `RecoveryPending`, which has
+  /// no such clause at all. The divergence is declared in `README.md` rather than
+  /// smoothed over: the catalogue licenses exactly this, and two answers to a row
+  /// the catalogue left open are evidence about the row.
+  ///
+  /// The other three carry no proviso ON PURPOSE.  Each names an artifact or a
+  /// root Grove genuinely cannot account for, and those are exactly the states
+  /// the precedence exists to decide — narrowing them with a proviso would make
+  /// `FN-25.a`'s overlap unreachable and the claim true by construction, which
+  /// is the trap `finish.als`'s `diagnosedRaw` comment names.
   pure def unprovable(w: World, t: Txn): bool =
     cannotClassify(w) or
     // The task root was SWAPPED under the transaction.  Whatever sits at the
@@ -1868,23 +1948,38 @@ module finish {
     // wording puts it; a swap caught after one is a block, and the partition
     // genuinely needs this clause to cover it.
     (t.pinnedIdentity >= 0 and w.rootIdentity != t.pinnedIdentity) or
-    (w.repo.recordedSet and w.repo.topology != w.repo.recorded and
-     not(exactResult(w.repo, t.settling))) or
+    entryIds(w).exists(e => w.entries.get(e).etype == ETOpaque) or
     not(w.returnCanComplete) or
-    entryIds(w).exists(e => w.entries.get(e).etype == ETOpaque)
+    (not(groveOwnedCorrelated(w, t)) and
+     w.repo.recordedSet and w.repo.topology != w.repo.recorded and
+     not(exactResult(w.repo, t.settling)))
 
-  /// THE NEAR MISS `FN-25.a` asks for, resolved.  A Grove-owned, correlated
-  /// artifact sitting at a name Grove also reserves reads true on both
-  /// predicates on the surface — and the resolution is not a tie-break but a
-  /// reading of what `OwnershipConflict` says: *Grove cannot classify it as its
-  /// own*.  Of an artifact Grove has just proved is its own, that is FALSE.
-  /// Correlation therefore wins, and it wins for a reason rather than by
-  /// precedence.
+  /// THE NEAR MISS `FN-25.a` asks for, resolved — AND THE RESOLUTION IS THE
+  /// OTHER WAY ROUND FROM WHAT THIS FILE USED TO SAY.
+  ///
+  /// It used to read *correlation wins, and it wins for a reason rather than by
+  /// precedence*: of an artifact Grove has just proved is its own, *Grove cannot
+  /// classify it as its own* is false.  That argument is sound about the WITNESS
+  /// SLOT and it does not generalise, because `unprovable` also holds of things
+  /// that are NOT the correlated artifact — an undigestible entry sitting in the
+  /// root, a root swapped under the transaction, a foreign document at another
+  /// reserved name.  Grove having proved one artifact is its own says nothing
+  /// about those, and reporting `RecoveryPending` over them tells the operator to
+  /// run a recovery against a disk Grove cannot account for, which is the
+  /// fail-closed violation `TT-24` exists to prevent.  `finish.als` resolved the
+  /// same states to `OwnershipConflict`; `finish-scope-k75` found the divergence
+  /// and `finish-scope-k76` moved this column to meet the catalogue's rule —
+  /// *the outcome names the strongest thing Grove cannot account for*.
+  ///
+  /// The correlated-and-accountable case is unchanged and is the precedence's
+  /// FLOOR: with the proviso now on `unprovable`'s topology and incomplete-return
+  /// clauses, `FN-22`'s ten rows still carry `RecoveryPending`.
   pure def diagnose(w: World, t: Txn): Set[Diagnosis] =
     val correlated = groveOwnedCorrelated(w, t)
-    if (correlated and not(cannotClassify(w))) Set(RecoveryPending)
-    else if (unprovable(w, t)) Set(OwnershipConflict)
+    if (unprovable(w, t) and (OWNERSHIP_WINS_THE_OVERLAP or not(correlated)))
+      Set(OwnershipConflict)
     else if (correlated) Set(RecoveryPending)
+    else if (unprovable(w, t)) Set(OwnershipConflict)
     else Set()
 
   /// The diagnosis a block CARRIES.  Derived from the state by the classifier
@@ -2106,8 +2201,16 @@ module finish {
         (settled and isBlock(t1.outcome) and
          diagnose(w1, t1) != diagnosisOf(t1.outcome)),
       blockedWithBoth: f.h.blockedWithBoth or diagnose(w1, t1).size() > 1,
+      overlapCarriedRecoveryPending: f.h.overlapCarriedRecoveryPending or
+        (groveOwnedCorrelated(w1, t1) and unprovable(w1, t1) and
+         diagnose(w1, t1) == Set(RecoveryPending)),
+      // `FN-25.a`'s WITNESS, and it asserts the RESOLUTION rather than merely
+      // the count.  *Resolved to exactly one* was satisfied by either winner,
+      // so it witnessed the overlap without witnessing the precedence; it now
+      // requires the one the catalogue fixes.
       nearMissResolvedToOne: f.h.nearMissResolvedToOne or
-        (groveOwnedCorrelated(w1, t1) and unprovable(w1, t1) and diagnose(w1, t1).size() == 1),
+        (groveOwnedCorrelated(w1, t1) and unprovable(w1, t1) and
+         diagnose(w1, t1) == Set(OwnershipConflict)),
     }
 
   // ---------------------------------------------------------------------------
@@ -2173,6 +2276,9 @@ module finish {
                     blockedWithoutDiagnosis: hist.blockedWithoutDiagnosis or
                       diagnose(w, t).size() == 0,
                     blockedWithBoth: hist.blockedWithBoth or diagnose(w, t).size() > 1,
+                    overlapCarriedRecoveryPending: hist.overlapCarriedRecoveryPending or
+                      (groveOwnedCorrelated(w, t) and unprovable(w, t) and
+                       diagnose(w, t) == Set(RecoveryPending)),
                     carriedDisagreed: hist.carriedDisagreed or
                       diagnose(w, t) != Set(dTracked),
                     recoveryPendingOnLane: if (dTracked == RecoveryPending)
@@ -2922,9 +3028,21 @@ module finish {
 
   // --- `FN-25` --------------------------------------------------------------
 
-  /// The two diagnoses are DISJOINT: no blocked state satisfies both.
-  val inv_FN_25a_the_diagnoses_are_disjoint: bool =
-    diagnose(w, t).size() <= 1 and not(hist.blockedWithBoth)
+  /// Every block carries EXACTLY ONE diagnosis, and where both definitions hold
+  /// the one it carries is the one PRECEDENCE selects — `OwnershipConflict`.
+  ///
+  /// THE OLD STATEMENT WAS *the two diagnoses are DISJOINT* AND IT WAS TRUE BY
+  /// CONSTRUCTION HERE.  `diagnose` is an if/else chain, so `size() <= 1` and
+  /// `blockedWithBoth` are facts about the classifier's SHAPE rather than about
+  /// the protocol — a thing no run of this suite could report, and the mirror
+  /// image of the Alloy column's exemption (`finish-scope-k75`, finding 1).
+  /// They are kept, because a later re-encoding could make them content again,
+  /// and the third conjunct is what carries the claim: with the precedence
+  /// reversed the ghost fires and this invariant goes red.
+  val inv_FN_25a_the_carried_diagnosis_is_the_one_precedence_selects: bool =
+    diagnose(w, t).size() <= 1 and
+    not(hist.blockedWithBoth) and
+    not(hist.overlapCarriedRecoveryPending)
 
   /// The two are jointly EXHAUSTIVE over `Blocked`, and — the second half, and
   /// the one this obligation's prose always claimed — the diagnosis the machine
@@ -3181,6 +3299,7 @@ module base {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 99,
     ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6),
     ENV_KINDS = Set(0, 1, 2, 3),
@@ -3219,6 +3338,7 @@ module verify_small {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1,
     ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6),
     ENV_KINDS = Set(0, 1, 2, 3),

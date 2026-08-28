@@ -47,6 +47,7 @@ module scenario_march {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -200,6 +201,7 @@ module scenario_gates {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -316,6 +318,7 @@ module scenario_crash {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(1, 2), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -365,6 +368,7 @@ module scenario_crash_late {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(3, 4, 5, 6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -408,6 +412,7 @@ module scenario_edit_txn {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(1, 2), ENV_KINDS = Set(1),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -456,6 +461,7 @@ module scenario_reval {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(3), ENV_KINDS = Set(3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -530,6 +536,7 @@ module scenario_foreign_marker {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(6), ENV_KINDS = Set(2),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -573,6 +580,7 @@ module scenario_unclassifiable {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 2, ENV_PHASES = Set(0, 1), ENV_KINDS = Set(0, 2),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -607,6 +615,7 @@ module scenario_orphan {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 2, ENV_PHASES = Set(0, 1), ENV_KINDS = Set(0, 1),
     ENV_EDITS = Set(12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -644,6 +653,7 @@ module scenario_return_blocked {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 2, ENV_PHASES = Set(0, 3), ENV_KINDS = Set(1, 3),
     ENV_EDITS = Set(8), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(1), ENTRIES = 1
   ).* from "./finish"
@@ -676,6 +686,7 @@ module scenario_return_crash {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 2, ENV_PHASES = Set(3, 5), ENV_KINDS = Set(0, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(1), ENTRIES = 1
   ).* from "./finish"
@@ -712,6 +723,7 @@ module scenario_crash_disposal {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -780,6 +792,7 @@ module relax_EN_01 {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -824,6 +837,7 @@ module relax_EN_03 {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -879,6 +893,7 @@ module relax_EN_05 {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -889,8 +904,8 @@ module relax_EN_05 {
     inv_FN_15a_the_classification_never_reads_an_exit_status
   val inv_FN_24a_one_stable_state_under_an_atomic_commit: bool =
     inv_FN_24a_every_interruption_lands_in_exactly_one_state
-  val inv_FN_25a_the_diagnoses_stay_disjoint: bool =
-    inv_FN_25a_the_diagnoses_are_disjoint
+  val inv_FN_25a_the_precedence_still_selects_the_diagnosis: bool =
+    inv_FN_25a_the_carried_diagnosis_is_the_one_precedence_selects
   val inv_FN_25b_the_diagnoses_stay_exhaustive: bool =
     inv_FN_25b_the_diagnoses_are_exhaustive
   val inv_FN_27a_nothing_unrelated_on_success_under_an_atomic_commit: bool =
@@ -932,6 +947,7 @@ module relax_EN_08 {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(1, 2, 3, 4, 5, 6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -977,6 +993,7 @@ module relax_EN_13 {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1018,6 +1035,7 @@ module relax_EN_15 {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1061,6 +1079,7 @@ module relax_EN_16 {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1116,6 +1135,7 @@ module mutant_status_classifier {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1149,6 +1169,7 @@ module mutant_no_revalidation {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(3), ENV_KINDS = Set(3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0), ENTRIES = 1
   ).* from "./finish"
@@ -1183,6 +1204,7 @@ module mutant_nonatomic_marker {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1215,6 +1237,7 @@ module mutant_unproven_ownership {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(0, 1, 2), ENV_KINDS = Set(2),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1272,6 +1295,7 @@ module mutant_unproven_marker {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(6), ENV_KINDS = Set(2),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1304,6 +1328,7 @@ module mutant_eager_recovery {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1337,6 +1362,7 @@ module mutant_eager_preflight {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1373,6 +1399,7 @@ module mutant_short_preflight {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1414,6 +1441,7 @@ module mutant_receipt_reading {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(3, 4, 5, 6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1449,6 +1477,7 @@ module mutant_hooks_run {
     HOOKS_SUPPRESSED = false,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1483,6 +1512,7 @@ module mutant_unscoped_commit {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = false,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 8, ENV_PHASES = Set(0), ENV_KINDS = Set(1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1518,6 +1548,7 @@ module mutant_history_rewritten {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = false,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(1, 2), ENV_KINDS = Set(1),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1558,6 +1589,7 @@ module mutant_no_quarantined_state {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(1, 2, 3, 4, 5, 6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
@@ -1598,10 +1630,63 @@ module mutant_absent_classified_first {
     HOOKS_SUPPRESSED = true,
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
     ENV_BUDGET = 1, ENV_PHASES = Set(1, 2, 3, 4, 5, 6), ENV_KINDS = Set(0),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
 
   val inv_fail_MUT_FN_24a_the_post_rename_disk_reads_as_absent: bool =
     inv_FN_24a_every_interruption_lands_in_exactly_one_state
+}
+
+/// `FN-25.a`'s PRECEDENCE, REVERSED — correlation wins the declared overlap, so
+/// a disk carrying an artifact Grove cannot classify beside a correlated attempt
+/// is reported as a recovery the operator should go and run.
+///
+/// THIS IS THE CONTROL THE OLD STATEMENT COULD NOT HAVE.  Until
+/// `finish-scope-k76` this column's `FN-25.a` said *the two diagnoses are
+/// disjoint*, which `diagnose`'s if/else chain made true by construction — no
+/// mutation could move it, because no mutation could make the classifier return
+/// two answers.  The claim is now the precedence, and the precedence is a dial,
+/// so this module is what says the check tests something.  The Alloy column ran
+/// the same mutation against ITS old form and it was green (`README.md`, matrix
+/// row 65), which is the same finding reached from the other side.
+module mutant_correlation_wins_the_overlap {
+  import finish(
+    RENAME_ATOMIC = true,
+    ATOMIC_DISPOSAL = false,
+    ATOMIC_COMMIT = false,
+    CRASHES = true,
+    FOREIGN_WRITES = true,
+    REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false,
+    LANES = Set(0, 1, 2),
+    REVALIDATE = true,
+    CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true,
+    OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true,
+    PREFLIGHT_PURE = true,
+    PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = false,
+    // `scenario_edit_txn`'s ENVIRONMENT, and it is not interchangeable with the
+    // other mutants'.  The overlap `FN-25.a` is about is reached only by an
+    // in-transaction hand edit (`ENV_KINDS = Set(1)`) in the two phases that
+    // module opens; `wit_FN_25a_a_near_miss_resolved_to_one` lands there and
+    // nowhere else in this file.  A mutant that copies the neighbouring modules'
+    // environment reports GREEN — measured, on the first attempt at this module
+    // — and a green mutant reads as a surviving claim when it is really an
+    // unreached one.
+    ENV_BUDGET = 1, ENV_PHASES = Set(1, 2), ENV_KINDS = Set(1),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  val inv_fail_MUT_FN_25a_correlation_wins_the_overlap: bool =
+    inv_FN_25a_the_carried_diagnosis_is_the_one_precedence_selects
 }

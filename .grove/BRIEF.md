@@ -78,6 +78,10 @@ each leaf cuts what follows it once it knows what that is.
 3. **The methodology changes** — what binds, landed in `content/` and the skill.
    Separate from the write-up because it is product change with tests and a hash.
 4. **The write-up** — what cannot bind, plus the cost account.
+5. **The `linkuistics` promotion** — cut by the `finish` session, which found
+   that the binding test had been applied to one corpus only. One leaf per skill:
+   `model-led-development-k94` for the model-suite cluster, and
+   `doubt-driven-development-k95` for the review-loop findings.
 
 ## Pointers
 
@@ -136,6 +140,25 @@ harvest must either evidence or drop.
   in the repairs; the integration found two more while applying them. This is the
   one candidate lesson that is about the loop rather than about models, and it is
   the one most worth checking hardest.
+
+### The binding test was corpus-scoped, and that was found at finish
+
+**"A lesson binds only where a session could violate it" is right, and it was
+applied to `content/` alone.** `linkuistics:model-led-development` is a corpus
+whose sessions *do* run model suites, it is developed in this repository at
+`plugins/linkuistics/`, and the string `linkuistics` appears in none of the four
+harvest documents. So four of the five lessons the write-up files under *could
+not bind* have a possible violator after all — and the skill currently teaches
+the weaker form of two rules this campaign falsified.
+
+That is a gap in scope rather than a defect in the harvest, which asked what
+binds on Grove and answered it correctly. It is recorded in
+[`docs/results-of-formal-methods-trial.md`](../docs/results-of-formal-methods-trial.md)
+§2 — a durable document, because this brief dies at teardown — and discharged by
+the two leaves in step 5. **Their governance constraint is
+[`grove-binds-without-the-plugin`](../docs/adr/grove-binds-without-the-plugin.md)**:
+a rule whose absence changes what a session *writes* stays Grove-owned, and only
+what changes *how well* may defer to the plugin.
 
 ### Preservation ledger
 

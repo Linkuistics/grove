@@ -28,6 +28,7 @@ process ownership, a task-tree data model, and three fail-closed transactions.
 | Whether the campaign's six self-reported lessons survive its own evidence | [`candidate-lessons.md`](candidate-lessons.md) — six adjudicated claims, over the measurements in [`loop-record.md`](loop-record.md) and [`review-yield.md`](review-yield.md) |
 | What the campaign taught about driving an LLM loop, and what it cost | [`driving-a-checkable-loop.md`](driving-a-checkable-loop.md) — the account for a reader outside this repository: the cost, the three lessons that now bind in `content/`, and the five that only get written down |
 | Alloy 6 against Quint, compared on this repository's own models | [`formalism-findings.md`](formalism-findings.md) |
+| What the formal-methods trial returned, and where its unlanded findings go | [`results-of-formal-methods-trial.md`](results-of-formal-methods-trial.md) — the plain-language reading, and the `linkuistics` skills that are the remaining findings' home |
 | The observable contract measured before the modularity refactor | [`preservation-baseline.md`](preservation-baseline.md) |
 
 A `TODO.<subject>.md` is a **scoping note with an expiry**: measurements and open

@@ -28,7 +28,7 @@ an unresolved reference and not reconstructed source.
 ## Contents
 
 1. [Orientation](01-orientation.md)
-2. Name seam
+2. [Name seam](02-name-seam.md)
 3. Reference domain
 4. Read path
 5. Mutation algebra

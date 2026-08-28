@@ -44,7 +44,7 @@
 <!-- defer «filesystem-error-source» owner="filesystem-interpreter-k16" lines="1-342" -->
 <!-- /source-root -->
 <!-- source-root «source-name» source="crates/ordinal-fs-tree/src/name.rs" lines="1-700" -->
-<!-- defer «name-seam-source» owner="name-seam-k12" lines="1-700" -->
+<!-- insert «name-seam-source» -->
 <!-- /source-root -->
 <!-- source-root «source-operations» source="crates/ordinal-fs-tree/src/ops.rs" lines="1-543" -->
 <!-- defer «mutation-operations-source» owner="mutation-algebra-k15" lines="1-543" -->
@@ -95,7 +95,7 @@
 | `library-crate-surface` | `source-library` | `orientation-k11` | `1-94` | 94 | `resolved` |
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-636` | 636 | `deferred` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `deferred` |
-| `name-seam-source` | `source-name` | `name-seam-k12` | `1-700` | 700 | `deferred` |
+| `name-seam-source` | `source-name` | `name-seam-k12` | `1-700` | 700 | `resolved` |
 | `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-543` | 543 | `deferred` |
 | `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `deferred` |
 | `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-555` | 555 | `deferred` |
@@ -128,6 +128,13 @@
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-636` | `—` | `reference-conformance-source` |
 | `source-error` | `source-index` | `source-error` | `root` | `—` | `1-342` | `—` | `filesystem-error-source` |
 | `source-name` | `source-index` | `source-name` | `root` | `—` | `1-700` | `—` | `name-seam-source` |
+| `name-identifiers` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `1-91` | `name-seam-source` | `—` |
+| `name-seam-source` | `name-seam` | `source-name` | `composite` | `name-seam-k12` | `1-700` | `source-name` | `name-identifiers`, `name-classification`, `name-representation`, `entry-name-trait`, `entry-name-derived-readings`, `name-component-check` |
+| `name-classification` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `92-246` | `name-seam-source` | `—` |
+| `name-representation` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `247-345` | `name-seam-source` | `—` |
+| `entry-name-trait` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `346-602` | `name-seam-source` | `—` |
+| `entry-name-derived-readings` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `603-674` | `name-seam-source` | `—` |
+| `name-component-check` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `675-700` | `name-seam-source` | `—` |
 | `source-operations` | `source-index` | `source-operations` | `root` | `—` | `1-543` | `—` | `mutation-operations-source` |
 | `source-plan` | `source-index` | `source-plan` | `root` | `—` | `1-568` | `—` | `mutation-plan-source` |
 | `source-reference` | `source-index` | `source-reference` | `root` | `—` | `1-555` | `—` | `reference-domain-source` |
@@ -143,10 +150,9 @@
 
 | Symbol family | First use | Owner | Minimum local statement | Status |
 |---|---|---|---|---|
-| `Ordinal`, `Key`, `Found`, `Verdict`, `Species`, `EntryName` | `01-orientation.md#working-vocabulary` | `name-seam-k12` | Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam. | `pending` |
+| `Ordinal`, `Key`, `Found`, `Verdict`, `Species`, `EntryName` | `01-orientation.md#working-vocabulary` | `name-seam-k12` | Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam. | `explained` |
 | `Label`, `Status`, `Parts`, `SyllabusName` | `01-orientation.md#insert-tour` | `reference-domain-k13` | These values are the syllabus consumer's vocabulary and seam implementation, not library defaults. | `pending` |
 | `Snapshot`, `Entry`, `ReadGuard` | `01-orientation.md#insert-tour` | `read-path-k14` | A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot. | `pending` |
 | `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `pending` |
 | `WriteGuard`, `Error`, `apply::Faults`, `apply::Run` | `01-orientation.md#insert-tour` | `filesystem-interpreter-k16` | A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state. | `pending` |
 | `Cli`, `Verb`, `Streams`, `Failure` | `01-orientation.md#insert-tour` | `syllabus-cli-k17` | Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category. | `pending` |
-

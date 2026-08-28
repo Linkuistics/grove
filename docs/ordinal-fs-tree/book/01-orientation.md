@@ -1,6 +1,6 @@
 # Orientation
 <!-- book-page id="orientation" slice="orientation-k11" order="1" -->
-[Contents](README.md)
+[Contents](README.md) | [Next: Name seam](02-name-seam.md)
 
 <a id="purpose-and-boundary"></a>
 ## Purpose and boundary
@@ -403,4 +403,4 @@ Later pages expand the name seam, reference domain, snapshot read, mutation
 algebra, filesystem interpreter, and CLI source. The CLI page returns to this
 same command and starting tree at full source resolution.
 
-[Contents](README.md)
+[Contents](README.md) | [Next: Name seam](02-name-seam.md)

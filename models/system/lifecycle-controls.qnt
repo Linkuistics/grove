@@ -64,6 +64,10 @@ module scenario_teardown {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -120,6 +124,10 @@ module scenario_crash_points {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -168,6 +176,10 @@ module scenario_epoch_handoff {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -229,6 +241,10 @@ module scenario_flat_menu {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -276,6 +292,10 @@ module scenario_recovery {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -328,6 +348,10 @@ module relax_EN_08 {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -374,6 +398,10 @@ module relax_EN_11 {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -417,6 +445,10 @@ module mutant_lease_queue {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -459,6 +491,10 @@ module mutant_death_holds {
     DEATH_RELEASES = false,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -503,6 +539,10 @@ module mutant_late_layout {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = false,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -546,6 +586,10 @@ module mutant_preflight_licence {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = true,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -588,6 +632,10 @@ module mutant_many_transitions {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = false,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -630,6 +678,10 @@ module mutant_unvalidated {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = false,
     DELETION_PROVEN_FIRST = true,
@@ -671,7 +723,7 @@ module mutant_unvalidated {
   /// configuration and writes the tree, which the trace form sees and the pair
   /// form did not.
   val inv_fail_MUT_SY_04b_grove_writes_under_an_invalid_configuration: bool =
-    inv_SY_04b_grove_never_mutates_the_tree_under_a_configuration_it_has_not_validated
+    inv_SY_04b_no_transition_runs_under_an_invalid_configuration
 }
 
 /// MODEL mutation, `SY-05.a`.  A missing task root is read as evidence about an EARLIER grove: the driver
@@ -690,6 +742,10 @@ module mutant_absence_is_evidence {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -734,6 +790,10 @@ module mutant_early_deletion {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = false,
@@ -776,6 +836,10 @@ module mutant_charter_only {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -820,6 +884,10 @@ module mutant_absent_witness {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -862,6 +930,10 @@ module mutant_session_finish {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -905,6 +977,10 @@ module mutant_recompute_selection {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -948,6 +1024,10 @@ module mutant_no_signal_is_done {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1001,6 +1081,10 @@ module mutant_no_gen_check {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1043,6 +1127,10 @@ module mutant_silent_park {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1086,6 +1174,10 @@ module mutant_restart_repeats {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1129,6 +1221,10 @@ module mutant_block_clears {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1176,6 +1272,10 @@ module mutant_guard_disorder {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1233,6 +1333,10 @@ module mutant_literal_sy13 {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1279,6 +1383,10 @@ module mutant_two_finish_leaves {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1327,6 +1435,10 @@ module mutant_relaunch_stops {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1377,6 +1489,10 @@ module mutant_done_continues {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1429,6 +1545,10 @@ module mutant_block_unnamed {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1488,6 +1608,10 @@ module mutant_unscoped_bytes {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1520,27 +1644,85 @@ module mutant_unscoped_bytes {
   val inv_fail_MUT_SY_04b_the_operator_writes_under_an_invalid_configuration: bool =
     not(hist.worldMutatedUnderInvalidConfig)
 
-  /// THE SECOND NARROWING'S CONTROL, AND IT IS THIS LEAF'S OWN
-  /// COUNTEREXAMPLE RATHER THAN A REPLAY OF ALLOY'S.
-  ///
-  /// Drop only the *validated* qualifier and the claim still dies, with the
-  /// operator's hands out of it: `configChange` fires after the driver
-  /// recorded its validation, `outcomeOn`'s configuration gate consults that
-  /// RECORDED VERDICT rather than the live configuration, and the next
-  /// transition writes the tree.  A preflight that has become a licence — the
-  /// shape `SY-03` forbids for the layout — with nothing in the catalogue
-  /// forbidding it for the configuration.
-  ///
-  /// The pair-stated predecessor could not have reached this at ANY sample
-  /// count: the offending step is APPLIED, and `refusalMutated` looked only at
-  /// refusals.
-  val inv_fail_MUT_SY_04b_a_validated_configuration_is_a_licence: bool =
-    not(hist.groveMutatedUnderInvalidConfig)
-
-  /// THE NEIGHBOUR, asserted green in the same run, so that the two controls
-  /// above are killing the two narrowings and not the claim itself.
+  /// THE NEIGHBOUR, asserted green in the same run, so that the control above
+  /// is killing the world half and not the claim itself.
   val inv_SY_04b_the_neighbour_stays_green: bool =
-    inv_SY_04b_grove_never_mutates_the_tree_under_a_configuration_it_has_not_validated
+    inv_SY_04b_no_transition_runs_under_an_invalid_configuration
+}
+
+/// MODEL mutation, `SY-04.b`.  A VALIDATED CONFIGURATION IS A LICENCE.
+///
+/// **THIS MODULE IS WHERE A RETAINED COUNTEREXAMPLE BECAME A CONTROL**, which
+/// is what a disposition costs when the finding was in the catalogue rather
+/// than in the model.  Before `lifecycle-scope-k72` this counterexample fired
+/// under `base`'s own constants with no dial moved, and it was RETAINED rather
+/// than repaired because repairing it meant deciding what `SY-04.b` means —
+/// a catalogue change the independence protocol forbade.  It is decided:
+/// `SY-04.b` owes `SY-03`'s *a preflight is never a licence* for the
+/// configuration as well as for the layout, the shipped driver already
+/// revalidates (`SessionConfig::load` before the tree mutation and again before
+/// the launch, `src/loop_driver.rs`), and `lifecycle.als` — which read the
+/// configuration LIVE — was the column that had it right.
+///
+/// So `base` closes the licence and this dial reopens it.  `configChange` fires
+/// after the driver recorded its validation, the gate consults that RECORDED
+/// VERDICT rather than the live configuration, and the next transition writes
+/// the tree with the operator's hands out of it.
+///
+/// **IT IS ISOLATING AND THAT IS ASSERTED IN THE SAME RUN.** The weak conjunct
+/// — grove never mutates under a configuration it has NOT validated — stays
+/// green under this dial, because the driver did validate; only the strong one
+/// dies.  A control that killed both would not show which clause the disposition
+/// added.
+module mutant_config_licence {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = true,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_04b_a_validated_configuration_is_a_licence: bool =
+    inv_SY_04b_no_transition_runs_under_an_invalid_configuration
+
+  /// THE ISOLATION, asserted green in the same run: the driver DID validate, so
+  /// the weak conjunct is untouched and the dial kills only the clause the
+  /// disposition added.
+  val inv_SY_04b_the_unvalidated_half_stays_green: bool =
+    not(hist.groveMutatedUnderUnvalidatedConfig)
 }
 
 /// MODEL mutation, `SY-10.b`.  The visible stop borrows `SY-10.a`'s reason.
@@ -1560,6 +1742,10 @@ module mutant_borrowed_stop_reason {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -1597,4 +1783,196 @@ module mutant_borrowed_stop_reason {
   /// invisible.
   val inv_SY_10a_the_neighbour_stays_green: bool =
     inv_SY_10a_a_stale_operation_is_refused_before_it_touches_the_tree
+}
+
+/// MODEL mutation, `SY-06.b`.  The witnessless arm falls through to `Legacy`.
+///
+/// **THE NARROWING THIS OBLIGATION *INHERITS*, MADE RUNNABLE IN THE SCOPE THAT
+/// CITES IT.** `SY-06.b` is a declared cross-scope citation of `TT-18`/`TT-20`,
+/// and `obligations-follow-context-not-artifact` clause 2 makes a citation carry
+/// the cited obligation's declared narrowings.  `task-tree-scope-k70` changed
+/// both of them, so this citation inherits a DIFFERENT strength rather than the
+/// same one, and a citation whose strength moved is worth a command rather than
+/// a sentence.
+///
+/// With the dial off, `classifyTree`'s ambiguous arm disappears and a root
+/// carrying Grove's own root-init-exclusive entry beside a foreign one reads as
+/// somebody else's legacy tree — which is exactly what `TT-20`'s narrowed
+/// prohibition forbids past the boundary, and exactly the defect the split
+/// exists to remove.
+module mutant_ambiguity_unclassed {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = false,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_06b_grove_s_own_interrupted_work_reads_as_legacy: bool =
+    inv_SY_06b_a_root_carrying_grove_s_own_proof_is_never_legacy
+
+  /// THE NEIGHBOUR, green under the same dial: refusing to COMPLETE a legacy
+  /// tree is untouched, so the control kills the classification and not the
+  /// completion gate.
+  val inv_SY_06b_the_completion_gate_stays_green: bool =
+    inv_SY_06b_a_legacy_tree_is_never_completed_as_a_scaffold
+}
+
+/// MODEL mutation, `SY-13.a`.  GROVE MANUFACTURES ONE OF THE EXCLUDED STATES.
+///
+/// **THIS IS THE CONTROL THAT MAKES THE NARROWED SWEEP A CLAIM RATHER THAN A
+/// CONVENIENCE, AND IT IS WHY THE COMPANION IS A CONJUNCT AND NOT A PREMISE.**
+/// `SY-13` now quantifies over the stable states Grove's own admitted actions
+/// reach, which is sound only while Grove reaches none of the others.  Left as
+/// an assumption that is unfalsifiable: a Grove that walked the loop into
+/// `Legacy` would satisfy the sweep by putting the tree somewhere the sweep
+/// stopped looking.  With this dial the scaffold writes a root with neither the
+/// exact subset nor a root-init-exclusive entry, so `initialise-root` itself
+/// produces `Legacy` and the first conjunct dies.
+///
+/// The ESCAPE half is asserted green in the same run: the declared map is
+/// untouched, so the control kills the boundary and not the reachability.
+module mutant_grove_manufactures_legacy {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = true,
+    BLOCK_NAMED_BY_ALL = false,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_13a_grove_manufactures_a_refusal_state: bool =
+    inv_SY_13a_every_stable_class_escapes_within_the_bound
+
+  val inv_SY_13b_the_sink_sweep_stays_green: bool =
+    inv_SY_13b_no_stable_state_is_a_sink
+}
+
+/// MODEL mutation, `SY-14.b`.  The naming sweep runs over the LITERAL admitted
+/// set.
+///
+/// **THE DISPOSED READING, RUN — which is what turns *the literal text is false*
+/// from an argument into a fired control.** `lifecycle-scope-k72` decided that
+/// `SY-14.b` is *every admitted action ON THE TREE*, on the argument both
+/// families reached independently: a block is a property of the tree, so an
+/// action that reads and writes no task tree cannot name a block it never read.
+/// Under this dial the sweep demands that `acquire-lease`, `validate-config` and
+/// `release-lease` refuse naming the block too, and the obligation dies —
+/// meaning a blocked tree could not release its own lease, and `FN-26`'s two
+/// operator-restorable exits would be unreachable.
+///
+/// `SY-14.a` is asserted green in the same run, which is the asymmetry the
+/// disposition rests on: the CLEARING half is swept over the literal set and is
+/// right to be.
+module mutant_block_named_by_all {
+  import lifecycle(
+    CRASHES = true,
+    HAND_EDITS = true,
+    LEASE_QUEUES = false,
+    DEATH_RELEASES = true,
+    LAYOUT_FIRST = true,
+    PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = true,
+    ONE_TRANSITION = true,
+    CONFIG_FIRST = true,
+    DELETION_PROVEN_FIRST = true,
+    ABSENCE_IS_FRESH = true,
+    SCAFFOLD_LEAF = true,
+    PARTIAL_BY_SUBSET = true,
+    DRIVER_OWNS_FINISH = true,
+    ONE_FINISH_LEAF = true,
+    SELECT_ONCE = true,
+    NO_SIGNAL_IS_DONE = false,
+    RELAUNCH_ENDS_LOOP = false,
+    DONE_CONTINUES_LOOP = false,
+    GEN_CHECK = true,
+    GEN_TIMEOUT = true,
+    GEN_STOP_NAMED = true,
+    GUARD_ORDER = true,
+    RESUME_IS_IDEMPOTENT = true,
+    BLOCK_STICKY = true,
+    BLOCK_NAMED = true,
+    SWEEP_ALL_STABLE = false,
+    FLAT_MENU = false,
+    PROCS = Set(0, 1),
+    FOCUS = 0,
+    ESCAPE_BOUND = 3,
+    ENV_BUDGET = 3,
+    ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    ENV_KINDS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8)
+  ).* from "./lifecycle"
+
+  val inv_fail_MUT_SY_14b_the_literal_quantifier_reaches_the_lease: bool =
+    inv_SY_14b_every_action_on_a_blocked_tree_refuses_naming_it
+
+  val inv_SY_14a_the_clearing_half_stays_green: bool =
+    inv_SY_14a_no_admitted_action_clears_a_block
 }

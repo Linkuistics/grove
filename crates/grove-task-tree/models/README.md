@@ -116,7 +116,24 @@ spell out only the members their own scope reaches, no `FN-` or `SY-` obligation
 quantifies over the type exhaustively, and neither finish model carries a
 `PartialScaffold` state at all — so **this** widening costs those scopes no
 re-run either. `lifecycle.qnt`'s `RSPartialScaffold` owes a cell, and that is the
-state refinement rather than the reason (`lifecycle-scope-k72`).
+state refinement rather than the reason.
+
+> **[disposed by `lifecycle-scope-k72`]** The cell is answered. `lifecycle.qnt`
+> carries `RSPartialScaffold(ScaffoldClass)` with the catalogue's ordered
+> three-way test, `RScaffoldIncomplete(class)` in place of the `WitnessPending`
+> borrow it had been reporting, `SY-06.b`'s third witness
+> (`wit_SY_06b_an_ambiguous_scaffold_is_refused_rather_than_completed`, 444 of
+> 8000) and a control that restores the fall-through
+> (`mutant_ambiguity_unclassed`). Two things the refinement turned up that this
+> leaf could not have: **`PartialScaffold(Ambiguous)` is a fourth member of the
+> class `SY-13` has to exclude** — Grove's scaffold writes `Exact`, only a world
+> write makes it `Ambiguous`, and Grove then refuses everything including the
+> completion, so the loop has no admitted exit; and **Quint's `match` has no
+> nested constructor patterns**, so `| RSPartialScaffold(PSExact) =>` binds a
+> variable and swallows the arm below it, silently and with a clean typecheck.
+> The second is worth carrying to any model that adopts a parameterised state:
+> `Reserved(class)` is matched `RSReserved(_)` everywhere in this corpus, which
+> is why the trap had never been reached.
 
 **The disagreement between the two columns is what settled it, and the record
 stays.** This column declared the two cells out of reach; the Quint column

@@ -73,6 +73,45 @@ module lifecycle {
   /// MODEL, `SY-04.b` — a transition runs without full configuration validation.
   const CONFIG_FIRST: bool
 
+  /// MODEL, `SY-04.b` — a transition consults the validation the driver
+  /// RECORDED instead of the configuration as it stands.  The configuration
+  /// twin of `PREFLIGHT_LICENCE`, and it is a separate dial rather than a
+  /// second use of that one so that each control isolates its own conjunct:
+  /// `mutant_preflight_licence` kills `SY-03`'s layout clause and
+  /// `mutant_config_licence` kills `SY-04.b`'s configuration clause, and
+  /// neither can be mistaken for the other.
+  ///
+  /// This dial exists because the licence WAS the model, and `base` reading the
+  /// recorded verdict is what `lifecycle-scope-k72` disposed: `SY-04.b` owes
+  /// `SY-03`'s prohibition for the configuration as well as for the layout, and
+  /// the shipped driver already revalidates — `SessionConfig::load` runs afresh
+  /// before the tree mutation and again before the launch
+  /// (`src/loop_driver.rs`), which `complete-session-configuration` states as
+  /// *validated in full, before every tree mutation and again before every
+  /// launch*.  The counterexample this file retained is now this dial's control.
+  const CONFIG_LICENCE: bool
+
+  /// MODEL, `SY-06.b` — the witnessless arm falls through to `Legacy` instead of
+  /// classifying `PartialScaffold(Ambiguous)`, which is the reading this file
+  /// carried before `task-tree-scope-k70` split §*States*.  The control restores
+  /// it and `SY-06.b`'s inherited narrowing dies: a root carrying Grove's own
+  /// root-init-exclusive entry reads as somebody else's legacy tree.
+  const SCAFFOLD_AMBIGUITY_CLASSED: bool
+
+  /// MODEL, `SY-13.a` — the scaffold writes a root that classifies `Legacy`, so
+  /// GROVE manufactures one of the states the sweep excludes.  This is the dial
+  /// that makes `SY-13.a`'s first conjunct falsifiable; without it the conjunct
+  /// is true by construction of `scaffoldOp` and the narrowed sweep would be a
+  /// convenience rather than a claim.
+  const GROVE_MANUFACTURES_LEGACY: bool
+
+  /// MODEL, `SY-14.b` — the naming sweep runs over the LITERAL admitted set
+  /// rather than over the actions that touch the tree.  The control is what
+  /// makes the disposed reading's falsity runnable: a blocked tree cannot
+  /// release its own lease, so `FN-26`'s two operator-restorable exits become
+  /// unreachable.
+  const BLOCK_NAMED_BY_ALL: bool
+
   /// MODEL, `SY-05.b` — the task root is removed before the deletion is proven.
   const DELETION_PROVEN_FIRST: bool
 
@@ -209,6 +248,15 @@ module lifecycle {
     witnessPresent: bool,
     fmt: int,
     exactSubset: bool,
+    // Whether the root carries an entry only THIS format's root initialisation
+    // writes — the reserved format temporary, or the first `requirements` leaf
+    // at position 1 with key 1 with the bytes a fresh scaffold writes.  It is
+    // the only proof a WITNESSLESS root carries that this format's
+    // initialisation ran, and it is what separates `PartialScaffold(Ambiguous)`
+    // from `Legacy` (§*States*).  The root charter is deliberately NOT one: its
+    // bytes derive from the working-tree name and every earlier format wrote
+    // the same ones.
+    rootInitExclusive: bool,
     malformed: bool,
     reserved: RClass,
     charter: bool,
@@ -224,14 +272,21 @@ module lifecycle {
 
   pure val NO_TREE: Tree = {
     present: false, witnessPresent: false, fmt: 0, exactSubset: false,
+    rootInitExclusive: false,
     malformed: false, reserved: RNone, charter: false,
     liveOrdinary: 0, liveFinish: 0, foreignReserved: false, bytes: 0,
   }
 
+  /// The two classes of a witnessless root that carries its own work.  Added
+  /// by `task-tree-scope-k70`'s split of §*States* and landed in this scope by
+  /// `lifecycle-scope-k72`, which owns `SY-06.b`'s cell: the catalogue had ONE
+  /// state for a witnessless root where the product has three.
+  type ScaffoldClass = PSExact | PSAmbiguous
+
   type RootState =
     | RSAbsent
     | RSReserved(RClass)
-    | RSPartialScaffold
+    | RSPartialScaffold(ScaffoldClass)
     | RSLegacy
     | RSForeign(int)
     | RSMalformed
@@ -247,10 +302,21 @@ module lifecycle {
 
   /// `TT-18`'s fixed classification order, which is itself a claim.  Reserved
   /// is stated over the CLASS, so removing a member changes nothing.
+  ///
+  /// **THE WITNESSLESS ARM IS AN ORDERED THREE-WAY TEST**, which is
+  /// `task-tree-scope-k70`'s split carried into this scope as `SY-06.b`'s cell.
+  /// The subset alone licenses `Exact`, because a root holding nothing but the
+  /// scaffold's own byte-exact entries has nothing to be ambiguous about — so a
+  /// byte-exact charter is completed rather than migrated.  Positive proof is
+  /// demanded only where it changes the answer: once something else is present,
+  /// refusing is a strong claim about a root that might not be Grove's at all.
   pure def classifyTree(t: Tree): RootState =
     if (not(t.present)) RSAbsent
     else if (t.reserved != RNone) RSReserved(t.reserved)
-    else if (not(t.witnessPresent) and partialScaffold(t)) RSPartialScaffold
+    else if (not(t.witnessPresent) and partialScaffold(t)) RSPartialScaffold(PSExact)
+    else if (not(t.witnessPresent) and SCAFFOLD_AMBIGUITY_CLASSED and
+             t.rootInitExclusive)
+      RSPartialScaffold(PSAmbiguous)
     else if (not(t.witnessPresent)) RSLegacy
     else if (t.fmt != 0) RSForeign(t.fmt)
     else if (t.malformed) RSMalformed
@@ -328,6 +394,15 @@ module lifecycle {
     // taxonomy claim vacuous.  The Alloy column reached the same gap
     // independently.  Disposed by `closed-set-additions-k74`; see
     // `docs/adr/a-refusal-leaves-nothing-standing.md`, clause 2.
+    // NO LONGER A BORROW — the catalogue's `ScaffoldIncomplete(class)`, added
+    // by `task-tree-scope-k70` when §*States* split the witnessless root into
+    // three.  Before the split this scope reported an incomplete scaffold as
+    // `WitnessPending`, which names a reserved WITNESS that is not there; the
+    // sibling task-tree column had to declare a deviation at `gateOutcome` for
+    // the same reason.  The class travels with the reason because the operator
+    // must be able to tell the two apart: `Exact` names a completion Grove will
+    // run, `Ambiguous` one it has already declined.
+    | RScaffoldIncomplete(ScaffoldClass)
     | RConfigInvalid
     // NO LONGER AN ABSTRACTION — the catalogue's `GenerationContended`, and
     // THIS COLUMN'S PLACEMENT IS THE ONE THAT WAS KEPT.  `SY-10.b` requires a
@@ -564,6 +639,11 @@ module lifecycle {
   type StableClass =
     | SCAbsent
     | SCPartial
+    // `PartialScaffold(Ambiguous)` — its own class rather than a shade of
+    // `SCPartial`, because the two differ in exactly what this sweep is about:
+    // `Exact` has an admitted exit (`complete-scaffold`) and `Ambiguous` has
+    // none.  See `isWorldOnlyRefusal`.
+    | SCPartialAmbiguous
     | SCLegacy
     | SCForeign
     | SCMalformed
@@ -581,7 +661,17 @@ module lifecycle {
     else match classifyTree(w.tree) {
       | RSAbsent => if (w.fin.deletionProven) SCFinished else SCAbsent
       | RSReserved(_) => SCReserved
-      | RSPartialScaffold => SCPartial
+      // ONE LEVEL OF PATTERN AND THEN A TEST, and this shape is forced rather
+      // than stylistic: Quint's `match` has no nested constructor patterns, so
+      // `| RSPartialScaffold(PSExact) =>` binds a VARIABLE named `PSExact`,
+      // swallows every `RSPartialScaffold(_)`, and leaves the arm below it dead
+      // — and it typechecks.  Written that way first, this file reported
+      // `SCPartialAmbiguous` as unreachable while `classifyTree` was returning
+      // it, which is a green suite describing a state it cannot see.  The other
+      // parameterised state in this catalogue is matched `RSReserved(_)`
+      // everywhere, which is why the trap had never been reached before.
+      | RSPartialScaffold(cls) =>
+          if (cls == PSAmbiguous) SCPartialAmbiguous else SCPartial
       | RSLegacy => SCLegacy
       | RSForeign(_) => SCForeign
       | RSMalformed => SCMalformed
@@ -597,25 +687,50 @@ module lifecycle {
     c == SCCurrentLive or c == SCFinished or
     c == SCBlockedPending or c == SCBlockedConflict
 
-  /// The three hand-edit-reached refusal states.  Grove's own actions never
-  /// produce one and no admitted action leaves one — see *A catalogue
-  /// contradiction* in the README, and `mutant_literal_sy13`, which fires it.
-  pure def isHandEditRefusal(c: StableClass): bool =
-    c == SCLegacy or c == SCForeign or c == SCMalformed
+  /// The refusal states only the WORLD reaches.  Grove's own actions never
+  /// produce one — which is `SY-13.a`'s first conjunct and is CHECKED
+  /// (`inv_SY_13a`, control `mutant_grove_manufactures_legacy`) rather than
+  /// assumed — and no admitted action leaves one.
+  ///
+  /// **`SCPartialAmbiguous` IS THE FOURTH AND IT IS NEW**, and neither leaf that
+  /// produced it could have seen it alone.  `task-tree-scope-k70` split
+  /// §*States*' witnessless root into three and does not own `SY-13`;
+  /// `SY-13`'s exclusion list was written before the class existed.  The new
+  /// class belongs here on the same test the other three meet: Grove's scaffold
+  /// writes `Exact`, only a world write into an open scaffold turns it
+  /// `Ambiguous`, and Grove then refuses everything — including the completion
+  /// — so the loop has no admitted exit.  `lifecycle-scope-k72` carried it into
+  /// the catalogue's `SY-13.a` with the other three.
+  pure def isWorldOnlyRefusal(c: StableClass): bool =
+    c == SCLegacy or c == SCForeign or c == SCMalformed or
+    c == SCPartialAmbiguous
 
-  /// The classes the sweep quantifies over.  With `SWEEP_ALL_STABLE` the sweep
-  /// is the catalogue's LITERAL "any stable state", and the property dies.
+  /// The classes the sweep quantifies over.
+  ///
+  /// **NO LONGER A NARROWING — THIS IS THE CATALOGUE'S OWN QUANTIFIER SINCE
+  /// `lifecycle-scope-k72`.** `SY-13` reads *from any stable state Grove's own
+  /// admitted actions can reach*, and `SWEEP_CLASSES` is exactly that set.  The
+  /// literal reading it replaced was **false**, not merely wide: `Legacy`,
+  /// `Foreign` and `Malformed` are each reached by a hand edit and left by a
+  /// hand edit, and a hand edit is not an admitted action, so all three were
+  /// sinks.  `models/system/lifecycle.als` narrowed the same way independently
+  /// and `system-k59` read the catalogue's two sentences to the same verdict.
+  ///
+  /// With `SWEEP_ALL_STABLE` the sweep is the literal reading and the property
+  /// dies — which is now a control on the DISPOSED text rather than a
+  /// declaration that this file checks less than the catalogue says
+  /// (`mutant_literal_sy13`).
   const SWEEP_ALL_STABLE: bool
 
   pure val ALL_CLASSES: Set[StableClass] = Set(
-    SCAbsent, SCPartial, SCLegacy, SCForeign, SCMalformed, SCReserved,
-    SCCurrentLive, SCCurrentFinishOnly, SCCurrentSpent,
+    SCAbsent, SCPartial, SCPartialAmbiguous, SCLegacy, SCForeign, SCMalformed,
+    SCReserved, SCCurrentLive, SCCurrentFinishOnly, SCCurrentSpent,
     SCBlockedPending, SCBlockedConflict, SCFinished
   )
 
   pure val SWEEP_CLASSES: Set[StableClass] =
     if (SWEEP_ALL_STABLE) ALL_CLASSES
-    else ALL_CLASSES.filter(c => not(isHandEditRefusal(c)))
+    else ALL_CLASSES.filter(c => not(isWorldOnlyRefusal(c)))
 
   /// The declared one-edge escape from each non-good class.
   pure def escapeAction(c: StableClass): ActionTag =
@@ -735,6 +850,14 @@ module lifecycle {
     walkLen: int,
     longestWalk: int,
     sinkSeen: bool,
+    // `SY-13.a`'s first conjunct: a GROVE step moved the tree into one of the
+    // three classes only a hand edit is supposed to reach.
+    groveManufacturedRefusalState: bool,
+    // `SY-06.b`'s third witness case: an `Ambiguous` root refused, not completed.
+    ambiguousRefused: bool,
+    // The narrowing `SY-06.b`'s citation of `TT-20` carries: once a
+    // root-init-exclusive entry has landed the root is never `Legacy`.
+    exclusiveReadAsLegacy: bool,
     sweepDone: bool,
     sweepCleared: bool,
     sweepAllNamed: bool,
@@ -750,6 +873,7 @@ module lifecycle {
     // of the trace whose pre-state carries an invalid configuration; the
     // narrowing `SY-04.b` needs is now the SPLIT rather than a silence.
     groveMutatedUnderInvalidConfig: bool,
+    transitionMutatedUnderInvalidConfig: bool,
     // The same, and additionally the driver had NOT recorded a validation.
     // This is the half that is TRUE of the model, and the gap between the two
     // flags is this leaf's own counterexample: `outcomeOn`'s configuration
@@ -802,9 +926,12 @@ module lifecycle {
     waitChainSeen: false, crashPoints: Set(), repeatedCompletedEffect: false,
     unstableAfterCrash: false, resumedAfterCrash: false, stableSeen: Set(),
     escapeEdgesObserved: Set(), walkLen: 0, longestWalk: 0, sinkSeen: false,
+    groveManufacturedRefusalState: false, ambiguousRefused: false,
+    exclusiveReadAsLegacy: false,
     sweepDone: false, sweepCleared: false, sweepAllNamed: false,
     blockCleared: false, blockedActionNotNaming: false,
     groveMutatedUnderInvalidConfig: false,
+    transitionMutatedUnderInvalidConfig: false,
     groveMutatedUnderUnvalidatedConfig: false,
     worldMutatedUnderInvalidConfig: false,
     maxPhase: 0, twoDriversLive: false, envUsed: 0,
@@ -829,8 +956,13 @@ module lifecycle {
       | RSReserved(_) =>
           if (a == ATRecover or a == ATFinishStep) OApplied
           else ORefused(RWitnessPending)
-      | RSPartialScaffold =>
-          if (a == ATCompleteScaffold) OApplied else ORefused(RWitnessPending)
+      // `Exact` is completed and nothing else is admitted; `Ambiguous` refuses
+      // EVERYTHING, including the completion, and the reason carries the class
+      // so the operator is not pointed at a completion Grove has declined.
+      // One level of pattern, then a test — see `stableClassOf`.
+      | RSPartialScaffold(cls) =>
+          if (cls == PSExact and a == ATCompleteScaffold) OApplied
+          else ORefused(RScaffoldIncomplete(cls))
       | RSLegacy => ORefused(RFormatLegacy)
       | RSForeign(_) => ORefused(RFormatForeign)
       | RSMalformed => ORefused(RMalformedR)
@@ -881,8 +1013,14 @@ module lifecycle {
     // `SY-14.b`: on a blocked tree EVERY action refuses, naming the block.
     else if (w.fin.block != BNone and BLOCK_STICKY)
       ORefused(blockRefusal(w.fin.block))
-    // `SY-04.b`: full configuration validation precedes every transition.
-    else if (CONFIG_FIRST and isLifecycleTransition(a) and not(d.configValidated))
+    // `SY-04.b`: full configuration validation precedes every transition, AND
+    // the transition revalidates against the configuration as it stands rather
+    // than against the verdict the driver recorded earlier.  With
+    // `CONFIG_LICENCE` the gate consults the recorded verdict alone, which is
+    // the reading this model shipped before `lifecycle-scope-k72` and which
+    // `SY-03` forbids for the layout three lines below.
+    else if (CONFIG_FIRST and isLifecycleTransition(a) and
+             not(d.configValidated and (CONFIG_LICENCE or w.configValid)))
       ORefused(RConfigInvalid)
     // `SY-03`: each gate revalidates against its OWN operands.  With
     // `PREFLIGHT_LICENCE` the gate consults what the lease saw instead.
@@ -1015,6 +1153,18 @@ module lifecycle {
       walkLen: nwalk,
       longestWalk: if (nwalk > h.longestWalk) nwalk else h.longestWalk,
       sinkSeen: h.sinkSeen or sinkAt(wPost, dPost),
+      // `SY-13.a`'s FIRST CONJUNCT — *Grove never manufactures one of the
+      // others*.  This is what makes the narrowed sweep sound rather than
+      // convenient: without it the quantifier could be satisfied by a Grove
+      // that walks the loop into a class the sweep no longer looks at.  It was
+      // an assumption of this file and is now the catalogue's own claim
+      // (`lifecycle-scope-k72`), so it is asserted rather than relied on.
+      exclusiveReadAsLegacy:
+        h.exclusiveReadAsLegacy or
+        (wPost.tree.rootInitExclusive and classifyTree(wPost.tree) == RSLegacy),
+      groveManufacturedRefusalState:
+        h.groveManufacturedRefusalState or
+        (byGrove and not(isWorldOnlyRefusal(c)) and isWorldOnlyRefusal(c2)),
       // `SY-04.b`, OVER THE TRACE.  Every step whose pre-state carries an
       // invalid configuration is examined — grove's applied steps, its
       // refusals, and the world's writes alike — and the answer is split by
@@ -1026,6 +1176,19 @@ module lifecycle {
         h.groveMutatedUnderInvalidConfig or
         (byGrove and not(wPre.configValid) and
          wPost.tree.bytes != wPre.tree.bytes),
+      // `SY-04.b`'s SUBJECT, and the run is what fixed its boundary.  Stated
+      // over every Grove step this flag's wider sibling is VIOLATED in `base`,
+      // by an AMBIENT operation writing the tree under an invalid
+      // configuration — correctly, because the session configuration is the
+      // DRIVER's launch policy and `grove-llm` never reads it
+      // (`src/loop_driver.rs` is the sole caller of `SessionConfig::load`).
+      // The obligation is about the driver's transitions, the catalogue now
+      // says so, and the wider flag is retained above so a later reader can see
+      // where the boundary is rather than being told there is none.
+      transitionMutatedUnderInvalidConfig:
+        h.transitionMutatedUnderInvalidConfig or
+        (byGrove and applied and isLifecycleTransition(a) and
+         not(wPre.configValid) and wPost.tree.bytes != wPre.tree.bytes),
       groveMutatedUnderUnvalidatedConfig:
         h.groveMutatedUnderUnvalidatedConfig or
         (byGrove and not(wPre.configValid) and not(dPre.configValidated) and
@@ -1234,8 +1397,13 @@ module lifecycle {
     val readsEvidence = not(ABSENCE_IS_FRESH) and w.fin.deletionProven
     val o = if (readsEvidence) ORefused(RRootAbsent)
             else outcomeOn(w, d, p, d.gen, ATScaffold)
+    // `rootInitExclusive` tracks `SCAFFOLD_LEAF` and not `charter`: the first
+    // `requirements` leaf IS root-init-exclusive and the charter is NOT, which
+    // is why `mutant_charter_only`'s scaffold leaves a root carrying no proof
+    // that this format's initialisation ran.
     val t2 = { ...NO_TREE, present: true, charter: true, witnessPresent: false,
-               exactSubset: true,
+               exactSubset: not(GROVE_MANUFACTURES_LEGACY),
+               rootInitExclusive: SCAFFOLD_LEAF and not(GROVE_MANUFACTURES_LEGACY),
                liveOrdinary: if (SCAFFOLD_LEAF) 1 else 0,
                bytes: w.tree.bytes + 1 }
     val w2 = if (o == OApplied) { ...w, tree: t2, fin: NO_FIN } else w
@@ -1257,6 +1425,19 @@ module lifecycle {
 
   action completeScaffoldOp(p: int): bool =
     val o = outcomeOn(w, d, p, d.gen, ATCompleteScaffold)
+    // **STATED OVER THE DISK AND NOT OVER THE CLASSIFICATION, AND THE FIRST
+    // DRAFT WAS THE OTHER WAY.** Written as `classifyTree(w.tree) !=
+    // RSPartialScaffold(PSExact)` this flag is a restatement of the very gate
+    // `SY-06.b` is about, and `mutant_absent_witness` — which breaks the
+    // classification by recognising a partial scaffold from the mere absence of
+    // the witness — went GREEN under it: a legacy tree classified `Exact`, so a
+    // flag derived from the classification could not see that it was completed.
+    // The control caught it on its first run after the change.  `exactSubset`
+    // is the disk fact the catalogue's own test is over — *nothing but the
+    // fresh scaffold's own byte-exact entries* — and it covers `Legacy` and
+    // `PartialScaffold(Ambiguous)` alike, since `Ambiguous` has by definition
+    // something else present.
+    val cls = classifyTree(w.tree)
     val notTheSubset = not(w.tree.exactSubset)
     val t2 = { ...w.tree, witnessPresent: true, fmt: 0,
                liveOrdinary: if (SCAFFOLD_LEAF) 1 else w.tree.liveOrdinary,
@@ -1274,6 +1455,20 @@ module lifecycle {
           hist.legacyCompleted or (o == OApplied and notTheSubset),
         partialCompleted:
           hist.partialCompleted or (o == OApplied and not(notTheSubset)),
+        // `SY-06.b`'s THIRD case, and it is the cell `task-tree-scope-k70`
+        // handed this leaf: an `Ambiguous` root met by the completion and
+        // REFUSED rather than completed, with the root left byte-identical.
+        // The DISK is what selects the case — present, witnessless, carrying a
+        // root-init-exclusive entry and something else — and what is asserted
+        // of it is the OUTCOME: refused, naming the class, with the root left
+        // byte-identical.  Stating the antecedent over `classifyTree` would
+        // make the witness land exactly when the gate agrees with itself.
+        ambiguousRefused:
+          hist.ambiguousRefused or
+          (w.tree.present and not(w.tree.witnessPresent) and
+           not(w.tree.exactSubset) and w.tree.rootInitExclusive and
+           isRefusal(o) and refusalOf(o) == RScaffoldIncomplete(PSAmbiguous) and
+           w2.tree.bytes == w.tree.bytes),
         scaffoldWithoutLeaf:
           hist.scaffoldWithoutLeaf or
           (o == OApplied and classifyTree(t2) == RSCurrentSpent),
@@ -1725,13 +1920,22 @@ module lifecycle {
     // examples, because neither changes the block.  The narrowing this half
     // used to carry was hiding a faulty measurement, not a wide quantifier.
     //
-    // `SY-14.b` — "every action on a blocked tree SHALL refuse naming it" — IS
-    // narrowed, and the narrowing is declared: taken literally it reaches
-    // `acquire-lease`, `validate-config` and `release-lease`, so a blocked tree
-    // could not even release its own lease and `FN-26`'s two operator-
-    // restorable exits would be unreachable.  See the README's *Narrowings*.
+    // `SY-14.b` — "every admitted action ON THE TREE refuses on a blocked tree,
+    // naming the block" — is swept over the tree-touching actions.  **THIS IS
+    // NO LONGER A NARROWING**: `lifecycle-scope-k72` disposed it and the
+    // catalogue now states the obligation that way, on the argument this file
+    // and `lifecycle.als` reached independently — a block is a property of the
+    // TREE (§*States* attaches the diagnosis to a `Reserved` root), so an action
+    // that reads and writes no task tree cannot name a block it never read.
+    // Taken literally the old quantifier reached `acquire-lease`,
+    // `validate-config` and `release-lease`, so a blocked tree could not even
+    // release its own lease and `FN-26`'s two operator-restorable exits would
+    // be unreachable.  `release-lease` returning `Applied` here is consistent
+    // with `FN-29.b`, which says every refusal leaves nothing standing and not
+    // that everything leaving nothing standing is a refusal.
     val clearSet = ADMITTED
-    val namingSet = ADMITTED.filter(a => touchesTree(a))
+    val namingSet =
+      if (BLOCK_NAMED_BY_ALL) ADMITTED else ADMITTED.filter(a => touchesTree(a))
     val cleared =
       clearSet.exists(a => blockAfter(w, d, p, a) == BNone)
     val allNamed = namingSet.forall(a =>
@@ -1856,6 +2060,18 @@ module lifecycle {
       else if (k == 3) { ...NO_TREE, present: true, charter: true,
                          witnessPresent: true, malformed: true, liveOrdinary: 1,
                          bytes: w.tree.bytes + 1 }
+      // `PartialScaffold(Ambiguous)`: Grove's own root-init-exclusive entry
+      // standing beside something a fresh scaffold does not write.  It is the
+      // sharp case — refused WHILE CARRYING PROOF that Grove's own
+      // initialisation ran — and it is the one a completing implementation gets
+      // wrong.  Reached by hand edit here for the same reason every other
+      // member of this family is: `EN-11` grants the disk, and composing it out
+      // of a scaffold plus a foreign write would make the witness depend on the
+      // interleaving rather than on the classification.
+      else if (k == 5) { ...NO_TREE, present: true, charter: true,
+                         witnessPresent: false, exactSubset: false,
+                         rootInitExclusive: true, liveOrdinary: 1,
+                         bytes: w.tree.bytes + 1 }
       else { ...NO_TREE, present: true, charter: true, witnessPresent: true,
              liveOrdinary: 0, liveFinish: 0, bytes: w.tree.bytes + 1 }
     val w2 = { ...w, tree: t2 }
@@ -1870,7 +2086,7 @@ module lifecycle {
     }
 
   action handEdit: bool =
-    nondet k = oneOf(Set(1, 2, 3, 4))
+    nondet k = oneOf(Set(1, 2, 3, 4, 5))
     handEditTo(k)
 
   /// An artifact appears at a name Grove reserves and Grove cannot classify it
@@ -1944,7 +2160,16 @@ module lifecycle {
   pure def nextIsTransition(wNow: World, dNow: Driver): bool =
     match classifyTree(wNow.tree) {
       | RSAbsent => not(dNow.session.live)
-      | RSPartialScaffold => true
+      // BOTH classes answer `true`, and `Ambiguous` answers it even though the
+      // move will be REFUSED.  `SY-04.a` counts APPLIED transitions
+      // (`afterTree` increments only on `OApplied`), so this predicate is about
+      // which move the driver will attempt next rather than about which will
+      // succeed — and an `Ambiguous` root's next move is the completion, met by
+      // `treeGate` and refused there.  Answering `false` here left the driver
+      // with no enabled action once its iteration had spent a transition, which
+      // is a deadlock rather than a refusal and would have hidden the very
+      // refusal `SY-06.b`'s third witness exists to observe.
+      | RSPartialScaffold(_) => true
       | RSReserved(_) => wNow.fin.orphaned
       | RSCurrentSpent => true
       // Only with `ONE_FINISH_LEAF` off: the driver's next move on a
@@ -1977,7 +2202,7 @@ module lifecycle {
     else
       match classifyTree(w.tree) {
         | RSAbsent => scaffoldOp(p)
-        | RSPartialScaffold => completeScaffoldOp(p)
+        | RSPartialScaffold(_) => completeScaffoldOp(p)
         | RSReserved(_) => if (w.fin.orphaned) recoverOp(p) else finishStepOp(p)
         | RSCurrentSpent => appendFinishOp(p)
         | RSCurrentFinishOnly =>
@@ -2167,12 +2392,33 @@ module lifecycle {
   ///    `inv_fail_MUT_SY_04b_a_validated_configuration_is_a_licence` fires on
   ///    it, under `base`'s own constants with no dial moved.
   ///
-  /// The catalogue has an obligation for exactly this shape — `SY-03`, *a
-  /// preflight is never a licence* — and states it for the LAYOUT only.
-  /// Whether `SY-04.b` owes the same, or whether the configuration is meant to
-  /// be read once per iteration, is `lifecycle-scope-k72`'s to disposition.
-  val inv_SY_04b_grove_never_mutates_the_tree_under_a_configuration_it_has_not_validated: bool =
-    not(hist.groveMutatedUnderUnvalidatedConfig)
+  /// **DISPOSED — `SY-04.b` OWES `SY-03`'s PROHIBITION, AND THE SECOND
+  /// NARROWING IS WITHDRAWN.** `lifecycle-scope-k72` decided it and the
+  /// catalogue now says it: *each transition revalidates against the
+  /// configuration as it stands rather than against a validation the driver
+  /// recorded earlier (`SY-03`)*.  The referee was the shipped driver, which
+  /// loads the configuration afresh before the tree mutation and again before
+  /// the launch (`src/loop_driver.rs`; `complete-session-configuration`), so
+  /// the licence was never the design — it was this obligation not saying what
+  /// `SY-03` says.  `models/system/lifecycle.als` read the configuration LIVE
+  /// and was green on the stronger claim; the two columns answered one silence
+  /// in opposite directions, as at `FN-13`.
+  ///
+  /// `outcomeOn` now reads `w.configValid` beside the recorded verdict, so the
+  /// asserted flag is the STRONG one — no grove step changes a byte under an
+  /// invalid configuration, whether or not a validation is standing.  The old
+  /// weak flag `groveMutatedUnderUnvalidatedConfig` is kept and asserted beside
+  /// it in `mutant_config_licence`, where it stays green while the strong one
+  /// dies: that is what shows the dial kills the disposed clause and not the
+  /// clause that was always there.
+  ///
+  /// The FIRST narrowing stands and is now the catalogue's text rather than
+  /// this file's: *an invalid configuration leaves the working tree
+  /// byte-identical* is about what a Grove action leaves, and
+  /// `inv_fail_MUT_SY_04b_the_operator_writes_under_an_invalid_configuration`
+  /// is its control.
+  val inv_SY_04b_no_transition_runs_under_an_invalid_configuration: bool =
+    not(hist.transitionMutatedUnderInvalidConfig)
 
   val wit_SY_04b_an_invalid_configuration_leaves_the_tree_byte_identical: bool =
     hist.invalidConfigByteIdentical
@@ -2206,6 +2452,40 @@ module lifecycle {
   val inv_SY_05b_the_summary_never_records_absence_before_the_deletion_is_proven: bool =
     not(hist.absentBeforeProven)
 
+  /// **THE ORDER `finish-scope-k71` HANDED FORWARD IS NOT REPRESENTABLE HERE,
+  /// AND THAT IS A DECLARED NARROWING RATHER THAN A GREEN RUN.**
+  ///
+  /// §*States* gained `Reserved(Quarantined)` and put the whole reserved class
+  /// BEFORE `Absent`, and the argument is `SY-05.b`'s: between `FN-19`'s
+  /// quarantine rename and `FN-22`'s fourth revalidation point the task-root
+  /// NAME is free while Grove's own quarantine stands, and with `Absent`
+  /// classified first that disk reads `Absent` — the exact trace this obligation
+  /// says does not exist.  `classifyTree` returns `RSAbsent` first and returns it
+  /// unconditionally on `not(t.present)`, so the question `finish-scope-k71`
+  /// left open is whether this column reproduces that defect.
+  ///
+  /// **It does not, because it cannot represent the disk at all**, and this
+  /// invariant is that fact made checkable instead of asserted.  `NO_TREE` sets
+  /// `reserved: RNone`, and every transition that frees the root name assigns
+  /// `NO_TREE` WHOLE — `finishStepOp`'s `FPDeleting` branch, its `FPPublished`
+  /// branch under `DELETION_PROVEN_FIRST = false`, and `recoverOp`'s idempotent
+  /// resume.  So this scope's summarised tree conflates the root's presence with
+  /// the reserved name's, `SY-05.b` is true here as a MODELLING FACT rather than
+  /// as a claim over the disk the catalogue orders, and the order is checked
+  /// where its subject lives: `crates/grove-finish/models/`'s `FN-24.a`, whose
+  /// mutation matrix row 49 restores the former order and turns it red.
+  ///
+  /// **Written as an invariant rather than as a README sentence for the reason
+  /// this file states everywhere else**: a declaration nothing corroborates is
+  /// fiction with a green tick.  A later slice that gives this scope a
+  /// quarantine independent of the root's presence breaks this command loudly,
+  /// which is when the narrowing must be re-argued rather than inherited.  It is
+  /// `SY-05.b`'s own command because the narrowing is `SY-05.b`'s; the stronger
+  /// claim — a seam importing independently established component outcomes —
+  /// is routed to the model owners and is not this leaf's.
+  val inv_SY_05b_absence_and_a_reserved_name_are_not_separable_at_this_scope: bool =
+    not(w.tree.present) implies w.tree.reserved == RNone
+
   val wit_SY_05b_absence_reached_with_the_deletion_proven: bool =
     hist.provenAbsenceReached
 
@@ -2217,11 +2497,44 @@ module lifecycle {
   val wit_SY_06a_a_fresh_root_distinguishable_from_a_spent_one: bool =
     hist.freshDistinguishable
 
+  /// **THE CITED OBLIGATION'S NARROWINGS CHANGED UNDER THIS CITATION, AND THE
+  /// CELL IS THIS LEAF'S.** `SY-06.b` is a declared cross-scope citation of
+  /// `TT-18`/`TT-20`, and `obligations-follow-context-not-artifact` clause 2
+  /// makes a citation carry the cited obligation's declared narrowings.
+  /// `task-tree-scope-k70` split §*States*' witnessless root into three, so
+  /// this obligation inherits a DIFFERENT strength rather than the same one:
+  /// `TT-20` no longer excludes an initialisation the world touched — a
+  /// concurrent foreign write is `PartialScaffold(Ambiguous)` and not `Legacy`
+  /// — and `Ambiguous` is a member this obligation must NOT complete.
+  ///
+  /// `notCompletable` is therefore read off the classification and reaches both
+  /// refusable cases, which is what keeps this invariant stated over the split
+  /// rather than over `exactSubset`.
   val inv_SY_06b_a_legacy_tree_is_never_completed_as_a_scaffold: bool =
     not(hist.legacyCompleted)
 
+  /// **THREE CASES SINCE THE SPLIT, AND THE THIRD IS THE SHARP ONE.** The
+  /// catalogue's witness was *an interrupted scaffold, completed; and a `Legacy`
+  /// tree, refused rather than completed*.  The third is
+  /// `PartialScaffold(Ambiguous)` — refused **while carrying proof that Grove's
+  /// own initialisation ran**, which is precisely the case a completing
+  /// implementation gets wrong, because the safety argument for `Exact` (every
+  /// value the completion writes is fixed in advance) establishes that the
+  /// BYTES are safe and says nothing about whether the root is Grove's to write
+  /// into at all.
   val wit_SY_06b_a_partial_completed_and_a_legacy_refused: bool =
     hist.partialCompleted and hist.legacyRefused
+
+  val wit_SY_06b_an_ambiguous_scaffold_is_refused_rather_than_completed: bool =
+    hist.ambiguousRefused
+
+  /// The narrowing this citation INHERITS, made runnable in the scope that
+  /// cites it rather than only cited from it.  `TT-20`'s prohibition on
+  /// `Legacy` is narrowed to the window in which a root-init-exclusive entry
+  /// has landed; past that boundary the classification must never be `Legacy`,
+  /// and `mutant_ambiguity_unclassed` restores the fall-through that breaks it.
+  val inv_SY_06b_a_root_carrying_grove_s_own_proof_is_never_legacy: bool =
+    not(hist.exclusiveReadAsLegacy)
 
   // --- `SY-07` — exhaustion yields exactly one finish leaf --------------------
 
@@ -2322,8 +2635,21 @@ module lifecycle {
   /// the corroboration that the model's own transitions actually walk the
   /// longest declared chain, edge by edge.  A declared map nothing corroborates
   /// is fiction with a green tick, which is why the pair is inseparable here.
+  /// **TWO CONJUNCTS SINCE `lifecycle-scope-k72`, AND THE FIRST IS WHAT MAKES
+  /// THE SECOND SOUND.** The catalogue's quantifier is now *from any stable
+  /// state Grove's own admitted actions can reach*, and it carries the
+  /// companion in the same sentence — *and Grove SHALL never manufacture one of
+  /// the others*.  Without that companion the narrowed sweep is satisfiable by
+  /// a Grove that walks the loop into a class the sweep stopped looking at, so
+  /// what was this file's declared narrowing is now one checked claim in two
+  /// parts.  `mutant_grove_manufactures_legacy` is the control: an
+  /// `initialise-root` that marks its own root legacy, which the escape sweep
+  /// alone cannot see.
   val inv_SY_13a_every_stable_class_escapes_within_the_bound: bool =
-    SWEEP_CLASSES.forall(c => escapesWithin(c, ESCAPE_BOUND))
+    and {
+      not(hist.groveManufacturedRefusalState),
+      SWEEP_CLASSES.forall(c => escapesWithin(c, ESCAPE_BOUND)),
+    }
 
   val wit_SY_13a_the_longest_declared_escape_chain_was_walked: bool =
     hist.longestWalk >= LONGEST_ESCAPE
@@ -2366,6 +2692,10 @@ module base {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,
@@ -2409,6 +2739,10 @@ module verify_small {
     DEATH_RELEASES = true,
     LAYOUT_FIRST = true,
     PREFLIGHT_LICENCE = false,
+    CONFIG_LICENCE = false,
+    SCAFFOLD_AMBIGUITY_CLASSED = true,
+    GROVE_MANUFACTURES_LEGACY = false,
+    BLOCK_NAMED_BY_ALL = false,
     ONE_TRANSITION = true,
     CONFIG_FIRST = true,
     DELETION_PROVEN_FIRST = true,

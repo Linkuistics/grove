@@ -10,6 +10,22 @@ statements.
 models/run.sh --scope lifecycle --family alloy
 ```
 
+**71 commands, 25 of 25 cells, 0 declared gaps, 0 empty, exit 0 — 12m 20s wall,
+416s CPU**, run ALONE on a 16-core host; Alloy 6.2.0, Corretto 21, SAT4J,
+`for 3 but 2 WtId, N steps` (`lifecycle-scope-k72`, this revision). The catalogue,
+both model files, the control file and this README were frozen before the run
+started, their SHA-256 digests recorded, and recorded again at the end unchanged.
+
+**The cell went 73 → 71 and got THREE TIMES DEARER, and the second figure is the
+one to budget from.** It was 4m 27s at 73 commands; it is 12m 20s at 71. The
+commands did not multiply — seven `SY-04.a` witnesses left, four arrived, one
+check went and one `SY-12` witness came — so the cost is the **state space**:
+`Proc` gained a `var moved: lone Flag`, which doubles the per-process state at
+every step of every temporal command in the file. **A one-bit field on a
+signature is not a one-bit change to a bounded temporal search**, and a session
+adding a flag to `Proc` should price it as a multiplier rather than as an
+addition.
+
 **`--no-coverage` is gone from that line, and its absence is the signal that the
 `SY-` column closed.** It stayed there for the three slices while the scope's
 first family was mid-build; the `sessions` slice filled the last eight cells, so
@@ -144,13 +160,11 @@ Alloy 6 trace being a lasso whose last state loops.
 | `SY-03` | `SY_03_…` | 4 | — | 1.05 s |
 | `SY-03` | `witness_SY_03_a_layout_that_changes_between_the_two_gates` | 6 | **5** | 1.22 s |
 | `SY-04.a` | `SY_04a_…` | 5 | — | 1.17 s |
-| `SY-04.a` | `witness_SY_04a_acquire_lease_alone` | 6 | **3** | 1.05 s |
-| `SY-04.a` | `witness_SY_04a_layout_preflight_alone` | 6 | **3** | 1.04 s |
-| `SY-04.a` | `witness_SY_04a_open_epoch_alone` | 6 | **3** | 1.05 s |
-| `SY-04.a` | `witness_SY_04a_launch_alone` | 6 | **5** | 1.25 s |
-| `SY-04.a` | `witness_SY_04a_reap_alone` | 6 | **4** | 1.20 s |
-| `SY-04.a` | `witness_SY_04a_close_epoch_alone` | 6 | **4** | 1.20 s |
-| `SY-04.a` | `witness_SY_04a_release_lease_alone` | 6 | **4** | 1.14 s |
+| `SY-04.a` | `witness_SY_04a_initialise_root_alone` | 6 | — | — |
+| `SY-04.a` | `witness_SY_04a_complete_scaffold_alone` | 6 | — | — |
+| `SY-04.a` | `witness_SY_04a_allocate_finish_leaf_alone` | 6 | — | — |
+| `SY-04.a` | `witness_SY_04a_recover_alone` | 7 | — | — |
+| `SY-12` | `witness_SY_12_crash_after_validate_config` | 5 | — | — |
 | `SY-04.b` | `SY_04b_…` | 5 | — | 1.26 s |
 | `SY-04.b` | `witness_SY_04b_a_configuration_that_goes_invalid_…` | 5 | **3** | 1.18 s |
 | `SY-08` | `SY_08_…` | 5 | — | 1.39 s |
@@ -484,7 +498,7 @@ with itself.** Take two.
   that is the contract, and `EN-14` is the one place its negation is exercised.
   A `doHandEdit` that could empty the name would put `EN-14`'s counterexample
   inside the assumed scope and `SY-05.b` would report it as an ordinary defect.
-- **THE `SY-04.b` SCOPING ERROR IS A CATALOGUE FINDING AND IS NAMED FOR
+- **THE `SY-04.b` SCOPING ERROR IS A CATALOGUE FINDING AND WAS NAMED FOR
   `lifecycle-scope-k72`, NOT FIXED HERE.** The catalogue is the shared subject
   of both families, and this leaf does not edit it under the independence
   protocol — the same rule that left `Stopped` and `RefConfigInvalid` declared
@@ -493,6 +507,19 @@ with itself.** Take two.
   transitions** and is false of the world's, and §*Actions* puts `hand-edit` and
   `foreign-write` in the same table as the transitions the claim is about.
   Recorded in `docs/formalism-findings.md` entry 042 with its counterexample.
+
+  > **[disposed by `lifecycle-scope-k72`]** **Granted, and generalised once
+  > rather than patched twice.** `SY-04.b` now says *for anything Grove does*,
+  > so `Sys.res' != Environmental` is the catalogue's text and no longer this
+  > file's qualification. The generalisation is a reading rule at the head of
+  > §*Claims — system lifecycle*: an `SY-` claim binds the world only where it
+  > says so and names the assumption or state-table property that makes the
+  > wider reading checkable — as `SY-05.b` does at `EN-14`, which is why a
+  > blanket *`SY-` claims are about Grove* would have been wrong. This finding
+  > and the `SY-13` sink below are the two instances of entry 042's class in
+  > this file, and they are one class stated once with each claim carrying its
+  > own qualification, because §*Actions*' own rule is *saying so in its own
+  > text*.
 - **`Blocked` IS THE CATALOGUE'S OWN OUTCOME AND IS THIS FILE'S FIRST IMPORT
   THAT IS NEITHER AN ABSTRACTION NOR A COPY.** §*Outcomes* lists it beside
   `Applied` and `Refused`, and its two neighbours in `Result` — `Deferred` and
@@ -838,7 +865,11 @@ quint run models/system/lifecycle-controls.qnt --main=mutant_unscoped_bytes \
 
 **Retained rather than repaired**, because repairing it means deciding what
 `SY-04.b` means, and that is a catalogue change this leaf is forbidden to make.
-`lifecycle-scope-k72` owns the disposition.
+
+> **[disposed by `lifecycle-scope-k72`]** Repaired. `base` closes the licence and
+> the counterexample is now reproduced under `mutant_config_licence` rather than
+> under `base`'s own constants — the same command name, a dial away. See
+> *Narrowings*, section 4.
 
 
 **`EN-07`, the shared-lock scope — and it is exactly the option
@@ -991,6 +1022,28 @@ means an invalid personal configuration strands a lease that the loop then can
 only escape by dying. Named for `lifecycle-scope-k72` with the two available
 repairs — exempt the release, or admit process death — and not fixed here.
 
+> **[disposed by `lifecycle-scope-k72`]** **NEITHER REPAIR IS OWED, BECAUSE THE
+> DEAD END WAS A FINDING ABOUT A WORD.** The catalogue used *lifecycle
+> transition* for two sets and defined neither, and this file read it as
+> §*Actions*' Lifecycle GROUP while `lifecycle.qnt` read it as the stage-changing
+> steps — sets with no member in common, both green. `release-lease` is not a
+> transition: it advances no stage and writes no tree, so there is nothing for a
+> configuration to be valid *for*, and the gate that appeared to reach it was
+> this column's reading rather than the contract. The dead end dissolves with the
+> definition and no reachability quantifier moves.
+>
+> **Admitting process death would have moved all of them**, which is why it is
+> refused explicitly rather than merely not chosen: `crash` is the world's
+> (§*Actions*; `CONTEXT.md`'s *Admitted action*), and a sweep in which the loop
+> may always die finds no dead end anywhere — the same argument this catalogue
+> already makes for refusing to count a hand edit as an exit. `CONTEXT.md`'s
+> entry stands unchanged.
+>
+> `SY_04b`'s second conjunct is now over `TransitionAct`, and its
+> `- AcquireLeaseA` exemption is gone with it — the lease gate was never in that
+> set, so `SY-02`'s *before configuration validation* is a fact about two
+> actions in a stated order rather than a hole in a conjunct.
+
 **A `PartialScaffold` IS STABLE AND THE SWEEP CONFIRMS IT, which is a
 calibration the next reader can use.** `roots-k53` created the interval between
 `doInitRoot` and `doCompleteScaffold` and `CONTEXT.md` is explicit that it is
@@ -1100,6 +1153,29 @@ what Grove does** — and this is its second instance in this file. Named for
 `lifecycle-scope-k72`; not fixed here, because the catalogue is both families'
 shared subject and the independence protocol holds.
 
+> **[disposed by `lifecycle-scope-k72`]** **The repair this file takes is the
+> catalogue's text.** `SY-13` now quantifies over *any stable state Grove's own
+> admitted actions can reach* and carries the companion in the same sentence —
+> *and Grove SHALL never manufacture one of the others* — as `SY-13.a`'s first
+> conjunct rather than as an assumption, exactly as this note asked. So the
+> narrowing is withdrawn in both columns: what was checked is what is claimed.
+> `lifecycle.qnt` gained `mutant_grove_manufactures_legacy`, which makes
+> `initialise-root` write a `Legacy` root and kills the conjunct, so the
+> companion is falsifiable rather than true by construction of `scaffoldOp`.
+>
+> **One member joined the excluded class after the disposition was written, and
+> neither leaf that produced it could have seen it.**
+> `task-tree-scope-k70` split §*States*' witnessless root into
+> `PartialScaffold(Exact)` and `PartialScaffold(Ambiguous)` and does not own
+> `SY-13`; `SY-13`'s exclusion list predates the class. `Ambiguous` meets the
+> same test as the other three — Grove's scaffold writes `Exact`, only a world
+> write into an open scaffold makes it `Ambiguous`, and Grove then refuses
+> everything including the completion, so the loop has no admitted exit. It is
+> in the catalogue's `SY-13.a` with `Legacy`, `Foreign` and `Malformed`, and in
+> `lifecycle.qnt`'s `isWorldOnlyRefusal` (renamed from `isHandEditRefusal`,
+> because a foreign write is not a hand edit and the fourth member arrives by
+> one).
+
 **The general shape, and it is worth stating once for any session disposing an
 `SY-` item:**
 in a model with a free initial state, every checked invariant must be classified
@@ -1114,6 +1190,93 @@ or red because something no step reaches can — looks exactly like a check whos
 verdict is about the design.** The mutations are the only thing that told the
 green ones apart, the third needed them run at more than one bound, and the
 fourth was told apart by reading the counterexample instead of the verdict.
+
+## What `lifecycle-scope-k72` changed in this column, and the one change that was structural
+
+**`SY-04` MOVED SET, AND THAT IS THE DISPOSITION RATHER THAN A REPAIR.** The
+catalogue used *lifecycle transition* for two things and defined neither. This
+column read it as §*Actions*' Lifecycle GROUP — `SY_04a` quantified over
+`LifecycleAct` and witnessed all seven members of it, one *alone in an
+iteration* each — while `models/system/lifecycle.qnt` read it as the
+stage-changing steps, which the group contains **none** of. **Two green columns,
+two sets with no member in common, one word.** The catalogue's own *so that*
+clause settled it (*so an invalid configuration leaves the working tree
+byte-identical*: a gate in front of `close-epoch` buys that nothing), and
+§*Claims — system lifecycle* now defines the term. `TransitionAct` is it here.
+
+**The old `SY_04a` was checking this file's admission machinery under an
+obligation's name, and the command is gone.** `spent` is set by every
+Lifecycle-group action and cleared by `doIter`; the pair *a group action needs
+`fresh` and sets `spent`* is a true statement about that machinery and is the
+machinery read back to itself — the transcription shape
+[`obligations-follow-context-not-artifact`](../../docs/adr/obligations-follow-context-not-artifact.md)
+records at `TT-24.c`. The machinery is untouched; what is gone is the command
+that credited a coverage cell for checking it.
+
+**`SY-04.a` needed a SECOND flag, and finding that out is the substantive part.**
+`moved` is spent by the three steps that COMPLETE a transition and guarded by all
+four; `spent` could never have carried the obligation, because the group and the
+transitions must both be available in one iteration — `open-epoch` spends the
+group's turn and the iteration still has to take its transition. Root
+initialisation is one catalogue action modelled here as two steps, so the count
+is taken where the format witness lands (`TransitionEndAct`): the uninterrupted
+pair counts once, and a completion finishing an EARLIER iteration's
+initialisation is that iteration's own, which is the interrupted case `SY-06.b`
+exists for. A refused attempt transitions nothing and does not spend, which is
+`lifecycle.qnt`'s counting rule reached independently.
+
+**The frame-hole conjunct paid for itself four times in one sitting, and that is
+the transferable part.** `SY_04a`'s third conjunct is not a third claim —
+*nothing but a counted transition or the boundary moves the flag* — and it exists
+because a `var` added to `Proc` and forgotten at one site is left FREE, which
+does not error and does not fail: it quietly weakens the two conjuncts above into
+statements about an unconstrained field. It caught `doSelect`, `doAcquireLease`'s
+applied branch, `doReleaseLease`/`doCloseEpoch`/`doOpenEpoch`, and — the one no
+reading would have found — `doLaunch` framing the LAUNCHED SESSION's fields by
+hand (`s.spent'`, not `p.spent'`), so the new field was free on the wrong
+process. **A field-addition checklist is not the instrument; a claim that the
+field only moves where it should, is.**
+
+**`SY-04.b`'s two qualifications became the catalogue's text and cost this column
+nothing**, which is the pleasant half: `World.cfg' = ValidCfg` read LIVE was
+already `SY-03`'s prohibition applied to the configuration, and
+`Sys.res' != Environmental` was already *for anything Grove does*. This column
+was right on both and could not say so, because the catalogue was the shared
+subject. The `- AcquireLeaseA` exemption is gone with the set change.
+
+**`ValidateConfigA` joined `LifecycleAct` and did not join this file.** It was
+already here, invented because `SY-04.b` requires a validation and §*Actions*
+named no action that performs one; `lifecycle.qnt` invented the same action
+independently and the shipped driver performs it twice an iteration. The
+catalogue's table was a row short. `SY-12`'s crash sweep gains its eighth point
+with it (`witness_SY_12_crash_after_validate_config`).
+
+**`SY-13`'s and `SY-14.b`'s narrowings are withdrawn here too**, for the same
+reason: `no World.legacy` and `TreeAct` are what the catalogue now says. This
+column's `SY-13` exclusion is *narrower than the catalogue's* and that is a fact
+about this file's abstraction rather than a gap — it has no `Foreign`,
+`Malformed` or `PartialScaffold` state to exclude, because `World.partial` and
+`World.legacy` are marks already made (§*The composition boundary*). The four
+excluded classes are enumerated in `lifecycle.qnt`'s `isWorldOnlyRefusal`.
+
+**`SY-06.b` owes nothing for the `PartialScaffold` split, and that is
+established rather than assumed.** `task-tree-scope-k70` split §*States*'
+witnessless root into `Exact` and `Ambiguous` and left this column's exposure
+open. `SY_06b` is stated as a **biconditional** — the completion applies *iff*
+`some World.partial` — so it already forbids completing anything that is not the
+exact subset, and a third non-completable mark changes nothing it says.
+`World.legacy` at this scope is *witnessless and not the subset*, which is the
+union of the catalogue's `Legacy` and `PartialScaffold(Ambiguous)`; this file
+cannot tell the two apart and does not need to, because no `SY-` obligation reads
+the distinction. The one thing the split adds that this column cannot state —
+`TT-20`'s narrowed prohibition, *a root carrying a root-init-exclusive entry is
+never `Legacy`* — is answered in `lifecycle.qnt`
+(`inv_SY_06b_a_root_carrying_grove_s_own_proof_is_never_legacy`, control
+`mutant_ambiguity_unclassed`) and in the task-tree scope, which is where the
+classification lives. **A biconditional survived a refinement of its own
+subject's state space, and a one-sided *refuse if legacy* would not have** —
+which is the argument for writing the gate that way in the first place, and it is
+worth more than the cell it saved.
 
 # The Quint column — `lifecycle.qnt`
 
@@ -1139,13 +1302,38 @@ and no entry in 026 – 043 either.
 models/run.sh --scope lifecycle --family quint
 ```
 
-**93 commands, 25 of 25 cells, exit 0, 4m27s wall** — re-confirmed unchanged
+**103 commands, 25 of 25 cells, 0 declared gaps, 0 empty, exit 0 — 5m 45s wall,
+395s CPU**, run concurrently with the Alloy cell on a 16-core host;
+quint 0.32.0, 8000 samples, depth 24, seed `0x5e0a51d3c0ffee01`
+(`lifecycle-scope-k72`, this revision). **The catalogue, both model files, the
+control file and this README were frozen before the run started, their SHA-256
+digests recorded, and recorded again at the end unchanged** — `models/run.sh`
+reads the catalogue as its manifest and this README for declared gaps, so all
+five are subjects of the run rather than bystanders.
+
+**The ten new commands are what the disposition cost this column**, and every one
+of them is a control or a witness rather than a restated claim: four
+`inv_fail_MUT_` controls with their four asserted-green neighbours
+(`mutant_config_licence`, `mutant_ambiguity_unclassed`,
+`mutant_grove_manufactures_legacy`, `mutant_block_named_by_all`),
+`wit_SY_06b_an_ambiguous_scaffold_is_refused_rather_than_completed`,
+`inv_SY_06b_a_root_carrying_grove_s_own_proof_is_never_legacy`, and
+`inv_SY_05b_absence_and_a_reserved_name_are_not_separable_at_this_scope`.
+Two commands were renamed rather than added
+(`inv_SY_04b_no_transition_runs_under_an_invalid_configuration`,
+`inv_fail_MUT_SY_04b_grove_writes_under_an_invalid_configuration`).
+`models/run-controls.sh` passed 10 of 10, run after the batch, because commands
+of a shape the runner classifies entered the suite.
+
+It was **93 commands, 25 of 25 cells, exit 0, 4m27s wall** — re-confirmed unchanged
 after `closed-set-additions-k74` (93 commands, 25 of 25 cells, exit 0): that leaf
 turned `RConfigInvalid` and `RGenContended` from this column's declared
 abstractions into catalogue members without moving a command, because this column
 had already placed both as refusals. The Alloy cell re-ran at **73 commands, 25
 of 25 cells, exit 0**, where `Stopped` was removed and its uses became
-`Refused(RefGenContended)`.
+`Refused(RefGenContended)`; it is **71 commands, exit 0** since
+`lifecycle-scope-k72` restated `SY-04`, and its run line is at the head of this
+file.
 (`quint-statement-shape-k61`, this revision; it was 86 commands and 3m44s before
 `SY-04.b` and `SY-10.b` were restated, and the seven added commands are the two
 restated properties' controls and their asserted-green neighbours).
@@ -1153,7 +1341,7 @@ restated properties' controls and their asserted-green neighbours).
 Two files. [`lifecycle.qnt`](lifecycle.qnt) carries the parameterised library,
 the `base` instance and the `verify_small` model-checking instance;
 [`lifecycle-controls.qnt`](lifecycle-controls.qnt) carries five focused
-scenarios, two assumption controls and twenty-five model mutations. The split
+scenarios, two assumption controls and twenty-nine model mutations. The split
 is not tidiness — see *Verification*, and
 [`crates/grove-task-tree/models/README.md`](../../crates/grove-task-tree/models/README.md),
 which found the reason the hard way.
@@ -1307,10 +1495,22 @@ model with the menu rearranged.
 | `scenario_flat_menu` | `FLAT_MENU = true`, otherwise `base` | the null hypothesis for the search-dial comparison above **[k59-F5]** |
 | `relax_EN_08` | `crash` removed | exercise-removal |
 | `relax_EN_11` | `hand-edit` removed | exercise-removal, and the evidence behind this column's `SY-13` narrowing |
-| twenty-three `mutant_*` | one dial each | see below |
+| twenty-seven `mutant_*` | one dial each | see below |
 | `mutant_borrowed_stop_reason` | `GEN_STOP_NAMED = false` | the isolating control for `SY-10.b`'s restated half: the visible stop borrows `SY-10.a`'s reason |
-| `mutant_unscoped_bytes` | **no dial** — every constant is `base`'s | `SY-04.b`'s two narrowings, each asserted as the wide claim and each dying |
+| `mutant_unscoped_bytes` | **no dial** — every constant is `base`'s | `SY-04.b`'s WORLD half, asserted as the wide claim and dying |
+| `mutant_config_licence` | `CONFIG_LICENCE = true` | the disposed *validated configuration is a licence* reading, with the weak conjunct asserted green beside it |
+| `mutant_ambiguity_unclassed` | `SCAFFOLD_AMBIGUITY_CLASSED = false` | the pre-split classification: Grove's own interrupted work reads as somebody else's legacy tree |
+| `mutant_grove_manufactures_legacy` | `GROVE_MANUFACTURES_LEGACY = true` | `SY-13.a`'s first conjunct, which is what makes the narrowed sweep a claim |
+| `mutant_block_named_by_all` | `BLOCK_NAMED_BY_ALL = true` | `SY-14.b`'s disposed literal quantifier, with `SY-14.a` asserted green beside it |
 | `verify_small` | one process, crash-only environment, budget 1 | the model-checking instance |
+
+**Four of those five arrived with `lifecycle-scope-k72`, and each is a control on
+a reading the catalogue DISPOSED rather than on a mutation of this model.** That
+is what a disposition costs a column that was carrying the finding: a retained
+counterexample under `base`'s own constants becomes a dial, and a declared
+narrowing becomes a control on the text that replaced it. `mutant_config_licence`
+is the sharpest — it is this column's own counterexample, kept runnable, now one
+dial away from the reading the product refuted.
 
 **Which module a command runs in** is decided by one rule, defined in
 [`models/run.sh`](../run.sh) under *THE MODULE RULE* and cited rather than
@@ -1318,9 +1518,9 @@ restated here.
 
 ## The controls, and what they establish
 
-**Twenty-five model mutations, and the count is itself the observation.** The
+**Twenty-nine model mutations, and the count is itself the observation.** The
 task-tree column needed two and the finish column eleven. This one needs
-twenty-three, and the reason is structural rather than incidental: **an
+twenty-seven, and the reason is structural rather than incidental: **an
 executable model of a deterministic loop satisfies almost every ordering claim it
 is written to satisfy.** "The layout is proved at lease acquisition",
 "validation precedes every transition", "at most one transition per iteration",
@@ -1537,16 +1737,28 @@ and it is recorded in that entry in place.
 
 ## Narrowings and qualifications, each declared
 
-**Three** obligations are checked over less than their literal text, and
-`SY-04.b` is narrowed twice. There were two; `SY-14.a`'s narrowing is WITHDRAWN,
-because the corrected experiment showed it was hiding a measurement defect
-rather than answering a wide quantifier **[k59-F4]**, and `SY-04.b`'s two
-arrived with `quint-statement-shape-k61` when the claim was restated over the
-trace. None is a declared `GAP`: each obligation is answered, and what is
-narrowed is recorded here, in the entries, and — for all three — in a control
-that fires.
+**`lifecycle-scope-k72` WITHDREW ALL THREE, AND THE HEADING IS KEPT BECAUSE
+WITHDRAWING A NARROWING IS NOT THE SAME AS NEVER HAVING DECLARED ONE.** Three
+obligations used to be checked over less than their literal text — `SY-13`'s
+sweep, `SY-14.b`'s quantifier, and one of `SY-04.b`'s two byte-identity
+qualifications — and every one of the three was a place where the CATALOGUE was
+wrong rather than where this column checked less. They were declared here because
+the independence protocol forbade editing the shared subject; the disposition
+edited it, and what each section below records is now the catalogue's own text
+with the control that used to defend the narrowing pointed at the disposed
+reading instead.
 
-### 1. `SY-13.a` and `SY-13.b` are checked over the ADMITTED-REACHABLE stable classes
+The fourth entry, `SY-04.b`'s SECOND narrowing, was not a narrowing at all — it
+was a **defect in this column** that the catalogue's silence had licensed, and it
+is repaired rather than adopted. See section 4.
+
+`SY-14.a`'s narrowing was withdrawn earlier, because the corrected experiment
+showed it was hiding a measurement defect rather than answering a wide quantifier
+**[k59-F4]**; `SY-04.b`'s two arrived with `quint-statement-shape-k61` when the
+claim was restated over the trace. None was ever a declared `GAP`: each
+obligation is answered, and every one still has a control that fires.
+
+### 1. ~~`SY-13.a` and `SY-13.b` are checked over the ADMITTED-REACHABLE stable classes~~ — WITHDRAWN, this is the catalogue's quantifier
 
 `SY-13` quantifies over "any stable state" and names exactly two terminal
 dispositions, explicitly excluding `Malformed` from them. But `Legacy`,
@@ -1560,15 +1772,39 @@ every one of the three is a sink and both obligations are FALSE.
 `inv_SY_13b_no_stable_state_is_a_sink` dies — which is what turns "the catalogue
 is wrong here" from a remark into a fired control. `system-k59` read the
 catalogue's two sentences independently and reached the same verdict, so this is
-now a finding two readings agree on rather than one reading's. `lifecycle-scope-k72`
-owns the disposition.
+now a finding two readings agree on rather than one reading's.
 
-### 2. `SY-14.b`'s "every action" is read as every action ON THE TREE
+> **[disposed by `lifecycle-scope-k72`]** `SY-13` now reads *from any stable
+> state Grove's own admitted actions can reach*, so `SWEEP_CLASSES` is the
+> obligation's quantifier and not a narrowing of it, and `mutant_literal_sy13` is
+> a control on the DISPOSED text. The catalogue carries the companion in the same
+> sentence — *and Grove SHALL never manufacture one of the others* — and it is
+> `inv_SY_13a`'s first conjunct here, controlled by
+> `mutant_grove_manufactures_legacy`; without it the narrowed sweep would be
+> satisfiable by a Grove that walked the loop into a class the sweep stopped
+> looking at. **`SCPartialAmbiguous` is a fourth excluded class**, arriving from
+> `task-tree-scope-k70`'s split after the disposition's own list was written.
+
+### 2. ~~`SY-14.b`'s "every action" is read as every action ON THE TREE~~ — WITHDRAWN, this is the catalogue's quantifier
 
 The literal quantifier reaches `acquire-lease`, `validate-config` and
 `release-lease`, so a blocked tree could not release its own lease and `FN-26`'s
 two operator-restorable exits would be unreachable. The naming sweep is
-`ADMITTED.filter(touchesTree)` and the narrowing is declared here.
+`ADMITTED.filter(touchesTree)`.
+
+> **[disposed by `lifecycle-scope-k72`]** `SY-14.b` now reads *every admitted
+> action **on the tree***, on the argument BOTH families reached independently —
+> `lifecycle.als` states it over `TreeAct` and calls the restriction a reading
+> rather than an economy — that a block is a property of the tree, so an action
+> that reads and writes no task tree cannot name a block it never read. The
+> asymmetry with `SY-14.a`, swept over the literal set, is now the catalogue's
+> too. **The disposed reading gained a control**: `mutant_block_named_by_all`
+> runs the naming sweep over the literal admitted set and `inv_SY_14b` dies,
+> which turns *the literal text is false* from an argument into a fired control;
+> `inv_SY_14a` is asserted green in the same run. `release-lease` returning
+> `Applied` on a blocked tree is consistent with `FN-29.b`, which says every
+> refusal leaves nothing standing and not that everything leaving nothing
+> standing is a refusal — stated in the catalogue beside the obligation.
 
 **`SY-14.a` is NOT narrowed and no longer needs to be.** Its sweep is over the
 LITERAL admitted set. `release-lease` and `validate-config` do succeed on a
@@ -1616,10 +1852,112 @@ owes the same, or whether the configuration is deliberately read once per
 iteration, is a catalogue question and `lifecycle-scope-k72`'s to disposition.
 The retained counterexample is below.
 
+> **[disposed by `lifecycle-scope-k72`]** **`SY-04.b` OWES IT, THIS COLUMN WAS
+> WRONG, AND THE PRODUCT IS THE REFEREE.** `src/loop_driver.rs` is the sole
+> caller of `SessionConfig::load` and calls it TWICE an iteration — once before
+> the tree mutation and once before the launch — which
+> `docs/adr/complete-session-configuration.md` states as *validated in full,
+> before every tree mutation and again before every launch*. So the licence was
+> never the design; it was the obligation not saying what `SY-03` says.
+> `lifecycle.als`, which reads `World.cfg'` LIVE, was green on the stronger claim
+> the whole time: **the two columns answered one silence in opposite directions
+> and both stayed green, which is the `FN-13` shape in an obligation no
+> enumeration had flagged.**
+>
+> `outcomeOn` now reads `w.configValid` beside the recorded verdict, and the
+> retained counterexample became `mutant_config_licence` —
+> `CONFIG_LICENCE = true`, the configuration twin of `PREFLIGHT_LICENCE`. It is
+> isolating and that is asserted in the same run: the weak conjunct
+> (`groveMutatedUnderUnvalidatedConfig`) stays green under the dial, so the
+> control kills the clause the disposition ADDED rather than the one that was
+> always there.
+>
+> **The asserted flag moved and the first draft of the wider one was refuted by
+> its own first run.** Written as *no step of Grove's changes a byte under an
+> invalid configuration*, `inv_SY_04b` fails in `base` — an AMBIENT operation
+> writes the tree, correctly, because the session configuration is the DRIVER's
+> launch policy and `grove-llm` never reads it. The obligation is about the
+> driver's transitions, the catalogue now says so in place, and
+> `transitionMutatedUnderInvalidConfig` is what is asserted;
+> `groveMutatedUnderInvalidConfig` is kept beside it so a later reader can see
+> where the boundary is rather than being told there is none. **This model gates
+> `ATFinishStep` too, which the catalogue does not require — the transaction's
+> steps are the finish leaf's session's — so the check here is STRONGER than the
+> obligation rather than narrower, and that is declared rather than silently
+> banked.**
+
 **Why the pair form could not have found either.** The offending step in the
 second is APPLIED, and `refusalMutated` looked only at refusals; the offending
 step in the first is the operator's, and `refusalMutated` looked only at grove's.
 That is entry 048's rule paying out on its first use, and it paid out twice.
+
+### 6. `SY-05.b` is true here as a MODELLING FACT, and that is a declaration `finish-scope-k71` asked for by name
+
+**The disk the catalogue's §*States* order exists to classify is not
+representable in this scope**, and the declaration is written as a command rather
+than as this paragraph. `finish-scope-k71` put `Reserved(Quarantined)` into the
+state table and moved the whole reserved class ahead of `Absent`, on `SY-05.b`'s
+own argument: between `FN-19`'s quarantine rename and `FN-22`'s fourth
+revalidation point the task-root NAME is free while Grove's quarantine stands,
+and with `Absent` first that disk reads `Absent` — the exact trace `SY-05.b` says
+does not exist. It then asked whether this column reproduces the defect, having
+looked far enough to see that `classifyTree` returns `RSAbsent` first and
+unconditionally on `not(t.present)`.
+
+**It does not, because it cannot represent the disk.** `NO_TREE` sets
+`reserved: RNone`, and every transition that frees the root name assigns
+`NO_TREE` WHOLE — `finishStepOp`'s `FPDeleting` branch, its `FPPublished` branch
+under `DELETION_PROVEN_FIRST = false`, and `recoverOp`'s idempotent resume. The
+summarised tree conflates the root's presence with the reserved name's, so
+`SY-05.b` is discharged by construction with respect to the ORDER, and the order
+is checked where its subject lives: `crates/grove-finish/models/`'s `FN-24.a`,
+whose mutation matrix row 49 restores the former order and turns it red. That is
+[`obligations-follow-context-not-artifact`](../../docs/adr/obligations-follow-context-not-artifact.md)
+working rather than a gap.
+
+**`inv_SY_05b_absence_and_a_reserved_name_are_not_separable_at_this_scope` is the
+declaration made checkable**, for the reason this file states everywhere else: a
+declaration nothing corroborates is fiction with a green tick. A later slice that
+gives this scope a quarantine independent of the root's presence breaks that
+command loudly, which is when the narrowing must be re-argued rather than
+inherited. **A declared narrowing that cannot be broken by a later edit is not a
+declaration, it is a hope** — and this one is the cheapest possible instrument
+for the difference.
+
+### 7. `SY-06.b` gained a third case, and a nested pattern that TYPECHECKS made it invisible
+
+`task-tree-scope-k70` split §*States*' witnessless root into
+`PartialScaffold(Exact)` and `PartialScaffold(Ambiguous)`, and
+`obligations-follow-context-not-artifact` clause 2 makes `SY-06.b`'s cross-scope
+citation carry the cited obligation's narrowings — so this column owed the cell.
+`RSPartialScaffold(ScaffoldClass)` carries the catalogue's ordered three-way
+test, `RScaffoldIncomplete(class)` replaces the `WitnessPending` borrow this
+column had been reporting, and
+`wit_SY_06b_an_ambiguous_scaffold_is_refused_rather_than_completed` lands the
+sharp case: refused **while carrying proof that Grove's own initialisation ran**,
+which is the one a completing implementation gets wrong.
+
+**QUINT'S `match` HAS NO NESTED CONSTRUCTOR PATTERNS, AND THE FAILURE IS
+SILENT.** Written `| RSPartialScaffold(PSExact) => …` the arm binds a VARIABLE
+named `PSExact`, matches every `RSPartialScaffold(_)`, and leaves the arm below
+it dead — and it typechecks clean. The suite then reported `SCPartialAmbiguous`
+as unreachable while `classifyTree` was returning it: a green run describing a
+state it could not see. Confirmed on a four-line repro (`f(Y(B))` returns the
+`Y(A)` arm's value) and repaired by matching one level and testing the bound
+value. **The trap had never been reached in this corpus because the other
+parameterised state, `Reserved(class)`, is matched `RSReserved(_)` everywhere** —
+which is the general lesson: a parameterised state is safe exactly while nobody
+needs to branch on the parameter, and the first branch is where the trap is.
+
+**Two witnesses caught a further defect that no invariant would have.** The
+completion flags were first stated over `classifyTree`'s answer, which made them
+a restatement of the very gate `SY-06.b` is about — and `mutant_absent_witness`,
+which breaks the classification, went GREEN under it: a legacy tree classified
+`Exact`, so a flag derived from the classification could not see that it had been
+completed. They are stated over the DISK (`exactSubset`, `rootInitExclusive`)
+instead, which is what the catalogue's own test is over. The control caught it on
+its first run after the change, which is the second time in this session a
+plausible draft was refuted by an instrument rather than by reading.
 
 ### 5. `SY-10.b`'s trace conjunct over the wait map is WITHDRAWN, and what it found
 
@@ -1658,7 +1996,7 @@ the two texts do not collide, only their realisations do, and the repair named
 next is already in place. `SY-10.b` is checked over what the
 admission RETURNS instead, which is the restatement entry 048 actually asked for.
 
-### 3. `SY-04.a`'s cap is a loop-control guard, not a refusal
+### 3. `SY-04.a`'s cap is a loop-control guard, not a refusal — and since `lifecycle-scope-k72` it is a cap on a DIFFERENT SET
 
 "At most one lifecycle transition per iteration" is enforced as an enabling
 condition (`loopAdmits`), because the catalogue's closed refusal set has **no
@@ -1673,6 +2011,22 @@ it — that the catalogue owes a "deferred" refusal — since `SY-04.a` says "at
 most one" rather than requiring a deferral outcome. The qualification stands;
 the catalogue finding drawn from it is narrowed to what it is, a note that the
 claim is unfalsifiable through outcomes.
+
+> **[disposed by `lifecycle-scope-k72`]** The qualification is unchanged and its
+> SUBJECT moved. `SY-04.a` is now over the catalogue's *lifecycle transition* —
+> a step that advances the grove's own stage — which this column already read it
+> as (`countsAsTransition`) and `lifecycle.als` did not: that column read it as
+> §*Actions*' Lifecycle GROUP and witnessed all seven members of it, and the two
+> sets have no member in common. **Both were green.** This column was right, and
+> the reason it could not say so is that the catalogue never defined the word.
+> `models/run.sh --list` did not move — a definition is not an obligation — but
+> both columns' `SY-04` commands did.
+>
+> The seven rows the bounds table lost, and the five it gained, are that change:
+> a witness *per Lifecycle action alone in an iteration* was evidence for a claim
+> whose own justification is about the working tree. Their step and time columns
+> are left `—` rather than back-filled, because this leaf's reported run is the
+> measurement and a copied figure is not.
 
 ## What `system-k59` checked and did not break
 

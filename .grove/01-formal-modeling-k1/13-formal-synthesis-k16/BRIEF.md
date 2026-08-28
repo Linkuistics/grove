@@ -104,3 +104,85 @@ artifacts entry 048 read, and the dispositions run against a frozen record.
 The whole-repository run was already in flight when this was settled, which is
 the same argument from the other end: it is the measurement of the tree as the
 formal phase built it.
+
+## `catalogue-disposition-k64` is closed, and this is what its subtree promoted upward
+
+Child 3 retired with every inherited catalogue finding disposed. Its four
+children were `closed-sets-k69` (itself a node of two — `routing-and-prose-k73`
+and `closed-set-additions-k74`), `task-tree-scope-k70`, `finish-scope-k71`
+(reviewed by `finish-scope-k75`, integrated by `finish-scope-k76`) and
+`lifecycle-scope-k72`, which carried the whole-node closing sweep. **Children 4
+and 5 — `finish-verdicts-k65` and `handoff-audit-k66` — open on a settled
+catalogue**, which is what the ordering was for, so what they inherit is stated
+here rather than left in a retired subtree.
+
+**The catalogue as frozen.** Refusal reasons **17 → 21**:
+`DeletionNotCommitted`, `ConfigurationInvalid`, `GenerationContended`,
+`ScaffoldIncomplete(class)`. Outcomes **6 → 6** — `Stopped` was refused as a
+seventh outcome and granted as a reason instead. Blocked diagnoses **2 → 2**, but
+`FN-25.a` no longer claims they are disjoint: the definitions overlap reachably
+and the claim is now that the **carried** diagnosis is the one precedence selects.
+Obligations **128 → 130** (`FN-29` gained `.a`/`.b`; `TT-17` split), which
+`models/run.sh --list` prints. §*States* gained `Reserved(Quarantined)`, moved
+the whole reserved class ahead of `Absent`, and split the witnessless root into
+`PartialScaffold(Exact)` and `PartialScaffold(Ambiguous)`. §*Actions* gained the
+`validate-config` row it had always been short.
+
+**Five records carry the decisions**, and a session here reads the ones its
+question touches rather than all five:
+[`a-refusal-leaves-nothing-standing`](../../../docs/adr/a-refusal-leaves-nothing-standing.md)
+(what separates `Refused` from `Blocked`, and what a reason names),
+[`a-witnessless-root-refuses-what-it-cannot-account-for`](../../../docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md),
+[`success-is-proved-by-the-ticket-not-the-tree`](../../../docs/adr/success-is-proved-by-the-ticket-not-the-tree.md),
+[`a-closed-partition-is-over-outcomes-not-states`](../../../docs/adr/a-closed-partition-is-over-outcomes-not-states.md)
+and
+[`a-lifecycle-claim-says-what-it-is-over`](../../../docs/adr/a-lifecycle-claim-says-what-it-is-over.md).
+
+**What is still routed, and to whom.** `finish-verdicts-k65` owns items 26, 27
+and 30 — `TODO.finish_process.md` Q1 – Q4, the ordinal root-lifecycle verdict
+(**already decided** at `root-lifecycle-stays-with-its-receipt`, so no leaf is
+inserted before `extract-task-tree-k24`; the narrowed root-*creation* successor
+question is what remains), and `FN-13`'s class-register disagreement.
+`handoff-audit-k66` owns items 29 and 36 — the crate-facing seams with the
+derived Rust tests, and four product-facing diagnostic questions — plus the
+whole-repository run from this brief's own `Notes`, and the root-init
+phase-ordering repair `task-tree-scope-k70` handed it. Items 31 – 35 name the
+**model owners** and no leaf here. One of `k66`'s is sharpened rather than moot:
+with nothing on the disk carrying a disposition, *should the reaper re-read the
+disposition before disposing* can only be argued as *the marker is an
+instruction, not evidence*.
+
+**Three measurements to budget from rather than re-derive.**
+
+- **Manifest-changing has two meanings and only one moves a number.**
+  `models/run.sh --list` matches claim headings and obligation bullets, so a
+  closed-set addition, a state-table member and a **definition** all leave the
+  count unchanged while still costing both families a matching outcome. The cheap
+  check is silent about the expensive kind.
+- **Budget an Apalache cell alone.** Concurrent cells barely contend until one of
+  them is `QUINT_VERIFY=1`, which is heap- and CPU-hungry in a way the simulator
+  is not; `finish-scope-k71` measured ~10 minutes of pure contention.
+- **A one-bit field on an Alloy signature is not a one-bit change to a bounded
+  temporal search.** The lifecycle Alloy cell went from 4m 27s to **12m 20s** at
+  a slightly *lower* command count, because `Proc` gained one `var lone Flag`.
+
+**Two method results worth carrying into `k65` and `k66`'s own instruments.**
+
+- **A sweep whose report lives inside its own subject measures itself.**
+  `formal-synthesis-k99`, the invented handle three sessions used as a negative
+  control, went from 0 sites to 1 the moment a durable record said it found 0;
+  and writing *31 sites* makes it 32. Invent a fresh handle each time, and read
+  counts as *of the tree including the paragraph reporting them*.
+- **A claim stated over a model's own classifier is a restatement of the gate it
+  is about.** Two separate instances landed here — `TT-24.c`'s uncontrolled
+  transcription, and a `SY-06.b` history flag that made an existing mutation
+  control go green. State the claim over the **disk**, or over whatever the
+  contract's own test is over, and keep the neighbour asserted green.
+
+**The provenance rule, because this node broke it three times.** A run whose
+subject moved under it is not a measurement of the file it reports on, however
+harmless the edit looks — and `models/run.sh` reads the catalogue as its manifest
+and each scope README for its `GAP` lines, so all of them are subjects. Freeze,
+record digests, run, record again. A run line written *after* its run is a record
+of a run rather than a moved subject, and the check that tells the two apart is
+the GAP-line count either side.

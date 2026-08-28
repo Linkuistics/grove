@@ -665,13 +665,32 @@ produces a named refusal rather than an absent transition.
 | **Observation** | `select`, `resolve`, `brief-chain`, `kind` | shared |
 | **Tree mutation** | `initialise-root`, `add-leaf`, `add-pair`, `insert-leaf`, `decompose-leaf`, `retire-leaf`, `prune` | exclusive |
 | **Finish** | `allocate-finish-leaf`, `finish-commit`, `recover`, `dispose-quarantine`, `replace-cleanup-marker`, `reap-quarantine` | exclusive, plus the repository |
-| **Lifecycle** | `acquire-lease`, `layout-preflight`, `open-epoch`, `launch`, `reap`, `close-epoch`, `release-lease` | lease, then epoch |
+| **Lifecycle** | `acquire-lease`, `layout-preflight`, `validate-config`, `open-epoch`, `launch`, `reap`, `close-epoch`, `release-lease` | lease, then epoch |
 | **Environment** | `crash`, `hand-edit`, `foreign-write`, `topology-change`, `confirm` | none — these are the world's |
 
+**`validate-config` is new to this table and is not a new action of Grove's.**
+The catalogue named the layout gate and never named the configuration one,
+although it ordered them (`SY-02`: refused at lease acquisition, *before
+configuration validation*) and required one (`SY-04.b`: *full configuration
+validation precedes every transition*). `layout-preflight` appeared exactly once
+in this document — here — and the omission put the group's one named preflight
+under two jobs. Both model families invented the missing action independently
+and named it the same thing
+([`models/system/lifecycle.als`](../../models/system/lifecycle.als),
+`ValidateConfigA`; [`models/system/lifecycle.qnt`](../../models/system/lifecycle.qnt),
+`ATValidateConfig`), and the shipped driver performs it twice per iteration —
+`SessionConfig::load` before the tree mutation and again before the launch
+([`src/loop_driver.rs`](../../src/loop_driver.rs)) — which is
+[`complete-session-configuration`](../adr/complete-session-configuration.md)'s
+*validated in full, before every tree mutation and again before every launch*.
+The layout and the configuration are two operands, proved at two gates, in a
+stated order; one named action for both was the table being short a row rather
+than a design.
+
 **Of the Lifecycle group, only `launch` is gated on the task root's
-classification.** `acquire-lease`, `layout-preflight`, `open-epoch`, `reap`,
-`close-epoch` and `release-lease` read and write no task tree, so none of them is
-refused on an absent, legacy or malformed root. The table said nothing either
+classification.** `acquire-lease`, `layout-preflight`, `validate-config`,
+`open-epoch`, `reap`, `close-epoch` and `release-lease` read and write no task
+tree, so none of them is refused on an absent, legacy or malformed root. The table said nothing either
 way and the silence was load-bearing: **gating `reap` makes `SY-05.a`
 unwitnessable rather than false.** The driver runs the finish, proves the
 deletion, the root becomes `Absent`, and the session that committed the teardown
@@ -2227,6 +2246,51 @@ has made each other's mutations unable to kill anything, which is the hazard
 These are the joint. They are stated over sessions, exhaustion, finish,
 interruption and recovery together, and they are what `models/system/` owns.
 
+**An `SY-` claim binds the world only where it says so, and where it does it
+names what bounds the world there.** These claims are stated over the joint, and
+§[Actions](#actions)' fifth group is not Grove's: `crash`, `hand-edit`,
+`foreign-write`, `topology-change` and `confirm` have no guard, and Grove can
+neither refuse, prevent nor undo one. So a claim about **what an action leaves**
+is about what a *Grove* action leaves, and a claim about **which states are
+reachable** is about the states Grove's own admitted actions reach — unless the
+claim says otherwise and names the assumption or the state-table property that
+makes the wider reading checkable, as `SY-05.b` does at `EN-14` and at §*States*'
+*a task root whose deletion is not yet proven is never `Absent`*.
+
+**This is a rule about how each claim is worded, not a default that applies
+silently**, and the distinction is §*Actions*' own: a claim quantified over a
+group-spanning term "becomes one obligation per scope, each ranging over exactly
+what that scope admits **and saying so in its own text**". Two claims below did
+not say so, and both were **false as literally worded** — `SY-04.b`'s
+byte-identity clause over an operator's hand, and `SY-13`'s quantifier over the
+refusal states only a hand edit reaches. Both families narrowed both, each
+declared the narrowing twice, and neither could repair the text because the
+catalogue is their shared subject. The two are one class recorded at two
+addresses ([`docs/formalism-findings.md`](../formalism-findings.md) entries 042
+and 043), which is why the rule is stated once here and each claim now carries
+its own qualification below rather than relying on this paragraph.
+
+**A *lifecycle transition* is a step that advances the grove's own lifecycle
+stage**: `initialise-root` and the append that completes an interrupted
+scaffold, `allocate-finish-leaf`, `recover`, and the driver's own advance of the
+task tree between sessions. It is **not** §*Actions*' Lifecycle *group*, which is
+where the guards live rather than where the stage changes, and it is not a step
+of the finish transaction — those belong to the finish leaf's own session and are
+`crates/grove-finish/models/`'s. What an iteration does with a transaction is
+**enter** it and recover an interrupted one.
+
+**The two are different sets and the word was doing both jobs**, which is a
+defect this catalogue supplied and both families paid for in opposite
+directions: [`models/system/lifecycle.als`](../../models/system/lifecycle.als)
+read `SY-04` over the Lifecycle group and witnessed all seven of it;
+[`models/system/lifecycle.qnt`](../../models/system/lifecycle.qnt) read it over
+the stage-changing steps, which the group contains **none** of. Both were green.
+The *so that* clause of `SY-04` is what decides it — *so an invalid
+configuration leaves the working tree byte-identical* — because a gate in front
+of `close-epoch` or `release-lease` buys that consequence nothing: neither writes
+a tree. A claim whose justification reaches only part of its own quantifier is
+stated too wide, and this one was.
+
 **`SY-01` — one live driver per working tree.** A second driver SHALL be refused
 immediately rather than queued, and ownership SHALL be released by process death
 as ordinarily as by return.
@@ -2249,17 +2313,85 @@ earlier layout check; each SHALL revalidate against its own operands.
 
 **`SY-04` — at most one lifecycle transition per iteration**, and full
 configuration validation SHALL precede every one, so an invalid configuration
-leaves the working tree byte-identical.
+leaves the working tree byte-identical **for anything Grove does**. *Transition*
+is the term defined at the head of this section, and neither obligation reaches
+an action that writes no tree.
 *Obligations*:
 - `SY-04.a` — at most one lifecycle transition occurs per iteration. *Witness*:
   each transition, taken alone.
-- `SY-04.b` — full configuration validation precedes every transition, so an
-  invalid configuration leaves the working tree byte-identical. *Witness*:
-  reached.
+- `SY-04.b` — full configuration validation precedes every transition, and
+  **each transition revalidates against the configuration as it stands rather
+  than against a validation the driver recorded earlier** (`SY-03`), so no
+  transition changes a byte of the working tree under a configuration that is
+  not valid at that step. *Witness*: reached — a configuration that goes invalid
+  under a running loop, refused by a validation that ran after the edit.
+
+**The subject is the driver's transitions and not every Grove process, and that
+is stated because the wider reading is the one a reader assumes.** The session
+configuration is the *driver's* launch policy — one complete command template per
+session kind — and only the driver reads it:
+[`src/loop_driver.rs`](../../src/loop_driver.rs) is the sole caller of
+`SessionConfig::load`, and `grove-llm` never touches it. So an ambient
+`grove-llm` invocation inside a running session writes the tree without
+consulting a configuration it has no use for, which is correct: requiring
+otherwise would mean a typo in a personal launch template froze a session's own
+edits to its own task tree. A model that stated the wide reading produced that
+counterexample on its first run
+([`models/system/lifecycle.qnt`](../../models/system/lifecycle.qnt), an
+`ambient` write under an invalid configuration), which is how the boundary got
+written down rather than assumed.
 
 The refusal is `Refused(ConfigurationInvalid)`. Both families had to name this
 outcome and neither could from the closed set; the set now carries it
 ([Outcomes](#outcomes)).
+
+**`SY-03` reaches the configuration and not only the layout, and the product is
+what settles it.** The obligation used to say *full validation precedes every
+transition* and stopped, which is satisfiable by a driver that validates once and
+carries the verdict. [`models/system/lifecycle.qnt`](../../models/system/lifecycle.qnt)
+built exactly that — `outcomeOn` gated transitions on `d.configValidated`, the
+recorded verdict, while the layout gate three lines below read the world live —
+and a `configChange` between the validation and the transition then left the
+validation standing as **a licence**, with the transition writing the tree under
+an invalid configuration and the operator's hands out of it. That is the shape
+`SY-03` exists to forbid, stated for the layout only.
+[`models/system/lifecycle.als`](../../models/system/lifecycle.als) read the
+configuration live and was green on the stronger claim; the two columns answered
+one silence in opposite directions, as at `FN-13`. The shipped driver is the
+referee and it revalidates: `SessionConfig::load` runs afresh before the tree
+mutation and again before the launch
+([`src/loop_driver.rs`](../../src/loop_driver.rs)), which
+[`complete-session-configuration`](../adr/complete-session-configuration.md)
+states as *validated in full — before every tree mutation and again before every
+launch*. So the licence was never the design; it was this obligation not saying
+what `SY-03` says.
+
+**And the byte-identity clause is about Grove's own steps, which is the reading
+rule at the head of this section applied here.** *An invalid configuration leaves
+the working tree byte-identical* is true of every transition Grove takes and
+false of the world: §*Actions* puts `hand-edit` and `foreign-write` in the same
+table as the transitions the claim is about, and unqualified the conjunct reads
+*a bad configuration stops the operator editing their own directory*. Both
+families qualified it independently
+(`lifecycle.als`'s `Sys.res' != Environmental`; `lifecycle.qnt`'s split of the
+trace-stated flag into a Grove half and a world half) and each recorded the
+qualification as a narrowing of the catalogue's text. It is now the text.
+
+**`release-lease` was never gated by this obligation, and the finding that said
+it was is a finding about the word.** A driver holding a lease under an invalid
+configuration was recorded as a second dead end — it can neither release, nor
+open an epoch, nor launch — with the two available repairs given as *exempt the
+release* or *admit process death*
+([`models/system/README.md`](../../models/system/README.md)). Neither is owed.
+`release-lease` is not a lifecycle transition: it advances no stage and writes no
+tree, so there is nothing for a configuration to be valid *for*, and the gate
+that appeared to reach it was `lifecycle.als` reading *transition* as the
+Lifecycle group. The dead end dissolves with the reading, and no reachability
+claim's quantifier moves. **Admitting process death would have moved all of
+them**: `crash` is the world's (§*Actions*, and `CONTEXT.md`'s *Admitted action*),
+and a sweep in which the loop may always die finds no dead end anywhere — which
+is the same argument this catalogue already makes for refusing to count a hand
+edit as an exit (`SY-13`).
 
 **`SY-05` — task-root absence is the complete fresh-tree discriminator.** A
 missing task root SHALL mean *start a new grove*, and SHALL never be read as
@@ -2378,9 +2510,10 @@ point, the next invocation SHALL reach a stable state and either make progress o
 refuse; it SHALL never silently repeat a completed effect.
 *Witness*: one crash point per lifecycle step.
 
-**`SY-13` — no stable state is a sink.** From any stable state there SHALL
-**exist** a bounded sequence of admitted actions reaching either a live leaf to
-run or a terminal disposition.
+**`SY-13` — no stable state is a sink.** From any stable state **Grove's own
+admitted actions can reach**, there SHALL **exist** a bounded sequence of
+admitted actions reaching either a live leaf to run or a terminal disposition;
+and Grove SHALL never manufacture one of the others.
 
 **This is existential reachability, and deliberately not a liveness property.**
 Stating it as "the loop *will* reach one" would need a fairness or admission
@@ -2404,12 +2537,37 @@ A `Malformed(reason)` tree is **not** terminal for this property: it is a refusa
 state that a hand edit reaches and a hand edit leaves, and folding it in would
 let the claim be satisfied by a tree nobody can act on.
 
+**Which is why the quantifier is over the states Grove reaches, and why that is
+a repair rather than a retreat.** `Legacy`, `Foreign` and `Malformed` are each
+reached by a hand edit and left by a hand edit, and a hand edit is not an
+admitted action — this claim's own note puts operator actions outside the
+admitted set by construction. So under the unrestricted quantifier all three are
+sinks and **both obligations are false**, not weak; the note above declines to
+fold them into the terminal dispositions and is right to, but declining leaves
+the claim false rather than repairing it. The repair is the reading rule at the
+head of this section: a claim about which states are reachable is about the
+states Grove's own admitted actions reach. Two independent readings found this —
+[`models/system/lifecycle.als`](../../models/system/lifecycle.als) and
+[`models/system/lifecycle.qnt`](../../models/system/lifecycle.qnt), each
+narrowing its sweep and declaring the narrowing, and
+[`docs/formalism-findings.md`](../formalism-findings.md) entry 043 records the
+differential probe that establishes it is the design and not the bound.
+
+**The narrowing is only sound with its companion, so the companion is a checked
+claim and not an assumption.** *Grove never manufactures one of the others* is
+what stops the quantifier being satisfied by a Grove that reaches nothing, and it
+is `SY-13.a`'s first conjunct rather than a premise: without it, a
+`initialise-root` that marked its own root legacy would satisfy the sweep by
+putting the loop somewhere the sweep no longer looks.
+
 *Obligations*:
-- `SY-13.a` — from every stable state, some bounded sequence of admitted actions
-  reaches a live leaf or a terminal disposition. *Witness*: the longest such
-  sequence within the bound, and its length.
-- `SY-13.b` — no stable state within the bound is a sink. *Witness*: the
-  exhaustive sweep of the stable states, with its bound.
+- `SY-13.a` — Grove's own admitted actions never produce `Legacy`, `Foreign` or
+  `Malformed`; and from every stable state they do reach, some bounded sequence
+  of admitted actions reaches a live leaf or a terminal disposition. *Witness*:
+  the longest such sequence within the bound, and its length.
+- `SY-13.b` — no stable state Grove's own admitted actions reach is a sink
+  within the bound. *Witness*: the exhaustive sweep of those stable states, with
+  its bound; and the unrestricted sweep, which fails.
 
 **`SY-14` — a blocked tree stays blocked until an operator acts.** No admitted
 action SHALL clear a block, and every action on a blocked tree SHALL refuse
@@ -2425,9 +2583,34 @@ act. `models/system/README.md` argued this and the argument is accepted; what it
 lacked was the class and the citation.
 *Obligations*:
 - `SY-14.a` — no admitted action clears a block. *Witness*: an exhaustive sweep
-  of the action set against a blocked tree.
-- `SY-14.b` — every action on a blocked tree refuses, naming the block.
-  *Witness*: the same sweep, each refusal naming it.
+  of the **whole** admitted set against a blocked tree.
+- `SY-14.b` — every admitted action **on the tree** refuses on a blocked tree,
+  naming the block. *Witness*: the sweep of those actions, each refusal naming
+  it.
+
+**The two halves are swept over different sets and the asymmetry is the claim.**
+`SY-14.a` is over the literal admitted set, because *clears a block* is a
+question about a state transition and every admitted action can be asked it.
+`SY-14.b` is over the actions that act on the tree, because a block is a property
+of the **tree** — §*States* attaches the diagnosis to a `Reserved` root — and an
+action that reads and writes no task tree cannot name a block it never read.
+Taken literally the quantifier reaches `acquire-lease`, `validate-config` and
+`release-lease`, so a blocked tree could not release its own lease and `FN-26`'s
+two operator-restorable exits would be unreachable — the same over-application
+`SY-04.b` had, seen from the other obligation, and the two are decided together.
+Both families narrowed it here and neither narrowed `SY-14.a`
+(`lifecycle.als` states it over `TreeAct`; `lifecycle.qnt` over
+`ADMITTED.filter(touchesTree)`), reaching the same reading independently; it is
+now the text.
+
+**`release-lease` succeeding on a blocked tree is consistent with `FN-29.b` and
+that is worth stating, because it looks like an exception.** `FN-29.b` says every
+`Refused` is returned with the tree byte-equal to the tree that action received,
+and that an effect which stands and can be neither completed nor undone is
+`Blocked`. It does not say that everything leaving the tree byte-equal is a
+refusal. A lease release leaves the tree byte-equal and returns `Applied`; it
+clears no block, which is `SY-14.a`, and it names none, which is this
+obligation's scope and not a silence in it.
 
 <a id="deliberate-omissions"></a>
 ## Deliberate omissions

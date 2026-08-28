@@ -1048,6 +1048,27 @@ real window in which an interrupted initialisation is indistinguishable from a
 legacy tree, and `TT-20`'s prohibition on `Legacy` is narrowed to exactly that
 boundary rather than pretending the window is closed.
 
+**Lifecycle transition**:
+In the lifecycle claims, a step that advances the grove's own lifecycle
+**stage**: `initialise-root` and the append that completes an interrupted
+scaffold, `allocate-finish-leaf`, `recover`, and the driver's own advance of the
+task tree between sessions. It is what `SY-04`'s two obligations are quantified
+over.
+_Avoid_: reading it as the semantic contract's §*Actions* **Lifecycle group**
+(`acquire-lease`, `layout-preflight`, `validate-config`, `open-epoch`, `launch`,
+`reap`, `close-epoch`, `release-lease`). The group is where the guards live and
+it contains **none** of the transitions; the two sets have no member in common,
+and the catalogue used one word for both until
+`docs/adr/a-lifecycle-claim-says-what-it-is-over.md`. The tell is `SY-04`'s own
+*so that* clause — *an invalid configuration leaves the working tree
+byte-identical* — which a gate in front of `close-epoch` or `release-lease` buys
+nothing, because neither writes a tree.
+_Avoid_: reading a **refused** attempt as one. Nothing transitioned, and the
+iteration is still free to take its one.
+_Avoid_: counting a step of the finish **transaction** as one. Those belong to
+the finish leaf's own session and are `crates/grove-finish/models/`'s; what an
+iteration does with a transaction is enter it and recover an interrupted one.
+
 **Admitted action**:
 In the lifecycle claims, an action Grove itself may take — the Observation, Tree
 mutation, Finish and Lifecycle groups of the semantic contract's §*Actions*, and

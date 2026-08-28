@@ -230,6 +230,16 @@ sig Proc {
      Lifecycle transition in every branch — a refusal is a turn of the loop as
      surely as an application is — and cleared only by `doIter`. */
   var spent:   lone Flag,
+  /* THE ITERATION'S ONE LIFECYCLE **TRANSITION**, SPENT OR NOT, AND IT IS A
+     SECOND FLAG BECAUSE `SY-04.a`'s SUBJECT IS NOT `spent`'s.
+     `lifecycle-scope-k72` defined the catalogue's *lifecycle transition* as a
+     step that advances the grove's own stage, which §*Actions*' Lifecycle group
+     contains NONE of — so `spent`, set by the group, could never have carried
+     this obligation, and the check that read it was checking this file's
+     admission machinery under an obligation's name.  Nothing shares the two:
+     `open-epoch` spends the group's turn and must still leave the iteration free
+     to take its transition.  Cleared only by `doIter`, like `spent`. */
+  var moved:   lone Flag,
   /* THE ITERATION'S AUTHORITATIVE SELECTION (`SY-08`).  Taken once, never
      recomputed, and cleared at the boundary rather than by the launch, which is
      what makes a leaf added during the launch window the NEXT iteration's. */
@@ -389,14 +399,62 @@ one sig IdleA,            // the stutter an Alloy lasso needs
                           //   SY-14.b's subject, and one opaque step ON PURPOSE
   extends Action {}
 
-/* THE CATALOGUE'S LIFECYCLE GROUP, ALL SEVEN, AND EXACTLY THEM.  `SY-04.a` is
-   quantified over this set and `SY-11.a` over the acquisition sites, which are
-   different sets and deliberately so: `take-tree` is a GUARD acquisition and not
-   a Lifecycle action, and `select` is an Observation.  A sixth Lifecycle action
-   added by a later slice lands in this function and both claims see it. */
+/* THE CATALOGUE'S LIFECYCLE GROUP, ALL EIGHT, AND EXACTLY THEM.  `SY-11.a` is
+   over the acquisition sites, which is a different set and deliberately so:
+   `take-tree` is a GUARD acquisition and not a Lifecycle action, and `select` is
+   an Observation.  A ninth Lifecycle action added by a later slice lands in this
+   function and every claim over the group sees it.
+
+   `ValidateConfigA` JOINED THE GROUP WITH `lifecycle-scope-k72`, and it did not
+   join this model — it was already here, invented because `SY-04.b` requires a
+   configuration validation and §*Actions* named no action that performs one.
+   `lifecycle.qnt` invented the same action independently and the shipped driver
+   performs it twice an iteration (`SessionConfig::load`, `src/loop_driver.rs`).
+   The catalogue's table was a row short; this line is that row landing.
+
+   **`SY-04.a` IS NO LONGER QUANTIFIED OVER THIS SET** — see `TransitionAct`. */
 fun LifecycleAct: set Action {
-  AcquireLeaseA + LayoutPreflightA + OpenEpochA + LaunchA + ReapA
-  + CloseEpochA + ReleaseLeaseA
+  AcquireLeaseA + LayoutPreflightA + ValidateConfigA + OpenEpochA + LaunchA
+  + ReapA + CloseEpochA + ReleaseLeaseA
+}
+
+/* THE CATALOGUE'S *LIFECYCLE TRANSITION*, WHICH IS NOT THE LIFECYCLE GROUP, AND
+   THE DISTANCE BETWEEN THE TWO IS `lifecycle-scope-k72`'s SHARPEST FINDING.
+
+   The catalogue used one word for two sets and defined neither, and the two
+   families instantiated it as sets with NO MEMBER IN COMMON: this file read
+   `SY-04` over the seven-member Lifecycle group and witnessed all seven of it,
+   while `models/system/lifecycle.qnt` read it over the stage-changing steps,
+   which the group contains none of.  BOTH WERE GREEN — the `FN-13` shape again,
+   in an obligation no enumeration had flagged as underdetermined.
+
+   The *so that* clause decided it: *so an invalid configuration leaves the
+   working tree byte-identical*.  A gate in front of `close-epoch` or
+   `release-lease` buys that consequence nothing, because neither writes a tree,
+   and a claim whose justification reaches only part of its own quantifier is
+   stated too wide.  §*Claims — system lifecycle* now defines the term: a step
+   that advances the grove's own lifecycle STAGE.
+
+   `ProveCommitA` and `SettleDeletionA` are deliberately NOT here.  They are the
+   finish transaction's steps, which belong to the finish leaf's own session and
+   are `crates/grove-finish/models/`'s; what an ITERATION does with a transaction
+   is enter it (`AllocFinishA`) and recover an interrupted one (`RecoverA`). */
+fun TransitionAct: set Action {
+  InitRootA + CompleteScaffoldA + AllocFinishA + RecoverA
+}
+
+/* WHERE A TRANSITION IS COUNTED, which is not the same as which actions are
+   transitions, and the difference is this file's declared split rather than a
+   narrowing of the claim.  `doInitRoot` stops at the format witness and
+   `doCompleteScaffold` lands it — ONE catalogue action, TWO steps, deliberately,
+   because the interval between them is `PartialScaffold` and `SY-06.b` and
+   `TT-20` are both about it.  Counting both would report a single uninterrupted
+   scaffold as two transitions in one iteration; counting the completion counts
+   the pair once, and counts a completion that finishes an EARLIER iteration's
+   initialisation as that iteration's own — which is the interrupted case
+   `SY-06.b` exists for.  All four guard on `moved`; these three spend it. */
+fun TransitionEndAct: set Action {
+  CompleteScaffoldA + AllocFinishA + RecoverA
 }
 
 /* EVERY OBSERVATION, CREATION OR MUTATION OF THE TASK TREE, as a set rather than
@@ -623,7 +681,14 @@ pred sessionSame{ World.signal' = World.signal and World.ending' = World.ending
                   and World.halted' = World.halted }
 pred verdictSame{ World.verdict' = World.verdict }
 pred aliveSame  { Alive.live' = Alive.live }
-pred procSame[p: Proc] {
+pred procSame[p: Proc] { procSameButMoved[p] and p.moved' = p.moved }
+
+/* The same frame with `moved` left to the site, for the three transitions that
+   spend it.  Split rather than inlined so that the four fields a transition does
+   NOT touch stay framed by one name — a field added to `Proc` and forgotten at a
+   transition is the silent frame hole this file's header warns about, and
+   `SY_04a`'s second conjunct is what catches one. */
+pred procSameButMoved[p: Proc] {
   p.holds' = p.holds and p.seen' = p.seen
   p.waits' = p.waits and p.leaseOn' = p.leaseOn
   p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
@@ -634,7 +699,7 @@ pred procSame[p: Proc] {
 pred actorSameBut[p: Proc] {
   p.holds' = p.holds and p.seen' = p.seen
   p.waits' = p.waits and p.leaseOn' = p.leaseOn
-  p.sel' = p.sel and p.gen' = p.gen
+  p.sel' = p.sel and p.gen' = p.gen and p.moved' = p.moved
 }
 pred procsSame        { all p: Proc | procSame[p] }
 pred procsSameBut[p: Proc] { all q: Proc - p | procSame[q] }
@@ -683,7 +748,7 @@ pred doAcquireLease[p: Proc] {
     World.verdict' = Ok
     p.holds' = p.holds + LeaseG and p.seen' = p.seen + LeaseG
     p.leaseOn' = World.wt and no p.waits'
-    p.sel' = p.sel and p.gen' = p.gen
+    p.sel' = p.sel and p.gen' = p.gen and p.moved' = p.moved
     procsSameBut[p]
   }
 }
@@ -702,6 +767,7 @@ pred doReleaseLease[p: Proc] {
   p.holds' = p.holds - LeaseG and p.seen' = p.seen
   no p.leaseOn' and no p.waits'
   p.sel' = p.sel and p.gen' = p.gen and some p.spent'
+  p.moved' = p.moved
   procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
@@ -745,7 +811,7 @@ pred doOpenEpoch[p: Proc] {
       Sys.res' = Applied
       p.holds' = p.holds + EpochG and p.seen' = p.seen + EpochG
       no p.waits' and p.leaseOn' = p.leaseOn
-      p.sel' = p.sel and p.gen' = p.gen
+      p.sel' = p.sel and p.gen' = p.gen and p.moved' = p.moved
       /* THE ROTATION.  A driver writes the record active with a FRESH identity;
          an ambient command only reads it. */
       p.role = DriverR implies (some World.gen' and World.gen' != World.gen)
@@ -754,7 +820,7 @@ pred doOpenEpoch[p: Proc] {
       Sys.res' = Deferred
       p.holds' = p.holds and p.seen' = p.seen
       p.waits' = EpochG and p.leaseOn' = p.leaseOn
-      p.sel' = p.sel and p.gen' = p.gen
+      p.sel' = p.sel and p.gen' = p.gen and p.moved' = p.moved
       World.gen' = World.gen
     }
   }
@@ -768,6 +834,7 @@ pred doCloseEpoch[p: Proc] {
   p.holds' = p.holds - EpochG and p.seen' = p.seen
   p.waits' = p.waits and p.leaseOn' = p.leaseOn
   p.sel' = p.sel and p.gen' = p.gen and some p.spent'
+  p.moved' = p.moved
   procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
@@ -786,6 +853,7 @@ pred doTakeTree[p: Proc] {
     p.waits' = TreeG and p.leaseOn' = p.leaseOn
   }
   p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  p.moved' = p.moved
   procsSameBut[p]
 }
 
@@ -796,6 +864,7 @@ pred doDropTree[p: Proc] {
   p.holds' = p.holds - TreeG and p.seen' = p.seen
   p.waits' = p.waits and p.leaseOn' = p.leaseOn
   p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  p.moved' = p.moved
   procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
@@ -831,6 +900,7 @@ pred doGrant[p: Proc] {
   }
   no p.waits' and p.leaseOn' = p.leaseOn
   p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  p.moved' = p.moved
   procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
@@ -940,6 +1010,7 @@ pred doCrash[p: Proc] {
   /* Death releases what the KERNEL holds and rewrites nothing else: `spent`,
      `sel` and `gen` are the dead process's own record, not a resource. */
   p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  p.moved' = p.moved
   procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame
 }
 
@@ -967,6 +1038,7 @@ pred doNestedAcquire[p: Proc] {
     p.waits' = EpochG and p.leaseOn' = p.leaseOn
   }
   p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  p.moved' = p.moved
   procsSameBut[p]
 }
 
@@ -1020,7 +1092,7 @@ pred doIter[p: Proc] {
   p in Alive.live and no p.waits
   Sys.act' = IterA and Sys.actor' = p and no Sys.gu'
   Sys.res' = Environmental
-  no p.spent' and no p.sel' and p.seen' = p.holds
+  no p.spent' and no p.moved' and no p.sel' and p.seen' = p.holds
   p.holds' = p.holds and p.waits' = p.waits
   p.leaseOn' = p.leaseOn and p.gen' = p.gen
   procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
@@ -1052,6 +1124,7 @@ pred doSelect[p: Proc] {
   }
   p.holds' = p.holds and p.seen' = p.seen and p.waits' = p.waits
   p.leaseOn' = p.leaseOn and p.spent' = p.spent and p.gen' = p.gen
+  p.moved' = p.moved
   procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
@@ -1096,6 +1169,7 @@ pred doLaunch[p: Proc] {
     s.gen' = World.gen
     s.holds' = s.holds and s.seen' = s.seen and s.waits' = s.waits
     s.leaseOn' = s.leaseOn and s.spent' = s.spent and s.sel' = s.sel
+    s.moved' = s.moved
     all q: Proc - p - s | procSame[q]
   }
   worldSame and treeSame and verdictSame and aliveSame
@@ -1183,6 +1257,7 @@ pred doTimeout[p: Proc] {
   no p.waits'
   p.holds' = p.holds and p.seen' = p.seen and p.leaseOn' = p.leaseOn
   p.spent' = p.spent and p.sel' = p.sel and p.gen' = p.gen
+  p.moved' = p.moved
   procsSameBut[p] and worldSame and treeSame and verdictSame and launchSame and aliveSame
 }
 
@@ -1236,6 +1311,11 @@ pred mayTouchTree[p: Proc] {
    identity `finish-k8`'s counterexample handed back. */
 pred doInitRoot[p: Proc] {
   mayTouchTree[p]
+  /* `SY-04.a`: this iteration has not taken its transition.  `doInitRoot`
+     GUARDS on the flag but does not spend it — root initialisation is one
+     catalogue action modelled here as two steps, and the transition is
+     counted where the format witness lands. */
+  no p.moved
   no World.rooted
   Sys.act' = InitRootA and Sys.actor' = p and no Sys.gu'
   Sys.res' = Applied
@@ -1269,6 +1349,7 @@ pred doInitRoot[p: Proc] {
    on, and `SY_06b`'s biconditional is what tells the two gates apart. */
 pred doCompleteScaffold[p: Proc] {
   mayTouchTree[p]
+  no p.moved
   some World.rooted
   some (World.partial + World.legacy)     // ENABLED BY: no format witness
   Sys.act' = CompleteScaffoldA and Sys.actor' = p and no Sys.gu'
@@ -1284,7 +1365,13 @@ pred doCompleteScaffold[p: Proc] {
     World.partial' = World.partial and World.legacy' = World.legacy
     World.live' = World.live
   }
-  procsSame and worldSame and verdictSame and launchSame and aliveSame
+  procsSameBut[p] and procSameButMoved[p]
+  /* SPENT ONLY WHEN THE TRANSITION APPLIED.  A refused attempt transitions
+     nothing and must leave the iteration free to take its one — which is also
+     what keeps `SY_04a`'s frame-hole conjunct honest, since that conjunct says
+     `moved` changes only where a COUNTED transition happens. */
+  (Sys.res' = Applied implies some p.moved' else p.moved' = p.moved)
+  worldSame and verdictSame and launchSame and aliveSame
 }
 
 /* ALLOCATE-FINISH-LEAF.  Split out of `doTreeOp` rather than folded into it,
@@ -1302,6 +1389,7 @@ pred doCompleteScaffold[p: Proc] {
    distinguishing between. */
 pred doAllocFinish[p: Proc] {
   mayTouchTree[p]
+  no p.moved
   some World.rooted and no World.partial and no World.legacy
   Sys.act' = AllocFinishA and Sys.actor' = p and no Sys.gu'
   rootSame
@@ -1321,7 +1409,13 @@ pred doAllocFinish[p: Proc] {
       }
     }
   }
-  procsSame and worldSame and verdictSame and launchSame and aliveSame
+  procsSameBut[p] and procSameButMoved[p]
+  /* SPENT ONLY WHEN THE TRANSITION APPLIED.  A refused attempt transitions
+     nothing and must leave the iteration free to take its one — which is also
+     what keeps `SY_04a`'s frame-hole conjunct honest, since that conjunct says
+     `moved` changes only where a COUNTED transition happens. */
+  (Sys.res' = Applied implies some p.moved' else p.moved' = p.moved)
+  worldSame and verdictSame and launchSame and aliveSame
 }
 
 /* THE PROOF, AS ONE OPAQUE STEP, AND IT IS `FN-11`/`FN-19`'s.  Everything that
@@ -1456,6 +1550,7 @@ pred doForeignWrite {
    the finish model's. */
 pred doRecover[p: Proc] {
   mayTouchTree[p]
+  no p.moved
   some World.rooted and World.proven = World.rooted   // a transaction, part-way
   Sys.act' = RecoverA and Sys.actor' = p and no Sys.gu'
   Sys.res' = Blocked
@@ -1464,7 +1559,13 @@ pred doRecover[p: Proc] {
   World.retired' = World.retired and World.proven' = World.proven
   World.partial' = World.partial and World.legacy' = World.legacy
   entriesSame
-  procsSame and worldSame and verdictSame and launchSame and aliveSame
+  procsSameBut[p] and procSameButMoved[p]
+  /* SPENT ONLY WHEN THE TRANSITION APPLIED.  A refused attempt transitions
+     nothing and must leave the iteration free to take its one — which is also
+     what keeps `SY_04a`'s frame-hole conjunct honest, since that conjunct says
+     `moved` changes only where a COUNTED transition happens. */
+  (Sys.res' = Applied implies some p.moved' else p.moved' = p.moved)
+  worldSame and verdictSame and launchSame and aliveSame
 }
 
 /* ANY ADMITTED ACTION ATTEMPTED ON A BLOCKED TREE, AS ONE OPAQUE STEP — and
@@ -1907,33 +2008,93 @@ run witness_SY_11b_a_real_wait_that_is_not_a_cycle {
 // transition, the selection taken once, the launch window, and the generation
 // staleness with its visible stop.
 //
-// TWO OF THE THREE CLAIMS ARE STATED OVER THE TRANSITION SET RATHER THAN OVER A
-// LIST OF NAMES, for the reason `SY-11.a` already gave: a list goes stale the
-// moment a slice adds a site.  `SY-04.a` quantifies over `LifecycleAct` and
-// `SY-04.b` over the same set minus its one exemption, so the two obligations
-// `sessions` will add reach both without either command being edited.
+// TWO OF THE THREE CLAIMS ARE STATED OVER A SET RATHER THAN OVER A LIST OF
+// NAMES, for the reason `SY-11.a` already gave: a list goes stale the moment a
+// slice adds a site.  Both `SY-04` obligations quantify over `TransitionAct`
+// since `lifecycle-scope-k72` defined the catalogue's *lifecycle transition* —
+// which is NOT §*Actions*' Lifecycle group, and the two sets have no member in
+// common.  This column read the group and the Quint column read the stages, both
+// were green, and the word was doing two jobs; the definition is at the head of
+// §*Claims — system lifecycle* and `TransitionAct` is it.
+
+/* SY-04.a, THE CATALOGUE'S CLAIM: at most one lifecycle transition per
+   iteration, stated over the trace rather than over this file's `spent` flag.
+   After a transition, no second one occurs up to and including the next
+   boundary — `releases` rather than `until`, because a lasso trace that takes
+   its transition and then idles forever satisfies *at most one* and a strong
+   until would report it as a counterexample about nothing. */
 // ===========================================================================
 
 // --- SY-04: one lifecycle transition an iteration, under a live config ------
 
-/* SY-04.a.  TWO CONJUNCTS AND THEY ARE COMPLEMENTARY, which is what makes *at
-   most one* a claim rather than a guard restated:
+/* WHAT COUNTS AS ONE, AND THE SECOND CONJUNCT IS THIS FILE'S OWN ABSTRACTION
+   RATHER THAN A WEAKENING.
 
-     the PROHIBITION — a Lifecycle transition happens only in an iteration that
-     has not spent one.  Drop the guard from any site and this half fires.
-     the CONSUMPTION — and it spends it.  A site that took its transition
-     without marking the iteration would leave the prohibition true and the
-     claim false, and only this half sees it.
+   APPLIED ONLY.  A refused attempt transitions nothing, and `SY-04`'s own *so
+   that* is about what gets written; `models/system/lifecycle.qnt` counts the
+   same way (`afterTree` increments on `OApplied`).  The predecessor here counted
+   every branch — *a refusal is a turn of the loop as surely as an application
+   is* — which is true of a TURN and not of a TRANSITION, and it is one of the
+   two places the word was doing two jobs.
 
-   `Sys.actor'.spent` reads the actor's PRE-state through its post-state
-   identity, which is the file's inherited idiom (`Sys.actor'.waits' =
-   Sys.actor'.waits` in `SY_01a`). */
+   AND ROOT INITIALISATION IS ONE CATALOGUE ACTION MODELLED AS TWO STEPS.
+   `doInitRoot` stops at the format witness and `doCompleteScaffold` lands it,
+   deliberately, because the interval between them is `PartialScaffold` and two
+   obligations are about it (`SY-06.b`, `TT-20`).  So the completion that
+   finishes THIS iteration's own initialisation is not a second transition — the
+   pair is one — while a completion that finishes an initialisation from an
+   earlier iteration is its own iteration's transition, which is the interrupted
+   case `SY-06.b` exists for.  `since` is what tells the two apart, and stating
+   the claim without it reported the model's declared split as a violation. */
+pred tookATransition { Sys.act' in TransitionEndAct and Sys.res' = Applied }
+
 check SY_04a_at_most_one_lifecycle_transition_per_iteration {
   Assumed implies always {
-    (Sys.act' in LifecycleAct)
-      implies (no Sys.actor'.spent and some Sys.actor'.spent')
+    /* THE PROHIBITION — a transition happens only in an iteration that has not
+       taken one.  Drop `no p.moved` from any of the four sites and this fires. */
+    tookATransition implies no Sys.actor'.moved
+    /* THE CONSUMPTION — and it takes it.  A site that transitioned without
+       marking the iteration would leave the prohibition true and the claim
+       false, and only this half sees it. */
+    tookATransition implies some Sys.actor'.moved'
+    /* AND NOTHING ELSE MOVES THE FLAG, which is the frame-hole detector rather
+       than a third claim: `moved` is a `var` on `Proc`, and a predicate that
+       forgot to frame it would leave it free and quietly weaken the two
+       conjuncts above into statements about an unconstrained field.  Only a
+       counted transition sets it and only the iteration boundary clears it. */
+    (some p: Proc | p.moved' != p.moved)
+      implies (tookATransition or Sys.act' = IterA)
   }
 } for 3 but 2 WtId, 5 steps
+
+/* THE GROUP'S OWN TURN-TAKING IS THIS MODEL'S MECHANISM AND IS NO LONGER A
+   COMMAND, WHICH IS PART OF `lifecycle-scope-k72`'s DISPOSITION RATHER THAN
+   TIDYING.
+
+   `spent` is set by every Lifecycle-GROUP action in every branch and cleared
+   only by `doIter`, and until this leaf the pair *a group action needs `fresh`
+   and sets `spent`* was checked here under `SY-04.a`'s name.  It is a true
+   statement about this file's admission machinery and it is not the catalogue's
+   claim — it is that machinery read back to itself, which is the transcription
+   shape `obligations-follow-context-not-artifact` records at `TT-24.c`.  Reading
+   it as `SY-04.a` is how this column came to offer *layout-preflight alone in an
+   iteration* as evidence for an obligation whose own justification is about the
+   working tree, and to gate `release-lease` on a configuration.
+
+   The machinery is untouched — every `fresh[p]` guard and every `some p.spent'`
+   still stands, and they are what give `IterA` a boundary to be.  What is gone
+   is the command that credited a coverage cell for checking them.  `SY-04.a` is
+   now stated over the trace and over `TransitionAct`, where a mutation that
+   removed a `fresh` guard would still be visible if it let two transitions
+   land in one iteration — and where one that did not is correctly no longer
+   this obligation's business.
+
+   `ValidateConfigA` is also why the old command could not simply keep its set:
+   it joined `LifecycleAct` with this disposition and it does NOT spend the
+   iteration's turn, correctly — the driver validates and then transitions in
+   the same iteration.  Restating the mechanism over `LifecycleAct -
+   ValidateConfigA` would have reintroduced the ad-hoc exemption this leaf just
+   removed from `SY_04b`. */
 
 /* The catalogue's own witness is *each transition, taken alone* — a witness PER
    LIFECYCLE TRANSITION and not one witness, so the seven below are one
@@ -1944,18 +2105,15 @@ check SY_04a_at_most_one_lifecycle_transition_per_iteration {
 pred aloneInAnIteration[a: Action] {
   some p: Proc |
     eventually (Sys.act = IterA and Sys.actor = p and after (
-      (Sys.act not in LifecycleAct) until (
-        Sys.act = a and Sys.actor = p and after (
-          (Sys.act not in LifecycleAct) until (Sys.act = IterA and Sys.actor = p)))))
+      (Sys.act not in TransitionAct) until (
+        Sys.act = a and after (
+          (Sys.act not in TransitionAct) until (Sys.act = IterA and Sys.actor = p)))))
 }
 
-run witness_SY_04a_acquire_lease_alone     { Assumed and aloneInAnIteration[AcquireLeaseA]    } for 3 but 2 WtId, 6 steps
-run witness_SY_04a_layout_preflight_alone  { Assumed and aloneInAnIteration[LayoutPreflightA] } for 3 but 2 WtId, 6 steps
-run witness_SY_04a_open_epoch_alone        { Assumed and aloneInAnIteration[OpenEpochA]       } for 3 but 2 WtId, 6 steps
-run witness_SY_04a_launch_alone            { Assumed and aloneInAnIteration[LaunchA]          } for 3 but 2 WtId, 6 steps
-run witness_SY_04a_reap_alone              { Assumed and aloneInAnIteration[ReapA]            } for 3 but 2 WtId, 6 steps
-run witness_SY_04a_close_epoch_alone       { Assumed and aloneInAnIteration[CloseEpochA]      } for 3 but 2 WtId, 6 steps
-run witness_SY_04a_release_lease_alone     { Assumed and aloneInAnIteration[ReleaseLeaseA]    } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_initialise_root_alone     { Assumed and aloneInAnIteration[InitRootA]         } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_complete_scaffold_alone   { Assumed and aloneInAnIteration[CompleteScaffoldA] } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_allocate_finish_leaf_alone{ Assumed and aloneInAnIteration[AllocFinishA]      } for 3 but 2 WtId, 6 steps
+run witness_SY_04a_recover_alone             { Assumed and aloneInAnIteration[RecoverA]          } for 3 but 2 WtId, 7 steps
 
 /* SY-04.b.  Three conjuncts, and together they are *full configuration
    validation precedes every transition, so an invalid configuration leaves the
@@ -1984,7 +2142,21 @@ check SY_04b_full_validation_precedes_every_transition {
   Assumed implies always {
     (Sys.act' = ValidateConfigA)
       implies ((Sys.res' in Refused) iff (World.cfg' = InvalidCfg))
-    (Sys.act' in LifecycleAct - AcquireLeaseA)
+    /* OVER `TransitionAct`, NOT OVER THE GROUP, and the change is
+       `lifecycle-scope-k72`'s disposition of item 16.  Stated over
+       `LifecycleAct - AcquireLeaseA` this conjunct gated `release-lease`, which
+       touches no tree and launches nothing — so an invalid personal
+       configuration stranded a lease the loop could then escape only by dying,
+       and this file recorded that as a second dead end with two repairs on
+       offer (exempt the release, or admit process death).  NEITHER IS OWED.
+       `release-lease` is not a lifecycle transition, the dead end dissolves with
+       the reading, and admitting process death would have moved the quantifier
+       of every reachability claim in the catalogue — `crash` is the world's.
+
+       `AcquireLeaseA` no longer needs an exemption either: it was never in this
+       set.  `SY-02`'s *before configuration validation* is now a fact about two
+       actions in a stated order rather than a hole in this conjunct. */
+    (Sys.act' in TransitionAct)
       implies World.cfg' = ValidCfg
     /* `Sys.res' != Environmental` IS NEW WITH THIS SLICE AND IT IS A CORRECTION
        RATHER THAN A WEAKENING.  `roots` is the first slice to give the WORLD a
@@ -2663,6 +2835,7 @@ check SY_12_a_crash_applies_nothing_and_no_completed_effect_is_repeated {
    rather than by being forgotten. */
 run witness_SY_12_crash_after_acquire_lease    { Assumed and crashAfter[AcquireLeaseA]    } for 3 but 2 WtId, 5 steps
 run witness_SY_12_crash_after_layout_preflight { Assumed and crashAfter[LayoutPreflightA] } for 3 but 2 WtId, 5 steps
+run witness_SY_12_crash_after_validate_config  { Assumed and crashAfter[ValidateConfigA]  } for 3 but 2 WtId, 5 steps
 run witness_SY_12_crash_after_open_epoch       { Assumed and crashAfter[OpenEpochA]       } for 3 but 2 WtId, 5 steps
 run witness_SY_12_crash_after_launch           { Assumed and crashAfter[LaunchA]          } for 3 but 2 WtId, 5 steps
 run witness_SY_12_crash_after_reap             { Assumed and crashAfter[ReapA]            } for 3 but 2 WtId, 5 steps

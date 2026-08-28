@@ -6466,6 +6466,17 @@ observation, importing no machinery), one placement instance recorded for
 `formal-synthesis-k16`, and two cost results (a free signature, not a transition
 count, is where system-level run cost lives; and margin is priced per command).
 
+> **[disposed by `lifecycle-scope-k72`]** **Granted, and generalised once rather than patched twice.**
+`SY-04.b` now reads *for anything Grove does*, and the generalisation is a
+reading rule at the head of §*Claims — system lifecycle*: an `SY-` claim binds
+the world only where it says so and names the assumption or state-table property
+that makes the wider reading checkable. A blanket *`SY-` claims are about Grove*
+would have been wrong — `SY-05.b` binds the world deliberately, at `EN-14` — and
+that is why the rule is about naming rather than about excluding. This entry's
+finding and entry 043's `SY-13` sink are the two instances of the class, and they
+are decided together. Record:
+`docs/adr/a-lifecycle-claim-says-what-it-is-over.md`.
+
 **Model facts** (the pre-registration's fourth addition). **Tool**: Alloy 6.2.0
 `.202501090817` (git `794226d`), `org.alloytools.alloy.dist.jar`, Corretto
 `21.0.12.1+9-LTS`. **Solver**: SAT4J (distribution default), every command with
@@ -6640,6 +6651,20 @@ for a configuration to be valid *for*. Two repairs are available (exempt the
 release, or admit process death) and `formal-synthesis-k16` inherits the choice.
 **M1** `alloy-only`. **M2** `structure`. **M3 = 2** — the probe names the state
 and the absent transition but not the repair. **M4** `none`.
+
+> **[disposed by `lifecycle-scope-k72`]** **NEITHER REPAIR IS OWED, AND THE PROBE'S OWN GAP — it names the
+absent transition but not the repair — IS WHY.** The dead end was a finding about
+a WORD. The catalogue used *lifecycle transition* for two sets and defined
+neither: this column read §*Actions*' Lifecycle GROUP, `lifecycle.qnt` read the
+stage-changing steps, the two sets have **no member in common**, and both were
+green. `release-lease` is not a transition — it advances no stage and writes no
+tree — so nothing was ever gating it but this column's reading, and the dead end
+dissolves with the definition. **Admitting process death is refused explicitly**:
+`crash` is the world's, so admitting it moves what every reachability claim
+quantifies over, and a sweep in which the loop may always die finds no dead end
+anywhere — the argument this catalogue already makes for hand edits.
+`CONTEXT.md`'s *Admitted action* stands unchanged. Record:
+`docs/adr/a-lifecycle-claim-says-what-it-is-over.md`.
 
 **THE FOURTH RESULT IS COMPOSITIONAL AND IT INVERTS A RULE THIS FILE WROTE ONE
 SLICE AGO.** `roots-k53` split `allocate-finish-leaf` out of the opaque tree step
@@ -7874,6 +7899,19 @@ the loop has no further admitted action of its own"* — and immediately says
 there are **exactly two**, naming a proven finish and a blocked tree, and
 explicitly excluding `Malformed`.
 
+> **[disposed by `lifecycle-scope-k72`]** **The catalogue takes the repair it had not considered.** `SY-13`
+now quantifies over *any stable state Grove's own admitted actions can reach*,
+and carries the companion in the same sentence — *and Grove SHALL never
+manufacture one of the others* — as `SY-13.a`'s first conjunct rather than as an
+assumption, which is what makes the narrowing sound rather than convenient.
+`lifecycle.qnt` gained `mutant_grove_manufactures_legacy` so the companion is
+falsifiable; `mutant_literal_sy13` is now a control on the DISPOSED text rather
+than a declaration that the column checks less than the contract says. **A fourth
+member joined the excluded class after this was decided**:
+`task-tree-scope-k70`'s `PartialScaffold(Ambiguous)`, which Grove's scaffold
+never writes and from which Grove has no admitted exit. Record:
+`docs/adr/a-lifecycle-claim-says-what-it-is-over.md`.
+
 Those two sentences disagree. `Legacy`, `Foreign` and `Malformed` are reached by
 a hand edit and left by a hand edit, and a hand edit is not an admitted action —
 `SY-13`'s own note puts operator actions outside the admitted set *by
@@ -8792,6 +8830,22 @@ of either column's independent reach · *M2* `structure` · *M3* **2** — the
 retained trace names the transition and the gate is two lines of `outcomeOn` ·
 *M4* — not assessed here; the model's configuration gate is an abstraction of a
 product path this leaf did not open.
+
+> **[disposed by `lifecycle-scope-k72`]** **`SY-04.b` OWES IT, AND THIS COLUMN'S GATE WAS THE DEFECT —
+`M4` IS NOW ASSESSED AND IT IS *none*.** The product path this leaf did not open
+is the one that settles it: `src/loop_driver.rs` is the sole caller of
+`SessionConfig::load` and calls it TWICE an iteration, once before the tree
+mutation and once before the launch, which
+`docs/adr/complete-session-configuration.md` states as *validated in full —
+before every tree mutation and again before every launch*. So no product defect
+stands behind the finding; the licence was this model's, licensed by the
+catalogue's silence. `lifecycle.als` read the configuration LIVE and was green on
+the stronger claim throughout — **the two columns answered one silence in
+opposite directions and both stayed green**, which is entry 048's `FN-13` shape
+in an obligation no enumeration had flagged. `outcomeOn` now reads
+`w.configValid` beside the recorded verdict and the retained counterexample is
+`mutant_config_licence`, isolating and asserted so. Record:
+`docs/adr/a-lifecycle-claim-says-what-it-is-over.md`.
 
 ---
 
@@ -10074,6 +10128,59 @@ disposition. The classes, so the child can size its own decomposition:
   `TT-24.c`'s Quint invariant is a transcription of `gateOutcome`'s own branch
   with no control — a control, a declared gap, or a re-scoping, and the third is
   `obligation-placement-k63`'s.
+
+> **[disposed by `lifecycle-scope-k72`, closing `catalogue-disposition-k64`]**
+> **The whole inherited set is disposed and the node is closed.** The enumeration
+> ran at 93 sites (97 here, less the four `obligation-placement-k63` retired with
+> `TT-24.c`/`TT-24.d`), classified into 24 decided items, 11 routed and 23 prose;
+> the node split by scope behind a vocabulary child, and the four children are
+> `routing-and-prose-k73`, `closed-set-additions-k74`, `task-tree-scope-k70`,
+> `finish-scope-k71` (reviewed by `finish-scope-k75`, integrated by
+> `finish-scope-k76`) and `lifecycle-scope-k72`.
+>
+> **What the catalogue's closed sets and counts became.** Refusal reasons
+> **17 → 21** (`DeletionNotCommitted`, `ConfigurationInvalid`,
+> `GenerationContended`, `ScaffoldIncomplete(class)`); outcomes **6 → 6**;
+> blocked diagnoses **2 → 2**; task-root states gained `Reserved(Quarantined)`
+> and split the witnessless root into `PartialScaffold(Exact)` and
+> `PartialScaffold(Ambiguous)`; obligations **128 → 130** (`FN-29` gained `.a`
+> and `.b`; `TT-17` split), which `models/run.sh --list` prints. §*Actions*
+> gained the `validate-config` row it had always been short.
+>
+> **Two of the classes above resolved against their own headline.**
+> `ONotEntered` and `Stopped` are **not** closed-set additions — the first is a
+> call that was never made and the second was a level error, a missing REASON
+> read as a missing outcome. And the *Scoping* bullet's `release-lease` finding
+> is not a scoping question at all: it is the catalogue having used *lifecycle
+> transition* for two sets with no member in common, which the two columns
+> instantiated differently while both stayed green.
+>
+> **Five records carry the decisions**:
+> [`a-refusal-leaves-nothing-standing`](adr/a-refusal-leaves-nothing-standing.md),
+> [`a-witnessless-root-refuses-what-it-cannot-account-for`](adr/a-witnessless-root-refuses-what-it-cannot-account-for.md),
+> [`success-is-proved-by-the-ticket-not-the-tree`](adr/success-is-proved-by-the-ticket-not-the-tree.md),
+> [`a-closed-partition-is-over-outcomes-not-states`](adr/a-closed-partition-is-over-outcomes-not-states.md)
+> and
+> [`a-lifecycle-claim-says-what-it-is-over`](adr/a-lifecycle-claim-says-what-it-is-over.md).
+>
+> **The closing sweep, with the control that matters.** The subject sweep finds
+> `formal-synthesis-k16` and `catalogue-disposition-k64` **only in this log** and
+> in no live artifact; the positive control (`cross-model-replay-k15`) finds its
+> own sites; the negative control finds none; and the **cross-tree** control —
+> every NODE handle finds zero live sites while every LEAF handle finds its own —
+> is the one `routing-and-prose-k73` learned to run, because a clean subject
+> sweep hides a decomposition that has re-pointed at a directory instead of an
+> owner.
+>
+> **The counts are deliberately not quoted here, and that is a finding about the
+> instrument rather than reticence.** `formal-synthesis-k99` — the invented
+> handle three sessions have used as the negative control — went from 0 sites to
+> 1 the moment a durable record said it found 0. **A control handle, once named
+> in a durable artifact, stops being a valid negative control**, and the same
+> applies to every count in a sweep whose own report is inside the swept tree:
+> writing *31 sites* makes it 32. The next sweep must invent a handle that
+> appears nowhere (this one used `lifecycle-scope-k98`, 0) and must read its
+> counts as *of the tree including this paragraph*.
 
 **To `finish-verdicts-k65` — `TODO.finish_process.md` Q1 – Q4.** The catalogue
 pre-committed the evidence that classifies each, so these are read rather than

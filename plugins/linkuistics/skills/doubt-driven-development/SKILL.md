@@ -26,16 +26,10 @@ a post-hoc gate runs, the wrong direction is already load-bearing.
 > don't-bias-the-reviewer rule. The core that transfers is the *discipline*, not
 > the upstream's ecosystem scaffolding.
 
-> **Measurements.** Every figure cited below comes from one workstream's own
-> review record, `docs/review-yield.md` in `Linkuistics/grove` — nine tree-level
-> review chains and three in-session reviewers. **The two channels were counted
-> by different instruments**, and the document says so: the tree-level counts are
-> derived from markdown block structure under a rule fixed before any count was
-> taken, while the in-session findings are written as bullets that enumeration
-> deliberately skips, so **that channel is a hand count** from the sessions' own
-> four-way classification. **One grove, one subject matter, one operator**, in a
-> repository whose whole purpose was rigour about evidence. The rates are rates
-> *there*; what transfers is the structure they expose, not the numbers.
+> **Measurements.** Every figure below comes from one workstream, counted by two
+> different instruments. **The rates are rates *there*** — port the structure they
+> expose, never the numbers. Provenance, limits and the full tables:
+> `references/measured-workstream.md`.
 
 Harness-specific spawn commands (codex ↔ pi ↔ claude, cross-model):
 see `references/harness-spawns.md`.
@@ -70,29 +64,18 @@ representation, your artifact swept against a library of claims you never
 checked it against — returns a **different instrument**. That is the question to
 put to a candidate reviewer before spawning it.
 
-Three sessions in the measured workstream spent their allowance, and **all three
-changed the session that spent them**: one broke a disposition its session had
-already landed, forcing a reversal across nine artifacts; one swept all 63 of a
-library's invariants against the candidate's module and found two violated, one
-nobody was looking for; one made its session withdraw a sentence it had already
-written. Three for three, and not one of them a second opinion.
+**Declining is a real answer, and the reason is what makes it one.** Four
+reasons are legitimate — three judgements and one constraint:
 
-**Declining is a real answer, and the reason is what makes it one.** Five
-sessions in the same workstream considered the allowance and did not spend it,
-for four distinct reasons — two a judgement about the better instrument, one
-about where the same one belonged, and one a constraint rather than a
-judgement:
-
-- **Executable evidence beats a fresh read of the same prose.** One session
-  spent four tests that would break if its central claim were wrong instead.
+- **Executable evidence beats a fresh read of the same prose.** Spend tests that
+  would break if the central claim were wrong instead.
 - **A later step is already chartered to contest the verdict**, so a reviewer
   here buys the same read twice.
 - **The doubt is one a fresh read cannot discharge** — the control you would
   hand over is itself part of what needs challenging.
 - **The harness forbids the spawn** — a constraint, and the only one of the four
-  that is not a judgement. Then the answer is to schedule the fresh-context read
-  where it *can* happen, not to skip it: two of the five sessions cut a scheduled
-  review step instead, and one called that the stronger instrument.
+  that is not a judgement. Then schedule the fresh-context read where it *can*
+  happen; do not skip it.
 
 A decline recorded as *not needed* is the skip this skill exists to catch.
 
@@ -144,14 +127,10 @@ one budget across the **whole picked leaf**:
   derived decision in its own reviewed producer chain.
 
 **Grove owns the tree-level form of RECONCILE's contract rule, and it binds
-without this skill.** Grove's own `references/decompose.md` states that an
-integration's body carries the review's **handle, never its findings**, and its
-`references/integrate-review.md` sends the integrating session to read those
-findings from the review's own commit. Those are Grove's rules rather than a
-précis of this one: with this plugin absent the rule still binds, because it
-changes what a session *writes* into a leaf body. Read them there and follow
-them; RECONCILE adds only the same rule for a doubt cycle's own handoffs, which
-Grove does not cover — and outside a Grove mandate there is no leaf body to
+without this skill.** Do not read it here: follow the `grove` skill's own
+`references/decompose.md` and `references/integrate-review.md`, which state it
+canonically. RECONCILE adds only the same rule for a doubt cycle's own handoffs,
+which Grove does not cover — and outside a Grove mandate there is no leaf body to
 write, so nothing is lost in the other direction either.
 
 Writing the specific doubt into a new review leaf's body, above, is the
@@ -259,19 +238,14 @@ It costs N subagents; reserve it for genuinely multi-failure-mode decisions.
 
 <a id="independent-means-unaimed"></a>
 
-**Independent means unaimed, and a relay is not independent.** The measured
-workstream's most-quoted result is three readers of one artifact, each finding
-what the previous two had not. It is weakened twice. It is **one node** — and
-the node the loop had just selected for review for the third time, because it
-was the hardest. Selection, not sampling. And the three readers were **aimed**: the
-second's charter carried the first's specific doubt, and the third's work list
-*was* the second's findings. What the chain bought was the handoff, not the head
-count, and it is no evidence that three fresh contexts compound, because a chain
-of three *unaimed* readers was never run there. The findings nobody aimed at —
-two of them — came out of a **sweep the third reader ran to verify a finding**:
-an instrument, not a reader, which is *different instrument* arriving from the
-other side. So aim a reviewer deliberately, and count it as one aimed reader
-rather than as an independent sample.
+**Independent means unaimed, and a relay is not independent.** A reader whose
+charter carries the previous reader's doubt — or whose work list *is* the
+previous reader's findings — is **aimed**. A relay of three such readers is one
+aimed chain, not three samples, and it is no evidence that fresh contexts
+compound. So aim a reviewer deliberately, and then count it as **one aimed
+reader**: the sample size for a stopping decision is the number of *unaimed*
+readers, which in a relay is one. (The measured relay, and both of its
+weakenings: `references/measured-workstream.md`.)
 
 ### 4. RECONCILE — fold findings back
 
@@ -284,24 +258,18 @@ a session you hand off to — write **the pointer to the review, not its finding
 transcribed as obligations**, and let the reconciler read them from the review's
 own record.
 
-The asymmetry that shows it, measured: **45 findings raised across nine
-tree-level review chains, and every one graded valid** — and in five of those
-nine, the integrating session's own task file had been written by the reviewer.
-In the in-session channel, where the reader owed the finding nothing, **4 of 24
-(17%)** were graded something other than actionable — a trade-off accepted
-visibly, or noise — and one reviewer *falsified* a finding the integrating
-session had raised itself. **A 100% survival rate is what a broken instrument
-reads.** The counter-evidence sits where a mechanism existed: four late chains
-say in as many words that they verified against the artifacts rather than
-against the review's summary, and one of those found the defect was *worse* than
-the review knew.
+**A 100% survival rate is what a broken instrument reads** — treat it as a
+checkable signal, not a compliment. Where the reviewer wrote the reconciler's
+charter, **all 45 tree-level findings survived verification and not one was
+graded a trade-off or noise**; where the reader owed the finding nothing,
+**4 of 24 (17%)** were. Compare the two in those terms — *survived
+verification* against *trade-off or noise*. Do not read 4 of 24 as a rejection
+rate: under the precedence below, *something other than actionable* also covers
+a contract stated unclearly, which is a different, larger number.
 
 **And state what it does not fix.** The finding list is still the reviewer's, so
 nothing here recovers a finding nobody wrote down; the repair moves the hazard
-one level down rather than removing it. Nine chains also cannot separate this
-structural reading from reviewers who were simply right every time — which is
-precisely why the repair is the cheap structural one and not a claim about
-anybody's accuracy.
+one level down rather than removing it.
 
 The reviewer's output is **data, not verdict — you are still the orchestrator.**
 Re-read the artifact text against each finding before classifying;
@@ -363,17 +331,12 @@ forcing function, not an obstacle.)
   surfaced substantive findings, **zero** were classified actionable. You are
   validating, not doubting. Stop and escalate.
   **Read it on zero-actionable, which is scale-free — never on the count going
-  down.** A falling count is not decay, and one workstream measured why it
-  cannot be read as decay: findings per review ran **6.2 then 3.5** across nine
-  chains, a gap **inside the noise at about 1.8σ** (roughly 25 matched chains
-  would be needed to see through it), over subjects that were **not matched** —
-  first-of-their-kind artifacts first, incremental decisions on already-reviewed
-  ones later — while the **review rate itself rose**, reaching further down its
-  own value curve. And the unit is elastic: without a severity scale fixed
-  **before** the reviewer starts, counting findings measures enumeration style,
-  since sub-corrections per finding ran **1.0 to 3.3** and consequence was not
-  captured at all. So more cycles is the weaker fix; a severity scale you
-  pre-register is the prior one.
+  down.** A falling count is not decay: it confounds with unmatched subjects and
+  with a rising review rate, and the unit is elastic, so without a severity scale
+  fixed **before** the reviewer starts you are counting enumeration style. So
+  more cycles is the weaker fix; **pre-register a severity scale** and have the
+  reviewer apply it. (What one workstream measured, and why nine chains could not
+  separate flat from falling: `references/measured-workstream.md`.)
 
 ## Interaction with other skills
 

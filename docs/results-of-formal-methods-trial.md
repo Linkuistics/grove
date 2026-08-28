@@ -263,6 +263,24 @@ because it was the hardest. The skill also separates the two channels' counting
 instruments, which this section's figures silently merge: the tree-level counts
 are derived, the in-session ones are a hand count.
 
+**Integrated by `doubt-driven-development-k99`, which moved the evidence out of
+the body.** Its review raised four findings and all four survived verification.
+Two were wrong statements: the two-channel contrast graded 45 tree-level findings
+`valid` against 4 of 24 `something other than actionable`, which are incompatible
+senses — under the skill's own four-way precedence *something other than
+actionable* is 7 of 24, and 4 of 24 is specifically *trade-off or noise*; and the
+≈25-chain figure had dropped the Poisson model and 3σ target that make it true,
+leaving it reading as a general sample-size threshold. Both are now stated in the
+source's terms. The other two were placement: the paragraph advertised as a Grove
+citation **restated** `references/decompose.md`'s and
+`references/integrate-review.md`'s operative clauses despite denying it was a
+précis, and roughly 130 lines of this workstream's case history failed
+`authoring-conventions`' sentence-level no-op test in a model-invoked skill near
+the ~500-line disclosure threshold. The behavioural rules stayed in the body, the
+Grove paragraph became a pure routing citation, and the provenance moved one
+level down to `references/measured-workstream.md` — 407 lines to 370, with the
+evidence still citable and no longer loaded on every invocation.
+
 ### C · The governance constraint on doing either
 
 [`grove-binds-without-the-plugin`](adr/grove-binds-without-the-plugin.md) makes

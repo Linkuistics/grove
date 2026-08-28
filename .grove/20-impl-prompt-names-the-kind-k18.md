@@ -20,10 +20,13 @@ the session performs no selection and has nothing to defer. Read that document
 before touching prompt composition; the 0/10-vs-10/10 result is the reason, and
 any redesign has to preserve the property or restate the evidence against it.
 
-`minimalism-k1`'s `## Deletion list`, *Reconciled* rows 2 and 4:
-`src/methodology.rs` (160 lines, 3 call sites) and `src/prompt.rs`'s content
+`minimalism-k1`'s `## Deletion list`, *Reconciled* row 4: `src/prompt.rs`'s content
 dependency (~270 of 324 lines) — `reference_file`'s nineteen-to-ten `match` and
-`ending_file`'s nineteen-to-two `match` both go.
+`ending_file`'s nineteen-to-two `match` both go, and with them `prompt.rs`'s call
+to `methodology::embed()`, which becomes grove's own signalling sentence. Row 2,
+`src/methodology.rs` itself, is **not** this leaf's: two of its three call sites
+are provisioning's and the build-pairing report's, and both live until
+`delete-provisioning-k19`.
 
 ## Done when
 
@@ -36,19 +39,16 @@ dependency (~270 of 324 lines) — `reference_file`'s nineteen-to-ten `match` an
   did. `grove --version` remains as a fallback, **not** as the mechanism — a verb
   would need the CLI on `PATH` and would fire only if the session thought to run
   it, which is the deferred read the micro-test measured.
-- `src/methodology.rs`, `--content-hash` and the build-pairing report are gone.
-- `docs/adr/one-build-owns-a-session.md` **retired** — no build writes a skill
-  directory, so there is no pairing to report.
-- `docs/adr/skill-delivers-the-methodology.md` **retired** — its delivery path
-  ceases to exist.
-- **The cost that record existed to prevent is recorded, not argued away.** Grove
-  no longer guarantees the methodology is present, so a session can be launched
-  pointing at a skill that is not installed. That is a message, not machinery:
-  grove states the version it is, names the install command, and stops. The
-  provisioned-skill list is dropped with provisioning and the gap is recorded
-  where a reader meets it — a harness with a skill-loading affordance is
-  unaffected, one without loses its fallback, and the reopen condition is **a
-  session that cannot reach the methodology by the affordance alone**.
+- **`src/methodology.rs` stays, and so do `--content-hash` and the build-pairing
+  report.** They belong to provisioning's last live build and go at
+  `delete-provisioning-k19`; see the note below. What goes here is `src/prompt.rs`'s
+  *content dependency* — `reference_file`, `ending_file` and `${locations}` — which
+  is `minimalism-k1`'s row 4 and needs nothing from `methodology.rs`.
+- **The binaries are installed in this session and the session ends without
+  signalling** — the root brief's `### The cutover sequence`, run in full. The
+  behavioural probe for step 3 is the composed prompt itself: the new build's
+  prompt names one `grove-<kind>` skill and carries the release version, where the
+  old build's names a reference file and a `${locations}` list.
 - `cargo test` and `cargo clippy --all-targets` clean; `tests/prompt.rs`
   reconciled; `CHANGELOG.md` updated.
 
@@ -59,13 +59,24 @@ not name a skill that does not exist. k16 decided the exact token to name —
 plugin-namespaced or bare — and this leaf uses that decision rather than
 re-deriving it.
 
-**Retiring the build-pairing guard changes the loop's behaviour under a
-reinstall.** Until now, installing a new build under a live loop stopped the loop
-before the next iteration (`release.toml` records this, and
-`grammar-separator-k15` relies on it). After this leaf it does not: a running
-driver simply keeps running its own code. Say so in `CHANGELOG.md` and in the
-retirement, because `open-kind-k20` reinstalls and its session needs to know the
-loop will *not* stop for it.
+**Why the delivery deletions moved to `delete-provisioning-k19`.** Provisioning is
+still live here, and its per-iteration path calls `methodology::identity()`
+(`src/provision.rs:53-77`), which the driver invokes before every transition
+(`src/loop_driver.rs:116-128`). Deleting `src/methodology.rs` at this leaf would
+leave a source dependency only the *later* k19 removes, so the workspace would not
+compile — and the two retirements that go with it would be false while a build
+still writes skill directories. The spec assigns both to *the leaf that deletes
+provisioning* (`docs/specs/module-decomposition.md:776-777`), and the root brief's
+rule that no ADR is rewritten ahead of the code that makes it true says the same
+thing from the other direction. The cost-recording bullet that accompanied those
+retirements moved with them.
+
+**There was never a build-pairing guard to retire.** `report_build_pairing` prints
+and returns `()` (`src/loop_driver.rs:550-576`); `docs/USAGE.md:164-177` states it
+reports without refusing. Neither this leaf nor any other changes what a reinstall
+does to a running loop, because a reinstall never did anything to one. The root
+brief's cutover sequence carries the handoff that does work — the session ends
+without signalling and the human restarts `grove`.
 
 **`Kind` is still closed here.** Deleting the two `match`es does not open the
 type; `open-kind-k20` does that, and it comes after this leaf because these two

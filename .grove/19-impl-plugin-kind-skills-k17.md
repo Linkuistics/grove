@@ -27,8 +27,16 @@ A directed load is not a selection, which is the property
   routing table today — five producers each with `review-` and
   `integrate-review-` steps, `research-a`, `research-b`, `combine-research`, and
   `finish`.
-- Each carries its own family's procedure inline and directs one named load of a
-  spine file for what is shared. Each declares its own `harnesses:` eligibility.
+- **The fatness rule is delivered in the spec's own two halves, not collapsed into
+  one.** A rule owned by *that kind alone* — its goal, its deliverable, its
+  human-in-the-loop mark, its review allowance, whether it passes the done flag —
+  is **inline** in `grove-<kind>`. A rule owned by a *family* — the five reviews,
+  the two research halves — is **one file in the spine**, and each member's skill
+  directs a load of it **by name** in its opening imperative; it is not restated in
+  the member. Same for the rules shared across families. **Nowhere twice**, which
+  is the property the conformance runner below actually checks and the reason the
+  two halves cannot both claim the family text. Each skill declares its own
+  `harnesses:` eligibility.
 - The conformance runner from k16 passes over the full set: every behavioural
   rule present on the composed loaded path of every kind that binds it, no rule
   with two owners, every named path existing.

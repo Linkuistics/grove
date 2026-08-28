@@ -81,10 +81,15 @@ Written down so coverage can be checked without re-reading both documents.
 | out of scope: the plain-git lane dropped | k7 |
 | out of scope: the harness-registry row answered by deletion | k19 |
 | out of scope: the release manifest exclusion removed | k23 |
+| out of scope: extracting the tree store to its own repository | **deferred, no leaf** — its documents stay put; only the manifest exclusion moves, at k23 |
+| out of scope: serving the methodology over MCP | **rejected, no work** — recorded at k19, which states the rejection where provisioning dies |
+| out of scope: invoking a harness plugin | **rejected, no work** — a command template expresses it today; anything more is a runner capability, and k10 owns the runner's contract |
 
 `minimalism-k1`'s `## Deletion list` — roughly 15,200 non-test lines — is spread
 across k6, k7, k8, k13, k18 and k19; its one awkward row, `tree_access`'s seven
-surviving call sites, is k13's alone.
+surviving call sites, is k13's alone. Its two *Reconciled* rows for the delivery
+path split: k18 takes `src/prompt.rs`'s content dependency, and `src/methodology.rs`
+goes at **k19** with the provisioning that calls it (see the forced ordering below).
 
 ### The orderings that are forced
 
@@ -95,7 +100,9 @@ Everything else in the run above is convenience. These are not.
 | k6, k8 and the store node all precede k13 | grove's second lock layer has three recorded reasons — *absent*, *legacy*, *mid transaction* — and they dissolve **at once**, not one at a time |
 | k14 precedes k15 precedes k20 | the handle needs one owner before the grammar moves; the grammar must be unambiguous before the kind opens |
 | k15's rename and its reinstall are **one leaf** | this is a meta-grove: the tree cannot wear a grammar the installed binary does not parse, and a session that renames and stops has wedged the loop |
+| k6's `FORMAT` deletion and its reinstall are **one leaf** | the installed binary requires the witness and reads its absence as a legacy tree (`src/tree_format.rs:7-29`); worse, the old driver's per-iteration transition reaches `tree_migrate::plan_current` (`src/tree_lifecycle.rs:150`, `src/tree_migration_transaction.rs:145-160`) and would attempt on this live tree the very migration k6 deletes |
 | k17 precedes k18 | the prompt may not name a skill that does not exist |
+| k18 precedes k19, and does **not** delete `src/methodology.rs` | `provision::reverify_installed` calls `methodology::identity()` on every iteration (`src/provision.rs:53-77`, `src/loop_driver.rs:116-128`), so the module cannot go until provisioning does; the spec assigns both delivery retirements to *the leaf that deletes provisioning* (`docs/specs/module-decomposition.md:776-777`) and no ADR is rewritten ahead of the code |
 | k16 and k17 precede k19 | deleting provisioning before the plugin is installed leaves the next session with no methodology, and the failure is silent |
 | k7 precedes k8 and k9 | the seam cannot claim *fully domain-free*, or state its own precondition as a refusal, while a git lane sits behind it |
 | k10 and k11 precede k22; k9 precedes k22 | the driver consumes all three |
@@ -116,16 +123,63 @@ k21/k22 split one crate in two, k16/k17/k19 are the plugin's expand and contract
 
 **This repo is a meta-grove.** A session here runs against the **installed**
 binaries, which on this machine are Homebrew's at `/opt/homebrew/bin/`. So any
-leaf that changes the grammar or the verb surface a session invokes must rebuild
-**and reinstall in the same session**, and verify from the resolved `PATH` before
-committing. `grammar-separator-k15` carries the sequence; later leaves follow it.
+leaf that changes the tree's shape, the grammar, or the verb surface a session
+invokes must rebuild **and install in the same session**, and prove the installed
+build by behaviour before committing. The cutover sequence below is the whole of
+that protocol; five leaves run it — `delete-migration-k6`, `grammar-separator-k15`,
+`prompt-names-the-kind-k18`, `delete-provisioning-k19` and `open-kind-k20` — and
+no leaf outside that list may reinstall.
 
-**Reinstalling stops the loop until `prompt-names-the-kind-k18` lands, and stops
-stopping it afterwards.** The driver's build-pairing guard runs at the top of the
-loop body, so a mid-session reinstall lets that session finish and halts the loop
-before the next one — expected, recoverable by restarting `grove`, and not a
-fault. k18 retires that guard, so from k20 onward a reinstall is silent and the
-session must check the installed binary itself.
+### The cutover sequence
+
+**There is no build-pairing guard, and no leaf may rely on one.**
+`report_build_pairing` returns `()` and prints diagnostics
+(`src/loop_driver.rs:550-576`); `docs/USAGE.md:164-177` says so explicitly —
+*"it reports rather than refuses"*. It also runs **after**
+`provision::reverify_installed` (`src/loop_driver.rs:116-128`), which restores the
+*running* build's embedded methodology over anything a session just installed. So
+a reinstall under a live loop halts nothing and can be undone by the old process
+between iterations. `module-split-k4` planned three cutovers on the opposite
+premise; this section replaces it.
+
+**The stop that does exist is the session's own.** The driver breaks its loop when
+a session ends **without** a completion signal (`src/loop_driver.rs:49`, and
+`LoopOutcome`'s non-signalled arm). That is mechanical, observable in the driver's
+own stderr line — *"session ended without a completion signal … loop stopped"* —
+and entirely under the session's control. It is the handoff boundary.
+
+Every one of the five cutover leaves runs these steps, in this order:
+
+1. Land the source change with the tree still in the shape the **old installed**
+   binaries accept. `cargo test` and `cargo clippy --all-targets` clean.
+2. `cargo build --release`, then put both binaries where this machine's `PATH`
+   resolves them. `command -v grove-llm` resolves `/opt/homebrew/bin/grove-llm`,
+   a symlink to `../Cellar/grove/19.3.0/bin/grove-llm`, **ahead of**
+   `~/.cargo/bin` — so `cargo install --path .` alone installs a build no session
+   reaches. Overwrite the two Cellar files, or re-point the two `/opt/homebrew/bin`
+   symlinks at the cargo-installed binaries; either is reversible with
+   `brew reinstall grove`, and the leaf's commit message names the restore.
+3. **Prove the installed build by behaviour, never by version.** The workspace
+   version does not move within this grove, so `grove --version` still prints
+   `19.3.0` after every install and witnesses nothing. Two checks instead, both
+   mechanical: `readlink -f "$(command -v grove-llm)"` names the file just
+   written, and one probe the *old* build fails and the new one passes — each
+   cutover leaf names its own probe.
+4. Make the tree-visible cutover (delete `FORMAT`, rename onto the grammar,
+   install the plugin) **after** step 3, using the newly installed `grove-llm`,
+   never the old one.
+5. Retire and commit with the new `grove-llm`, then **end the session without
+   running `grove-llm complete`.** That stops the loop, so the old driver process
+   cannot run another iteration against a tree or a delivery it no longer
+   understands. Say so in the commit message: the human restarts `grove`, and the
+   new build drives from there. This is the only sanctioned non-signalling exit in
+   the tree, and it is a deliverable of these five leaves rather than a fault.
+
+**Why every cutover needs step 5, not just the tree-shape ones.** The running
+driver is the old build in memory: it composes the old prompt, classifies the tree
+with old code, holds the old kind set, and re-provisions its own embedded
+methodology over the plugin every iteration. Nothing a session installs reaches
+it. Restarting is the only acquisition.
 
 **No ADR is rewritten ahead of the code that makes it true.** `docs/adr/` describes
 the design's current state; the leaf that lands a change reworks its record **in

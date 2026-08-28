@@ -157,3 +157,89 @@ generation `2026-08-28T11:59:35Z`. All cited source and artifact paths had no
 recorded coverage gap except `plugins/install.sh:182-347`; that entire reported
 range was read directly before relying on the script. A clean coverage result is
 best-effort evidence, not proof of completeness.
+
+## Decisions (running log)
+
+Every finding was verified against source before it was acted on; none was
+accepted on the review's say-so and none was dismissed for want of context. All
+five were **real issues**, and the artifact — the planning tree — was repaired.
+No production or test code was touched.
+
+**1 — `open-shape-k25`'s return-type break. Real; fixed by separating *adapt*
+from *migrate*.** Verified: `fs::read`/`fs::write` return the guards directly
+(`crates/ordinal-fs-tree/src/fs/mod.rs:78-104`) and grove consumes exactly that
+shape at `src/task_tree.rs:77`, `:117`, `:144`, in one module. The review offered
+two repairs; the second is the right one, because the first would put an
+expand/contract pair inside a node whose own brief says each child lands green.
+The distinction the plan had collapsed is now written down: **adapting** a call
+site to a new return type is mechanical and cannot be deferred without leaving a
+red suite for the sessions in between; **migrating** grove to the store's
+vocabulary is design work and stays at k13/k21. The node brief carries it, because
+it is the node's rule and not one leaf's.
+
+**The same defect exists in a sibling the review did not cite, and is fixed with
+it.** `sought-k24` changes `by_key`'s return type, and grove calls it at
+`src/task_tree.rs:831` through `Option::map_or`. Finding 1's contract — the
+review's **Green** condition — covers it, so leaving it would have repaired the
+instance and not the class.
+
+**2 — k18's dependency on the later k19. Real; fixed by moving the deletions,
+not by reordering.** Verified: `provision::reverify_installed` calls
+`methodology::identity()` (`src/provision.rs:53-77`) and the driver runs that path
+every iteration (`src/loop_driver.rs:116-128`). Reordering k19 before k18 was
+rejected — k19 deletes the *old* delivery path and must stay after the plugin
+ships, which is the forced ordering k16/k17 precede k19. So `src/methodology.rs`,
+`--content-hash`, the build-pairing report and the two delivery retirements move
+to k19, which is also where the spec assigns them
+(`docs/specs/module-decomposition.md:776-777`). k18 keeps `src/prompt.rs`'s content
+dependency, which needs nothing from the module.
+
+**3 — the meta-grove handoff. Real, and the largest repair: a false premise
+replaced by a mechanism that exists.** Verified in three parts. The guard is not
+a guard — `report_build_pairing` returns `()` and prints
+(`src/loop_driver.rs:550-576`), which `docs/USAGE.md:164-177` states outright, and
+it runs *after* `reverify_installed`, so the old build can undo a new delivery
+between iterations. The FORMAT hazard is worse than the review's wording: besides
+`tree_format::require_current` refusing the tree (`src/tree_format.rs:7-29`), the
+old driver's per-iteration transition reaches `tree_migrate::plan_current`
+(`src/tree_lifecycle.rs:150`, `src/tree_migration_transaction.rs:145-160`) and
+would attempt on this live tree the migration k6 deletes. And the install route is
+blocked as described: `jj workspace root --name default` is
+`/Users/antony/Development/grove`, so `plugins/install.sh:113-150` refuses here.
+
+The repair is not a longer install checklist. **The driver already has exactly one
+mechanical stop, and it belongs to the session**: a session that ends without a
+completion signal breaks the loop (`src/loop_driver.rs:49`, `LoopOutcome`). So the
+root brief now carries one `### The cutover sequence` — install, prove by
+behaviour, cut over, commit, end unsignalled — and five leaves run it: k6, k15,
+k18, k19, k20. Two smaller corrections ride with it: the workspace version does
+not move within this grove, so `grove --version` can never witness an install and
+the proof is a per-leaf behavioural probe; and k19 installs with
+`plugins/install.sh --force` from this workspace, with the resulting dangling-link
+debt made a `Done when` of k23 rather than left as a side effect.
+
+**4 — k17's fatness contradiction. Real; fixed as a statement of the contract, not
+a redesign.** The spec is reconcilable read whole: the bullet's *"or its family"*
+is refined by the paragraph that follows it, which puts a family's text in one
+spine file. k17's `Done when` had kept the unrefined reading beside the refined
+one, which is the *nowhere twice* rule's own failure mode. It now states both
+halves in the spec's terms, which is what the conformance runner checks.
+
+**5 — the coverage arithmetic. Real; the numbers were recounted, not restated.**
+The `## ADR reconciliation` table holds nineteen rows: four retired, two reworked,
+**eight** amended, one **re-checked**, two unchanged, plus two added — seventeen
+originals and two additions. k23 said seven amended, dropped the
+`bulk-marks-are-not-atomic` re-check, and counted the additions as if they closed
+the seventeen. Corrected. The out-of-scope walk is now six rows in the root brief
+with a disposition each — deleted, deferred, or **rejected, no work** — because a
+rejection needs no leaf but does need to be visible, and MCP is recorded at k19,
+where the delivery path dies.
+
+**Nothing was escalated as a redesign.** Every finding named a place where the plan
+contradicted the source, the spec, or itself; none required the decomposition to be
+re-cut. Had one — a changed cut of the eighteen leaves — it would have been a new
+producer chain beside this leaf rather than work absorbed here.
+
+**No in-session reviewer was spent.** This session applies findings a scheduled
+review already produced, and its output is read by the eighteen sessions that run
+against it; a second opinion here would review the reviewer.

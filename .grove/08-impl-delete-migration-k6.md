@@ -33,6 +33,11 @@ before removing it.
 - `.grove/FORMAT` is deleted from this tree, and nothing writes, reads or
   requires it. `src/tree_format.rs` goes with it or shrinks to whatever survives
   the discriminator's removal — see the open question below.
+- **The new binaries are installed before this tree loses its witness, and this
+  session ends without signalling** — the root brief's `### The cutover sequence`,
+  run in full. This leaf's behavioural probe for step 3 is the one this deletion
+  creates: the new `grove-llm pick` succeeds in a `.grove/` with **no** `FORMAT`
+  file, where the old build refuses it as a legacy tree.
 - The migration suites are deleted; `cargo test` and
   `cargo clippy --all-targets` are clean.
 - Any auto-repair function that existed only to unwind a half-run migration goes
@@ -55,6 +60,19 @@ anything left to do once `require_current` and the discriminator go is this
 session's call — if it does not, delete it and say so; the requirements sentence
 was written before the FORMAT decision existed and is superseded, not
 contradicted.
+
+**This is a cutover leaf, and the hazard is not hypothetical.** Deleting the
+witness from a live tree under the *old* installed build does two things, both
+checked in the source rather than assumed: every `grove-llm` verb that reads the
+tree fails, because `tree_format::require_current` bails on a missing witness with
+*"this is a legacy tree and must be migrated"* (`src/tree_format.rs:7-29`); and the
+running driver's next iteration reaches `tree_migration_transaction::run_unlocked`
+through `transition_driver_to_current` (`src/tree_lifecycle.rs:85-164`), which on
+an absent witness plans a migration of this tree
+(`src/tree_migration_transaction.rs:145-160`). So the deletion is the **last**
+tree-visible act of the session, after the install and its probe, and this
+session's own retirement and commit run on the new `grove-llm`. Then stop without
+`grove-llm complete`, so the old driver never takes another iteration.
 
 **Do not touch the finish transaction here.** It is `delete-finish-transaction-k8`'s,
 and the two share a shape (`*_transaction.rs`, quarantine, rollback) that makes

@@ -59,6 +59,9 @@ as much for a worse read).
 **This leaf must not stop half-way.** A session that renames the tree and stops
 has wedged the loop. Run it in this order, and do not interleave:
 
+This is the root brief's `### The cutover sequence`, and that section is the
+authority; what follows is its instance for the grammar.
+
 1. Land the parser change; `cargo test`; `cargo clippy --all-targets`.
 2. `cargo build --release`, then put the two binaries where this machine's `PATH`
    resolves them. **They are installed by Homebrew** —
@@ -66,19 +69,25 @@ has wedged the loop. Run it in this order, and do not interleave:
    `../Cellar/grove/<version>/bin/`. Overwriting the Cellar files is the direct
    route; `cargo install --path .` works **only** if `~/.cargo/bin` outranks
    `/opt/homebrew/bin` on `PATH`, which on this machine it does not — that trap
-   is documented at `docs/ARCHITECTURE.md:1540` and `docs/USAGE.md:175`. Verify
-   with `command -v grove` and `grove --version` before continuing.
-3. Rename the tree. Check the new binary parses it: `grove-llm pick`,
-   `grove-llm kind`, `grove-llm brief-chain`.
-4. Retire this leaf **by its new path** and commit everything as one change.
-5. `grove-llm complete`.
+   is documented at `docs/ARCHITECTURE.md:1540` and `docs/USAGE.md:175`.
+3. Prove the install **by behaviour**: `readlink -f "$(command -v grove-llm)"`
+   names the file just written, and the new build parses a `--` name the old one
+   refuses (a scratch `.grove` outside this tree is the cheap way to ask).
+   `grove --version` still prints the unchanged workspace version and witnesses
+   nothing — do not use it as the check.
+4. Rename the tree **with the new binary in place**, then check it reads its own
+   work: `grove-llm pick`, `grove-llm kind`, `grove-llm brief-chain`.
+5. Retire this leaf **by its new path** and commit everything as one change.
+6. **Do not run `grove-llm complete`.** End the session unsignalled; that is what
+   stops the loop, and the commit message says the human restarts `grove`.
 
-**Expect the loop to stop after this session, and say so in the commit message.**
-The running driver is the *old* build, loaded in memory; `release.toml` records
-that the driver's version-skew guard is the first thing in the loop body, so a
-reinstall under a live loop lets the session that ran it finish normally and
-stops the loop before the next one. That is the machinery working. The human
-restarts `grove` and the new build takes over. Nothing needs recovering.
+**The loop stops because this session declines to signal, not because a guard
+catches the reinstall.** The running driver is the *old* build, loaded in memory,
+and it would happily take another iteration against a tree it can no longer parse:
+`report_build_pairing` prints and returns `()` (`src/loop_driver.rs:550-576`), and
+`docs/USAGE.md:164-177` says it reports without refusing. What does stop the loop
+is an unsignalled exit (`src/loop_driver.rs:49`). Say so in the commit message; the
+human restarts `grove` and the new build takes over. Nothing needs recovering.
 
 **Lands green in the suite**; what it breaks is the pairing between an installed
 binary and a tree on disk, which is why the sequence above is part of the

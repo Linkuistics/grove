@@ -23,11 +23,28 @@ rewrites it to current state rather than deleting it."*
   arithmetic about a codebase that no longer looks like that. The two records
   added along the way — `jj-is-the-only-lane` and `a-kind-is-an-open-token` —
   carry the trade-offs the rewrite drops, which is why they were added.
-- **Every one of the seventeen original records is confirmed to have landed its
-  disposition**, walking the spec's own `## ADR reconciliation` table as a
-  checklist: four retired, two reworked, seven amended, two unchanged, two added.
-  A record whose disposition did not land is either done here or named as an open
-  leaf — it is not left quietly false.
+- **Every one of the nineteen rows in the spec's `## ADR reconciliation` table is
+  confirmed to have landed its disposition**, walking that table as a checklist:
+  **seventeen original records** — four retired, two reworked, **eight amended**,
+  **one re-checked** (`bulk-marks-are-not-atomic`, expected unchanged, and *checked*
+  rather than assumed), two unchanged — **plus two added**
+  (`jj-is-the-only-lane`, `a-kind-is-an-open-token`). The two additions complete the
+  target set; they do not stand in for any of the seventeen. A record whose
+  disposition did not land is either done here or named as an open leaf — it is not
+  left quietly false.
+- **The spec's `## Out of scope` list is walked entry by entry**, all six, each
+  landing on one of three dispositions with evidence: *deleted* (migration, the
+  plain-git lane), *deferred* (extracting the tree store to its own repository —
+  only its release-manifest exclusion moves, below), or *rejected, no work* (serving
+  the methodology over MCP; a harness registry row, answered by deletion; invoking a
+  harness plugin, which a command template already expresses). A rejected entry needs
+  no implementation leaf, and saying so is what makes the walk complete rather than
+  four-sixths of one.
+- **The plugin's symlink farm points at a durable tree.** `delete-provisioning-k19`
+  installs it with `--force` from this secondary workspace, which leaves every link
+  aimed at a tree that is meant to disappear. Re-run `./plugins/install.sh` from the
+  default workspace once this work is there, and confirm each installed skill
+  resolves to a path outside `grove.refactor-for-minimalism`.
 - `docs/ARCHITECTURE.md`, `docs/USAGE.md`, `docs/CONFIGURATION.md` and
   `README.md` describe the built thing.
 - `CONTEXT.md` and `CONTEXT-MAP.md` are reconciled: the collision table now spans

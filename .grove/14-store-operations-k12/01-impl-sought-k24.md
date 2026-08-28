@@ -35,6 +35,11 @@ answer in its own vocabulary — which is precisely what grove's
   `Snapshot` (and `Walk`, if it has one) answers `Sought`.
 - Consumers inside the crate — including the `syllabus` binary and the
   `conformance` kit — are reconciled.
+- **Consumers outside the crate that must still compile are adapted here.**
+  `by_key` is called at `src/task_tree.rs:831`, through `Option`'s `map_or`; the
+  workspace does not build until that site answers `Sought`. Adapt it — one arm
+  for `Nothing`, mapping to the `Lookup::NotFound` it already produces — and stop
+  there. This is the mechanical half only; see below.
 - The crate's glossary (`docs/ordinal-fs-tree/CONTEXT.md`) gains the term and
   says what distinguishes it from `Refusal`; `ARCHITECTURE.md` and `CLI.md` are
   reconciled.
@@ -48,9 +53,16 @@ whose value is easiest to under-deliver: renaming `find` to `seek` while leaving
 an `Option` beside it moves the problem rather than solving it. The spec is
 explicit — *it replaces the whole optional search surface*.
 
-**Grove is not changed here.** `collapse-tree-access-k13` and
-`loop-crate-verbs-k21` are where grove's `Option<SelectedLeaf>` dies; this leaf
-supplies the word they will use.
+**Grove is *adapted* here, not *changed* here.** The one call site above learns
+the new return type because the workspace must compile; nothing else in grove
+moves. Grove's own `Option<SelectedLeaf>` — the vocabulary problem this leaf gives
+a word to — dies at `collapse-tree-access-k13` and `loop-crate-verbs-k21`, which
+is a different piece of work and stays there.
+
+**Lands green as a whole workspace, not as a crate.** `cargo test` at the
+workspace root is the check. A public return type that changes takes its
+out-of-crate callers with it in the same leaf, or the sessions in between inherit
+a red suite.
 
 **The formal models may have nothing to say about this one.** A search is a pure
 read and adds no state transition; if `operations.qnt` and `structure.als` are

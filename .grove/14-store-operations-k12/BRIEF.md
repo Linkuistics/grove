@@ -24,6 +24,14 @@ deleted and the store can become the only thing that touches the task tree.
 Three children, ordered by independence rather than by dependency — none blocks
 another, and each lands green on its own.
 
+**Green means the whole workspace, not the crate.** Two of the three change a
+public return type that grove calls (`by_key` at `src/task_tree.rs:831`;
+`fs::read`/`fs::write` at `:77`, `:117`, `:144`), so each leaf carries the
+mechanical adaptation of those call sites. That is not the same as migrating grove
+to the new vocabulary, which belongs to `collapse-tree-access-k13` and
+`loop-crate-verbs-k21` outside this node — the boundary this node guards is a
+vocabulary boundary, and adapting a call site does not cross it.
+
 1. `sought` — the word for a search that matched nothing. Smallest, touches the
    snapshot surface only.
 2. `open-shape` — `Reading` / `Writing` / `Vacancy` and `initialize`. The

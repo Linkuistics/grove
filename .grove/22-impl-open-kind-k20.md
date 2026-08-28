@@ -84,15 +84,16 @@ rather than resolved:
 
 **Lands green**, and it is the **contract** stage of the kind work.
 
-**Reinstall in this session, and do not expect the loop to stop for you.** This
+**Reinstall in this session, and stop the loop the way every cutover does.** This
 leaf changes the verb surface every later session invokes: `--kind` becomes
 required and `leaf-add-pair` disappears, while the corpus starts telling sessions
-to pass a kind list the *old* installed binary rejects. Follow
-`grammar-separator-k15`'s install sequence. Unlike that leaf, the build-pairing
-guard that stopped the loop between iterations was retired at
-`prompt-names-the-kind-k18`, so the running driver will keep going on its own
-code — which is fine for the driver and wrong for the sessions it launches.
-Verify `grove-llm leaf-add --help` from the resolved `PATH` before committing.
+to pass a kind list the *old* installed binary rejects. Run the root brief's
+`### The cutover sequence` — the same one `grammar-separator-k15` runs, with no
+difference at this leaf, because there is no guard here and there was none there
+either. The running driver keeps its own kind set and its own verbs, so the
+handoff is the unsignalled exit, not the install. The behavioural probe for step 3
+is `grove-llm leaf-add --help` from the resolved `PATH`, which must show `--kind`
+required and no `leaf-add-pair` beside it.
 
 **The rule is the test.** After this leaf: *grove names a kind only where grove
 writes the leaf, and the two tokens are the whole of it.*

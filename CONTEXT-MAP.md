@@ -134,10 +134,11 @@ mean something else in grove's, and its crate ships by no path of its own —
   [`a-lifecycle-claim-says-what-it-is-over`](docs/adr/a-lifecycle-claim-says-what-it-is-over.md),
   [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md),
   [`a-shared-safety-claim-names-the-role-not-the-artifact`](docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md),
-  and the three specs
+  and the four specs
   [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md),
-  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
-  and [`semantic-contract`](docs/specs/semantic-contract.md).
+  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
+  [`semantic-contract`](docs/specs/semantic-contract.md)
+  and [`module-decomposition`](docs/specs/module-decomposition.md).
   The **ordinal-fs-tree** context owns
   [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md) and
   [`entries-are-never-removed`](docs/adr/entries-are-never-removed.md). They sit
@@ -163,6 +164,18 @@ mean something else in grove's, and its crate ships by no path of its own —
   the discriminator this map sets. The doubt skill
   participates in the review-ownership and promotion contracts, but the mandate,
   task tree, review routing, and lifecycle are Grove's maintaining seam.
+
+  The third is the exception the rule below anticipates, and it carries its own
+  **retirement condition** rather than a claim to outlive its increment.
+  `module-decomposition` describes a target that does not exist yet: it is the
+  agreement point a whole chain of leaves builds against, across many sessions
+  and three bounded contexts, and while the design is unbuilt no other artifact
+  can hold it — `docs/ARCHITECTURE.md` describes what *is*, and an ADR records
+  one decision rather than how an area works. Once the crates exist and the
+  architecture describes them, the spec describes nothing new and is **deleted**,
+  which is what `content/SPEC-FORMAT.md`'s current-state rule says to do with a
+  spec that no longer describes anything. Whoever lands the last of its
+  decisions deletes it and removes this paragraph with it.
 
   A spec that only ever described one shipped increment of Grove's own runtime is
   not a durable record; it is `docs/ARCHITECTURE.md`'s subject written twice.

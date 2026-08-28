@@ -24,6 +24,45 @@ fail-closed refusal into a silent wrong state
 ([`task-tree-transactions-fail-closed`](task-tree-transactions-fail-closed.md)).
 So the layer stays while the question is open — and *stays* is not *forced*.
 
+## Q1 and Q4's three rows are deferred permanently, and the layer therefore stays
+
+**The campaign that was going to decide them was stopped on 2026-08-28, by the
+human paying for it, and the reason was cost rather than evidence.** The formal
+phase had consumed several days of LLM work; the judgement was that its
+remaining leaves would not return anything generally applicable, and that the
+campaign's transferable output is what it taught about driving an LLM loop rather
+than the crate split it was commissioned to justify. `sweep-ownership-k81`,
+`alloy-candidate-k82` and `q1-q4-verdict-k83` — the three leaves that would have
+supplied the missing evidence and read the verdict off it — were abandoned
+unrun, together with the documentation and implementation phases.
+
+**So `defer` is now this record's answer and not a placeholder in it.** Nothing
+downstream is waiting on Q1 or on the three cleanup rows; no leaf exists that
+will decide them; and the asymmetry above is what makes that a tolerable place to
+stop. The layer stays, and the honest reason it stays is that **removing it was
+never shown to be safe**, not that keeping it was shown to be necessary.
+
+**What was established before the stop, and is worth more than the verdict would
+have been.** The available candidate — stepwise in-place disposal granted no
+capability `EN-03` withholds — exists, runs, and is measured in the Quint column
+(`crates/grove-finish/models/finish.qnt`, `IN_PLACE_DISPOSAL`). Against it, three
+of Q1's four retained shared-safety claims turned out to be **blind to the
+difference they were retained to judge**
+([`a-shared-safety-claim-names-the-role-not-the-artifact`](a-shared-safety-claim-names-the-role-not-the-artifact.md)),
+and the candidate's own disposal was found to delete entries it could not prove
+were still the manifest's. A criterion met over a blind claim is the failure mode
+this record's *rule* section exists to stop; the campaign met it three times and
+caught it three times. **That is the durable result, and it is a result about
+instruments rather than about the quarantine.**
+
+**What would reopen this.** Evidence, not appetite: a run of the available
+candidate against a retained set in which every member has a
+candidate-reachable site and an available kill — which needs the `FN-32` site
+`sweep-ownership-k81` was chartered to decide, and the Alloy mirror
+`alloy-candidate-k82` was chartered to build. Both are recorded in
+`crates/grove-finish/models/README.md` with what they were owed. Anyone
+reopening Q1 starts there and not from `TODO.finish_process.md`'s framing.
+
 ## The rule this record exists to stop anyone re-deriving
 
 **A counterfactual-capability control measures admissibility, never

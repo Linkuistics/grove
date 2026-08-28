@@ -2,131 +2,135 @@
 
 ## Goal
 
-Redesign Grove as a small application assembled from deep, concern-oriented Rust crates. The result must be easier for humans and LLMs to learn, reason about, change, and verify without weakening Grove's fail-closed task-tree or finish guarantees.
+Codify what this repository's formal-modelling campaign taught about **driving an
+LLM loop to produce checkable work**, and land it in two places: a written account
+that stands on the campaign's own evidence, and concrete changes to the grove
+methodology and its skill so the lessons bind the next loop rather than
+describing the last one.
 
-The work is deliberately evidence-led: build and compare executable Quint and Alloy 6 behavioural models first, make the user and maintainer documentation describe the chosen system second, and only then reshape the Rust implementation.
+**The refactor this grove was named for is over.** It ran a formal phase —
+executable Quint and Alloy 6 models of the task tree, the finish/recovery
+protocol and the end-to-end lifecycle, against a catalogue of 130 obligations
+with a runner that asserts coverage in both directions — and it did not reach the
+documentation or implementation phases. That is a deliberate stop, recorded
+below, and the campaign's transferable output is the method rather than the crate
+split it was commissioned to justify.
 
 ## Done when
 
-- The formal phase has produced green Quint and Alloy 6 models for task-tree behaviour, the finish/recovery protocol, and the end-to-end lifecycle; their assumptions, claims, witnesses, bounds, and counterexamples are durable and reproducible.
-- `docs/formalism-findings.md` records this bounded comparison with enough evidence to distinguish overlapping findings, unique findings, false confidence, modelling cost, runner/tooling cost, and implementation/test influence.
-- Current-state documentation explains the system, the crate dependency direction, where each concern changes, the supported Git/jj layouts, the user workflow, and recovery from interrupted finish attempts.
-- The Cargo workspace exposes deep semantic crates for methodology, task-tree semantics, workspace/repository identity, and finish/recovery. The root `grove` package is the application/runtime and the two shipped binaries, not a second copy of those concerns.
-- Generic ordered-tree algebra and filesystem mechanics live in `ordinal-fs-tree` by default. Any Grove-owned filesystem operation is a documented semantic exception established by the formal work.
-- Legacy tree migration is gone. Fresh roots use the current format; an absent, legacy, or foreign format fails closed and is never silently rewritten.
-- The preserved external contract, release constraints, model checks, workspace tests, and real Git/native-jj/colocated-jj finish scenarios pass.
-- `TODO.finish_process.md` has been resolved into models, current-state documentation, tests, and code, then removed. **The file is already gone**: `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md` carries the four questions, their dispositions — Q2 and Q3 `keep`, Q1 and Q4's three cleanup rows `defer` — the cost table and the four binding constraints. What remains of this item is the documentation and implementation half.
+- The campaign's **evidence base is harvested into durable artifacts**, and in
+  particular `.grove/` — the only record of how the loop itself behaved — is
+  mined before it can be deleted. Every claim in the harvest cites where it is
+  measured, and a claim that survives only as a recollection is dropped.
+- The lessons that survive the harvest are stated as **claims with the evidence
+  that supports them and the conditions under which they would be wrong**, not as
+  advice. A lesson nothing in this repository can be pointed at for is not one.
+- **Every lesson that can bind lands as a change to the grove methodology or its
+  skill** — session-kind guidance, review-chain policy, what a session must
+  verify before claiming a result, what a self-checking runner owes. What cannot
+  bind lands in the write-up, and the write-up says which is which.
+- The write-up is readable by someone who has never seen this repository, and it
+  is honest about cost: what the campaign spent, what it returned, and which
+  parts of it were not worth the money.
+- The methodology changes are shipped the way any grove change is: the embedded
+  `content/` payload, its hash, and the tests that read it stay consistent, and
+  nothing in the preservation ledger below is broken without an explicit
+  exception.
 
-## The refactor is stopped after the formal phase — human decision, 2026-08-28
+## The refactor is stopped — human decision, 2026-08-28
 
-**`documentation-k2` and `implementation-k3` are `ABANDONED`, on explicit
-instruction, and no part of the Rust refactor will be built from this tree.** The
-reason is cost against value: the formal phase has consumed several days of LLM
-work, and its output that the human judges worth having is the **method** — what
-this campaign learned about driving an LLM loop to produce checkable work — not
-the crate split it was commissioned to justify. So the `Done when` clauses above
-about current-state documentation, the Cargo workspace shape, `ordinal-fs-tree`
-ownership, legacy-migration removal and `TODO.finish_process.md`'s implementation
-half **will not be met, and are not owed**. The first two clauses — the green
-models and `docs/formalism-findings.md` — stand, and the formal phase runs to its
-end so that Q1 and Q4 are *answered* rather than abandoned mid-question.
+**Three phases were abandoned, in two steps, on explicit instruction.** First
+`documentation-k2` and `implementation-k3`; then, on the judgement that its
+remaining leaves would return nothing generally applicable, the tail of
+`formal-modeling-k1` — `sweep-ownership-k81`, `alloy-candidate-k82`,
+`q1-q4-verdict-k83`, `quarantine-gate-control-k86` and `handoff-audit-k66`. The
+reason throughout was cost against value, not a finding that the work was wrong.
 
-**What still runs**, in `formal-modeling-k1`: `sweep-ownership-k81`,
-`alloy-candidate-k82`, `q1-q4-verdict-k83`, `quarantine-gate-control-k86` and
-`handoff-audit-k66`. Nothing was added to them by this decision, and
-`handoff-audit-k66`'s reachability clause should now be read against a repository
-whose implementation phase is not coming.
+**What that leaves standing, and it is a lot.** Green Quint and Alloy 6 models
+with their assumptions, controls, bounds and retained counterexamples; a
+semantic contract of 130 obligations; `docs/formalism-findings.md`'s bounded
+comparison of the two families; a decision set in `docs/adr/`; and a runner whose
+four self-checking obligations are themselves a method artifact. None of it is
+deleted, and the lessons work reads all of it.
+
+**What it costs, stated rather than hidden.** `TODO.finish_process.md`'s Q1 and
+Q4's three cleanup rows are now **permanently deferred** —
+[`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
+records that, why, and what would reopen them. The Rust crate split, the
+current-state documentation and the legacy-migration removal are not owed by
+anything and will not be built from this tree. The Alloy column keeps a repair it
+was owed and never received, named in
+`crates/grove-finish/models/README.md`.
 
 ## Decomposition
 
-The top-level order **was** a hard gate, and items 2 and 3 are now abandoned:
+**Lazy, and only the first leaf is cut.** The shape below is intent, not a tree:
+each leaf cuts what follows it once it knows what that is.
 
-1. `formal-modeling-k1` defines and checks the design. No user documentation or product-code redesign begins before it is retired.
-2. ~~`documentation-k2`~~ — abandoned.
-3. ~~`implementation-k3`~~ — abandoned.
-
-The dependency direction below is what the formal work was checking *against*; it
-is retained as the design the models judge, not as a build target.
-
-The approved target dependency direction is:
-
-```text
-ordinal-fs-tree       grove-methodology
-        │                    │
-        └──────> grove-task-tree
-
-grove-workspace ─────> grove-finish <──── grove-task-tree
-        │                    │
-        └──────────> grove (application/runtime + binaries)
-                              ▲
-grove-methodology ────────────┘
-```
-
-`grove-workspace` supplies discovered repository identity and supported VCS operations; it must not become a generic filesystem toolbox. Models are owned beside the semantic component they constrain, with cross-crate lifecycle models in `models/system/`.
-
-The tree is intentionally lazy. `formal-synthesis-k16` creates an ordinal root-lifecycle implementation leaf only if the experiment proves that abstraction deep and domain-independent. It likewise creates individual finish-simplification leaves only for transformations justified by both models. Review chains are created by the producing sessions when a decision warrants fresh-context challenge.
+1. **`harvest-the-loop-record`** — the evidence base, and it is first because one
+   input is perishable. `.grove/` is process state that grove deletes at finish,
+   and it is the only record of which sessions decomposed, which cut reviews,
+   what each review caught and what each integration caught while applying it.
+   Everything else can wait; this cannot.
+2. **The lesson leaves** — one per cluster that survives the harvest, each
+   producing a durable record. Cut by leaf 1, which is the session that knows how
+   many clusters there are.
+3. **The methodology changes** — what binds, landed in `content/` and the skill.
+   Separate from the write-up because it is product change with tests and a hash.
+4. **The write-up** — what cannot bind, plus the cost account.
 
 ## Pointers
 
-- `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md` — the required finish/recovery concerns and the design pressure as it now stands, replacing the deleted `TODO.finish_process.md`.
-- `docs/formalism-findings.md` — findings from the previous formal-method experiment; append this experiment rather than overwriting it.
-- `docs/ARCHITECTURE.md`, `docs/USAGE.md`, and `docs/CONFIGURATION.md` — current-state documentation to reconcile in place.
-- `docs/adr/task-tree-transactions-fail-closed.md` and the rest of `docs/adr/` — current decision set to edit, merge, split, or delete in place.
-- `docs/ordinal-fs-tree/ARCHITECTURE.md` — existing component boundary to reconcile with crate-local ownership.
-- GitHub issue #13 — source context for the finish-process work; the repository files and models remain authoritative.
-
-## On the horizon
-
-**A lessons workstream, to be chartered before it is cut.** The human's
-instruction is to rework this grove into an investigation of what the formal
-campaign taught about driving LLM loops, and how to improve them in general. It is
-not yet cut because one question is unanswered: **is the deliverable a write-up, a
-set of changes to the grove methodology and its skill, or both?** The harvest's
-shape depends on the answer, so nothing is leafed until a human gives it.
-
-**The evidence base already exists in this repository**, and one part of it is
-perishable:
-
-- `.grove/` itself — which sessions decomposed, which cut reviews, what each
-  review found, and what each integration found while applying it. This is the
-  only record of how the *loop* behaved, and **grove deletes `.grove/` at
-  finish**, so harvesting it is time-critical and belongs in the first leaf.
+- `.grove/` — **read it before it is gone.** The session tree, its briefs, its
+  retired task bodies and its abandonment marks.
 - `docs/formalism-findings.md` — the bounded Alloy-6 vs Quint comparison, with
-  per-entry findings, costs and retained counterexamples.
+  per-entry findings, costs, false confidence and retained counterexamples.
 - `crates/*/models/README.md` — mutation matrices, run tables with wall times and
-  command counts, declared narrowings, and *what a green run does not prove*.
-- `docs/specs/semantic-contract.md` and `models/run.sh` — 130 obligations and a
-  runner whose four self-checking obligations are themselves a method artifact.
+  command counts, declared narrowings, and each column's *what a green run does
+  not prove*.
+- `docs/specs/semantic-contract.md` and `models/run.sh` — the obligation
+  manifest, and a runner that asserts coverage in both directions, reports
+  contested cells, and fails on zero work.
 - The `docs/adr/` records that are **methodological rather than about Grove**:
-  `a-shared-safety-claim-names-the-role-not-the-artifact`,
-  `a-lifecycle-claim-says-what-it-is-over`,
-  `a-closed-partition-is-over-outcomes-not-states`,
-  `obligations-follow-context-not-artifact`.
-
-**Candidate lessons — claims to test in the harvest, not conclusions.** A green
-suite is not evidence; only a control that can kill the claim is. A claim stated
-over the model's own history or classifier is self-certifying, and the repair
-recreates the hazard one level down. **False greens are found by narrowing, not
-widening** — `honest-classification-k85` violated a shared-safety claim in a
-strict *subset* of the widest world's traces, which that world's 8000 samples had
-never drawn. A module that changes what the model does must be run against every
-claim, not the ones it declares. Measure, freeze, then repair — a predicate is a
-subject too. And the one that is about the loop rather than the models: **review
-yield did not decay** — a producer's own reviewer found three substantive defects
-in a green suite, the review leaf beside it found five more in the repairs, and
-the integration found two more while applying them.
-
-**A shape was proposed and is awaiting a human answer**: a `requirements` leaf
-(where the write-up/methodology/both question is settled), a
-`harvest-the-evidence` leaf cut first because `.grove/` is perishable, one leaf
-per lesson cluster that survives the harvest, a `loop-changes` leaf for the
-transferable half, and a closing audit.
+  [`a-shared-safety-claim-names-the-role-not-the-artifact`](../docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md),
+  [`a-lifecycle-claim-says-what-it-is-over`](../docs/adr/a-lifecycle-claim-says-what-it-is-over.md),
+  [`a-closed-partition-is-over-outcomes-not-states`](../docs/adr/a-closed-partition-is-over-outcomes-not-states.md),
+  [`obligations-follow-context-not-artifact`](../docs/adr/obligations-follow-context-not-artifact.md).
+- `content/` and the grove skill — where a lesson that binds has to land.
 
 ## Notes
 
+### Candidate lessons, to be tested by the harvest rather than assumed
+
+These are what the campaign looked like from inside it. Each is a claim the
+harvest must either evidence or drop.
+
+- **A green suite is not evidence; only a control that can kill the claim is.**
+  One node met four claims that were true by construction and green.
+- **A claim stated over the model's own history or classifier is
+  self-certifying**, and the repair — record the fact at the step that
+  establishes it — recreates the hazard one level down, so each recorded fact
+  owes a control that makes a step omit it.
+- **False greens are found by narrowing, not widening.** A shared-safety claim
+  was violated in a strict *subset* of the widest world's traces, which that
+  world's 8000 samples had never drawn. A property checked in the widest world is
+  not therefore checked hardest; a wide environment dilutes the sampler.
+- **A module that changes what the model does must be run against every claim the
+  model has**, not the ones it declares — the module rule hides failing claims by
+  design.
+- **Measure, freeze, then repair.** A predicate is a subject too: a witness
+  written by calling the definition it is about stops measuring the moment that
+  definition is fixed.
+- **Review yield did not decay.** A producer's own reviewer found three
+  substantive defects in a green suite; the review leaf beside it found five more
+  in the repairs; the integration found two more while applying them. This is the
+  one candidate lesson that is about the loop rather than about models, and it is
+  the one most worth checking hardest.
+
 ### Preservation ledger
 
-Preserve unless the checked design explicitly records an approved exception:
+Grove still ships, and the methodology changes are product change. Preserve
+unless a change explicitly records an approved exception:
 
 - CLI verb names, arguments, help shape, structured/human output fields, and exit-status meanings.
 - Configuration keys, environment overrides, defaults, and the current `session-kinds-v1` `.grove` format.
@@ -134,10 +138,14 @@ Preserve unless the checked design explicitly records an approved exception:
 - Methodology embedding/provisioning, package and binary names, release/install behaviour, MSRV 1.85, and the Linux glibc 2.17 compatibility target.
 - Fail-closed ownership: Grove never resets, merges, deletes, or rewrites work it cannot prove belongs to the current finish attempt.
 
-Approved breaking change: remove every legacy migration command, compatibility path, and automatic format rewrite. Documentation and diagnostics must say how to start a current-format root instead.
+The legacy-migration removal that this grove approved was **never implemented**,
+and is not owed: `implementation-k3` is abandoned. Migration commands and
+compatibility paths stand as they are.
 
-Finish is a conservative recovery protocol, not generic cleanup. It must distinguish an incomplete Grove-owned attempt (`RecoveryPending`) from unrelated or ambiguous state (`OwnershipConflict`), persist a correlation artifact outside disposable state, evacuate durable evidence before deleting `.grove`, and make both success exits explicit: preserve the branch/bookmark, or merge and then remove only the proved-owned branch/worktree.
+### `.grove/` is process state, and that is now a hazard rather than a rule
 
-`.grove/` is process state, not the permanent home of design conclusions. Every durable finding must be promoted into models, tests, documentation, or decision records before its task retires.
-
-Known launch precondition: the Grove CLI reported methodology hash `10db…` while the installed driving skill reported `8501…` when this tree was created. Re-provision or otherwise reconcile that skew before driving the first leaf, and record the exact resolution in `experiment-baseline-k4`.
+Every durable finding must still be promoted into models, tests, documentation or
+decision records before its task retires. But this grove's own history is now
+*subject matter*, so the usual disposability cuts the wrong way: **nothing may run
+`finish` until `harvest-the-loop-record` has landed**, because finish deletes the
+evidence.

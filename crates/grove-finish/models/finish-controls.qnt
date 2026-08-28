@@ -808,7 +808,7 @@ module relax_EN_01 {
 /// Granting an atomic recursive directory deletion lets a proven commit be
 /// settled by disposing of the evacuation witness IN PLACE: no quarantine, no
 /// handoff, no cleanup marker, and the three nested transactions
-/// `docs/adr/finish-layers-are-forced-not-chosen.md` measures collapse to one.
+/// `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md` measures collapse to one.
 ///
 /// What is checked here is the RETAINED shared-safety set and nothing else.
 /// `FN-19`, `FN-21` and `FN-31` are the incumbent mechanics the candidate
@@ -821,6 +821,43 @@ module relax_EN_01 {
 /// discharged from this scope at all, so a retained set naming it was a
 /// criterion this module could never meet.  Nothing is dropped: the claim is
 /// asserted where its context lives.
+///
+/// THIS MODULE NOW DIFFERS FROM `base` IN EXACTLY ONE `const`, AND THAT IS
+/// `finish-verdicts-k78`'S REPAIR.  It carried `ENV_BUDGET = 0` with
+/// `ENV_PHASES` and `ENV_KINDS` empty, which is not a narrowing of the
+/// candidate — it is a narrowing of the WORLD the candidate was checked in, and
+/// it made the retained set say nothing.  `envAdmitted` is
+/// `envUsed < ENV_BUDGET and ...`, so no crash and no foreign write could occur:
+/// `inv_FN_24a`'s `crashMisclassified` half had no crash to misclassify, and
+/// `inv_FN_32` — whose whole content is two flags only `noteUnprovenSlot` and
+/// `noteUnprovenMarker` can set — had no foreign artifact to meet.  A retained
+/// claim checked over a world in which its antecedent cannot occur is the
+/// vacuous-invariant hazard the catalogue pre-registered, asserted in the one
+/// place a candidate protocol is judged.  The criterion says the candidate is
+/// checked "at the bounds the incumbent reached them at", and the incumbent's
+/// bound is `base`'s environment, so that is the environment here.
+///
+/// `OWNERSHIP_PROVEN` STAYS TRUE, AND THE FALSIFIABILITY IS A SEPARATE MODULE.
+/// The dial is the protocol's own claim to prove ownership, so a candidate that
+/// turned it off would be a different candidate.  A green `inv_FN_32` under any
+/// `OWNERSHIP_PROVEN = true` module, standing alone, is a fact about the guard
+/// on `noteUnprovenSlot` and about nothing else; the pair below it — the witness
+/// that the candidate REACHES an artifact it cannot prove is its own, and
+/// `mutant_unproven_ownership_under_the_candidate`, which kills the invariant —
+/// is what stops it being a pure tautology.
+///
+/// AND THE PAIR DOES NOT MAKE THE CLAIM SAY ANYTHING ABOUT THIS CANDIDATE, WHICH
+/// IS A RESULT RATHER THAN A SHORTFALL — `finish-verdicts-k78`'s reviewer found
+/// it and it is Q1's second criterion defect.  `stopReserved`'s three
+/// transaction-side sites are `SCreatePreparing`, `SQuarantineRename` and
+/// `SCreateMarker`; under `ATOMIC_DISPOSAL = true` the last two are unreachable
+/// by construction, so both the witness and the kill land at the witness slot —
+/// a step the candidate inherits from the incumbent unchanged.  `FN-32` has no
+/// content over anything the candidate CHANGES, and it cannot be given any here:
+/// the candidate removes every artifact the claim's other sites are about.  A
+/// retained set one of whose members is trivial over the difference it is meant
+/// to judge cannot classify that difference, which is why Q1 is `defer` and not
+/// why this module is wrong.
 module relax_EN_03 {
   import finish(
     RENAME_ATOMIC = true,
@@ -845,7 +882,7 @@ module relax_EN_03 {
     COMMIT_SCOPED = true,
     HISTORY_IMMUTABLE = true,
     OWNERSHIP_WINS_THE_OVERLAP = true,
-    ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
+    ENV_BUDGET = 99, ENV_PHASES = Set(0, 1, 2, 3, 4, 5, 6), ENV_KINDS = Set(0, 1, 2, 3),
     ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
   ).* from "./finish"
 
@@ -869,6 +906,145 @@ module relax_EN_03 {
   /// nothing happened.
   val wit_FN_28_the_candidate_reaches_its_successful_exit: bool =
     hist.stepsVisited.contains(SDisposeInPlace)
+
+  /// `FN-32`'S ANTECEDENT, REACHED UNDER THE CANDIDATE.  The library's own
+  /// `wit_FN_32_a_transaction_step_meets_an_unprovable_artifact`, restated here
+  /// because a `relax_` instance carries only the commands written inside it.
+  /// Its job is the one the invariant above cannot do for itself: say that the
+  /// candidate meets an artifact at a reserved name it cannot prove is its own,
+  /// with the artifact still standing — so that the green is over a world where
+  /// the claim had something to be about.
+  val wit_FN_32_the_candidate_meets_an_unprovable_artifact: bool =
+    (hist.transactionBlockedReserved or hist.transactionRefusedReserved)
+      and not(hist.mutatedUnprovenSlot)
+      and not(hist.mutatedUnprovenMarker)
+
+  /// `FN-24.a` OVER THE CANDIDATE'S OWN STEP LIST — one crash point per step
+  /// with a persistent effect, which is the enumeration `finish-verdicts-k65`
+  /// named as Q1's outstanding commission and declined to run.  The candidate
+  /// shares the incumbent's witness-build, commit and refusal branches and
+  /// replaces `SQuarantineRename`, `SCreateMarker`, `SReplace*`, `SDisposeEntry`
+  /// and `SRemoveMarker` with the single `SDisposeInPlace`, so this is the
+  /// incumbent's eighteen commands minus the eight steps the candidate does not
+  /// have, plus one.
+  val wit_FN_24a_crash_at_create_preparing_under_the_candidate: bool =
+    hist.crashPoints.contains(SCreatePreparing)
+  val wit_FN_24a_crash_at_write_manifest_under_the_candidate: bool =
+    hist.crashPoints.contains(SWriteManifest)
+  val wit_FN_24a_crash_at_publish_under_the_candidate: bool =
+    hist.crashPoints.contains(SPublish)
+  val wit_FN_24a_crash_at_evacuate_under_the_candidate: bool =
+    hist.crashPoints.contains(SEvacuate)
+  val wit_FN_24a_crash_at_mark_ready_under_the_candidate: bool =
+    hist.crashPoints.contains(SMarkReady)
+  val wit_FN_24a_crash_at_commit_under_the_candidate: bool =
+    hist.crashPoints.contains(SCommit)
+  val wit_FN_24a_crash_at_restore_under_the_candidate: bool =
+    hist.crashPoints.contains(SRestore)
+  val wit_FN_24a_crash_at_reproduce_preflight_under_the_candidate: bool =
+    hist.crashPoints.contains(SReproducePreflight)
+  val wit_FN_24a_crash_at_remove_witness_under_the_candidate: bool =
+    hist.crashPoints.contains(SRemoveWitness)
+  val wit_FN_24a_crash_at_dispose_in_place_under_the_candidate: bool =
+    hist.crashPoints.contains(SDisposeInPlace)
+
+  // `FN-24.b`'S ENUMERATION IS NOT HERE, AND THAT IS THE INCUMBENT'S OWN
+  // PLACEMENT RATHER THAN AN OMISSION.  A branch enumeration needs one trace
+  // that walks a whole branch, which a world admitting a crash at every
+  // program point almost never produces — the incumbent's pair lives in
+  // `scenario_march`, the uninterrupted module, for exactly that reason.  The
+  // candidate's pair lives in `scenario_march_under_the_candidate` below, so
+  // that the two protocols' enumerations are reached under the same conditions.
+}
+
+/// `scenario_march` FOR Q1'S CANDIDATE: the candidate protocol, uninterrupted.
+/// It exists to carry `FN-24.b`'s branch enumerations, which are the second half
+/// of the criterion `finish-verdicts-k65` left open, and it is the candidate's
+/// counterpart of the module the incumbent's own pair lives in.
+module scenario_march_under_the_candidate {
+  import finish(
+    RENAME_ATOMIC = true, ATOMIC_DISPOSAL = true, ATOMIC_COMMIT = false,
+    CRASHES = true, FOREIGN_WRITES = true, REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false, LANES = Set(0, 1, 2),
+    REVALIDATE = true, CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true, OWNERSHIP_PROVEN = true,
+    RECOVERY_IDEMPOTENT = true, PREFLIGHT_PURE = true, PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
+    ENV_BUDGET = 0, ENV_PHASES = Set(), ENV_KINDS = Set(),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0, 1, 2), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  /// `FN-24.b` OVER THE CANDIDATE'S OWN STEP LIST, on each of its two branches,
+  /// for the reason the incumbent's pair gives: no one trace takes both.  The
+  /// refusal branch is the incumbent's unchanged — the candidate replaces only
+  /// what follows a proven commit — and the success branch is
+  /// `CANDIDATE_SUCCESS_BRANCH_STEPS`, which ends at `SDisposeInPlace`.
+  val wit_FN_24b_the_candidates_refusal_branch_enumerated: bool =
+    REFUSAL_BRANCH_STEPS.subseteq(hist.stepsVisited)
+  val wit_FN_24b_the_candidates_success_branch_enumerated: bool =
+    CANDIDATE_SUCCESS_BRANCH_STEPS.subseteq(hist.stepsVisited)
+}
+
+/// `mutant_unproven_ownership` WITH `ATOMIC_DISPOSAL` FLIPPED — the control that
+/// makes the candidate's `FN-32` assertion falsifiable, and which did not exist.
+///
+/// `mutant_unproven_ownership` and `mutant_unproven_marker` both run
+/// `ATOMIC_DISPOSAL = false`, so before this module the candidate's retained
+/// `FN-32` had no kill anywhere in the suite and its green was a property of the
+/// `not(OWNERSHIP_PROVEN)` guard on `noteUnprovenSlot`.  What this module must
+/// show is `mutatedUnprovenSlot` set: the transaction proceeding through a
+/// witness slot it cannot prove is its own.
+///
+/// IT IS `mutant_unproven_ownership`'S ENVIRONMENT AND NOT `relax_EN_03`'S, AND
+/// THE DIFFERENCE IS DELIBERATE.  The slot site is `SCreatePreparing`, which
+/// `phaseOf` puts at phase 1, so `ENV_PHASES = Set(0, 1, 2)` with `ENV_KINDS =
+/// Set(2)` and `ENV_FOREIGN = Set(0)` is the narrowest world that reaches it;
+/// widening to `base`'s would dilute 8000 samples across a world the kill does
+/// not need.  A control may narrow to its own site — what `relax_EN_03` may not
+/// do, and did, is narrow the world an INVARIANT SET is checked in.
+///
+/// THE SLOT AND NOT THE MARKER, and that is a fact about the candidate rather
+/// than a choice: the candidate has no cleanup marker, so
+/// `mutatedUnprovenMarker` is unreachable under it by construction, and stating
+/// this control over the aggregate would hide that.  It is also why this control
+/// probes the shared prefix rather than the candidate's own disposal: see
+/// `relax_EN_03`'s header for what follows from that.
+module mutant_unproven_ownership_under_the_candidate {
+  import finish(
+    RENAME_ATOMIC = true,
+    ATOMIC_DISPOSAL = true,
+    ATOMIC_COMMIT = false,
+    CRASHES = true,
+    FOREIGN_WRITES = true,
+    REAPER_SWEEPS_RESERVED = false,
+    ATTESTED_CONFIRMATION = false,
+    LANES = Set(0, 1, 2),
+    REVALIDATE = true,
+    CLASSIFY_FROM_EVIDENCE = true,
+    MARKER_REPLACE_ATOMIC = true,
+    OWNERSHIP_PROVEN = false,
+    RECOVERY_IDEMPOTENT = true,
+    PREFLIGHT_PURE = true,
+    PREFLIGHT_COMPLETE = true,
+    QUARANTINE_IS_A_RESERVED_STATE = true,
+    RESERVED_BEFORE_ABSENT = true,
+    LEFTOVERS_ARE_EVIDENCE = false,
+    HOOKS_SUPPRESSED = true,
+    COMMIT_SCOPED = true,
+    HISTORY_IMMUTABLE = true,
+    OWNERSHIP_WINS_THE_OVERLAP = true,
+    ENV_BUDGET = 1, ENV_PHASES = Set(0, 1, 2), ENV_KINDS = Set(2),
+    ENV_EDITS = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ENV_FOREIGN = Set(0), ENV_TOPOS = Set(0, 1, 2, 3, 4, 5), ENTRIES = 1
+  ).* from "./finish"
+
+  val inv_fail_MUT_FN_32_the_candidate_mutates_a_slot_it_cannot_prove: bool =
+    not(hist.mutatedUnprovenSlot)
 }
 
 /// `EN-05`, COUNTERFACTUAL CAPABILITY — Q2's instrument.  With the commit inside

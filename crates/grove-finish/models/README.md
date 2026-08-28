@@ -1725,7 +1725,7 @@ witness, correlated by this handle and this attempt identity.
   running in this process*. Nothing here models a second process, a lease, or the
   file lock that `TT-22` is about, so what is checked is that a sweep run when
   Grove believes nothing is in flight touches only what it can prove is its own.
-  The shipped reaper is **lease-owned** ([`finish-layers-are-forced-not-chosen`](../../../docs/adr/finish-layers-are-forced-not-chosen.md),
+  The shipped reaper is **lease-owned** ([`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../../../docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md),
  
   `src/finish_cleanup/reaper.rs`) and that is exactly the machinery this file
   does not have. `SY-` is where the two would meet.
@@ -2640,7 +2640,7 @@ FILE HAS NOW MET FROM FOUR DIRECTIONS.**
 
 ## Q3, answered — and the enumeration it asked for
 
-These are the four questions [`finish-layers-are-forced-not-chosen`](../../../docs/adr/finish-layers-are-forced-not-chosen.md)
+These are the four questions [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../../../docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
 settles; the sections below are the evidence it reads.
 
 **Q3 asks: *is the marker-replacement sub-transaction reachable?  Enumerate the
@@ -3248,16 +3248,39 @@ mutation aimed at the sweep cannot kill it and one aimed at a transaction step
 cannot kill `FN-21.c`. The sweep's own side of fail-closed ownership is
 `FN-21.c`, and `FN-21.c` is incumbent mechanics.
 
-**THE CONSEQUENCE IS A FINDING FOR `finish-verdicts-k65` RATHER THAN A DEFECT
-HERE: no shared-safety obligation in this repository is stated over the
-quarantine reaper's actions.** `TT-24.a` covers the task-tree scope's admitted
-set, `FN-32` covers a live transaction's steps, and the reaper is covered by
-`FN-21.b`/`FN-21.c`, both incumbent mechanics. The cleanup marker therefore joins
+**THE CONSEQUENCE IS A FINDING FOR THE Q4 VERDICT RATHER THAN A DEFECT HERE: no
+shared-safety obligation in this repository constrains the quarantine reaper's
+OWNERSHIP PROOF.** `TT-24.a` covers the task-tree scope's admitted set, `FN-32`
+covers a live transaction's steps and excludes `Reap` deliberately, and the
+reaper's own fail-closed ownership is `FN-21.b`/`FN-21.c`, both incumbent
+mechanics. The cleanup marker therefore joins
 the quarantine (`Q4-5`) and the replace transition (`Q4-7`) as an artifact this
 family's evidence says protects **Grove's own intermediate machinery** and not
 the user — which is Q4's delete/replace criterion met a
-second and third time. Whether that licenses removal is Q1's and Q4's question
-and not this file's.
+second and third time. Whether that licenses removal is Q4's question and not
+this file's; `finish-verdicts-k78` answered `defer`.
+
+**THE SENTENCE ABOVE SAID *the reaper's actions* UNTIL `finish-verdicts-k78`'S
+REVIEWER FALSIFIED IT, AND THE NARROWING MATTERS.** `fun groveActs: set Action {
+txnActs + Decline + Discard + Reap }` ([`finish.als`](finish.als):5224), and
+`FN-27` — a shared-safety claim, and one of Q4's own retained set — is quantified
+over `groveActs` at all three of its checks (5501-5503, 5518-5520, 5529-5531); so
+are `FN-28`'s third and fourth conjuncts and `FN-30`'s second. Row x1 left every
+one of them green. **The claim set did look at the sweep, and the sweep passed.**
+What it does not look at is whether the sweep can prove what it touches, which is
+`FN-32`'s subject and exactly where `Reap` is excluded. The universal reading was
+doing work the narrow one does not, and reading a `none` as *silent* rests on the
+narrow one alone.
+
+**AND IT DOES NOT REACH `Q4-7`, WHICH NEEDS ITS OWN REASON AND HAS A BETTER
+ONE.** The replace transition is `MarkerReplace`, a `txnAct` inside `groveActs -
+Reap` that `FN-32` does examine — indeed *"`MarkerReplace` is the only `groveActs
+- Reap` member whose marker mutation is gated on ownership … so this is where the
+claim has content"* ([`finish.als`](finish.als):5930). Removing it by row 45
+therefore removes the only site at which `FN-32`'s marker half has content, so
+the row's green is **a vacuity artifact of its own mutation** rather than a
+finding that no claim protects the transition. That is why `Q4-7` is `defer`, and
+it is family-local and checkable where the reaper argument is neither.
 
 **The other two instances of the shape are gone rather than declared.**
 `TT-24.c` and `TT-24.d` were stated over this scope's contexts and are retired;
@@ -3925,7 +3948,9 @@ One row per control, and what it killed. Q4's rows cite these by number.
 | row | control | class | what it does | result |
 |---|---|---|---|---|
 | 901 | `relax_EN_01` | premise-break | a rename observable half-applied | `FN-09.a` and `FN-24.a` die |
-| 902 | `relax_EN_03` | counterfactual | atomic recursive deletion: disposal in place, no quarantine, no marker, no replace transition | every retained shared-safety obligation holds, `FN-32` included. **It is one `const`**: `ATOMIC_DISPOSAL`'s true branch replaces `SQuarantineRename` and every step after it with one `SDisposeInPlace`, which is why rows Q4-105 – 107 cannot be separated — see below |
+| 902 | `relax_EN_03` | counterfactual | atomic recursive deletion: disposal in place, no quarantine, no marker, no replace transition | every retained shared-safety obligation holds, `FN-32` included — and since `finish-verdicts-k78` the module differs from `base` in exactly one `const`, carries `FN-24.a`'s ten per-step crash witnesses over the candidate's own step list, and has a reached `FN-32` antecedent (`wit_FN_32_the_candidate_meets_an_unprovable_artifact`, 317 traces). **It is one `const`**: `ATOMIC_DISPOSAL`'s true branch replaces `SQuarantineRename` and every step after it with one `SDisposeInPlace`, which is why rows Q4-105 – 107 cannot be separated **in this file** — see below |
+| 902a | `scenario_march_under_the_candidate` | counterfactual | row 902's protocol, uninterrupted | `FN-24.b`'s two branch enumerations over the candidate's own step list, 1660 and 3649 traces. It exists for the reason `scenario_march` does: a branch enumeration needs a trace that walks a whole branch, which a crash-at-every-point world does not produce |
+| 902b | `mutant_unproven_ownership_under_the_candidate` | model | `mutant_unproven_ownership`'s environment with `ATOMIC_DISPOSAL` flipped | KILLED `FN-32` through the slot, so the candidate's retained `FN-32` is no longer a pure tautology — before this row it had no control at all. **It kills at `SCreatePreparing`, which the candidate inherits unchanged**: `stopReserved`'s other two transaction-side sites are `SQuarantineRename` and `SCreateMarker`, both unreachable under `ATOMIC_DISPOSAL = true`. So `FN-32` has no content over anything the candidate CHANGES and cannot be given any, since the candidate removes every artifact its other sites are about — which is Q1's second criterion defect rather than this row's |
 | 903 | `relax_EN_05` | counterfactual | the commit inside the filesystem transaction | every retained obligation holds; `Indeterminate` unreached on every lane |
 | 904 | `relax_EN_08` | exercise-removal | `crash` removed | six interruption witnesses unreachable |
 | 905 | `relax_EN_13` | premise-break | the reaper sweeps its reserved namespace | `FN-27.a` and `FN-21.b` die |
@@ -3972,9 +3997,9 @@ evidence the artifact is protecting the user rather than Grove.
 | Q4-102 | quint | the **evacuation manifest** | `FN-17.a` | argument — a rollback with nothing to compare against cannot be exact |
 | Q4-103 | quint | its **ready mark** | `FN-24.a` | argument — a manifest interrupted mid-write is otherwise indistinguishable from a complete one |
 | Q4-104 | quint | the **correlation ticket** | `FN-03` | argument — `FN-03`'s own witness is a retry with no local trace, which has nothing else to settle on |
-| Q4-105 | quint | the **quarantine** | `none`, **as part of one bundle** | mutation — row 902, which removes 105, 106 and 107 together |
-| Q4-106 | quint | the **cleanup marker** | `none`, **as part of one bundle** | mutation — row 902, which removes 105, 106 and 107 together |
-| Q4-107 | quint | the **replace transition** | `none`, **as part of one bundle** | mutation — row 902, which removes 105, 106 and 107 together |
+| Q4-105 | quint | the **quarantine** | `none`, **as part of one bundle** | mutation — row 902, which removes 105, 106 and 107 together. Verdict `defer`, see below |
+| Q4-106 | quint | the **cleanup marker** | `none`, **as part of one bundle** | mutation — row 902, which removes 105, 106 and 107 together. Verdict `defer`, see below |
+| Q4-107 | quint | the **replace transition** | `none`, **as part of one bundle** | mutation — row 902, which removes 105, 106 and 107 together. Verdict `defer`, see below |
 | Q4-108 | quint | the **index image** | — | abstracted |
 | Q4-109 | quint | the **recorded anchor** | `FN-16.a` | argument — the rollback licence is stated over it, and without it no restoration can be refused for want of one |
 | Q4-110 | quint | the **deletion fingerprint** | `FN-07` | mutation — row 914 |
@@ -3997,9 +4022,10 @@ result**, not three independent removals: no control here removes the quarantine
 while retaining the marker, or the marker while retaining the replace
 transition. Rows Q4-101–104, Q4-109 and Q4-110 name the first direct
 shared-safety obligation their artifact's role supports and are read normally;
-Q4-108 is declared `abstracted`. `finish-verdicts-k65` should read 105 – 107 as
-one row with three names, and commission artifact-specific removals if Q4's
-decision needs them separated.
+Q4-108 is declared `abstracted`. 105 – 107 are one row with three names, and the
+artifact-specific removals this paragraph offered to commission are what
+`finish-verdicts-k78` left commissioned rather than declined — they are the
+reason the three rows are `defer`.
 
 **And `FN-31.a`'s witness DID land.** The replace transition is *reachable* in
 the incumbent, and not marginally: the marker records disposal progress, so the
@@ -4014,9 +4040,11 @@ which one decides Q3.
 
 ## The four verdicts, and what each one leaves this file owing
 
-`finish-verdicts-k65` answered `TODO.finish_process.md` Q1 – Q4 **keep**, and the
+`finish-verdicts-k65` answered `TODO.finish_process.md` Q1 – Q4 **keep**;
+`finish-verdicts-k77` attacked that reading and `finish-verdicts-k78` integrated
+the result. **Q2 and Q3 stand. Q1, and rows Q4-105 – 107, are `defer`.** The
 durable record is
-[`finish-layers-are-forced-not-chosen`](../../../docs/adr/finish-layers-are-forced-not-chosen.md).
+[`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../../../docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md).
 Four things this file handed up are settled here rather than left in a retired
 task file.
 
@@ -4026,37 +4054,55 @@ names the two findings and asks which decides. It is the witness: Q4-107 says th
 classification of the artifact, while `FN-31.a` says a state requiring
 replacement is **reached**, which is the reachability question Q3 actually asks.
 The two do not conflict — Q3 is answered *within* the incumbent, and Q1 is the
-only thing that could have made it moot. Q1 answers keep, so it does not.
+only thing that could have made it moot. Q1 is `defer`, so Q3 stands until Q1
+returns something else.
 
-**The commission this column offered for Q4-105 – 107 is DECLINED, and the reason
-is stronger than "no verdict needs it".** The README warns that no control here
-removes the quarantine while retaining the marker. The deeper fact is that no
-control **can**: `ATOMIC_DISPOSAL` is a single `const` whose true branch replaces
-`SQuarantineRename` and every step after it with one `SDisposeInPlace`
-([`finish.qnt`](finish.qnt), the `SRevalBeforeQuarantine` arm), and of the
-thirty-four instance modules in [`finish-controls.qnt`](finish-controls.qnt)
-**exactly one sets it true** — enumerated rather than sampled. So an
-artifact-specific removal is not a mutation of the incumbent at all; it is a
-fourth candidate protocol (in-place *non-atomic* disposal, keeping the marker)
-with the quarantine's resumption problem **and** an observable partial task root,
-which nothing pre-registered and which is strictly worse than both candidates
-already checked. **That the artifacts and the missing capability are the same
-parameter is itself the measurement**: they exist to compensate for its absence.
+**The commission this column offered for Q4-105 – 107 was DECLINED, and the
+declining argument does not survive.** `finish-verdicts-k65` declined it on the
+ground that no control **can** separate the three: `ATOMIC_DISPOSAL` is a single
+`const` whose true branch replaces `SQuarantineRename` and every step after it
+with one `SDisposeInPlace`, so an artifact-specific removal is not a mutation of
+the incumbent but a fourth candidate protocol. **The premise is true of this file
+and the conclusion is not true of the protocol.** One `const` is a fact about
+this encoding; a strategy dial that is not the capability dial would express
+in-place *non-atomic* disposal, and the Alloy column has already run two of the
+three separations in the available world (rows x1 and 45). What the coupling
+measures is that **this model** cannot ask the question, which is the reason Q1
+is `defer` rather than a reason it is `keep`.
 
-**Q1's criterion is unmet in one place that is now closed and one that is left
-open with the reason.** Closed: the retained set named `TT-24`, which this scope
-cannot discharge, and `relax_EN_03` now asserts `FN-32` in its place. Open:
-Q1's criterion asks for **each of `FN-24`'s obligations' witnesses** reached at a
-bound no greater than the incumbent's, and `relax_EN_03` asserts six invariants
-and one witness — `wit_FN_28_the_candidate_reaches_its_successful_exit`, which
-is `FN-28`'s and not `FN-24`'s. The commission, if anyone ever needs it, is
-named: a `wit_FN_24a_crash_at_<step>` per step of the **candidate's** step list —
-`SDisposeInPlace` standing where `SQuarantineRename`, `SCreateMarker`,
-`SReplace*`, `SDisposeEntry` and `SRemoveMarker` stand in the incumbent — plus
-`wit_FN_24b_*` for the candidate's enumerated list. It was **not** run, because
-running it cannot change the verdict: `EN-03` is granted-absent, so the candidate
-is admissible and unavailable, and no strengthening of an admissibility result
-makes a mechanism removable.
+**Q1's criterion is no longer open, and completing it is what decided Q1.**
+`finish-verdicts-k78` ran the commission this file named rather than declining
+it. `relax_EN_03` now differs from `base` in exactly one `const` — it had carried
+`ENV_BUDGET = 0` with `ENV_PHASES` and `ENV_KINDS` empty, which narrows the
+*world* the candidate is judged in rather than the candidate, and left
+`inv_FN_24a`'s crash half with no crash and `inv_FN_32` with no foreign artifact
+to meet. It now carries ten `wit_FN_24a_crash_at_<step>_under_the_candidate` over
+the candidate's own effectful step list, `FN-32`'s reached antecedent, and a kill
+control (row 902b); `scenario_march_under_the_candidate` carries `FN-24.b`'s two
+branch enumerations. **All of them land, so the criterion is met as written — and
+what running it to completion shows is that it decides nothing, twice over.**
+First, met, it returns **`delete/replace`** for a protocol that requires the
+atomic recursive deletion `EN-03` says does not exist: it is admissibility-typed.
+Second, it is satisfiable while `FN-32`, one of its four retained claims, is
+trivial over the difference it is judging — row 902b's own cell says where and
+why. A criterion with either defect yields no verdict in **either** direction, so
+Q1 is `defer`, and what it waits on is a control for the only *available*
+no-quarantine strategy: non-atomic in-place disposal, which neither family runs.
+
+**And rows Q4-105 – 107 are `defer` for a reason that is this column's own.**
+Their `none` is **one bundled result from row 902**, which is `relax_EN_03` — the
+counterfactual-capability module. By the rule this file's verdict section states
+two paragraphs up, a counterfactual measures admissibility and says nothing about
+the shipped world, so these three cells are not per-row availability evidence at
+all: **this column supplies zero qualifying cells for Q4, not three.** The
+paragraph above already said the bundling half in bold; what
+`finish-verdicts-k78` adds is that the same rule that voids Q1's criterion voids
+these cells, and that not applying it here was an inconsistency rather than a
+second finding. Alloy's Q4-6 and Q4-7 are available-world mutations and are read
+on their own terms — see the Alloy section — and the Quint face of Q4-6's hole is
+real independently: `OWNERSHIP_PROVEN` is a free `const` rather than something
+the marker's presence derives, so no control here can make removing the marker
+cost a proof of ownership.
 
 **And the Alloy column's `none` for Q4-5 is not a gap either.** *"Nothing here
 runs that candidate"* reads as a shortfall and is not one: the assumption table
@@ -4066,4 +4112,6 @@ every `EN_`-named command in it is `EN-02`, `EN-08`, `EN-09` or `EN-16`. The
 positive control is `crates/grove-task-tree/models/task-tree.als`, which carries
 `expect_unreachable_EN_04_promotion_is_never_observed_half_applied`, Alloy's own
 assigned counterfactual. Q1's row is also the only one of the four whose
-criterion does not say *in both families*.
+criterion does not say *in both families* — which stopped mattering when Q1 went
+`defer`: the commissioned control is for the **available** candidate, and an
+availability result Grove would act on is owed by both columns.

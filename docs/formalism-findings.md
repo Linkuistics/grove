@@ -10187,10 +10187,15 @@ pre-committed the evidence that classifies each, so these are read rather than
 argued. What is already on the record, and what is missing, is set out in this
 session's running log; the verdicts are that child's.
 
-> **[answered by `finish-verdicts-k65`]** All four are **keep**, and
-> `TODO.finish_process.md` is deleted: the questions, the verdicts, the cost
-> table and the four binding constraints are now
-> [`docs/adr/finish-layers-are-forced-not-chosen.md`](adr/finish-layers-are-forced-not-chosen.md).
+> **[answered by `finish-verdicts-k65`, revised by `finish-verdicts-k78`]**
+> `k65` answered all four **keep**; `finish-verdicts-k77` attacked that reading
+> and `k78` integrated the result, leaving **Q2 and Q3 `keep` and Q1 and Q4's
+> three cleanup rows `defer`** — the criterion `k65` declared mis-typed was
+> completed rather than abandoned, and completing it returns `delete/replace` for
+> a protocol `EN-03` says cannot be built, which is the defect measured rather
+> than argued. `TODO.finish_process.md` is deleted: the questions, the
+> dispositions, the cost table and the four binding constraints are now
+> [`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md).
 > **Every earlier entry in this log that names `TODO.finish_process.md` names it
 > as it stood when that entry was written and is left alone; this annotation is
 > the one pointer forward.** The finding worth carrying past the verdicts: Q1's

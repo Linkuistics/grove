@@ -32,8 +32,8 @@ re-gathered, and deleted when the work lands or the question is settled in an
 ADR. It is not a plan, not a backlog, and never the canonical description of
 anything that exists — those rows are above. **There is none at present.**
 `TODO.finish_process.md` was the last, and it ended the second way: its four
-questions are answered in
-[`docs/adr/finish-layers-are-forced-not-chosen.md`](adr/finish-layers-are-forced-not-chosen.md)
+questions — two answered `keep`, two `defer` — are carried in
+[`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
 and the note is gone.
 
 The four files directly under `docs/` are the maintained project guides. This is

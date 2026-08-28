@@ -52,7 +52,7 @@ observe, so a library-written receipt could only say *I removed the root*, never
 *the removal is committed*. Grove's receipt is the correlation ticket, and it
 lives in the repository's own history — the one place that survives both the
 container's destruction and its re-creation at the same name. This is
-[`finish-layers-are-forced-not-chosen`](finish-layers-are-forced-not-chosen.md)'s
+[`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)'s
 *"the interval is the whole problem"* reached from the library's side, and what
 it decides is ownership: the receipt must live outside the container, Grove's correlation ticket is that receipt
 ([`success-is-proved-by-the-ticket-not-the-tree`](success-is-proved-by-the-ticket-not-the-tree.md)),

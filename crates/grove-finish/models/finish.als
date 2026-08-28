@@ -509,7 +509,7 @@ one sig Idle, Confirm, Decline, TxnOpen, Preflight, Swap, TopologyChange,
            catalogue requires the first three to be DISTINCT TRANSITIONS rather
            than one step with three branches: `FN-31` says the
            `replace-cleanup-marker` transition is *distinct from creating a
-           marker and from removing one*, because `docs/adr/finish-layers-are-forced-not-chosen.md` Q3
+           marker and from removing one*, because `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md` Q3
            asks whether replacement is reachable at all and a model that folds
            it away answers Q3 by construction.
 
@@ -1837,7 +1837,7 @@ pred doCommitAttempt {
     /* THE COMMIT EITHER LANDS OR IT DOES NOT, AND GROVE DOES NOT GET TO SAY
        WHICH.  `EN-05` puts the commit outside the filesystem transaction, so the
        interval between the evacuation and the recorded result is irreducible —
-       it is the whole of what `docs/adr/finish-layers-are-forced-not-chosen.md` is about and it is Q2's
+       it is the whole of what `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md` is about and it is Q2's
        counterfactual.  Modelling the landing as a free branch of THIS step, and
        the reported result as a separate `lone` value, is what makes
        `Indeterminate` reachable rather than argued about.
@@ -2285,7 +2285,7 @@ pred doSettle {
 /* DISPOSAL, STEP 1a — CREATE the cleanup marker.  The after-rename point's
    corrective action when the reserved name is free.
 
-   IT IS A SEPARATE TRANSITION FROM THE REPLACEMENT, AND `docs/adr/finish-layers-are-forced-not-chosen.md`
+   IT IS A SEPARATE TRANSITION FROM THE REPLACEMENT, AND `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`
    Q3 IS WHY.  Q3 asks whether the marker-replacement sub-transaction — a whole
    crash-safe protocol nested inside the cleanup of a crash-safe protocol — is
    reachable at all.  A model with one `write-marker` step branching internally
@@ -4206,7 +4206,7 @@ run witness_FN_22j_indeterminate_observed_after_the_restoration {
 // thing preventing it was a BOUND.  So `interruptedMidDisposal` and
 // `staleMarkerLeftBehind` each get one, here, in the slice that posits them —
 // and `staleMarkerLeftBehind`'s is not optional at any price, because
-// `FN-31.a`'s whole answer to `docs/adr/finish-layers-are-forced-not-chosen.md` Q3 rests on that disk
+// `FN-31.a`'s whole answer to `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md` Q3 rests on that disk
 // being one an execution reaches.
 // ===========================================================================
 
@@ -4404,7 +4404,7 @@ run witness_FN_21c_a_foreign_entry_at_a_reserved_name_is_declined {
 
 // --- FN-31.a: the replacement's source state is reachable -------------------
 
-/* `docs/adr/finish-layers-are-forced-not-chosen.md` Q3 IS ANSWERED HERE, AND BY A WITNESS RATHER THAN BY
+/* `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md` Q3 IS ANSWERED HERE, AND BY A WITNESS RATHER THAN BY
    A CONSTRUCTION.  The catalogue gives the obligation two admissible
    instruments — the source state as a witness, or a bounded-unreachability check
    of `FN-15.d`'s form recorded per lane — and the leaf's brief names the third

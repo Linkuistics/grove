@@ -18,7 +18,7 @@ Models and current-state documents are now the source of truth. The initial leaf
 - Migration code, command surfaces, compatibility tests, dependencies, and stale documentation are gone; current-format initialization works and other formats fail closed.
 - Finish behaviour conforms to both model families across Git, native jj, and colocated jj, including fault injection, crash/restart, ticket correlation, evacuation, quarantine, recovery, and ownership conflicts.
 - CLI/config/output/release/MSRV/platform contracts in the preservation ledger are verified against the baseline.
-- Old root modules, reach-through imports, compatibility shims, duplicated tests, and unused dependencies are removed only after their durable obligations have moved to the new owners. (`TODO.finish_process.md` is already gone — `finish-verdicts-k65` answered its four questions **keep** and landed the durable half as [`docs/adr/finish-layers-are-forced-not-chosen.md`](../../docs/adr/finish-layers-are-forced-not-chosen.md).)
+- Old root modules, reach-through imports, compatibility shims, duplicated tests, and unused dependencies are removed only after their durable obligations have moved to the new owners. (`TODO.finish_process.md` is already gone — its four questions are dispositioned **keep** (Q2, Q3) and **defer** (Q1, and Q4's three cleanup rows) in [`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](../../docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md).)
 
 ## Notes
 
@@ -32,7 +32,12 @@ Use test-first slices and real repositories for VCS behaviour. The compiler shou
 `collapse-application-k27`.** The implementation-order sentence above still reads
 "apply separately inserted model-proven finish simplifications"; there are none,
 and that step is a no-op rather than an omission
-([`docs/adr/finish-layers-are-forced-not-chosen.md`](../../docs/adr/finish-layers-are-forced-not-chosen.md)).
+([`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](../../docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)).
+**And "none" now means "none earned yet" rather than "none possible".**
+`finish-verdicts-k78` moved Q1 and Q4's three cleanup rows to `defer` and
+commissioned the control that would decide them, so this step stays a no-op only
+while that control has not been run. If it returns `delete/replace`, the leaf
+that owns the commission inserts here, and this paragraph is what it edits.
 The same is true of the ordinal-lifecycle step: the verdict was contested and
 upheld, and root *creation* was rejected with it, so no leaf sits before
 `extract-task-tree-k24` either.

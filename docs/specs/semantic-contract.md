@@ -270,7 +270,7 @@ trace trimmed to the transition that matters.
 `TODO.finish_process.md` asked four questions that `finish-verdicts-k65` had to
 answer *keep*, *delete/replace* or *defer* with evidence — and "the model is
 smaller" is explicitly not evidence. That file is gone;
-[`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md)
+[`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
 is where the four questions and their answers now live, and every `Decides:` line
 below cites it. The catalogue
 fixes which obligations decide each, so the answer is read off the models rather
@@ -306,11 +306,13 @@ green — the reachability answers *is this needed*, and the retained claims ans
 | **Q3 — is the marker-replacement sub-transaction reachable?** | `FN-24` | `FN-31`, `FN-21`, `FN-22` | `FN-31.a`'s bounded-unreachability branch establishing that no state requires a *replace* rather than a create or a remove, at a bound strictly greater than the one at which `FN-21.a` and `FN-31.b` first land their witnesses, in **both** families. `FN-31.a`'s witness merely failing to land is a `defer`, for the reason Q2 gives |
 | **Q4 — what does finish still owe the user?** | `FN-27`, `FN-28`, `SY-05` | every artifact and transition in the matrix below | a row of the removal matrix whose artifact or transition can be removed without breaking **any** shared-safety claim |
 
-**ALL FOUR ARE ANSWERED, AND ALL FOUR ANSWER `keep`**
-([`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md),
-which replaced `TODO.finish_process.md`). The table above stays because it is
-what the answers were read against, and because the two things
-`finish-verdicts-k65` had to change in it are worth more than the verdicts:
+**TWO OF THE FOUR ARE ANSWERED `keep`, AND TWO ARE `defer`**
+([`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md),
+which replaced `TODO.finish_process.md`). Q2 and Q3 are `keep` on witnesses
+reached under the incumbent. Q1, and the three rows of Q4's matrix that are the
+cleanup layer, are **`defer`**: what would decide them has never been run in
+either family. The table above stays because it is what the answers were read
+against, and because four things about it are worth more than the verdicts:
 
 - **Q1's retained set names `FN-32` where it named `TT-24`.** The claim is
   retained, in the context the finish scope can actually state it: `TT-24`'s
@@ -328,6 +330,37 @@ what the answers were read against, and because the two things
   against the shipped world however green the run. The criteria are left standing
   rather than rewritten, because what they measure is real and the defect is in
   what was read off them; the ADR carries the rule.
+- **AND THAT IS NOW A MEASUREMENT RATHER THAN AN ARGUMENT**, which is
+  `finish-verdicts-k78`'s. Q1's criterion was **completed** instead of abandoned:
+  `relax_EN_03` was reduced to differing from `base` in exactly one `const` — it
+  had narrowed the *world* to `ENV_BUDGET = 0`, which is not a narrowing of the
+  candidate and left the retained set with no antecedent to be about — and it now
+  carries `FN-24.a`'s ten per-step crash witnesses over the candidate's own step
+  list, `FN-24.b`'s two branch enumerations in
+  `scenario_march_under_the_candidate`, a reached `FN-32` antecedent, and a kill
+  control (`mutant_unproven_ownership_under_the_candidate`) that fires. **Every
+  one of them lands, so the criterion is met as written — and running it to
+  completion is what shows that it decides nothing, twice over.** Met, it returns
+  `delete/replace` for a protocol that requires the atomic recursive deletion
+  `EN-03` says does not exist: it is admissibility-typed. And it is satisfiable
+  while `FN-32`, one of its four retained claims, has no content over the
+  difference it is judging — `stopReserved`'s other two transaction-side sites
+  are unreachable under the candidate, so both the witness and the kill land at
+  the witness slot, which the candidate inherits unchanged, and the claim cannot
+  be given content there because the candidate removes every artifact its other
+  sites are about. Neither defect is an argument about the criterion; both are
+  what running it produced.
+- **A criterion shown to be mis-typed yields no verdict in either direction**, so
+  Q1 is `defer` rather than `keep`. Its **replacement criterion is
+  availability-typed**, and it is the one a later session must decide against:
+  *a candidate strategy that requires no capability the environment table records
+  as absent, checked against the shared-safety set at the incumbent's bounds —
+  retaining every claim classifies Q1 `delete/replace`, and being shown to break
+  one classifies it `keep`. No such candidate run is `defer`.* The only available
+  no-quarantine strategy is **non-atomic in-place disposal**, and no command in
+  either family runs it: Quint ties the quarantine's existence to
+  `ATOMIC_DISPOSAL` in one `const`, and Alloy runs no counterfactual-capability
+  mutation at all.
 
 **Q2 needs an instrument, not an absent witness.** "The witness never landed" and
 "no trace reaches it" are different statements, and only the second decides
@@ -353,6 +386,40 @@ mutation discipline, or `none`. A row reading `none` in both families is Q4's
 evidence for delete/replace; a row naming an obligation is evidence the artifact
 is protecting the user rather than Grove. The matrix is a runner obligation like
 any other: a removable artifact with no row fails the run.
+
+**Three rows read `none` in both families, and all three are `defer` — for three
+different reasons, none of which is a re-reading of the cells.** The quarantine,
+the cleanup marker and the replace transition read `none` in Quint (Q4-105 – 107)
+and in Alloy (Q4-5 – 7).
+
+- **Quint's three are one bundled result from `relax_EN_03`**, the
+  counterfactual-capability module, and this section's own rule says such a
+  control measures admissibility and never availability. So they are not per-row
+  availability evidence at all: **the Quint column supplies zero qualifying cells
+  for Q4, not three.** The rule that voids Q1's criterion voids these cells, and
+  it applies here whether or not anyone likes where it points.
+- **Alloy's Q4-6 is an available-world mutation and its `none` is real**, but
+  what it establishes is bounded by a hole this catalogue owns: *no shared-safety
+  obligation in this repository constrains the quarantine reaper's ownership
+  proof.* `TT-24.a` covers the task-tree scope's admitted set; `FN-32` is stated
+  over a live transaction's steps with `Reap` deliberately excluded; the sweep's
+  own fail-closed ownership is `FN-21.b`/`FN-21.c`, both incumbent mechanics.
+  **The narrow statement is the true one** — `FN-27`, `FN-28` and `FN-30` *are*
+  quantified over a set containing `Reap` and stayed green under that mutation,
+  so the claim set did look at the sweep. What it does not ask is whether the
+  sweep can prove what it touches. The Quint face is that `OWNERSHIP_PROVEN` is a
+  free `const` rather than something the marker's presence derives.
+- **Alloy's Q4-7 is neither of those.** The replace transition is a transaction
+  step the excluding claim does examine, and it is the *only* site at which
+  `FN-32`'s marker half has content — so the mutation that removes it removes the
+  claim's content along with it, and the resulting green is a vacuity artifact of
+  the mutation rather than evidence that nothing protects the transition.
+
+**The commission is one instrument and one decision.** Close the reaper hole
+either way — state a shared-safety obligation over the sweep's ownership proof,
+or record here that the matrix is structurally silent about it and annotate the
+`none` cells as such — and run the artifact-specific removals in the **available**
+world, which is where Quint has none.
 
 A question whose deciding witness is never reached is **defer**, not delete: an
 unreached witness is an absence of evidence, and the pre-registration's
@@ -738,7 +805,7 @@ the tree read arriving one step earlier rather than a second gate.
 
 `replace-cleanup-marker` is in the table rather than folded into
 `dispose-quarantine` because
-[`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md)
+[`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
 Q3 asks whether *replacement* — as against creating a marker or removing one — is
 reachable at all. A model that folds it away answers Q3 by construction, which is
 the shape of a false-confidence incident rather than a finding. `FN-31` is its
@@ -1863,7 +1930,7 @@ fingerprint and the exact immediate result.
   fails to land satisfies neither branch and is a `defer`.
   *Witness*: reached on each lane, **or** the unreachability check's bound and
   result recorded per lane.
-*Decides*: [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md)
+*Decides*: [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
 Q2, jointly with `FN-25`. What the unreachability branch can decide is bounded by its own
 bound and never more.
 
@@ -2036,7 +2103,7 @@ rather than by construction whether it is needed.
 - `FN-31.d` — a replacement is never performed against a marker Grove cannot
   prove is its own (`TT-24.a`). *Witness*: a foreign marker, declined.
 *Class*: incumbent mechanics.
-*Decides*: [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md) Q3.
+*Decides*: [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md) Q3.
 
 ### Recovery, refusal and the exits
 
@@ -2071,7 +2138,7 @@ alone, which is why it is not the whole claim.
   *Witness*: the step list, enumerated, each step's persistent effect named.
 *Class*: shared safety — this is the claim a candidate protocol is judged
 against, and it names no artifact of the incumbent one.
-*Decides*: [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md) Q1 — a cheaper
+*Decides*: [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md) Q1 — a cheaper
 protocol is admissible only if both obligations still hold under it, with
 `FN-24.a`'s witnesses reached at a bound no greater than the incumbent's.
 
@@ -2099,7 +2166,7 @@ the partition neither disjoint nor exhaustive.
 - `FN-25.c` — each diagnosis is reachable on **each** lane. *Witness*: each
   diagnosis, on each lane.
 *Class*: shared safety.
-*Decides*: [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md)
+*Decides*: [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
 Q2, jointly with `FN-15`.
 
 **`FN-26` — history is never rewritten to clear a block.** A block SHALL stay
@@ -2716,7 +2783,7 @@ remove only the proved-owned branch/worktree". No such exit is modelled, and
 `FN-28` states the single successful exit instead. Grove reads no branch or
 bookmark, creates no working tree and performs no integration; the user owns
 topology, and describing finish as merging anything version-control-topological
-describes the cycle Grove replaced. [`finish-layers-are-forced-not-chosen`](../adr/finish-layers-are-forced-not-chosen.md),
+describes the cycle Grove replaced. [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](../adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md),
 which carries the finish concerns the root brief pointed at
 `TODO.finish_process.md` for, asks the opposite question — how much of the machinery protects the repository as against
 Grove's own intermediate artifacts. This was put to the human, who confirmed

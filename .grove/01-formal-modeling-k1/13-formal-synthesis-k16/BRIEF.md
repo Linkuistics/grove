@@ -191,7 +191,9 @@ the GAP-line count either side.
 
 `finish-verdicts-k65` answered `TODO.finish_process.md` Q1 – Q4 **keep**, upheld
 the ordinal root-lifecycle rejection and extended it to root *creation*, and
-**inserted no `impl` leaf at either target**.
+**inserted no `impl` leaf at either target**. **Two of those four verdicts did
+not survive review — read the `finish-verdicts-k78` section at the end of this
+brief before acting on anything below.**
 
 **It did cut a review, and inserted it at `handoff-audit-k66`'s slot rather than
 appending it** — the same move `obligation-placement-k63` made, for the same
@@ -207,7 +209,7 @@ could spend no in-session reviewer, because the harness it ran under forbade
 subagents. If `k77` finds nothing it creates nothing and retires.
 
 **The file is gone.** `TODO.finish_process.md` is deleted and
-[`docs/adr/finish-layers-are-forced-not-chosen.md`](../../../docs/adr/finish-layers-are-forced-not-chosen.md)
+[`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](../../../docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
 replaces it — the four questions with their verdicts, the module-by-module cost
 table, the four binding constraints, the rejected alternatives and the reopener.
 Every citation outside `.grove/` was enumerated and repointed; `k66` should find
@@ -241,3 +243,68 @@ is still owed and is `k66`'s**, and nothing here has been measured end to end.
   because completing it could not change the answer: the candidate is admissible
   and unavailable. If `k66`'s audit reads that as an unresolved semantic
   question, it is not one — the ADR carries why.
+
+
+## `finish-verdicts-k77` and `k78` are closed, and two of the four verdicts moved
+
+`review-design finish-verdicts-k77` attacked the reading that produced `k65`'s
+four `keep`s and returned two findings; `integrate-review-design
+finish-verdicts-k78` verified both, applied them, and **reclassified Q1 and Q4's
+three cleanup rows from `keep` to `defer`.** Q2 and Q3 stand unchanged, on the
+review's own finding that each rests on a witness reached under the incumbent.
+The record is
+[`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](../../../docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md);
+the previous slug is gone and every citation outside the retired task bodies was
+repointed.
+
+**What decided it, and it is a measurement rather than a re-reading.** `k65`
+declared Q1's pre-registered `delete/replace` criterion mis-typed — stated over a
+counterfactual-capability control, which measures admissibility — and then read
+its failure as `keep`. `k78` completed the criterion instead of abandoning it.
+`relax_EN_03` had narrowed the *world* to `ENV_BUDGET = 0` with empty
+`ENV_PHASES`/`ENV_KINDS`, so its retained `FN-32` had no foreign artifact to meet
+and `inv_FN_24a`'s crash half had no crash; it now differs from `base` in exactly
+one `const`, carries `FN-24.a`'s ten per-step crash witnesses over the
+candidate's step list, a reached `FN-32` antecedent (317 traces), a kill control
+that fires (`mutant_unproven_ownership_under_the_candidate` — the first `FN-32`
+kill in the suite under `ATOMIC_DISPOSAL = true`), and `FN-24.b`'s two branch
+enumerations in `scenario_march_under_the_candidate`. **All of them land, so the
+criterion is met as written — and running it to completion is what shows it
+decides nothing, twice over.** Met, it returns `delete/replace` for a protocol
+requiring the atomic recursive deletion `EN-03` says does not exist; and it is
+satisfiable while `FN-32`, one of its four retained claims, is trivial over
+everything the candidate changes, because the candidate removes every artifact
+that claim's other sites are about. A criterion with either defect yields no
+verdict in either direction, and missing evidence has no sign: `defer`, not
+`keep`. **The second defect is `k78`'s in-session reviewer's**, and the leaf's
+running log carries every finding it returned with its classification.
+
+**Three things `handoff-audit-k66` must not re-derive, and one it must stop
+relying on.**
+
+- **`k65`'s note that "a `defer` was available and was not taken, deliberately"
+  is withdrawn.** It rested on *completing the commission cannot change the
+  answer*, and completing the commission is what changed it.
+- **Two `defer`s with a named commission are settled dispositions, not
+  unresolved semantic questions.** The formal brief's own `Done when` admits
+  `defer` as one of three classifications, and the commission is written into the
+  ADR and into the catalogue's Q4 paragraph rather than left to a reader.
+- **The manifest still has not moved.** Every catalogue edit here is prose;
+  `models/run.sh --list` prints **130 obligations**, unchanged. `--scope finish
+  --family quint` is **exit 0**, **254 commands** (240 before), 63 of 63 cells,
+  Q4 matrix 10 of 10. The Alloy column was not re-run and did not change. **The
+  whole-repository run is still owed and is still `k66`'s.**
+- **The pre-existing `](../adr/bulk-marks-are-not-atomic.md)` link defect in
+  `docs/formalism-findings.md` is still `k66`'s** — `k78` touched that file only
+  to repoint the ADR slug and to correct the forward annotation that said all
+  four questions answered `keep`.
+
+**And one leaf was cut and inserted ahead of `k66`.** The commission is not a
+note: `design quarantine-necessity-k79` holds position 09 and `k66` has shifted
+to 10, keys unchanged. The insertion argument is the one this brief has now made
+three times — `k66` certifies that the documentation phase carries no unresolved
+semantic question, and an audit taken before the control that decides Q1 has run
+would certify the disposition rather than the answer. If `k79` returns
+`delete/replace`, the `impl` leaf this brief's `Done when` contemplates before
+`collapse-application-k27` is `k79`'s to insert; if it returns `keep`, the ADR is
+`k79`'s to rework back.

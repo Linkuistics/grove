@@ -511,6 +511,16 @@ module finish {
     SRevalAfterQuarantine, SCreateMarker, SDisposeEntry, SRemoveMarker,
     SRemoveQuarantine)
 
+  /// THE SAME LIST FOR Q1'S CANDIDATE, and it exists so that `FN-24.b`'s
+  /// enumeration can be asked of the candidate's own step list rather than of
+  /// the incumbent's.  `relax_EN_03` takes the `ATOMIC_DISPOSAL` arm at
+  /// `SRevalBeforeQuarantine`, so everything from `SQuarantineRename` onward is
+  /// replaced by the single `SDisposeInPlace`; the refusal branch is unchanged
+  /// and `REFUSAL_BRANCH_STEPS` serves both protocols.
+  pure val CANDIDATE_SUCCESS_BRANCH_STEPS: Set[Step] = Set(
+    SPreflight, SCreatePreparing, SWriteManifest, SPublish, SEvacuate,
+    SMarkReady, SCommit, SRevalBeforeQuarantine, SDisposeInPlace)
+
   /// The coarse phase a step belongs to.  `ENV_PHASES` is written over these
   /// rather than over the steps themselves so that an instantiation is a short
   /// set of integers rather than a transcription of the step list — and so that

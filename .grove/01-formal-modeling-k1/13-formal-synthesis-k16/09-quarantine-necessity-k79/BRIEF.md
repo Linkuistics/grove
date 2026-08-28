@@ -355,9 +355,17 @@ a suite that was green**:
 inserted, not appended.** `sweep-ownership-k81` is chartered to edit the very
 artifacts under review, and this node's own rule — used at
 `obligation-placement-k67` and `finish-verdicts-k77` — is that a gate checked
-after everything it gates is not a gate. **Keys are unchanged: `k81`, `k82` and
-`k83` are now positions 03, 04 and 05.** If `k84` finds nothing it creates nothing
-and retires.
+after everything it gates is not a gate. `k84` returned five findings: the
+`FN-28` repair remains self-certifying and launders a torn rename; total in-place
+disposal deletes an unevacuated entry without proving it; the catalogue and the
+Quint predicate state different `FN-28`s; the artifact branch of
+`groveWorkOutstanding` is reported complete while uncontrolled; and the new ADR
+retains review chronology instead of the minimum current decision.
+
+**`integrate-review-design honest-classification-k85` was therefore inserted at
+position 03, immediately before the work it gates.** Its body carries the exact
+review findings and the checks that retire them. **Keys are unchanged: `k81`,
+`k82` and `k83` are now positions 04, 05 and 06.**
 
 **One method result to carry into every later child's own instrument.** *A module
 that changes what the model does must be run against **every** claim the model

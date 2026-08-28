@@ -21,7 +21,11 @@
 //! `env!` below is unresolvable when the binary is not built.
 #![cfg(feature = "cli")]
 
+#[cfg(unix)]
+use std::ffi::OsString;
 use std::fs;
+#[cfg(unix)]
+use std::os::unix::ffi::OsStringExt;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
@@ -39,9 +43,9 @@ struct Run {
 }
 
 impl Run {
-    /// stdout parsed the way the help text tells a caller to parse it: one
-    /// record per line, **split on the first tab**, because a caller-supplied
-    /// `--root` may contain one.
+    /// stdout parsed through the first half of the documented rule: one record
+    /// per line, split on the first tab. Tests with escaped platform bytes
+    /// percent-decode the path separately.
     fn records(&self) -> Vec<(&str, &str)> {
         self.stdout
             .lines()
@@ -161,9 +165,9 @@ fn a_path_comes_back_spelled_the_way_the_root_went_in() {
 
 /// No model claim.
 ///
-/// The parsing rule is *split on the first tab*, and this is the case that makes
-/// it a rule rather than a convention: a root the caller spelled with a tab in it
-/// puts a second tab on every line.
+/// The parsing rule is *split on the first tab, then percent-decode the path*.
+/// A tab in the caller's spelling is record structure unless the path encoder
+/// escapes it.
 #[test]
 fn a_root_holding_a_tab_still_yields_one_record_per_line() {
     let temporary = TempDir::new().expect("a temporary directory");
@@ -174,10 +178,54 @@ fn a_root_holding_a_tab_still_yields_one_record_per_line() {
     let run = ok(&root, &["list"]);
     assert_eq!(run.targets(), vec!["1"]);
     assert!(
-        run.paths()[0].ends_with("a\tcourse/01-linear-algebra-i1"),
+        run.paths()[0].ends_with("a%09course/01-linear-algebra-i1"),
         "the path after the first tab was {:?}",
         run.paths()[0]
     );
+}
+
+/// No model claim: neither model holds strings or streams.
+///
+/// A record must remain one UTF-8 physical line and preserve delimiters. The
+/// in-file stream tests cover a non-UTF-8 byte without depending on whether the
+/// host filesystem or its sandbox admits such a name.
+#[cfg(unix)]
+#[test]
+fn record_paths_round_trip_delimiters() {
+    let temporary = TempDir::new().expect("a temporary directory");
+    let root = temporary
+        .path()
+        .join(OsString::from_vec(b"a\n%course".to_vec()));
+    fs::create_dir(&root).expect("creating a tree root containing delimiters");
+    ok(&root, &["module-add", ".", "linear-algebra"]);
+
+    let run = ok(&root, &["list"]);
+    assert_eq!(run.stdout.lines().count(), 1, "{:?}", run.stdout);
+    let encoded = run.paths()[0];
+    assert!(
+        encoded.contains("a%0A%25course/01-linear-algebra-i1"),
+        "the path was not bytewise percent-encoded: {encoded:?}"
+    );
+    assert_eq!(decode_unix_path(encoded), root.join("01-linear-algebra-i1"));
+}
+
+#[cfg(unix)]
+fn decode_unix_path(encoded: &str) -> PathBuf {
+    let mut bytes = Vec::with_capacity(encoded.len());
+    let mut index = 0;
+    while index < encoded.len() {
+        if encoded.as_bytes()[index] == b'%' {
+            let end = index + 3;
+            let octet = u8::from_str_radix(&encoded[index + 1..end], 16)
+                .expect("a percent escape contains two hexadecimal digits");
+            bytes.push(octet);
+            index = end;
+        } else {
+            bytes.push(encoded.as_bytes()[index]);
+            index += 1;
+        }
+    }
+    PathBuf::from(OsString::from_vec(bytes))
 }
 
 /// No model claim.
@@ -1076,6 +1124,10 @@ fn one_help_call_enumerates_every_verb_and_the_exit_codes() {
         );
     }
     assert!(help.stdout.contains("EXAMPLES"));
+    assert!(
+        help.stdout.contains("percent-decode `%HH`"),
+        "the record decoder is absent from top-level help"
+    );
     assert!(
         help.stdout.contains("REMOVAL: THE WHOLE TREE OR NOTHING"),
         "the help text must separate removing an entry, which is refused, from \

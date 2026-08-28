@@ -267,15 +267,18 @@ flowchart TD
     B -->|yes| C["<b>stdout</b><br/>records: key TAB path"]
     B -->|yes| D["<b>stderr</b><br/>what else moved"]
     B -->|no| E["<b>stderr</b><br/>the error's Display, verbatim"]
-    C --> F["exit 0"]
+    C --> F{"terminal accepted output?"}
+    F -->|yes| H["exit 0"]
+    F -->|closed stdout pipe| H
+    F -->|other refusal| I["exit 1"]
     E --> G["exit 1–7, by category"]
 
     classDef ok fill:#e4efe6,stroke:#6f9b78,color:#1f3324
     classDef note fill:#f7f0e4,stroke:#b0935f,color:#3d2e1f
     classDef bad fill:#f7e8e8,stroke:#b07a7a,color:#3d1f1f
-    class C,F ok
+    class C,F,H ok
     class D note
-    class E,G bad
+    class E,G,I bad
 ```
 
 ### stdout is data: `<key>` TAB `<path>`
@@ -291,8 +294,17 @@ its own and no operation can name one, so its line names the **level whose
 content it is** — the node's key, or `.` — which is the handle a caller reading
 `overview-chain` or `list` actually needs.
 
-The parsing rule is **split on the first tab**: a caller-supplied `--root` may
-contain one, and the path is everything after the first.
+The parsing rule is **split on the first tab, then percent-decode the path
+column**. The encoder operates on `OsStr::as_encoded_bytes()`. ASCII bytes from
+space through `~` remain literal except `%`; every other byte is uppercase
+`%HH`. Tabs, newlines, carriage returns, terminal controls, `%` itself, and all
+non-ASCII platform bytes therefore remain inside one UTF-8 physical line.
+
+The decoded byte sequence reconstructs the original path within the standard
+library's stated domain: the same Rust version built for the same target
+platform. That domain includes Unix paths containing arbitrary non-NUL bytes,
+including bytes that are not UTF-8. Ordinary printable ASCII paths remain
+readable and can still be passed directly to a shell command.
 
 ### A mutation prints created-if-any, renamed otherwise
 
@@ -346,6 +358,23 @@ list below.
 A read verb whose result is empty prints nothing on stdout and one line on
 stderr, saying which emptiness it was — the tree holds no entries, or the filters
 excluded them all. Exit is 0 either way.
+
+`Streams` owns both terminal writers behind one private `Write` seam. A stdout
+write or flush that reports `BrokenPipe` is benign, so `list | head -1` exits 0.
+Every other stdout failure is exit 1. Every stderr write or flush failure is
+also exit 1, including failure to print a library refusal; stderr is never
+silently treated as an advisory-only best effort.
+
+Help, version, and argument-usage output cross that seam too. Clap renders the
+terminal text and selects its documented stream, while `Streams` owns the write,
+flush, and resulting exit decision. Consequently a closed stdout pipe while
+printing help or version is benign, but no other parser-output refusal is lost.
+
+Terminal output happens after a successful mutation, so an exit 1 caused by
+stdout or stderr does not imply rollback. The tree may already contain the
+change even if the record or landing trace is partial or absent. Inspect the
+tree before retrying `lesson-add`, `module-add`, either insert, or `promote`;
+those verbs are not idempotent.
 
 ### No `--json`, no `--limit`, no colour
 
@@ -406,7 +435,7 @@ should the caller do next*. Documented in `syllabus --help`.
 | code | condition | what to do |
 |---|---|---|
 | `0` | success | — |
-| `1` | the environment refused: `Error::Io`, `Error::NoContainingDirectory` | fix the path or the permissions |
+| `1` | the environment refused: `Error::Io`, `Error::NoContainingDirectory`, non-broken-pipe stdout failure, or any stderr failure | fix the path, permissions, or redirection |
 | `2` | usage: clap's own parse failure, an unparseable label, an unknown status | fix the arguments |
 | `3` | no entry has that key: `Refusal::TargetMissing` | `list` to find the key you meant |
 | `4` | refused: every other `Refusal`; this CLI's own two — a root holding no tree, and an `init` over one that does; a `delete` without `--yes`; and `Error::RootIsNotSpelledDirectly`, which is not a `Refusal` but is exactly this row's shape — nothing changed, and the message names the remedy | read the message; it names the remedy |
@@ -536,7 +565,7 @@ in one call.
 
 The top-level `long_about` carries what no single verb can: that this binary
 drives the reference domain and is a demonstration; that stdout is
-`<key>` TAB `<path>` and stderr is advisory; the exit-code table; that no verb
+`<key>` TAB `<percent-encoded-path>` and stderr is advisory; the exit-code table; that no verb
 removes an *entry*, and why, beside what `delete` does instead; and that the
 verbs block on a lock.
 
@@ -632,9 +661,10 @@ micro-change this document named. A domain that renders a token it cannot read
 back forces every consumer to write the mapping a second time, and the CLI's
 `--status` was the first consumer to hit it.
 
-**The claim account is 31 tests, 8 naming a model claim, 23 saying they have
+**The external claim account is 32 tests, 8 naming a model claim, 24 saying they have
 none, none naming neither** — the shape entry 018's routing rule predicted before
 the leaf started. The eight are not about the CLI: each checks that a modelled
 outcome survives the trip out through argv and back through stdout. Counted and
 then read, because the label is prose: a regex over the crate's other 173 tests
-leaves 22 unclassified and every one of them turns out to be labelled.
+leaves 22 unclassified and every one of them turns out to be labelled. Eight
+additional in-file unit tests inject refusing writers at the private stream seam.

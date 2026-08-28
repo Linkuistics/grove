@@ -94,7 +94,7 @@ fn reordered_source_root_rows_are_rejected() {
     edit_source_index(&mut snapshot, |text| {
         let first = "| `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 116 |\n";
         let second =
-            "| `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,128 |\n";
+            "| `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,439 |\n";
         text.replacen(&format!("{first}{second}"), &format!("{second}{first}"), 1)
     });
 

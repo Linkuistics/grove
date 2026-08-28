@@ -13,7 +13,7 @@ fn the_frozen_fifteen_file_corpus_expands_byte_for_byte() {
     );
 
     assert_eq!(report.coverage.files, 15);
-    assert_eq!(report.coverage.resolved_lines, 6_618);
+    assert_eq!(report.coverage.resolved_lines, 6_929);
     assert_eq!(report.coverage.deferred_lines, 0);
     assert!(report.valid, "{:#?}", report.diagnostics);
 }
@@ -57,7 +57,7 @@ fn orientation_scope_reports_resolved_and_deferred_bytes_separately() {
         book_validation::Coverage {
             files: 15,
             resolved_lines: 203,
-            deferred_lines: 6_415,
+            deferred_lines: 6_726,
             final_: false,
         }
     );

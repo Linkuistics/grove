@@ -26,7 +26,7 @@ pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
     (
         "source-syllabus-cli",
         "crates/ordinal-fs-tree/bin/syllabus.rs",
-        1_128,
+        1_439,
     ),
     ("source-library", "crates/ordinal-fs-tree/src/lib.rs", 94),
     (
@@ -125,7 +125,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         "source-syllabus-cli",
         "syllabus-cli-k17",
         1,
-        1_128,
+        1_439,
     ),
     block(
         "library-crate-surface",

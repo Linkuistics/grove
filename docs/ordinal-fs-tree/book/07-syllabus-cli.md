@@ -55,16 +55,16 @@ required-features = ["cli"]
 ````
 <!-- /fragment -->
 
-The CLI source is one file with seven conceptual ranges. The composite below
+The CLI source is one file with eight conceptual ranges. The composite below
 preserves source order while the literal definitions appear beside their
 explanations. The binary owns translation between argv, the syllabus domain,
-the library surface, and terminal streams; its input is one parsed command and
-its output is records, advisories, or a categorized failure. Keeping the whole
+the library surface, and terminal streams; its input is argv and its output is
+parser text, records, advisories, or a categorized failure. Keeping the whole
 file under this consumer preserves the invariant that none of those concerns
 becomes a second library seam, and the fragments resolve the insert tour at the
 source boundary.
 
-<!-- fragment «syllabus-cli-source» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1128" parent="source-syllabus-cli" -->
+<!-- fragment «syllabus-cli-source» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1439" parent="source-syllabus-cli" -->
 <!-- insert «cli-command-line» -->
 <!-- insert «cli-parsing-and-failure» -->
 <!-- insert «cli-streams-and-paths» -->
@@ -72,6 +72,7 @@ source boundary.
 <!-- insert «cli-main-dispatch» -->
 <!-- insert «cli-reading» -->
 <!-- insert «cli-mutations» -->
+<!-- insert «cli-stream-contract-tests» -->
 <!-- /fragment -->
 
 <a id="worked-cli-insert"></a>
@@ -187,7 +188,7 @@ keeps stable identity separate from mutable position, and these are the exact
 inputs that initiated the worked insert. It also records the twelve commands
 without restating clap mechanics in prose.
 
-<!-- fragment «cli-command-line» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-482" parent="syllabus-cli-source" -->
+<!-- fragment «cli-command-line» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-488" parent="syllabus-cli-source" -->
 ````rust
 //! `syllabus` — the CLI `ordinal-fs-tree` ships, driving a course syllabus.
 //!
@@ -291,9 +292,12 @@ NAMING A TARGET
 
 OUTPUT
   stdout is data: one record per line, `<key>` TAB `<path>`. Split on the FIRST
-  tab — a `--root` you supplied may contain one. The key column is the target
-  you would pass to another verb to name what that line is about, so output
-  round-trips into the next call. `.` in the key column is the tree root.
+  tab, then percent-decode `%HH` escapes in the path. Printable ASCII is literal
+  except `%`; controls and non-ASCII platform bytes are escaped, so tabs,
+  newlines and non-UTF-8 names still occupy one round-trippable UTF-8 line. The
+  encoded bytes may be reconstructed only on the same Rust version and target.
+  The key column is the target you would pass to another verb to name what that
+  line is about. `.` in the key column is the tree root.
   stderr is advisory: what else moved, and why a result was empty. `--quiet`
   suppresses it. Errors go to stderr and are never suppressed.
   A mutation prints what it created; a mutation that created nothing prints
@@ -301,8 +305,8 @@ OUTPUT
 
 EXIT CODES
   0  success
-  1  the environment refused (I/O, or a root with no containing directory) —
-     fix the path or the permissions
+  1  the environment refused (filesystem or terminal I/O, or a root with no
+     containing directory) — fix the path, permissions or redirection
   2  usage: bad arguments, an unparseable label, an unknown status
   3  no entry has that key — run `syllabus list` to find the key you meant
   4  refused: a stated outcome in which nothing changed — read the message,
@@ -313,6 +317,9 @@ EXIT CODES
      so retrying is safe
   7  the mutation failed and the rollback failed too: DO NOT RETRY — the
      message says how to resolve it
+
+  A terminal-I/O exit 1 can occur after a mutation landed. Inspect the tree
+  before retrying a non-idempotent add, insert or promote.
 
 IDEMPOTENCY
   `publish`, `unpublish` and `relabel` are idempotent: rewriting to the parts
@@ -677,33 +684,55 @@ SEE ALSO
 <a id="dispatch-and-verbs"></a>
 ## Dispatch and verbs
 
-`main` parses once, creates `Streams` from `--quiet`, and delegates to `run`.
-`run` is the complete mapping from the twelve domain verbs to four read helpers
-and five mutation helpers. It constructs `Parts` only for commands where the
-operator chooses a species. `publish` and `unpublish` are domain spellings of
-`rewrite`; both add commands use `append_many`, including for one label.
+`main` parses once, locks both terminal handles, creates `Streams`, and delegates
+to `run`. `settle` turns the result into a process code and attempts to report a
+failure through the same stderr seam; an stderr refusal becomes exit 1. `run` is
+the complete mapping from the twelve domain verbs to four read helpers and five
+mutation helpers. It constructs `Parts` only for commands where the operator
+chooses a species. `publish` and `unpublish` are domain spellings of `rewrite`;
+both add commands use `append_many`, including for one label.
 
 This range is present because the binary owns domain dispatch, a typed verb
 becomes one helper call with fully constructed consumer parts, exhaustive enum
 matching keeps every command routed exactly once, and `LessonInsert` follows
 the worked command into the helper rather than exposing a plan to the operator.
 
-<!-- fragment «cli-main-dispatch» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="790-862" parent="syllabus-cli-source" -->
+<!-- fragment «cli-main-dispatch» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="905-997" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
 fn main() {
-    let cli = Cli::parse();
-    let streams = Streams { quiet: cli.quiet };
-    if let Err(failure) = run(&cli, &streams) {
-        eprintln!("syllabus: {}", failure.message);
-        std::process::exit(i32::from(failure.code));
+    let stdout = io::stdout();
+    let stderr = io::stderr();
+    let mut stdout = stdout.lock();
+    let mut stderr = stderr.lock();
+    let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+    let code = match Cli::try_parse() {
+        Ok(cli) => {
+            streams.quiet = cli.quiet;
+            let outcome = run(&cli, &mut streams);
+            settle(outcome, &mut streams)
+        }
+        Err(error) => streams.clap(error),
+    };
+    if code != 0 {
+        std::process::exit(i32::from(code));
     }
 }
 
-fn run(cli: &Cli, streams: &Streams) -> Result<(), Failure> {
+fn settle(outcome: Result<(), Failure>, streams: &mut Streams<'_>) -> u8 {
+    match outcome {
+        Ok(()) => 0,
+        Err(failure) => match streams.failure(&failure) {
+            Ok(()) => failure.code,
+            Err(_) => 1,
+        },
+    }
+}
+
+fn run(cli: &Cli, streams: &mut Streams<'_>) -> Result<(), Failure> {
     match &cli.verb {
         Verb::List {
             under,
@@ -789,7 +818,7 @@ records or one explicit missing-target refusal, filters never widen the
 library's name seam, and it supplies the read half of the same consumer that
 the insert example exercises.
 
-<!-- fragment «cli-reading» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="863-1005" parent="syllabus-cli-source" -->
+<!-- fragment «cli-reading» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="998-1136" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // Reading
@@ -797,7 +826,7 @@ the insert example exercises.
 
 fn list(
     cli: &Cli,
-    streams: &Streams,
+    streams: &mut Streams<'_>,
     under: Option<Key>,
     status: Option<Status>,
     label: Option<&Label>,
@@ -862,10 +891,9 @@ fn list(
     };
 
     if records.is_empty() {
-        streams.note(&empty_note(tree.snapshot().is_empty(), filtered, &cli.root));
+        streams.note(&empty_note(tree.snapshot().is_empty(), filtered, &cli.root))?;
     }
-    streams.records(&records);
-    Ok(())
+    streams.records(&records)
 }
 
 /// Which emptiness it was. Exit is 0 either way — an empty tree is a tree.
@@ -888,16 +916,15 @@ fn empty_note(tree_is_empty: bool, filtered: bool, root: &Path) -> String {
     }
 }
 
-fn show(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
+fn show(cli: &Cli, streams: &mut Streams<'_>, key: Key) -> Result<(), Failure> {
     let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
     let entry = tree
         .by_key(key)
         .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))?;
-    streams.records(&[record_of(&cli.root, &entry)]);
-    Ok(())
+    streams.records(&[record_of(&cli.root, &entry)])
 }
 
-fn ancestors(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
+fn ancestors(cli: &Cli, streams: &mut Streams<'_>, key: Key) -> Result<(), Failure> {
     let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
     let entry = tree
         .by_key(key)
@@ -910,11 +937,10 @@ fn ancestors(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
             path: level_path(&cli.root, level),
         })
         .collect();
-    streams.records(&records);
-    Ok(())
+    streams.records(&records)
 }
 
-fn overview_chain(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
+fn overview_chain(cli: &Cli, streams: &mut Streams<'_>, key: Key) -> Result<(), Failure> {
     let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
     let entry = tree
         .by_key(key)
@@ -928,10 +954,9 @@ fn overview_chain(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure>
         streams.note(
             "no level containing that entry holds an OVERVIEW.md. A chain walks the \
              entry's ancestors, so a module's own OVERVIEW is never in its own chain.",
-        );
+        )?;
     }
-    streams.records(&records);
-    Ok(())
+    streams.records(&records)
 }
 
 ````
@@ -964,23 +989,27 @@ snapshot becomes one `Report` or categorized `Failure`, same-guard inspection
 preserves the rewrite species invariant, and the local `insert` function is the
 worked operation's final consumer-to-library handoff.
 
-<!-- fragment «cli-mutations» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1006-1128" parent="syllabus-cli-source" -->
+<!-- fragment «cli-mutations» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1137-1259" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // Mutating
 // ---------------------------------------------------------------------------
 
-/// stdout is written only after the mutation has succeeded. A run that fails is
-/// rolled back, so paths printed as effects landed would describe files that are
-/// no longer there.
-fn report_out(streams: &Streams, verb: &str, report: &Report<SyllabusName>) {
-    streams.records(&mutation_records(report));
-    streams.trace(verb, report);
+/// stdout is written only after the library mutation succeeds. Library mutation
+/// failure is rolled back before this point; a terminal failure happens later
+/// and cannot promise rollback.
+fn report_out(
+    streams: &mut Streams<'_>,
+    verb: &str,
+    report: &Report<SyllabusName>,
+) -> Result<(), Failure> {
+    streams.records(&mutation_records(report))?;
+    streams.trace(verb, report)
 }
 
 fn add(
     cli: &Cli,
-    streams: &Streams,
+    streams: &mut Streams<'_>,
     verb: &str,
     parent: Target,
     parts: Vec<Parts>,
@@ -995,13 +1024,12 @@ fn add(
     let report = tree
         .append_many(parent, entries)
         .map_err(|e| Failure::library(&e))?;
-    report_out(streams, verb, &report);
-    Ok(())
+    report_out(streams, verb, &report)
 }
 
 fn insert(
     cli: &Cli,
-    streams: &Streams,
+    streams: &mut Streams<'_>,
     verb: &str,
     parent: Target,
     at: Ordinal,
@@ -1011,13 +1039,12 @@ fn insert(
     let report = tree
         .insert(parent, at, NewEntry::empty(parts))
         .map_err(|e| Failure::library(&e))?;
-    report_out(streams, verb, &report);
-    Ok(())
+    report_out(streams, verb, &report)
 }
 
 fn promote(
     cli: &Cli,
-    streams: &Streams,
+    streams: &mut Streams<'_>,
     key: Key,
     label: Label,
     first_lesson: Option<&Label>,
@@ -1031,11 +1058,10 @@ fn promote(
     let report = tree
         .promote(key, Parts::module(label), first)
         .map_err(|e| Failure::library(&e))?;
-    report_out(streams, "promote", &report);
-    Ok(())
+    report_out(streams, "promote", &report)
 }
 
-fn relabel(cli: &Cli, streams: &Streams, key: Key, label: Label) -> Result<(), Failure> {
+fn relabel(cli: &Cli, streams: &mut Streams<'_>, key: Key, label: Label) -> Result<(), Failure> {
     let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
     // Read then mutate on the *same* guard: one lock, one snapshot. A relabel
     // keeps the variant it read, which is why `RewriteSpeciesChange` is
@@ -1045,13 +1071,12 @@ fn relabel(cli: &Cli, streams: &Streams, key: Key, label: Label) -> Result<(), F
         Parts::Module { .. } => Parts::module(label),
     };
     let report = tree.rewrite(key, parts).map_err(|e| Failure::library(&e))?;
-    report_out(streams, "relabel", &report);
-    Ok(())
+    report_out(streams, "relabel", &report)
 }
 
 fn set_status(
     cli: &Cli,
-    streams: &Streams,
+    streams: &mut Streams<'_>,
     verb: &str,
     key: Key,
     status: Status,
@@ -1072,8 +1097,7 @@ fn set_status(
         }
     };
     let report = tree.rewrite(key, parts).map_err(|e| Failure::library(&e))?;
-    report_out(streams, verb, &report);
-    Ok(())
+    report_out(streams, verb, &report)
 }
 
 /// The parts the entry with this key already carries.
@@ -1089,6 +1113,7 @@ fn parts_of(tree: &fs::WriteGuard<SyllabusName>, key: Key) -> Result<Parts, Fail
         // narrows nothing; both `None`s are the same condition.
         .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))
 }
+
 ````
 <!-- /fragment -->
 
@@ -1126,7 +1151,7 @@ operator-facing `Failure`, the mapping preserves the library's distinctions
 without rewording them, and it determines both the pre-dispatch and error exits
 of the worked insert.
 
-<!-- fragment «cli-parsing-and-failure» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="483-618" parent="syllabus-cli-source" -->
+<!-- fragment «cli-parsing-and-failure» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="489-632" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // Argument parsing: the four things argv carries
@@ -1236,6 +1261,14 @@ impl Failure {
     fn own(message: String) -> Self {
         Self { code: 4, message }
     }
+
+    /// A terminal refused one of the process's output streams.
+    fn stream(stream: &str, error: io::Error) -> Self {
+        Self {
+            code: 1,
+            message: format!("writing {stream} failed: {error}"),
+        }
+    }
 }
 
 /// The library's outcome taxonomy, read as *what should the caller do next*.
@@ -1270,28 +1303,31 @@ fn refusal_code(refusal: &Refusal) -> u8 {
 <a id="streams-and-records"></a>
 ## Records, advisories, and paths
 
-Stdout is result data in the form `<target>` TAB `<path>` followed by a newline.
-The target is the key that can drive a later command. A distinguished child has
-no key, so its record uses the key of its containing level, or `.` for the root.
-Consumers split on the first tab because the operator-supplied root can itself
-contain a tab.
+Stdout is result data in the form `<target>` TAB `<encoded-path>` followed by a
+newline. The target is the key that can drive a later command. A distinguished
+child has no key, so its record uses the key of its containing level, or `.` for
+the root. Consumers split on the first tab and percent-decode the second column.
+Printable ASCII bytes other than `%` remain literal; controls, `%`, and every
+non-ASCII byte in `OsStr::as_encoded_bytes()` become uppercase `%HH`. The result
+is one UTF-8 physical line for tabs, newlines, and non-UTF-8 Unix path bytes.
+The decoded bytes reconstruct the path on the same Rust version and target,
+which is the standard library's domain for this opaque platform encoding.
 
-The current encoding has a platform-path limit. `Path::display()` is lossy for
-non-UTF-8 bytes, and an unescaped newline in a valid Unix root produces more
-than one physical output line. The record is therefore round-trippable only
-when the displayed path contains no newline and preserves the path's bytes.
-Code that must accept arbitrary platform paths cannot treat this output as an
-unconditional record protocol.
+`Streams` owns injected stdout and stderr writers behind a private seam. Only a
+stdout `BrokenPipe` is benign, so `list | head -1` remains quiet and exits 0.
+Every other stdout write or flush refusal becomes exit 1. Every stderr refusal
+also becomes exit 1, including failure to report a domain failure. A mutation
+has already landed before terminal output begins, so terminal exit 1 does not
+promise rollback; the operator inspects the tree before retrying a
+non-idempotent verb.
 
-The implementation also treats every stdout write or flush failure as a quiet
-end of output. This makes a closed pipe such as `list | head -1` unobtrusive,
-but it also means a different redirected-output failure can lose result data
-and still exit 0. Stderr uses `eprintln!`; a stderr write failure can panic and
-therefore sits outside the numbered exit taxonomy. These are boundary limits of
-the current demonstration binary, not library outcomes.
+Clap's help, version, and usage text also passes through `Streams`: Clap renders
+and classifies it, then the seam checks the selected writer and its flush. That
+keeps a help pipe's stdout `BrokenPipe` benign without swallowing any other
+argument-parser stream failure.
 
 Stderr contains advisories and failures. `--quiet` suppresses landing traces
-and empty-result notes but never suppresses the `main` error. Read paths are
+and empty-result notes but never suppresses a reportable failure. Read paths are
 constructed from the root spelling, ancestor module names, and the entry name;
 every name admitted to the snapshot has already passed one-component
 validation, so this consumer-side join remains inside the tree.
@@ -1302,15 +1338,17 @@ reports become stable records or optional advice, validated name components
 preserve tree confinement, and this range produces the stdout and stderr values
 observed in the worked insert.
 
-<!-- fragment «cli-streams-and-paths» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="619-744" parent="syllabus-cli-source" -->
+<!-- fragment «cli-streams-and-paths» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="633-859" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // The two streams
 // ---------------------------------------------------------------------------
 
 /// stdout is data, stderr is advice, and `--quiet` silences the second.
-struct Streams {
+struct Streams<'a> {
     quiet: bool,
+    stdout: &'a mut dyn Write,
+    stderr: &'a mut dyn Write,
 }
 
 /// One line of stdout: the target you would pass to another verb, and the path.
@@ -1319,27 +1357,92 @@ struct Record {
     path: PathBuf,
 }
 
-impl Streams {
-    /// Write the answer.
-    ///
-    /// Locked once and written in one pass, and a write failure ends the run
-    /// quietly: `syllabus list | head -1` closes the pipe under us, and a panic
-    /// there would be this tool's own noise reported as the tree's problem.
-    fn records(&self, records: &[Record]) {
-        let stdout = io::stdout();
-        let mut out = stdout.lock();
-        for record in records {
-            if writeln!(out, "{}\t{}", record.target, record.path.display()).is_err() {
-                return;
-            }
+impl<'a> Streams<'a> {
+    fn new(stdout: &'a mut dyn Write, stderr: &'a mut dyn Write, quiet: bool) -> Self {
+        Self {
+            quiet,
+            stdout,
+            stderr,
         }
-        let _ = out.flush();
     }
 
-    fn note(&self, message: &str) {
-        if !self.quiet {
-            eprintln!("{message}");
+    /// Write the answer.
+    ///
+    /// A closed pipe ends the run quietly: `syllabus list | head -1` closes the
+    /// pipe under us, and reporting that as the tree's problem would be noise.
+    /// Every other write or flush failure is an environmental failure.
+    fn records(&mut self, records: &[Record]) -> Result<(), Failure> {
+        for record in records {
+            if let Err(error) = writeln!(
+                self.stdout,
+                "{}\t{}",
+                record.target,
+                encode_path(&record.path)
+            ) {
+                return Self::stdout_result(error);
+            }
         }
+        match self.stdout.flush() {
+            Ok(()) => Ok(()),
+            Err(error) => Self::stdout_result(error),
+        }
+    }
+
+    fn stdout_result(error: io::Error) -> Result<(), Failure> {
+        if error.kind() == io::ErrorKind::BrokenPipe {
+            Ok(())
+        } else {
+            Err(Failure::stream("stdout", error))
+        }
+    }
+
+    fn write_stdout(&mut self, bytes: &[u8]) -> Result<(), Failure> {
+        if let Err(error) = self.stdout.write_all(bytes) {
+            return Self::stdout_result(error);
+        }
+        match self.stdout.flush() {
+            Ok(()) => Ok(()),
+            Err(error) => Self::stdout_result(error),
+        }
+    }
+
+    fn write_stderr(&mut self, bytes: &[u8]) -> Result<(), Failure> {
+        self.stderr
+            .write_all(bytes)
+            .map_err(|error| Failure::stream("stderr", error))?;
+        self.stderr
+            .flush()
+            .map_err(|error| Failure::stream("stderr", error))
+    }
+
+    /// Render clap's terminal output through the same checked stream boundary
+    /// as command records and diagnostics.
+    fn clap(&mut self, error: clap::Error) -> u8 {
+        let code = u8::try_from(error.exit_code()).unwrap_or(1);
+        let rendered = error.render().to_string();
+        // clap chooses the stream by error kind; rendering separately lets this
+        // CLI retain every write and flush result instead of `Error::exit()`
+        // discarding print failures:
+        // https://docs.rs/clap/4.6.1/clap/error/struct.Error.html#method.render
+        let outcome = if error.use_stderr() {
+            self.write_stderr(rendered.as_bytes())
+        } else {
+            self.write_stdout(rendered.as_bytes())
+        };
+        match outcome {
+            Ok(()) => code,
+            Err(failure) => settle(Err(failure), self),
+        }
+    }
+
+    fn note(&mut self, message: &str) -> Result<(), Failure> {
+        if self.quiet {
+            return Ok(());
+        }
+        writeln!(self.stderr, "{message}").map_err(|error| Failure::stream("stderr", error))?;
+        self.stderr
+            .flush()
+            .map_err(|error| Failure::stream("stderr", error))
     }
 
     /// The landing trace: what the plan did, **in the order it landed**.
@@ -1354,26 +1457,60 @@ impl Streams {
     /// This is where the highest-ordinal-first shift rule stays observable to an
     /// operator, which is why it is a property of a *value* rather than of a
     /// loop's direction.
-    fn trace(&self, verb: &str, report: &Report<SyllabusName>) {
+    fn trace(&mut self, verb: &str, report: &Report<SyllabusName>) -> Result<(), Failure> {
         if self.quiet {
-            return;
+            return Ok(());
         }
         let count = report.paths().count();
-        eprintln!(
+        writeln!(
+            self.stderr,
             "{verb}: {count} effect{}, in the order they landed:",
             if count == 1 { "" } else { "s" }
-        );
+        )
+        .map_err(|error| Failure::stream("stderr", error))?;
         for path in report.paths() {
             match report.renamed().iter().find(|renamed| renamed.to == path) {
-                Some(renamed) => eprintln!(
+                Some(renamed) => writeln!(
+                    self.stderr,
                     "  renamed  {} -> {}",
                     renamed.from.display(),
                     renamed.to.display()
-                ),
-                None => eprintln!("  created  {}", path.display()),
+                )
+                .map_err(|error| Failure::stream("stderr", error))?,
+                None => writeln!(self.stderr, "  created  {}", path.display())
+                    .map_err(|error| Failure::stream("stderr", error))?,
             }
         }
+        self.stderr
+            .flush()
+            .map_err(|error| Failure::stream("stderr", error))
     }
+
+    fn failure(&mut self, failure: &Failure) -> io::Result<()> {
+        writeln!(self.stderr, "syllabus: {}", failure.message)?;
+        self.stderr.flush()
+    }
+}
+
+/// A path column that occupies one UTF-8 physical line and round-trips every
+/// platform path representable by this Rust build.
+fn encode_path(path: &Path) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+
+    let mut encoded = String::new();
+    // This encoding is opaque outside the same Rust version and target. That is
+    // the exact reconstruction domain promised by the standard library:
+    // https://doc.rust-lang.org/1.85.0/std/ffi/struct.OsStr.html#method.as_encoded_bytes
+    for &byte in path.as_os_str().as_encoded_bytes() {
+        if (b' '..=b'~').contains(&byte) && byte != b'%' {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push('%');
+            encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+            encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+        }
+    }
+    encoded
 }
 
 // ---------------------------------------------------------------------------
@@ -1446,7 +1583,7 @@ stdout records plus an ordered trace, exclusive destination claims make the
 correlation unambiguous, and `lesson-insert` therefore prints key 7 while still
 showing both highest-first shifts.
 
-<!-- fragment «cli-mutation-output» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="745-789" parent="syllabus-cli-source" -->
+<!-- fragment «cli-mutation-output» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="860-904" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // What a mutation prints
@@ -1499,6 +1636,200 @@ fn target_of_name(name: &SyllabusName) -> String {
 <a id="omitted-features"></a>
 ## Deliberate omissions and retry limits
 
+The in-file contract tests inject writers that fail on write or flush. Their
+inputs include parser output, one record, or one stderr message; their outputs
+are the settled exit code and categorized `Failure`. The tests distinguish a
+closed stdout pipe from other stdout refusals for both help and records, cover
+usage, stderr advice, and unreportable failures, and hold the invariant that all
+terminal failures stay inside the documented taxonomy.
+This range is included because those branches cannot be driven portably through
+a real terminal without substituting the writers at the private seam.
+
+<!-- fragment «cli-stream-contract-tests» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1260-1439" parent="syllabus-cli-source" -->
+````rust
+#[cfg(test)]
+mod stream_contract_tests {
+    use super::*;
+
+    #[derive(Clone, Copy)]
+    enum RefusalPoint {
+        Write,
+        Flush,
+    }
+
+    struct RefusingWriter {
+        point: RefusalPoint,
+        kind: io::ErrorKind,
+    }
+
+    impl Write for RefusingWriter {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            match self.point {
+                RefusalPoint::Write => Err(io::Error::new(self.kind, "controlled refusal")),
+                RefusalPoint::Flush => Ok(bytes.len()),
+            }
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            match self.point {
+                RefusalPoint::Write => Ok(()),
+                RefusalPoint::Flush => Err(io::Error::new(self.kind, "controlled refusal")),
+            }
+        }
+    }
+
+    fn record() -> Record {
+        Record {
+            target: "1".to_string(),
+            path: PathBuf::from("course/01-introduction-i1"),
+        }
+    }
+
+    fn clap_error(arguments: &[&str]) -> clap::Error {
+        match Cli::try_parse_from(arguments) {
+            Ok(_) => panic!("arguments unexpectedly parsed"),
+            Err(error) => error,
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn path_encoding_round_trips_a_non_utf8_byte() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let path = PathBuf::from(OsString::from_vec(b"a\n%\xffcourse".to_vec()));
+        let encoded = encode_path(&path);
+        let mut decoded = Vec::new();
+        let mut index = 0;
+        while index < encoded.len() {
+            if encoded.as_bytes()[index] == b'%' {
+                decoded.push(
+                    u8::from_str_radix(&encoded[index + 1..index + 3], 16)
+                        .expect("an escape contains two hexadecimal digits"),
+                );
+                index += 3;
+            } else {
+                decoded.push(encoded.as_bytes()[index]);
+                index += 1;
+            }
+        }
+
+        assert_eq!(decoded, path.as_os_str().as_encoded_bytes());
+    }
+
+    #[test]
+    fn help_stdout_broken_pipe_is_benign_during_write_and_flush() {
+        for point in [RefusalPoint::Write, RefusalPoint::Flush] {
+            let mut stdout = RefusingWriter {
+                point,
+                kind: io::ErrorKind::BrokenPipe,
+            };
+            let mut stderr = Vec::new();
+            let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+
+            assert_eq!(streams.clap(clap_error(&["syllabus", "--help"])), 0);
+        }
+    }
+
+    #[test]
+    fn other_help_stdout_failures_are_environment_failures() {
+        for point in [RefusalPoint::Write, RefusalPoint::Flush] {
+            let mut stdout = RefusingWriter {
+                point,
+                kind: io::ErrorKind::Other,
+            };
+            let mut stderr = Vec::new();
+            let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+
+            assert_eq!(streams.clap(clap_error(&["syllabus", "--help"])), 1);
+            assert!(String::from_utf8(stderr)
+                .expect("failure report is UTF-8")
+                .contains("writing stdout failed"));
+        }
+    }
+
+    #[test]
+    fn usage_stderr_failures_are_environment_failures() {
+        for point in [RefusalPoint::Write, RefusalPoint::Flush] {
+            let mut stdout = Vec::new();
+            let mut stderr = RefusingWriter {
+                point,
+                kind: io::ErrorKind::BrokenPipe,
+            };
+            let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+
+            assert_eq!(streams.clap(clap_error(&["syllabus", "remove"])), 1);
+        }
+    }
+
+    #[test]
+    fn stdout_broken_pipe_is_benign_during_write_and_flush() {
+        for point in [RefusalPoint::Write, RefusalPoint::Flush] {
+            let mut stdout = RefusingWriter {
+                point,
+                kind: io::ErrorKind::BrokenPipe,
+            };
+            let mut stderr = Vec::new();
+            let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+
+            let outcome = streams.records(&[record()]);
+            assert_eq!(settle(outcome, &mut streams), 0);
+        }
+    }
+
+    #[test]
+    fn other_stdout_failures_are_environment_failures() {
+        for point in [RefusalPoint::Write, RefusalPoint::Flush] {
+            let mut stdout = RefusingWriter {
+                point,
+                kind: io::ErrorKind::Other,
+            };
+            let mut stderr = Vec::new();
+            let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+
+            let outcome = streams.records(&[record()]);
+            let failure = outcome.expect_err("stdout refused");
+            assert_eq!(failure.code, 1);
+            assert!(failure.message.contains("stdout"));
+            assert_eq!(settle(Err(failure), &mut streams), 1);
+        }
+    }
+
+    #[test]
+    fn stderr_advice_failures_are_environment_failures() {
+        for point in [RefusalPoint::Write, RefusalPoint::Flush] {
+            let mut stdout = Vec::new();
+            let mut stderr = RefusingWriter {
+                point,
+                kind: io::ErrorKind::BrokenPipe,
+            };
+            let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+
+            let failure = streams.note("advice").expect_err("stderr refused");
+            assert_eq!(failure.code, 1);
+            assert!(failure.message.contains("stderr"));
+        }
+    }
+
+    #[test]
+    fn an_unreportable_failure_exits_as_an_environment_failure() {
+        let mut stdout = Vec::new();
+        let mut stderr = RefusingWriter {
+            point: RefusalPoint::Write,
+            kind: io::ErrorKind::BrokenPipe,
+        };
+        let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+
+        assert_eq!(
+            settle(Err(Failure::own("refused".to_string())), &mut streams),
+            1
+        );
+    }
+}
+````
+<!-- /fragment -->
+
 The binary has no removal command. Keys are allocated as tree-wide maximum plus
 one, so deleting the maximum can reissue an identity still held by an external
 reference. `unpublish` expresses retirement as an attribute rewrite. An empty
@@ -1510,8 +1841,9 @@ belong to the filesystem boundary rather than the consumer seam. There is no
 label lookup in the library; `--label` is a predicate over a walk. There is no
 version-control integration, migration, colour, pager, prompt, JSON mode, or
 pagination. The demonstration has a bounded tree result, a tab-separated output
-shape subject to the platform-path and write-failure limits above, no destructive
-verb, and no second persistent representation that would require those features.
+shape with a lossless same-platform path encoding and explicit terminal-failure
+taxonomy, no destructive verb, and no second persistent representation that
+would require those features.
 
 Exit 6 is safe to retry because complete unwind restored the captured tree.
 Exit 7 is not safe to retry because some effects remain. Termination by signal

@@ -614,14 +614,26 @@ finding list has no structural place to reject one. **This binds, and it is the
 most actionable thing the whole harvest produced**: the integration's body should
 carry the review's *handle*, and its findings should be read from the review's own
 commit — the handoff a `review-*` step already uses. It touches
-`references/decompose.md`, whose current text explicitly invites the defect
-("…or the findings verbatim"), and `references/integrate-review.md`.
+`references/decompose.md`, which until `methodology-changes-k91` explicitly
+invited the defect ("…or the findings verbatim"), and
+`references/integrate-review.md`.
 
 The one piece of cluster A that binds with them: **a control that has never been
 seen to fail is not a control** — already this corpus's own rule, applied by
 `obligation-placement-k68` to `models/run-controls.sh` and by
 `review-yield.py`'s three deliberate mutations, and not yet stated anywhere in
 the methodology that asks sessions to verify their claims.
+
+**Where the three landed, and what did not.** `methodology-changes-k91` wrote all
+three into `content/`: A′ into `references/execute.md`'s two-controls block, B as
+that file's *The provenance of a measurement* section, and C across
+`references/decompose.md` (what a review writes into the body it cuts) and
+`references/integrate-review.md` (where an integration reads findings from). Six
+rows were added to `docs/specs/corpus-rule-ownership.md` and its sweep in
+`tests/rule_ownership.rs`. **5b did not land**, on this document's own reasoning:
+it is one instance, and stating it beside 5a's five in a rule a session is asked
+to obey is exactly the borrowing §5 split them to stop. It and the rest of
+cluster A go to the write-up.
 
 ## What this record does not establish
 

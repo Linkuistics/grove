@@ -25,6 +25,9 @@ process ownership, a task-tree data model, and three fail-closed transactions.
 | Methodology executed by agents | [`content/SKILL.md`](../content/SKILL.md) and its adjacent format guides |
 | Skill-plugin operation | [`plugins/README.md`](../plugins/README.md) |
 | Scoping notes for work not yet started | `TODO.<subject>.md` at the repository root |
+| What the formal-modelling campaign concluded, and what it cost | [`candidate-lessons.md`](candidate-lessons.md) — six adjudicated claims, over the measurements in [`loop-record.md`](loop-record.md) and [`review-yield.md`](review-yield.md) |
+| Alloy 6 against Quint, compared on this repository's own models | [`formalism-findings.md`](formalism-findings.md) |
+| The observable contract measured before the modularity refactor | [`preservation-baseline.md`](preservation-baseline.md) |
 
 A `TODO.<subject>.md` is a **scoping note with an expiry**: measurements and open
 questions for work a future grove will grill, written so the evidence is not
@@ -36,11 +39,13 @@ questions — two answered `keep`, two `defer` — are carried in
 [`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
 and the note is gone.
 
-The four files directly under `docs/` are the maintained project guides. This is
-not a ban on durable artifacts produced by future Grove work: when a real
-decision, specification, or research result earns a repository record, the
-methodology may create focused files under `docs/adr/`, `docs/specs/`, or
-`docs/research/`. A subdirectory such as `docs/ordinal-fs-tree/` holds the
+The rows above are the whole of what a file directly under `docs/` may be: a
+maintained project guide, or a durable record a completed Grove workstream
+earned. Do not restate that as a count of either — the set changes when a
+workstream lands, and a count in this paragraph goes stale silently while
+reading as a description. This is also not a ban on new records: when a real
+decision, specification, or research result earns one, the methodology may
+create focused files under `docs/adr/`, `docs/specs/`, or `docs/research/`. A subdirectory such as `docs/ordinal-fs-tree/` holds the
 guides of a bounded context that does not yet ship by its own path, and travels
 with that context's code when it does.
 Those sets describe current state and should be merged or deleted when they no

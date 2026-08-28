@@ -260,8 +260,12 @@ contract, so nothing could establish one.
 A review that finds nothing creates nothing and simply retires — that empty
 triage session is what the lazy shape removes. But the bigger payoff is that the
 **creating session writes the new leaf's body**: it can name the exact case the
-producer could not cover, or carry the findings verbatim, which is strictly more
-than a constructor rendering a goal sentence from a handle could ever supply.
+producer could not cover, which is strictly more than a constructor rendering a
+goal sentence from a handle could ever supply. An **integration's** body is the
+exception, and it carries the review's *handle* rather than its findings: a body
+that is the finding list makes that list the integration's charter, leaving it no
+structural place to reject one. The findings are read from the review's own
+commit instead.
 
 The producer finishes only to a coherent **reviewable boundary**, **retires
 itself, then** commits the artifact, the new review leaf and that retirement

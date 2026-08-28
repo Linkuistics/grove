@@ -143,7 +143,7 @@ they are.
 `<file>` is *not* the row's owner, it records **what sends a session to another
 file** — a transition, and the thing reachability is about. Where `<file>` **is**
 the owner, it records **which condition inside an already-open file applies** — an
-in-file condition, which moves the session nowhere. 45 of the inventory's 92
+in-file condition, which moves the session nowhere. 50 of the inventory's 97
 conditional rows are the second kind, including every follow-on row in
 `references/driver.md`, `execute.md`, `decompose.md`, `retire.md` and the format
 files. Reading those as edges makes each a self-loop and the graph uniformly
@@ -452,7 +452,7 @@ swapped.
 
 | total rows | `static(K)` | conditional, in-file | conditional, cross-file |
 |---|---|---|---|
-| 140 | 48 | 45 | 47 |
+| 146 | 49 | 50 | 47 |
 
 Adding, removing or repointing a row therefore edits this table in the same
 commit. That is the cost of the equality, and it is the point of it: the number
@@ -670,6 +670,10 @@ the session to its own.
 | `sweep-scope-is-the-claim` — grep the claim, not a file list; a path-or-directory scope goes stale and never reaches a file in no tree; a finding against a section does not reach the summary layer | 19 · step:Execute | `none` | `on(making a repo-wide claim) @ references/execute.md` | B |
 | `no-self-invalidating-count` — never document a claim with a count of itself; state the structural fact | 19 · step:Execute | `none` | `on(making a repo-wide claim) @ references/execute.md` | B |
 | `check-the-rescued-clause` — before deleting a false clause, check whether the true one beside it only reads as true in its company | 19 · step:Execute | `none` | `on(deleting prose) @ references/execute.md` | B |
+| `control-must-be-seen-to-fail` — a control that has never come back dirty against a subject known to be wrong is not a control; show it failing before crediting the clean read | 19 · step:Execute | `none` | `on(making a repo-wide claim) @ references/execute.md` | B+S |
+| `measure-a-frozen-subject` — finish every edit, then measure; digest every subject either side, reads as well as executables; a run whose subject moved under it is not a measurement | 19 · step:Execute | `none` | `on(reporting a measured result) @ references/execute.md` | B+S |
+| `one-measurement-one-writer` — two runs appending to one output produce a self-contradictory reading, and a launcher's return is not a background job's completion | 19 · step:Execute | `none` | `on(reporting a measured result) @ references/execute.md` | B+S |
+| `re-run-is-confirmed-item-by-item` — matching totals are consistent with two items moving in opposite directions; compare the per-item record, and without one the re-run confirms nothing | 19 · step:Execute | `none` | `on(reporting a measured result) @ references/execute.md` | B+S |
 | `decisions-land-as-they-settle` — append each settled decision to the task file's running log as it settles; never reconstruct them at the end, in a summary file or in the commit message | 19 · step:Execute | `trigger` (sentence 5) | `on(a decision settles) @ SKILL.md` | B |
 | `escalation-names-the-tradeoff` — an escalation names the specific trade-off, proposes a recommended answer, and gives the evidence; a general invitation to ask questions is not a prompt | 19 · {step:Execute, step:Retire, step:Finish} | `trigger` (sentence 6) | `on(handing a question back to a human) @ SKILL.md` | B |
 
@@ -686,6 +690,7 @@ the session to its own.
 | `vendor-pair-when-load-bearing` — a question earns a vendor pair only when it is load-bearing enough to pay for two corpora; one survey is the default | 19 · step:Decompose | `trigger` (sentence 26) | `on(a question may need two surveys) @ SKILL.md` | B |
 | `pair-is-eager` — a vendor pair lands in one call or not at all | 19 · step:Decompose | `none` | `on(a question needs two corpora) @ references/decompose.md` | B |
 | `creating-session-writes-the-body` — the session that knows why a step is needed writes its body | 19 · step:Decompose | `none` | `on(cutting a step) @ references/decompose.md` | B |
+| `integration-body-carries-the-handle` — an integration's body names the review by handle and never transcribes its findings; a body that is the finding list leaves the integration no place to reject one, and the rule moves the hazard rather than removing it | 19 · step:Decompose | `none` | `on(cutting a step) @ references/decompose.md` | B+S |
 | `name-step-kind-off-the-producer` — `review-<producer>` for the producer that actually ran | 19 · step:Decompose | `none` | `on(cutting a step) @ references/decompose.md` | B |
 | `steps-share-the-producers-stem` — every step of a composed shape carries the producer's bare stem as its whole slug; no `-review`, no `-a`, no leading kind word | 19 · step:Decompose | `none` | `on(cutting a step) @ references/decompose.md` | B+S |
 | `integration-placement` — `leaf-insert` at the first sibling **entry** after the review whose subtree still holds live work; `leaf-add` when nothing blocks | 19 · step:Decompose | `trigger` (sentence 9) | `on(cutting an integration) @ SKILL.md` | B |
@@ -865,6 +870,7 @@ It is `execute.md`'s. Only the framework-source discipline is genuinely
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
 | `triage-four-ways` — verify, then classify as unclear contract, real issue, real trade-off, or noise; never performative agreement | integrate-review-\* family · step:Execute | `none` | `static(integrate-review-*)` | B |
+| `findings-read-from-the-reviews-commit` — the findings live in the review's commit, not in this task's body; a restatement is a pointer, and grading is against the artifacts | integrate-review-\* family · step:Execute | `none` | `static(integrate-review-*)` | B+S |
 | `what-each-integration-may-change` — the five differ only in what the session may edit | integrate-review-\* family · step:Execute | `none` | `static(integrate-review-*)` | B |
 | `integration-escalates-redesign` — substantial redesign is a new producer review chain beside the leaf being integrated, not this session's work | integrate-review-\* family · step:Execute | `none` | `static(integrate-review-*)` | B |
 

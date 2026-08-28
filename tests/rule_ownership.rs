@@ -131,6 +131,26 @@ const HOMED: &[Homed] = &[
         phrase: "A clause rescued by its neighbour is not correct",
     },
     Homed {
+        rule: "control-must-be-seen-to-fail",
+        owner: "references/execute.md",
+        phrase: "A control that has never been seen to fail is not a control",
+    },
+    Homed {
+        rule: "measure-a-frozen-subject",
+        owner: "references/execute.md",
+        phrase: "an instrument you adjust mid-reading has not read anything",
+    },
+    Homed {
+        rule: "one-measurement-one-writer",
+        owner: "references/execute.md",
+        phrase: "never infer that a background job has finished from the return of the thing that launched it",
+    },
+    Homed {
+        rule: "re-run-is-confirmed-item-by-item",
+        owner: "references/execute.md",
+        phrase: "Confirm a re-run item by item, not by matching totals",
+    },
+    Homed {
         rule: "decisions-land-as-they-settle",
         owner: "references/execute.md",
         phrase: "Never reconstruct a session's decisions at the end of it",
@@ -200,6 +220,11 @@ const HOMED: &[Homed] = &[
         rule: "creating-session-writes-the-body",
         owner: "references/decompose.md",
         phrase: "The creating session writes the new leaf's body",
+    },
+    Homed {
+        rule: "integration-body-carries-the-handle",
+        owner: "references/decompose.md",
+        phrase: "An integration's body carries the review's handle, never its findings",
     },
     Homed {
         rule: "name-step-kind-off-the-producer",
@@ -403,6 +428,12 @@ const HOMED: &[Homed] = &[
         rule: "hard-to-reverse-pairs-with-doubt",
         owner: "references/impl.md",
         phrase: "cite the source *and* have a fresh context try to break it",
+    },
+    // -- content/references/integrate-review.md -----------------------------
+    Homed {
+        rule: "findings-read-from-the-reviews-commit",
+        owner: "references/integrate-review.md",
+        phrase: "Read the findings from the review's commit, not from this task's body",
     },
     // -- content/grilling.md ----------------------------------------------
     Homed {

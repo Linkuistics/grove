@@ -144,3 +144,98 @@ form is not the headline the root brief wrote, and the write-up says so.
 bodies stay the record.
 
 ## Decisions (running log)
+
+- **The three repo-wide claims are verified with both controls, before any edit.**
+  (a) *The provenance vocabulary appears nowhere in `content/`* — enumerated
+  `freeze|frozen|digest|checksum|sha256|mid-run|in.flight|background job|concurrent|one writer|instrument`
+  over `content/`; the only hits are `execute.md:60,62`'s *broken instrument*
+  metaphor, which is the existing two-controls rule and not a provenance rule.
+  (b) *A control that has never been seen to fail appears nowhere* — enumerated
+  **every** occurrence of `control` in `content/` (seven; four are unrelated
+  senses — VCS control directory, user-controlled template, version control,
+  Grove control variables — and three are `execute.md:60,64,66`'s two-controls
+  block), plus `kill|mutation|mutant|falsif|never seen|red` (no evidence-sense
+  hit). Positive control: the same command finds `positive control` in
+  `content/`. Cross-tree control: the same patterns still find the class in
+  `docs/`, `scripts/`, `crates/*/models/`.
+- **`content/` and the three provisioned skill copies are byte-identical** apart
+  from `.grove-content-hash`, re-checked with `diff -rq` before editing, as the
+  brief asked. `content/` is therefore the single edit site.
+- **No new `SKILL.md` condition sentence.** B lands under trigger sentence 4
+  (*When about to make a repo-wide claim…*), which is where
+  `candidate-lessons.md` §*What binds* puts it. A 27th sentence would move the
+  trigger table's 302-word total, the `SKILL.md` arithmetic budget and all 19
+  kinds' `measured_static`, buying reachability that trigger 4 already gives.
+- **Six inventory rows, not three.** The rule grain is *one row per rule a
+  session could violate*; B is four such rules (frozen subject, one writer,
+  background-job completion, item-by-item re-run) and C is two, because the
+  session that **writes** an integration's body and the session that **reads**
+  its findings are different violators in different kinds' files.
+- **Three landed, in `content/`:** A′ as a fourth paragraph inside
+  `execute.md`'s two-controls block; B as a new `## The provenance of a
+  measurement` section in `execute.md`; C split across
+  `decompose.md` (what a review **writes** into the body it cuts) and
+  `integrate-review.md` (where an integration **reads** findings from). The
+  split is single-source rather than duplication: two kinds, two violators, two
+  registers. `decompose.md`'s *"or the findings verbatim"* is deleted and the
+  producer's-doubt half of the same sentence is kept verbatim, as the brief
+  required. Both cautions from `review-yield.md` are stated at the rule: the
+  landed text says in as many words that it *moves* the hazard rather than
+  removing it, because an integration still cannot see a finding nobody wrote.
+- **A fourth binding is owed and DECLINED: candidate 5b, the predicate half.**
+  *A check written by calling the definition it is about stops measuring the
+  moment that definition is repaired.* `candidate-lessons.md` §5 splits 5a from
+  5b precisely because 5b rests on **one** instance (`honest-classification-k80`)
+  and "stating it in the same breath as five borrows their weight", and §*What
+  binds* assigns B to 5a alone. Landing it beside the four provenance rules would
+  re-join the sentence the adjudication split, which is reopening a verdict to
+  make a binding easier — the one thing the brief's Notes forbid. It goes to the
+  write-up. Recorded here so the split is not silent.
+- **Also declined, and named because the brief asks for the which-is-which:** the
+  rest of cluster A — a control shown to kill *for the reason claimed* via an
+  isolating measurement, a module's environment counted as part of its control,
+  every module run against every claim, and candidate 2's model-level form. All
+  four are about model suites, which Grove does not run; the methodology has no
+  session that could violate them, so an inventory row would have empty `Bound`.
+  Write-up.
+- **The budget ceilings are not re-fitted.** `loaded_path_budgets.rs` fits a
+  ceiling once and lets it stand while the corpus moves — re-fitting on every
+  edit is what turns a drift alarm into a rubber stamp. Measured after the edits
+  by mutating every ceiling to 1 (digest either side, `shasum -c` verified):
+  `integrate-review-*` static 1361 / 1425, the tightest row; every reachable path
+  ≥ 490 words clear. Green with headroom, so the recorded measurements stay.
+- **Reachability landed in `docs/ARCHITECTURE.md`'s *Documentation ownership*
+  table**, which is where a reader looks for *what did the formal phase
+  conclude*. Rows added for `candidate-lessons.md` (over `loop-record.md` and
+  `review-yield.md`), `formalism-findings.md` and `preservation-baseline.md` —
+  the last two were unowned there as well, found by the same enumeration.
+  Pointers *to* the derived files, never into them, so `scripts/*.py` is
+  untouched. The paragraph under the table said *"The four files directly under
+  `docs/`…"* while nine sit there; it now states the structural fact and says
+  explicitly not to replace it with a count — `execute.md`'s own
+  `no-self-invalidating-count` rule applied to the summary layer the finding
+  reached.
+- **No ADR.** The three rules pass *hard to reverse* and *a real trade-off*, but
+  the durable record already exists and is better: `candidate-lessons.md` carries
+  the verdicts with their falsifiers, `review-yield.md` the measurement, and
+  `docs/specs/corpus-rule-ownership.md` the six rows. An ADR would restate them
+  and rot against three documents at once.
+- **Verified, not assumed.** Full `cargo test` green (0 failures, every binary);
+  `cargo fmt --check` and `cargo clippy --all-targets` clean. The payload triangle
+  is checked at the binary rather than at the source: a `--release` build then
+  `strings` over `grove-llm` finds all three new rules **present** and the deleted
+  *"or the findings verbatim"* **absent** — the positive and negative halves of
+  one control over `build.rs`'s re-embed. The provisioned skill copies and the
+  installed `grove-llm` still carry the pre-change hash, which is
+  `build-boundary-is-the-binary` working, not a fault, and is not this leaf's to
+  resolve.
+- **Preservation ledger honoured, no exception needed.** No CLI verb, argument,
+  help shape, output field or exit status changed; no configuration key,
+  environment override or default; `session-kinds-v1` untouched; no
+  workspace-layout, packaging, MSRV or glibc change. `removed_surface`,
+  `help_surfaces`, `session_config` and `workspace_layout` are green as part of
+  the full run.
+- **`06-impl-lessons-write-up-k92` cut at the grove root**, with the
+  which-is-which split — three bound, four declined with reasons — written into
+  its body, since that split is this leaf's output and the reason the write-up
+  was not cut earlier.

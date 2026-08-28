@@ -66,6 +66,16 @@ dirty-there cannot be produced by a broken instrument.
 - A **cross-tree control**: the same pattern must still find the class where it
   legitimately lives — the docs that discuss it, the fixtures that illustrate it.
 
+**A control that has never been seen to fail is not a control.** A positive
+control that would find something whatever the tree held, and a cross-tree
+control whose pattern matches everywhere, read exactly the same whether or not
+the instrument works — which is the one property they were introduced to rule
+out. Watch each control come back **dirty** against a subject you know is wrong
+before you credit the clean read: a deliberate mutation of the pattern, of the
+flags, or of a scratch file is enough, and it costs one command. Until you have
+seen it fail, a control and the broken instrument it was guarding against are
+the same observation.
+
 **Enumerate, then classify. Do not sweep a pattern list.** A list of patterns is
 complete only as far as the list, and re-running it with a longer list moves the
 leak rather than closing it. Extract *every* candidate token from the whole
@@ -91,6 +101,37 @@ heading is ever a whole line* — and say explicitly not to replace it with a co
 **A clause rescued by its neighbour is not correct**; it is load-bearing on the
 sentence you are about to delete. Before removing a false clause, check whether
 the true one beside it only reads as true in its company.
+
+## The provenance of a measurement
+
+The section above is about the *pattern you searched for*. This one is about the
+*run*, and it fails more quietly: nothing errors, every command exits 0, and a
+number comes back describing something other than what you meant to measure. **A
+suite, a script, a sweep is an instrument, and an instrument you adjust
+mid-reading has not read anything.**
+
+**Finish every edit, then measure.** A script rewritten under the shell running
+it, or an input rewritten under the loop reading it, is undefined rather than
+untidy — and *the edit looked harmless* is not the test, because you cannot tell
+a harmless edit from a load-bearing one except by the reading you no longer have.
+Restarting a run two minutes in is cheaper than the run you have to throw away.
+
+**Digest every subject before and after, and say which files those were.** A
+run's subjects are everything it *reads*, not only what it executes: the manifest
+it takes its work from, the notes it takes its exclusions from, the fixtures it
+compares against. Freezing is the point of the digest — a run whose subject moved
+under it is not a measurement of the thing it reports on, however small the move.
+
+**One measurement, one writer.** Two runs appending to one output produce a
+reading that is self-contradictory rather than merely incomplete, and the
+contradiction is visible only if you read the whole of it. And **never infer that
+a background job has finished from the return of the thing that launched it**: a
+launcher returns when the launch succeeded, which says nothing about the work.
+
+**Confirm a re-run item by item, not by matching totals**, since two runs can
+agree on a total while disagreeing about which item did what. Compare the
+per-item record, and where there is no per-item record the re-run confirms
+nothing.
 
 ## Recording decisions as they settle
 

@@ -51,6 +51,28 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The embedded methodology gains three rules, all measured on this
+  repository's own formal-modelling campaign.** `references/execute.md` now
+  carries *a control that has never been seen to fail is not a control* — show a
+  positive or cross-tree control coming back dirty before crediting its clean
+  read — and a new *The provenance of a measurement* section: finish every edit
+  before measuring, digest every subject either side, one measurement one writer,
+  never read a launcher's return as a background job's completion, and confirm a
+  re-run item by item rather than by matching totals. `references/decompose.md`
+  and `references/integrate-review.md` land the third: **an integration's body
+  carries the review's handle, never its findings**, because a body that *is* the
+  finding list makes that list the integration's charter and leaves it no
+  structural place to reject one. `decompose.md`'s *"or the findings verbatim"*
+  is gone; the producer's-doubt half of that sentence stands. Six rows added to
+  `docs/specs/corpus-rule-ownership.md` and its single-source sweep. Evidence and
+  falsifiers: `docs/candidate-lessons.md`, `docs/review-yield.md`.
+
+- **`docs/ARCHITECTURE.md` now owns the campaign records.** *Documentation
+  ownership* gains rows for `candidate-lessons.md`, `loop-record.md`,
+  `review-yield.md`, `formalism-findings.md` and `preservation-baseline.md`,
+  which were reachable only from `.grove/` — a directory `grove finish` deletes.
+  The paragraph below the table no longer counts the files under `docs/`.
+
 ## v19.3.0
 
 - **`leaf-retire` and `leaf-prune` no longer stage their rename, and on Git that

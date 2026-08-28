@@ -130,10 +130,22 @@ for.
 
 **The creating session writes the new leaf's body, and that is the payoff.**
 Because the leaf is cut by the session that knows *why* it is needed, it can
-carry the specific case its producer could not cover, or the findings verbatim —
-strictly more than a generic goal sentence a constructor could render from a stem
-and a kind. The template you get is bare on purpose: a handle and empty sections,
-nothing to edit around.
+carry the specific case its producer could not cover — strictly more than a
+generic goal sentence a constructor could render from a stem and a kind. The
+template you get is bare on purpose: a handle and empty sections, nothing to edit
+around.
+
+**An integration's body carries the review's handle, never its findings.** A
+review that transcribes its finding list into the body it is cutting makes that
+list the integration's charter, and `Done when` the same list restated as
+obligations — so the integrating session has no structural place to reject a
+finding, because rejecting one is rejecting its own charter. Write the handle and
+let the integration read the findings from the review's own commit; that is the
+handoff a `review-*` step already makes from its producer's handle, and it is the
+one asymmetry that separates a triage from a work list. Note what this does
+**not** fix: the finding list is still the reviewer's, so an integration still
+cannot see a finding nobody wrote down. The rule moves the hazard to where a
+session can act on it rather than removing it.
 
 **Name a chain step's kind off the producer that actually ran** —
 `review-<producer>`, then `integrate-review-<producer>`. Nothing derives it, so

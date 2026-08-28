@@ -1,4 +1,4 @@
-# skill-baseline-k20
+# skill-baseline-k20 — brief
 
 ## Goal
 
@@ -35,3 +35,18 @@ authoring before `writing-code-walkthroughs` exists.
 
 Do not write or scaffold the new skill in this leaf. The temporal separation is
 what makes the baseline credible.
+
+## Decisions (running log)
+
+The baseline campaign is decomposed into five dependency-ordered vertical
+slices: freeze the shared rubric in its own commit; run scope elicitation; run
+source and fragment coverage cases; run exposition, validation, and
+review-planning cases; then synthesize the unchanged rubric and all raw outcomes
+into the final report. The dedicated rubric commit makes the predeclaration
+temporal rather than editorial, and each behavior-shaping case can then run five
+fresh repetitions without making one session carry the whole campaign.
+
+The first doubt pass found substantive defects and the revised frozen rubric
+therefore has a lazy `review-impl` step immediately before any run leaf. Any
+integration it earns remains ahead of scope elicitation so no evaluated context
+can precede rubric settlement.

@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::parser::{self, Child, Fragment, FragmentBody, LineRange, ParsedBook, Root};
 use crate::{BookSnapshot, Coverage, Diagnostic, ReportStatus, Request, Scope, ValidationReport};
 
-const SLICE_ORDER: &[&str] = &[
+pub(crate) const SLICE_ORDER: &[&str] = &[
     "orientation-k11",
     "name-seam-k12",
     "reference-domain-k13",
@@ -14,7 +14,7 @@ const SLICE_ORDER: &[&str] = &[
     "book-assembly-k18",
 ];
 
-const ROOTS: &[(&str, &str, usize)] = &[
+pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
     (
         "source-crate-manifest",
         "crates/ordinal-fs-tree/Cargo.toml",
@@ -73,15 +73,15 @@ const ROOTS: &[(&str, &str, usize)] = &[
 ];
 
 #[derive(Clone, Copy)]
-struct Block {
-    id: &'static str,
-    root: &'static str,
-    owner: &'static str,
-    first: usize,
-    last: usize,
+pub(crate) struct Block {
+    pub(crate) id: &'static str,
+    pub(crate) root: &'static str,
+    pub(crate) owner: &'static str,
+    pub(crate) first: usize,
+    pub(crate) last: usize,
 }
 
-const BLOCKS: &[Block] = &[
+pub(crate) const BLOCKS: &[Block] = &[
     block(
         "manifest-package-and-library-dependency",
         "source-crate-manifest",
@@ -301,6 +301,7 @@ pub fn validate(snapshot: &BookSnapshot, request: Request) -> ValidationReport {
     check_identities(&parsed, &mut diagnostics);
     check_references(&parsed, &request.scope, &mut diagnostics);
     check_ownership(&parsed, &request.scope, &mut diagnostics);
+    crate::ledger::check(snapshot, &parsed, &request.scope, &mut diagnostics);
     check_graph(&parsed, &mut diagnostics);
     check_coverage(&parsed, &mut diagnostics);
     check_bytes(snapshot, &parsed, &mut diagnostics);

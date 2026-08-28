@@ -55,7 +55,7 @@ fn final_fragment_command_loads_only_the_explicit_repository() {
     ]);
     let value: serde_json::Value = serde_json::from_str(&output.stdout).unwrap();
 
-    assert_eq!(output.exit, 0, "{}", output.stderr);
+    assert_eq!(output.exit, 0, "{}{}", output.stdout, output.stderr);
     assert_eq!(value["status"], "valid");
     assert_eq!(value["coverage"]["files"], 15);
     assert_eq!(value["coverage"]["resolved_lines"], 6_618);

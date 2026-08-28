@@ -104,8 +104,8 @@ fn a_later_owned_block_cannot_be_defined_early() {
     *source_index = text.into_bytes();
     let final_snapshot = support::corpus(true);
     snapshot.book_files.insert(
-        "docs/ordinal-fs-tree/book/name-seam-k12.md".into(),
-        final_snapshot.book_files["docs/ordinal-fs-tree/book/name-seam-k12.md"].clone(),
+        "docs/ordinal-fs-tree/book/02-name-seam.md".into(),
+        final_snapshot.book_files["docs/ordinal-fs-tree/book/02-name-seam.md"].clone(),
     );
 
     let report = validate(

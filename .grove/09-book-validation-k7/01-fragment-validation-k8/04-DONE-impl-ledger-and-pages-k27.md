@@ -28,3 +28,18 @@ owner-page placement on top of the fragment engine.
 
 This child does not broaden into Markdown navigation; `markdown-validation-k9`
 owns page structure and local links.
+
+## Decisions (running log)
+
+Ledger tables are parsed as strict raw Markdown rows while ordinary fenced
+content remains opaque. Source and ownership rows are checked against both the
+fixed book contract and the parsed directive graph; fragment-index rows are
+derived from that graph.
+
+The early-use ledger requires the six settled rows and accepts additional rows
+only when their symbol syntax, canonical page and anchor, later owner, scope
+status, uniqueness, and order are valid.
+
+`F010` compares each definition's physical file with its owner's canonical
+numbered page. Page identity, navigation, and link structure remain with
+`markdown-validation-k9`.

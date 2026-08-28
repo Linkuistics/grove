@@ -633,7 +633,11 @@ rows were added to `docs/specs/corpus-rule-ownership.md` and its sweep in
 `tests/rule_ownership.rs`. **5b did not land**, on this document's own reasoning:
 it is one instance, and stating it beside 5a's five in a rule a session is asked
 to obey is exactly the borrowing §5 split them to stop. It and the rest of
-cluster A go to the write-up.
+cluster A go to the write-up, which is
+[`driving-a-checkable-loop.md`](driving-a-checkable-loop.md): the account of what
+the campaign cost, the three rules as they now ship, and the five claims that
+only get written down — this document's §5b among them, with the reason for each
+decline.
 
 ## What this record does not establish
 

@@ -131,3 +131,44 @@ the hash mismatch. That is the rule working, not a fault, and it is not this
 leaf's to resolve.
 
 ## Decisions (running log)
+
+- **The write-up lands at `docs/driving-a-checkable-loop.md`**, a new row in
+  `docs/ARCHITECTURE.md`'s *Documentation ownership* beside the four campaign
+  records. Named for the root brief's own subject sentence — driving an LLM loop
+  to produce checkable work — rather than for the campaign, because a stranger
+  reaching the table is looking for the subject and not for this repository's
+  history. Not a `TODO.<subject>.md` (that row is for work not yet started) and
+  not under `docs/adr/` (it is an account, not a decision).
+
+- **The declines are stated as five claims under four decline reasons**, matching
+  the charter's four (5b; the isolating control; the module pair — environment
+  as part of the control, and every module against every claim; candidate 2's
+  model-level form) while keeping the two halves of the third apart, because
+  `candidate-lessons.md` §3 and §4 are separate verdicts resting on different
+  evidence. The Part 3 preamble says four declines and five claims explicitly so
+  the arithmetic is not left for the reader to reconcile.
+- **Candidate 3 appears only in its surviving conditional form** — *a narrowed
+  world is evidence about the wide one only when the narrowing is a strict subset
+  that still reaches the subject* — with the original headline quoted once, as
+  the thing that was falsified, and both falsifications stated. No verdict was
+  reopened.
+- **Section citations are given as the target's own heading text**, glossed where
+  the heading carries repository jargon (`.grove/`), rather than paraphrased into
+  something readable that would not resolve.
+- **No handle, obligation id, model symbol or session key appears in the
+  document.** Checked by pattern over the whole file: `-k<digits>`, the four
+  obligation prefixes, and the `inv_`/`mutant_`/`relax_`/`scenario_`/`wit_`
+  families all return nothing. Quotes that carried an obligation number are
+  bracketed at the substitution rather than silently reworded.
+- **Every quoted phrase was matched against its source file** by
+  markdown-stripped substring, not by recollection: eleven quotes, all resolved,
+  one of which was found to be a substitution and is now marked as one.
+- **`content/` is untouched**, as the charter expected, so the triangle does not
+  apply. `docs/ARCHITECTURE.md` is included as a string by
+  `tests/composition_guidance.rs`, so that test was run against the new row: 16
+  passed.
+- **`docs/ARCHITECTURE.md`'s existing campaign row was re-subjected** rather than
+  left alongside a near-duplicate: `candidate-lessons.md` now owns *whether the
+  six self-reported lessons survive the evidence*, and the new document owns
+  *what the campaign taught about driving an LLM loop, and what it cost*. One
+  subject, one owner.

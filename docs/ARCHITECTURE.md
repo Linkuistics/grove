@@ -25,7 +25,8 @@ process ownership, a task-tree data model, and three fail-closed transactions.
 | Methodology executed by agents | [`content/SKILL.md`](../content/SKILL.md) and its adjacent format guides |
 | Skill-plugin operation | [`plugins/README.md`](../plugins/README.md) |
 | Scoping notes for work not yet started | `TODO.<subject>.md` at the repository root |
-| What the formal-modelling campaign concluded, and what it cost | [`candidate-lessons.md`](candidate-lessons.md) — six adjudicated claims, over the measurements in [`loop-record.md`](loop-record.md) and [`review-yield.md`](review-yield.md) |
+| Whether the campaign's six self-reported lessons survive its own evidence | [`candidate-lessons.md`](candidate-lessons.md) — six adjudicated claims, over the measurements in [`loop-record.md`](loop-record.md) and [`review-yield.md`](review-yield.md) |
+| What the campaign taught about driving an LLM loop, and what it cost | [`driving-a-checkable-loop.md`](driving-a-checkable-loop.md) — the account for a reader outside this repository: the cost, the three lessons that now bind in `content/`, and the five that only get written down |
 | Alloy 6 against Quint, compared on this repository's own models | [`formalism-findings.md`](formalism-findings.md) |
 | The observable contract measured before the modularity refactor | [`preservation-baseline.md`](preservation-baseline.md) |
 

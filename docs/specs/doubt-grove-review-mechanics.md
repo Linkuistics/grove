@@ -200,10 +200,11 @@ that used to state it, `task-tree-transactions-fail-closed`, was retired at
 also specified belongs with the store that owns `initialize` and `delete`.
 
 Every participating task-tree operation acquires the shared tree-access seam
-before reading names. The seam locks an open descriptor for the working-tree
-root: readers hold a shared process-scoped advisory lock and mutators an
-exclusive lock. Exported operations acquire exactly once and pass the guard into
-lock-neutral helpers. A contended caller prints one waiting diagnostic, then
+before reading names. The seam is the **store's own**, and since
+`collapse-tree-access-k13` it is the only lock Grove takes: it locks an open
+descriptor for the working-tree root, readers hold a shared process-scoped
+advisory lock and mutators an exclusive one, and a guard is one operation.
+A contended caller prints one waiting diagnostic, then
 waits without timeout. Process exit releases the lock; no PID, owner record, or
 lock file is stored. The working-tree root exists before `.grove/`, so root
 initialization, finish deletion, and ordinary tree operations share the same

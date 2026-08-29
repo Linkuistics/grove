@@ -64,7 +64,7 @@ nothing that Grove wrote becomes unreadable.
   same assumption.
 - **Accept a lenient spelling and repair it in place** — parse `5-`, rename the
   file to `05-`, carry on. Rejected: a read verb would mutate the tree, which
-  breaks the read/write guard split (`src/tree_access.rs`) and would have a
+  breaks the read/write guard split (`src/task_tree.rs`) and would have a
   `pick` taking the write lock. It also repairs under the *shared* lock, where a
   concurrent reader is looking at the name being replaced. Reopen as an explicit
   repair verb, which is a different thing from a parse.

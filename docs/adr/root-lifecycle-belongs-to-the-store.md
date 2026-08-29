@@ -111,7 +111,7 @@ records the rule for.
 - **A finish-private adapter inside grove** — the option this record previously
   chose. Rejected now because it puts a second writer back into the task tree:
   grove would hold its own lock, do its own walk and its own removal, which is
-  precisely the second lock layer `collapse-tree-access-k13` exists to delete.
+  precisely the second lock layer `collapse-tree-access-k13` deleted.
   With the coordinator gone the adapter has nothing left to adapt, and what it
   would carry is a duplicate of the store's own walk that no conformance kit
   covers. Reopen if grove ever again needs to interleave an external effect with

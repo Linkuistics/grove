@@ -788,7 +788,6 @@ fn label(worktree: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tree_access;
     use std::fs::{self, File};
     use std::io::{self, Write};
     use std::os::fd::AsRawFd;
@@ -804,19 +803,18 @@ mod tests {
 
     fn assert_one_acquisition(operation: impl FnOnce(&Path)) {
         let (_worktree, grove_root) = grove_with_node();
-        tree_access::reset_acquisition_count();
         crate::task_tree::reset_read_count();
 
         operation(&grove_root);
 
-        // Whichever reader owns the verb. Both guards are still live — grove's
-        // own for the lifecycle work the library cannot perform, the library's
-        // for every verb that touches the algebra — and the property being held
-        // is about *observations*, not about which module took them: one CLI
-        // command reads the tree once, so a verb that selected a leaf and then
-        // re-read the tree to act on it could not slip through.
+        // **One counter, where there used to be two summed.** Grove holds no
+        // guard of its own since `collapse-tree-access-k13`, so every
+        // observation of the tree is the store's and `task_tree` counts all of
+        // them. The property is unchanged: one CLI command reads the tree once,
+        // so a verb that selected a leaf and then re-read the tree to act on it
+        // could not slip through.
         assert_eq!(
-            tree_access::acquisition_count() + crate::task_tree::read_count(),
+            crate::task_tree::read_count(),
             1,
             "one CLI command must observe the tree exactly once"
         );
@@ -875,7 +873,6 @@ mod tests {
             worktree: worktree.path().to_path_buf(),
             bytes: Vec::new(),
         };
-        tree_access::reset_acquisition_count();
         crate::task_tree::reset_read_count();
 
         let inserted = task_grow::leaf_insert(&grove_root, "2", "earlier", Kind::Impl).unwrap();
@@ -885,11 +882,6 @@ mod tests {
             String::from_utf8_lossy(&output.bytes).contains("BRIEF.md:"),
             "fixture must exercise a cross-reference hit: {}",
             String::from_utf8_lossy(&output.bytes)
-        );
-        assert_eq!(
-            tree_access::acquisition_count(),
-            0,
-            "leaf-insert takes none of grove's own guards"
         );
         assert_eq!(
             crate::task_tree::read_count(),

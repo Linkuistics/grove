@@ -1249,7 +1249,7 @@ the refactor knows which ones a green suite actually defends.
 | the **test runner's own** signal channel cannot reach a live loop | `tests/env_hygiene.rs` — the `.cargo/config.toml` force-override and the shared scrub list, each asserted independently sufficient. It does **not** assert the spawned-child scrub set, which is what its name suggests and what it was cited for on first pass |
 | **repository discovery** ignores ambient `GIT_DIR` / `GIT_WORK_TREE` / `GIT_COMMON_DIR` / `TMPDIR` | `tests/repo_environment.rs` — one test over `workspace_control` and `main_repo_of`. It says nothing about what a spawned child inherits |
 | configuration grammar, the nineteen kinds, delta precedence | `tests/session_config.rs` |
-| the advisory tree lock serialising cooperating processes | `tests/tree_access.rs` |
+| the advisory tree lock serialising cooperating processes | `tests/tree_lock.rs` — renamed with the module at `collapse-tree-access-k13`, which deleted Grove's own lock layer and left the store's the only one |
 | **MSRV 1.85** | **nothing** — no CI, and an ordinary build never checks its own `rust-version`. Established by running `rustup run 1.85` / `1.84` by hand. |
 | **release targets and the glibc 2.17 floor** | **nothing in the test suite** — asserted only by `scripts/release-doctor.sh` at release time |
 | **package and binary names, install behaviour** | **partially** — both binaries are exercised throughout the suite, and the release gate greps each staged binary for the embed marker |

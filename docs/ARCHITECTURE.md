@@ -356,7 +356,7 @@ layout. Task bodies carry no launch metadata at all — only the `**Reviews:**` 
 `task_name` parses identities, `task_tree` walks and resolves them and owns the
 read and write seams onto the library, `task_grow` creates leaves and composition
 shapes, `tree_lifecycle` applies terminal outcomes and owns the grove-only
-lifecycle, and `tree_access` owns grove's own guard. Every entry that moves,
+lifecycle. Every entry that moves,
 moves inside an `ordinal-fs-tree` operation, so no module performs a VCS-aware
 move — see [the withdrawn tree algebra](#withdrawn-tree-algebra) below.
 
@@ -371,14 +371,14 @@ stage deleted what was left — `src/tree_id.rs`, `src/tree_read.rs`,
 implementation and nothing else; there is no second reader to choose between and
 no second grammar to keep in step.
 
-**Two things that look like algebra deliberately survive**, and deleting one
+**One thing that looks like algebra deliberately survives**, and deleting it
 because its name begins `tree_` is the available mistake. `tree_lifecycle` keeps
 the lifecycle *around* the tree — the semantics task-tree-scheme fixed, and the
-root's own creation, which the library cannot perform because it has to reach the
-root in order to snapshot it. `tree_access` keeps grove's own guard, its
-transaction sentinel, and the grove-specific refusal that halts a tree with a
-pending teardown. Neither has a library counterpart, and neither is about
-ordinals or keys.
+grove's own creation, which it now performs through the store's `Vacancy`. It has
+no library counterpart, and it is not about ordinals or keys. `tree_access`, which
+used to sit beside it holding Grove's own guard, is itself withdrawn:
+`collapse-tree-access-k13` deleted the second lock layer once all three of its
+recorded reasons had dissolved.
 
 **The deletion is checked rather than asserted**, in `tests/removed_surface.rs`,
 by the method that file already used for the removed launch environment:
@@ -494,11 +494,12 @@ an error — `Reading::Vacant`, `Writing::Vacancy` — so an absent tree is no l
 a library message for Grove to re-state. It is a condition the library states
 nothing about, which puts it squarely on Grove's side of clause 3: the vacant arm
 raises Grove's own *grove root not found*, the sentence Grove's lock layer
-already produced for the same condition, moved rather than redesigned. Grove does
-not take the vacancy's other affordance — `Vacancy::initialize` — and `grove new`
-still creates the tree root itself; moving that inside the store is
-`collapse-tree-access-k13`'s, and until then a verb that created a tree on the
-way past would turn a mistyped root into a second workstream. `docs/ordinal-fs-tree/CLI.md` had its read verbs *construct* a
+already produced for the same condition, moved rather than redesigned. **Which
+arm answers is per entry point, not per crate**: `task_tree::write` refuses a
+vacancy, because a verb that created a tree on the way past would turn a mistyped
+root into a second workstream, and `task_tree::write_or_vacancy` hands it over —
+and its only callers are the two verbs whose business is making a grove
+(`collapse-tree-access-k13`). `docs/ordinal-fs-tree/CLI.md` had its read verbs *construct* a
 `Refusal::TargetMissing` for want of a message of their own; Grove has one, and
 adopting the library's would be clause 3 broken in the opposite direction.
 
@@ -750,9 +751,12 @@ driver routes a scheduled review solely by its filename kind.
 
 Every steady-state task-tree reader holds a shared **Tree access lock** on an
 open descriptor for the *working-tree root*; every mutator holds it exclusively
-through validation, rollback, or success output. One exception is deliberate and
-recorded: a **bulk** mark holds one guard per entry it marks, because a library
-mutation consumes its guard — see
+through validation, rollback, or success output. **It is the store's lock, and
+since `collapse-tree-access-k13` it is the only one** — Grove kept a second layer
+of its own for as long as there were things the library could not do to a tree it
+had to reach in order to read, and there are none left. One exception is
+deliberate and recorded: a **bulk** mark holds one guard per entry it marks,
+because a library mutation consumes its guard — see
 [`bulk-marks-are-not-atomic`](adr/bulk-marks-are-not-atomic.md) and *One guard is
 one mutation* below. The working-tree root is used
 rather than `.grove/` because it is the one thing that exists before root
@@ -778,8 +782,8 @@ are contiguous and the keys consecutive by construction — checks the plan agai
 that snapshot before a byte is written, and unwinds its own effects when the
 filesystem refuses part way. Grove's own reconstruction of the same guarantee —
 an up-front destination sweep, an `O_EXCL` claim per leaf, a per-run rollback
-list — went with the verb, and what is left of it serves the lifecycle verbs
-that still allocate under Grove's own guard.
+list — went with the verb, and nothing of it is left: the lifecycle verbs that
+used to allocate under Grove's own guard allocate under the store's.
 
 That guarantee covers the error return path and nothing else. **Process death
 mid-run is not recovered**: the interpreter unwinds only when control returns
@@ -790,20 +794,31 @@ recovery, which is why it alone carries a witness.
 The residue is a hand-editable file in a directory tree, and recovering it is
 deleting it.
 
-#### Two locks, one at a time
+#### One lock, and it is the library's
 
 `reading-k31` moved `pick`, `select`, `brief-chain`, `kind` and `resolve` onto
-`ordinal-fs-tree`'s own guard (`src/task_tree.rs`). The library takes the same
-lock on the same directory for the same reason — the containing directory
-outlives the root — but it takes it on **its own** descriptor, and `flock` is
-attached to an open file description rather than to a process. So the two guards
-do not share a lock, and a verb holding `tree_access::write` that called into the
-library's reader would block on itself forever. The rule that follows is per
-verb, not per module: a verb uses one guard or the other, never both at once,
-which is why the migrate stage moved whole verb groups at a time. Both guards
-are still live and both are still needed: the library's is the authority on the
-tree, and grove's covers the one thing the library cannot reach — the root's own
-creation, which needs the root to not exist yet.
+`ordinal-fs-tree`'s own guard (`src/task_tree.rs`), and for a while Grove kept a
+second guard beside it. The library takes the same lock on the same directory
+for the same reason — the containing directory outlives the root — but it takes
+it on **its own** descriptor, and `flock` is attached to an open file description
+rather than to a process. So the two guards did not share a lock, and a verb
+holding Grove's that called into the library's reader would block on itself
+forever. The rule that followed was per verb, not per module: a verb used one
+guard or the other, never both at once, which is why the migrate stage moved
+whole verb groups at a time.
+
+**`collapse-tree-access-k13` deleted the second layer**, and the deadlock with
+it. It survived that long for three recorded reasons — the tree Grove had to
+classify might be absent, legacy or mid transaction, and the library could read
+none of those — and all three dissolved at once: `open-shape-k25` made an absent
+tree a **shape** (`Reading::Vacant`, `Writing::Vacancy`), `delete-migration-k6`
+left no legacy shape to recognise, and `delete-finish-transaction-k8` left no
+transaction. The one thing Grove's guard covered that the library could not —
+creating the root, which needs the root to not exist yet — is
+`Vacancy::initialize`'s, taken under the exclusive lock the vacancy already
+holds. Grove now takes exactly one `flock` of its own anywhere in `src/`: the
+non-blocking contention probe below, which is released in the same expression.
+`tests/tree_lock.rs` holds both halves by enumerating `src/`.
 
 Two consumer-side obligations came out of that move, and every later flip leaf
 inherits both.
@@ -821,15 +836,14 @@ arrive, and the cost of that window is a missing message and nothing else.
 **Refusal precedence is grove's; the halt is the library's.** The library halts
 the whole tree on a name grove's grammar refuses, wherever it sits — that is the
 decision, and it is taken under the lock. But the library can only say *this
-filename is wrong*, and an absent root or a tree held by the finish transaction
-are conditions grove states in its own words.
-So `task_tree::restate` re-states a *failed* read in the order grove owes its
-operator — root, pending transaction, then the library's own message — and
-chooses only the wording. The pending-transaction sentence itself
-is the domain's: `tree_access::refuse_pending` raises `task_name`'s own
-`TaskNameError`, which is the identical value the library carries when it halts
-on a `Verdict::Reserved` mid-tree, so the pre-check and the halt cannot drift
-into two wordings of one condition.
+filename is wrong*, and a root that is absent, or holds something that is not a
+tree, is a condition grove states in its own words. So `task_tree::restate`
+re-states a *failed* read in the order grove owes its operator — something at the
+root that is not a tree, then an absent root, then the library's own message —
+and chooses only the wording. The first clause is ordered ahead of the second
+deliberately: `is_dir` reads a dangling symbolic link at the root as *absent*,
+and the library's `RootIsNotATree` already says what is there and that a tree is
+a directory, which is more than grove's *not found* would.
 
 #### One guard is one mutation, and a bulk mark is many
 
@@ -913,30 +927,43 @@ exactly what the check exists to catch. An exhausted keyspace predicts nothing
 and hands the library no bytes: `Refusal::KeysExhausted` is the library's to
 state, a refusal writes nothing, and the unrenderable content is never reached.
 
-#### The root's own creation takes both guards, one after the other
+#### The grove's own creation is one store operation
 
 `lifecycle-k35` moved `root-init`, `materialize-finish`, `transition-to-current`
-and `finish-commit` onto the library's write path, and one of the four cannot be
-done under a single guard at all. The library locks the directory **containing**
-the tree root — deliberately, so the lock spans the root's creation and its
-deletion — but it still has to reach the root to snapshot it, so it cannot create
-one; nor can it create the distinguished child, since a `BRIEF.md` arrives
-through `promote` and there is nothing here to promote. Both are therefore
-Grove's, under Grove's own guard, and the first leaf is the library's, under its.
-Nesting them is the deadlock *Two locks, one at a time* describes, so the scaffold
-releases the first before taking the second:
+and `finish-commit` onto the library's write path, and one of the four could not
+be done under a single guard at all. The library locks the directory
+**containing** the tree root — deliberately, so the lock spans the root's
+creation and its deletion — but it still had to reach the root to snapshot it, so
+it could not create one; nor could it create the distinguished child, since a
+`BRIEF.md` arrived through `promote` and there was nothing here to promote. Both
+were therefore Grove's, under Grove's own guard, and the first leaf was the
+library's, under its. Nesting them is the deadlock *One lock, and it is the
+library's* describes, so the scaffold released the first before taking the
+second — and the window between them was a tree shape a reader could meet: a root
+holding its charter and no keyed entry. Grove carried a repair for it.
 
-1. Under `tree_access::write_for_lifecycle` — refuse an existing `.grove/`,
-   create it, write the root `BRIEF.md`.
-2. Under `task_tree::reopen_write` — `append` the first `requirements` leaf.
+**`open-shape-k25` and `collapse-tree-access-k13` closed that window by removing
+the seam.** An exclusive opening of a root that holds no tree is a
+`Writing::Vacancy`, which **holds the exclusive lock**, and
+`Vacancy::initialize` creates the root, its distinguished child and a first run
+of entries under it — the three effects that used to need two guards, in one
+operation that takes the root back down if any of it fails. So `root-init` and
+the driver's own scaffold are each one call:
 
-**The tree's own shape is what makes the window legible.** A root holding its
-charter and no keyed entry is a *partial* root, and bare `grove` completes it —
-`tree_lifecycle::root_shape` classifies it `PartialScaffold` and
-`complete_partial_root_unlocked` writes back whatever half is missing. Nothing
-else produces that shape: entries are marked and never removed
-([`entries-are-never-removed`](adr/entries-are-never-removed.md)), so a tree that
-has ever held a leaf still holds one.
+1. `task_tree::write_or_vacancy` — a tree here is `root-init`'s refusal to
+   clobber and the transition's *already current*; a vacancy is the lock to
+   create under.
+2. `TreeVacancy::initialize` — the root, the `BRIEF.md` and the first
+   `requirements` leaf, together.
+
+**A taskless root is now an anomaly to name rather than one to repair.** Grove
+produced the shape, so Grove completed it; nothing Grove does produces it any
+more, and entries are marked and never removed
+([`entries-are-never-removed`](adr/entries-are-never-removed.md)), so a root with
+a charter and no task is something else's doing. `tree_lifecycle::root_shape`
+classifies it `Taskless` and the transition stops with a sentence naming `jj
+undo` — [principle 2](#principles), and roughly twenty-five auto-repair
+functions' last survivor gone with it.
 
 That classification used to be a byte-exact match against the deterministic
 fresh-tree content, gated on a missing `.grove/FORMAT` witness. It had to be,
@@ -944,25 +971,12 @@ because a witnessless root was *also* how a legacy tree presented and the two go
 opposite treatment. Migration is gone (`delete-migration-k6`), and the
 discrimination it needed went with it.
 
-Two consequences follow, and both are held by tests rather than by this
-paragraph.
-
-- **Completing a scaffold is idempotent.** Another process can complete the
-  partial root first, so the append happens only when the snapshot holds no
-  positioned entry at all; appending unconditionally would give the tree two
-  first leaves and no refusal, since the second would land at ordinal 2 with key
-  2 quite legally.
-- **A reader can meet a partial root without anyone having died.** Between the
-  phases a concurrent `pick` reads a root with a charter and no leaf and reports
-  the grove finished, where it used to block on Grove's guard and then read a
-  complete tree. The window is two lock acquisitions and two small writes wide,
-  and one bare `grove` closes it — but it is a behaviour change and not merely an
-  implementation one.
-
-`root_shape` itself does **not** go through the library, and that is not an
-omission. It runs while Grove's exclusive guard is held, so reaching for the
-library's would be exactly the nesting above — and all it needs is the root's own
-listing, classified through the same `TaskName::parse` every reader uses.
+`root_shape` reads the root's own listing as well as the snapshot, and that is
+not a second reader. Whether the tree holds a keyed entry is the snapshot's
+answer. *Which* foreign names a taskless root is holding is not available from
+one: the store skips a name the domain disclaims and reports nothing about it, so
+naming them in a refusal means listing the directory — under the store's own
+lock, which is the whole difference from the arrangement this replaced.
 
 `finish-commit` is the fourth verb and the only one whose guard changed what it
 refuses. It now opens the tree through `task_tree::write`, so a `FINISHING-*` or
@@ -1576,7 +1590,7 @@ prescribing one command.
 | `repo` | Git/Jujutsu detection, scoped commits, and the read-only trackedness probe. |
 | `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has. |
 | `task_tree`, `task_grow` | The reading and growing verbs expressed through the library: one snapshot per command, path construction, key prediction, and the cross-reference lint. |
-| `tree_lifecycle`, `tree_access` | The grove-only lifecycle around the tree, grove's own guard, and its transaction sentinel. |
+| `tree_lifecycle` | The grove-only lifecycle around the tree: the terminal outcomes, the finish sentinel, and the grove's own creation through the store's vacancy. |
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine of the completed task root, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |

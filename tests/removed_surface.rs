@@ -873,8 +873,9 @@ fn the_launch_fixture_still_observes_a_configuration_driven_change() {
 // tomorrow classifies without anyone editing this file.
 
 /// The modules deleted from the tree layer — the four `sweep-k37` took with the
-/// withdrawn algebra, and the three `delete-migration-k6` took with migration and
-/// the format witness.
+/// withdrawn algebra, the three `delete-migration-k6` took with migration and
+/// the format witness, and the one `collapse-tree-access-k13` took with Grove's
+/// second lock layer.
 ///
 /// Listed, unlike the live set, because absence cannot be enumerated: nothing on
 /// disk can tell you the name of a file that is not there. What keeps the list
@@ -889,6 +890,7 @@ const WITHDRAWN_TREE_MODULES: &[&str] = &[
     "tree_format",
     "tree_migrate",
     "tree_migration_transaction",
+    "tree_access",
 ];
 
 /// Every module-shaped `tree_*` / `task_*` token on one line.

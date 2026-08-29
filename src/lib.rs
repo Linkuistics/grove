@@ -62,5 +62,4 @@ pub mod task_grow;
 // owns the **write** seam every mutating verb is on. Since `sweep-k37` it is
 // the only reading surface grove has.
 pub mod task_tree;
-pub mod tree_access;
 pub mod tree_lifecycle;

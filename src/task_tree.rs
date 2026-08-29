@@ -32,18 +32,18 @@
 //
 // The library halts the whole tree on a name grove recognises and refuses,
 // wherever it sits. That is the decision, and it is taken under the lock. But
-// the library can only say *this filename is wrong*, and an absent root or a
-// tree held by the finish transaction are conditions grove states in its own
-// words. So [`restate`] re-states a *failed* read in the order grove owes its
-// operator: root, then a pending transaction, then the library's own message.
-// Only the wording is chosen here; the refusal itself already happened.
+// the library can only say *this filename is wrong*, and an absent root is a
+// condition grove states in its own words. So [`restate`] re-states a *failed*
+// read in the order grove owes its operator: root, then the library's own
+// message. Only the wording is chosen here; the refusal itself already
+// happened.
 
 use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
-use ordinal_fs_tree::fs::{Reading, Writing};
+use ordinal_fs_tree::fs::{Reading, Vacancy, Writing};
 use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Sought, Verdict};
 
 use crate::leaf::Kind;
@@ -89,12 +89,45 @@ pub fn read(grove_root: &Path) -> Result<Tree> {
 /// what Grove chose to do about it.
 pub type TreeWrite = ordinal_fs_tree::fs::WriteGuard<TaskName>;
 
+/// The whole of what an exclusive opening found: the tree, or the **vacancy**
+/// a tree may be created in — under the lock either way.
+///
+/// Named here, and only here, so that the one verb group that needs the vacancy
+/// arm — the grove's own creation, in [`crate::tree_lifecycle`] — can match on
+/// it without reaching for the library's `fs` module itself. That is the same
+/// rule the guard aliases above follow, and
+/// `the_librarys_tree_lock_is_taken_from_exactly_one_module` is what holds it.
+pub(crate) type Opening = Writing<TaskName>;
+
+/// The exclusive lock over a root that holds no tree, and the affordance to
+/// create one under it.
+///
+/// [`Vacancy::initialize`] is the whole of grove's tree creation since
+/// `collapse-tree-access-k13`: the root, its charter and the first leaf are one
+/// store operation under one lock, where they used to be two phases either side
+/// of a lock grove could not nest inside the library's.
+pub(crate) type TreeVacancy = Vacancy<TaskName>;
+
 /// Read the task tree under an exclusive lock, announcing contention first.
 ///
-/// The write-side twin of [`read`].
+/// The write-side twin of [`read`]. A root that holds no tree is the error
+/// [`absent_tree`] states: **this** entry point is for verbs that act on a tree
+/// that must already be there, and a verb that made one on the way past would
+/// turn a mistyped root into a second workstream. Creating one is
+/// [`write_or_vacancy`]'s, and `grove new` and the driver's own scaffold are its
+/// only callers.
 pub fn write(grove_root: &Path) -> Result<TreeWrite> {
     announce_contention(grove_root, libc::LOCK_EX);
     reopen_write(grove_root)
+}
+
+/// The exclusive opening **with** its vacancy arm, announcing contention first.
+///
+/// The one opening that can answer *there is no tree here* without refusing, so
+/// the caller can create one under the lock it is handed.
+pub(crate) fn write_or_vacancy(grove_root: &Path) -> Result<Opening> {
+    announce_contention(grove_root, libc::LOCK_EX);
+    open_write(grove_root)
 }
 
 /// [`write`] without the waiting diagnostic, for the second and later guards of
@@ -105,26 +138,25 @@ pub fn write(grove_root: &Path) -> Result<TreeWrite> {
 /// takes the rest through here: the diagnostic is about the command's wait, not
 /// about each lock it happens to need.
 pub(crate) fn reopen_write(grove_root: &Path) -> Result<TreeWrite> {
+    match open_write(grove_root)? {
+        Writing::Tree(tree) => Ok(tree),
+        Writing::Vacancy(_) => Err(absent_tree(grove_root)),
+    }
+}
+
+/// The exclusive acquisition itself, shared by both write-side entry points.
+fn open_write(grove_root: &Path) -> Result<Opening> {
     #[cfg(test)]
     READ_COUNT.with(|count| count.set(count.get() + 1));
 
-    match ordinal_fs_tree::fs::write::<TaskName>(grove_root)
-        .map_err(|error| restate(grove_root, &error))?
-    {
-        Writing::Tree(tree) => Ok(tree),
-        // Grove does not create a task tree here, and the vacancy arm's ability
-        // to do so is deliberately unused: `grove new` is what makes a grove,
-        // and a verb that made one on the way past would turn a mistyped root
-        // into a second workstream. `collapse-tree-access-k13` is where that
-        // decision is revisited, not here.
-        Writing::Vacancy(_) => Err(absent_tree(grove_root)),
-    }
+    ordinal_fs_tree::fs::write::<TaskName>(grove_root)
+        .map_err(|error| restate(grove_root, &error))
 }
 
 /// The diagnostic for a root that holds no tree — **moved, not redesigned**.
 ///
 /// It is the sentence Grove's own lock layer produced when it met a missing
-/// grove root (`tree_access::require_grove_root`), and the one [`restate`] still
+/// grove root, and the one [`restate`] still
 /// produces for the *other* conditions it re-words. What changed at
 /// `open-shape-k25` is only where the condition is decided: the library used to
 /// meet a missing root as an I/O failure and Grove re-worded it, and now the
@@ -168,7 +200,18 @@ fn announce_contention(grove_root: &Path, mode: libc::c_int) {
     // `<root>/..` and not `Path::parent`: the same spelling the library locks,
     // resolved by the kernel, so the probe asks about the directory the library
     // will actually contend for rather than a lexical parent of the string.
-    let Ok(handle) = File::open(grove_root.join("..")) else {
+    //
+    // The lexical parent is the fallback, and it is not a second-best: the
+    // library's own `containing_directory` falls back to exactly it when there
+    // is nothing at the root, because a root that is not there has no `..` to
+    // resolve. Without this arm every fresh grove's creation would block
+    // silently, since the tree it is about to create is by definition absent.
+    let handle = File::open(grove_root.join(".."))
+        .or_else(|error| match grove_root.parent() {
+            Some(parent) => File::open(parent),
+            None => Err(error),
+        });
+    let Ok(handle) = handle else {
         return;
     };
     let descriptor = handle.as_raw_fd();
@@ -192,6 +235,15 @@ fn announce_contention(grove_root: &Path, mode: libc::c_int) {
 /// deliberately: the decision to refuse was already taken under the lock, and
 /// only the wording is chosen here.
 fn restate(grove_root: &Path, error: &Error<TaskName>) -> anyhow::Error {
+    // **Before the absence clause**, because `is_dir` reads two of these as
+    // absent: a dangling symbolic link at the root, and a root the library
+    // refused for something a component below it. The library's own sentence
+    // names what is there and says a tree is a directory, which is strictly more
+    // than grove's *not found* — so it stands, and clause 3 keeps grove's
+    // wording only where grove knows more.
+    if matches!(error, Error::RootIsNotATree { .. }) {
+        return anyhow!("{error}");
+    }
     if !grove_root.is_dir() {
         return anyhow!("grove root not found: {}", grove_root.display());
     }

@@ -496,12 +496,11 @@ fn bare_scaffolding_is_anchored_before_the_configured_command_inherits_git_conte
     let foreign = tmp.path().join("foreign");
     init_colocated_worktree(&intended);
     init_colocated_worktree(&foreign);
-    // A *partial* root — the charter and nothing else — so the driver's
-    // lifecycle transition has a mutation to anchor: completing the scaffold.
-    // It is the only tree mutation the driver still performs, migration having
-    // gone (`delete-migration-k6`).
-    fs::create_dir_all(intended.join(".grove")).unwrap();
-    fs::write(intended.join(".grove/BRIEF.md"), "# intended — brief\n").unwrap();
+    // **No `.grove/` at all**, so the driver's lifecycle transition has a
+    // mutation to anchor: creating the grove. It is the only tree mutation the
+    // driver still performs — migration is gone (`delete-migration-k6`), and the
+    // partial-scaffold repair that used to serve as this fixture went with the
+    // window it closed (`collapse-tree-access-k13`).
 
     let launch_log = tmp.path().join("launch-log");
     let fake_harness = tmp.path().join("fake-claude.sh");
@@ -917,10 +916,10 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     let mut first = DriverProcess::spawn(&mut first_command, &tmp.path().join("first-driver-log"));
     first.wait_for_ready(&first_ready);
     first.wait_for_ready(&harness_pid);
-    // Leave the tree *partial* — the charter and nothing else — which is the
-    // one shape the lifecycle transition would mutate. A driver that refuses
-    // before tree access leaves it exactly so.
-    fs::remove_file(root.join(".grove/01-impl-test-k1.md")).unwrap();
+    // Leave no tree at all — the one shape the lifecycle transition would
+    // mutate, now that creating a grove is the only mutation it performs. A
+    // driver that refuses before tree access leaves it exactly so.
+    fs::remove_dir_all(root.join(".grove")).unwrap();
     let head_before_second = command_stdout("git", &root, &["rev-parse", "HEAD"]);
     fs::remove_file(skill_dir.join("SKILL.md")).unwrap();
     fs::write(skill_dir.join(".grove-content-hash"), "stale-hash\n").unwrap();
@@ -942,7 +941,7 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
         "second driver launched a harness"
     );
     assert!(
-        !root.join(".grove/01-requirements-plan-k1.md").exists(),
+        !root.join(".grove").exists(),
         "second driver scaffolded the live driver's task tree"
     );
     assert_eq!(

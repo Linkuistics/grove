@@ -226,15 +226,16 @@ fn worktree_readers_share_the_lock_without_reporting_contention() {
 /// **quiescent** trees, and the exclusive lock is what makes that safe — for
 /// *cooperating* readers.
 ///
-/// Grove's readers cooperate for two reasons, and both are checked here. The
-/// library's own `flock` is taken from exactly one module, so no snapshot exists
-/// that was not taken under it; and the readers still under Grove's own guard —
-/// the root's creation, and the session-kind migration, neither of which the
-/// library can perform — take `tree_access`, which `flock`s **the same
-/// directory**, the one containing the tree root, so the two guards exclude each
-/// other rather than nesting. That second fact is why the migrate stage was
-/// per-verb-group at all, and it is why the two survivors run in *phases*
-/// rather than nested.
+/// Grove's readers cooperate for one reason now, and it is the stronger one:
+/// **there is only one lock.** The library's own `flock` is taken from exactly
+/// one module, so no snapshot exists that was not taken under it — and Grove no
+/// longer keeps a guard beside it. It used to, for the two things the library
+/// could not do (create the root, create its distinguished child), and the two
+/// `flock`ed the same directory through different open file descriptions, so
+/// they had to run in *phases* rather than nested. `collapse-tree-access-k13`
+/// deleted that layer: the store answers an absent tree with a `Vacancy` that
+/// holds the exclusive lock, and creates the root, the charter and the first
+/// leaf under it.
 ///
 /// Enumerated rather than listed: the scan is every `.rs` file under `src/`, so a
 /// verb that reaches for `ordinal_fs_tree::fs::` in a module of its own fails
@@ -283,9 +284,92 @@ fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
         vec![("src/task_tree.rs".to_string(), 5)],
         "the library's lock is `task_tree`'s to take: two guard type aliases, the \
          two acquisitions themselves — shared and exclusive — and the one import \
-         of `Reading`/`Writing`, which are the shapes those acquisitions now \
-         answer with. Every reader in Grove goes through them. The count is the \
-         control — a pattern that stopped matching would leave this empty rather \
-         than clean."
+         of `Reading`/`Writing`/`Vacancy`, which are the shapes those acquisitions \
+         now answer with. Every reader in Grove goes through them, and the vacancy \
+         is re-exported from there so the one verb group that creates a tree does \
+         not reach for the module itself. The count is the control — a pattern \
+         that stopped matching would leave this empty rather than clean."
+    );
+}
+
+/// **Grove never waits on a lock of its own.**
+///
+/// `collapse-tree-access-k13` deleted the second layer, and the failure mode it
+/// removes is why that layer could never simply be *added to*: two open file
+/// descriptions on one directory do not share a `flock`, so a verb holding
+/// Grove's guard that called into the library blocked forever — on itself. The
+/// scaffold's two phases were the workaround, and the torn tree they could leave
+/// behind was the price.
+///
+/// What survives is the property rather than an absence: **every `flock` Grove
+/// takes in production is non-blocking**. Waiting belongs to the store, on the
+/// store's own lock, and nothing else in `src/` may wait at all. Grove's two
+/// remaining lockers both satisfy it by design — the one-driver-per-workspace
+/// lease *refuses* a contender rather than queueing behind it, and
+/// `task_tree`'s contention probe acquires non-blockingly only to learn whether
+/// to print, then releases. A blocking acquisition anywhere here is the deleted
+/// layer growing back, and its symptom is a hang rather than a failure, which is
+/// exactly the kind of regression a test has to catch before a human does.
+///
+/// Enumerated, like its neighbour above: every `.rs` file under `src/` is
+/// scanned, so a module that grows a guard of its own is checked whether or not
+/// anyone thought to look. Unit tests are cut at their `#[cfg(test)]` boundary —
+/// a fixture that *deliberately* blocks to provoke contention is not production
+/// waiting on itself.
+#[test]
+fn no_production_lock_grove_takes_for_itself_ever_blocks() {
+    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut blocking: Vec<String> = Vec::new();
+    let mut checked = 0_usize;
+    let mut files = vec![source.clone()];
+    while let Some(path) = files.pop() {
+        if path.is_dir() {
+            files.extend(
+                fs::read_dir(&path)
+                    .unwrap()
+                    .map(|entry| entry.unwrap().path()),
+            );
+            continue;
+        }
+        if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
+            continue;
+        }
+        // A whole file of tests, named as one. Nothing in it is production.
+        if path.file_name() == Some(std::ffi::OsStr::new("tests.rs")) {
+            continue;
+        }
+        let relative = path
+            .strip_prefix(source.parent().unwrap())
+            .unwrap()
+            .display()
+            .to_string();
+        let body = fs::read_to_string(&path).unwrap();
+        let production = body
+            .split_once("#[cfg(test)]")
+            .map_or(body.as_str(), |(before, _)| before);
+        for (number, line) in production.lines().enumerate() {
+            if line.trim_start().starts_with("//") || !line.contains("libc::flock") {
+                continue;
+            }
+            checked += 1;
+            if !line.contains("LOCK_NB") && !line.contains("LOCK_UN") {
+                blocking.push(format!("{relative}:{}: {}", number + 1, line.trim()));
+            }
+        }
+    }
+
+    assert!(
+        checked >= 2,
+        "the scan matched {checked} `flock` calls, and Grove has at least the \
+         lease's and the contention probe's — a mis-scoped scan reports a clean \
+         tree for the wrong reason"
+    );
+    assert!(
+        blocking.is_empty(),
+        "these wait on a lock Grove took for itself. Waiting is the store's, on \
+         the store's own lock; a second layer beside it deadlocks the process \
+         against its own descriptor, which is what `collapse-tree-access-k13` \
+         deleted and what a hang rather than a failure looks like:\n{}",
+        blocking.join("\n")
     );
 }

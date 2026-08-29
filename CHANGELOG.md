@@ -51,6 +51,44 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **Grove's second lock layer is gone.** `src/tree_access.rs` is deleted, and
+  with it Grove's own `flock` on the directory containing the task tree. Every
+  tree operation now opens through the store's `read` / `write` and takes its
+  guard from there, so the deadlock the layer existed to be kept away from —
+  two open file descriptions on one directory do not share a lock, so a verb
+  holding Grove's guard that called into the library blocked on *itself* — is
+  gone rather than routed around. The three recorded reasons for the layer
+  dissolved at once and only now: `open-shape-k25` made an absent tree a shape,
+  `delete-migration-k6` left no legacy shape, and `delete-finish-transaction-k8`
+  left no transaction (`docs/specs/module-decomposition.md`, decision 2).
+- **A grove is created whole, in one store operation.** `root-init` and the
+  driver's lifecycle transition each take one `task_tree::write_or_vacancy` and
+  hand the vacancy to `ordinal_fs_tree::fs::Vacancy::initialize`, which creates
+  the root, its `BRIEF.md` and the first `requirements` leaf under the exclusive
+  lock the vacancy already holds. The two-phase `Classification` / `settle`
+  dance is deleted, and so is the window it opened between the phases.
+- **A taskless root is refused, not repaired.** `complete_partial_root_unlocked`
+  — the last of `minimalism-k1`'s roughly twenty-five auto-repair functions
+  still standing — is deleted with the anomaly it existed for. A root holding
+  its charter and no task is no longer a shape Grove produces, so it is now
+  something else's doing, and it stops with a sentence naming `jj undo`
+  (principle 2). `CurrentTransition::RootInitRecovered` goes with it.
+- **A transition over a name Grove refuses now states the refusal itself**,
+  in the domain's own words, instead of answering *already current* and leaving
+  the next read to say it. Grove classified the root off its own listing while
+  it held its own guard; the store halts the whole tree on such a name, so the
+  transition carries the message. One refusal where there were a success and a
+  refusal.
+- **`task_tree::restate` orders `RootIsNotATree` ahead of its absence clause**,
+  because `is_dir` reads a dangling symbolic link at the root as *absent* and
+  the store's own sentence says what is there and that a tree is a directory.
+- `tests/tree_access.rs` is `tests/tree_lock.rs`, and carries a second
+  enumeration beside the one that holds the store's lock to a single module:
+  **no `flock` Grove takes in production ever blocks**. Waiting belongs to the
+  store, on the store's own lock; a blocking acquisition anywhere in `src/` is
+  the second layer growing back, and its symptom is a hang rather than a
+  failure.
+
 - **The tree store can delete a tree root, and says what it destroyed.**
   `ordinal_fs_tree::fs::WriteGuard::delete` removes the root and everything
   beneath it under the exclusive lock the guard already holds, and answers with

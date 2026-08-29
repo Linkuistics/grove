@@ -44,7 +44,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
-use ordinal_fs_tree::{Entry, Key, NewEntry, Report, Snapshot, Species, Target};
+use ordinal_fs_tree::{Created, Entry, Key, NewEntry, Report, Snapshot, Species, Target};
 
 use crate::leaf::Kind;
 use crate::task_name::{Outcome, Parts, Slug, TaskName};
@@ -74,7 +74,7 @@ pub fn leaf_add(grove_root: &Path, parent: &str, slug: &str, kind: Kind) -> Resu
     };
     let entry = new_leaf(key, Outcome::Live, kind, &slug);
     let report = tree.append(target, entry).map_err(task_tree::raised)?;
-    Ok(allocated(&report, &[key])?.remove(0))
+    Ok(allocated(report.created(), &[key])?.remove(0))
 }
 
 /// `leaf-add-pair <parent> <stem>`: append a whole **research pair** — three flat
@@ -131,7 +131,7 @@ pub fn leaf_add_pair(grove_root: &Path, parent: &str, stem: &str) -> Result<Vec<
     let report = tree
         .append_many(target, entries)
         .map_err(task_tree::raised)?;
-    allocated(&report, &keys)
+    allocated(report.created(), &keys)
 }
 
 /// The pair's three steps, in the order they land. The kind is the whole of what
@@ -206,7 +206,7 @@ pub fn leaf_insert(grove_root: &Path, target: &str, slug: &str, kind: Kind) -> R
     let entry = new_leaf(key, Outcome::Live, kind, &slug);
     let report = tree.insert(level, at, entry).map_err(task_tree::raised)?;
     Ok(Inserted {
-        path: allocated(&report, &[key])?.remove(0),
+        path: allocated(report.created(), &[key])?.remove(0),
         renumbers: renumbers(&report)?,
     })
 }
@@ -407,11 +407,15 @@ pub(crate) fn new_leaf(
 /// name in the report, which is the library's own answer, and the operation has
 /// already landed when it fires: a disagreement is a broken contract to report,
 /// not a case to recover from, and the message says which file carries it.
+///
+/// Takes the created rows rather than the whole [`Report`] because one caller
+/// hands over a *slice* of them: a grove's `initialize` reports the charter
+/// first, which carries no key and is not a prediction anyone made
+/// (`tree_lifecycle::initialize_grove`).
 pub(crate) fn allocated(
-    report: &Report<TaskName>,
+    created: &[Created<TaskName>],
     predicted: &[Option<Key>],
 ) -> Result<Vec<PathBuf>> {
-    let created = report.created();
     if created.len() != predicted.len() {
         bail!(
             "the library created {} entries where {} were asked for",

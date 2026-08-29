@@ -452,8 +452,10 @@ fn invalid_config_leaves_current_empty_and_partial_trees_byte_identical() {
             "empty" => {
                 fs::write(grove.join("01-DONE-impl-task-k1.md"), "# task-k1\n").unwrap();
             }
-            // The charter alone: `root-init`'s scaffold half-run, which is the
-            // one shape the lifecycle transition still completes.
+            // The charter alone: a taskless root, which the lifecycle
+            // transition refuses (`collapse-tree-access-k13`). Configuration is
+            // reached first either way, and that is the point — the tree is not
+            // touched, whichever answer it would have got.
             "partial" => {}
             _ => unreachable!(),
         }
@@ -548,23 +550,27 @@ exit 0
     assert!(prompt.contains(&mandate_naming("plan-k1")), "{prompt}");
 }
 
+/// **A taskless root stops the driver with a sentence, and repairs nothing.**
+///
+/// It used to be completed: `root-init` created the root and its charter under
+/// one lock and appended the first leaf under another, so a death between them
+/// left exactly this, and bare `grove` finished the job. `collapse-tree-access-k13`
+/// made the whole grove one store operation, which closes that window — so a
+/// root holding a charter and no task is now something *else* emptied, and
+/// principle 2 says an anomaly grove did not cause gets a message rather than
+/// machinery.
 #[test]
-fn partial_fresh_scaffold_recovers_before_selection_and_launch() {
+fn a_taskless_root_stops_the_driver_before_selection_and_launch() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
-    let worktree = fixture.path().join("partial-scaffold");
+    let worktree = fixture.path().join("taskless-root");
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
-    // The window `root-init` leaves between its two phases: the root and its
-    // charter, and no first leaf. The operator's slug lived only in the leaf, so
-    // the recovery has nothing to read it from and uses the driver's own default
-    // — which is the same answer the old byte-matching recovery gave, since a
-    // partial root by definition has no leaf to take a slug from.
     let created = grove::tree_lifecycle::root_init(&worktree, "custom-plan").unwrap();
     fs::remove_file(&created[1]).unwrap();
-    let prompt_log = fixture.path().join("partial.log");
-    let fake = fixture.path().join("partial-command.sh");
+    let prompt_log = fixture.path().join("taskless.log");
+    let fake = fixture.path().join("taskless-command.sh");
     write_executable(
         &fake,
         r#"#!/bin/sh
@@ -583,15 +589,18 @@ exit 0
 
     let output = run_grove(&home, &worktree);
 
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "unexpected success: {stderr}");
+    assert!(stderr.contains("holds no task"), "{stderr}");
     assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
+        stderr.contains("jj undo"),
+        "the refusal must name the fix: {stderr}"
     );
-    assert!(grove.join("01-requirements-plan-k1.md").is_file());
-    assert!(fs::read_to_string(prompt_log)
-        .unwrap()
-        .contains(&mandate_naming("plan-k1")));
+    assert!(
+        !grove.join("01-requirements-plan-k1.md").exists(),
+        "the driver repaired a tree it should have refused"
+    );
+    assert!(!prompt_log.exists(), "the driver launched a session");
 }
 
 #[test]

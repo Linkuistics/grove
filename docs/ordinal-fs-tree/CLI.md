@@ -140,14 +140,14 @@ them. Aliases: `ls` for `list`, and nothing else.
 
 | verb | library operation | stdout |
 |---|---|---|
-| `list [--under <key>] [--status <s>] [--label <l>] [--first]` | `walk`, or `find` with `--first` | one record per entry, in walk order |
+| `list [--under <key>] [--status <s>] [--label <l>] [--first]` | `walk`, or `seek` with `--first` | one record per entry, in walk order |
 | `show <key>` | `by_key` | one record |
 | `ancestors <key>` | `ancestors` | one record per level, root-first |
 | `overview-chain <key>` | `distinguished_chain` | one record per overview, root-first |
 
 `--status` and `--label` build the predicate; `--first` decides whether it goes
-to `find` (short-circuiting, one answer) or filters a full `walk`. That is the
-architecture's *a predicate passed to `find` answers them without the library
+to `seek` (short-circuiting, one answer) or filters a full `walk`. That is the
+architecture's *a predicate passed to `seek` answers them without the library
 ever learning what it asked*, spelled as flags. A distinguished child carries no
 parts, so it matches no filter and is dropped whenever one is given.
 
@@ -347,9 +347,14 @@ out of its way to preserve lives in `Display` and would be thrown away by the on
 line of boilerplate everybody writes. Print and `std::process::exit` instead.
 
 **A read that finds no entry renders `Refusal::TargetMissing`.** `by_key` answers
-with an `Option`, so `show`, `ancestors`, `overview-chain` and `list --under`
-have no refusal handed to them — they construct one, because `Refusal` is a
-public enum with public fields and its message is already right. The alternative
+with a `Sought`, which is deliberately not a refusal — nothing was asked to
+change — so `show`, `ancestors`, `overview-chain` and `list --under` have no
+refusal handed to them. They construct one, because it is *this CLI* that treats
+a key naming nothing as a failure to report: `Refusal` is a public enum with
+public fields and its message is already right. `list --first` is the counterpart
+that does **not** construct one — a search matching nothing there is an empty
+listing and a note, which is the same answer a full `walk` matching nothing
+gives. The alternative
 is a second wording of one condition, which is exactly where
 `docs/formalism-findings.md` entry 017 found drift landing: *all four failures
 landed on literal message substrings the scoring arm had authored*.

@@ -16,7 +16,9 @@
 //! plan shape exists for: five operations, one interpreter, one rollback.
 
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
-use crate::{Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot, Species};
+use crate::{
+    Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot, Sought, Species,
+};
 
 /// Which entry an operation is aimed at.
 ///
@@ -302,7 +304,7 @@ pub(crate) fn promote<N: EntryName>(
     // node. The order is observable — a promotion of a *node* in a domain with
     // no distinguished child has two true refusals and reports the first — so it
     // is transcribed rather than reinvented.
-    let Some(leaf) = snapshot.by_key(key) else {
+    let Sought::Match(leaf) = snapshot.by_key(key) else {
         return Decision::Refuse(Refusal::TargetMissing { key });
     };
     if leaf.species() != Species::Leaf {
@@ -448,7 +450,7 @@ pub(crate) fn rewrite<N: EntryName>(
     // first, then the species. `by_key` answers with positioned entries only, so
     // the distinguished child cannot be named here at all — the same fact that
     // makes `promote`'s *not a leaf* refusal reachable in one direction only.
-    let Some(entry) = snapshot.by_key(key) else {
+    let Sought::Match(entry) = snapshot.by_key(key) else {
         return Decision::Refuse(Refusal::TargetMissing { key });
     };
     let Some(triple) = entry.triple() else {
@@ -495,7 +497,7 @@ fn resolve<N: EntryName>(
             // `by_key` answers with positioned entries only — a distinguished
             // child has no key — so the refusal below is about a leaf, and a
             // distinguished child cannot be named here at all.
-            let Some(entry) = snapshot.by_key(key) else {
+            let Sought::Match(entry) = snapshot.by_key(key) else {
                 return Err(Refusal::TargetMissing { key });
             };
             let Some(container) = entry.contents() else {

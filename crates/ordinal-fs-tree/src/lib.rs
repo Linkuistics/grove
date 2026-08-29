@@ -82,6 +82,7 @@ mod plan;
 pub mod reference;
 mod report;
 mod snapshot;
+mod sought;
 
 pub use error::Error;
 pub use name::{
@@ -92,3 +93,4 @@ pub use ops::{NewEntry, Target};
 pub use plan::Refusal;
 pub use report::{Created, Renamed, Report};
 pub use snapshot::{Container, Entry, Snapshot, Walk};
+pub use sought::Sought;

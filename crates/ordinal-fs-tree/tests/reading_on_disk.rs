@@ -17,7 +17,7 @@ use std::thread;
 use std::time::Duration;
 
 use ordinal_fs_tree::reference::SyllabusName;
-use ordinal_fs_tree::{Error, Key, Species};
+use ordinal_fs_tree::{Entry, Error, Key, Sought, Species};
 use tempfile::TempDir;
 
 /// How long a lock test waits for something that should happen. Generous: it
@@ -75,6 +75,55 @@ fn the_documents_tree_reads_from_disk_in_walk_order() {
             "03-draft-assessment-i9.md",
         ]
     );
+}
+
+/// Discharges no model claim, and there is none to discharge: `Sought` is a
+/// type-level distinction neither model has. `operations.qnt` resolves a key
+/// with `leastId`, which answers `-1` when nothing matched — an in-band
+/// sentinel, and exactly the shape a word for *matched nothing* exists to
+/// replace. A search adds no state transition, so nothing in either model moved
+/// for it.
+///
+/// Both variants, from both searches, through the public interface — and the
+/// door out to `Option`, which is the only way a search ever hands one back.
+#[test]
+fn a_search_answers_with_a_match_or_with_nothing() {
+    let (_temporary, root) = documents_tree();
+    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&root).expect("a well-formed tree");
+
+    match tree.by_key(Key::new(6)) {
+        Sought::Match(entry) => assert_eq!(entry.name().to_string(), "02-draft-matrices-i6.md"),
+        Sought::Nothing => panic!("key 6 is in the document's tree"),
+    }
+    assert_eq!(
+        tree.by_key(Key::new(99)),
+        Sought::Nothing,
+        "key 99 is not — and the tree is intact, so this is no refusal"
+    );
+
+    // A predicate this tree satisfies, and one it cannot: the deepest entry sits
+    // at depth 2. Neither answer says anything is wrong with the tree.
+    assert!(tree.seek(|entry| entry.species() == Species::Node).is_match());
+    assert!(tree.seek(|entry| entry.depth() > 2).is_nothing());
+
+    // The door, both ways, and it round-trips.
+    assert_eq!(
+        tree.by_key(Key::new(1))
+            .into_option()
+            .map(|entry| entry.name().to_string())
+            .as_deref(),
+        Some("01-published-orientation-i1.md")
+    );
+    assert_eq!(
+        Sought::from(tree.by_key(Key::new(99)).into_option()),
+        Sought::Nothing
+    );
+    // The same door spelled the other way. The target type is written out
+    // deliberately: `core`'s own `impl<T> From<T> for Option<T>` also applies
+    // against an inferred `Option<_>`, so that spelling is ambiguous and this one
+    // is not — the impl says so where a reader meets it.
+    let out: Option<Entry<'_, SyllabusName>> = tree.by_key(Key::new(99)).into();
+    assert!(out.is_none());
 }
 
 /// Discharges `NothingRecognisedIsSkipped`'s *Foreign* half — Alloy's claim is
@@ -423,7 +472,7 @@ fn a_writer_excludes_a_reader_until_it_is_dropped() {
     let held = ordinal_fs_tree::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
     assert_eq!(
         held.by_key(Key::new(2)).map(|e| e.species()),
-        Some(Species::Node),
+        Sought::Match(Species::Node),
         "the exclusive guard reads the tree exactly as the shared one does"
     );
 

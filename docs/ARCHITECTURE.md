@@ -499,7 +499,7 @@ rollback has damaged.
 
 | verb | library operation | `Refusal`s it can reach |
 |---|---|---|
-| `pick`, `brief-chain`, `kind`, `resolve` | `walk`, `by_key`, `ancestors`, `distinguished_chain` | **none** — the reading surface answers with `Option`, so no refusal exists to raise |
+| `pick`, `brief-chain`, `kind`, `resolve` | `walk`, `by_key`, `ancestors`, `distinguished_chain` | **none** — a search answers with `Sought`, which is deliberately not a refusal (nothing was asked to change), so no refusal exists to raise |
 | `leaf-add` | `append` | `KeysExhausted`, `OrdinalsExhausted` — and **not** `TargetNotNode` or `DestinationOccupied`; `growing-k33` corrected both rows |
 | `leaf-add-pair` | `append_many` | the same two |
 | `leaf-insert` | `insert` | `KeysExhausted`, `OrdinalsExhausted` — not `TargetNotNode`, because the target passed is the resolved entry's **container**, a node by construction; and not `DestinationOccupied`, per the row below |

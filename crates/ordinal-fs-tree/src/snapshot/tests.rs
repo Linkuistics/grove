@@ -144,7 +144,7 @@ fn by_key_finds_the_entry_with_that_key() {
     let found = tree.by_key(Key::new(6)).expect("key 6 is in the tree");
     assert_eq!(found.name().to_string(), "02-draft-matrices-i6.md");
     assert_eq!(found.depth(), 2);
-    assert!(tree.by_key(Key::new(99)).is_none(), "key 99 is not");
+    assert!(tree.by_key(Key::new(99)).is_nothing(), "key 99 is not");
 }
 
 /// Discharges **no** model claim, and this is the one place where saying so
@@ -182,15 +182,15 @@ fn by_key_on_a_duplicate_key_tree_answers_the_first_in_walk_order() {
     );
 }
 
-/// Discharges no model claim. The *Reading* table says `find` short-circuits,
+/// Discharges no model claim. The *Reading* table says `seek` short-circuits,
 /// which is a statement about work not done and is invisible to any assertion
 /// about the answer — so the predicate counts its own calls.
 #[test]
-fn find_short_circuits_at_the_first_match() {
+fn seek_short_circuits_at_the_first_match() {
     let tree = documents_tree();
     let mut seen = 0;
     let found = tree
-        .find(|entry| {
+        .seek(|entry| {
             seen += 1;
             entry.species() == Species::Node
         })
@@ -313,7 +313,7 @@ fn an_empty_tree_walks_to_nothing() {
     assert!(tree.is_empty());
     assert_eq!(tree.len(), 0);
     assert_eq!(tree.walk().count(), 0);
-    assert!(tree.by_key(Key::new(1)).is_none());
+    assert!(tree.by_key(Key::new(1)).is_nothing());
     assert!(tree.root().distinguished().is_none());
 }
 

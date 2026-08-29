@@ -35,7 +35,7 @@
 //! entry on two filesystems holding byte-identical trees.
 
 use crate::plan::Level;
-use crate::{EntryName, EntryNameExt, Key, NameView, Ordinal, Species, Triple};
+use crate::{EntryName, EntryNameExt, Key, NameView, Ordinal, Sought, Species, Triple};
 
 /// One entry as the snapshot holds it: its name, where it sits, and — when it
 /// is a node — what is under it.
@@ -524,6 +524,14 @@ impl<'a, N: EntryName> Container<'a, N> {
     /// cannot hold two entries of one name. A domain that broke it would put
     /// two in this level, and this answers with the first in walk order rather
     /// than hiding either.
+    ///
+    /// **`Option` and not [`Sought`], deliberately.** This is an accessor: a
+    /// level either has a distinguished child or does not, and the absence is a
+    /// fact about the level, exactly as [`Entry::key`]'s is a fact about the
+    /// entry. `Sought` answers a *search* — a criterion the caller supplied and
+    /// a set scanned for it — and no criterion crosses this call. That it is
+    /// implemented over a walk is an implementation detail; if it were the test,
+    /// every accessor here would be a search.
     #[must_use]
     pub fn distinguished(&self) -> Option<Entry<'a, N>> {
         self.children()
@@ -587,15 +595,22 @@ impl<N: EntryName> Snapshot<N> {
         }
     }
 
-    /// **`find`**: the first entry in walk order satisfying a predicate.
+    /// **`seek`**: the first entry in walk order satisfying a predicate.
     ///
     /// Short-circuits. This is also how a consumer asks every question about
     /// its own attributes — *which entry is next*, *which is a draft* — without
     /// the library ever learning what was asked. There is deliberately no
     /// lookup by label: the trait names no label type, so a `by_label` would
     /// have nothing to take as an argument.
-    pub fn find(&self, mut predicate: impl FnMut(&Entry<'_, N>) -> bool) -> Option<Entry<'_, N>> {
-        self.walk().find(|entry| predicate(entry))
+    ///
+    /// Named `seek` and not `find` because the answer is a [`Sought`] and not an
+    /// `Option`: `find` is [`Iterator`]'s word, it is right there on
+    /// [`Walk`], and two operations one character apart answering in two
+    /// vocabularies is exactly the confusion one word for one concept exists to
+    /// prevent. `Walk::find` stays — it is the iterator's, and the iterator's
+    /// vocabulary is `Option`'s.
+    pub fn seek(&self, mut predicate: impl FnMut(&Entry<'_, N>) -> bool) -> Sought<Entry<'_, N>> {
+        self.walk().find(|entry| predicate(entry)).into()
     }
 
     /// **`by_key`**: the entry with a given key, or nothing.
@@ -605,9 +620,11 @@ impl<N: EntryName> Snapshot<N> {
     /// first in walk order, and the caller has a tree to repair. That tie-break
     /// is the one reading behaviour no model checks; `operations.qnt` picks the
     /// least internal id instead, and says so in its handoff block.
-    #[must_use]
-    pub fn by_key(&self, key: Key) -> Option<Entry<'_, N>> {
-        self.find(|entry| entry.key() == Some(key))
+    ///
+    /// [`Sought::Nothing`] is not a refusal: no key was asked to change, and a
+    /// tree holding no such key is not a damaged tree.
+    pub fn by_key(&self, key: Key) -> Sought<Entry<'_, N>> {
+        self.seek(|entry| entry.key() == Some(key))
     }
 
     /// How many entries the tree holds, distinguished children included.

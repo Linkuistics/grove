@@ -12,7 +12,7 @@ use crate::fixtures::{
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
 use crate::reference::{Label, Parts, Status, SyllabusName};
 use crate::snapshot::{Builder, Snapshot};
-use crate::{EntryName, EntryNameExt, Key, Ordinal, PositionedSpecies, Species};
+use crate::{EntryName, EntryNameExt, Key, Ordinal, PositionedSpecies, Sought, Species};
 
 fn draft(label: &str) -> Parts {
     Parts::lesson(
@@ -1203,7 +1203,7 @@ fn a_distinguished_child_cannot_be_named_by_key_at_all() {
         "the document's tree holds distinguished children"
     );
     for key in 0..12 {
-        if let Some(found) = snapshot.by_key(Key::new(key)) {
+        if let Sought::Match(found) = snapshot.by_key(Key::new(key)) {
             assert_ne!(
                 found.species(),
                 Species::Distinguished,
@@ -1544,7 +1544,7 @@ fn a_distinguished_child_cannot_be_rewritten_because_it_cannot_be_named() {
     assert_eq!(distinguished, 2, "the root's and the module's");
 
     for key in 0..=12 {
-        if let Some(entry) = snapshot.by_key(Key::new(key)) {
+        if let Sought::Match(entry) = snapshot.by_key(Key::new(key)) {
             assert_ne!(
                 entry.species(),
                 Species::Distinguished,

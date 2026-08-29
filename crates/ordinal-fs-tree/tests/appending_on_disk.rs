@@ -14,7 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ordinal_fs_tree::reference::{Label, Parts, Status, SyllabusName};
-use ordinal_fs_tree::{Error, Key, NewEntry, Refusal, Species, Target};
+use ordinal_fs_tree::{Error, Key, NewEntry, Refusal, Sought, Species, Target};
 use tempfile::TempDir;
 
 fn file(at: &Path, name: &str) {
@@ -116,7 +116,7 @@ fn an_appended_node_is_a_directory() {
             .expect("a well-formed tree")
             .by_key(Key::new(10))
             .map(|entry| entry.species()),
-        Some(Species::Node)
+        Sought::Match(Species::Node)
     );
 }
 

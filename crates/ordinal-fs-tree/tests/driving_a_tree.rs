@@ -228,7 +228,7 @@ fn list_walks_depth_first_with_a_node_explored_before_its_next_sibling() {
 
 /// No model claim.
 ///
-/// `--first` sends the predicate to `find`, which short-circuits, and the
+/// `--first` sends the predicate to `seek`, which short-circuits, and the
 /// difference from a filtered walk is observable only in how many records come
 /// back.
 #[test]
@@ -242,6 +242,29 @@ fn first_stops_at_one_match_where_a_filtered_walk_returns_every_one() {
         ok(&root, &["list", "--status", "draft", "--first"]).targets(),
         vec!["4"]
     );
+}
+
+/// No model claim: `Sought` is a type-level distinction neither model has.
+///
+/// The `Nothing` half of a `seek`, at the CLI seam, and the point is what it is
+/// **not**. `show 99` and `list --first` over a predicate nothing matches are
+/// the same library answer — a search that completed and matched nothing — and
+/// the CLI chooses opposite policies over it: exit 3 with a refusal there, exit
+/// 0 with an empty listing and a note here. Neither is the library's call, which
+/// is precisely why the library refuses to make it by answering `Refusal`.
+#[test]
+fn first_over_a_predicate_nothing_matches_is_an_empty_listing() {
+    let (_temporary, root) = a_course();
+    let run = ok(&root, &["list", "--label", "topology", "--first"]);
+    assert_eq!(run.stdout, "", "nothing matched, so no record is printed");
+    assert!(
+        run.stderr.contains("no entry matched"),
+        "an empty listing says why it is empty: {}",
+        run.stderr
+    );
+    // The same predicate over a full walk, for the same reason and to the same
+    // effect: `--first` changes how much work is done, not what nothing means.
+    assert_eq!(ok(&root, &["list", "--label", "topology"]).stdout, "");
 }
 
 /// No model claim.
@@ -501,8 +524,11 @@ fn quiet_silences_the_trace_and_leaves_stdout_alone() {
 // ---------------------------------------------------------------------------
 
 /// Discharges `wit_refusedTargetMissing`. The CLI **constructs** this one for
-/// the read verbs, because `by_key` answers with an `Option` and re-wording one
-/// condition is where `docs/formalism-findings.md` entry 017 found drift landing.
+/// the read verbs, because `by_key` answers with a `Sought` — which is not a
+/// refusal — and re-wording one condition is where `docs/formalism-findings.md`
+/// entry 017 found drift landing. That the CLI treats a search matching nothing
+/// as a failure is *its* policy: `list --first` takes the same answer and prints
+/// an empty listing, which is [`first_over_a_predicate_nothing_matches_is_an_empty_listing`].
 #[test]
 fn a_key_that_names_nothing_is_exit_three_from_every_verb_that_takes_one() {
     let (_temporary, root) = a_course();

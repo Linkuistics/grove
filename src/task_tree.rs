@@ -43,7 +43,7 @@ use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
-use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Verdict};
+use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Sought, Verdict};
 
 use crate::leaf::Kind;
 use crate::task_name::{Outcome, Parts, TaskName};
@@ -704,11 +704,11 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
 ///
 /// **The one lookup grove has that is not by key**, and the one place the seam's
 /// narrowness is felt from grove's side. The library offers `by_key` and a
-/// `find` taking the consumer's own predicate, and deliberately *no* lookup by
+/// `seek` taking the consumer's own predicate, and deliberately *no* lookup by
 /// label — the trait names no label type, so a `by_label` would have nothing to
 /// take. Slug lookup is therefore a walk with grove's predicate over grove's own
-/// `Parts`, and it is a whole walk rather than a `find` because ambiguity is a
-/// property of the match *set*: `find` short-circuits at the first hit, which is
+/// `Parts`, and it is a whole walk rather than a `seek` because ambiguity is a
+/// property of the match *set*: `seek` short-circuits at the first hit, which is
 /// precisely the answer `resolve` must not give.
 pub fn resolve_in(tree: &Tree, reference: &str) -> Result<Resolution> {
     Ok(match lookup(tree.snapshot(), reference)? {
@@ -758,16 +758,21 @@ fn slug_match_key(entry: &Entry<'_, TaskName>) -> u32 {
 /// slug, and a full `<slug>-k<key>` handle by its terminal key once the bare
 /// slug has failed.
 fn lookup<'a>(snapshot: &'a Snapshot<TaskName>, reference: &str) -> Result<Lookup<'a>> {
+    // The library answers a search with `Sought`, its own word for *matched
+    // nothing* — not a refusal, and not an error. Grove already has a word for
+    // the same thing in its own vocabulary, so this maps one onto the other and
+    // stops there: `Lookup` is what the rest of grove reads.
     let by_key = |key: u32| -> Lookup<'a> {
-        snapshot
-            .by_key(Key::new(key))
-            .map_or(Lookup::NotFound, Lookup::Found)
+        match snapshot.by_key(Key::new(key)) {
+            Sought::Match(entry) => Lookup::Found(entry),
+            Sought::Nothing => Lookup::NotFound,
+        }
     };
     match parse_ref(reference)? {
         Ref::Key(key) => Ok(by_key(key)),
         Ref::Slug(slug) => {
-            // A whole walk and never `find`: ambiguity is a property of the
-            // match *set*, and `find` short-circuits at the first hit — which is
+            // A whole walk and never `seek`: ambiguity is a property of the
+            // match *set*, and `seek` short-circuits at the first hit — which is
             // precisely the answer this must not give.
             let matches: Vec<Entry<'a, TaskName>> = snapshot
                 .walk()

@@ -38,7 +38,8 @@ use clap::{Parser, Subcommand};
 
 use ordinal_fs_tree::reference::{Label, Parts, Status, SyllabusName};
 use ordinal_fs_tree::{
-    fs, Container, Entry, EntryNameExt, Error, Key, NewEntry, Ordinal, Refusal, Report, Target,
+    fs, Container, Entry, EntryNameExt, Error, Key, NewEntry, Ordinal, Refusal, Report, Sought,
+    Target,
 };
 
 // ---------------------------------------------------------------------------
@@ -572,11 +573,12 @@ impl Failure {
 
     /// A refusal this CLI constructs rather than receives.
     ///
-    /// `by_key` answers with an `Option`, so the read verbs are handed no
-    /// refusal at all. They build one instead of wording the condition a second
-    /// time: `Refusal` is a public enum with public fields and its message is
-    /// already right. `docs/formalism-findings.md` entry 017 is where a second
-    /// wording of one condition was measured going wrong.
+    /// A search answers with a `Sought`, which is deliberately *not* a refusal —
+    /// nothing was asked to change — so the read verbs are handed no refusal at
+    /// all. They build one instead of wording the condition a second time:
+    /// `Refusal` is a public enum with public fields and its message is already
+    /// right. `docs/formalism-findings.md` entry 017 is where a second wording of
+    /// one condition was measured going wrong.
     fn refused(refusal: &Refusal) -> Self {
         Self {
             code: refusal_code(refusal),
@@ -877,7 +879,7 @@ fn list(
     // A `--under` naming nothing is the same condition `show` meets, and gets
     // the same refusal rather than an empty listing that looks like an answer.
     if let Some(key) = under {
-        if tree.by_key(key).is_none() {
+        if tree.by_key(key).is_nothing() {
             return Err(Failure::refused(&Refusal::TargetMissing { key }));
         }
     }
@@ -914,12 +916,17 @@ fn list(
         }
     };
 
-    // `--first` decides whether the predicate goes to `find`, which
+    // `--first` decides whether the predicate goes to `seek`, which
     // short-circuits, or filters a full `walk`. That is the architecture's *a
-    // predicate passed to `find` answers them without the library ever learning
+    // predicate passed to `seek` answers them without the library ever learning
     // what it asked*, spelled as a flag.
+    //
+    // A search matching nothing is not a refusal here either: `--first` over a
+    // tree where nothing matches is the same empty listing as a full `walk` where
+    // nothing matches, and gets the same note below.
     let records: Vec<Record> = if first {
-        tree.find(matches)
+        tree.seek(matches)
+            .into_option()
             .iter()
             .map(|entry| record_of(&cli.root, entry))
             .collect()
@@ -959,18 +966,18 @@ fn empty_note(tree_is_empty: bool, filtered: bool, root: &Path) -> String {
 
 fn show(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
     let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
-    let entry = tree
-        .by_key(key)
-        .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))?;
+    let Sought::Match(entry) = tree.by_key(key) else {
+        return Err(Failure::refused(&Refusal::TargetMissing { key }));
+    };
     streams.records(&[record_of(&cli.root, &entry)]);
     Ok(())
 }
 
 fn ancestors(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
     let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
-    let entry = tree
-        .by_key(key)
-        .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))?;
+    let Sought::Match(entry) = tree.by_key(key) else {
+        return Err(Failure::refused(&Refusal::TargetMissing { key }));
+    };
     let records: Vec<Record> = entry
         .ancestors()
         .iter()
@@ -985,9 +992,9 @@ fn ancestors(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
 
 fn overview_chain(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
     let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
-    let entry = tree
-        .by_key(key)
-        .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))?;
+    let Sought::Match(entry) = tree.by_key(key) else {
+        return Err(Failure::refused(&Refusal::TargetMissing { key }));
+    };
     let records: Vec<Record> = entry
         .distinguished_chain()
         .iter()
@@ -1120,9 +1127,11 @@ fn set_status(
 /// surface borrows it, and every mutation takes it by value.
 fn parts_of(tree: &fs::WriteGuard<SyllabusName>, key: Key) -> Result<Parts, Failure> {
     tree.by_key(key)
+        .into_option()
         .and_then(|entry| entry.triple())
         .map(|triple| triple.parts.clone())
         // An entry with a key always has a triple, so the `and_then` above
-        // narrows nothing; both `None`s are the same condition.
+        // narrows nothing; `Sought::Nothing` and a missing triple are the same
+        // condition.
         .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))
 }

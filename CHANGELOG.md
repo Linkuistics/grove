@@ -51,6 +51,43 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The tree store has a word for a search that matched nothing.**
+  `ordinal-fs-tree` gains `Sought<T>` (`Match` / `Nothing`), and it is what
+  *every* search on the public surface answers: `Snapshot::find` is now
+  `Snapshot::seek`, and `Snapshot::by_key` returns a `Sought` rather than an
+  `Option` (`docs/specs/module-decomposition.md`, decision 2, the fourth
+  operation). The rename comes with the type rather than beside it — `find` is
+  `Iterator`'s word, it is right there on `Walk`, and two operations one
+  character apart answering in two vocabularies is the confusion *one word for
+  one concept* exists to prevent.
+
+  **Not a refusal, and that is the whole content of the type.** Every one of
+  `Refusal`'s variants is a refusal to *mutate*; a search asked for no change,
+  and a tree holding no match is not a damaged tree. A store whose only word for
+  *matched nothing* is `None` makes each consumer invent its own — which is
+  exactly what grove's `Option<SelectedLeaf>` is. The line drawn is between a
+  **search**, which takes a criterion and scans, and an **accessor**, which reads
+  an attribute off something already in hand: `Entry::key` and `Entry::contents`
+  keep their `Option`, because their absence is a fact about the entry and not
+  about any scan. `Sought::into_option` and `From` in both directions are the
+  door back out, so a consumer's control flow stays its own while `Option`
+  appears in no signature the library owns. `into_option` is the reliable
+  spelling of the outward direction: `core`'s own blanket
+  `impl<T> From<T> for Option<T>` also applies against an inferred `Option<_>`,
+  so `sought.into()` is ambiguous unless the target type is written out — the
+  impl says so where a reader meets it.
+
+  The reference CLI is the worked example of the policy being the consumer's:
+  `show 99` builds a `Refusal::TargetMissing` from the same answer that
+  `list --first` renders as an empty listing. `docs/ordinal-fs-tree/CONTEXT.md`
+  gains **search** and **sought** and the accessor distinction; `ARCHITECTURE.md`
+  and `CLI.md` are reconciled. **Neither model moved**: a search adds no state
+  transition, and `operations.qnt` already resolved a key with `leastId`'s
+  `-1` — the in-band sentinel a typed answer replaces. Grove is
+  *adapted*, not migrated: `task_tree.rs`'s one `by_key` call site maps
+  `Sought::Nothing` onto the `Lookup::NotFound` it already produced, and grove's
+  own `Option<SelectedLeaf>` stays where it is until `collapse-tree-access-k13`.
+
 - **The runner now runs what it expanded: the channel, the spawn and the kill
   escalation are `crates/keyed-launch` too.** The crate gains `Channel`
   (`allocate` / `path` / `read` / `discard` / `discard_abandoned`), the free

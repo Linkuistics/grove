@@ -536,8 +536,8 @@ target.
 | operation | behaviour |
 |---|---|
 | `walk` | Every entry in depth-first pre-order. Within a level: the distinguished child first, then children by ordinal. Nodes are descended in place, so a node at an earlier ordinal is fully explored before a later sibling. |
-| `find` | The first entry in `walk` order satisfying a predicate the caller supplies. Short-circuits. |
-| `by_key` | The entry with a given key, or nothing. Keys are unique in any tree the library built; in one it did not, this returns the first in `walk` order and the caller has a tree to repair. |
+| `seek` | The first entry in `walk` order satisfying a predicate the caller supplies. Short-circuits. Answers a `sought`. |
+| `by_key` | The entry with a given key, or nothing. Answers a `sought`. Keys are unique in any tree the library built; in one it did not, this returns the first in `walk` order and the caller has a tree to repair. |
 | `ancestors` | An entry's containing nodes, root-first. The chain ends at the tree root, which is a node and not an entry, so its element type is not the entry type. |
 | `distinguished_chain` | The distinguished child of each of an entry's ancestors, root-first, skipping levels that have none. |
 
@@ -554,9 +554,35 @@ either model — `operations.qnt` models reachability and resolves `by_key` by
 least internal id, and says so — so it rests on this paragraph and on the tests
 named for it.
 
+#### A search that matched nothing has a word
+
+Both searches above can match nothing, and neither answers `None`. They answer a
+**sought**: `Match` or `Nothing`.
+
+The library's other negative answer is a **refusal**, and every one of its
+variants is a refusal to *mutate*. A search is not a mutation — nothing was asked
+to change, so nothing can have been refused, and a tree holding no such key is
+not a damaged tree either. A store whose only word for *matched nothing* is
+`None` leaves that unsaid, and each consumer then invents its own word for the
+same concept; one word here is one word everywhere.
+
+The distinction is between a **search** and an **accessor**. A search takes a
+criterion and scans a set for it, and `Nothing` is a fact about the scan. An
+accessor reads an attribute off something already in hand — an entry's key, a
+node's contents — and its absence is a fact about that entry, not about any
+search; those keep the language's own optional. `Option` remains reachable from a
+sought by an explicit conversion, because a consumer's control flow is its own,
+but it appears in no signature this library owns.
+
+Neither model has this distinction, and neither moved for it. A search adds no
+state transition, and `operations.qnt` already resolves a key with `leastId`,
+which answers `-1` when nothing matched — an in-band sentinel, and exactly the
+shape a typed answer replaces. This is a Rust type-level statement of
+something both models had to spell some other way.
+
 There is no built-in notion of which entry is "next", "current" or "interesting",
 and **no lookup by label**. Those are questions about the consumer's attributes,
-and a predicate passed to `find` answers them without the library ever learning
+and a predicate passed to `seek` answers them without the library ever learning
 what it asked.
 
 Label lookup is absent because it is not expressible, not because it was left

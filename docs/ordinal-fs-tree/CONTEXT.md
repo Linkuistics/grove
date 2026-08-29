@@ -135,6 +135,31 @@ name halts the operation on the domain's behalf rather than being skipped.
 _Avoid_: "unknown" or "invalid" for `Foreign` — a foreign name is well outside
 the grammar, not wrong within it.
 
+### What a search answers
+
+**Search**:
+A reading operation that takes a criterion and scans a **snapshot** for it,
+answering a **sought**. There are two: `seek`, which takes the **consumer**'s
+own predicate, and `by_key`.
+_Avoid_: "find" and "lookup" — `find` is the iterator's word, and it answers in
+the language's vocabulary rather than this one.
+
+**Accessor**:
+A reading operation that takes no criterion and scans nothing — it reads an
+attribute off an **entry** or a level already in hand, such as an entry's **key**
+or a level's **distinguished child**. Its absent value answers the language's
+optional and never a **sought**.
+_Avoid_: "getter"; and _avoid_ calling one a **search** because it happens to be
+implemented over a walk.
+
+**Sought**:
+What a **search** answers: `Match` or `Nothing`. It is **not a refusal**: a
+refusal is an operation that was asked to change the tree and did not, where a
+search asked for no change at all.
+_Avoid_: "not found", "missing", "empty result"; and _avoid_ letting the
+language's optional stand in for it on a search — it is reachable from a sought
+only by asking.
+
 ### How a mutation happens
 
 **Snapshot**:
@@ -241,3 +266,21 @@ inside it.
 > wrong, return `Malformed` — or `Reserved` if it is a name that must stop the
 > operation rather than be skipped. The library never guesses which, because
 > guessing wrong on a directory would silently drop everything under it.
+>
+> **Consumer:** And when I ask for key 7 and there is no key 7, that is a
+> refusal, right? I'll handle it with the others.
+>
+> **Library author:** No — a search answers a *sought*, and `Nothing` is not a
+> refusal. Every refusal is a mutation that declined to change the tree; you
+> asked for no change, and a tree with no key 7 is not damaged. What you do
+> about it is yours: our own CLI decides that `show 7` is a failure and builds a
+> `TargetMissing` refusal to say so, while `list --first` decides the same
+> answer is an empty listing. Both are the consumer's policy over one library
+> answer.
+>
+> **Consumer:** So why does `key()` on an entry still hand me an optional?
+>
+> **Library author:** Because that is an accessor, not a search. It scanned
+> nothing — the distinguished child simply carries no key. `Nothing` says
+> something about a scan that happened; an absent key says something about the
+> entry you already had.

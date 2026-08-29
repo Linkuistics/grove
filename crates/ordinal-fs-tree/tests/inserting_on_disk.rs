@@ -57,7 +57,9 @@ fn documents_tree() -> (TempDir, PathBuf) {
 }
 
 fn walk(root: &Path) -> Vec<String> {
-    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(root).expect("a well-formed tree");
+    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     tree.walk().map(|e| e.name().to_string()).collect()
 }
 
@@ -77,6 +79,7 @@ fn an_inserted_leaf_shifts_the_occupant_and_every_later_sibling() {
     let (_temporary, root) = documents_tree();
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(
             Target::Root,
             Ordinal::new(2),
@@ -118,6 +121,7 @@ fn a_shifted_node_carries_its_whole_subtree_untouched() {
     let (_temporary, root) = documents_tree();
     ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(
             Target::Root,
             Ordinal::new(2),
@@ -165,6 +169,7 @@ fn the_report_shows_the_renames_highest_ordinal_first() {
     let (_temporary, root) = documents_tree();
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(
             Target::Root,
             Ordinal::new(1),
@@ -201,6 +206,7 @@ fn the_reports_paths_are_in_the_order_the_effects_landed() {
     let (_temporary, root) = documents_tree();
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(
             Target::Root,
             Ordinal::new(2),
@@ -226,6 +232,7 @@ fn an_insert_into_a_node_shifts_that_nodes_children() {
     let (_temporary, root) = documents_tree();
     ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(
             Target::Key(Key::new(2)),
             Ordinal::new(1),
@@ -258,6 +265,7 @@ fn an_inserted_node_is_a_directory() {
     let (_temporary, root) = documents_tree();
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(
             Target::Root,
             Ordinal::new(3),
@@ -281,6 +289,7 @@ fn inserting_past_the_last_sibling_is_refused_and_changes_nothing() {
     let before = walk(&root);
     let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(Target::Root, Ordinal::new(9), NewEntry::empty(draft("far")))
         .expect_err("past the end");
 
@@ -309,6 +318,7 @@ fn inserting_into_a_hand_edited_gap_is_refused_with_its_own_advice() {
 
     let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(
             Target::Root,
             Ordinal::new(3),
@@ -353,6 +363,7 @@ fn inserting_below_the_first_occupied_ordinal_is_refused_without_a_lower_neighbo
 
     let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(
             Target::Root,
             Ordinal::FIRST,
@@ -387,6 +398,7 @@ fn inserting_into_a_leaf_is_refused() {
     let (_temporary, root) = documents_tree();
     let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .insert(
             Target::Key(Key::new(1)),
             Ordinal::FIRST,

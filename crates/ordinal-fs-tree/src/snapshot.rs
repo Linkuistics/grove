@@ -540,6 +540,16 @@ impl<'a, N: EntryName> Container<'a, N> {
 }
 
 impl<N: EntryName> Snapshot<N> {
+    /// The snapshot of a tree that holds no names at all.
+    ///
+    /// What a **vacancy** is, as the algebra sees one: root initialization is
+    /// planned against this, so its arithmetic is the ordinary arithmetic over
+    /// an empty level rather than a special case. Not public — a consumer with
+    /// no tree has a `Vacancy`, which is the shape that also holds the lock.
+    pub(crate) fn empty() -> Self {
+        Builder::new().finish()
+    }
+
     /// The tree root: a node that is not an entry.
     #[must_use]
     pub fn root(&self) -> Container<'_, N> {

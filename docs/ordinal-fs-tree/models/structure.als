@@ -258,6 +258,39 @@ sig FsOther extends FsObject {}                    // symlink, socket, …
 
 one sig Tree { root: one FsDir }
 
+/* ---------------------------------------------------------------------------
+ * What a root path resolves to, before there is a tree to speak of
+ *
+ * `Tree.root` above is a `FsDir` by construction, and that is not an oversight:
+ * everything else in this file models the case where a tree IS there.  What it
+ * could not say until `open-shape-k25` is that *there is a tree here* has three
+ * answers rather than two, which is the shape `fs::read` and `fs::write` hand
+ * back.
+ *
+ * `at` is what the filesystem reports for the root path WITHOUT following the
+ * last component — `symlink_metadata`, not `metadata` — which is why a dangling
+ * symbolic link is `some at` and `KOther` rather than *nothing there*.  It
+ * resolves to nothing while plainly occupying the name, and treating it as a
+ * vacancy would send an initialization at a name already taken.  That
+ * distinction is the whole reason `at` is a `lone FileKind` and not a `lone
+ * FsObject`.
+ * ------------------------------------------------------------------------- */
+one sig RootPath { at: lone FileKind }
+
+/* Nothing is at the root.  The exclusive form of this is a *vacancy*, which
+   holds the lock and can be initialized. */
+pred RootIsVacant { no RootPath.at }
+
+/* A directory is at the root, which is what a tree is — the case the rest of
+   this file models. */
+pred RootIsATree { RootPath.at = KDir }
+
+/* Something is at the root that a tree cannot be.  Not a third answer a caller
+   can act on: the library will not move aside what it did not put there, so it
+   says what it found and stops. */
+pred RootIsNeither { some RootPath.at and RootPath.at != KDir }
+
+
 fact Filesystem {
   all x: FsFile  | x.fkind = KFile
   all d: FsDir   | d.fkind = KDir
@@ -361,6 +394,35 @@ assert TrichotomyIsTotalAndDisjoint {
   all x: FsObject | one x.vd
 }
 check TrichotomyIsTotalAndDisjoint for 4
+
+/* An opening is total and disjoint, exactly as the parse trichotomy is, and for
+   the same reason: `lone FileKind` plus one comparison is a sum type spelled
+   out.  The model adds nothing to it — what it adds is that the trichotomy is
+   *written down*, so a fourth answer, or a design that collapsed two of the
+   three, would have to change this. */
+assert OpeningIsTotalAndDisjoint {
+  RootIsVacant or RootIsATree or RootIsNeither
+  not (RootIsVacant and RootIsATree)
+  not (RootIsVacant and RootIsNeither)
+  not (RootIsATree  and RootIsNeither)
+}
+check OpeningIsTotalAndDisjoint for 4
+
+/* The third answer is reachable, which is what makes it worth having a word
+   for: a regular file, a socket, or a symbolic link naming nothing, wearing the
+   root's name. */
+run witness_a_root_that_is_neither_a_tree_nor_a_vacancy {
+  RootIsNeither
+} for 4
+
+/* And so is the second.  A vacancy is not an empty tree: this instance has no
+   root object at all, where an empty tree has a directory holding no entries —
+   `witness_root_is_a_node_that_is_not_an_entry` with `no entries` is that one.
+   The two admit different operations, and that is the whole distinction. */
+run witness_a_vacancy_is_not_an_empty_tree {
+  RootIsVacant
+  no entries
+} for 4
 
 /* At most one distinguished child per node — a theorem, not an invariant to
    enforce, given that `distinguished()` names one thing and a directory cannot

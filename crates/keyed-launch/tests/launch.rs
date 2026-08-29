@@ -185,8 +185,8 @@ fn a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace() {
     // mid-wait, and a long-lived grandchild would go on holding the inherited
     // stdout pipe after its parent is reaped — which hangs the test *runner*,
     // not the test.
-    let script =
-        harness.script("printf 'relaunch\\n' > \"$TEST_CHANNEL\"\nwhile : ; do sleep 0.05 ; done\n");
+    let script = harness
+        .script("printf 'relaunch\\n' > \"$TEST_CHANNEL\"\nwhile : ; do sleep 0.05 ; done\n");
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
 

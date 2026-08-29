@@ -105,43 +105,80 @@ pub(crate) fn append_many<N: EntryName>(
         Ok(resolved) => resolved,
         Err(refusal) => return Decision::Refuse(refusal),
     };
-    // Both counters come from this one snapshot, and both are read before any
-    // effect is built: `maxOrdIn(f, d)` and `freshKey(f)` in the model, taken
-    // once and walked forward. The ordinal is the level's, the key is the whole
-    // tree's — the names *are* the counter, and there is no file recording the
-    // next value because such a file is a second source of truth a hand edit
-    // can desynchronise.
-    let mut ordinal = last_ordinal(&container);
-    let mut key = greatest_key(snapshot);
-    let mut effects = Vec::with_capacity(entries.len());
-    for entry in entries {
-        if N::positioned_species(&entry.parts) == PositionedSpecies::Node
-            && !entry.content.is_empty()
-        {
-            return Decision::Refuse(Refusal::ContentForANode);
-        }
-        let (Some(next_ordinal), Some(next_key)) = (ordinal.checked_add(1), key.checked_add(1))
-        else {
-            return Decision::Refuse(if key.checked_add(1).is_none() {
-                Refusal::KeysExhausted
-            } else {
-                Refusal::OrdinalsExhausted
-            });
-        };
-        ordinal = next_ordinal;
-        key = next_key;
-        effects.push(Effect::Create {
-            at: level,
-            name: N::compose(Ordinal::new(ordinal), Key::new(key), entry.parts),
-            content: entry.content,
-        });
-    }
+    let effects = match creations(snapshot, level, &container, entries) {
+        Ok(effects) => effects,
+        Err(refusal) => return Decision::Refuse(refusal),
+    };
     // Guarded like every other plan, though nothing an `append` builds can
     // reach the refusal: every name it composes carries a key no entry in the
     // tree has, so no destination it computes can be taken. The guard is here
     // because it belongs to *plans*, not to operations — `insert` and `promote`
     // are what make it live — and because leaving it off here would make this
     // the one operation whose plan is unchecked.
+    Plan::of(effects).guarded(snapshot)
+}
+
+/// **`initialize`**: the first names a tree ever holds — a distinguished child
+/// carrying the root's own content, and a run of first entries at the root
+/// level.
+///
+/// Planned against an **empty** snapshot, because that is exactly what a vacancy
+/// is: a tree with no names, which is also what the arithmetic wants. The run
+/// starts at [`Ordinal::FIRST`] with key 1 because [`creations`] reads the
+/// level's greatest ordinal and the tree's greatest key off a snapshot holding
+/// neither, so no branch anywhere says *this is the first one*.
+///
+/// # The distinguished child is an ordinary effect
+///
+/// It has to be, and that it can be is the reason this operation needs no new
+/// trait method. A distinguished child carries no ordinal and no key, so
+/// [`NewEntry`] cannot describe it and [`EntryName::compose`] cannot build one —
+/// but [`EntryName::distinguished`] names it, and the library already places one
+/// that way when a promotion moves a leaf's bytes into a new node. So the same
+/// [`Effect::Create`] does it here, at [`Level::Root`], and
+/// `docs/adr/entry-name-is-the-only-seam.md` is untouched.
+///
+/// Bytes are `Option<Vec<u8>>` and not `Vec<u8>` because *no distinguished
+/// child* and *an empty one* are different trees, and a domain that has one
+/// should still be able to make a root without it.
+///
+/// # There is no root effect here
+///
+/// The root directory itself is not an entry: it has no name, so no effect can
+/// place it and no [`Report`](crate::Report) row can describe it. Creating it is
+/// the filesystem layer's, immediately before this plan is applied and under the
+/// lock the vacancy already holds — see [`Vacancy::initialize`].
+///
+/// [`Vacancy::initialize`]: crate::fs::Vacancy::initialize
+pub(crate) fn initialize<N: EntryName>(
+    snapshot: &Snapshot<N>,
+    distinguished: Option<Vec<u8>>,
+    entries: Vec<NewEntry<N::Parts>>,
+) -> Decision<N> {
+    let mut effects = Vec::with_capacity(entries.len() + 1);
+    if let Some(content) = distinguished {
+        // The same refusal a promotion gives, for the same reason: this domain
+        // has no distinguished child and these bytes have nowhere to go. Asked
+        // before the entries are looked at, exactly as `promote` asks before it
+        // looks at the parts — the answer is about the *domain*, so complaining
+        // about the rest of a call that could not have worked is less useful.
+        let Some(name) = N::distinguished() else {
+            return Decision::Refuse(Refusal::NoDistinguishedChild { promoting: None });
+        };
+        effects.push(Effect::Create {
+            at: Level::Root,
+            name,
+            content,
+        });
+    }
+    match creations(snapshot, Level::Root, &snapshot.root(), entries) {
+        Ok(created) => effects.extend(created),
+        Err(refusal) => return Decision::Refuse(refusal),
+    }
+    // Guarded like every other plan, and like `append`'s nothing it builds can
+    // reach the refusal: the level is empty, every composed name carries a
+    // distinct fresh key, and a distinguished child is never `same_name` as a
+    // positioned one. The guard is here because it belongs to plans.
     Plan::of(effects).guarded(snapshot)
 }
 
@@ -318,7 +355,9 @@ pub(crate) fn promote<N: EntryName>(
     // never promote anything, and saying so is more useful than complaining
     // about the parts of a call that could not have worked.
     let Some(distinguished) = N::distinguished() else {
-        return Decision::Refuse(Refusal::PromoteNoDistinguished { key });
+        return Decision::Refuse(Refusal::NoDistinguishedChild {
+            promoting: Some(key),
+        });
     };
     if N::positioned_species(&parts) != PositionedSpecies::Node {
         return Decision::Refuse(Refusal::PromotePartsNotNode { key });
@@ -475,6 +514,55 @@ pub(crate) fn rewrite<N: EntryName>(
         name: N::compose(triple.ordinal, triple.key, parts),
     }])
     .guarded(snapshot)
+}
+
+/// A run of creations at the end of one level: consecutive ordinals over the
+/// level's greatest, consecutive keys over the whole tree's.
+///
+/// The arithmetic of [`append_many`], extracted because [`initialize`] places
+/// its first entries by exactly the same rule — into a root that holds nothing,
+/// so the run starts at [`Ordinal::FIRST`] and at key 1 without either function
+/// having to say so. Two spellings of one rule are two things to keep in step,
+/// and the model has one: `planAppendMany`.
+///
+/// Both counters come from the one snapshot, and both are read before any effect
+/// is built: `maxOrdIn(f, d)` and `freshKey(f)` in the model, taken once and
+/// walked forward. The ordinal is the level's, the key is the whole tree's — the
+/// names *are* the counter, and there is no file recording the next value
+/// because such a file is a second source of truth a hand edit can
+/// desynchronise.
+fn creations<N: EntryName>(
+    snapshot: &Snapshot<N>,
+    level: Level,
+    container: &Container<'_, N>,
+    entries: Vec<NewEntry<N::Parts>>,
+) -> Result<Vec<Effect<N>>, Refusal> {
+    let mut ordinal = last_ordinal(container);
+    let mut key = greatest_key(snapshot);
+    let mut effects = Vec::with_capacity(entries.len());
+    for entry in entries {
+        if N::positioned_species(&entry.parts) == PositionedSpecies::Node
+            && !entry.content.is_empty()
+        {
+            return Err(Refusal::ContentForANode);
+        }
+        let (Some(next_ordinal), Some(next_key)) = (ordinal.checked_add(1), key.checked_add(1))
+        else {
+            return Err(if key.checked_add(1).is_none() {
+                Refusal::KeysExhausted
+            } else {
+                Refusal::OrdinalsExhausted
+            });
+        };
+        ordinal = next_ordinal;
+        key = next_key;
+        effects.push(Effect::Create {
+            at: level,
+            name: N::compose(Ordinal::new(ordinal), Key::new(key), entry.parts),
+            content: entry.content,
+        });
+    }
+    Ok(effects)
 }
 
 /// The level a container is, as a plan names it.

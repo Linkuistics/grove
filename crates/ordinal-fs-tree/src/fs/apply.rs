@@ -54,21 +54,7 @@ pub(super) fn apply<N: EntryName>(
     plan: &Plan<N>,
     faults: Faults,
 ) -> Result<Report<N>, Error<N>> {
-    // The seventh obligation, at the second of the two boundaries where a name
-    // becomes a path — and **before any effect runs**, so a plan carrying one
-    // bad name changes nothing rather than landing what it can and unwinding.
-    // The snapshot's own names were checked when it was read, so between the two
-    // checks every rendering this function will join is one path component.
-    for effect in plan.effects() {
-        let rendered = effect.name().to_string();
-        if let Some(reason) = crate::name::not_one_component(&rendered) {
-            return Err(Error::NameIsNotOneComponent {
-                root: root.to_path_buf(),
-                rendered,
-                reason,
-            });
-        }
-    }
+    names_are_one_component(root, plan)?;
     let mut run = Run {
         root,
         snapshot,
@@ -84,6 +70,37 @@ pub(super) fn apply<N: EntryName>(
         }
     }
     Ok(run.report)
+}
+
+/// The seventh obligation, at the second of the two boundaries where a name
+/// becomes a path.
+///
+/// Run **before any effect does**, so a plan carrying one bad name changes
+/// nothing rather than landing what it can and unwinding. The snapshot's own
+/// names were checked when it was read, so between the two checks every
+/// rendering [`apply`] will join is one path component.
+///
+/// Separate from [`apply`] — which still calls it, and is the only path most
+/// operations take — because [`Vacancy::initialize`] creates the tree root
+/// before applying anything, and a plan refused after that would leave an empty
+/// root behind while reporting an error that promises nothing changed.
+///
+/// [`Vacancy::initialize`]: super::Vacancy::initialize
+pub(super) fn names_are_one_component<N: EntryName>(
+    root: &Path,
+    plan: &Plan<N>,
+) -> Result<(), Error<N>> {
+    for effect in plan.effects() {
+        let rendered = effect.name().to_string();
+        if let Some(reason) = crate::name::not_one_component(&rendered) {
+            return Err(Error::NameIsNotOneComponent {
+                root: root.to_path_buf(),
+                rendered,
+                reason,
+            });
+        }
+    }
+    Ok(())
 }
 
 /// One application of one plan.

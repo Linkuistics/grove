@@ -53,7 +53,8 @@ fn documents_tree() -> (TempDir, PathBuf) {
 }
 
 fn read(root: &Path) -> Result<Vec<String>, Error<SyllabusName>> {
-    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(root)?;
+    let tree =
+        ordinal_fs_tree::fs::read::<SyllabusName>(root)?.expect_tree("a tree, not a vacancy");
     Ok(tree.walk().map(|e| e.name().to_string()).collect())
 }
 
@@ -89,7 +90,9 @@ fn the_documents_tree_reads_from_disk_in_walk_order() {
 #[test]
 fn a_search_answers_with_a_match_or_with_nothing() {
     let (_temporary, root) = documents_tree();
-    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&root).expect("a well-formed tree");
+    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
 
     match tree.by_key(Key::new(6)) {
         Sought::Match(entry) => assert_eq!(entry.name().to_string(), "02-draft-matrices-i6.md"),
@@ -103,7 +106,9 @@ fn a_search_answers_with_a_match_or_with_nothing() {
 
     // A predicate this tree satisfies, and one it cannot: the deepest entry sits
     // at depth 2. Neither answer says anything is wrong with the tree.
-    assert!(tree.seek(|entry| entry.species() == Species::Node).is_match());
+    assert!(tree
+        .seek(|entry| entry.species() == Species::Node)
+        .is_match());
     assert!(tree.seek(|entry| entry.depth() > 2).is_nothing());
 
     // The door, both ways, and it round-trips.
@@ -318,7 +323,9 @@ fn the_root_path_comes_back_the_way_it_went_in() {
     let (_temporary, root) = documents_tree();
     let roundabout = root.join("02-linear-algebra-i2").join("..");
 
-    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&roundabout).expect("the same tree");
+    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&roundabout)
+        .expect("the same tree")
+        .expect_tree("a tree, not a vacancy");
     assert_eq!(
         tree.root(),
         roundabout,
@@ -340,10 +347,14 @@ fn the_lock_covers_the_directory_containing_the_root() {
     let alpha = dir(temporary.path(), "alpha");
     let beta = dir(temporary.path(), "beta");
 
-    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&alpha).expect("an empty tree is a tree");
+    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&alpha)
+        .expect("an empty tree is a tree")
+        .expect_tree("a tree, not a vacancy");
     let (arrived, waiting) = mpsc::channel();
     let reader = thread::spawn(move || {
-        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&beta).expect("an empty tree");
+        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&beta)
+            .expect("an empty tree")
+            .expect_tree("a tree, not a vacancy");
         arrived
             .send(tree.walk().count())
             .expect("the test is waiting");
@@ -375,10 +386,14 @@ fn a_roundabout_spelling_of_one_tree_waits_on_the_direct_one() {
     let (_temporary, root) = documents_tree();
     let roundabout = root.join("02-linear-algebra-i2").join("..");
 
-    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     let (arrived, waiting) = mpsc::channel();
     let reader = thread::spawn(move || {
-        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&roundabout).expect("the same tree");
+        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&roundabout)
+            .expect("the same tree")
+            .expect_tree("a tree, not a vacancy");
         arrived
             .send(tree.root().to_path_buf())
             .expect("the test is waiting");
@@ -414,10 +429,14 @@ fn a_symlinked_root_waits_on_its_target() {
     let link = elsewhere.join("syllabus");
     std::os::unix::fs::symlink(&root, &link).expect("creating a symbolic link");
 
-    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     let (arrived, waiting) = mpsc::channel();
     let reader = thread::spawn(move || {
-        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&link).expect("the same tree");
+        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&link)
+            .expect("the same tree")
+            .expect_tree("a tree, not a vacancy");
         arrived
             .send(tree.walk().count())
             .expect("the test is waiting");
@@ -442,12 +461,15 @@ fn a_symlinked_root_waits_on_its_target() {
 #[test]
 fn two_readers_share_the_tree() {
     let (_temporary, root) = documents_tree();
-    let held = ordinal_fs_tree::fs::read::<SyllabusName>(&root).expect("a well-formed tree");
+    let held = ordinal_fs_tree::fs::read::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     let elsewhere = root.clone();
     let (arrived, waiting) = mpsc::channel();
     let reader = thread::spawn(move || {
-        let tree =
-            ordinal_fs_tree::fs::read::<SyllabusName>(&elsewhere).expect("a well-formed tree");
+        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&elsewhere)
+            .expect("a well-formed tree")
+            .expect_tree("a tree, not a vacancy");
         arrived
             .send(tree.walk().count())
             .expect("the test is waiting");
@@ -469,7 +491,9 @@ fn two_readers_share_the_tree() {
 #[test]
 fn a_writer_excludes_a_reader_until_it_is_dropped() {
     let (_temporary, root) = documents_tree();
-    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let held = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     assert_eq!(
         held.by_key(Key::new(2)).map(|e| e.species()),
         Sought::Match(Species::Node),
@@ -479,8 +503,9 @@ fn a_writer_excludes_a_reader_until_it_is_dropped() {
     let elsewhere = root.clone();
     let (arrived, waiting) = mpsc::channel();
     let reader = thread::spawn(move || {
-        let tree =
-            ordinal_fs_tree::fs::read::<SyllabusName>(&elsewhere).expect("a well-formed tree");
+        let tree = ordinal_fs_tree::fs::read::<SyllabusName>(&elsewhere)
+            .expect("a well-formed tree")
+            .expect_tree("a tree, not a vacancy");
         arrived
             .send(tree.walk().count())
             .expect("the test is waiting");

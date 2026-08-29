@@ -133,7 +133,7 @@ An **ordinal** appears in exactly one place — `lesson-insert` and
 
 ## The verbs
 
-Twelve, flat and hyphenated, so a single `syllabus --help` enumerates all of
+Thirteen, flat and hyphenated, so a single `syllabus --help` enumerates all of
 them. Aliases: `ls` for `list`, and nothing else.
 
 ### Reading
@@ -165,6 +165,7 @@ because that is the one thing about it a reader will guess wrong.
 
 | verb | library operation | stdout |
 |---|---|---|
+| `init [--overview <text>] [<label>…] [--status <s>]` | `initialize` | the overview, then one record per lesson created |
 | `lesson-add <parent> <label>… [--status <s>]` | `append_many` | one record per lesson created |
 | `module-add <parent> <label>…` | `append_many` | one record per module created |
 | `lesson-insert <parent> <at> <label> [--status <s>]` | `insert` | the new lesson |
@@ -370,8 +371,8 @@ should the caller do next*. Documented in `syllabus --help`.
 | `1` | the environment refused: `Error::Io`, `Error::NoContainingDirectory` | fix the path or the permissions |
 | `2` | usage: clap's own parse failure, an unparseable label, an unknown status | fix the arguments |
 | `3` | no entry has that key: `Refusal::TargetMissing` | `list` to find the key you meant |
-| `4` | refused: every other `Refusal` | read the message; it names the remedy |
-| `5` | this tree cannot be read as a syllabus: `Malformed`, `Reserved`, `NonUtf8Name`, `NameIsNotOneComponent` | a human fixes a filename; no retry helps |
+| `4` | refused: every other `Refusal`, and this CLI's own two — a root holding no tree, and an `init` over one that does | read the message; it names the remedy |
+| `5` | this tree cannot be read as a syllabus: `Malformed`, `Reserved`, `NonUtf8Name`, `NameIsNotOneComponent`, `RootIsNotATree` | a human fixes a filename, or moves aside whatever is sitting on the root; no retry helps |
 | `6` | the mutation failed and was rolled back: `Error::Failed` | **the tree is as it was found**; safe to retry |
 | `7` | the mutation failed and the rollback failed: `Error::FailedPartiallyRolledBack` | **do not retry**; the message says how to resolve it |
 
@@ -385,6 +386,11 @@ so it is inherited rather than chosen.
   an entry already carries is a rename onto its own path: it succeeds, changes
   nothing, and the report still names it — `operations.qnt`'s
   `wit_rewriteToSameParts`, held up by two mechanisms rather than one.
+- `init` is **not**, and pointedly so. A second `init` is refused rather than
+  being a no-op, because the call that thinks it is creating a course and the
+  call that finds one already there want different answers. The refusal is the
+  CLI's own: the library is never asked, since `initialize` lives on a vacancy
+  and the tree arm has no such method to call.
 - `lesson-add`, `module-add`, `lesson-insert`, `module-insert` and `promote` are
   **not**. Running an `add` twice creates two entries. After exit `6` a retry is
   safe because nothing landed; after a kill it is not, because what landed is
@@ -401,8 +407,16 @@ so it is inherited rather than chosen.
   lesson with `unpublish`, which is what an attribute is for. `syllabus --help`
   says this, and says that removing a file by hand damages key allocation for
   every later `add`.
-- **No `init`.** An empty directory *is* an empty tree — there is no index, no
-  database and no metadata file — so `mkdir` is the whole of it.
+- **`init` exists, and it did not always.** This section used to say *an empty
+  directory is an empty tree, so `mkdir` is the whole of it*, and that sentence
+  was true about the format and wrong about the operator. The format still has
+  no index, no database and no metadata file — but `mkdir` leaves the root's own
+  OVERVIEW to be written by hand, outside the lock and outside the store, and a
+  store that is the only thing touching the tree cannot have that hole at the
+  moment the tree comes into being. `init` closes it, and it is the **only**
+  verb that creates a tree: every other one refuses a root holding none rather
+  than creating it on the way past, so a mistyped `--root` is a refusal and not
+  a second course.
 - **No `--dry-run`.** A plan is internal by design: *a consumer calls
   `tree.insert(...)` and receives a report of what happened, never a plan to
   apply*. A preview would mean exposing one, which is a library decision and not
@@ -419,7 +433,7 @@ so it is inherited rather than chosen.
 - **No migration.** A name the domain recognises and cannot parse halts the
   operation with the domain's advice; nothing here rewrites a name it does not
   understand.
-- **No `llm-instructions` verb.** Twelve verbs fit in one `--help`, and a second
+- **No `llm-instructions` verb.** Thirteen verbs fit in one `--help`, and a second
   manual would restate it.
 
 ---
@@ -436,7 +450,7 @@ cannot cover and a reader should not go looking for.
 | `NoOccupantAtOrdinal` | yes, in all three of its messages — past the end, a gap, and a hole below the first, the last two on a hand-edited level |
 | `PromoteNotLeaf` | yes — `promote` a module |
 | `PromotePartsNotNode` | **no** — `promote` always composes module parts |
-| `PromoteNoDistinguished` | **no** — this domain has an overview |
+| `NoDistinguishedChild` | **no**, from either side — this domain has an overview, so neither `promote` nor `init --overview` can reach it |
 | `RewriteSpeciesChange` | **no** — `relabel` keeps the variant it read, `publish` applies only to a lesson |
 | `DestinationOccupied` | yes, on a tree hand-edited to duplicate a key |
 | `ContentForANode` | **no** — discharged by the verb set; no verb gives a module bytes |

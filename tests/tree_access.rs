@@ -280,10 +280,12 @@ fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
     callers.sort();
     assert_eq!(
         callers,
-        vec![("src/task_tree.rs".to_string(), 4)],
-        "the library's lock is `task_tree`'s to take: two guard type aliases and \
-         the two acquisitions themselves — shared and exclusive — and every \
-         reader in Grove goes through them. The count is the control — a pattern \
-         that stopped matching would leave this empty rather than clean."
+        vec![("src/task_tree.rs".to_string(), 5)],
+        "the library's lock is `task_tree`'s to take: two guard type aliases, the \
+         two acquisitions themselves — shared and exclusive — and the one import \
+         of `Reading`/`Writing`, which are the shapes those acquisitions now \
+         answer with. Every reader in Grove goes through them. The count is the \
+         control — a pattern that stopped matching would leave this empty rather \
+         than clean."
     );
 }

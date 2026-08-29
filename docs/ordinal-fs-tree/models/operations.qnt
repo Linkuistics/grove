@@ -120,7 +120,7 @@ module operations {
     | RefusedTargetNotNode
     | RefusedNoOccupantAtOrdinal
     | RefusedPromoteNotLeaf
-    | RefusedPromoteNoDistinguished
+    | RefusedNoDistinguishedChild
     | RefusedPromotePartsNotNode
     | RefusedRewriteSpeciesChange
     | RefusedDestinationOccupied
@@ -138,6 +138,7 @@ module operations {
     | TagInsert({ target: Target, at: int, parts: int })
     | TagPromote({ key: int, parts: int, withChild: bool })
     | TagRewrite({ key: int, parts: int })
+    | TagInitialize({ dist: bool, parts: List[int] })
     | TagHandEdit
 
   type Phase =
@@ -427,7 +428,7 @@ module operations {
     val i = resolve(f, ByKey(k))
     if (i == -1) Refuse(RefusedTargetMissing)
     else if (speciesOf(nameAt(f, i)) != LeafS) Refuse(RefusedPromoteNotLeaf)
-    else if (not(HAS_DISTINGUISHED)) Refuse(RefusedPromoteNoDistinguished)
+    else if (not(HAS_DISTINGUISHED)) Refuse(RefusedNoDistinguishedChild)
     else if (speciesOfParts(p) != NodeS) Refuse(RefusedPromotePartsNotNode)
     else
       val n = nameAt(f, i)
@@ -456,6 +457,37 @@ module operations {
       else guardDestinations(f, List(MoveTo({
         id: i, parent: parentOf(f, i), name: compose(ordOf(n), keyOf(n), p) })))
 
+  // --- initialize -----------------------------------------------------------
+
+  /// **`initialize`**: the first names a tree ever holds.
+  ///
+  /// A `Create` of a distinguished child at the root, optionally, followed by
+  /// the ordinary append run — which over an empty tree starts at ordinal 1 with
+  /// key 1 without any branch saying so, because `maxOrdIn` and `freshKey` read
+  /// an empty state.  The append half is `planAppendMany` with the target fixed
+  /// at `Root`, and it is spelled out here rather than delegated only because
+  /// the distinguished create has to come first in the same plan.
+  ///
+  /// **This is the one plan that CREATES a distinguished child.**  `planPromote`
+  /// only ever *moves* an existing inode to `Dist`, so every invariant about
+  /// distinguished children — uniqueness per level above all — met a `Dist` name
+  /// arriving by rename and never by creation until this transition existed.
+  ///
+  /// The root directory itself is NOT here, and cannot be: a plan places names,
+  /// and the root has none.  Whether the root exists is a filesystem fact this
+  /// model does not hold (see WHAT IS AND IS NOT MODELLED), and the vacancy /
+  /// tree / neither trichotomy that decides it is `structure.als`'s.
+  pure def planInitialize(f: Fs, dist: bool, ps: List[int]): Decision =
+    if (dist and not(HAS_DISTINGUISHED)) Refuse(RefusedNoDistinguishedChild)
+    else
+      val o0 = maxOrdIn(f, ROOT)
+      val k0 = freshKey(f)
+      val first = if (dist) List(Create({ id: f.nextId, parent: ROOT, name: Dist })) else List()
+      val plan = ps.indices().fold(first, (acc, ix) =>
+        acc.append(Create({ id: f.nextId + first.length() + ix, parent: ROOT,
+                            name: compose(o0 + ix + 1, k0 + ix, ps.nth(ix)) })))
+      guardDestinations(f, plan)
+
   // --- the one entry point --------------------------------------------------
 
   /// Totality, as a type.  `decide` returns a `Decision` for every state and
@@ -471,6 +503,7 @@ module operations {
       | TagInsert(a)       => planInsert(f, a.target, a.at, a.parts)
       | TagPromote(a)      => planPromote(f, a.key, a.parts, a.withChild)
       | TagRewrite(a)      => planRewrite(f, a.key, a.parts)
+      | TagInitialize(a)   => planInitialize(f, a.dist, a.parts)
     }
 
   // -------------------------------------------------------------------------
@@ -737,6 +770,16 @@ module operations {
         beginOp(TagInsert({ target: t, at: at, parts: p })),
         beginOp(TagPromote({ key: k, parts: p, withChild: wc })),
         beginOp(TagRewrite({ key: k, parts: p })),
+        // **The one action that is DISABLED rather than refused**, and that is
+        // the modelling statement.  `initialize` lives on a vacancy, so calling
+        // it on a live tree is not a refusal the library states — it is a
+        // program that does not typecheck.  A guard is the model's way of
+        // saying *not expressible*, where a `Refuse(…)` branch would say
+        // *expressible and answered*, and the two are different claims.
+        all { fs.objects.keys().size() == 0,
+              beginOp(TagInitialize({ dist: wc, parts: List(p) })) },
+        all { fs.objects.keys().size() == 0,
+              beginOp(TagInitialize({ dist: wc, parts: List() })) },
       },
     }
 
@@ -813,17 +856,20 @@ module operations {
   pure def isPromote(t: OpTag): bool =
     match t { TagPromote(a) => true | TagNone => false | TagAppend(a) => false
             | TagAppendMany(a) => false | TagInsert(a) => false
-            | TagRewrite(a) => false | TagHandEdit => false }
+            | TagRewrite(a) => false | TagHandEdit => false
+            | TagInitialize(a) => false }
 
   pure def isInsert(t: OpTag): bool =
     match t { TagInsert(a) => true | TagNone => false | TagAppend(a) => false
             | TagAppendMany(a) => false | TagPromote(a) => false
-            | TagRewrite(a) => false | TagHandEdit => false }
+            | TagRewrite(a) => false | TagHandEdit => false
+            | TagInitialize(a) => false }
 
   pure def isAppendMany(t: OpTag): bool =
     match t { TagAppendMany(a) => true | TagNone => false | TagAppend(a) => false
             | TagInsert(a) => false | TagPromote(a) => false
-            | TagRewrite(a) => false | TagHandEdit => false }
+            | TagRewrite(a) => false | TagHandEdit => false
+            | TagInitialize(a) => false }
 
   /// True exactly while a promotion is between its two effects.
   val midPromote: bool = not(atRest) and isPromote(op.tag)
@@ -947,6 +993,7 @@ module operations {
             }
         | TagNone => true | TagAppend(a) => true | TagAppendMany(a) => true
         | TagPromote(a) => true | TagRewrite(a) => true | TagHandEdit => true
+        | TagInitialize(a) => true
       }
 
   /// "A promoted leaf keeps its ordinal and its key.  The entry that was a
@@ -977,6 +1024,7 @@ module operations {
             }
         | TagNone => true | TagAppend(a) => true | TagAppendMany(a) => true
         | TagInsert(a) => true | TagRewrite(a) => true | TagHandEdit => true
+        | TagInitialize(a) => true
       }
 
   /// "`rewrite` replaces an entry's parts, keeping its ordinal, key and
@@ -1000,6 +1048,7 @@ module operations {
             }
         | TagNone => true | TagAppend(a) => true | TagAppendMany(a) => true
         | TagInsert(a) => true | TagPromote(a) => true | TagHandEdit => true
+        | TagInitialize(a) => true
       }
 
   /// `append` adds one entry at the end of a level and touches nothing else.
@@ -1019,6 +1068,7 @@ module operations {
             }
         | TagNone => true | TagInsert(a) => true | TagAppendMany(a) => true
         | TagPromote(a) => true | TagRewrite(a) => true | TagHandEdit => true
+        | TagInitialize(a) => true
       }
 
   // ===========================================================================
@@ -1034,7 +1084,9 @@ module operations {
   val wit_refusedTargetNotNode: bool          = atRest and op.outcome == RefusedTargetNotNode
   val wit_refusedNoOccupantAtOrdinal: bool    = atRest and op.outcome == RefusedNoOccupantAtOrdinal
   val wit_refusedPromoteNotLeaf: bool         = atRest and op.outcome == RefusedPromoteNotLeaf
-  val wit_refusedPromoteNoDistinguished: bool = atRest and op.outcome == RefusedPromoteNoDistinguished
+  /// One refusal, two operations: `promote` and `initialize` both meet it, and
+  /// `wit_refusedNoDistinguishedChildOnInitialize` below is the second half.
+  val wit_refusedNoDistinguishedChild: bool   = atRest and op.outcome == RefusedNoDistinguishedChild
   val wit_refusedPromotePartsNotNode: bool    = atRest and op.outcome == RefusedPromotePartsNotNode
   val wit_refusedRewriteSpeciesChange: bool   = atRest and op.outcome == RefusedRewriteSpeciesChange
   val wit_refusedDestinationOccupied: bool    = atRest and op.outcome == RefusedDestinationOccupied
@@ -1060,6 +1112,7 @@ module operations {
             d != -1 and a.at > maxOrdIn(bf, d)
         | TagNone => false | TagAppend(a) => false | TagAppendMany(a) => false
         | TagPromote(a) => false | TagRewrite(a) => false | TagHandEdit => false
+        | TagInitialize(a) => false
       }
 
   /// The SAME refusal, on a hole at or below the level's greatest ordinal.  The
@@ -1084,6 +1137,7 @@ module operations {
             d != -1 and a.at < maxOrdIn(bf, d)
         | TagNone => false | TagAppend(a) => false | TagAppendMany(a) => false
         | TagPromote(a) => false | TagRewrite(a) => false | TagHandEdit => false
+        | TagInitialize(a) => false
       }
 
   // --- structures the design deliberately admits ----------------------------
@@ -1145,11 +1199,38 @@ module operations {
 
   val wit_appendManySucceeded: bool = succeeded and isAppendMany(op.tag)
 
+  pure def isInitialize(t: OpTag): bool =
+    match t { TagInitialize(a) => true | TagNone => false | TagAppend(a) => false
+            | TagAppendMany(a) => false | TagInsert(a) => false
+            | TagPromote(a) => false | TagRewrite(a) => false | TagHandEdit => false }
+
+  /// A tree, from nothing.  The transition `open-shape-k25` added, and the only
+  /// one that creates a distinguished child rather than renaming an inode onto
+  /// one.
+  val wit_initializeSucceeded: bool = succeeded and isInitialize(op.tag)
+
+  /// And with the distinguished child, specifically — the effect shape no other
+  /// plan builds.  Dead here would mean the `Dist` create is never exercised
+  /// against the invariants, which is the whole reason the transition exists.
+  val wit_initializeWritesADistinguishedChild: bool =
+    succeeded and match op.tag {
+      | TagInitialize(a) => a.dist
+      | TagNone => false | TagAppend(a) => false | TagAppendMany(a) => false
+      | TagInsert(a) => false | TagPromote(a) => false | TagRewrite(a) => false
+      | TagHandEdit => false
+    }
+
+  /// The second half of `RefusedNoDistinguishedChild`: one refusal, reached
+  /// from two operations.  Live only in the `no_distinguished` instance.
+  val wit_refusedNoDistinguishedChildOnInitialize: bool =
+    atRest and op.outcome == RefusedNoDistinguishedChild and isInitialize(op.tag)
+
   val wit_promoteWithChild: bool =
     succeeded and match op.tag {
       | TagPromote(a) => a.withChild
       | TagNone => false | TagAppend(a) => false | TagAppendMany(a) => false
       | TagInsert(a) => false | TagRewrite(a) => false | TagHandEdit => false
+      | TagInitialize(a) => false
     }
 
   /// A rewrite whose new parts equal the old: a rename onto itself.  It must
@@ -1160,6 +1241,7 @@ module operations {
       | TagRewrite(a) => partsOf(nameAt(beforeFs(op), resolve(beforeFs(op), ByKey(a.key)))) == a.parts
       | TagNone => false | TagAppend(a) => false | TagAppendMany(a) => false
       | TagInsert(a) => false | TagPromote(a) => false | TagHandEdit => false
+      | TagInitialize(a) => false
     }
 }
 

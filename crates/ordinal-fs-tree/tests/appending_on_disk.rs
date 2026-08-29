@@ -53,7 +53,9 @@ fn documents_tree() -> (TempDir, PathBuf) {
 }
 
 fn walk(root: &Path) -> Vec<String> {
-    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(root).expect("a well-formed tree");
+    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     tree.walk().map(|e| e.name().to_string()).collect()
 }
 
@@ -65,6 +67,7 @@ fn an_appended_leaf_appears_with_its_bytes() {
     let (_temporary, root) = documents_tree();
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .append(
             Target::Root,
             NewEntry::new(draft("conclusion"), b"# Conclusion\n".to_vec()),
@@ -102,6 +105,7 @@ fn an_appended_node_is_a_directory() {
     let (_temporary, root) = documents_tree();
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .append(Target::Root, NewEntry::empty(topic("topology")))
         .expect("a clean run");
 
@@ -114,6 +118,7 @@ fn an_appended_node_is_a_directory() {
     assert_eq!(
         ordinal_fs_tree::fs::read::<SyllabusName>(&root)
             .expect("a well-formed tree")
+            .expect_tree("a tree, not a vacancy")
             .by_key(Key::new(10))
             .map(|entry| entry.species()),
         Sought::Match(Species::Node)
@@ -128,6 +133,7 @@ fn an_append_into_a_node_lands_inside_it() {
     let (_temporary, root) = documents_tree();
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .append(
             Target::Key(Key::new(2)),
             NewEntry::new(draft("eigenvalues"), b"lambda".to_vec()),
@@ -149,6 +155,7 @@ fn a_run_of_appends_lands_whole_and_consecutive() {
     let (_temporary, root) = documents_tree();
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .append_many(
             Target::Root,
             vec![
@@ -183,6 +190,7 @@ fn a_run_of_nothing_changes_nothing() {
     let before = walk(&root);
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .append_many(Target::Root, Vec::new())
         .expect("a plan of no effects");
     assert!(report.created().is_empty());
@@ -197,6 +205,7 @@ fn appending_into_a_leaf_is_refused_with_advice() {
     let (_temporary, root) = documents_tree();
     let refused = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .append(Target::Key(Key::new(1)), NewEntry::empty(draft("inside")))
         .expect_err("a lesson is a leaf");
 
@@ -217,6 +226,7 @@ fn appending_into_a_key_that_names_nothing_is_refused() {
     let (_temporary, root) = documents_tree();
     let refused = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .append(Target::Key(Key::new(99)), NewEntry::empty(draft("nowhere")))
         .expect_err("no entry has key 99");
     assert!(matches!(
@@ -233,6 +243,7 @@ fn bytes_for_a_node_are_refused() {
     let (_temporary, root) = documents_tree();
     let refused = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .append(
             Target::Root,
             NewEntry::new(topic("topology"), b"where would this go?".to_vec()),
@@ -270,6 +281,7 @@ fn the_reported_paths_keep_the_callers_spelling() {
     let roundabout = root.join("02-linear-algebra-i2").join("..");
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&roundabout)
         .expect("the same tree")
+        .expect_tree("a tree, not a vacancy")
         .append(Target::Root, NewEntry::empty(draft("conclusion")))
         .expect("a clean run");
 

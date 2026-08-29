@@ -531,6 +531,82 @@ offering a call refused by construction. The behavioural model splits them the
 same way — `TagPromote` and `TagRewrite` carry a key where `TagInsert` carries a
 target.
 
+### Opening a tree, which is where every operation starts
+
+Nothing above is reachable until the library has been asked for a tree at a
+root, and that ask has three possible answers, not two.
+
+| answer | what it is | what can be done with it |
+|---|---|---|
+| the tree | a directory is there | every operation on this page |
+| a **vacancy** | nothing is there | `initialize`, and nothing else |
+| an error | something is there that a tree cannot be — a regular file, a socket, a symbolic link naming one, a dangling one | nothing; a human moves it aside |
+
+The reading form answers the first two as *the tree* or *nothing*; the writing
+form answers them as *the tree* or **a vacancy**, and the difference is the whole
+reason this is a shape rather than a predicate.
+
+#### Why there is no `exists`
+
+A predicate beside an opening is a check-then-act split, and the act it splits
+from is **creating a tree**. Between *there is no tree* and *make one* another
+writer fits, and the loser of that race either overwrites a tree it thought was
+absent or fails in a way neither caller asked about. So the question is answered
+by the shape the opening hands back: one lock acquisition, and the answer arrives
+carrying the operations valid for it.
+
+A **vacancy holds the exclusive lock**. That is what makes it a guard rather than
+a report of a past observation, and it is buyable only because the lock is on the
+directory *containing* the root — which exists before the root does and persists
+after it is deleted. The whole of the locking rule, stated once for ordinary
+operations, is what makes creation coverable at all.
+
+What this buys is a class of call the type system refuses to spell. `initialize`
+is on the vacancy and nowhere else, so **initializing over a live tree does not
+compile**; the mutations are on the write guard and nowhere else, so **mutating a
+tree that is not there does not compile** either. Neither is a refusal this
+library states, because neither is a call it can be asked. Two `compile_fail` doc
+tests on the vacancy type are the proof, and they are the honest form of the
+claim: a run-time test could only show that *this* ill-formed call was refused,
+where a compile-fail shows it could not be written.
+
+#### Why the third answer is an error and not a variant
+
+A root occupied by something that is not a directory is neither of the two
+answers a caller can act on. Reporting it as a vacancy would send `initialize` at
+a name that is already taken; reporting it as a tree would ask for a listing of
+something that has none. And the library will not move it aside, because it
+cannot know what it is — the same reason every halt on this page is a halt. So it
+says what it found and stops, and *what it found* is carried, so the message can
+name it.
+
+The decision follows symbolic links, because a link naming a directory is an
+accepted spelling of a root. A link naming **nothing** is therefore not a
+vacancy: it resolves to nothing while plainly occupying the name, and an
+`initialize` sent at it would collide.
+
+A dangling link is also the one answer decided **before** the lock rather than
+under it, and that is deliberate. Its last component is followed, so the
+directory containing it and the directory containing its eventual target are
+different — the lock would be taken on one while another spelling of the same
+tree took the other, which is exactly the defect `reading-k19` closed. There is
+no operation to protect by locking first, because the answer is a refusal either
+way; what it costs is that a link resolving in the same instant is reported
+stale, which is an observation and never a mutation.
+
+The route this rests on is *whether the kernel follows the last component*, and
+not *whether the root resolves*. Where the last component is a plain name — one
+with nothing at it, a regular file, a socket — the directory holding it is its
+lexical parent by definition, and the two routes cannot disagree. That is what
+makes a vacancy lockable at all, and it is a narrower claim than *the root does
+not resolve*, which a dangling link also satisfies.
+
+#### An empty directory is a tree, and a vacancy is not
+
+They are different, and the difference is which operations exist. An empty root
+directory is a tree holding no entries: append into it, walk it, and it answers.
+A vacancy is no tree at all, and the only thing it admits is being made into one.
+
 ### Reading
 
 | operation | behaviour |
@@ -597,6 +673,7 @@ positioned name's view and a label is not.
 
 | operation | behaviour |
 |---|---|
+| `initialize` | Create the tree: the root directory, optionally its distinguished child carrying the root's own bytes, and a first run of entries — all under the lock a **vacancy** already holds. The only operation that creates a root, and the only one not on a write guard. |
 | `append` | Add a child at the end of a node: the next free ordinal, a fresh key. |
 | `append_many` | Add several children at consecutive ordinals with consecutive keys, planned from one snapshot and applied as a unit. Either the whole run lands or none of it does. |
 | `insert` | Add a child at an occupied ordinal, shifting the occupant and every later sibling up by one. Each shift is one rename; a shifted node carries its whole subtree. |
@@ -686,7 +763,8 @@ and none is left undefined.
   `docs/formalism-findings.md` entry 014 carries it.
 - `promote` is refused outright in a domain with no distinguished child
   (`distinguished()` is `None`), because the leaf's content would have nowhere
-  to go and discarding it silently is not an option.
+  to go and discarding it silently is not an option. This is the refusal
+  `initialize` shares, above.
 - `promote` is refused when the supplied parts do not imply species `Node` —
   the same check `rewrite` makes, with the opposite verdict.
 - `rewrite` is refused when the new parts imply a different species.

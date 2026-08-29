@@ -43,6 +43,7 @@ use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
+use ordinal_fs_tree::fs::{Reading, Writing};
 use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Sought, Verdict};
 
 use crate::leaf::Kind;
@@ -70,7 +71,12 @@ pub fn read(grove_root: &Path) -> Result<Tree> {
     READ_COUNT.with(|count| count.set(count.get() + 1));
 
     announce_contention(grove_root, libc::LOCK_SH);
-    ordinal_fs_tree::fs::read::<TaskName>(grove_root).map_err(|error| restate(grove_root, &error))
+    match ordinal_fs_tree::fs::read::<TaskName>(grove_root)
+        .map_err(|error| restate(grove_root, &error))?
+    {
+        Reading::Tree(tree) => Ok(tree),
+        Reading::Vacant => Err(absent_tree(grove_root)),
+    }
 }
 
 /// The task tree, read once under the library's **exclusive** lock — the
@@ -102,7 +108,30 @@ pub(crate) fn reopen_write(grove_root: &Path) -> Result<TreeWrite> {
     #[cfg(test)]
     READ_COUNT.with(|count| count.set(count.get() + 1));
 
-    ordinal_fs_tree::fs::write::<TaskName>(grove_root).map_err(|error| restate(grove_root, &error))
+    match ordinal_fs_tree::fs::write::<TaskName>(grove_root)
+        .map_err(|error| restate(grove_root, &error))?
+    {
+        Writing::Tree(tree) => Ok(tree),
+        // Grove does not create a task tree here, and the vacancy arm's ability
+        // to do so is deliberately unused: `grove new` is what makes a grove,
+        // and a verb that made one on the way past would turn a mistyped root
+        // into a second workstream. `collapse-tree-access-k13` is where that
+        // decision is revisited, not here.
+        Writing::Vacancy(_) => Err(absent_tree(grove_root)),
+    }
+}
+
+/// The diagnostic for a root that holds no tree — **moved, not redesigned**.
+///
+/// It is the sentence Grove's own lock layer produced when it met a missing
+/// grove root (`tree_access::require_grove_root`), and the one [`restate`] still
+/// produces for the *other* conditions it re-words. What changed at
+/// `open-shape-k25` is only where the condition is decided: the library used to
+/// meet a missing root as an I/O failure and Grove re-worded it, and now the
+/// library has a word of its own for it — a vacancy — so Grove reads the shape
+/// instead of the error and says the same thing.
+fn absent_tree(grove_root: &Path) -> anyhow::Error {
+    anyhow!("grove root not found: {}", grove_root.display())
 }
 
 /// Turn a library error raised by a *mutation* into Grove's own.

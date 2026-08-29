@@ -145,6 +145,40 @@ pub enum Error<N: EntryName> {
         /// Why that is not a filename.
         reason: &'static str,
     },
+    /// Something is at the tree root that a tree cannot be: a regular file, a
+    /// socket, a symbolic link naming one of those, or a dangling one.
+    ///
+    /// The **third** answer to *is there a tree here*, and the reason that
+    /// question is a trichotomy rather than a pair. [`fs::read`] and
+    /// [`fs::write`] answer the other two as shapes — a tree, or a vacancy the
+    /// caller may initialize — and neither of those is honest about a root
+    /// occupied by something else: reporting it as a vacancy would send
+    /// `initialize` at a name that is already taken, and reporting it as a tree
+    /// would ask the listing for a directory that is not one.
+    ///
+    /// It is an error and not a variant of either shape for the reason every
+    /// halt in this module is one: nothing here can know whether the thing
+    /// sitting there is precious, so removing it is not the library's to
+    /// choose. `found` is what it turned out to be, so the message can say.
+    ///
+    /// Decided by **following** symbolic links, because a link naming a
+    /// directory is an accepted spelling of a root — see
+    /// `fs::read::containing_directory`. A link naming nothing is therefore
+    /// [`Found::Other`]: it is not a directory, and it is not nothing either,
+    /// since it occupies the name.
+    ///
+    /// *Neither model can pose this*: both hold trees, and a root that is not a
+    /// directory is not a tree for them to hold.
+    ///
+    /// [`fs::read`]: crate::fs::read
+    /// [`fs::write`]: crate::fs::write
+    /// [`Found::Other`]: crate::Found::Other
+    RootIsNotATree {
+        /// The root as the caller spelled it.
+        root: PathBuf,
+        /// What is there instead of a tree.
+        found: crate::Found,
+    },
     /// The tree root has no containing directory, so there is nothing to lock.
     ///
     /// The advisory lock is taken on the directory *containing* the root — it
@@ -229,6 +263,11 @@ impl<N: EntryName> fmt::Debug for Error<N> {
                 .field("rendered", rendered)
                 .field("reason", reason)
                 .finish(),
+            Self::RootIsNotATree { root, found } => f
+                .debug_struct("RootIsNotATree")
+                .field("root", root)
+                .field("found", found)
+                .finish(),
             Self::NoContainingDirectory { root } => f
                 .debug_struct("NoContainingDirectory")
                 .field("root", root)
@@ -310,6 +349,14 @@ impl<N: EntryName> fmt::Display for Error<N> {
                  before there is a tree.",
                 root.display()
             ),
+            Self::RootIsNotATree { root, found } => write!(
+                f,
+                "the tree root {} is {found}, and a tree is a directory. Nothing was \
+                 changed: this library will not move aside or replace something it \
+                 did not put there, because it cannot know what it is. Move it out \
+                 of the way yourself, or name a different root.",
+                root.display()
+            ),
             Self::NoContainingDirectory { root } => write!(
                 f,
                 "the tree root {} has no containing directory to lock. \
@@ -336,6 +383,7 @@ impl<N: EntryName> std::error::Error for Error<N> {
             Self::Refused(_)
             | Self::NonUtf8Name { .. }
             | Self::NameIsNotOneComponent { .. }
+            | Self::RootIsNotATree { .. }
             | Self::NoContainingDirectory { .. } => None,
         }
     }

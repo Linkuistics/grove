@@ -66,7 +66,9 @@ fn documents_tree() -> (TempDir, PathBuf) {
 }
 
 fn walk(root: &Path) -> Vec<String> {
-    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(root).expect("a well-formed tree");
+    let tree = ordinal_fs_tree::fs::read::<SyllabusName>(root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     tree.walk().map(|e| e.name().to_string()).collect()
 }
 
@@ -109,6 +111,7 @@ fn a_rewritten_lesson_keeps_its_place_and_stays_the_same_file() {
 
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .rewrite(Key::new(9), published("assessment"))
         .expect("a clean run");
 
@@ -176,6 +179,7 @@ fn a_rewritten_node_carries_its_whole_subtree_untouched() {
 
     ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .rewrite(Key::new(2), topic("linear-algebra-revised"))
         .expect("a clean run");
 
@@ -232,6 +236,7 @@ fn rewriting_to_the_parts_an_entry_already_carries_succeeds_and_changes_nothing(
 
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .rewrite(Key::new(9), draft("assessment"))
         .expect("a no-op is a clean run, not a collision with itself");
 
@@ -262,6 +267,7 @@ fn rewriting_a_lesson_into_a_module_is_refused_and_changes_nothing() {
 
     let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .rewrite(Key::new(9), topic("assessment"))
         .expect_err("a file cannot be renamed into a directory");
     let refused = refusal(error);
@@ -294,6 +300,7 @@ fn rewriting_a_module_into_a_lesson_is_refused_with_no_remedy_to_offer() {
 
     let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .rewrite(Key::new(2), draft("linear-algebra"))
         .expect_err("a directory cannot be renamed into a file");
     let refused = refusal(error);
@@ -321,6 +328,7 @@ fn rewriting_a_key_that_names_nothing_is_refused_and_changes_nothing() {
 
     let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy")
         .rewrite(Key::new(404), draft("nothing"))
         .expect_err("no entry carries that key");
 

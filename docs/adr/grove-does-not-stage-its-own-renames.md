@@ -28,6 +28,16 @@ is the point — and that is a whole-transaction operation naming its own filese
 The distinction that survives is between committing, which is version control,
 and renaming a file, which is not.
 
+The store now creates and deletes tree **roots** as well as moving entries
+within one, and that widening does not move this decision — the reasoning above
+never turned on the effect being a rename. A `mkdir` and an `rmdir` are working-
+copy changes exactly as `rename(2)` is: Jujutsu snapshots them on its next
+command, so `jj status` shows an added or removed path the moment the verb
+returns, and there is still nothing for Grove to stage afterwards. What the
+decision rules out is a *repository-aware* mutation path, and a store that
+creates a root without detecting a repository is one more operation that does not
+have one.
+
 Dropping the plain-Git lane ([*jj is the only lane*](jj-is-the-only-lane.md))
 made the decision cheaper rather than changing it: there is no index left for an
 unstaged rename to be half-recorded in, so the pre-commit window this used to

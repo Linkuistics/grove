@@ -53,7 +53,7 @@ use ordinal_fs_tree::{
     version,
     about = "Drive a course syllabus stored as a directory tree.",
     long_about = LONG_ABOUT,
-    // Twelve verbs, flat and hyphenated, so one `syllabus --help` enumerates
+    // Thirteen verbs, flat and hyphenated, so one `syllabus --help` enumerates
     // all of them: a caller that has lost its bearings recovers in one call.
     subcommand_required = true,
     arg_required_else_help = true
@@ -138,14 +138,17 @@ THERE IS NO REMOVAL
   for. Removing a file by hand damages key allocation for every later add.
 
 OTHER THINGS WORTH KNOWING
-  There is no `init`: an empty directory IS an empty tree, so `mkdir` is the
-  whole of it. There is no `--dry-run`: a plan is internal by design. There are
+  `init` creates the tree, and it is the only verb that does — every other one
+  refuses a root holding no tree rather than creating one on the way past. It
+  takes the lock before deciding the root is empty and still holds it while
+  creating it, so two racing `init`s cannot both succeed.
+  There is no `--dry-run`: a plan is internal by design. There are
   no lock flags: every verb takes an advisory lock on the directory containing
   the root and BLOCKS until the tree is free — a hang is a lock and not a bug.
   Nothing is staged in version control; a rename is rename(2).
 
 EXAMPLES
-  mkdir syllabus
+  syllabus --root syllabus init --overview 'An introduction.'
   syllabus --root syllabus module-add . linear-algebra
   syllabus --root syllabus lesson-add 1 vectors matrices
   syllabus --root syllabus list
@@ -156,6 +159,42 @@ SEE ALSO
 
 #[derive(Subcommand)]
 enum Verb {
+    /// Create the tree: the root directory, its OVERVIEW, and any first lessons.
+    ///
+    /// The one verb that runs against a root holding no tree, and the only one
+    /// that creates one. It takes the exclusive lock *before* deciding the tree
+    /// is absent and still holds it while creating it, so two `init`s racing on
+    /// one root cannot both succeed — the loser finds a tree and is refused.
+    ///
+    /// NOT idempotent, and deliberately not: a second `init` is refused rather
+    /// than being a no-op, because the call that thinks it is creating a course
+    /// and the call that finds one already there want different answers.
+    #[command(after_help = "\
+EXAMPLES
+  syllabus --root course init
+  syllabus --root course init --overview 'An introduction.'
+  syllabus --root course init orientation prerequisites
+
+SEE ALSO
+  lesson-add, module-add")]
+    Init {
+        /// The course's own content, written into the root's OVERVIEW.md.
+        ///
+        /// Omit it and the root has no OVERVIEW at all, which is a different
+        /// tree from one whose OVERVIEW is empty — pass `--overview ''` for
+        /// that.
+        #[arg(long, value_name = "TEXT")]
+        overview: Option<String>,
+
+        /// Labels for the first lessons, in the order they should appear.
+        #[arg(num_args = 0.., value_name = "LABEL", value_parser = parse_label)]
+        labels: Vec<Label>,
+
+        /// The status every lesson in this run starts at.
+        #[arg(long, value_name = "STATUS", default_value = "draft", value_parser = parse_status)]
+        status: Status,
+    },
+
     /// List entries in walk order.
     ///
     /// Depth-first, pre-order: within a level the OVERVIEW comes first, then
@@ -596,6 +635,9 @@ impl Failure {
 fn exit_code(error: &Error<SyllabusName>) -> u8 {
     match error {
         Error::Io { .. } | Error::NoContainingDirectory { .. } => 1,
+        // A human moves whatever is sitting on the root out of the way; no
+        // retry helps, and this library will not clear it away.
+        Error::RootIsNotATree { .. } => 5,
         Error::Refused(refusal) => refusal_code(refusal),
         // A human fixes a filename; no retry helps.
         Error::Malformed { .. }
@@ -804,6 +846,11 @@ fn main() {
 
 fn run(cli: &Cli, streams: &Streams) -> Result<(), Failure> {
     match &cli.verb {
+        Verb::Init {
+            overview,
+            labels,
+            status,
+        } => init(cli, streams, overview.as_deref(), labels, *status),
         Verb::List {
             under,
             status,
@@ -863,6 +910,43 @@ fn run(cli: &Cli, streams: &Streams) -> Result<(), Failure> {
 }
 
 // ---------------------------------------------------------------------------
+// Opening: a tree, or the advice that there is none
+// ---------------------------------------------------------------------------
+
+/// The tree under a shared lock, or this CLI's refusal to invent one.
+///
+/// The library answers *is there a tree here* with a shape rather than a
+/// predicate, so every verb below meets the vacancy in the same place and says
+/// the same thing about it. Which is: nothing here creates a tree except `init`.
+/// A read verb that silently printed an empty listing would be reporting a tree
+/// that does not exist, and a mutation that created the tree on the way past
+/// would make `mkdir` and a typo indistinguishable.
+fn reading(cli: &Cli) -> Result<fs::ReadGuard<SyllabusName>, Failure> {
+    match fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))? {
+        fs::Reading::Tree(tree) => Ok(tree),
+        fs::Reading::Vacant => Err(Failure::own(no_tree(&cli.root))),
+    }
+}
+
+/// The tree under an exclusive lock, or the same refusal.
+fn writing(cli: &Cli) -> Result<fs::WriteGuard<SyllabusName>, Failure> {
+    match fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))? {
+        fs::Writing::Tree(tree) => Ok(tree),
+        fs::Writing::Vacancy(_) => Err(Failure::own(no_tree(&cli.root))),
+    }
+}
+
+fn no_tree(root: &Path) -> String {
+    format!(
+        "there is no tree at {}. `syllabus --root {} init` creates one; no other \
+         verb does, because creating a syllabus is a decision and not a fallback \
+         for a mistyped --root.",
+        root.display(),
+        root.display()
+    )
+}
+
+// ---------------------------------------------------------------------------
 // Reading
 // ---------------------------------------------------------------------------
 
@@ -874,7 +958,7 @@ fn list(
     label: Option<&Label>,
     first: bool,
 ) -> Result<(), Failure> {
-    let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = reading(cli)?;
 
     // A `--under` naming nothing is the same condition `show` meets, and gets
     // the same refusal rather than an empty listing that looks like an answer.
@@ -965,7 +1049,7 @@ fn empty_note(tree_is_empty: bool, filtered: bool, root: &Path) -> String {
 }
 
 fn show(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
-    let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = reading(cli)?;
     let Sought::Match(entry) = tree.by_key(key) else {
         return Err(Failure::refused(&Refusal::TargetMissing { key }));
     };
@@ -974,7 +1058,7 @@ fn show(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
 }
 
 fn ancestors(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
-    let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = reading(cli)?;
     let Sought::Match(entry) = tree.by_key(key) else {
         return Err(Failure::refused(&Refusal::TargetMissing { key }));
     };
@@ -991,7 +1075,7 @@ fn ancestors(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
 }
 
 fn overview_chain(cli: &Cli, streams: &Streams, key: Key) -> Result<(), Failure> {
-    let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = reading(cli)?;
     let Sought::Match(entry) = tree.by_key(key) else {
         return Err(Failure::refused(&Refusal::TargetMissing { key }));
     };
@@ -1022,6 +1106,40 @@ fn report_out(streams: &Streams, verb: &str, report: &Report<SyllabusName>) {
     streams.trace(verb, report);
 }
 
+/// `init`: the tree, from nothing, under one lock.
+///
+/// The whole shape of the leaf, in eight lines: `write` answers with a
+/// [`Writing`](fs::Writing), the vacancy arm *is* the permission to create, and
+/// there is no moment between the two in which another writer fits. The tree arm
+/// is refused here rather than by the library, because *there is already a tree*
+/// is not a refusal the library states — it is a call the type system does not
+/// let the library be asked.
+fn init(
+    cli: &Cli,
+    streams: &Streams,
+    overview: Option<&str>,
+    labels: &[Label],
+    status: Status,
+) -> Result<(), Failure> {
+    let opened = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let fs::Writing::Vacancy(vacancy) = opened else {
+        return Err(Failure::own(format!(
+            "there is already a tree at {}, and `init` creates one. Add to it with \
+             `lesson-add` or `module-add`, or name a root that holds no tree.",
+            cli.root.display()
+        )));
+    };
+    let entries = labels
+        .iter()
+        .map(|label| NewEntry::empty(Parts::lesson(status, label.clone())))
+        .collect();
+    let report = vacancy
+        .initialize(overview.map(|text| text.as_bytes().to_vec()), entries)
+        .map_err(|e| Failure::library(&e))?;
+    report_out(streams, "init", &report);
+    Ok(())
+}
+
 fn add(
     cli: &Cli,
     streams: &Streams,
@@ -1029,7 +1147,7 @@ fn add(
     parent: Target,
     parts: Vec<Parts>,
 ) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     // Both add verbs are variadic and both call `append_many`, including for a
     // single label: the library defines `append` as one `append_many` of one
     // entry, so a CLI branch on the count would be the same arithmetic spelled
@@ -1051,7 +1169,7 @@ fn insert(
     at: Ordinal,
     parts: Parts,
 ) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     let report = tree
         .insert(parent, at, NewEntry::empty(parts))
         .map_err(|e| Failure::library(&e))?;
@@ -1066,7 +1184,7 @@ fn promote(
     label: Label,
     first_lesson: Option<&Label>,
 ) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     // `--first-lesson` starts as a draft, and there is no flag for its status: a
     // lesson that starts published is one `publish` away, and a second flag
     // would be a second place the default lives.
@@ -1080,7 +1198,7 @@ fn promote(
 }
 
 fn relabel(cli: &Cli, streams: &Streams, key: Key, label: Label) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     // Read then mutate on the *same* guard: one lock, one snapshot. A relabel
     // keeps the variant it read, which is why `RewriteSpeciesChange` is
     // unreachable from this verb.
@@ -1100,7 +1218,7 @@ fn set_status(
     key: Key,
     status: Status,
 ) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     let parts = match parts_of(&tree, key)? {
         Parts::Lesson { label, .. } => Parts::lesson(status, label),
         // Refused by the CLI rather than by the library: modules carry no

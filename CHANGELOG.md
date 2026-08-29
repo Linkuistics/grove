@@ -51,6 +51,80 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The tree store answers *is there a tree here* as a shape, and the vacancy can
+  create one.** `ordinal_fs_tree::fs::read` and `fs::write` no longer return a
+  guard directly: they return `Reading` (`Tree` / `Vacant`) and `Writing`
+  (`Tree` / `Vacancy`), and `Vacancy::initialize` creates the root, its
+  distinguished child and a first run of entries under the exclusive lock the
+  vacancy already holds (`docs/specs/module-decomposition.md`, decision 2).
+
+  **Why a shape and not an `exists()`.** A predicate beside an opening is a
+  check-then-act split, and the act it splits from is creating a tree: between
+  *there is no tree* and *make one*, another writer fits. One lock acquisition
+  now answers the question and hands back the only operation valid for the
+  answer — which also removes a class of call from the language rather than
+  refusing it at run time. `initialize` is on the vacancy and nowhere else, so
+  **initializing over a live tree does not compile**; the mutations are on the
+  write guard, so **mutating a tree that is not there does not compile** either.
+  Two `compile_fail` doc tests on `Vacancy` are the proof, and a compile-fail is
+  the honest form of *not expressible* where a run-time test could only show that
+  one particular bad call was refused.
+
+  **Why `initialize` takes bytes rather than an entry.** `NewEntry` describes a
+  positioned entry, and the distinguished child is the one entry that cannot be
+  described that way — no parts, no ordinal, no key, and its name is
+  `EntryName::distinguished()`. The library already writes one exactly like this
+  when a promotion moves a leaf's bytes into a new node, so root creation reuses
+  that primitive and the seam gains **no trait method**:
+  `docs/adr/entry-name-is-the-only-seam.md` is untouched. Without it the consumer
+  would write the root's own content itself, outside the lock and outside the
+  store, at the first operation of every fresh tree. `None` makes a root with no
+  distinguished child and empty bytes make an empty one — different trees, and
+  the choice is the domain's. Bytes in a domain whose `distinguished()` is `None`
+  are the **same refusal a promotion gives**, which is why
+  `Refusal::PromoteNoDistinguished` is now `Refusal::NoDistinguishedChild
+  { promoting: Option<Key> }`: one condition, two operations, and a root
+  initialization names no entry because the root is not one.
+
+  **A root that is neither a tree nor nothing is an error carrying what was
+  found** — `Error::RootIsNotATree { root, found }` — and not a third variant. A
+  regular file, a socket or a symbolic link naming one is not an answer a caller
+  can act on, and the library will not move aside something it did not put there.
+  A **dangling** link is that error too, not a vacancy: it resolves to nothing
+  while plainly occupying the name, so `initialize` sent at it would collide.
+
+  **The lock still covers everything, including the tree's creation**, because it
+  has always been taken on the directory *containing* the root — and the route to
+  that directory turns on **whether the kernel follows the last component**, not
+  on whether the root resolves. Where the last component is a plain name (nothing
+  at it, a regular file, a socket) the lexical parent *is* the directory holding
+  it, so the two routes cannot disagree; where it is a symbolic link they can, so
+  a link naming a directory takes `<root>/..` like any other accepted spelling
+  and a **dangling** one is refused before any lock is taken — locking its
+  lexical parent would put a caller through the link and a caller through the
+  target path on two different locks over one tree, which is the defect
+  `reading-k19` closed, re-entering through the door absence opened.
+
+  Migration is mechanical: every `fs::read`/`fs::write` call site matches the new
+  enum, or takes `expect_tree` where it has already established the tree exists.
+  `syllabus` gains an `init` verb — the manual's *there is no `init`: an empty
+  directory is an empty tree* was true about the format and wrong about the
+  operator, since `mkdir` leaves the root's own OVERVIEW to be written by hand —
+  and every other verb now refuses a root holding no tree rather than creating
+  one on the way past, so a mistyped `--root` is a refusal and not a second
+  course. Inside grove the three call sites in `src/task_tree.rs` raise the
+  existing *grove root not found* diagnostic on the vacant arm; Grove still
+  creates its own root outside the store, and moving that inside is
+  `collapse-tree-access-k13`. `models/operations.qnt` gains `Initialize` as a
+  transition — the only plan that *creates* a distinguished child rather than
+  renaming an inode onto one — and `models/structure.als` gains the
+  vacancy/tree/neither trichotomy; both runners are green.
+  `docs/adr/grove-does-not-stage-its-own-renames.md` and
+  `docs/adr/bulk-marks-are-not-atomic.md` were re-checked against a store that
+  now owns root creation: the first is unchanged and says why a `mkdir` is
+  covered by the same reasoning as a rename, and the second drops its claim that
+  the library's operation set is closed, which this change falsified.
+
 - **The tree store has a word for a search that matched nothing.**
   `ordinal-fs-tree` gains `Sought<T>` (`Match` / `Nothing`), and it is what
   *every* search on the public surface answers: `Snapshot::find` is now

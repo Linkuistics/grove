@@ -2121,7 +2121,7 @@ mod tests {
     #[test]
     fn no_promotion_refusal_reaches_an_operator_from_an_ordinary_argument() {
         // The three refusals `promote` owns, asserted unreachable rather than
-        // described. `PromoteNoDistinguished` is discharged by the domain itself
+        // described. `NoDistinguishedChild` is discharged by the domain itself
         // and needs no fixture; the other two are discharged by every argument
         // that is not a live leaf, and the sweep is what makes that a claim
         // about the *verb* rather than about the cases someone thought of.

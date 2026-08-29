@@ -402,7 +402,10 @@ fn a_delta_overrides_only_the_kinds_it_declares() {
         "the declared kind must come from the delta"
     );
     assert_eq!(
-        config.expand("design", &context("mandate")).unwrap().words(),
+        config
+            .expand("design", &context("mandate"))
+            .unwrap()
+            .words(),
         vec!["runner", "mandate"],
         "an undeclared kind must fall through to the personal file untouched"
     );

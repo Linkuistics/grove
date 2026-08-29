@@ -53,8 +53,13 @@ inline.
 
 - **Re-plan the prune as one operation the library can express.** Rejected
   because there is none. `append_many` is a run of creations planned from one
-  snapshot; there is no `rewrite_many`, and a promotion is not a mark. The
-  operation set was fixed by `library-k6` and closed by `crate-k7`.
+  snapshot; there is no `rewrite_many`, and a promotion is not a mark. **The
+  operation set is not closed** — `initialize` was added to it after this record
+  was first written, and creating a tree is not a mark either — so what rules
+  this option out is the absence of a *batched rewrite* specifically, and not a
+  surface nobody may extend. The distinction is the difference between this
+  option being impossible and it being unbuilt. It is unbuilt, and the option
+  below is the route to building it.
 - **Escalate: ask `ordinal-fs-tree` for a batched rewrite**, as a leaf of its
   own, model first. Not rejected on the merits — rejected as *not yet earned*.
   Reopen when a second consumer needs it, or when a partial prune is observed in
@@ -74,9 +79,9 @@ inline.
 ## Why this is hard to reverse
 
 The direction that is hard is the one back. Undoing the acceptance means adding
-an operation to a library whose surface is fixed, whose behaviour is checked by a
-model that leads it, and whose one-guard-one-mutation rule is argued from plan
-atomicity rather than chosen for convenience — so a batched rewrite is not a new
+an operation to a library whose behaviour is checked by a model that leads it,
+and whose one-guard-one-mutation rule is argued from plan atomicity rather than
+chosen for convenience — so a batched rewrite is not a new
 method but a new answer to *what a plan is*, with the reference domain, the
 syllabus CLI and the conformance kit all downstream of it. Accepting the cost, by
 contrast, is reversed by that same work whenever it is worth doing; nothing here

@@ -80,6 +80,34 @@ a synonym for **depth**.
 **Ancestor chain**:
 The sequence of **levels** from an **entry** up to and including the **root**.
 
+### What an opening answers
+
+**Opening**:
+Asking the library for a tree at a **root**: one lock acquisition, answering with
+the tree, a **vacancy**, or an error saying what is at the root instead. There is
+no separate predicate — *is there a tree here* is answered by the shape an
+opening hands back, so the answer and the operations valid for it arrive
+together.
+_Avoid_: "exists", "check", "test" — a predicate beside an opening is a
+check-then-act split, and the act it splits from is creating a tree.
+
+**Vacancy**:
+An opening that found no tree, **holding the exclusive lock**. It is a **guard**
+like any other, and the only thing that can be done with one is
+**initialization**. Because it holds the lock, there is no moment between
+learning a tree is absent and creating it.
+_Avoid_: "empty tree" — an empty **root** directory is a tree holding no
+**entries**, and the two admit different operations; also _avoid_ "missing",
+"absent" and "not found" as the noun, which are the language of an error.
+
+**Initialization**:
+Creating a tree from a **vacancy**: the **root** directory, optionally its
+**distinguished child**, and a first run of **entries**, all under the lock the
+vacancy already holds. It is the one operation that creates a root, and the root
+it creates is not an **entry**, so no **report** row describes it.
+_Avoid_: "init" in prose, "make", "bootstrap"; and _avoid_ describing it as
+creating a *level* — the root is a level, but the word for the act is this one.
+
 ### What a name carries
 
 **Name**:
@@ -161,6 +189,15 @@ language's optional stand in for it on a search — it is reachable from a sough
 only by asking.
 
 ### How a mutation happens
+
+**Guard**:
+An advisory lock held for as long as a value lives, taken on the directory
+*containing* the **root** so that it covers the root's creation and deletion as
+well as every ordinary operation. A read guard and a write guard also hold a
+**snapshot**; a **vacancy** is a guard with no snapshot, because there are no
+**names** to read.
+_Avoid_: mentioning locking in an interface — there is no lock type, no
+try-variant and no timeout, and consumers never say the word.
 
 **Snapshot**:
 The **names** read from a tree under one lock, and the sole input to the

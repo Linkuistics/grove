@@ -208,7 +208,9 @@ fn a_mutation_refuses_a_composed_name_that_leaves_the_tree() {
     let (temporary, root) = tree();
     let beside = names(temporary.path());
 
-    let guard = ordinal_fs_tree::fs::write::<ComposeEscapes>(&root).expect("an empty tree reads");
+    let guard = ordinal_fs_tree::fs::write::<ComposeEscapes>(&root)
+        .expect("an empty tree reads")
+        .expect_tree("a tree, not a vacancy");
     let failed = guard
         .append(
             Target::Root,

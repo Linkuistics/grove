@@ -76,7 +76,9 @@ fn run(
     decide: impl FnOnce(&crate::Snapshot<SyllabusName>) -> Decision<SyllabusName>,
     faults: Faults,
 ) -> Result<Report<SyllabusName>, Error<SyllabusName>> {
-    let guard = crate::fs::write::<SyllabusName>(root).expect("a well-formed tree");
+    let guard = crate::fs::write::<SyllabusName>(root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     let decision = decide(guard.snapshot());
     guard.run(decision, faults)
 }
@@ -211,7 +213,9 @@ fn a_rollback_that_itself_fails_says_so_and_says_what_to_do() {
 #[test]
 fn an_uncooperative_neighbour_cannot_be_written_over() {
     let (_temporary, root) = two_lessons();
-    let guard = crate::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let guard = crate::fs::write::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     let decision = ops::append(
         guard.snapshot(),
         Target::Root,
@@ -249,7 +253,9 @@ fn an_uncooperative_neighbour_cannot_be_written_over() {
 #[test]
 fn a_rename_looks_before_it_leaps() {
     let (_temporary, root) = two_lessons();
-    let guard = crate::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let guard = crate::fs::write::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     let first = guard
         .snapshot()
         .by_key(Key::new(1))
@@ -471,7 +477,9 @@ fn a_move_onto_an_entrys_own_path_is_the_no_op_the_model_requires() {
 #[test]
 fn the_no_op_exclusion_does_not_reach_a_different_occupied_destination() {
     let (_temporary, root) = two_lessons();
-    let guard = crate::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let guard = crate::fs::write::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     let first = guard
         .snapshot()
         .by_key(Key::new(1))
@@ -558,7 +566,9 @@ fn a_failure_between_claiming_a_leaf_and_writing_it_removes_the_partial_file() {
 #[test]
 fn an_uncooperative_neighbour_cannot_have_its_directory_claimed_or_removed() {
     let (_temporary, root) = two_lessons();
-    let guard = crate::fs::write::<SyllabusName>(&root).expect("a well-formed tree");
+    let guard = crate::fs::write::<SyllabusName>(&root)
+        .expect("a well-formed tree")
+        .expect_tree("a tree, not a vacancy");
     let decision = Decision::Proceed(Plan::of(vec![
         Effect::Create {
             at: Level::Root,
@@ -671,7 +681,9 @@ fn a_plan_naming_a_path_outside_the_tree_is_refused_before_anything_moves() {
     let before = listing(&root);
     let outside = root.join("..").join("03-draft-escaped-i1.md");
 
-    let guard = crate::fs::write::<Sneaky>(&root).expect("Sneaky reads a tree honestly");
+    let guard = crate::fs::write::<Sneaky>(&root)
+        .expect("Sneaky reads a tree honestly")
+        .expect_tree("a tree, not a vacancy");
     let first = guard
         .snapshot()
         .by_key(Key::new(1))
@@ -814,7 +826,9 @@ fn a_promotion_whose_rollback_fails_leaves_a_duplicate_key_and_says_how_to_resol
     // the tree then reads cleanly again. Removing the node is the half that
     // restores what the operation found.
     fs::remove_dir(root.join("01-first-i1")).expect("removing the empty node");
-    let tree = crate::fs::read::<SyllabusName>(&root).expect("a tree that reads again");
+    let tree = crate::fs::read::<SyllabusName>(&root)
+        .expect("a tree that reads again")
+        .expect_tree("a tree, not a vacancy");
     assert_eq!(
         tree.walk()
             .map(|e| e.name().to_string())

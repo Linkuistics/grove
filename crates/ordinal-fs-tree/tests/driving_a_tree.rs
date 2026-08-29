@@ -83,8 +83,8 @@ fn ok(root: &Path, args: &[&str]) -> Run {
     run
 }
 
-/// An empty directory *is* an empty tree — there is no `init` and nothing to
-/// create but the directory.
+/// An empty directory *is* an empty tree: `init` is what creates a tree from
+/// nothing, and a directory that is already there is a tree holding no entries.
 fn empty_tree() -> (TempDir, PathBuf) {
     let temporary = TempDir::new().expect("a temporary directory");
     let root = temporary.path().join("syllabus");
@@ -709,14 +709,135 @@ fn a_name_this_domain_disclaims_is_skipped_without_comment() {
 
 /// No model claim.
 ///
-/// The environment refusing is not the tree refusing, and the two want different
-/// answers from a caller: exit 1 says fix the path or the permissions.
+/// **A root that is not there stopped being an environment failure at
+/// `open-shape-k25`.** It used to be exit 1 — the library could not stat the
+/// root, so the CLI saw an I/O error and said *fix the path or the permissions*.
+/// Now the library answers with a vacancy, which is not a failure at all: the
+/// tree is simply absent, and the honest answer names the verb that creates one.
+/// Exit 4 is *refused: nothing changed, and the message names the remedy*, which
+/// is exactly what this is.
 #[test]
-fn a_root_that_is_not_there_is_exit_one() {
+fn a_root_that_is_not_there_is_refused_with_the_verb_that_would_create_it() {
     let (temporary, _root) = empty_tree();
     let run = syllabus(&temporary.path().join("no-such-tree"), &["list"]);
-    assert_eq!(run.code, 1);
+    assert_eq!(run.code, 4, "{}", run.stderr);
     assert!(run.stderr.starts_with("syllabus: "), "{}", run.stderr);
+    assert!(
+        run.stderr.contains("no tree at") && run.stderr.contains("init"),
+        "the refusal names the remedy: {}",
+        run.stderr
+    );
+}
+
+/// No model claim: a root that is not a directory is not a tree either model can
+/// hold.
+///
+/// The third answer to *is there a tree here*, and the reason it is an error
+/// rather than a variant: the library will not move aside something it did not
+/// put there. Exit 5 — a human fixes it, and no retry helps.
+#[test]
+fn a_root_that_is_a_regular_file_is_neither_a_tree_nor_a_vacancy() {
+    let temporary = TempDir::new().expect("a temporary directory");
+    let root = temporary.path().join("not-a-tree");
+    fs::write(&root, "a file wearing the root's name").expect("a fixture");
+
+    let listed = syllabus(&root, &["list"]);
+    assert_eq!(listed.code, 5, "{}", listed.stderr);
+    assert!(
+        listed.stderr.contains("is a regular file"),
+        "the message says what it found: {}",
+        listed.stderr
+    );
+
+    // And `init` does not clear it away either — the one verb that creates a
+    // tree still refuses a root that is occupied.
+    let initialized = syllabus(&root, &["init"]);
+    assert_eq!(initialized.code, 5, "{}", initialized.stderr);
+}
+
+/// No model claim: root creation is `initialize`, whose transition
+/// `operations.qnt` gains as `Initialize` — this is the CLI's view of it.
+///
+/// One command turns nothing into a tree with an OVERVIEW and two lessons, and
+/// the tree then reads back through the ordinary verbs.
+#[test]
+fn init_creates_the_tree_its_overview_and_its_first_lessons() {
+    let temporary = TempDir::new().expect("a temporary directory");
+    let root = temporary.path().join("course");
+
+    let created = ok(
+        &root,
+        &[
+            "init",
+            "--overview",
+            "An introduction.",
+            "orientation",
+            "vectors",
+        ],
+    );
+    assert_eq!(
+        created.targets(),
+        vec![".", "1", "2"],
+        "the OVERVIEW is reported against the level whose content it is, then \
+         the lessons at consecutive keys: {}",
+        created.stdout
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("OVERVIEW.md")).expect("the root's own content"),
+        "An introduction."
+    );
+    assert_eq!(
+        ok(&root, &["list"]).targets(),
+        vec![".", "1", "2"],
+        "and the tree reads back through the ordinary verbs"
+    );
+}
+
+/// No model claim.
+///
+/// `--overview` omitted is a root with no OVERVIEW at all, which is a different
+/// tree from one whose OVERVIEW is empty. Both are reachable, and neither is a
+/// default the CLI picks.
+#[test]
+fn an_omitted_overview_and_an_empty_one_are_different_trees() {
+    let temporary = TempDir::new().expect("a temporary directory");
+
+    let bare = temporary.path().join("bare");
+    ok(&bare, &["init"]);
+    assert!(!bare.join("OVERVIEW.md").exists(), "no OVERVIEW at all");
+
+    let empty = temporary.path().join("empty");
+    ok(&empty, &["init", "--overview", ""]);
+    assert_eq!(
+        fs::read_to_string(empty.join("OVERVIEW.md")).expect("an OVERVIEW"),
+        ""
+    );
+}
+
+/// No model claim.
+///
+/// `init` is refused over a live tree — and it is refused by the *CLI*, because
+/// the library is not asked: `initialize` lives on `Vacancy`, so the call the
+/// tree arm would make does not exist to be made. Not idempotent, deliberately:
+/// the call that thinks it is creating a course and the call that finds one
+/// already there want different answers.
+#[test]
+fn init_over_a_live_tree_is_refused_and_changes_nothing() {
+    let (_temporary, root) = a_course();
+    let before = ok(&root, &["list"]).stdout.clone();
+
+    let run = syllabus(&root, &["init"]);
+    assert_eq!(run.code, 4, "{}", run.stderr);
+    assert!(
+        run.stderr.contains("already a tree"),
+        "the refusal says what it found: {}",
+        run.stderr
+    );
+    assert_eq!(
+        ok(&root, &["list"]).stdout,
+        before,
+        "a refusal changes nothing"
+    );
 }
 
 /// No model claim.

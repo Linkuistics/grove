@@ -16,10 +16,42 @@
 //!
 //! ```no_run
 //! # use std::path::Path;
+//! # use ordinal_fs_tree::fs::Reading;
 //! # use ordinal_fs_tree::reference::SyllabusName;
-//! let tree = ordinal_fs_tree::fs::read::<SyllabusName>(Path::new("syllabus"))?;
+//! let opened = ordinal_fs_tree::fs::read::<SyllabusName>(Path::new("syllabus"))?;
+//! let Reading::Tree(tree) = opened else { return Ok(()) };
 //! for entry in tree.walk() {
 //!     println!("{:indent$}{}", "", entry.name(), indent = (entry.depth() - 1) * 2);
+//! }
+//! # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
+//! ```
+//!
+//! # *Is there a tree here* is a shape, not a predicate
+//!
+//! [`read`] and [`write`] do not answer *yes*; they answer with the tree, with a
+//! vacancy, or with an error saying what is at the root instead. There is no
+//! `exists`, and that absence is the design: a predicate beside an opening is a
+//! check-then-act split, and the act it splits from is creating a tree — so
+//! between the check and the create another writer fits. One lock acquisition
+//! answers the question and hands back the only operation valid for the answer.
+//!
+//! What that buys is a whole class of call the type system refuses to spell.
+//! [`Vacancy::initialize`] exists on a vacancy and nowhere else, so initializing
+//! over a live tree does not typecheck; and the [`WriteGuard`] mutations exist on
+//! a guard and nowhere else, so mutating a tree that is not there does not
+//! either. Neither needs a run-time refusal, and neither has one.
+//!
+//! ```no_run
+//! # use std::path::Path;
+//! # use ordinal_fs_tree::fs::Writing;
+//! # use ordinal_fs_tree::reference::SyllabusName;
+//! match ordinal_fs_tree::fs::write::<SyllabusName>(Path::new("syllabus"))? {
+//!     Writing::Tree(tree) => println!("{} entries", tree.walk().count()),
+//!     // Still under the exclusive lock: nothing can create the tree between
+//!     // learning it is absent and creating it here.
+//!     Writing::Vacancy(vacancy) => {
+//!         vacancy.initialize(Some(b"the course".to_vec()), Vec::new())?;
+//!     }
 //! }
 //! # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
 //! ```
@@ -50,6 +82,8 @@
 //! lexical parent insufficient.
 
 use std::fs::File;
+use std::io;
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
 use crate::ops::{self, NewEntry, Target};
@@ -68,52 +102,190 @@ mod read;
 /// Blocks until the tree is free. Halts — rather than skipping anything — on a
 /// name the consumer recognises and cannot parse, wherever in the tree it sits.
 ///
+/// Answers with a shape and not a predicate; see this module's header. A
+/// [`Reading::Vacant`] carries no guard, because a reader of a tree that is not
+/// there has nothing to hold a lock against — the lock is released before this
+/// returns.
+///
 /// # Errors
 ///
-/// [`Error::Malformed`] or [`Error::Reserved`] for a name the consumer owns and
-/// refuses, carrying the consumer's own recovery advice; [`Error::NonUtf8Name`]
-/// for a filename that cannot be classified at all; [`Error::Io`] for a
-/// filesystem refusal; [`Error::NoContainingDirectory`] for a root with nothing
-/// to lock.
-pub fn read<N: EntryName>(root: &Path) -> Result<ReadGuard<N>, Error<N>> {
-    let (guard, snapshot) = acquire(root, lock::Mode::Shared)?;
-    Ok(ReadGuard {
-        _guard: guard,
-        root: root.to_path_buf(),
-        snapshot,
-    })
+/// [`Error::RootIsNotATree`] when something that is not a directory is at the
+/// root; [`Error::Malformed`] or [`Error::Reserved`] for a name the consumer
+/// owns and refuses, carrying the consumer's own recovery advice;
+/// [`Error::NonUtf8Name`] for a filename that cannot be classified at all;
+/// [`Error::Io`] for a filesystem refusal; [`Error::NoContainingDirectory`] for
+/// a root with nothing to lock.
+pub fn read<N: EntryName>(root: &Path) -> Result<Reading<N>, Error<N>> {
+    match acquire(root, lock::Mode::Shared)? {
+        Opened::Tree(guard, snapshot) => Ok(Reading::Tree(ReadGuard {
+            _guard: guard,
+            root: root.to_path_buf(),
+            snapshot,
+        })),
+        Opened::Vacant(_) => Ok(Reading::Vacant),
+    }
 }
 
 /// Read a tree under an **exclusive** lock: nothing else holds it while this
 /// guard lives.
 ///
-/// This is the lock every mutation runs under. It reads the tree exactly as
-/// [`read`] does, because a mutation is a snapshot, a decision and a plan before
-/// it is an effect.
+/// This is the lock every mutation runs under, and the lock a
+/// [`Vacancy`] holds while it is deciding whether to create the tree. It reads
+/// the tree exactly as [`read`] does, because a mutation is a snapshot, a
+/// decision and a plan before it is an effect.
 ///
 /// # Errors
 ///
 /// The same as [`read`].
-pub fn write<N: EntryName>(root: &Path) -> Result<WriteGuard<N>, Error<N>> {
-    let (guard, snapshot) = acquire(root, lock::Mode::Exclusive)?;
-    Ok(WriteGuard {
-        _guard: guard,
-        root: root.to_path_buf(),
-        snapshot,
-    })
+pub fn write<N: EntryName>(root: &Path) -> Result<Writing<N>, Error<N>> {
+    match acquire(root, lock::Mode::Exclusive)? {
+        Opened::Tree(guard, snapshot) => Ok(Writing::Tree(WriteGuard {
+            _guard: guard,
+            root: root.to_path_buf(),
+            snapshot,
+        })),
+        Opened::Vacant(guard) => Ok(Writing::Vacancy(Vacancy {
+            _guard: guard,
+            root: root.to_path_buf(),
+            name: PhantomData,
+        })),
+    }
 }
 
-fn acquire<N: EntryName>(root: &Path, mode: lock::Mode) -> Result<(File, Snapshot<N>), Error<N>> {
+/// What an opening found, before it is dressed as a [`Reading`] or a
+/// [`Writing`].
+///
+/// One function answers both modes because the sequence is the same either way
+/// and it is the sequence that matters: find the directory to lock, lock it,
+/// *then* look at the root. Only the third step can see a vacancy, and it sees
+/// it under the lock.
+enum Opened<N> {
+    Tree(File, Snapshot<N>),
+    Vacant(File),
+}
+
+fn acquire<N: EntryName>(root: &Path, mode: lock::Mode) -> Result<Opened<N>, Error<N>> {
     let directory = read::containing_directory::<N>(root)?;
     let guard = lock::take(&directory, mode).map_err(|source| Error::Io {
         path: directory.clone(),
         doing: "locking the directory containing the tree",
         source,
     })?;
-    // Under the lock, and only under it: a snapshot read outside one could be
-    // stale before the caller saw it.
-    let snapshot = read::snapshot(root)?;
-    Ok((guard, snapshot))
+    // Under the lock, and only under it. For a tree that is a snapshot which
+    // could otherwise be stale before the caller saw it; for a vacancy it is the
+    // absence itself, which could otherwise be false before the caller acted on
+    // it.
+    match read::presence::<N>(root)? {
+        read::Presence::Vacant => Ok(Opened::Vacant(guard)),
+        read::Presence::NotATree(found) => Err(Error::RootIsNotATree {
+            root: root.to_path_buf(),
+            found,
+        }),
+        read::Presence::Tree => Ok(Opened::Tree(guard, read::snapshot(root)?)),
+    }
+}
+
+/// What [`read`] found: the tree, or no tree.
+///
+/// Two variants and no third — something at the root that is not a tree is an
+/// [`Error::RootIsNotATree`] rather than a variant here, because it is not an
+/// answer a reader can do anything with and the library will not clear it away.
+#[must_use]
+pub enum Reading<N> {
+    /// A tree, read under a shared lock this guard holds.
+    Tree(ReadGuard<N>),
+    /// No tree. Nothing is held: a reader of an absent tree has nothing to
+    /// exclude.
+    Vacant,
+}
+
+/// What [`write`] found: the tree, or a vacancy that can become one.
+///
+/// The write-side twin of [`Reading`], and the difference between them is the
+/// whole point of this shape. [`Writing::Vacancy`] **holds the exclusive lock**,
+/// so there is no window between learning that a tree is absent and creating it.
+#[must_use]
+pub enum Writing<N> {
+    /// A tree, read under an exclusive lock this guard holds.
+    Tree(WriteGuard<N>),
+    /// No tree, and the exclusive lock under which one may be created.
+    Vacancy(Vacancy<N>),
+}
+
+impl<N> Reading<N> {
+    /// Whether a tree was there.
+    #[must_use]
+    pub const fn is_tree(&self) -> bool {
+        matches!(self, Self::Tree(_))
+    }
+
+    /// Whether nothing was there.
+    #[must_use]
+    pub const fn is_vacant(&self) -> bool {
+        matches!(self, Self::Vacant)
+    }
+
+    /// The guard, panicking with `message` when the tree was not there.
+    ///
+    /// For a caller that has already established the tree exists — a test over
+    /// a tree it built itself, most of all. [`Sought::expect`] is the same
+    /// affordance for the same reason, and there is no `unwrap` beside either:
+    /// an unwrap has no room to say what it was relying on.
+    ///
+    /// # Panics
+    ///
+    /// When there was no tree.
+    ///
+    /// [`Sought::expect`]: crate::Sought::expect
+    #[must_use]
+    pub fn expect_tree(self, message: &str) -> ReadGuard<N> {
+        match self {
+            Self::Tree(guard) => guard,
+            Self::Vacant => panic!("{message}"),
+        }
+    }
+}
+
+impl<N> Writing<N> {
+    /// Whether a tree was there.
+    #[must_use]
+    pub const fn is_tree(&self) -> bool {
+        matches!(self, Self::Tree(_))
+    }
+
+    /// Whether nothing was there.
+    #[must_use]
+    pub const fn is_vacant(&self) -> bool {
+        matches!(self, Self::Vacancy(_))
+    }
+
+    /// The guard, panicking with `message` when the tree was not there.
+    ///
+    /// See [`Reading::expect_tree`].
+    ///
+    /// # Panics
+    ///
+    /// When there was no tree.
+    #[must_use]
+    pub fn expect_tree(self, message: &str) -> WriteGuard<N> {
+        match self {
+            Self::Tree(guard) => guard,
+            Self::Vacancy(_) => panic!("{message}"),
+        }
+    }
+
+    /// The vacancy, panicking with `message` when a tree was there.
+    ///
+    /// # Panics
+    ///
+    /// When a tree was there.
+    #[must_use]
+    pub fn expect_vacancy(self, message: &str) -> Vacancy<N> {
+        match self {
+            Self::Vacancy(vacancy) => vacancy,
+            Self::Tree(_) => panic!("{message}"),
+        }
+    }
 }
 
 /// A tree read under a shared lock.
@@ -150,6 +322,186 @@ pub struct WriteGuard<N> {
     _guard: File,
     root: PathBuf,
     snapshot: Snapshot<N>,
+}
+
+/// The exclusive lock on a tree root that holds no tree, and the one operation
+/// valid for it.
+///
+/// A guard, exactly as [`WriteGuard`] is one, and for the same reason: it holds
+/// the lock for as long as it lives, so nothing can create the tree between
+/// [`write`] answering *there is none* and [`initialize`](Vacancy::initialize)
+/// making one. There is no snapshot, because there are no names to read.
+///
+/// # The ill-formed calls are the ones that do not exist
+///
+/// This type has `initialize` and no mutations; [`WriteGuard`] has the mutations
+/// and no `initialize`. So *initialize over a live tree* and *append to a tree
+/// that is not there* are not refusals this library states — they are programs
+/// that do not compile:
+///
+/// ```compile_fail
+/// # use std::path::Path;
+/// # use ordinal_fs_tree::fs::Writing;
+/// # use ordinal_fs_tree::reference::SyllabusName;
+/// let Writing::Tree(tree) = ordinal_fs_tree::fs::write::<SyllabusName>(Path::new("s"))?
+/// else { unreachable!() };
+/// // `initialize` is on `Vacancy`, and a live tree is not one.
+/// tree.initialize(None, Vec::new())?;
+/// # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
+/// ```
+///
+/// ```compile_fail
+/// # use std::path::Path;
+/// # use ordinal_fs_tree::fs::Writing;
+/// # use ordinal_fs_tree::reference::SyllabusName;
+/// # use ordinal_fs_tree::{NewEntry, Target};
+/// let Writing::Vacancy(vacancy) = ordinal_fs_tree::fs::write::<SyllabusName>(Path::new("s"))?
+/// else { unreachable!() };
+/// // `append` is on `WriteGuard`, and a vacancy is not one.
+/// vacancy.append(Target::Root, NewEntry::empty(todo!()))?;
+/// # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
+/// ```
+pub struct Vacancy<N> {
+    _guard: File,
+    root: PathBuf,
+    /// The domain this vacancy will be initialized in, which nothing on disk
+    /// carries yet: a vacancy holds no names, so `N` appears in no field.
+    ///
+    /// `fn() -> N` rather than `N`, so that the marker imposes none of `N`'s
+    /// variance, auto-traits or drop behaviour on a type that only ever
+    /// *produces* names.
+    name: PhantomData<fn() -> N>,
+}
+
+impl<N: EntryName> Vacancy<N> {
+    /// The tree root that is not there, in the caller's own spelling.
+    #[must_use]
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    /// **`initialize`**: create the tree — the root directory, its distinguished
+    /// child, and a first run of entries — under the lock this vacancy already
+    /// holds.
+    ///
+    /// `distinguished` is the bytes of the root's own distinguished child, or
+    /// `None` for a root without one; the two are different trees, so the
+    /// choice is the caller's. `entries` are placed at the root level by exactly
+    /// the rule [`append_many`](WriteGuard::append_many) uses, which over an
+    /// empty tree means [`Ordinal::FIRST`] onward with keys from 1.
+    ///
+    /// # Why the bytes and not a [`NewEntry`]
+    ///
+    /// [`NewEntry`] describes a *positioned* entry — parts, from which an
+    /// ordinal and a key are composed — and the distinguished child is the one
+    /// entry that cannot be described that way: it carries no parts, and its
+    /// name is [`EntryName::distinguished`]. The library already writes one like
+    /// this when a promotion moves a leaf's bytes into a new node, so the seam
+    /// stays exactly one trait and gains no method
+    /// (`docs/adr/entry-name-is-the-only-seam.md`).
+    ///
+    /// Without it, the consumer would write the root's own content itself —
+    /// outside the lock and outside the store — at the first operation of every
+    /// fresh tree.
+    ///
+    /// # The root itself is not in the report
+    ///
+    /// It has no name: the root is a level, not an entry, so there is no
+    /// [`Created`](crate::Created) row that could describe it.
+    /// [`Report::created`](crate::Report::created) holds every *named* thing this
+    /// call placed, distinguished child first.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Refused`] when bytes were supplied for a distinguished child in
+    /// a domain that has none — [`Refusal::NoDistinguishedChild`], the same
+    /// refusal a promotion gives for the same reason — or when bytes were
+    /// supplied for an entry whose parts make a node; [`Error::Failed`] when the
+    /// filesystem refused, in which case **this call left nothing behind** —
+    /// not even the root, which it removes again;
+    /// [`Error::FailedPartiallyRolledBack`] when undoing that failed too.
+    ///
+    /// *Left nothing behind* is a claim about this call and not about the state
+    /// of the root, and the difference is observable: a writer that ignores the
+    /// advisory lock can create the root between the vacancy being handed out
+    /// and `create_dir`, which fails as [`Error::Failed`] with an
+    /// [`std::io::ErrorKind::AlreadyExists`] source. Nothing this call did
+    /// survives, and there is now a tree — which is the same distinction
+    /// `claim_vacant` draws for every other operation, and the same neighbour it
+    /// draws it against.
+    ///
+    /// [`Refusal::NoDistinguishedChild`]: crate::Refusal::NoDistinguishedChild
+    pub fn initialize(
+        self,
+        distinguished: Option<Vec<u8>>,
+        entries: Vec<NewEntry<N::Parts>>,
+    ) -> Result<Report<N>, Error<N>> {
+        // A vacancy holds no names, so the snapshot the plan is checked against
+        // is the empty one — and the arithmetic over it is the ordinary
+        // arithmetic rather than a first-entry special case.
+        let snapshot = Snapshot::empty();
+        let plan = match ops::initialize(&snapshot, distinguished, entries) {
+            Decision::Refuse(refusal) => return Err(Error::Refused(refusal)),
+            Decision::Proceed(plan) => plan,
+        };
+        // Both checks that can refuse a plan before it runs, run before the root
+        // is created: the algebra's, above, and the seventh obligation's, here.
+        // Otherwise a domain that renders a name badly would leave behind an
+        // empty root directory while reporting an error whose whole promise is
+        // that nothing changed.
+        apply::names_are_one_component(&self.root, &plan)?;
+        // The root is not an effect — it has no name for one to place — so this
+        // is the one create the interpreter does not do. It is still under the
+        // lock: the lock is on the directory *containing* the root, which is
+        // what makes a tree's creation coverable at all.
+        std::fs::create_dir(&self.root).map_err(|source| Error::Failed {
+            path: self.root.clone(),
+            doing: "creating the tree root",
+            source,
+        })?;
+        match apply::apply(&self.root, &snapshot, &plan, apply::Faults::none()) {
+            Ok(report) => Ok(report),
+            // Plan atomicity says the tree is as the *plan* found it, which here
+            // means a root directory holding nothing — so removing it is the
+            // last step of the same unwind, and `remove_dir` refusing a
+            // non-empty one is a check rather than an obstacle.
+            Err(Error::Failed {
+                path,
+                doing,
+                source,
+            }) => Err(match std::fs::remove_dir(&self.root) {
+                Ok(()) => Error::Failed {
+                    path,
+                    doing,
+                    source,
+                },
+                // The unwind's goal was that no root be left, and there is none.
+                // Reporting `FailedPartiallyRolledBack` — *the tree is in
+                // neither state* — for a removal that found its work already
+                // done would send a consumer looking for damage that is not
+                // there, and that variant's whole value is that it is rare and
+                // means what it says.
+                Err(unwind_source) if unwind_source.kind() == io::ErrorKind::NotFound => {
+                    Error::Failed {
+                        path,
+                        doing,
+                        source,
+                    }
+                }
+                Err(unwind_source) => Error::FailedPartiallyRolledBack {
+                    path,
+                    doing,
+                    source,
+                    unwinding: self.root.clone(),
+                    undoing: "removing the tree root this operation had created at",
+                    unwind_source,
+                },
+            }),
+            // The interpreter's own rollback already failed, so the root is not
+            // known to be empty and removing it is not this call's to attempt.
+            Err(error) => Err(error),
+        }
+    }
 }
 
 impl<N: EntryName> ReadGuard<N> {

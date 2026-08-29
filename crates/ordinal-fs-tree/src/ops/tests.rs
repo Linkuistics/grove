@@ -1213,7 +1213,7 @@ fn a_distinguished_child_cannot_be_named_by_key_at_all() {
     }
 }
 
-/// Discharges `wit_refusedPromoteNoDistinguished`, and with it the whole content
+/// Discharges `wit_refusedNoDistinguishedChild`, and with it the whole content
 /// of the `no_distinguished` instance: a domain whose `distinguished()` is
 /// `None` cannot promote anything, because the leaf's content would have nowhere
 /// to go.
@@ -1235,7 +1235,9 @@ fn promoting_in_a_domain_with_no_distinguished_child_is_refused() {
     };
     assert_eq!(
         refused,
-        Refusal::PromoteNoDistinguished { key: Key::new(1) }
+        Refusal::NoDistinguishedChild {
+            promoting: Some(Key::new(1))
+        }
     );
     assert!(
         refused.to_string().contains("nowhere to go"),

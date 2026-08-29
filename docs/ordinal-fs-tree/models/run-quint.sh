@@ -53,6 +53,8 @@ claims() {
       echo "inv inv_destinationNeverOccupied"
       echo "wit wit_succeeded"
       echo "wit wit_appendManySucceeded"
+      echo "wit wit_initializeSucceeded"
+      echo "wit wit_initializeWritesADistinguishedChild"
       echo "wit wit_promoteWithChild"
       echo "wit wit_rewriteToSameParts"
       echo "wit wit_refusedTargetMissing"
@@ -96,7 +98,8 @@ claims() {
       echo "inv inv_ordinalsDistinctAtRest"
       echo "inv inv_ordinalsDistinctThroughout"
       echo "inv inv_destinationNeverOccupied"
-      echo "wit wit_refusedPromoteNoDistinguished"
+      echo "wit wit_refusedNoDistinguishedChild"
+      echo "wit wit_refusedNoDistinguishedChildOnInitialize"
       ;;
     unparseable)
       echo "inv inv_ordinalsDistinctAtRest"

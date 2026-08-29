@@ -14,5 +14,5 @@ pub struct Cli {}
 
 pub fn run() -> anyhow::Result<()> {
     let _cli = Cli::parse();
-    crate::launch::bare_grove()
+    crate::loop_driver::bare_grove()
 }

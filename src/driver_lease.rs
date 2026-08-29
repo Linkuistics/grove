@@ -24,8 +24,6 @@ const EPOCH_FILE_NAME: &str = "session.epoch";
 const IDENTITY_RETRY_LIMIT: usize = 8;
 const EPOCH_HANDOFF_TIMEOUT: Duration = Duration::from_secs(30);
 const EPOCH_WAIT_INTERVAL: Duration = Duration::from_millis(10);
-const SIGNAL_FILE_PREFIX: &str = "signal-";
-pub(crate) const RANDOM_DRAW_RETRY_LIMIT: usize = 8;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct FileIdentity {
@@ -95,11 +93,6 @@ pub struct DriverLease {
 }
 
 #[derive(Debug)]
-pub(crate) struct SignalChannel {
-    path: PathBuf,
-}
-
-#[derive(Debug)]
 pub(crate) struct SessionEpochGuard {
     _epoch_file: File,
     signal_path: PathBuf,
@@ -117,12 +110,6 @@ impl SessionEpochGuard {
             );
         }
         Ok(())
-    }
-}
-
-impl SignalChannel {
-    pub(crate) fn path(&self) -> &Path {
-        &self.path
     }
 }
 
@@ -171,9 +158,15 @@ impl DriverLease {
         lease.revalidate()?;
         before_initial_epoch_handoff();
         lease.initialize_epoch_record()?;
-        if let Err(error) = lease.cleanup_abandoned_signal_channels() {
+        // Only after this lease owns the workspace, and after the replacement
+        // driver's inactive epoch record is installed: cleaning first would
+        // remove a live predecessor's channel. The grammar of an abandoned
+        // channel is the runner's, so the runner recognises them
+        // (`keyed_launch::Channel::discard_abandoned`); the lease supplies only
+        // the directory.
+        if let Err(error) = keyed_launch::Channel::discard_abandoned(&lease.control_dir) {
             eprintln!(
-                "grove: warning: could not clean every signal channel abandoned by a previous driver; continuing because fresh channel allocation does not depend on an empty control directory: {error:#}"
+                "grove: warning: could not clean every signal channel abandoned by a previous driver; continuing because fresh channel allocation does not depend on an empty control directory: {error}"
             );
         }
         Ok(lease)
@@ -194,21 +187,14 @@ impl DriverLease {
         &self.main_repo
     }
 
-    pub(crate) fn allocate_signal_channel(&self) -> Result<SignalChannel> {
-        allocate_signal_channel_with(&self.control_dir, random_nonce, |path| {
-            match fs::symlink_metadata(path) {
-                Ok(_) => Ok(true),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-                Err(error) => {
-                    Err(error).with_context(|| format!("checking signal path {}", path.display()))
-                }
-            }
-        })
-    }
-
-    pub(crate) fn remove_signal_channel(&self, channel: SignalChannel) -> Result<()> {
-        remove_file_if_present(&channel.path)
-            .with_context(|| format!("removing signal channel {}", channel.path.display()))
+    /// Grove's control directory inside the workspace's administration area —
+    /// where the runner allocates each launch's completion channel.
+    ///
+    /// Handed out rather than used here: the channel's name grammar, allocation
+    /// and cleanup are `keyed-launch`'s, and the lease's contribution is the one
+    /// thing that is genuinely grove's — *which* directory is ours.
+    pub(crate) fn control_dir(&self) -> &Path {
+        &self.control_dir
     }
 
     pub(crate) fn activate_session_epoch(&self, signal_path: &Path) -> Result<()> {
@@ -217,32 +203,6 @@ impl DriverLease {
 
     pub(crate) fn invalidate_session_epoch(&self) -> Result<()> {
         self.write_epoch_record(None, "post-reap invalidation")
-    }
-
-    /// Remove channels abandoned by a previous driver only after this lease
-    /// owns the workspace. This stays separate from acquisition so the epoch
-    /// layer can sequence it after installing the replacement driver's
-    /// inactive record.
-    pub(crate) fn cleanup_abandoned_signal_channels(&self) -> Result<()> {
-        cleanup_abandoned_signal_channels_with(
-            &self.control_dir,
-            |control_dir| {
-                let entries = fs::read_dir(control_dir).with_context(|| {
-                    format!(
-                        "listing abandoned signal channels in {}",
-                        control_dir.display()
-                    )
-                })?;
-                Ok(entries
-                    .map(|entry| {
-                        entry
-                            .map(|entry| entry.path())
-                            .context("reading a Grove control-directory entry")
-                    })
-                    .collect())
-            },
-            remove_file_if_present,
-        )
     }
 
     /// Confirm that the paths still name the descriptors this process owns.
@@ -340,78 +300,6 @@ fn write_epoch_contents(
         writeln!(file, "signal-path-hex={}", encode_path(signal_path)?)?;
     }
     file.flush().context("flushing session epoch record")
-}
-
-fn allocate_signal_channel_with(
-    control_dir: &Path,
-    mut draw_nonce: impl FnMut() -> Result<[u8; 16]>,
-    mut path_exists: impl FnMut(&Path) -> Result<bool>,
-) -> Result<SignalChannel> {
-    for _ in 0..RANDOM_DRAW_RETRY_LIMIT {
-        let path = control_dir.join(format!("{SIGNAL_FILE_PREFIX}{}", hex_nonce(draw_nonce()?)?));
-        if !path_exists(&path)? {
-            return Ok(SignalChannel { path });
-        }
-    }
-    bail!(
-        "could not allocate a fresh signal path after {} occupied random draws in {}",
-        RANDOM_DRAW_RETRY_LIMIT,
-        control_dir.display()
-    )
-}
-
-fn cleanup_abandoned_signal_channels_with(
-    control_dir: &Path,
-    mut list_paths: impl FnMut(&Path) -> Result<Vec<Result<PathBuf>>>,
-    mut remove_file: impl FnMut(&Path) -> Result<()>,
-) -> Result<()> {
-    let mut failures = Vec::new();
-    for entry in list_paths(control_dir)? {
-        let path = match entry {
-            Ok(path) => path,
-            Err(error) => {
-                failures.push(format!("{error:#}"));
-                continue;
-            }
-        };
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-            continue;
-        };
-        if is_signal_channel_name(name) {
-            if let Err(error) = remove_file(&path)
-                .with_context(|| format!("removing abandoned signal channel {}", path.display()))
-            {
-                failures.push(format!("{error:#}"));
-            }
-        }
-    }
-    if failures.is_empty() {
-        Ok(())
-    } else {
-        bail!(
-            "encountered {} abandoned signal cleanup failure(s):\n- {}",
-            failures.len(),
-            failures.join("\n- ")
-        )
-    }
-}
-
-fn is_signal_channel_name(name: &str) -> bool {
-    let Some(suffix) = name.strip_prefix(SIGNAL_FILE_PREFIX) else {
-        return false;
-    };
-    suffix.len() == 32
-        && suffix
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-}
-
-fn remove_file_if_present(path: &Path) -> Result<()> {
-    match fs::remove_file(path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(error).with_context(|| format!("removing {}", path.display())),
-    }
 }
 
 fn acquire_lease_file(path: &Path, worktree_root: &Path) -> Result<(File, FileIdentity)> {
@@ -900,7 +788,6 @@ fn write_record(
 mod tests {
     use super::*;
     use std::cell::{Cell, RefCell};
-    use std::collections::VecDeque;
     use std::process::Command;
     use std::sync::mpsc;
     use std::thread;
@@ -1030,158 +917,6 @@ mod tests {
                 "{label} descriptor can leak across exec"
             );
         }
-    }
-
-    #[test]
-    fn an_occupied_signal_draw_is_retried_without_touching_the_old_channel() {
-        let tmp = TempDir::new().unwrap();
-        let control_dir = tmp.path().join("control");
-        fs::create_dir_all(&control_dir).unwrap();
-        let occupied_nonce = [0x11; 16];
-        let fresh_nonce = [0x22; 16];
-        let occupied_path = control_dir.join(format!(
-            "{SIGNAL_FILE_PREFIX}{}",
-            hex_nonce(occupied_nonce).unwrap()
-        ));
-        fs::write(&occupied_path, "old completion\n").unwrap();
-        let mut draws = VecDeque::from([occupied_nonce, fresh_nonce]);
-
-        let channel = allocate_signal_channel_with(
-            &control_dir,
-            || Ok(draws.pop_front().unwrap()),
-            |path| Ok(fs::symlink_metadata(path).is_ok()),
-        )
-        .unwrap();
-
-        assert_eq!(
-            channel.path(),
-            control_dir
-                .join(format!(
-                    "{SIGNAL_FILE_PREFIX}{}",
-                    hex_nonce(fresh_nonce).unwrap()
-                ))
-                .as_path()
-        );
-        assert_eq!(
-            fs::read_to_string(occupied_path).unwrap(),
-            "old completion\n"
-        );
-        assert!(
-            draws.is_empty(),
-            "the allocator must consume exactly two draws"
-        );
-    }
-
-    #[test]
-    fn signal_allocation_refuses_after_eight_occupied_draws() {
-        let control_dir = PathBuf::from("/workspace-control");
-        let occupied_nonce = [0x11; 16];
-        let mut draws = 0;
-
-        let error = allocate_signal_channel_with(
-            &control_dir,
-            || {
-                draws += 1;
-                Ok(occupied_nonce)
-            },
-            |_| Ok(true),
-        )
-        .unwrap_err();
-
-        assert_eq!(draws, 8, "the allocator must stop at its retry bound");
-        assert_eq!(
-            error.to_string(),
-            "could not allocate a fresh signal path after 8 occupied random draws in /workspace-control"
-        );
-    }
-
-    #[test]
-    fn abandoned_cleanup_uses_the_injected_filesystem_and_exact_channel_grammar() {
-        let control_dir = PathBuf::from("/workspace-control");
-        let valid = control_dir.join("signal-0123456789abcdef0123456789abcdef");
-        let uppercase = control_dir.join("signal-0123456789ABCDEF0123456789ABCDEF");
-        let malformed = control_dir.join("signal-not-a-channel");
-        let lease = control_dir.join(LEASE_FILE_NAME);
-        let mut listed_directory = None;
-        let mut removed = Vec::new();
-
-        cleanup_abandoned_signal_channels_with(
-            &control_dir,
-            |directory| {
-                listed_directory = Some(directory.to_path_buf());
-                Ok(vec![
-                    Ok(valid.clone()),
-                    Ok(uppercase.clone()),
-                    Ok(malformed.clone()),
-                    Ok(lease.clone()),
-                ])
-            },
-            |path| {
-                removed.push(path.to_path_buf());
-                Ok(())
-            },
-        )
-        .unwrap();
-
-        assert_eq!(listed_directory, Some(control_dir));
-        assert_eq!(removed, vec![valid]);
-    }
-
-    #[test]
-    fn abandoned_cleanup_attempts_every_channel_when_one_removal_fails() {
-        let control_dir = PathBuf::from("/workspace-control");
-        let blocked = control_dir.join("signal-11111111111111111111111111111111");
-        let removable = control_dir.join("signal-22222222222222222222222222222222");
-        let mut attempted = Vec::new();
-
-        let error = cleanup_abandoned_signal_channels_with(
-            &control_dir,
-            |_| Ok(vec![Ok(blocked.clone()), Ok(removable.clone())]),
-            |path| {
-                attempted.push(path.to_path_buf());
-                if path == blocked {
-                    anyhow::bail!("simulated refusal")
-                }
-                Ok(())
-            },
-        )
-        .unwrap_err();
-
-        assert_eq!(attempted, vec![blocked.clone(), removable]);
-        assert!(
-            format!("{error:#}").contains(&blocked.display().to_string()),
-            "the aggregate warning must identify the channel that could not be removed: {error:#}"
-        );
-    }
-
-    #[test]
-    fn abandoned_cleanup_keeps_recoverable_entries_after_one_enumeration_error() {
-        let control_dir = PathBuf::from("/workspace-control");
-        let first = control_dir.join("signal-11111111111111111111111111111111");
-        let later = control_dir.join("signal-22222222222222222222222222222222");
-        let mut removed = Vec::new();
-
-        let error = cleanup_abandoned_signal_channels_with(
-            &control_dir,
-            |_| {
-                Ok(vec![
-                    Ok(first.clone()),
-                    Err(anyhow::anyhow!("simulated unreadable directory entry")),
-                    Ok(later.clone()),
-                ])
-            },
-            |path| {
-                removed.push(path.to_path_buf());
-                Ok(())
-            },
-        )
-        .unwrap_err();
-
-        assert_eq!(removed, vec![first, later]);
-        assert!(
-            format!("{error:#}").contains("simulated unreadable directory entry"),
-            "the aggregate warning must preserve enumeration failures: {error:#}"
-        );
     }
 
     #[test]

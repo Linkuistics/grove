@@ -145,8 +145,7 @@ fn expansion_refuses_values_that_do_not_fill_the_vocabulary() {
                 value: &prompt,
             }],
         )
-        .err()
-        .expect("a missing value is a refusal")
+        .expect_err("a missing value is a refusal")
         .to_string();
     assert_contains(&missing, "no value offered for declared slot: label");
 
@@ -169,8 +168,7 @@ fn expansion_refuses_values_that_do_not_fill_the_vocabulary() {
                 },
             ],
         )
-        .err()
-        .expect("an undeclared slot is a refusal")
+        .expect_err("an undeclared slot is a refusal")
         .to_string();
     assert_contains(&unknown, "no slot named `elsewhere` is declared");
     assert_contains(&unknown, "declared slots: prompt, label");

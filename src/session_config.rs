@@ -15,14 +15,13 @@
 //! (`docs/adr/untracked-configuration-delta.md`). A runner that took it would be
 //! taking a security decision it has no standing to make.
 
-use std::ffi::OsString;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use jj_workspace::Workspace;
-use keyed_launch::{Requirement, Slot, SlotRule, Templates, Vocabulary};
+use keyed_launch::{Argv, Requirement, Slot, SlotRule, Templates, Vocabulary};
 
 const CONFIG_PATH: &str = ".config/grove/config.kdl";
 /// The configuration delta's fixed name, searched at the two roots
@@ -153,7 +152,13 @@ impl SessionConfig {
         Ok(())
     }
 
-    pub fn expand(&self, kind: &str, context: &ExpansionContext<'_>) -> Result<Vec<OsString>> {
+    /// The launch this kind names, as the runner's own `Argv`.
+    ///
+    /// Handed on rather than flattened to a word list: `Argv` has no
+    /// constructor, so passing it through to `keyed_launch::run` is what makes
+    /// *nothing reaches a spawn that a template did not author* a fact about
+    /// the types rather than a convention grove keeps.
+    pub fn expand(&self, kind: &str, context: &ExpansionContext<'_>) -> Result<Argv> {
         let argv = self.templates.expand(
             kind,
             &[
@@ -175,7 +180,7 @@ impl SessionConfig {
                 },
             ],
         )?;
-        Ok(argv.words())
+        Ok(argv)
     }
 }
 

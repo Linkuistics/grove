@@ -404,6 +404,14 @@ own is a set of variables it **removes** from spawned children, listed in
 Scrubbing is the **default** and granting the exception: the loop driver's own
 session spawn scrubs too, then sets the one path it owns.
 
+**Relocated, not changed, at `keyed-launch-run-k11`.** `src/launch.rs` was
+absorbed into `src/loop_driver.rs` when the spawn and the escalation moved to
+`crates/keyed-launch`; the loop-control list is now that module's
+`LOOP_CONTROL_ENV`, handed to the runner as `Launch::scrub`, and the other two
+sets went earlier with the machinery that read them. The members and the rule
+below are unchanged, so this is a pointer correction rather than an exception —
+every `src/launch.rs` in the rows that follow reads as `src/loop_driver.rs`.
+
 **The three sets above are `src/launch.rs`'s scrub lists — they are not the
 complete set of actionable internal test seams, and this ledger does not claim
 they are.** `src/finish_transaction.rs` ships two more, read by

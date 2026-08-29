@@ -1,9 +1,17 @@
 // Tests for the `grove-llm complete` verb core (src/complete.rs): writing the
-// loop-disposition signal file. The out-of-band kill itself is the loop
-// driver's job now (src/loop_driver.rs, driver-side-kill-k2) — `complete`
-// only ever writes a file; see tests/loop_driver.rs for the kill half.
+// loop-disposition token into the completion channel the driver allocated, and
+// reading one back. The channel, the kill and the escalation are the runner's
+// (`crates/keyed-launch`) — `complete` only ever writes a token and interprets
+// one.
+//
+// The round trips below go through a real `Channel` rather than a path this
+// file invents, because that is the only pairing that proves anything: the
+// framing `signal` writes and the framing `read` strips are the runner's, and a
+// test that wrote and parsed its own file would agree with itself while
+// disagreeing with the driver.
 
 use grove::complete::{self, CompleteOpts, Disposition};
+use keyed_launch::Channel;
 use tempfile::TempDir;
 
 #[test]
@@ -38,20 +46,33 @@ fn an_empty_signal_environment_is_no_loop_context() {
     );
 }
 
-#[test]
-fn relaunch_signal_is_read_back_as_relaunch() {
-    let tmp = TempDir::new().unwrap();
-    let sig = tmp.path().join("loop.signal");
+/// Signal into a freshly allocated channel and read the disposition back the
+/// way the driver does.
+fn round_trip(tmp: &TempDir, disposition: Disposition) -> (Channel, Option<Disposition>) {
+    let channel = Channel::allocate(tmp.path()).unwrap();
     let opts = CompleteOpts {
-        signal_file: Some(sig.clone()),
-        disposition: Disposition::Relaunch,
+        signal_file: Some(channel.path().to_path_buf()),
+        disposition,
     };
 
     complete::signal_complete(&opts).unwrap();
 
-    assert!(sig.exists(), "completion must create the signal file");
+    let read = complete::interpret(channel.read().as_ref());
+    (channel, read)
+}
+
+#[test]
+fn relaunch_signal_is_read_back_as_relaunch() {
+    let tmp = TempDir::new().unwrap();
+
+    let (channel, read) = round_trip(&tmp, Disposition::Relaunch);
+
+    assert!(
+        channel.path().exists(),
+        "completion must create the channel file"
+    );
     assert_eq!(
-        complete::read_signal(&sig),
+        read,
         Some(Disposition::Relaunch),
         "the default completion must signal a relaunch"
     );
@@ -60,29 +81,25 @@ fn relaunch_signal_is_read_back_as_relaunch() {
 #[test]
 fn done_signal_is_read_back_as_done() {
     let tmp = TempDir::new().unwrap();
-    let sig = tmp.path().join("loop.signal");
-    let opts = CompleteOpts {
-        signal_file: Some(sig.clone()),
-        disposition: Disposition::Done,
-    };
 
-    complete::signal_complete(&opts).unwrap();
+    let (_channel, read) = round_trip(&tmp, Disposition::Done);
 
     assert_eq!(
-        complete::read_signal(&sig),
+        read,
         Some(Disposition::Done),
         "`complete --done` must signal a clean whole-grove finish"
     );
 }
 
 #[test]
-fn read_signal_is_none_when_no_session_signalled() {
+fn an_absent_token_is_none() {
     let tmp = TempDir::new().unwrap();
-    let missing = tmp.path().join("never-written.signal");
+    let channel = Channel::allocate(tmp.path()).unwrap();
+
     assert_eq!(
-        complete::read_signal(&missing),
+        complete::interpret(channel.read().as_ref()),
         None,
-        "no signal file → the loop stops (human exit / crash), it does not relaunch"
+        "no token → the loop stops (human exit / crash), it does not relaunch"
     );
 }
 
@@ -92,7 +109,11 @@ fn unrecognised_signal_content_is_treated_as_relaunch() {
     // Anything present-but-not-"done" must still relaunch (the safe default),
     // never be mistaken for a clean finish.
     let tmp = TempDir::new().unwrap();
-    let sig = tmp.path().join("loop.signal");
-    std::fs::write(&sig, "complete\n").unwrap();
-    assert_eq!(complete::read_signal(&sig), Some(Disposition::Relaunch));
+    let channel = Channel::allocate(tmp.path()).unwrap();
+    std::fs::write(channel.path(), "complete\n").unwrap();
+
+    assert_eq!(
+        complete::interpret(channel.read().as_ref()),
+        Some(Disposition::Relaunch)
+    );
 }

@@ -287,11 +287,17 @@ fn every_grove_name_in_the_tree_is_classified() {
 }
 
 /// Removed launch policy may be *named* in production only where production is
-/// getting rid of it. Confining that to the scrub module is what keeps "we
-/// scrub it" from drifting into "we read it somewhere else too".
+/// getting rid of it. Confining that to the one module that owns the scrub list
+/// is what keeps "we scrub it" from drifting into "we read it somewhere else
+/// too".
+///
+/// The module moved at `keyed-launch-run-k11`: `src/launch.rs` was absorbed
+/// into the loop driver when the spawn and escalation went to the runner, and
+/// `LOOP_CONTROL_ENV` — now the runner's `scrub` argument — went with it. The
+/// rule is unchanged; only the file that may state the list is.
 #[test]
 fn no_removed_launch_policy_is_named_outside_the_scrub_module() {
-    const SCRUB_MODULE: &str = "src/launch.rs";
+    const SCRUB_MODULE: &str = "src/loop_driver.rs";
     let stray: Vec<Occurrence> = occurrences()
         .into_iter()
         .filter(|occurrence| {

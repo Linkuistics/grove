@@ -40,8 +40,14 @@ resolver = "2"
 # Denying the group costs ordinary builds nothing: rustc does not evaluate
 # `clippy::` tool lints, so `cargo build` and `cargo test` are unaffected and
 # this bites only under `cargo clippy` — exactly when it should. Run
-# `cargo clippy --all-targets` before committing, where a new warning is now an
-# error rather than a line of scrollback.
+# `cargo clippy --workspace --all-targets` before committing, where a new
+# warning is now an error rather than a line of scrollback.
+#
+# `--workspace` is load-bearing rather than belt-and-braces. This root is *also*
+# a package, so a bare `cargo clippy` lints `grove` alone and every member
+# crate's warnings go unread — which is how `crates/keyed-launch` came to carry
+# two of them unnoticed between `keyed-launch-templates-k10` and
+# `keyed-launch-run-k11`, with the baseline below in force the whole time.
 #
 # `priority = -1` keeps the group from outranking a future single-lint override
 # placed beside it.

@@ -16,17 +16,18 @@
 // harness's own parent process, outside any sandbox the harness runs under,
 // so it can always signal its child.
 
-use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
+use anyhow::Result;
+use keyed_launch::Token;
+use std::path::PathBuf;
 
 /// What a finished session tells the self-driving loop to do next. The agent
 /// picks this when it signals; the loop driver reads it back from the signal
 /// file (self-driving-loop). The third case — *no* signal at all — is the
-/// *absence* of a [`Disposition`], represented by [`read_signal`] returning
+/// *absence* of a [`Disposition`], represented by [`interpret`] returning
 /// `None`, so the loop can tell a clean finish from an abnormal exit. That case
 /// is only ever **reached** when the session process itself ends (a crash, or a
 /// human `/exit`/Ctrl-C): an agent that simply forgets to signal does not get
-/// there at all — see [`read_signal`].
+/// there at all — see [`interpret`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Disposition {
     /// Relaunch with fresh context for the next task (the default — today's
@@ -51,16 +52,22 @@ impl Disposition {
     }
 }
 
-/// Read the disposition a finished session left in its signal file. `None` =
-/// no signal file, and the driver only ever observes that when the session
-/// *process* ended without signalling: a human `/exit`/Ctrl-C, or a crash → the
-/// loop stops.
+/// Interpret the token a finished session left in its completion channel.
+///
+/// **This is the whole of grove's stake in the channel's content.** The runner
+/// carries the token opaquely — allocating the path, watching for it, reading
+/// the bytes back — and hands it here without ever having decided what it
+/// means; the meaning is one match, in one place, on grove's side of the seam.
+///
+/// `None` = no token at all, and the driver only ever observes that when the
+/// session *process* ended without signalling: a human `/exit`/Ctrl-C, or a
+/// crash → the loop stops.
 ///
 /// An agent that finishes its work and forgets the verb is **not** that case,
 /// and reading it as one is what made this failure mode hard to see. The
 /// configured templates launch *interactive* harnesses (no `-p`, no `exec`), so
 /// finishing a turn returns the session to its prompt and it never exits: the
-/// driver's watcher sits on a signal file that will never appear and a child
+/// runner's supervision sits on a channel that will never appear and a child
 /// that will never exit, and the loop **stalls** rather than stopping. Nothing
 /// downstream of here can distinguish that from a session still working — which
 /// is why the reminder to signal is delivered at the moment of decision, on
@@ -68,10 +75,11 @@ impl Disposition {
 ///
 /// `Some(Done)` = a clean whole-grove finish;
 /// `Some(Relaunch)` = relaunch the next task (also the backward-compatible
-/// reading of any present-but-unrecognised content).
-pub fn read_signal(path: &Path) -> Option<Disposition> {
-    let content = std::fs::read_to_string(path).ok()?;
-    if content.trim() == Disposition::DONE_TOKEN {
+/// reading of any present-but-unrecognised content, e.g. a stale binary's
+/// legacy `"complete"`).
+pub fn interpret(token: Option<&Token>) -> Option<Disposition> {
+    let token = token?;
+    if token.as_str().trim() == Disposition::DONE_TOKEN {
         Some(Disposition::Done)
     } else {
         Some(Disposition::Relaunch)
@@ -103,17 +111,16 @@ pub fn resolve_opts(signal_file: Option<PathBuf>, disposition: Disposition) -> C
 }
 
 /// Write the disposition signal and return. Ending this session is the loop
-/// driver's job now — it is watching for this very file — not this
+/// driver's job now — it is watching for this very channel — not this
 /// process's, so there is nothing else to do here.
+///
+/// Written through `keyed_launch::signal`, the child-side half of the channel
+/// the driver allocated: this process holds only the path it was handed, and
+/// the file's framing belongs to whoever reads it back.
 pub fn signal_complete(opts: &CompleteOpts) -> Result<()> {
     match &opts.signal_file {
         Some(sig) => {
-            if let Some(parent) = sig.parent() {
-                std::fs::create_dir_all(parent)
-                    .with_context(|| format!("creating signal-file dir {}", parent.display()))?;
-            }
-            std::fs::write(sig, format!("{}\n", opts.disposition.token()))
-                .with_context(|| format!("writing signal file {}", sig.display()))?;
+            keyed_launch::signal(sig, opts.disposition.token())?;
             let tail = match opts.disposition {
                 Disposition::Relaunch => "the loop will start the next task",
                 Disposition::Done => "the grove is finished — the loop will stop",

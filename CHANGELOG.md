@@ -51,6 +51,77 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The runner now runs what it expanded: the channel, the spawn and the kill
+  escalation are `crates/keyed-launch` too.** The crate gains `Channel`
+  (`allocate` / `path` / `read` / `discard` / `discard_abandoned`), the free
+  `signal(path, token)` its child end writes through, an opaque `Token`, and
+  `run(Launch) -> Ended` — which spawns the expanded argv **directly, with no
+  shell**, hands the child the caller's environment minus a caller-supplied
+  scrub list plus the fresh channel path under a caller-chosen variable name,
+  and supervises it to one of three ends: the child exits, the token appears
+  (grace → SIGTERM → kill-grace → SIGKILL), or the launcher itself is signalled.
+  `Argv` still has no constructor, so *nothing reaches a spawn that a template
+  did not author* is now a fact about the types rather than a convention grove
+  keeps. `crates/keyed-launch/tests/launch.rs` drives the whole of it end to end
+  against a fake `sh` child with no grove anywhere in sight (test seam 1); the
+  crate takes `libc` for `kill(2)` and `signal(2)`, which `std` does not reach —
+  `Child::kill` sends SIGKILL and nothing else, so there is no graduated
+  escalation without it.
+
+  **`src/launch.rs` is gone**, absorbed into `src/loop_driver.rs`: `bare_grove`
+  and the `LOOP_CONTROL_ENV` scrub list, which is now handed to the runner as
+  `Launch::scrub` rather than applied by a grove helper — the one spawn allowed
+  to *grant* the channel therefore cannot be written without first removing what
+  it inherited. `src/driver_lease.rs` loses the signal-channel third (allocation,
+  the `signal-<128-bit>` grammar, abandoned-channel cleanup, its nonce draw and
+  their unit tests) and exposes the control directory instead: *which* directory
+  is grove's is the lease's to say, and everything about what lives in it is the
+  runner's. What the driver keeps is the four things a loop must choose and a
+  runner cannot — the control directory, the variable name, the scrub list, and
+  the two graces. `src/complete.rs` writes through `keyed_launch::signal` and its
+  `read_signal` becomes `interpret(Option<&Token>)`: the runner carries the token
+  opaquely and grove's stake in its content is one match, in one place.
+
+  **Behaviour change, small and deliberate**: SIGTERM/SIGHUP are caught by the
+  runner for the duration of a launch rather than by the driver for the whole
+  loop. A signal arriving while a session runs behaves exactly as before —
+  forwarded to the child, reaped through the same escalation, reported as
+  `End::Interrupted`. One arriving *between* iterations is now collected by the
+  driver at the top of its loop (`keyed_launch::take_interrupt`) and stops it,
+  where before it was latched and spent on the *next* session — which had
+  signalled nothing and was killed on its first poll. SIGINT stays the driver's,
+  because what a loop does about the human's Ctrl-C is the loop's policy and not
+  a runner's mechanism.
+
+  **Five defects an adversarial read of the new supervision found, fixed here.**
+  `End::Signalled` now means the escalation actually ran, not merely that a token
+  appeared — which `token` already reported, so the two fields no longer say the
+  same thing while one of them claims something stronger; a child that signals
+  and exits inside its own grace comes back `Exited` with a token. A failing
+  `try_wait` SIGKILLs and reaps the child before returning the error instead of
+  leaving an interactive one holding the terminal with nothing left to reap it. A
+  driver interrupt no longer restarts a kill grace that is already counting down,
+  which used to *extend* a stuck teardown by five seconds per signal. An empty
+  channel file — what a child killed between creating the file and writing to it
+  leaves — is no longer read back as an empty token that grove's
+  anything-unrecognised rule turns into a relaunch. And the terminal is restored
+  on every path out of the loop body, not only the successful one, so an error is
+  legible in the shell that has to display it.
+
+  Three findings from the same read are **not** fixed here and are
+  `child-signal-disposition-k31`: `SIG_IGN` for SIGINT is inherited across `exec`
+  by the session and everything it spawns; the escalation signals the child and
+  not its process group, so grandchildren survive; and a SIGTERM'd driver exits
+  0. All three predate this change and all three alter what an interactive
+  session experiences, which is not a thing to change blind.
+
+  **`cargo clippy --workspace --all-targets` is the gate**, and the manifest now
+  says so. This root is also a package, so the bare `cargo clippy --all-targets`
+  the comment used to prescribe lints `grove` alone — which is how
+  `crates/keyed-launch` came to carry two `clippy::err_expect` errors unnoticed
+  since it was created, with the workspace `deny` baseline in force the whole
+  time. Both are fixed.
+
 - **The runner's template half is a crate, and it has never heard of a session.**
   `crates/keyed-launch` owns a configuration of `key -> complete command
   template`: the KDL grammar, whole-document validation against a *slot

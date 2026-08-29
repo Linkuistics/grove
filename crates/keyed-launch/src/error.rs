@@ -40,3 +40,42 @@ impl fmt::Debug for ConfigError {
 }
 
 impl std::error::Error for ConfigError {}
+
+/// Everything that can go wrong allocating a channel, spawning a child, or
+/// supervising one.
+///
+/// **Opaque for the same reason [`ConfigError`] is**, and deliberately a
+/// *separate* type rather than a shared one: a caller that only loads and
+/// expands a configuration never handles a spawn failure, and one that only
+/// launches never handles a KDL parse error. Two types keep the two halves of
+/// this crate usable apart — which is the whole claim `Templates` and `run`
+/// make by not referring to each other.
+///
+/// Its obligation is the same: name what is wrong, name where, and name what
+/// would fix it.
+pub struct LaunchError {
+    message: String,
+}
+
+impl LaunchError {
+    pub(crate) fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+
+impl fmt::Display for LaunchError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+/// The message, not a struct dump — see [`ConfigError`]'s `Debug` for why.
+impl fmt::Debug for LaunchError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for LaunchError {}

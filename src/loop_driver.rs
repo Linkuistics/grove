@@ -7,14 +7,19 @@
 // re-running `grove` from the same working tree (restart ≡ continuation, the
 // loop body holds zero state and re-derives position from the tree).
 //
-// The driver spawns the configured command directly — no shell, no PID-export
-// trick; the spawned `Child` already carries its own pid — and watches it while
-// it runs: poll `try_wait` alongside the completion-signal file, and once the
-// file appears, apply grace → SIGTERM → kill-grace → SIGKILL to the child itself
-// (driver-side watcher — self-driving-loop). The driver is the session's own
-// parent process, outside whatever sandbox the session runs under, so it can
-// always signal its child — unlike the in-agent self-kill this replaces, which
-// codex's Seatbelt sandbox silently denied.
+// The configured command is spawned directly — no shell, no PID-export trick —
+// and watched while it runs: poll it alongside the completion-signal file, and
+// once the file appears, apply grace → SIGTERM → kill-grace → SIGKILL to the
+// child itself (driver-side watcher — self-driving-loop). The driver is the
+// session's own parent process, outside whatever sandbox the session runs
+// under, so it can always signal its child — unlike the in-agent self-kill this
+// replaces, which codex's Seatbelt sandbox silently denied.
+//
+// **All of that is `crates/keyed-launch`'s, not this module's.** What stays here
+// is the four things a loop has to choose and a runner cannot: which directory
+// the channel is allocated in, which variable publishes it, which variables are
+// scrubbed, and how long the two graces are. The shell sketch below is still the
+// whole loop, because a boundary is not a step.
 //
 // The driver is deliberately tiny — a plain shell `while` loop could stand in
 // (constraint 6, walk-away-able). Nothing below infers anything about the
@@ -55,11 +60,99 @@ use crate::leaf::Kind;
 use crate::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
 use anyhow::{Context, Result};
 use jj_workspace::Workspace;
-use std::ffi::OsString;
+use keyed_launch::{Argv, Channel, End, Ended, Escalation, Launch};
+use std::ffi::OsStr;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, ExitStatus};
-use std::time::{Duration, Instant};
+use std::process::Command;
+use std::time::Duration;
+
+/// Drive the config-defined lifecycle from the current working tree. This is
+/// the sole path reached by the human-facing bare command: provision installed
+/// harnesses, acquire the workspace lease, and run one configured foreground
+/// session per selected task until the agent stops signalling.
+///
+/// Nothing here inspects the working tree for a harness, and nothing chooses a
+/// binary: the configured argv is the whole of launch policy.
+pub fn bare_grove() -> Result<()> {
+    crate::provision::provision_installed()?;
+
+    let cwd = std::env::current_dir().context("getting cwd")?;
+    let driver_lease = DriverLease::acquire(&cwd)?;
+    let worktree = driver_lease.worktree_root().to_path_buf();
+    let repository = driver_lease.main_repo().to_path_buf();
+    let name = worktree_name(&worktree);
+
+    run_configured(&repository, &worktree, &name, driver_lease)
+}
+
+/// The grove name is the worktree directory's basename (user-owned-worktrees).
+fn worktree_name(worktree: &Path) -> String {
+    worktree
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "grove".to_string())
+}
+
+/// The loop driver's **launch-scoped environment** (self-driving-loop) — the
+/// variables a descendant could act on, and the exact set every spawn below
+/// hands to `keyed_launch` as its scrub list.
+///
+/// `GROVE_SIGNAL_FILE` is the completion channel: the runner watches that path
+/// while its child runs and applies grace → SIGTERM → kill-grace → SIGKILL the
+/// moment the file *appears*. Whoever holds the variable can therefore end the
+/// session, and the environment is inherited by every descendant — so the
+/// authority is ambient unless each spawn scopes it deliberately.
+/// `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` are the retired pre-watcher handles
+/// (driver-side-kill), kept here because a stale, unrelated PID leaking into a
+/// nested grove is the same class of mistake one notch quieter — the value is
+/// something a reader could still *act on*. That is the bar for membership.
+///
+/// **Any spawn that is not the configured session itself must scrub this whole
+/// list** (guard-loop-signal-k37), and so must the session's own, which then
+/// receives the one path it owns. Scrubbing is the default and granting is the
+/// exception; `keyed_launch::run` takes the list precisely so the grant cannot
+/// happen without the scrub.
+///
+/// The failure this closes was not hypothetical. This repo is a meta-grove, so
+/// its own suite runs as a *descendant* of a live session; a since-removed
+/// pre-flight spawned a harness binary without scrubbing, the suite's fake
+/// commands write `"$GROVE_SIGNAL_FILE"` unconditionally, and `cargo test`
+/// killed the terminal it was typed into.
+///
+/// Grove's own spawns are exactly three — the configured session, the
+/// build-pairing probe below, and `stty sane` — and all three scrub. The one
+/// other family, the VCS probes and the teardown commit, went to
+/// `jj-workspace`, which scrubs the *repository selectors* itself because
+/// choosing the right repository is its guarantee to make. It deliberately does
+/// not scrub this list: it has no consumer to speak for, and `jj` reads no
+/// `GROVE_*` variable. That is narrower than *nothing downstream of it can act
+/// on one* — `jj` execs a user-configured pager, editor and fsmonitor, which
+/// inherit whatever `jj` inherited — and the seam's own record is where that
+/// belongs rather than here.
+const LOOP_CONTROL_ENV: [&str; 3] = ["GROVE_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"];
+
+/// The variable the completion channel's path is published under — the name
+/// this build and `grove-llm complete` have agreed on. It is the runner's
+/// `channel_var`, and it is the first entry of [`LOOP_CONTROL_ENV`] because
+/// granting it is exactly the exception scrubbing exists to carve out.
+const CHANNEL_VAR: &str = "GROVE_SIGNAL_FILE";
+
+/// [`LOOP_CONTROL_ENV`] as the runner takes it.
+fn scrub_list() -> [&'static OsStr; LOOP_CONTROL_ENV.len()] {
+    LOOP_CONTROL_ENV.map(OsStr::new)
+}
+
+/// Deliberately one helper rather than an `env_remove` per site: the list is the
+/// interesting part, and a second site open-coding it is how the first one came
+/// to be missed. The configured session goes through
+/// [`keyed_launch::Launch::scrub`] instead, which is the same list by the same
+/// rule.
+pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
+    for name in LOOP_CONTROL_ENV {
+        cmd.env_remove(name);
+    }
+}
 
 /// Why the loop stopped — the loop's terminal disposition, made first-class so
 /// a clean whole-grove finish is distinguishable from an abnormal stop (rather
@@ -85,7 +178,6 @@ pub fn run_configured(
     driver_lease: DriverLease,
 ) -> Result<()> {
     ignore_interrupts();
-    install_termination_handler();
     run_configured_loop_with_lease(repo_path, worktree, name, &driver_lease).map(|_| ())
 }
 
@@ -115,6 +207,15 @@ fn run_configured_loop_with_lease(
     let session_name = format!("{repo_name}: {name} grove");
 
     loop {
+        // A SIGTERM or SIGHUP that arrived while no session was running has no
+        // launch to be reported against, so the runner discards it rather than
+        // spending it on the next child. Collecting it here is what keeps the
+        // driver from going on provisioning, mutating the tree and taking
+        // commits after its terminal has gone.
+        if keyed_launch::take_interrupt() {
+            eprintln!("grove: interrupted between sessions — stopping the loop.");
+            return Ok(LoopOutcome::Stopped);
+        }
         driver_lease
             .revalidate()
             .context("revalidating driver lease before loop transition")?;
@@ -168,33 +269,38 @@ fn run_configured_loop_with_lease(
         driver_lease
             .revalidate()
             .context("revalidating driver lease before foreground launch")?;
-        let signal_channel = driver_lease
-            .allocate_signal_channel()
+        let channel = Channel::allocate(driver_lease.control_dir())
             .context("allocating a fresh foreground-session signal channel")?;
         let ended = launch_configured_session(
             &argv,
             &selection,
             &resolved_source,
             worktree,
-            signal_channel.path(),
+            &channel,
             driver_lease,
         );
+        // Unconditionally, and before the invalidation gate below: the session
+        // may have left the terminal in raw mode and on the alternate screen,
+        // and an error path that returns without restoring it hands the human
+        // an unusable shell to read the error in. Restoring is not
+        // interpretation, so it is not what the gate is protecting.
+        reset_terminal();
         let (ended, signal) = complete_post_reap_epoch_handoff(
             ended,
             || driver_lease.invalidate_session_epoch(),
-            |ended| {
-                reset_terminal();
-                (ended, complete::read_signal(signal_channel.path()))
+            |ended: Ended| {
+                let signal = complete::interpret(ended.token.as_ref());
+                (ended, signal)
             },
         )?;
 
-        if let Err(error) = driver_lease.remove_signal_channel(signal_channel) {
+        if let Err(error) = channel.discard() {
             eprintln!(
-                "grove: warning: could not remove the interpreted foreground-session signal channel; preserving the session outcome: {error:#}"
+                "grove: warning: could not remove the interpreted foreground-session signal channel; preserving the session outcome: {error}"
             );
         }
 
-        if ended.end == SessionEnd::Interrupted {
+        if ended.end == End::Interrupted {
             eprintln!("grove: interrupted — stopping the loop.");
             return Ok(LoopOutcome::Stopped);
         }
@@ -215,7 +321,7 @@ fn run_configured_loop_with_lease(
                     eprintln!(
                         "       configured session kind `{}` failed via {:?} from {}.",
                         selection.kind.label(),
-                        argv[0],
+                        argv.program(),
                         resolved_source.display()
                     );
                 }
@@ -296,10 +402,9 @@ fn stated_vcs(worktree: &Path) -> Result<String> {
     ))
 }
 
-/// Launch one fresh foreground session owning the real TTY, then watch it while
-/// it runs (see [`wait_with_watcher_result`]). Spawned directly — no shell, no
-/// PID-export trick; the `Child` already carries its own pid, and the driver
-/// signals it directly once the completion file appears.
+/// Launch one fresh foreground session owning the real TTY, and hand it to
+/// `keyed_launch::run`, which spawns it directly — no shell — and supervises it
+/// until it ends.
 ///
 /// The argv is taken whole from the expanded configuration. Nothing is appended,
 /// injected, or reordered here: no session-name argument, no model flag, no
@@ -314,41 +419,49 @@ fn stated_vcs(worktree: &Path) -> Result<String> {
 /// A spawn failure names `resolved_source` — the file this kind's template was
 /// actually read from, personal or delta — rather than the personal path
 /// unconditionally, which would name a file that never held the failing
-/// template (`docs/adr/untracked-configuration-delta.md`).
+/// template (`docs/adr/untracked-configuration-delta.md`). The runner's own
+/// message names the program and says to check that it is executable; grove
+/// adds the two things only grove knows, the kind and the file that supplied
+/// it.
+///
+/// The epoch is activated **before** the spawn and never after: a child that is
+/// already running under an inactive epoch would have its own `grove-llm` verbs
+/// refused.
 fn launch_configured_session(
-    argv: &[OsString],
+    argv: &Argv,
     selection: &crate::task_tree::SelectedLeaf,
     resolved_source: &Path,
     worktree: &Path,
-    signal_file: &Path,
+    channel: &Channel,
     driver_lease: &DriverLease,
-) -> Result<WatchedSession> {
-    let (executable, arguments) = argv
-        .split_first()
-        .context("validated Grove command expanded to an empty argv")?;
+) -> Result<Ended> {
     eprintln!(
         "grove: launching {} with configured {:?} — {}",
         selection.kind.label(),
-        executable,
+        argv.program(),
         selection.handle
     );
-    let mut command = Command::new(executable);
-    command.args(arguments).current_dir(worktree);
-    crate::launch::scrub_loop_control_env(&mut command);
-    command.env("GROVE_SIGNAL_FILE", signal_file);
 
     driver_lease
-        .activate_session_epoch(signal_file)
+        .activate_session_epoch(channel.path())
         .context("activating the foreground session epoch before spawn")?;
-    let child = command.spawn().with_context(|| {
+
+    keyed_launch::run(Launch {
+        argv,
+        channel,
+        channel_var: CHANNEL_VAR,
+        scrub: &scrub_list(),
+        cwd: Some(worktree),
+        escalation: ESCALATION,
+    })
+    .with_context(|| {
         format!(
             "launching configured session kind `{}` via {:?} from {}",
             selection.kind.label(),
-            executable,
+            argv.program(),
             resolved_source.display()
         )
-    })?;
-    wait_with_watcher_result(child, signal_file, (DEFAULT_GRACE, DEFAULT_KILL_GRACE))
+    })
 }
 
 fn complete_post_reap_epoch_handoff<E, T>(
@@ -369,141 +482,18 @@ fn complete_post_reap_epoch_handoff<E, T>(
     }
 }
 
-/// The watcher's state machine: idle until the completion signal file
-/// appears, then timed toward SIGTERM and finally SIGKILL.
-enum Watch {
-    Running,
-    Signalled(Instant),
-    Terminated(Instant),
-}
-
-/// How a watched session ended: normally (whatever it left in the signal file
-/// decides the rest), or because the *driver* was signalled — a case the signal
-/// file cannot express, since an interrupt normally leaves none.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SessionEnd {
-    Exited,
-    Interrupted,
-}
-
-struct WatchedSession {
-    end: SessionEnd,
-    status: ExitStatus,
-    elapsed: Duration,
-}
-
-/// How often the watcher checks the child's liveness and the signal file.
-const POLL_INTERVAL: Duration = Duration::from_millis(500);
-
-/// How long after the completion signal file appears before the watcher sends
-/// SIGTERM (lets the agent's `complete` tool call return, and the agent's turn
-/// end, before its session dies).
+/// The kill escalation the runner applies once the completion channel appears.
 ///
-/// A built-in constant, not a knob. It is passed into [`wait_with_watcher_result`]
-/// rather than read there so the suite can drive the escalation on test
-/// timescales through that module-local parameter — an internal seam, never
-/// process configuration.
-const DEFAULT_GRACE: Duration = Duration::from_secs(2);
-/// How long after SIGTERM before the watcher escalates to SIGKILL. Same
-/// built-in-constant rule as [`DEFAULT_GRACE`].
-const DEFAULT_KILL_GRACE: Duration = Duration::from_secs(5);
-
-/// Watch a spawned session while it runs: poll for the completion signal file
-/// alongside the child's own exit (`try_wait`), and once the file appears, apply
-/// grace → SIGTERM → kill-grace → SIGKILL — the out-of-band kill an interactive
-/// session cannot perform on itself (self-driving-loop). This is the *driver's*
-/// job, not the agent's: the driver is the session's own parent process, outside
-/// whatever sandbox the session runs under, so it can always signal its child —
-/// codex's Seatbelt sandbox, for one, denies a same-sandbox process from
-/// signalling its own session, which is why the previous in-agent self-kill
-/// silently failed there.
-///
-/// A caught SIGTERM/SIGHUP also lands here: the handler only flips
-/// [`TERMINATED`], and this poll loop is what acts on it — forwarding the
-/// signal to the child and letting the existing escalation reap it. That
-/// ordering is deliberate: the handler performs only an async-signal-safe
-/// atomic store, while the watcher signals and reaps the child on a normal
-/// stack.
-///
-/// Those are the loop's only three exits — the child exits on its own, the
-/// signal file appears, or the driver itself is signalled — and a session that
-/// finishes its work and simply forgets `grove-llm complete` reaches none of
-/// them: an interactive harness returns to its prompt instead of exiting, so
-/// the loop **stalls** rather than stopping (see [`crate::complete::read_signal`]
-/// for why that was hard to see). The fix shipped for it is at the instruction
-/// layer, deliberately: `leaf-retire`/`leaf-prune` name the remaining steps on
-/// stderr, and the Signal step composes last in every mandate.
-///
-/// **The escalation, weighed and set aside.** Give this watcher a *second*
-/// completion observable — something it can see without the agent's
-/// cooperation — so a forgotten verb costs nothing. It was not taken, because
-/// the contract that the agent signals is kept on purpose and no cheap second
-/// observable is free of the same ambiguity: nothing here distinguishes a
-/// forgotten verb from a session still working. Reopen it only on evidence that
-/// sessions still skip the verb *after* a build carrying both instruction-layer
-/// fixes — which is evidence no meta-grove can produce for itself, since
-/// `content/` and `grove-llm`'s output are fixed at build and install time.
-fn wait_with_watcher_result(
-    mut child: Child,
-    signal_file: &Path,
-    (grace, kill_grace): (Duration, Duration),
-) -> Result<WatchedSession> {
-    let started = Instant::now();
-    let mut watch = Watch::Running;
-    let mut interrupted = false;
-    loop {
-        if let Some(status) = child.try_wait().context("waiting on the session")? {
-            // A completion kill makes the session exit non-zero (or via
-            // signal); that is the normal exit path, not an error. The signal
-            // file — not the exit status — decides relaunch.
-            return Ok(WatchedSession {
-                end: if interrupted {
-                    SessionEnd::Interrupted
-                } else {
-                    SessionEnd::Exited
-                },
-                status,
-                elapsed: started.elapsed(),
-            });
-        }
-        // A signalled driver forwards the signal to its child and hands over to
-        // the same escalation the completion path uses, so a session that
-        // ignores SIGTERM still gets SIGKILL'd rather than orphaned onto the
-        // TTY. Latched, because the driver must still return `Interrupted` on
-        // the iteration where the child finally exits.
-        if !interrupted && TERMINATED.load(std::sync::atomic::Ordering::Relaxed) {
-            interrupted = true;
-            unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
-            watch = Watch::Terminated(Instant::now());
-        }
-        watch = match watch {
-            Watch::Running if signal_file.exists() => Watch::Signalled(Instant::now()),
-            Watch::Signalled(at) if at.elapsed() >= grace => {
-                // SAFETY: kill(2) on a pid this process itself spawned. A
-                // failure (e.g. ESRCH, the child already exited) is ignored,
-                // same as the shell `kill ... 2>/dev/null` this replaces —
-                // the next `try_wait` above will catch that exit anyway.
-                unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
-                Watch::Terminated(Instant::now())
-            }
-            Watch::Terminated(at) if at.elapsed() >= kill_grace => {
-                unsafe { libc::kill(child.id() as i32, libc::SIGKILL) };
-                let status = child.wait().context("reaping the killed session")?;
-                return Ok(WatchedSession {
-                    end: if interrupted {
-                        SessionEnd::Interrupted
-                    } else {
-                        SessionEnd::Exited
-                    },
-                    status,
-                    elapsed: started.elapsed(),
-                });
-            }
-            other => other,
-        };
-        std::thread::sleep(POLL_INTERVAL);
-    }
-}
+/// Built-in constants, not knobs. Two seconds lets the agent's `complete` tool
+/// call return and its turn end before its session dies; five more is time for
+/// an orderly SIGTERM shutdown before SIGKILL. Why an escalation is needed at
+/// all — an interactive session is never reaped on its own, and cannot be
+/// trusted to end itself under every sandbox — is `keyed_launch::Escalation`'s
+/// to state, and it states it.
+const ESCALATION: Escalation = Escalation {
+    grace: Duration::from_secs(2),
+    kill_grace: Duration::from_secs(5),
+};
 
 /// The agent-side CLI name a session resolves. Not a path: resolution through
 /// `PATH` is the whole point of the check below.
@@ -589,7 +579,7 @@ fn resolve_agent_cli_pairing(own: &str, session_cwd: &Path) -> Pairing {
     // launch-scoped environment: this repository is a meta-grove, so the driver
     // itself may be running inside a live session whose kill channel it must not
     // hand down (guard-loop-signal-k37).
-    crate::launch::scrub_loop_control_env(&mut command);
+    scrub_loop_control_env(&mut command);
     let output = match command.output() {
         Ok(output) => output,
         Err(error) => {
@@ -637,15 +627,16 @@ fn resolve_on_path(name: &str, session_cwd: &Path) -> Option<PathBuf> {
 /// Split from the environment read above for the reason `driver_lease`'s own
 /// admission split states: a test that set the process `PATH` to exercise this
 /// would be writing a global that every parallel sibling test's `Command::new`
-/// reads at the same moment. That is not hypothetical here — it failed
-/// `an_unsignalled_session_runs_to_its_own_exit_untouched`, which spawns `sh`,
-/// the first time this was written as one function.
+/// reads at the same moment. That is not hypothetical: it hung a sibling test
+/// that spawns `sh` the first time this was written as one function, and it did
+/// so again in `crates/keyed-launch/tests/launch.rs` while the escalation tests
+/// were being moved there.
 ///
 /// An empty entry means the current directory, as every POSIX shell reads it, so
 /// it is left to `join` rather than skipped — and **whose** current directory is
 /// the reason `session_cwd` is a parameter rather than the process's own cwd.
 /// Bare `grove` is deliberately accepted from any directory inside the working
-/// tree and keeps that cwd while it resolves the root (`launch::bare_grove`),
+/// tree and keeps that cwd while it resolves the root ([`bare_grove`]),
 /// but the configured session is spawned with the worktree root as its cwd
 /// (`launch_configured_session`). Resolving an empty or relative entry against
 /// the driver's cwd would therefore inspect one `grove-llm` while the session
@@ -688,7 +679,13 @@ fn reset_terminal() {
     if unsafe { libc::isatty(libc::STDIN_FILENO) } != 1 {
         return;
     }
-    let _ = Command::new("stty").arg("sane").status();
+    let mut stty = Command::new("stty");
+    stty.arg("sane");
+    // `stty` reads no `GROVE_*` variable, so this grants it nothing it could
+    // act on — and it is scrubbed anyway, because a rule with one argued
+    // exception is a rule the next spawn has to re-argue.
+    scrub_loop_control_env(&mut stty);
+    let _ = stty.status();
     print!("\x1b[?1049l\x1b[?25h\x1b[0m");
     let _ = std::io::stdout().flush();
 }
@@ -697,30 +694,16 @@ fn reset_terminal() {
 /// foreground process group) does not kill the loop; the child session
 /// installs its own handler and still responds. The driver must survive the
 /// interrupt to reach the relaunch-vs-stop decision.
+///
+/// SIGINT and SIGINT alone, because it is the one disposition that is a
+/// *policy* rather than a mechanism: what a loop does about the human's Ctrl-C
+/// is the loop's business. SIGTERM and SIGHUP belong to the runner, which
+/// catches them itself so it can forward one to its child and reap it rather
+/// than orphan it onto the terminal — and reports that as
+/// [`keyed_launch::End::Interrupted`].
 fn ignore_interrupts() {
     unsafe {
         libc::signal(libc::SIGINT, libc::SIG_IGN);
-    }
-}
-
-/// Set by [`on_terminate`], read by the watcher's poll loop. A `bool` store is
-/// the only work done inside the handler because it is async-signal-safe; the
-/// watcher handles child termination on a normal stack one poll tick later.
-static TERMINATED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-extern "C" fn on_terminate(_signum: libc::c_int) {
-    TERMINATED.store(true, std::sync::atomic::Ordering::Relaxed);
-}
-
-/// Catch SIGTERM and SIGHUP so the driver can forward termination to its child
-/// and reap it through the ordinary watcher escalation. SIGINT is deliberately
-/// absent because [`ignore_interrupts`] keeps Ctrl-C directed at the foreground
-/// session.
-fn install_termination_handler() {
-    let handler = on_terminate as extern "C" fn(libc::c_int) as usize;
-    unsafe {
-        libc::signal(libc::SIGTERM, handler as libc::sighandler_t);
-        libc::signal(libc::SIGHUP, handler as libc::sighandler_t);
     }
 }
 
@@ -728,152 +711,16 @@ fn install_termination_handler() {
 mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
-    use std::os::unix::process::ExitStatusExt;
-    use std::process::Stdio;
 
-    /// The escalation seam: [`wait_with_watcher_result`] takes its two graces as
-    /// a parameter, so the suite drives the whole state machine on test
-    /// timescales without any process configuration. Production passes
-    /// [`DEFAULT_GRACE`]/[`DEFAULT_KILL_GRACE`] and nothing else can.
-    const TEST_GRACES: (Duration, Duration) =
-        (Duration::from_millis(50), Duration::from_millis(50));
-
-    fn spawn_sh(script: &str) -> Child {
-        Command::new("sh")
-            .arg("-c")
-            .arg(script)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("spawning the fixture child")
-    }
-
-    /// The signal file is watched for *existence*, so a fixture only has to
-    /// create it. Named per test to keep concurrent tests independent.
-    fn signal_path(dir: &tempfile::TempDir, name: &str) -> PathBuf {
-        dir.path().join(name)
-    }
-
-    // No signal file, ever: the watcher must not touch the child at all. This is
-    // the case that separates "the driver ends sessions" from "the driver ends
-    // sessions that asked to be ended" — a human still working in a session that
-    // has not signalled must be left alone however long it runs.
-    #[test]
-    fn an_unsignalled_session_runs_to_its_own_exit_untouched() {
-        let dir = tempfile::tempdir().unwrap();
-        let signal = signal_path(&dir, "never-written");
-        let child = spawn_sh("sleep 0.3; exit 7");
-
-        let ended = wait_with_watcher_result(child, &signal, TEST_GRACES).unwrap();
-
-        assert_eq!(ended.end, SessionEnd::Exited);
-        assert_eq!(ended.status.code(), Some(7), "the child chose its own exit");
-        assert_eq!(ended.status.signal(), None, "nothing signalled the child");
-        assert!(!signal.exists());
-    }
-
-    // The completion path: the agent writes the signal file and then keeps
-    // running (an interactive TUI cannot end itself), so the *driver* ends it
-    // after the grace.
-    #[test]
-    fn a_signalled_session_that_keeps_running_is_terminated_after_the_grace() {
-        let dir = tempfile::tempdir().unwrap();
-        let signal = signal_path(&dir, "relaunch");
-        let child = spawn_sh(&format!(": > '{}'; sleep 30", signal.display()));
-
-        let ended = wait_with_watcher_result(child, &signal, TEST_GRACES).unwrap();
-
-        assert_eq!(ended.end, SessionEnd::Exited);
-        assert_eq!(
-            ended.status.signal(),
-            Some(libc::SIGTERM),
-            "a signalled session is ended with SIGTERM first, not SIGKILL"
-        );
-    }
-
-    // Escalation. SIGTERM is a request; a session that ignores it would
-    // otherwise hold the TTY forever and park the loop with no diagnostic, so
-    // the watcher follows through.
-    #[test]
-    fn a_session_that_ignores_sigterm_is_killed_after_the_kill_grace() {
-        let dir = tempfile::tempdir().unwrap();
-        let signal = signal_path(&dir, "ignores-term");
-        let child = spawn_sh(&format!(
-            "trap '' TERM; : > '{}'; sleep 30",
-            signal.display()
-        ));
-
-        let ended = wait_with_watcher_result(child, &signal, TEST_GRACES).unwrap();
-
-        assert_eq!(
-            ended.status.signal(),
-            Some(libc::SIGKILL),
-            "a session that ignores SIGTERM must still be reaped"
-        );
-    }
-
-    // The grace exists so the agent's own `complete` call can return and its
-    // turn can end before the session dies. A zero-grace kill would truncate
-    // that, so the wait is asserted, not assumed.
-    #[test]
-    fn the_grace_elapses_before_the_first_signal_is_sent() {
-        let dir = tempfile::tempdir().unwrap();
-        let signal = signal_path(&dir, "graced");
-        let child = spawn_sh(&format!(": > '{}'; sleep 30", signal.display()));
-
-        let grace = Duration::from_millis(1200);
-        let ended =
-            wait_with_watcher_result(child, &signal, (grace, Duration::from_millis(50))).unwrap();
-
-        assert!(
-            ended.elapsed >= grace,
-            "the watcher signalled after {:?}, before the {grace:?} grace",
-            ended.elapsed
-        );
-        assert_eq!(ended.status.signal(), Some(libc::SIGTERM));
-    }
-
-    // A child that exits on its own between the signal and the grace is reaped
-    // by `try_wait`, not by a kill — the common real case, since a session that
-    // finishes its turn promptly after signalling just exits.
-    #[test]
-    fn a_signalled_session_that_exits_on_its_own_is_never_signalled() {
-        let dir = tempfile::tempdir().unwrap();
-        let signal = signal_path(&dir, "self-exit");
-        let child = spawn_sh(&format!(": > '{}'; exit 0", signal.display()));
-
-        let ended =
-            wait_with_watcher_result(child, &signal, (Duration::from_secs(30), TEST_GRACES.1))
-                .unwrap();
-
-        assert_eq!(ended.end, SessionEnd::Exited);
-        assert!(ended.status.success());
-        assert_eq!(ended.status.signal(), None);
-    }
-
-    #[test]
-    fn successive_launches_get_independent_workspace_signal_files() {
-        let worktree = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(worktree.path().join(".jj")).unwrap();
-        let lease = DriverLease::acquire(worktree.path()).unwrap();
-
-        let first = lease.allocate_signal_channel().unwrap();
-        let second = lease.allocate_signal_channel().unwrap();
-        let expected_control_dir = worktree.path().canonicalize().unwrap().join(".jj/grove");
-
-        assert_ne!(
-            first.path(),
-            second.path(),
-            "each foreground launch needs an independent control channel"
-        );
-        assert_eq!(first.path().parent(), Some(expected_control_dir.as_path()));
-        assert_eq!(second.path().parent(), Some(expected_control_dir.as_path()));
-    }
-
+    /// The two `complete_post_reap_epoch_handoff` cases below drive that
+    /// ordering with a stand-in for the launch result, because what the
+    /// ordering is *about* is which of the two failures survives — not what a
+    /// session left behind. The launch and escalation themselves are the
+    /// runner's, and `crates/keyed-launch/tests/launch.rs` drives them end to
+    /// end against a fake child.
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
-        let launch: Result<SessionEnd> = Err(anyhow::anyhow!(
+        let launch: Result<&str> = Err(anyhow::anyhow!(
             "launching the session: executable was not found"
         ));
         let continuation_called = std::cell::Cell::new(false);
@@ -912,7 +759,7 @@ mod tests {
         let continuation_called = std::cell::Cell::new(false);
 
         let error = complete_post_reap_epoch_handoff(
-            Ok(SessionEnd::Exited),
+            Ok("a session that ended"),
             || Err(anyhow::anyhow!("exclusive epoch handoff timed out")),
             |_| continuation_called.set(true),
         )

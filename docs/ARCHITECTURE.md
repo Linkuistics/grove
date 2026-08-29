@@ -173,7 +173,14 @@ map, validated whole against a *slot vocabulary* the consumer supplies at load,
 and expands one selected template into an argv. It hides KDL handling, aggregate
 schema diagnostics, POSIX shell-word splitting, substitution validation, and argv
 construction; callers cannot ask it for a default, family, harness, or model, and
-it holds no set of keys. `src/session_config.rs` is what is left of grove's side:
+it holds no set of keys.
+
+**And it runs what it expanded.** The same crate allocates the launch's
+completion channel, spawns the argv directly with no shell, supervises the child
+and applies the kill escalation — so `Argv`, which has no constructor, is both
+the only thing expansion produces and the only thing a spawn accepts. *Nothing
+reaches a spawn that a template did not author* is therefore a fact about the
+types rather than a convention grove keeps. `src/session_config.rs` is what is left of grove's side:
 the personal file's path, the four slots (`prompt`, `session_name`, `worktree`,
 `repo`) grove's templates are written against, and the delta's search and
 trackedness rules below. The user-facing grammar and diagnostics are in
@@ -986,9 +993,13 @@ not whether the present invocation means "recover that" or "start another".
 
 The loop launches one foreground session at a time and watches it: poll the
 child alongside the completion-signal file, and once the file appears apply
-grace → SIGTERM → kill-grace → SIGKILL. That kill is the driver's job because it
-is the session's parent, outside whatever sandbox the session runs under; an
-in-agent self-kill is silently denied by sandboxes such as Codex's Seatbelt. The
+grace → SIGTERM → kill-grace → SIGKILL. **The launch, the watch and the kill are
+`crates/keyed-launch`'s** — grove chooses the control directory, the variable
+name, the scrub list and the two graces, and reads a meaning out of the token
+that comes back; nothing else about the child is its business. That kill is the
+*launcher's* job because it is the session's parent, outside whatever sandbox
+the session runs under; an in-agent self-kill is silently denied by sandboxes
+such as Codex's Seatbelt. The
 session commits its artifact and terminal task-tree mutation before signalling
 `relaunch` or `done`. If it exits without a signal the driver stops instead of
 guessing, reporting the child's exit status and elapsed time — and does not
@@ -1111,9 +1122,11 @@ colocated index.
 crate**, which removes `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR` and
 `GIT_INDEX_FILE` from each one. Choosing the right repository is the seam's
 guarantee, so no call site can be written without it. Grove's own
-`launch::scrub_loop_control_env` is the complementary half and stays grove's: it
-removes the session-ending authority `GROVE_*` carries, which `jj` does not
-read.
+`loop_driver::LOOP_CONTROL_ENV` is the complementary half and stays grove's: it
+names the session-ending authority `GROVE_*` carries, which `jj` does not read.
+The configured session's spawn receives that list as `keyed_launch::Launch`'s
+`scrub` field, so the one spawn allowed to *grant* the channel cannot be written
+without first removing whatever it inherited.
 
 **Moves are not commits.** Every entry a flipped verb moves is renamed by
 `ordinal-fs-tree`, which does `rename(2)`, detects no repository and requires no
@@ -1461,7 +1474,7 @@ is the methodology the running binary was *built* with. The content hash that
 makes provisioning idempotent hashes that **embed**, not any working tree — a
 warm no-op is therefore correct even when a checkout's `content/` has moved far
 ahead of the binary. Nothing in the loop changes this: the full sweep runs once
-per bare `grove` (`launch::bare_grove`, before lease acquisition), and
+per bare `grove` (`loop_driver::bare_grove`, before lease acquisition), and
 re-*extracting* per iteration would write identical bytes, because a driver
 never re-execs and so carries one embed for its whole life. What the loop does
 do each iteration is *re-verify* the stamps and restore a directory another
@@ -1541,10 +1554,9 @@ prescribing one command.
 
 | Module | Responsibility |
 |---|---|
-| `launch` | Provisioning, lease acquisition, and child-environment scrubbing rules. |
 | `session_config` | Grove's side of launch configuration: the personal file's path, the four slots grove's templates are written against, and the delta — where it is searched, which candidate wins, and the refusal of a tracked one. The grammar, the validation and the expansion are `crates/keyed-launch`'s. Asks the VCS seam whether a delta candidate is tracked; nothing else leaves the filesystem. |
-| `loop_driver` | Foreground iteration, selection, child lifecycle, and completion signals. |
-| `driver_lease` | Driver lease, session epoch, signal-channel allocation, and ambient-session validation. |
+| `loop_driver` | Provisioning and lease acquisition on the way in, then foreground iteration and selection. Names the child-environment scrub list and the escalation's two graces; hands both to `crates/keyed-launch`, which owns the spawn, the supervision and the kill. |
+| `driver_lease` | Driver lease, session epoch, and ambient-session validation. Supplies the control directory each launch's channel is allocated in; the channel itself is `crates/keyed-launch`'s. |
 | `harness` | The provisioning-target registry — delivery destinations only. |
 | `repo` | Git/Jujutsu detection, scoped commits, and the read-only trackedness probe. |
 | `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has. |

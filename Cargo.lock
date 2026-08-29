@@ -346,6 +346,7 @@ name = "keyed-launch"
 version = "0.1.0"
 dependencies = [
  "kdl",
+ "libc",
  "shell-words",
  "tempfile",
 ]

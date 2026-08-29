@@ -2,14 +2,13 @@ pub mod cli;
 pub mod complete;
 pub mod driver_lease;
 pub mod harness;
-// `launch` and `loop_driver` are crate-private because nothing outside the
-// crate reaches them any more: the human verbs the suite used to drive through
-// `launch` are gone, and `loop_driver`'s fixtures now drive the real process.
-// Narrowing them is not tidiness — a `pub` item in a `pub` module is reachable
-// by definition, so `dead_code` says nothing about one. Crate-private, the
-// compiler enumerates the next dead launch function for us instead of it
-// needing to be hunted.
-pub(crate) mod launch;
+// `loop_driver` is crate-private because nothing outside the crate reaches it
+// any more: the human verbs the suite used to drive through the old `launch`
+// module are gone, that module has been absorbed here, and `loop_driver`'s
+// fixtures now drive the real process. Narrowing it is not tidiness — a `pub`
+// item in a `pub` module is reachable by definition, so `dead_code` says
+// nothing about one. Crate-private, the compiler enumerates the next dead
+// launch function for us instead of it needing to be hunted.
 // `leaf` holds `Kind` and nothing else now — it is live everywhere. Its legacy
 // lodgers are gone with the readers they served: the `NNN-slug` prefix parser
 // and the whole `leaf_id` v1-flat module went when the v1 verb path was swept

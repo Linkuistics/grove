@@ -26,6 +26,20 @@
 //! Every template rule is a rule about slot *names*, so a loader that will not
 //! learn the names until expansion can check none of them. See [`Vocabulary`].
 //!
+//! # From a template to a running child
+//!
+//! [`Templates::expand`] authors an [`Argv`]; [`run`] spawns it — directly,
+//! with no shell — and supervises the child until it ends. The two halves meet
+//! only at `Argv`, and each is usable without the other: a launcher that builds
+//! its argv some other way still cannot construct one, which is the point.
+//!
+//! **A launch ends out of band.** An interactive child returns to its prompt
+//! when it finishes rather than exiting, so its own exit is not the event
+//! anyone is waiting for. [`Channel`] is: a fresh path per launch that the
+//! child writes a [`Token`] to (through [`signal`]) when it is done, and whose
+//! *appearance* starts the kill [`Escalation`] the child cannot perform on
+//! itself. See [`Escalation`] for why that is the launcher's job.
+//!
 //! # Testing a consumer's configuration
 //!
 //! [`conformance::check`] holds a configuration to this crate's contract from
@@ -34,11 +48,15 @@
 pub mod conformance;
 
 mod argv;
+mod channel;
 mod error;
+mod run;
 mod templates;
 mod vocabulary;
 
 pub use argv::{Argv, Slot};
-pub use error::ConfigError;
+pub use channel::{signal, Channel, Token};
+pub use error::{ConfigError, LaunchError};
+pub use run::{run, take_interrupt, End, Ended, Escalation, Launch};
 pub use templates::Templates;
 pub use vocabulary::{Requirement, SlotRule, Vocabulary};

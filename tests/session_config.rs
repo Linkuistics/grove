@@ -123,7 +123,8 @@ fn each_grove_slot_expands_to_one_argument() {
                 repository,
             },
         )
-        .unwrap();
+        .unwrap()
+        .words();
 
     assert_eq!(
         argv,
@@ -187,7 +188,8 @@ fn the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one() {
         load(home.path())
             .unwrap()
             .expand("requirements", &context("mandate"))
-            .unwrap(),
+            .unwrap()
+            .words(),
         vec![OsString::from("runner"), OsString::from("mandate")]
     );
 }
@@ -395,12 +397,12 @@ fn a_delta_overrides_only_the_kinds_it_declares() {
     let config = load_from(home.path(), worktree.path(), worktree.path()).unwrap();
 
     assert_eq!(
-        config.expand("impl", &context("mandate")).unwrap(),
+        config.expand("impl", &context("mandate")).unwrap().words(),
         vec!["other", "--model", "opus", "mandate"],
         "the declared kind must come from the delta"
     );
     assert_eq!(
-        config.expand("design", &context("mandate")).unwrap(),
+        config.expand("design", &context("mandate")).unwrap().words(),
         vec!["runner", "mandate"],
         "an undeclared kind must fall through to the personal file untouched"
     );
@@ -435,7 +437,7 @@ fn the_worktree_delta_shadows_the_repository_root_and_the_loser_is_not_read() {
     let config = load_from(home.path(), worktree.path(), repository.path()).unwrap();
 
     assert_eq!(
-        config.expand("impl", &context("mandate")).unwrap(),
+        config.expand("impl", &context("mandate")).unwrap().words(),
         vec!["chosen", "mandate"]
     );
 }
@@ -451,7 +453,7 @@ fn a_repository_root_delta_is_read_when_the_worktree_has_none() {
     let config = load_from(home.path(), worktree.path(), repository.path()).unwrap();
 
     assert_eq!(
-        config.expand("impl", &context("mandate")).unwrap(),
+        config.expand("impl", &context("mandate")).unwrap().words(),
         vec!["inherited", "mandate"]
     );
 }
@@ -630,7 +632,7 @@ fn an_ignored_jj_delta_is_read_in_both_jj_shapes() {
         let config = load_from(home.path(), tree.path(), tree.path()).unwrap();
 
         assert_eq!(
-            config.expand("impl", &context("mandate")).unwrap(),
+            config.expand("impl", &context("mandate")).unwrap().words(),
             vec!["other", "mandate"],
             "colocate={colocate}"
         );

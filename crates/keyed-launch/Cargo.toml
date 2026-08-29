@@ -9,15 +9,20 @@ repository = "https://github.com/Linkuistics/grove"
 # locked dependency graph cannot be parsed by a cargo below 1.85.
 rust-version = "1.85"
 
-# **Two dependencies, and each is a document format this crate reads rather than
-# a framework it is built on.** `kdl` is the configuration language; `shell-words`
-# splits a template into words the way a reader of the line expects, without ever
-# handing it to a shell. Errors are the crate's own opaque `ConfigError`
-# implementing `std::error::Error`, so a consumer using `anyhow`, `thiserror` or
-# nothing at all takes on neither — the same rule `crates/jj-workspace` and
-# `crates/ordinal-fs-tree` state for theirs.
+# **Three dependencies: two document formats this crate reads, and the syscalls
+# it cannot reach from `std`.** `kdl` is the configuration language;
+# `shell-words` splits a template into words the way a reader of the line
+# expects, without ever handing it to a shell. `libc` is the escalation:
+# `std::process::Child::kill` sends SIGKILL and nothing else, so a graduated
+# SIGTERM-then-SIGKILL — and catching the launcher's own SIGTERM/SIGHUP to
+# forward it — needs `kill(2)` and `signal(2)` directly. Errors are the crate's
+# own opaque `ConfigError` and `LaunchError` implementing `std::error::Error`,
+# so a consumer using `anyhow`, `thiserror` or nothing at all takes on none of
+# these — the same rule `crates/jj-workspace` and `crates/ordinal-fs-tree` state
+# for theirs.
 [dependencies]
 kdl = "4.7"
+libc = "0.2"
 shell-words = "1.1"
 
 [dev-dependencies]

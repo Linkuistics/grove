@@ -3,12 +3,14 @@
 ## Verdict
 
 The unchanged acceptance rubric is **not met**. Its primary material-improvement
-endpoint is undefined because the skill-enabled scope-elicitation arm completed
-only four of five valid repetitions and one selected contemporary control
-breached the byte-identical prompt contract. The source-and-fragments case and
-the transfer probe also stopped with sample shortfalls. Those missing samples
-are not failures, but they leave no valid basis for a deployment-wide behavioral
-improvement claim.
+endpoint is unreachable under every completion of the missing fifth enabled
+scope-elicitation sample: at most 2 of the required 10 rows could improve by
+`2/5`. The `A14` regression guard also fails under every completion because its
+enabled count can reach at most `3/5` against the historical `5/5`. One selected
+contemporary control breached the byte-identical prompt contract, and the
+source-and-fragments case and transfer probe stopped with sample shortfalls.
+Those missing samples are not failures, but they leave no valid basis for a
+deployment-wide behavioral improvement claim.
 
 The campaign does establish narrower facts:
 
@@ -20,7 +22,8 @@ The campaign does establish narrower facts:
   on `C23` rather than the earlier round's `2/5`, while seven named Case C
   preservation rows remained `5/5`; the fresh control scored `5/5` on `C23`;
 - the final skill and plugin pass deterministic structure, installation, local
-  link, reusable harness, and applicable repository checks.
+  link, and applicable repository checks, while the historical harnesses
+  correctly refuse the final skill's changed bytes.
 
 The judged-output evidence therefore supports only the retained samples and the
 chronology of one evidence-driven wording change. Because valid outputs do not
@@ -48,11 +51,18 @@ The rubric does not define partial-sample arithmetic. A missing fifth sample,
 protocol-breached selected sample, or absent historical arm prevents the
 corresponding comparison rather than supplying a zero.
 
+The initial skill-enabled Case A, Case B, and Case C arms and the transfer probe
+used skill SHA-256
+`795846cb31237e20de5f24492dab4d1bce890d206225c306b6b4b0fee5cb8006`.
+Only the five refined-skill repetitions used the deployed skill SHA-256
+`7bfd60fe825c85a40a49cfe0da4cb450e0cff6099dae586ea8aafb2c6262d9a7`;
+historical and contemporary-control arms installed no skill.
+
 ## Campaign status and aggregate results
 
 | Surface | Historical baseline | Contemporary comparison | Enabled or refined result | Frozen verdict |
 |---|---|---|---|---|
-| A — scope elicitation | `5/5` valid; `28/105` successes | five selected answers, one prompt-byte breach; `30/105` descriptive successes | `4/5` valid; `25/84` descriptive successes | aggregate delta, primary endpoint, and regression guard undefined |
+| A — scope elicitation | `5/5` valid; `28/105` successes | five selected answers, one prompt-byte breach; `30/105` descriptive successes | `4/5` valid; `25/84` descriptive successes | primary endpoint unreachable and `A14` guard breached under every completion; remaining comparisons incomplete |
 | B — source and fragments | `0/5` valid after 15 DNS/transport timeouts | one descriptive, access-audit-breached control | `0/5` valid; first enabled repetition exhausted three invalid attempts | no comparison |
 | C — exposition and assurance | `0/5` valid historically | `5/5` valid; `45/120` successes | `5/5` valid; `45/120` successes | descriptive only; historical comparison absent |
 | C refinement rerun | not applicable | `5/5` valid; `55/120` successes | `5/5` valid; `57/120` successes | bounded within-skill evidence only |
@@ -91,7 +101,7 @@ and `A01` and `A04` as mixed. The later partial counts remain descriptive.
 | `A11` | elicit language proficiency separately | `0/5` | `0/5` | `0/4` | endpoint row; no complete comparison |
 | `A12` | elicit systems/tooling proficiency separately | `0/5` | `0/5` | `0/4` | endpoint row; no complete comparison |
 | `A13` | elicit domain familiarity separately | `0/5` | `0/5` | `0/4` | endpoint row; no complete comparison |
-| `A14` | elicit and record explicit depth | `5/5` | `5/5` | `2/4` | guard row; adverse partial count, verdict unavailable |
+| `A14` | elicit and record explicit depth | `5/5` | `5/5` | `2/4` | guard breached under every completion: at most `3/5` against historical `5/5` |
 | `A15` | elicit and record output form | `5/5` | `5/5` | `4/4` | guard row; verdict unavailable |
 | `A16` | establish walk-away behavior | `0/5` | `0/5` | `0/4` | endpoint row; no complete comparison |
 | `A17` | freeze prose, terminology, and citation constraints | `0/5` | `0/5` | `1/4` | endpoint row; no complete comparison |
@@ -104,7 +114,10 @@ Seven enabled attempts visibly read `SKILL.md` and were invalid because Case A
 forbids every tool call. The four valid enabled streams contain no observable
 skill-file read or use. Discovery and skill-body use are therefore
 indeterminate, and the partial counts cannot be attributed to the instructions.
-See the [Case A record](enabled/scope-elicitation/README.md).
+The invalidation rule is treatment-correlated: it discarded every attempt with
+visible skill use and retained exactly the attempts without it, so the enabled
+sample is selected against observable treatment use. See the
+[Case A record](enabled/scope-elicitation/README.md).
 
 ### Case B — source inventory and fragments
 
@@ -194,8 +207,9 @@ answers under the frozen prompts and binary criteria. It supports:
 These are sample-specific behavior claims. They remain judgment-dependent:
 adjudicators disagreed on 2 of 105 historical Case A decisions and 28 of 240
 initial Case C decisions before frozen-rule resolution. The two valid refinement
-scorers agreed on every regression decision and disagreed on one target `C23`
-decision.
+scorers disagreed on 6 of 240 decisions, including one decision on preservation
+row `C09`. The enabled Case A arm and the Case B contemporary control were each
+scored by only one blind context.
 
 ### Deterministic verification
 
@@ -205,11 +219,11 @@ and this repository working copy rather than model behavior. The final run used:
 
 | Property | Exact check | Result |
 |---|---|---|
-| final skill structure and template | `bash docs/evaluations/writing-code-walkthroughs/refinement-regression/template-test.sh` | frontmatter, plugin manifest, skill bytes/digest, and sealed-template delta pass |
+| final skill structure | `bash docs/evaluations/writing-code-walkthroughs/refinement-regression/template-test.sh` | frontmatter, plugin manifest, and skill bytes/digest pass |
 | installation and reconciliation | `bash plugins/install.test.sh` | 20 passed, 0 failed |
 | historical digest guards | `bash docs/evaluations/writing-code-walkthroughs/enabled/exposition-assurance/harness-test.sh`; `bash docs/evaluations/writing-code-walkthroughs/enabled/transfer-probe/harness-test.sh` | both reject drift and pass |
 | transfer freeze template | `bash docs/evaluations/writing-code-walkthroughs/enabled/transfer-probe/freeze-harness-test.sh` | pass |
-| Bash static analysis | `shellcheck docs/evaluations/writing-code-walkthroughs/enabled/exposition-assurance/{harness,harness-test}.sh docs/evaluations/writing-code-walkthroughs/enabled/transfer-probe/{harness,harness-test,freeze-harness-test}.sh docs/evaluations/writing-code-walkthroughs/refinement-regression/template-test.sh` | pass |
+| Bash static analysis | `find docs/evaluations/writing-code-walkthroughs -type f -name '*.sh' -print0 \| xargs -0 shellcheck` | all eight retained shell scripts pass |
 | local Markdown links | `cargo test --test reference_navigation every_repository_markdown_reference_resolves` | 1 passed, 0 failed |
 | repository tests | `cargo test --workspace --all-targets` | pass, 0 failed |
 | formatting | `cargo fmt --all -- --check` | pass |
@@ -220,16 +234,27 @@ nor that a produced walkthrough is technically or editorially sound.
 
 ## Unresolved gaps
 
-- The primary `10/15` material-improvement threshold and all four regression
-  guards remain unevaluable because Case A lacks a valid fifth enabled sample
-  and has a protocol-breached selected control.
+- The primary `10/15` material-improvement threshold is unreachable and the
+  `A14` regression guard is breached under every completion of the missing
+  enabled sample. Endpoint rows `A06` and `A17` and guard rows `A02`, `A03`, and
+  `A15` still lack complete comparisons.
 - Case B has no valid historical or enabled behavioral sample.
 - Case C has no historical baseline, so its complete contemporary and
   refinement results cannot establish same-case material improvement.
 - The transfer probe has no valid control arm and only one valid enabled
   refusal.
-- Skill discovery and body use are indeterminate in valid Case A and C samples;
-  the frozen no-tool prompts conflict with observable file-based skill loading.
+- Skill discovery and body use are indeterminate in valid Case A and C samples.
+  In Case A the frozen no-tool prompt conflicts structurally with observable
+  file-based skill loading: visible use invalidates an enabled attempt, selecting
+  the retained arm against the treatment it is meant to measure. Closing this
+  gap requires a new predeclared prompt or access rule, not another run under the
+  frozen contract.
+- All judged skill-enabled evidence except the five-repetition Case C refinement
+  rerun describes the superseded `795846cb…` skill revision rather than the
+  deployed `7bfd60fe…` revision.
+- The refinement slice preserves the underlying per-attempt evidence but not the
+  rubric's required one-Markdown-record-per-repetition shape or a reusable
+  campaign harness.
 - The model name is a mutable service alias, and the preserved interface audit
   does not prove operating-system filesystem inaccessibility.
 - The campaign measures returned artifacts, not reader comprehension or general

@@ -9,10 +9,6 @@ readonly repo_root
 readonly skill="$repo_root/plugins/linkuistics/skills/writing-code-walkthroughs/SKILL.md"
 readonly plugin_manifest="$repo_root/plugins/linkuistics/.claude-plugin/plugin.json"
 
-test_root=$(mktemp -d /private/tmp/grove-refined-template-test.XXXXXX)
-readonly test_root
-trap 'rm -rf "$test_root"' EXIT
-
 expected_record=$(<"$here/skill.manifest.tsv")
 readonly expected_record
 expected_path=${expected_record%%$'\t'*}
@@ -35,12 +31,4 @@ ruby -e '
 ' "$skill"
 jq -e '.name == "linkuistics"' "$plugin_manifest" >/dev/null
 
-mkdir -p "$test_root/control-template" \
-  "$test_root/enabled-template/skills/writing-code-walkthroughs"
-printf '{}\n' >"$test_root/control-template/auth.json"
-cp "$test_root/control-template/auth.json" "$test_root/enabled-template/auth.json"
-cp "$skill" "$test_root/enabled-template/skills/writing-code-walkthroughs/SKILL.md"
-rm -r "$test_root/enabled-template/skills"
-cmp "$test_root/control-template/auth.json" "$test_root/enabled-template/auth.json"
-
-printf 'PASS: final skill structure, bytes, plugin manifest, and sealed-template delta\n'
+printf 'PASS: final skill structure, bytes, digest, and plugin manifest\n'

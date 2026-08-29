@@ -104,9 +104,9 @@ tool-event audit, and pre/post manifests are under [`evidence/`](evidence/).
 | `C23` | 2/5 | 5/5 | 4/5 |
 | `C24` | 0/5 | 0/5 | 0/5 |
 
-The two valid blind scorers agree on every regression decision. Their only
-target disagreement is `S08 C23`; that decision and their five other
-disagreements are resolved under the same score-1-only rule in
+The two valid blind scorers disagree on 6 of 240 decisions, including `S02 C09`
+on a preservation row. `S08 C23` is the disagreement on the refinement target;
+all six disagreements are resolved under the same score-1-only rule in
 [`adjudication/resolution.md`](adjudication/resolution.md).
 
 ## Limits and unresolved acceptance gaps

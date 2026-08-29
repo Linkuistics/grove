@@ -41,7 +41,10 @@ named recursive source expansion; RFC 7322, Google's developer-documentation
 guide, and WCAG for direct prose, headings, links, and navigation. The exact
 fragment grammar, byte-comparison contract, scoped-progress protocol, and
 separate technical/editorial review briefs are Linkuistics' project synthesis;
-the skill does not claim controlled reader-outcome evidence for them.
+the skill does not claim controlled reader-outcome evidence for them. The
+[behavioral evaluation campaign](../../docs/evaluations/writing-code-walkthroughs/README.md)
+did not establish its predeclared acceptance rubric; the report distinguishes
+the retained judged outputs from the stronger deterministic checks.
 
 ### `decision-records`
 

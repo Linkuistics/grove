@@ -27,6 +27,6 @@ score-1-only wording:
   placeholder or verification obligation.
 
 The anonymous mapping is preserved in [`mapping.txt`](mapping.txt). Scorers 3
-and 4 agree on all target and regression criteria reported by the parent README
-except `S08 C23`, resolved above from the criterion's exact wording.
-
+and 4 disagree on 6 of 240 decisions, including preservation-row decision
+`S02 C09` and target decision `S08 C23`; all six are resolved above from the
+criteria's exact wording.

@@ -71,3 +71,29 @@ the drift refusal as well; if that is more than this leaf should carry, keep the
 drift guards and make `template-test.sh` build both templates through a harness
 pinned to the final digest, so the manifest delta is asserted against something
 the repository actually produces.
+
+## Decisions (running log)
+
+Findings 1-6 are verified as real issues. Finding 7 is a real bounded record-shape
+limitation and an incomplete static-analysis scope; disclose the former and
+expand the latter. The frozen rubric and resolved scores remain unchanged.
+
+For finding 4, retain the historical harness digest guards and their drift
+refusals. Stop crediting the final skill with a reusable-harness pass and drop
+the tautological sealed-template-delta claim; the remaining template test still
+checks the final skill's bytes, digest, frontmatter, and plugin manifest. A new
+final-digest campaign harness would add machinery without changing the report's
+negative acceptance result.
+
+The narrow adversarial pass found that a prose-only disclaimer left the exact
+template command emitting the discarded claim. Remove the tautological
+self-created-template block and its output text as part of finding 4; retain
+only the script's real final-skill structure, byte, digest, and plugin-manifest
+checks.
+
+After retirement, `skill-evaluation-k22` closes because its charter permits an
+unresolved acceptance gap to be surfaced. `walkthrough-skill-delivery-k19` does
+not close: its stricter charter still requires the unchanged rubric to be met
+and material improvement shown. Add `evaluation-recovery-k53` to plan a new,
+separately predeclared cycle rather than weakening or reinterpreting the frozen
+campaign.

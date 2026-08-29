@@ -1,6 +1,6 @@
 # Entries are never removed
 
-`ordinal-fs-tree` offers no removal operation. A fresh key is
+`ordinal-fs-tree` offers no operation that removes an **entry**. A fresh key is
 `max(key over the whole tree) + 1`, so the names on disk **are** the counter;
 deleting an entry lowers the visible maximum and the next allocation re-issues a
 key that other entries may still reference. A domain that needs entries to be
@@ -9,10 +9,21 @@ nothing because attributes are the consumer's and the library never reads them.
 A domain that needs them to genuinely disappear needs a key source that is not
 derived from the tree, and that is outside what this library does.
 
+**Deleting the *root* is a different operation, and the library offers it.**
+`WriteGuard::delete` removes the root and everything beneath it. The argument
+above is entirely about what the **next allocation** would do, and after a root
+deletion there is no next allocation: the tree is gone, and with it every name
+the counter was derived from. That is also why that operation is the whole tree
+or nothing — a partial version of it would be entry removal wearing another
+name, and would land in exactly the state this record forbids. The clause is
+here because this record's opening sentence used to say the library offered no
+removal at all, and a reader would carry that to the wrong conclusion about
+`delete`.
+
 [`docs/ordinal-fs-tree/ARCHITECTURE.md`](../ordinal-fs-tree/ARCHITECTURE.md)
 states the rule and its consequence under *Keys are the counter*. This record
 carries what that document does not: the alternative key source that was
-rejected, and why adding removal later is not an additive change.
+rejected, and why adding entry removal later is not an additive change.
 
 ## The trade-off
 
@@ -35,7 +46,9 @@ consumer's side — a leaf is retired by a `DONE` or `ABANDONED` mark and never 
 deletion, because deleting one lowers the max and the next allocation re-issues
 a live key. That the rule survives being restated in a domain vocabulary that
 shares none of the library's words is the evidence that it belongs to the
-allocation scheme rather than to grove.
+allocation scheme rather than to grove. Grove draws the root/entry line from its
+own side too, and in the same place: its finish cycle destroys the whole task
+tree and nothing short of it.
 
 ## Considered options
 
@@ -61,8 +74,10 @@ allocation scheme rather than to grove.
 
 ## Why this is hard to reverse
 
-Removal cannot be added without changing allocation, and changing allocation
-changes what every existing tree means. Any key source that tolerates deletion
+Removing an entry cannot be added without changing allocation, and changing
+allocation changes what every existing tree means. (Root deletion is not in
+this paragraph's scope, and adding it changed no allocation at all — which is
+the mechanical form of the distinction above.) Any key source that tolerates deletion
 must be able to say *what has already been issued*, which the names alone cannot
 once entries can vanish — so the change is not an added operation but a new
 source of truth, applied retroactively to trees whose history is gone. Every

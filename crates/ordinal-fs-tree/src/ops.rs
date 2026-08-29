@@ -443,8 +443,8 @@ pub(crate) fn promote<N: EntryName>(
 /// `planRewrite` in the model, which builds `MoveTo(i, parentOf(f, i),
 /// compose(ordOf(n), keyOf(n), p))` and guards it. This is how an attribute
 /// changes, and `docs/adr/entries-are-never-removed.md` is why the operation
-/// matters more than its size: with no removal, a domain retires an entry by
-/// rewriting an attribute.
+/// matters more than its size: with no way to remove an entry, a domain retires
+/// one by rewriting an attribute.
 ///
 /// # The library neither knows nor cares what changed
 ///
@@ -617,9 +617,10 @@ fn last_ordinal<N: EntryName>(container: &Container<'_, N>) -> u32 {
 /// The greatest key in the **whole tree**, or `0` for a tree holding none.
 ///
 /// Whole-tree and not per-level: a key is unique tree-wide, so `max + 1` has to
-/// see every name there is. This is also the reason there is no removal
-/// operation — deleting an entry lowers this maximum, and the next allocation
-/// re-issues a key that other entries may still reference.
+/// see every name there is. This is also the reason no operation removes an
+/// entry — doing so lowers this maximum, and the next allocation re-issues a key
+/// that other entries may still reference. Deleting the **root** does not reach
+/// this function at all: there is no next allocation once the tree is gone.
 fn greatest_key<N: EntryName>(snapshot: &Snapshot<N>) -> u32 {
     snapshot
         .walk()

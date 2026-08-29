@@ -571,6 +571,9 @@ message that collides is one no argument produces.
 | `NonUtf8Name` | **not on macOS** — APFS refuses such a filename, so the branch cannot be reached from a test on this host. Assert that fact rather than skipping it; `docs/formalism-findings.md` entry 006. |
 | `NameIsNotOneComponent` | **no** — a `Slug` admits lowercase ASCII letters, digits and hyphens only, so no name `TaskName` renders can be more or less than one path component. |
 | `NoContainingDirectory` | **no** — the tree root is always `<worktree>/.grove`, which always has a containing directory. |
+| `RootIsNotATree` | **yes in the wild, from no argument** — a `.grove` that is a regular file, a socket, or a symbolic link naming one. Not producible by any verb: Grove creates the root as a directory or not at all, so reaching it takes a hand or another program. The message names what it found and stops, which is the whole of the right answer — the library will not move aside something it did not put there. |
+| `RootIsNotSpelledDirectly` | **no** — the tree root is always `<worktree>/.grove`, composed by Grove rather than typed: its last component is a name Grove wrote, and no `..` appears in it. This is `delete`'s precondition and reaches no other operation. |
+| `RemovalStopped` | **no** — Grove calls nothing that removes anything. `WriteGuard::delete` exists (`root-delete-k26`) and the finish teardown is wired to it at `loop-crate-verbs-k21`, which is the leaf that re-takes this row. When it does, the two readings matter: with nothing removed the tree is as it was found, and with anything removed it is in neither state and the repository's history is the way back. |
 
 #### What verbatim costs, measured rather than assumed
 

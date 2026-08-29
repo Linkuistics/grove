@@ -63,8 +63,9 @@ impl fmt::Display for Ordinal {
 /// cross-reference — and the one handle every operation takes.
 ///
 /// A fresh key is `max(key over the whole tree) + 1`: the names *are* the
-/// counter. That is why there is no removal operation, and the reasoning is
-/// [`docs/adr/entries-are-never-removed.md`].
+/// counter. That is why no operation removes an *entry*, and the reasoning is
+/// [`docs/adr/entries-are-never-removed.md`] — which also carries why deleting
+/// the **root** is a different operation and is offered.
 ///
 /// [`docs/adr/entries-are-never-removed.md`]: https://github.com/Linkuistics/grove/blob/main/docs/adr/entries-are-never-removed.md
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

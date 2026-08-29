@@ -28,6 +28,13 @@
 //! disagreement in `docs/formalism-findings.md`, because the catalogue of them
 //! is a deliverable in its own right.
 //!
+//! **Where they do not reach, that is stated rather than left as a gap.**
+//! [`fs::WriteGuard::delete`] is in neither model, because everything that makes
+//! it what it is — a directory removable only once it is empty, a symbolic link
+//! unlinked rather than followed, foreign entries reported by path — lives below
+//! the abstraction boundary both models stop at. `ARCHITECTURE.md`'s *The
+//! models* carries the argument, and each model file carries its own half.
+//!
 //! # Where the filesystem lives
 //!
 //! In [`fs`], and nowhere else. Every other module in this crate is the
@@ -91,6 +98,6 @@ pub use name::{
 };
 pub use ops::{NewEntry, Target};
 pub use plan::Refusal;
-pub use report::{Created, Renamed, Report};
+pub use report::{Created, Removed, Renamed, Report};
 pub use snapshot::{Container, Entry, Snapshot, Walk};
 pub use sought::Sought;

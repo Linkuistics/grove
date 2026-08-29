@@ -574,7 +574,7 @@ impl core::fmt::Display for Refusal {
                     PositionedSpecies::Node => f.write_str(
                         "Supply parts that make a node. Nothing turns a node \
                          back into a leaf: its children would have nowhere to \
-                         go, and entries are never removed.",
+                         go, and no operation removes an entry.",
                     ),
                 }
             }

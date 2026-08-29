@@ -51,6 +51,88 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The tree store can delete a tree root, and says what it destroyed.**
+  `ordinal_fs_tree::fs::WriteGuard::delete` removes the root and everything
+  beneath it under the exclusive lock the guard already holds, and answers with
+  `Removed { root, entries }` — every path that went, in the order it went,
+  children before the level that held them (`docs/specs/module-decomposition.md`,
+  decision 2). It is the only operation in this library that removes anything.
+
+  **It follows no symbolic link, and that is a security property rather than a
+  detail.** Descent is decided by the same unfollowed look a snapshot is read
+  through — `DirEntry::file_type`, which is `symlink_metadata` — so a link naming
+  a directory, including one naming a directory *outside* the root, is unlinked
+  as a link and its target is untouched. The bound on that claim is stated where
+  the walk is: the look and the descent are two syscalls, and the writer who
+  could exploit the gap is the writer who ignores the advisory lock, which is
+  already outside what this library defends against.
+
+  **Why it reports paths where every other mutation reports names.** Deletion
+  acts on the root, so it acts on everything beneath it — including the entries
+  the domain deliberately declines to parse as its own, which the walk already
+  skips and which no `N` could describe. A third bucket of names would report
+  less than the paths do while looking like it reported more.
+
+  **`delete` is on the write guard, so deleting a vacancy does not compile** —
+  the third of the three ill-formed calls the opening shape removes from the
+  language, with a `compile_fail` doc test on `Vacancy` as the proof.
+
+- **`delete` is the one operation that constrains how the root was *spelled*.**
+  Every other operation uses the root as the directory things are in, so letting
+  the kernel resolve its last component is right — a symbolic link naming a
+  directory is an accepted spelling, and two spellings of one tree take one
+  lock. A deletion acts on the root as an object, where a link and what it names
+  are two things and only one is the tree; and it removes the very components a
+  path is built from, so a spelling that descends into the tree and comes back
+  out through `..` stops resolving partway through its own removal. Both are
+  refused before anything goes, as `Error::RootIsNotSpelledDirectly`. The `..`
+  rule is coarser than the danger and says so: a `..` cancelling a component
+  above the tree is harmless and refused with the rest, because separating them
+  means resolving the path and nothing here resolves anything. A leading `..` is
+  accepted, so `../course` still works.
+
+- **A removal has nothing to unwind, so it has a failure answer of its own:
+  `Error::RemovalStopped`.** `Error::Failed` promises *the tree is as it was
+  found — every effect this operation had applied was undone*, and an unlinked
+  file cannot be put back; `Error::FailedPartiallyRolledBack` reports an unwind
+  that failed, and here none is ever attempted. The new variant claims neither:
+  it carries what stopped the removal and the paths that had already gone, and
+  whether the tree is as it was found is read off that list being empty rather
+  than asserted. `docs/ordinal-fs-tree/ARCHITECTURE.md`'s *Plan atomicity* now
+  says explicitly that it is a property of plans and does not reach this
+  operation.
+
+- **`syllabus delete --yes` is the CLI's fourteenth verb, and its only
+  destructive one.** stdout is one record — `.` and the root, the subject —
+  and the entries go to stderr as their own trace in the order they went, which
+  is the split every other mutating verb already makes between its subject and
+  the consequences. The confirmation is a **flag** and not a prompt, because the
+  binary's consumers are contract tests and scripts and an interactive `[y/N]`
+  would make the one destructive verb the one thing they cannot drive. No new
+  exit code: `RemovalStopped` lands on `6` when nothing had gone and `7` when
+  something had, which is exactly the *as it was found* / *neither state*
+  distinction those two rows already draw, and
+  `RootIsNotSpelledDirectly` lands on `4`, whose definition it already fits.
+  One consequence worth knowing: the default `--root .` does not delete, so the
+  destructive verb is the one that cannot be run by leaving the flag off.
+
+- **`root-lifecycle-stays-with-its-receipt` is reversed, and is now
+  [`root-lifecycle-belongs-to-the-store`](docs/adr/root-lifecycle-belongs-to-the-store.md).**
+  That record rejected library ownership of root destruction on three arguments,
+  all of them about coordinating a destroy with an external effect through a
+  four-point callback — machinery `delete-finish-transaction-k8` deleted. What
+  is left is a destroy whose only verdict is the filesystem's own, which is the
+  record's own stated reopen condition, met by the consumer it was written
+  about. Its creation half had already been overtaken by `Vacancy::initialize`.
+  The receipt argument survives and is narrower than it was read to be: grove's
+  proof that a teardown happened is still a commit in the repository's history,
+  which decides where the receipt lives and not who performs the removal —
+  `Removed` is a postcondition, not a receipt. The record also moves context
+  owner in `CONTEXT-MAP.md`, from grove to `ordinal-fs-tree`, and that move *is*
+  the decision. `entries-are-never-removed` gains the clause distinguishing
+  removing an **entry**, which stays impossible, from deleting the **root**,
+  which ends the allocation its argument is about.
+
 - **The tree store answers *is there a tree here* as a shape, and the vacancy can
   create one.** `ordinal_fs_tree::fs::read` and `fs::write` no longer return a
   guard directly: they return `Reading` (`Tree` / `Vacant`) and `Writing`

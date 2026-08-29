@@ -842,6 +842,140 @@ fn init_over_a_live_tree_is_refused_and_changes_nothing() {
 
 /// No model claim.
 ///
+/// **`--yes` is the confirmation, because a prompt is not answerable here.** The
+/// binary's consumers are contract tests and scripts, so an interactive
+/// `[y/N]` would make the one destructive verb undrivable by everything that
+/// actually drives it. A flag is the same confirmation in a form both an
+/// operator and a script can give, and the refusal without it says the whole
+/// command to re-run.
+#[test]
+fn delete_without_yes_is_refused_and_removes_nothing() {
+    let (_temporary, root) = a_course();
+    let before = ok(&root, &["list"]).stdout.clone();
+
+    let run = syllabus(&root, &["delete"]);
+    assert_eq!(run.code, 4, "{}", run.stderr);
+    assert!(
+        run.stderr.contains("delete --yes"),
+        "the refusal names the command to re-run: {}",
+        run.stderr
+    );
+    assert_eq!(ok(&root, &["list"]).stdout, before, "nothing was removed");
+}
+
+/// No model claim.
+///
+/// **stdout is the root; the entries are the trace.** Deletion's subject is the
+/// root — one record, keyed `.`, exactly as the key column's rule says a level
+/// is named — and everything beneath it is the consequence, which is the same
+/// split `lesson-insert` makes between the entry it created and the siblings it
+/// shifted. The order the entries went is stderr's, in the order they went.
+#[test]
+fn delete_prints_the_root_on_stdout_and_what_went_on_stderr() {
+    let (_temporary, root) = a_course();
+    let run = ok(&root, &["delete", "--yes"]);
+
+    assert_eq!(run.records().len(), 1, "one record: {}", run.stdout);
+    assert_eq!(run.targets(), vec!["."]);
+    assert_eq!(run.paths(), vec![root.to_str().expect("a UTF-8 root")]);
+    assert!(
+        run.stderr.contains("in the order they went"),
+        "the trace says what it is: {}",
+        run.stderr
+    );
+    assert!(
+        run.stderr
+            .contains("01-linear-algebra-i1/01-draft-vectors-i4.md"),
+        "a lesson two levels down is in the trace: {}",
+        run.stderr
+    );
+    assert!(!root.exists(), "the root is gone");
+}
+
+/// No model claim.
+///
+/// **A leading `..` cancels no name, so it is an ordinary spelling and is
+/// accepted.** That is the other side of the rule that refuses
+/// `syllabus/topic/..`, and it matters because `../course` is what an operator
+/// standing one directory below actually types. It needs a working directory to
+/// be relative *to*, which is why it is a contract test here rather than a
+/// library one.
+#[test]
+fn a_root_spelled_with_a_leading_parent_is_deleted() {
+    let (temporary, root) = a_course();
+    let beside = temporary.path().join("beside");
+    fs::create_dir(&beside).expect("a directory to stand in");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_syllabus"))
+        .current_dir(&beside)
+        .args(["--root", "../syllabus", "delete", "--yes"])
+        .output()
+        .expect("running the syllabus binary");
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        ".\t../syllabus\n",
+        "the root, keyed `.`, in the caller's own spelling"
+    );
+    assert!(!root.exists(), "and the tree is gone");
+}
+
+/// No model claim.
+///
+/// **A root spelled through a symbolic link is refused, and only by `delete`.**
+/// Every other verb accepts the spelling — the library goes out of its way to
+/// make two spellings of one tree take one lock — because they use the root as
+/// the directory things are in. A deletion acts on the root itself, where a link
+/// and what it names are two objects and only one is the tree.
+#[test]
+fn deleting_through_a_symbolic_link_is_refused_where_reading_through_it_is_not() {
+    let (temporary, root) = a_course();
+    let link = temporary.path().join("elsewhere");
+    std::os::unix::fs::symlink(&root, &link).expect("a link naming the tree");
+
+    // Reading through it works, which is what makes the refusal below a
+    // statement about deletion rather than about the spelling.
+    assert_eq!(ok(&link, &["list"]).records().len(), 5);
+
+    let run = syllabus(&link, &["delete", "--yes"]);
+    assert_eq!(run.code, 4, "{}", run.stderr);
+    assert!(
+        run.stderr.contains("is a symbolic link"),
+        "the refusal names the spelling: {}",
+        run.stderr
+    );
+    assert!(root.is_dir(), "the tree is untouched");
+    assert!(link.symlink_metadata().is_ok(), "and so is the link");
+}
+
+/// No model claim.
+///
+/// A second `delete` meets a **vacancy**, which every verb but `init` refuses in
+/// one place and with one sentence. So a deletion is not idempotent in the
+/// direction a caller might hope: the tree it was asked about is not there, and
+/// saying nothing about that would make a mistyped `--root` indistinguishable
+/// from a job already done.
+#[test]
+fn a_second_delete_finds_no_tree_and_says_so() {
+    let (_temporary, root) = a_course();
+    ok(&root, &["delete", "--yes"]);
+
+    let run = syllabus(&root, &["delete", "--yes"]);
+    assert_eq!(run.code, 4, "{}", run.stderr);
+    assert!(
+        run.stderr.contains("there is no tree at"),
+        "the same sentence every other verb gives for a vacancy: {}",
+        run.stderr
+    );
+}
+
+/// No model claim.
+///
 /// Usage is exit 2, which is clap's own default for a parse failure — inherited
 /// rather than chosen, so that a hand-written usage error and clap's agree.
 #[test]
@@ -900,8 +1034,10 @@ fn publishing_a_module_is_the_clis_own_refusal_and_points_at_relabel() {
 // Help text
 // ---------------------------------------------------------------------------
 
-/// The twelve verbs, named once so the two help tests cannot drift apart.
-const VERBS: [&str; 12] = [
+/// The fourteen verbs, named once so the two help tests cannot drift apart.
+const VERBS: [&str; 14] = [
+    "init",
+    "delete",
     "list",
     "show",
     "ancestors",
@@ -941,8 +1077,9 @@ fn one_help_call_enumerates_every_verb_and_the_exit_codes() {
     }
     assert!(help.stdout.contains("EXAMPLES"));
     assert!(
-        help.stdout.contains("THERE IS NO REMOVAL"),
-        "the help text must say why nothing is deleted"
+        help.stdout.contains("REMOVAL: THE WHOLE TREE OR NOTHING"),
+        "the help text must separate removing an entry, which is refused, from \
+         deleting the root, which is the one destructive verb"
     );
     assert!(
         help.stdout.contains("BLOCKS"),

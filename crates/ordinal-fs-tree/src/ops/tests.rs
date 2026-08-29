@@ -1389,7 +1389,8 @@ fn only_move(decision: Decision<SyllabusName>) -> (usize, Level, String) {
 ///
 /// The document's draft assessment at ordinal 3, key 9 becomes published. It
 /// stays at ordinal 3 and key 9 — which is what makes this the general form of
-/// *mark this entry*, and, with no removal operation, how a domain retires one.
+/// *mark this entry*, and, with no way to remove an entry, how a domain retires
+/// one.
 #[test]
 fn a_rewrite_keeps_the_ordinal_the_key_and_the_level() {
     let snapshot = documents_tree();
@@ -1489,7 +1490,7 @@ fn rewriting_across_the_species_is_refused_in_both_directions() {
 ///
 /// A leaf can become a node, by `promote`, which moves its content rather than
 /// discarding it — so that is the advice. A node cannot become a leaf at all:
-/// its children would have nowhere to go, and entries are never removed. Advice
+/// its children would have nowhere to go, and no operation removes one. Advice
 /// that named `promote` in both directions would fail when taken in one of them,
 /// which is `docs/formalism-findings.md` entry 013's habit applied to a message
 /// that offers a remedy rather than an explanation.

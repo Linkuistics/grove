@@ -95,13 +95,20 @@ A fresh key is `max(key over the whole tree) + 1`. The names *are* the counter �
 there is no separate file recording the next value, because such a file would be
 a second source of truth that a hand-edit could desynchronise.
 
-The direct consequence is that **the library offers no removal operation.**
-Deleting an entry lowers the visible maximum, so the next allocation re-issues a
-key that other entries may still reference. A domain that genuinely needs
-entries to disappear needs a key source that is not derived from the tree, and
-that is outside what this library does. A domain that needs entries to be
+The direct consequence is that **the library offers no way to remove an
+entry.** Deleting one lowers the visible maximum, so the next allocation
+re-issues a key that other entries may still reference. A domain that genuinely
+needs entries to disappear needs a key source that is not derived from the tree,
+and that is outside what this library does. A domain that needs entries to be
 *retired* should mark them through an attribute and leave them in place — which
 costs nothing, since attributes are yours and the library never reads them.
+
+**Deleting the *root* is a different operation, and it is offered.** The
+argument above is about what the next allocation would do, and after a root
+deletion there is no next allocation: the tree is gone, and with it every name
+the counter was derived from. `delete` is that operation, it takes the whole
+tree or none of it, and it is the only thing in this library that removes
+anything.
 
 ---
 
@@ -505,6 +512,15 @@ other way, the same shift passes through a state with a **duplicate ordinal** �
 which it does not. Since a process killed mid-apply is unrecoverable by the
 paragraph above, the order is what decides which of those two a crash leaves.
 
+**`delete` is the operation that shows what this rule is worth by not having
+it.** A removal also runs in a fixed order — children before the level holding
+them, and within a level in the listing's own sorted order — but no order buys a
+property there, because every one of them lowers the visible key maximum and
+leaves a tree this library did not build. So that order is chosen to be
+*reproducible*, and the difference between the two cases is the whole point:
+here the order is load-bearing and stated, there it is arbitrary and stated as
+arbitrary.
+
 That is a property of the plan, checkable by reading it, rather than an accident
 of a loop's direction. It is also visible to the consumer: a report lists what
 was created and what was renamed in each species' own order — so the
@@ -538,7 +554,7 @@ root, and that ask has three possible answers, not two.
 
 | answer | what it is | what can be done with it |
 |---|---|---|
-| the tree | a directory is there | every operation on this page |
+| the tree | a directory is there | every operation on this page, `delete` included |
 | a **vacancy** | nothing is there | `initialize`, and nothing else |
 | an error | something is there that a tree cannot be — a regular file, a socket, a symbolic link naming one, a dangling one | nothing; a human moves it aside |
 
@@ -564,11 +580,13 @@ operations, is what makes creation coverable at all.
 What this buys is a class of call the type system refuses to spell. `initialize`
 is on the vacancy and nowhere else, so **initializing over a live tree does not
 compile**; the mutations are on the write guard and nowhere else, so **mutating a
-tree that is not there does not compile** either. Neither is a refusal this
-library states, because neither is a call it can be asked. Two `compile_fail` doc
-tests on the vacancy type are the proof, and they are the honest form of the
-claim: a run-time test could only show that *this* ill-formed call was refused,
-where a compile-fail shows it could not be written.
+tree that is not there does not compile** either — and `delete` is one of those,
+so **deleting a vacancy does not compile**, which is the third of the three
+ill-formed calls this shape removes. Neither is a refusal this library states,
+because neither is a call it can be asked. Three `compile_fail` doc tests on the
+vacancy type are the proof, and they are the honest form of the claim: a run-time
+test could only show that *this* ill-formed call was refused, where a
+compile-fail shows it could not be written.
 
 #### Why the third answer is an error and not a variant
 
@@ -679,6 +697,7 @@ positioned name's view and a label is not.
 | `insert` | Add a child at an occupied ordinal, shifting the occupant and every later sibling up by one. Each shift is one rename; a shifted node carries its whole subtree. |
 | `promote` | Turn a leaf into a node, **with the node's parts supplied by the caller**. The leaf's content moves verbatim into the new node's distinguished child, keeping the same ordinal and the same key — the entity is unchanged, only its shape. Optionally creates a first child in the same unit, for consumers that want both atomically. It is the one operation whose intermediate state breaks an invariant; see below. |
 | `rewrite` | Replace an entry's parts, keeping its ordinal, key and species. This is how an attribute changes: the entry keeps its identity and its place, and only the opaque remainder of its name moves. Parts implying a *different* species are refused — a file cannot be renamed into a directory. |
+| `delete` | Remove the tree root and everything beneath it, following no symbolic link, and report the paths that went. The only operation that removes anything, the only one that is not planned from the snapshot, the only one with no rollback, and the only one with a precondition on how the **root** was spelled. |
 
 ### Promotion is not atomic against the invariants
 
@@ -726,6 +745,55 @@ exactly as they already do for `append` and `rewrite`. The alternative — a tra
 method mapping a leaf's parts to a node's — would widen the seam to serve one
 operation, and would force every domain to declare a canonical leaf-to-node
 mapping when the honest one is often lossy.
+
+### And a removal has nothing to unwind, which is a third answer
+
+`delete` does not go through the interpreter at all, and the reason is upstream
+of the rollback: a plan is a list of effects over **names**, and a deletion acts
+on the root, so it acts on everything that is there — including the entries the
+domain declined to parse as its own, which are in no snapshot and have no name
+for a plan to carry. It walks the directories itself, and reports **paths**.
+
+What follows is that neither of the two failure answers above fits it. *The tree
+is as it was found* is a promise about putting things back, and an unlinked file
+cannot be put back; *the rollback itself failed* reports an unwind that was
+never attempted. So a stopped removal is its own answer: it says what stopped
+it and lists the paths that had already gone, and whether the tree is as it was
+found is read off that list being empty rather than claimed.
+
+A removal that could be undone would be one that copied the tree aside first,
+and that is a durable record of a pre-operation state — the thing a version
+control system already is. This library takes the honest half of the job:
+saying exactly what it destroyed.
+
+**Deleting is not an escape from a tree the domain cannot read.** Every
+operation begins at an opening, and an opening halts on a name the consumer
+recognises and cannot parse — so on such a tree there is no guard to call
+`delete` on. A library that would destroy a tree it was refused permission to
+understand is one whose halt means nothing.
+
+#### And it is the one operation that constrains how the root was spelled
+
+Everywhere else the root is a **container**, so letting the kernel resolve its
+last component is exactly right — *Opening a tree* accepts a symbolic link
+naming a directory as a spelling of the tree it names, and the containing-directory
+lock goes to some trouble to make every spelling of one tree take one lock.
+
+A deletion acts on the root as an **object**, and there the last component
+decides *which* object. A link and what it names are two things, and only one of
+them is the tree: destroying the second while leaving the first is neither
+answer, so the spelling is refused rather than guessed at. A spelling that
+descends into the tree and comes back out through `..` is refused for a second
+reason — the removal would take away one of that spelling's own components, and
+every path built on it afterwards stops resolving, leaving the tree half gone
+with nothing able to finish it.
+
+The `..` rule is **coarser than the danger and says so**: a `..` cancelling a
+component *above* the tree is harmless and is refused with the rest of the
+class, because telling them apart means resolving the path and nothing in this
+library resolves anything. What that costs is one message asking for a direct
+spelling. A **leading** `..` cancels nothing and is accepted, which is what
+makes `../course` an ordinary spelling.
 
 ### Refusals
 
@@ -959,6 +1027,13 @@ cannot destroy something that was already there. This covers reported errors and
 not process death — nor a rollback that itself fails, which is the exception
 *When rollback fails* states and the only way the library damages a tree.
 
+It is a property of **plans**, and `delete` is not one: it removes things that
+were already there, which is exactly what the sentence above says a rollback
+cannot do, so there is nothing for it to unwind. A stopped removal reports how
+far it got instead, and this invariant does not reach it — stated here rather
+than left to be assumed, because *every mutation is atomic* is what a reader
+takes away from this list otherwise.
+
 ---
 
 ## The models
@@ -1031,6 +1106,20 @@ that *reaches* it, never as an invariant expected to fail.
 | `failures` | Effects fail. Where atomicity and rollback are checked. |
 | `rollback_fails` | Rollback itself fails. The only instance that does not claim key uniqueness at rest, because this is what breaks it. |
 
+**`delete` is in neither model, and that is a decision rather than a gap.** Its
+three interesting properties are all below the boundary both models stop at: a
+directory can be removed only once it is empty, which is `remove_dir(2)` and is
+what the post-order walk exists to satisfy; a symbolic link is unlinked rather
+than followed, and neither model holds a link or a path for one to name; and
+foreign entries are removed *and reported*, which needs a report of paths that a
+model holding no filenames cannot build. The first of those is the one an
+ordering claim would rest on, and the filesystem checks it directly — a wrong
+order makes `remove_dir` refuse, so every deletion in the suite is a test of it,
+where a model with no filesystem would have to assume the fact it wanted to
+check. Adding a `Remove` to a *forward* plan would also make `inv_atomicity`
+false by construction, since a removal has no undo, and a second interpreter is
+a finding about the plan rather than a licence.
+
 Four things the behavioural model does **not** reach, recorded here rather than
 left to be assumed: the filesystem beneath the interpreter (a rename carrying
 its subtree is an assumption), walk *order* (reachability is modelled, the
@@ -1047,8 +1136,15 @@ relying on it.
 
 ## What this library deliberately does not do
 
-- **No removal.** Explained above: allocation is derived from the names, so
-  deletion re-issues live keys.
+- **No removal of an entry.** Explained above: allocation is derived from the
+  names, so removing one re-issues live keys. `delete` removes the **root**,
+  which ends the tree and therefore ends the allocation the argument is about;
+  there is nothing between the two.
+- **No recovery from a removal.** `delete` reports what it destroyed and does
+  not stage, quarantine or copy anything aside. A durable record of a
+  pre-operation state is what a version control system is for, and building a
+  worse one here would be this library claiming a guarantee it cannot keep
+  across process death.
 - **No content model.** Bytes given to `append` are written verbatim; bytes moved
   by `promote` are moved verbatim. Templates, headers and formats are the
   consumer's.

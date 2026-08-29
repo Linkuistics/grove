@@ -246,6 +246,32 @@ Turning a **leaf** into a **node**, moving the leaf's bytes into the new node's
 **distinguished child** and preserving the entry's **ordinal** and **key**.
 _Avoid_: "convert", "expand", "explode".
 
+**Deletion**:
+Removing the **root** and everything beneath it, following no symbolic link, and
+answering with a **removal report**. The one operation that treats the root as a
+thing to remove rather than as the **level** things are in, which is why it is
+also the one that constrains how the root was spelled: a spelling naming a link
+to the tree, or one that comes back out through `..`, is refused before anything
+goes. The other half of the root's lifetime and
+the counterpart of **initialization** — but on a **guard** rather than a
+**vacancy**, since there has to be a tree for there to be anything to delete. It
+is the only operation that removes anything, and it is **not** the removal of an
+**entry**, which the library does not offer: removing an entry lowers the
+visible **key** maximum, and after a deletion there is no next allocation for
+that to be wrong about.
+_Avoid_: "remove" as the word for it — that is what the library declines to do
+to an entry; also "purge", "destroy", "teardown", and "reset", which implies
+something is left.
+
+**Removal report**:
+What a **deletion** answers with: the **root**, and every path beneath it in the
+order it went, children before the level that held them. Paths rather than
+**names**, because a deletion removes the entries the **consumer** declined to
+name as well, and no name could describe those.
+_Avoid_: calling it a **report** — a report's rows are named entries, and none
+of these has a name; also _avoid_ reading its order as a claim about anything
+but reproducibility, which is the one thing that order buys.
+
 ## Flagged ambiguities
 
 **`leaf` and `node` mean different things here than in grove.** grove's
@@ -276,10 +302,20 @@ inside it.
 >
 > **Library author:** Two different things, and only one exists. Its *ordinal*
 > is a slot and it is already reused — anything you insert there shifts the
-> siblings after it. Its *key* is not a slot, and there is no removal
-> operation, because keys are `max + 1` over the names and deleting an entry
-> lowers the maximum. The next allocation would re-issue 7 while your
-> cross-references still point at it.
+> siblings after it. Its *key* is not a slot, and there is no way to remove an
+> entry, because keys are `max + 1` over the names and deleting one lowers the
+> maximum. The next allocation would re-issue 7 while your cross-references
+> still point at it.
+>
+> **Consumer:** But there *is* a `delete`. How is that not the same argument?
+>
+> **Library author:** Because it takes the *root*. The argument above is about
+> what the next allocation would do, and after a deletion there is no next
+> allocation — no tree, and no names for a counter to be derived from. That is
+> also why it is the whole tree or nothing: a partial version of it would be
+> entry removal wearing a different name. It reports paths rather than names,
+> including the ones you told us were not yours, because those go too and we
+> have no name to call them by.
 >
 > **Consumer:** So how do I retire it?
 >

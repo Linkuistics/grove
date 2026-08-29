@@ -8540,12 +8540,23 @@ again: check every negative with the symbolic backend, because a simulated green
 on an absorbing-environment model is not a result; and write every claim over the
 contract, because a claim that names a dial cannot be killed by that dial.
 
-**Decided:** [`root-lifecycle-stays-with-its-receipt`](adr/root-lifecycle-stays-with-its-receipt.md).
+**Decided:** `root-lifecycle-stays-with-its-receipt`.
 `formal-synthesis-k16` therefore inserts **no** ordinal root-lifecycle
 implementation leaf before `extract-task-tree-k24`, and carries the narrowed
 successor question that record states.
 
 > **[disposed by `routing-and-prose-k73`]** The narrowed root-*creation* successor question is routed to `finish-verdicts-k65`; the general-form obligation the same record defers (*once the caller grades an effect applied it never ungrades it*) is routed separately to `finish-scope-k71`, because gaining it adds an `FN-` claim and a cell in both families.
+>
+> **[reversed by `root-delete-k26`]** The record above was **re-taken and
+> reversed**, and it is now
+> [`root-lifecycle-belongs-to-the-store`](adr/root-lifecycle-belongs-to-the-store.md).
+> Nothing in this entry is wrong: the vocabulary enumeration held, and the
+> rejection was sound against the machinery it was argued about. That machinery
+> — the four-point coordinator, the quarantine rename, the correlation ticket —
+> was deleted at `delete-finish-transaction-k8`, which fired the record's own
+> reopen condition (*a destroy whose only verdict is the filesystem's own*). So
+> this entry's verdict about the **instrument** stands unchanged and its
+> pointer moves; the entry is not rewritten, per this log's own rule.
 >
 > **[decided by `finish-scope-k71`]** The general form is **DECLINED**, and no obligation or cell was added. `FN-22`'s revalidation table carries two rows that are exactly the transition it forbids — after the quarantine rename, `Committed -> NotCommitted` and `Committed -> Indeterminate` — and the catalogue insists the two must not be collapsed, so an obligation forbidding the regrade would forbid both rows; granting it as an assumption instead deletes the states those rows need, which is entry 035's finding met a second time — *a check written stronger than its claim does not fail, it removes states*. The consequence is a **stronger** argument for the record's rejection than the one it carried: the coordinator's caller obligation is not merely unverifiable by the library, it is one this contract requires Grove to break. The record is edited in place, and `docs/specs/semantic-contract.md` carries the decline beside `FN-26`.
 

@@ -88,13 +88,14 @@ use std::path::{Path, PathBuf};
 
 use crate::ops::{self, NewEntry, Target};
 use crate::plan::Decision;
-use crate::report::Report;
+use crate::report::{Removed, Report};
 use crate::snapshot::Snapshot;
 use crate::{EntryName, Error, Key, Ordinal};
 
 mod apply;
 mod lock;
 mod read;
+mod remove;
 
 /// Read a tree under a **shared** lock: other readers may hold it at the same
 /// time, no writer may.
@@ -359,6 +360,19 @@ pub struct WriteGuard<N> {
 /// else { unreachable!() };
 /// // `append` is on `WriteGuard`, and a vacancy is not one.
 /// vacancy.append(Target::Root, NewEntry::empty(todo!()))?;
+/// # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
+/// ```
+///
+/// ```compile_fail
+/// # use std::path::Path;
+/// # use ordinal_fs_tree::fs::Writing;
+/// # use ordinal_fs_tree::reference::SyllabusName;
+/// let Writing::Vacancy(vacancy) = ordinal_fs_tree::fs::write::<SyllabusName>(Path::new("s"))?
+/// else { unreachable!() };
+/// // `delete` is on `WriteGuard` too. Deleting a tree that is not there is not
+/// // a refusal this library states — there is nothing to delete and nothing to
+/// // report having deleted, so the call does not exist.
+/// vacancy.delete()?;
 /// # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
 /// ```
 pub struct Vacancy<N> {
@@ -677,7 +691,7 @@ impl<N: EntryName> WriteGuard<N> {
     /// with it untouched.
     ///
     /// It is the general form of every *mark this entry* operation a consumer
-    /// might want, and with no removal operation
+    /// might want, and with no operation that removes an *entry*
     /// (`docs/adr/entries-are-never-removed.md`) it is also how a domain retires
     /// one: rewrite an attribute.
     ///
@@ -712,6 +726,74 @@ impl<N: EntryName> WriteGuard<N> {
     pub fn rewrite(self, key: Key, parts: N::Parts) -> Result<Report<N>, Error<N>> {
         let decision = ops::rewrite(&self.snapshot, key, parts);
         self.run(decision, apply::Faults::none())
+    }
+
+    /// **`delete`**: remove the tree root and everything beneath it, following
+    /// no symbolic link, and report the paths that went.
+    ///
+    /// The one mutation that is not planned from the snapshot. A plan is a list
+    /// of effects over *names*, and a deletion acts on the root — so it acts on
+    /// everything that is there, including the entries the domain declined to
+    /// parse as its own, which are in no snapshot and have no name for a plan to
+    /// carry. [`Removed`] therefore reports **paths**, and reports the foreign
+    /// ones too: a report that left them out would undercount what was
+    /// destroyed.
+    ///
+    /// The root goes last and everything beneath it goes children-first, in each
+    /// level's sorted listing order. That order is for reproducibility and buys
+    /// no property — unlike the highest-first shift, whose order decides what an
+    /// interruption leaves. There is no order in which an interrupted deletion
+    /// leaves a shape this design admits.
+    ///
+    /// # Following no link is a security property
+    ///
+    /// Descent is decided by the same unfollowed look a snapshot is read
+    /// through, so a symbolic link — even one naming a directory, even one
+    /// naming a directory **outside** the root — is unlinked as a link and its
+    /// target is untouched. The bound on that is stated in this module's
+    /// `remove` submodule: the look and the descent are two syscalls, and the
+    /// writer who could exploit the gap between them is the writer who ignores
+    /// the advisory lock, which is already outside what this library defends
+    /// against.
+    ///
+    /// # The root's own spelling must name the root
+    ///
+    /// This is the one operation with a precondition on how the root was
+    /// *spelled*, and it is the only one that acts on the root as an **object**
+    /// rather than as the directory things are in. So a spelling whose last
+    /// component is a symbolic link is refused rather than followed — a link and
+    /// what it names are two things, and this library will not choose between
+    /// them — and so is one that descends into the tree and comes back out
+    /// through `..`, whose own components the removal would take away.
+    /// [`Error::RootIsNotSpelledDirectly`] carries which, and nothing is removed.
+    /// Every other operation accepts both spellings, deliberately.
+    ///
+    /// # This is not an escape from a tree the domain cannot read
+    ///
+    /// Deletion begins where every operation begins — at an opening — so a
+    /// [`Malformed`](Error::Malformed) or [`Reserved`](Error::Reserved) name
+    /// halts it before this method is reachable at all. That is deliberate: the
+    /// library will not destroy a tree it was refused permission to understand.
+    /// Whoever meets that halt has the domain's own recovery advice, and the
+    /// shell.
+    ///
+    /// # There is no rollback, and no recovery path
+    ///
+    /// An unlinked file is gone. A removal that could be undone would be one
+    /// that copied the tree aside first, and staging a rollback for a
+    /// destruction is exactly the machinery a version control system already
+    /// provides — the library's part is to be honest about what it did.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::RootIsNotSpelledDirectly`] before anything is removed, for the
+    /// two spellings above. [`Error::RemovalStopped`] once the removal has
+    /// begun: it carries the step that failed and the paths that had already
+    /// gone, and its message distinguishes a removal that got nowhere from one
+    /// that got partway. No refusal is reachable — the algebra is not consulted,
+    /// because there is nothing for it to decide.
+    pub fn delete(self) -> Result<Removed, Error<N>> {
+        remove::tree(&self.root)
     }
 
     /// Turn a decision into an outcome: refuse, or apply under the lock this

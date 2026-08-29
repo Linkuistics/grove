@@ -71,19 +71,26 @@ domain hook implies. The containing directory outlives both the root's creation
 and its deletion in every domain, and a rename that a version control system
 must be told about commits a byte-identical tree either way.
 
-**A third pressure on the same rule was tested and did not fire, and what it
-cost is worth recording beside the two above.** Whole-root creation and
-destruction are the case the containing-directory lock was chosen for, so they
-are the strongest candidate a per-domain hook has yet had. The contract turns out
-to be statable with **no domain vocabulary at all** — the measurement is in
-`docs/formalism-findings.md` entry 047 — and creation needs no hook of any kind.
-Destruction does: it must consult the caller's three-valued grade of an external
-effect at four points, which is a callback by another name, and a caller
-consulted from inside the transaction can only be refused. It also needs an
-obligation the library cannot check, and a receipt the library has nowhere to
-put. So the rule holds for the reason it was written rather than by luck, and the
-decision is
-[`root-lifecycle-stays-with-its-receipt`](root-lifecycle-stays-with-its-receipt.md).
+**A third pressure on the same rule was tested, and the rule took it without
+widening — which is the interesting outcome, because that pressure was expected
+to be the one that fired.** Whole-root creation and destruction are the case the
+containing-directory lock was chosen for, so they are the strongest candidate a
+per-domain hook has yet had. The contract turns out to be statable with **no
+domain vocabulary at all** — the measurement is in `docs/formalism-findings.md`
+entry 047 — and both operations now live in the library
+([`root-lifecycle-belongs-to-the-store`](root-lifecycle-belongs-to-the-store.md))
+with **no trait method added**: `initialize` takes the distinguished child's
+bytes, exactly as `promote` already moves a leaf's bytes into one, and `delete`
+takes nothing at all.
+
+What *would* have widened the seam is a **coordinated** destruction — one that
+consults the caller's grade of an external effect at four points, which is a
+callback by another name, and a caller consulted from inside the transaction can
+only be refused. It would also mean the library knowing what *some* reserved
+names mean, splitting the reserved-name class into a library-owned half and a
+consumer-owned half, which is a widening of this seam rather than a use of it.
+That operation was rejected and stays rejected; what the library gained instead
+is a destroy whose only verdict is the filesystem's own.
 
 **It costs a second thing, measured at `cli-k16` and worth naming because it is
 the half a reader will assume was not paid.** `Error::Malformed` and

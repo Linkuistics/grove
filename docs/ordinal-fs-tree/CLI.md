@@ -133,8 +133,10 @@ An **ordinal** appears in exactly one place — `lesson-insert` and
 
 ## The verbs
 
-Thirteen, flat and hyphenated, so a single `syllabus --help` enumerates all of
-them. Aliases: `ls` for `list`, and nothing else.
+Fourteen, flat and hyphenated, so a single `syllabus --help` enumerates all of
+them. Aliases: `ls` for `list`, and nothing else — in particular **`delete` has
+no `rm`**, deliberately: an alias would make the one destructive verb the
+shortest thing to type.
 
 ### Reading
 
@@ -174,10 +176,43 @@ because that is the one thing about it a reader will guess wrong.
 | `relabel <key> <label>` | `rewrite` | the entry, at its new name |
 | `publish <key>` | `rewrite` | the entry, at its new name |
 | `unpublish <key>` | `rewrite` | the entry, at its new name |
+| `delete --yes` | `delete` | the root: one record, keyed `.` |
+
+`delete` is also the one verb that constrains `--root`: a root spelled through a
+symbolic link, or one ending in `.` or `..`, is refused with nothing removed,
+because a deletion acts on the root itself rather than on what is inside it.
+Every other verb accepts both. The consequence worth knowing at the terminal is
+that the **default `--root .` does not delete** — `rmdir(".")` names no object —
+so the one destructive verb is the one that cannot be run by leaving the flag
+off.
 
 `--status` defaults to `draft`, and so does `--first-lesson`'s status: a lesson
 that starts published is one `publish` away, and a flag for it would be a second
 place the default lives.
+
+### Why `delete` takes `--yes`, and why it is not a prompt
+
+It is the one verb that can lose work, and the one whose mistake — a mistyped
+`--root` — is silent until it is done. So it is confirmed, and the confirmation
+is a **flag** rather than a prompt for the reason this whole surface is
+non-interactive: the binary's consumers are contract tests and scripts, and an
+interactive `[y/N]` would make the destructive verb the one thing they cannot
+drive. A flag is the same confirmation in the form both an operator and a script
+can give.
+
+It is also refused **after** the lock is taken and before anything is removed, so
+a forgotten `--yes` costs a message and never a race. The refusal prints the
+whole command to re-run, which is the difference between an error an operator
+reads and one they have to reconstruct.
+
+**`delete` prints the root and nothing else on stdout.** One record, keyed `.` —
+which is what the key column already means for a level — because the root is the
+subject and everything beneath it is the consequence, the same split
+`lesson-insert` makes between the entry it created and the siblings it shifted.
+The entries go to stderr as their own trace, in the order they went. There are
+no keys to print for them: half of what a deletion removes is what the domain
+declined to name, and a column that was a key for some lines and blank for
+others would be worse than the one that is always a path.
 
 ### Why the nouns appear where they do
 
@@ -326,9 +361,12 @@ is named rather than skipped:
   bounded by the tree the operator named, and a silently truncated *tree* listing
   is precisely the failure the library's no-silent-skip rule exists to prevent.
   `--under`, `--status` and `--label` narrow instead; `head` truncates.
-- **No colour, no pager, no spinner, no prompt.** There is no destructive verb —
-  entries are never removed — so there is nothing to confirm, and therefore no
-  `--yes` and no `--force`.
+- **No colour, no pager, no spinner, no prompt.** `delete` is destructive and is
+  confirmed by `--yes`, which is a flag precisely so that no prompt is needed;
+  everything else here changes a tree without losing anything from it. There is
+  no `--force`, because `--yes` overrides no safety check — it *is* the
+  confirmation, and the two are different concepts that would otherwise be one
+  spelling apart.
 
 ---
 
@@ -371,14 +409,20 @@ should the caller do next*. Documented in `syllabus --help`.
 | `1` | the environment refused: `Error::Io`, `Error::NoContainingDirectory` | fix the path or the permissions |
 | `2` | usage: clap's own parse failure, an unparseable label, an unknown status | fix the arguments |
 | `3` | no entry has that key: `Refusal::TargetMissing` | `list` to find the key you meant |
-| `4` | refused: every other `Refusal`, and this CLI's own two — a root holding no tree, and an `init` over one that does | read the message; it names the remedy |
+| `4` | refused: every other `Refusal`; this CLI's own two — a root holding no tree, and an `init` over one that does; a `delete` without `--yes`; and `Error::RootIsNotSpelledDirectly`, which is not a `Refusal` but is exactly this row's shape — nothing changed, and the message names the remedy | read the message; it names the remedy |
 | `5` | this tree cannot be read as a syllabus: `Malformed`, `Reserved`, `NonUtf8Name`, `NameIsNotOneComponent`, `RootIsNotATree` | a human fixes a filename, or moves aside whatever is sitting on the root; no retry helps |
-| `6` | the mutation failed and was rolled back: `Error::Failed` | **the tree is as it was found**; safe to retry |
-| `7` | the mutation failed and the rollback failed: `Error::FailedPartiallyRolledBack` | **do not retry**; the message says how to resolve it |
+| `6` | **the tree is as it was found**: `Error::Failed`, or an `Error::RemovalStopped` that had removed nothing yet | safe to retry |
+| `7` | **the tree is in neither state**: `Error::FailedPartiallyRolledBack`, or an `Error::RemovalStopped` that had removed something | do not retry blindly; the message says how far it got and what resolves it |
 
 `6` against `7` is the single most valuable distinction the library offers, and a
 generic `1` would throw it away. `2` is clap's own default for a parse failure,
 so it is inherited rather than chosen.
+
+**`RemovalStopped` lands on both, and that is what kept the table at seven.** A
+removal has nothing to roll back, so the question those two rows answer — *is
+the tree as it was found* — is read off the report rather than off the variant:
+empty and nothing went, non-empty and the tree is in neither state. An eighth
+code would have been a third answer to a question that still has two.
 
 ### Idempotency
 
@@ -391,6 +435,12 @@ so it is inherited rather than chosen.
   call that finds one already there want different answers. The refusal is the
   CLI's own: the library is never asked, since `initialize` lives on a vacancy
   and the tree arm has no such method to call.
+- `delete` is **not**, and its second call is refused in the same place for the
+  mirror-image reason: it meets a vacancy, which every verb but `init` refuses
+  with one sentence. A deletion that reported success over a root that was
+  already gone would make a mistyped `--root` indistinguishable from a job
+  already done. A deletion that *stopped partway* can be run again to finish —
+  the exit code says which case it was — and nothing brings back what went.
 - `lesson-add`, `module-add`, `lesson-insert`, `module-insert` and `promote` are
   **not**. Running an `add` twice creates two entries. After exit `6` a retry is
   safe because nothing landed; after a kill it is not, because what landed is
@@ -400,13 +450,20 @@ so it is inherited rather than chosen.
 
 ## What is out, and where an operator would go looking
 
-- **No removal, and no `rm`.** Allocation is `max(key) + 1` over the names, so
-  deleting an entry lowers the maximum and the next allocation re-issues a key
-  other entries may still reference
+- **No removal of an entry, and no `rm`.** Allocation is `max(key) + 1` over the
+  names, so deleting one lowers the maximum and the next allocation re-issues a
+  key other entries may still reference
   ([`entries-are-never-removed`](../adr/entries-are-never-removed.md)). Retire a
   lesson with `unpublish`, which is what an attribute is for. `syllabus --help`
   says this, and says that removing a file by hand damages key allocation for
   every later `add`.
+- **`delete` exists, and it is the other operation.** It removes the *root*, so
+  there is no next allocation for the argument above to be about, and it is the
+  whole tree or nothing — a partial version of it would be entry removal under
+  another name. It also removes what the domain disclaimed, because it removes
+  the root: a stray file in the tree goes with it, and the trace says so. It
+  follows no symbolic link, so a link inside the tree is unlinked and its target
+  is untouched.
 - **`init` exists, and it did not always.** This section used to say *an empty
   directory is an empty tree, so `mkdir` is the whole of it*, and that sentence
   was true about the format and wrong about the operator. The format still has
@@ -433,7 +490,7 @@ so it is inherited rather than chosen.
 - **No migration.** A name the domain recognises and cannot parse halts the
   operation with the domain's advice; nothing here rewrites a name it does not
   understand.
-- **No `llm-instructions` verb.** Thirteen verbs fit in one `--help`, and a second
+- **No `llm-instructions` verb.** Fourteen verbs fit in one `--help`, and a second
   manual would restate it.
 
 ---
@@ -458,6 +515,8 @@ cannot cover and a reader should not go looking for.
 | `Error::FailedPartiallyRolledBack` | not in a test; reachable in the wild when a rollback's own `rename` fails |
 | `Error::NonUtf8Name` | **not on macOS** — APFS refuses such a filename, so the branch cannot be reached from a test on this host. Assert that fact rather than skipping; `docs/formalism-findings.md` entry 006 |
 | `Error::NameIsNotOneComponent` | **no** — the reference domain is conformant and `tests/names_are_confined.rs` already holds the boundary with two adversarial domains |
+| `Error::RootIsNotSpelledDirectly` | yes, in all three of its readings — `--root <a symlink>`, `--root <a symlink>/`, and `--root <tree>/<node>/..`; and `--root .`, which is the default, so the operator meets it by leaving the flag off |
+| `Error::RemovalStopped` | yes, both messages — `delete` a tree holding a directory the operator cannot write into, which is what the library suite provokes with mode bits. Reachable in the wild for any permission or I/O refusal under the root |
 
 `publish` on a **module** is refused by the CLI rather than by the library:
 modules carry no publication status here, so there are no parts to compose and
@@ -477,8 +536,9 @@ in one call.
 
 The top-level `long_about` carries what no single verb can: that this binary
 drives the reference domain and is a demonstration; that stdout is
-`<key>` TAB `<path>` and stderr is advisory; the exit-code table; that there is
-no removal, and why; and that the verbs block on a lock.
+`<key>` TAB `<path>` and stderr is advisory; the exit-code table; that no verb
+removes an *entry*, and why, beside what `delete` does instead; and that the
+verbs block on a lock.
 
 No environment variable is read.
 

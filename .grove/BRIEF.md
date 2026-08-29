@@ -252,6 +252,29 @@ raise it rather than quietly design around it.
    allocation derives from the names on disk. Deleting the *root* is a different
    operation from removing an *entry*; only the first is on the table.
 
+## What the store node delivered, for the leaves that consume it
+
+`store-operations-k12` closed at `root-delete-k26`, and two of its facts are the
+ones later leaves depend on rather than merely follow.
+
+**The store's surface is complete and grove uses none of it yet.** `Sought`,
+`Reading`/`Writing`/`Vacancy`, `Vacancy::initialize` and `WriteGuard::delete`
+are all present and exercised without grove. The two migrations are still
+outstanding and are deliberately outside that node: `collapse-tree-access-k13`
+deletes grove's second lock layer — all three of its recorded reasons are now
+dissolvable at once — and `loop-crate-verbs-k21` moves the finish teardown onto
+`delete`, which reports the paths it removed so the commit message can name them.
+`Vacancy::initialize` is deliberately left uncalled until k13; grove still
+creates its own root outside the store.
+
+**Root lifecycle changed hands, and the record moved with it.**
+`docs/adr/root-lifecycle-belongs-to-the-store.md` replaces
+`root-lifecycle-stays-with-its-receipt`, which had deferred its own re-taking to
+the leaf that landed `delete`. Its ownership in `CONTEXT-MAP.md` moved from the
+grove context to `ordinal-fs-tree`, and that move is the decision. What stays
+rejected is the *coordinated* destroy — one that consults a caller mid-operation
+— so a later leaf meeting that need is reopening the coordinator and not this.
+
 ## Pointers
 
 - `docs/adr/task-tree-transactions-fail-closed.md` — the witness protocol
@@ -262,7 +285,11 @@ raise it rather than quietly design around it.
 - `docs/adr/complete-session-configuration.md` — the completeness rule that a
   task-type-as-label change reopens.
 - `docs/adr/entries-are-never-removed.md` — principle 5, argued from key
-  allocation.
+  allocation, and carrying the clause that separates removing an *entry* from
+  deleting the *root*.
+- `docs/adr/root-lifecycle-belongs-to-the-store.md` — why both halves of a
+  root's lifetime are the store's, and what a coordinated destroy would have
+  cost.
 - `CONTEXT-MAP.md` — the vocabulary-boundary discipline the first extraction
   used, and the model for the next ones.
 

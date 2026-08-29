@@ -40,9 +40,13 @@ decision to abandon a whole line of work, taken once and visible on disk
 immediately afterwards.
 
 Against that, a batched rewrite is a change to a **checked** library, and this
-workstream's standing rule is that **the model leads**: Quint is written per
-operation, before that operation is implemented, and where the model and a test
-disagree the model wins and the test changes. So `models/operations.qnt` would
+workstream's standing rule is that **the model leads** wherever the models reach
+at all: Quint is written before the operation is implemented, and where the model
+and a test disagree the model wins and the test changes. A batched rewrite is
+squarely inside that boundary — it is a plan of renames, which is what
+`operations.qnt` is about — unlike `delete`, whose exclusion
+[`ARCHITECTURE.md`](../ordinal-fs-tree/ARCHITECTURE.md) states under *The
+models*. So `models/operations.qnt` would
 move first, then the algebra, then the filesystem layer, then grove — for a
 property no current consumer needs except in a failure mode that already
 self-repairs. Doing it here, mid-flip, would be the failure the leaf brief
@@ -55,11 +59,12 @@ inline.
   because there is none. `append_many` is a run of creations planned from one
   snapshot; there is no `rewrite_many`, and a promotion is not a mark. **The
   operation set is not closed** — `initialize` was added to it after this record
-  was first written, and creating a tree is not a mark either — so what rules
-  this option out is the absence of a *batched rewrite* specifically, and not a
-  surface nobody may extend. The distinction is the difference between this
-  option being impossible and it being unbuilt. It is unbuilt, and the option
-  below is the route to building it.
+  was first written and `delete` after that, and neither creating a tree nor
+  destroying one is a mark — so what rules this option out is the absence of a
+  *batched rewrite* specifically, and not a surface nobody may extend. The
+  distinction is the difference between this option being impossible and it
+  being unbuilt. It is unbuilt, and the option below is the route to building
+  it.
 - **Escalate: ask `ordinal-fs-tree` for a batched rewrite**, as a leaf of its
   own, model first. Not rejected on the merits — rejected as *not yet earned*.
   Reopen when a second consumer needs it, or when a partial prune is observed in

@@ -44,6 +44,27 @@
 //   * Walk *order* is not modelled (reachability is).  `by_key`'s documented
 //     "first in walk order" tie-break on a corrupted tree is therefore not
 //     checked; the model picks the least id.  See the handoff note at the end.
+//   * `delete` is NOT modelled, and the reason is the line above about the
+//     filesystem rather than an omission.  Three things make that operation
+//     what it is, and this model holds none of them:
+//       - a directory can only be removed once it is empty.  That is
+//         `remove_dir(2)`, and it is what the post-order walk exists to
+//         satisfy — so the FILESYSTEM checks the ordering rule on every
+//         deletion the suite performs, where a model with no filesystem would
+//         have to assume the very fact it wanted to check.
+//       - a symbolic link is unlinked and never followed.  There are no links
+//         here, and no paths for one to name.
+//       - foreign entries go with the root and are reported.  `Foreign` is in
+//         the state, but what makes this interesting is that they have no NAME
+//         to report — and this model holds no filenames, so a report of paths
+//         is not a value it can build.
+//     Adding it would also break the one thing the interpreter is for: a
+//     `Remove` in a FORWARD plan has no undo, so `inv_atomicity` would become
+//     false by construction and a second interpreter would be the only way
+//     out — which is the shape `ARCHITECTURE.md` calls a finding about the plan
+//     rather than a licence.  `structure.als` declines it for its own reason: a
+//     deletion's postcondition is *there is no tree*, and that model holds
+//     trees.
 //
 // ===========================================================================
 

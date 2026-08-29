@@ -103,6 +103,63 @@ pub enum Error<N: EntryName> {
         /// What the filesystem said about that.
         unwind_source: std::io::Error,
     },
+    /// A removal stopped partway, and **nothing was put back**.
+    ///
+    /// The third of the three failure shapes, and the one a deletion needs
+    /// because neither of the other two is honest about it. [`Error::Failed`]
+    /// promises *the tree is as it was found — every effect this operation had
+    /// applied was undone*, and a removal has nothing to undo: an unlinked file
+    /// is gone, and putting it back would mean having copied it aside first,
+    /// which is staging machinery this library does not have.
+    /// [`Error::FailedPartiallyRolledBack`] is wrong in the other direction —
+    /// it reports an unwind that failed, and here no unwind was ever attempted.
+    ///
+    /// So this variant claims nothing and reports: what stopped it, and the
+    /// paths that had already gone. `removed` is **empty** exactly when the
+    /// failure came before anything was removed, which is the difference
+    /// between a tree that is as it was found and one that is in neither state;
+    /// the `Display` below says which.
+    ///
+    /// *Neither model can pose this*: both hold trees, and neither models a
+    /// root that ceases to exist.
+    RemovalStopped {
+        /// The tree root the removal was asked for, in the caller's spelling.
+        root: PathBuf,
+        /// What the failing step was acting on.
+        path: PathBuf,
+        /// The step that failed, in the imperative.
+        doing: &'static str,
+        /// What the filesystem said.
+        source: std::io::Error,
+        /// What had already been removed, in the order it went. Paths and not
+        /// names, for the reason [`Removed`](crate::Removed) gives.
+        removed: Vec<PathBuf>,
+    },
+    /// A root spelled a way a deletion cannot act on.
+    ///
+    /// Every other operation uses the root as a **container**, so the kernel
+    /// resolving its last component is exactly right: a symbolic link naming a
+    /// directory is an accepted spelling of the tree it names, and
+    /// `read::containing_directory` goes out of its way to make every spelling
+    /// of one tree take one lock.
+    ///
+    /// A deletion is the one operation that acts on the root as an **object**,
+    /// and there the last component decides *which* object — a link and what it
+    /// names are two, and only one of them is the tree. It is also the one
+    /// operation that removes the very components a path is built from, so a
+    /// spelling that descends into the tree and comes back out through `..`
+    /// stops resolving partway through its own removal.
+    ///
+    /// Both are refused before anything is removed, and refused rather than
+    /// guessed at: this library will not decide on a caller's behalf whether a
+    /// link or its target was meant. `reason` says which spelling it was, so
+    /// the message can name the fix.
+    RootIsNotSpelledDirectly {
+        /// The root as the caller spelled it.
+        root: PathBuf,
+        /// What is wrong with that spelling, as a clause.
+        reason: &'static str,
+    },
     /// A filename that is not UTF-8, which halts.
     ///
     /// [`EntryName::parse`] takes a `&str`, so the library cannot ask the
@@ -250,6 +307,25 @@ impl<N: EntryName> fmt::Debug for Error<N> {
                 .field("undoing", undoing)
                 .field("unwind_source", unwind_source)
                 .finish(),
+            Self::RemovalStopped {
+                root,
+                path,
+                doing,
+                source,
+                removed,
+            } => f
+                .debug_struct("RemovalStopped")
+                .field("root", root)
+                .field("path", path)
+                .field("doing", doing)
+                .field("source", source)
+                .field("removed", removed)
+                .finish(),
+            Self::RootIsNotSpelledDirectly { root, reason } => f
+                .debug_struct("RootIsNotSpelledDirectly")
+                .field("root", root)
+                .field("reason", reason)
+                .finish(),
             Self::NonUtf8Name { path } => {
                 f.debug_struct("NonUtf8Name").field("path", path).finish()
             }
@@ -325,6 +401,49 @@ impl<N: EntryName> fmt::Display for Error<N> {
                 path.display(),
                 unwinding.display()
             ),
+            // Two sentences and not one, because the two cases want different
+            // next steps: a removal that got nowhere left a tree a consumer can
+            // still use, and one that got partway left a tree it cannot.
+            Self::RemovalStopped {
+                root,
+                path,
+                doing,
+                source,
+                removed,
+            } if removed.is_empty() => write!(
+                f,
+                "{doing} {}: {source}. Nothing was removed, so the tree {} is as it \
+                 was found.",
+                path.display(),
+                root.display()
+            ),
+            Self::RemovalStopped {
+                path,
+                doing,
+                source,
+                removed,
+                root,
+            } => write!(
+                f,
+                "{doing} {}: {source}. {} path{} beneath the tree root {} had already \
+                 been removed, and a removal has nothing to put back \u{2014} so this \
+                 tree is now in neither the state the operation found nor the one it \
+                 intended, and it needs a human. Deleting again removes what is left; \
+                 nothing here restores what has gone.",
+                path.display(),
+                removed.len(),
+                if removed.len() == 1 { "" } else { "s" },
+                root.display()
+            ),
+            Self::RootIsNotSpelledDirectly { root, reason } => write!(
+                f,
+                "the tree root {} {reason}. Nothing was removed. Every other operation \
+                 accepts this spelling, because it uses the root as the directory \
+                 things are in; a deletion acts on the root itself, so its last \
+                 component decides what gets destroyed and this library will not guess \
+                 which you meant. Name the directory itself and delete that.",
+                root.display()
+            ),
             Self::NonUtf8Name { path } => write!(
                 f,
                 "the filename {} is not valid UTF-8, so it cannot be classified: \
@@ -377,10 +496,11 @@ impl<N: EntryName> std::error::Error for Error<N> {
             // of causes and the effect is what caused the unwind to be needed.
             // The unwind's own error is in the `Display`, where a consumer
             // reading the message meets both.
-            Self::Failed { source, .. } | Self::FailedPartiallyRolledBack { source, .. } => {
-                Some(source)
-            }
+            Self::Failed { source, .. }
+            | Self::FailedPartiallyRolledBack { source, .. }
+            | Self::RemovalStopped { source, .. } => Some(source),
             Self::Refused(_)
+            | Self::RootIsNotSpelledDirectly { .. }
             | Self::NonUtf8Name { .. }
             | Self::NameIsNotOneComponent { .. }
             | Self::RootIsNotATree { .. }

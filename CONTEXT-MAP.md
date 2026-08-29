@@ -151,7 +151,6 @@ for the second document.
   [`task-names-are-canonical`](docs/adr/task-names-are-canonical.md),
   [`grove-does-not-stage-its-own-renames`](docs/adr/grove-does-not-stage-its-own-renames.md),
   [`bulk-marks-are-not-atomic`](docs/adr/bulk-marks-are-not-atomic.md),
-  [`root-lifecycle-stays-with-its-receipt`](docs/adr/root-lifecycle-stays-with-its-receipt.md),
   [`obligations-follow-context-not-artifact`](docs/adr/obligations-follow-context-not-artifact.md),
   [`a-refusal-leaves-nothing-standing`](docs/adr/a-refusal-leaves-nothing-standing.md),
   [`a-witnessless-root-refuses-what-it-cannot-account-for`](docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md),
@@ -164,8 +163,12 @@ for the second document.
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
   and [`module-decomposition`](docs/specs/module-decomposition.md).
   The **ordinal-fs-tree** context owns
-  [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md) and
-  [`entries-are-never-removed`](docs/adr/entries-are-never-removed.md). They sit
+  [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md),
+  [`entries-are-never-removed`](docs/adr/entries-are-never-removed.md) and
+  [`root-lifecycle-belongs-to-the-store`](docs/adr/root-lifecycle-belongs-to-the-store.md)
+  — the last of which **moved** here, and the move is the decision it records:
+  while root creation and destruction were grove's, so was the record, and it was
+  filed under grove for that reason. They sit
   in the flat root set like every other record — `content/ADR-FORMAT.md`'s split
   rule keeps one directory while grove occupies the repo root, and ownership is
   what it says to record instead. grove consumes both decisions and maintains

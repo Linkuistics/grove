@@ -28,7 +28,7 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
     let mut pending = vec![(root.to_path_buf(), builder.root())];
     while let Some((directory, place)) = pending.pop() {
         let mut descend = Vec::new();
-        for (name, found) in listing(&directory)? {
+        for (name, found) in listing(&directory).map_err(Unlistable::into_io)? {
             let path = directory.join(&name);
             let Some(name) = name.to_str() else {
                 return Err(Error::NonUtf8Name { path });
@@ -80,21 +80,51 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
     Ok(builder.finish())
 }
 
+/// A directory that could not be listed, before either caller has decided what
+/// that means.
+///
+/// [`listing`] has two consumers whose framing of the same failure differs —
+/// reading a tree has changed nothing, while removing one may already have
+/// removed a great deal — so it hands back the three parts of an error and
+/// neither of the two `Error` variants they become.
+pub(super) struct Unlistable {
+    pub(super) path: PathBuf,
+    pub(super) doing: &'static str,
+    pub(super) source: io::Error,
+}
+
+impl Unlistable {
+    /// The reading side's framing: an [`Error::Io`], which claims nothing about
+    /// the tree because reading changed nothing.
+    pub(super) fn into_io<N: EntryName>(self) -> Error<N> {
+        Error::Io {
+            path: self.path,
+            doing: self.doing,
+            source: self.source,
+        }
+    }
+}
+
 /// One directory's names and what is under each, sorted.
 ///
 /// Sorted because the halt has to be deterministic: a tree carrying two names
 /// the consumer cannot parse would otherwise report whichever one `read_dir`
 /// reached first, so the recovery advice a consumer sees would depend on the
 /// filesystem rather than on the tree.
-fn listing<N: EntryName>(directory: &Path) -> Result<Vec<(OsString, Found)>, Error<N>> {
-    let reading = fs::read_dir(directory).map_err(|source| Error::<N>::Io {
+///
+/// Shared with [`remove`](super::remove), which needs the same determinism and
+/// the same *unfollowed* look at each name. One listing rather than two is what
+/// stops those two properties drifting apart between reading a tree and
+/// destroying one.
+pub(super) fn listing(directory: &Path) -> Result<Vec<(OsString, Found)>, Unlistable> {
+    let reading = fs::read_dir(directory).map_err(|source| Unlistable {
         path: directory.to_path_buf(),
         doing: "reading the directory",
         source,
     });
     let mut found = Vec::new();
     for entry in reading? {
-        let entry = entry.map_err(|source| Error::<N>::Io {
+        let entry = entry.map_err(|source| Unlistable {
             path: directory.to_path_buf(),
             doing: "reading the directory",
             source,
@@ -104,7 +134,7 @@ fn listing<N: EntryName>(directory: &Path) -> Result<Vec<(OsString, Found)>, Err
         // link wearing an entry's name `Found::Other`, and therefore
         // `Malformed`, rather than whatever it points at.
         // <https://doc.rust-lang.org/std/fs/struct.DirEntry.html#method.file_type>
-        let kind = entry.file_type().map_err(|source| Error::<N>::Io {
+        let kind = entry.file_type().map_err(|source| Unlistable {
             path: entry.path(),
             doing: "inspecting",
             source,

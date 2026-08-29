@@ -38,8 +38,8 @@ use clap::{Parser, Subcommand};
 
 use ordinal_fs_tree::reference::{Label, Parts, Status, SyllabusName};
 use ordinal_fs_tree::{
-    fs, Container, Entry, EntryNameExt, Error, Key, NewEntry, Ordinal, Refusal, Report, Sought,
-    Target,
+    fs, Container, Entry, EntryNameExt, Error, Key, NewEntry, Ordinal, Refusal, Removed, Report,
+    Sought, Target,
 };
 
 // ---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ use ordinal_fs_tree::{
     version,
     about = "Drive a course syllabus stored as a directory tree.",
     long_about = LONG_ABOUT,
-    // Thirteen verbs, flat and hyphenated, so one `syllabus --help` enumerates
+    // Fourteen verbs, flat and hyphenated, so one `syllabus --help` enumerates
     // all of them: a caller that has lost its bearings recovers in one call.
     subcommand_required = true,
     arg_required_else_help = true
@@ -119,10 +119,11 @@ EXIT CODES
      it names the remedy
   5  this tree cannot be read as a syllabus — a human fixes a filename, and
      no retry helps
-  6  the mutation failed and was rolled back: THE TREE IS AS IT WAS FOUND,
-     so retrying is safe
-  7  the mutation failed and the rollback failed too: DO NOT RETRY — the
-     message says how to resolve it
+  6  the mutation failed and the tree is AS IT WAS FOUND, so retrying is safe
+     — it was rolled back, or (for `delete`) it had removed nothing yet
+  7  the tree is in NEITHER STATE: a rollback failed, or a `delete` stopped
+     partway and a removal has nothing to put back. Read the message; it says
+     how far it got and what resolves it
 
 IDEMPOTENCY
   `publish`, `unpublish` and `relabel` are idempotent: rewriting to the parts
@@ -130,18 +131,28 @@ IDEMPOTENCY
   promote verbs are NOT — running an add twice creates two entries. After exit
   6 a retry is safe because nothing landed; after the process is KILLED it is
   not, because what landed is unknowable.
+  `delete` is not idempotent either: a second one finds no tree and is refused.
+  One that stopped partway can be run again to finish, and what has already
+  gone does not come back.
 
-THERE IS NO REMOVAL
-  Keys are allocated as max+1 over the names in the tree, so deleting an entry
-  lowers the maximum and the next add re-issues a key other entries may still
-  reference. Retire a lesson with `unpublish`, which is what an attribute is
-  for. Removing a file by hand damages key allocation for every later add.
+REMOVAL: THE WHOLE TREE OR NOTHING
+  There is no verb that removes an ENTRY. Keys are allocated as max+1 over the
+  names in the tree, so deleting one lowers the maximum and the next add
+  re-issues a key other entries may still reference. Retire a lesson with
+  `unpublish`, which is what an attribute is for; removing a file by hand
+  damages key allocation for every later add.
+  `delete` removes the ROOT, and with it everything beneath — which is a
+  different operation, and the only destructive one here. It needs `--yes`,
+  there is no undo, and it follows no symbolic link: a link inside the tree is
+  unlinked and whatever it named is left alone.
 
 OTHER THINGS WORTH KNOWING
   `init` creates the tree, and it is the only verb that does — every other one
   refuses a root holding no tree rather than creating one on the way past. It
   takes the lock before deciding the root is empty and still holds it while
-  creating it, so two racing `init`s cannot both succeed.
+  creating it, so two racing `init`s cannot both succeed. `delete` is its
+  opposite and takes the same lock, so the root's whole lifetime is covered by
+  the one lock every ordinary verb takes.
   There is no `--dry-run`: a plan is internal by design. There are
   no lock flags: every verb takes an advisory lock on the directory containing
   the root and BLOCKS until the tree is free — a hang is a lock and not a bug.
@@ -153,6 +164,7 @@ EXAMPLES
   syllabus --root syllabus lesson-add 1 vectors matrices
   syllabus --root syllabus list
   syllabus --root syllabus publish 2
+  syllabus --root syllabus delete --yes
 
 SEE ALSO
   `syllabus <verb> --help` for any verb below.";
@@ -193,6 +205,35 @@ SEE ALSO
         /// The status every lesson in this run starts at.
         #[arg(long, value_name = "STATUS", default_value = "draft", value_parser = parse_status)]
         status: Status,
+    },
+
+    /// Delete the whole course: the tree root, and everything beneath it.
+    ///
+    /// The one destructive verb, and the only one that can lose work. It removes
+    /// what the library recognises and what it does not alike, because it
+    /// removes the root — a stray file someone left in the tree goes with it.
+    /// It follows no symbolic link: a link inside the tree is unlinked, and
+    /// whatever it named is untouched.
+    ///
+    /// There is no undo. `--yes` is required for that reason and is not a
+    /// formality: a prompt would be unanswerable by the contract tests and
+    /// scripts that drive this binary, so the confirmation is a flag instead.
+    ///
+    /// Not idempotent in the useful direction: a second `delete` finds no tree
+    /// and is refused. A `delete` that stopped partway CAN be run again to
+    /// finish, and the message says so — but nothing brings back what went.
+    #[command(after_help = "\
+EXAMPLES
+  syllabus --root course list
+  syllabus --root course delete --yes
+  syllabus --root course delete --yes --quiet
+
+SEE ALSO
+  unpublish, which retires a lesson without removing anything")]
+    Delete {
+        /// Confirm the removal. Required, because there is no undo.
+        #[arg(long)]
+        yes: bool,
     },
 
     /// List entries in walk order.
@@ -500,10 +541,11 @@ SEE ALSO
 
     /// Mark a lesson draft — and how a lesson is retired here.
     ///
-    /// There is no removal in this tree, deliberately: keys are allocated as
-    /// max+1, so deleting an entry lowers the maximum and the next add re-issues
-    /// a key other entries may still reference. Taking a lesson out of
-    /// circulation is an attribute change, which is what this is.
+    /// No verb removes an entry, deliberately: keys are allocated as max+1, so
+    /// deleting one lowers the maximum and the next add re-issues a key other
+    /// entries may still reference. Taking a lesson out of circulation is an
+    /// attribute change, which is what this is. (`delete` removes the *root*,
+    /// which ends the tree and therefore ends the allocation this is about.)
     ///
     /// Idempotent: unpublishing a draft lesson succeeds and changes nothing.
     #[command(after_help = "\
@@ -648,6 +690,17 @@ fn exit_code(error: &Error<SyllabusName>) -> u8 {
         // `1` would throw it away.
         Error::Failed { .. } => 6,
         Error::FailedPartiallyRolledBack { .. } => 7,
+        // Nothing changed and the message names the remedy — rename the root, or
+        // name the directory rather than a link to it — which is row 4's own
+        // definition, so it goes there rather than earning a code of its own.
+        Error::RootIsNotSpelledDirectly { .. } => 4,
+        // A removal has nothing to roll back, so the distinction those two rows
+        // draw is read off *how far it got* rather than off the variant: nothing
+        // removed and the tree is as it was found, anything removed and it is in
+        // neither state. Same two answers, and no eighth code for a third
+        // question nobody is asking.
+        Error::RemovalStopped { removed, .. } if removed.is_empty() => 6,
+        Error::RemovalStopped { .. } => 7,
     }
 }
 
@@ -710,6 +763,27 @@ impl Streams {
     /// This is where the highest-ordinal-first shift rule stays observable to an
     /// operator, which is why it is a property of a *value* rather than of a
     /// loop's direction.
+    /// The removal trace: what went, **in the order it went**.
+    ///
+    /// A separate method from [`Streams::trace`] because a removal has no
+    /// report: there are no names to label a path with and no species to tell
+    /// apart, only paths and the order. That is the whole of what `Removed`
+    /// carries, and printing it any other way would be inventing detail.
+    fn removal(&self, removed: &Removed) {
+        if self.quiet {
+            return;
+        }
+        let count = removed.entries.len();
+        eprintln!(
+            "delete: {count} entr{} beneath the root, in the order they went:",
+            if count == 1 { "y" } else { "ies" }
+        );
+        for path in &removed.entries {
+            eprintln!("  removed  {}", path.display());
+        }
+        eprintln!("  removed  {} (the root)", removed.root.display());
+    }
+
     fn trace(&self, verb: &str, report: &Report<SyllabusName>) {
         if self.quiet {
             return;
@@ -851,6 +925,7 @@ fn run(cli: &Cli, streams: &Streams) -> Result<(), Failure> {
             labels,
             status,
         } => init(cli, streams, overview.as_deref(), labels, *status),
+        Verb::Delete { yes } => delete(cli, streams, *yes),
         Verb::List {
             under,
             status,
@@ -1137,6 +1212,34 @@ fn init(
         .initialize(overview.map(|text| text.as_bytes().to_vec()), entries)
         .map_err(|e| Failure::library(&e))?;
     report_out(streams, "init", &report);
+    Ok(())
+}
+
+/// `delete`: the whole tree, under the same lock every other verb takes.
+///
+/// stdout is **one** record — `.` and the root — because the root is the subject
+/// and everything under it is the consequence, which is the same split
+/// `lesson-insert` makes between the entry it created and the siblings it
+/// shifted. The entries go to stderr as a landing trace, in the order they went.
+fn delete(cli: &Cli, streams: &Streams, yes: bool) -> Result<(), Failure> {
+    let tree = writing(cli)?;
+    // Refused after the lock is taken and before anything is removed, so a
+    // forgotten `--yes` costs an operator a message and never a race.
+    if !yes {
+        return Err(Failure::own(format!(
+            "`delete` removes the tree at {} and everything beneath it, and there is \
+             no undo. Re-run it as `syllabus --root {} delete --yes` if that is what \
+             you meant. To retire one lesson instead, use `unpublish`.",
+            cli.root.display(),
+            cli.root.display()
+        )));
+    }
+    let removed = tree.delete().map_err(|e| Failure::library(&e))?;
+    streams.records(&[Record {
+        target: ".".to_string(),
+        path: removed.root.clone(),
+    }]);
+    streams.removal(&removed);
     Ok(())
 }
 

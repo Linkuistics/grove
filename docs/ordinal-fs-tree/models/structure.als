@@ -290,6 +290,29 @@ pred RootIsATree { RootPath.at = KDir }
    says what it found and stops. */
 pred RootIsNeither { some RootPath.at and RootPath.at != KDir }
 
+/* ---------------------------------------------------------------------------
+ * `delete` is not modelled here, and `root-delete-k26` decided that rather than
+ * inheriting it.
+ *
+ * Its postcondition is `RootIsVacant`, which this file can state — and stating
+ * it buys nothing, because a deletion is a claim about a BEFORE and an AFTER
+ * and this model holds one tree.  `Tree.root` is `one FsDir` by construction;
+ * a model of the operation would need the two states the behavioural model has,
+ * and that model declines it for reasons of its own.
+ *
+ * What is worth recording is that the operation's three interesting properties
+ * are all below this file's abstraction boundary:
+ *
+ *   - a directory is removed only once it is empty — `remove_dir(2)`, which is
+ *     what the post-order walk exists to satisfy, and which the filesystem
+ *     therefore checks on every deletion the test suite performs;
+ *   - a symbolic link is unlinked rather than followed — `FsOther` is an atom
+ *     here with no target relation, so there is nothing for a link to name;
+ *   - foreign entries are removed and REPORTED — and `vd` can say a name is
+ *     foreign while nothing here can build the report, which is a list of
+ *     paths, and `Filename` is an opaque atom.
+ * ------------------------------------------------------------------------- */
+
 
 fact Filesystem {
   all x: FsFile  | x.fkind = KFile

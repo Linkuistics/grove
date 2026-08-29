@@ -35,6 +35,40 @@ pub struct Renamed<N> {
     pub to: PathBuf,
 }
 
+/// What a root deletion removed: paths, in the order they went.
+///
+/// # Why paths, where every other mutation reports names
+///
+/// The two buckets above are keyed by `N` because every other mutation acts on
+/// entries the domain *named*. Deletion acts on the **root**, and therefore on
+/// everything beneath it — including the entries the domain deliberately
+/// declines to parse as `N`, which a walk already skips and which no `N` can
+/// describe. A third bucket of names would still be unable to say what was
+/// removed, so this is the honest postcondition: the paths that are gone, which
+/// is the whole of what the operation knows and exactly what a caller needs to
+/// say what it destroyed.
+///
+/// Not generic over `N` for the same reason. Nothing here came from the domain's
+/// grammar, so nothing here needs the domain's type.
+#[derive(Clone, Debug)]
+pub struct Removed {
+    /// The tree root, in the caller's own spelling. It went **last**, because
+    /// nothing else could go after it, and this value exists only on the path
+    /// where its own removal returned `Ok` — a stopped removal reports through
+    /// [`Error::RemovalStopped`](crate::Error::RemovalStopped) instead, which
+    /// makes no claim about the root at all.
+    ///
+    /// The caller's spelling is the root itself and not an alias for it: a
+    /// deletion refuses a root spelled through a symbolic link, so what is named
+    /// here is what was removed.
+    pub root: PathBuf,
+    /// Everything that was beneath the root, **in the order it went**: children
+    /// before the level holding them, and within a level in the listing's own
+    /// sorted order. Foreign entries are here too — they were removed, so
+    /// leaving them out would be a report that undercounts the damage.
+    pub entries: Vec<PathBuf>,
+}
+
 /// What a mutating operation did.
 ///
 /// Empty when the operation had nothing to do — an `append_many` of no entries

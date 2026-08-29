@@ -28,3 +28,15 @@ Publish the baseline-to-enabled comparison and final deployment evidence for
 
 This slice synthesizes evidence and proves deployment; it does not reopen the
 rubric.
+
+## Decisions (running log)
+
+- Publish the durable synthesis at
+  `docs/evaluations/writing-code-walkthroughs/README.md`, above the retained
+  baseline, enabled, transfer-probe, and refinement records it summarizes.
+- Apply the frozen rubric literally: an incomplete five-repetition arm makes
+  the primary endpoint undefined rather than failed, and descriptive partial
+  counts cannot be promoted into material-improvement or regression verdicts.
+- Keep historical harness digest guards pinned to the bytes each campaign
+  executed. Test those guards as drift refusals, and test the final refined
+  skill and sealed-template delta separately against its retained manifest.

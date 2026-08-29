@@ -16,14 +16,14 @@ if [[ ! -x "$harness" ]]; then
   exit 1
 fi
 
-"$harness" init "$test_root/campaign" "$test_root/auth.json"
+expected_skill_sha=$(awk -F '\t' '$1 == "SKILL.md" { print $3 }' "$here/skill.manifest.tsv")
+readonly expected_skill_sha
+grep -q "readonly expected_skill_sha=$expected_skill_sha" "$harness"
 
-[[ $(<"$test_root/campaign/schedule.txt") == 'control enabled enabled control enabled control control enabled control enabled' ]]
-[[ -f "$test_root/campaign/control-template/auth.json" ]]
-[[ -f "$test_root/campaign/enabled-template/auth.json" ]]
-[[ -f "$test_root/campaign/enabled-template/skills/writing-code-walkthroughs/SKILL.md" ]]
-[[ ! -e "$test_root/campaign/control-template/skills" ]]
-[[ $(wc -l <"$test_root/campaign/control-template.manifest.tsv" | tr -d ' ') == 1 ]]
-[[ $(wc -l <"$test_root/campaign/enabled-template.manifest.tsv" | tr -d ' ') == 2 ]]
+if "$harness" init "$test_root/campaign" "$test_root/auth.json"; then
+  printf 'FAIL: historical transfer harness accepted different skill bytes\n' >&2
+  exit 1
+fi
+[[ ! -e "$test_root/campaign" ]]
 
-printf 'PASS: transfer harness initializes sealed templates and paired schedule\n'
+printf 'PASS: historical transfer harness preserves its executed skill guard\n'

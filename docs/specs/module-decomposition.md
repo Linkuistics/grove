@@ -496,12 +496,11 @@ Grove takes commits and implements no transaction: no witness, no manifest, no
 rollback proof, no index image, no quarantine, no recovery path. jj snapshots the
 working copy before every command and its operation log is the transaction
 record, so a failed teardown is recovered by `jj undo` — which is what the
-refusal says. This supersedes
-[`task-tree-transactions-fail-closed`](../adr/task-tree-transactions-fail-closed.md)
+refusal says. This supersedes `task-tree-transactions-fail-closed`
 outright: not by the reopen condition that record names — a durable finish
 receipt — but because the version control system owns the transaction. It also
-retires [`supported-workspace-layouts`](../adr/supported-workspace-layouts.md),
-whose whole subject is the same-device rename the quarantine needed.
+retires `supported-workspace-layouts`, whose whole subject is the same-device
+rename the quarantine needed.
 
 Dropping the plain-git lane is what makes this true on every lane rather than
 one. A non-jj working tree is refused before any mutation.
@@ -771,8 +770,8 @@ makes false and nobody listed is a record that quietly stops being true.
 
 | record | disposition | landed by |
 |---|---|---|
-| [`task-tree-transactions-fail-closed`](../adr/task-tree-transactions-fail-closed.md) | **retired** — the VCS owns the transaction (decision 8), and the tree-access lock it also specifies goes with the store owning `initialize` and `delete` | the leaf that deletes the finish transaction |
-| [`supported-workspace-layouts`](../adr/supported-workspace-layouts.md) | **retired** — its whole subject is the same-device rename the quarantine needed | the same leaf |
+| `task-tree-transactions-fail-closed` | **retired** — the VCS owns the transaction (decision 8), and the tree-access lock it also specifies goes with the store owning `initialize` and `delete` | the leaf that deletes the finish transaction |
+| `supported-workspace-layouts` | **retired** — its whole subject is the same-device rename the quarantine needed | the same leaf |
 | [`skill-delivers-the-methodology`](../adr/skill-delivers-the-methodology.md) | **retired** — the provisioned-skill delivery path ceases to exist | the leaf that deletes provisioning |
 | [`one-build-owns-a-session`](../adr/one-build-owns-a-session.md) | **retired** — no build writes a skill directory, so there is no pairing to report | the same leaf |
 | [`one-live-driver-per-working-tree`](../adr/one-live-driver-per-working-tree.md) | **reworked** — the lease survives; independent provisioning, the Git lane, the Git-or-jj control-directory derivation, the same-device gate and the Git-or-jj lost-result path do not. The control directory becomes the namespace the VCS seam hands back | the leaf that extracts the VCS seam |

@@ -10208,7 +10208,8 @@ disposition. The classes, so the child can size its own decomposition:
 > **Five records carry the decisions**:
 > [`a-refusal-leaves-nothing-standing`](adr/a-refusal-leaves-nothing-standing.md),
 > [`a-witnessless-root-refuses-what-it-cannot-account-for`](adr/a-witnessless-root-refuses-what-it-cannot-account-for.md),
-> [`success-is-proved-by-the-ticket-not-the-tree`](adr/success-is-proved-by-the-ticket-not-the-tree.md),
+> `success-is-proved-by-the-ticket-not-the-tree` (retired at
+> `delete-finish-transaction-k8`, with the transaction whose success it defined),
 > [`a-closed-partition-is-over-outcomes-not-states`](adr/a-closed-partition-is-over-outcomes-not-states.md)
 > and
 > [`a-lifecycle-claim-says-what-it-is-over`](adr/a-lifecycle-claim-says-what-it-is-over.md).
@@ -10245,7 +10246,8 @@ session's running log; the verdicts are that child's.
 > a protocol `EN-03` says cannot be built, which is the defect measured rather
 > than argued. `TODO.finish_process.md` is deleted: the questions, the
 > dispositions, the cost table and the four binding constraints are now
-> [`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md).
+> `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`, itself
+> retired at `delete-finish-transaction-k8` with the layer it kept.
 > **Every earlier entry in this log that names `TODO.finish_process.md` names it
 > as it stood when that entry was written and is left alone; this annotation is
 > the one pointer forward.** The finding worth carrying past the verdicts: Q1's

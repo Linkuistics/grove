@@ -1,8 +1,6 @@
 pub mod cli;
 pub mod complete;
 pub mod driver_lease;
-pub(crate) mod finish_cleanup;
-pub(crate) mod finish_transaction;
 pub mod harness;
 // `launch` and `loop_driver` are crate-private because nothing outside the
 // crate reaches them any more: the human verbs the suite used to drive through
@@ -59,9 +57,5 @@ pub mod task_grow;
 // owns the **write** seam every mutating verb is on. Since `sweep-k37` it is
 // the only reading surface grove has.
 pub mod task_tree;
-// `test_barrier` is the publication rule the process-interruption seams share.
-// It is compiled always — the seams are, too — but nothing outside them may
-// reach it, so it is crate-private like the seams' own checkpoint functions.
-pub(crate) mod test_barrier;
 pub mod tree_access;
 pub mod tree_lifecycle;

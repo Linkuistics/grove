@@ -1,7 +1,6 @@
 use anyhow::{bail, Context, Result};
 
-use crate::task_name::TaskNameError;
-use std::fs::{self, File};
+use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 
@@ -9,12 +8,6 @@ use std::path::{Path, PathBuf};
 thread_local! {
     static ACQUISITION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
-
-// The two transaction sentinels. `pub(crate)` rather than private because
-// `task_name` classifies them as `Verdict::Reserved` and a token spelled in two
-// modules is a token that can drift in one of them.
-pub(crate) const FINISHING_PREFIX: &str = "FINISHING-";
-pub(crate) const PREPARING_FINISH_PREFIX: &str = "PREPARING-FINISH-";
 
 pub struct TreeReadGuard {
     _worktree_directory: File,
@@ -45,7 +38,6 @@ impl TreeWriteGuard {
 pub fn read(grove_root: &Path) -> Result<TreeReadGuard> {
     let (root, worktree_directory) = acquire(grove_root, libc::LOCK_SH)?;
     require_grove_root(&root)?;
-    refuse_pending(&root)?;
     Ok(TreeReadGuard {
         _worktree_directory: worktree_directory,
         root,
@@ -55,7 +47,6 @@ pub fn read(grove_root: &Path) -> Result<TreeReadGuard> {
 pub fn write(grove_root: &Path) -> Result<TreeWriteGuard> {
     let (root, worktree_directory) = acquire(grove_root, libc::LOCK_EX)?;
     require_grove_root(&root)?;
-    refuse_pending(&root)?;
     Ok(TreeWriteGuard {
         _worktree_directory: worktree_directory,
         root,
@@ -161,54 +152,9 @@ fn require_grove_root(grove_root: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Refuse a tree held by the one transaction grove still runs — the finish
-/// cycle's. Migration's witness was the other, and went with migration
-/// (`delete-migration-k6`).
-pub(crate) fn refuse_pending(grove_root: &Path) -> Result<()> {
-    let mut entries = fs::read_dir(grove_root)
-        .with_context(|| format!("reading task-tree root {}", grove_root.display()))?
-        .collect::<std::io::Result<Vec<_>>>()?;
-    entries.sort_by_key(|entry| entry.file_name());
-    if let Some(witness) = entries.into_iter().find(|entry| {
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        name.starts_with(FINISHING_PREFIX) || name.starts_with(PREPARING_FINISH_PREFIX)
-    }) {
-        // The wording is the **domain's**, not a second one written here.
-        // `task_name` classifies these sentinels `Verdict::Reserved` carrying the
-        // same error, so the library halting on one mid-tree and this pre-check
-        // meeting one at the root say the same sentence. The `name` field is
-        // whatever names the witness, and here that is its path: the library has
-        // only the filename to give, and a reader who ran a verb from elsewhere
-        // wants to know where it is.
-        bail!(TaskNameError::PendingFinish {
-            name: witness.path().display().to_string()
-        });
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn reader_refuses_a_preparing_finish_witness() {
-        let worktree = tempfile::tempdir().unwrap();
-        let grove_root = worktree.path().join(".grove");
-        let witness =
-            grove_root.join("PREPARING-FINISH-finish-k2-11111111111111111111111111111111");
-        fs::create_dir_all(&witness).unwrap();
-
-        let error = match read(&grove_root) {
-            Ok(_) => panic!("reader admitted a preparing finish witness"),
-            Err(error) => error,
-        };
-
-        let diagnostic = error.to_string();
-        assert!(diagnostic.contains("pending Grove finish transaction"));
-        assert!(diagnostic.contains(&witness.display().to_string()));
-    }
 
     #[test]
     fn worktree_lock_descriptor_is_close_on_exec() {

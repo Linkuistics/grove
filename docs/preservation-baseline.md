@@ -1197,8 +1197,9 @@ The concentration the target dependency direction is meant to break up.
 | 1,257 | `src/finish_cleanup/auxiliary.rs` |
 
 The finish/recovery concern alone is **10,366 production lines — 34% of `src/`** —
-plus 6,701 lines of test. [`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
-carries that breakdown and the four questions — two settled `keep`, two `defer`
+plus 6,701 lines of test. `docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`
+— retired at `delete-finish-transaction-k8` with the layer it kept — carried that
+breakdown and the four questions — two settled `keep`, two `defer`
 pending a control neither model family runs yet; this row is here so the count is
 anchored to a revision.
 

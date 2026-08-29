@@ -39,9 +39,12 @@ re-gathered, and deleted when the work lands or the question is settled in an
 ADR. It is not a plan, not a backlog, and never the canonical description of
 anything that exists — those rows are above. **There is none at present.**
 `TODO.finish_process.md` was the last, and it ended the second way: its four
-questions — two answered `keep`, two `defer` — are carried in
-[`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`](adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)
-and the note is gone.
+questions — two answered `keep`, two `defer` — went into
+`docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md`, and both the
+note and that record are now gone. The record was retired at
+`delete-finish-transaction-k8`, which deleted the layer its `keep` protected:
+the version control system owns the transaction, so the questions have no
+subject rather than new answers.
 
 The rows above are the whole of what a file directly under `docs/` may be: a
 maintained project guide, or a durable record a completed Grove workstream
@@ -220,17 +223,12 @@ rather than the tracked working copy or an ambient temporary directory. Symlink
 and relative-path aliases contend on one lease; separate workspaces stay
 independent.
 
-Acquisition creates that control directory and proves the **workspace layout**
-can supply what teardown will need: an atomic same-filesystem rename target for
-the whole `.grove/` root. `<workspace>/.jj/grove/` keeps resolution inside the
-working tree, so every jj shape passes by construction; the devices differ only
-where `.jj/` has itself been put on another filesystem. Grove measures rather
-than classifies, because a symlinked marker escapes the working tree without
-changing its kind. A refusal is a resumable no-mutation stop, which
-is the point: an unfinishable workspace is named before it holds a task tree
-rather than at the finish gate. The finish transaction still repeats the
-comparison against its exact rename operands — see [supported workspace
-layouts](adr/supported-workspace-layouts.md).
+Acquisition creates that control directory. It used to prove one thing more —
+that the directory sits on the working tree's own filesystem — because teardown
+ended in an atomic same-device rename of the whole `.grove/` root into it. There
+is no rename: teardown deletes the tree and takes one path-scoped commit, so the
+layout preflight, its device measurement, and the record that specified them are
+all gone.
 
 Every acquisition opens, locks, and then compares the locked descriptor's
 device/inode against the path's current identity, retrying a bounded number of
@@ -727,12 +725,15 @@ initialization and survives finish deletion, so a single seam covers creation,
 ordinary mutation, and teardown. A contended caller prints one waiting
 diagnostic and then waits.
 
-The lock serializes live processes and adds no crash atomicity. One operation
-needs more than that and carries its own in-tree witness: the finish teardown
-(`FINISHING-*`, below). Every other task-tree command refuses while that witness
-exists and names its recovery. The contract is process-interruption consistency,
-not power-loss durability. See [Task-tree
-transactions fail closed](adr/task-tree-transactions-fail-closed.md).
+The lock serializes live processes and adds no crash atomicity, and **nothing in
+Grove adds any**. The one operation that used to need more — the finish teardown
+— carried an in-tree `FINISHING-*` witness that every other command refused
+while it existed. Both are gone: Jujutsu snapshots the working copy before every
+command and its operation log is the transaction record, so an interrupted
+teardown is restored with `jj undo` rather than by a Grove-authored recovery
+(`delete-finish-transaction-k8`). The contract this lock offers is
+process-interruption consistency between cooperating Grove processes, not
+power-loss durability and not crash atomicity.
 
 Composite grow verbs need neither, and the promise they make is correspondingly
 narrower. `leaf-add-pair` is all-or-nothing **on a reported error** within one
@@ -1027,56 +1028,47 @@ a human spoke through an opaque command; it is the deterministic last-moment
 tree and VCS guard, not a substitute for that HITL contract. Grove deliberately
 does not merge branches/bookmarks or remove working trees.
 
-### Finish transaction
+### Finish teardown
 
-Teardown is not a delete followed by a commit. It is one fail-closed
-transaction over a reserved in-tree witness, because the interval
-between removing `.grove/` and recording that removal is exactly the shape a
-later invocation would read as a fresh grove.
+**Teardown is a delete followed by a commit, and Grove implements no transaction
+around it.** It used to: about 10,400 lines over a reserved in-tree
+`FINISHING-<finish-handle>/` witness, a manifest recording each entry's type and
+digest, an evacuation of every ordinary root entry, a proven rollback, a
+workspace-control quarantine, and a recovery path a later driver ran. All of it
+is gone (`delete-finish-transaction-k8`), because the version control system
+already owns every guarantee it hand-built: Jujutsu snapshots the working copy
+before every command, and its operation log is the transaction record.
 
-`finish-commit` revalidates the live finish leaf and the absence of ordinary
-work, then validates the repository without mutating it: a non-empty tracked
-deletion fingerprint, an untracked witness prefix, a same-device
-workspace-control quarantine target, and `.grove/` itself opened as a no-follow
-directory whose device/inode still matches the `.grove` entry in the locked
-working-tree root — so a symlinked or swapped task root is refused rather than
-followed. Every later step reuses that descriptor and rechecks the same
-identity, which is what makes a mid-transaction swap a refusal instead of a
-mutation applied somewhere else. The transaction then evacuates every ordinary
-root entry beneath a manifest-backed `FINISHING-<finish-handle>/` witness, which
-it builds under a `PREPARING-FINISH-` name and publishes with one atomic rename
-so an interrupted build is discardable rather than interpretable. The manifest
-records the stable handle,
-the session epoch's opaque finish-attempt identity, the repository-start anchor,
-the expected tracked deletion fingerprint, and each entry's type and canonical
-no-follow recursive digest. Git and jj commit only those deletions at their
-original paths, excluding the witness; the task root stays visibly present and
-unwalkable throughout.
+What `finish-commit` still does is what only Grove can say, and it happens under
+one exclusive tree lock held across the whole teardown:
 
-One repository seam owns the teardown commit and returns one of three
-dispositions, classified from the recorded anchor and the exact immediate result
-rather than from command exit status:
+1. **Classify the task root before opening it.** `.grove` is stat'd
+   *unfollowed*, so a symlink to a directory elsewhere is refused rather than
+   deleted. An absent root is a plain refusal naming `jj op log` and `jj undo`;
+   it is no longer routed to a proof that a previous attempt succeeded, because
+   there is no longer an attempt that can die halfway.
+2. **Revalidate the tree facts.** The live leaf must be a `finish` leaf, and its
+   handle must be the one the caller named — so ordinary work that appeared
+   after the session started refuses the teardown instead of being swept into
+   it.
+3. **Require a recoverable tree.** One read-only `jj file list root:.grove`. The
+   operation log can only restore what it tracks, so an untracked task tree is
+   refused with the command that tracks it rather than deleted into a state
+   nothing could undo. This is a precondition, not a surviving piece of the
+   transaction: it promises nothing and repairs nothing.
+4. **Delete `.grove/`, then commit it.** `fs::remove_dir_all`, then
+   `jj commit -m "<handle>: remove completed grove task tree" root:.grove`. The
+   fileset scope is what keeps unrelated working-copy changes uncommitted — jj
+   snapshots everything and commits only those paths.
 
-- **Committed** — the exact handle-and-attempt-named, `.grove/`-scoped commit is
-  proven. Recovery never restores the tree; it atomically renames the whole root to a workspace-control quarantine before
-  descriptor-rooted no-follow disposal. The quarantine is cleanup garbage, never
-  a finish receipt, and a later lease-owning driver reaps only entries carrying
-  Grove's own cleanup manifest.
-- **Not committed** — that commit is absent *and* the recorded starting topology
-  still holds, so the tree is restored and the witness removed, leaving the same
-  finish leaf selectable for retry.
-- **Recovery pending** — neither can be proven. The state stays blocked and
-  operator-recoverable: the diagnostic names the artifact holding the
-  transaction, the recorded and observed topology, and the two restorable exits
-  (restore the recorded start to roll back, or make the exact teardown result
-  immediate to finish forward). Grove never rewrites history to clear it.
-
-The disposition is revalidated immediately before and after the filesystem
-handoff, so no caller acts on a stale one. A retry that has lost the helper's
-result does not trust task-root absence either: with `.grove/` gone it verifies
-the immediate VCS result against the same handle and attempt identity, which
-binds the proof to the still-active session epoch. See
-[Task-tree transactions fail closed](adr/task-tree-transactions-fail-closed.md).
+Each of the two mutating steps names the operation-log command that undoes it if
+it is the one that failed: `jj restore .grove` for a deletion that stopped part
+way, since no jj command has run since the last snapshot, and `jj undo` for a
+commit that did not land. **No Grove-authored recovery runs**, and none exists to
+run. That behaviour was measured before it was relied on (jj 0.44.0, colocated):
+`rm -rf .grove/` with no jj command run, then `jj restore .grove`, returned every
+file; a partial deletion then `jj undo` reported *"Added 2 files"*, exactly the
+missing ones.
 
 <a id="user-owned-worktrees"></a>
 <a id="symmetric-vcs-rule"></a>

@@ -301,8 +301,8 @@ launches a session that proposes one complete finish cycle:
 
 1. Promote durable knowledge from the briefs into the repository's normal docs,
    decision records, specs, or context files where it still belongs.
-2. Tear `.grove/` down through Grove's finish transaction, which records the
-   deletion in one focused commit.
+2. Tear `.grove/` down with `grove-llm finish-commit`, which deletes the tree
+   and records the deletion in one focused commit.
 3. Signal that the grove is done, stopping the loop cleanly.
 
 This is Grove's one routine human confirmation point, because it deletes the
@@ -317,30 +317,28 @@ step 2, so the integrated history never carries `.grove/`.
 
 ### What teardown guarantees
 
-Step 2 runs as one fail-closed transaction rather than a plain delete and commit.
-`.grove/` stays present — visible, and refused by every ordinary Grove command —
-until the repository has proven the exact commit that records its deletion. Its
-contents are held under a `FINISHING-…` directory inside the tree while that
-happens.
+Step 2 is a plain deletion followed by a path-scoped `jj commit`, and **Grove
+implements no transaction around it**. It does not need one: Jujutsu snapshots
+the working copy before every command and its operation log is the transaction
+record, so the guarantees a hand-built transaction would offer are already
+yours, from the tool that owns them.
 
 What this means for you:
 
 - The deletion commit touches only `.grove/`. Unrelated working-copy changes are
-  preserved, landing in the successor commit rather than in the teardown.
-- If teardown fails or the session dies mid-way, you get either your live
-  workstream tree back — rerun and it retries — or a blocked tree that says
-  exactly what is wrong. You never get a half-deleted tree, and an absent
-  `.grove/` is never taken as evidence that teardown succeeded.
-- A blocked teardown reports **`Recovery pending`** and names the directory
-  holding it, what repository state it recorded, and what it observed instead. It
-  offers two ways out: preserve any divergent work and restore the recorded
-  starting state so it can roll back, or make the exact teardown commit the
-  current result so it can finish forward — then rerun. Grove will not reset,
+  preserved, staying uncommitted rather than being swept into the teardown.
+- Before deleting anything, Grove revalidates that the live leaf really is the
+  finish leaf you named and that no ordinary work has appeared, and refuses a
+  task tree Jujutsu does not track — because the operation log can only restore
+  what it tracks.
+- If teardown fails part way, Grove stops and names the command that puts the
+  tree back: `jj restore .grove` if the deletion is what failed, `jj undo` if the
+  commit is. **No Grove-authored recovery runs.** Once the tree is back, fix what
+  failed and rerun the same command with the same handle. Grove will not reset,
   rebase, or rewrite history on your behalf, so nothing you did outside Grove is
   discarded to unblock it.
-- After a successful teardown, the tree's bytes move to a quarantine directory
-  inside your workspace's `.jj/` and are deleted from there. That quarantine is disposable cleanup, never workflow state; a
-  later Grove run tidies up any a crash left behind.
+- `jj op log` is where you look if you are unsure what happened. It is the record
+  of every operation, including the snapshot that captured the deletion.
 - Once `.grove/` is gone, that workstream is over. A later `grove` in the same
   tree starts a **new** grove rather than recovering the finished one — Grove
   reads no VCS history to tell "recover" from "start again".

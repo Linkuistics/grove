@@ -11,10 +11,13 @@ never Git's common directory. It invokes no repository discovery and ignores
 in the exact workspace's VCS administration area, never in the tracked working
 copy or an environment-selected temporary directory. Symlink and relative-path
 aliases reach one lease; separate worktrees and workspaces remain independent.
-Acquisition also creates that control directory and proves it usable — writable,
-and on the working tree's own filesystem, per [supported workspace
-layouts](supported-workspace-layouts.md) — so an unsupported layout stops the
-invocation before it can create or drive a task tree.
+Acquisition also creates that control directory and proves it writable, so an
+unusable control directory stops the invocation before it can create or drive a
+task tree. It used to prove one thing more — that the directory sits on the
+working tree's own filesystem — because teardown ended in an atomic same-device
+rename into it. Teardown is a plain deletion and a path-scoped commit now
+(`delete-finish-transaction-k8`), so no rename crosses anything and the device
+comparison is gone with the record that specified it.
 Standard `--help` and `--version` return without provisioning, repository
 discovery, or a lease.
 

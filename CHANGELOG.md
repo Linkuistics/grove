@@ -51,6 +51,80 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The hand-built finish transaction is deleted; the version control system
+  owns the transaction.** `grove-llm finish-commit` now deletes `.grove/` and
+  takes one path-scoped `jj commit`, and grove implements no witness, manifest,
+  rollback proof, index image, quarantine or recovery path around it. jj
+  snapshots the working copy before every command and its operation log *is* the
+  transaction record, so every guarantee the 10,400-line transaction hand-built
+  was already available from the tool that owns it. Measured before it was
+  relied on (jj 0.44.0, colocated): `rm -rf .grove/` with no jj command run then
+  `jj restore .grove` returned every file, and a partial deletion then `jj undo`
+  reported *"Added 2 files"* — exactly the missing ones.
+
+  **What goes.** `src/finish_transaction.rs` (3,645), `src/finish_cleanup.rs`
+  and `src/finish_cleanup/` (1,439), `src/test_barrier.rs` (the publication rule
+  those seams shared), and the whole proof half of `src/repo/finish_commit.rs`
+  (608 → 129): the `FINISHING-`/`PREPARING-FINISH-` witnesses, the evacuation
+  manifest, the finish-attempt identity, the start anchor and deletion
+  fingerprint, the three-way commit disposition, the rollback, the quarantine
+  and its reaper. With them go the two witness prefixes as reserved names in the
+  filename grammar, `TaskNameError::PendingFinish`, `tree_access::refuse_pending`
+  and every reader's refusal of a tree "mid transaction" — a leftover
+  `FINISHING-*` directory is now a foreign entry every verb walks past, the same
+  answer `delete-migration-k6` reached for a stray `.grove/FORMAT`. The
+  workspace-layout preflight goes too — `ensure_supported_workspace_layout`,
+  `control_directory_device` and `repo::measured_device` with its
+  `GROVE_TEST_FOREIGN_FILESYSTEM` seam — because it existed only to prove the
+  quarantine rename would be same-device. `tests/finish_lifecycle.rs` (2,861) and
+  `tests/workspace_layout.rs` (679) are replaced by `tests/finish_commit.rs`
+  (424). `serde` and `serde_json` leave the dependency set with the manifest that
+  was the only thing serialising anything. Net across the whole change: 7,026
+  lines out of `src/` and 3,160 out of the suite.
+
+  **What survives, and it is the point.** The teardown's *tree and VCS facts* are
+  not what was deleted — the transaction around them is. `finish-commit` still
+  revalidates, under the exclusive tree lock, that the live leaf is the
+  driver-owned finish leaf the caller named and that no ordinary work appeared;
+  still refuses a `.grove` that is a symlink, unfollowed; and still deletes and
+  commits only `.grove/`, so unrelated working-copy changes stay uncommitted. One
+  precondition is added rather than kept: an untracked task tree is refused,
+  because the operation log can only restore what it tracks, and deleting one
+  would be the unrecoverable kind. That is a gate that makes the VCS's guarantee
+  applicable, not a transaction — it promises nothing and repairs nothing.
+
+  **What a failure says now.** It stops with a message naming the operation-log
+  command that puts the tree back — `jj restore .grove` if the deletion is what
+  failed, `jj undo` if the commit is — and **no grove-authored recovery runs**.
+  An absent `.grove/` is a plain refusal naming `jj op log`, no longer routed to
+  a proof that some earlier attempt's commit was this launch's.
+
+  **Records retired.** Four, not two. `task-tree-transactions-fail-closed`, whose
+  witness protocol this supersedes — not by the reopen condition it named (a
+  durable finish receipt) but because the version control system owns the
+  transaction — and `supported-workspace-layouts`, whose whole subject was the
+  same-device rename, are the two `docs/specs/module-decomposition.md` assigns
+  here. Two more are retired because this change makes their decisions false:
+  `finish-keeps-a-cleanup-layer-it-has-not-proved-forced`, which decided that the
+  three nested crash-safe transactions all stay, and
+  `success-is-proved-by-the-ticket-not-the-tree`, whose attempt-bound correlation
+  ticket no longer exists. Their citations are reconciled in
+  `one-live-driver-per-working-tree`, `untracked-configuration-delta`,
+  `jj-is-the-only-lane`, `root-lifecycle-stays-with-its-receipt`, both specs,
+  `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/ARCHITECTURE.md`, `docs/USAGE.md`,
+  `content/references/finish.md` and three historical documents. `CONTEXT.md`
+  loses seven glossary terms — *Finish transaction*, *Finish-attempt identity*,
+  *Evacuation manifest*, *Correlation ticket*, *Finish disposition*, *Recovery
+  pending / Ownership conflict*, *Quarantine* and *Workspace layout preflight* —
+  which have no referent left.
+
+  **What is deliberately not deleted.** `complete_partial_root_unlocked`, the
+  last of `minimalism-k1`'s roughly twenty-five auto-repair functions. The
+  anomaly it repairs is one grove itself creates, in the two-phase root-init
+  dance `collapse-tree-access-k13` deletes; turning it into a refusal now would
+  make bare `grove` stop on a state its own `root_init` produced. It is noted on
+  that leaf.
+
 - **jj is the only lane.** Grove drives Jujutsu and refuses everything else: a
   working tree with no `.jj/` directory at or above it is now stopped by one
   precondition gate, before any mutation, with `jj git init --colocate` named as

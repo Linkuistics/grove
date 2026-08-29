@@ -46,6 +46,16 @@ go with it.
 
 ## Notes
 
+**`complete_partial_root_unlocked` is this leaf's, and `delete-finish-transaction-k8`
+left it deliberately.** It is the last of `minimalism-k1`'s roughly twenty-five
+auto-repair functions still standing (it is the one k1 lists as
+`recover_partial_root_init_unlocked`), and k8's done-when named it. k8 left it
+because the anomaly it repairs — a root holding its charter and no keyed entry —
+is one *grove itself creates*, in the very two-phase `Classification`/`settle`
+dance this leaf deletes. Turning it into a refusal one leaf early would make
+`bare grove` stop on a state its own `root_init` produced, which is a regression
+rather than a deletion. Delete it here, with the window it exists to close.
+
 **Lands green**, and it is the second of the two **forced orderings** the
 planning leaf identified. It cannot move earlier: all three reasons dissolve at
 once, and any earlier attempt reintroduces the deadlock the second layer was

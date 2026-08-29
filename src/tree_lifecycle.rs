@@ -61,34 +61,14 @@ pub enum CurrentTransition {
 /// selection. The whole observation and any resulting mutation share one
 /// exclusive working-tree guard.
 ///
-/// **Public as a seam, not as a spare door.** No production caller reaches it —
-/// the driver takes [`transition_driver_to_current`] — so a reachability sweep
-/// reports it dead every time, and it survives that report deliberately
-/// (`dead-non-launch-exports-k166`). The driver twin is `pub(crate)` *and* reaps
-/// orphaned finish artifacts first, so an integration test cannot substitute it
-/// for the classification without also asserting through a best-effort cleanup
-/// it is not testing. That is the discriminator against the locked wrappers the
-/// withdrawn appender lost: those had a production composition a test could
-/// perform itself, and this does not.
+/// One function, not two. It used to have a `pub(crate)` driver twin whose only
+/// extra step was reaping orphaned finish artifacts before classifying; the
+/// finish transaction that left them behind is gone
+/// (`delete-finish-transaction-k8`), and with it the difference between what
+/// the driver takes and what an integration test may.
 pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
     let classified = {
         let _guard = tree_access::write_for_lifecycle(worktree)?;
-        classify_unlocked(worktree)?
-    };
-    settle(worktree, classified)
-}
-
-/// Reap finish artifacts and perform the driver's ordinary lifecycle
-/// transition under one exclusive working-tree guard. Cleanup remains
-/// best-effort and cannot classify the task root.
-pub(crate) fn transition_driver_to_current(worktree: &Path) -> Result<CurrentTransition> {
-    let classified = {
-        let _guard = tree_access::write_for_lifecycle(worktree)?;
-        if let Err(error) = crate::finish_cleanup::reap_orphaned(worktree) {
-            eprintln!(
-                "grove: warning: could not complete orphaned finish cleanup; lifecycle classification is unchanged: {error:#}"
-            );
-        }
         classify_unlocked(worktree)?
     };
     settle(worktree, classified)
@@ -142,14 +122,6 @@ fn classify_unlocked(worktree: &Path) -> Result<Classification> {
             bail!("grove root is not a directory: {}", grove_root.display())
         }
         Ok(_) => {}
-    }
-    if crate::finish_transaction::recover_pending(worktree, &grove_root)?
-        == crate::finish_transaction::FinishRecovery::Committed
-    {
-        create_root_unlocked(worktree, &grove_root)?;
-        return Ok(Classification::Scaffolded(
-            CurrentTransition::RootInitialized,
-        ));
     }
     match root_shape(&grove_root)? {
         RootShape::PartialScaffold => {
@@ -239,20 +211,42 @@ fn finish_body(handle: &str) -> String {
     )
 }
 
-/// Revalidate and commit the complete finish cycle's tree deletion. This is a
-/// deterministic last-moment guard; whether a human confirmed teardown is the
-/// calling finish session's responsibility.
+/// Revalidate the complete finish cycle's tree facts, delete `.grove/`, and
+/// take the commit that records the deletion. This is a deterministic
+/// last-moment guard; whether a human confirmed teardown is the calling finish
+/// session's responsibility.
+///
+/// **The tree and VCS facts are the verb; the transaction around them is gone**
+/// (`delete-finish-transaction-k8`). What survives is exactly what only grove
+/// can say: that the live leaf is the driver-owned finish leaf the caller named,
+/// that no ordinary work slipped in, and that only `.grove/` is deleted and
+/// committed. What went is the witness, the manifest, the evacuation, the
+/// rollback proof, the quarantine and the recovery path — jj snapshots the
+/// working copy before every command and its operation log is the transaction
+/// record, so a teardown that does not commit is restored by `jj undo`, which
+/// is what [`crate::repo::commit_finished_grove`]'s refusal says.
 pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
     let grove_root = worktree.join(".grove");
     // **The root is classified before the tree is opened, because two of the
-    // three answers are not the library's to give.** A missing root is not even a
-    // failure here, and a `.grove` that is a *symlink* to a directory is one the
-    // library would happily read — it follows links, as every reader does — while
-    // this verb must refuse it unfollowed, since a no-follow transaction may not
-    // treat a directory elsewhere as its own tree. The guard below is still the
-    // authority on the tree; this is the wording that authority cannot supply.
+    // three answers are not the library's to give.** A `.grove` that is a
+    // *symlink* to a directory is one the library would happily read — it
+    // follows links, as every reader does — while this verb must refuse it
+    // unfollowed, since it may not delete a directory elsewhere as if it were
+    // its own tree. The guard below is still the authority on the tree; this is
+    // the wording that authority cannot supply.
     match fs::symlink_metadata(&grove_root) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        // Absence is now a plain refusal. It used to be routed to a proof that
+        // the repository's immediate result *was* this attempt's teardown
+        // commit, because a death mid-transaction exposed exactly this shape and
+        // grove had to decide whether to re-run. There is no transaction to die
+        // inside any more, so the answer is the operator's and the operation log
+        // is where they read it.
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => bail!(
+            "no Grove task tree at {}\n\n\
+             If a `finish-commit` was interrupted after the deletion, `jj op log` shows whether \
+             it committed and `jj undo` restores the tree if it did not.",
+            grove_root.display()
+        ),
         Err(error) => {
             return Err(error)
                 .with_context(|| format!("checking grove root {}", grove_root.display()))
@@ -262,12 +256,7 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
         }
         Ok(_) => {}
     }
-    let tree = match task_tree::write(&grove_root) {
-        Ok(tree) => tree,
-        Err(refusal) => {
-            return finish_commit_refusal(worktree, &grove_root, finish_handle, refusal)
-        }
-    };
+    let tree = task_tree::write(&grove_root)?;
     let selection = task_tree::select_in_write(&tree)?
         .context("the requested finish leaf is no longer live")?;
     if selection.kind != Kind::Finish {
@@ -284,51 +273,34 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
         );
     }
 
-    // The guard is held across the teardown, as grove's own was: the transaction
-    // creates its witnesses and deletes the tree under it, and nothing else may
-    // observe `.grove/` in between. It is dropped when this function returns —
-    // after the root it names is gone, which the lock does not care about,
-    // because the lock is on the directory *containing* the root.
-    let outcome = crate::finish_transaction::finish(worktree, &grove_root, finish_handle);
+    // The exclusive guard is held across the teardown: nothing else may observe
+    // `.grove/` between the revalidation above and the commit below. It is
+    // dropped when this function returns — after the root it names is gone,
+    // which the lock does not care about, because the lock is on the directory
+    // *containing* the root.
+    let outcome = delete_and_commit(worktree, &grove_root, finish_handle);
     drop(tree);
     outcome
 }
 
-/// What a failed exclusive guard means to `finish-commit`, which is not always a
-/// failure.
-///
-/// **Task-root absence never classifies an attempted finish as success**: a death
-/// before the deletion commit exposes exactly this shape. The only thing that can
-/// license the retry is the repository's own immediate result, proven against
-/// *this* launch's finish attempt — so the missing root is routed to that proof
-/// rather than reported. Every other refusal is the guard's own, printed
-/// unchanged (`docs/ARCHITECTURE.md#library-refusals`, clause 3), except the one
-/// shape the guard cannot word for itself: a `.grove` that is not a directory
-/// reads to the library as a root it cannot list, and grove has always said which
-/// of the two it is.
-fn finish_commit_refusal(
-    worktree: &Path,
-    grove_root: &Path,
-    finish_handle: &str,
-    refusal: anyhow::Error,
-) -> Result<()> {
-    match fs::symlink_metadata(grove_root) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            crate::finish_transaction::verify_lost_result(worktree, finish_handle).with_context(
-                || {
-                    format!(
-                        "no Grove task tree at {}, and no verifiable {finish_handle} teardown \
-                         result for this finish attempt",
-                        grove_root.display()
-                    )
-                },
-            )
-        }
-        Ok(metadata) if !metadata.file_type().is_dir() => {
-            bail!("grove root is not a directory: {}", grove_root.display())
-        }
-        _ => Err(refusal),
-    }
+/// Delete `.grove/` and commit the deletion. Two steps, and each names the
+/// operation-log command that puts the tree back if it is the one that failed.
+fn delete_and_commit(worktree: &Path, grove_root: &Path, finish_handle: &str) -> Result<()> {
+    // Before anything is removed: the operation log can only restore what it
+    // tracks, so an untracked tree is refused rather than deleted.
+    crate::repo::require_recoverable_grove(worktree)?;
+    // The probe above snapshotted the working copy with the tree still whole, so
+    // a half-removed tree is recoverable from it: `jj restore .grove` returns
+    // what was removed — measured on jj 0.44.0 (`minimalism-k1`).
+    fs::remove_dir_all(grove_root).with_context(|| {
+        format!(
+            "deleting the finished task tree {}\n\n\
+             Jujutsu still holds it: restore what was removed with `jj restore .grove`, then \
+             fix what blocked the deletion and rerun `grove-llm finish-commit {finish_handle}`.",
+            grove_root.display()
+        )
+    })?;
+    crate::repo::commit_finished_grove(worktree, finish_handle)
 }
 
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root

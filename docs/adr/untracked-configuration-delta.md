@@ -53,20 +53,17 @@ cannot be determined at all is a refusal naming that path — never an absence
 that hands the decision to the second path, or from there back to the personal
 file.
 
-The delta sits **beside `.grove/` rather than inside it**, because two
-wholesale-scoped mechanisms owned by [task-tree transactions fail
-closed](task-tree-transactions-fail-closed.md) already claim that directory: the
-finish commit stages the task root as one pathspec with the transaction witness
-as its only exclusion, and teardown evacuates and recursively unlinks every
-ordinary entry beneath it with no regard for trackedness. Beside `.grove/` the
+The delta sits **beside `.grove/` rather than inside it**, because teardown
+claims that directory wholesale: `finish-commit` recursively deletes every entry
+beneath the task root with no regard for trackedness, and commits the result as
+one `.grove/`-scoped fileset. Beside `.grove/` the
 file survives `finish`, which is correct — the policy belongs to the checkout,
 not to one grove. A delta at the main repository root is inherited by every
 workspace of that project, which is what makes this per-project rather than
 per-grove; one in a workspace's own worktree shadows it for a one-off. The two
-roots coincide in a single-worktree repository and diverge in the linked-worktree
-and secondary-workspace families [supported workspace
-layouts](supported-workspace-layouts.md) enumerates. Grove creates and edits no
-configuration file and writes no ignore rule.
+roots coincide in a single-worktree repository and diverge in the
+secondary-workspace family. Grove creates and edits no configuration file and
+writes no ignore rule.
 
 ## Considered options
 
@@ -111,10 +108,8 @@ configuration file and writes no ignore rule.
   because the fallback is silent in the way that matters: the session still
   launches, on exactly the policy its owner was moving work away from, and the
   warning arrives after the launch it should have prevented. Grove has no
-  advisory channel either — the same fact that rejected *warn and continue* in
-  [supported workspace layouts](supported-workspace-layouts.md) — and a warning
-  re-emitted on every iteration of a self-relaunching loop is noise ignored by
-  construction. Reopen only if Grove gains an advisory surface a human reads
+  advisory channel either, and a warning re-emitted on every iteration of a
+  self-relaunching loop is noise ignored by construction. Reopen only if Grove gains an advisory surface a human reads
   between sessions.
 - **Store launch policy in each task leaf.** Rejected because task trees should
   describe work and remain portable, while executable, model, permission, and

@@ -193,8 +193,11 @@ discriminator survives.
 
 ## Task-tree access
 
-The [Task-tree transactions fail closed](../adr/task-tree-transactions-fail-closed.md)
-decision supplies the serialization boundary.
+The tree-access lock supplies the serialization boundary
+([`docs/ARCHITECTURE.md`](../ARCHITECTURE.md), *Tree access lock*). The record
+that used to state it, `task-tree-transactions-fail-closed`, was retired at
+`delete-finish-transaction-k8`: its transaction half is gone, and the lock it
+also specified belongs with the store that owns `initialize` and `delete`.
 
 Every participating task-tree operation acquires the shared tree-access seam
 before reading names. The seam locks an open descriptor for the working-tree

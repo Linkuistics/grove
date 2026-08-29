@@ -72,10 +72,9 @@ not proceed without it.
   line.
 - **Refuse plain Git at the point of use** rather than at a precondition gate —
   let the tree verbs work and fail only at `finish-commit`. Rejected: it lets an
-  operator build a whole grove in a tree that can never finish, which is the same
-  shape as the workspace-layout refusal
-  ([*supported workspace layouts*](supported-workspace-layouts.md)) and is
-  refused for the same reason.
+  operator build a whole grove in a tree that can never finish, and a refusal
+  that arrives when the workstream is already complete is the most expensive one
+  there is.
 
 ## Why this is hard to reverse
 

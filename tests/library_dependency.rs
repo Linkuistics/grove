@@ -120,11 +120,12 @@ fn grove_takes_the_library_with_default_features_off() {
 
 /// The `packages` entry for one workspace member, as raw JSON.
 ///
-/// Hand-sliced rather than deserialised: `serde_json` is a *runtime* dependency
-/// of grove and pulling it into a test to read two fields would make this file
-/// the reason it is also a dev one. The two facts wanted are flat string fields
-/// on a flat object, and the assertions above name the whole slice when they
-/// fail, so a shape change is legible rather than silent.
+/// Hand-sliced rather than deserialised: grove takes no JSON dependency at all
+/// since `delete-finish-transaction-k8` dropped `serde` and `serde_json` with
+/// the evacuation manifest, and pulling one back in to read two fields would
+/// make this file the reason it returns. The two facts wanted are flat string
+/// fields on a flat object, and the assertions above name the whole slice when
+/// they fail, so a shape change is legible rather than silent.
 fn package<'a>(metadata: &'a str, name: &str) -> &'a str {
     let marker = format!("\"name\":\"{name}\",");
     let start = metadata

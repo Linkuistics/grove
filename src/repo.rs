@@ -17,11 +17,7 @@ use std::process::Command;
 
 mod finish_commit;
 
-pub(crate) use finish_commit::{
-    abort_preparing_finish, prepare_finish, recover_finish, verify_lost_finish_result,
-    FinishCommitOutcome, FinishProof, FinishRecoveryOutcome, FinishStartAnchor, FinishStartProof,
-    PreparedFinish,
-};
+pub(crate) use finish_commit::{commit_finished_grove, require_recoverable_grove};
 
 /// Canonical paths that scope Grove's untracked process coordination to one
 /// exact jj workspace.
@@ -101,54 +97,6 @@ pub fn workspace_control(path: &Path) -> Result<WorkspaceControl> {
         control_dir: worktree_root.join(".jj/grove"),
         worktree_root,
     })
-}
-
-/// The filesystem Grove acts on for `path`, and the single point where a test may
-/// substitute a second one.
-///
-/// Grove makes two device comparisons — the workspace layout preflight at
-/// driver-lease acquisition, and the finish transaction's own quarantine
-/// preflight — and each reads a real `st_dev` and passes it through here. A second
-/// filesystem is the one operand this suite cannot stage portably: mounting one
-/// needs privileges on Linux and a disk image on macOS. `GROVE_TEST_FOREIGN_FILESYSTEM`
-/// names a directory, and every measurement at or under it reports a distinct
-/// filesystem, so the acceptance matrix drives both real refusals — resolution,
-/// ordering, diagnostic, and each one's no-mutation guarantee — through the real
-/// processes instead of a unit call.
-///
-/// The seam is a **path** rather than a device number on purpose: a test has to
-/// name the exact directory resolution landed on, so a run cannot pass while the
-/// resolver walked somewhere else entirely. It is an internal test control, not
-/// launch configuration, so [`crate::launch`] scrubs it from every spawn, and
-/// with the variable unset — every production invocation — this is the identity,
-/// down to performing no extra syscall.
-///
-/// Deliberately one helper rather than a substitution per call site. The two
-/// preflights must stay independent — neither may consult the other's verdict —
-/// and the only thing they may share is *how a filesystem is measured*. Sharing
-/// that is also what lets one seam express both halves of the independence: a
-/// prefix naming the control directory makes the layout cross-device, while one
-/// naming `.grove/` leaves acquisition passing and refuses only at finish.
-pub(crate) fn measured_device(path: &Path, device: u64) -> u64 {
-    let Some(prefix) = foreign_filesystem_root() else {
-        return device;
-    };
-    let resolved = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-    if resolved.starts_with(&prefix) {
-        // Any value distinct from the real one; `^ 1` cannot collide with it.
-        device ^ 1
-    } else {
-        device
-    }
-}
-
-fn foreign_filesystem_root() -> Option<PathBuf> {
-    let value = std::env::var_os("GROVE_TEST_FOREIGN_FILESYSTEM")?;
-    if value.is_empty() {
-        return None;
-    }
-    let path = PathBuf::from(value);
-    Some(path.canonicalize().unwrap_or(path))
 }
 
 /// Resolve the working-tree top directory of `cwd`. This *is* the grove

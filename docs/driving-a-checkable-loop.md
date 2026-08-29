@@ -192,7 +192,8 @@ third came back `keep` for six of its ten rows — and the remaining
 question, together with that third question's other three rows, came back
 **`defer`, which is now the final answer rather than a placeholder**, because
 the three tasks that would have supplied the missing evidence were abandoned
-([`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)).
+(`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`, retired at
+`delete-finish-transaction-k8` along with the layer it kept).
 What stays standing on a deferred question is **10,366 lines, 34% of `src/`,
 including 31 `unsafe` blocks, plus 6,701 lines of test** — for one operation, run
 once per workstream, at the end.

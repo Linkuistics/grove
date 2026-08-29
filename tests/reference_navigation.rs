@@ -611,13 +611,7 @@ fn the_citation_check_distinguishes_a_record_kind_from_prose() {
 
     // A real decision record passes.
     assert!(
-        miscited_reason(
-            "task-tree-transactions-fail-closed",
-            &adrs,
-            &specs,
-            &architecture
-        )
-        .is_none(),
+        miscited_reason("jj-is-the-only-lane", &adrs, &specs, &architecture).is_none(),
         "a file under docs/adr/ must be citable as an ADR"
     );
     // Positive control: the exact defect this check exists for.

@@ -19,22 +19,21 @@ deliveries of it, and neither can drift from the other. On confirmation, run:
    when decisions landed inline as they were made.
 2. **Tear the tree down with `grove-llm finish-commit <finish-handle>`** — the
    live `finish` leaf's stable handle, e.g. `finish-k42`. Never delete `.grove/`
-   by hand and commit it yourself. The helper revalidates the live finish and
-   the absence of new work, then runs teardown as **one fail-closed
-   transaction**: the tree is evacuated beneath a `.grove/FINISHING-<handle>/`
-   witness and stays visibly present until the repository proves the exact
-   `.grove/`-scoped commit named by that handle and this launch's finish-attempt
-   identity; only then does the whole root move, in one atomic rename, to a
-   cleanup quarantine. **An absent `.grove/` never proves teardown
-   succeeded** — a death before the commit exposes exactly that shape, which is
-   why the by-hand version is unsafe (ADR *task-tree-transactions-fail-closed*).
-   Every reported failure is retryable: an uncommitted one restores the live
-   finish tree, so just rerun the same command. If the diagnostic says
-   **`Recovery pending`**, stop and hand it to the human — it names the artifact
-   holding the blocked transaction, the recorded and observed topology, and the
-   two operator exits (restore the recorded start to roll back, or make the
-   exact teardown result immediate to finish forward). Grove never rewrites
-   history to clear it, and neither should you.
+   by hand and commit it yourself: the helper revalidates the live finish leaf
+   and the absence of new work under the tree lock, refuses an untracked tree,
+   and then deletes `.grove/` and takes one path-scoped `jj commit` — so
+   unrelated working-copy changes stay uncommitted, which a by-hand `jj commit`
+   would not guarantee.
+
+   **Grove implements no transaction around that, and neither should you.** The
+   version control system owns it: jj snapshots the working copy before every
+   command and its operation log is the transaction record. So a failure stops
+   with a message naming the command that puts the tree back — `jj restore
+   .grove` if the deletion is what failed, `jj undo` if the commit is — and no
+   Grove-authored recovery runs. Once the tree is back, fix what failed and
+   rerun the same command with the same handle. If you cannot tell what failed,
+   stop and hand the diagnostic to the human; Grove never rewrites history to
+   clear anything.
 3. **End on the row that matches what this session did** — the endings and which
    one each outcome takes are `SIGNAL-FINISH.md`'s, and the signal is the **very
    last** action. It must come last: the loop driver is watching for the signal

@@ -127,7 +127,7 @@ fn run_configured_loop_with_lease(
         report_build_pairing(worktree);
         let _pre_transition_config = SessionConfig::load(&home, &delta_roots)?;
 
-        crate::tree_lifecycle::transition_driver_to_current(worktree)?;
+        crate::tree_lifecycle::transition_to_current(worktree)?;
         let selection = match crate::task_tree::select(&worktree.join(".grove"))? {
             Some(selection) => selection,
             None => crate::tree_lifecycle::materialize_finish(worktree)?,

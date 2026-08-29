@@ -253,8 +253,10 @@ raise it rather than quietly design around it.
 ## Pointers
 
 - `docs/adr/task-tree-transactions-fail-closed.md` — the witness protocol
-  principle 1 supersedes. Its own reopen condition is the one being taken:
-  *"or a durable finish receipt is introduced"*.
+  principle 1 supersedes. **Retired at `delete-finish-transaction-k8`**, along
+  with `supported-workspace-layouts`, `success-is-proved-by-the-ticket-not-the-tree`
+  and `finish-keeps-a-cleanup-layer-it-has-not-proved-forced`, whose subjects all
+  went with the transaction.
 - `docs/adr/complete-session-configuration.md` — the completeness rule that a
   task-type-as-label change reopens.
 - `docs/adr/entries-are-never-removed.md` — principle 5, argued from key

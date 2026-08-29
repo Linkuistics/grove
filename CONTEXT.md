@@ -307,17 +307,19 @@ commit whose message names the finish leaf's [[Work-item handle]]; (3) signal
 the loop with `grove-llm complete --done`. Only the driver creates that leaf, a
 live one is reused rather than duplicated, and it is never retired — its
 addition and deletion cancel from the final tree. Teardown requires explicit
-human confirmation and is the loop's only routine human gate; its mechanism is
-the [[Finish transaction]]. Branch integration and working-tree removal remain
-outside Grove.
+human confirmation and is the loop's only routine human gate. Its mechanism is a
+plain deletion and one path-scoped commit: Grove takes a commit and implements no
+transaction around it, because jj snapshots the working copy before every command
+and its operation log is the transaction record. Branch integration and
+working-tree removal remain outside Grove.
 _Avoid_: describing the finish as merging or deleting anything git-topological — that was the pre-v11 cycle.
 _Avoid_: reading task-root absence as proof that a finish succeeded — at a
 driver lifecycle transition it is always a fresh-tree fact, so a deletion that
 committed before the driver observed `done` starts a *new* grove.
-_Avoid_: "an interrupted finish always leaves that leaf live" — only a decline,
-or an interruption the [[Finish transaction]] proved rolled back, leaves it
-selectable for an explicit later resume; what recovery cannot classify stays
-blocked and operator-recoverable instead.
+_Avoid_: "an interrupted finish always leaves that leaf live" — a decline leaves
+it selectable, and an interruption leaves whatever the operation log holds, which
+is the operator's to read with `jj op log` and restore with `jj undo`. Grove runs
+no recovery of its own and classifies no interrupted attempt.
 _Avoid_: reading `--done` as the cycle's only ending. A `finish` session is told,
 like every session, to externalize surfaced work rather than absorb it, and one
 that does so cannot tear down — ordinary work is live, so [[Pick]] passes the
@@ -325,116 +327,6 @@ sentinel over. Its ending is then a plain **relaunch**: the loop continues into
 the new leaf and the sentinel waits. Three endings, distinguished by what the
 session *did* — teardown (`--done`, stop), reopening (`complete`, relaunch), or
 declining (no signal, stop, leaf still live).
-
-**Finish transaction** (`FINISHING-<finish-handle>/`, built as
-`PREPARING-FINISH-<finish-handle>-<attempt-identity>/`):
-The fail-closed transaction owned by `grove-llm finish-commit` after explicit
-finish confirmation: under the exclusive [[Tree access lock]] it evacuates the
-task tree beneath a manifest-backed reserved witness, commits only the `.grove/`
-deletions, and hands the root off to a same-device quarantine. Its point is that
-`.grove/` stays visibly present and unwalkable throughout the uncertain
-pre-commit window rather than temporarily resembling a fresh grove. Both
-reserved prefixes are refused by every ordinary reader and mutator, and anything
-recovery cannot classify as its own stays blocked and operator-recoverable. See
-ADR *task-tree-transactions-fail-closed*.
-_Avoid_: deleting `.grove/` before the commit boundary and treating repository
-history as a rollback source — a process death exposes an indistinguishable
-fresh-root shape.
-
-**Finish-attempt identity**:
-The opaque value drawn once per launch that binds one [[Finish transaction]] to
-one still-live [[Session epoch]]. Two attempts on the same finish
-[[Work-item handle]] are distinguishable by it and by nothing else, which is what
-lets a rootless retry accept only its own session's result.
-_Avoid_: treating the finish handle as the attempt's identity — the handle is
-stable across every attempt, so a result named by handle alone could belong to an
-earlier one.
-
-**Evacuation manifest**:
-The record written inside a [[Finish transaction]]'s reserved witness and marked
-ready last: the finish [[Work-item handle]], the [[Finish-attempt identity]], the
-**repository anchor** (the recorded starting topology a rollback must find
-unchanged), the **deletion fingerprint** (the expected, non-empty set of tracked
-paths the commit removes), and every evacuated entry's type and canonical
-no-follow digest.
-_Avoid_: reading it as a receipt — it records what an attempt *intends* and what
-it must restore, never that the attempt completed. That is the
-[[Correlation ticket]]'s job.
-
-**Correlation ticket**:
-The deletion commit's own message, naming the finish [[Work-item handle]] and the
-[[Finish-attempt identity]]. It is the **only** durable record that a given
-attempt completed: it survives the destruction of every artifact the transaction
-owns, and it must also survive the **re-creation** of one, because after the
-quarantine rename the task-root name is free and the world owns the namespace
-(`docs/adr/success-is-proved-by-the-ticket-not-the-tree.md`).
-_Avoid_: the post-commit cleanup [[Quarantine]], or any control-directory
-artifact, as a substitute — those are cleanup garbage and prove nothing.
-_Avoid_: deciding success by looking for the task root. A `stat` reports failure
-on a grove someone simply started using again, and success on one where the
-quarantine had been moved back over it.
-
-**Finish disposition**:
-The classification of the *commit*, derived from the recorded anchor, the
-expected deletion fingerprint and the exact immediate result rather than from a
-command's exit status: **Committed** (the exact attempt-bound commit is proven),
-**Not committed** (it is proven absent and the anchor still holds), or
-**Indeterminate** (neither can be proven). It is an input to an operation's
-outcome, not the outcome: Committed settles forward, Not committed rolls back and
-leaves the finish [[Leaf]] live, Indeterminate blocks.
-_Avoid_: an exit status as the boundary — a lost or late result can report
-failure after the exact commit exists.
-
-**Recovery pending** / **Ownership conflict**:
-The two diagnoses a blocked [[Finish transaction]] leaves, **each defined by its
-own first sentence** — the instances the contract prints after it illustrate and
-do not exhaust it. **Recovery pending** means a correlated Grove-owned attempt is
-incomplete: the artifact holding the transaction is provably Grove's, named by
-this handle and this [[Finish-attempt identity]]. **Ownership conflict** means
-state is unrelated, ambiguous, or cannot be proved safe to mutate. Where both
-hold of one disk, ownership conflict wins — the outcome names the strongest thing
-Grove cannot account for. Both are stable and operator-restorable; Grove never
-rewrites history to clear either.
-_Avoid_: reading *the outcome cannot yet be proven either way* as part of recovery
-pending's definition. It is the ordinary case and not a condition: two rows of the
-contract's own revalidation table are blocks whose outcome **is** proven and are
-diagnosed recovery pending.
-*See*: `docs/adr/a-closed-partition-is-over-outcomes-not-states.md`.
-_Avoid_: reading the two definitions as a **partition of states**. They overlap,
-reachably and by design, and `FN-25.a` claims only that the diagnosis a block
-**carries** is unique and is the one precedence selects. A model that narrows one
-arm until it cannot meet the other answers the obligation by construction, and a
-check that exempts the overlap tests nothing where the claim is hardest — both
-were found in place and repaired.
-_Avoid_: reading the pair as shipped diagnostics. The shipped classification
-gathers both under one blocked state; the split was required by the retired
-`docs/specs/semantic-contract.md`, and whether the shipped diagnostic adopts it
-is still open — `docs/adr/a-closed-partition-is-over-outcomes-not-states.md`
-records where.
-
-**Quarantine** (post-commit cleanup):
-The collision-resistant destination in the workspace's VCS-administration control
-directory into which a proven [[Finish transaction]] atomically renames the whole
-`.grove/` root — witness and evacuated tree intact — before descriptor-rooted
-disposal. Same-device by [[Workspace layout preflight]]'s constraint, and revalidated
-against the transaction's own operands.
-A standing quarantine classifies the task root **`Reserved(Quarantined)`** — the
-fourth member of the reserved class. The whole reserved class is classified
-before `Absent` because between the rename and the fourth revalidation point the
-task-root name is free while the disposition is unsettled, and `SY-05.a` would
-otherwise scaffold a fresh grove over it. **The state is a fact about the NAME
-and not about the disposition**: the same member is reached after a proven
-`Committed`, where the finish is `Applied` and only the cleanup is outstanding,
-so reading a standing quarantine as evidence the transaction is unfinished makes
-one claim forbid what another requires. It stops nothing either: unlike a
-reserved witness, its recovery is the reaper's sweep, which refuses no
-operation.
-_Avoid_: reading a quarantine's presence or absence as evidence about a
-**disposition** at all — that a finish happened, or that one did not, or that one
-is unfinished. It is cleanup garbage, never a finish receipt or a workflow input.
-*Evidence about a disposition* is the [[Correlation ticket]] and nothing else; the
-quarantine answers only *is there work outstanding at this name*, and conflating
-the two makes one claim forbid the classification another requires.
 
 **Grove name**:
 The working-tree directory's basename — never a branch, a bookmark, or a
@@ -517,30 +409,10 @@ VCS-administration area, held with the open working-tree root through the whole
 loop. Kernel release on return, panic, or process death makes restart ordinary
 continuation while the task tree still exists; leftover bytes and PIDs carry no
 ownership. See ADR *one-live-driver-per-working-tree*.
-Acquisition is also where the [[Workspace layout preflight]] runs, making it the
-one chokepoint every tree-creating and tree-driving path passes through.
+Acquisition is the one chokepoint every tree-creating and tree-driving path
+passes through.
 _Avoid_: the [[Tree access lock]] — that shorter guard serializes one tree observation or mutation and must be released before foreground launch. A driver lease serializes the loop lifetime and lives on a separate control file in the VCS administration area.
 _Avoid_: waiting for a contended driver lease — a second driver would issue duplicate mandates, so it is refused immediately rather than queued as an ordinary tree operation.
-
-**Workspace layout preflight**:
-The device comparison bare `grove` makes during [[Driver lease]] acquisition,
-between the created workspace-control directory and the pinned working-tree root,
-proving the layout can supply the atomic same-filesystem rename target the
-[[Finish transaction]]'s quarantine handoff needs. Failure is a resumable
-no-mutation stop, so an unfinishable workspace is named before it holds a task
-tree rather than at the finish gate. `<workspace>/.jj/grove/` and a `.git/`
-directory keep resolution inside the working tree; a `.git` **file** — a linked
-worktree or submodule — is the only family whose devices can differ. See ADR
-*supported-workspace-layouts*.
-_Avoid_: reading it as a licence the [[Finish transaction]] may consult. It
-compares proxies for operands that need not yet exist, the layout can change
-while the lease is held, and `finish-commit` is separately invocable, so finish
-revalidates independently.
-_Avoid_: a durable capability marker recording that a workspace once passed —
-layout is mutable and the marker is not.
-_Avoid_: inferring support from the marker's kind alone. A symlinked `.git` or
-`.jj`, or a control directory that is its own mount point, leaves the working
-tree without changing that kind, so Grove measures every layout.
 
 **Session epoch**:
 The ephemeral launch-generation binding between one live [[Driver lease]], one
@@ -767,8 +639,9 @@ refused, because the file names a program to execute and a tracked one would let
 a repository choose what Grove spawns in any checkout of it. Unreadable,
 unparseable, invalid, or unanswerable-by-probe all fail closed at both load
 points, with aggregate diagnostics carrying the delta's own path and location.
-It sits *beside* `.grove/`, so the [[Finish transaction]] neither commits nor
-deletes it.
+It sits *beside* `.grove/`, so the finish teardown — which deletes the task root
+wholesale and commits one `.grove/`-scoped fileset — neither commits nor deletes
+it.
 _Avoid_: "project configuration" — it is untracked personal policy that happens
 to be scoped to a checkout, and no clone reproduces it.
 _Avoid_: treating a tracked delta as absent and falling back; the refusal is what
@@ -879,10 +752,7 @@ A single unit of work — a file `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<k
 **Pick** (`grove-llm pick`):
 The loop's dispatcher: the **first
 eligible live [[Leaf]] in depth-first pre-order** over `.grove/`, read from
-filenames and never from task-file contents. A pending transaction witness (the
-[[Finish transaction]]'s) is not a scheduling input: it is a fail-closed
-malformed-tree condition every reader and mutator refuses until the interrupted
-operation is recovered. Eligibility has one
+filenames and never from task-file contents. Eligibility has one
 lifecycle exception — a driver-owned `finish` sentinel is skipped while any
 non-finish leaf is live — and among non-finish leaves nothing modulates the
 walk: no priority, no grouping, no set of leaves that must finish before another
@@ -942,11 +812,12 @@ open descriptor for the **working-tree root** before inspecting names — shared
 for readers, exclusive for mutators. The root rather than `.grove/`, because it
 exists before the task tree is created and through its deletion, so root
 initialization, finish allocation and deletion, and the agent tree verbs all
-share one invariant. It serializes live processes but adds no crash atomicity;
-the only operation that promises process-interruption recovery — the
-[[Finish transaction]] — uses its own in-tree witness. A grow verb has neither and promises neither: it unwinds on
-a *reported* error, and a process killed mid-run can leave a partial shape. See
-ADR *task-tree-transactions-fail-closed*.
+share one invariant. It serializes live processes but adds no crash atomicity,
+and **nothing in Grove adds any** — the one operation that used to promise
+process-interruption recovery, the finish teardown, hand-built a transaction the
+version control system already owned, and both it and its in-tree witness are
+gone. A grow verb has neither and promises neither: it unwinds on a *reported*
+error, and a process killed mid-run can leave a partial shape.
 _Avoid_: locking `.grove/BRIEF.md` — root briefs are lazy, optional artifacts,
 and existing tree readers deliberately tolerate their absence.
 _Avoid_: locking `.grove/` itself — it cannot serialize either its own creation
@@ -1021,7 +892,7 @@ entries it disclaimed and the grammar Grove does read.
 It exists because the layouts Grove wrote before the current grammar are
 positioned but *unkeyed*, so every one of their names is foreign — invisible to
 the reader rather than refused by it. Without this state such a tree would read
-as an empty grove and take the driver's [[Finish transaction]] sentinel.
+as an empty grove and take the driver's `finish` sentinel.
 _Avoid_: expecting the refusal to name *which* withdrawn layout it met. That
 per-layout classifier was migration's and went with it; the operator needs the
 grammar and the offending names, not the layout's history.

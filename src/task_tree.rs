@@ -47,7 +47,6 @@ use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Verdict};
 
 use crate::leaf::Kind;
 use crate::task_name::{Outcome, Parts, TaskName};
-use crate::tree_access;
 
 /// The task tree, read once under the library's shared lock.
 ///
@@ -166,9 +165,6 @@ fn announce_contention(grove_root: &Path, mode: libc::c_int) {
 fn restate(grove_root: &Path, error: &Error<TaskName>) -> anyhow::Error {
     if !grove_root.is_dir() {
         return anyhow!("grove root not found: {}", grove_root.display());
-    }
-    if let Err(refusal) = tree_access::refuse_pending(grove_root) {
-        return refusal;
     }
     match error {
         // The domain's own advice *is* the message (`Error`'s `Display` says

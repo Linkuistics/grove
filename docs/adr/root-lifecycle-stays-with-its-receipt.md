@@ -49,15 +49,12 @@ entry. `FN-20`'s role forbids reading that leftover as evidence that anything
 happened, and **no filesystem receipt fixes it**: the thing that decides whether
 the destruction should have happened is an *external* effect the library cannot
 observe, so a library-written receipt could only say *I removed the root*, never
-*the removal is committed*. Grove's receipt is the correlation ticket, and it
-lives in the repository's own history — the one place that survives both the
-container's destruction and its re-creation at the same name. This is
-[`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md)'s
-*"the interval is the whole problem"* reached from the library's side, and what
-it decides is ownership: the receipt must live outside the container, Grove's correlation ticket is that receipt
-([`success-is-proved-by-the-ticket-not-the-tree`](success-is-proved-by-the-ticket-not-the-tree.md)),
-and a component with no notion of "outside" cannot own an operation whose
-completion only that receipt establishes.
+*the removal is committed*. Grove's receipt is the deletion commit, and it lives
+in the repository's own history — the one place that survives both the
+container's destruction and its re-creation at the same name. What that decides
+is ownership: the receipt must live outside the container, and a component with
+no notion of "outside" cannot own an operation whose completion only that
+receipt establishes.
 
 **The coordinator is a callback, which is the shape the one seam rules out.** A
 destroy verb must consult the caller's three-valued grade of an external effect
@@ -92,9 +89,8 @@ instead is narrower and is already stated twice — history is never rewritten t
 clear a block (`FN-26`), and no grade is ever carried forward as a licence
 (`FN-22.a`'s four points, which is `SY-03`'s *a preflight is never a licence* at
 this grain). Grove's answer to a grade that can move is to **survive** the move,
-and the residue it leaves is why the correlation ticket rather than the tree is
-the evidence of success
-([`success-is-proved-by-the-ticket-not-the-tree`](success-is-proved-by-the-ticket-not-the-tree.md)).
+and the residue it leaves is why the repository's own history rather than the
+tree is the evidence of success.
 
 **And the library already says so.** `Error::Reserved` exists for "a name the
 consumer owns that is deliberately not an entry — a transaction witness, a lock
@@ -124,10 +120,10 @@ so the instrument cannot be attacked and the argument has to carry itself.** It
 does, and which parts do is worth recording.
 
 - **The first argument is independent of the prototype.** `FN-20`'s role is
-  mutation-killed in both families, `FN-03`'s ticket is checked in both, and
-  [`success-is-proved-by-the-ticket-not-the-tree`](success-is-proved-by-the-ticket-not-the-tree.md)
-  was reached by falsifying three separate formulations of `FN-28` against a
-  trace, not by the prototype.
+  mutation-killed in both families, `FN-03`'s ticket is checked in both, and the
+  finding that success is proved by the commit and never by the tree was reached
+  by falsifying three separate formulations of `FN-28` against a trace, not by
+  the prototype.
 - **The third argument is independent too**, and doubly so: `FN-22`'s two
   `Committed -> …` departure rows are in the catalogue with witnesses in both
   columns, and the append-only-history incident that made them answerable *by
@@ -178,6 +174,19 @@ cooperating process meet a partial root and complete it.
 So both halves of root lifecycle stay with grove, for different reasons:
 destruction because it cannot be terminated without the receipt, creation because
 it is too shallow to be worth an interface.
+
+## The machinery this was argued against is gone, and the decision is not yet re-taken
+
+`delete-finish-transaction-k8` deleted the four-point coordinator, the quarantine
+rename and the attempt-bound correlation ticket that the argument above reasons
+over. What survives it is the shape of the argument rather than its incumbent:
+destruction is still an external effect the library cannot observe, and the
+receipt is still a commit outside the container. What is *no longer* true is that
+the interval between the settle rename and disposal exists at all — there is no
+staging area and no disposal, only a recursive delete and one path-scoped commit.
+So the rejection stands on a thinner incumbent than the one it was written
+against, and re-taking it on the merits belongs to the leaf that lands the store's
+own `delete` (`docs/specs/module-decomposition.md`, decision 2), not here.
 
 ## What would reopen this
 

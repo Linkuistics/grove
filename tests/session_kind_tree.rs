@@ -429,77 +429,38 @@ fn every_agent_side_mutation_refuses_the_driver_reserved_finish_kind() {
     }
 }
 
-/// A pending finish transaction is a fail-closed condition for **every**
-/// agent-side verb, reader and mutator alike — the tree is mid-teardown and
-/// proceeding past one is a guess. It is the only such witness left; migration's
-/// went with migration (`delete-migration-k6`). `src/tree_access.rs` unit-proves
-/// one reader; this is the seam a session actually calls, swept whole so a verb
-/// added later has to opt in.
+/// A leftover `FINISHING-*` directory is **foreign**, not a held tree.
+///
+/// It used to be `Verdict::Reserved` — a witness the finish transaction wrote,
+/// and every reader and mutator refused while one existed
+/// (`docs/adr/task-tree-transactions-fail-closed.md`). There is no transaction
+/// and no witness now (`delete-finish-transaction-k8`), so nothing grove writes
+/// can produce that name; one on disk is a stray from an older build, and a
+/// stray is a name every reader skips. This is the same answer `delete-migration-k6`
+/// reached for a stray `.grove/FORMAT`, and it is asserted rather than assumed
+/// because the behaviour change is deliberate.
 #[test]
-fn every_tree_verb_refuses_a_pending_finish_transaction() {
+fn a_leftover_finish_witness_is_a_foreign_entry_every_verb_walks_past() {
     for arguments in [
         vec!["pick"],
         vec!["kind"],
         vec!["resolve", "task-k1"],
         vec!["brief-chain", ".grove/01-impl-task-k1.md"],
-        vec!["leaf-add", ".", "later"],
-        vec!["leaf-insert", "task-k1", "earlier"],
-        vec!["leaf-decompose", ".grove/01-impl-task-k1.md", "first"],
-        vec!["leaf-retire", ".grove/01-impl-task-k1.md"],
-        vec!["leaf-prune", ".grove/01-impl-task-k1.md"],
-        vec!["leaf-add-pair", ".", "stem"],
     ] {
         let repository = init_repo();
         let grove = current_grove(repository.path());
         fs::create_dir_all(grove.join("FINISHING-finish-k2")).unwrap();
         fs::write(grove.join("BRIEF.md"), "# demo — brief\n").unwrap();
         write_leaf(&grove, "01-impl-task-k1.md", "# task-k1\n");
-        let before = tree_snapshot(&grove);
 
         let output = grove_llm(repository.path(), &arguments);
 
-        assert!(!output.status.success(), "{arguments:?} was admitted");
-        let error = stderr(&output);
         assert!(
-            error.contains("pending Grove finish transaction"),
-            "{arguments:?}: {error}"
-        );
-        assert!(
-            error.contains("finish-commit handle"),
-            "{arguments:?} named no recovery: {error}"
-        );
-        assert_eq!(
-            tree_snapshot(&grove),
-            before,
-            "{arguments:?} mutated the interrupted tree"
+            output.status.success(),
+            "{arguments:?} refused a stray witness: {}",
+            stderr(&output)
         );
     }
-}
-
-/// Every path under `directory`, relative and sorted, with file bodies — enough
-/// to catch a refusing verb that still wrote something.
-fn tree_snapshot(directory: &Path) -> Vec<(String, Option<Vec<u8>>)> {
-    fn walk(root: &Path, directory: &Path, into: &mut Vec<(String, Option<Vec<u8>>)>) {
-        for entry in fs::read_dir(directory).unwrap() {
-            let path = entry.unwrap().path();
-            let relative = path
-                .strip_prefix(root)
-                .unwrap()
-                .to_string_lossy()
-                .into_owned();
-            if path.is_dir() {
-                into.push((relative, None));
-                walk(root, &path, into);
-            } else {
-                into.push((relative, Some(fs::read(&path).unwrap())));
-            }
-        }
-    }
-
-    let mut entries = Vec::new();
-    walk(directory, directory, &mut entries);
-    entries.sort();
-    entries
 }
 
 fn assert_finish_refusal(output: std::process::Output) {

@@ -41,9 +41,6 @@
 //   - `BRIEF.md`                              -> the distinguished child
 //   - `NN-…-k<key>[.md]`                      -> an entry, or `Malformed` if it
 //                                                does not parse completely
-//   - `FINISHING-*`, `PREPARING-FINISH-*`     -> `Reserved`: a transaction is in
-//                                                flight, and proceeding past one
-//                                                is a guess
 //   - `README.md`, anything else              -> `Foreign`
 
 use core::fmt;
@@ -53,7 +50,6 @@ use ordinal_fs_tree::{
 };
 
 use crate::leaf::Kind;
-use crate::tree_access::{FINISHING_PREFIX, PREPARING_FINISH_PREFIX};
 
 /// The name of a node's distinguished child: the charter every node directory is
 /// headed by.
@@ -345,11 +341,6 @@ pub enum TaskNameError {
         /// What the listing reported.
         found: Found,
     },
-    /// A finish transaction is in flight or was interrupted.
-    PendingFinish {
-        /// The witness on disk.
-        name: String,
-    },
 }
 
 impl fmt::Display for TaskNameError {
@@ -395,11 +386,6 @@ impl fmt::Display for TaskNameError {
                  under it.",
                 declares.requires()
             ),
-            Self::PendingFinish { name } => write!(
-                f,
-                "pending Grove finish transaction: {name:?}. Recover it with the same \
-                 finish-commit handle or rerun bare `grove`"
-            ),
         }
     }
 }
@@ -411,24 +397,14 @@ impl EntryName for TaskName {
     type Err = TaskNameError;
 
     fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
-        // The charter and the transaction witnesses are matched before the
-        // positioned grammar, because none of them is positioned and nothing
-        // below would recognise them.
+        // The charter is matched before the positioned grammar, because it is
+        // not positioned and nothing below would recognise it.
         if name == BRIEF {
             return match disagreement(Species::Distinguished, found, name) {
                 Some(error) => Verdict::Malformed(error),
                 None => Verdict::Entry(Self::Brief),
             };
         }
-        // `Reserved` regardless of what the listing found: both of these are a
-        // directory today, but the verdict halts either way, and a witness that
-        // is somehow a file is still a witness.
-        if name.starts_with(FINISHING_PREFIX) || name.starts_with(PREPARING_FINISH_PREFIX) {
-            return Verdict::Reserved(TaskNameError::PendingFinish {
-                name: name.to_string(),
-            });
-        }
-
         // The `.md` suffix is what the name *declares* its species to be.
         let (stem, declares_leaf) = match name.strip_suffix(".md") {
             Some(stem) => (stem, true),
@@ -651,8 +627,6 @@ mod tests {
             ("03-ABANDONED-design-refusals-k30.md", Found::File),
             ("07-grove-flip-k28", Found::Dir),
             ("README.md", Found::File),
-            ("FINISHING-finish-k2", Found::Dir),
-            ("PREPARING-FINISH-finish-k2-1111", Found::Dir),
             ("5-impl-domain-k29.md", Found::File),
             ("07-DONE-grove-flip-k28", Found::Dir),
         ]
@@ -730,48 +704,6 @@ mod tests {
         ] {
             assert_eq!(verdict(name, Found::File), Verdict::Foreign, "{name:?}");
         }
-    }
-
-    /// The transaction witnesses halt, which is what `tree_access::refuse_pending`
-    /// does by hand today. Reserved rather than Malformed: the name is Grove's
-    /// and is deliberately not an entry.
-    #[test]
-    fn the_transaction_witnesses_are_reserved() {
-        let cases = [
-            (
-                "FINISHING-finish-k2",
-                TaskNameError::PendingFinish {
-                    name: "FINISHING-finish-k2".to_string(),
-                },
-            ),
-            (
-                "PREPARING-FINISH-finish-k2-1111",
-                TaskNameError::PendingFinish {
-                    name: "PREPARING-FINISH-finish-k2-1111".to_string(),
-                },
-            ),
-        ];
-        for (name, expected) in cases {
-            for found in [Found::File, Found::Dir, Found::Other] {
-                assert_eq!(
-                    verdict(name, found),
-                    Verdict::Reserved(expected.clone()),
-                    "{name:?} under {found}"
-                );
-            }
-        }
-    }
-
-    /// The witness's advice is the wording `tree_access` already gives, because
-    /// the flip is a pure refactor and the operator meets the same sentence.
-    #[test]
-    fn a_reserved_witness_carries_its_recovery_advice() {
-        let finish = match verdict("FINISHING-finish-k2", Found::Dir) {
-            Verdict::Reserved(error) => error.to_string(),
-            other => panic!("{other:?}"),
-        };
-        assert!(finish.contains("pending Grove finish transaction"));
-        assert!(finish.contains("finish-commit handle"));
     }
 
     // ---- the grammar --------------------------------------------------------

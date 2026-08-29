@@ -145,7 +145,7 @@ fn a_foreign_stamp_warns_without_changing_what_a_verb_does() {
         "a mismatch must not refuse: {stderr}"
     );
     assert!(
-        String::from_utf8_lossy(&output.stdout).contains("01-impl-first-k1.md"),
+        String::from_utf8_lossy(&output.stdout).contains("01-impl--first-k1.md"),
         "the verb must still answer: {stderr}"
     );
     assert!(
@@ -213,7 +213,7 @@ fn worktree_with_one_leaf(fixture: &Path) -> std::path::PathBuf {
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# worktree — brief\n").unwrap();
-    fs::write(grove.join("01-impl-first-k1.md"), "# first-k1\n").unwrap();
+    fs::write(grove.join("01-impl--first-k1.md"), "# first-k1\n").unwrap();
     worktree
 }
 

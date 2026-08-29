@@ -47,7 +47,7 @@ fn filename_kind_is_unambiguous_and_body_routing_metadata_is_ignored() {
     let grove = current_grove(repository.path());
     let leaf = write_leaf(
         &grove,
-        "01-integrate-review-requirements-review-notes-k7.md",
+        "01-integrate-review-requirements--review-notes-k7.md",
         "# review-notes-k7\n\n**Kind:** impl\n**Harness:** codex\n",
     );
 
@@ -97,17 +97,17 @@ fn the_kind_label_boundary_is_exact_in_both_directions() {
     let grove = current_grove(repository.path());
     let cases = [
         (
-            "01-impl-review-design-notes-k1.md",
+            "01-impl--review-design-notes-k1.md",
             "impl",
             "review-design-notes-k1",
         ),
-        ("02-review-impl-design-k2.md", "review-impl", "design-k2"),
+        ("02-review-impl--design-k2.md", "review-impl", "design-k2"),
         (
-            "03-integrate-review-impl-impl-k3.md",
+            "03-integrate-review-impl--impl-k3.md",
             "integrate-review-impl",
             "impl-k3",
         ),
-        ("04-design-research-a-k4.md", "design", "research-a-k4"),
+        ("04-design--research-a-k4.md", "design", "research-a-k4"),
     ];
     for (name, _, _) in cases {
         write_leaf(&grove, name, "# leaf\n");
@@ -128,66 +128,78 @@ fn the_kind_label_boundary_is_exact_in_both_directions() {
 }
 
 #[test]
-fn current_tree_refuses_a_task_shaped_leaf_with_no_known_kind() {
+fn current_tree_refuses_a_task_shaped_leaf_with_no_separator() {
     let repository = init_repo();
     let grove = current_grove(repository.path());
     write_leaf(&grove, "01-untyped-k1.md", "# untyped-k1\n");
 
     let output = grove_llm(repository.path(), &["pick"]);
 
+    // A leaf with no `--` is refused on its *shape*, before any question about
+    // which kind it names — so the advice is the grammar and not the kind set
+    // (`grammar-separator-k15`). Every name the old grammar wrote lands here,
+    // which is why the refusal has to carry the canonical form.
     assert!(!output.status.success());
     let error = stderr(&output);
     assert!(error.contains("01-untyped-k1.md"), "{error}");
-    assert!(error.contains("requirements"), "{error}");
-    assert!(error.contains("finish"), "{error}");
+    assert!(
+        error.contains("NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md"),
+        "{error}"
+    );
 }
 
 #[test]
 fn current_tree_refuses_a_task_shaped_leaf_with_an_unknown_kind() {
     let repository = init_repo();
     let grove = current_grove(repository.path());
-    write_leaf(&grove, "01-mystery-untyped-k1.md", "# untyped-k1\n");
+    write_leaf(&grove, "01-mystery--untyped-k1.md", "# untyped-k1\n");
 
     let output = grove_llm(repository.path(), &["pick"]);
 
+    // With the separator present there *is* a single token to quote back, which
+    // is what the kind refusal names alongside the closed set.
     assert!(!output.status.success());
-    assert!(stderr(&output).contains("01-mystery-untyped-k1.md"));
+    let error = stderr(&output);
+    assert!(error.contains("01-mystery--untyped-k1.md"), "{error}");
+    assert!(error.contains("\"mystery\""), "{error}");
+    assert!(error.contains("requirements"), "{error}");
+    assert!(error.contains("finish"), "{error}");
 }
 
 #[test]
 fn pick_skips_finish_while_non_finish_work_is_live() {
     let repository = init_repo();
     let grove = current_grove(repository.path());
-    write_leaf(&grove, "01-finish-finish-k1.md", "# finish-k1\n");
-    write_leaf(&grove, "02-impl-work-k2.md", "# work-k2\n");
+    write_leaf(&grove, "01-finish--finish-k1.md", "# finish-k1\n");
+    write_leaf(&grove, "02-impl--work-k2.md", "# work-k2\n");
 
     let output = grove_llm(repository.path(), &["pick"]);
 
     assert!(output.status.success(), "{}", stderr(&output));
-    assert!(stdout(&output).contains("02-impl-work-k2.md"));
+    assert!(stdout(&output).contains("02-impl--work-k2.md"));
 }
 
 #[test]
 fn pick_selects_finish_when_it_is_the_only_live_work() {
     let repository = init_repo();
     let grove = current_grove(repository.path());
-    write_leaf(&grove, "01-finish-finish-k1.md", "# finish-k1\n");
-    write_leaf(&grove, "02-DONE-impl-finished-k2.md", "# finished-k2\n");
+    write_leaf(&grove, "01-finish--finish-k1.md", "# finish-k1\n");
+    write_leaf(&grove, "02-DONE-impl--finished-k2.md", "# finished-k2\n");
 
     let output = grove_llm(repository.path(), &["pick"]);
 
     assert!(output.status.success(), "{}", stderr(&output));
-    assert!(stdout(&output).contains("01-finish-finish-k1.md"));
+    assert!(stdout(&output).contains("01-finish--finish-k1.md"));
 }
 
 #[test]
 fn pick_refuses_duplicate_live_finish_leaves() {
     let repository = init_repo();
     let grove = current_grove(repository.path());
-    write_leaf(&grove, "01-finish-finish-k1.md", "# finish-k1\n");
+    write_leaf(&grove, "01-finish--finish-k1.md", "# finish-k1\n");
     write_leaf(
         &grove,
-        "02-finish-finish-again-k2.md",
+        "02-finish--finish-again-k2.md",
         "# finish-again-k2\n",
     );
 
@@ -203,12 +215,12 @@ fn terminal_infixes_preserve_filename_kind_and_stable_resolution() {
     let grove = current_grove(repository.path());
     let done = write_leaf(
         &grove,
-        "01-DONE-review-impl-reviewed-k7.md",
+        "01-DONE-review-impl--reviewed-k7.md",
         "# reviewed-k7\n",
     );
     let abandoned = write_leaf(
         &grove,
-        "02-ABANDONED-integrate-review-design-integrated-k8.md",
+        "02-ABANDONED-integrate-review-design--integrated-k8.md",
         "# integrated-k8\n",
     );
 
@@ -223,11 +235,11 @@ fn terminal_infixes_preserve_filename_kind_and_stable_resolution() {
 
     let output = grove_llm(repository.path(), &["resolve", "reviewed-k7"]);
     assert!(output.status.success(), "{}", stderr(&output));
-    assert!(stdout(&output).contains("01-DONE-review-impl-reviewed-k7.md"));
+    assert!(stdout(&output).contains("01-DONE-review-impl--reviewed-k7.md"));
 
     let output = grove_llm(repository.path(), &["resolve", "[8]"]);
     assert!(output.status.success(), "{}", stderr(&output));
-    assert!(stdout(&output).contains("02-ABANDONED-integrate-review-design-integrated-k8.md"));
+    assert!(stdout(&output).contains("02-ABANDONED-integrate-review-design--integrated-k8.md"));
 }
 
 #[test]
@@ -271,7 +283,7 @@ fn a_task_shaped_entry_of_the_wrong_species_is_malformed_not_foreign() {
         // An outcome infix on a node name: parses as neither species.
         ("01-DONE-node-k1", true, "never marked DONE or ABANDONED"),
         // A leaf's name on a directory: parses as a leaf, is not one.
-        ("01-impl-decoy-k1.md", true, "names a leaf"),
+        ("01-impl--decoy-k1.md", true, "names a leaf"),
         // A node's name on a regular file: parses as a node, is not one.
         ("01-decoy-k1", false, "names a node"),
     ] {
@@ -280,7 +292,7 @@ fn a_task_shaped_entry_of_the_wrong_species_is_malformed_not_foreign() {
         let entry = grove.join(name);
         if directory {
             fs::create_dir_all(&entry).unwrap();
-            fs::write(entry.join("01-impl-hidden-k2.md"), "# hidden-k2\n").unwrap();
+            fs::write(entry.join("01-impl--hidden-k2.md"), "# hidden-k2\n").unwrap();
         } else {
             fs::write(&entry, "# not a node\n").unwrap();
         }
@@ -331,12 +343,12 @@ fn entries_outside_the_task_shaped_grammar_stay_foreign_at_either_species() {
     fs::create_dir_all(grove.join("scratch-k9")).unwrap();
     let node = grove.join("01-real-k1");
     fs::create_dir_all(&node).unwrap();
-    fs::write(node.join("01-impl-work-k2.md"), "# work-k2\n").unwrap();
+    fs::write(node.join("01-impl--work-k2.md"), "# work-k2\n").unwrap();
 
     let output = grove_llm(repository.path(), &["pick"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
-        stdout(&output).contains("01-real-k1/01-impl-work-k2.md"),
+        stdout(&output).contains("01-real-k1/01-impl--work-k2.md"),
         "{}",
         stdout(&output)
     );
@@ -344,7 +356,7 @@ fn entries_outside_the_task_shaped_grammar_stay_foreign_at_either_species() {
     let output = grove_llm(repository.path(), &["resolve", "work-k2"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
-        stdout(&output).contains("01-real-k1/01-impl-work-k2.md"),
+        stdout(&output).contains("01-real-k1/01-impl--work-k2.md"),
         "{}",
         stdout(&output)
     );
@@ -354,7 +366,7 @@ fn entries_outside_the_task_shaped_grammar_stay_foreign_at_either_species() {
 fn non_finish_work_can_be_inserted_before_a_reserved_finish_leaf() {
     let repository = init_repo();
     let grove = current_grove(repository.path());
-    write_leaf(&grove, "01-finish-finish-k1.md", "# finish-k1\n");
+    write_leaf(&grove, "01-finish--finish-k1.md", "# finish-k1\n");
 
     let output = grove_llm(
         repository.path(),
@@ -362,8 +374,8 @@ fn non_finish_work_can_be_inserted_before_a_reserved_finish_leaf() {
     );
 
     assert!(output.status.success(), "{}", stderr(&output));
-    assert!(grove.join("01-impl-late-work-k2.md").exists());
-    assert!(grove.join("02-finish-finish-k1.md").exists());
+    assert!(grove.join("01-impl--late-work-k2.md").exists());
+    assert!(grove.join("02-finish--finish-k1.md").exists());
 }
 
 /// Finish is *reserved*, not *blocking*, and the design states both halves:
@@ -376,17 +388,17 @@ fn non_finish_work_can_be_inserted_before_a_reserved_finish_leaf() {
 fn work_appended_behind_a_reserved_finish_leaf_is_still_selected() {
     let repository = init_repo();
     let grove = current_grove(repository.path());
-    write_leaf(&grove, "01-finish-finish-k1.md", "# finish-k1\n");
+    write_leaf(&grove, "01-finish--finish-k1.md", "# finish-k1\n");
 
     let output = grove_llm(repository.path(), &["leaf-add", ".", "late-work"]);
 
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
-        grove.join("02-impl-late-work-k2.md").exists(),
+        grove.join("02-impl--late-work-k2.md").exists(),
         "append must land behind the finish leaf"
     );
     assert!(
-        grove.join("01-finish-finish-k1.md").exists(),
+        grove.join("01-finish--finish-k1.md").exists(),
         "appending must not renumber the finish leaf"
     );
 
@@ -394,7 +406,7 @@ fn work_appended_behind_a_reserved_finish_leaf_is_still_selected() {
 
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
-        stdout(&output).contains("02-impl-late-work-k2.md"),
+        stdout(&output).contains("02-impl--late-work-k2.md"),
         "the later live leaf must outrank the earlier finish sentinel: {}",
         stdout(&output)
     );
@@ -411,22 +423,22 @@ fn every_agent_side_mutation_refuses_the_driver_reserved_finish_kind() {
 
     let insert_repository = init_repo();
     let insert_grove = current_grove(insert_repository.path());
-    write_leaf(&insert_grove, "01-impl-target-k1.md", "# target-k1\n");
+    write_leaf(&insert_grove, "01-impl--target-k1.md", "# target-k1\n");
     assert_finish_refusal(grove_llm(
         insert_repository.path(),
         &["leaf-insert", "target-k1", "reserved", "--kind", "finish"],
     ));
 
     for verb in [
-        vec!["leaf-decompose", ".grove/01-finish-finish-k1.md", "child"],
-        vec!["leaf-retire", ".grove/01-finish-finish-k1.md"],
-        vec!["leaf-prune", ".grove/01-finish-finish-k1.md"],
+        vec!["leaf-decompose", ".grove/01-finish--finish-k1.md", "child"],
+        vec!["leaf-retire", ".grove/01-finish--finish-k1.md"],
+        vec!["leaf-prune", ".grove/01-finish--finish-k1.md"],
     ] {
         let repository = init_repo();
         let grove = current_grove(repository.path());
-        write_leaf(&grove, "01-finish-finish-k1.md", "# finish-k1\n");
+        write_leaf(&grove, "01-finish--finish-k1.md", "# finish-k1\n");
         assert_finish_refusal(grove_llm(repository.path(), &verb));
-        assert!(grove.join("01-finish-finish-k1.md").exists());
+        assert!(grove.join("01-finish--finish-k1.md").exists());
     }
 }
 
@@ -446,13 +458,13 @@ fn a_leftover_finish_witness_is_a_foreign_entry_every_verb_walks_past() {
         vec!["pick"],
         vec!["kind"],
         vec!["resolve", "task-k1"],
-        vec!["brief-chain", ".grove/01-impl-task-k1.md"],
+        vec!["brief-chain", ".grove/01-impl--task-k1.md"],
     ] {
         let repository = init_repo();
         let grove = current_grove(repository.path());
         fs::create_dir_all(grove.join("FINISHING-finish-k2")).unwrap();
         fs::write(grove.join("BRIEF.md"), "# demo — brief\n").unwrap();
-        write_leaf(&grove, "01-impl-task-k1.md", "# task-k1\n");
+        write_leaf(&grove, "01-impl--task-k1.md", "# task-k1\n");
 
         let output = grove_llm(repository.path(), &arguments);
 

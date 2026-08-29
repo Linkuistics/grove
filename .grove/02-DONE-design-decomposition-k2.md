@@ -167,7 +167,7 @@ That is principle 2's message in the place a reader will actually meet it.
 
 **The filename grammar gains a `--` between kind and slug, and this is the one
 thing decision 7 breaks that `minimalism-k1` did not see.** Once `Kind` is an
-open token, `02-design-decomposition-k2.md` no longer has one parse: kind
+open token, `02-design--decomposition-k2.md` no longer has one parse: kind
 `design` + slug `decomposition`, and kind `design-decomposition` + an empty slug,
 are both readable, and with a three-word kind like
 `integrate-review-design` the ambiguity is four ways deep. Today it is resolved

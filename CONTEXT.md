@@ -375,7 +375,7 @@ _Avoid_: treating a redirected `cargo test` as evidence the guard works — a re
 **root-init** / **fresh-grove start**:
 The mechanical first step of bare `grove` when the provided working tree has no
 `.grove/`: before launching any agent the driver creates `.grove/`, the root
-`BRIEF.md` stub and `01-requirements-plan-k1.md`, then runs the ordinary authoritative [[Pick]] and launches that requirements
+`BRIEF.md` stub and `01-requirements--plan-k1.md`, then runs the ordinary authoritative [[Pick]] and launches that requirements
 leaf through [[Grove configuration]]. There is no special rootless session —
 every session owns a real selected leaf, and a grove begins with requirements
 gathering by construction.
@@ -428,7 +428,7 @@ _Avoid_: inferring authority from the existence or bytes of a control file. The 
 
 **Session kind**:
 The launch-and-discipline label encoded only in a [[Leaf]] `.md` filename as
-`NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md`. The kind is routing
+`NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md`. The kind is routing
 metadata, not identity: the stable [[Work-item handle]] remains `<slug>-k<key>`.
 The closed set has nineteen members — five producers (`requirements`, `design`,
 `planning`, `prototype`, `impl`), each with its corresponding `review-` and
@@ -747,7 +747,7 @@ outside that grammar stay foreign at either species, and the reserved
 transaction witnesses are unpositioned, so none is reached by the rule.
 
 **Leaf**:
-A single unit of work — a file `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf — one carrying **no outcome infix** at all. A leaf has exactly two terminal states: `DONE` (the work was done) and `ABANDONED` (the path was closed); see [[DONE infix]] and [[Pruning]].
+A single unit of work — a file `NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf — one carrying **no outcome infix** at all. A leaf has exactly two terminal states: `DONE` (the work was done) and `ABANDONED` (the path was closed); see [[DONE infix]] and [[Pruning]].
 
 **Pick** (`grove-llm pick`):
 The loop's dispatcher: the **first
@@ -827,7 +827,7 @@ contract instead of one seam.
 **DONE infix**:
 The in-place retirement marker: the literal `DONE` placed right after the
 position in a retired leaf's filename
-(`NN-DONE-<session-kind>-<slug>-k<key>.md`), written by `leaf-retire`. Leaves
+(`NN-DONE-<session-kind>--<slug>-k<key>.md`), written by `leaf-retire`. Leaves
 only — a node is never marked done (its done-ness is the absence of a live leaf
 in its subtree, however those leaves finished). The retired leaf keeps its
 position and key, and **its own contents remain untouched**. Its sibling mark is

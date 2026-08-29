@@ -51,6 +51,34 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **A leaf filename separates its session kind from its slug with `--`.** The
+  grammar is now
+  `NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md`; the middle splits at
+  the **first** `--`, and neither token may contain one (`Slug::new` refuses it,
+  and no kind label carries it). Node directory names, the `DONE`/`ABANDONED`
+  infixes, the terminal `-k<key>` and the handle are all unchanged, so a handle
+  is still `<slug>-k<key>` and still a contiguous terminal substring of the
+  name. **This renames every existing leaf, and a name without the separator is
+  refused** — with the canonical form in the message, because the recovery is a
+  `mv` per leaf and the advice is part of the error. A tree still on the old
+  spelling fails loudly at its first name rather than being read wrongly.
+  Why: with a single `-`, a hyphenated kind beside a hyphenated slug had more
+  than one reading — `02-design-decomposition-k2.md` is kind `design` + slug
+  `decomposition` *and* kind `design-decomposition` + no slug — and only a
+  longest-label match against the closed set of nineteen kinds resolved it. That
+  is one filename naming two entries whose **handles** differ, and the closed set
+  that papered over it is what `open-kind-k20` removes next. The separator makes
+  the boundary notation rather than inference, so `Kind::split_filename_prefix`
+  is deleted and the parser reads the kind token by exact equality.
+  A leaf whose kind is unknown now quotes the offending token, which the old
+  grammar could not do — there was no single token to name — and a leaf with no
+  separator gets its own refusal naming the grammar
+  (`docs/specs/module-decomposition.md` decision 3 and its two scenarios;
+  `docs/adr/task-names-are-canonical.md`, amended; `grammar-separator-k15`).
+- **`.grove/FORMAT` is no longer written, read or required.** `delete-migration-k6`
+  removed every reader and writer but left the file in trees so the shipped build
+  could keep driving; with this release nothing on any build looks at it, and it
+  can be deleted from any tree that still carries one.
 - **One type owns the name, and the handle is a rendering of it.**
   `task_name::Handle` — the position-free `<slug>-k<key>` identity that crosses
   every module boundary — is a type with `of`, `parse`, `slug`, `key` and a

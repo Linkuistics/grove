@@ -14,6 +14,19 @@ approved exception:
   exit-status meanings.
 - Configuration keys, environment overrides, defaults, and the current
   `session-kinds-v1` `.grove` format.
+  **Excepted for the leaf filename grammar, from `grammar-separator-k15`.** A
+  leaf's session kind and its slug are now separated by `--`
+  (`NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md`), so every leaf filename
+  captured below — and every refusal quoting one — records the spelling of
+  v19.3.0 rather than one that must still hold. Node directory names, the
+  outcome infixes, the terminal `-k<key>` and the handle are all unchanged. The
+  exception is the approved kind this ledger allows for, argued in
+  [`task-names-are-canonical`](adr/task-names-are-canonical.md) and
+  [`docs/specs/module-decomposition.md`](specs/module-decomposition.md)
+  decision 3; the measurements themselves stay as they were taken. The
+  `.grove/FORMAT` witness that same entry names is also gone — its writers and
+  readers went at `delete-migration-k6`, and this leaf's release removed the
+  last file.
 - Abstract outcomes across Git, native jj, and colocated jj workspaces.
   **Excepted for Git, from `drop-git-lane-k7`.** Grove now drives jj only and
   refuses a working tree with no `.jj/` before any mutation, so every Git row

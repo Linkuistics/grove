@@ -79,12 +79,12 @@ fn a_review_chain_is_three_leaf_adds_landing_as_flat_siblings() {
     // the sessions write into the bodies themselves.
     let t = grove();
     for (slug, kind, expected) in [
-        ("sync", "design", "01-design-sync-k1.md"),
-        ("sync", "review-design", "02-review-design-sync-k2.md"),
+        ("sync", "design", "01-design--sync-k1.md"),
+        ("sync", "review-design", "02-review-design--sync-k2.md"),
         (
             "sync",
             "integrate-review-design",
-            "03-integrate-review-design-sync-k3.md",
+            "03-integrate-review-design--sync-k3.md",
         ),
     ] {
         let (stdout, stderr, ok) = run(t.path(), &["leaf-add", ".", slug, "--kind", kind]);
@@ -97,9 +97,9 @@ fn a_review_chain_is_three_leaf_adds_landing_as_flat_siblings() {
     assert_eq!(
         tree(t.path()),
         vec![
-            "01-design-sync-k1.md",
-            "02-review-design-sync-k2.md",
-            "03-integrate-review-design-sync-k3.md",
+            "01-design--sync-k1.md",
+            "02-review-design--sync-k2.md",
+            "03-integrate-review-design--sync-k3.md",
             "BRIEF.md",
         ],
         "flat siblings — no chain node was created for them"
@@ -119,7 +119,7 @@ fn a_freshly_added_leaf_carries_an_empty_body_for_its_creator_to_write() {
     );
     assert!(ok, "{stderr}");
 
-    let contents = body(t.path(), "01-review-design-sync-k1.md");
+    let contents = body(t.path(), "01-review-design--sync-k1.md");
 
     assert!(
         contents.starts_with("# sync-k1\n"),
@@ -240,8 +240,8 @@ fn chain_with_a_live_sibling() -> TempDir {
     add(t.path(), ".", "sync", "design");
     add(t.path(), ".", "sync", "review-design");
     add(t.path(), ".", "unrelated", "impl");
-    retire(t.path(), "01-design-sync-k1.md");
-    retire(t.path(), "02-review-design-sync-k2.md");
+    retire(t.path(), "01-design--sync-k1.md");
+    retire(t.path(), "02-review-design--sync-k2.md");
     t
 }
 
@@ -250,20 +250,20 @@ fn insert_before_a_later_live_leaf_makes_the_integration_run_next() {
     let t = chain_with_a_live_sibling();
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-impl-unrelated-k3.md"),
+        Some("03-impl--unrelated-k3.md"),
         "the unrelated leaf is what stands between the review and its integration"
     );
 
     insert(
         t.path(),
-        "03-impl-unrelated-k3.md",
+        "03-impl--unrelated-k3.md",
         "sync",
         "integrate-review-design",
     );
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-integrate-review-design-sync-k4.md"),
+        Some("03-integrate-review-design--sync-k4.md"),
         "the integration takes the blocking sibling's slot and runs next"
     );
 
@@ -274,7 +274,7 @@ fn insert_before_a_later_live_leaf_makes_the_integration_run_next() {
     add(wrong.path(), ".", "sync", "integrate-review-design");
     assert_eq!(
         picked(wrong.path()).as_deref(),
-        Some("03-impl-unrelated-k3.md"),
+        Some("03-impl--unrelated-k3.md"),
         "appending puts the integration behind the leaf it needed to precede"
     );
 }
@@ -289,13 +289,13 @@ fn a_later_sibling_node_blocks_and_is_itself_the_insert_target() {
     add(t.path(), ".", "sync", "design");
     add(t.path(), ".", "sync", "review-design");
     add(t.path(), ".", "follow-up", "impl");
-    decompose(t.path(), "03-impl-follow-up-k3.md", "detail");
-    retire(t.path(), "01-design-sync-k1.md");
-    retire(t.path(), "02-review-design-sync-k2.md");
+    decompose(t.path(), "03-impl--follow-up-k3.md", "detail");
+    retire(t.path(), "01-design--sync-k1.md");
+    retire(t.path(), "02-review-design--sync-k2.md");
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-follow-up-k3/01-impl-detail-k4.md"),
+        Some("03-follow-up-k3/01-impl--detail-k4.md"),
         "a live descendant of a later sibling node is what runs next"
     );
 
@@ -308,7 +308,7 @@ fn a_later_sibling_node_blocks_and_is_itself_the_insert_target() {
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-integrate-review-design-sync-k5.md"),
+        Some("03-integrate-review-design--sync-k5.md"),
         "inserting before the node directory puts the integration ahead of its whole subtree"
     );
     assert!(
@@ -328,25 +328,25 @@ fn targeting_the_blocking_nodes_descendant_inserts_at_the_wrong_level() {
     add(t.path(), ".", "sync", "design");
     add(t.path(), ".", "sync", "review-design");
     add(t.path(), ".", "follow-up", "impl");
-    decompose(t.path(), "03-impl-follow-up-k3.md", "detail");
-    retire(t.path(), "01-design-sync-k1.md");
-    retire(t.path(), "02-review-design-sync-k2.md");
+    decompose(t.path(), "03-impl--follow-up-k3.md", "detail");
+    retire(t.path(), "01-design--sync-k1.md");
+    retire(t.path(), "02-review-design--sync-k2.md");
 
     insert(
         t.path(),
-        "03-follow-up-k3/01-impl-detail-k4.md",
+        "03-follow-up-k3/01-impl--detail-k4.md",
         "sync",
         "integrate-review-design",
     );
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-follow-up-k3/01-integrate-review-design-sync-k5.md"),
+        Some("03-follow-up-k3/01-integrate-review-design--sync-k5.md"),
         "it runs next either way — the defect is the level, not the order"
     );
     assert!(
         !t.path()
-            .join(".grove/03-integrate-review-design-sync-k5.md")
+            .join(".grove/03-integrate-review-design--sync-k5.md")
             .exists(),
         "the integration never reached the review's own directory"
     );
@@ -362,12 +362,12 @@ fn terminal_entries_between_the_steps_do_not_block_an_append() {
     add(t.path(), ".", "sync", "review-design");
     add(t.path(), ".", "old", "impl");
     add(t.path(), ".", "stale", "impl");
-    decompose(t.path(), "04-impl-stale-k4.md", "gone");
+    decompose(t.path(), "04-impl--stale-k4.md", "gone");
     for rel in [
-        "01-design-sync-k1.md",
-        "02-review-design-sync-k2.md",
-        "03-impl-old-k3.md",
-        "04-stale-k4/01-impl-gone-k5.md",
+        "01-design--sync-k1.md",
+        "02-review-design--sync-k2.md",
+        "03-impl--old-k3.md",
+        "04-stale-k4/01-impl--gone-k5.md",
     ] {
         retire(t.path(), rel);
     }
@@ -381,7 +381,7 @@ fn terminal_entries_between_the_steps_do_not_block_an_append() {
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("05-integrate-review-design-sync-k6.md"),
+        Some("05-integrate-review-design--sync-k6.md"),
         "an append at the parent's end still runs next"
     );
 }
@@ -395,15 +395,15 @@ fn live_work_in_a_later_outer_node_cannot_get_in_front_of_an_append() {
     // against and `leaf-add` is correct.
     let t = grove();
     add(t.path(), ".", "inner", "design");
-    decompose(t.path(), "01-design-inner-k1.md", "sync");
+    decompose(t.path(), "01-design--inner-k1.md", "sync");
     add(t.path(), "inner-k1", "sync", "review-design");
     add(t.path(), ".", "outer", "impl");
-    decompose(t.path(), "02-impl-outer-k4.md", "later");
-    retire(t.path(), "01-inner-k1/01-design-sync-k2.md");
-    retire(t.path(), "01-inner-k1/02-review-design-sync-k3.md");
+    decompose(t.path(), "02-impl--outer-k4.md", "later");
+    retire(t.path(), "01-inner-k1/01-design--sync-k2.md");
+    retire(t.path(), "01-inner-k1/02-review-design--sync-k3.md");
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("02-outer-k4/01-impl-later-k5.md"),
+        Some("02-outer-k4/01-impl--later-k5.md"),
         "the only live work is in the outer sibling node"
     );
 
@@ -411,7 +411,7 @@ fn live_work_in_a_later_outer_node_cannot_get_in_front_of_an_append() {
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("01-inner-k1/03-integrate-review-design-sync-k6.md"),
+        Some("01-inner-k1/03-integrate-review-design--sync-k6.md"),
         "the appended integration still precedes the whole later sibling node"
     );
 }
@@ -427,18 +427,18 @@ fn the_finish_sentinel_does_not_block_an_append() {
     add(t.path(), ".", "sync", "design");
     add(t.path(), ".", "sync", "review-design");
     fs::write(
-        t.path().join(".grove/03-finish-finish-k3.md"),
+        t.path().join(".grove/03-finish--finish-k3.md"),
         "# finish-k3\n",
     )
     .unwrap();
-    retire(t.path(), "01-design-sync-k1.md");
-    retire(t.path(), "02-review-design-sync-k2.md");
+    retire(t.path(), "01-design--sync-k1.md");
+    retire(t.path(), "02-review-design--sync-k2.md");
 
     add(t.path(), ".", "sync", "integrate-review-design");
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("04-integrate-review-design-sync-k4.md"),
+        Some("04-integrate-review-design--sync-k4.md"),
         "the integration appended behind the sentinel still runs before it"
     );
 }
@@ -470,10 +470,10 @@ fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
     // rather than grammar. Nothing was migrated for that change either, so this
     // fixture now guards both compatibility claims at once.
     for (name, header) in [
-        ("01-design-sync-k2.md", "sync-k2"),
-        ("02-review-design-sync-review-k3.md", "sync-review-k3"),
+        ("01-design--sync-k2.md", "sync-k2"),
+        ("02-review-design--sync-review-k3.md", "sync-review-k3"),
         (
-            "03-integrate-review-design-sync-integrate-k4.md",
+            "03-integrate-review-design--sync-integrate-k4.md",
             "sync-integrate-k4",
         ),
     ] {
@@ -487,17 +487,17 @@ fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
     assert!(
         stdout
             .trim()
-            .ends_with("01-sync-chain-k1/01-design-sync-k2.md"),
+            .ends_with("01-sync-chain-k1/01-design--sync-k2.md"),
         "pick must descend the unmigrated node, got {stdout:?}"
     );
 
     // The children resolve by their permanent handles, which the node never
     // renumbered and no migration rewrote.
     for (handle, expected) in [
-        ("sync-k2", "01-sync-chain-k1/01-design-sync-k2.md"),
+        ("sync-k2", "01-sync-chain-k1/01-design--sync-k2.md"),
         (
             "sync-review-k3",
-            "01-sync-chain-k1/02-review-design-sync-review-k3.md",
+            "01-sync-chain-k1/02-review-design--sync-review-k3.md",
         ),
     ] {
         let (stdout, stderr, ok) = run(t.path(), &["resolve", handle]);
@@ -515,7 +515,7 @@ fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
         t.path(),
         &[
             "brief-chain",
-            ".grove/01-sync-chain-k1/01-design-sync-k2.md",
+            ".grove/01-sync-chain-k1/01-design--sync-k2.md",
         ],
     );
     assert!(ok, "brief-chain failed: {stderr}");
@@ -537,9 +537,9 @@ fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
     assert_eq!(
         names,
         vec![
-            "01-design-sync-k2.md",
-            "02-review-design-sync-review-k3.md",
-            "03-integrate-review-design-sync-integrate-k4.md",
+            "01-design--sync-k2.md",
+            "02-review-design--sync-review-k3.md",
+            "03-integrate-review-design--sync-integrate-k4.md",
         ],
         "the legacy node must be untouched — still brief-less, still `-chain`"
     );
@@ -556,9 +556,9 @@ fn pair_prints_three_flat_siblings_with_fixed_research_kinds() {
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 3, "one path per step: {stdout:?}");
     for (line, expected) in lines.iter().zip([
-        "01-research-a-survey-k1.md",
-        "02-research-b-survey-k2.md",
-        "03-combine-research-survey-k3.md",
+        "01-research-a--survey-k1.md",
+        "02-research-b--survey-k2.md",
+        "03-combine-research--survey-k3.md",
     ]) {
         assert!(
             line.ends_with(expected) && line.starts_with('/'),
@@ -570,41 +570,40 @@ fn pair_prints_three_flat_siblings_with_fixed_research_kinds() {
     }
 }
 
-/// The pair's half of the compatibility promise, which the legacy *chain* node
-/// fixture above cannot make.
+/// The pair's half of the compatibility promise, which the *chain* node fixture
+/// above cannot make.
 ///
 /// `content/TASK-FORMAT.md` and `task_grow::leaf_add_pair` both promise that both
 /// slug spellings stay legal and no existing tree is invalidated, and the review
 /// chain's half is guarded above. The pair's is a genuinely different parse and
 /// was left uncovered: the moment the generator stopped emitting `-a` / `-b` /
-/// `-combine`, no source or test fixture contained an old pair name at all, so the
-/// whole current-shape suite would keep passing if a future change broke reading
-/// them.
+/// `-combine`, no source or test fixture contained a pair name whose slug ended
+/// in the step marker at all, so the whole current-shape suite would keep passing
+/// if a future change broke reading them.
 ///
 /// What makes it a *different* case is where the kind ends and the slug begins.
-/// In `01-research-a-survey-a-k1.md` the kind label is `research-a` and the slug
-/// is `survey-a` — a slug that itself ends in the step marker, and a boundary only
-/// [`Kind::split_filename_prefix`]'s longest-label match puts in the right place.
-/// A shorter or first-match split would silently mis-read all three names, and the
-/// handle it derived (`survey-k1` rather than `survey-a-k1`) would resolve to
-/// nothing.
-///
-/// So the three names go in exactly as the deleted generator wrote them, and are
-/// read three ways without being touched. No migration and no generator fallback:
-/// the current expectations above stay the bare stem.
+/// In `01-research-a--survey-a-k1.md` the kind label is `research-a` and the slug
+/// is `survey-a`: the token `research-a` appears twice over, once as the kind and
+/// once as the tail of the slug. Under the grammar this replaced, only a
+/// longest-label match against the closed kind set put that boundary in the right
+/// place, and a first-match split derived `survey-k1` — a handle resolving to
+/// nothing. `grammar-separator-k15` moved the boundary from *inference* to
+/// *notation*, so this fixture now asserts that the `--` lands where the label
+/// match used to have to guess, which is the same three reads for a reason the
+/// kind set is no longer party to.
 #[test]
-fn unmigrated_research_pair_filenames_still_pick_resolve_and_report_their_kinds() {
+fn research_pair_slugs_ending_in_the_step_marker_pick_resolve_and_report_their_kinds() {
     let t = grove();
-    let legacy = [
-        ("01-research-a-survey-a-k1.md", "survey-a-k1", "research-a"),
-        ("02-research-b-survey-b-k2.md", "survey-b-k2", "research-b"),
+    let step_marker_slugs = [
+        ("01-research-a--survey-a-k1.md", "survey-a-k1", "research-a"),
+        ("02-research-b--survey-b-k2.md", "survey-b-k2", "research-b"),
         (
-            "03-combine-research-survey-combine-k3.md",
+            "03-combine-research--survey-combine-k3.md",
             "survey-combine-k3",
             "combine-research",
         ),
     ];
-    for (name, handle, _) in legacy {
+    for (name, handle, _) in step_marker_slugs {
         fs::write(
             t.path().join(".grove").join(name),
             format!("# {handle}\n\n## Goal\n"),
@@ -615,14 +614,17 @@ fn unmigrated_research_pair_filenames_still_pick_resolve_and_report_their_kinds(
     // `pick` reads them as ordinary well-formed live leaves and returns the first
     // in position order, rather than skipping names it cannot parse.
     let (stdout, stderr, ok) = run(t.path(), &["pick"]);
-    assert!(ok, "pick failed on legacy pair names: {stderr}");
     assert!(
-        stdout.trim().ends_with("01-research-a-survey-a-k1.md"),
-        "pick must reach the legacy `research-a` leaf, got {stdout:?}"
+        ok,
+        "pick failed on pair names whose slugs end in the step marker: {stderr}"
+    );
+    assert!(
+        stdout.trim().ends_with("01-research-a--survey-a-k1.md"),
+        "pick must reach the `research-a` leaf, got {stdout:?}"
     );
 
-    for (name, handle, kind) in legacy {
-        // The handle carries the old slug, and resolution finds it: the terminal
+    for (name, handle, kind) in step_marker_slugs {
+        // The handle carries the whole slug, and resolution finds it: the terminal
         // `-k<key>` is the key and the `-a` / `-b` / `-combine` inside the slug is
         // decorative, exactly as for any other slug.
         let (stdout, stderr, ok) = run(t.path(), &["resolve", handle]);
@@ -632,23 +634,23 @@ fn unmigrated_research_pair_filenames_still_pick_resolve_and_report_their_kinds(
             "resolve {handle} gave {stdout:?}"
         );
 
-        // …and the kind/slug boundary lands where the longest label puts it, which
-        // is the assertion the chain fixture has no way to make.
+        // …and the kind/slug boundary lands where the `--` puts it, which is the
+        // assertion the chain fixture has no way to make.
         let (stdout, stderr, ok) = run(t.path(), &["kind", name]);
         assert!(ok, "kind {name} failed: {stderr}");
         assert_eq!(stdout.trim(), kind, "kind {name} gave {stdout:?}");
     }
 
-    // Nothing moved: reading a legacy name never rewrites it.
+    // Nothing moved: reading a name never rewrites it.
     assert_eq!(
         tree(t.path()),
         vec![
-            "01-research-a-survey-a-k1.md",
-            "02-research-b-survey-b-k2.md",
-            "03-combine-research-survey-combine-k3.md",
+            "01-research-a--survey-a-k1.md",
+            "02-research-b--survey-b-k2.md",
+            "03-combine-research--survey-combine-k3.md",
             "BRIEF.md",
         ],
-        "the legacy pair names must be untouched"
+        "reading a pair name must never rewrite it"
     );
 }
 
@@ -663,7 +665,7 @@ fn a_failed_run_prints_no_path_at_all() {
     // allocation refuses it. The run therefore fails after validating and
     // before writing, which is the arm stdout silence has to survive.
     let t = grove();
-    fs::create_dir(t.path().join(".grove").join("01-research-a-survey-k1.md")).unwrap();
+    fs::create_dir(t.path().join(".grove").join("01-research-a--survey-k1.md")).unwrap();
 
     let (stdout, stderr, ok) = run(t.path(), &["leaf-add-pair", ".", "survey"]);
 
@@ -673,12 +675,12 @@ fn a_failed_run_prints_no_path_at_all() {
         "not one path on stdout for a shape that was not created"
     );
     assert!(
-        stderr.contains("01-research-a-survey-k1.md"),
+        stderr.contains("01-research-a--survey-k1.md"),
         "the diagnostic names the entry standing in the way: {stderr}"
     );
     assert_eq!(
         tree(t.path()),
-        vec!["01-research-a-survey-k1.md", "BRIEF.md"],
+        vec!["01-research-a--survey-k1.md", "BRIEF.md"],
         "no half-built pair left behind"
     );
 }

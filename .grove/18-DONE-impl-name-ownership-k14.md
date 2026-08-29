@@ -54,7 +54,7 @@ Build `Handle` so that property is visible in the code, and k15 becomes a small
 change to one function rather than a rewrite.
 
 **Do not open `Kind` here.** Doing so before the separator lands makes
-`02-design-decomposition-k2.md` ambiguous — kind `design` + slug `decomposition`
+`02-design--decomposition-k2.md` ambiguous — kind `design` + slug `decomposition`
 and kind `design-decomposition` + empty slug are both readable — and the handle
 is what differs between the readings.
 
@@ -104,7 +104,7 @@ is what differs between the readings.
   fails. Nothing is deployed and the session signals normally.
 
 - **`Kind` keeps its closed set**, as the brief requires: opening it before the
-  separator lands makes `02-design-decomposition-k2.md` two readable names.
+  separator lands makes `02-design--decomposition-k2.md` two readable names.
 
 - **`Handle::parse` is lenient on the key and strict on the slug**, and the
   asymmetry is deliberate in both directions. Lenient: `a-k007` is key 7, as
@@ -157,7 +157,7 @@ is what differs between the readings.
   - **Valid and actionable, and the one that mattered — routing `resolve`'s
     fallback through `Handle::parse` narrowed what `resolve` accepts.**
     `handle_key` never looked at the slug, so pasting a retired leaf's whole stem
-    (`01-DONE-impl-build-k5`) resolved by key 5; under `Handle::parse` it does
+    (`01-DONE-impl--build-k5`) resolved by key 5; under `Handle::parse` it does
     not, because that head is not a slug. **A contract I stated to myself
     unclearly**: `lookup` wants *does this end in a key*, not *is this a handle*,
     and I conflated them. Fixed by asking the owner the narrower question —

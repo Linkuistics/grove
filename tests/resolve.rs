@@ -86,28 +86,28 @@ fn parent_of(stdout: &str) -> String {
 fn resolve_by_key_bracketed_and_bare() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-impl-alpha-k1.md");
-    touch(&grove, "02-impl-beta-k2.md");
+    touch(&grove, "01-impl--alpha-k1.md");
+    touch(&grove, "02-impl--beta-k2.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["resolve", "1"]);
     assert!(ok);
-    assert_eq!(name_of(&stdout), "01-impl-alpha-k1.md");
+    assert_eq!(name_of(&stdout), "01-impl--alpha-k1.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["resolve", "[2]"]);
     assert!(ok);
-    assert_eq!(name_of(&stdout), "02-impl-beta-k2.md");
+    assert_eq!(name_of(&stdout), "02-impl--beta-k2.md");
 }
 
 #[test]
 fn resolve_by_unique_slug() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-impl-alpha-k1.md");
-    touch(&grove, "02-impl-beta-k2.md");
+    touch(&grove, "01-impl--alpha-k1.md");
+    touch(&grove, "02-impl--beta-k2.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["resolve", "beta"]);
     assert!(ok);
-    assert_eq!(name_of(&stdout), "02-impl-beta-k2.md");
+    assert_eq!(name_of(&stdout), "02-impl--beta-k2.md");
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn resolve_key_resolves_a_node_to_its_directory() {
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-design-k1");
     touch(&node, "BRIEF.md");
-    touch(&node, "01-impl-inner-k2.md");
+    touch(&node, "01-impl--inner-k2.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["resolve", "[1]"]);
     assert!(ok);
@@ -133,11 +133,11 @@ fn resolve_finds_a_nested_leaf_by_key() {
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-design-k1");
     touch(&node, "BRIEF.md");
-    touch(&node, "01-impl-inner-k2.md");
+    touch(&node, "01-impl--inner-k2.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["resolve", "2"]);
     assert!(ok);
-    assert_eq!(name_of(&stdout), "01-impl-inner-k2.md");
+    assert_eq!(name_of(&stdout), "01-impl--inner-k2.md");
     assert_eq!(parent_of(&stdout), "01-design-k1");
 }
 
@@ -145,8 +145,8 @@ fn resolve_finds_a_nested_leaf_by_key() {
 fn resolve_ambiguous_slug_lists_keys_on_stderr() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-impl-dup-k1.md");
-    touch(&grove, "02-impl-dup-k2.md");
+    touch(&grove, "01-impl--dup-k1.md");
+    touch(&grove, "02-impl--dup-k2.md");
 
     let (stdout, stderr, ok) = run(tmp.path(), &["resolve", "dup"]);
     assert!(ok, "ambiguous resolve is not an error");
@@ -168,7 +168,7 @@ fn resolve_ambiguous_slug_lists_keys_on_stderr() {
 fn resolve_not_found_exits_zero_with_diagnostic() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-impl-alpha-k1.md");
+    touch(&grove, "01-impl--alpha-k1.md");
 
     let (stdout, stderr, ok) = run(tmp.path(), &["resolve", "nope"]);
     assert!(ok, "not-found is pick-style, not an error");
@@ -186,11 +186,11 @@ fn resolve_not_found_exits_zero_with_diagnostic() {
 fn resolve_finds_retired_leaf_with_note() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-DONE-impl-gone-k1.md");
+    touch(&grove, "01-DONE-impl--gone-k1.md");
 
     let (stdout, stderr, ok) = run(tmp.path(), &["resolve", "1"]);
     assert!(ok);
-    assert_eq!(name_of(&stdout), "01-DONE-impl-gone-k1.md");
+    assert_eq!(name_of(&stdout), "01-DONE-impl--gone-k1.md");
     assert!(
         stderr.contains("retired"),
         "expected retired note on stderr, got {stderr:?}"
@@ -204,12 +204,12 @@ fn resolve_by_full_slug_handle_finds_by_terminal_key() {
     // decorative — so the handle round-trips back to a path.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-impl-alpha-k1.md");
-    touch(&grove, "02-impl-beta-k2.md");
+    touch(&grove, "01-impl--alpha-k1.md");
+    touch(&grove, "02-impl--beta-k2.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["resolve", "beta-k2"]);
     assert!(ok);
-    assert_eq!(name_of(&stdout), "02-impl-beta-k2.md");
+    assert_eq!(name_of(&stdout), "02-impl--beta-k2.md");
 }
 
 #[test]
@@ -218,7 +218,7 @@ fn resolve_malformed_bracket_ref_errors() {
     // a valid-but-unmatched reference (which is the pick-style NotFound).
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-impl-alpha-k1.md");
+    touch(&grove, "01-impl--alpha-k1.md");
 
     let (_, _, ok) = run(tmp.path(), &["resolve", "[abc]"]);
     assert!(

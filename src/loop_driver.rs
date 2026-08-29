@@ -57,8 +57,8 @@
 use crate::complete::{self, Disposition};
 use crate::driver_lease::DriverLease;
 use crate::leaf::Kind;
-use crate::task_name::Handle;
 use crate::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
+use crate::task_name::Handle;
 use anyhow::{Context, Result};
 use jj_workspace::Workspace;
 use keyed_launch::{Argv, Channel, End, Ended, Escalation, Launch};

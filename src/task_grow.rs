@@ -282,7 +282,7 @@ pub fn surface_cross_refs(
     let tree = task_tree::reopen_write(grove_root)?;
     // The stale tokens are the *old* position-prefixed names the renumber moved
     // (`02-mid-k3`), with any `.md` extension dropped so a path reference
-    // `02-mid-k3/01-impl-x-k4.md` matches the directory token. The `-k<digits>`
+    // `02-mid-k3/01-impl--x-k4.md` matches the directory token. The `-k<digits>`
     // tail makes these specific enough to scan as plain substrings.
     let stale: Vec<&str> = renumbers
         .iter()

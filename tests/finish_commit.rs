@@ -133,11 +133,15 @@ fn seed_terminal_grove(repository: &Path) {
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("NOTES.md"), "notes\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# finish-test — brief\n").unwrap();
-    fs::write(grove.join("01-DONE-impl-finished-k1.md"), "# finished-k1\n").unwrap();
+    fs::write(
+        grove.join("01-DONE-impl--finished-k1.md"),
+        "# finished-k1\n",
+    )
+    .unwrap();
     fs::write(repository.join("outside.txt"), "before\n").unwrap();
     run("jj", repository, &["commit", "-m", "fixture"]);
     fs::write(
-        grove.join("02-finish-finish-k2.md"),
+        grove.join("02-finish--finish-k2.md"),
         "# finish-k2\n\n## Goal\n\nFinish.\n",
     )
     .unwrap();
@@ -282,7 +286,7 @@ fn finish_commit_refuses_when_ordinary_work_appeared() {
     init_repo(&repository);
     seed_terminal_grove(&repository);
     let grove = repository.join(".grove");
-    fs::write(grove.join("03-impl-late-k3.md"), "# late-k3\n").unwrap();
+    fs::write(grove.join("03-impl--late-k3.md"), "# late-k3\n").unwrap();
     let before = tree_snapshot(&grove);
     let head = parent_commit(&repository);
 
@@ -372,7 +376,10 @@ fn a_refused_handle_is_quoted_as_the_operator_wrote_it() {
 
     let output = grove_llm(&repository, &["finish-commit", "other-k007"]);
 
-    assert!(!output.status.success(), "a foreign handle tore the tree down");
+    assert!(
+        !output.status.success(),
+        "a foreign handle tore the tree down"
+    );
     let error = stderr(&output);
     assert!(error.contains("other-k007"), "{error}");
     assert!(error.contains("finish-k2"), "{error}");
@@ -391,7 +398,7 @@ fn finish_commit_refuses_a_symlinked_task_root_before_deleting_anything() {
     let elsewhere = fixture.path().join("elsewhere");
     fs::create_dir_all(&elsewhere).unwrap();
     fs::write(elsewhere.join("BRIEF.md"), "# elsewhere — brief\n").unwrap();
-    fs::write(elsewhere.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
+    fs::write(elsewhere.join("02-finish--finish-k2.md"), "# finish-k2\n").unwrap();
     std::os::unix::fs::symlink(&elsewhere, repository.join(".grove")).unwrap();
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
@@ -422,7 +429,7 @@ fn finish_commit_refuses_an_untracked_task_tree_naming_how_to_track_it() {
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# untracked — brief\n").unwrap();
-    fs::write(grove.join("01-finish-finish-k1.md"), "# finish-k1\n").unwrap();
+    fs::write(grove.join("01-finish--finish-k1.md"), "# finish-k1\n").unwrap();
     let before = tree_snapshot(&grove);
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k1"]);
@@ -468,7 +475,7 @@ fn finish_commit_refuses_a_working_tree_that_is_not_jj_enabled() {
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# no-vcs — brief\n").unwrap();
-    fs::write(grove.join("01-finish-finish-k1.md"), "# finish-k1\n").unwrap();
+    fs::write(grove.join("01-finish--finish-k1.md"), "# finish-k1\n").unwrap();
     let before = tree_snapshot(&grove);
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k1"]);

@@ -46,12 +46,12 @@ const REVIEW_BODY: &str =
 /// review, each cut by the session before it.
 fn build_review_chain(repo: &Path) -> PathBuf {
     let grove = repo.join(".grove");
-    let producer = grove.join("01-impl-build-k1.md");
+    let producer = grove.join("01-impl--build-k1.md");
     write(&grove.join("BRIEF.md"), "# build — brief\n");
     write(&producer, "# build-k1\n\n## Goal\n\nBuild it.\n");
-    write(&grove.join("02-review-impl-build-k2.md"), REVIEW_BODY);
+    write(&grove.join("02-review-impl--build-k2.md"), REVIEW_BODY);
     write(
-        &grove.join("03-integrate-review-impl-build-k3.md"),
+        &grove.join("03-integrate-review-impl--build-k3.md"),
         "# build-k3\n\n**Integrates:** build-k2\n",
     );
     support::jj(repo, &["commit", "-m", "fixture"]);
@@ -142,14 +142,16 @@ fn retiring_a_reviewed_producer_changes_only_its_own_filename() {
     assert_only_rename(
         &before,
         &snapshot(repo),
-        ".grove/01-impl-build-k1.md",
-        ".grove/01-DONE-impl-build-k1.md",
+        ".grove/01-impl--build-k1.md",
+        ".grove/01-DONE-impl--build-k1.md",
     );
     // Named separately so a failure says which half broke: the rename is the
     // control that proves the comparison above can see anything at all.
-    assert!(producer.with_file_name("01-DONE-impl-build-k1.md").exists());
+    assert!(producer
+        .with_file_name("01-DONE-impl--build-k1.md")
+        .exists());
     assert_eq!(
-        fs::read_to_string(producer.with_file_name("02-review-impl-build-k2.md")).unwrap(),
+        fs::read_to_string(producer.with_file_name("02-review-impl--build-k2.md")).unwrap(),
         REVIEW_BODY
     );
 }
@@ -167,17 +169,17 @@ fn pruning_a_reviewed_producer_changes_only_its_own_filename() {
     assert_only_rename(
         &before,
         &snapshot(repo),
-        ".grove/01-impl-build-k1.md",
-        ".grove/01-ABANDONED-impl-build-k1.md",
+        ".grove/01-impl--build-k1.md",
+        ".grove/01-ABANDONED-impl--build-k1.md",
     );
     // Pruning a producer deliberately leaves its review live and next
     // (`src/llm_cli.rs`); this is the fixture that would notice it being
     // silently marked or annotated instead.
     assert!(producer
-        .with_file_name("01-ABANDONED-impl-build-k1.md")
+        .with_file_name("01-ABANDONED-impl--build-k1.md")
         .exists());
     assert!(producer
-        .with_file_name("02-review-impl-build-k2.md")
+        .with_file_name("02-review-impl--build-k2.md")
         .exists());
 }
 
@@ -194,7 +196,7 @@ fn the_snapshot_comparison_rejects_a_sibling_write() {
     let (_, stderr, ok) = llm(repo, &["leaf-retire", producer.to_str().unwrap()]);
     assert!(ok, "retirement failed: {stderr}");
     // Stand in for the write the deleted receipt used to perform.
-    let review = producer.with_file_name("02-review-impl-build-k2.md");
+    let review = producer.with_file_name("02-review-impl--build-k2.md");
     fs::write(
         &review,
         format!("{REVIEW_BODY}**Producer launch:** {{\"producer\":\"build-k1\"}}\n"),
@@ -206,8 +208,8 @@ fn the_snapshot_comparison_rejects_a_sibling_write() {
         assert_only_rename(
             &before,
             &after,
-            ".grove/01-impl-build-k1.md",
-            ".grove/01-DONE-impl-build-k1.md",
+            ".grove/01-impl--build-k1.md",
+            ".grove/01-DONE-impl--build-k1.md",
         )
     })
     .is_err();

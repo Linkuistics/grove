@@ -70,18 +70,18 @@ The new leaf is an ordinary **flat sibling** at the parent's next free position,
 with a fresh tree-wide key. Nothing about the producer's own leaf changes: its
 position, key, handle and bytes are untouched by construction, which is why
 escalation needs no transaction and no recovery protocol. Given a mandated
-`05-design-sync-design-k12.md` at the root of a tree whose maximum key is `k20`,
+`05-design--sync-design-k12.md` at the root of a tree whose maximum key is `k20`,
 escalation produces:
 
 ```text
-05-design-sync-design-k12.md          unchanged
-06-review-design-sync-design-k21.md
+05-design--sync-design-k12.md          unchanged
+06-review-design--sync-design-k21.md
 ```
 
 and, if that review finds something worth acting on, its own last act produces:
 
 ```text
-07-integrate-review-design-sync-design-k22.md
+07-integrate-review-design--sync-design-k22.md
 ```
 
 **All three carry the same slug**, which is the shared-stem rule applied rather

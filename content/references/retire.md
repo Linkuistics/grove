@@ -4,8 +4,8 @@ The common case: with the task's work done — and *before* you commit it, so th
 rename and everything the cascade below writes land inside that one focused
 commit — retire the just-finished leaf by
 running `grove-llm leaf-retire <leaf-path>` — the verb marks it done **in
-place** by adding a `DONE` infix (`NN-<session-kind>-<slug>-k<key>.md` →
-`NN-DONE-<session-kind>-<slug>-k<key>.md`, the infix sitting right after the
+place** by adding a `DONE` infix (`NN-<session-kind>--<slug>-k<key>.md` →
+`NN-DONE-<session-kind>--<slug>-k<key>.md`, the infix sitting right after the
 position so the kind stays where every reader looks for it); there is no `done/`
 directory, and the leaf keeps
 its position and key in its directory. Mechanical bookkeeping, no need to ask.

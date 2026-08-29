@@ -10,10 +10,12 @@
 // means, and the two-grammar hazards this header used to enumerate are history
 // (`docs/ARCHITECTURE.md`, *The withdrawn tree algebra*).
 //
-// The three on-disk shapes are unchanged, because the flip is a pure refactor
-// and no name on disk moves:
+// The three on-disk shapes, as `grammar-separator-k15` left them — that leaf
+// put the `--` between a leaf's session kind and its slug and renamed every
+// entry in this repo's own tree onto it, in the same session as the release
+// that can read it:
 //
-//     leaf       NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
+//     leaf       NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
 //     node dir   NN-<slug>-k<key>
 //     brief      BRIEF.md                     (the containing node's charter)
 //
@@ -59,8 +61,9 @@
 //
 // The same fact read the other way: the handle is a **contiguous terminal
 // substring** of every name that has one, a leaf's followed only by the `.md`
-// its species takes. That is the property `grammar-separator-k15` is buying with
-// its rename, and with one renderer that leaf is an edit to one function.
+// its species takes. That is the property `grammar-separator-k15` bought with
+// its rename, and with one renderer it cost that leaf one `write!` and one
+// `split_once`.
 
 use core::fmt;
 
@@ -78,6 +81,18 @@ pub const BRIEF: &str = "BRIEF.md";
 /// name (task-tree-scheme, amending the original `[<key>]`: brackets are
 /// shell-glob metacharacters and `-k` is glob-safe).
 const KEY_MARK: &str = "-k";
+
+/// The separator between a leaf's session kind and its slug
+/// (`grammar-separator-k15`, `docs/specs/module-decomposition.md` decision 3).
+///
+/// A single `-` cannot delimit them: both tokens are hyphenated words, so
+/// `design-decomposition` reads as kind `design` + slug `decomposition` **and**
+/// as kind `design-decomposition` + empty slug. Only matching the middle against
+/// the closed kind set resolves that today — the very thing `open-kind-k20`
+/// removes — so one filename would name two entries, differing in the *handle*.
+/// The middle splits at the **first** `--`; neither token may contain one, which
+/// is why [`Slug::new`] refuses it and why no kind label carries it.
+const SEPARATOR: &str = "--";
 
 /// A leaf's outcome: live, retired (`DONE`), or abandoned (`ABANDONED`) —
 /// mutually exclusive by construction, so the impossible fourth state cannot be
@@ -168,6 +183,12 @@ impl Slug {
         }
         if slug.starts_with('-') || slug.ends_with('-') {
             return reason("a slug may not start or end with a dash");
+        }
+        if slug.contains(SEPARATOR) {
+            return reason(
+                "a slug may not contain `--`: that is the separator between the session kind \
+                 and the slug",
+            );
         }
         if !slug
             .chars()
@@ -261,9 +282,10 @@ impl std::error::Error for HandleError {}
 /// replaced showed does not hold.
 ///
 /// It is also why the handle is a **contiguous terminal substring** of every
-/// name that has one. That property is what `grammar-separator-k15` is buying,
-/// and with the grammar in one function that leaf is an edit to [`render`]
-/// rather than a rewrite.
+/// name that has one. That property is what `grammar-separator-k15` bought, and
+/// with the grammar in one function that leaf was an edit to [`render`]'s
+/// caller rather than a rewrite — the separator sits *before* the handle, never
+/// inside it, so [`render`] itself did not change at all.
 ///
 /// [`render`]: Handle::render
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -288,9 +310,7 @@ impl Handle {
     pub fn of(name: &TaskName) -> Option<Self> {
         match name {
             TaskName::Brief => None,
-            TaskName::Positioned { key, parts, .. } => {
-                Some(Self::new(parts.slug().clone(), *key))
-            }
+            TaskName::Positioned { key, parts, .. } => Some(Self::new(parts.slug().clone(), *key)),
         }
     }
 
@@ -316,7 +336,7 @@ impl Handle {
     /// fallback asks [`terminal_key`] instead. This is the *handle* question,
     /// asked where a handle is genuinely meant: `finish-commit`'s argument. A
     /// caller who only wants the key a reference ends in must not ask it here,
-    /// or an operator pasting `01-DONE-impl-build-k5` gets a refusal for a head
+    /// or an operator pasting `01-DONE-impl--build-k5` gets a refusal for a head
     /// that was never going to be a slug.
     ///
     /// # Errors
@@ -491,7 +511,12 @@ impl fmt::Display for TaskName {
                         kind,
                         slug,
                     } => {
-                        write!(f, "{ordinal:02}-{}{}-", outcome.infix(), kind.label())?;
+                        write!(
+                            f,
+                            "{ordinal:02}-{}{}{SEPARATOR}",
+                            outcome.infix(),
+                            kind.label()
+                        )?;
                         Handle::render(f, slug, *key)?;
                         f.write_str(".md")
                     }
@@ -522,11 +547,19 @@ pub enum TaskNameError {
         /// What it should be.
         canonical: String,
     },
-    /// A task-shaped leaf whose session-kind token is missing or is not one of
-    /// the closed set.
+    /// A task-shaped leaf with no `--` between its session kind and its slug —
+    /// a name written under the grammar that predates `grammar-separator-k15`,
+    /// or one hand-typed without it.
+    MissingSeparator {
+        /// What is on disk.
+        name: String,
+    },
+    /// A task-shaped leaf whose session-kind token is not one of the closed set.
     UnknownKind {
         /// What is on disk.
         name: String,
+        /// The token that sat before the separator.
+        kind: String,
     },
     /// A node directory wearing an outcome infix.
     NodeWearsOutcome {
@@ -543,7 +576,7 @@ pub enum TaskNameError {
         error: SlugError,
     },
     /// A task-shaped name whose species contradicts what the listing found under
-    /// it — a directory named `01-impl-a-k1.md`, a file named `01-a-k1`.
+    /// it — a directory named `01-impl--a-k1.md`, a file named `01-a-k1`.
     SpeciesMismatch {
         /// What is on disk.
         name: String,
@@ -565,10 +598,19 @@ impl fmt::Display for TaskNameError {
                  `005` are not. Two spellings of one name mean two files on disk are one \
                  entry, sharing a key and a position."
             ),
-            Self::UnknownKind { name } => write!(
+            Self::MissingSeparator { name } => write!(
                 f,
-                "malformed Grove leaf {name:?}: expected \
-                 NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md with session kind \
+                "malformed Grove leaf {name:?}: no `--` between the session kind and the \
+                 slug. The canonical form is \
+                 NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md — rename it with \
+                 `--` where the kind ends, and single dashes everywhere else. Without the \
+                 separator a hyphenated kind beside a hyphenated slug has more than one \
+                 reading, and the readings differ in the handle."
+            ),
+            Self::UnknownKind { name, kind } => write!(
+                f,
+                "malformed Grove leaf {name:?}: {kind:?} is not a session kind. Expected \
+                 NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md with session kind \
                  one of {}",
                 Kind::label_list()
             ),
@@ -647,14 +689,24 @@ impl EntryName for TaskName {
         let (outcome, after_outcome) = Outcome::strip(middle);
 
         let parts = if declares_leaf {
-            let Some((kind, slug)) = Kind::split_filename_prefix(after_outcome) else {
-                // The kind is a multi-word prefix of a closed set, so there is no
-                // single token to quote back when it does not match — an unknown
-                // kind and a missing one are the same failure. The advice is the
-                // grammar and the whole set, which is what the withdrawn
-                // parser said too.
+            // The middle splits at the **first** `--`, and that is the whole of
+            // the kind/slug boundary: no longest-match against a label set, no
+            // second reading to choose between. `split_filename_prefix` — which
+            // resolved the ambiguity by consulting the closed set — went with
+            // this line, because `open-kind-k20` takes the set away and the
+            // separator is what makes that safe.
+            let Some((kind_token, slug)) = after_outcome.split_once(SEPARATOR) else {
+                return Verdict::Malformed(TaskNameError::MissingSeparator {
+                    name: name.to_string(),
+                });
+            };
+            // Two distinct failures now, where the old grammar could only report
+            // one: a name with no separator is *shaped* wrong, and a name with a
+            // separator has a single token to quote back at whoever wrote it.
+            let Some(kind) = Kind::from_label(kind_token) else {
                 return Verdict::Malformed(TaskNameError::UnknownKind {
                     name: name.to_string(),
+                    kind: kind_token.to_string(),
                 });
             };
             match Slug::new(slug) {
@@ -764,7 +816,7 @@ fn uncomputable_canonical(name: &str) -> TaskNameError {
 /// The position is the leading digit run, ended by the first `-` — the position
 /// is pure digits, so the first dash is its unambiguous boundary. The key is the
 /// *terminal* `-k<digits>`, which is what keeps a slug containing `-k9`
-/// unambiguous: `05-impl-task-k9-k3.md` is the slug `task-k9` at key 3.
+/// unambiguous: `05-impl--task-k9-k3.md` is the slug `task-k9` at key 3.
 ///
 /// The middle is returned unexamined, including when it is empty: `01--k3` has
 /// both markers Grove recognises its own names by, with everything between them
@@ -802,7 +854,7 @@ fn split_shape(stem: &str) -> Option<(&str, &str, &str)> {
 /// **A narrower question than [`Handle::parse`], asked by the reference
 /// namespace and answered by the same peel.** `resolve`'s bare-slug fallback
 /// wants *does this end in a key*, not *is this a handle*: an operator pastes a
-/// retired leaf's whole stem — `01-DONE-impl-build-k5` — and means key 5, and
+/// retired leaf's whole stem — `01-DONE-impl--build-k5` — and means key 5, and
 /// nothing before the key is a slug there or needs to be. Routing that through
 /// `Handle::parse` narrows `resolve` to references whose head happens to be a
 /// well-formed slug, which is a change to the verb rather than to the grammar's
@@ -873,9 +925,9 @@ mod tests {
     fn listings() -> Vec<(&'static str, Found)> {
         vec![
             ("BRIEF.md", Found::File),
-            ("01-DONE-requirements-plan-k1.md", Found::File),
-            ("02-impl-domain-k29.md", Found::File),
-            ("03-ABANDONED-design-refusals-k30.md", Found::File),
+            ("01-DONE-requirements--plan-k1.md", Found::File),
+            ("02-impl--domain-k29.md", Found::File),
+            ("03-ABANDONED-design--refusals-k30.md", Found::File),
             ("07-grove-flip-k28", Found::Dir),
             ("README.md", Found::File),
             ("5-impl-domain-k29.md", Found::File),
@@ -913,8 +965,9 @@ mod tests {
     /// whose label does not survive the round trip is a defect it would catch —
     /// but only for the kinds the fixture happens to compose. The label set is
     /// closed and nineteen strong, several of them multi-word, and
-    /// `Kind::split_filename_prefix` reads them back by longest match. So every
-    /// one of them goes through the kit rather than the two the fixture names.
+    /// `Kind::from_label` reads them back by exact equality against the token the
+    /// `--` delimits. So every one of them goes through the kit rather than the
+    /// two the fixture names.
     #[test]
     fn every_session_kind_survives_the_round_trip() {
         let triples: Vec<_> = Kind::ALL
@@ -961,7 +1014,7 @@ mod tests {
 
     #[test]
     fn a_live_leaf_parses_and_renders() {
-        let name = entry("02-impl-domain-k29.md", Found::File);
+        let name = entry("02-impl--domain-k29.md", Found::File);
         assert_eq!(
             name,
             TaskName::Positioned {
@@ -970,14 +1023,14 @@ mod tests {
                 parts: Parts::leaf(Outcome::Live, Kind::Impl, slug("domain")),
             }
         );
-        assert_eq!(name.to_string(), "02-impl-domain-k29.md");
+        assert_eq!(name.to_string(), "02-impl--domain-k29.md");
     }
 
     #[test]
     fn both_terminal_marks_parse() {
         for (name, outcome) in [
-            ("01-DONE-requirements-plan-k1.md", Outcome::Done),
-            ("03-ABANDONED-design-refusals-k30.md", Outcome::Abandoned),
+            ("01-DONE-requirements--plan-k1.md", Outcome::Done),
+            ("03-ABANDONED-design--refusals-k30.md", Outcome::Abandoned),
         ] {
             match entry(name, Found::File) {
                 TaskName::Positioned {
@@ -1005,7 +1058,7 @@ mod tests {
     /// stays unambiguous.
     #[test]
     fn the_key_is_the_terminal_marker() {
-        match entry("05-impl-task-k9-k3.md", Found::File) {
+        match entry("05-impl--task-k9-k3.md", Found::File) {
             TaskName::Positioned { key, parts, .. } => {
                 assert_eq!(key, Key::new(3));
                 assert_eq!(parts.slug().as_str(), "task-k9");
@@ -1023,9 +1076,9 @@ mod tests {
     #[test]
     fn a_lenient_position_is_refused_and_the_refusal_names_the_canonical_spelling() {
         for (written, canonical) in [
-            ("5-impl-a-k1.md", "05-impl-a-k1.md"),
-            ("005-impl-a-k1.md", "05-impl-a-k1.md"),
-            ("0100-impl-a-k1.md", "100-impl-a-k1.md"),
+            ("5-impl--a-k1.md", "05-impl--a-k1.md"),
+            ("005-impl--a-k1.md", "05-impl--a-k1.md"),
+            ("0100-impl--a-k1.md", "100-impl--a-k1.md"),
             ("7-verbs-k2", "07-verbs-k2"),
         ] {
             let found = if written.ends_with(".md") {
@@ -1052,15 +1105,15 @@ mod tests {
     /// digits past 99 is a name, not a violation.
     #[test]
     fn a_position_past_ninety_nine_is_canonical_unpadded() {
-        let name = entry("100-impl-a-k1.md", Found::File);
-        assert_eq!(name.to_string(), "100-impl-a-k1.md");
+        let name = entry("100-impl--a-k1.md", Found::File);
+        assert_eq!(name.to_string(), "100-impl--a-k1.md");
     }
 
     /// A number too large to hold is still this domain's name and still
     /// Malformed; what changes is that there is no canonical spelling to offer.
     #[test]
     fn an_unrepresentable_number_is_refused_without_a_suggestion() {
-        for name in ["99999999999-impl-a-k1.md", "01-impl-a-k99999999999.md"] {
+        for name in ["99999999999-impl--a-k1.md", "01-impl--a-k99999999999.md"] {
             match malformed(name, Found::File) {
                 TaskNameError::NotCanonical { canonical, .. } => {
                     assert!(canonical.contains("32 bits"), "{canonical}");
@@ -1072,24 +1125,107 @@ mod tests {
 
     // ---- refusals inside the shape -----------------------------------------
 
-    /// A task-shaped leaf whose kind is unknown or missing is Malformed, never
-    /// Foreign: skipping it is lost work. The advice is the one the withdrawn
-    /// parser gave — the grammar and the whole closed set.
+    /// A task-shaped leaf whose kind is not one of the closed set is Malformed,
+    /// never Foreign: skipping it is lost work. The advice is the grammar and
+    /// the whole set — and now also the offending token, which is what the
+    /// separator makes quotable: before it, an unknown kind and a missing one
+    /// were the same failure with no single token to name.
     #[test]
     fn an_unknown_session_kind_is_malformed() {
-        for name in ["01-wrok-a-k1.md", "01-a-k1.md", "01--k1.md"] {
+        for (name, token) in [
+            ("01-wrok--a-k1.md", "wrok"),
+            ("01-DONE-x-y--a-k1.md", "x-y"),
+            // The degenerate kind: a separator with nothing before it.
+            ("01---a-k1.md", ""),
+        ] {
             let error = malformed(name, Found::File);
             assert_eq!(
                 error,
                 TaskNameError::UnknownKind {
-                    name: name.to_string()
+                    name: name.to_string(),
+                    kind: token.to_string(),
                 },
                 "{name:?}"
             );
             let advice = error.to_string();
             assert!(advice.contains("malformed Grove leaf"), "{advice}");
+            assert!(advice.contains(&format!("{token:?}")), "{advice}");
             assert!(advice.contains("`impl`"), "{advice}");
             assert!(advice.contains("`integrate-review-prototype`"), "{advice}");
+        }
+    }
+
+    /// **The scenario `grammar-separator-k15` exists to refuse.** A task-shaped
+    /// leaf with no `--` is every name the old grammar wrote, so the refusal has
+    /// to carry the canonical form and not merely the fact of failure — a tree
+    /// written yesterday would otherwise be unreadable with no stated way back
+    /// (principle 2: the advice is part of the error).
+    ///
+    /// The last two are the degenerate ones: a middle that is empty entirely
+    /// still carries both marks grove recognises its own names by, so it is
+    /// Malformed rather than Foreign — skipping it is lost work, and a whole
+    /// subtree of it when the name is a directory.
+    #[test]
+    fn a_leaf_without_the_separator_is_refused_and_the_refusal_names_the_grammar() {
+        for name in [
+            "01-impl-a-k1.md",
+            "01-DONE-design-decomposition-k2.md",
+            "02-integrate-review-design-module-decomposition-k4.md",
+            "01-a-k1.md",
+            "01--k1.md",
+        ] {
+            let error = malformed(name, Found::File);
+            assert_eq!(
+                error,
+                TaskNameError::MissingSeparator {
+                    name: name.to_string()
+                },
+                "{name:?}"
+            );
+            let advice = error.to_string();
+            assert!(advice.contains(name), "{advice}");
+            assert!(
+                advice.contains("NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md"),
+                "{advice}"
+            );
+            assert!(advice.contains("rename it"), "{advice}");
+        }
+    }
+
+    /// The spec's own round-trip scenario, by name: *a multi-word kind beside a
+    /// multi-word slug* (`docs/specs/module-decomposition.md`, requirement *a
+    /// leaf filename has exactly one reading*). This is the name that had four
+    /// readings under the old grammar and has one under this one, and the rival
+    /// splits are spelled out so the assertion is about *which* reading, not
+    /// merely that some reading happened.
+    #[test]
+    fn a_multi_word_kind_beside_a_multi_word_slug_has_exactly_one_reading() {
+        let filename = "04-integrate-review-design--module-decomposition-k5.md";
+        let name = entry(filename, Found::File);
+        assert_eq!(
+            name,
+            TaskName::Positioned {
+                ordinal: Ordinal::new(4),
+                key: Key::new(5),
+                parts: Parts::leaf(
+                    Outcome::Live,
+                    Kind::IntegrateReviewDesign,
+                    slug("module-decomposition"),
+                ),
+            }
+        );
+        assert_eq!(name.to_string(), filename);
+        // The old spelling, and the one a mis-placed separator would give: each
+        // is now a name that does not parse at all, rather than a rival reading
+        // of this one.
+        for rival in [
+            "04-integrate-review-design-module-decomposition-k5.md",
+            "04-integrate-review--design-module-decomposition-k5.md",
+        ] {
+            assert!(
+                !matches!(verdict(rival, Found::File), Verdict::Entry(_)),
+                "{rival:?} still parses"
+            );
         }
     }
 
@@ -1120,8 +1256,9 @@ mod tests {
     #[test]
     fn a_slug_the_grammar_cannot_read_back_is_malformed() {
         for (name, found, bad) in [
-            ("01-impl-Domain-k1.md", Found::File, "Domain"),
-            ("01-impl-a_b-k1.md", Found::File, "a_b"),
+            ("01-impl--Domain-k1.md", Found::File, "Domain"),
+            ("01-impl--a_b-k1.md", Found::File, "a_b"),
+            ("01-impl--a--b-k1.md", Found::File, "a--b"),
             ("01--k1", Found::Dir, ""),
             ("01-BRIEF-k1", Found::Dir, "BRIEF"),
         ] {
@@ -1139,10 +1276,10 @@ mod tests {
     #[test]
     fn a_species_mismatch_is_malformed_in_both_directions() {
         for (name, found, declares) in [
-            ("02-impl-domain-k29.md", Found::Dir, Species::Leaf),
+            ("02-impl--domain-k29.md", Found::Dir, Species::Leaf),
             ("07-grove-flip-k28", Found::File, Species::Node),
             ("BRIEF.md", Found::Dir, Species::Distinguished),
-            ("02-impl-domain-k29.md", Found::Other, Species::Leaf),
+            ("02-impl--domain-k29.md", Found::Other, Species::Leaf),
         ] {
             assert_eq!(
                 malformed(name, found),
@@ -1167,6 +1304,12 @@ mod tests {
             "",
             "-a",
             "a-",
+            // The separator, which the kind/slug boundary owns. The split is
+            // still unambiguous with one inside a slug — it takes the *first* —
+            // but the spec's rule is that neither token carries one, and a slug
+            // that did would leave `UnknownKind` quoting a token nobody wrote.
+            "a--b",
+            "--",
             "A",
             "a_b",
             "a.b",
@@ -1263,11 +1406,15 @@ mod tests {
     #[test]
     fn a_handle_and_a_filename_peel_the_same_key() {
         for (filename, handle_text) in [
-            ("05-impl-task-k9-k3.md", "task-k9-k3"),
-            ("01-DONE-design-decomposition-k2.md", "decomposition-k2"),
+            ("05-impl--task-k9-k3.md", "task-k9-k3"),
+            ("01-DONE-design--decomposition-k2.md", "decomposition-k2"),
             ("07-migrate-k9-to-k10-k2", "migrate-k9-to-k10-k2"),
         ] {
-            let found = if filename.ends_with(".md") { Found::File } else { Found::Dir };
+            let found = if filename.ends_with(".md") {
+                Found::File
+            } else {
+                Found::Dir
+            };
             let name = entry(filename, found);
             let from_name = Handle::of(&name).expect("a positioned name has a handle");
             let from_text = Handle::parse(handle_text).expect("a well-formed handle");
@@ -1321,15 +1468,15 @@ mod tests {
     fn parse_is_lenient_on_the_key_and_strict_on_the_slug() {
         for (text, key) in [("a-k007", 7u32), ("a-k0", 0)] {
             assert_eq!(
-                Handle::parse(text).expect("a lenient key spelling").key().get(),
+                Handle::parse(text)
+                    .expect("a lenient key spelling")
+                    .key()
+                    .get(),
                 key
             );
         }
         // Not canonical, and deliberately so: the rendering normalises.
-        assert_eq!(
-            Handle::parse("a-k007").expect("parses").to_string(),
-            "a-k7"
-        );
+        assert_eq!(Handle::parse("a-k007").expect("parses").to_string(), "a-k7");
         // What `handle_key` used to resolve by key and this refuses.
         for text in ["-k3", "A-k3", "DONE-k3", "a_b-k3"] {
             assert!(

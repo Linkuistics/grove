@@ -672,7 +672,7 @@ impl Fixture {
         let grove = worktree.join(".grove");
         fs::create_dir_all(&grove).unwrap();
         fs::write(grove.join("BRIEF.md"), "# removed-surface — brief\n").unwrap();
-        fs::write(grove.join("01-impl-subject-k1.md"), "# subject-k1\n").unwrap();
+        fs::write(grove.join("01-impl--subject-k1.md"), "# subject-k1\n").unwrap();
 
         let argv_log = root.path().join("argv-log");
         let configured = root.path().join("configured-command.sh");

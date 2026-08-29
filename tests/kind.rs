@@ -76,9 +76,9 @@ fn run(cwd: &Path, args: &[&str]) -> (String, String, bool) {
 fn kind_of_an_impl_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-impl-build-k1.md", "impl");
+    touch_leaf(&grove, "01-impl--build-k1.md", "impl");
 
-    let (stdout, _, ok) = run(tmp.path(), &["kind", ".grove/01-impl-build-k1.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["kind", ".grove/01-impl--build-k1.md"]);
     assert!(ok);
     assert_eq!(stdout, "impl\n");
 }
@@ -87,9 +87,9 @@ fn kind_of_an_impl_leaf() {
 fn kind_of_a_planning_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-planning-design-k1.md", "impl");
+    touch_leaf(&grove, "01-planning--design-k1.md", "impl");
 
-    let (stdout, _, ok) = run(tmp.path(), &["kind", ".grove/01-planning-design-k1.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["kind", ".grove/01-planning--design-k1.md"]);
     assert!(ok);
     assert_eq!(stdout, "planning\n");
 }
@@ -102,7 +102,7 @@ fn every_one_of_the_nineteen_round_trips_through_the_verb() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     for (i, label) in support::KIND_LABELS.iter().enumerate() {
-        let name = format!("{:02}-{label}-a-k{}.md", i + 1, i + 1);
+        let name = format!("{:02}-{label}--a-k{}.md", i + 1, i + 1);
         touch_leaf(&grove, &name, "bogus");
         let (stdout, stderr, ok) = run(tmp.path(), &["kind", &format!(".grove/{name}")]);
         assert!(ok, "{label} failed: {stderr:?}");
@@ -116,9 +116,9 @@ fn a_retired_work_body_label_is_ignored() {
     // Historical body routing metadata cannot override the current filename.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-impl-build-k1.md", "work");
+    touch_leaf(&grove, "01-impl--build-k1.md", "work");
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl-build-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl--build-k1.md"]);
     assert!(ok);
     assert_eq!(stdout, "impl\n");
     assert!(
@@ -135,7 +135,7 @@ fn no_arg_form_reads_picks_next_leaf() {
     let node = mknode(&grove, "01-node-k1");
     touch(&node, "BRIEF.md");
     // pick's next live leaf is the node's first child — a planning leaf.
-    touch_leaf(&node, "01-planning-first-k2.md", "impl");
+    touch_leaf(&node, "01-planning--first-k2.md", "impl");
 
     let (stdout, _, ok) = run(tmp.path(), &["kind"]);
     assert!(ok);
@@ -161,9 +161,9 @@ fn empty_grove_prints_no_live_leaves_on_stderr_and_exits_zero() {
 fn a_body_with_no_kind_line_does_not_affect_the_filename_kind() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-impl-broken-k1.md"); // `# stub` only — no `**Kind:**` line
+    touch(&grove, "01-impl--broken-k1.md"); // `# stub` only — no `**Kind:**` line
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl-broken-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl--broken-k1.md"]);
     assert!(ok, "the filename supplies the kind");
     assert_eq!(stdout, "impl\n");
     assert!(stderr.is_empty(), "body metadata is ignored: {stderr:?}");
@@ -173,9 +173,9 @@ fn a_body_with_no_kind_line_does_not_affect_the_filename_kind() {
 fn a_garbled_body_kind_is_ignored() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-impl-broken-k1.md", "sideways");
+    touch_leaf(&grove, "01-impl--broken-k1.md", "sideways");
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl-broken-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl--broken-k1.md"]);
     assert!(ok, "body kind tokens are not parsed");
     assert_eq!(stdout, "impl\n");
     assert!(stderr.is_empty(), "body metadata is ignored: {stderr:?}");
@@ -189,8 +189,8 @@ fn a_family_name_written_in_the_body_is_ignored() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     for (name, label) in [
-        ("01-impl-a-k1.md", "review"),
-        ("02-impl-b-k2.md", "integrate-review"),
+        ("01-impl--a-k1.md", "review"),
+        ("02-impl--b-k2.md", "integrate-review"),
     ] {
         touch_leaf(&grove, name, label);
         let (stdout, stderr, ok) = run(tmp.path(), &["kind", &format!(".grove/{name}")]);
@@ -204,9 +204,9 @@ fn a_family_name_written_in_the_body_is_ignored() {
 fn a_typoed_body_kind_is_ignored_with_exit_zero() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-impl-broken-k1.md", "reserch");
+    touch_leaf(&grove, "01-impl--broken-k1.md", "reserch");
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl-broken-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl--broken-k1.md"]);
     assert!(ok, "exit 0 even on a typo'd kind");
     assert_eq!(stdout, "impl\n");
     assert!(stderr.is_empty(), "body metadata is ignored: {stderr:?}");
@@ -238,9 +238,9 @@ fn the_kind_verb_never_reads_the_harness_line() {
     // source of task kind.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf_with_harness(&grove, "01-research-a-survey-k1.md", "impl", "codx");
+    touch_leaf_with_harness(&grove, "01-research-a--survey-k1.md", "impl", "codx");
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-research-a-survey-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-research-a--survey-k1.md"]);
     assert!(ok, "the verb must not gate on the harness line");
     assert_eq!(stdout, "research-a\n");
     assert!(stderr.is_empty(), "and must not warn about it: {stderr:?}");
@@ -250,9 +250,9 @@ fn the_kind_verb_never_reads_the_harness_line() {
 fn an_unrecognised_body_harness_is_ignored() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf_with_harness(&grove, "01-impl-survey-k1.md", "research", "codx");
+    touch_leaf_with_harness(&grove, "01-impl--survey-k1.md", "research", "codx");
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl-survey-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl--survey-k1.md"]);
     assert!(ok, "body harness metadata is not parsed: {stderr:?}");
     assert_eq!(stdout, "impl\n");
     assert!(stderr.is_empty());
@@ -266,11 +266,11 @@ fn a_malformed_or_annotated_body_harness_line_is_ignored() {
     fs::create_dir_all(&grove).unwrap();
     for (name, body) in [
         (
-            "01-impl-empty-k1.md",
+            "01-impl--empty-k1.md",
             "# stub\n\n**Kind:** research\n**Harness:**\n",
         ),
         (
-            "02-impl-annotated-k2.md",
+            "02-impl--annotated-k2.md",
             "# stub\n\n**Kind:** research\n**Harness:** codex   (the pair's second survey)\n",
         ),
     ] {
@@ -294,7 +294,7 @@ fn the_removed_routing_flags_are_rejected() {
     // plain kind line it would misparse.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-impl-build-k1.md", "impl");
+    touch_leaf(&grove, "01-impl--build-k1.md", "impl");
 
     for flags in [
         vec!["kind", "--with-harness"],

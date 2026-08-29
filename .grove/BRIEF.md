@@ -148,7 +148,7 @@ over by every other one.
 `delete-provisioning-k19` and `open-kind-k20`. **k6 is off it**: the tree-visible
 half of that leaf was deleting `.grove/FORMAT`, and a stray `FORMAT` is a foreign
 entry every reader ignores, so *not deleting it* avoided the whole problem at no
-cost (`08-impl-delete-migration-k6.md`, `## Why this leaf does not install
+cost (`08-impl--delete-migration-k6.md`, `## Why this leaf does not install
 anything`, carries the measured four-cell matrix).
 
 So each remaining leaf must **re-derive** whether it is a cutover leaf rather than

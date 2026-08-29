@@ -211,7 +211,7 @@ pub enum Command {
     /// finishes the review's own directory, appended leaf included, before any
     /// later sibling of an ancestor.
     LeafInsert(LeafInsertArgs),
-    /// Convert a live leaf file `NN-<kind>-<slug>-k<key>.md` into a node **directory**
+    /// Convert a live leaf file `NN-<kind>--<slug>-k<key>.md` into a node **directory**
     /// `NN-<slug>-k<key>/` (**key preserved** — the leaf that was `k<key>`
     /// becomes the node `k<key>`), moving the leaf body in as the node's
     /// `BRIEF.md` (a plain rename on every lane, staging nothing; its
@@ -224,8 +224,8 @@ pub enum Command {
     /// Working-tree change only — no commit.
     LeafDecompose(LeafDecomposeArgs),
     /// Mark a live leaf retired in place by adding a `DONE` infix
-    /// (`NN-<kind>-<slug>-k<key>.md` →
-    /// `NN-DONE-<kind>-<slug>-k<key>.md`) — no `done/`
+    /// (`NN-<kind>--<slug>-k<key>.md` →
+    /// `NN-DONE-<kind>--<slug>-k<key>.md`) — no `done/`
     /// directory; the leaf keeps its position and key in its directory, and the
     /// file's contents (its `# <slug>-k<key>` header) are untouched. Refuses a
     /// brief, an already-retired (`DONE`) leaf, and an already-abandoned
@@ -867,7 +867,7 @@ mod tests {
         // else could already have renamed.
         let (worktree, grove_root) = grove_with_node();
         let brief = grove_root.join("01-plan-k1").join("BRIEF.md");
-        let body = fs::read_to_string(&brief).unwrap() + "stale path: 01-impl-first-k2\n";
+        let body = fs::read_to_string(&brief).unwrap() + "stale path: 01-impl--first-k2\n";
         fs::write(&brief, body).unwrap();
         let mut output = ExclusiveLockAssertingWriter {
             worktree: worktree.path().to_path_buf(),

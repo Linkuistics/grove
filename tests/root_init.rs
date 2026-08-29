@@ -75,7 +75,7 @@ fn root_init_creates_root_brief_and_first_requirements_leaf() {
     );
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/01-requirements-plan-k1.md")
+        PathBuf::from(".grove/01-requirements--plan-k1.md")
     );
     assert_eq!(
         stdout.lines().count(),
@@ -87,7 +87,7 @@ fn root_init_creates_root_brief_and_first_requirements_leaf() {
     assert!(tmp.path().join(".grove/BRIEF.md").is_file());
     assert!(tmp
         .path()
-        .join(".grove/01-requirements-plan-k1.md")
+        .join(".grove/01-requirements--plan-k1.md")
         .is_file());
 
     // The root brief carries the BRIEF-FORMAT headers and a `— brief` title.
@@ -107,7 +107,7 @@ fn root_init_creates_root_brief_and_first_requirements_leaf() {
     // and the `start` launch is routed on this kind with no leaf to peek. Its
     // header is the position-free handle `# <slug>-k<key>` (the v2 form
     // `leaf_add` writes).
-    let leaf = read(tmp.path(), ".grove/01-requirements-plan-k1.md");
+    let leaf = read(tmp.path(), ".grove/01-requirements--plan-k1.md");
     assert!(
         leaf.starts_with("# plan-k1\n"),
         "leaf header wrong: {leaf:?}"
@@ -125,7 +125,7 @@ fn root_init_default_slug_is_plan() {
     assert!(ok);
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/01-requirements-plan-k1.md")
+        PathBuf::from(".grove/01-requirements--plan-k1.md")
     );
 }
 
@@ -136,9 +136,9 @@ fn root_init_custom_slug_names_the_first_leaf() {
     assert!(ok);
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/01-requirements-design-the-api-k1.md")
+        PathBuf::from(".grove/01-requirements--design-the-api-k1.md")
     );
-    let leaf = read(tmp.path(), ".grove/01-requirements-design-the-api-k1.md");
+    let leaf = read(tmp.path(), ".grove/01-requirements--design-the-api-k1.md");
     assert!(!leaf.contains("**Kind:**"), "got {leaf:?}");
 }
 
@@ -199,7 +199,7 @@ fn after_root_init_pick_returns_the_new_leaf_not_done() {
     // pick must name the leaf on stdout...
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
-        PathBuf::from(".grove/01-requirements-plan-k1.md"),
+        PathBuf::from(".grove/01-requirements--plan-k1.md"),
         "pick did not return the scaffolded leaf"
     );
     // ...and must NOT report the grove as done (the empty-but-briefed trap).

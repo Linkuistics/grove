@@ -2,12 +2,12 @@
 // leaf-retire` on the current witnessed directory scheme (task-tree-scheme):
 //
 //   - `leaf-decompose <leaf-path> <first-child-slug>` converts a live leaf file
-//     `NN-<kind>-<slug>-k<key>.md` into a node DIRECTORY `NN-<slug>-k<key>/` (**key
+//     `NN-<kind>--<slug>-k<key>.md` into a node DIRECTORY `NN-<slug>-k<key>/` (**key
 //     preserved**), moving the leaf body in as the node's `BRIEF.md` (its
 //     `# <slug>-k<key>` header retitled ` — brief`) and atomically growing a
 //     first child `01-<kind>-<first-child-slug>-k<new>.md` so a node is never childless.
 //   - `leaf-retire <leaf-path>` adds a `DONE` infix in place
-//     (`NN-<kind>-<slug>-k<key>.md` → `NN-DONE-<kind>-<slug>-k<key>.md`), keeping the retired
+//     (`NN-<kind>--<slug>-k<key>.md` → `NN-DONE-<kind>--<slug>-k<key>.md`), keeping the retired
 //     leaf in its directory (no `done/` directory); the file body is untouched.
 //     It marks through `ordinal-fs-tree`'s `rewrite`, whose rename is a plain
 //     `rename(2)` consulting no repository — so the repo below is what makes the
@@ -101,14 +101,14 @@ fn decompose_converts_leaf_into_node_directory_with_first_child() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-planning-target-k1.md"),
+        &grove.join("01-planning--target-k1.md"),
         "# target-k1\n\nbody body\n",
     );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-planning-target-k1.md", "sub"],
+        &["leaf-decompose", ".grove/01-planning--target-k1.md", "sub"],
     );
     assert!(ok, "leaf-decompose failed");
 
@@ -119,17 +119,17 @@ fn decompose_converts_leaf_into_node_directory_with_first_child() {
     );
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/01-target-k1/01-planning-sub-k2.md")
+        PathBuf::from(".grove/01-target-k1/01-planning--sub-k2.md")
     );
 
     // The leaf became a node directory, **key preserved** (k1); the old leaf
     // file is gone, replaced by the directory + its BRIEF.md.
     assert!(exists(tmp.path(), ".grove/01-target-k1/BRIEF.md"));
-    assert!(!exists(tmp.path(), ".grove/01-planning-target-k1.md"));
+    assert!(!exists(tmp.path(), ".grove/01-planning--target-k1.md"));
     // The first child exists so the node is never childless.
     assert!(exists(
         tmp.path(),
-        ".grove/01-target-k1/01-planning-sub-k2.md"
+        ".grove/01-target-k1/01-planning--sub-k2.md"
     ));
 
     // The brief's position-free handle header is retitled with ` — brief`; the
@@ -149,20 +149,24 @@ fn decompose_with_no_kind_flag_gives_the_first_child_the_parent_leafs_kind() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-research-a-target-k1.md"),
+        &grove.join("01-research-a--target-k1.md"),
         "# target-k1\n\nbody body\n",
     );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-research-a-target-k1.md", "sub"],
+        &[
+            "leaf-decompose",
+            ".grove/01-research-a--target-k1.md",
+            "sub",
+        ],
     );
     assert!(ok, "leaf-decompose failed");
     let child = rel_line(&stdout, tmp.path(), 1);
     assert_eq!(
         child,
-        PathBuf::from(".grove/01-target-k1/01-research-a-sub-k2.md")
+        PathBuf::from(".grove/01-target-k1/01-research-a--sub-k2.md")
     );
     assert!(!read(tmp.path(), child.to_str().unwrap()).contains("**Kind:**"));
 }
@@ -172,7 +176,7 @@ fn decompose_kind_flag_overrides_the_parent_leafs_kind() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-research-b-target-k1.md"),
+        &grove.join("01-research-b--target-k1.md"),
         "# target-k1\n\nbody body\n",
     );
     stage_all(tmp.path());
@@ -181,7 +185,7 @@ fn decompose_kind_flag_overrides_the_parent_leafs_kind() {
         tmp.path(),
         &[
             "leaf-decompose",
-            ".grove/01-research-b-target-k1.md",
+            ".grove/01-research-b--target-k1.md",
             "sub",
             "--kind",
             "review-impl",
@@ -191,7 +195,7 @@ fn decompose_kind_flag_overrides_the_parent_leafs_kind() {
     let child = rel_line(&stdout, tmp.path(), 1);
     assert_eq!(
         child,
-        PathBuf::from(".grove/01-target-k1/01-review-impl-sub-k2.md")
+        PathBuf::from(".grove/01-target-k1/01-review-impl--sub-k2.md")
     );
     assert!(!read(tmp.path(), child.to_str().unwrap()).contains("**Kind:**"));
 }
@@ -201,14 +205,18 @@ fn decompose_does_not_copy_legacy_body_routing_to_the_first_child() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-research-a-target-k1.md"),
+        &grove.join("01-research-a--target-k1.md"),
         "# target-k1\n\n**Kind:** research-b\n**Harness:** codex\n\nbody body\n",
     );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-research-a-target-k1.md", "sub"],
+        &[
+            "leaf-decompose",
+            ".grove/01-research-a--target-k1.md",
+            "sub",
+        ],
     );
     assert!(ok, "leaf-decompose failed");
     let child = rel_line(&stdout, tmp.path(), 1);
@@ -222,14 +230,14 @@ fn decompose_of_an_undeclared_leaf_writes_no_harness_line() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-impl-target-k1.md"),
+        &grove.join("01-impl--target-k1.md"),
         "# target-k1\n\nbody body\n",
     );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-impl-target-k1.md", "sub"],
+        &["leaf-decompose", ".grove/01-impl--target-k1.md", "sub"],
     );
     assert!(ok, "leaf-decompose failed");
     let child = rel_line(&stdout, tmp.path(), 1);
@@ -242,14 +250,18 @@ fn decompose_ignores_an_unknown_legacy_body_harness() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-research-b-target-k1.md"),
+        &grove.join("01-research-b--target-k1.md"),
         "# target-k1\n\n**Harness:** codx\n",
     );
     stage_all(tmp.path());
 
     let (stdout, stderr, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-research-b-target-k1.md", "sub"],
+        &[
+            "leaf-decompose",
+            ".grove/01-research-b--target-k1.md",
+            "sub",
+        ],
     );
     assert!(
         ok,
@@ -257,7 +269,7 @@ fn decompose_ignores_an_unknown_legacy_body_harness() {
     );
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/01-target-k1/01-research-b-sub-k2.md")
+        PathBuf::from(".grove/01-target-k1/01-research-b--sub-k2.md")
     );
 }
 
@@ -285,12 +297,12 @@ fn decompose_rejects_a_brief() {
 fn decompose_rejects_a_retired_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-DONE-impl-old-k1.md"), "# old-k1\n");
+    touch(&grove.join("01-DONE-impl--old-k1.md"), "# old-k1\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-DONE-impl-old-k1.md", "x"],
+        &["leaf-decompose", ".grove/01-DONE-impl--old-k1.md", "x"],
     );
     assert!(!ok, "decompose must refuse a retired leaf");
     assert!(
@@ -306,20 +318,20 @@ fn decompose_rejects_a_retired_leaf() {
 fn retire_adds_done_infix_in_place() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    touch(&grove.join("01-impl--target-k1.md"), "# target-k1\n");
     stage_all(tmp.path());
 
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl-target-k1.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl--target-k1.md"]);
     assert!(ok, "leaf-retire failed");
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
-        PathBuf::from(".grove/01-DONE-impl-target-k1.md")
+        PathBuf::from(".grove/01-DONE-impl--target-k1.md")
     );
-    assert!(exists(tmp.path(), ".grove/01-DONE-impl-target-k1.md"));
-    assert!(!exists(tmp.path(), ".grove/01-impl-target-k1.md"));
+    assert!(exists(tmp.path(), ".grove/01-DONE-impl--target-k1.md"));
+    assert!(!exists(tmp.path(), ".grove/01-impl--target-k1.md"));
     // The DONE infix is filename-only — the body is byte-identical.
     assert_eq!(
-        read(tmp.path(), ".grove/01-DONE-impl-target-k1.md"),
+        read(tmp.path(), ".grove/01-DONE-impl--target-k1.md"),
         "# target-k1\n"
     );
 }
@@ -343,12 +355,12 @@ fn retire_refuses_a_brief() {
 fn retire_refuses_an_already_done_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-DONE-impl-old-k1.md"), "# old-k1\n");
+    touch(&grove.join("01-DONE-impl--old-k1.md"), "# old-k1\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(
         tmp.path(),
-        &["leaf-retire", ".grove/01-DONE-impl-old-k1.md"],
+        &["leaf-retire", ".grove/01-DONE-impl--old-k1.md"],
     );
     assert!(!ok, "retire must refuse an already-retired leaf");
     assert!(
@@ -385,19 +397,19 @@ fn retiring_a_tracked_leaf_is_one_rename_in_the_working_copy() {
     // untracked half, which is what removing the staging step bought.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    touch(&grove.join("01-impl--target-k1.md"), "# target-k1\n");
     stage_all(tmp.path());
     assert!(
         working_copy_changes(tmp.path()).is_empty(),
         "the fixture must start clean, or the assertion below proves nothing"
     );
 
-    let (_, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl-target-k1.md"]);
+    let (_, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl--target-k1.md"]);
     assert!(ok, "leaf-retire failed");
 
     assert_eq!(
         working_copy_changes(tmp.path()),
-        vec!["R .grove/{01-impl-target-k1.md => 01-DONE-impl-target-k1.md}".to_string()],
+        vec!["R .grove/{01-impl--target-k1.md => 01-DONE-impl--target-k1.md}".to_string()],
         "one rename, entire — not a deletion plus an arrival"
     );
 }
@@ -409,10 +421,10 @@ fn a_commit_after_the_verb_records_the_retire_as_a_rename() {
     // the rename the verb made.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    touch(&grove.join("01-impl--target-k1.md"), "# target-k1\n");
     stage_all(tmp.path());
 
-    let (_, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl-target-k1.md"]);
+    let (_, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl--target-k1.md"]);
     assert!(ok, "leaf-retire failed");
     support::jj(tmp.path(), &["commit", "-m", "retire target-k1"]);
 
@@ -428,7 +440,7 @@ fn a_commit_after_the_verb_records_the_retire_as_a_rename() {
                 "root:.grove"
             ]
         ),
-        "R .grove/{01-impl-target-k1.md => 01-DONE-impl-target-k1.md}",
+        "R .grove/{01-impl--target-k1.md => 01-DONE-impl--target-k1.md}",
         "the commit records one rename"
     );
     assert!(
@@ -446,8 +458,8 @@ fn pruning_a_node_marks_every_leaf_the_same_way() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-build-k1", "build-k1");
-    touch(&node.join("01-impl-a-k2.md"), "# a-k2\n");
-    touch(&node.join("02-impl-b-k3.md"), "# b-k3\n");
+    touch(&node.join("01-impl--a-k2.md"), "# a-k2\n");
+    touch(&node.join("02-impl--b-k3.md"), "# b-k3\n");
     stage_all(tmp.path());
 
     let (_, _, ok) = run(tmp.path(), &["leaf-prune", ".grove/01-build-k1"]);
@@ -456,8 +468,8 @@ fn pruning_a_node_marks_every_leaf_the_same_way() {
     assert_eq!(
         working_copy_changes(tmp.path()),
         vec![
-            "R .grove/01-build-k1/{01-impl-a-k2.md => 01-ABANDONED-impl-a-k2.md}".to_string(),
-            "R .grove/01-build-k1/{02-impl-b-k3.md => 02-ABANDONED-impl-b-k3.md}".to_string(),
+            "R .grove/01-build-k1/{01-impl--a-k2.md => 01-ABANDONED-impl--a-k2.md}".to_string(),
+            "R .grove/01-build-k1/{02-impl--b-k3.md => 02-ABANDONED-impl--b-k3.md}".to_string(),
         ],
     );
 }
@@ -500,10 +512,10 @@ fn assert_next_steps(verb: &str, stdout: &str, stderr: &str, renames: &str) {
 fn retire_names_the_remaining_steps_on_stderr() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    touch(&grove.join("01-impl--target-k1.md"), "# target-k1\n");
     stage_all(tmp.path());
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl-target-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl--target-k1.md"]);
     assert!(ok, "leaf-retire failed: {stderr}");
     assert_next_steps("leaf-retire", &stdout, &stderr, "this rename");
     // stdout is still exactly the one destination path callers parse.
@@ -518,10 +530,10 @@ fn retire_names_the_remaining_steps_on_stderr() {
 fn prune_of_one_leaf_names_the_remaining_steps_on_stderr() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    touch(&grove.join("01-impl--target-k1.md"), "# target-k1\n");
     stage_all(tmp.path());
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-prune", ".grove/01-impl-target-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-prune", ".grove/01-impl--target-k1.md"]);
     assert!(ok, "leaf-prune failed: {stderr}");
     assert_next_steps("leaf-prune", &stdout, &stderr, "this rename");
 }
@@ -531,8 +543,8 @@ fn prune_of_a_node_reminds_once_for_the_whole_bulk_mark() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-node-k1", "node-k1");
-    touch(&node.join("01-impl-alpha-k2.md"), "# alpha-k2\n");
-    touch(&node.join("02-impl-beta-k3.md"), "# beta-k3\n");
+    touch(&node.join("01-impl--alpha-k2.md"), "# alpha-k2\n");
+    touch(&node.join("02-impl--beta-k3.md"), "# beta-k3\n");
     stage_all(tmp.path());
 
     let (stdout, stderr, ok) = run(tmp.path(), &["leaf-prune", ".grove/01-node-k1"]);
@@ -550,7 +562,7 @@ fn prune_that_marks_nothing_stays_quiet() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-node-k1", "node-k1");
-    touch(&node.join("01-DONE-impl-alpha-k2.md"), "# alpha-k2\n");
+    touch(&node.join("01-DONE-impl--alpha-k2.md"), "# alpha-k2\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-prune", ".grove/01-node-k1"]);

@@ -300,7 +300,7 @@ The task tree is the state:
 ```text
 .grove/
   BRIEF.md
-  NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
+  NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
   NN-<slug>-k<key>/
     BRIEF.md                 # a node's charter
     NN-...                   # children use the same grammar
@@ -587,7 +587,7 @@ message that collides is one no argument produces.
 #### What verbatim costs, measured rather than assumed
 
 The collision is real, and composing the offending message at design time is
-what sizes it. Were clause 2 dropped, `grove-llm leaf-add 03-impl-extract-k7.md
+what sizes it. Were clause 2 dropped, `grove-llm leaf-add 03-impl--extract-k7.md
 sweep` would answer:
 
 > the entry with key 7 is a leaf, which holds nothing. Children go in a node —
@@ -1010,8 +1010,8 @@ one of them, so a missing or malformed `config.kdl` — or an invalid or tracked
 
 | Observed state | Transition |
 |---|---|
-| No `.grove/` | Create the root brief, `01-requirements-plan-k1.md`, and the format witness. |
-| Legacy layout or missing witness | Migrate in one focused commit. |
+| No `.grove/` | Create the root brief and `01-requirements--plan-k1.md`. |
+| A root short of a whole grove | Refuse, naming what is missing (`delete-migration-k6`; there is no migration). |
 | Live leaves | None. |
 | No live leaf | Append, or reuse, the driver-owned finish leaf. |
 
@@ -1079,7 +1079,7 @@ the CLI has two explicit authority boundaries:
 - Deleting the completed `.grove/` tree is the one routine finish confirmation.
 
 Finishing happens inside a real, resumable session. When the tree has no live
-leaf the driver appends `NN-finish-finish-k<key>.md` at the root and launches the
+leaf the driver appends `NN-finish--finish-k<key>.md` at the root and launches the
 `finish` target; declining or exiting writes no signal and leaves that same leaf
 for a later `grove`. On confirmation the session promotes durable information,
 runs `grove-llm finish-commit <finish-handle>`, and signals `done` last. No

@@ -83,9 +83,9 @@ fn leaf_at_root_returns_only_root_brief() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove, "BRIEF.md");
-    touch(&grove, "01-impl-leaf-k1.md");
+    touch(&grove, "01-impl--leaf-k1.md");
 
-    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/01-impl-leaf-k1.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/01-impl--leaf-k1.md"]);
     assert!(ok);
     assert_eq!(parent_names(&stdout), vec![".grove"]);
 }
@@ -99,13 +99,13 @@ fn leaf_two_levels_deep_returns_root_and_ancestor_node_briefs() {
     touch(&outer, "BRIEF.md");
     let inner = mknode(&outer, "01-inner-k2");
     touch(&inner, "BRIEF.md");
-    touch(&inner, "01-impl-leaf-k3.md");
+    touch(&inner, "01-impl--leaf-k3.md");
 
     let (stdout, _, ok) = run(
         tmp.path(),
         &[
             "brief-chain",
-            ".grove/01-outer-k1/01-inner-k2/01-impl-leaf-k3.md",
+            ".grove/01-outer-k1/01-inner-k2/01-impl--leaf-k3.md",
         ],
     );
     assert!(ok);
@@ -125,13 +125,13 @@ fn missing_intermediate_brief_is_skipped_silently() {
     let outer = mknode(&grove, "01-outer-k1");
     let inner = mknode(&outer, "01-inner-k2");
     touch(&inner, "BRIEF.md");
-    touch(&inner, "01-impl-leaf-k3.md");
+    touch(&inner, "01-impl--leaf-k3.md");
 
     let (stdout, _, ok) = run(
         tmp.path(),
         &[
             "brief-chain",
-            ".grove/01-outer-k1/01-inner-k2/01-impl-leaf-k3.md",
+            ".grove/01-outer-k1/01-inner-k2/01-impl--leaf-k3.md",
         ],
     );
     assert!(ok);
@@ -145,7 +145,7 @@ fn no_arg_form_uses_picks_next_leaf() {
     touch(&grove, "BRIEF.md");
     let node = mknode(&grove, "01-node-k1");
     touch(&node, "BRIEF.md");
-    touch(&node, "01-impl-first-k2.md");
+    touch(&node, "01-impl--first-k2.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["brief-chain"]);
     assert!(ok);
@@ -159,9 +159,9 @@ fn missing_root_brief_yields_empty_chain() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     // No root BRIEF.md.
-    touch(&grove, "01-impl-leaf-k1.md");
+    touch(&grove, "01-impl--leaf-k1.md");
 
-    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/01-impl-leaf-k1.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/01-impl--leaf-k1.md"]);
     assert!(ok);
     assert!(
         stdout.trim().is_empty(),

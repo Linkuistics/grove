@@ -435,7 +435,7 @@ fn driver_uses_the_on_disk_worktree_while_the_configured_command_inherits_git_co
     );
     fs::create_dir_all(intended.join(".grove")).unwrap();
     fs::write(intended.join(".grove/BRIEF.md"), "# intended — brief\n").unwrap();
-    fs::write(intended.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
+    fs::write(intended.join(".grove/01-impl--test-k1.md"), "# test-k1\n").unwrap();
 
     let launch_log = tmp.path().join("launch-log");
     let fake_harness = tmp.path().join("fake-claude.sh");
@@ -534,7 +534,9 @@ fn bare_scaffolding_is_anchored_before_the_configured_command_inherits_git_conte
             foreign.join(".git").display()
         )
     );
-    assert!(intended.join(".grove/01-requirements-plan-k1.md").is_file());
+    assert!(intended
+        .join(".grove/01-requirements--plan-k1.md")
+        .is_file());
     assert!(!foreign.join(".grove").exists());
 }
 
@@ -878,7 +880,7 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     fs::create_dir_all(root.join(".claude")).unwrap();
     fs::create_dir_all(root.join(".grove")).unwrap();
     fs::write(root.join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
-    fs::write(root.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
+    fs::write(root.join(".grove/01-impl--test-k1.md"), "# test-k1\n").unwrap();
     run_command("git", &root, &["add", ".grove"]);
     run_command(
         "git",
@@ -981,7 +983,7 @@ fn lease_replacement_before_the_foreground_launch_refuses_to_launch() {
     init_colocated_worktree(&root);
     fs::create_dir_all(root.join(".grove")).unwrap();
     fs::write(root.join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
-    fs::write(root.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
+    fs::write(root.join(".grove/01-impl--test-k1.md"), "# test-k1\n").unwrap();
 
     let launch_log = tmp.path().join("launch-log");
     let configured = tmp.path().join("configured-command.sh");
@@ -1042,7 +1044,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     let grove = root.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# test — brief\n").unwrap();
-    fs::write(grove.join("01-impl-test-k1.md"), "# test-k1\n").unwrap();
+    fs::write(grove.join("01-impl--test-k1.md"), "# test-k1\n").unwrap();
     let ready = tmp.path().join("harness-ready");
     let signal_log = tmp.path().join("signal-path");
     let fake_harness = tmp.path().join("fake-claude.sh");
@@ -1146,7 +1148,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
             String::from_utf8_lossy(&output.stderr)
         );
         assert!(
-            root.join(".grove/01-requirements-plan-k1.md").exists(),
+            root.join(".grove/01-requirements--plan-k1.md").exists(),
             "root-init did not allocate plan-k1"
         );
     };
@@ -1190,7 +1192,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     let retire = Command::new(grove_llm)
         .args([
             "leaf-retire",
-            root.join(".grove/01-requirements-plan-k1.md")
+            root.join(".grove/01-requirements--plan-k1.md")
                 .to_str()
                 .unwrap(),
         ])
@@ -1204,7 +1206,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         String::from_utf8_lossy(&retire.stderr)
     );
     fs::write(
-        root.join(".grove/02-finish-finish-k2.md"),
+        root.join(".grove/02-finish--finish-k2.md"),
         "# finish-k2\n\n## Goal\n\nFinish.\n",
     )
     .unwrap();
@@ -1272,7 +1274,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         "the old session mutated the reinitialized tree"
     );
     assert!(
-        !root.join(".grove/02-impl-stale-mutation-k2.md").exists(),
+        !root.join(".grove/02-impl--stale-mutation-k2.md").exists(),
         "stale mutation allocated a leaf in the new tree"
     );
 

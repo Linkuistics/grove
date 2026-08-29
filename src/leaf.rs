@@ -18,11 +18,12 @@
 // session's command template is configured under, and `llm_cli`, `task_grow`,
 // `tree_lifecycle` and `session_config` all carry it without carrying the
 // grammar. What `task_name` owns of it is exactly where it appears in a name:
-// `Kind::split_filename_prefix` is called from `parse` and `Kind::label` from
-// the renderer, and nothing else in the tree spells a kind into or out of a
-// filename. The closed set survives `name-ownership-k14` deliberately —
-// `open-kind-k20` removes it, and not before `grammar-separator-k15` has made
-// `02-design-decomposition-k2.md` unambiguous.
+// `Kind::from_label` is called from `parse` — on the token the `--` separator
+// delimits, not on a prefix it has to find — and `Kind::label` from the
+// renderer, and nothing else in the tree spells a kind into or out of a
+// filename. The closed set survives `grammar-separator-k15` deliberately;
+// `open-kind-k20` removes it, which that leaf could not have done before the
+// separator made `02-design--decomposition-k2.md` the one reading it has.
 
 use anyhow::{bail, Result};
 
@@ -171,22 +172,6 @@ impl Kind {
     /// top of this one shared lookup.
     pub(crate) fn from_label(s: &str) -> Option<Kind> {
         Kind::ALL.into_iter().find(|k| k.label() == s)
-    }
-
-    /// Split `<session-kind>-<slug>` using a known kind label. The closed label
-    /// set has a stronger invariant: no label plus `-` prefixes another label,
-    /// so every rendered filename has exactly one matching kind and round-trips
-    /// without changing the stable slug. Longest selection stays defensive.
-    pub(crate) fn split_filename_prefix(value: &str) -> Option<(Kind, &str)> {
-        Kind::ALL
-            .into_iter()
-            .filter_map(|kind| {
-                value
-                    .strip_prefix(kind.label())
-                    .and_then(|rest| rest.strip_prefix('-'))
-                    .map(|slug| (kind, slug))
-            })
-            .max_by_key(|(kind, _)| kind.label().len())
     }
 
     /// Every label, backtick-quoted and comma-joined, for the `--kind` error.
@@ -541,22 +526,24 @@ mod inline_tests {
         assert!(err.contains("research-b"), "{err}");
     }
 
-    // Longest match, stated as the property that makes it necessary: the two
-    // chain-step prefixes are not disjoint as strings — `integrate-review-impl`
-    // contains `review-impl` — so any `contains`-style reasoning over these
-    // labels would pair an integration step with itself, or route it as the
-    // review it is supposed to hand back. `split_filename_prefix`'s longest
-    // match is what keeps filename parsing honest about it.
+    // The two chain-step prefixes are not disjoint as strings —
+    // `integrate-review-impl` contains `review-impl` — which is why a parser that
+    // had to *find* where the kind ends needed a longest-label match, and why
+    // `grammar-separator-k15` deleted that function rather than keeping it: the
+    // `--` says where the kind ends, so the overlap is no longer something the
+    // grammar has to reason about. The overlap itself is still worth pinning,
+    // because `from_label` is exact equality and would be the wrong tool the
+    // moment anything went back to prefix matching.
     #[test]
-    fn the_chain_step_prefixes_overlap_which_is_why_matching_is_longest_first() {
+    fn the_chain_step_prefixes_overlap_and_the_separator_is_what_makes_that_safe() {
         assert!(Kind::IntegrateReviewImpl
             .label()
             .contains(Kind::ReviewImpl.label()));
         assert_eq!(
-            Kind::split_filename_prefix("integrate-review-impl-fix-k4"),
-            Some((Kind::IntegrateReviewImpl, "fix-k4")),
-            "naive matching would read this as review-impl with slug `impl-fix-k4`"
+            Kind::from_label("integrate-review-impl"),
+            Some(Kind::IntegrateReviewImpl)
         );
+        assert_eq!(Kind::from_label("integrate-review-impl-fix"), None);
     }
 
     #[test]

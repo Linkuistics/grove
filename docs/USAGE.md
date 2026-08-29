@@ -90,10 +90,10 @@ A small workstream might look like this:
 ```text
 .grove/
 ├── BRIEF.md
-├── 01-DONE-requirements-plan-k1.md
-├── 02-DONE-design-auth-k2.md
-├── 03-review-design-auth-k3.md
-└── 04-impl-ship-k4.md
+├── 01-DONE-requirements--plan-k1.md
+├── 02-DONE-design--auth-k2.md
+├── 03-review-design--auth-k3.md
+└── 04-impl--ship-k4.md
 ```
 
 A leaf is one agent-sized task. A directory is a node holding smaller tasks,
@@ -101,7 +101,7 @@ headed by its `BRIEF.md` charter — a leaf that proved bigger than one session.
 The filename carries everything Grove needs:
 
 ```text
-NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
+NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
 ```
 
 - `NN` is the mutable position among siblings.

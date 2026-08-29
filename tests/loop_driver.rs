@@ -186,7 +186,7 @@ fn run_driver_with_roots(fixture: &Path, installed_roots: &[&str]) -> (String, b
     let home = fixture.join("home");
     let worktree = fixture.join("worktree");
     init_worktree(&worktree);
-    plant_tree(&worktree, "01-impl-subject-k1.md");
+    plant_tree(&worktree, "01-impl--subject-k1.md");
 
     let launched = fixture.join("launched");
     let configured = fixture.join("configured-command.sh");
@@ -275,7 +275,7 @@ fn the_driver_activates_immediately_before_spawn_and_invalidates_after_reap() {
     let home = fixture.path().join("home");
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
-    plant_tree(&worktree, "01-impl-subject-k1.md");
+    plant_tree(&worktree, "01-impl--subject-k1.md");
 
     let observed_epoch = fixture.path().join("observed-epoch");
     let observed_signal = fixture.path().join("observed-signal");
@@ -339,7 +339,7 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
     let home = fixture.path().join("home");
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
-    plant_tree(&worktree, "01-impl-subject-k1.md");
+    plant_tree(&worktree, "01-impl--subject-k1.md");
 
     let mandates = fixture.path().join("mandates");
     let verbs = fixture.path().join("verb-output");
@@ -353,7 +353,7 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
              if [ -e {first_run} ]; then exit 0; fi\n\
              : > {first_run}\n\
              {grove_llm} leaf-add . follow-up --kind design >> {verbs} 2>&1 || exit 91\n\
-             {grove_llm} leaf-retire .grove/01-impl-subject-k1.md >> {verbs} 2>&1 || exit 92\n\
+             {grove_llm} leaf-retire .grove/01-impl--subject-k1.md >> {verbs} 2>&1 || exit 92\n\
              printf 'relaunch\\n' > \"$GROVE_SIGNAL_FILE\"\n\
              exit 0\n",
             mandates = shell_quote(&mandates),
@@ -393,11 +393,13 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
     assert!(status.success(), "{stderr}");
     let verb_output = fs::read_to_string(&verbs).unwrap_or_default();
     assert!(
-        worktree.join(".grove/01-DONE-impl-subject-k1.md").is_file(),
+        worktree
+            .join(".grove/01-DONE-impl--subject-k1.md")
+            .is_file(),
         "the session's own `leaf-retire` must have completed: {verb_output}"
     );
     assert!(
-        worktree.join(".grove/02-design-follow-up-k2.md").is_file(),
+        worktree.join(".grove/02-design--follow-up-k2.md").is_file(),
         "the session's own `leaf-add` must have completed: {verb_output}"
     );
     // The lock blocks rather than failing fast, so "it completed" alone would
@@ -484,7 +486,7 @@ fn assert_the_mandate_states_the_resolved_vcs(shape: Shape) {
     fs::create_dir_all(&home).unwrap();
     let worktree = fixture.path().join("worktree");
     init_jj_worktree(&worktree, matches!(shape, Shape::Colocated));
-    plant_tree(&worktree, "01-impl-subject-k1.md");
+    plant_tree(&worktree, "01-impl--subject-k1.md");
 
     let mandate_path = fixture.path().join("mandate");
     let configured = fixture.path().join("configured-command.sh");
@@ -554,7 +556,7 @@ fn a_done_signal_finishes_the_loop_once_and_housekeeping_stays_advisory() {
     let home = fixture.path().join("home");
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
-    plant_tree(&worktree, "01-impl-subject-k1.md");
+    plant_tree(&worktree, "01-impl--subject-k1.md");
 
     let control_dir = worktree.join(".jj/grove");
     fs::create_dir_all(&control_dir).unwrap();
@@ -623,7 +625,7 @@ fn a_signal_removal_failure_does_not_override_a_done_disposition() {
     let home = fixture.path().join("home");
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
-    plant_tree(&worktree, "01-impl-subject-k1.md");
+    plant_tree(&worktree, "01-impl--subject-k1.md");
     let control_dir = worktree.join(".jj/grove");
 
     let signal_log = fixture.path().join("signal-log");
@@ -685,7 +687,7 @@ fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_inter
         // Same *basename* in both trees — that is the whole point.
         let worktree = fixture.path().join(role).join("samegrove");
         init_worktree(&worktree);
-        plant_tree(&worktree, "01-impl-subject-k1.md");
+        plant_tree(&worktree, "01-impl--subject-k1.md");
         let configured = fixture.path().join(format!("{role}-command.sh"));
         write_exec(&configured, body);
         write_complete_config(&home, &configured);
@@ -742,7 +744,7 @@ fn a_sigtermed_driver_stops_and_reaps_its_child() {
     let home = fixture.path().join("home");
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
-    plant_tree(&worktree, "01-impl-subject-k1.md");
+    plant_tree(&worktree, "01-impl--subject-k1.md");
 
     // Never signals, never exits on its own — a session sitting mid-task when
     // the driver is killed from outside. `exec` so the pid the driver signals
@@ -846,7 +848,7 @@ fn an_orphaned_epoch_guard_stops_before_consuming_the_relaunch_signal() {
     let home = fixture.path().join("home");
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
-    plant_tree(&worktree, "01-impl-subject-k1.md");
+    plant_tree(&worktree, "01-impl--subject-k1.md");
 
     let launch_ready = fixture.path().join("launch-ready");
     let tree_locked = fixture.path().join("tree-locked");

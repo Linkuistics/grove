@@ -23,7 +23,7 @@ machine's resolved installation. It ran no test, build, lint or format command.
 ### 1. `open-shape-k25` changes a public return type and explicitly leaves its consumer broken
 
 The leaf requires `ordinal_fs_tree::fs::{read, write}` to return `Reading` and
-`Writing` (`14-store-operations-k12/02-impl-open-shape-k25.md:45-49`), then says
+`Writing` (`14-store-operations-k12/02-impl--open-shape-k25.md:45-49`), then says
 Grove is not migrated there and defers that work to `collapse-tree-access-k13`
 and `loop-crate-verbs-k21` (lines 71-78). Today the store returns the guards
 directly (`crates/ordinal-fs-tree/src/fs/mod.rs:78-104`), and Grove consumes that
@@ -41,7 +41,7 @@ do not leave a return-type break waiting on a later sibling.
 
 K18 requires `src/methodology.rs`, `--content-hash` and the build-pairing report
 to be gone, and retires `one-build-owns-a-session` and
-`skill-delivers-the-methodology` (`20-impl-prompt-names-the-kind-k18.md:39-43`).
+`skill-delivers-the-methodology` (`20-impl--prompt-names-the-kind-k18.md:39-43`).
 But provisioning remains until k19, and its live per-iteration path calls
 `methodology::identity()` (`src/provision.rs:53-77`); the driver invokes that
 path before every transition (`src/loop_driver.rs:116-130`). Deleting the module
@@ -102,7 +102,7 @@ workspace without leaving permanent links to it.
 
 The leaf correctly says a review/research family's procedure is one file in the
 spine and each member directs a named load
-(`19-impl-plugin-kind-skills-k17.md:18-22`), but its own `Done when` immediately
+(`19-impl--plugin-kind-skills-k17.md:18-22`), but its own `Done when` immediately
 requires every member to carry its family's procedure inline (lines 24-31).
 Decision 11 requires the former and says *nowhere twice*
 (`docs/specs/module-decomposition.md:678-695`). The brief nevertheless maps
@@ -118,7 +118,7 @@ conformance assertion.
 
 `spec-to-current-state-k23` says it will check seventeen original ADRs, then
 lists *four retired, two reworked, seven amended, two unchanged, two added*
-(`25-impl-spec-to-current-state-k23.md:26-30`). The spec actually contains
+(`25-impl--spec-to-current-state-k23.md:26-30`). The spec actually contains
 seventeen original records **plus** two additions: four retired, two reworked,
 eight amended, one re-checked, and two unchanged
 (`docs/specs/module-decomposition.md:772-792`). The proposed checklist therefore

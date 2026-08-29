@@ -10,14 +10,14 @@ it — `references/decompose.md` and `references/execute.md`.
 ## The name, field by field
 
 A **leaf** in a grove is a single `.md` task file, named
-`NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md` — e.g.
-`01-requirements-plan-k1.md`, `03-impl-extract-k7.md`. Five fields, all parsed
+`NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md` — e.g.
+`01-requirements--plan-k1.md`, `03-impl--extract-k7.md`. Five fields, all parsed
 and all structural:
 
 | field | what it does |
 |---|---|
 | position `NN` | a 2-digit per-level number, its place among its directory's children; orders the `pick` walk |
-| outcome infix | absent while the leaf is live; `DONE` for retired work (`03-DONE-impl-extract-k7.md`) and `ABANDONED` for a path decided against (`03-ABANDONED-impl-extract-k7.md`, `leaf-prune`) — either keeps the leaf out of `pick`, marked in place |
+| outcome infix | absent while the leaf is live; `DONE` for retired work (`03-DONE-impl--extract-k7.md`) and `ABANDONED` for a path decided against (`03-ABANDONED-impl--extract-k7.md`, `leaf-prune`) — either keeps the leaf out of `pick`, marked in place |
 | session kind | one member of the closed set below; the key one command template is configured under |
 | slug | a human name for the **artifact**, not for the leaf's role |
 | key `-k<key>` | stable identity, the terminal token, assigned once and never reused |

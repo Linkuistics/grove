@@ -19,14 +19,14 @@
 //!   concrete example is put through `TaskName::parse` — the same call `pick`,
 //!   `resolve` and the grow verbs make — so an example the binary would refuse
 //!   fails whether or not anyone thought to look for it. Only a grammar sketch
-//!   (`NN-<session-kind>-<slug>-k<key>.md`), which no tree could hold, takes an
+//!   (`NN-<session-kind>--<slug>-k<key>.md`), which no tree could hold, takes an
 //!   explicit placeholder path.
 //! * The **flags** come from `grove-llm`'s clap model **indexed by verb**, so a
 //!   flag the docs invent — or one the CLI drops, or one documented on a verb
 //!   that does not own it — fails from either side.
 //!
 //! Two limits, stated rather than papered over. A filename whose *slug* begins
-//! with a kind word (`01-design-notes-k4.md`) is indistinguishable from a kinded
+//! with a kind word (`01-design--notes-k4.md`) is indistinguishable from a kinded
 //! name by inspection; that ambiguity is in the grammar itself, and nothing
 //! outside the filename resolves it — the format witness that used to went with
 //! migration (`delete-migration-k6`). And the
@@ -243,7 +243,7 @@ fn the_guidance_counts_the_kind_set_correctly() {
 /// What an example leaf filename in the guidance turned out to be.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Example {
-    /// `NN-[DONE-]<kind>-<slug>-k<key>.md` — the current grammar. For a concrete
+    /// `NN-[DONE-]<kind>--<slug>-k<key>.md` — the current grammar. For a concrete
     /// name this is [`TaskName::parse`]'s own verdict; for a grammar sketch it is
     /// the placeholder shape.
     Kinded,
@@ -275,7 +275,7 @@ fn kind_tokens() -> Vec<String> {
 }
 
 /// A candidate that carries a placeholder token, so it is a **grammar sketch**
-/// (`NN-<session-kind>-<slug>-k<key>.md`) rather than a name any tree could
+/// (`NN-<session-kind>--<slug>-k<key>.md`) rather than a name any tree could
 /// hold. The shipped parser cannot judge one, so it takes the explicit
 /// placeholder path below and nothing else does.
 fn is_sketch(name: &str) -> bool {
@@ -460,9 +460,9 @@ fn the_candidate_scan_offers_every_position_width_to_the_parser() {
     // it then refuses is the parser's business and is asserted above.
     for width in [
         "5-impl-extract-k7.md",
-        "05-impl-extract-k7.md",
-        "005-impl-extract-k7.md",
-        "100-impl-extract-k7.md",
+        "05-impl--extract-k7.md",
+        "005-impl--extract-k7.md",
+        "100-impl--extract-k7.md",
     ] {
         assert_eq!(
             candidates_in(&format!("see `{width}` for the shape")),
@@ -498,7 +498,7 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
         "01-impl-bad_slug-k7.md",
         "01-impl-Extract-k7.md",
         "5-impl-extract-k7.md",
-        "005-impl-extract-k7.md",
+        "005-impl--extract-k7.md",
     ] {
         assert_eq!(
             classify_example(refused),
@@ -518,12 +518,12 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
     // width, so the canonical rule admits it and the two refused spellings above
     // are not simply "not two digits".
     for current in [
-        "100-impl-extract-k7.md",
-        "01-requirements-plan-k1.md",
-        "01-DONE-design-spec-k2.md",
-        "03-ABANDONED-impl-extract-k7.md",
-        "03-integrate-review-design-sync-design-k15.md",
-        "01-research-a-sync-survey-k17.md",
+        "100-impl--extract-k7.md",
+        "01-requirements--plan-k1.md",
+        "01-DONE-design--spec-k2.md",
+        "03-ABANDONED-impl--extract-k7.md",
+        "03-integrate-review-design--sync-design-k15.md",
+        "01-research-a--sync-survey-k17.md",
     ] {
         assert!(
             !is_sketch(current),
@@ -543,8 +543,8 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
     // The sketches, which carry placeholders no tree could hold and so take the
     // explicit placeholder path.
     for sketch in [
-        "NN-<session-kind>-<slug>-k<key>.md",
-        "NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md",
+        "NN-<session-kind>--<slug>-k<key>.md",
+        "NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md",
         "01-<session-kind>-<first-child-slug>-k<new>.md",
     ] {
         assert!(is_sketch(sketch), "{sketch} must take the sketch path");
@@ -564,8 +564,8 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
     // reference are not filenames and must not enter the sweep at all.
     assert!(candidates_in("a node `NN-<slug>-k<key>/` holding `01-…`, `02-…`").is_empty());
     assert_eq!(
-        candidates_in("l1[\"01-DONE-design-spec-k2.md — retired\"]"),
-        ["01-DONE-design-spec-k2.md"]
+        candidates_in("l1[\"01-DONE-design--spec-k2.md — retired\"]"),
+        ["01-DONE-design--spec-k2.md"]
     );
 }
 

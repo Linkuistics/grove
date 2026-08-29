@@ -147,17 +147,17 @@ fn add_root_level_child_gets_position_01_and_first_key() {
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
     let got = leaf_add(&g, ".", "survey", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "01-impl-survey-k1.md");
+    assert_eq!(name_of(&got), "01-impl--survey-k1.md");
 }
 
 #[test]
 fn add_appends_gapless_after_existing_root_children() {
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
-    touch(&g, "02-impl-b-k2.md", "b-k2");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
+    touch(&g, "02-impl--b-k2.md", "b-k2");
     let got = leaf_add(&g, ".", "c", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "03-impl-c-k3.md");
+    assert_eq!(name_of(&got), "03-impl--c-k3.md");
 }
 
 #[test]
@@ -165,9 +165,9 @@ fn add_child_under_a_node_appends_after_existing_children() {
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
     let node = mknode(&g, "02-build-k2", "build-k2");
-    touch(&node, "01-impl-x-k3.md", "x-k3");
+    touch(&node, "01-impl--x-k3.md", "x-k3");
     let got = leaf_add(&g, at(&node), "y", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "02-impl-y-k4.md");
+    assert_eq!(name_of(&got), "02-impl--y-k4.md");
     assert_eq!(name_of(got.parent().unwrap()), "02-build-k2");
 }
 
@@ -177,7 +177,7 @@ fn add_first_child_under_a_childless_node() {
     touch(&g, "BRIEF.md", "root — brief");
     let node = mknode(&g, "02-build-k2", "build-k2");
     let got = leaf_add(&g, at(&node), "first", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "01-impl-first-k3.md");
+    assert_eq!(name_of(&got), "01-impl--first-k3.md");
 }
 
 #[test]
@@ -225,10 +225,10 @@ fn add_assigns_fresh_key_as_max_over_whole_tree_plus_one() {
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
     let design = mknode(&g, "01-design-k1", "design-k1");
-    touch(&design, "01-impl-deep-k7.md", "deep-k7"); // a high key in another subtree
+    touch(&design, "01-impl--deep-k7.md", "deep-k7"); // a high key in another subtree
     let build = mknode(&g, "02-build-k2", "build-k2");
     let got = leaf_add(&g, at(&build), "y", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "01-impl-y-k8.md");
+    assert_eq!(name_of(&got), "01-impl--y-k8.md");
 }
 
 #[test]
@@ -237,9 +237,9 @@ fn add_counts_done_children_so_a_retired_slot_is_never_reused() {
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
     let node = mknode(&g, "02-build-k2", "build-k2");
-    touch(&node, "01-DONE-impl-x-k3.md", "x-k3");
+    touch(&node, "01-DONE-impl--x-k3.md", "x-k3");
     let got = leaf_add(&g, at(&node), "y", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "02-impl-y-k4.md");
+    assert_eq!(name_of(&got), "02-impl--y-k4.md");
 }
 
 #[test]
@@ -247,9 +247,9 @@ fn add_counts_abandoned_children_so_a_pruned_slot_is_never_reused() {
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
     let node = mknode(&g, "02-build-k2", "build-k2");
-    touch(&node, "01-ABANDONED-impl-x-k3.md", "x-k3");
+    touch(&node, "01-ABANDONED-impl--x-k3.md", "x-k3");
     let got = leaf_add(&g, at(&node), "y", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "02-impl-y-k4.md");
+    assert_eq!(name_of(&got), "02-impl--y-k4.md");
 }
 
 #[test]
@@ -258,7 +258,7 @@ fn add_counts_node_dir_siblings_when_numbering() {
     touch(&g, "BRIEF.md", "root — brief");
     mknode(&g, "01-design-k1", "design-k1");
     let got = leaf_add(&g, ".", "build", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "02-impl-build-k2.md");
+    assert_eq!(name_of(&got), "02-impl--build-k2.md");
 }
 
 #[test]
@@ -270,10 +270,10 @@ fn add_preserves_a_gap_a_hand_edit_left_rather_than_filling_it() {
     // missing ordinal came back.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
-    touch(&g, "05-impl-b-k2.md", "b-k2");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
+    touch(&g, "05-impl--b-k2.md", "b-k2");
     let got = leaf_add(&g, ".", "c", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "06-impl-c-k3.md");
+    assert_eq!(name_of(&got), "06-impl--c-k3.md");
 }
 
 #[test]
@@ -286,7 +286,7 @@ fn add_writes_kind_in_filename_and_not_in_body() {
         text.starts_with("# survey-k1\n"),
         "header is the position-free handle; got {text:?}"
     );
-    assert_eq!(name_of(&got), "01-impl-survey-k1.md");
+    assert_eq!(name_of(&got), "01-impl--survey-k1.md");
     assert!(!text.contains("**Kind:**"), "got {text:?}");
     assert!(!text.contains("**Harness:**"), "got {text:?}");
 }
@@ -305,8 +305,8 @@ fn every_grow_verb_writes_a_handle_that_matches_its_own_filename() {
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
     let node = mknode(&g, "01-design-k1", "design-k1");
-    touch(&node, "01-impl-deep-k9.md", "deep-k9");
-    touch(&g, "02-impl-a-k2.md", "a-k2");
+    touch(&node, "01-impl--deep-k9.md", "deep-k9");
+    touch(&g, "02-impl--a-k2.md", "a-k2");
 
     leaf_add(&g, ".", "added", Kind::Impl).unwrap();
     leaf_add_pair(&g, at(&node), "surveyed").unwrap();
@@ -341,7 +341,7 @@ fn add_planning_kind_writes_planning_filename() {
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
     let got = leaf_add(&g, ".", "design", Kind::Planning).unwrap();
-    assert_eq!(name_of(&got), "01-planning-design-k1.md");
+    assert_eq!(name_of(&got), "01-planning--design-k1.md");
     assert!(!body(&got).contains("**Kind:**"));
 }
 
@@ -368,7 +368,7 @@ fn add_errors_when_parent_is_a_leaf_file_not_a_node() {
     // whose contents are `Some`.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    let leaf = touch(&g, "02-impl-build-k2.md", "build-k2");
+    let leaf = touch(&g, "02-impl--build-k2.md", "build-k2");
     let err = leaf_add(&g, at(&leaf), "y", Kind::Impl)
         .unwrap_err()
         .to_string();
@@ -406,18 +406,18 @@ fn a_review_chain_is_cut_one_flat_sibling_at_a_time() {
     assert_eq!(
         names_of(&[producer, review, integrate]),
         vec![
-            "01-design-sync-k1.md",
-            "02-review-design-sync-k2.md",
-            "03-integrate-review-design-sync-k3.md",
+            "01-design--sync-k1.md",
+            "02-review-design--sync-k2.md",
+            "03-integrate-review-design--sync-k3.md",
         ],
         "contiguous flat siblings off one stem"
     );
     assert_eq!(
         list(&g),
         vec![
-            "01-design-sync-k1.md",
-            "02-review-design-sync-k2.md",
-            "03-integrate-review-design-sync-k3.md",
+            "01-design--sync-k1.md",
+            "02-review-design--sync-k2.md",
+            "03-integrate-review-design--sync-k3.md",
             "BRIEF.md",
         ],
         "and nothing else — no node directory was created for them"
@@ -438,7 +438,7 @@ fn a_review_step_cut_after_unrelated_work_still_appends_at_the_end() {
 
     let review = leaf_add(&g, ".", "sync", Kind::ReviewDesign).unwrap();
 
-    assert_eq!(name_of(&review), "03-review-design-sync-k3.md");
+    assert_eq!(name_of(&review), "03-review-design--sync-k3.md");
 }
 
 #[test]
@@ -458,16 +458,16 @@ fn an_integration_cut_with_insert_lands_beside_the_review_it_integrates() {
 
     assert_eq!(
         name_of(&inserted.path),
-        "03-integrate-review-design-sync-k4.md",
+        "03-integrate-review-design--sync-k4.md",
         "the integration takes the slot after its review"
     );
     assert_eq!(
         list(&g),
         vec![
-            "01-design-sync-k1.md",
-            "02-review-design-sync-k2.md",
-            "03-integrate-review-design-sync-k4.md",
-            "04-impl-unrelated-k3.md",
+            "01-design--sync-k1.md",
+            "02-review-design--sync-k2.md",
+            "03-integrate-review-design--sync-k4.md",
+            "04-impl--unrelated-k3.md",
             "BRIEF.md",
         ],
         "and the unrelated leaf shifts down, keeping its own key"
@@ -561,9 +561,9 @@ fn pair_emits_three_flat_siblings_with_the_fixed_research_kinds() {
     assert_eq!(
         names_of(&paths),
         vec![
-            "01-research-a-sync-survey-k1.md",
-            "02-research-b-sync-survey-k2.md",
-            "03-combine-research-sync-survey-k3.md",
+            "01-research-a--sync-survey-k1.md",
+            "02-research-b--sync-survey-k2.md",
+            "03-combine-research--sync-survey-k3.md",
         ],
         "three siblings at consecutive positions, three consecutive keys — \
          one bare stem throughout, with only the kind field telling them apart"
@@ -578,9 +578,9 @@ fn pair_emits_three_flat_siblings_with_the_fixed_research_kinds() {
     assert_eq!(
         list(&g),
         vec![
-            "01-research-a-sync-survey-k1.md",
-            "02-research-b-sync-survey-k2.md",
-            "03-combine-research-sync-survey-k3.md",
+            "01-research-a--sync-survey-k1.md",
+            "02-research-b--sync-survey-k2.md",
+            "03-combine-research--sync-survey-k3.md",
             "BRIEF.md",
         ],
         "the run created its three leaves and nothing else"
@@ -591,16 +591,16 @@ fn pair_emits_three_flat_siblings_with_the_fixed_research_kinds() {
 fn pair_appends_after_existing_siblings_and_under_a_node() {
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
     let node = mknode(&g, "02-build-k2", "build-k2");
-    touch(&node, "01-impl-x-k3.md", "x-k3");
+    touch(&node, "01-impl--x-k3.md", "x-k3");
     let paths = leaf_add_pair(&g, at(&node), "api").unwrap();
     assert_eq!(
         names_of(&paths),
         vec![
-            "02-research-a-api-k4.md",
-            "03-research-b-api-k5.md",
-            "04-combine-research-api-k6.md",
+            "02-research-a--api-k4.md",
+            "03-research-b--api-k5.md",
+            "04-combine-research--api-k6.md",
         ],
         "the steps continue the parent's positions; the keys continue the whole tree"
     );
@@ -626,17 +626,17 @@ fn a_run_that_cannot_read_its_parent_level_creates_nothing_at_all() {
     // `refusals-k30`'s *write no second wording* arriving as a message assertion.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    fs::create_dir(g.join("01-research-a-survey-k1.md")).unwrap();
+    fs::create_dir(g.join("01-research-a--survey-k1.md")).unwrap();
 
     let err = leaf_add_pair(&g, ".", "survey").unwrap_err().to_string();
 
     assert!(
-        err.contains("01-research-a-survey-k1.md"),
+        err.contains("01-research-a--survey-k1.md"),
         "the error names the entry standing in the way: {err}"
     );
     assert_eq!(
         list(&g),
-        vec!["01-research-a-survey-k1.md", "BRIEF.md"],
+        vec!["01-research-a--survey-k1.md", "BRIEF.md"],
         "only the squatter and the brief — no half-built pair left behind"
     );
 }
@@ -676,7 +676,7 @@ fn a_run_that_cannot_get_three_fresh_keys_creates_nothing_at_all() {
     // nothing lands. The message is the library's, printed unchanged.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-old-k4294967294.md", "old-k4294967294");
+    touch(&g, "01-impl--old-k4294967294.md", "old-k4294967294");
 
     let err = leaf_add_pair(&g, ".", "survey").unwrap_err().to_string();
 
@@ -686,7 +686,7 @@ fn a_run_that_cannot_get_three_fresh_keys_creates_nothing_at_all() {
     );
     assert_eq!(
         list(&g),
-        vec!["01-impl-old-k4294967294.md", "BRIEF.md"],
+        vec!["01-impl--old-k4294967294.md", "BRIEF.md"],
         "not even the first leaf"
     );
 }
@@ -697,13 +697,13 @@ fn a_level_at_the_last_ordinal_refuses_rather_than_wrapping() {
     // `next_child_position` added one to a `u32` unguarded. The library refuses.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "4294967295-impl-last-k1.md", "last-k1");
+    touch(&g, "4294967295-impl--last-k1.md", "last-k1");
 
     assert!(leaf_add(&g, ".", "next", Kind::Impl).is_err());
 
     assert_eq!(
         list(&g),
-        vec!["4294967295-impl-last-k1.md", "BRIEF.md"],
+        vec!["4294967295-impl--last-k1.md", "BRIEF.md"],
         "nothing was created"
     );
 }
@@ -714,7 +714,7 @@ fn a_failed_run_leaves_the_next_call_a_clean_slate() {
     // the shape, not a second copy of it under new positions and keys.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    let squatter = g.join("01-research-a-survey-k1.md");
+    let squatter = g.join("01-research-a--survey-k1.md");
     fs::create_dir(&squatter).unwrap();
     assert!(leaf_add_pair(&g, ".", "survey").is_err());
     fs::remove_dir(&squatter).unwrap();
@@ -724,9 +724,9 @@ fn a_failed_run_leaves_the_next_call_a_clean_slate() {
     assert_eq!(
         names_of(&paths),
         vec![
-            "01-research-a-survey-k1.md",
-            "02-research-b-survey-k2.md",
-            "03-combine-research-survey-k3.md",
+            "01-research-a--survey-k1.md",
+            "02-research-b--survey-k2.md",
+            "03-combine-research--survey-k3.md",
         ],
         "the retry got the positions and keys the failed run had planned"
     );
@@ -743,7 +743,7 @@ fn a_refused_run_does_not_consume_positions_or_keys() {
     touch(&g, "BRIEF.md", "root — brief");
     assert!(leaf_add_pair(&g, ".", "foo-").is_err());
     let got = leaf_add(&g, ".", "plain", Kind::Impl).unwrap();
-    assert_eq!(name_of(&got), "01-impl-plain-k1.md");
+    assert_eq!(name_of(&got), "01-impl--plain-k1.md");
 }
 
 #[test]
@@ -776,19 +776,19 @@ fn a_shape_is_byte_identical_to_the_same_leaves_cut_by_hand() {
 fn insert_at_occupied_position_shifts_occupant_and_later_siblings_keys_preserved() {
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
-    touch(&g, "02-impl-b-k2.md", "b-k2");
-    touch(&g, "03-impl-c-k3.md", "c-k3");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
+    touch(&g, "02-impl--b-k2.md", "b-k2");
+    touch(&g, "03-impl--c-k3.md", "c-k3");
     commit_all(&g);
-    let inserted = leaf_insert(&g, at(&g.join("02-impl-b-k2.md")), "new", Kind::Impl).unwrap();
-    assert_eq!(name_of(&inserted.path), "02-impl-new-k4.md"); // fresh key, not a reused one
+    let inserted = leaf_insert(&g, at(&g.join("02-impl--b-k2.md")), "new", Kind::Impl).unwrap();
+    assert_eq!(name_of(&inserted.path), "02-impl--new-k4.md"); // fresh key, not a reused one
     assert_eq!(
         list(&g),
         vec![
-            "01-impl-a-k1.md",
-            "02-impl-new-k4.md",
-            "03-impl-b-k2.md",
-            "04-impl-c-k3.md",
+            "01-impl--a-k1.md",
+            "02-impl--new-k4.md",
+            "03-impl--b-k2.md",
+            "04-impl--c-k3.md",
             "BRIEF.md",
         ]
     );
@@ -805,14 +805,14 @@ fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
     let mid = mknode(&g, "02-mid-k3", "mid-k3");
     let grandchild = touch_body(
         &mid,
-        "01-impl-x-k4.md",
+        "01-impl--x-k4.md",
         "# x-k4\n\n**Kind:** impl\n\n## Goal\nstuff\n",
     );
     let grandchild_before = body(&grandchild);
     let brief_before = body(&mid.join("BRIEF.md"));
     commit_all(&g);
     let inserted = leaf_insert(&g, at(&g.join("02-mid-k3")), "new", Kind::Impl).unwrap();
-    assert_eq!(name_of(&inserted.path), "02-impl-new-k5.md");
+    assert_eq!(name_of(&inserted.path), "02-impl--new-k5.md");
     let shifted = g.join("03-mid-k3");
     assert!(shifted.is_dir(), "node dir shifted to 03-mid-k3");
     assert!(!g.join("02-mid-k3").exists(), "old node dir name gone");
@@ -822,7 +822,7 @@ fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
         "the moved node's BRIEF.md is byte-identical"
     );
     assert_eq!(
-        body(&shifted.join("01-impl-x-k4.md")),
+        body(&shifted.join("01-impl--x-k4.md")),
         grandchild_before,
         "the grandchild is byte-identical — only the ancestor dir name moved"
     );
@@ -839,9 +839,9 @@ fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
 fn insert_writes_position_free_header_for_the_new_leaf() {
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
     commit_all(&g);
-    let inserted = leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "head", Kind::Impl).unwrap();
+    let inserted = leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "head", Kind::Impl).unwrap();
     let text = body(&inserted.path);
     assert!(text.starts_with("# head-k2\n"), "got {text:?}");
     assert!(!text.contains("**Kind:**"), "got {text:?}");
@@ -856,11 +856,11 @@ fn insert_does_not_rewrite_any_existing_file_contents() {
     // — the brief, a leaf, a node's charter and a grandchild — because the
     // claim is about all of them and not about the one that moved.
     let (_t, g) = jj_grove();
-    let root_brief = touch_body(&g, "BRIEF.md", "# root — brief\n\nsee 02-impl-b-k2\n");
-    let a = touch_body(&g, "01-impl-a-k1.md", "# a-k1\n\nfirst\n");
-    let b = touch_body(&g, "02-impl-b-k2.md", "# b-k2\n\nbody text\n");
+    let root_brief = touch_body(&g, "BRIEF.md", "# root — brief\n\nsee 02-impl--b-k2\n");
+    let a = touch_body(&g, "01-impl--a-k1.md", "# a-k1\n\nfirst\n");
+    let b = touch_body(&g, "02-impl--b-k2.md", "# b-k2\n\nbody text\n");
     let node = mknode(&g, "03-mid-k3", "mid-k3");
-    let child = touch_body(&node, "01-impl-x-k4.md", "# x-k4\n\ndeep\n");
+    let child = touch_body(&node, "01-impl--x-k4.md", "# x-k4\n\ndeep\n");
     let before: Vec<String> = [&root_brief, &a, &b, &node.join("BRIEF.md"), &child]
         .iter()
         .map(|path| body(path))
@@ -871,10 +871,10 @@ fn insert_does_not_rewrite_any_existing_file_contents() {
 
     let after: Vec<String> = [
         &g.join("BRIEF.md"),
-        &g.join("01-impl-a-k1.md"),
-        &g.join("03-impl-b-k2.md"),
+        &g.join("01-impl--a-k1.md"),
+        &g.join("03-impl--b-k2.md"),
         &g.join("04-mid-k3").join("BRIEF.md"),
-        &g.join("04-mid-k3").join("01-impl-x-k4.md"),
+        &g.join("04-mid-k3").join("01-impl--x-k4.md"),
     ]
     .iter()
     .map(|path| body(path))
@@ -894,24 +894,24 @@ fn insert_collision_free_for_a_dense_run_of_siblings() {
     for i in 1..=5 {
         touch(
             &g,
-            &format!("{i:02}-impl-s{i}-k{i}.md"),
+            &format!("{i:02}-impl--s{i}-k{i}.md"),
             &format!("s{i}-k{i}"),
         );
     }
     commit_all(&g);
-    let inserted = leaf_insert(&g, at(&g.join("01-impl-s1-k1.md")), "head", Kind::Impl).unwrap();
-    assert_eq!(name_of(&inserted.path), "01-impl-head-k6.md");
+    let inserted = leaf_insert(&g, at(&g.join("01-impl--s1-k1.md")), "head", Kind::Impl).unwrap();
+    assert_eq!(name_of(&inserted.path), "01-impl--head-k6.md");
     assert_eq!(inserted.renumbers.len(), 5);
     let leaves: Vec<String> = list(&g).into_iter().filter(|n| n != "BRIEF.md").collect();
     assert_eq!(
         leaves,
         vec![
-            "01-impl-head-k6.md",
-            "02-impl-s1-k1.md",
-            "03-impl-s2-k2.md",
-            "04-impl-s3-k3.md",
-            "05-impl-s4-k4.md",
-            "06-impl-s5-k5.md",
+            "01-impl--head-k6.md",
+            "02-impl--s1-k1.md",
+            "03-impl--s2-k2.md",
+            "04-impl--s3-k3.md",
+            "05-impl--s4-k4.md",
+            "06-impl--s5-k5.md",
         ],
         "all six leaves present, gapless 01..06 — no file lost to a collision"
     );
@@ -926,11 +926,11 @@ fn insert_shifts_highest_ordinal_first_and_reports_the_log_ascending() {
     // is the level's own, ascending, so the summary reads like the directory.
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
-    touch(&g, "02-impl-b-k2.md", "b-k2");
-    touch(&g, "03-impl-c-k3.md", "c-k3");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
+    touch(&g, "02-impl--b-k2.md", "b-k2");
+    touch(&g, "03-impl--c-k3.md", "c-k3");
     commit_all(&g);
-    let inserted = leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "head", Kind::Impl).unwrap();
+    let inserted = leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "head", Kind::Impl).unwrap();
     let positions: Vec<(u32, u32)> = inserted
         .renumbers
         .iter()
@@ -938,10 +938,10 @@ fn insert_shifts_highest_ordinal_first_and_reports_the_log_ascending() {
         .collect();
     assert_eq!(positions, vec![(1, 2), (2, 3), (3, 4)]);
     assert_eq!(
-        inserted.renumbers[0].old_name, "01-impl-a-k1.md",
+        inserted.renumbers[0].old_name, "01-impl--a-k1.md",
         "the log carries the name each entry left behind, which is what the lint scans for"
     );
-    assert_eq!(inserted.renumbers[0].new_name, "02-impl-a-k1.md");
+    assert_eq!(inserted.renumbers[0].new_name, "02-impl--a-k1.md");
 }
 
 #[test]
@@ -949,17 +949,22 @@ fn insert_inside_a_nested_node_shifts_only_that_levels_siblings() {
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     let design = mknode(&g, "01-design-k1", "design-k1");
-    touch(&design, "01-impl-a-k2.md", "a-k2");
-    touch(&design, "02-impl-b-k3.md", "b-k3");
+    touch(&design, "01-impl--a-k2.md", "a-k2");
+    touch(&design, "02-impl--b-k3.md", "b-k3");
     commit_all(&g);
-    let inserted =
-        leaf_insert(&g, at(&design.join("01-impl-a-k2.md")), "first", Kind::Impl).unwrap();
-    assert_eq!(name_of(&inserted.path), "01-impl-first-k4.md");
+    let inserted = leaf_insert(
+        &g,
+        at(&design.join("01-impl--a-k2.md")),
+        "first",
+        Kind::Impl,
+    )
+    .unwrap();
+    assert_eq!(name_of(&inserted.path), "01-impl--first-k4.md");
     assert_eq!(name_of(inserted.path.parent().unwrap()), "01-design-k1");
     let children = list(&design);
-    assert!(children.contains(&"01-impl-first-k4.md".to_string()));
-    assert!(children.contains(&"02-impl-a-k2.md".to_string()));
-    assert!(children.contains(&"03-impl-b-k3.md".to_string()));
+    assert!(children.contains(&"01-impl--first-k4.md".to_string()));
+    assert!(children.contains(&"02-impl--a-k2.md".to_string()));
+    assert!(children.contains(&"03-impl--b-k3.md".to_string()));
     assert_eq!(inserted.renumbers.len(), 2);
 }
 
@@ -968,12 +973,12 @@ fn insert_addresses_its_target_by_key_handle_and_slug_alike() {
     for target in ["2", "[2]", "[2]-b", "b-k2", "b"] {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        touch(&g, "01-impl-a-k1.md", "a-k1");
-        touch(&g, "02-impl-b-k2.md", "b-k2");
+        touch(&g, "01-impl--a-k1.md", "a-k1");
+        touch(&g, "02-impl--b-k2.md", "b-k2");
         let inserted = leaf_insert(&g, target, "new", Kind::Impl).unwrap();
         assert_eq!(
             name_of(&inserted.path),
-            "02-impl-new-k3.md",
+            "02-impl--new-k3.md",
             "{target:?} must name the slot b holds"
         );
     }
@@ -987,8 +992,8 @@ fn insert_refuses_a_target_whose_key_names_two_entries() {
     // for this verb decides which slot the insert takes.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
-    touch(&g, "02-impl-b-k1.md", "b-k1");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
+    touch(&g, "02-impl--b-k1.md", "b-k1");
 
     let err = leaf_insert(&g, "1", "new", Kind::Impl)
         .unwrap_err()
@@ -997,7 +1002,7 @@ fn insert_refuses_a_target_whose_key_names_two_entries() {
     assert!(err.contains("carry key 1"), "got {err}");
     assert_eq!(
         list(&g),
-        vec!["01-impl-a-k1.md", "02-impl-b-k1.md", "BRIEF.md"],
+        vec!["01-impl--a-k1.md", "02-impl--b-k1.md", "BRIEF.md"],
         "nothing moved"
     );
 }
@@ -1006,9 +1011,9 @@ fn insert_refuses_a_target_whose_key_names_two_entries() {
 fn insert_errors_on_invalid_slug() {
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
     commit_all(&g);
-    assert!(leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "BRIEF", Kind::Impl).is_err());
+    assert!(leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "BRIEF", Kind::Impl).is_err());
 }
 
 #[test]
@@ -1038,7 +1043,7 @@ fn insert_errors_when_target_missing() {
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     commit_all(&g);
-    assert!(leaf_insert(&g, at(&g.join("09-impl-nope-k9.md")), "x", Kind::Impl).is_err());
+    assert!(leaf_insert(&g, at(&g.join("09-impl--nope-k9.md")), "x", Kind::Impl).is_err());
 }
 
 #[test]
@@ -1068,19 +1073,19 @@ fn insert_ahead_of_an_untracked_sibling_added_this_session() {
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     let release = leaf_add(&g, ".", "release", Kind::Impl).unwrap();
-    assert_eq!(name_of(&release), "01-impl-release-k1.md");
+    assert_eq!(name_of(&release), "01-impl--release-k1.md");
 
     // No commit: the leaf is uncommitted, exactly as the grow verb left it.
     let inserted = leaf_insert(&g, at(&release), "review", Kind::Impl).unwrap();
 
-    assert_eq!(name_of(&inserted.path), "01-impl-review-k2.md");
+    assert_eq!(name_of(&inserted.path), "01-impl--review-k2.md");
     let files = list(&g);
     assert!(
-        files.contains(&"02-impl-release-k1.md".to_string()),
+        files.contains(&"02-impl--release-k1.md".to_string()),
         "the uncommitted sibling shifted 01->02, key preserved (files: {files:?})"
     );
     assert!(
-        !files.contains(&"01-impl-release-k1.md".to_string()),
+        !files.contains(&"01-impl--release-k1.md".to_string()),
         "old name gone (files: {files:?})"
     );
     assert_eq!(inserted.renumbers.len(), 1, "one sibling shifted");
@@ -1090,16 +1095,16 @@ fn insert_ahead_of_an_untracked_sibling_added_this_session() {
 fn insert_renumbers_a_mix_of_committed_and_uncommitted_siblings() {
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
-    touch(&g, "02-impl-b-k2.md", "b-k2");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
+    touch(&g, "02-impl--b-k2.md", "b-k2");
     commit_all(&g); // a and b are committed
-    touch(&g, "03-impl-c-k3.md", "c-k3"); // c is not
+    touch(&g, "03-impl--c-k3.md", "c-k3"); // c is not
 
-    let inserted = leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "new", Kind::Impl).unwrap();
+    let inserted = leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "new", Kind::Impl).unwrap();
 
-    assert_eq!(name_of(&inserted.path), "01-impl-new-k4.md");
+    assert_eq!(name_of(&inserted.path), "01-impl--new-k4.md");
     let files = list(&g);
-    for expected in ["02-impl-a-k1.md", "03-impl-b-k2.md", "04-impl-c-k3.md"] {
+    for expected in ["02-impl--a-k1.md", "03-impl--b-k2.md", "04-impl--c-k3.md"] {
         assert!(
             files.contains(&expected.to_string()),
             "every sibling shifted up one, committed or not: missing {expected} (files: {files:?})"
@@ -1120,23 +1125,23 @@ fn insert_records_nothing_in_the_committed_revision() {
     // folds the shift in.
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
     commit_all(&g);
 
-    leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "new", Kind::Impl).unwrap();
+    leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "new", Kind::Impl).unwrap();
 
     let recorded = committed(&g);
     assert!(
-        recorded.contains(&"01-impl-a-k1.md".to_string()),
+        recorded.contains(&"01-impl--a-k1.md".to_string()),
         "the committed revision still carries the old name — the verb recorded \
          nothing (revision: {recorded:?})"
     );
     assert!(
-        !recorded.contains(&"02-impl-a-k1.md".to_string()),
+        !recorded.contains(&"02-impl--a-k1.md".to_string()),
         "and it recorded no new one either (revision: {recorded:?})"
     );
     assert!(
-        g.join("02-impl-a-k1.md").is_file(),
+        g.join("02-impl--a-k1.md").is_file(),
         "while on disk the sibling did shift"
     );
 }
@@ -1163,7 +1168,7 @@ fn surface_empty_renumbers_emits_nothing() {
     let (_t, g) = grove();
     touch_body(
         &g,
-        "01-impl-a-k1.md",
+        "01-impl--a-k1.md",
         "# a-k1\n\nrefers to 02-mid-k3 somewhere\n",
     );
     assert_eq!(surfaced(&g, &[]), "");
@@ -1174,11 +1179,11 @@ fn surface_reports_a_stale_position_prefixed_reference_in_a_body() {
     let (_t, g) = grove();
     touch_body(
         &g,
-        "01-impl-a-k1.md",
-        "# a-k1\n\nthe design lives at 02-mid-k3/01-impl-x-k4.md\n",
+        "01-impl--a-k1.md",
+        "# a-k1\n\nthe design lives at 02-mid-k3/01-impl--x-k4.md\n",
     );
     let out = surfaced(&g, &[renum(2, 3, "02-mid-k3", "03-mid-k3")]);
-    assert!(out.contains("01-impl-a-k1.md"), "names the file: {out:?}");
+    assert!(out.contains("01-impl--a-k1.md"), "names the file: {out:?}");
     assert!(out.contains("02-mid-k3"), "shows the stale name: {out:?}");
     assert!(
         out.contains(":3:"),
@@ -1192,7 +1197,7 @@ fn surface_does_not_flag_the_stable_slug_key_handle() {
     let (_t, g) = grove();
     touch_body(
         &g,
-        "01-impl-a-k1.md",
+        "01-impl--a-k1.md",
         "# a-k1\n\nsee mid-k3 for the design\n",
     );
     assert_eq!(surfaced(&g, &[renum(2, 3, "02-mid-k3", "03-mid-k3")]), "");
@@ -1209,7 +1214,7 @@ fn surface_reports_hits_recursively_across_nested_files() {
     let design = mknode(&g, "01-design-k1", "design-k1");
     touch_body(
         &design,
-        "01-impl-a-k2.md",
+        "01-impl--a-k2.md",
         "# a-k2\n\nalso 02-mid-k3 here\n",
     );
     let out = surfaced(&g, &[renum(2, 3, "02-mid-k3", "03-mid-k3")]);
@@ -1218,7 +1223,7 @@ fn surface_reports_hits_recursively_across_nested_files() {
         "{out:?}"
     );
     assert!(
-        out.contains("01-impl-a-k2.md"),
+        out.contains("01-impl--a-k2.md"),
         "nested file surfaced: {out:?}"
     );
 }
@@ -1324,15 +1329,15 @@ fn target_not_node_is_unreachable_because_clause_two_makes_it_so() {
     // anyway. Every parent argument that is an entry and not a node, then.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-a-k1.md", "a-k1");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
     let node = mknode(&g, "02-build-k2", "build-k2");
-    touch(&node, "01-DONE-impl-x-k3.md", "x-k3");
+    touch(&node, "01-DONE-impl--x-k3.md", "x-k3");
 
     for parent in [
         at(&g.join("BRIEF.md")),
-        at(&g.join("01-impl-a-k1.md")),
+        at(&g.join("01-impl--a-k1.md")),
         "1",
-        at(&node.join("01-DONE-impl-x-k3.md")),
+        at(&node.join("01-DONE-impl--x-k3.md")),
         "3",
     ] {
         for err in [
@@ -1381,20 +1386,20 @@ fn destination_occupied_is_unreachable_from_a_shift_however_the_tree_was_edited(
     // duplicate-key guard passes and the shift is what has to survive.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl-target-k9.md", "target-k9");
-    touch(&g, "02-impl-twin-k5.md", "twin-k5");
-    touch(&g, "03-impl-twin-k5.md", "twin-k5");
+    touch(&g, "01-impl--target-k9.md", "target-k9");
+    touch(&g, "02-impl--twin-k5.md", "twin-k5");
+    touch(&g, "03-impl--twin-k5.md", "twin-k5");
 
     let inserted = leaf_insert(&g, "9", "new", Kind::Impl).unwrap();
 
-    assert_eq!(name_of(&inserted.path), "01-impl-new-k10.md");
+    assert_eq!(name_of(&inserted.path), "01-impl--new-k10.md");
     assert_eq!(
         list(&g),
         vec![
-            "01-impl-new-k10.md",
-            "02-impl-target-k9.md",
-            "03-impl-twin-k5.md",
-            "04-impl-twin-k5.md",
+            "01-impl--new-k10.md",
+            "02-impl--target-k9.md",
+            "03-impl--twin-k5.md",
+            "04-impl--twin-k5.md",
             "BRIEF.md",
         ],
         "the duplicated pair shifted past each other without a collision"

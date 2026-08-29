@@ -109,9 +109,9 @@ fn add_to_empty_root_uses_position_one() {
     assert!(ok, "leaf-add failed");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-impl-first-step-k1.md")
+        PathBuf::from(".grove/01-impl--first-step-k1.md")
     );
-    let body = read(tmp.path(), ".grove/01-impl-first-step-k1.md");
+    let body = read(tmp.path(), ".grove/01-impl--first-step-k1.md");
     // The in-file header is the position-free handle `# <slug>-k<key>`.
     assert!(body.starts_with("# first-step-k1\n"), "header: {body:?}");
     assert!(!body.contains("**Kind:**"));
@@ -123,7 +123,7 @@ fn add_to_nonempty_root_uses_next_position_and_fresh_key() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
-    touch(&grove.join("01-impl-existing-k1.md"), "# existing-k1\n");
+    touch(&grove.join("01-impl--existing-k1.md"), "# existing-k1\n");
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "second"]);
@@ -131,7 +131,7 @@ fn add_to_nonempty_root_uses_next_position_and_fresh_key() {
     // Next root child is position 02; fresh key is max key (1) + 1 = 2.
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/02-impl-second-k2.md")
+        PathBuf::from(".grove/02-impl--second-k2.md")
     );
 }
 
@@ -140,7 +140,7 @@ fn add_under_a_node_by_key_uses_child_position() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-node-k1", "node-k1");
-    touch(&node.join("01-impl-child-k2.md"), "# child-k2\n");
+    touch(&node.join("01-impl--child-k2.md"), "# child-k2\n");
     stage_all(tmp.path());
 
     // Parent referenced by its permanent key `1`.
@@ -149,7 +149,7 @@ fn add_under_a_node_by_key_uses_child_position() {
     // Next child under the node is position 02; fresh key is max (2) + 1 = 3.
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-node-k1/02-impl-second-k3.md")
+        PathBuf::from(".grove/01-node-k1/02-impl--second-k3.md")
     );
 }
 
@@ -165,7 +165,7 @@ fn add_under_a_node_by_path() {
     assert!(ok, "leaf-add by path failed");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-node-k1/01-impl-only-k2.md")
+        PathBuf::from(".grove/01-node-k1/01-impl--only-k2.md")
     );
 }
 
@@ -182,7 +182,7 @@ fn add_with_planning_kind_writes_planning_in_filename() {
     );
     assert!(ok);
     let path = rel_path(&stdout, tmp.path());
-    assert_eq!(path, PathBuf::from(".grove/01-planning-plan-it-k1.md"));
+    assert_eq!(path, PathBuf::from(".grove/01-planning--plan-it-k1.md"));
     let body = read(tmp.path(), path.to_str().unwrap());
     assert!(!body.contains("**Kind:**"), "got {body:?}");
 }
@@ -210,7 +210,7 @@ fn add_accepts_every_non_reserved_kind() {
             path.file_name()
                 .unwrap()
                 .to_string_lossy()
-                .contains(&format!("-{label}-{slug}-")),
+                .contains(&format!("-{label}--{slug}-")),
             "got {path:?}"
         );
         assert!(!read(tmp.path(), path.to_str().unwrap()).contains("**Kind:**"));
@@ -252,7 +252,7 @@ fn add_refuses_the_retired_work_kind_and_names_its_replacement() {
         "the error must name the replacement, got {stderr:?}"
     );
     assert!(
-        !exists(tmp.path(), ".grove/01-impl-x-k1.md"),
+        !exists(tmp.path(), ".grove/01-impl--x-k1.md"),
         "a refused --kind must not leave a leaf behind"
     );
 }
@@ -267,7 +267,7 @@ fn add_defaults_to_impl_when_no_kind_is_given() {
     let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x"]);
     assert!(ok);
     let path = rel_path(&stdout, tmp.path());
-    assert_eq!(path, PathBuf::from(".grove/01-impl-x-k1.md"));
+    assert_eq!(path, PathBuf::from(".grove/01-impl--x-k1.md"));
     assert!(!read(tmp.path(), path.to_str().unwrap()).contains("**Kind:**"));
 }
 
@@ -298,7 +298,7 @@ fn add_rejects_the_removed_harness_flag_without_writing() {
         "got {stderr:?}"
     );
     assert!(stdout.is_empty());
-    assert!(!exists(tmp.path(), ".grove/01-research-a-survey-k1.md"));
+    assert!(!exists(tmp.path(), ".grove/01-research-a--survey-k1.md"));
 }
 
 #[test]
@@ -334,14 +334,14 @@ fn insert_rejects_the_removed_harness_flag_without_writing() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
-    touch(&grove.join("01-impl-a-k1.md"), "# a-k1\n");
+    touch(&grove.join("01-impl--a-k1.md"), "# a-k1\n");
     stage_all(tmp.path());
 
     let (stdout, stderr, ok) = run(
         tmp.path(),
         &[
             "leaf-insert",
-            "01-impl-a-k1.md",
+            "01-impl--a-k1.md",
             "survey",
             "--kind",
             "research-a",
@@ -355,7 +355,7 @@ fn insert_rejects_the_removed_harness_flag_without_writing() {
         "got {stderr:?}"
     );
     assert!(stdout.is_empty());
-    assert!(exists(tmp.path(), ".grove/01-impl-a-k1.md"));
+    assert!(exists(tmp.path(), ".grove/01-impl--a-k1.md"));
 }
 
 #[test]
@@ -397,8 +397,8 @@ fn add_under_nonexistent_parent_errors() {
 fn insert_at_start_shifts_root_siblings_up_by_one() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-impl-a-k1.md"), "# a-k1\n");
-    touch(&grove.join("02-design-b-k2.md"), "# b-k2\n");
+    touch(&grove.join("01-impl--a-k1.md"), "# a-k1\n");
+    touch(&grove.join("02-design--b-k2.md"), "# b-k2\n");
     stage_all(tmp.path());
 
     // Target the entry holding key 1 (leaf `a`).
@@ -407,19 +407,19 @@ fn insert_at_start_shifts_root_siblings_up_by_one() {
     // New leaf lands at position 01 with a fresh key (max 2 + 1 = 3).
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-impl-fresh-k3.md")
+        PathBuf::from(".grove/01-impl--fresh-k3.md")
     );
     // The occupant and its later sibling each shift up by one; keys preserved.
     assert!(
-        exists(tmp.path(), ".grove/02-impl-a-k1.md"),
+        exists(tmp.path(), ".grove/02-impl--a-k1.md"),
         "a not shifted to 02"
     );
     assert!(
-        exists(tmp.path(), ".grove/03-design-b-k2.md"),
+        exists(tmp.path(), ".grove/03-design--b-k2.md"),
         "b not shifted to 03"
     );
     assert!(
-        !exists(tmp.path(), ".grove/01-impl-a-k1.md"),
+        !exists(tmp.path(), ".grove/01-impl--a-k1.md"),
         "old a still present"
     );
     // Renumber summary goes to stderr (stdout stays just the new path).
@@ -434,24 +434,24 @@ fn insert_cascades_a_node_subtree_with_position_free_headers() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-node-k1", "node-k1");
-    touch(&node.join("01-prototype-inner-k2.md"), "# inner-k2\n");
-    touch(&grove.join("02-design-outer-k3.md"), "# outer-k3\n");
+    touch(&node.join("01-prototype--inner-k2.md"), "# inner-k2\n");
+    touch(&grove.join("02-design--outer-k3.md"), "# outer-k3\n");
     stage_all(tmp.path());
 
     let (stdout, stderr, ok) = run(tmp.path(), &["leaf-insert", "1", "fresh"]);
     assert!(ok, "leaf-insert failed: {stderr}");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-impl-fresh-k4.md")
+        PathBuf::from(".grove/01-impl--fresh-k4.md")
     );
     // node 01 → 02 drags its whole subtree (the child rides along, name and key
     // unchanged); the unrelated sibling 02 → 03.
     assert!(
-        exists(tmp.path(), ".grove/02-node-k1/01-prototype-inner-k2.md"),
+        exists(tmp.path(), ".grove/02-node-k1/01-prototype--inner-k2.md"),
         "node dir + child not moved as a unit"
     );
     assert!(
-        exists(tmp.path(), ".grove/03-design-outer-k3.md"),
+        exists(tmp.path(), ".grove/03-design--outer-k3.md"),
         "outer not bumped"
     );
     assert!(
@@ -473,7 +473,7 @@ fn insert_requires_an_existing_target() {
     // target must exist. A nonexistent target is an error (not a silent append).
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-impl-a-k1.md"), "# a-k1\n");
+    touch(&grove.join("01-impl--a-k1.md"), "# a-k1\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-insert", "9", "tail"]);
@@ -483,7 +483,7 @@ fn insert_requires_an_existing_target() {
         "expected not-found diagnostic, got {stderr:?}"
     );
     // The pre-existing leaf is untouched.
-    assert!(exists(tmp.path(), ".grove/01-impl-a-k1.md"));
+    assert!(exists(tmp.path(), ".grove/01-impl--a-k1.md"));
 }
 
 // ---------------------------------------------------------------------------

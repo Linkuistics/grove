@@ -135,7 +135,7 @@ fn concurrent_root_initializers_wait_before_observing_or_creating_the_grove() {
     assert_eq!(second_stderr.matches(WAITING_DIAGNOSTIC).count(), 1);
     assert!(worktree
         .path()
-        .join(".grove/01-requirements-plan-k1.md")
+        .join(".grove/01-requirements--plan-k1.md")
         .is_file());
 }
 
@@ -160,7 +160,7 @@ fn reader_through_a_symlink_alias_waits_for_the_same_worktree_identity() {
     assert!(output.status.success(), "{stderr}");
     assert_eq!(stderr.matches(WAITING_DIAGNOSTIC).count(), 1);
     assert!(
-        String::from_utf8_lossy(&output.stdout).contains("01-requirements-plan-k1.md"),
+        String::from_utf8_lossy(&output.stdout).contains("01-requirements--plan-k1.md"),
         "{}",
         String::from_utf8_lossy(&output.stdout)
     );
@@ -179,7 +179,7 @@ fn mutator_waits_for_a_shared_worktree_reader_before_allocating_a_leaf() {
     );
     writer.wait_until_contended();
     assert!(
-        !worktree.path().join(".grove/02-impl-later-k2.md").exists(),
+        !worktree.path().join(".grove/02-impl--later-k2.md").exists(),
         "leaf-add mutated the tree before acquiring the exclusive worktree lock"
     );
     unlock_worktree(&external_guard);
@@ -187,7 +187,10 @@ fn mutator_waits_for_a_shared_worktree_reader_before_allocating_a_leaf() {
     let (output, stderr) = writer.finish();
     assert!(output.status.success(), "{stderr}");
     assert_eq!(stderr.matches(WAITING_DIAGNOSTIC).count(), 1);
-    assert!(worktree.path().join(".grove/02-impl-later-k2.md").is_file());
+    assert!(worktree
+        .path()
+        .join(".grove/02-impl--later-k2.md")
+        .is_file());
 }
 
 #[test]

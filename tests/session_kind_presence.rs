@@ -73,7 +73,7 @@ fn seed_grove(repo: &Path) -> PathBuf {
     let grove = repo.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# fixture — brief\n").unwrap();
-    fs::write(grove.join("01-impl-seed-k1.md"), "# seed-k1\n").unwrap();
+    fs::write(grove.join("01-impl--seed-k1.md"), "# seed-k1\n").unwrap();
     grove
 }
 
@@ -122,7 +122,7 @@ fn leaf_add_lands_when_the_kind_resolves() {
     );
 
     assert!(ok, "{stderr}");
-    assert!(grove.join("02-impl-shape-k2.md").exists());
+    assert!(grove.join("02-impl--shape-k2.md").exists());
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn leaf_decompose_asks_about_the_kind_its_first_child_will_carry() {
     let (stderr, ok) = run(
         repo.path(),
         home.path(),
-        &["leaf-decompose", ".grove/01-impl-seed-k1.md", "first"],
+        &["leaf-decompose", ".grove/01-impl--seed-k1.md", "first"],
     );
 
     assert!(!ok, "{stderr}");
@@ -196,7 +196,7 @@ fn leaf_decompose_asks_about_the_kind_its_first_child_will_carry() {
             "leaf-decompose",
             "--kind",
             "design",
-            ".grove/01-impl-seed-k1.md",
+            ".grove/01-impl--seed-k1.md",
             "first",
         ],
     );

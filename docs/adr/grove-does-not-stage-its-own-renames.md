@@ -5,7 +5,7 @@ version-control state afterwards. Jujutsu snapshots the working copy on its next
 command, so the mark is whole the moment the verb returns:
 
 ```
-R .grove/{04-impl-marking-k32.md => 04-DONE-impl-marking-k32.md}
+R .grove/{04-impl--marking-k32.md => 04-DONE-impl--marking-k32.md}
 ```
 
 is `jj status`, and the commit that follows records exactly that.

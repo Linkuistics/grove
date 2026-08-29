@@ -211,21 +211,24 @@ fn rel_line(stdout: &str, repo: &Path, n: usize) -> PathBuf {
 fn build_grove(repo: &Path) {
     let g = repo.join(".grove");
     touch(&g.join("BRIEF.md"), "# proj — brief\n\n## Goal\n");
-    touch(&g.join("01-impl-alpha-k1.md"), "# alpha-k1\n\nalpha body\n");
+    touch(
+        &g.join("01-impl--alpha-k1.md"),
+        "# alpha-k1\n\nalpha body\n",
+    );
     touch(
         &g.join("02-node-k2/BRIEF.md"),
         "# node-k2 — brief\n\n## Goal\n",
     );
     touch(
-        &g.join("02-node-k2/01-impl-child-k3.md"),
+        &g.join("02-node-k2/01-impl--child-k3.md"),
         "# child-k3\n\nchild body\n",
     );
     touch(
-        &g.join("02-node-k2/02-research-a-sibling-k4.md"),
+        &g.join("02-node-k2/02-research-a--sibling-k4.md"),
         "# sibling-k4\n\nsibling body\n",
     );
     touch(
-        &g.join("03-design-omega-k5.md"),
+        &g.join("03-design--omega-k5.md"),
         "# omega-k5\n\nomega body\n",
     );
 }
@@ -247,9 +250,9 @@ fn root_init_scaffolds_a_grove_in_a_jj_native_tree() {
     assert_eq!(rel_line(&stdout, repo, 0), PathBuf::from(".grove/BRIEF.md"));
     assert_eq!(
         rel_line(&stdout, repo, 1),
-        PathBuf::from(".grove/01-requirements-plan-k1.md")
+        PathBuf::from(".grove/01-requirements--plan-k1.md")
     );
-    assert!(!read(repo, ".grove/01-requirements-plan-k1.md").contains("**Kind:**"));
+    assert!(!read(repo, ".grove/01-requirements--plan-k1.md").contains("**Kind:**"));
     assert!(
         !exists(repo, ".git"),
         "root-init must not conjure a git repo in a jj tree"
@@ -267,10 +270,10 @@ fn leaf_add_appends_a_child_in_a_jj_native_tree() {
 
     assert_eq!(
         rel_line(&stdout, repo, 0),
-        PathBuf::from(".grove/04-impl-next-k6.md"),
+        PathBuf::from(".grove/04-impl--next-k6.md"),
         "appended at the next free position with max-key + 1"
     );
-    assert!(exists(repo, ".grove/04-impl-next-k6.md"));
+    assert!(exists(repo, ".grove/04-impl--next-k6.md"));
 }
 
 #[test]
@@ -287,17 +290,17 @@ fn leaf_insert_renumbers_siblings_in_a_jj_native_tree() {
 
     assert_eq!(
         rel_line(&stdout, repo, 0),
-        PathBuf::from(".grove/01-impl-urgent-k6.md")
+        PathBuf::from(".grove/01-impl--urgent-k6.md")
     );
     assert_eq!(
         tree(repo),
         vec![
-            "01-impl-urgent-k6.md",
-            "02-impl-alpha-k1.md",
-            "03-node-k2/01-impl-child-k3.md",
-            "03-node-k2/02-research-a-sibling-k4.md",
+            "01-impl--urgent-k6.md",
+            "02-impl--alpha-k1.md",
+            "03-node-k2/01-impl--child-k3.md",
+            "03-node-k2/02-research-a--sibling-k4.md",
             "03-node-k2/BRIEF.md",
-            "04-design-omega-k5.md",
+            "04-design--omega-k5.md",
             "BRIEF.md",
         ],
         "every sibling shifted up one, the node's subtree riding along untouched"
@@ -316,7 +319,7 @@ fn leaf_decompose_promotes_a_leaf_to_a_node_in_a_jj_native_tree() {
 
     let (stdout, stderr, ok) = llm(
         repo,
-        &["leaf-decompose", ".grove/01-impl-alpha-k1.md", "sub"],
+        &["leaf-decompose", ".grove/01-impl--alpha-k1.md", "sub"],
     );
     assert!(ok, "leaf-decompose failed: {stderr}");
 
@@ -326,10 +329,10 @@ fn leaf_decompose_promotes_a_leaf_to_a_node_in_a_jj_native_tree() {
     );
     assert_eq!(
         rel_line(&stdout, repo, 1),
-        PathBuf::from(".grove/01-alpha-k1/01-impl-sub-k6.md")
+        PathBuf::from(".grove/01-alpha-k1/01-impl--sub-k6.md")
     );
     // The leaf file became the node's brief — same key, retitled header, body carried.
-    assert!(!exists(repo, ".grove/01-impl-alpha-k1.md"));
+    assert!(!exists(repo, ".grove/01-impl--alpha-k1.md"));
     let brief = read(repo, ".grove/01-alpha-k1/BRIEF.md");
     assert!(
         brief.starts_with("# alpha-k1 — brief\n"),
@@ -346,19 +349,19 @@ fn leaf_retire_marks_done_in_place_in_a_jj_native_tree() {
 
     let (stdout, stderr, ok) = llm(
         repo,
-        &["leaf-retire", ".grove/02-node-k2/01-impl-child-k3.md"],
+        &["leaf-retire", ".grove/02-node-k2/01-impl--child-k3.md"],
     );
     assert!(ok, "leaf-retire failed: {stderr}");
 
     assert_eq!(
         rel_line(&stdout, repo, 0),
-        PathBuf::from(".grove/02-node-k2/01-DONE-impl-child-k3.md")
+        PathBuf::from(".grove/02-node-k2/01-DONE-impl--child-k3.md")
     );
-    assert!(exists(repo, ".grove/02-node-k2/01-DONE-impl-child-k3.md"));
-    assert!(!exists(repo, ".grove/02-node-k2/01-impl-child-k3.md"));
+    assert!(exists(repo, ".grove/02-node-k2/01-DONE-impl--child-k3.md"));
+    assert!(!exists(repo, ".grove/02-node-k2/01-impl--child-k3.md"));
     // The infix is filename-only — the body is byte-identical.
     assert_eq!(
-        read(repo, ".grove/02-node-k2/01-DONE-impl-child-k3.md"),
+        read(repo, ".grove/02-node-k2/01-DONE-impl--child-k3.md"),
         "# child-k3\n\nchild body\n"
     );
 }
@@ -370,16 +373,16 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
     let grove = repo.join(".grove");
     // Flat siblings, which is what a review chain is (flat-lazy-review): the
     // review was cut by the producer's own session as an ordinary `leaf-add`.
-    touch(&grove.join("01-impl-build-k1.md"), "# build-k1\n");
+    touch(&grove.join("01-impl--build-k1.md"), "# build-k1\n");
     touch(
-        &grove.join("02-review-impl-build-k2.md"),
+        &grove.join("02-review-impl--build-k2.md"),
         "# build-k2\n\n**Reviews:** build-k1\n",
     );
     let output = Command::cargo_bin("grove-llm")
         .unwrap()
         .env("HOME", support::fixture_home())
         .current_dir(repo)
-        .args(["leaf-retire", ".grove/01-impl-build-k1.md"])
+        .args(["leaf-retire", ".grove/01-impl--build-k1.md"])
         .output()
         .unwrap();
 
@@ -388,12 +391,12 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
         "leaf-retire failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(exists(repo, ".grove/01-DONE-impl-build-k1.md"));
+    assert!(exists(repo, ".grove/01-DONE-impl--build-k1.md"));
     // Byte-equality rather than a `!contains` on a retired marker: the claim is
     // that retiring a producer writes nothing into the review that names it, and
     // that holds for whatever a future sibling write might say.
     assert_eq!(
-        read(repo, ".grove/02-review-impl-build-k2.md"),
+        read(repo, ".grove/02-review-impl--build-k2.md"),
         "# build-k2\n\n**Reviews:** build-k1\n"
     );
     assert!(
@@ -417,17 +420,17 @@ fn leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree() {
     assert_eq!(
         marked,
         vec![
-            PathBuf::from(".grove/02-node-k2/01-ABANDONED-impl-child-k3.md"),
-            PathBuf::from(".grove/02-node-k2/02-ABANDONED-research-a-sibling-k4.md"),
+            PathBuf::from(".grove/02-node-k2/01-ABANDONED-impl--child-k3.md"),
+            PathBuf::from(".grove/02-node-k2/02-ABANDONED-research-a--sibling-k4.md"),
         ]
     );
     assert!(exists(
         repo,
-        ".grove/02-node-k2/01-ABANDONED-impl-child-k3.md"
+        ".grove/02-node-k2/01-ABANDONED-impl--child-k3.md"
     ));
     assert!(exists(
         repo,
-        ".grove/02-node-k2/02-ABANDONED-research-a-sibling-k4.md"
+        ".grove/02-node-k2/02-ABANDONED-research-a--sibling-k4.md"
     ));
     assert!(
         exists(repo, ".grove/02-node-k2/BRIEF.md"),
@@ -445,7 +448,7 @@ fn jjs_working_copy_snapshots_the_renames_a_verb_made() {
     build_grove(repo);
     run_jj(repo, &["commit", "-m", "fixture"]);
 
-    let (_, stderr, ok) = llm(repo, &["leaf-retire", ".grove/01-impl-alpha-k1.md"]);
+    let (_, stderr, ok) = llm(repo, &["leaf-retire", ".grove/01-impl--alpha-k1.md"]);
     assert!(ok, "leaf-retire failed: {stderr}");
 
     // jj compacts a detected rename to `R <dir>/{<old> => <new>}`, so match the
@@ -454,8 +457,8 @@ fn jjs_working_copy_snapshots_the_renames_a_verb_made() {
     let diff = run_jj(repo, &["diff", "--summary", "--no-pager"]);
     assert!(
         diff.starts_with('R')
-            && diff.contains("01-impl-alpha-k1.md")
-            && diff.contains("01-DONE-impl-alpha-k1.md"),
+            && diff.contains("01-impl--alpha-k1.md")
+            && diff.contains("01-DONE-impl--alpha-k1.md"),
         "jj's snapshot must see the rename with no staging step, got {diff:?}"
     );
 }
@@ -490,7 +493,7 @@ fn leaf_insert_in_a_colocated_tree_leaves_the_git_index_alone() {
     assert!(ok, "leaf-insert failed: {stderr}");
 
     assert!(
-        exists(repo, ".grove/02-impl-alpha-k1.md"),
+        exists(repo, ".grove/02-impl--alpha-k1.md"),
         "the renumber must still happen on disk"
     );
     assert_eq!(
@@ -508,7 +511,7 @@ fn leaf_decompose_in_a_colocated_tree_leaves_the_git_index_alone() {
 
     let (_, stderr, ok) = llm(
         repo,
-        &["leaf-decompose", ".grove/01-impl-alpha-k1.md", "sub"],
+        &["leaf-decompose", ".grove/01-impl--alpha-k1.md", "sub"],
     );
     assert!(ok, "leaf-decompose failed: {stderr}");
 
@@ -522,10 +525,10 @@ fn leaf_retire_in_a_colocated_tree_leaves_the_git_index_alone() {
     let repo = tmp.path();
     let before = git_index(repo);
 
-    let (_, stderr, ok) = llm(repo, &["leaf-retire", ".grove/01-impl-alpha-k1.md"]);
+    let (_, stderr, ok) = llm(repo, &["leaf-retire", ".grove/01-impl--alpha-k1.md"]);
     assert!(ok, "leaf-retire failed: {stderr}");
 
-    assert!(exists(repo, ".grove/01-DONE-impl-alpha-k1.md"));
+    assert!(exists(repo, ".grove/01-DONE-impl--alpha-k1.md"));
     assert_eq!(git_index(repo), before, "the colocated index is untouched");
 }
 
@@ -540,7 +543,7 @@ fn leaf_prune_in_a_colocated_tree_leaves_the_git_index_alone() {
 
     assert!(exists(
         repo,
-        ".grove/02-node-k2/01-ABANDONED-impl-child-k3.md"
+        ".grove/02-node-k2/01-ABANDONED-impl--child-k3.md"
     ));
     assert_eq!(git_index(repo), before, "the colocated index is untouched");
 }

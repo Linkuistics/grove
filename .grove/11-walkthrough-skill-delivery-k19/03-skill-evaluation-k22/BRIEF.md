@@ -1,4 +1,4 @@
-# skill-evaluation-k22
+# skill-evaluation-k22 — brief
 
 ## Goal
 
@@ -33,3 +33,26 @@ is supported.
 
 Keep the skill generic throughout refinement. An `ordinal-fs-tree`-specific fix
 is evidence that the scenario or instruction is shaped at the wrong level.
+
+## Decomposition
+
+The campaign is split into six dependency-ordered vertical slices. The first
+three run the unchanged scenario groups against the same pre-refinement skill
+revision, preserving a comparable enabled sample. The fourth selects, freezes,
+and runs the rubric's separate transfer probe. The fifth refines only gaps
+demonstrated by the same-case samples and reruns affected cases plus regression
+cases. The sixth synthesizes the frozen rubric, baseline, enabled outcomes, and
+final mechanical deployment checks into the durable report.
+
+## Decisions (running log)
+
+The initial enabled campaign freezes the skill revision across all three
+scenario groups. Refining after only the first group would make the later groups
+measure different instructions and weaken both the aggregate comparison and any
+claim about variance. All initial evidence therefore lands before the dedicated
+refinement and regression slice.
+
+The frozen rubric's transfer probe is a separate slice because its codebase,
+prompt, and case-specific criteria must be selected and frozen independently of
+the skill bytes and campaign evidence before its paired arms run. Its outcome is
+reported separately and cannot drive wording changes in this campaign.

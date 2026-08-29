@@ -176,8 +176,9 @@ silent regeneration.
 
 ## Write self-contained technical prose
 
-Lead sections with direct claims. Use stable codebase vocabulary and explicit
-actors. Explain why a boundary exists, not merely which call follows which.
+Lead sections with direct claims. Use stable codebase vocabulary. Name the actor
+for every effect. Explain why a boundary exists, not merely which call follows
+which.
 Distinguish a deliberate refusal from an environmental failure and an
 implementation defect. Calibrate detail to the audience contract: explain the
 unfamiliar domain and surprising language or operating-system behavior, while

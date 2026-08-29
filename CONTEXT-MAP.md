@@ -134,10 +134,10 @@ mean something else in grove's, and its crate ships by no path of its own —
   [`a-lifecycle-claim-says-what-it-is-over`](docs/adr/a-lifecycle-claim-says-what-it-is-over.md),
   [`finish-keeps-a-cleanup-layer-it-has-not-proved-forced`](docs/adr/finish-keeps-a-cleanup-layer-it-has-not-proved-forced.md),
   [`a-shared-safety-claim-names-the-role-not-the-artifact`](docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md),
-  and the four specs
+  [`evidence-outlives-the-instrument`](docs/adr/evidence-outlives-the-instrument.md),
+  and the three specs
   [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md),
-  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
-  [`semantic-contract`](docs/specs/semantic-contract.md)
+  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
   and [`module-decomposition`](docs/specs/module-decomposition.md).
   The **ordinal-fs-tree** context owns
   [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md) and
@@ -153,17 +153,21 @@ mean something else in grove's, and its crate ships by no path of its own —
   building against it, and the records say what it cost and what changing it
   would cost, for someone proposing to change it.
 
-  Each spec earns its place the same way: the first describes how the embedded
-  corpus files its rules, an area no single increment finishes; the second a
-  composition **between** two contexts; and the third the tool-neutral semantics
-  of the task tree, the finish protocol and the lifecycle joining them, which the
-  models check and the crates must deliver — so all three outlive the increment
-  that wrote them. `semantic-contract` is **grove**'s despite naming
-  `docs/ordinal-fs-tree/models/` as a delegated boundary: it consumes that
-  boundary in grove's vocabulary and states no claim in the library's, which is
-  the discriminator this map sets. The doubt skill
+  The first two earn their place the same way: one describes how the embedded
+  corpus files its rules, an area no single increment finishes; the other a
+  composition **between** two contexts. Both outlive the increment that wrote
+  them. The doubt skill
   participates in the review-ownership and promotion contracts, but the mandate,
   task tree, review routing, and lifecycle are Grove's maintaining seam.
+
+  A fourth spec, `semantic-contract`, stated the tool-neutral semantics of the
+  task tree, the finish protocol and the lifecycle joining them, and was
+  **deleted** with the formal-methods apparatus that checked it
+  (`delete-formal-models-k29`). It went for the reason the paragraph below gives
+  for `module-decomposition` in advance: a spec earns its place by describing
+  something no other artifact holds, and once its checker is gone and the design
+  it specified is being dismantled, `docs/ARCHITECTURE.md` is where the
+  current-state description belongs.
 
   The third is the exception the rule below anticipates, and it carries its own
   **retirement condition** rather than a claim to outlive its increment.

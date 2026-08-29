@@ -122,3 +122,14 @@ The Alloy column has not been restated and owes the same repair for `FN-24.a` an
 two green while checking **different claims**, and the runner's contested-cell
 line cannot see it — it fires only when one family *declares a gap*. The
 catalogue says so where it states the obligations.
+
+**The catalogue and both model families have been retired.** The catalogue was
+`docs/specs/semantic-contract.md`; the two families were the Quint and Alloy
+columns under `models/` and the per-scope model directories. All of it was
+deleted with the campaign's apparatus (`delete-formal-models-k29`, and
+`delete-finish-models-k30` for the finish column), so the repair this section
+leaves outstanding for `FN-24.a` and `FN-28` is not work anyone will do — the
+divergence it describes is a finding about how two independently built columns
+read one underdetermined catalogue, and that finding is what survives. The decision above survived the instrument that found it, which is the outcome
+that campaign was run to test, and `docs/formalism-findings.md` keeps the record
+of how it was found.

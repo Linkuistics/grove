@@ -51,6 +51,43 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The formal-methods campaign's apparatus is deleted; its evidence is kept.**
+  About 23,800 lines go: `models/` (the `SY-` lifecycle column in Quint and Alloy,
+  its controls, the whole-repository runner `models/run.sh` and its control
+  harness `run-controls.sh`), `crates/grove-task-tree/models/` (the `TT-` column,
+  and with it a directory that was never a crate), the two report generators
+  `scripts/loop-record.py` and `scripts/review-yield.py`, and the claim catalogue
+  `docs/specs/semantic-contract.md` that all of them were checked against. The
+  campaign's value is the lessons it produced and the `linkuistics` skills those
+  lessons became, and the runnable machinery had no consumer left. The rule is
+  recorded as `docs/adr/evidence-outlives-the-instrument.md`, which carries the
+  rejected alternative — deleting the records too — and why it was refused.
+
+  **What was kept, and why.** Every record under `docs/` — `formalism-findings.md`,
+  `candidate-lessons.md`, `review-yield.md`, `loop-record.md`,
+  `preservation-baseline.md`, `driving-a-checkable-loop.md` and
+  `results-of-formal-methods-trial.md` — because `plugins/linkuistics`' skills cite
+  them for their authority, one through a public URL, and **a rule whose evidence
+  has been deleted is a rule nothing can falsify**. Also kept:
+  `docs/ordinal-fs-tree/models/`, which the catalogue delegated to rather than
+  owned, whose own runners are self-contained and whose crate is live.
+
+  **Every citation into the deleted set is reconciled rather than dropped.** Seven
+  records under `docs/adr/` gain the paragraph
+  `a-witnessless-root-refuses-what-it-cannot-account-for` established at
+  `delete-migration-k6` — the decision outlives the instrument, and the citation
+  moves to whatever checks it now. Four kept records gain a standing note that
+  their model paths are descriptions rather than links. `docs/loop-record.md` and
+  `docs/review-yield.md` are relabelled **derived and now frozen**, naming what
+  that costs: `review-yield.md`'s judged half is no longer re-assertable, because
+  its classification table lived inside the deleted script. `CONTEXT.md` loses
+  **Obligation / sub-identity**, whose whole subject was the retired coverage
+  matrix, and its *Formal contract* section is renamed for the terms that outlived
+  it. `CONTEXT-MAP.md` drops `semantic-contract` from grove's specs, four to
+  three. `docs/ARCHITECTURE.md`'s *Documentation ownership* gains the
+  `loop-record.md` and `review-yield.md` rows the previous entry claimed but did
+  not land, and its Alloy-against-Quint row no longer says the models are here.
+
 - **The embedded methodology gains three rules, all measured on this
   repository's own formal-modelling campaign.** `references/execute.md` now
   carries *a control that has never been seen to fail is not a control* — show a

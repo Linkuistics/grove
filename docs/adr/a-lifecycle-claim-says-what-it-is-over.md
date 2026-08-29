@@ -112,3 +112,13 @@ recording it here rather than only in the catalogue.
   *nothing but a counted transition or the iteration boundary moves the flag*. It
   found four in one sitting, including a predicate that framed the launched
   session's fields by hand.
+
+**The models under `## What checks it` have been retired, and nothing checks the
+claim mechanically now.** `models/system/lifecycle.qnt`, `models/system/lifecycle.als`
+and their controls were deleted with the campaign's apparatus
+(`delete-formal-models-k29`), as was the catalogue they were written from,
+`docs/specs/semantic-contract.md`. This record is now the statement of the rule
+rather than a pointer to its enforcement: a lifecycle claim still has to say what
+it is stated over, and a reviewer applies it by reading. The decision above survived the instrument that found it, which is the outcome
+that campaign was run to test, and `docs/formalism-findings.md` keeps the record
+of how it was found.

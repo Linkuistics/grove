@@ -20,8 +20,9 @@ Deriving allocation from the names is what makes the whole proposition — *a tr
 you can read with `ls`, edit with `mv`, and reason about without running the
 program that owns it* — survive a hand edit. There is no index, no database and
 no metadata file, so there is nothing a human with `mv` can desynchronise. The
-formal models take the same premise: an arbitrary well-formed tree is *reached*
-through hand edits rather than posited as a second initial state, which is only
+two formal models under `docs/ordinal-fs-tree/models/` — which survive, this
+being the library's decision and not grove's — take the same premise: an
+arbitrary well-formed tree is *reached* through hand edits rather than posited as a second initial state, which is only
 coherent because every fact about the tree is recoverable from the names.
 
 The cost is a monotonically growing key space and entries that outlive their

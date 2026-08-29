@@ -16,6 +16,9 @@
 .superpowers/
 
 # Apalache's per-run scratch directory, written into the working tree by
-# `quint verify` (models/run.sh, QUINT_VERIFY=1). Logs and SMT dumps, never an
-# artifact.
+# `quint verify`. The runner that set `QUINT_VERIFY=1` (`models/run.sh`) went
+# with the formal-methods apparatus, and the surviving
+# `docs/ordinal-fs-tree/models/run-quint.sh` never invoked Apalache — so nothing
+# in the repo writes this now. Kept because the directory is scratch either way,
+# and anyone re-running Quint by hand against those models would recreate it.
 /_apalache-out

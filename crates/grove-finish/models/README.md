@@ -1,7 +1,15 @@
 # grove-finish — models
 
-The finish/recovery scope of [the semantic
-contract](../../../docs/specs/semantic-contract.md): the `FN-` claims, checked
+> **Stranded.** The catalogue these models were written from
+> (`docs/specs/semantic-contract.md`) and the runner that checked them
+> (`models/run.sh`) were deleted at `delete-formal-models-k29`, so nothing here
+> can be run or re-derived. This directory itself goes at
+> `delete-finish-models-k30`. Paths named below are descriptions of where things
+> were, not links.
+
+The finish/recovery scope of the semantic contract, once
+`docs/specs/semantic-contract.md` and now deleted with the rest of the
+formal-methods apparatus (`delete-formal-models-k29`): the `FN-` claims, checked
 independently by each model family. This directory exists before the crate does,
 which is deliberate — the model is what the crate will be cut against.
 
@@ -972,8 +980,7 @@ a slice that reports a single sentinel's before-and-after is reporting noise.
 
 ### Abstractions, and what this file deliberately does not model
 
-Beyond the catalogue's own [deliberate
-omissions](../../../docs/specs/semantic-contract.md#deliberate-omissions), which
+Beyond the catalogue's own *Deliberate omissions*, which
 this file adopts unchanged:
 
 - **THE STABLE-STATE CLASSIFICATION IS EVERY ROW OF THE CATALOGUE'S TABLE A
@@ -3508,7 +3515,7 @@ closes and owes its own matrix. Cut as `matrix-reader`, inserted ahead of
 
 # The Quint column — `finish.qnt`
 
-Written from [`docs/specs/semantic-contract.md`](../../../docs/specs/semantic-contract.md)
+Written from `docs/specs/semantic-contract.md`
 alone, under the independence protocol
 ([`docs/formalism-findings.md`](../../../docs/formalism-findings.md), *Experiment 2 —
 pre-registration*, **Independence protocol**): this column's session opened no
@@ -3531,7 +3538,7 @@ split is not tidiness — see *Verification*.
 Coverage is asserted: all 63 `FN-` obligations are answered by a property
 command and at least one witness, and there are no declared gaps.
 
-Knobs, all environment variables read by [`models/run.sh`](../../../models/run.sh):
+Knobs, all environment variables read by the retired runner `models/run.sh`:
 `QUINT_SAMPLES` (default 8000), `QUINT_STEPS` (default 24), `QUINT_SEED` (a
 fixed default, so a green run is replayable and a red one reproduces),
 `QUINT_VERIFY` (default 0 — see below).
@@ -3633,8 +3640,8 @@ disposal rejoins by the marker it finds.
 | seven `relax_EN_*` | the assumption mutations | see *The controls* |
 | seventeen `mutant_*` | the model mutations | see *The controls* |
 
-**Which module a command runs in** is decided by one rule, defined in
-[`models/run.sh`](../../../models/run.sh) under *THE MODULE RULE* and cited
+**Which module a command runs in** is decided by one rule, defined in the
+retired runner `models/run.sh` under *THE MODULE RULE* and cited
 rather than restated here.
 
 ## What a `scenario_` instance is for, and what it is not
@@ -4032,8 +4039,7 @@ qualification below.
 
 ## Abstractions
 
-Beyond the catalogue's own [deliberate
-omissions](../../../docs/specs/semantic-contract.md#deliberate-omissions), which
+Beyond the catalogue's own *Deliberate omissions*, which
 this model takes as written:
 
 - **The task tree is a set of entries.** Names, positions, keys, session kinds

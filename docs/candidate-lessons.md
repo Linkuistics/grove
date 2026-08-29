@@ -9,6 +9,15 @@ harvest must **either evidence or drop**.
 This is the adjudication. One verdict per candidate, each naming the file and
 section that decides it and **what would have falsified it**.
 
+> **The models this record adjudicates no longer exist.** They were deleted with
+> the rest of the formal-methods apparatus once the campaign's lessons had been
+> distilled into the `linkuistics` skills (`delete-formal-models-k29`), along
+> with the runner `models/run.sh`, its controls, and the claim catalogue
+> `docs/specs/semantic-contract.md`. This document was kept precisely because the
+> skills cite it for their authority: a rule whose evidence has been deleted is a
+> rule nothing can falsify. So every model path named below is a description of
+> where a verdict was reached, not a link a reader can follow.
+
 **Three of the six moved.** One is dropped outright, one is materially weakened
 with half its sentence falsified, and one turns out to be two claims sharing a
 sentence and resting on very different amounts of evidence. The three that stand
@@ -352,8 +361,9 @@ written down, not that the instances repeat.**
 
 ### The mechanism, verified at source
 
-[`models/run.sh`](../models/run.sh), which is the **only** place the rule is
-defined:
+`models/run.sh`, which was the **only** place the rule was defined, and which
+was deleted with the campaign's apparatus (`delete-formal-models-k29`). The
+rule, quoted here so that it survives its definition site:
 
 > a `relax_`, `mutant_` or `scenario_` instance carries ONLY the commands written
 > inside it. Each exists precisely because some obligation behaves differently

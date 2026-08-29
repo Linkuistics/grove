@@ -76,8 +76,7 @@ effect applied it never ungrades it*.
 
 **The catalogue was asked whether to gain a general form of that obligation and
 declined it, on a refutation rather than on cost**
-([`docs/specs/semantic-contract.md`](../specs/semantic-contract.md), beside
-`FN-26`). `FN-22`'s revalidation table has **two rows that are exactly the
+(`docs/specs/semantic-contract.md`, beside `FN-26`). `FN-22`'s revalidation table has **two rows that are exactly the
 transition the obligation forbids** — after the quarantine rename,
 `Committed -> NotCommitted` and `Committed -> Indeterminate` — and the contract
 goes out of its way to say the two must not be collapsed, because collapsing them
@@ -191,3 +190,12 @@ Reopen the **creation** rejection on depth rather than on need: a second consume
 whose own root creation has the same publish-last shape turns thirty shallow
 lines into a duplicated contract, and duplication across consumers is what makes
 a thin interface earn its place. One consumer is not evidence of that.
+
+**The catalogue and the models this record measures against have been retired.**
+The catalogue was `docs/specs/semantic-contract.md`, deleted with the campaign's
+apparatus (`delete-formal-models-k29`); `crates/grove-finish/models/`, which
+supplies the measured figures above, goes at `delete-finish-models-k30`. The
+counts stay in the text because they are what the argument was made on and
+`docs/formalism-findings.md` records how they were taken. The decision above survived the instrument that found it, which is the outcome
+that campaign was run to test, and `docs/formalism-findings.md` keeps the record
+of how it was found.

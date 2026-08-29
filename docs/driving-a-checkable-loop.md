@@ -9,6 +9,15 @@ It carries **the lessons that could not be turned into rules**, and it carries
 **the cost**: what was spent, what came back, and which parts were not worth the
 money.
 
+> **The models this record accounts for no longer exist.** They were deleted with
+> the rest of the formal-methods apparatus once the campaign's lessons had been
+> distilled into the `linkuistics` skills (`delete-formal-models-k29`), along
+> with the runner `models/run.sh`, its controls, and the claim catalogue
+> `docs/specs/semantic-contract.md`. This document was kept precisely because the
+> skills cite it for their authority: a rule whose evidence has been deleted is a
+> rule nothing can falsify. So every model path named below is a description of
+> where something was learned, not a link a reader can follow.
+
 ---
 
 ## For a reader who has never seen this repository
@@ -236,9 +245,11 @@ kept finding in its own models. This one costs one command.
 
 **The evidence.** It is the campaign's own working rule, applied twice in
 anger — once against the model corpus's control script, and once by
-[`review-yield.py`](../scripts/review-yield.py), whose three deliberate
-mutations of its own classification are published with their results
-([`review-yield.md`](review-yield.md) §*Residues*). **The first of those three
+`scripts/review-yield.py`, whose three deliberate mutations of its own
+classification are published with their results
+([`review-yield.md`](review-yield.md) §*Residues*). Both scripts were deleted
+with the campaign's apparatus (`delete-formal-models-k29`); the published
+residues are what the evidence rests on and they are still there. **The first of those three
 mutations found a real hole**: a classification block covering the document root
 was silently absorbing every unclassified item, so deleting a section's
 classification left the forward check reading clean. An unrecognised failure

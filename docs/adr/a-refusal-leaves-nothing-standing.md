@@ -144,3 +144,12 @@ It also does not change product behaviour. The shipped implementation reports
 commit failures through the version-control error chain and materialises no
 refusal-reason taxonomy; whether the shipped diagnostic adopts these names is
 `handoff-audit-k66`'s, beside the other four product-facing diagnostic questions.
+
+**The catalogue this record reads against no longer exists.** It was
+`docs/specs/semantic-contract.md`, and it was deleted with the formal-methods
+apparatus that checked it (`delete-formal-models-k29`) once the campaign's
+lessons had been distilled into the `linkuistics` skills. What §2 says about the
+catalogue being underdetermined at two points is therefore a statement about a
+document a reader can no longer open. The decision above survived the instrument that found it, which is the outcome
+that campaign was run to test, and `docs/formalism-findings.md` keeps the record
+of how it was found.

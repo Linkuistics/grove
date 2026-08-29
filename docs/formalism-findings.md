@@ -5,6 +5,30 @@ actually costs and actually buys. It is the raw material for a `linkuistics`
 skill on choosing and using a formalism; it is **not** that skill, and it should
 not be written as if it were.
 
+## The models this log is about no longer exist
+
+Every entry below was written while the model it reports on was on disk, and
+many name a `.qnt`, a `.als` or a model-directory `README.md` by path. Those
+files were deleted with the rest of the campaign's apparatus
+(`delete-formal-models-k29`), together with the runner `models/run.sh` and the
+specification they were checked against, `docs/specs/semantic-contract.md`.
+What was kept is the evidence — this log, `candidate-lessons.md`,
+`review-yield.md`, `loop-record.md`, `preservation-baseline.md`,
+`driving-a-checkable-loop.md` and `results-of-formal-methods-trial.md` — because
+the `linkuistics` skills the campaign produced cite them for their authority,
+and a rule whose evidence has been deleted is a rule nothing can falsify. The rule and its
+rejected alternative are recorded in
+[`docs/adr/evidence-outlives-the-instrument.md`](adr/evidence-outlives-the-instrument.md).
+
+So the paths below are **descriptions of where a finding was made**, not
+navigable references, and they are written as plain names rather than links for
+exactly that reason. Nothing in an entry was rewritten to hide the deletion: an
+entry that says a model refused something still says it, and it is now a
+statement about what happened rather than an invitation to go and re-run it.
+The one directory the campaign's models delegated to, `docs/ordinal-fs-tree/models/`,
+survives with its own runners, because the `ordinal-fs-tree` crate is live and
+its tests still cite those models as standing authority.
+
 ## Why this is a log and not a document
 
 The two things this workstream is producing have opposite production schedules.
@@ -6925,12 +6949,12 @@ situation that actually supports it; the `TT-20` trace is counted once, at six
 transitions; the *Instrument* paragraph gains what the review found wrong with
 the **runner**; and the cost line gains the integration. Nothing recorded here
 was weakened without a run behind the weakening — the replay lines are in
-[`crates/grove-task-tree/models/README.md`](../crates/grove-task-tree/models/README.md).
+`crates/grove-task-tree/models/README.md`.
 
 **Independence protocol — held, with one disclosure.** This session opened no
 `.als` file, no model-directory `README.md`, and no entry in 026 – 043 while the
 model was being built; it was written from
-[`docs/specs/semantic-contract.md`](specs/semantic-contract.md) alone, exactly as
+`docs/specs/semantic-contract.md` alone, exactly as
 the Alloy column was. **The disclosure:** *after* the model was complete and
 green, locating the next free entry number was done with a heading grep, which
 printed the titles of entries 026 – 043 on screen. Several of those titles are
@@ -7064,7 +7088,7 @@ one instrument that had to exist before any of them counted.
   declares it. (b) An ordinary mutation **that has already applied an effect**
   and whose next create is no longer licensed, because a non-cooperating writer
   took the destination between the listing and the step. The
-  [Outcomes](specs/semantic-contract.md#outcomes) table fixes three contexts —
+  `semantic-contract.md`'s *Outcomes* table fixes three contexts —
   an ordinary operation *before any transaction*, a finish or recovery
   transaction, and the reaper — and this is none of them: `Refused` means the
   tree is byte-identical and the shifts already landed, while the row that
@@ -7312,7 +7336,7 @@ literal text of `TT-17`, `TT-20` or `TT-15.a`, each of which is checked over a
 declared narrowing because the catalogue contradicts itself there — nor `TT-10`
 over anything but an operation's own arguments, which is a declared
 qualification rather than a narrowing; all four are listed in
-[the model README](../crates/grove-task-tree/models/README.md), *Narrowings and
+`crates/grove-task-tree/models/README.md`, *Narrowings and
 qualifications, each declared*.
 
 > **[disposed by `task-tree-scope-k70`]** All three narrowings are gone, and in
@@ -7401,7 +7425,7 @@ review.
 **Independence protocol — held, with one disclosure.** This session opened no
 `.als` file, no Alloy section of a model-directory `README.md`, and no entry in
 026 – 043 while the model was being built; it was written from
-[`docs/specs/semantic-contract.md`](specs/semantic-contract.md) alone, exactly as
+`docs/specs/semantic-contract.md` alone, exactly as
 the Alloy column was and exactly as entry 044 was. **The disclosure:** *after*
 every finding below had been reached and recorded in the model, locating the next
 free entry number was done with a heading grep, which printed the titles of
@@ -7811,7 +7835,7 @@ suites rather than in a new one:
 ### 046 — A claim that contradicts its own definition, and a loop that satisfies eighteen of its claims by being written down (system lifecycle, cross-component)
 
 **Scope.** The system lifecycle, cross-component
-([`models/system/lifecycle.qnt`](../models/system/lifecycle.qnt)). All 25 `SY-`
+(`models/system/lifecycle.qnt`). All 25 `SY-`
 obligations.
 
 **REVISED BY `system-k60`, WHICH INTEGRATED `system-k59`'s REVIEW OF THIS
@@ -7836,7 +7860,7 @@ The barrier held through the integration too: no `.als` file and no entry in
 **Independence protocol — held, with one disclosure that matters more than
 usual.** This session opened no `.als` file, no Alloy section of any
 model-directory `README.md`, and no entry in 026 – 043. It was written from
-[`docs/specs/semantic-contract.md`](specs/semantic-contract.md) alone, as the
+`docs/specs/semantic-contract.md` alone, as the
 Alloy column was and as entries 044 and 045 were.
 
 **The disclosure.** Locating the next free entry number was done with a heading
@@ -8773,7 +8797,7 @@ above needed a second axis.**
 The leaf swept all twenty-five `SY-` properties rather than the two named here,
 classified each as stated over the trace, over one operation's pair, or over a
 single state, and put the table in
-[`models/system/README.md`](../models/system/README.md). **Twelve pair rows
+`models/system/README.md`. **Twelve pair rows
 survive the sweep and each is the right grain**: their subject genuinely is one
 grove operation, and widening them would assert something about the operator
 that no filesystem-hosted tool can promise — the same mistake `SY-04.b`'s
@@ -9490,7 +9514,7 @@ the matrix is `(family, obligation)`, so the phase's unit of coverage is 258
 cells and not 129.
 
 **The whole-repository run is the phase's own instrument and is reported
-separately**, in [`models/README.md`](../models/README.md), because a bare
+separately**, in `models/README.md`, because a bare
 `models/run.sh` additionally asserts coverage over the *whole* catalogue in one
 invocation and delegates to the two `docs/ordinal-fs-tree/models/` runners — a
 positive control the per-cell runs do not carry.
@@ -9647,7 +9671,7 @@ over.
 catalogue both columns were written from contains none, deliberately**, which is
 checkable at the source rather than inferred from the tags. `SY-13` is the one
 claim that reads like a liveness property, and
-[`docs/specs/semantic-contract.md`](specs/semantic-contract.md) states in its own
+`docs/specs/semantic-contract.md` states in its own
 words that it is **existential reachability and deliberately not a liveness
 property**: *"Stating it as 'the loop will reach one' would need a fairness or
 admission premise the models have no grounds to grant."* The deliberate-omissions

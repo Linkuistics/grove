@@ -139,8 +139,8 @@ first two could avoid producing.
 **The argument for `keep`, and the two things it quietly fixes.** `EN-03` grants
 that there is no atomic recursive directory deletion, so removing a task root's
 contents takes more than one step; `EN-08` grants an interruption between any two
-of them; and [the catalogue's §*States*](../specs/semantic-contract.md#states)
-has no member for a partially removed task root. The only atomic step the
+of them; and the catalogue's §*States* had no member for a partially removed
+task root. The only atomic step the
 environment grants is a same-directory rename (`EN-01`), so a task root that must
 leave its own name in one such rename leaves it into the quarantine. This is the
 reasoning the previous record carried, and it is **still the best available
@@ -400,3 +400,13 @@ one.
 
 The evidence for everything above is [`docs/formalism-findings.md`](../formalism-findings.md)
 entries 026 – 048 and the three model `README.md`s.
+
+**The catalogue and two of the three model `README.md`s named just above have
+been retired.** The catalogue was `docs/specs/semantic-contract.md`, whose
+§*States* this record argues from; it and the `TT-` and `SY-` model directories
+were deleted with the campaign's apparatus (`delete-formal-models-k29`), and the
+`FN-` directory `crates/grove-finish/models/` goes at
+`delete-finish-models-k30`. `docs/formalism-findings.md` entries 026 – 048 are
+kept and are now the whole of the evidence this record rests on. The decision above survived the instrument that found it, which is the outcome
+that campaign was run to test, and `docs/formalism-findings.md` keeps the record
+of how it was found.

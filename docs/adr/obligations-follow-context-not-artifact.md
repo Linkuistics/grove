@@ -156,3 +156,17 @@ now distinguishes a complete answer from a property-only one and counts the
 latter separately. `models/run-controls.sh` carries the positive and negative
 controls for both halves of the line — the completeness distinction, and the
 extractor that decides whether the answering family carries a control.
+
+**Every artifact this record names has been retired, and the record is kept for
+its rule rather than its subject.** The catalogue was
+`docs/specs/semantic-contract.md`, the runner `models/run.sh`, the controls
+`models/run-controls.sh`, and the `TT-` and `SY-` model directories went with
+them (`delete-formal-models-k29`); the `FN-` directory
+`crates/grove-finish/models/` goes at `delete-finish-models-k30`, which also
+decides whether this record still describes anything and should therefore be
+deleted under `ADR-FORMAT.md`'s current-state rule. Until then, read it for the
+transferable half — an identifier prefix that encodes *which context owns a
+claim* rather than *which file holds it* is what let placement be argued instead
+of assumed. The decision above survived the instrument that found it, which is the outcome
+that campaign was run to test, and `docs/formalism-findings.md` keeps the record
+of how it was found.

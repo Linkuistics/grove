@@ -407,9 +407,10 @@ arm until it cannot meet the other answers the obligation by construction, and a
 check that exempts the overlap tests nothing where the claim is hardest — both
 were found in place and repaired.
 _Avoid_: reading the pair as shipped diagnostics. The shipped classification
-gathers both under one blocked state; the split is required by
-`docs/specs/semantic-contract.md` and its adoption is a decision the formal phase
-settles.
+gathers both under one blocked state; the split was required by the retired
+`docs/specs/semantic-contract.md`, and whether the shipped diagnostic adopts it
+is still open — `docs/adr/a-closed-partition-is-over-outcomes-not-states.md`
+records where.
 
 **Quarantine** (post-commit cleanup):
 The collision-resistant destination in the workspace's VCS-administration control
@@ -987,7 +988,16 @@ expressed by **ordering** and would break the finish trigger if `pick` skipped i
 blocked leaf is *live* work); `deferred` is a reorder or a GitHub issue; `superseded`
 differs only in *reason*, which is prose and belongs in the ADR, not the filename.
 
-### Formal contract (docs/specs/semantic-contract.md, Experiment 2)
+### Root and lifecycle semantics (from the retired formal contract)
+
+These terms were fixed by `docs/specs/semantic-contract.md`, the claim catalogue
+Experiment 2 wrote and model-checked. The catalogue and its models were deleted
+once the campaign's lessons had been distilled into the `linkuistics` skills
+(`delete-formal-models-k29`); the terms stayed, because they name states and
+distinctions grove's code still makes and its diagnostics still print. What went
+with the catalogue is the vocabulary that only ever described the checking
+apparatus itself.
+
 
 **Partial scaffold** (`PartialScaffold`):
 A task root that exists and holds **nothing but its charter, if even that** — no
@@ -1038,8 +1048,8 @@ nothing, because neither writes a tree.
 _Avoid_: reading a **refused** attempt as one. Nothing transitioned, and the
 iteration is still free to take its one.
 _Avoid_: counting a step of the finish **transaction** as one. Those belong to
-the finish leaf's own session and are `crates/grove-finish/models/`'s; what an
-iteration does with a transaction is enter it and recover an interrupted one.
+the finish leaf's own session; what an iteration does with a transaction is
+enter it and recover an interrupted one.
 
 **Admitted action**:
 In the lifecycle claims, an action Grove itself may take — the Observation, Tree
@@ -1065,21 +1075,8 @@ tree**, which is terminal because no admitted action clears a block and the only
 exit is an operator action, which is outside the admitted set. A malformed tree
 is *not* one — it is a refusal state a hand edit reaches and a hand edit leaves.
 _Avoid_: reading it as *the loop will reach one* — the claim it serves is
-existential reachability, deliberately not liveness, because nothing in the
-models schedules the operator and no fairness premise is available to grant.
-
-**Obligation** / **sub-identity** (`TT-02.b`):
-The unit of coverage in the semantic contract: a claim with exactly one
-checkable content, addressed by its own permanent identifier. A claim carrying
-several independently reachable cases enumerates them as lettered
-sub-identities, and a claim therefore has either zero of them or at least two.
-The runner's coverage unit is the pair `(family, obligation)` — both model
-families must answer every one, or declare that family's own gap.
-_Avoid_: treating the **claim** as the coverage unit — one witness then makes an
-identifier look covered while its other cases stay unmodelled, which is the
-false confidence the catalogue's whole witness discipline exists to prevent.
-_Avoid_: renumbering a letter — an obligation's identifier is as permanent as a
-claim's, and a retired letter is never reused.
+existential reachability, deliberately not liveness, because nothing schedules
+the operator and no fairness premise is available to grant.
 
 ## Flagged ambiguities
 

@@ -5,6 +5,19 @@ found, what it cost, and where the findings that have not yet been landed should
 go. It was written by the grove's `finish` session, on the way to a teardown that
 was then deliberately not taken.
 
+**The teardown has since been taken, for the apparatus only.** Every model this
+document reads about — the Quint and Alloy columns, their controls, the runner
+`models/run.sh`, the two report generators under `scripts/`, and the claim
+catalogue `docs/specs/semantic-contract.md` they were all written against — was
+deleted at `delete-formal-models-k29`, on the ground that the campaign's value is
+the lessons and the `linkuistics` skills those lessons became, not the runnable
+machinery. What was kept is exactly the evidence base named in the next
+paragraph, because the skills cite it for their authority and a rule whose
+evidence has been deleted is a rule nothing can falsify. So every figure and
+every model name below is a **description of a measurement that was taken**, not
+a pointer to something a reader can open or re-run; §3, which is about where the
+findings should land, is unaffected and is still live work.
+
 **What this document is, and is not.** It re-measured nothing. It is a reading of
 the four harvest documents — [`loop-record.md`](loop-record.md),
 [`review-yield.md`](review-yield.md),
@@ -326,8 +339,9 @@ there the skill should align with and cite Grove rather than restate it.
 
 ## What this document does not establish
 
-- **Nothing here was re-measured**, and no model was re-run. What replaces an
-  instrument is the citation.
+- **Nothing here was re-measured**, and no model was re-run — nor can one be
+  now, the models having been deleted. What replaces an instrument is the
+  citation, which is the whole reason the harvest documents were kept.
 - **The scope finding in §2 is about placement, not about evidence.** Whether each
   rule survives contact with the skill's own house style, and whether the isolating
   form generalises beyond this corpus, is the distillation leaf's to decide.

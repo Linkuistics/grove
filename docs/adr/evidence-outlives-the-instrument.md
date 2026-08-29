@@ -8,7 +8,8 @@ where anything still cites them for authority.
 This repository ran such a campaign — two formalisms, 129 obligations across 258
 `(family, obligation)` cells, over its own protocols. `delete-formal-models-k29`
 deleted about 23,800 lines of it and kept seven documents under `docs/`, and
-`delete-finish-models-k30` takes the last directory on the same terms.
+`delete-finish-models-k30` took the last directory — `crates/grove-finish/models/`,
+16,400 lines carrying the `FN-` family — on the same terms.
 
 ## The trade-off
 
@@ -64,6 +65,14 @@ the decision outlives the instrument, and `## What enforces it` names whatever
 checks it now.
 `docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md` is the worked
 example, reworked in place at `delete-migration-k6` before this record existed.
+
+**Some of those findings are then enforced by nothing, and saying so is part of
+the rework.** `delete-finish-models-k30` reworked seven records and only one,
+`success-is-proved-by-the-ticket-not-the-tree`, had a shipped test to name; the
+rest bind a rule whose next consumer is a reader rather than a check. A
+`## What enforces it` that names a live consumer where there is one and states
+the absence where there is not is the honest form, and it is what stops a reader
+inferring a check from the section's existence.
 
 ## What would reopen this
 

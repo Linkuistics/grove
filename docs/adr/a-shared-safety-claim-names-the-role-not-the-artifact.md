@@ -25,11 +25,9 @@ incidents:
 - **`FN-24.a` — the guard.** Its two *failable* conjuncts were guarded on the
   incumbent's own artifacts in **both independently built families** —
   `groveReservationStands(w) = w.witness != WNone or w.quar.present` in
-  [`finish.qnt`](../../crates/grove-finish/models/finish.qnt), and `classified =
-  SAbsent implies (no Slot.occ and no Quar.qRid)` with the same consequent over
-  `currentStates` in
-  [`finish.als`](../../crates/grove-finish/models/finish.als). A protocol holding
-  neither makes both vacuous.
+  `finish.qnt`, and `classified = SAbsent implies (no Slot.occ and no
+  Quar.qRid)` with the same consequent over `currentStates` in `finish.als`. A
+  protocol holding neither makes both vacuous.
 - **`FN-28` — the consequent.** Its second operand read `(ATOMIC_DISPOSAL or
   hist.appliedAfterQuarantine)`: an **enumeration of the two protocols that
   happened to exist**, the incumbent's quarantine handoff and `EN-03`'s
@@ -87,13 +85,11 @@ disk — owed, and named where it is owed rather than papered over here.
 
 ## What checks it
 
-- [`finish.qnt`](../../crates/grove-finish/models/finish.qnt) —
-  `groveWorkOutstanding`, which `classifiesHonestly`'s two failable conjuncts are
-  stated over; `inv_FN_28_one_successful_exit`, stated over the two facts each
-  root-freeing step records for itself; `IN_PLACE_DISPOSAL`, the strategy dial
-  that grants no capability.
-- [`finish-controls.qnt`](../../crates/grove-finish/models/finish-controls.qnt) —
-  `scenario_in_place_march`, whose
+- `finish.qnt` — `groveWorkOutstanding`, which `classifiesHonestly`'s two
+  failable conjuncts are stated over; `inv_FN_28_one_successful_exit`, stated
+  over the two facts each root-freeing step records for itself;
+  `IN_PLACE_DISPOSAL`, the strategy dial that grants no capability.
+- `finish-controls.qnt` — `scenario_in_place_march`, whose
   `inv_fail_MUT_FN_24a_the_available_candidate_leaves_an_ordinary_tree` is the
   kill and whose `wit_FN_24a_the_artifact_guarded_encoding_accepts_it` is the
   same disk under the pre-repair encoding, frozen inline: an A/B on one world.
@@ -126,10 +122,12 @@ catalogue says so where it states the obligations.
 **The catalogue and both model families have been retired.** The catalogue was
 `docs/specs/semantic-contract.md`; the two families were the Quint and Alloy
 columns under `models/` and the per-scope model directories. All of it was
-deleted with the campaign's apparatus (`delete-formal-models-k29`, and
-`delete-finish-models-k30` for the finish column), so the repair this section
-leaves outstanding for `FN-24.a` and `FN-28` is not work anyone will do — the
-divergence it describes is a finding about how two independently built columns
-read one underdetermined catalogue, and that finding is what survives. The decision above survived the instrument that found it, which is the outcome
-that campaign was run to test, and `docs/formalism-findings.md` keeps the record
-of how it was found.
+deleted with the campaign's apparatus — `delete-formal-models-k29`, and
+`delete-finish-models-k30` for the finish column, which took every file
+§*What checks it* names. So the repair that section leaves outstanding for
+`FN-24.a` and `FN-28` is not work anyone will do, and `alloy-candidate-k82` will
+not be chartered: the divergence it describes is a finding about how two
+independently built columns read one underdetermined catalogue, and that finding
+is what survives. The decision survived the instrument that found it, which is
+the outcome that campaign was run to test, and `docs/formalism-findings.md` keeps
+the record of how it was found.

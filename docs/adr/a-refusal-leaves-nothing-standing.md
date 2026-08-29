@@ -145,11 +145,23 @@ commit failures through the version-control error chain and materialises no
 refusal-reason taxonomy; whether the shipped diagnostic adopts these names is
 `handoff-audit-k66`'s, beside the other four product-facing diagnostic questions.
 
-**The catalogue this record reads against no longer exists.** It was
-`docs/specs/semantic-contract.md`, and it was deleted with the formal-methods
-apparatus that checked it (`delete-formal-models-k29`) once the campaign's
-lessons had been distilled into the `linkuistics` skills. What §2 says about the
-catalogue being underdetermined at two points is therefore a statement about a
-document a reader can no longer open. The decision above survived the instrument that found it, which is the outcome
-that campaign was run to test, and `docs/formalism-findings.md` keeps the record
-of how it was found.
+## What enforces it
+
+**Neither the catalogue this record reads against nor the models that found the
+defect still exists.** The catalogue was `docs/specs/semantic-contract.md`,
+deleted with the campaign's apparatus (`delete-formal-models-k29`); the two model
+families this record measures — `finish.als`'s step-local frame condition and its
+Quint counterpart, and the `Sys.why` observable both columns had to invent — went
+with `crates/grove-finish/models/` at `delete-finish-models-k30`. So what §2 says
+about the catalogue being underdetermined at two points, and what the trade-off
+section says about what `finish.als` could and could not express, are statements
+about documents a reader can no longer open.
+
+The rule itself is action-level and outlives all of it: an outcome is decided by
+what the **attempt** leaves standing, never by where a step stopped. It reaches
+shipped behaviour nowhere yet — the implementation still reports commit failures
+through the version-control error chain and materialises no refusal-reason
+taxonomy — so this record binds the *next* protocol rather than the current one,
+and that is stated here rather than left to be discovered. The decision survived
+the instrument that found it, which is the outcome that campaign was run to test,
+and `docs/formalism-findings.md` keeps the record of how it was found.

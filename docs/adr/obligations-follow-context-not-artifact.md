@@ -157,16 +157,44 @@ latter separately. `models/run-controls.sh` carries the positive and negative
 controls for both halves of the line — the completeness distinction, and the
 extractor that decides whether the answering family carries a control.
 
-**Every artifact this record names has been retired, and the record is kept for
-its rule rather than its subject.** The catalogue was
-`docs/specs/semantic-contract.md`, the runner `models/run.sh`, the controls
-`models/run-controls.sh`, and the `TT-` and `SY-` model directories went with
-them (`delete-formal-models-k29`); the `FN-` directory
-`crates/grove-finish/models/` goes at `delete-finish-models-k30`, which also
-decides whether this record still describes anything and should therefore be
-deleted under `ADR-FORMAT.md`'s current-state rule. Until then, read it for the
-transferable half — an identifier prefix that encodes *which context owns a
-claim* rather than *which file holds it* is what let placement be argued instead
-of assumed. The decision above survived the instrument that found it, which is the outcome
-that campaign was run to test, and `docs/formalism-findings.md` keeps the record
-of how it was found.
+**Every artifact this record names has been retired, and it is kept for its rule
+rather than for its subject.** The catalogue was `docs/specs/semantic-contract.md`,
+the runner `models/run.sh`, the controls `models/run-controls.sh`, and the `TT-`
+and `SY-` model directories went with them (`delete-formal-models-k29`); the
+`FN-` directory `crates/grove-finish/models/` went at `delete-finish-models-k30`.
+Nothing above is openable, the contested-cell report described in this section
+does not exist, and no prefix, obligation or catalogue survives anywhere in the
+repository.
+
+**`delete-finish-models-k30` was asked to decide whether that makes this record
+deletable under `ADR-FORMAT.md`'s current-state rule, and decided to keep it.**
+Two things settled it. `docs/driving-a-checkable-loop.md` classifies the
+campaign's decision set and names **four** records as being *about evidence
+rather than about Grove* — this one,
+`a-shared-safety-claim-names-the-role-not-the-artifact`,
+`a-closed-partition-is-over-outcomes-not-states` and
+`a-lifecycle-claim-says-what-it-is-over`. The subject of all four is gone; the
+last of them lost its models a leaf earlier, at `delete-formal-models-k29`, and
+was kept. Deleting this one alone would falsify that classification and treat a
+sibling differently on no distinguishing ground.
+
+And `evidence-outlives-the-instrument` draws the line at **citation**: an
+artifact goes if nothing outside the campaign cites it. This record is cited from
+`CONTEXT-MAP.md`'s ownership list, from `docs/driving-a-checkable-loop.md` and
+twice from `docs/formalism-findings.md`, once as the recorded outcome of a
+hand-off that named the placement rule as owed. Those are the kept evidence
+records, and a hand-off whose outcome has been deleted is exactly the dangling
+authority that record exists to prevent.
+
+What is genuinely open is smaller and is **not this leaf's**: whether four
+records whose subject is a retired campaign belong in `docs/adr/` at all, or
+belong beside the evidence under `docs/`. That is a question about the shape of
+the whole set, it applies to all four identically, and `spec-to-current-state-k23`
+already walks the whole ADR and spec set as a checklist at the end of this run.
+
+So read this record for the transferable half — an identifier prefix that encodes
+*which context owns a claim* rather than *which file holds it* is what let
+placement be argued instead of assumed, and clause 4's prefix-local reading is
+what made the procedure total. The decision survived the instrument that found
+it, which is the outcome that campaign was run to test, and
+`docs/formalism-findings.md` keeps the record of how it was found.

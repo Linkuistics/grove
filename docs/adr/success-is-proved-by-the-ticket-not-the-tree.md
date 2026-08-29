@@ -91,3 +91,28 @@ that an operator and a recovery both consult — a receipt in a state directory
 rather than in history. Then success has a second piece of evidence that a
 re-created name cannot forge, and reading the tree becomes admissible as a
 corroboration. It does not become admissible as the proof.
+
+## What enforces it
+
+**The shipped retry path, in `tests/finish_lifecycle.rs`**, which decides both
+directions this record forbids reading off the disk:
+`rootless_finish_retry_refuses_when_no_teardown_result_exists` drives a
+repository with no task tree at all and requires the refusal to name the
+attempt — an absent `.grove/` is not a success, which is the false-success half;
+`rootless_finish_retry_names_the_message_it_required_and_the_one_it_observed`
+holds that the teardown commit's identity is its **message**, checked before any
+structural test, so a repository whose shape happens to look right is still told
+which commit it is missing; and
+`rootless_finish_retry_refuses_a_teardown_result_from_another_finish_attempt`
+runs two attempts and refuses the second on the first's result. That is the
+correlation ticket doing the work the tree was never allowed to do.
+
+**The model that found it has been retired.** `crates/grove-finish/models/finish.als`
+— which falsified all three formulations of `FN-28`'s conjuncts named above, each
+by exactly one trace — was deleted at `delete-finish-models-k30`, and the
+catalogue those conjuncts were stated in, `docs/specs/semantic-contract.md`, at
+`delete-formal-models-k29`. The three falsified formulations stay named in the
+text because what they cost is the argument: each is what an implementer reaches
+for, and each is wrong for the one reason this record states. The decision
+survived the instrument that found it, which is the outcome that campaign was run
+to test, and `docs/formalism-findings.md` keeps the record of how it was found.

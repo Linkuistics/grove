@@ -11,12 +11,14 @@ money.
 
 > **The models this record accounts for no longer exist.** They were deleted with
 > the rest of the formal-methods apparatus once the campaign's lessons had been
-> distilled into the `linkuistics` skills (`delete-formal-models-k29`), along
-> with the runner `models/run.sh`, its controls, and the claim catalogue
-> `docs/specs/semantic-contract.md`. This document was kept precisely because the
-> skills cite it for their authority: a rule whose evidence has been deleted is a
-> rule nothing can falsify. So every model path named below is a description of
-> where something was learned, not a link a reader can follow.
+> distilled into the `linkuistics` skills — the `SY-` and `TT-` columns, the
+> runner `models/run.sh`, its controls and the claim catalogue
+> `docs/specs/semantic-contract.md` at `delete-formal-models-k29`, and the `FN-`
+> column `crates/grove-finish/models/` at `delete-finish-models-k30`. This
+> document was kept precisely because the skills cite it for their authority: a
+> rule whose evidence has been deleted is a rule nothing can falsify. So every
+> model path named below is a description of where something was learned, not a
+> link a reader can follow.
 
 ---
 
@@ -367,9 +369,8 @@ the wrong mechanism:
 
 The isolating form is landed where it can be checked, as a comment beside the
 obligation it was worked out on, in
-[`finish.qnt`](../crates/grove-finish/models/finish.qnt): two controls "each
-measured green on the *other* operand over its own module, which is what makes
-them isolating rather than merely red."
+`finish.qnt`: two controls "each measured green on the *other* operand over its
+own module, which is what makes them isolating rather than merely red."
 
 **It would be wrong if** controls added retroactively to long-green claims had
 started confirming them. Ten sessions went looking for an empty green; **ten

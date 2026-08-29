@@ -163,7 +163,9 @@ mean something else in grove's, and its crate ships by no path of its own —
   A fourth spec, `semantic-contract`, stated the tool-neutral semantics of the
   task tree, the finish protocol and the lifecycle joining them, and was
   **deleted** with the formal-methods apparatus that checked it
-  (`delete-formal-models-k29`). It went for the reason the paragraph below gives
+  (`delete-formal-models-k29`, whose last directory —
+  `crates/grove-finish/models/`, the finish protocol's own column — went at
+  `delete-finish-models-k30`). It went for the reason the paragraph below gives
   for `module-decomposition` in advance: a spec earns its place by describing
   something no other artifact holds, and once its checker is gone and the design
   it specified is being dismantled, `docs/ARCHITECTURE.md` is where the

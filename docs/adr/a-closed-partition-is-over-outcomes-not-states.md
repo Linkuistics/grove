@@ -85,13 +85,21 @@ Whether the **shipped** diagnostic adopts the precedence — or the two names at
 all — is a product question and is `handoff-audit-k66`'s. This record binds the
 contract and the models.
 
-**The models this record binds have been retired.** `crates/grove-finish/models/`,
-which held both the Alloy statement of the trap and the Quint dial named above,
-goes at `delete-finish-models-k30`; the catalogue it was checked against,
-`docs/specs/semantic-contract.md`, was deleted at `delete-formal-models-k29`. So
-the last sentence's *"this record binds the contract and the models"* now binds
-neither artifact — it binds the rule, that a closed partition is stated over
-outcomes rather than over states, and `CONTEXT.md`'s **Recovery pending /
-Ownership conflict** entry is where that rule still has a live consumer. The decision above survived the instrument that found it, which is the outcome
-that campaign was run to test, and `docs/formalism-findings.md` keeps the record
-of how it was found.
+## What enforces it
+
+**Nothing mechanical, and the models that once did have been retired.**
+`crates/grove-finish/models/` — which held both the Alloy statement of the trap
+and the Quint dial named above — was deleted at `delete-finish-models-k30`, and
+the catalogue it was checked against, `docs/specs/semantic-contract.md`, at
+`delete-formal-models-k29`. So *"this record binds the contract and the models"*
+in §*Where this binds* now binds neither artifact.
+
+What it binds instead is the rule — that a closed partition is stated over
+outcomes rather than over states — and that rule has one live consumer:
+`CONTEXT.md`'s **Recovery pending / Ownership conflict** entry, whose two
+`_Avoid_` lines carry the precedence, the overlap and the reason a narrowed arm
+answers the obligation by construction. A reader who changes that entry is
+changing this decision, which is the check a deleted model no longer provides.
+The decision survived the instrument that found it, which is the outcome that
+campaign was run to test, and `docs/formalism-findings.md` keeps the record of
+how it was found.

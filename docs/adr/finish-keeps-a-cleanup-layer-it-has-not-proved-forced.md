@@ -110,9 +110,9 @@ is specific, and §*Q1* below states it.
 the model.** The previous record said no control *can* remove the quarantine
 while `EN-03` holds, "because in this protocol the artifacts and the missing
 capability are the same parameter". They were the same parameter in
-[`finish.qnt`](../../crates/grove-finish/models/finish.qnt): one `const`
-`ATOMIC_DISPOSAL`, whose true branch replaces `SQuarantineRename` and every step
-after it with a single `SDisposeInPlace`, itself one atomic `settle`. **What was
+`finish.qnt`: one `const` `ATOMIC_DISPOSAL`, whose true branch replaces
+`SQuarantineRename` and every step after it with a single `SDisposeInPlace`,
+itself one atomic `settle`. **What was
 missing was a transition, not expressivity** — `Place = AtRoot | InWitness |
 Disposed` was already per-entry and `SDisposeEntry` already removed entry at a
 time — so the true sentence was *no command runs the candidate*, and that the
@@ -186,9 +186,9 @@ halves in the Quint column**, and the second half turned out to need something
 other than what this record predicted.
 
 1. **The strategy — done, and it cost what was estimated.** `IN_PLACE_DISPOSAL`
-   in [`finish.qnt`](../../crates/grove-finish/models/finish.qnt) is a `const`
-   independent of `ATOMIC_DISPOSAL` selecting stepwise in-place disposal with no
-   quarantine and no marker, reusing the per-entry `Disposed` place and
+   in `finish.qnt` is a `const` independent of `ATOMIC_DISPOSAL` selecting
+   stepwise in-place disposal with no quarantine and no marker, reusing the
+   per-entry `Disposed` place and
    `SDisposeEntry`'s resumption point: three step arms and the bookkeeping in
    `persistentEffect`, `ALL_STEPS`, `DECLARED_STEPS`, `phaseOf` and a branch list.
    The candidate reaches its own successful exit in 3266 of 8000 traces.
@@ -240,8 +240,8 @@ availability result Grove would act on is owed by both columns.
 positively unreachable within a stated bound — and **both families took the
 witness branch under the incumbent**: `witness_FN_15d_{git,nativejj,colocatedjj}_indeterminate_reached`
 first landing at nine states, and `wit_FN_15d_indeterminate_on_{git,native_jj,colocated_jj}`
-in [`finish-controls.qnt`](../../crates/grove-finish/models/finish-controls.qnt).
-`Indeterminate` is reachable on every lane, in both columns. The unreachability
+in `finish-controls.qnt`. `Indeterminate` is reachable on every lane, in both
+columns. The unreachability
 branch was taken only under `relax_EN_05` — commit and evacuation as one step —
 and even there by randomized simulation, where the catalogue demands an
 exhaustive run.
@@ -273,9 +273,8 @@ protocol Grove ships, which is what Q3 asked. If Q1 later returns
 
 ## Q4 — six rows protect the user, and three cannot yet be read either way
 
-The removal matrix in
-[`crates/grove-finish/models/README.md`](../../crates/grove-finish/models/README.md)
-names a shared-safety obligation for the reserved witness, the evacuation
+The removal matrix in `crates/grove-finish/models/README.md` names a
+shared-safety obligation for the reserved witness, the evacuation
 manifest, its ready mark, the correlation ticket, the recorded anchor and the
 deletion fingerprint; the index image is `abstracted`; and the quarantine, the
 cleanup marker and the replace transition read `none` in both families. So the
@@ -400,15 +399,28 @@ an assumption out of the environment table, and the counterfactual already run
 for it becomes evidence about an available protocol rather than an admissible
 one.
 
-The evidence for everything above is [`docs/formalism-findings.md`](../formalism-findings.md)
-entries 026 – 048 and the three model `README.md`s.
+**The evidence for everything above is now
+[`docs/formalism-findings.md`](../formalism-findings.md) entries 026 – 048, and
+that is the whole of it.** This section used to name the three model
+`README.md`s beside them. All three have been retired: the catalogue was
+`docs/specs/semantic-contract.md`, whose §*States* this record argues from, and
+it and the `TT-` and `SY-` model directories went with the campaign's apparatus
+(`delete-formal-models-k29`), the `FN-` directory `crates/grove-finish/models/`
+at `delete-finish-models-k30`.
 
-**The catalogue and two of the three model `README.md`s named just above have
-been retired.** The catalogue was `docs/specs/semantic-contract.md`, whose
-§*States* this record argues from; it and the `TT-` and `SY-` model directories
-were deleted with the campaign's apparatus (`delete-formal-models-k29`), and the
-`FN-` directory `crates/grove-finish/models/` goes at
-`delete-finish-models-k30`. `docs/formalism-findings.md` entries 026 – 048 are
-kept and are now the whole of the evidence this record rests on. The decision above survived the instrument that found it, which is the outcome
-that campaign was run to test, and `docs/formalism-findings.md` keeps the record
-of how it was found.
+**Two things this record leaves open therefore stop being open work and become
+history.** The reopen condition above asks for a run of the available candidate
+against a retained set in which every member has a candidate-reachable site and
+an available kill; it named `sweep-ownership-k81` and `alloy-candidate-k82` as
+its two prerequisites, and it directed anyone reopening Q1 to
+`crates/grove-finish/models/README.md`. There is no model to run, no column to
+mirror and no `README.md` to start from, so **Q1 cannot be reopened on the terms
+this record states** — reopening it now means building an instrument first, and
+the reason to want one is `evidence-outlives-the-instrument`'s stated reopen
+condition rather than this record's. What survives unchanged is the *rule* the
+section below it exists to stop anyone re-deriving, which is a rule about
+criteria and controls and needs no model to state.
+
+The decision survived the instrument that found it, which is the outcome that
+campaign was run to test, and `docs/formalism-findings.md` keeps the record of
+how it was found.

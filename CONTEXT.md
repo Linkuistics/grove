@@ -988,9 +988,12 @@ differs only in *reason*, which is prose and belongs in the ADR, not the filenam
 
 These terms were fixed by `docs/specs/semantic-contract.md`, the claim catalogue
 Experiment 2 wrote and model-checked. The catalogue and its models were deleted
-once the campaign's lessons had been distilled into the `linkuistics` skills
-(`delete-formal-models-k29`); the terms stayed, because they name states and
-distinctions grove's code still makes and its diagnostics still print. What went
+once the campaign's lessons had been distilled into the `linkuistics` skills —
+the catalogue and the `SY-` and `TT-` model columns at `delete-formal-models-k29`,
+the `FN-` column `crates/grove-finish/models/` at `delete-finish-models-k30`, so
+nothing this section's terms were checked against is openable. The terms stayed,
+because they name states and distinctions grove's code still makes and its
+diagnostics still print. What went
 with the catalogue is the vocabulary that only ever described the checking
 apparatus itself.
 

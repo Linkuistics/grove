@@ -91,6 +91,66 @@ stood at the graft — a closed record, not part of the versioned sequence above
   `docs/ARCHITECTURE.md`, `docs/CONFIGURATION.md`, `CONTEXT.md` and
   `CONTEXT-MAP.md` stop describing a lane grove refuses.
 
+- **The last of the formal-methods apparatus is deleted.**
+  `crates/grove-finish/models/` — `finish.qnt`, `finish.als`,
+  `finish-controls.qnt` and its `README.md`, 16,398 lines carrying the `FN-`
+  obligation family — goes, and the directory `crates/grove-finish/` with it: it
+  was never a crate, only a model directory borrowing the `crates/` path to name
+  a context. The entry below deleted this column's only runner
+  (`models/run.sh` mapped scope `finish` here) and enumerated everything except
+  the column itself, so it had been left as apparatus with nothing to run it.
+  Same terms, same record: `docs/adr/evidence-outlives-the-instrument.md`.
+
+  **Nine records are reworked in place and none loses its finding.** Seven under
+  `docs/adr/` cited these files as evidence —
+  `finish-keeps-a-cleanup-layer-it-has-not-proved-forced`,
+  `success-is-proved-by-the-ticket-not-the-tree`,
+  `root-lifecycle-stays-with-its-receipt`,
+  `a-shared-safety-claim-names-the-role-not-the-artifact`,
+  `a-refusal-leaves-nothing-standing`,
+  `a-closed-partition-is-over-outcomes-not-states` and
+  `obligations-follow-context-not-artifact` — and each now says in
+  `## What enforces it` what checks it today.
+  `success-is-proved-by-the-ticket-not-the-tree` is the only one with a shipped
+  answer, and it is a real one: `tests/finish_lifecycle.rs`'s three rootless-retry
+  tests decide success by the teardown commit's attempt-bound message and refuse
+  to read it off the tree. The other six name a reader or state plainly that
+  nothing mechanical checks them, which
+  `docs/adr/evidence-outlives-the-instrument.md` now records as the honest form.
+  `evidence-outlives-the-instrument` and
+  `a-witnessless-root-refuses-what-it-cannot-account-for` are the two others the
+  sweep reached.
+
+  **Two findings stop being open work.**
+  `finish-keeps-a-cleanup-layer-it-has-not-proved-forced` reopened Q1 on a run
+  that needs `sweep-ownership-k81` and `alloy-candidate-k82`; with no column to
+  mirror and no `README.md` to start from, Q1 cannot be reopened on the terms it
+  states, and it says so rather than leaving a reader to discover it. The
+  `FN-24.a` / `FN-28` Alloy repair
+  `a-shared-safety-claim-names-the-role-not-the-artifact` left outstanding is
+  likewise not work anyone will do.
+
+  **`obligations-follow-context-not-artifact` is kept, and the call is recorded.**
+  Its whole subject — prefixes, the catalogue, the runner's placement rule, three
+  model directories — is now gone, so deletion was the live alternative under
+  `ADR-FORMAT.md`'s current-state rule. It stays because
+  `docs/driving-a-checkable-loop.md` classifies four records as being about
+  *evidence rather than about Grove* and this is one of them; its sibling
+  `a-lifecycle-claim-says-what-it-is-over` lost its models one leaf earlier and
+  was kept; and it is cited from `CONTEXT-MAP.md` and twice from
+  `docs/formalism-findings.md`, once as the recorded outcome of a hand-off.
+  Whether all four belong under `docs/adr/` at all is one question about the set
+  rather than four about records, and is `spec-to-current-state-k23`'s.
+
+  **The link repair is mechanical and the prose is not.** Fourteen relative links
+  into the deleted files become plain names, which is what
+  `tests/reference_navigation.rs` enforces; the backticked model paths in
+  `docs/formalism-findings.md` stay, because they are accurate as history. The
+  standing notes in `formalism-findings.md`, `candidate-lessons.md` and
+  `driving-a-checkable-loop.md` now name both deletion leaves, `CONTEXT.md`'s
+  *Root and lifecycle semantics* section says which leaf took which column, and
+  `CONTEXT-MAP.md` records the finish column's departure beside the catalogue's.
+
 - **The formal-methods campaign's apparatus is deleted; its evidence is kept.**
   About 23,800 lines go: `models/` (the `SY-` lifecycle column in Quint and Alloy,
   its controls, the whole-repository runner `models/run.sh` and its control

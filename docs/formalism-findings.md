@@ -29,6 +29,14 @@ The one directory the campaign's models delegated to, `docs/ordinal-fs-tree/mode
 survives with its own runners, because the `ordinal-fs-tree` crate is live and
 its tests still cite those models as standing authority.
 
+The deletion took two leaves and the second is worth naming, because this
+document's `FN-` entries — the largest family here — were still openable after
+the first. `delete-formal-models-k29` took the `SY-` and `TT-` columns, the
+runner, the controls and the catalogue; `delete-finish-models-k30` took the
+`FN-` column, `crates/grove-finish/models/`, whose `README.md` several entries
+below cite for a tabulated bound or a replay line. Those citations are now
+descriptions like every other path here.
+
 ## Why this is a log and not a document
 
 The two things this workstream is producing have opposite production schedules.
@@ -7415,7 +7423,7 @@ bundles. **What the review did NOT overturn** is the reachability record: all
 129 witnesses were classified protocol-established, 0 construction-established,
 0 unclear — the search dial is not manufacturing this column's witnesses. Every
 weakening below has a run behind it; the replay lines are in
-[`crates/grove-finish/models/README.md`](../crates/grove-finish/models/README.md).
+`crates/grove-finish/models/README.md`.
 
 *[k58]* **The integration held the independence barrier.** It opened no `.als`
 file, no Alloy section of any model README, and no entry in 026 – 043; it read

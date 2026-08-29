@@ -11,12 +11,14 @@ section that decides it and **what would have falsified it**.
 
 > **The models this record adjudicates no longer exist.** They were deleted with
 > the rest of the formal-methods apparatus once the campaign's lessons had been
-> distilled into the `linkuistics` skills (`delete-formal-models-k29`), along
-> with the runner `models/run.sh`, its controls, and the claim catalogue
-> `docs/specs/semantic-contract.md`. This document was kept precisely because the
-> skills cite it for their authority: a rule whose evidence has been deleted is a
-> rule nothing can falsify. So every model path named below is a description of
-> where a verdict was reached, not a link a reader can follow.
+> distilled into the `linkuistics` skills — the `SY-` and `TT-` columns, the
+> runner `models/run.sh`, its controls and the claim catalogue
+> `docs/specs/semantic-contract.md` at `delete-formal-models-k29`, and the `FN-`
+> column `crates/grove-finish/models/` at `delete-finish-models-k30`. This
+> document was kept precisely because the skills cite it for their authority: a
+> rule whose evidence has been deleted is a rule nothing can falsify. So every
+> model path named below is a description of where a verdict was reached, not a
+> link a reader can follow.
 
 **Three of the six moved.** One is dropped outright, one is materially weakened
 with half its sentence falsified, and one turns out to be two claims sharing a
@@ -155,7 +157,7 @@ So the rule that survives contact with the evidence is narrower and testable:
 > stay green.
 
 That is landed, in those words and with its measurements, in
-[`finish.qnt`](../crates/grove-finish/models/finish.qnt)'s `inv_FN_28` comment:
+`finish.qnt`'s `inv_FN_28` comment:
 `inv_fail_EN_01_FN_28_a_torn_rename_is_not_a_removal` and
 `mutant_status_classifier`'s kill, "each measured green on the *other* operand
 over its own module, which is what makes them isolating rather than merely red."
@@ -285,8 +287,7 @@ the *not widening* half is falsified twice.**
 
 ### What is true, and it is verified in the model rather than in a task body
 
-[`finish.qnt`](../crates/grove-finish/models/finish.qnt), the `Hist` comment
-above `rootTakenAway`:
+`finish.qnt`, the `Hist` comment above `rootTakenAway`:
 
 > MEASURED, not argued: with every `EN-` assumption granted and every model
 > mutation off, in a world that narrows `base`'s environment to topology changes
@@ -303,7 +304,7 @@ found.** Five against one:
 
 | the narrowing | what it produced |
 |---|---|
-| `mutant_correlation_wins_the_overlap` copying its neighbours' `ENV_KINDS = Set(0)` | **green**, because the overlap is reached only by an in-transaction hand edit. The comment recording the measurement is in place at [`finish-controls.qnt`](../crates/grove-finish/models/finish-controls.qnt), above `ENV_KINDS = Set(1)` |
+| `mutant_correlation_wins_the_overlap` copying its neighbours' `ENV_KINDS = Set(0)` | **green**, because the overlap is reached only by an in-transaction hand edit. The comment recording the measurement is in place at `finish-controls.qnt`, above `ENV_KINDS = Set(1)` |
 | `mutant_unproven_ownership`'s `ENV_PHASES = Set(0,1,2)`, `ENV_FOREIGN = Set(0)` | never reaches a foreign cleanup marker at all, so its recorded kill was always the witness slot's |
 | `relax_EN_03`'s `ENV_BUDGET = 0` with `ENV_PHASES`/`ENV_KINDS` empty | `foreignWriteAt` can never fire, so `FN-32` was asserted over a world with nothing to be about |
 | `mutant_scaffold_absence_only` at `FOCUS = 4` | no violation over 4000 traces, from a control that could not reach the situation it mutates |
@@ -570,8 +571,8 @@ there are three different counts over three different populations.**
 - [`a-shared-safety-claim-names-the-role-not-the-artifact`](adr/a-shared-safety-claim-names-the-role-not-the-artifact.md)
   says **three of the four claims in one retained set** — `FN-32`, `FN-24.a` and
   `FN-28`, of the retained set `FN-20`, `FN-24`, `FN-27`, `FN-32`.
-- [`finish.qnt`](../crates/grove-finish/models/finish.qnt)'s `inv_FN_28` comment
-  says the shape is one "this node has been burned by **three** times".
+- `finish.qnt`'s `inv_FN_28` comment says the shape is one "this node has been
+  burned by **three** times".
 - `quarantine-gate-control-k86` says "**four** times", counting `TT-24.c` and
   `SY-06.b` from a different child and treating `FN-22.e` as the fifth.
 

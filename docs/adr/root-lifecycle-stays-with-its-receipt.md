@@ -194,8 +194,16 @@ a thin interface earn its place. One consumer is not evidence of that.
 **The catalogue and the models this record measures against have been retired.**
 The catalogue was `docs/specs/semantic-contract.md`, deleted with the campaign's
 apparatus (`delete-formal-models-k29`); `crates/grove-finish/models/`, which
-supplies the measured figures above, goes at `delete-finish-models-k30`. The
-counts stay in the text because they are what the argument was made on and
-`docs/formalism-findings.md` records how they were taken. The decision above survived the instrument that found it, which is the outcome
-that campaign was run to test, and `docs/formalism-findings.md` keeps the record
-of how it was found.
+supplied the 103-identifier figure above, was deleted at
+`delete-finish-models-k30`, and `crates/grove-task-tree/models/`, which supplied
+the 70, at `delete-formal-models-k29`.
+
+The counts stay in the text, because they are what the argument was made on and
+because the argument does not need them re-taken: the domain-vocabulary
+measurement was a *comparison* — zero against 103 and 70 — and its conclusion is
+that the destruction contract cannot be stated without domain words, which the
+prototype's own zero already carries. What is no longer available is the
+**instrument**, so a reader who doubts the figures cannot re-run the enumeration;
+`docs/formalism-findings.md` records how it was taken, and the models are
+recoverable by revision. The decision survived the instrument that found it,
+which is the outcome that campaign was run to test.

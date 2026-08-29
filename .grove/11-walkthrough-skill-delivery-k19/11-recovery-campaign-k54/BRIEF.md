@@ -44,7 +44,11 @@ new instrument and runs only after this subtree.
   fixture at its frozen digest, so the primary evidence includes a non-Rust,
   cross-codebase case.
 - The exact historical transfer probe, if authorized for replication, publishes
-  its unchanged verdict. This subtree never selects a new target.
+  its unchanged verdict under the transfer status settled by
+  `acceptance-replication-authority`: either an amended acceptance conjunct or
+  separately reported generality evidence. This subtree never promotes the
+  parent `Context` sentence to an acceptance clause and never selects a new
+  target.
 - Current-digest campaign checks, plugin structure/installation checks, and
   applicable repository checks publish a terminal pass, failed, or unavailable
   record independently of judged model behavior; anything but pass leaves the
@@ -52,8 +56,10 @@ new instrument and runs only after this subtree.
 
 ## Decomposition
 
-- `acceptance-replication-authority` first decides whether a post-failure
-  replication may discharge the parent claim and which contract governs it.
+- Before this node is entered, the external sibling
+  `acceptance-replication-authority-k76` settles whether a post-failure
+  replication may discharge the parent claim and which transfer contract
+  governs it. It is a precondition on this subtree, not one of its children.
 - `measurement-design-k55` writes the exact-instrument conformance contract.
 - `campaign-runner-k56` builds the sealed historical-schedule runner and complete record
   machinery without treatment calls.

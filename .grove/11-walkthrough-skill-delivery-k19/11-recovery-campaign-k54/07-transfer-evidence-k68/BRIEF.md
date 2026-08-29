@@ -2,8 +2,9 @@
 
 ## Goal
 
-Run and judge the exact previously frozen transfer probe as the historical
-transfer claim.
+Run and judge the exact previously frozen transfer probe under the transfer
+status settled by `acceptance-replication-authority`: either an explicitly
+amended acceptance conjunct or separately reported generality evidence.
 
 ## Done when
 
@@ -16,6 +17,10 @@ transfer claim.
 - The historical transfer verdict retains its frozen semantics and remains
   outside the same-case primary endpoint. This node selects no new target and
   authors no new row.
+- If the parent contract remains unchanged, the requirements disposition
+  records whether ten evaluated repetitions remain proportionate to
+  `evaluation-recovery-k73` F4. A decision not to run them produces a terminal
+  generality-evidence disposition and is not an acceptance shortfall.
 
 ## Decomposition
 
@@ -30,5 +35,5 @@ transfer claim.
 ## Notes
 
 Transfer cannot drive wording changes in this cycle or rescue the same-case
-endpoint. A miss or unavailable sample is reported, not repaired with a
-target-specific instruction.
+endpoint. A miss or unavailable sample is reported under its authority-defined
+status, not repaired with a target-specific instruction.

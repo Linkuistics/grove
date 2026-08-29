@@ -28,6 +28,11 @@ reproducible over the runner's preserved records.
   historical case-specific outcome.
 - Scoring matches the historical rubric's adjudication contract exactly. Extra
   scorers, forced arm guesses, and new disagreement rules are out of scope.
+- One complete case receives the rubric-mandated second scoring by an
+  independent blind context. The auditor reports criterion-level disagreement
+  counts and both citations before resolving disagreements under the frozen
+  rules; this positive requirement is distinct from excluded extra scorer
+  coverage.
 - Tests cover every historical invalid-run predicate, valid refusals and poor
   answers, timeouts, missing finals, truncation, the two-replacement ceiling,
   sample shortfall, randomized arm labels, and the frozen adjudication rule.

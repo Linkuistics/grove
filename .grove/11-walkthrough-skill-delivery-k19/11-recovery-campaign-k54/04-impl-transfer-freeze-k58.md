@@ -20,8 +20,10 @@ instrument without selecting or authoring a new probe.
 - Each role's exact inputs, raw outputs, runtime identity, chronology, and
   digests are preserved, and the information flow is checkable rather than
   asserted.
-- The target is outside this repository, absent from the historical campaign,
-  and worded without `ordinal-fs-tree` domain assumptions.
+- The target is outside this repository, absent from the same-case corpus and
+  completed book, and worded without `ordinal-fs-tree` domain assumptions. The
+  selection record proves it was chosen before the criteria were frozen by a
+  role that had seen neither the skill bytes nor the target source.
 - Runner/auditor fixture tests demonstrate exact historical compatibility and
   refuse a different target, prompt, row, or threshold without a live treatment
   or control execution.

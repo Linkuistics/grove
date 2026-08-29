@@ -18,6 +18,11 @@ one immutable pre-execution acceptance contract.
 - One signed manifest proves exact identity with the historical rubric and
   prior transfer artifacts and pins the treatment, templates, apparatus,
   schedule, tests, and runtime identity.
+- The manifest records the runner's exhaustive enumeration of model-interface
+  surfaces reachable from both sealed templates under the frozen command shape
+  and proves MCP resource listing, web search, and external document connectors
+  are absent before execution. This is conformance with the frozen access
+  boundary, not an added experiment rule.
 - A machine-checkable exclusion list refuses every new row, gate, exposure
   classifier, resource-window rule, scorer rule, arm-guess probe, outcome rule,
   or target that belongs to `supplemental-evaluation`.
@@ -27,6 +32,14 @@ one immutable pre-execution acceptance contract.
 - Stubbed end-to-end tests prove the historical no-tool/access rules,
   replacement ceiling, scoring contract, and incomplete-sample semantics.
   Altered-instrument and relabelled-control fixtures fail.
+- Before execution the freeze names the complete case that receives the
+  rubric-mandated second independent blind scoring. That assignment survives a
+  shortfall in the selected case: the shortfall and unavailable second score
+  are reported, and no different case is selected after outcomes are known.
+- Runtime identity includes the pinned `codex-cli 0.150.1`, executable digest,
+  model alias, reasoning effort, and timeouts. If any pinned control is
+  unobtainable, the exact replication records a terminal unavailable
+  disposition and does not substitute a service version.
 - One fresh adversarial reviewer receives only the complete freeze candidate
   and parent contract. Every finding is classified and settled before the
   manifest is signed; a second substantive review need is externalized through

@@ -22,6 +22,10 @@ accepted historical experiment.
   superseded-digest limitation, and transfer shortfall. It identifies the
   authorized replication by its manifest, treatment digest, runtime, prompts,
   criteria, and chronology.
+- If requirements option 1 authorized an exact replication, the report carries
+  the non-removable Case A limitation beside those limitations: the enabled arm
+  is selected against observable treatment use, so a pass may discharge the
+  rubric comparison but cannot establish causal skill use or effect.
 - The historical pre-skill records are named as the sole pre-skill baseline.
   New no-skill runs are always named contemporaneous comparators, including when
   they supply the second operand required by the frozen endpoint.
@@ -30,8 +34,14 @@ accepted historical experiment.
   gates, expanded regressions, pair-aware rules, arm guesses, and fail-closed
   outcomes belong to `supplemental-evaluation` and do not appear as campaign
   verdict inputs.
-- The exact historical transfer instrument receives its own verdict. This
-  campaign reports no new transfer target.
+- Cases B and C publish descriptive per-row counts and terminal shortfall
+  records only. Their materiality and regression classifications are printed as
+  `undefined`, never zero, miss, or omission.
+- The exact historical transfer instrument receives its own verdict or
+  separately reported generality result according to the transfer contract
+  settled by `acceptance-replication-authority`. The report does not promote a
+  parent `Context` sentence into an acceptance conjunct and reports no new
+  transfer target.
 - Skill bytes, discovery counts, deterministic guarantees, invalid-attempt
   records, and judged answer behavior remain distinct under the historical
   reporting contract.

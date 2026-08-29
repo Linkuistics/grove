@@ -25,6 +25,14 @@ instrument against a pinned skill digest and preserves complete records.
   stderr, timing, exit state, and access surface.
 - The control/enabled template delta is exactly the target skill subtree and
   the enabled bytes equal the requested manifest before every attempt.
+- Before any evaluated attempt, the runner enumerates every model-interface
+  surface reachable from the sealed control and enabled templates under the
+  frozen command shape and proves that the surfaces already forbidden by
+  `rubric.md:66`-`69` and `rubric.md:89`-`93` are absent, including MCP resource
+  listing, web search, and external document connectors. The enumeration and
+  proof are apparatus conformance with the frozen access boundary, not a new
+  prompt, row, sampling rule, threshold, or endpoint, and are emitted for the
+  joint freeze manifest.
 - It applies the historical rubric's invalid-run predicates and two-replacement
   ceiling exactly. It implements no exposure-gated replacement or resource-
   window alternative.

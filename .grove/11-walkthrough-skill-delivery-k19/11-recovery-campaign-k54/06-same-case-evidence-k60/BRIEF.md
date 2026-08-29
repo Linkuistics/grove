@@ -18,8 +18,12 @@ rule.
 - Access, replacement, and scoring follow the historical rubric exactly.
   Stronger exposure audits, dual scoring, arm guesses, absolute gates, or fail-
   closed rules absent from that rubric are out of scope.
-- Each case publishes historical-rubric row counts and material/regression
-  classifications without changing any row or denominator.
+- Each case publishes historical-rubric row counts without changing any row or
+  denominator. Case A publishes the material/regression classifications the
+  frozen rubric defines. Cases B and C have no historical baseline operand, so
+  they publish descriptive per-row counts and terminal shortfall records only;
+  both classifications are written as `undefined`, never zero, miss, or
+  omission.
 - The same-case verdict applies the exact historical `R`, `G`, `2/5`, `10/15`,
   incomplete-sample, truncation, and exclusion semantics. It also preserves the
   original failed enabled campaign beside any authorized replication result.

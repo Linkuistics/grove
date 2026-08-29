@@ -19,6 +19,10 @@ same-case records.
 - The acceptance verdict applies exactly `R`, `G`, the `2/5` materiality test,
   the `10/15` endpoint, and the historical incomplete/truncation exclusions. It
   contains no new absolute, per-family, mixed-row, or fail-closed gate.
+- The verdict states that Cases B and C can contribute only descriptive row
+  counts and terminal shortfall records because they lack historical baseline
+  operands. Their materiality and regression classifications remain
+  `undefined`, not zero, miss, or omitted, and neither case enters `R` or `G`.
 - Any new absolute attainment, per-family gate, expanded regression set, pair-
   aware rule, or missing-data outcome is excluded and cannot rescue or weaken
   the verdict.

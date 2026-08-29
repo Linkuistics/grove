@@ -23,9 +23,14 @@ Audit and publish the exact historical transfer verdict.
 - Historical invalid and shortfall outcomes retain their exact frozen meaning.
   The result makes no same-case, population, reader-outcome, or wording-
   causation claim.
+- The result is labelled either an amended acceptance conjunct or separately
+  reported generality evidence exactly as settled by
+  `acceptance-replication-authority`; it never derives acceptance authority from
+  the parent brief's `Context` sentence.
 
 ## Notes
 
-The transfer result remains visible even when adverse. It is required for the
-parent's cross-codebase and cross-language applicability clause but cannot be
-pooled with the larger same-case row set or used to change treatment bytes.
+The transfer result remains visible even when adverse, but cannot be pooled with
+the larger same-case row set or used to change treatment bytes. It is required
+for parent acceptance only if the requirements decision explicitly amends the
+parent `Done when` to say so.

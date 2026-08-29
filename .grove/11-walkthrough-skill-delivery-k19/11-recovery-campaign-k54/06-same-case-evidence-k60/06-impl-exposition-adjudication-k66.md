@@ -17,9 +17,11 @@ Audit and publish the exact historical-rubric exposition/assurance result.
   determine the acceptance result.
 - New exposure classifications, dual scoring, forced arm guesses, and added
   assurance rows are excluded and cannot alter a historical row.
-- The case record reports the historical C01–C24 counts, material deltas,
+- The case record reports the historical C01–C24 descriptive counts,
   invalid-attempt counts, truncations, discovery count, and required
-  adjudication disagreements.
+  adjudication disagreements. Because Case C has no valid historical baseline
+  operand, materiality and regression classifications are published as
+  `undefined`, never zero, miss, or omission.
 - Historical valid, invalid, truncated, and shortfall outcomes retain the exact
   rubric meaning. New fail-closed semantics are out of scope.
 

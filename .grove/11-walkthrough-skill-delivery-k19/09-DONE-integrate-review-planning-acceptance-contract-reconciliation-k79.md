@@ -101,3 +101,39 @@ If applying a finding turns out to need substantial redesign of the reconciled
 contract rather than an edit to these task files, externalise it as a new
 producer leaf beside this one rather than absorbing it, per
 `references/execute.md`.
+
+## Decisions (running log)
+
+- **F1 — applied.** `acceptance-replication-authority-k76` must confront the
+  frozen report's Case A diagnosis and choose among exact replication with a
+  non-removable selection limitation, failed behavioral acceptance, or an
+  explicit new-instrument access amendment. k75 no longer presents option 1 as
+  settled, and k72 carries the limitation when option 1 is chosen.
+- **F2 — applied.** `campaign-runner-k56` owns exhaustive pre-attempt enumeration
+  of reachable model-interface surfaces and proof that already-forbidden MCP,
+  web, and connector surfaces are absent; `campaign-freeze-k59` records it as
+  apparatus conformance. k55 and k59 make an unobtainable pinned CLI or other
+  execution control a terminal unavailable exact-replication disposition.
+- **F3 — applied through the requirements owner.** k76 must either amend the
+  parent `Done when` or classify the historical probe as separately reported
+  generality evidence and re-test its cost. k54, k68, k70, and k72 now consume
+  that explicit choice and cannot promote the parent `Context` sentence by
+  implication.
+- **F4 — applied.** k55, the k60 brief, k64, k66, k67, and k72 state that Cases
+  B and C yield descriptive counts and shortfall records only and publish both
+  materiality and regression classifications as `undefined`.
+- **F5 — applied.** k57 owns the historical rubric's second blind scoring as a
+  positive requirement; k59 freezes its case before execution and preserves the
+  choice through shortfall; k64 excludes only scorer coverage beyond that
+  requirement.
+- **F6 — applied.** k58 now states the actual frozen selection constraint: the
+  target is outside the repository and absent from the same-case corpus and
+  completed book, with the required pre-criteria blind selection chronology.
+- **F7 — applied.** Every k75 trace row now identifies its parent source, the
+  split of parent bullet 5 and the two deliberate merges are explicit, and
+  deployment verification visibly covers the authoring-conventions clause.
+- **F8 — applied.** k54 names k76 as an external sibling precondition settled
+  before node entry rather than as a campaign child.
+- None of the findings required substantial redesign beyond the producer and
+  downstream planning contracts, so no new producer-review chain was earned.
+  No historical evaluation record or frozen rubric byte was edited.

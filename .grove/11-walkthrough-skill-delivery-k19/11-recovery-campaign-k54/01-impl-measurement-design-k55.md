@@ -30,7 +30,12 @@ of the deployed skill's wording and new campaign outcomes.
   `acceptance-replication-authority`; it does not infer that another five-run
   sample may supersede the failed arm.
 - A conformance table enumerates every historical prompt, fixture, row, set,
-  threshold, and rule and proves there is no retained/reworded/dropped choice.
+  threshold, rule, and execution control, including the pinned `codex-cli
+  0.150.1`, executable digest, model alias, reasoning effort, and timeouts, and
+  proves there is no retained/reworded/dropped choice. If the pinned CLI or any
+  other execution control is unobtainable, exact replication is recorded as
+  unavailable and no substituted version may carry the unchanged-instrument
+  verdict.
   Any proposed new absolute gate, per-family gate, mixed-control rule, expanded
   regression row, or scoring control is externalized to
   `supplemental-evaluation` rather than drafted here.
@@ -46,6 +51,11 @@ of the deployed skill's wording and new campaign outcomes.
   resumption, fail-closed missing-data semantics, dual scoring beyond the
   historical requirement, and arm-guess probes are excluded and routed to
   `supplemental-evaluation`.
+- Cases B and C have no valid historical baseline operand. They can publish
+  only descriptive per-row counts and terminal shortfall records under the
+  frozen rubric; their materiality and regression classifications are
+  undefined. The conformance contract requires the literal status `undefined`
+  rather than substituting zero, miss, or omission.
 - The historical transfer prompt, fixture, criteria, threshold, and regression
   bytes are the only transfer instrument. This leaf selects no new target and
   derives no new transfer row.

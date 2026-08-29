@@ -27,6 +27,22 @@ capability-plus-trigger shape.
 
 ## Individual skills
 
+### `writing-code-walkthroughs`
+
+The method was synthesized in this repository from two independent surveys and
+then exercised by the complete, technically reviewed, and editorially reviewed
+`ordinal-fs-tree` book. Its external foundations are primary or authoritative
+sources: Reigeluth and Stein, Pennington, and Letovsky and Soloway for
+whole-to-parts concept ordering; [Sweller and Cooper](https://doi.org/10.1207/s1532690xci0201_3)
+plus [Chi et al.](https://doi.org/10.1207/s15516709cog1302_1) for worked
+examples and self-explanation; Ayres and Sweller plus Letovsky and Soloway for
+local integration and delocalized-plan goals; CWEB and Ramsey's noweb paper for
+named recursive source expansion; RFC 7322, Google's developer-documentation
+guide, and WCAG for direct prose, headings, links, and navigation. The exact
+fragment grammar, byte-comparison contract, scoped-progress protocol, and
+separate technical/editorial review briefs are Linkuistics' project synthesis;
+the skill does not claim controlled reader-outcome evidence for them.
+
 ### `decision-records`
 
 The minimal template, examples, and three-part when-to-write test were adapted

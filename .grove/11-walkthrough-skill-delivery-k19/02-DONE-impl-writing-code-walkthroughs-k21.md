@@ -36,3 +36,17 @@ validated book method and observed baseline failures.
 
 This leaf does not claim behavioral success from prose inspection. That claim
 belongs to `skill-evaluation-k22` using fresh enabled contexts.
+
+## Decisions (running log)
+
+The skill is model-invoked and portable (`harnesses: [any]`) because its
+mechanism is repository inspection and Markdown authoring rather than a
+harness-specific tool. Its entrypoint stays self-contained: the complete method
+fits below the house progressive-disclosure threshold, and a generic fragment
+validator would be shallower than target-specific deterministic checks.
+
+Behavior-shaping intake guidance is limited to the fifteen repeated Case A
+gaps. The source/fragment and exposition/assurance contracts remain positive
+method guidance backed by the completed book and research synthesis; the skill
+does not describe them as baseline-demonstrated failures because Cases B and C
+produced no valid historical samples.

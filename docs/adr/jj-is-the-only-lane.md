@@ -1,11 +1,12 @@
 # jj is the only lane
 
 Grove drives Jujutsu and refuses everything else. A working tree with no `.jj/`
-directory at or above it is refused *before any mutation*, by one gate
-(`repo::require_jj_workspace`), with the command that fixes it:
+directory at or above it is refused *before any mutation*, by one gate —
+resolving a workspace through the version control seam, `crates/jj-workspace` —
+with the command that fixes it:
 
 ```
-Grove drives jj, and this is not a jj working tree
+not a Jujutsu working tree
   looked for a `.jj` directory at and above: /path/to/tree
 
 Make the tree jj-enabled and rerun:

@@ -1,4 +1,3 @@
-use crate::repo;
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
@@ -16,7 +15,7 @@ pub fn bare_grove() -> Result<()> {
     let cwd = std::env::current_dir().context("getting cwd")?;
     let driver_lease = crate::driver_lease::DriverLease::acquire(&cwd)?;
     let worktree = driver_lease.worktree_root().to_path_buf();
-    let repository = repo::main_repo_of(&worktree)?;
+    let repository = driver_lease.main_repo().to_path_buf();
     let name = worktree_name(&worktree);
 
     crate::loop_driver::run_configured(&repository, &worktree, &name, driver_lease)
@@ -47,15 +46,6 @@ fn worktree_name(worktree: &Path) -> String {
 /// reads it, so leaking it grants nothing.
 const LOOP_CONTROL_ENV: [&str; 3] = ["GROVE_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"];
 
-/// Repository selectors are process-global overrides: `current_dir` alone does
-/// not stop Git-aware children from following an inherited foreign repository.
-const REPOSITORY_CONTEXT_ENV: [&str; 4] = [
-    "GIT_DIR",
-    "GIT_WORK_TREE",
-    "GIT_COMMON_DIR",
-    "GIT_INDEX_FILE",
-];
-
 /// **Any spawn that is not the configured session itself must scrub the loop's
 /// launch-scoped environment** (guard-loop-signal-k37).
 ///
@@ -71,25 +61,21 @@ const REPOSITORY_CONTEXT_ENV: [&str; 4] = [
 /// pre-flight spawned a harness binary without scrubbing, the suite's fake
 /// commands write `"$GROVE_SIGNAL_FILE"` unconditionally, and `cargo test`
 /// killed the terminal it was typed into. Removing that one site does not
-/// retire the rule: every internal spawn — the tree readers, the VCS commit
-/// helpers — inherits the same ambient authority, and the rule is what keeps
-/// them from carrying it.
+/// retire the rule: every spawn grove makes inherits the same ambient
+/// authority, and the rule is what keeps them from carrying it.
+///
+/// **Grove's own spawns are now the session and nothing else.** The one other
+/// family — the VCS probes and the teardown commit — went to
+/// `jj-workspace`, which scrubs the *repository selectors* itself because
+/// choosing the right repository is its guarantee to make. It deliberately does
+/// not scrub this list: it has no consumer to speak for, and `jj` reads no
+/// `GROVE_*` variable, so nothing it spawns can act on one.
 ///
 /// Deliberately one helper rather than an `env_remove` per site: the list is the
 /// interesting part, and a second site open-coding it is how the first one came
 /// to be missed.
 pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
     for name in LOOP_CONTROL_ENV {
-        cmd.env_remove(name);
-    }
-}
-
-/// Driver-internal and obsolete compatibility children must also ignore any
-/// repository selected by the process that launched Grove. Internal Git calls
-/// may subsequently anchor the authoritative worktree explicitly.
-pub(crate) fn scrub_internal_child_env(cmd: &mut Command) {
-    scrub_loop_control_env(cmd);
-    for name in REPOSITORY_CONTEXT_ENV {
         cmd.env_remove(name);
     }
 }
@@ -114,10 +100,9 @@ mod tests {
     #[test]
     fn a_scrubbed_spawn_removes_the_whole_control_channel() {
         let mut cmd = Command::new("true");
-        for name in REPOSITORY_CONTEXT_ENV {
-            cmd.env(name, "preserved");
-        }
+
         scrub_loop_control_env(&mut cmd);
+
         for name in LOOP_CONTROL_ENV {
             assert!(
                 env_is_scrubbed(&cmd, name),
@@ -125,25 +110,23 @@ mod tests {
                 is inherited, not addressed"
             );
         }
-        for name in REPOSITORY_CONTEXT_ENV {
-            assert!(
-                !env_is_scrubbed(&cmd, name),
-                "{name} is configured-command policy and must remain inherited"
-            );
-        }
     }
 
+    // The complement, and the reason this list is *only* the control channel:
+    // repository selection is the VCS seam's guarantee to make, and a
+    // configured command that wants a repository chosen for it must still
+    // receive one. Scrubbing it here would take that from the configuration
+    // owner in order to protect a spawn grove no longer makes.
     #[test]
-    fn an_internal_child_scrubs_control_and_repository_context() {
+    fn a_scrubbed_spawn_leaves_configured_command_policy_alone() {
         let mut cmd = Command::new("true");
-        cmd.env("GIT_INDEX_FILE", "foreign-index");
-        scrub_internal_child_env(&mut cmd);
-        for name in LOOP_CONTROL_ENV.into_iter().chain(REPOSITORY_CONTEXT_ENV) {
-            assert!(env_is_scrubbed(&cmd, name), "{name} must be removed");
-        }
+        cmd.env("GIT_DIR", "chosen-by-the-configuration");
+
+        scrub_loop_control_env(&mut cmd);
+
         assert!(
-            env_is_scrubbed(&cmd, "GIT_INDEX_FILE"),
-            "internal commands must not inherit a foreign Git index"
+            !env_is_scrubbed(&cmd, "GIT_DIR"),
+            "GIT_DIR is configured-command policy and must remain inherited"
         );
     }
 }

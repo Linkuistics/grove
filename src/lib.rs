@@ -35,7 +35,13 @@ pub mod methodology;
 // per claim (`docs/ARCHITECTURE.md`, *the embed test seam*).
 pub mod prompt;
 pub mod provision;
-pub mod repo;
+// There is no `repo` module. The VCS seam is `crates/jj-workspace`
+// (`docs/specs/module-decomposition.md`, decision 8): resolving a workspace,
+// refusing a working tree that is not one, and taking a path-scoped commit are
+// now behind a crate that has never heard of grove, and the sites that used to
+// call the adapter call `Workspace` directly. What stayed here is what only
+// grove can say — the name of its control namespace, why a tracked
+// configuration delta is refused, and what `.grove/` is.
 pub mod session_config;
 // `task_name` is Grove's implementation of `ordinal_fs_tree::EntryName` — the
 // whole seam onto the extracted tree library (gh issue #13, increment 2), and

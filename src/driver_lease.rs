@@ -1,5 +1,5 @@
-use crate::repo;
 use anyhow::{bail, Context, Result};
+use jj_workspace::Workspace;
 use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
@@ -9,6 +9,15 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
+
+/// Grove's control namespace inside the workspace's administration area.
+///
+/// The seam owns *where* an untracked coordination directory may live and
+/// guarantees it is not shared; grove owns *whose* it is, and this is the whole
+/// of that ownership. One constant rather than a literal per call site, because
+/// two spellings of the namespace are two control directories and the second
+/// driver would not see the first one's lease.
+const CONTROL_NAMESPACE: &str = "grove";
 
 const LEASE_FILE_NAME: &str = "driver.lease";
 const EPOCH_FILE_NAME: &str = "session.epoch";
@@ -75,6 +84,7 @@ impl FileIdentity {
 #[derive(Debug)]
 pub struct DriverLease {
     worktree_root: PathBuf,
+    main_repo: PathBuf,
     control_dir: PathBuf,
     _worktree_directory: File,
     worktree_identity: FileIdentity,
@@ -122,16 +132,14 @@ impl DriverLease {
     }
 
     fn acquire_with(path: &Path, before_initial_epoch_handoff: impl FnOnce()) -> Result<Self> {
-        let control = repo::workspace_control(path)?;
-        fs::create_dir_all(control.control_dir()).with_context(|| {
-            format!(
-                "creating Grove control directory {}",
-                control.control_dir().display()
-            )
-        })?;
-
-        let worktree_root = control.worktree_root().to_path_buf();
-        let control_dir = control.control_dir().to_path_buf();
+        // The precondition gate and the control directory in one resolution:
+        // the seam refuses a working tree that is not jj-enabled before
+        // anything is created, and hands back grove's own namespace inside it,
+        // created if absent.
+        let workspace = Workspace::resolve(path)?;
+        let control_dir = workspace.control_dir(CONTROL_NAMESPACE)?;
+        let worktree_root = workspace.root().to_path_buf();
+        let main_repo = workspace.main_repo().to_path_buf();
         let worktree_directory = File::open(&worktree_root).with_context(|| {
             format!(
                 "opening working tree root {} for driver ownership",
@@ -145,12 +153,13 @@ impl DriverLease {
                 .context("reading pinned working-tree identity")?,
         );
 
-        let lease_path = control.control_dir().join(LEASE_FILE_NAME);
+        let lease_path = control_dir.join(LEASE_FILE_NAME);
         let (lease_file, lease_identity) = acquire_lease_file(&lease_path, &worktree_root)?;
         let nonce = hex_nonce(random_nonce()?)?;
 
         let mut lease = Self {
             worktree_root,
+            main_repo,
             control_dir,
             _worktree_directory: worktree_directory,
             worktree_identity,
@@ -172,6 +181,17 @@ impl DriverLease {
 
     pub fn worktree_root(&self) -> &Path {
         &self.worktree_root
+    }
+
+    /// The main repo behind this working tree — the checkout the workspace
+    /// belongs to, whose basename names the repo in session names and whose
+    /// path anchors the harness stamp.
+    ///
+    /// Taken from the resolution the lease already performed rather than
+    /// resolved a second time: the two answers cannot then disagree, and the
+    /// borrowed-repository case is one subprocess rather than two.
+    pub fn main_repo(&self) -> &Path {
+        &self.main_repo
     }
 
     pub(crate) fn allocate_signal_channel(&self) -> Result<SignalChannel> {
@@ -807,7 +827,7 @@ fn admit_session(
     let Some(signal_path) = signal_path else {
         return Ok(None);
     };
-    let current_control = repo::workspace_control(path)?;
+    let current_workspace = Workspace::resolve(path)?;
     let control_dir = signal_path.parent().with_context(|| {
         format!(
             "stale Grove session for {operation}: signal path has no control-directory parent: {}",
@@ -820,18 +840,18 @@ fn admit_session(
     let epoch = read_epoch_record(&mut epoch_file)
         .with_context(|| format!("stale Grove session for {operation}"))?;
 
-    if epoch.process.worktree_root != current_control.worktree_root() {
+    if epoch.process.worktree_root != current_workspace.root() {
         bail!(
             "wrong working tree for {operation}: session belongs to {}, command resolved {}",
             epoch.process.worktree_root.display(),
-            current_control.worktree_root().display()
+            current_workspace.root().display()
         );
     }
     let current_identity = FileIdentity::from_metadata(
-        &fs::metadata(current_control.worktree_root()).with_context(|| {
+        &fs::metadata(current_workspace.root()).with_context(|| {
             format!(
                 "reading current working-tree identity {}",
-                current_control.worktree_root().display()
+                current_workspace.root().display()
             )
         })?,
     );
@@ -939,19 +959,6 @@ mod tests {
         fs::rename(path, path.with_extension(format!("attempt-{attempt}")))?;
         fs::write(path, format!("replacement {attempt}"))?;
         Ok(())
-    }
-
-    // Every jj shape resolves in-root, so the marker reported is the one the
-    // operator sees beside their files rather than a canonical target elsewhere.
-    #[test]
-    fn an_in_root_marker_is_reported_as_itself() {
-        let tmp = TempDir::new().unwrap();
-        let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".jj")).unwrap();
-
-        let control = repo::workspace_control(&root).unwrap();
-
-        assert_eq!(control.marker(), control.worktree_root().join(".jj"));
     }
 
     #[test]

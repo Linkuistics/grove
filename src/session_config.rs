@@ -6,6 +6,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
+use jj_workspace::Workspace;
 use kdl::{KdlDocument, KdlNode};
 
 const CONFIG_PATH: &str = ".config/grove/config.kdl";
@@ -50,7 +51,7 @@ pub struct ExpansionContext<'a> {
 /// They are *taken*, never re-derived here. A second notion of "the repository
 /// root" computed inside this module is exactly the drift that would let the
 /// search order disagree with what `${repo}` expands to in the very template it
-/// selected; `crate::repo::main_repo_of` is the one derivation, and its result
+/// selected; the VCS seam's `main_repo` is the one derivation, and its result
 /// arrives through this struct. Naming both fields also makes a caller-side swap
 /// of two same-typed paths impossible.
 pub struct DeltaRoots<'a> {
@@ -252,7 +253,7 @@ fn read_source(path: &Path) -> Result<String> {
 /// (`jj file untrack --help`, jj 0.44.0 — "Paths to untrack. They must already
 /// be ignored.").
 fn read_delta_source(path: &Path) -> Result<String> {
-    let tracked = crate::repo::path_is_tracked(path).with_context(|| {
+    let tracked = delta_is_tracked(path).with_context(|| {
         format!(
             "checking whether the Grove configuration delta at {} is tracked",
             path.display()
@@ -274,6 +275,39 @@ fn read_delta_source(path: &Path) -> Result<String> {
             path.display()
         )
     })
+}
+
+/// Is the delta at `path` **tracked** by the workspace it sits in?
+///
+/// The one read-only question grove asks the version control system outside the
+/// finish path, and the enforcement behind [the untracked configuration
+/// delta](../docs/adr/untracked-configuration-delta.md): a delta names a program
+/// to execute, so a repository that could ship one would choose what Grove
+/// spawns in any checkout of it. Documentation cannot establish that boundary
+/// and neither can an ignore rule — a file already committed stays tracked when
+/// an ignore line is added.
+///
+/// Anchored to the candidate's **own** directory rather than to the leased
+/// worktree, because the two searched roots may live in different workspaces (a
+/// secondary jj workspace) and the one that owns the file is the one whose
+/// working-copy commit can hold it.
+///
+/// **No workspace at all answers `false` rather than refusing.** This is the one
+/// place absence is an answer rather than a precondition failure: nothing owns
+/// the file, so nothing tracks it, and the hostile repository this guards
+/// against has a marker by definition. That is why the refusal is discarded
+/// instead of propagated — resolution declines for exactly one reason a caller
+/// can act on, *this is not a Jujutsu working tree*, and here that reason is the
+/// answer. A probe that cannot be *completed* — the binary missing, the command
+/// failing — is still an error, and its caller fails closed.
+fn delta_is_tracked(path: &Path) -> Result<bool> {
+    let directory = path
+        .parent()
+        .with_context(|| format!("candidate path has no parent directory: {}", path.display()))?;
+    let Ok(workspace) = Workspace::resolve(directory) else {
+        return Ok(false);
+    };
+    Ok(workspace.is_tracked(path)?)
 }
 
 fn parse_and_validate(

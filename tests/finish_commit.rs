@@ -419,6 +419,6 @@ fn finish_commit_refuses_a_working_tree_that_is_not_jj_enabled() {
 
     assert!(!output.status.success(), "a VCS-less tree was torn down");
     let error = stderr(&output);
-    assert!(error.contains("not a jj working tree"), "{error}");
+    assert!(error.contains("not a Jujutsu working tree"), "{error}");
     assert_eq!(tree_snapshot(&grove), before);
 }

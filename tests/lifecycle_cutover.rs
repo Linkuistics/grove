@@ -493,7 +493,7 @@ fn an_unwritable_control_directory_fails_before_configuration_or_tree_access() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!output.status.success(), "unexpected success: {stderr}");
     assert!(
-        stderr.contains("creating Grove control directory"),
+        stderr.contains("control directory") && stderr.contains("is not usable"),
         "the failure must name the control directory it could not create: {stderr}"
     );
     assert!(
@@ -1348,8 +1348,7 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
             "bare grove must stop on a {name} tree; stderr was {stderr}"
         );
         assert!(
-            stderr.contains("holds no Grove entries")
-                && stderr.contains("NN-<kind>-<slug>-k<key>"),
+            stderr.contains("holds no Grove entries") && stderr.contains("NN-<kind>-<slug>-k<key>"),
             "the refusal must name the grammar grove reads: {stderr}"
         );
         for entry in entries {

@@ -22,12 +22,12 @@
 use crate::complete;
 use crate::driver_lease;
 use crate::leaf::Kind;
-use crate::repo;
 use crate::task_grow;
 use crate::task_tree;
 use crate::tree_lifecycle;
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use jj_workspace::Workspace;
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
@@ -696,7 +696,7 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
 // read one level off.
 fn grove_paths() -> Result<(PathBuf, PathBuf)> {
     let cwd = std::env::current_dir().context("getting cwd")?;
-    let worktree = repo::toplevel(&cwd)?;
+    let worktree = Workspace::resolve(&cwd)?.root().to_path_buf();
     let grove_root = worktree.join(".grove");
     Ok((worktree, grove_root))
 }

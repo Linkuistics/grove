@@ -535,9 +535,7 @@ fn bare_scaffolding_is_anchored_before_the_configured_command_inherits_git_conte
             foreign.join(".git").display()
         )
     );
-    assert!(intended
-        .join(".grove/01-requirements-plan-k1.md")
-        .is_file());
+    assert!(intended.join(".grove/01-requirements-plan-k1.md").is_file());
     assert!(!foreign.join(".grove").exists());
 }
 
@@ -820,9 +818,7 @@ fn a_non_directory_control_location_fails_before_a_lease_is_created() {
     let error = DriverLease::acquire(&root).unwrap_err();
 
     assert!(
-        error
-            .to_string()
-            .contains("creating Grove control directory"),
+        error.to_string().contains("is not usable"),
         "unexpected error: {error:#}"
     );
 }
@@ -840,9 +836,7 @@ fn an_unwritable_control_parent_fails_before_a_lease_is_created() {
     fs::set_permissions(&jj_directory, fs::Permissions::from_mode(0o700)).unwrap();
     let error = result.unwrap_err();
     assert!(
-        error
-            .to_string()
-            .contains("creating Grove control directory"),
+        error.to_string().contains("is not usable"),
         "unexpected error: {error:#}"
     );
     assert!(!lease_path(&root).exists());

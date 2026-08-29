@@ -51,6 +51,62 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The version control seam is a crate, and it has never heard of grove.**
+  `crates/jj-workspace` is the workspace's third package and the whole of what
+  grove knows about Jujutsu: resolve a workspace, refuse a working tree that is
+  not one, hand a consumer a namespaced control directory, answer what is
+  tracked, take a path-scoped commit. `src/repo.rs` and `src/repo/finish_commit.rs`
+  (349 lines) are deleted, and with them every `jj` spawn in grove's production
+  code — each child that speaks to the version control system is now started
+  inside the crate.
+  It takes **no dependencies**: `Refusal` is opaque and implements
+  `std::error::Error`, which `anyhow` swallows through `?` without either crate
+  knowing about the other.
+
+  **Domain-freedom is enforced at a method, not asserted in a sentence.**
+  `control_dir` takes the *consumer's* namespace — grove passes `"grove"`, and
+  gets `.jj/grove/` back, created if absent and guaranteed shared with nothing
+  else. The implementation that moved reached that path by hard-coding a
+  grove-named directory inside jj's administrative one, which cannot be stated
+  as a postcondition without naming the consumer; handing back the administrative
+  directory raw was rejected too, since `driver.lease` and `session.epoch` are
+  generic names in a directory jj owns and may extend, so the collision would be
+  one release away and silent. `crates/jj-workspace/tests/` links the crate
+  **without grove** — 28 tests over the public interface plus a separate binary
+  for the one claim that has to mutate the process environment — which is the
+  compiler-enforced form of the claim rather than a doc comment making it.
+
+  **Two behaviours changed, both deliberately.** Resolving a workspace now also
+  answers which workspace holds the repository, because the interface makes that
+  answer infallible; it costs no subprocess in the common case, since jj marks a
+  *borrowed* repository with a `.jj/repo` pointer file and one it holds with the
+  repository itself — the same file-versus-directory shape Git uses for `.git`.
+  And `is_tracked` now lets jj snapshot first, so the answer is about the tree as
+  it is on disk rather than as it was at the last snapshot: a caller reads it to
+  decide whether removing a file could be undone, and a stale answer is wrong for
+  that. Measured (jj 0.44.0) rather than assumed — a snapshotting probe records
+  an operation only when the working copy actually changed, which is the same
+  snapshot the next jj command would take anyway, taken earlier and not twice.
+  The finish gate is the caller that needed it: an untracked `.grove/` is refused
+  before deletion, and that refusal is now correct for a tree committed but not
+  re-snapshotted.
+
+  **Grove keeps only what grove can say.** The refusal wording for `.grove/`,
+  the name of its control namespace, and why a tracked configuration delta is
+  refused stayed here; jj's remedies — `jj git init --colocate`, `jj undo`,
+  `jj op log` — moved into the crate, where every refusal variant names what is
+  wrong, where, and what fixes it. `scrub_internal_child_env` and the repository
+  selector list went with them, leaving `launch::scrub_loop_control_env` as
+  grove's own half: it removes the session-ending authority `GROVE_*` carries,
+  which `jj` does not read.
+
+  **Records reworked in place.** `one-live-driver-per-working-tree` — the lease
+  survives; the Git-or-jj control-directory derivation, the same-device gate and
+  the lost-result retry path do not, and the control directory becomes the
+  namespace the seam hands back. `untracked-configuration-delta` and
+  `jj-is-the-only-lane` are reconciled to the seam's probe and refusal.
+  `docs/specs/module-decomposition.md` decision 8 lands as written.
+
 - **The hand-built finish transaction is deleted; the version control system
   owns the transaction.** `grove-llm finish-commit` now deletes `.grove/` and
   takes one path-scoped `jj commit`, and grove implements no witness, manifest,

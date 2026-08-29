@@ -1,16 +1,25 @@
-# This repo is a **workspace** whose root package is still `grove`. The second
-# member is `crates/ordinal-fs-tree`, the domain-independent tree library grove's
-# own tree modules were extracted into (gh issue #13); grove's side of that is a
-# domain implementation of one seam, and its algebra is gone. Its
-# design documents stay at `docs/ordinal-fs-tree/` rather than moving under the
-# crate: `docs/adr/` is flat and repo-wide while grove occupies the root, and
-# four artifacts link into that path.
+# This repo is a **workspace** whose root package is still `grove`, and whose
+# other members are the domain-free libraries grove is being decomposed into
+# (`docs/specs/module-decomposition.md`).
+#
+# `crates/ordinal-fs-tree` is the tree library grove's own tree modules were
+# extracted into (gh issue #13); grove's side of that is a domain implementation
+# of one seam, and its algebra is gone. Its design documents stay at
+# `docs/ordinal-fs-tree/` rather than moving under the crate: `docs/adr/` is flat
+# and repo-wide while grove occupies the root, and four artifacts link into that
+# path.
+#
+# `crates/jj-workspace` is the VCS seam (decision 8): resolve a jj workspace,
+# refuse a working tree that is not one, take a path-scoped commit. It is
+# domain-free down to the method — `control_dir` takes the consumer's namespace
+# rather than knowing grove's name — and it is the only thing in this workspace
+# that spawns `jj`.
 #
 # `resolver = "2"` is stated rather than inherited. A workspace root that is also
 # a package takes its resolver from that package's edition, so this is what 2021
 # already implies — written down so a later edition bump cannot move it silently.
 [workspace]
-members = ["crates/ordinal-fs-tree"]
+members = ["crates/jj-workspace", "crates/ordinal-fs-tree"]
 resolver = "2"
 
 # Hold the clippy baseline at zero, for every member. `clippy-baseline-k4` cleared
@@ -135,6 +144,11 @@ libc = "0.2"
 # Nothing consumes it yet: `src/task_name.rs` is Grove's `EntryName`
 # implementation, written in the flip's *expand* stage before any verb moves onto
 # the library.
+# The VCS seam (`docs/specs/module-decomposition.md`, decision 8). It imposes no
+# dependency of its own — its errors are an opaque `Refusal` implementing
+# `std::error::Error`, which `anyhow` swallows through `?` without either crate
+# knowing about the other.
+jj-workspace = { path = "crates/jj-workspace" }
 ordinal-fs-tree = { path = "crates/ordinal-fs-tree", default-features = false }
 sha2 = "0.10"
 shell-words = "1.1"

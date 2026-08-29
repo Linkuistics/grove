@@ -19,27 +19,30 @@ that could ship a `.grove.kdl` would choose what Grove spawns in any checkout of
 it, which is arbitrary code execution its operator never selected. Documentation
 cannot establish that boundary, and neither can an ignore rule — a file already
 committed stays tracked when an ignore line is added, so the rule is evidence of
-nothing. Trackedness is the question, it is answerable by one read-only probe in
-the workspace that owns the candidate (`jj file list --ignore-working-copy`), and
-the probe runs only when a candidate file exists, so a checkout with no delta
-pays nothing for it. A probe Grove cannot complete fails closed like any other
-unresolved validation.
+nothing. Trackedness is the question, it is answerable by asking the workspace that owns
+the candidate, and it is asked only when a candidate file exists, so a checkout
+with no delta pays nothing for it. A probe Grove cannot complete fails closed
+like any other unresolved validation. Grove does not run the probe: the
+**version control seam** does (`crates/jj-workspace`), and the answer it gives is
+about the working tree as it is on disk rather than as it was at the last
+snapshot.
 
-The probe is spawned as a **driver-internal child**, scrubbing the loop controls
-and the repository selectors first. That is not a hygiene point but the seam
-itself: the ambient environment must not decide the answer to the one question
-standing between an untrusted repository and arbitrary code execution.
-`--ignore-working-copy` is what keeps the probe read-only, and pinning it by
-working directory rather than by an environment variable is what keeps it
-answering about the workspace Grove selected.
+Asking through that seam is not a hygiene point but the seam itself: the ambient
+environment must not decide the answer to the one question standing between an
+untrusted repository and arbitrary code execution. The seam removes the
+repository selectors from every child it spawns and pins the question by working
+directory, which is what keeps it answering about the workspace Grove selected —
+and it is *its* guarantee to make, so no call site can be written without it.
 
 That enforcement is what makes the ignore line the documentation names a
-requirement rather than hygiene. jj snapshots the working copy automatically, so
-an unignored delta is in the working-copy commit within one command and would
-ride into history from there; ignored, it never enters that commit at all. The ordering is
-forced and the documentation says so: `jj file untrack` refuses a path that is
-not already ignored, so a delta committed by accident is ignored first and
-untracked second.
+requirement rather than hygiene, and the current-state answer sharpens it: an
+unignored delta is refused from the moment it exists, not from the next command
+that happens to snapshot the working copy. jj snapshots automatically, so an
+unignored delta would be in the working-copy commit within one command and would
+ride into history from there; ignored, it never enters that commit at all. The
+ordering is forced and the documentation says so: `jj file untrack` refuses a
+path that is not already ignored, so a delta committed by accident is ignored
+first and untracked second.
 
 An unreadable, unparseable, or otherwise invalid delta likewise fails closed —
 at both load points, before every tree mutation and again before every launch,

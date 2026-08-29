@@ -26,6 +26,18 @@ mean something else in grove's, and its crate ships by no path of its own —
   `docs/adr/` is flat and repo-wide and four artifacts link into that path. They
   move with the crate only if it is extracted to a repository of its own.
 
+**`crates/jj-workspace` is a fourth crate and deliberately not a fourth
+context.** A context is a language boundary, and there is none here: every term
+in that crate — workspace, main repo, tracked, commit, change id — is Jujutsu's,
+and grove's own glossary already uses those words with Jujutsu's meanings
+([`CONTEXT.md`](./CONTEXT.md), *Task commit boundary*). What the crate adds is a
+*namespace* it will not name for its consumer, which is an interface property
+rather than a vocabulary of its own. Its decisions live in the grove context
+that owns them: [decision 8](./docs/specs/module-decomposition.md) for the
+interface, [*jj is the only lane*](./docs/adr/jj-is-the-only-lane.md) for the
+refusal. A separate context becomes worth declaring only if it grows terms whose
+meaning departs from grove's.
+
 ## Relationships
 
 - **grove → skills, a documentation-level prerequisite that binds without the

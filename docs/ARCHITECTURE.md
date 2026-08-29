@@ -1075,14 +1075,32 @@ missing ones.
 <a id="version-control-seam"></a>
 ## Version-control seam
 
-Grove walks upward from the current directory looking for one thing: a `.jj/`
-directory. **jj is the only lane** — a tree without one is refused before any
-mutation, with `jj git init --colocate` named as the remedy
-([*jj is the only lane*](adr/jj-is-the-only-lane.md)). One gate,
-`repo::require_jj_workspace`, states that precondition, and nothing downstream
-branches on which version control owns the tree. A `.git` beside a `.jj` is a
-colocated repository and is jj's business: Grove never reads it, never spawns
-`git`, and makes no promise about the colocated index.
+**The seam is a crate, and grove is not in it.** `crates/jj-workspace` resolves
+a workspace, refuses a working tree that is not one, hands a consumer a
+namespaced control directory, answers what is tracked, and takes a path-scoped
+commit — and it has never heard of grove, `.grove/`, a leaf or a lease
+(`docs/specs/module-decomposition.md`, decision 8). Its domain-freedom is
+enforced at a method rather than asserted in a sentence: `control_dir` takes the
+*consumer's* namespace, because *where a lease file may live* cannot be stated
+without naming whose lease it is. Grove supplies the one word `grove` and
+nothing else about itself.
+
+Resolution walks upward from the current directory looking for one thing: a
+`.jj/` directory. **jj is the only lane** — a tree without one is refused before
+any mutation, with `jj git init --colocate` named as the remedy
+([*jj is the only lane*](adr/jj-is-the-only-lane.md)). That one gate states the
+precondition, and nothing downstream branches on which version control owns the
+tree. A `.git` beside a `.jj` is a colocated repository and is jj's business:
+Grove never reads it, never spawns `git`, and makes no promise about the
+colocated index.
+
+**Every child that speaks to the version control system is spawned inside the
+crate**, which removes `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR` and
+`GIT_INDEX_FILE` from each one. Choosing the right repository is the seam's
+guarantee, so no call site can be written without it. Grove's own
+`launch::scrub_loop_control_env` is the complementary half and stays grove's: it
+removes the session-ending authority `GROVE_*` carries, which `jj` does not
+read.
 
 **Moves are not commits.** Every entry a flipped verb moves is renamed by
 `ordinal-fs-tree`, which does `rename(2)`, detects no repository and requires no

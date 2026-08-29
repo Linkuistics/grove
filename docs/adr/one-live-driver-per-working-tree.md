@@ -1,25 +1,28 @@
 # One live driver owns each working tree
 
-After independently provisioning the embedded methodology, bare `grove`
-acquires one process-scoped **driver lease** for the working tree before it
-validates configuration or reads or mutates that grove. The repository adapter
-derives the control directory from the closest on-disk VCS marker, jj-first:
-the current workspace's `.jj/grove/` without following its repository link, or
-the canonical per-worktree Git directory named by its `.git` directory/gitfile,
-never Git's common directory. It invokes no repository discovery and ignores
-`GIT_DIR`, `GIT_WORK_TREE`, and other ambient selectors. Controls therefore live
-in the exact workspace's VCS administration area, never in the tracked working
+Bare `grove` acquires one process-scoped **driver lease** for the working tree
+before it validates configuration or reads or mutates that grove. It does not
+derive where that lease lives. The **version control seam**
+(`crates/jj-workspace`) owns that: grove asks the resolved workspace for a
+control directory under the namespace `grove`, and what comes back is guaranteed
+to be inside that exact workspace, untracked, shared with no other namespace,
+and created if absent. Grove supplies only the namespace — the one thing the
+seam cannot know, because *where a lease file may live* is not sayable without
+naming whose lease it is.
+
+The seam resolves the workspace by walking the filesystem for the closest `.jj/`
+and canonicalising it. It invokes no repository discovery, does not follow a
+secondary workspace's repository link, and removes `GIT_DIR`, `GIT_WORK_TREE`
+and the other ambient selectors from every child it spawns. Controls therefore
+live in the exact workspace's administration area, never in the tracked working
 copy or an environment-selected temporary directory. Symlink and relative-path
-aliases reach one lease; separate worktrees and workspaces remain independent.
-Acquisition also creates that control directory and proves it writable, so an
-unusable control directory stops the invocation before it can create or drive a
-task tree. It used to prove one thing more — that the directory sits on the
-working tree's own filesystem — because teardown ended in an atomic same-device
-rename into it. Teardown is a plain deletion and a path-scoped commit now
-(`delete-finish-transaction-k8`), so no rename crosses anything and the device
-comparison is gone with the record that specified it.
-Standard `--help` and `--version` return without provisioning, repository
-discovery, or a lease.
+aliases reach one lease; separate workspaces remain independent. Resolution also
+creates the control directory, so a working tree that is not jj-enabled and a
+`.jj/` that cannot hold a directory both stop the invocation before it can
+create or drive a task tree; that the directory is *writable* is proved by the
+lease file itself, at the moment it is opened, rather than by a probe whose
+answer could already be stale. Standard `--help` and `--version` return without
+provisioning, workspace resolution, or a lease.
 
 The lease is an exclusive, nonblocking advisory lock keyed by the filesystem
 device and inode of an already-open working-tree-root descriptor. Every lease
@@ -102,22 +105,12 @@ matching teardown commit nor an abandoned signal file can distinguish recovery
 intent from an intentional new workstream without adding a second user input or
 durable state. A configured child that exits without a signal likewise retains
 the ordinary no-signal disposition; the driver does not infer `done` from
-task-root absence. A same-session `finish-commit` retry can
-recover a lost successful result only by verifying the exact, immediate,
-handle-named, finish-attempt-bound, and `.grove/`-scoped commit through the Git
-or jj repository seam. The helper uses the active session epoch's opaque 128-bit
-launch nonce as the attempt identity and includes it in the internal commit
-message; a retry under that same still-active epoch reads the same
-value, while a replacement launch cannot match the old attempt. With the witness
-already gone, the commit's own parent/result delta must only delete `.grove/`,
-its message must name the requested handle and attempt exactly, and no
-tracked task root may remain. It does not require the generated finish leaf in
-the parent because allocation is working-tree-only. Absence alone never licenses
-`done`. This is idempotence for the current teardown command, not workflow state
-consulted by a later driver; the nonce in audit history is neither a credential
-nor a rootless lifecycle receipt. An operation already admitted under the
-crashed driver's epoch may
-also delay replacement
+task-root absence. A `finish-commit` whose own result is lost recovers nothing
+here either: there is no attempt identity in the commit message, no proof that a
+given commit was this attempt's, and no retry path that reads one. The version
+control system owns the transaction, so a lost result is read from the operation
+log and rerun or undone there. Absence alone never licenses `done`. An operation
+already admitted under the crashed driver's epoch may also delay replacement
 invalidation; an orphan that holds the shared guard to the handoff bound makes
 that replacement stop `blocked` without creating a new task tree. Once the guard
 releases, a later invocation can invalidate the epoch and initialize the fresh
@@ -145,6 +138,12 @@ operations.
   becomes an artifact of the workstream it is coordinating. The workspace's own
   `.jj/` supplies the same shared scope without that pollution. Reopen only if
   Grove supports a working tree with no equivalent administration location.
+- **Take the administration directory from the seam and name the control files
+  inside it.** Rejected because `driver.lease` and `session.epoch` are generic
+  names in a directory the version control system owns and may extend, so the
+  collision is one jj release away and would be silent. Asking for a *namespace*
+  moves the guarantee into the seam, where it can be kept. Reopen only if the
+  version control system reserves a consumer area of its own.
 - **Let the configured command inherit the driver-lock descriptor.** Rejected
   because an opaque harness may pass it to descendants that outlive the session,
   wedging the working tree after the foreground child exits. Reopen only if Grove
@@ -162,11 +161,8 @@ operations.
 - **Use VCS history as a rootless-driver finish discriminator.** Rejected
   because the same teardown history precedes both a recovery attempt and a
   deliberate new grove, so history proves what happened but not what the current
-  invocation is for. The narrow `finish-commit` retry is different: its active
-  command and requested handle supply the missing intent, and it accepts only
-  the immediate scoped result it could have produced. Reopen driver-side
-  inference if bare `grove` stops being the sole lifecycle input or a rootless
-  invocation no longer means fresh start.
+  invocation is for. Reopen driver-side inference if bare `grove` stops being the
+  sole lifecycle input or a rootless invocation no longer means fresh start.
 - **Infer `done` when a finish target exits without a signal and `.grove/` is
   absent.** Rejected because absence does not carry the finish session's
   disposition or attest human confirmation; it would make the no-signal path

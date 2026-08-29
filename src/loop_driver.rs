@@ -37,7 +37,7 @@
 //       argv=$(kdl_lookup "$HOME/.config/grove/config.kdl" "$kind")
 //       # Draw a fresh OS-random 128-bit suffix in the workspace control dir;
 //       # retry occupied names without touching their contents.
-//       sig="$workspace_control/signal-<fresh-128-bit-suffix>"
+//       sig="$control_dir/signal-<fresh-128-bit-suffix>"
 //       GROVE_SIGNAL_FILE="$sig" $argv &                 # ${prompt} carries $handle
 //       pid=$!
 //       # poll $pid (try_wait) and "$sig" every ~500ms; on signal appearing:
@@ -54,6 +54,7 @@ use crate::driver_lease::DriverLease;
 use crate::leaf::Kind;
 use crate::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
 use anyhow::{Context, Result};
+use jj_workspace::Workspace;
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -100,7 +101,7 @@ fn run_configured_loop_with_lease(
     let config_path = SessionConfig::path(&home);
     // The two roots the configuration delta is searched at, taken from the
     // resolution that already happened rather than recomputed here: `repo_path`
-    // is `repo::main_repo_of`'s answer and the very value `${repo}` expands to,
+    // is the seam's `main_repo` answer and the very value `${repo}` expands to,
     // so the search order cannot drift from the template it selects
     // (`docs/adr/untracked-configuration-delta.md`).
     let delta_roots = DeltaRoots {
@@ -271,11 +272,13 @@ fn stated_vcs(worktree: &Path) -> Result<String> {
     // to guess.
     //
     // Taken from the resolution rather than assumed. It *is* `worktree` — the
-    // probe starts its walk at the path itself and the lease root is the
-    // marker's own directory — but reading the resolved root cannot drift if
-    // either end moves.
-    let workspace_root = crate::repo::require_jj_workspace(worktree)
-        .context("the session prompt cannot state the version control")?;
+    // walk starts at the path itself and the lease root is the marker's own
+    // directory — but reading the resolved root cannot drift if either end
+    // moves.
+    let workspace_root = Workspace::resolve(worktree)
+        .context("the session prompt cannot state the version control")?
+        .root()
+        .to_path_buf();
     Ok(format!(
         "this working tree is jj-enabled (jj workspace root: `{}`)",
         workspace_root.display()

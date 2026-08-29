@@ -40,9 +40,8 @@ use crate::task_name::{Outcome, Parts, Slug, TaskName};
 use crate::task_tree;
 use crate::tree_access;
 use anyhow::{bail, Context, Result};
-use ordinal_fs_tree::{
-    Entry, EntryName, Found, Key, NewEntry, Report, Snapshot, Target, Verdict,
-};
+use jj_workspace::Workspace;
+use ordinal_fs_tree::{Entry, EntryName, Found, Key, NewEntry, Report, Snapshot, Target, Verdict};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -223,8 +222,8 @@ fn finish_body(handle: &str) -> String {
 /// committed. What went is the witness, the manifest, the evacuation, the
 /// rollback proof, the quarantine and the recovery path — jj snapshots the
 /// working copy before every command and its operation log is the transaction
-/// record, so a teardown that does not commit is restored by `jj undo`, which
-/// is what [`crate::repo::commit_finished_grove`]'s refusal says.
+/// record, so a teardown that does not commit is restored by `jj undo`, which is
+/// what the seam's own refusal says ([`jj_workspace::Workspace::commit`]).
 pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
     let grove_root = worktree.join(".grove");
     // **The root is classified before the tree is opened, because two of the
@@ -285,13 +284,19 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
 
 /// Delete `.grove/` and commit the deletion. Two steps, and each names the
 /// operation-log command that puts the tree back if it is the one that failed.
+///
+/// The refusal wording is grove's and the remedy is jj's: the seam has no
+/// `.grove/` to speak about, and grove has no operation log to repair with.
 fn delete_and_commit(worktree: &Path, grove_root: &Path, finish_handle: &str) -> Result<()> {
-    // Before anything is removed: the operation log can only restore what it
-    // tracks, so an untracked tree is refused rather than deleted.
-    crate::repo::require_recoverable_grove(worktree)?;
-    // The probe above snapshotted the working copy with the tree still whole, so
-    // a half-removed tree is recoverable from it: `jj restore .grove` returns
-    // what was removed — measured on jj 0.44.0 (`minimalism-k1`).
+    let workspace = Workspace::resolve(worktree).context("cannot commit the finished grove")?;
+    require_recoverable_grove(&workspace, grove_root)?;
+    // What makes a half-removed tree recoverable is that the snapshot holding it
+    // is already in the operation log, not anything done here: `jj restore
+    // .grove` returns what was removed — measured on jj 0.44.0
+    // (`minimalism-k1`). Edits made since the last snapshot are outside that
+    // log, which is a fact about a working copy jj has not seen rather than a
+    // guarantee grove could hand-build, and principle 1 is that grove does not
+    // hand-build it.
     fs::remove_dir_all(grove_root).with_context(|| {
         format!(
             "deleting the finished task tree {}\n\n\
@@ -300,7 +305,43 @@ fn delete_and_commit(worktree: &Path, grove_root: &Path, finish_handle: &str) ->
             grove_root.display()
         )
     })?;
-    crate::repo::commit_finished_grove(worktree, finish_handle)
+    workspace
+        .commit(
+            &[grove_root],
+            &format!("{finish_handle}: remove completed grove task tree"),
+        )
+        .with_context(|| {
+            format!(
+                "the {finish_handle} teardown was not committed, and `.grove/` is deleted in \
+                 the working copy. Once the tree is back, fix what made the commit fail and \
+                 rerun `grove-llm finish-commit {finish_handle}`."
+            )
+        })?;
+    Ok(())
+}
+
+/// The one precondition deletion has: jj can only put back what it tracks.
+///
+/// **This is not a surviving piece of the transaction.** A transaction promises
+/// to undo its own work; this promises nothing and repairs nothing. It is the
+/// gate that makes the version control system's guarantee *applicable* — an
+/// untracked `.grove/` is outside the operation log, so no `jj undo` would
+/// return it and the deletion below would be the unrecoverable kind. Principle
+/// 2's answer to that is a message naming what is wrong and how to fix it,
+/// which is what this is. One read-only probe, and nothing is written to record
+/// it.
+fn require_recoverable_grove(workspace: &Workspace, grove_root: &Path) -> Result<()> {
+    if workspace.is_tracked(grove_root)? {
+        return Ok(());
+    }
+    bail!(
+        "Jujutsu tracks nothing under {}, so deleting the task tree could not be undone\n\n\
+         Grove takes a commit; it does not implement a transaction, and the operation log \
+         can only restore what it tracks. Commit or track the task tree and rerun:\n      \
+         jj commit -m \"track the grove task tree\" root:.grove\n\n\
+         Nothing was deleted or changed.",
+        grove_root.display()
+    );
 }
 
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root
@@ -1059,7 +1100,10 @@ mod tests {
     fn jj_grove() -> (TempDir, PathBuf) {
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path().to_path_buf();
-        run_jj(&repo, &["--config", "git.colocate=false", "git", "init", "."]);
+        run_jj(
+            &repo,
+            &["--config", "git.colocate=false", "git", "init", "."],
+        );
         let root = repo.join(".grove");
         fs::create_dir_all(&root).unwrap();
         (tmp, root)

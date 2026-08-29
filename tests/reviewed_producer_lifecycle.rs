@@ -23,30 +23,13 @@ use assert_cmd::Command;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command as ProcessCommand;
 use tempfile::TempDir;
+
+mod support;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    let repo = tmp.path();
-    assert!(ProcessCommand::new("git")
-        .args(["init", "-q"])
-        .current_dir(repo)
-        .status()
-        .unwrap()
-        .success());
-    for args in [
-        ["config", "user.email", "grove-test@example.com"],
-        ["config", "user.name", "Grove Test"],
-        ["config", "core.hooksPath", "/dev/null"],
-    ] {
-        assert!(ProcessCommand::new("git")
-            .args(args)
-            .current_dir(repo)
-            .status()
-            .unwrap()
-            .success());
-    }
+    support::init_jj_repo(tmp.path());
     tmp
 }
 
@@ -71,18 +54,7 @@ fn build_review_chain(repo: &Path) -> PathBuf {
         &grove.join("03-integrate-review-impl-build-k3.md"),
         "# build-k3\n\n**Integrates:** build-k2\n",
     );
-    assert!(ProcessCommand::new("git")
-        .args(["add", "-A"])
-        .current_dir(repo)
-        .status()
-        .unwrap()
-        .success());
-    assert!(ProcessCommand::new("git")
-        .args(["commit", "-q", "-m", "fixture"])
-        .current_dir(repo)
-        .status()
-        .unwrap()
-        .success());
+    support::jj(repo, &["commit", "-m", "fixture"]);
     producer
 }
 

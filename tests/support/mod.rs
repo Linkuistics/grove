@@ -275,3 +275,36 @@ impl Drop for EnvGuard {
         }
     }
 }
+
+/// Stand up a **jj-native** repository at `path` — the only kind of working
+/// tree Grove drives (`docs/adr/jj-is-the-only-lane.md`), and therefore the
+/// fixture every verb-driving test needs before it can run a verb at all.
+///
+/// `git.colocate=false` is forced because ambient jj configuration may default
+/// colocation on, which would silently turn every "native" fixture into a
+/// colocated one and hide a `.git` Grove is supposed never to look at.
+pub fn init_jj_repo(path: &Path) {
+    jj(path, &["--config", "git.colocate=false", "git", "init", "."]);
+}
+
+/// Run `jj` in `path` with a test-local identity, so no global user
+/// configuration is required, and return its trimmed stdout.
+pub fn jj(path: &Path, args: &[&str]) -> String {
+    let output = std::process::Command::new("jj")
+        .current_dir(path)
+        .args([
+            "--config",
+            "user.name=Grove Test",
+            "--config",
+            "user.email=grove-test@example.com",
+        ])
+        .args(args)
+        .output()
+        .unwrap_or_else(|error| panic!("running jj {args:?}: {error} (is jj installed?)"));
+    assert!(
+        output.status.success(),
+        "jj {args:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).unwrap().trim().to_owned()
+}

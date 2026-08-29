@@ -150,7 +150,7 @@ impl DriverLease {
             worktree_identity.device,
             &control_dir,
             control_directory_device(&control_dir)?,
-            control.marker(),
+            &control.marker(),
         )?;
 
         let lease_path = control.control_dir().join(LEASE_FILE_NAME);
@@ -315,8 +315,14 @@ impl DriverLease {
 /// before any `.grove/` observation, as a resumable no-mutation stop.
 ///
 /// Only *same device* is measured. *Untracked* is structural: the resolver places
-/// controls exclusively inside the workspace's own `.jj/` or the canonical
-/// per-worktree Git directory, never a working-tree sibling.
+/// controls exclusively inside the workspace's own `.jj/`, never a working-tree
+/// sibling.
+///
+/// That placement also fixes what a failure can mean. `.jj/` sits at the root of
+/// the working tree, so the two operands differ only when `.jj/` is itself a
+/// mount point or a link onto another filesystem — which is why the refusal
+/// names that directory as the thing to move rather than offering a choice of
+/// layouts.
 ///
 /// This is an early warning and never a licence. It compares **proxies** — the
 /// rename moves `.grove/` into this directory's `grove/` child, and at lease time
@@ -328,7 +334,7 @@ fn ensure_supported_workspace_layout(
     worktree_device: u64,
     control_dir: &Path,
     control_device: u64,
-    marker: &repo::ControlMarker,
+    marker: &Path,
 ) -> Result<()> {
     if worktree_device == control_device {
         return Ok(());
@@ -339,13 +345,13 @@ fn ensure_supported_workspace_layout(
          boundary, so this workspace could never finish\n  \
          working tree root:           {} (filesystem {worktree_device})\n  \
          workspace-control directory: {} (filesystem {control_device})\n  \
-         resolved from:               {marker}\n\n\
-         Either place this working tree on the same filesystem as the repository its \
-         administration directory lives in, or drive Grove from a workspace whose \
-         administration directory is inside the working tree. Nothing was created or \
-         changed; repair the layout and rerun.",
+         resolved from:               the `.jj` directory {}\n\n\
+         Place that `.jj` directory on the same filesystem as its working tree — it is a \
+         mount point or a link onto another one here — or drive Grove from a workspace \
+         where it is not. Nothing was created or changed; repair the layout and rerun.",
         worktree_root.display(),
         control_dir.display(),
+        marker.display(),
     )
 }
 
@@ -1019,29 +1025,25 @@ mod tests {
     // The layout comparison itself, with both devices supplied, so the whole
     // diagnostic can be asserted without staging a second filesystem. What it
     // has to name is fixed by *supported-workspace-layouts*: the operator has to
-    // be able to act on the refusal without running anything else, and for the
-    // one at-risk family that means the gitfile indirection, not just the two
-    // endpoints it produced.
+    // be able to act on the refusal without running anything else, and with one
+    // lane that means naming the `.jj` directory whose placement produced it.
     #[test]
-    fn an_unsupported_layout_names_both_ends_the_marker_and_the_remedies() {
-        let marker = repo::ControlMarker::GitFile {
-            path: PathBuf::from("/volume/linked/.git"),
-            gitdir: PathBuf::from("/main/.git/worktrees/linked"),
-        };
+    fn an_unsupported_layout_names_both_ends_the_marker_and_the_remedy() {
+        let marker = PathBuf::from("/volume/workspace/.jj");
 
         ensure_supported_workspace_layout(
-            Path::new("/volume/linked"),
+            Path::new("/volume/workspace"),
             7,
-            Path::new("/main/.git/worktrees/linked/grove"),
+            Path::new("/volume/workspace/.jj/grove"),
             7,
             &marker,
         )
         .expect("one filesystem is a supported layout");
 
         let error = ensure_supported_workspace_layout(
-            Path::new("/volume/linked"),
+            Path::new("/volume/workspace"),
             7,
-            Path::new("/main/.git/worktrees/linked/grove"),
+            Path::new("/volume/workspace/.jj/grove"),
             11,
             &marker,
         )
@@ -1050,13 +1052,12 @@ mod tests {
         let message = error.to_string();
         for expected in [
             "unsupported workspace layout",
-            "/volume/linked",
+            "/volume/workspace",
             "filesystem 7",
-            "/main/.git/worktrees/linked/grove",
+            "/volume/workspace/.jj/grove",
             "filesystem 11",
-            "the `.git` file /volume/linked/.git, naming gitdir /main/.git/worktrees/linked",
-            "same filesystem as the repository",
-            "administration directory is inside the working tree",
+            "the `.jj` directory /volume/workspace/.jj",
+            "same filesystem as its working tree",
             "Nothing was created or changed",
         ] {
             assert!(
@@ -1070,31 +1071,24 @@ mod tests {
         );
     }
 
-    // A plain checkout and every jj shape resolve in-root, so the marker they
-    // report is the one the operator sees beside their files rather than a
-    // canonical target elsewhere.
+    // Every jj shape resolves in-root, so the marker reported is the one the
+    // operator sees beside their files rather than a canonical target elsewhere.
     #[test]
     fn an_in_root_marker_is_reported_as_itself() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
 
         let control = repo::workspace_control(&root).unwrap();
 
-        assert_eq!(
-            control.marker().to_string(),
-            format!(
-                "the `.git` directory {}",
-                control.worktree_root().join(".git").display()
-            )
-        );
+        assert_eq!(control.marker(), control.worktree_root().join(".jj"));
     }
 
     #[test]
     fn lease_path_replacement_retries_until_the_locked_descriptor_is_current() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        let control = root.join(".git/grove");
+        let control = root.join(".jj/grove");
         fs::create_dir_all(&control).unwrap();
         let path = control.join(LEASE_FILE_NAME);
         let mut observed_attempts = 0;
@@ -1119,7 +1113,7 @@ mod tests {
     fn lease_path_replacement_fails_closed_after_eight_attempts() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        let control = root.join(".git/grove");
+        let control = root.join(".jj/grove");
         fs::create_dir_all(&control).unwrap();
         let path = control.join(LEASE_FILE_NAME);
         let mut observed_attempts = 0;
@@ -1143,7 +1137,7 @@ mod tests {
     fn acquired_driver_descriptors_are_close_on_exec() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
 
         let lease = DriverLease::acquire(&root).unwrap();
 
@@ -1317,11 +1311,11 @@ mod tests {
     fn activation_and_invalidation_replace_one_stable_epoch_record() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&root).unwrap();
-        let epoch_path = root.join(".git/grove").join(EPOCH_FILE_NAME);
+        let epoch_path = root.join(".jj/grove").join(EPOCH_FILE_NAME);
         let epoch_identity = FileIdentity::from_metadata(&fs::metadata(&epoch_path).unwrap());
-        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
 
         lease.activate_session_epoch(&signal_path).unwrap();
 
@@ -1464,8 +1458,8 @@ mod tests {
             "the cargo-cleared empty value is no ambient context either"
         );
         assert_eq!(
-            signal_path_from(Some(OsString::from("/w/.git/grove/signal-0"))),
-            Some(PathBuf::from("/w/.git/grove/signal-0"))
+            signal_path_from(Some(OsString::from("/w/.jj/grove/signal-0"))),
+            Some(PathBuf::from("/w/.jj/grove/signal-0"))
         );
     }
 
@@ -1476,16 +1470,16 @@ mod tests {
         }
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&root).unwrap();
-        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
 
         let admission = admit_session(&root, "test pick", ambient(&signal_path))
             .unwrap()
             .expect("ambient loop context must return a held admission guard");
 
-        let epoch_path = root.join(".git/grove").join(EPOCH_FILE_NAME);
+        let epoch_path = root.join(".jj/grove").join(EPOCH_FILE_NAME);
         let probe = File::open(&epoch_path).unwrap();
         assert_ne!(
             unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
@@ -1536,13 +1530,13 @@ mod tests {
         }
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
         let old_lease = DriverLease::acquire(&root).unwrap();
-        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         old_lease.activate_session_epoch(&signal_path).unwrap();
-        let lease_path = root.join(".git/grove").join(LEASE_FILE_NAME);
+        let lease_path = root.join(".jj/grove").join(LEASE_FILE_NAME);
         let old_record = fs::read_to_string(&lease_path).unwrap();
-        let epoch_guard = File::open(root.join(".git/grove").join(EPOCH_FILE_NAME)).unwrap();
+        let epoch_guard = File::open(root.join(".jj/grove").join(EPOCH_FILE_NAME)).unwrap();
         assert_eq!(
             unsafe { libc::flock(epoch_guard.as_raw_fd(), libc::LOCK_SH) },
             0
@@ -1577,10 +1571,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let owner_root = tmp.path().join("owner");
         let foreign_root = tmp.path().join("foreign");
-        fs::create_dir_all(owner_root.join(".git")).unwrap();
-        fs::create_dir_all(foreign_root.join(".git")).unwrap();
+        fs::create_dir_all(owner_root.join(".jj")).unwrap();
+        fs::create_dir_all(foreign_root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&owner_root).unwrap();
-        let signal_path = owner_root.join(".git/grove/signal-11111111111111111111111111111111");
+        let signal_path = owner_root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
 
         let error = admit_session(&foreign_root, "test pick", ambient(&signal_path)).unwrap_err();
@@ -1601,9 +1595,9 @@ mod tests {
     fn an_inactive_epoch_is_reported_without_claiming_a_session_is_active() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
         let _lease = DriverLease::acquire(&root).unwrap();
-        let stale_signal = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let stale_signal = root.join(".jj/grove/signal-11111111111111111111111111111111");
 
         let error = admit_session(&root, "test pick", ambient(&stale_signal)).unwrap_err();
 
@@ -1616,10 +1610,10 @@ mod tests {
     fn a_rotated_epoch_refuses_the_old_signal_path() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&root).unwrap();
-        let old_signal = root.join(".git/grove/signal-11111111111111111111111111111111");
-        let new_signal = root.join(".git/grove/signal-22222222222222222222222222222222");
+        let old_signal = root.join(".jj/grove/signal-11111111111111111111111111111111");
+        let new_signal = root.join(".jj/grove/signal-22222222222222222222222222222222");
         lease.activate_session_epoch(&old_signal).unwrap();
 
         drop(
@@ -1642,9 +1636,9 @@ mod tests {
         let root = tmp
             .path()
             .join(OsString::from_vec(b"worktree-\n-name".to_vec()));
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&root).unwrap();
-        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
 
         drop(
@@ -1652,7 +1646,7 @@ mod tests {
                 .unwrap()
                 .expect("the exact signal path must survive epoch serialization"),
         );
-        let record = fs::read_to_string(root.join(".git/grove/session.epoch")).unwrap();
+        let record = fs::read_to_string(root.join(".jj/grove/session.epoch")).unwrap();
         assert!(record.contains("signal-path-hex="), "{record:?}");
     }
 
@@ -1663,11 +1657,11 @@ mod tests {
         }
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&root).unwrap();
-        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
-        let control_dir = root.join(".git/grove");
+        let control_dir = root.join(".jj/grove");
         let mut epoch_file = File::open(control_dir.join(EPOCH_FILE_NAME)).unwrap();
         let epoch = read_epoch_record(&mut epoch_file).unwrap();
         drop(lease);
@@ -1705,9 +1699,9 @@ mod tests {
         }
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&root).unwrap();
-        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
         drop(lease);
 
@@ -1722,11 +1716,11 @@ mod tests {
     fn a_malformed_epoch_is_stale() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
-        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".jj")).unwrap();
         let lease = DriverLease::acquire(&root).unwrap();
-        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
-        fs::write(root.join(".git/grove/session.epoch"), "state=active\n").unwrap();
+        fs::write(root.join(".jj/grove/session.epoch"), "state=active\n").unwrap();
 
         let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
         assert!(

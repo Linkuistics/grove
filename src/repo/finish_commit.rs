@@ -1,56 +1,26 @@
-use super::{vcs_of, Vcs};
+// The finish teardown commit, jj only (`docs/adr/jj-is-the-only-lane.md`).
+//
+// Preparation observes — the working-copy topology and a fingerprint of the
+// tracked `.grove/` at its parents — and allocates nothing. The commit is one
+// fileset-scoped `jj commit`; whatever it does to a colocated Git index is jj's
+// own business, and Grove neither backs that index up nor restores it. What
+// makes the outcome provable is the same in every arm: the exact result is
+// re-derived from the repository and compared against the recorded start, so a
+// lost command is classified rather than assumed.
+
+use super::require_jj_workspace;
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Output, Stdio};
-use tempfile::TempDir;
+use std::process::{Command, Output};
 
-pub(crate) struct PreparedGitFinish {
+pub(crate) struct PreparedFinish {
     worktree: PathBuf,
-    start_head: String,
+    start: FinishStartAnchor,
     deletion_fingerprint: [u8; 32],
-    index_backup: GitIndexBackup,
-    hooks_path: PathBuf,
 }
 
-pub(crate) struct PreparedJjFinish {
-    worktree: PathBuf,
-    start: JjStartAnchor,
-    deletion_fingerprint: [u8; 32],
-    index_backup: Option<GitIndexBackup>,
-    success_index: Option<crate::finish_cleanup::AuxiliaryCleanup>,
-}
-
-// The three enums below are the finish transaction's prepared state and its two
-// outcomes. `large_enum_variant` is asking for the big variants to be boxed, and
-// that trade does not pay here: each of these is constructed at most once per
-// grove teardown, is consumed immediately by a single `match` in
-// `finish_transaction.rs`, and is never collected — nothing stores them in a
-// `Vec`, a map, or a long-lived struct, so the wasted stack bytes exist for one
-// move and are never multiplied. Boxing would buy nothing measurable while
-// adding an allocation and a layer of indirection to the fail-closed teardown
-// path, which is the subsystem where an incidental change is least welcome.
-//
-// `expect` rather than `allow` deliberately: unlike a permanent portability
-// suppression, a size ratio *can* stop holding as these types evolve. If a
-// future change shrinks the gap the expectation goes unfulfilled and says so,
-// forcing this reasoning to be revisited rather than quietly outliving it.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "constructed once per teardown, consumed by one match, never collected"
-)]
-pub(crate) enum PreparedFinish {
-    Git(PreparedGitFinish),
-    Jj(PreparedJjFinish),
-}
-
-#[expect(
-    clippy::large_enum_variant,
-    reason = "constructed once per teardown, consumed by one match, never collected"
-)]
 pub(crate) enum FinishCommitOutcome {
     Committed(FinishProof),
     NotCommitted {
@@ -60,125 +30,40 @@ pub(crate) enum FinishCommitOutcome {
     RecoveryPending(anyhow::Error),
 }
 
-#[expect(
-    clippy::large_enum_variant,
-    reason = "constructed once per teardown, consumed by one match, never collected"
-)]
 pub(crate) enum FinishRecoveryOutcome {
     Committed(FinishProof),
     NotCommitted(FinishStartProof),
     RecoveryPending(anyhow::Error),
 }
 
-pub(crate) enum FinishProof {
-    Git(GitFinishProof),
-    Jj(JjFinishProof),
-}
-
-pub(crate) enum FinishStartProof {
-    Git(GitStartProof),
-    Jj(JjStartProof),
-}
-
+/// The working-copy revision the finish attempt started from, as the manifest
+/// records it. One shape rather than a tagged union: with one lane there is no
+/// second anchor a recovery could be handed by mistake.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(tag = "vcs", rename_all = "kebab-case")]
-pub(crate) enum FinishStartAnchor {
-    PlainGit {
-        head: String,
-        #[serde(default = "default_had_git_index")]
-        had_git_index: bool,
-    },
-    Jujutsu {
-        commit_id: String,
-        change_id: String,
-        parent_commit_ids: Vec<String>,
-        git_index_existed: Option<bool>,
-    },
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub(crate) struct JjStartAnchor {
+pub(crate) struct FinishStartAnchor {
     commit_id: String,
     change_id: String,
     parent_commit_ids: Vec<String>,
 }
 
-pub(crate) struct GitFinishProof {
+pub(crate) struct FinishProof {
     worktree: PathBuf,
-    start_head: String,
+    start: FinishStartAnchor,
     message: String,
     deletion_fingerprint: [u8; 32],
 }
 
-pub(crate) struct GitStartProof {
+pub(crate) struct FinishStartProof {
     worktree: PathBuf,
-    start_head: String,
-    index_backup: Option<GitIndexBackup>,
-}
-
-fn default_had_git_index() -> bool {
-    true
-}
-
-pub(crate) struct JjFinishProof {
-    worktree: PathBuf,
-    start: JjStartAnchor,
+    start: FinishStartAnchor,
     message: String,
     deletion_fingerprint: [u8; 32],
-}
-
-pub(crate) struct JjStartProof {
-    worktree: PathBuf,
-    start: JjStartAnchor,
-    message: String,
-    deletion_fingerprint: [u8; 32],
-    index_backup: Option<GitIndexBackup>,
     auto_track_configuration: String,
 }
 
-impl GitFinishProof {
+impl FinishProof {
     pub(crate) fn revalidate(&self) -> Result<()> {
-        validate_exact_git_finish(
-            &self.worktree,
-            &self.start_head,
-            &self.message,
-            self.deletion_fingerprint,
-        )
-    }
-}
-
-impl GitStartProof {
-    pub(crate) fn revalidate(&self) -> Result<()> {
-        let observed = git_stdout(&self.worktree, &["rev-parse", "HEAD"])?;
-        if observed != self.start_head {
-            bail!(
-                "Recovery pending: plain-Git finish recorded start {}, but observed HEAD {}",
-                self.start_head,
-                observed
-            );
-        }
-        Ok(())
-    }
-
-    fn restore_index_preserving_backup(&self) -> Result<()> {
-        match &self.index_backup {
-            Some(backup) => backup.restore_preserving_backup(),
-            None => Ok(()),
-        }
-    }
-
-    fn revalidate_after_rollback(mut self) -> Result<()> {
-        self.revalidate()?;
-        if let Some(backup) = self.index_backup.take() {
-            backup.discard();
-        }
-        Ok(())
-    }
-}
-
-impl JjFinishProof {
-    fn revalidate(&self) -> Result<()> {
-        validate_exact_jj_finish(
+        validate_exact_finish(
             &self.worktree,
             &self.start,
             &self.message,
@@ -187,9 +72,9 @@ impl JjFinishProof {
     }
 }
 
-impl JjStartProof {
-    fn revalidate_before_rollback(&self) -> Result<()> {
-        validate_jj_uncommitted(
+impl FinishStartProof {
+    pub(crate) fn revalidate_before_rollback(&self) -> Result<()> {
+        validate_uncommitted(
             &self.worktree,
             &self.start,
             &self.message,
@@ -197,14 +82,7 @@ impl JjStartProof {
         )
     }
 
-    fn restore_index_preserving_backup(&mut self) -> Result<()> {
-        match &self.index_backup {
-            Some(backup) => backup.restore_preserving_backup(),
-            None => Ok(()),
-        }
-    }
-
-    fn revalidate_after_rollback(mut self) -> Result<()> {
+    pub(crate) fn revalidate_after_rollback(self) -> Result<()> {
         let observed = jj_topology(
             &self.worktree,
             "@",
@@ -223,725 +101,30 @@ impl JjStartProof {
                 observed.parent_commit_ids
             );
         }
-        if jj_deletion_fingerprint(&self.worktree, &self.start)? != self.deletion_fingerprint {
+        if deletion_fingerprint(&self.worktree, &self.start)? != self.deletion_fingerprint {
             bail!(
                 "Recovery pending: restored Jujutsu grove does not match its preflight fingerprint"
             );
-        }
-        self.restore_index_preserving_backup()?;
-        if let Some(backup) = self.index_backup.take() {
-            backup.discard();
         }
         Ok(())
     }
 }
 
-impl FinishProof {
-    pub(crate) fn revalidate(&self) -> Result<()> {
-        match self {
-            Self::Git(proof) => proof.revalidate(),
-            Self::Jj(proof) => proof.revalidate(),
-        }
-    }
-}
-
-impl FinishStartProof {
-    pub(crate) fn revalidate_before_rollback(&self) -> Result<()> {
-        match self {
-            Self::Git(proof) => proof.revalidate(),
-            Self::Jj(proof) => proof.revalidate_before_rollback(),
-        }
-    }
-
-    pub(crate) fn revalidate_after_rollback(self) -> Result<()> {
-        match self {
-            Self::Git(proof) => proof.revalidate_after_rollback(),
-            Self::Jj(proof) => proof.revalidate_after_rollback(),
-        }
-    }
-}
-
 impl PreparedFinish {
     pub(crate) fn start_anchor(&self) -> FinishStartAnchor {
-        match self {
-            Self::Git(prepared) => FinishStartAnchor::PlainGit {
-                head: prepared.start_head.clone(),
-                had_git_index: prepared.index_backup.had_git_index,
-            },
-            Self::Jj(prepared) => FinishStartAnchor::Jujutsu {
-                commit_id: prepared.start.commit_id.clone(),
-                change_id: prepared.start.change_id.clone(),
-                parent_commit_ids: prepared.start.parent_commit_ids.clone(),
-                git_index_existed: prepared
-                    .index_backup
-                    .as_ref()
-                    .map(|backup| backup.had_git_index),
-            },
-        }
+        self.start.clone()
     }
 
-    pub(crate) fn deletion_fingerprint(&self) -> [u8; 32] {
-        match self {
-            Self::Git(prepared) => prepared.deletion_fingerprint(),
-            Self::Jj(prepared) => prepared.deletion_fingerprint,
-        }
-    }
-
-    pub(crate) fn commit(self, finish_handle: &str, attempt_identity: &str) -> FinishCommitOutcome {
-        match self {
-            Self::Git(prepared) => prepared.commit(finish_handle, attempt_identity),
-            Self::Jj(prepared) => prepared.commit(finish_handle, attempt_identity),
-        }
-    }
-
-    pub(crate) fn abort(self) -> Result<()> {
-        match self {
-            Self::Git(prepared) => prepared.abort(),
-            Self::Jj(prepared) => prepared.abort(),
-        }
-    }
-}
-
-impl PreparedGitFinish {
     pub(crate) fn deletion_fingerprint(&self) -> [u8; 32] {
         self.deletion_fingerprint
     }
 
     pub(crate) fn commit(self, finish_handle: &str, attempt_identity: &str) -> FinishCommitOutcome {
         let message = finish_commit_message(finish_handle, attempt_identity);
-        let witness_exclusion = format!(":(exclude).grove/FINISHING-{finish_handle}");
-        let hooks_configuration = format!("core.hooksPath={}", self.hooks_path.display());
-        let result = (|| {
-            run_vcs_command(
-                &self.worktree,
-                "git",
-                &["add", "-A", "--", ".grove", &witness_exclusion],
-            )?;
-            run_vcs_command(
-                &self.worktree,
-                "git",
-                &[
-                    "-c",
-                    &hooks_configuration,
-                    "commit",
-                    "--only",
-                    "-m",
-                    &message,
-                    "--",
-                    ".grove",
-                    &witness_exclusion,
-                ],
-            )
-        })();
-        self.classify_command_result(&message, result)
-    }
-
-    fn abort(self) -> Result<()> {
-        self.index_backup.try_discard()
-    }
-
-    fn classify_command_result(
-        self,
-        message: &str,
-        command_result: Result<()>,
-    ) -> FinishCommitOutcome {
-        let committed = GitFinishProof {
-            worktree: self.worktree.clone(),
-            start_head: self.start_head.clone(),
-            message: message.to_owned(),
-            deletion_fingerprint: self.deletion_fingerprint,
-        };
-        if committed.revalidate().is_ok() {
-            self.index_backup.discard();
-            return FinishCommitOutcome::Committed(FinishProof::Git(committed));
-        }
-
-        let command_error = match command_result {
-            Err(error) => error,
-            Ok(()) => anyhow::anyhow!(
-                "Git reported a successful finish commit, but the exact scoped result could not be proven"
-            ),
-        };
-        let start = GitStartProof {
-            worktree: self.worktree,
-            start_head: self.start_head,
-            index_backup: Some(self.index_backup),
-        };
-        if let Err(topology_error) = start.revalidate() {
-            return FinishCommitOutcome::RecoveryPending(command_error.context(format!(
-                "{topology_error:#}; preserve divergent work, restore the recorded start or the exact teardown result, then retry"
-            )));
-        }
-        if let Err(index_error) = start.restore_index_preserving_backup() {
-            return FinishCommitOutcome::RecoveryPending(command_error.context(format!(
-                "restoring the original Git index failed: {index_error:#}"
-            )));
-        }
-        if let Err(topology_error) = start.revalidate() {
-            return FinishCommitOutcome::RecoveryPending(command_error.context(format!(
-                "Git topology changed after index restoration: {topology_error:#}"
-            )));
-        }
-        FinishCommitOutcome::NotCommitted {
-            proof: FinishStartProof::Git(start),
-            error: command_error,
-        }
-    }
-}
-
-pub(crate) fn prepare_finish(
-    worktree: &Path,
-    finish_handle: &str,
-    attempt_identity: &str,
-) -> Result<PreparedFinish> {
-    match vcs_of(worktree) {
-        Some(Vcs::Git) => Ok(PreparedFinish::Git(prepare_plain_git_finish(
-            worktree,
-            finish_handle,
-            attempt_identity,
-        )?)),
-        Some(Vcs::Jj { workspace_root }) => Ok(PreparedFinish::Jj(prepare_jj_finish(
-            &workspace_root,
-            finish_handle,
-            attempt_identity,
-        )?)),
-        None => bail!(
-            "cannot commit the finished grove: {} is not a git or jj working tree",
-            worktree.display()
-        ),
-    }
-}
-
-pub(crate) fn abort_preparing_finish(
-    worktree: &Path,
-    finish_handle: &str,
-    attempt_identity: &str,
-) -> Result<()> {
-    match vcs_of(worktree) {
-        Some(Vcs::Git) => {
-            let git_index = git_path(worktree, "index")?;
-            if let Some(cleanup) = crate::finish_cleanup::recover_auxiliary(
-                &git_index,
-                crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-                finish_handle,
-                attempt_identity,
-            )? {
-                cleanup.dispose()?;
-            }
-            Ok(())
-        }
-        Some(Vcs::Jj { workspace_root }) => {
-            if !workspace_root.join(".git").exists() {
-                return Ok(());
-            }
-            let git_index = git_path(&workspace_root, "index")?;
-            let backup = crate::finish_cleanup::recover_auxiliary(
-                &git_index,
-                crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-                finish_handle,
-                attempt_identity,
-            )?;
-            let success = crate::finish_cleanup::recover_auxiliary(
-                &git_index,
-                crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
-                finish_handle,
-                attempt_identity,
-            )?;
-            match (backup, success) {
-                (None, None) => Ok(()),
-                (Some(backup), success) => {
-                    backup.restore_target().context(
-                        "restoring the original colocated Git index while aborting finish preparation",
-                    )?;
-                    if let Some(success) = success {
-                        success
-                            .dispose()
-                            .context("discarding the prepared colocated Git success index")?;
-                    }
-                    backup
-                        .dispose()
-                        .context("discarding the restored colocated Git index backup")
-                }
-                (None, Some(_)) => bail!(
-                    "Recovery pending: colocated Jujutsu finish preparation has a success index without its same-attempt backup; preserve the auxiliary evidence and retry after restoring the exact backup"
-                ),
-            }
-        }
-        None => bail!(
-            "Recovery pending: cannot abort finish preparation because {} is no longer a git or jj working tree",
-            worktree.display()
-        ),
-    }
-}
-
-pub(crate) fn recover_finish(
-    worktree: &Path,
-    start: &FinishStartAnchor,
-    finish_handle: &str,
-    attempt_identity: &str,
-    deletion_fingerprint: [u8; 32],
-) -> FinishRecoveryOutcome {
-    let message = finish_commit_message(finish_handle, attempt_identity);
-    match (vcs_of(worktree), start) {
-        (
-            Some(Vcs::Git),
-            FinishStartAnchor::PlainGit {
-                head,
-                had_git_index,
-            },
-        ) => recover_plain_git_finish(
-            worktree,
-            head,
-            *had_git_index,
-            finish_handle,
-            attempt_identity,
-            &message,
-            deletion_fingerprint,
-        ),
-        (
-            Some(Vcs::Jj { workspace_root }),
-            FinishStartAnchor::Jujutsu {
-                commit_id,
-                change_id,
-                parent_commit_ids,
-                git_index_existed,
-            },
-        ) => recover_jj_finish(
-            &workspace_root,
-            JjStartAnchor {
-                commit_id: commit_id.clone(),
-                change_id: change_id.clone(),
-                parent_commit_ids: parent_commit_ids.clone(),
-            },
-            finish_handle,
-            attempt_identity,
-            *git_index_existed,
-            &message,
-            deletion_fingerprint,
-        ),
-        (Some(Vcs::Git), FinishStartAnchor::Jujutsu { .. }) => {
-            FinishRecoveryOutcome::RecoveryPending(anyhow!(
-                "Recovery pending: finish manifest records Jujutsu, but the working tree is plain Git"
-            ))
-        }
-        (Some(Vcs::Jj { .. }), FinishStartAnchor::PlainGit { .. }) => {
-            FinishRecoveryOutcome::RecoveryPending(anyhow!(
-                "Recovery pending: finish manifest records plain Git, but the working tree is Jujutsu"
-            ))
-        }
-        (None, _) => FinishRecoveryOutcome::RecoveryPending(anyhow!(
-            "Recovery pending: {} is no longer a git or jj working tree",
-            worktree.display()
-        )),
-    }
-}
-
-pub(crate) fn git_index_path(worktree: &Path) -> Result<Option<PathBuf>> {
-    if !worktree.join(".git").exists() {
-        return Ok(None);
-    }
-    git_path(worktree, "index").map(Some)
-}
-
-fn recover_plain_git_finish(
-    worktree: &Path,
-    start_head: &str,
-    had_git_index: bool,
-    finish_handle: &str,
-    attempt_identity: &str,
-    message: &str,
-    deletion_fingerprint: [u8; 32],
-) -> FinishRecoveryOutcome {
-    let committed = GitFinishProof {
-        worktree: worktree.to_path_buf(),
-        start_head: start_head.to_owned(),
-        message: message.to_owned(),
-        deletion_fingerprint,
-    };
-    if committed.revalidate().is_ok() {
-        let git_index = match git_path(worktree, "index") {
-            Ok(git_index) => git_index,
-            Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
-        };
-        let cleanup = match crate::finish_cleanup::recover_auxiliary(
-            &git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-            finish_handle,
-            attempt_identity,
-        ) {
-            Ok(cleanup) => cleanup,
-            Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
-        };
-        if !had_git_index && cleanup.is_some() {
-            return FinishRecoveryOutcome::RecoveryPending(anyhow!(
-                "Recovery pending: the recorded absent Git index has unexpected backup evidence"
-            ));
-        }
-        if let Some(cleanup) = cleanup {
-            GitIndexBackup {
-                backup_index: cleanup.artifact_path().to_path_buf(),
-                git_index,
-                had_git_index: true,
-                cleanup: Some(cleanup),
-            }
-            .discard();
-        }
-        return FinishRecoveryOutcome::Committed(FinishProof::Git(committed));
-    }
-
-    let start = GitStartProof {
-        worktree: worktree.to_path_buf(),
-        start_head: start_head.to_owned(),
-        index_backup: None,
-    };
-    if let Err(error) = start.revalidate() {
-        return FinishRecoveryOutcome::RecoveryPending(error.context(
-            "preserve divergent work, restore the recorded start or the exact teardown result, then retry",
-        ));
-    }
-    let backup =
-        match existing_git_index_backup(worktree, had_git_index, finish_handle, attempt_identity) {
-            Ok(backup) => backup,
-            Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
-        };
-    let start = GitStartProof {
-        index_backup: Some(backup),
-        ..start
-    };
-    if let Err(error) = start.restore_index_preserving_backup() {
-        return FinishRecoveryOutcome::RecoveryPending(
-            error.context("restoring the original Git index during finish recovery"),
-        );
-    }
-    if let Err(error) = start.revalidate() {
-        return FinishRecoveryOutcome::RecoveryPending(
-            error.context("Git topology changed after index restoration during finish recovery"),
-        );
-    }
-    FinishRecoveryOutcome::NotCommitted(FinishStartProof::Git(start))
-}
-
-fn recover_jj_finish(
-    worktree: &Path,
-    start: JjStartAnchor,
-    finish_handle: &str,
-    attempt_identity: &str,
-    git_index_existed: Option<bool>,
-    message: &str,
-    deletion_fingerprint: [u8; 32],
-) -> FinishRecoveryOutcome {
-    if git_index_existed.is_some() != worktree.join(".git").exists() {
-        return FinishRecoveryOutcome::RecoveryPending(anyhow!(
-            "Recovery pending: the recorded Jujutsu repository shape no longer matches the presence of its colocated Git repository"
-        ));
-    }
-    let committed = JjFinishProof {
-        worktree: worktree.to_path_buf(),
-        start: start.clone(),
-        message: message.to_owned(),
-        deletion_fingerprint,
-    };
-    if committed.revalidate().is_ok() {
-        if let Err(error) = activate_recovered_jj_index(
-            worktree,
-            git_index_existed,
-            finish_handle,
-            attempt_identity,
-        ) {
-            return FinishRecoveryOutcome::RecoveryPending(error);
-        }
-        return FinishRecoveryOutcome::Committed(FinishProof::Jj(committed));
-    }
-
-    let auto_track_configuration = format!(
-        "snapshot.auto-track={:?}",
-        format!("all() ~ root:.grove/FINISHING-{finish_handle}")
-    );
-    let mut start = JjStartProof {
-        worktree: worktree.to_path_buf(),
-        start,
-        message: message.to_owned(),
-        deletion_fingerprint,
-        index_backup: match recover_jj_index_backup(
-            worktree,
-            git_index_existed,
-            finish_handle,
-            attempt_identity,
-        ) {
-            Ok(backup) => backup,
-            Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
-        },
-        auto_track_configuration,
-    };
-    if let Err(error) = start.revalidate_before_rollback() {
-        return FinishRecoveryOutcome::RecoveryPending(error.context(
-            "preserve divergent work, restore the recorded start or the exact teardown result, then retry",
-        ));
-    }
-    let success_index = match recovered_success_index(worktree, finish_handle, attempt_identity) {
-        Ok(success_index) => success_index,
-        Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
-    };
-    discard_temporary_index(success_index.as_ref());
-    if let Err(error) = start.restore_index_preserving_backup() {
-        return FinishRecoveryOutcome::RecoveryPending(
-            error.context("restoring the original colocated Git index during finish recovery"),
-        );
-    }
-    if let Err(error) = start.revalidate_before_rollback() {
-        return FinishRecoveryOutcome::RecoveryPending(
-            error
-                .context("Jujutsu topology changed after index restoration during finish recovery"),
-        );
-    }
-    FinishRecoveryOutcome::NotCommitted(FinishStartProof::Jj(start))
-}
-
-fn recover_jj_index_backup(
-    worktree: &Path,
-    git_index_existed: Option<bool>,
-    finish_handle: &str,
-    attempt_identity: &str,
-) -> Result<Option<GitIndexBackup>> {
-    git_index_existed
-        .map(|had_git_index| {
-            existing_git_index_backup(worktree, had_git_index, finish_handle, attempt_identity)
-        })
-        .transpose()
-}
-
-fn recovered_success_index(
-    worktree: &Path,
-    finish_handle: &str,
-    attempt_identity: &str,
-) -> Result<Option<crate::finish_cleanup::AuxiliaryCleanup>> {
-    if !worktree.join(".git").exists() {
-        return Ok(None);
-    }
-    let git_index = git_path(worktree, "index")?;
-    crate::finish_cleanup::recover_auxiliary(
-        &git_index,
-        crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
-        finish_handle,
-        attempt_identity,
-    )
-}
-
-fn activate_recovered_jj_index(
-    worktree: &Path,
-    git_index_existed: Option<bool>,
-    finish_handle: &str,
-    attempt_identity: &str,
-) -> Result<()> {
-    let Some(had_git_index) = git_index_existed else {
-        return Ok(());
-    };
-
-    let git_index = git_path(worktree, "index")?;
-    let backup_cleanup = crate::finish_cleanup::recover_auxiliary(
-        &git_index,
-        crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-        finish_handle,
-        attempt_identity,
-    )?;
-    if !had_git_index {
-        if backup_cleanup.is_some()
-            || recovered_success_index(worktree, finish_handle, attempt_identity)?.is_some()
-        {
-            bail!(
-                "Recovery pending: the recorded absent Git index has unexpected auxiliary cleanup evidence"
-            );
-        }
-        let backup_index = crate::finish_cleanup::auxiliary_artifact_path(
-            &git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-            attempt_identity,
-        )?;
-        return GitIndexBackup {
-            git_index,
-            backup_index,
-            had_git_index: false,
-            cleanup: None,
-        }
-        .activate(None)
-        .context("restoring the absent preflight Git index after the Jujutsu finish commit");
-    }
-    let success_cleanup = recovered_success_index(worktree, finish_handle, attempt_identity)?;
-    match (backup_cleanup, success_cleanup) {
-        (Some(backup_cleanup), Some(success_index)) => {
-            let backup = GitIndexBackup {
-                backup_index: backup_cleanup.artifact_path().to_path_buf(),
-                git_index,
-                had_git_index: true,
-                cleanup: Some(backup_cleanup),
-            };
-            backup
-                .activate(Some(success_index))
-                .context("activating the recovered colocated Git success index")
-        }
-        (Some(backup_cleanup), None) => {
-            validate_active_jj_finish_index(worktree)?;
-            GitIndexBackup {
-                backup_index: backup_cleanup.artifact_path().to_path_buf(),
-                git_index,
-                had_git_index: true,
-                cleanup: Some(backup_cleanup),
-            }
-            .discard();
-            Ok(())
-        }
-        (None, Some(_)) => bail!(
-            "Recovery pending: the committed colocated-Jujutsu finish has a prepared success index but no matching backup"
-        ),
-        (None, None) => validate_active_jj_finish_index(worktree),
-    }
-}
-
-fn validate_active_jj_finish_index(worktree: &Path) -> Result<()> {
-    if !git_bytes(worktree, &["ls-files", "-z", "--", ".grove"])?.is_empty() {
-        bail!(
-            "Recovery pending: the committed colocated-Jujutsu finish still has `.grove/` entries in the active Git index"
-        );
-    }
-    Ok(())
-}
-
-pub(crate) fn prepare_plain_git_finish(
-    worktree: &Path,
-    finish_handle: &str,
-    attempt_identity: &str,
-) -> Result<PreparedGitFinish> {
-    validate_finish_commit(worktree)?;
-    let start_head = git_stdout(worktree, &["rev-parse", "HEAD"])
-        .context("recording plain-Git finish start HEAD")?;
-    let deletion_fingerprint = tracked_grove_fingerprint(worktree, &start_head)?;
-    let git_index = git_path(worktree, "index")?;
-    crate::finish_cleanup::ensure_auxiliary_available(
-        &git_index,
-        crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-        attempt_identity,
-    )?;
-    let hooks_path = super::empty_hooks_path(worktree)?;
-    let index_backup = preserve_git_index(worktree, finish_handle, attempt_identity)?;
-    Ok(PreparedGitFinish {
-        worktree: worktree.to_path_buf(),
-        start_head,
-        deletion_fingerprint,
-        index_backup,
-        hooks_path,
-    })
-}
-
-fn finish_commit_message(finish_handle: &str, attempt_identity: &str) -> String {
-    format!("{finish_handle} (finish attempt {attempt_identity}): remove completed grove task tree")
-}
-
-/// Refuse a plain-Git teardown that cannot produce a path-scoped deletion
-/// commit. A hand-built unborn finish tree has no tracked `.grove/` to delete.
-fn validate_finish_commit(worktree: &Path) -> Result<()> {
-    match vcs_of(worktree) {
-        Some(Vcs::Git) => {
-            let output = vcs_command(worktree, "git")
-                .args(["ls-tree", "-r", "--name-only", "HEAD", "--", ".grove"])
-                .output()
-                .context("checking whether Git tracks the grove being finished")?;
-            if !output.status.success() || output.stdout.is_empty() {
-                bail!(
-                    "cannot finish this plain-Git grove: `.grove/` has no tracked state in HEAD, so no focused deletion commit can be recorded"
-                );
-            }
-            Ok(())
-        }
-        Some(Vcs::Jj { .. }) => Ok(()),
-        None => bail!(
-            "cannot commit the finished grove: {} is not a git or jj working tree",
-            worktree.display()
-        ),
-    }
-}
-
-pub(crate) fn prepare_jj_finish(
-    worktree: &Path,
-    finish_handle: &str,
-    attempt_identity: &str,
-) -> Result<PreparedJjFinish> {
-    if worktree.join(".git").exists() {
-        let git_index = git_path(worktree, "index")?;
-        crate::finish_cleanup::ensure_auxiliary_available(
-            &git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-            attempt_identity,
-        )?;
-        crate::finish_cleanup::ensure_auxiliary_available(
-            &git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
-            attempt_identity,
-        )?;
-    }
-    let index_backup = worktree
-        .join(".git")
-        .exists()
-        .then(|| preserve_git_index(worktree, finish_handle, attempt_identity))
-        .transpose()?;
-    let prepared = (|| -> Result<(
-        JjStartAnchor,
-        [u8; 32],
-        Option<crate::finish_cleanup::AuxiliaryCleanup>,
-    )> {
-        let start = jj_topology(worktree, "@", false, None)
-            .context("recording Jujutsu finish start topology")?;
-        let deletion_fingerprint = jj_deletion_fingerprint(worktree, &start)?;
-        let success_index = match &index_backup {
-            Some(backup) => {
-                backup.prepare_without_grove(worktree, finish_handle, attempt_identity)?
-            }
-            None => None,
-        };
-        Ok((start, deletion_fingerprint, success_index))
-    })();
-    match prepared {
-        Ok((start, deletion_fingerprint, success_index)) => Ok(PreparedJjFinish {
-            worktree: worktree.to_path_buf(),
-            start,
-            deletion_fingerprint,
-            index_backup,
-            success_index,
-        }),
-        Err(error) => {
-            if let Some(backup) = index_backup {
-                backup.discard();
-            }
-            Err(error)
-        }
-    }
-}
-
-impl PreparedJjFinish {
-    fn abort(mut self) -> Result<()> {
-        if let Some(backup) = self.index_backup.as_ref() {
-            backup.restore_preserving_backup()?;
-        }
-        if let Some(success_index) = self.success_index.take() {
-            success_index
-                .dispose()
-                .context("discarding the prepared colocated Git success index")?;
-        }
-        if let Some(backup) = self.index_backup.take() {
-            backup.try_discard()?;
-        }
-        Ok(())
-    }
-
-    fn commit(self, finish_handle: &str, attempt_identity: &str) -> FinishCommitOutcome {
-        let message = finish_commit_message(finish_handle, attempt_identity);
         let fileset = format!("root:.grove ~ root:.grove/FINISHING-{finish_handle}");
-        let auto_track_configuration = format!(
-            "snapshot.auto-track={:?}",
-            format!("all() ~ root:.grove/FINISHING-{finish_handle}")
-        );
-        let command_result = run_vcs_command(
+        let auto_track_configuration = auto_track_configuration(finish_handle);
+        let command_result = run_jj(
             &self.worktree,
-            "jj",
             &[
                 "--config",
                 &auto_track_configuration,
@@ -954,48 +137,42 @@ impl PreparedJjFinish {
         self.classify_command_result(&message, &auto_track_configuration, command_result)
     }
 
+    /// Nothing to undo. Preparation reads the repository and writes nothing to
+    /// it, so abandoning it leaves no artifact and no half-applied state — the
+    /// method survives as the place a caller says *this attempt is over*, not
+    /// as a rollback.
+    pub(crate) fn abort(self) -> Result<()> {
+        Ok(())
+    }
+
     fn classify_command_result(
-        mut self,
+        self,
         message: &str,
         auto_track_configuration: &str,
         command_result: Result<()>,
     ) -> FinishCommitOutcome {
-        let committed = JjFinishProof {
+        let committed = FinishProof {
             worktree: self.worktree.clone(),
             start: self.start.clone(),
             message: message.to_owned(),
             deletion_fingerprint: self.deletion_fingerprint,
         };
         let committed_error = match committed.revalidate() {
-            Ok(()) => {
-                if let Some(backup) = self.index_backup.take() {
-                    if let Err(index_error) = backup.activate(self.success_index.take()) {
-                        return FinishCommitOutcome::RecoveryPending(
-                            index_error.context(
-                                "activating the successful colocated Git index after the Jujutsu finish commit",
-                            ),
-                        );
-                    }
-                }
-                discard_temporary_index(self.success_index.as_ref());
-                return FinishCommitOutcome::Committed(FinishProof::Jj(committed));
-            }
+            Ok(()) => return FinishCommitOutcome::Committed(committed),
             Err(error) => error,
         };
 
         let command_error = match command_result {
             Err(error) => error,
-            Ok(()) => anyhow::anyhow!(
+            Ok(()) => anyhow!(
                 "Jujutsu reported a successful finish commit, but the exact scoped result could not be proven: {committed_error:#}"
             ),
         };
-        discard_temporary_index(self.success_index.take().as_ref());
-        let mut start = JjStartProof {
+        let start = FinishStartProof {
             worktree: self.worktree,
             start: self.start,
             message: message.to_owned(),
             deletion_fingerprint: self.deletion_fingerprint,
-            index_backup: self.index_backup,
             auto_track_configuration: auto_track_configuration.to_owned(),
         };
         if let Err(topology_error) = start.revalidate_before_rollback() {
@@ -1003,342 +180,100 @@ impl PreparedJjFinish {
                 "{topology_error:#}; preserve divergent work, restore the recorded start or the exact teardown result, then retry"
             )));
         }
-        if let Err(index_error) = start.restore_index_preserving_backup() {
-            return FinishCommitOutcome::RecoveryPending(command_error.context(format!(
-                "restoring the original colocated Git index failed: {index_error:#}"
-            )));
-        }
-        if let Err(topology_error) = start.revalidate_before_rollback() {
-            return FinishCommitOutcome::RecoveryPending(command_error.context(format!(
-                "Jujutsu topology changed after index restoration: {topology_error:#}"
-            )));
-        }
         FinishCommitOutcome::NotCommitted {
-            proof: FinishStartProof::Jj(start),
+            proof: start,
             error: command_error,
         }
     }
 }
 
-struct GitIndexBackup {
-    git_index: PathBuf,
-    backup_index: PathBuf,
-    had_git_index: bool,
-    cleanup: Option<crate::finish_cleanup::AuxiliaryCleanup>,
-}
-
-impl GitIndexBackup {
-    fn prepare_without_grove(
-        &self,
-        worktree: &Path,
-        finish_handle: &str,
-        attempt_identity: &str,
-    ) -> Result<Option<crate::finish_cleanup::AuxiliaryCleanup>> {
-        if !self.had_git_index {
-            return Ok(None);
-        }
-
-        let mut success_index = crate::finish_cleanup::prepare_auxiliary(
-            &self.backup_index,
-            &self.git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
-            finish_handle,
-            attempt_identity,
-        )?;
-        let success_artifact = success_index.artifact_path().to_path_buf();
-        if let Err(error) = remove_grove_entries(
-            worktree,
-            &success_artifact,
-            attempt_identity,
-            &mut success_index,
-        ) {
-            discard_temporary_index(Some(&success_index));
-            return Err(
-                error.context("preparing the colocated Git index before the Jujutsu finish commit")
-            );
-        }
-        Ok(Some(success_index))
-    }
-
-    fn restore_preserving_backup(&self) -> Result<()> {
-        if self.had_git_index {
-            self.cleanup
-                .as_ref()
-                .context("marked Git index backup is unavailable during restoration")?
-                .restore_target()
-                .with_context(|| {
-                    format!(
-                        "restoring Git index {} from {}",
-                        self.git_index.display(),
-                        self.backup_index.display()
-                    )
-                })
-        } else {
-            match fs::remove_file(&self.git_index) {
-                Ok(()) => Ok(()),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-                Err(error) => Err(error).with_context(|| {
-                    format!(
-                        "removing newly created Git index {}",
-                        self.git_index.display()
-                    )
-                }),
-            }
-        }
-    }
-
-    fn activate(
-        self,
-        success_index: Option<crate::finish_cleanup::AuxiliaryCleanup>,
-    ) -> Result<()> {
-        if let Some(success_index) = success_index {
-            success_index.activate().with_context(|| {
-                format!(
-                    "activating the prepared colocated Git index {}",
-                    success_index.artifact_path().display()
-                )
-            })?;
-        } else {
-            restore_git_index(&self.git_index, &self.backup_index, false)?;
-        }
-        self.discard();
-        Ok(())
-    }
-
-    fn try_discard(self) -> Result<()> {
-        if let Some(cleanup) = self.cleanup {
-            return cleanup.dispose().with_context(|| {
-                format!(
-                    "discarding the marked Git index backup {}",
-                    cleanup.artifact_path().display()
-                )
-            });
-        }
-        match fs::remove_file(&self.backup_index) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(error).with_context(|| {
-                format!(
-                    "removing the temporary Git index {} after the finish commit",
-                    self.backup_index.display()
-                )
-            }),
-        }
-    }
-
-    fn discard(self) {
-        let backup_index = self.backup_index.clone();
-        if let Err(error) = self.try_discard() {
-            eprintln!(
-                "warning: finish auxiliary cleanup remains at {}: {error:#}",
-                backup_index.display()
-            );
-        }
-    }
-}
-
-fn discard_temporary_index(cleanup: Option<&crate::finish_cleanup::AuxiliaryCleanup>) {
-    let Some(cleanup) = cleanup else {
-        return;
-    };
-    if let Err(error) = cleanup.dispose() {
-        eprintln!(
-            "warning: finish auxiliary cleanup remains at {}: {error:#}",
-            cleanup.artifact_path().display()
-        );
-    }
-}
-
-fn preserve_git_index(
+pub(crate) fn prepare_finish(
     worktree: &Path,
+    _finish_handle: &str,
+    _attempt_identity: &str,
+) -> Result<PreparedFinish> {
+    let workspace_root = require_jj_workspace(worktree)
+        .context("cannot commit the finished grove")?;
+    let start = jj_topology(&workspace_root, "@", false, None)
+        .context("recording Jujutsu finish start topology")?;
+    let deletion_fingerprint = deletion_fingerprint(&workspace_root, &start)?;
+    Ok(PreparedFinish {
+        worktree: workspace_root,
+        start,
+        deletion_fingerprint,
+    })
+}
+
+/// Abandon a preparation whose own state is already gone — a restart between
+/// witness and commit. Preparation allocates nothing, so there is nothing to
+/// dispose of; what remains worth doing is proving the workspace is still the
+/// one the witness was written for, because a tree that stopped being jj-enabled
+/// under a pending finish is a recovery-pending condition rather than a clean
+/// abort.
+pub(crate) fn abort_preparing_finish(
+    worktree: &Path,
+    _finish_handle: &str,
+    _attempt_identity: &str,
+) -> Result<()> {
+    require_jj_workspace(worktree)
+        .context("Recovery pending: cannot abort finish preparation")?;
+    Ok(())
+}
+
+pub(crate) fn recover_finish(
+    worktree: &Path,
+    start: &FinishStartAnchor,
     finish_handle: &str,
     attempt_identity: &str,
-) -> Result<GitIndexBackup> {
-    let git_index = git_path(worktree, "index")?;
-    let had_git_index = match fs::symlink_metadata(&git_index) {
-        Ok(_) => true,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+    fingerprint: [u8; 32],
+) -> FinishRecoveryOutcome {
+    let message = finish_commit_message(finish_handle, attempt_identity);
+    let workspace_root = match require_jj_workspace(worktree) {
+        Ok(root) => root,
         Err(error) => {
-            return Err(error)
-                .with_context(|| format!("checking Git index presence at {}", git_index.display()))
+            return FinishRecoveryOutcome::RecoveryPending(
+                error.context("Recovery pending: the recorded finish cannot be resolved"),
+            )
         }
     };
-    let cleanup = had_git_index
-        .then(|| {
-            crate::finish_cleanup::prepare_auxiliary(
-                &git_index,
-                &git_index,
-                crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-                finish_handle,
-                attempt_identity,
-            )
-        })
-        .transpose()?;
-    let backup_index = match &cleanup {
-        Some(cleanup) => cleanup.artifact_path().to_path_buf(),
-        None => crate::finish_cleanup::auxiliary_artifact_path(
-            &git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-            attempt_identity,
-        )?,
+
+    let committed = FinishProof {
+        worktree: workspace_root.clone(),
+        start: start.clone(),
+        message: message.clone(),
+        deletion_fingerprint: fingerprint,
     };
-    Ok(GitIndexBackup {
-        git_index,
-        backup_index,
-        had_git_index,
-        cleanup,
-    })
-}
+    if committed.revalidate().is_ok() {
+        return FinishRecoveryOutcome::Committed(committed);
+    }
 
-fn existing_git_index_backup(
-    worktree: &Path,
-    had_git_index: bool,
-    finish_handle: &str,
-    attempt_identity: &str,
-) -> Result<GitIndexBackup> {
-    let git_index = git_path(worktree, "index")?;
-    let cleanup = crate::finish_cleanup::recover_auxiliary(
-        &git_index,
-        crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-        finish_handle,
-        attempt_identity,
-    )?;
-    if had_git_index && cleanup.is_none() {
-        bail!("Recovery pending: the recorded finish has no recoverable Git index backup");
-    }
-    if !had_git_index && cleanup.is_some() {
-        bail!("Recovery pending: the recorded absent Git index has unexpected backup evidence");
-    }
-    let backup_index = match &cleanup {
-        Some(cleanup) => cleanup.artifact_path().to_path_buf(),
-        None => crate::finish_cleanup::auxiliary_artifact_path(
-            &git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
-            attempt_identity,
-        )?,
+    let start = FinishStartProof {
+        worktree: workspace_root,
+        start: start.clone(),
+        message,
+        deletion_fingerprint: fingerprint,
+        auto_track_configuration: auto_track_configuration(finish_handle),
     };
-    Ok(GitIndexBackup {
-        git_index,
-        backup_index,
-        had_git_index,
-        cleanup,
-    })
+    if let Err(error) = start.revalidate_before_rollback() {
+        return FinishRecoveryOutcome::RecoveryPending(error.context(
+            "preserve divergent work, restore the recorded start or the exact teardown result, then retry",
+        ));
+    }
+    FinishRecoveryOutcome::NotCommitted(start)
 }
 
-fn restore_git_index(git_index: &Path, backup_index: &Path, had_git_index: bool) -> Result<()> {
-    if had_git_index {
-        fs::rename(backup_index, git_index).with_context(|| {
-            format!(
-                "restoring Git index {} from {}",
-                git_index.display(),
-                backup_index.display()
-            )
-        })
-    } else {
-        match fs::remove_file(git_index) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(error).with_context(|| {
-                format!("removing newly created Git index {}", git_index.display())
-            }),
-        }
-    }
+fn finish_commit_message(finish_handle: &str, attempt_identity: &str) -> String {
+    format!("{finish_handle} (finish attempt {attempt_identity}): remove completed grove task tree")
 }
 
-fn remove_grove_entries(
-    worktree: &Path,
-    git_index: &Path,
-    attempt_identity: &str,
-    success_index: &mut crate::finish_cleanup::AuxiliaryCleanup,
-) -> Result<bool> {
-    let grove_paths = vcs_command(worktree, "git")
-        .env("GIT_INDEX_FILE", git_index)
-        .args(["ls-files", "-z", "--", ".grove"])
-        .output()
-        .context("listing grove entries in the preserved colocated Git index")?;
-    if !grove_paths.status.success() {
-        bail!(
-            "git ls-files -z -- .grove failed: {}",
-            String::from_utf8_lossy(&grove_paths.stderr).trim()
-        );
-    }
-    if grove_paths.stdout.is_empty() {
-        return Ok(false);
-    }
-
-    let index_parent = git_index
-        .parent()
-        .context("preserved colocated Git index has no parent")?;
-    let staging = filter_staging_directory(index_parent, attempt_identity)?;
-    let staging_path = staging.path().to_path_buf();
-    let filtered_index = staging_path.join("index");
-    fs::copy(git_index, &filtered_index)
-        .context("copying the preserved colocated Git index into private staging")?;
-    let child = vcs_command(worktree, "git")
-        .env("GIT_INDEX_FILE", &filtered_index)
-        .args(["update-index", "--force-remove", "-z", "--stdin"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context("starting Git index cleanup for the completed grove")?;
-    let output = write_child_stdin_and_wait(child, &grove_paths.stdout)?;
-    command_result(
-        "git",
-        &["update-index", "--force-remove", "-z", "--stdin"],
-        output,
-    )?;
-    success_index
-        .replace_artifact_from(&filtered_index, move || {
-            staging.close().with_context(|| {
-                format!(
-                    "removing the private staging directory for the filtered Git index {}; remove it and retry the finish",
-                    staging_path.display()
-                )
-            })
-        })
-        .context("publishing the filtered colocated Git index from private staging")?;
-    Ok(true)
-}
-
-/// Stage the index filter away from every Grove-owned name so Git's own
-/// lock-and-rename cannot mint an inode at one of them. The name carries the
-/// finish attempt, so a directory left by a process death is attributable to
-/// the attempt that made it rather than being an anonymous leftover.
-///
-/// Attributable is all it is: nothing sweeps the name, because nothing can
-/// prove that a directory sitting at it is the one Grove made. The directory is
-/// therefore released explicitly, as soon as the replacement has its own staged
-/// copy and before the first publication boundary — an owner that only runs
-/// while the process unwinds leaks a whole Git index at every boundary that
-/// ends the process instead.
-fn filter_staging_directory(index_parent: &Path, attempt_identity: &str) -> Result<TempDir> {
-    tempfile::Builder::new()
-        .prefix(&format!("GROVE-FINISH-FILTER-{attempt_identity}-"))
-        .tempdir_in(index_parent)
-        .context("creating a private staging directory for the filtered Git index")
-}
-
-fn write_child_stdin_and_wait(mut child: Child, input: &[u8]) -> Result<Output> {
-    let write_result = (|| -> Result<()> {
-        child
-            .stdin
-            .take()
-            .context("opening stdin for Git index cleanup")?
-            .write_all(input)
-            .context("writing completed-grove paths to Git index cleanup")
-    })();
-    let wait_result = child
-        .wait_with_output()
-        .context("waiting for Git index cleanup for the completed grove");
-
-    match (write_result, wait_result) {
-        (Ok(()), output) => output,
-        (Err(write_error), Ok(_)) => Err(write_error),
-        (Err(write_error), Err(wait_error)) => Err(write_error.context(format!(
-            "waiting for the Git index cleanup child also failed: {wait_error:#}"
-        ))),
-    }
+/// The snapshot rule every finish command and every post-rollback observation
+/// runs under: track everything *except* the working-tree-only finish witness,
+/// which must stay out of the commit that deletes the tree it witnesses.
+fn auto_track_configuration(finish_handle: &str) -> String {
+    format!(
+        "snapshot.auto-track={:?}",
+        format!("all() ~ root:.grove/FINISHING-{finish_handle}")
+    )
 }
 
 /// Prove, without a manifest, that the repository's *immediate* result is the
@@ -1359,143 +294,29 @@ pub(crate) fn verify_lost_finish_result(
     attempt_identity: &str,
 ) -> Result<()> {
     let message = finish_commit_message(finish_handle, attempt_identity);
-    match vcs_of(worktree) {
-        Some(Vcs::Git) => verify_lost_plain_git_finish(worktree, &message),
-        Some(Vcs::Jj { workspace_root }) => verify_lost_jj_finish(&workspace_root, &message),
-        None => bail!("{} is not a git or jj working tree", worktree.display()),
-    }
-}
-
-fn verify_lost_plain_git_finish(worktree: &Path, message: &str) -> Result<()> {
-    let Some(head) = git_head_commit(worktree)? else {
-        bail!(
-            "{} has no commits, so it holds no teardown result to verify",
-            worktree.display()
-        );
-    };
-    // The teardown commit's identity is its message, so that comparison comes
-    // first: every other check here describes the shape a *matching* commit must
-    // also have, and reporting one of those for an unrelated `HEAD` answers a
-    // question the caller did not ask.
-    let observed_message = git_stdout(worktree, &["log", "-1", "--format=%s", &head])?;
-    if observed_message != message {
-        bail!(
-            "the immediate plain-Git result is not this finish attempt's teardown commit: expected message {message:?}, observed {observed_message:?}"
-        );
-    }
-    let parent = git_sole_parent(worktree, &head)?;
-    if !tracked_grove_bytes(worktree, &head)?.is_empty() {
-        bail!("the immediate plain-Git result still tracks `.grove/`");
-    }
-    let changed = git_bytes(
-        worktree,
-        &["diff", "--name-status", "-z", &parent, &head, "--", "."],
-    )?;
-    if !only_grove_deletions(&changed, b"D") {
-        bail!("the immediate plain-Git result changes paths outside the exact `.grove/` deletion");
-    }
-    Ok(())
-}
-
-/// The one parent of `commit`, refusing both a root commit and a merge.
-///
-/// Every plain-Git finish proof asserts the same shape: the teardown result is
-/// exactly one `.grove/`-deletion step away from the revision it deletes
-/// against. `HEAD^` cannot express that, because it names a merge's *first*
-/// parent as readily as a sole parent — so a merge whose first parent is the
-/// recorded start passes an anchor comparison while its second parent drags
-/// arbitrary unrelated history into the result being proven exact. The
-/// scoped-path diff cannot catch it either: it compares the two trees, and a
-/// merge's tree can equal the start's tree minus `.grove/` no matter what its
-/// other parent contains. Deriving the parent through the full parent list is
-/// what makes "exactly one" observable, so both proof paths do it here rather
-/// than each deciding for itself what may be a teardown commit.
-fn git_sole_parent(worktree: &Path, commit: &str) -> Result<String> {
-    let lineage = git_stdout(worktree, &["rev-list", "--parents", "-n", "1", commit])?;
-    let mut parents = lineage.split_whitespace().skip(1);
-    let parent = parents
-        .next()
-        .context("the plain-Git result is a root commit, so it deletes nothing")?;
-    if parents.next().is_some() {
-        bail!("the plain-Git result is a merge, not a finish teardown commit");
-    }
-    Ok(parent.to_owned())
-}
-
-/// `HEAD`'s commit, or `None` in a repository whose `HEAD` is unborn.
-///
-/// `git_bytes` turns every nonzero exit into an error, which would surface
-/// `rev-parse`'s usage text as Grove's answer for the ordinary "this repository
-/// has no commits" case. The distinction is worth one bespoke invocation.
-fn git_head_commit(worktree: &Path) -> Result<Option<String>> {
-    let output = vcs_command(worktree, "git")
-        .args(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"])
-        .output()
-        .with_context(|| format!("reading Git HEAD in {}", worktree.display()))?;
-    if !output.status.success() {
-        return Ok(None);
-    }
-    Ok(Some(String::from_utf8(output.stdout)?.trim().to_owned()))
-}
-
-fn verify_lost_jj_finish(worktree: &Path, message: &str) -> Result<()> {
-    let successor = jj_topology(worktree, "@", true, None)?;
+    let workspace_root = require_jj_workspace(worktree)?;
+    let successor = jj_topology(&workspace_root, "@", true, None)?;
     let [candidate] = successor.parent_commit_ids.as_slice() else {
         bail!("the immediate Jujutsu result is not the exact parent of the current working-copy successor");
     };
-    let observed_message = jj_stdout(
-        worktree,
-        &[
-            "--ignore-working-copy",
-            "log",
-            "-r",
-            candidate,
-            "--no-graph",
-            "-T",
-            "description",
-        ],
-    )?;
+    let observed_message = jj_description(&workspace_root, candidate)?;
     if observed_message != message {
         bail!(
             "the immediate Jujutsu result is not this finish attempt's teardown commit: expected message {message:?}, observed {observed_message:?}"
         );
     }
-    if !jj_bytes(
-        worktree,
-        &[
-            "--ignore-working-copy",
-            "file",
-            "list",
-            "-r",
-            candidate,
-            "root:.grove",
-        ],
-    )?
-    .is_empty()
-    {
+    if tracks_grove(&workspace_root, candidate)? {
         bail!("the immediate Jujutsu result still tracks `.grove/`");
     }
-    let changed = jj_bytes(
-        worktree,
-        &[
-            "--ignore-working-copy",
-            "diff",
-            "-r",
-            candidate,
-            "-T",
-            "status ++ \"\\0\" ++ path ++ \"\\0\"",
-        ],
-    )?;
-    if !only_grove_deletions(&changed, b"removed") {
+    if !only_grove_deletions(&jj_scoped_diff(&workspace_root, candidate)?) {
         bail!("the immediate Jujutsu result changes paths outside the exact `.grove/` deletion");
     }
     Ok(())
 }
 
-/// A teardown delta is a non-empty set of `.grove/` deletions and nothing else.
-/// The NUL-delimited `<status>\0<path>\0` shape is shared; only the deletion
-/// marker differs between Git's `--name-status` and jj's `status` template.
-fn only_grove_deletions(changed: &[u8], deleted: &[u8]) -> bool {
+/// A teardown delta is a non-empty set of `.grove/` deletions and nothing else,
+/// read from jj's NUL-delimited `<status>\0<path>\0` template.
+fn only_grove_deletions(changed: &[u8]) -> bool {
     let fields = changed
         .split(|byte| *byte == 0)
         .filter(|field| !field.is_empty())
@@ -1504,53 +325,14 @@ fn only_grove_deletions(changed: &[u8], deleted: &[u8]) -> bool {
         && fields.len() % 2 == 0
         && fields
             .chunks_exact(2)
-            .all(|entry| entry[0] == deleted && entry[1].starts_with(b".grove/"))
+            .all(|entry| entry[0] == b"removed" && entry[1].starts_with(b".grove/"))
 }
 
-fn validate_exact_git_finish(
+fn validate_exact_finish(
     worktree: &Path,
-    start_head: &str,
+    start: &FinishStartAnchor,
     message: &str,
-    deletion_fingerprint: [u8; 32],
-) -> Result<()> {
-    let observed_head = git_stdout(worktree, &["rev-parse", "HEAD"])?;
-    if observed_head == start_head {
-        bail!("the plain-Git finish result is absent: HEAD is still {start_head}");
-    }
-    let observed_parent = git_sole_parent(worktree, "HEAD")?;
-    if observed_parent != start_head {
-        bail!(
-            "the plain-Git finish result is not immediate: recorded start {start_head}, observed parent {observed_parent}"
-        );
-    }
-    let observed_message = git_stdout(worktree, &["log", "-1", "--format=%s", "HEAD"])?;
-    if observed_message != message {
-        bail!(
-            "the plain-Git finish result has the wrong message: expected {message:?}, observed {observed_message:?}"
-        );
-    }
-    if !tracked_grove_bytes(worktree, "HEAD")?.is_empty() {
-        bail!("the plain-Git finish result still tracks `.grove/`");
-    }
-    if tracked_grove_fingerprint(worktree, start_head)? != deletion_fingerprint {
-        bail!("the recorded plain-Git deletion fingerprint no longer matches its start anchor");
-    }
-
-    let changed = git_bytes(
-        worktree,
-        &["diff", "--name-status", "-z", start_head, "HEAD", "--", "."],
-    )?;
-    if !only_grove_deletions(&changed, b"D") {
-        bail!("the plain-Git finish result changes paths outside the exact `.grove/` deletion");
-    }
-    Ok(())
-}
-
-fn validate_exact_jj_finish(
-    worktree: &Path,
-    start: &JjStartAnchor,
-    message: &str,
-    deletion_fingerprint: [u8; 32],
+    fingerprint: [u8; 32],
 ) -> Result<()> {
     let successor = jj_topology(worktree, "@", true, None)?;
     let [candidate] = successor.parent_commit_ids.as_slice() else {
@@ -1558,15 +340,15 @@ fn validate_exact_jj_finish(
             "the Jujutsu finish result is not the exact parent of the current working-copy successor"
         );
     };
-    validate_jj_finish_candidate(worktree, start, candidate, message, deletion_fingerprint)
+    validate_finish_candidate(worktree, start, candidate, message, fingerprint)
 }
 
-fn validate_jj_finish_candidate(
+fn validate_finish_candidate(
     worktree: &Path,
-    start: &JjStartAnchor,
+    start: &FinishStartAnchor,
     candidate_commit_id: &str,
     message: &str,
-    deletion_fingerprint: [u8; 32],
+    fingerprint: [u8; 32],
 ) -> Result<()> {
     let candidate = jj_topology(worktree, candidate_commit_id, true, None)?;
     if candidate.change_id != start.change_id
@@ -1580,64 +362,29 @@ fn validate_jj_finish_candidate(
             candidate.parent_commit_ids
         );
     }
-    let observed_message = jj_stdout(
-        worktree,
-        &[
-            "--ignore-working-copy",
-            "log",
-            "-r",
-            candidate_commit_id,
-            "--no-graph",
-            "-T",
-            "description",
-        ],
-    )?;
+    let observed_message = jj_description(worktree, candidate_commit_id)?;
     if observed_message != message {
         bail!(
             "the Jujutsu finish result has the wrong message: expected {message:?}, observed {observed_message:?}"
         );
     }
-    if !jj_bytes(
-        worktree,
-        &[
-            "--ignore-working-copy",
-            "file",
-            "list",
-            "-r",
-            candidate_commit_id,
-            "root:.grove",
-        ],
-    )?
-    .is_empty()
-    {
+    if tracks_grove(worktree, candidate_commit_id)? {
         bail!("the Jujutsu finish result still tracks `.grove/`");
     }
-    if jj_deletion_fingerprint(worktree, start)? != deletion_fingerprint {
+    if deletion_fingerprint(worktree, start)? != fingerprint {
         bail!("the recorded Jujutsu deletion fingerprint no longer matches its start anchor");
     }
-
-    let changed = jj_bytes(
-        worktree,
-        &[
-            "--ignore-working-copy",
-            "diff",
-            "-r",
-            candidate_commit_id,
-            "-T",
-            "status ++ \"\\0\" ++ path ++ \"\\0\"",
-        ],
-    )?;
-    if !only_grove_deletions(&changed, b"removed") {
+    if !only_grove_deletions(&jj_scoped_diff(worktree, candidate_commit_id)?) {
         bail!("the Jujutsu finish result changes paths outside the exact `.grove/` deletion");
     }
     Ok(())
 }
 
-fn validate_jj_uncommitted(
+fn validate_uncommitted(
     worktree: &Path,
-    start: &JjStartAnchor,
+    start: &FinishStartAnchor,
     message: &str,
-    deletion_fingerprint: [u8; 32],
+    fingerprint: [u8; 32],
 ) -> Result<()> {
     let revset = format!("change_id({})", start.change_id);
     let versions = jj_stdout(
@@ -1653,9 +400,7 @@ fn validate_jj_uncommitted(
         ],
     )?;
     for candidate in versions.lines() {
-        if validate_jj_finish_candidate(worktree, start, candidate, message, deletion_fingerprint)
-            .is_ok()
-        {
+        if validate_finish_candidate(worktree, start, candidate, message, fingerprint).is_ok() {
             bail!(
                 "Recovery pending: the exact Jujutsu finish result {} exists but is not the current successor's immediate parent",
                 candidate
@@ -1683,8 +428,8 @@ fn jj_topology(
     revision: &str,
     ignore_working_copy: bool,
     auto_track_configuration: Option<&str>,
-) -> Result<JjStartAnchor> {
-    let mut command = vcs_command(worktree, "jj");
+) -> Result<FinishStartAnchor> {
+    let mut command = jj_command(worktree);
     if let Some(configuration) = auto_track_configuration {
         command.args(["--config", configuration]);
     }
@@ -1718,14 +463,16 @@ fn jj_topology(
     if commit_id.is_empty() || change_id.is_empty() || lines.next().is_some() {
         bail!("Jujutsu topology output was malformed for {revision}");
     }
-    Ok(JjStartAnchor {
+    Ok(FinishStartAnchor {
         commit_id: commit_id.to_owned(),
         change_id: change_id.to_owned(),
         parent_commit_ids: parents.split_whitespace().map(str::to_owned).collect(),
     })
 }
 
-fn jj_deletion_fingerprint(worktree: &Path, start: &JjStartAnchor) -> Result<[u8; 32]> {
+/// The tracked `.grove/` at the anchor's parents, hashed. Refuses a grove with
+/// no tracked state at all: there is then no focused deletion commit to record.
+fn deletion_fingerprint(worktree: &Path, start: &FinishStartAnchor) -> Result<[u8; 32]> {
     let mut hasher = Sha256::new();
     let mut has_tracked_grove = false;
     for parent in &start.parent_commit_ids {
@@ -1750,42 +497,55 @@ fn jj_deletion_fingerprint(worktree: &Path, start: &JjStartAnchor) -> Result<[u8
     }
     if !has_tracked_grove {
         bail!(
-            "cannot finish this Jujutsu grove: `.grove/` has no tracked state at the recorded parents of {}, so no focused deletion commit can be recorded",
+            "cannot finish this grove: `.grove/` has no tracked state at the recorded parents of {}, so no focused deletion commit can be recorded",
             start.commit_id
         );
     }
     Ok(hasher.finalize().into())
 }
 
-fn tracked_grove_fingerprint(worktree: &Path, revision: &str) -> Result<[u8; 32]> {
-    let entries = tracked_grove_bytes(worktree, revision)?;
-    if entries.is_empty() {
-        bail!(
-            "cannot finish this plain-Git grove: `.grove/` has no tracked state in {revision}, so no focused deletion commit can be recorded"
-        );
-    }
-    Ok(Sha256::digest(entries).into())
-}
-
-fn tracked_grove_bytes(worktree: &Path, revision: &str) -> Result<Vec<u8>> {
-    git_bytes(
+fn jj_description(worktree: &Path, revision: &str) -> Result<String> {
+    jj_stdout(
         worktree,
         &[
-            "ls-tree",
+            "--ignore-working-copy",
+            "log",
             "-r",
-            "-z",
-            "--full-tree",
             revision,
-            "--",
-            ".grove",
+            "--no-graph",
+            "-T",
+            "description",
         ],
     )
 }
 
-fn git_stdout(worktree: &Path, arguments: &[&str]) -> Result<String> {
-    Ok(String::from_utf8(git_bytes(worktree, arguments)?)?
-        .trim()
-        .to_owned())
+fn tracks_grove(worktree: &Path, revision: &str) -> Result<bool> {
+    Ok(!jj_bytes(
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "file",
+            "list",
+            "-r",
+            revision,
+            "root:.grove",
+        ],
+    )?
+    .is_empty())
+}
+
+fn jj_scoped_diff(worktree: &Path, revision: &str) -> Result<Vec<u8>> {
+    jj_bytes(
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "diff",
+            "-r",
+            revision,
+            "-T",
+            "status ++ \"\\0\" ++ path ++ \"\\0\"",
+        ],
+    )
 }
 
 fn jj_stdout(worktree: &Path, arguments: &[&str]) -> Result<String> {
@@ -1795,7 +555,7 @@ fn jj_stdout(worktree: &Path, arguments: &[&str]) -> Result<String> {
 }
 
 fn jj_bytes(worktree: &Path, arguments: &[&str]) -> Result<Vec<u8>> {
-    let output = vcs_command(worktree, "jj")
+    let output = jj_command(worktree)
         .args(arguments)
         .output()
         .with_context(|| {
@@ -1815,64 +575,24 @@ fn jj_bytes(worktree: &Path, arguments: &[&str]) -> Result<Vec<u8>> {
     Ok(output.stdout)
 }
 
-fn git_bytes(worktree: &Path, arguments: &[&str]) -> Result<Vec<u8>> {
-    let output = vcs_command(worktree, "git")
+fn run_jj(worktree: &Path, arguments: &[&str]) -> Result<()> {
+    let output = jj_command(worktree)
         .args(arguments)
         .output()
         .with_context(|| {
             format!(
-                "running git {} in {}",
+                "running jj {} in {}",
                 arguments.join(" "),
                 worktree.display()
             )
         })?;
-    if !output.status.success() {
-        bail!(
-            "git {} failed: {}",
-            arguments.join(" "),
-            String::from_utf8_lossy(&output.stderr).trim()
-        );
-    }
-    Ok(output.stdout)
+    command_result(arguments, output)
 }
 
-fn git_path(worktree: &Path, name: &str) -> Result<PathBuf> {
-    let output = vcs_command(worktree, "git")
-        .args(["rev-parse", "--git-path", name])
-        .output()
-        .with_context(|| format!("resolving Git {name} path in {}", worktree.display()))?;
+fn command_result(arguments: &[&str], output: Output) -> Result<()> {
     if !output.status.success() {
         bail!(
-            "git rev-parse --git-path {name} failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        );
-    }
-    let path = PathBuf::from(String::from_utf8(output.stdout)?.trim());
-    Ok(if path.is_absolute() {
-        path
-    } else {
-        worktree.join(path)
-    })
-}
-
-fn run_vcs_command(worktree: &Path, binary: &str, arguments: &[&str]) -> Result<()> {
-    let output = vcs_command(worktree, binary)
-        .args(arguments)
-        .output()
-        .with_context(|| {
-            format!(
-                "running {binary} {} in {}",
-                arguments.join(" "),
-                worktree.display()
-            )
-        })?;
-    command_result(binary, arguments, output)
-}
-
-fn command_result(binary: &str, arguments: &[&str], output: Output) -> Result<()> {
-    if !output.status.success() {
-        bail!(
-            "{binary} {} failed: {}",
+            "jj {} failed: {}",
             arguments.join(" "),
             String::from_utf8_lossy(&output.stderr).trim()
         );
@@ -1880,1074 +600,9 @@ fn command_result(binary: &str, arguments: &[&str], output: Output) -> Result<()
     Ok(())
 }
 
-fn vcs_command(worktree: &Path, binary: &str) -> Command {
-    let mut command = Command::new(binary);
+fn jj_command(worktree: &Path) -> Command {
+    let mut command = Command::new("jj");
     command.current_dir(worktree);
     crate::launch::scrub_internal_child_env(&mut command);
-    super::anchor_git_worktree_environment(&mut command, worktree);
     command
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{
-        filter_staging_directory, finish_commit_message, git_bytes, git_stdout, jj_topology,
-        prepare_jj_finish, prepare_plain_git_finish, preserve_git_index, recover_finish,
-        remove_grove_entries, run_vcs_command, tracked_grove_fingerprint,
-        write_child_stdin_and_wait, FinishCommitOutcome, FinishRecoveryOutcome, FinishStartAnchor,
-        GitFinishProof, GitStartProof,
-    };
-    use anyhow::anyhow;
-    use std::fs;
-    use std::os::unix::fs::MetadataExt;
-    use std::process::{Command, Stdio};
-    use tempfile::TempDir;
-
-    const FINISH_HANDLE: &str = "finish-k2";
-    const FIRST_ATTEMPT: &str = "11111111111111111111111111111111";
-    const SECOND_ATTEMPT: &str = "22222222222222222222222222222222";
-
-    #[test]
-    fn index_filter_publishes_from_private_staging_without_adopting_a_foreign_lock() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        assert!(Command::new("git")
-            .current_dir(repository)
-            .args(["init", "--quiet", "."])
-            .status()
-            .unwrap()
-            .success());
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Tests"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove@example.invalid"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/task.md"), "task\n").unwrap();
-        fs::write(repository.join("kept"), "kept\n").unwrap();
-        run_vcs_command(repository, "git", &["add", ".grove/task.md", "kept"]).unwrap();
-
-        let git_index = repository.join(".git/index");
-        let mut prepared = crate::finish_cleanup::prepare_auxiliary(
-            &git_index,
-            &git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
-            FINISH_HANDLE,
-            FIRST_ATTEMPT,
-        )
-        .unwrap();
-        let artifact = prepared.artifact_path().to_path_buf();
-        let foreign_lock = artifact.with_file_name(format!(
-            "{}.lock",
-            artifact.file_name().unwrap().to_string_lossy()
-        ));
-        fs::write(&foreign_lock, "foreign lock\n").unwrap();
-        let foreign_lock_inode = fs::symlink_metadata(&foreign_lock).unwrap().ino();
-
-        assert!(remove_grove_entries(repository, &artifact, FIRST_ATTEMPT, &mut prepared).unwrap());
-
-        let listed = super::vcs_command(repository, "git")
-            .env("GIT_INDEX_FILE", &artifact)
-            .args(["ls-files", "-z"])
-            .output()
-            .unwrap();
-        assert!(listed.status.success());
-        assert_eq!(listed.stdout, b"kept\0");
-        assert_eq!(fs::read_to_string(&foreign_lock).unwrap(), "foreign lock\n");
-        assert_eq!(
-            fs::symlink_metadata(&foreign_lock).unwrap().ino(),
-            foreign_lock_inode
-        );
-    }
-
-    #[test]
-    fn the_index_filter_staging_directory_names_its_finish_attempt() {
-        let fixture = TempDir::new().unwrap();
-
-        let staging = filter_staging_directory(fixture.path(), FIRST_ATTEMPT).unwrap();
-
-        let name = staging
-            .path()
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .into_owned();
-        assert!(
-            name.starts_with(&format!("GROVE-FINISH-FILTER-{FIRST_ATTEMPT}-")),
-            "{name}"
-        );
-        assert_eq!(staging.path().parent().unwrap(), fixture.path());
-    }
-
-    #[test]
-    fn a_failed_index_filter_leaves_no_marked_success_auxiliary() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        assert!(Command::new("git")
-            .current_dir(repository)
-            .args(["init", "--quiet", "."])
-            .status()
-            .unwrap()
-            .success());
-        let git_index = repository.join(".git/index");
-        fs::write(&git_index, "not a Git index\n").unwrap();
-        let backup = preserve_git_index(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-
-        let error = backup
-            .prepare_without_grove(repository, FINISH_HANDLE, FIRST_ATTEMPT)
-            .unwrap_err();
-
-        assert!(format!("{error:#}").contains("ls-files"), "{error:#}");
-        let success_artifact = crate::finish_cleanup::auxiliary_artifact_path(
-            &git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
-            FIRST_ATTEMPT,
-        )
-        .unwrap();
-        assert!(!success_artifact.exists(), "{}", success_artifact.display());
-        crate::finish_cleanup::ensure_auxiliary_available(
-            &git_index,
-            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
-            FIRST_ATTEMPT,
-        )
-        .unwrap();
-    }
-
-    #[test]
-    fn stdin_failure_waits_for_the_index_filter_child_before_returning() {
-        let fixture = TempDir::new().unwrap();
-        let reaped = fixture.path().join("reaped");
-        let child = Command::new("sh")
-            .args([
-                "-c",
-                "exec 0<&-; sleep 0.2; printf reaped > \"$1\"",
-                "grove-test-child",
-            ])
-            .arg(&reaped)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
-
-        let error = write_child_stdin_and_wait(child, &vec![b'x'; 1024 * 1024]).unwrap_err();
-
-        assert!(
-            format!("{error:#}").contains("writing completed-grove paths"),
-            "{error:#}"
-        );
-        assert_eq!(fs::read_to_string(reaped).unwrap(), "reaped");
-    }
-
-    fn native_jj_finish_fixture() -> TempDir {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        run_vcs_command(
-            repository,
-            "jj",
-            &[
-                "--config",
-                "git.colocate=false",
-                "git",
-                "init",
-                "--quiet",
-                ".",
-            ],
-        )
-        .unwrap();
-        run_vcs_command(
-            repository,
-            "jj",
-            &[
-                "config",
-                "set",
-                "--workspace",
-                "user.name",
-                "\"Grove Test\"",
-            ],
-        )
-        .unwrap();
-        run_vcs_command(
-            repository,
-            "jj",
-            &[
-                "config",
-                "set",
-                "--workspace",
-                "user.email",
-                "\"grove-test@example.com\"",
-            ],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        fs::write(repository.join("outside"), "before\n").unwrap();
-        run_vcs_command(repository, "jj", &["commit", "-m", "fixture"]).unwrap();
-        fs::write(repository.join(".grove/finish"), "finish\n").unwrap();
-        fs::write(repository.join("outside"), "after\n").unwrap();
-        fixture
-    }
-
-    fn colocated_jj_finish_fixture() -> TempDir {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(
-            init.status.success(),
-            "{}",
-            String::from_utf8_lossy(&init.stderr)
-        );
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        fs::write(repository.join("outside"), "before\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-        run_vcs_command(
-            repository,
-            "jj",
-            &["git", "init", "--colocate", "--quiet", "."],
-        )
-        .unwrap();
-        run_vcs_command(
-            repository,
-            "jj",
-            &[
-                "config",
-                "set",
-                "--workspace",
-                "user.name",
-                "\"Grove Test\"",
-            ],
-        )
-        .unwrap();
-        run_vcs_command(
-            repository,
-            "jj",
-            &[
-                "config",
-                "set",
-                "--workspace",
-                "user.email",
-                "\"grove-test@example.com\"",
-            ],
-        )
-        .unwrap();
-        fs::write(repository.join(".grove/finish"), "finish\n").unwrap();
-        fs::write(repository.join("outside"), "after\n").unwrap();
-        fixture
-    }
-
-    #[test]
-    fn exact_git_finish_result_reclassifies_a_lost_command_as_committed() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(
-            init.status.success(),
-            "{}",
-            String::from_utf8_lossy(&init.stderr)
-        );
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        fs::write(repository.join("outside"), "keep\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-
-        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let message = finish_commit_message("finish-k2", "11111111111111111111111111111111");
-        fs::remove_dir_all(repository.join(".grove")).unwrap();
-        run_vcs_command(repository, "git", &["add", "-A", "--", ".grove"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["commit", "--only", "-m", &message, "--", ".grove"],
-        )
-        .unwrap();
-
-        let outcome = prepared.classify_command_result(&message, Err(anyhow!("lost result")));
-
-        let FinishCommitOutcome::Committed(proof) = outcome else {
-            panic!("the exact committed result was not classified as committed");
-        };
-        proof.revalidate().unwrap();
-
-        fs::write(repository.join("outside"), "changed\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "outside"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "divergent"]).unwrap();
-        let error = proof.revalidate().unwrap_err();
-        assert!(error.to_string().contains("not immediate"), "{error:#}");
-    }
-
-    /// A merge whose *first* parent is the recorded start satisfies every other
-    /// predicate the proof asks: the message matches, `.grove/` is untracked,
-    /// and the two trees differ by exactly the `.grove/` deletion. Its second
-    /// parent — carrying whatever history it likes — is what makes the topology
-    /// ambiguous, and it is observable only through the full parent list.
-    #[test]
-    fn a_merge_over_the_recorded_start_is_not_a_plain_git_finish_result() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(
-            init.status.success(),
-            "{}",
-            String::from_utf8_lossy(&init.stderr)
-        );
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        fs::write(repository.join("outside"), "keep\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-        let start_head = git_stdout(repository, &["rev-parse", "HEAD"]).unwrap();
-        let deletion_fingerprint = tracked_grove_fingerprint(repository, &start_head).unwrap();
-
-        // The exact teardown tree: the start's, less `.grove/`.
-        let start_tree = git_stdout(repository, &["rev-parse", "HEAD^{tree}"]).unwrap();
-        fs::remove_dir_all(repository.join(".grove")).unwrap();
-        run_vcs_command(repository, "git", &["add", "-A", "--", ".grove"]).unwrap();
-        let teardown_tree = git_stdout(repository, &["write-tree"]).unwrap();
-        // Any commit at all serves as the unobserved second parent.
-        let unrelated = git_stdout(
-            repository,
-            &[
-                "commit-tree",
-                &start_tree,
-                "-p",
-                &start_head,
-                "-m",
-                "unrelated",
-            ],
-        )
-        .unwrap();
-        let message = finish_commit_message(FINISH_HANDLE, FIRST_ATTEMPT);
-        let merge = git_stdout(
-            repository,
-            &[
-                "commit-tree",
-                &teardown_tree,
-                "-p",
-                &start_head,
-                "-p",
-                &unrelated,
-                "-m",
-                &message,
-            ],
-        )
-        .unwrap();
-        run_vcs_command(repository, "git", &["reset", "-q", "--hard", &merge]).unwrap();
-
-        let proof = GitFinishProof {
-            worktree: repository.to_path_buf(),
-            start_head: start_head.clone(),
-            message,
-            deletion_fingerprint,
-        };
-        let error = proof.revalidate().unwrap_err();
-        assert!(error.to_string().contains("merge"), "{error:#}");
-
-        let outcome = recover_finish(
-            repository,
-            &FinishStartAnchor::PlainGit {
-                head: start_head,
-                had_git_index: true,
-            },
-            FINISH_HANDLE,
-            FIRST_ATTEMPT,
-            deletion_fingerprint,
-        );
-        let FinishRecoveryOutcome::RecoveryPending(error) = outcome else {
-            panic!("an ambiguous merge topology was not held as recovery pending");
-        };
-        assert!(
-            format!("{error:#}").contains("restore the recorded start"),
-            "{error:#}"
-        );
-    }
-
-    #[test]
-    fn recorded_plain_git_start_restores_the_preflight_index_before_rollback() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(
-            init.status.success(),
-            "{}",
-            String::from_utf8_lossy(&init.stderr)
-        );
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        fs::write(repository.join("outside"), "before\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-        fs::write(repository.join("staged"), "preserve\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "staged"]).unwrap();
-
-        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let start = FinishStartAnchor::PlainGit {
-            head: prepared.start_head.clone(),
-            had_git_index: prepared.index_backup.had_git_index,
-        };
-        let deletion_fingerprint = prepared.deletion_fingerprint;
-        fs::remove_dir_all(repository.join(".grove")).unwrap();
-        run_vcs_command(repository, "git", &["add", "-A", "--", ".grove"]).unwrap();
-
-        let outcome = recover_finish(
-            repository,
-            &start,
-            "finish-k2",
-            "11111111111111111111111111111111",
-            deletion_fingerprint,
-        );
-
-        let FinishRecoveryOutcome::NotCommitted(proof) = outcome else {
-            panic!("the recorded start was not recovered as an uncommitted finish");
-        };
-        proof.revalidate_before_rollback().unwrap();
-        drop(proof);
-
-        let retried = recover_finish(
-            repository,
-            &start,
-            "finish-k2",
-            "11111111111111111111111111111111",
-            deletion_fingerprint,
-        );
-        let FinishRecoveryOutcome::NotCommitted(proof) = retried else {
-            panic!("index restoration consumed the only restart evidence");
-        };
-        proof.revalidate_before_rollback().unwrap();
-        let staged = String::from_utf8(
-            Command::new("git")
-                .current_dir(repository)
-                .args(["diff", "--cached", "--name-only"])
-                .output()
-                .unwrap()
-                .stdout,
-        )
-        .unwrap();
-        assert_eq!(staged, "staged\n");
-    }
-
-    #[test]
-    fn recorded_plain_git_start_recovers_a_legitimately_absent_index() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(init.status.success());
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-        fs::remove_file(repository.join(".git/index")).unwrap();
-
-        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        assert!(!repository
-            .join(format!(
-                ".git/GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}"
-            ))
-            .exists());
-        assert!(!repository
-            .join(format!(
-                ".git/GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}.json"
-            ))
-            .exists());
-        let start = FinishStartAnchor::PlainGit {
-            head: prepared.start_head.clone(),
-            had_git_index: prepared.index_backup.had_git_index,
-        };
-        let deletion_fingerprint = prepared.deletion_fingerprint;
-        fs::remove_dir_all(repository.join(".grove")).unwrap();
-
-        let outcome = recover_finish(
-            repository,
-            &start,
-            "finish-k2",
-            "11111111111111111111111111111111",
-            deletion_fingerprint,
-        );
-
-        let FinishRecoveryOutcome::NotCommitted(proof) = outcome else {
-            panic!("an absent preflight index was not recovered");
-        };
-        proof.revalidate_before_rollback().unwrap();
-        assert!(!repository.join(".git/index").exists());
-    }
-
-    #[test]
-    fn distinct_finish_attempts_do_not_overwrite_each_others_index_backups() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(init.status.success());
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        fs::write(repository.join("outside"), "first\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-
-        let first = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let first_backup = first.index_backup.backup_index.clone();
-        let first_bytes = fs::read(&first_backup).unwrap();
-        fs::write(repository.join("outside"), "second\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "outside"]).unwrap();
-
-        let second = prepare_plain_git_finish(repository, FINISH_HANDLE, SECOND_ATTEMPT).unwrap();
-        let second_backup = second.index_backup.backup_index.clone();
-
-        assert_ne!(first_backup, second_backup);
-        assert_eq!(fs::read(first_backup).unwrap(), first_bytes);
-    }
-
-    #[test]
-    fn plain_git_index_backup_has_attempt_bound_cleanup_evidence() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(init.status.success());
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-
-        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let backup = &prepared.index_backup.backup_index;
-        let marker = backup.with_file_name(format!(
-            "GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}.json"
-        ));
-        let marker: serde_json::Value =
-            serde_json::from_slice(&fs::read(&marker).unwrap()).unwrap();
-        let metadata = fs::symlink_metadata(backup).unwrap();
-
-        assert_eq!(marker["version"], 1);
-        assert_eq!(marker["kind"], "finish-index-auxiliary");
-        assert_eq!(marker["role"], "git-index-backup");
-        assert_eq!(marker["finish_handle"], FINISH_HANDLE);
-        assert_eq!(marker["attempt_identity"], FIRST_ATTEMPT);
-        assert_eq!(marker["device"], metadata.dev());
-        assert_eq!(marker["inode"], metadata.ino());
-    }
-
-    #[test]
-    fn plain_git_auxiliary_collision_is_rejected_before_repository_mutation() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(init.status.success());
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-        let original_index = fs::read(repository.join(".git/index")).unwrap();
-        let collision = repository.join(format!(
-            ".git/GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}"
-        ));
-        fs::write(&collision, "foreign\n").unwrap();
-
-        let error = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT)
-            .err()
-            .unwrap();
-
-        assert!(format!("{error:#}").contains("collision"));
-        assert_eq!(
-            fs::read(repository.join(".git/index")).unwrap(),
-            original_index
-        );
-        assert_eq!(fs::read_to_string(collision).unwrap(), "foreign\n");
-        assert!(!repository.join(".git/grove").exists());
-    }
-
-    #[test]
-    fn a_broken_git_index_symlink_is_not_misclassified_as_an_absent_index() {
-        use std::os::unix::fs::symlink;
-
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(init.status.success());
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-        fs::rename(
-            repository.join(".git/index"),
-            repository.join(".git/saved-index"),
-        )
-        .unwrap();
-        symlink("missing-index", repository.join(".git/index")).unwrap();
-
-        let error = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT)
-            .err()
-            .unwrap();
-
-        assert!(format!("{error:#}").contains("without following symlinks"));
-        assert!(repository
-            .join(".git/index")
-            .symlink_metadata()
-            .unwrap()
-            .file_type()
-            .is_symlink());
-        assert!(!repository.join(".git/missing-index").exists());
-    }
-
-    #[test]
-    fn discarding_an_index_backup_never_deletes_a_replacement() {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path();
-        let init = Command::new("git")
-            .current_dir(repository)
-            .args(["init", "-q", "."])
-            .output()
-            .unwrap();
-        assert!(init.status.success());
-        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
-        run_vcs_command(
-            repository,
-            "git",
-            &["config", "user.email", "grove-test@example.com"],
-        )
-        .unwrap();
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/NOTES.md"), "notes\n").unwrap();
-        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
-        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
-
-        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let backup = prepared.index_backup.backup_index.clone();
-        let marker = backup.with_file_name(format!(
-            "GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}.json"
-        ));
-        let original = backup.with_file_name("preserved-original-index-backup");
-        fs::rename(&backup, &original).unwrap();
-        fs::write(&backup, "replacement\n").unwrap();
-
-        GitStartProof {
-            worktree: prepared.worktree,
-            start_head: prepared.start_head,
-            index_backup: Some(prepared.index_backup),
-        }
-        .revalidate_after_rollback()
-        .unwrap();
-
-        assert_eq!(fs::read_to_string(&backup).unwrap(), "replacement\n");
-        assert!(marker.is_file());
-        assert!(original.is_file());
-    }
-
-    #[test]
-    fn aborting_a_colocated_jj_preparation_restores_the_index_and_discards_both_auxiliaries() {
-        let fixture = colocated_jj_finish_fixture();
-        let repository = fixture.path();
-        let index = repository.join(".git/index");
-        let index_before = fs::read(&index).unwrap();
-
-        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let backup = prepared.index_backup.as_ref().unwrap().backup_index.clone();
-        let success = prepared
-            .success_index
-            .as_ref()
-            .unwrap()
-            .artifact_path()
-            .to_path_buf();
-        let backup_marker = backup.with_file_name(format!(
-            "GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}.json"
-        ));
-        let success_marker = success.with_file_name(format!(
-            "GROVE-FINISH-AUXILIARY-git-index-success-{FIRST_ATTEMPT}.json"
-        ));
-        for path in [&backup, &backup_marker, &success, &success_marker] {
-            assert!(
-                path.is_file(),
-                "missing prepared auxiliary {}",
-                path.display()
-            );
-        }
-
-        prepared.abort().unwrap();
-
-        assert_eq!(fs::read(&index).unwrap(), index_before);
-        for path in [&backup, &backup_marker, &success, &success_marker] {
-            assert!(
-                !path.exists(),
-                "aborted preparation left auxiliary {}",
-                path.display()
-            );
-        }
-        prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT)
-            .unwrap()
-            .abort()
-            .unwrap();
-    }
-
-    #[test]
-    fn colocated_jj_success_index_has_independent_attempt_bound_cleanup_evidence() {
-        let fixture = colocated_jj_finish_fixture();
-        let repository = fixture.path();
-
-        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let success = prepared.success_index.as_ref().unwrap();
-        let marker = success.artifact_path().with_file_name(format!(
-            "GROVE-FINISH-AUXILIARY-git-index-success-{FIRST_ATTEMPT}.json"
-        ));
-        let marker: serde_json::Value =
-            serde_json::from_slice(&fs::read(&marker).unwrap()).unwrap();
-        let metadata = fs::symlink_metadata(success.artifact_path()).unwrap();
-
-        assert_eq!(marker["version"], 1);
-        assert_eq!(marker["kind"], "finish-index-auxiliary");
-        assert_eq!(marker["role"], "git-index-success");
-        assert_eq!(marker["finish_handle"], FINISH_HANDLE);
-        assert_eq!(marker["attempt_identity"], FIRST_ATTEMPT);
-        assert_eq!(marker["device"], metadata.dev());
-        assert_eq!(marker["inode"], metadata.ino());
-    }
-
-    #[test]
-    fn colocated_jj_preflights_both_auxiliary_roles_before_snapshotting() {
-        let fixture = colocated_jj_finish_fixture();
-        let repository = fixture.path();
-        let index = repository.join(".git/index");
-        let topology_before = jj_topology(repository, "@", false, None).unwrap();
-        let index_before = fs::read(&index).unwrap();
-        let collision = repository.join(format!(
-            ".git/GROVE-FINISH-AUXILIARY-git-index-success-{FIRST_ATTEMPT}.json"
-        ));
-        fs::write(&collision, "foreign marker\n").unwrap();
-
-        let error = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT)
-            .err()
-            .unwrap();
-
-        assert!(format!("{error:#}").contains("collision"));
-        assert_eq!(fs::read(index).unwrap(), index_before);
-        assert_eq!(
-            jj_topology(repository, "@", false, None).unwrap(),
-            topology_before
-        );
-        assert_eq!(fs::read_to_string(collision).unwrap(), "foreign marker\n");
-        assert!(!repository
-            .join(format!(
-                ".git/GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}"
-            ))
-            .exists());
-    }
-
-    #[test]
-    fn exact_jj_finish_result_reclassifies_a_lost_command_as_committed() {
-        let fixture = native_jj_finish_fixture();
-        let repository = fixture.path();
-        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let message = finish_commit_message("finish-k2", "11111111111111111111111111111111");
-        let auto_track_configuration =
-            "snapshot.auto-track=\"all() ~ root:.grove/FINISHING-finish-k2\"";
-        fs::remove_dir_all(repository.join(".grove")).unwrap();
-        run_vcs_command(
-            repository,
-            "jj",
-            &[
-                "--config",
-                auto_track_configuration,
-                "commit",
-                "-m",
-                &message,
-                "root:.grove ~ root:.grove/FINISHING-finish-k2",
-            ],
-        )
-        .unwrap();
-
-        let outcome = prepared.classify_command_result(
-            &message,
-            auto_track_configuration,
-            Err(anyhow!("lost result")),
-        );
-
-        let FinishCommitOutcome::Committed(proof) = outcome else {
-            panic!("the exact Jujutsu result was not classified as committed");
-        };
-        proof.revalidate().unwrap();
-
-        run_vcs_command(repository, "jj", &["new"]).unwrap();
-        let error = proof.revalidate().unwrap_err();
-        assert!(
-            error.to_string().contains("unexpected topology"),
-            "{error:#}"
-        );
-    }
-
-    #[test]
-    fn recorded_native_jj_start_is_recoverable_when_the_exact_result_is_absent() {
-        let fixture = native_jj_finish_fixture();
-        let repository = fixture.path();
-        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let start = FinishStartAnchor::Jujutsu {
-            commit_id: prepared.start.commit_id.clone(),
-            change_id: prepared.start.change_id.clone(),
-            parent_commit_ids: prepared.start.parent_commit_ids.clone(),
-            git_index_existed: prepared
-                .index_backup
-                .as_ref()
-                .map(|backup| backup.had_git_index),
-        };
-        let deletion_fingerprint = prepared.deletion_fingerprint;
-        fs::remove_dir_all(repository.join(".grove")).unwrap();
-
-        let outcome = recover_finish(
-            repository,
-            &start,
-            "finish-k2",
-            "11111111111111111111111111111111",
-            deletion_fingerprint,
-        );
-
-        let FinishRecoveryOutcome::NotCommitted(proof) = outcome else {
-            panic!("the recorded Jujutsu start was not recovered as uncommitted");
-        };
-        proof.revalidate_before_rollback().unwrap();
-    }
-
-    #[test]
-    fn recorded_colocated_jj_start_recovers_a_legitimately_absent_index() {
-        let fixture = colocated_jj_finish_fixture();
-        let repository = fixture.path();
-        fs::remove_file(repository.join(".git/index")).unwrap();
-        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        for role in ["git-index-backup", "git-index-success"] {
-            assert!(!repository
-                .join(format!(
-                    ".git/GROVE-FINISH-AUXILIARY-{role}-{FIRST_ATTEMPT}"
-                ))
-                .exists());
-            assert!(!repository
-                .join(format!(
-                    ".git/GROVE-FINISH-AUXILIARY-{role}-{FIRST_ATTEMPT}.json"
-                ))
-                .exists());
-        }
-        let start = FinishStartAnchor::Jujutsu {
-            commit_id: prepared.start.commit_id.clone(),
-            change_id: prepared.start.change_id.clone(),
-            parent_commit_ids: prepared.start.parent_commit_ids.clone(),
-            git_index_existed: prepared
-                .index_backup
-                .as_ref()
-                .map(|backup| backup.had_git_index),
-        };
-        let deletion_fingerprint = prepared.deletion_fingerprint;
-        fs::remove_dir_all(repository.join(".grove")).unwrap();
-
-        let outcome = recover_finish(
-            repository,
-            &start,
-            "finish-k2",
-            "11111111111111111111111111111111",
-            deletion_fingerprint,
-        );
-
-        let FinishRecoveryOutcome::NotCommitted(proof) = outcome else {
-            panic!("an absent colocated preflight index was not recovered");
-        };
-        proof.revalidate_before_rollback().unwrap();
-        assert!(!repository.join(".git/index").exists());
-    }
-
-    #[test]
-    fn committed_colocated_jj_recovery_requires_a_grove_free_active_index() {
-        let fixture = colocated_jj_finish_fixture();
-        let repository = fixture.path();
-        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let start = FinishStartAnchor::Jujutsu {
-            commit_id: prepared.start.commit_id.clone(),
-            change_id: prepared.start.change_id.clone(),
-            parent_commit_ids: prepared.start.parent_commit_ids.clone(),
-            git_index_existed: prepared
-                .index_backup
-                .as_ref()
-                .map(|backup| backup.had_git_index),
-        };
-        let deletion_fingerprint = prepared.deletion_fingerprint;
-        let message = finish_commit_message("finish-k2", "11111111111111111111111111111111");
-        let auto_track_configuration =
-            "snapshot.auto-track=\"all() ~ root:.grove/FINISHING-finish-k2\"";
-        fs::remove_dir_all(repository.join(".grove")).unwrap();
-        run_vcs_command(
-            repository,
-            "jj",
-            &[
-                "--config",
-                auto_track_configuration,
-                "commit",
-                "-m",
-                &message,
-                "root:.grove ~ root:.grove/FINISHING-finish-k2",
-            ],
-        )
-        .unwrap();
-
-        let first = recover_finish(
-            repository,
-            &start,
-            "finish-k2",
-            "11111111111111111111111111111111",
-            deletion_fingerprint,
-        );
-        let FinishRecoveryOutcome::Committed(proof) = first else {
-            panic!("the exact committed result was not recovered")
-        };
-        proof.revalidate().unwrap();
-        let tracked = git_bytes(repository, &["ls-files", "--", ".grove"]).unwrap();
-        assert!(tracked.is_empty());
-
-        let repeated = recover_finish(
-            repository,
-            &start,
-            "finish-k2",
-            "11111111111111111111111111111111",
-            deletion_fingerprint,
-        );
-        match repeated {
-            FinishRecoveryOutcome::Committed(_) => {}
-            FinishRecoveryOutcome::NotCommitted(_) => {
-                panic!("the exact committed result was reclassified as uncommitted")
-            }
-            FinishRecoveryOutcome::RecoveryPending(error) => panic!("{error:#}"),
-        }
-
-        fs::create_dir(repository.join(".grove")).unwrap();
-        fs::write(repository.join(".grove/foreign"), "foreign\n").unwrap();
-        run_vcs_command(repository, "git", &["add", ".grove/foreign"]).unwrap();
-        let corrupted = recover_finish(
-            repository,
-            &start,
-            "finish-k2",
-            "11111111111111111111111111111111",
-            deletion_fingerprint,
-        );
-        let FinishRecoveryOutcome::RecoveryPending(error) = corrupted else {
-            panic!("a grove-tracking active index was accepted as completed");
-        };
-        assert!(format!("{error:#}").contains("active Git index"));
-    }
-
-    #[test]
-    fn unexpected_jj_topology_stays_recovery_pending() {
-        let fixture = native_jj_finish_fixture();
-        let repository = fixture.path();
-        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
-        let message = finish_commit_message("finish-k2", "11111111111111111111111111111111");
-        let auto_track_configuration =
-            "snapshot.auto-track=\"all() ~ root:.grove/FINISHING-finish-k2\"";
-
-        fs::remove_dir_all(repository.join(".grove")).unwrap();
-        run_vcs_command(repository, "jj", &["new"]).unwrap();
-        let outcome = prepared.classify_command_result(
-            &message,
-            auto_track_configuration,
-            Err(anyhow!("command failed after changing topology")),
-        );
-
-        let FinishCommitOutcome::RecoveryPending(error) = outcome else {
-            panic!("unexpected Jujutsu topology was not retained for recovery");
-        };
-        assert!(format!("{error:#}").contains("command failed"), "{error:#}");
-    }
 }

@@ -9,14 +9,8 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant};
 
-mod auxiliary;
 mod reaper;
 pub(crate) mod unix;
-pub(crate) use auxiliary::{
-    auxiliary_artifact_path, auxiliary_marker_is_owned_by, auxiliary_marker_paths,
-    ensure_auxiliary_available, prepare_auxiliary, recover_auxiliary, recover_auxiliary_marker,
-    AuxiliaryCleanup, AuxiliaryRole,
-};
 pub(crate) use reaper::reap_orphaned;
 use unix::{
     create_new_file_at, entry_exists, open_directory, open_directory_at, open_file_at,

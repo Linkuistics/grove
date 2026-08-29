@@ -3,9 +3,15 @@
 // `grove` process and the real `grove-llm finish-commit`.
 //
 // The layout matrix is the subject here, so the fixtures are whole
-// workspaces — plain checkouts, linked Git worktrees, native, colocated and
-// secondary jj workspaces, and symlinked markers — rather than the lease
-// internals `tests/driver_lease.rs` owns.
+// workspaces — native, colocated and secondary jj workspaces, and a symlinked
+// marker — rather than the lease internals `tests/driver_lease.rs` owns.
+//
+// The matrix is smaller than it was, and structurally so: Grove drives jj only
+// (`docs/adr/jj-is-the-only-lane.md`), and a jj workspace keeps its control
+// directory at `<root>/.jj/grove`. There is no longer a shape whose
+// administration directory lives outside its working tree by construction, so
+// every cross-device case here is one where `.jj/` itself has been put on
+// another filesystem.
 //
 // **One operand cannot be staged portably: a second filesystem.** Mounting one
 // needs privileges on Linux and a disk image on macOS, so
@@ -66,21 +72,12 @@ fn run(program: &str, directory: &Path, arguments: &[&str]) -> String {
     String::from_utf8(output.stdout).unwrap().trim().to_string()
 }
 
-fn init_git(path: &Path) {
-    fs::create_dir_all(path).unwrap();
-    run("git", path, &["init", "-q", "."]);
-    run("git", path, &["config", "user.name", "Grove Test"]);
-    run("git", path, &["config", "user.email", "t@example.com"]);
-    run("git", path, &["config", "core.hooksPath", "/dev/null"]);
-}
-
 /// `git.colocate=false` is forced because the ambient jj config may default
 /// colocation on, which would silently turn a "native" fixture into a colocated
-/// one — and the two resolve through different markers.
+/// one — and a colocated tree carries a `.git` Grove is supposed never to read.
 fn init_jj(path: &Path, colocated: bool) {
     fs::create_dir_all(path).unwrap();
     if colocated {
-        init_git(path);
         run("jj", path, &["git", "init", "--colocate", "--quiet", "."]);
     } else {
         run(
@@ -120,26 +117,23 @@ fn init_jj(path: &Path, colocated: bool) {
     );
 }
 
-/// A linked Git worktree of `main`, plus the canonical gitdir its `.git` **file**
-/// names — the indirection that makes this family the one whose devices can
-/// differ. The target is read from the marker rather than assumed, so a fixture
-/// cannot drift from what the resolver will find.
-fn linked_worktree(main: &Path, name: &str) -> (PathBuf, PathBuf) {
+/// The revision the working copy sits on. "A refused run authored no revision"
+/// is a claim about this, and it is read with `--ignore-working-copy` so the
+/// reading itself cannot be the mutation it is checking for.
+fn parent_commit(worktree: &Path) -> String {
     run(
-        "git",
-        main,
-        &["commit", "-q", "--allow-empty", "-m", "seed"],
-    );
-    let worktree = main.parent().unwrap().join(name);
-    run(
-        "git",
-        main,
-        &["worktree", "add", "-q", worktree.to_str().unwrap()],
-    );
-    let marker = fs::read_to_string(worktree.join(".git")).unwrap();
-    let target = marker.strip_prefix("gitdir: ").unwrap().trim();
-    let gitdir = worktree.join(target).canonicalize().unwrap();
-    (worktree.canonicalize().unwrap(), gitdir)
+        "jj",
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "log",
+            "-r",
+            "@-",
+            "--no-graph",
+            "-T",
+            "commit_id",
+        ],
+    )
 }
 
 fn write_executable(path: &Path, body: &str) {
@@ -236,8 +230,7 @@ fn assert_layout_refusal(
         "unsupported workspace layout",
         &worktree_root.display().to_string(),
         &control_dir.display().to_string(),
-        "same filesystem as the repository",
-        "administration directory is inside the working tree",
+        "same filesystem as its working tree",
         "Nothing was created or changed",
     ] {
         assert!(stderr.contains(expected), "{expected:?} missing:\n{stderr}");
@@ -298,20 +291,13 @@ fn snapshot(root: &Path) -> Vec<(PathBuf, Option<Vec<u8>>)> {
 
 // ---- the admitted layouts -------------------------------------------------
 
-// Grove measures every layout rather than trusting the marker's kind, so the
-// admitted half of the matrix has to be driven too: a preflight that refused a
-// plain checkout, a same-device linked worktree, or any jj shape would make the
-// product unusable while every refusal test above still passed.
+// Grove measures every layout rather than assuming one from the workspace's
+// shape, so the admitted half of the matrix has to be driven too: a preflight
+// that refused any ordinary jj shape would make the product unusable while every
+// refusal test above still passed.
 #[test]
 fn every_admitted_layout_drives_a_session_normally() {
     let fixture = TempDir::new().unwrap();
-
-    let plain = fixture.path().join("plain");
-    init_git(&plain);
-
-    let linked_main = fixture.path().join("linked-main/main");
-    init_git(&linked_main);
-    let (linked, _) = linked_worktree(&linked_main, "linked");
 
     let native = fixture.path().join("native-jj");
     init_jj(&native, false);
@@ -329,8 +315,6 @@ fn every_admitted_layout_drives_a_session_normally() {
     );
 
     for (name, worktree) in [
-        ("plain-checkout", plain),
-        ("linked-git-worktree", linked),
         ("native-jj", native),
         ("colocated-jj", colocated),
         ("secondary-jj-workspace", secondary),
@@ -365,35 +349,32 @@ fn every_admitted_layout_drives_a_session_normally() {
 // configuration validation (proved by an empty `$HOME`) and before anything
 // creates `.grove/`, so the operator pays nothing recoverable.
 #[test]
-fn a_cross_device_linked_worktree_is_refused_before_config_validation_or_any_tree() {
+fn a_cross_device_workspace_is_refused_before_config_validation_or_any_tree() {
     let fixture = TempDir::new().unwrap();
-    let main = fixture.path().join("main");
-    init_git(&main);
-    let (worktree, gitdir) = linked_worktree(&main, "linked");
+    let worktree = fixture.path().join("workspace");
+    init_jj(&worktree, false);
+    let jj_dir = worktree.join(".jj").canonicalize().unwrap();
     let home = fixture.path().join("home");
     write_no_config(&home);
-    let head_before = run("git", &worktree, &["rev-parse", "HEAD"]);
+    let head_before = parent_commit(&worktree);
 
     let output = grove_driver(&worktree, &home)
-        .env(FOREIGN, &gitdir)
+        .env(FOREIGN, &jj_dir)
         .output()
         .unwrap();
 
     assert_layout_refusal(
         &output,
-        &worktree,
-        &gitdir.join("grove"),
-        &[
-            &format!("the `.git` file {}", worktree.join(".git").display()),
-            &format!("naming gitdir {}", gitdir.display()),
-        ],
+        &worktree.canonicalize().unwrap(),
+        &jj_dir.join("grove"),
+        &[&format!("the `.jj` directory {}", jj_dir.display())],
     );
     assert!(
         !worktree.join(".grove").exists(),
         "a refused layout must not create a task tree"
     );
     assert_eq!(
-        run("git", &worktree, &["rev-parse", "HEAD"]),
+        parent_commit(&worktree),
         head_before,
         "a refused layout must author no revision"
     );
@@ -405,28 +386,27 @@ fn a_cross_device_linked_worktree_is_refused_before_config_validation_or_any_tre
 #[test]
 fn a_cross_device_refusal_leaves_an_existing_tree_byte_identical() {
     let fixture = TempDir::new().unwrap();
-    let main = fixture.path().join("main");
-    init_git(&main);
-    let (worktree, gitdir) = linked_worktree(&main, "linked");
+    let worktree = fixture.path().join("workspace");
+    init_jj(&worktree, false);
+    let jj_dir = worktree.join(".jj").canonicalize().unwrap();
     plant_tree(&worktree, "01-impl-subject-k1.md");
-    run("git", &worktree, &["add", "-A"]);
-    run("git", &worktree, &["commit", "-q", "-m", "seed grove"]);
+    run("jj", &worktree, &["commit", "-m", "seed grove"]);
     let home = fixture.path().join("home");
     let (command, receipt) = recording_command(fixture.path(), "existing");
     write_complete_config(&home, &command);
     let before = snapshot(&worktree.join(".grove"));
-    let head_before = run("git", &worktree, &["rev-parse", "HEAD"]);
+    let head_before = parent_commit(&worktree);
 
     let output = grove_driver(&worktree, &home)
-        .env(FOREIGN, &gitdir)
+        .env(FOREIGN, &jj_dir)
         .output()
         .unwrap();
 
     assert_layout_refusal(
         &output,
-        &worktree,
-        &gitdir.join("grove"),
-        &[&format!("naming gitdir {}", gitdir.display())],
+        &worktree.canonicalize().unwrap(),
+        &jj_dir.join("grove"),
+        &[&format!("the `.jj` directory {}", jj_dir.display())],
     );
     assert_eq!(
         snapshot(&worktree.join(".grove")),
@@ -434,7 +414,7 @@ fn a_cross_device_refusal_leaves_an_existing_tree_byte_identical() {
         "a refused layout must leave the task tree byte-identical"
     );
     assert_eq!(
-        run("git", &worktree, &["rev-parse", "HEAD"]),
+        parent_commit(&worktree),
         head_before,
         "a refused layout must author no revision"
     );
@@ -444,61 +424,43 @@ fn a_cross_device_refusal_leaves_an_existing_tree_byte_identical() {
     );
 }
 
-// A symlinked marker leaves the working tree without changing the marker's
-// kind, so a preflight that classified layouts from the table instead of
-// measuring them would admit both of these. `.jj/` and a `.git/` directory are
-// exactly the two the table calls in-root.
+// A symlinked marker leaves the working tree without changing where resolution
+// *names* the control directory, so a preflight that classified layouts by shape
+// instead of measuring them would admit this one.
 #[test]
 fn a_symlinked_marker_onto_another_filesystem_is_refused_on_the_same_path() {
     let fixture = TempDir::new().unwrap();
 
-    let git_tree = fixture.path().join("git-tree");
-    init_git(&git_tree);
-    let elsewhere_git = fixture.path().join("elsewhere/git-dir");
-    fs::create_dir_all(elsewhere_git.parent().unwrap()).unwrap();
-    fs::rename(git_tree.join(".git"), &elsewhere_git).unwrap();
-    std::os::unix::fs::symlink(&elsewhere_git, git_tree.join(".git")).unwrap();
+    let worktree = fixture.path().join("jj-tree");
+    init_jj(&worktree, false);
+    let elsewhere = fixture.path().join("elsewhere/jj-dir");
+    fs::create_dir_all(elsewhere.parent().unwrap()).unwrap();
+    fs::rename(worktree.join(".jj"), &elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, worktree.join(".jj")).unwrap();
+    let worktree = worktree.canonicalize().unwrap();
 
-    let jj_tree = fixture.path().join("jj-tree");
-    init_jj(&jj_tree, false);
-    let elsewhere_jj = fixture.path().join("elsewhere/jj-dir");
-    fs::rename(jj_tree.join(".jj"), &elsewhere_jj).unwrap();
-    std::os::unix::fs::symlink(&elsewhere_jj, jj_tree.join(".jj")).unwrap();
+    let home = fixture.path().join("home");
+    let (command, _) = recording_command(fixture.path(), "symlinked");
+    write_complete_config(&home, &command);
 
-    for (name, worktree, target, control_dir, marker) in [
-        (
-            "git",
-            git_tree.canonicalize().unwrap(),
-            elsewhere_git.canonicalize().unwrap(),
-            elsewhere_git.canonicalize().unwrap().join("grove"),
-            "the `.git` directory",
-        ),
-        (
-            "jj",
-            jj_tree.canonicalize().unwrap(),
-            elsewhere_jj.canonicalize().unwrap(),
-            // jj resolution deliberately does not follow the marker, so the
-            // control directory is named *through* the symlink even though the
-            // measurement resolves past it.
-            jj_tree.canonicalize().unwrap().join(".jj/grove"),
-            "the `.jj` directory",
-        ),
-    ] {
-        let home = fixture.path().join(format!("{name}-home"));
-        let (command, _) = recording_command(fixture.path(), name);
-        write_complete_config(&home, &command);
+    let output = grove_driver(&worktree, &home)
+        .env(FOREIGN, elsewhere.canonicalize().unwrap())
+        .output()
+        .unwrap();
 
-        let output = grove_driver(&worktree, &home)
-            .env(FOREIGN, &target)
-            .output()
-            .unwrap();
-
-        assert_layout_refusal(&output, &worktree, &control_dir, &[marker]);
-        assert!(
-            !worktree.join(".grove").exists(),
-            "{name}: a refused layout must not create a task tree"
-        );
-    }
+    // Resolution deliberately does not follow the marker, so the control
+    // directory is named *through* the symlink even though the measurement
+    // resolves past it.
+    assert_layout_refusal(
+        &output,
+        &worktree,
+        &worktree.join(".jj/grove"),
+        &[&format!("the `.jj` directory {}", worktree.join(".jj").display())],
+    );
+    assert!(
+        !worktree.join(".grove").exists(),
+        "a refused layout must not create a task tree"
+    );
 }
 
 // The refusal costs nothing recoverable, which is only true if repairing the
@@ -506,16 +468,16 @@ fn a_symlinked_marker_onto_another_filesystem_is_refused_on_the_same_path() {
 #[test]
 fn a_repaired_layout_resumes_normally() {
     let fixture = TempDir::new().unwrap();
-    let main = fixture.path().join("main");
-    init_git(&main);
-    let (worktree, gitdir) = linked_worktree(&main, "linked");
+    let worktree = fixture.path().join("workspace");
+    init_jj(&worktree, false);
+    let jj_dir = worktree.join(".jj").canonicalize().unwrap();
     plant_tree(&worktree, "01-impl-subject-k1.md");
     let home = fixture.path().join("home");
     let (command, receipt) = recording_command(fixture.path(), "repaired");
     write_complete_config(&home, &command);
 
     let refused = grove_driver(&worktree, &home)
-        .env(FOREIGN, &gitdir)
+        .env(FOREIGN, &jj_dir)
         .output()
         .unwrap();
     assert!(!refused.status.success(), "{}", stderr_of(&refused));
@@ -539,17 +501,17 @@ fn a_repaired_layout_resumes_normally() {
 #[test]
 fn ambient_tree_verbs_are_unaffected_by_an_unsupported_layout() {
     let fixture = TempDir::new().unwrap();
-    let main = fixture.path().join("main");
-    init_git(&main);
-    let (worktree, gitdir) = linked_worktree(&main, "linked");
+    let worktree = fixture.path().join("workspace");
+    init_jj(&worktree, false);
+    let jj_dir = worktree.join(".jj").canonicalize().unwrap();
     plant_tree(&worktree, "01-impl-subject-k1.md");
 
     let picked = grove_llm(&worktree, &["pick"])
-        .env(FOREIGN, &gitdir)
+        .env(FOREIGN, &jj_dir)
         .output()
         .unwrap();
     let grown = grove_llm(&worktree, &["leaf-add", ".", "later"])
-        .env(FOREIGN, &gitdir)
+        .env(FOREIGN, &jj_dir)
         .output()
         .unwrap();
 
@@ -564,17 +526,16 @@ fn ambient_tree_verbs_are_unaffected_by_an_unsupported_layout() {
 
 // ---- independence of the two preflights -----------------------------------
 
-/// A plain-Git grove whose only live leaf is a finish leaf, ready for a real
+/// A grove whose only live leaf is a finish leaf, ready for a real
 /// `grove-llm finish-commit`.
 fn terminal_grove(repository: &Path) {
-    init_git(repository);
+    init_jj(repository, false);
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# layout — brief\n").unwrap();
     fs::write(grove.join("01-DONE-impl-finished-k1.md"), "# finished-k1\n").unwrap();
     fs::write(repository.join("kept.txt"), "kept\n").unwrap();
-    run("git", repository, &["add", "-A"]);
-    run("git", repository, &["commit", "-q", "-m", "fixture"]);
+    run("jj", repository, &["commit", "-m", "fixture"]);
     fs::write(
         grove.join("02-finish-finish-k2.md"),
         "# finish-k2\n\n## Goal\n\nFinish.\n",
@@ -597,7 +558,7 @@ fn assert_finish_refused(output: &Output, repository: &Path, head_before: &str) 
         "a refused finish must leave the live tree in place"
     );
     assert_eq!(
-        run("git", repository, &["rev-parse", "HEAD"]),
+        parent_commit(repository),
         head_before,
         "a refused finish must author no revision"
     );
@@ -614,7 +575,7 @@ fn a_layout_that_passes_acquisition_is_still_refused_when_it_changes_before_fini
     let home = fixture.path().join("home");
     let (command, receipt) = recording_command(fixture.path(), "passes");
     write_complete_config(&home, &command);
-    let head_before = run("git", &repository, &["rev-parse", "HEAD"]);
+    let head_before = parent_commit(&repository);
 
     let driven = grove_driver(&repository, &home).output().unwrap();
     assert!(driven.status.success(), "{}", stderr_of(&driven));
@@ -624,7 +585,7 @@ fn a_layout_that_passes_acquisition_is_still_refused_when_it_changes_before_fini
     );
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"])
-        .env(FOREIGN, repository.join(".git"))
+        .env(FOREIGN, repository.join(".jj"))
         .output()
         .unwrap();
 
@@ -646,7 +607,7 @@ fn a_task_root_on_its_own_filesystem_passes_acquisition_and_is_refused_at_finish
     let (command, receipt) = recording_command(fixture.path(), "mountpoint");
     write_complete_config(&home, &command);
     let task_root = repository.join(".grove");
-    let head_before = run("git", &repository, &["rev-parse", "HEAD"]);
+    let head_before = parent_commit(&repository);
 
     let driven = grove_driver(&repository, &home)
         .env(FOREIGN, &task_root)
@@ -681,10 +642,10 @@ fn an_operator_retry_re_measures_with_no_durable_capability_marker() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("repository");
     terminal_grove(&repository);
-    let head_before = run("git", &repository, &["rev-parse", "HEAD"]);
+    let head_before = parent_commit(&repository);
 
     let refused = grove_llm(&repository, &["finish-commit", "finish-k2"])
-        .env(FOREIGN, repository.join(".git"))
+        .env(FOREIGN, repository.join(".jj"))
         .output()
         .unwrap();
     assert_finish_refused(&refused, &repository, &head_before);
@@ -701,14 +662,13 @@ fn an_operator_retry_re_measures_with_no_durable_capability_marker() {
     assert!(!repository.join(".grove").exists());
     // The control directory is where a capability marker would have to live —
     // it is the only untracked, workspace-scoped place Grove writes.
-    let control = repository.join(".git/grove");
+    let control = repository.join(".jj/grove");
     if control.is_dir() {
         for entry in fs::read_dir(&control).unwrap() {
             let name = entry.unwrap().file_name().to_string_lossy().into_owned();
             assert!(
                 name == "driver.lease"
                     || name == "session.epoch"
-                    || name == "internal-hooks-empty"
                     || name.starts_with("signal-")
                     || name.starts_with("GROVE-FINISH-"),
                 "unrecognised control-directory entry {name:?} — a durable layout \

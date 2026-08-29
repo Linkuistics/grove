@@ -312,7 +312,7 @@ mod tests {
     #[test]
     fn no_placeholder_survives_composition() {
         for kind in Kind::ALL {
-            let prompt = compose(kind, "slug-k1", "plain Git (worktree root: `/w`)", &["/x"])
+            let prompt = compose(kind, "slug-k1", "this working tree is jj-enabled (jj workspace root: `/w`)", &["/x"])
                 .expect("the real embed must compose");
             assert!(
                 !prompt.contains('{') && !prompt.contains('}'),

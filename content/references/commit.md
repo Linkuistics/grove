@@ -5,36 +5,31 @@ and the `DONE` rename that retires the leaf, together with anything the cascade
 above promoted or added. Everything in that list is written by Retire, which is
 why Retire comes first — the message cannot name a node you have not yet closed.
 
-## Where the boundary falls, in git and in jj
+## Where the boundary falls
 
-That commit is also the boundary the *next* session starts from, and git and jj
-reach it differently. In **git** the working tree is not history, so one
-`git commit`, taken once the rename has landed, both records the task and leaves
-the next session a clean tree — but **stage the whole tree first**. A tree verb
-moves files; it does not decide what your commit contains, and a rename it did
-not stage — a `DONE` mark, a `leaf-insert` shift, a `leaf-decompose` that turned
-a file into a directory — reaches git as a deletion at the old name beside an
-untracked file at the new one. A commit that stages only
-tracked paths — `git commit -a`, or one naming the leaf's old path — then
-records the deletion alone. `git add -A`
-before the commit, and a glance at `git status` after it, is the whole of the
-precaution. In **jj** the working copy *is* a commit:
-this session's edits are already in `@`, so `jj describe -m` records the task but
-leaves that change open, and the next session's first edit is snapshotted into
-*this* task's commit. **Seal it** — `jj new` after describing, once the rename
-has landed (`jj commit -m` is exactly those two) — so the next session opens on
-its own empty change. Sealing is the last thing the boundary does, for the same
-reason Retire precedes it: a `jj new` taken early puts every later edit —
-the rename, a promoted ADR, a `leaf-add` — into the *next* task's change. An
-unsealed change is expensive to unpick afterwards:
-`jj split <fileset>` cannot separate a file both tasks touched, leaving the
-operation log as the only way back. **The boundary above is the whole of what a
-grove session needs, on either lane, and it binds on its own** — the
-`linkuistics:using-jujutsu` skill deepens the jj lane rather than completing this
-rule, so a checkout without the plugin commits correctly from this file alone.
+That commit is also the boundary the *next* session starts from, and in jj the
+working copy *is* a commit: this session's edits are already in `@`, so
+`jj describe -m` records the task but leaves that change open, and the next
+session's first edit is snapshotted into *this* task's commit. **Seal it** —
+`jj new` after describing, once the rename has landed (`jj commit -m` is exactly
+those two) — so the next session opens on its own empty change. Sealing is the
+last thing the boundary does, for the same reason Retire precedes it: a `jj new`
+taken early puts every later edit — the rename, a promoted ADR, a `leaf-add` —
+into the *next* task's change. An unsealed change is expensive to unpick
+afterwards: `jj split <fileset>` cannot separate a file both tasks touched,
+leaving the operation log as the only way back.
 
-Which lane you are on is not yours to re-derive: the driver states this working
-tree's version control, and that statement is definitive.
+Nothing needs staging first. A tree verb moves files with `rename(2)` and records
+nothing of its own, and jj snapshots the whole working copy, so a `DONE` mark, a
+`leaf-insert` shift and a `leaf-decompose` are all already in `@` when you
+describe it. **The boundary above is the whole of what a grove session needs, and
+it binds on its own** — the `linkuistics:using-jujutsu` skill deepens jj rather
+than completing this rule, so a checkout without the plugin commits correctly
+from this file alone.
+
+Grove drives jj and refuses a working tree that is not jj-enabled, so there is no
+lane to determine; the driver states this working tree's version control and its
+resolved root, and that statement is definitive.
 
 ## Why the handle, and not the position
 
@@ -50,5 +45,4 @@ cascade closed the same way, alongside the leaf's own.
 `impl:` prefix would restate, unvalidated, the kind the leaf's own filename
 carries — and that filename survives in the diff forever, because Retire-then-Commit
 puts the `DONE` rename in the task's own commit and teardown removes `.grove/`
-from the tip rather than from history. `git show --stat <commit>` names it
-whether or not rename detection fires.
+from the tip rather than from history, so the diff names it either way.

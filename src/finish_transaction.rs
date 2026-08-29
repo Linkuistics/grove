@@ -1261,7 +1261,7 @@ fn abort_prepared_finish_with_preparing(
     match prepared_commit.abort() {
         Ok(()) => remove_preparing_after_error(preparing, error),
         Err(abort_error) => error.context(format!(
-            "Recovery pending: cancelling repository preparation failed: {abort_error:#}; preserve the preparing finish witness and its named attempt-bound auxiliary evidence, then rerun bare Grove"
+            "Recovery pending: cancelling repository preparation failed: {abort_error:#}; preserve the preparing finish witness, then rerun bare Grove"
         )),
     }
 }
@@ -1273,7 +1273,7 @@ fn abort_prepared_finish(
     match prepared_commit.abort() {
         Ok(()) => error,
         Err(abort_error) => error.context(format!(
-            "Recovery pending: cancelling repository preparation failed: {abort_error:#}; preserve the named attempt-bound auxiliary evidence, restore the original task root, then exit and rerun Grove so the lease-owning driver can validate and reap orphan auxiliaries before retrying"
+            "Recovery pending: cancelling repository preparation failed: {abort_error:#}; restore the original task root, then exit and rerun Grove so the lease-owning driver can validate and reap the orphaned quarantine before retrying"
         )),
     }
 }
@@ -2147,37 +2147,60 @@ mod tests {
 
     type ManifestMutationCase = (&'static str, fn(&mut Value), &'static str);
 
-    fn run_git(repository: &Path, arguments: &[&str]) -> String {
-        let output = Command::new("git")
+    /// Run jj with a test-local identity, so no global config is required.
+    fn run_jj(repository: &Path, arguments: &[&str]) -> String {
+        let output = Command::new("jj")
             .current_dir(repository)
+            .args([
+                "--config",
+                "user.name=Grove Test",
+                "--config",
+                "user.email=grove-test@example.com",
+            ])
             .args(arguments)
             .output()
             .unwrap();
         assert!(
             output.status.success(),
-            "git {arguments:?} failed: {}",
+            "jj {arguments:?} failed: {}",
             String::from_utf8_lossy(&output.stderr)
         );
         String::from_utf8(output.stdout).unwrap().trim().to_owned()
     }
 
-    fn prepared_plain_git_transaction() -> (TempDir, PreparedTransaction) {
+    /// The description of the revision the working copy sits on — jj's answer to
+    /// `git log -1 --format=%s`, and what a test asserting "no Grove-authored
+    /// revision was left behind" compares against.
+    fn parent_description(repository: &Path) -> String {
+        run_jj(
+            repository,
+            &[
+                "--ignore-working-copy",
+                "log",
+                "-r",
+                "@-",
+                "--no-graph",
+                "-T",
+                "description",
+            ],
+        )
+    }
+
+    fn commit_all(repository: &Path, message: &str) {
+        run_jj(repository, &["commit", "-m", message]);
+    }
+
+    fn prepared_transaction_fixture() -> (TempDir, PreparedTransaction) {
         let fixture = TempDir::new().unwrap();
         let repository = fixture.path();
-        run_git(repository, &["init", "-q", "."]);
-        run_git(repository, &["config", "user.name", "Grove Test"]);
-        run_git(
-            repository,
-            &["config", "user.email", "grove-test@example.com"],
-        );
+        run_jj(repository, &["git", "init", "--quiet", "."]);
         let grove_root = repository.join(".grove");
         fs::create_dir(&grove_root).unwrap();
         fs::write(grove_root.join("NOTES.md"), "notes\n").unwrap();
         fs::write(grove_root.join("BRIEF.md"), "# fixture — brief\n").unwrap();
         fs::write(grove_root.join("01-DONE-impl-work-k1.md"), "# work-k1\n").unwrap();
         symlink("NOTES.md", grove_root.join("current-format")).unwrap();
-        run_git(repository, &["add", "-A"]);
-        run_git(repository, &["commit", "-q", "-m", "fixture"]);
+        commit_all(repository, "fixture");
         fs::write(grove_root.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
 
         let preflight = preflight_root(repository, &grove_root).unwrap();
@@ -2203,8 +2226,8 @@ mod tests {
         (fixture, transaction)
     }
 
-    fn evacuated_plain_git_transaction() -> TempDir {
-        let (fixture, transaction) = prepared_plain_git_transaction();
+    fn evacuated_transaction_fixture() -> TempDir {
+        let (fixture, transaction) = prepared_transaction_fixture();
         evacuate(transaction).unwrap();
         fixture
     }
@@ -2215,7 +2238,7 @@ mod tests {
 
     #[test]
     fn restart_removes_an_empty_preparing_witness_before_repository_preparation() {
-        let (fixture, prepared) = prepared_plain_git_transaction();
+        let (fixture, prepared) = prepared_transaction_fixture();
         let repository = fixture.path();
         let PreparedTransaction {
             prepared_commit, ..
@@ -2231,8 +2254,8 @@ mod tests {
     }
 
     #[test]
-    fn restart_aborts_plain_git_preparation_before_removing_its_witness() {
-        let (fixture, prepared) = prepared_plain_git_transaction();
+    fn restart_aborts_preparation_before_removing_its_witness() {
+        let (fixture, prepared) = prepared_transaction_fixture();
         let repository = fixture.path();
         drop(prepared);
         let preparing = preparing_witness(repository);
@@ -2249,7 +2272,7 @@ mod tests {
 
     #[test]
     fn restart_refuses_coexisting_preparing_and_ready_witnesses() {
-        let (fixture, prepared) = prepared_plain_git_transaction();
+        let (fixture, prepared) = prepared_transaction_fixture();
         let repository = fixture.path();
         drop(prepared);
         let preparing = preparing_witness(repository);
@@ -2278,7 +2301,7 @@ mod tests {
             ),
             ("ready", "FINISHING-finish-k2", "FINISHING-finish-k3"),
         ] {
-            let (fixture, prepared) = prepared_plain_git_transaction();
+            let (fixture, prepared) = prepared_transaction_fixture();
             let repository = fixture.path();
             drop(prepared);
             let grove_root = repository.join(".grove");
@@ -2313,7 +2336,7 @@ mod tests {
 
     #[test]
     fn restart_preserves_an_unclassified_preparing_witness() {
-        let (fixture, prepared) = prepared_plain_git_transaction();
+        let (fixture, prepared) = prepared_transaction_fixture();
         let repository = fixture.path();
         drop(prepared);
         let preparing = preparing_witness(repository);
@@ -2334,7 +2357,7 @@ mod tests {
 
     #[test]
     fn restart_does_not_follow_a_substituted_preparing_witness() {
-        let (fixture, prepared) = prepared_plain_git_transaction();
+        let (fixture, prepared) = prepared_transaction_fixture();
         let repository = fixture.path();
         drop(prepared);
         let preparing = preparing_witness(repository);
@@ -2360,7 +2383,7 @@ mod tests {
 
     #[test]
     fn committed_repository_with_a_not_evacuated_witness_fails_closed() {
-        let (fixture, prepared) = prepared_plain_git_transaction();
+        let (fixture, prepared) = prepared_transaction_fixture();
         let repository = fixture.path();
         let PreparedTransaction {
             transaction,
@@ -2394,7 +2417,7 @@ mod tests {
 
     #[test]
     fn not_evacuated_rollback_retains_its_witness_when_the_final_repository_proof_changes() {
-        let (fixture, prepared) = prepared_plain_git_transaction();
+        let (fixture, prepared) = prepared_transaction_fixture();
         let repository = fixture.path();
         let PreparedTransaction {
             transaction,
@@ -2423,15 +2446,17 @@ mod tests {
             &mut |checkpoint| {
                 if checkpoint == "before-final-repository-proof" {
                     fs::write(repository.join("divergent"), "preserve\n")?;
-                    run_git(repository, &["add", "divergent"]);
-                    run_git(repository, &["commit", "-q", "-m", "divergent"]);
+                    commit_all(repository, "divergent");
                 }
                 Ok(())
             },
         )
         .expect_err("changed repository topology must block witness removal");
 
-        assert!(format!("{error:#}").contains("recorded start"), "{error:#}");
+        assert!(
+            format!("{error:#}").contains("expected preflight commit"),
+            "{error:#}"
+        );
         assert!(transaction.witness_path.is_dir());
         assert!(transaction.grove_root.join("NOTES.md").is_file());
     }
@@ -2515,7 +2540,7 @@ mod tests {
     #[test]
     fn recovery_rejects_symlinked_ready_and_manifest_objects_before_classification() {
         for file_name in [READY_FILE, MANIFEST_FILE] {
-            let fixture = evacuated_plain_git_transaction();
+            let fixture = evacuated_transaction_fixture();
             let repository = fixture.path();
             let object = finish_witness(repository).join(file_name);
             let displaced = repository.join(format!("displaced-{file_name}"));
@@ -2534,7 +2559,7 @@ mod tests {
     #[test]
     fn recovery_rejects_malformed_or_extended_manifest_documents() {
         for case in ["malformed", "top-level extension", "entry extension"] {
-            let fixture = evacuated_plain_git_transaction();
+            let fixture = evacuated_transaction_fixture();
             let repository = fixture.path();
             let manifest_path = finish_witness(repository).join(MANIFEST_FILE);
             match case {
@@ -2578,7 +2603,7 @@ mod tests {
             ),
         ];
         for (case, mutation, expected) in cases {
-            let fixture = evacuated_plain_git_transaction();
+            let fixture = evacuated_transaction_fixture();
             let repository = fixture.path();
             mutate_manifest(repository, mutation);
 
@@ -2606,7 +2631,7 @@ mod tests {
             ),
         ];
         for (case, mutation, expected) in cases {
-            let fixture = evacuated_plain_git_transaction();
+            let fixture = evacuated_transaction_fixture();
             let repository = fixture.path();
             mutate_manifest(repository, mutation);
 
@@ -2620,7 +2645,7 @@ mod tests {
     #[test]
     fn recovery_rejects_content_mode_and_link_target_tampering() {
         for case in ["content", "mode", "link target"] {
-            let fixture = evacuated_plain_git_transaction();
+            let fixture = evacuated_transaction_fixture();
             let repository = fixture.path();
             let original_tree = finish_witness(repository).join("original");
             match case {
@@ -2651,7 +2676,7 @@ mod tests {
     #[test]
     fn recovery_rejects_missing_and_foreign_evacuated_entries() {
         for case in ["missing", "foreign"] {
-            let fixture = evacuated_plain_git_transaction();
+            let fixture = evacuated_transaction_fixture();
             let repository = fixture.path();
             let original_tree = finish_witness(repository).join("original");
             match case {
@@ -2672,7 +2697,7 @@ mod tests {
 
     #[test]
     fn recovery_digest_never_walks_a_substituted_original_tree_path() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let original_tree = finish_witness(repository).join("original");
@@ -2705,18 +2730,12 @@ mod tests {
     fn preparation_refuses_task_root_replacement_without_touching_the_replacement() {
         let fixture = TempDir::new().unwrap();
         let repository = fixture.path();
-        run_git(repository, &["init", "-q", "."]);
-        run_git(repository, &["config", "user.name", "Grove Test"]);
-        run_git(
-            repository,
-            &["config", "user.email", "grove-test@example.com"],
-        );
+        run_jj(repository, &["git", "init", "--quiet", "."]);
         let grove_root = repository.join(".grove");
         fs::create_dir(&grove_root).unwrap();
         fs::write(grove_root.join("NOTES.md"), "notes\n").unwrap();
         fs::write(grove_root.join("01-DONE-impl-work-k1.md"), "# work-k1\n").unwrap();
-        run_git(repository, &["add", "-A"]);
-        run_git(repository, &["commit", "-q", "-m", "fixture"]);
+        commit_all(repository, "fixture");
         fs::write(grove_root.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
 
         let preflight = preflight_root(repository, &grove_root).unwrap();
@@ -2730,8 +2749,7 @@ mod tests {
         let prepared =
             repo::prepare_finish(repository, "finish-k2", "11111111111111111111111111111111")
                 .unwrap();
-        fs::write(repository.join("late-staged"), "preserve\n").unwrap();
-        run_git(repository, &["add", "late-staged"]);
+        fs::write(repository.join("unrelated"), "preserve\n").unwrap();
         let original_root = repository.join("original-grove");
         fs::rename(&grove_root, &original_root).unwrap();
         fs::create_dir(&grove_root).unwrap();
@@ -2760,12 +2778,12 @@ mod tests {
         assert_eq!(fs::read(grove_root.join("foreign")).unwrap(), b"preserve\n");
         assert!(!grove_root.join("FINISHING-finish-k2").exists());
         assert!(!original_root.join("FINISHING-finish-k2").exists());
+        // The unrelated working-copy write that arrived after preparation is
+        // untouched. jj has no index for it to sit in, so bytes on disk are the
+        // whole of what "preserved" can mean here.
         assert_eq!(
-            run_git(
-                repository,
-                &["diff", "--cached", "--name-only", "--", "late-staged"]
-            ),
-            "late-staged"
+            fs::read(repository.join("unrelated")).unwrap(),
+            b"preserve\n"
         );
 
         fs::remove_dir_all(&grove_root).unwrap();
@@ -2781,7 +2799,7 @@ mod tests {
 
     #[test]
     fn evacuation_refuses_task_root_replacement_without_moving_replacement_bytes() {
-        let (fixture, transaction) = prepared_plain_git_transaction();
+        let (fixture, transaction) = prepared_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let original_root = repository.join("original-grove");
@@ -2834,7 +2852,7 @@ mod tests {
 
     #[test]
     fn witness_replacement_during_materialization_does_not_touch_external_bytes() {
-        let (fixture, transaction) = prepared_plain_git_transaction();
+        let (fixture, transaction) = prepared_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let witness = preparing_witness(repository);
@@ -2875,7 +2893,7 @@ mod tests {
             ("after-manifest", MANIFEST_FILE, "finish manifest"),
             ("after-ready", READY_FILE, "finish ready marker"),
         ] {
-            let (fixture, transaction) = prepared_plain_git_transaction();
+            let (fixture, transaction) = prepared_transaction_fixture();
             let repository = fixture.path();
             let grove_root = repository.join(".grove");
             let witness = preparing_witness(repository);
@@ -2908,7 +2926,7 @@ mod tests {
 
     #[test]
     fn recovery_tree_replacement_before_evacuation_does_not_move_external_bytes() {
-        let (fixture, transaction) = prepared_plain_git_transaction();
+        let (fixture, transaction) = prepared_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let original_tree = preparing_witness(repository).join("original");
@@ -2945,7 +2963,7 @@ mod tests {
 
     #[test]
     fn a_foreign_task_root_entry_stops_evacuation_before_the_first_move() {
-        let (fixture, transaction) = prepared_plain_git_transaction();
+        let (fixture, transaction) = prepared_transaction_fixture();
         let grove_root = fixture.path().join(".grove");
         let foreign = grove_root.join("foreign");
 
@@ -2975,7 +2993,7 @@ mod tests {
     #[test]
     fn changed_source_content_mode_or_link_target_stops_evacuation_before_the_first_move() {
         for case in ["content", "mode", "link target"] {
-            let (fixture, transaction) = prepared_plain_git_transaction();
+            let (fixture, transaction) = prepared_transaction_fixture();
             let grove_root = fixture.path().join(".grove");
 
             let result = evacuate_with_checkpoint(transaction, |checkpoint| {
@@ -3025,7 +3043,7 @@ mod tests {
 
     #[test]
     fn an_occupied_recovery_destination_is_not_replaced() {
-        let (fixture, transaction) = prepared_plain_git_transaction();
+        let (fixture, transaction) = prepared_transaction_fixture();
         let grove_root = fixture.path().join(".grove");
         let destination = preparing_witness(fixture.path())
             .join("original")
@@ -3060,7 +3078,7 @@ mod tests {
 
     #[test]
     fn witness_creation_refusal_aborts_repository_preparation_for_same_attempt_retry() {
-        let (fixture, transaction) = prepared_plain_git_transaction();
+        let (fixture, transaction) = prepared_transaction_fixture();
         let repository = fixture.path();
         let witness = repository.join(".grove/FINISHING-finish-k2");
         fs::create_dir(&witness).unwrap();
@@ -3094,7 +3112,7 @@ mod tests {
             "after-ready",
             "after-ready-witness",
         ] {
-            let (fixture, transaction) = prepared_plain_git_transaction();
+            let (fixture, transaction) = prepared_transaction_fixture();
             let repository = fixture.path();
             let witness = repository.join(".grove/FINISHING-finish-k2");
 
@@ -3125,7 +3143,7 @@ mod tests {
 
     #[test]
     fn restart_rolls_back_a_fully_evacuated_uncommitted_finish() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
 
@@ -3135,14 +3153,14 @@ mod tests {
         assert!(grove_root.join("02-finish-finish-k2.md").is_file());
         assert!(!grove_root.join("FINISHING-finish-k2").exists());
         assert_eq!(
-            run_git(repository, &["log", "-1", "--format=%s"]),
+            parent_description(repository),
             "fixture"
         );
     }
 
     #[test]
     fn recovery_refuses_a_symlinked_original_tree_without_moving_its_target() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let original_tree = grove_root.join("FINISHING-finish-k2/original");
@@ -3167,7 +3185,7 @@ mod tests {
 
     #[test]
     fn recovery_refuses_foreign_entries_beside_a_ready_witness() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let foreign = grove_root.join("foreign");
@@ -3191,7 +3209,7 @@ mod tests {
 
     #[test]
     fn lifecycle_recovers_a_finish_witness_before_ordinary_tree_classification() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
 
         let transition = crate::tree_lifecycle::transition_to_current(repository).unwrap();
@@ -3205,11 +3223,10 @@ mod tests {
 
     #[test]
     fn divergent_repository_keeps_the_witness_with_both_recovery_paths() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
         fs::write(repository.join("divergent"), "preserve\n").unwrap();
-        run_git(repository, &["add", "divergent"]);
-        run_git(repository, &["commit", "-q", "-m", "divergent"]);
+        commit_all(repository, "divergent");
         let witness = repository.join(".grove/FINISHING-finish-k2");
 
         let error = recover_pending(repository, &repository.join(".grove")).unwrap_err();
@@ -3222,7 +3239,7 @@ mod tests {
     }
 
     fn fixture_entry_count() -> usize {
-        let (_fixture, transaction) = prepared_plain_git_transaction();
+        let (_fixture, transaction) = prepared_transaction_fixture();
         transaction.transaction.manifest.entries.len()
     }
 
@@ -3235,7 +3252,7 @@ mod tests {
         );
 
         for prefix in 0..=entry_count {
-            let (fixture, transaction) = prepared_plain_git_transaction();
+            let (fixture, transaction) = prepared_transaction_fixture();
             let repository = fixture.path();
             let grove_root = repository.join(".grove");
             let live_tree = transaction.transaction.manifest.entries.clone();
@@ -3275,7 +3292,7 @@ mod tests {
                 "prefix {prefix} did not restore the byte-identical live tree"
             );
             assert_eq!(
-                run_git(repository, &["log", "-1", "--format=%s"]),
+                parent_description(repository),
                 "fixture",
                 "prefix {prefix} left a Grove-authored revision"
             );
@@ -3287,7 +3304,7 @@ mod tests {
         let entry_count = fixture_entry_count();
 
         for prefix in 0..entry_count {
-            let fixture = evacuated_plain_git_transaction();
+            let fixture = evacuated_transaction_fixture();
             let repository = fixture.path();
             let grove_root = repository.join(".grove");
             let witness = grove_root.join("FINISHING-finish-k2");
@@ -3332,7 +3349,7 @@ mod tests {
 
     #[test]
     fn a_rollback_destination_collision_keeps_the_evacuated_copies_beneath_the_witness() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let witness = grove_root.join("FINISHING-finish-k2");
@@ -3365,7 +3382,7 @@ mod tests {
 
     #[test]
     fn a_repository_change_before_rollback_restores_nothing() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let witness = grove_root.join("FINISHING-finish-k2");
@@ -3373,8 +3390,7 @@ mod tests {
         let error = recover_pending_with_checkpoint(repository, &grove_root, |checkpoint| {
             if checkpoint == "before-initial-repository-proof" {
                 fs::write(repository.join("divergent"), "preserve\n")?;
-                run_git(repository, &["add", "divergent"]);
-                run_git(repository, &["commit", "-q", "-m", "divergent"]);
+                commit_all(repository, "divergent");
             }
             Ok(())
         })
@@ -3401,7 +3417,7 @@ mod tests {
 
     #[test]
     fn a_repository_change_after_rollback_keeps_the_restored_tree_blocked() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let witness = grove_root.join("FINISHING-finish-k2");
@@ -3409,16 +3425,15 @@ mod tests {
         let error = recover_pending_with_checkpoint(repository, &grove_root, |checkpoint| {
             if checkpoint == "before-final-repository-proof" {
                 fs::write(repository.join("divergent"), "preserve\n")?;
-                run_git(repository, &["add", "divergent"]);
-                run_git(repository, &["commit", "-q", "-m", "divergent"]);
+                commit_all(repository, "divergent");
             }
             Ok(())
         })
         .expect_err("a repository change after rollback must block witness removal");
 
         let message = format!("{error:#}");
-        assert!(message.contains("recorded start"), "{message}");
-        assert!(message.contains("observed HEAD"), "{message}");
+        assert!(message.contains("expected preflight commit"), "{message}");
+        assert!(message.contains("observed commit"), "{message}");
         assert_pending_diagnostic(&message, &witness);
         assert!(witness.is_dir());
         assert!(grove_root.join("NOTES.md").is_file());
@@ -3444,10 +3459,10 @@ mod tests {
         }
     }
 
-    /// Drives the plain-Git fixture all the way to a proven scoped deletion so a
-    /// test can exercise the handoff that follows it.
-    fn committed_plain_git_transaction() -> (TempDir, FinishTransaction, repo::FinishProof) {
-        let (fixture, prepared) = prepared_plain_git_transaction();
+    /// Drives the fixture all the way to a proven scoped deletion so a test can
+    /// exercise the handoff that follows it.
+    fn committed_transaction_fixture() -> (TempDir, FinishTransaction, repo::FinishProof) {
+        let (fixture, prepared) = prepared_transaction_fixture();
         let EvacuatedTransaction {
             transaction,
             directories,
@@ -3457,19 +3472,18 @@ mod tests {
         let attempt_identity = transaction.manifest.attempt_identity.clone();
         match prepared_commit.commit("finish-k2", &attempt_identity) {
             repo::FinishCommitOutcome::Committed(proof) => (fixture, transaction, proof),
-            _ => panic!("the evacuated plain-Git fixture must prove its scoped deletion"),
+            _ => panic!("the evacuated fixture must prove its scoped deletion"),
         }
     }
 
     fn commit_divergent_work(repository: &Path) {
         fs::write(repository.join("divergent"), "preserve\n").unwrap();
-        run_git(repository, &["add", "divergent"]);
-        run_git(repository, &["commit", "-q", "-m", "divergent"]);
+        commit_all(repository, "divergent");
     }
 
     #[test]
     fn a_changed_result_before_handoff_keeps_the_complete_in_tree_witness() {
-        let (fixture, transaction, proof) = committed_plain_git_transaction();
+        let (fixture, transaction, proof) = committed_transaction_fixture();
         let repository = fixture.path().to_path_buf();
 
         let error =
@@ -3482,7 +3496,7 @@ mod tests {
             .expect_err("a changed finish result must block the quarantine handoff");
 
         let message = format!("{error:#}");
-        assert!(message.contains("observed parent"), "{message}");
+        assert!(message.contains("observed change"), "{message}");
         assert_pending_diagnostic(&message, &transaction.witness_path);
         assert!(transaction.witness_path.join("original/NOTES.md").is_file());
         assert!(!transaction.quarantine_path.exists());
@@ -3490,7 +3504,7 @@ mod tests {
 
     #[test]
     fn an_occupied_quarantine_destination_keeps_the_complete_in_tree_witness() {
-        let (_fixture, transaction, proof) = committed_plain_git_transaction();
+        let (_fixture, transaction, proof) = committed_transaction_fixture();
         let quarantine_path = transaction.quarantine_path.clone();
 
         let error =
@@ -3518,7 +3532,7 @@ mod tests {
 
     #[test]
     fn a_changed_result_after_handoff_restores_the_quarantine_atomically() {
-        let (fixture, transaction, proof) = committed_plain_git_transaction();
+        let (fixture, transaction, proof) = committed_transaction_fixture();
         let repository = fixture.path().to_path_buf();
 
         let error =
@@ -3531,7 +3545,7 @@ mod tests {
             .expect_err("a changed finish result after handoff must block disposal");
 
         let message = format!("{error:#}");
-        assert!(message.contains("observed parent"), "{message}");
+        assert!(message.contains("observed change"), "{message}");
         assert!(message.contains("restored"), "{message}");
         assert_pending_diagnostic(&message, &transaction.witness_path);
         assert!(!transaction.quarantine_path.exists());
@@ -3544,7 +3558,7 @@ mod tests {
 
     #[test]
     fn a_blocked_restoration_names_the_changed_result_and_its_quarantine() {
-        let (fixture, transaction, proof) = committed_plain_git_transaction();
+        let (fixture, transaction, proof) = committed_transaction_fixture();
         let repository = fixture.path().to_path_buf();
         let grove_root = transaction.grove_root.clone();
 
@@ -3560,7 +3574,7 @@ mod tests {
             .expect_err("a blocked restoration must report both failures");
 
         let message = format!("{error:#}");
-        assert!(message.contains("observed parent"), "{message}");
+        assert!(message.contains("observed change"), "{message}");
         assert_pending_diagnostic(&message, &transaction.quarantine_path);
         assert!(transaction
             .quarantine_path
@@ -3574,21 +3588,20 @@ mod tests {
 
     #[test]
     fn a_broad_commit_that_tracks_the_witness_stays_recovery_pending() {
-        let fixture = evacuated_plain_git_transaction();
+        let fixture = evacuated_transaction_fixture();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
         let witness = grove_root.join("FINISHING-finish-k2");
-        run_git(repository, &["add", "-A"]);
-        run_git(repository, &["commit", "-q", "-m", "broad"]);
+        commit_all(repository, "broad");
         assert!(
-            !run_git(
+            !run_jj(
                 repository,
                 &[
-                    "ls-tree",
+                    "--ignore-working-copy",
+                    "file",
+                    "list",
                     "-r",
-                    "--name-only",
-                    "HEAD",
-                    "--",
+                    "@-",
                     ".grove/FINISHING-finish-k2",
                 ],
             )
@@ -3600,7 +3613,7 @@ mod tests {
             .expect_err("a committed witness is not a finish result");
 
         let message = format!("{error:#}");
-        assert!(message.contains("observed HEAD"), "{message}");
+        assert!(message.contains("observed change"), "{message}");
         assert_pending_diagnostic(&message, &witness);
         assert!(witness.join("original/NOTES.md").is_file());
         assert!(!grove_root.join("NOTES.md").exists());
@@ -3612,7 +3625,7 @@ mod tests {
             7,
             7,
             Path::new("/work/.grove"),
-            Path::new("/work/.git/grove"),
+            Path::new("/work/.jj/grove"),
         )
         .unwrap();
 
@@ -3620,13 +3633,13 @@ mod tests {
             7,
             11,
             Path::new("/work/.grove"),
-            Path::new("/other/.git/grove"),
+            Path::new("/other/.jj/grove"),
         )
         .unwrap_err();
 
         let message = error.to_string();
         assert!(message.contains("atomic quarantine"), "{message}");
         assert!(message.contains("/work/.grove"), "{message}");
-        assert!(message.contains("/other/.git/grove"), "{message}");
+        assert!(message.contains("/other/.jj/grove"), "{message}");
     }
 }

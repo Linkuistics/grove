@@ -32,10 +32,10 @@ opens `.grove/` itself as a no-follow directory and identity-revalidates that
 descriptor against the `.grove` entry in the locked working-tree root; a symlink
 or non-directory task root is refused before any child operation. The
 `PREPARING-FINISH-` witness
-is created *before* repository preparation so that every auxiliary the adapters
-may write is already owned on disk by a named handle and attempt; recovery
-discards it by aborting that preparation, and fails closed on any content it
-cannot classify as its own. The transaction writes and
+is created *before* repository preparation, so a preparation interrupted at any
+point is already owned on disk by a named handle and attempt; recovery discards
+it by aborting that preparation, and fails closed on any content it cannot
+classify as its own. The transaction writes and
 verifies a manifest containing the stable handle, the active session epoch's
 opaque finish-attempt identity, repository-start anchor, a non-empty expected
 tracked deletion fingerprint, and every root entry's type plus canonical
@@ -69,9 +69,9 @@ somewhere in history is insufficient: a partial `jj commit` keeps the selected
 deletion in that change and moves the unselected witness into a new successor,
 so success is the exact handle-and-attempt-named parent of that successor.
 After tree restoration jj must reproduce the exact preflight commit ID before
-witness removal. Colocated jj backs up the user's Git index before any preflight
-snapshot can export into it and restores that pre-snapshot image on an
-uncommitted result.
+witness removal. Whatever a colocated repository's Git index does across all of
+this is jj's own business — Grove neither reads nor restores it
+([*jj is the only lane*](jj-is-the-only-lane.md)).
 
 The repository outcome remains guarded through its filesystem handoff. Recovery
 revalidates immediately before and after rollback or quarantine rename. A
@@ -112,22 +112,17 @@ need not yet exist, the layout can change while the lease is held, and
 `finish-commit` is separately invocable. Rename failure keeps
 the in-tree witness; interruption after rename leaves a complete quarantine and
 an absent task root, never a partial or empty `.grove/`. That quarantine and any
-VCS-administration index image are cleanup artifacts, not workflow inputs or
+VCS-administration quarantine are cleanup artifacts, not workflow inputs or
 rootless-driver finish receipts. The helper attempts disposal immediately; a
 later lease-owning driver reaps only entries carrying Grove's valid cleanup
 manifest and only after confirming that no matching in-tree witness owns them.
 A proven commit plus task-root absence remains successful even when best-effort
 cleanup must be retried.
 
-The internal plain-Git commit Grove makes — finish teardown's — runs with an
-empty internal hooks path. It is unattended, path-scoped, and rolls back from an
-index image; user hooks are arbitrary programs and can mutate unrelated
-working-tree bytes that no index image restores, so allowing them would
-contradict the scoped-preservation contract the commit makes. The rule belongs
-to the shared repository seam rather than to one transaction, so a second
-internal commit added later inherits it.
 Signing and repository failures remain visible and recover through the
-transaction. Jujutsu runs no Git hooks, so its adapters need no equivalent.
+transaction. The empty-hooks-path rule the internal commit used to carry went
+with the Git lane: jj runs no Git hooks, so the arbitrary program that could
+mutate unrelated bytes behind a scoped commit has nowhere to run.
 
 This binds because no portable filesystem primitive atomically replaces a file
 with a differently named directory, and no filesystem transaction can atomically
@@ -135,10 +130,10 @@ include a Git or jj commit. A visible in-tree witness preserves the stronger
 property Grove needs: no partial tree is runnable and no failed teardown is
 misclassified as a fresh rootless grove. It also keeps recovery local to one
 deep transaction interface rather than teaching lifecycle callers the ordering
-rules of Git staging, jj successor commits, or colocated index export.
+rules of jj successor commits.
 
 The guarantee covers cooperating Grove commands and process interruption after
-completed filesystem, Git-index, or VCS operations. Grove performs no ordered
+completed filesystem or VCS operations. Grove performs no ordered
 `fsync` protocol, so atomic rename is a namespace-visibility seam rather than a
 power-loss durability claim. Power loss, kernel failure, storage-cache loss, and
 filesystems that violate their documented rename behavior remain outside the
@@ -185,51 +180,6 @@ contract.
   on another filesystem refuses before mutation. Reopen if a portable atomic
   cross-filesystem move becomes available or Grove gains an equally visible
   post-commit cleanup seam that is not workflow state.
-- **Pin an auxiliary's staged replacement to an exactly derivable name.**
-  Rejected because Grove must then claim that one name, so a foreign entry
-  sitting there has to be either unlinked — deleting bytes Grove never wrote, on
-  an ordinary path — or refused, which wedges the launch whose signal nonce is
-  the shared finish-attempt identity. Staging names are therefore drawn from a
-  fresh 128-bit nonce inside the auxiliary's reserved role-and-attempt namespace
-  and carried by recorded inode. This accepts that the namespace *bounds* rather
-  than *proves* ownership: a writer able to rewrite the state document in place
-  can point the exchange at another entry of that shape, but only inside the VCS
-  administration directory it already owns, which is where the protected Git
-  index lives anyway. Reopen only if a durable ownership witness becomes
-  available that such a writer cannot forge.
-- **Reap the reserved staging namespaces for entries no document names.**
-  Rejected because attribution is not authorship. A staged entry stranded before
-  its state document is durable is attributable — its name carries the role and
-  attempt that drew it — but the post-copy identity check deliberately leaves a
-  *foreign* regular file at exactly such a name whenever it detects a
-  substitution it can no longer identify, and the two shapes are identical on
-  disk. Sweeping the namespace would therefore delete the bytes that refusal
-  exists to preserve, and unlike the derivable name above nothing forces the
-  removal: a drawn name is a collision gate for no later attempt. Grove accepts a
-  bounded leak instead and narrows the windows that produce one, releasing the
-  colocated index filter's private staging directory before the first
-  publication boundary rather than on an unwind a process death never reaches.
-  Reopen only if an entry's inode can be recorded before it has a name — a
-  portable `O_TMPFILE`-equivalent — which makes every leftover either proven or
-  absent.
-- **Refuse to dispose an auxiliary whose replacement is still in flight.**
-  Rejected for the same wedge: the caller that discards a failed attempt's index
-  holds a snapshot of the superseded phase, and refusing strands the
-  attempt-scoped names for the next run of the same launch to collide with.
-  Disposal therefore settles the replacement from disk first, through the path
-  recovery runs, and only then removes what settlement left. Consuming the
-  canonical pair through the stale snapshot stays forbidden, and activation —
-  which would otherwise install superseded index bytes as the user's own — still
-  refuses outright. Reopen only if a finish attempt gains an identity that
-  changes per run.
-- **Run user Git hooks during Grove's internal commits.** Rejected because a
-  hook may mutate unrelated working-tree files even when it rejects the commit,
-  and Grove cannot safely snapshot and restore arbitrary user data. Scoping the
-  suppression to the one commit that exists today was also rejected: the property
-  that earns it — unattended, path-scoped, index-rollback-backed — belongs to any
-  internal commit, so the rule sits at the seam. Reopen only if hooks become
-  side-effect-free or unrelated working-tree preservation is removed from these
-  commits' contract.
 - **Use reserved-prefix detection without serializing tree access.** Rejected
   because validation and key allocation can race before either command creates
   its witness, while a reader can pass its witness scan before entries move.

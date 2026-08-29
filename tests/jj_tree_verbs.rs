@@ -1,29 +1,23 @@
-// Fixture-driven tests for the **jj path** through every tree-mutation verb.
+// Fixture-driven tests for every tree-mutation verb, in both shapes of the one
+// working tree grove drives.
 //
-// grove is jj-first (`src/repo.rs`, symmetric-vcs-rule): a `.jj/`
-// directory heading the working tree picks jj plumbing even when a `.git` sits
-// beside it. One seam carries that decision now — `repo::vcs_of`, which working
-// tree a verb resolves (covered by `tests/repo.rs`). The second was grove's own
-// version-control-aware move, which lost its last production caller in
-// `promotion-k34` and was deleted in `sweep-k37`: every entry that moves, moves
-// inside an `ordinal-fs-tree` operation, which renames with `rename(2)` and
-// consults no VCS at all. So one seam carries the decision now, and what it
+// Grove drives jj and nothing else (`docs/adr/jj-is-the-only-lane.md`): one seam,
+// `repo::require_jj_workspace`, decides which working tree a verb resolves and
+// refuses everything that is not one (covered by `tests/repo.rs`). What that seam
 // cannot show is that **every verb actually routes through it**: a verb carrying
-// its own git-only side path — a stray `git mv`, a git-first root resolution —
-// would pass both unit suites and still fail in a jj tree. So these drive the
-// real binaries end to end, once per verb, against two fixtures:
+// a git-only side path of its own — a stray `git mv`, a `.git`-first root
+// resolution — would pass every unit suite and still reach behind jj. So these
+// drive the real binaries end to end, once per verb, against two fixtures:
 //
-//   * **jj-native** — a `.jj/` with no `.git/` anywhere, so a git fallback fails
-//     outright instead of quietly working. This is the fixture that proves a
-//     verb needs no git at all.
+//   * **jj-native** — a `.jj/` with no `.git/` anywhere, so a fallback that
+//     reached for git fails outright instead of quietly working. This is the
+//     fixture that proves a verb needs no git at all.
 //   * **colocated** — `.jj/` beside a `.git/` whose index already holds the
-//     tree, where jj-first is a *choice* rather than the only option: the rename
-//     must be plain and git's index must come out untouched, because a `git mv`
-//     would stage into an index jj ignores (jj snapshots the working copy). For
-//     the verbs the flip has moved onto `ordinal-fs-tree` it is no longer a
-//     choice — the library renames plainly everywhere — and the colocated case
-//     is then a guard against a verb growing a `git mv` of its own rather than a
-//     test of the dispatch. See the section header below.
+//     tree. Here a stray `git mv` *would* succeed, and would stage into an index
+//     jj ignores (jj snapshots the working copy), so the index coming out
+//     untouched is the observable that says no verb reached for it. Grove makes
+//     no promise about that index — it is jj's — which is exactly why nothing
+//     grove does may write it. See the section header below.
 //
 // `root-init` and `leaf-add` get no colocated twin deliberately: they only write
 // new files and consult no VCS beyond resolving the worktree, so a colocated
@@ -466,25 +460,21 @@ fn jjs_working_copy_snapshots_the_renames_a_verb_made() {
 // Colocated: `.jj/` wins over the `.git/` beside it
 //
 // One test per rename-shaped verb. The property under test is the same in each —
-// the rename is plain and git's index comes out untouched — but it is asserted
-// per verb because what it guards against is a *verb* reaching for `git mv`
-// directly, which no single test of the primitive can rule out.
+// the rename is plain and the colocated index comes out untouched — but it is
+// asserted per verb because what it guards against is a *verb* reaching for
+// `git mv` directly, which no single test of the primitive can rule out.
 //
-// **All of them now hold for a second, stronger reason, and the assertions are
+// **All of them hold for a second, stronger reason, and the assertions are
 // unchanged.** Every rename-shaped verb runs through `ordinal-fs-tree` — the
 // marks through `rewrite`, the shift through `insert`, and since `promotion-k34`
 // `leaf-decompose` through `promote`, whose middle effect is the leaf's own file
 // moving into the node it now sits in. The library renames with `rename(2)` and
 // detects no repository at all
-// (`docs/adr/grove-does-not-stage-its-own-renames.md`), so the rename is plain on
-// *every* lane rather than plain because this one is jj. The tests stay exactly
-// as they were: what they guard against is a verb reaching for `git mv` directly,
-// and that is worth guarding whether the verb could have had a reason to or not.
-// **Nothing in this file discriminates the dispatch any more**, which is the
-// migrate stage arriving rather than a gap — the git-lane cases in
-// `tests/leaf_ops.rs` and `src/task_grow/tests.rs` assert the same plainness on
-// the lane where it used to be false, and are where the property is now
-// falsifiable. Read them together.
+// (`docs/adr/grove-does-not-stage-its-own-renames.md`). The tests stay exactly as
+// they were: what they guard against is a verb reaching for `git mv` directly,
+// and with the Git lane dropped that is worth *more* rather than less — a
+// colocated repository's index is jj's business alone, so anything grove wrote
+// there would be a write behind the operation log.
 
 #[test]
 fn leaf_insert_in_a_colocated_tree_leaves_the_git_index_alone() {
@@ -502,7 +492,7 @@ fn leaf_insert_in_a_colocated_tree_leaves_the_git_index_alone() {
     assert_eq!(
         git_index(repo),
         before,
-        "jj-first: no git mv may stage a rename into an index jj ignores"
+        "no git mv may stage a rename into an index that is jj's business alone"
     );
 }
 
@@ -522,7 +512,7 @@ fn leaf_decompose_in_a_colocated_tree_leaves_the_git_index_alone() {
     assert_eq!(
         git_index(repo),
         before,
-        "jj-first: git's index is untouched"
+        "the colocated index is untouched"
     );
 }
 
@@ -539,7 +529,7 @@ fn leaf_retire_in_a_colocated_tree_leaves_the_git_index_alone() {
     assert_eq!(
         git_index(repo),
         before,
-        "jj-first: git's index is untouched"
+        "the colocated index is untouched"
     );
 }
 
@@ -559,7 +549,7 @@ fn leaf_prune_in_a_colocated_tree_leaves_the_git_index_alone() {
     assert_eq!(
         git_index(repo),
         before,
-        "jj-first: git's index is untouched"
+        "the colocated index is untouched"
     );
 }
 

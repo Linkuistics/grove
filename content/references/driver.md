@@ -77,10 +77,8 @@ The driver computes this grove's session name — `<repo-basename>: <name> grove
 a session itself. If your template does not pass it and the session name doesn't
 already match, suggest `/rename <repo-basename>: <name> grove` once per session
 and move on. The skill can derive both names: `<name>` from the working tree's
-own basename (`jj workspace root` in a jj-enabled tree; `git rev-parse
---show-toplevel` otherwise), `<repo-basename>` from the **main repo**'s basename
-(`jj workspace root --name default`'s basename in a jj-enabled tree, or `git
-rev-parse --git-common-dir`'s parent — the repo a linked worktree or secondary
+own basename (`jj workspace root`), `<repo-basename>` from the **main repo**'s
+basename (`jj workspace root --name default`'s basename — the repo a secondary
 workspace belongs to, not the working tree's own path).
 
 ## A legacy tree was already migrated, or already refused

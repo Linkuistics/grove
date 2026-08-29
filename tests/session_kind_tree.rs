@@ -1,17 +1,13 @@
 use assert_cmd::Command;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command as ProcessCommand;
 use tempfile::TempDir;
+
+mod support;
 
 fn init_repo() -> TempDir {
     let temporary_directory = TempDir::new().unwrap();
-    ProcessCommand::new("git")
-        .arg("init")
-        .arg("-q")
-        .arg(temporary_directory.path())
-        .status()
-        .unwrap();
+    support::init_jj_repo(temporary_directory.path());
     temporary_directory
 }
 

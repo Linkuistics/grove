@@ -41,18 +41,32 @@ const SESSION_KINDS: &[&str] = &[
     "finish",
 ];
 
-fn fake_git_worktree(path: &Path) {
-    fs::create_dir_all(path.join(".git")).unwrap();
+/// A bare `.jj` marker: everything the resolver needs, and nothing a jj command
+/// could act on. The lease is untracked coordination, so most cases here need
+/// the marker rather than a repository.
+fn fake_jj_worktree(path: &Path) {
+    fs::create_dir_all(path.join(".jj")).unwrap();
 }
 
-fn init_git_worktree(path: &Path) {
+/// A **colocated** jj workspace — real on both markers, so a child that inherits
+/// ambient `GIT_*` has a repository those variables can genuinely select.
+fn init_colocated_worktree(path: &Path) {
     fs::create_dir_all(path).unwrap();
-    assert!(Command::new("git")
-        .args(["init", "-q"])
-        .current_dir(path)
-        .status()
-        .unwrap()
-        .success());
+    run_command(
+        "jj",
+        path,
+        &[
+            "--config",
+            "user.name=Grove Test",
+            "--config",
+            "user.email=grove-test@example.com",
+            "git",
+            "init",
+            "--colocate",
+            "--quiet",
+            ".",
+        ],
+    );
 }
 
 fn run_command(binary: &str, directory: &Path, arguments: &[&str]) {
@@ -178,11 +192,11 @@ fn path_with_front(directory: &Path) -> std::ffi::OsString {
 }
 
 fn lease_path(root: &Path) -> PathBuf {
-    root.join(".git/grove/driver.lease")
+    root.join(".jj/grove/driver.lease")
 }
 
 fn epoch_path(root: &Path) -> PathBuf {
-    root.join(".git/grove/session.epoch")
+    root.join(".jj/grove/session.epoch")
 }
 
 fn record_nonce(record: &str) -> &str {
@@ -384,7 +398,7 @@ fn lease_holder_process() {
 fn an_alias_equivalent_second_owner_is_refused_immediately() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
+    fake_jj_worktree(&root);
     let alias = tmp.path().join("alias");
     std::os::unix::fs::symlink(&root, &alias).unwrap();
     let ready = tmp.path().join("ready");
@@ -409,8 +423,11 @@ fn driver_uses_the_on_disk_worktree_while_the_configured_command_inherits_git_co
     let tmp = TempDir::new().unwrap();
     let intended = tmp.path().join("intended");
     let foreign = tmp.path().join("foreign");
-    init_git_worktree(&intended);
-    init_git_worktree(&foreign);
+    init_colocated_worktree(&intended);
+    init_colocated_worktree(&foreign);
+    // A Git-side redirection Grove never consults: resolution walks for `.jj`,
+    // so the session's own `git` view can point somewhere else entirely and the
+    // driver still drives the tree on disk. That divergence is the assertion.
     run_command(
         "git",
         &intended,
@@ -477,19 +494,8 @@ fn bare_scaffolding_is_anchored_before_the_configured_command_inherits_git_conte
     let tmp = TempDir::new().unwrap();
     let intended = tmp.path().join("intended");
     let foreign = tmp.path().join("foreign");
-    init_git_worktree(&intended);
-    init_git_worktree(&foreign);
-    run_command("git", &intended, &["config", "user.name", "Grove Test"]);
-    run_command(
-        "git",
-        &intended,
-        &["config", "user.email", "grove-test@example.com"],
-    );
-    run_command(
-        "git",
-        &intended,
-        &["config", "core.worktree", foreign.to_str().unwrap()],
-    );
+    init_colocated_worktree(&intended);
+    init_colocated_worktree(&foreign);
     // A *partial* root — the charter and nothing else — so the driver's
     // lifecycle transition has a mutation to anchor: completing the scaffold.
     // It is the only tree mutation the driver still performs, migration having
@@ -540,8 +546,8 @@ fn distinct_worktrees_hold_independent_leases() {
     let tmp = TempDir::new().unwrap();
     let first = tmp.path().join("first");
     let second = tmp.path().join("second");
-    fake_git_worktree(&first);
-    fake_git_worktree(&second);
+    fake_jj_worktree(&first);
+    fake_jj_worktree(&second);
     let holder = Holder::spawn(&first, &tmp.path().join("ready"));
 
     let second_lease = DriverLease::acquire(&second).unwrap();
@@ -550,12 +556,12 @@ fn distinct_worktrees_hold_independent_leases() {
     drop(holder);
 }
 
-/// One default/secondary worktree pair per shape Grove supports. Each pair is a
-/// distinct control-directory derivation — `.git/grove` for Git (and a linked
-/// worktree's own gitdir, not the main one), `.jj/grove` for both jj shapes —
-/// and the **colocated** pair is the one that carries `.git` *and* `.jj` at the
-/// same root, so a git-first resolution would file two workspaces of one repo
-/// under one control directory and refuse a perfectly legitimate second driver.
+/// One default/secondary workspace pair per shape Grove supports — native jj and
+/// colocated jj. Both derive `.jj/grove` from their **own** root, which is the
+/// property under test: two workspaces of one repository must not share a
+/// control directory, or the second driver is refused for no reason. The
+/// colocated pair is the one carrying `.git` *and* `.jj` at the same root, so a
+/// resolution that ever looked at `.git` again would collapse them.
 fn worktree_shape_pairs(tmp: &Path) -> Vec<(&'static str, PathBuf, PathBuf)> {
     fn init_jj(path: &Path, colocate: bool) {
         fs::create_dir_all(path).unwrap();
@@ -594,30 +600,6 @@ fn worktree_shape_pairs(tmp: &Path) -> Vec<(&'static str, PathBuf, PathBuf)> {
         );
     }
 
-    let git_main = tmp.join("git-main");
-    init_git_worktree(&git_main);
-    run_command(
-        "git",
-        &git_main,
-        &[
-            "-c",
-            "user.email=t@example.com",
-            "-c",
-            "user.name=Test",
-            "commit",
-            "-q",
-            "--allow-empty",
-            "-m",
-            "seed",
-        ],
-    );
-    let git_linked = tmp.join("git-linked");
-    run_command(
-        "git",
-        &git_main,
-        &["worktree", "add", "-q", git_linked.to_str().unwrap()],
-    );
-
     let jj_native = tmp.join("jj-native");
     init_jj(&jj_native, false);
     let jj_native_secondary = tmp.join("jj-native-secondary");
@@ -633,7 +615,6 @@ fn worktree_shape_pairs(tmp: &Path) -> Vec<(&'static str, PathBuf, PathBuf)> {
     add_jj_workspace(&jj_colocated, &jj_colocated_secondary);
 
     vec![
-        ("linked Git worktree", git_main, git_linked),
         ("native jj workspace", jj_native, jj_native_secondary),
         (
             "colocated jj workspace",
@@ -708,7 +689,7 @@ fn an_alias_into_any_worktree_shape_is_refused_by_the_live_owner() {
 fn normal_owner_exit_releases_the_lease_without_cleanup() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
+    fake_jj_worktree(&root);
     let holder = Holder::spawn(&root, &tmp.path().join("ready"));
 
     holder.release_normally();
@@ -720,7 +701,7 @@ fn normal_owner_exit_releases_the_lease_without_cleanup() {
 fn forced_owner_exit_releases_the_lease_without_pid_cleanup() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
+    fake_jj_worktree(&root);
     let holder = Holder::spawn(&root, &tmp.path().join("ready"));
 
     holder.kill();
@@ -732,7 +713,7 @@ fn forced_owner_exit_releases_the_lease_without_pid_cleanup() {
 fn owner_panic_releases_the_lease_during_unwind() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
+    fake_jj_worktree(&root);
     let ready = tmp.path().join("ready");
     let mut child = Command::new(std::env::current_exe().unwrap())
         .args(["--exact", "lease_holder_process", "--nocapture"])
@@ -757,7 +738,7 @@ fn owner_panic_releases_the_lease_during_unwind() {
 fn revalidation_refuses_a_replaced_lease_path() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
+    fake_jj_worktree(&root);
     let lease = DriverLease::acquire(&root).unwrap();
     let path = lease_path(&root);
     fs::rename(&path, path.with_extension("replaced")).unwrap();
@@ -776,7 +757,7 @@ fn revalidation_refuses_a_replaced_lease_path() {
 fn each_owner_writes_one_fresh_128_bit_process_nonce() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
+    fake_jj_worktree(&root);
 
     let first_owner = Holder::spawn(&root, &tmp.path().join("first-ready"));
     let first = fs::read_to_string(lease_path(&root)).unwrap();
@@ -804,7 +785,7 @@ fn each_owner_writes_one_fresh_128_bit_process_nonce() {
 fn a_new_owner_installs_an_inactive_epoch_for_its_exact_lease() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
+    fake_jj_worktree(&root);
 
     let _lease = DriverLease::acquire(&root).unwrap();
 
@@ -833,8 +814,8 @@ fn a_new_owner_installs_an_inactive_epoch_for_its_exact_lease() {
 fn a_non_directory_control_location_fails_before_a_lease_is_created() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
-    fs::write(root.join(".git/grove"), b"not a directory").unwrap();
+    fake_jj_worktree(&root);
+    fs::write(root.join(".jj/grove"), b"not a directory").unwrap();
 
     let error = DriverLease::acquire(&root).unwrap_err();
 
@@ -850,13 +831,13 @@ fn a_non_directory_control_location_fails_before_a_lease_is_created() {
 fn an_unwritable_control_parent_fails_before_a_lease_is_created() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
-    let git_directory = root.join(".git");
-    fs::set_permissions(&git_directory, fs::Permissions::from_mode(0o500)).unwrap();
+    fake_jj_worktree(&root);
+    let jj_directory = root.join(".jj");
+    fs::set_permissions(&jj_directory, fs::Permissions::from_mode(0o500)).unwrap();
 
     let result = DriverLease::acquire(&root);
 
-    fs::set_permissions(&git_directory, fs::Permissions::from_mode(0o700)).unwrap();
+    fs::set_permissions(&jj_directory, fs::Permissions::from_mode(0o700)).unwrap();
     let error = result.unwrap_err();
     assert!(
         error
@@ -871,7 +852,7 @@ fn an_unwritable_control_parent_fails_before_a_lease_is_created() {
 fn an_execed_descendant_does_not_inherit_driver_ownership() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    fake_git_worktree(&root);
+    fake_jj_worktree(&root);
     let ready = tmp.path().join("holder-ready");
     let exec_ready = tmp.path().join("exec-ready");
     let released = tmp.path().join("lease-released");
@@ -900,7 +881,7 @@ fn an_execed_descendant_does_not_inherit_driver_ownership() {
 fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    init_git_worktree(&root);
+    init_colocated_worktree(&root);
     fs::create_dir_all(root.join(".claude")).unwrap();
     fs::create_dir_all(root.join(".grove")).unwrap();
     fs::write(root.join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
@@ -1004,7 +985,7 @@ fn lease_replacement_before_the_foreground_launch_refuses_to_launch() {
     let _lock = support::lock_env(&ENV_LOCK);
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    init_git_worktree(&root);
+    init_colocated_worktree(&root);
     fs::create_dir_all(root.join(".grove")).unwrap();
     fs::write(root.join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
     fs::write(root.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
@@ -1064,7 +1045,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     let _environment_lock = support::lock_env(&ENV_LOCK);
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    init_git_worktree(&root);
+    init_colocated_worktree(&root);
     let grove = root.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# test — brief\n").unwrap();
@@ -1156,7 +1137,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     let _environment_lock = support::lock_env(&ENV_LOCK);
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
-    init_git_worktree(&root);
+    init_colocated_worktree(&root);
     let grove_llm = env!("CARGO_BIN_EXE_grove-llm");
 
     let initialize = |root: &Path| {

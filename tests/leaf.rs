@@ -29,35 +29,14 @@ mod support;
 use assert_cmd::Command;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command as Pcmd;
 use tempfile::TempDir;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git")
-        .arg("init")
-        .arg(tmp.path())
-        .status()
-        .unwrap();
-    git(
-        tmp.path(),
-        &["config", "user.email", "grove-test@example.com"],
-    );
-    git(tmp.path(), &["config", "user.name", "Grove Test"]);
-    git(tmp.path(), &["config", "core.hooksPath", "/dev/null"]);
+    support::init_jj_repo(tmp.path());
     fs::write(tmp.path().join("README"), b"r\n").unwrap();
-    git(tmp.path(), &["add", "README"]);
-    git(tmp.path(), &["commit", "-m", "init"]);
+    support::jj(tmp.path(), &["commit", "-m", "init"]);
     tmp
-}
-
-fn git(repo: &Path, args: &[&str]) {
-    Pcmd::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(args)
-        .status()
-        .unwrap();
 }
 
 /// Write a leaf/brief file (creating parents).
@@ -76,9 +55,11 @@ fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
     p
 }
 
+/// Commit the fixture tree, putting the entries in the working-copy commit's
+/// parent — the state a real session's tree is in, and the one in which a
+/// rename that recorded anything of its own would be visible.
 fn stage_all(repo: &Path) {
-    git(repo, &["add", "-A"]);
-    git(repo, &["commit", "-m", "fixture"]);
+    support::jj(repo, &["commit", "-m", "fixture"]);
 }
 
 fn run(repo: &Path, args: &[&str]) -> (String, String, bool) {

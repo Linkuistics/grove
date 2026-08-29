@@ -51,6 +51,46 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **jj is the only lane.** Grove drives Jujutsu and refuses everything else: a
+  working tree with no `.jj/` directory at or above it is now stopped by one
+  precondition gate, before any mutation, with `jj git init --colocate` named as
+  the remedy. Nothing downstream branches on which version control owns the tree,
+  because nothing else can own it, and a `.git` beside a `.jj` is a colocated
+  repository that is jj's business — grove never reads it and never spawns `git`.
+  Recorded as `docs/adr/jj-is-the-only-lane.md`, which carries the rejected
+  alternative that had to be argued rather than dismissed: narrowing the safety
+  principle to *where the version control system can*, keeping the hand-built
+  finish transaction alive on one lane.
+
+  **What goes with it.** The plain-Git finish commit and its proof; the
+  `GitIndexBackup` family and the whole colocated-index auxiliary protocol
+  (`src/finish_cleanup/auxiliary*`, artifact-and-marker replacement, its ten
+  rebind checkpoints and their two test seams); the empty-internal-hooks-path
+  rule; the `Vcs` enum, `ControlMarker`'s three variants and the gitfile
+  indirection behind them; and the `git ls-files` trackedness probe with the
+  `GIT_INDEX_FILE` hazard that made it load-bearing. About 6,570 net lines out of
+  `src/` and 1,720 out of the suite. `repo::vcs_of` becomes
+  `require_jj_workspace`, a gate returning one refusal.
+
+  **What this changes for an operator.** A plain-Git checkout cannot run grove
+  until someone runs `jj git init --colocate` in it — one command, which keeps the
+  Git history and leaves every Git tool working. Grove no longer promises anything
+  about a colocated repository's Git index during teardown; jj owns it. The
+  workspace-layout preflight survives and is simpler: `.jj/grove/` is always
+  inside the working tree, so the only cross-device layout left is one where
+  `.jj/` has itself been put on another filesystem, and the refusal names that
+  directory.
+
+  **Records reconciled in place.** `grove-does-not-stage-its-own-renames` loses
+  its Git-lane consequences and gets simpler — jj snapshots the working copy, so
+  a `DONE` mark is one whole rename with nothing to stage.
+  `supported-workspace-layouts`, `task-tree-transactions-fail-closed`,
+  `untracked-configuration-delta` and `one-live-driver-per-working-tree` lose the
+  clauses this change falsifies. `content/references/commit.md` drops the Git
+  boundary it can no longer produce, and `docs/USAGE.md`,
+  `docs/ARCHITECTURE.md`, `docs/CONFIGURATION.md`, `CONTEXT.md` and
+  `CONTEXT-MAP.md` stop describing a lane grove refuses.
+
 - **The formal-methods campaign's apparatus is deleted; its evidence is kept.**
   About 23,800 lines go: `models/` (the `SY-` lifecycle column in Quint and Alloy,
   its controls, the whole-repository runner `models/run.sh` and its control

@@ -37,7 +37,7 @@ mean something else in grove's, and its crate ships by no path of its own —
   and grove owns locally the part whose absence would change *what* a session
   writes — the ADR when-to-write test and minimum-coherent-set discipline
   (`content/ADR-FORMAT.md`), the operative seam rules
-  (`content/SPEC-FORMAT.md`), and the commit boundary on both lanes
+  (`content/SPEC-FORMAT.md`), and the commit boundary
   (`content/references/commit.md`). `content/references/grove.md` is the hub that
   states this once per skill; `content/SKILL.md` routes any citation there. So a
   checkout without the plugin runs an ordinary task end to end, and absence

@@ -52,16 +52,14 @@ const LOOP_CONTROL_ENV: [&str; 3] = ["GROVE_SIGNAL_FILE", "GROVE_HARNESS_PID", "
 /// configuration.
 ///
 /// Membership is the same test as [`LOOP_CONTROL_ENV`]'s: a value a descendant
-/// could still *act on*. The finish-cleanup and marker-rebind seams qualify
-/// because the process reading them is a child Grove spawns; the foreign-filesystem
+/// could still *act on*. The finish-cleanup seams qualify because the process
+/// reading them is a child Grove spawns; the foreign-filesystem
 /// seam qualifies because a session's own `grove-llm finish-commit` — and a nested
 /// `grove` — would read it and refuse a layout the operator's disk supports.
-const INTERNAL_TEST_SEAM_ENV: [&str; 6] = [
+const INTERNAL_TEST_SEAM_ENV: [&str; 4] = [
     "GROVE_TEST_FINISH_CLEANUP_FAIL_AT",
     "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
     "GROVE_TEST_FINISH_CLEANUP_BARRIER",
-    "GROVE_TEST_FINISH_REBIND_EXIT_AT",
-    "GROVE_TEST_FINISH_REBIND_FAIL_AT",
     "GROVE_TEST_FOREIGN_FILESYSTEM",
 ];
 
@@ -139,8 +137,6 @@ mod tests {
             "GROVE_TEST_FINISH_CLEANUP_FAIL_AT",
             "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
             "GROVE_TEST_FINISH_CLEANUP_BARRIER",
-            "GROVE_TEST_FINISH_REBIND_EXIT_AT",
-            "GROVE_TEST_FINISH_REBIND_FAIL_AT",
             "GROVE_TEST_FOREIGN_FILESYSTEM",
         ];
         for name in internal_test_seam_env {

@@ -129,7 +129,7 @@ fn a_foreign_stamp_warns_without_changing_what_a_verb_does() {
     let skill_dir = home.join(".claude/skills/grove");
     fs::create_dir_all(&skill_dir).unwrap();
     fs::write(skill_dir.join(STAMP_FILE), "another-build").unwrap();
-    let worktree = git_worktree_with_one_leaf(fixture.path());
+    let worktree = worktree_with_one_leaf(fixture.path());
 
     let output = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
         .arg("pick")
@@ -163,7 +163,7 @@ fn a_foreign_stamp_warns_without_changing_what_a_verb_does() {
 #[test]
 fn an_unstamped_or_absent_skill_directory_is_silent() {
     let fixture = TempDir::new().unwrap();
-    let worktree = git_worktree_with_one_leaf(fixture.path());
+    let worktree = worktree_with_one_leaf(fixture.path());
 
     let unstamped = fixture.path().join("unstamped-home");
     fs::create_dir_all(unstamped.join(".claude/skills/grove")).unwrap();
@@ -190,11 +190,22 @@ fn an_unstamped_or_absent_skill_directory_is_silent() {
 }
 
 /// A minimal current-format grove, enough for `pick` to have an answer.
-fn git_worktree_with_one_leaf(fixture: &Path) -> std::path::PathBuf {
+fn worktree_with_one_leaf(fixture: &Path) -> std::path::PathBuf {
     let worktree = fixture.join("worktree");
     fs::create_dir_all(&worktree).unwrap();
-    assert!(Command::new("git")
-        .args(["init", "-q"])
+    assert!(Command::new("jj")
+        .args([
+            "--config",
+            "user.name=Grove Test",
+            "--config",
+            "user.email=grove-test@example.com",
+            "--config",
+            "git.colocate=false",
+            "git",
+            "init",
+            "--quiet",
+            ".",
+        ])
         .current_dir(&worktree)
         .status()
         .unwrap()

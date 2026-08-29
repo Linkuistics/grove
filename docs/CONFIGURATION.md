@@ -109,10 +109,9 @@ Grove looks for it at two paths, in this order:
 
 **The first of the two that holds a file is *the* delta.** The other is not read,
 and the two are never merged with each other. The roots coincide in a
-single-worktree repository; they differ for a linked Git worktree or a secondary
-jj workspace, which is what makes a delta at the repository root apply to every
-workspace of that project while one in a workspace's own worktree shadows it for
-a one-off.
+single-workspace repository; they differ for a secondary jj workspace, which is
+what makes a delta at the repository root apply to every workspace of that
+project while one in a workspace's own worktree shadows it for a one-off.
 
 Each kind the delta declares wins outright — one whole template replaces one
 whole template. Every kind it does not declare comes from the personal file
@@ -129,9 +128,9 @@ than to one workstream.
 
 A delta names a program to execute. A tracked one would let a repository — one
 you merely cloned to read — choose what Grove spawns in your checkout. So Grove
-asks the VCS that owns the file whether it is tracked, and **refuses to launch**
-if it is. An ignore rule cannot substitute for that check: in Git a file already
-committed stays tracked after a `.gitignore` line is added.
+asks jj whether the file is in the working-copy commit, and **refuses to launch**
+if it is. An ignore rule cannot substitute for that check: a file already
+committed stays tracked after an ignore line is added.
 
 Add the ignore line yourself — Grove writes no ignore rule:
 
@@ -139,13 +138,13 @@ Add the ignore line yourself — Grove writes no ignore rule:
 /.grove.kdl
 ```
 
-The same line serves both lanes, and it is a genuine requirement in a jj-enabled
-tree rather than hygiene: jj snapshots the working copy on any ordinary command,
-so an unignored delta joins the working-copy commit within seconds and is refused
-from then on. Ignored, it is tracked by neither VCS.
+That is a genuine requirement rather than hygiene: jj snapshots the working copy
+on any ordinary command, so an unignored delta joins the working-copy commit
+within seconds and is refused from then on.
 
-If a delta was committed by accident, untrack it (`git rm --cached .grove.kdl`,
-or drop it from the jj working-copy commit) as well as ignoring it.
+If a delta was committed by accident, ignore it **first** and then untrack it
+with `jj file untrack .grove.kdl` — jj refuses to untrack a path that is not
+already ignored, because it would re-add it on the next snapshot.
 
 ### An invalid delta fails closed
 
@@ -179,7 +178,7 @@ can never change argument boundaries.
 | `${prompt}` | The guaranteed core: an instruction to load the provisioned `grove` skill and the selected kind's reference file, then that leaf's stable handle as the session's mandate and the resolved version control, then the session's ending. A couple of KiB, not the methodology itself. | Exactly once, in any position after word zero. |
 | `${session_name}` | `<repo-basename>: <grove-name> grove`. | At most once. |
 | `${worktree}` | Absolute root of the working tree holding `.grove/`. | At most once. |
-| `${repo}` | Absolute root of the main repository — the default jj workspace root, or the parent of Git's common directory. | At most once. |
+| `${repo}` | Absolute root of the main repository — the default jj workspace's root. | At most once. |
 
 `${prompt}` need not be last. These are errors: an unknown `${...}` name, a
 substitution embedded in a larger word (`--prompt=${prompt}`), a substitution in
@@ -216,11 +215,12 @@ inherited Grove loop-control variables and grants this launch's fresh
 setting — do not set or export it yourself.
 
 Everything else in your environment is preserved for the configured command,
-including `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, and a repository-local
-`core.worktree`. Grove runs the command with the working tree as its current
+including `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR` and a repository-local
+`core.worktree` — which a session's own `git` still honours in a colocated tree,
+whatever Grove does. Grove runs the command with the working tree as its current
 directory but makes no promise to rewrite its repository context; express any
 such policy with literal `env` arguments or in a wrapper. Grove's own internal
-lifecycle VCS commands are separate and do scrub repository selectors, so your
+VCS commands are separate and do scrub repository selectors, so your
 personal launch context cannot redirect a teardown commit.
 
 ## Provisioned methodology is a prerequisite
@@ -317,8 +317,8 @@ adds it.
   `trust_level = "trusted"` for the path in `$CODEX_HOME/config.toml`. Grove no
   longer checks this, because it does not know a template runs Codex.
 - **Codex sandbox access to the VCS store.** A trusted sandbox is still scoped to
-  the session's workspace, and a grove is usually a *secondary* jj workspace or a
-  linked git worktree whose real store sits outside it. Granting that store — for
+  the session's workspace, and a grove is often a *secondary* jj workspace whose
+  real store sits outside it. Granting that store — for
   Codex, `--add-dir ${repo}` in the template — is necessary but not sufficient
   when the store is a colocated git repository: the sandbox protects a `.git`
   path component more specifically than whatever root encloses it, so the store's

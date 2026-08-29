@@ -20,35 +20,16 @@
 use assert_cmd::Command;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command as Pcmd;
 use tempfile::TempDir;
+
+mod support;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git")
-        .arg("init")
-        .arg(tmp.path())
-        .status()
-        .unwrap();
-    git(
-        tmp.path(),
-        &["config", "user.email", "grove-test@example.com"],
-    );
-    git(tmp.path(), &["config", "user.name", "Grove Test"]);
-    git(tmp.path(), &["config", "core.hooksPath", "/dev/null"]);
+    support::init_jj_repo(tmp.path());
     fs::write(tmp.path().join("README"), b"r\n").unwrap();
-    git(tmp.path(), &["add", "README"]);
-    git(tmp.path(), &["commit", "-m", "init"]);
+    support::jj(tmp.path(), &["commit", "-m", "init"]);
     tmp
-}
-
-fn git(repo: &Path, args: &[&str]) {
-    Pcmd::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(args)
-        .status()
-        .unwrap();
 }
 
 fn run(repo: &Path, args: &[&str]) -> (String, String, bool) {
@@ -184,8 +165,7 @@ fn root_init_refuses_when_grove_already_exists() {
         "# existing — brief\n".as_bytes(),
     )
     .unwrap();
-    git(tmp.path(), &["add", "-A"]);
-    git(tmp.path(), &["commit", "-m", "pre-existing grove"]);
+    support::jj(tmp.path(), &["commit", "-m", "pre-existing grove"]);
 
     let (_, stderr, ok) = run(tmp.path(), &["root-init"]);
     assert!(!ok, "root-init clobbered an existing grove");
@@ -230,41 +210,31 @@ fn after_root_init_pick_returns_the_new_leaf_not_done() {
 #[test]
 fn root_init_makes_no_commit() {
     let tmp = init_repo();
-    let before = Pcmd::new("git")
-        .arg("-C")
-        .arg(tmp.path())
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .unwrap();
+    let before = support::jj(
+        tmp.path(),
+        &["--ignore-working-copy", "log", "-r", "@-", "--no-graph", "-T", "commit_id"],
+    );
+
     let (_, _, ok) = run(tmp.path(), &["root-init"]);
     assert!(ok);
-    let after = Pcmd::new("git")
-        .arg("-C")
-        .arg(tmp.path())
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .unwrap();
+
+    let after = support::jj(
+        tmp.path(),
+        &["--ignore-working-copy", "log", "-r", "@-", "--no-graph", "-T", "commit_id"],
+    );
+    assert_eq!(before, after, "root-init unexpectedly committed");
+    // The scaffold is on disk and is *not* in the revision the working copy sits
+    // on. jj has no untracked-file state to assert instead: it snapshots the
+    // working copy on the next command, so "nothing was committed" is a claim
+    // about `@-`, and the scaffold's presence is a claim about the filesystem.
+    assert!(tmp.path().join(".grove/BRIEF.md").is_file());
     assert_eq!(
-        before.stdout, after.stdout,
-        "root-init unexpectedly committed"
-    );
-    // The scaffold is present but untracked — the first session's commit folds it in.
-    let status = Pcmd::new("git")
-        .arg("-C")
-        .arg(tmp.path())
-        .args(["status", "--porcelain"])
-        .output()
-        .unwrap();
-    let s = String::from_utf8_lossy(&status.stdout);
-    assert!(
-        s.contains(".grove/"),
-        "expected untracked .grove/ in status, got {s:?}"
-    );
-    // The `.grove` entries show as untracked (`??`), confirming nothing was committed.
-    assert!(
-        s.lines()
-            .any(|l| l.starts_with("??") && l.contains(".grove/")),
-        "expected .grove/ to be untracked (?? in status), got {s:?}"
+        support::jj(
+            tmp.path(),
+            &["--ignore-working-copy", "file", "list", "-r", "@-", "root:.grove"],
+        ),
+        "",
+        "root-init left `.grove/` in the committed revision"
     );
 }
 

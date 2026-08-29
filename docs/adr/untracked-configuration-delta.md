@@ -17,31 +17,29 @@ tracked candidate is refused and the session fails closed. The property is worth
 enforcing because the file names a program to execute: an untrusted repository
 that could ship a `.grove.kdl` would choose what Grove spawns in any checkout of
 it, which is arbitrary code execution its operator never selected. Documentation
-cannot establish that boundary, and neither can an ignore rule — in Git a file
-already committed stays tracked when a `.gitignore` line is added, and
-`git check-ignore` then reports nothing about it, so the rule is evidence of
-nothing. Trackedness is the question, it is answerable in both lanes by a
-read-only probe anchored to the tree that owns the candidate, and the probe runs
-only when a candidate file exists, so a checkout with no delta pays nothing for
-it. A probe Grove cannot complete fails closed like any other unresolved
-validation.
+cannot establish that boundary, and neither can an ignore rule — a file already
+committed stays tracked when an ignore line is added, so the rule is evidence of
+nothing. Trackedness is the question, it is answerable by one read-only probe in
+the workspace that owns the candidate (`jj file list --ignore-working-copy`), and
+the probe runs only when a candidate file exists, so a checkout with no delta
+pays nothing for it. A probe Grove cannot complete fails closed like any other
+unresolved validation.
 
-The probe is spawned as a **driver-internal child**: it scrubs the loop controls
-and the repository selectors before anchoring, rather than anchoring alone.
-Anchoring names the worktree, and one selector does not follow from it —
-`GIT_INDEX_FILE` chooses an index directly — so an anchored-but-unscrubbed
-`git ls-files` would answer about whatever index the process that launched Grove
-named. That is not a hygiene point but the seam itself: the ambient environment
-would otherwise decide the answer to the one question standing between an
-untrusted repository and arbitrary code execution.
+The probe is spawned as a **driver-internal child**, scrubbing the loop controls
+and the repository selectors first. That is not a hygiene point but the seam
+itself: the ambient environment must not decide the answer to the one question
+standing between an untrusted repository and arbitrary code execution.
+`--ignore-working-copy` is what keeps the probe read-only, and pinning it by
+working directory rather than by an environment variable is what keeps it
+answering about the workspace Grove selected.
 
 That enforcement is what makes the ignore line the documentation names a
-requirement rather than hygiene, and it lands differently on the two lanes. Git
-leaves an unignored delta untracked until someone adds it. jj snapshots the
-working copy automatically, so an unignored delta is in the working-copy commit
-within one command and would ride into history from there; ignored, it is
-tracked by neither. On both lanes the remedy is the same line, and the refusal
-names it.
+requirement rather than hygiene. jj snapshots the working copy automatically, so
+an unignored delta is in the working-copy commit within one command and would
+ride into history from there; ignored, it never enters that commit at all. The ordering is
+forced and the documentation says so: `jj file untrack` refuses a path that is
+not already ignored, so a delta committed by accident is ignored first and
+untracked second.
 
 An unreadable, unparseable, or otherwise invalid delta likewise fails closed —
 at both load points, before every tree mutation and again before every launch,

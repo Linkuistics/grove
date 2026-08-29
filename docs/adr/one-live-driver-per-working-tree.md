@@ -137,12 +137,11 @@ operations.
   can unlink a live locked inode and admit a second owner. Reopen only if the OS
   supplies a path namespace shared by every process that can operate on the
   working tree and guarantees live entries are not removed.
-- **Put a control file in the tracked working tree.** Rejected because jj would
-  snapshot it into the working-copy commit, while plain Git would require ignore
-  mutation and still expose it to broad staging. The per-workspace VCS
-  administration directory supplies the same shared scope without artifact
-  pollution. Reopen only if Grove supports a non-VCS working tree with no
-  equivalent administration location.
+- **Put a control file in the tracked working tree.** Rejected because jj
+  snapshots it into the working-copy commit on the next command, so the control
+  becomes an artifact of the workstream it is coordinating. The workspace's own
+  `.jj/` supplies the same shared scope without that pollution. Reopen only if
+  Grove supports a working tree with no equivalent administration location.
 - **Let the configured command inherit the driver-lock descriptor.** Rejected
   because an opaque harness may pass it to descendants that outlive the session,
   wedging the working tree after the foreground child exits. Reopen only if Grove

@@ -23,17 +23,15 @@ use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
 
-/// A real git worktree holding a `.grove/` with only its root brief. The verbs
+mod support;
+
+/// A real jj worktree holding a `.grove/` with only its root brief. The verbs
 /// write untracked files and never shell out to a VCS, but every `grove-llm`
-/// verb resolves its grove root from a repo, so the fixture is a repo.
+/// verb resolves its grove root through the jj workspace gate, so the fixture
+/// is a jj repo.
 fn grove() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    std::process::Command::new("git")
-        .arg("init")
-        .arg("-q")
-        .arg(tmp.path())
-        .status()
-        .unwrap();
+    support::init_jj_repo(tmp.path());
     let root = tmp.path().join(".grove");
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("BRIEF.md"), "# root — brief\n").unwrap();

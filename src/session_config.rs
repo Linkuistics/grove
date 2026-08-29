@@ -245,6 +245,12 @@ fn read_source(path: &Path) -> Result<String> {
 /// to read the repository root. The probe runs only because a candidate file
 /// exists, so a checkout with no delta pays nothing for it, and a probe that
 /// cannot be completed fails closed like any other unresolved validation.
+///
+/// The remedy names the ignore line *first* because jj enforces that order:
+/// `jj file untrack` refuses a path that is not already ignored, so the
+/// otherwise natural untrack-then-ignore sequence fails on its first step
+/// (`jj file untrack --help`, jj 0.44.0 — "Paths to untrack. They must already
+/// be ignored.").
 fn read_delta_source(path: &Path) -> Result<String> {
     let tracked = crate::repo::path_is_tracked(path).with_context(|| {
         format!(
@@ -256,8 +262,8 @@ fn read_delta_source(path: &Path) -> Result<String> {
         bail!(
             "refusing the Grove configuration delta at {path}: it is tracked in version control, \
              and a tracked delta lets a repository choose what Grove executes in every checkout \
-             of it.\n  Untrack it (`git rm --cached {name}`, or drop it from the jj working-copy \
-             commit) and add `/{name}` to `.gitignore`.",
+             of it.\n  Untrack it (`jj file untrack {name}`, after adding `/{name}` to \
+             `.gitignore` — jj refuses to untrack a file it would immediately re-add).",
             path = path.display(),
             name = DELTA_FILE_NAME
         );

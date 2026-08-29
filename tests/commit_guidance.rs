@@ -22,7 +22,7 @@ fn normalized(text: &str) -> String {
 /// The scope section alone, so a rule proved here cannot be satisfied by prose
 /// elsewhere in the reference.
 ///
-/// Bounded below by the git/jj section, which is what follows it. Naming the
+/// Bounded below by the boundary section, which is what follows it. Naming the
 /// neighbour is deliberate: a section moved out from under this slice fails
 /// every claim below by name rather than quietly widening the span they are
 /// proved over.
@@ -32,7 +32,7 @@ fn commit_scope() -> String {
         .expect("content/references/commit.md must say what one commit contains");
     let (section, _) = from_scope
         .split_once("\n## Where the boundary falls")
-        .expect("the scope section must be followed by the git/jj boundary section");
+        .expect("the scope section must be followed by the boundary section");
     normalized(section)
 }
 
@@ -124,26 +124,35 @@ fn commit_step_scopes_one_commit_to_the_whole_task() {
 }
 
 #[test]
-fn commit_step_states_the_boundary_for_both_git_and_jj() {
+fn commit_step_states_the_boundary_a_session_actually_reaches() {
     let step = normalized(COMMIT_REFERENCE);
 
-    for (vcs, expected) in [
-        ("git", "In **git** the working tree is not history"),
-        ("git", "one `git commit`, taken once the rename has landed"),
-        ("jj", "In **jj** the working copy *is* a commit"),
-        (
-            "jj",
-            "`jj describe -m` records the task but leaves that change open",
-        ),
-        (
-            "jj",
-            "`jj new` after describing, once the rename has landed",
-        ),
-        ("jj", "so the next session opens on its own empty change"),
+    for expected in [
+        "in jj the working copy *is* a commit",
+        "`jj describe -m` records the task but leaves that change open",
+        "`jj new` after describing, once the rename has landed",
+        "so the next session opens on its own empty change",
+        "Nothing needs staging first",
     ] {
         assert!(
             step.contains(&normalized(expected)),
-            "the Commit step must say what a {vcs} session leaves behind: {expected:?}"
+            "the Commit step must say what a session leaves behind: {expected:?}"
+        );
+    }
+}
+
+/// Grove refuses a working tree that is not jj-enabled
+/// (`docs/adr/jj-is-the-only-lane.md`), so a Commit step teaching a Git
+/// boundary would be teaching one no session can reach — and a session that
+/// followed it in a colocated tree would commit behind jj's operation log.
+#[test]
+fn commit_step_teaches_no_boundary_grove_refuses_to_produce() {
+    let step = normalized(COMMIT_REFERENCE);
+
+    for absent in ["git commit", "git add", "git status", "git mv"] {
+        assert!(
+            !step.contains(absent),
+            "the Commit step must not teach a lane Grove refuses: {absent:?}"
         );
     }
 }

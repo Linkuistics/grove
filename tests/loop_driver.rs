@@ -65,27 +65,24 @@ const SESSION_KINDS: &[&str] = &[
 ];
 
 fn init_worktree(dir: &Path) {
-    fs::create_dir_all(dir).unwrap();
-    assert!(
-        Command::new("git")
-            .args(["init", "-q"])
-            .current_dir(dir)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
+    init_jj_worktree(dir, false);
 }
 
-fn git(dir: &Path, args: &[&str]) {
+fn jj(dir: &Path, args: &[&str]) {
     assert!(
-        Command::new("git")
+        Command::new("jj")
+            .args([
+                "--config",
+                "user.name=Test",
+                "--config",
+                "user.email=t@example.com",
+            ])
             .args(args)
             .current_dir(dir)
             .status()
             .unwrap()
             .success(),
-        "git {args:?} failed"
+        "jj {args:?} failed"
     );
 }
 
@@ -286,7 +283,7 @@ fn the_driver_activates_immediately_before_spawn_and_invalidates_after_reap() {
     write_exec(
         &configured,
         &format!(
-            "#!/bin/sh\ncp \"$PWD/.git/grove/session.epoch\" {epoch}\nprintf '%s\\n' \"$GROVE_SIGNAL_FILE\" > {signal}\nexit 0\n",
+            "#!/bin/sh\ncp \"$PWD/.jj/grove/session.epoch\" {epoch}\nprintf '%s\\n' \"$GROVE_SIGNAL_FILE\" > {signal}\nexit 0\n",
             epoch = shell_quote(&observed_epoch),
             signal = shell_quote(&observed_signal),
         ),
@@ -317,7 +314,7 @@ fn the_driver_activates_immediately_before_spawn_and_invalidates_after_reap() {
         during_launch.contains(&format!("signal-path-hex={signal_hex}\n")),
         "the live epoch must name this launch's own channel: {during_launch:?}"
     );
-    let after_reap = fs::read_to_string(worktree.join(".git/grove/session.epoch")).unwrap();
+    let after_reap = fs::read_to_string(worktree.join(".jj/grove/session.epoch")).unwrap();
     assert!(after_reap.starts_with("state=inactive\n"), "{after_reap:?}");
     assert!(!after_reap.contains("signal-path-hex="), "{after_reap:?}");
 }
@@ -435,24 +432,24 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
 // the configured command's own `$1`. A unit test of the formatter would assert a
 // subset of the same claim while proving nothing about what a session receives.
 //
-// Two fixtures, because a single lane is satisfiable by a hardcoded string. Each
-// asserts its own identity clause *and* the resolved root, and that the other
-// lane's identity clause is absent — neither clause is a substring of the other,
-// so the pair cannot both pass on one constant.
+// Two fixtures, because one is satisfiable by a hardcoded string. Grove drives
+// a single lane now (`docs/adr/jj-is-the-only-lane.md`), so the pair that still
+// has a real difference is **native** and **colocated**: one carries a `.git`
+// beside its `.jj` and the other does not, and both must state the same thing
+// about the same resolved root. A resolution that ever consulted `.git` again
+// would separate them.
 #[derive(Clone, Copy, Debug)]
-enum Lane {
-    Git,
-    Jj,
+enum Shape {
+    Native,
+    Colocated,
 }
 
 const JJ_CLAUSE: &str = "this working tree is jj-enabled (jj workspace root: ";
-const GIT_CLAUSE: &str = "this working tree is plain Git, not jj-enabled (worktree root: ";
 
-/// A jj-native working tree: `.jj/` and no `.git/` anywhere, so a git-shaped
-/// resolution fails outright instead of quietly working. `git.colocate=false` is
-/// forced because an ambient jj config may default colocation on, which would
-/// silently turn this into the colocated case and hide exactly that fallback.
-fn init_jj_worktree(dir: &Path, home: &Path) {
+/// A jj working tree. Colocation is forced either way rather than inherited,
+/// because an ambient jj config may default it on and would silently turn the
+/// native fixture into a second copy of the colocated one.
+fn init_jj_worktree(dir: &Path, colocate: bool) {
     fs::create_dir_all(dir).unwrap();
     assert!(
         Command::new("jj")
@@ -462,34 +459,31 @@ fn init_jj_worktree(dir: &Path, home: &Path) {
                 "--config",
                 "user.email=t@example.com",
                 "--config",
-                "git.colocate=false",
+                &format!("git.colocate={colocate}"),
                 "git",
                 "init",
                 "--quiet",
                 ".",
             ])
             .current_dir(dir)
-            .env("HOME", home)
             .status()
             .unwrap()
             .success(),
         "jj git init failed"
     );
-    assert!(
-        !dir.join(".git").exists(),
-        "the jj fixture must have no .git/, or a git fallback would pass unnoticed"
+    assert_eq!(
+        dir.join(".git").exists(),
+        colocate,
+        "the fixture must be exactly the shape it names"
     );
 }
 
-fn assert_the_mandate_states_the_resolved_vcs(lane: Lane) {
+fn assert_the_mandate_states_the_resolved_vcs(shape: Shape) {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(&home).unwrap();
     let worktree = fixture.path().join("worktree");
-    match lane {
-        Lane::Git => init_worktree(&worktree),
-        Lane::Jj => init_jj_worktree(&worktree, &home),
-    }
+    init_jj_worktree(&worktree, matches!(shape, Shape::Colocated));
     plant_tree(&worktree, "01-impl-subject-k1.md");
 
     let mandate_path = fixture.path().join("mandate");
@@ -506,7 +500,7 @@ fn assert_the_mandate_states_the_resolved_vcs(lane: Lane) {
     let output = run_driver(&worktree, &home);
     assert!(
         output.status.success(),
-        "the driver must launch in a {lane:?} tree: {}",
+        "the driver must launch in a {shape:?} jj tree: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -515,18 +509,10 @@ fn assert_the_mandate_states_the_resolved_vcs(lane: Lane) {
     // root is the resolved form — on macOS `/private/var/...`, not the
     // `/var/...` the fixture handed out.
     let root = worktree.canonicalize().unwrap();
-    let (mine, other) = match lane {
-        Lane::Jj => (JJ_CLAUSE, GIT_CLAUSE),
-        Lane::Git => (GIT_CLAUSE, JJ_CLAUSE),
-    };
     assert!(
-        mandate.contains(&format!("{mine}`{}`)", root.display())),
-        "a {lane:?} tree's mandate must state that lane and the root the driver \
+        mandate.contains(&format!("{JJ_CLAUSE}`{}`)", root.display())),
+        "a {shape:?} tree's mandate must state jj and the root the driver \
          resolved: {mandate:?}"
-    );
-    assert!(
-        !mandate.contains(other),
-        "a {lane:?} tree's mandate must not carry the other lane's phrasing: {mandate:?}"
     );
     // **The value, and no consequence of it.** *Do not probe for it, and
     // disregard a harness banner that disagrees* used to ride this line and now
@@ -534,23 +520,26 @@ fn assert_the_mandate_states_the_resolved_vcs(lane: Lane) {
     // consequence of a value to the skill, and `tests/prompt.rs` holds both ends
     // of that (`docs/adr/skill-delivers-the-methodology.md`).
     assert!(
-        mandate.contains(&format!("Version control: {mine}`{}`).\n", root.display())),
+        mandate.contains(&format!(
+            "Version control: {JJ_CLAUSE}`{}`).\n",
+            root.display()
+        )),
         "the version-control line must be exactly the value, ending the sentence \
          where the value ends: {mandate:?}"
     );
 }
 
-#[test]
-fn the_mandate_states_a_git_working_tree_and_its_root() {
-    assert_the_mandate_states_the_resolved_vcs(Lane::Git);
-}
-
-// The jj half is the one the session cannot get right on its own: a harness
+// The native shape is the one the session cannot get right on its own: a harness
 // banner computed from `.git` alone reads a native jj workspace as no repository
 // at all (claude-code#41435), which is exactly what this line overrides.
 #[test]
-fn the_mandate_states_a_jj_working_tree_and_its_workspace_root() {
-    assert_the_mandate_states_the_resolved_vcs(Lane::Jj);
+fn the_mandate_states_a_native_jj_workspace_and_its_root() {
+    assert_the_mandate_states_the_resolved_vcs(Shape::Native);
+}
+
+#[test]
+fn the_mandate_states_a_colocated_jj_workspace_and_its_root() {
+    assert_the_mandate_states_the_resolved_vcs(Shape::Colocated);
 }
 
 // A `done` signal — the finish cycle's last teardown action — must end the loop
@@ -567,7 +556,7 @@ fn a_done_signal_finishes_the_loop_once_and_housekeeping_stays_advisory() {
     init_worktree(&worktree);
     plant_tree(&worktree, "01-impl-subject-k1.md");
 
-    let control_dir = worktree.join(".git/grove");
+    let control_dir = worktree.join(".jj/grove");
     fs::create_dir_all(&control_dir).unwrap();
     let abandoned_signal = control_dir.join("signal-00000000000000000000000000000000");
     let blocked_signal = control_dir.join("signal-11111111111111111111111111111111");
@@ -635,7 +624,7 @@ fn a_signal_removal_failure_does_not_override_a_done_disposition() {
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
     plant_tree(&worktree, "01-impl-subject-k1.md");
-    let control_dir = worktree.join(".git/grove");
+    let control_dir = worktree.join(".jj/grove");
 
     let signal_log = fixture.path().join("signal-log");
     let configured = fixture.path().join("configured-command.sh");
@@ -811,14 +800,8 @@ fn an_unrecognised_filename_kind_refuses_to_launch() {
     let home = fixture.path().join("home");
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
-    git(&worktree, &["config", "user.email", "t@example.com"]);
-    git(&worktree, &["config", "user.name", "t"]);
     plant_tree(&worktree, "01-reserch-a-k1.md");
-    git(&worktree, &["add", "-A"]);
-    git(
-        &worktree,
-        &["commit", "-qm", "tree with an unrecognised kind"],
-    );
+    jj(&worktree, &["commit", "-m", "tree with an unrecognised kind"]);
 
     let log = fixture.path().join("log");
     let configured = fixture.path().join("configured-command.sh");
@@ -942,7 +925,7 @@ while :; do sleep 0.1; done
             );
             thread::sleep(Duration::from_millis(10));
         }
-        let epoch_path = lock_worktree.join(".git/grove/session.epoch");
+        let epoch_path = lock_worktree.join(".jj/grove/session.epoch");
         loop {
             assert!(
                 Instant::now() < deadline,

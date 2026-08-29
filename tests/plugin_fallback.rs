@@ -90,7 +90,7 @@ const CITATIONS: &[Citation] = &[
     Citation {
         file: "references/commit.md",
         skill: "using-jujutsu",
-        binds: "the boundary above is the whole of what a grove session needs, on either lane, \
+        binds: "the boundary above is the whole of what a grove session needs, \
                 and it binds on its own",
     },
     Citation {
@@ -276,7 +276,7 @@ fn the_hub_is_reachable_from_the_condition_register() {
 ///
 /// Commit is the row whose absence is unrecoverable: a session that commits with
 /// git in a jj tree bypasses the operation log, and a session that cannot commit
-/// cannot end. So both lanes are asserted, not just the citation.
+/// cannot end. So the boundary itself is asserted, not just the citation.
 #[test]
 fn an_ordinary_task_completes_without_reading_a_plugin_skill() {
     let corpus = corpus();
@@ -312,12 +312,7 @@ fn an_ordinary_task_completes_without_reading_a_plugin_skill() {
             "references/retire.md",
             "adr-format.md carries how a set is reworked",
         ),
-        // Commit — both lanes, complete without the plugin.
-        (
-            "commit (git)",
-            "references/commit.md",
-            "one git commit, taken once the rename has landed",
-        ),
+        // Commit — complete without the plugin.
         (
             "commit (jj)",
             "references/commit.md",

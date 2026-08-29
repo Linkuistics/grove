@@ -10,22 +10,13 @@
 use assert_cmd::Command;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command as Pcmd;
 use tempfile::TempDir;
+
+mod support;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git")
-        .arg("init")
-        .arg(tmp.path())
-        .status()
-        .unwrap();
-    Pcmd::new("git")
-        .args(["-C"])
-        .arg(tmp.path())
-        .args(["commit", "--allow-empty", "-m", "init"])
-        .status()
-        .unwrap();
+    support::init_jj_repo(tmp.path());
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();
     tmp

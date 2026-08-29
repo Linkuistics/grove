@@ -430,30 +430,6 @@ fn duplicate_unknown_nodes_report_every_declaration_location() {
 // under test is what a VCS says about a path; that widens the fixture, not the
 // boundary.
 
-/// A git checkout with a `.grove.kdl` — committed (so git's index holds it) or
-/// merely present.
-fn git_checkout_with_delta(document: &str, commit: bool) -> TempDir {
-    let tmp = TempDir::new().unwrap();
-    run("git", tmp.path(), &["init", "-q", "."]);
-    run(
-        "git",
-        tmp.path(),
-        &["config", "user.email", "t@example.com"],
-    );
-    run("git", tmp.path(), &["config", "user.name", "Grove Test"]);
-    run(
-        "git",
-        tmp.path(),
-        &["config", "core.hooksPath", "/dev/null"],
-    );
-    write_delta(tmp.path(), document);
-    if commit {
-        run("git", tmp.path(), &["add", "-A"]);
-        run("git", tmp.path(), &["commit", "-q", "-m", "delta"]);
-    }
-    tmp
-}
-
 /// A jj working tree with a `.grove.kdl`. `colocate` picks the second jj shape —
 /// a `.git` beside the `.jj`, where jj-first is a choice rather than the only
 /// option. `ignored` writes the ignore line the refusal names, which is what
@@ -716,36 +692,6 @@ fn every_delta_template_rule_still_binds() {
 }
 
 #[test]
-fn a_git_tracked_delta_is_refused_and_the_refusal_names_the_ignore_line() {
-    let home = TempDir::new().unwrap();
-    write_config(home.path(), "runner ${prompt}");
-    let tree = git_checkout_with_delta("impl \"other ${prompt}\"\n", true);
-
-    let error = load_error_from(home.path(), tree.path(), tree.path());
-
-    assert!(
-        error.contains(&tree.path().join(".grove.kdl").display().to_string()),
-        "{error}"
-    );
-    assert!(error.contains("tracked"), "{error}");
-    assert!(error.contains("/.grove.kdl"), "{error}");
-}
-
-#[test]
-fn a_git_untracked_delta_is_read() {
-    let home = TempDir::new().unwrap();
-    write_config(home.path(), "runner ${prompt}");
-    let tree = git_checkout_with_delta("impl \"other ${prompt}\"\n", false);
-
-    let config = load_from(home.path(), tree.path(), tree.path()).unwrap();
-
-    assert_eq!(
-        config.expand("impl", &context("mandate")).unwrap(),
-        vec!["other", "mandate"]
-    );
-}
-
-#[test]
 fn a_snapshotted_jj_delta_is_refused_in_both_jj_shapes() {
     for colocate in [false, true] {
         let home = TempDir::new().unwrap();
@@ -757,6 +703,15 @@ fn a_snapshotted_jj_delta_is_refused_in_both_jj_shapes() {
         assert!(
             error.contains("tracked"),
             "an unignored delta is in the working-copy commit after one jj command \
+             (colocate={colocate}):\n{error}"
+        );
+        assert!(
+            error.contains(&tree.path().join(".grove.kdl").display().to_string()),
+            "the refusal must name the delta it refused (colocate={colocate}):\n{error}"
+        );
+        assert!(
+            error.contains("/.grove.kdl"),
+            "the refusal must name the ignore line that fixes it \
              (colocate={colocate}):\n{error}"
         );
     }
@@ -784,9 +739,9 @@ fn a_trackedness_probe_that_cannot_be_completed_fails_closed() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
     write_config(home.path(), "runner ${prompt}");
-    // A worktree marker naming a gitdir that is not there: a Git tree by every
-    // test Grove applies, and one no probe can answer about.
-    fs::write(worktree.path().join(".git"), "gitdir: ./absent-gitdir\n").unwrap();
+    // A `.jj` directory with no repository inside it: a jj working tree by the
+    // test Grove applies — the marker walk — and one no probe can answer about.
+    fs::create_dir(worktree.path().join(".jj")).unwrap();
     write_delta(worktree.path(), "impl \"other ${prompt}\"\n");
 
     let error = load_error_from(home.path(), worktree.path(), worktree.path());
@@ -797,88 +752,15 @@ fn a_trackedness_probe_that_cannot_be_completed_fails_closed() {
     );
 }
 
-// A process-global variable cannot be set in-process here: the sibling cases
-// above drive real `git` and `jj` fixtures in parallel inside this one test
-// binary. The body therefore re-runs in a child copy of the binary that was
-// spawned with the variable already installed, and the parent only asserts the
-// child passed.
-const ISOLATED_AMBIENT_ENVIRONMENT: &str = "GROVE_TEST_ISOLATED_AMBIENT_ENVIRONMENT";
-
-fn this_test_name() -> String {
-    std::thread::current()
-        .name()
-        .expect("the Rust test harness names every test thread")
-        .to_string()
-}
-
-fn running_in_the_prepared_child() -> bool {
-    std::env::var_os(ISOLATED_AMBIENT_ENVIRONMENT).is_some()
-}
-
-fn rerun_this_test_with(variables: &[(&str, &Path)]) {
-    let name = this_test_name();
-    let mut command =
-        std::process::Command::new(std::env::current_exe().expect("locating the unit-test binary"));
-    command
-        .args(["--exact", &name, "--nocapture"])
-        .env(ISOLATED_AMBIENT_ENVIRONMENT, &name);
-    for (key, value) in variables {
-        command.env(key, value);
-    }
-    let output = command.output().expect("launching the isolated child test");
-    assert!(
-        output.status.success(),
-        "isolated test {name} failed with {}\nstdout:\n{}\nstderr:\n{}",
-        output.status,
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-}
-
-/// The trackedness probe answers about the repository Grove selected, not about
-/// an index the process that launched Grove chose. `GIT_INDEX_FILE` selects an
-/// index independently of the worktree, so anchoring the worktree does not
-/// dislodge it: without scrubbing, `git ls-files` consults the inherited
-/// alternate index, reports a committed delta as untracked, and Grove executes
-/// the repository-controlled launch template the seam exists to refuse.
-#[test]
-fn a_tracked_delta_is_refused_under_an_inherited_alternate_git_index() {
-    if !running_in_the_prepared_child() {
-        let scratch = git_checkout_with_delta("impl \"other ${prompt}\"\n", true);
-        let alternate = TempDir::new().unwrap();
-        let index = alternate.path().join("alternate-index");
-        // A *valid* empty index, not a missing file: the bypass must not turn on
-        // git tolerating a broken path.
-        let out = std::process::Command::new("git")
-            .current_dir(scratch.path())
-            .args(["read-tree", "--empty"])
-            .env("GIT_INDEX_FILE", &index)
-            .output()
-            .unwrap();
-        assert!(out.status.success(), "preparing the alternate index");
-        assert!(index.is_file(), "the alternate index must exist");
-
-        rerun_this_test_with(&[("GIT_INDEX_FILE", &index)]);
-        return;
-    }
-
-    let home = TempDir::new().unwrap();
-    write_config(home.path(), "runner ${prompt}");
-    let tree = git_checkout_with_delta("impl \"other ${prompt}\"\n", true);
-
-    let error = load_from(home.path(), tree.path(), tree.path())
-        .err()
-        .expect(
-            "a tracked delta must be refused whatever index the ambient environment names, \
-             and the load accepted it",
-        )
-        .to_string();
-
-    assert!(
-        error.contains("tracked"),
-        "an inherited alternate index must not make a tracked delta readable:\n{error}"
-    );
-}
+// `a_tracked_delta_is_refused_under_an_inherited_alternate_git_index` used to sit
+// here, with the isolated-child harness that let it install a process-global
+// `GIT_INDEX_FILE`. Both went with the Git lane: the hazard was that
+// `GIT_INDEX_FILE` selects an *index* independently of the worktree, so anchoring
+// the worktree left `git ls-files` reading whatever index the launching process
+// chose. jj has no index and no equivalent selector — its probe is pinned by
+// `current_dir` and `--ignore-working-copy` — so there is no ambient variable
+// left for a regression to reach through. `scrub_internal_child_env` still runs
+// on the probe, and `tests/env_hygiene.rs` owns what it removes.
 
 /// Absence is `NotFound` and nothing else. A candidate whose state cannot be
 /// established is neither present nor absent, and treating it as absent breaks

@@ -202,33 +202,31 @@ Two environment rules follow from that opacity. Immediately before spawning the
 configured child, Grove clears its own loop-control variables and grants only
 this launch's `GROVE_SIGNAL_FILE`; everything else the caller had, including Git
 repository selectors, is preserved as the configuration owner's policy.
-Driver-internal VCS children follow the opposite rule — they scrub both the
-loop controls and the repository selectors and anchor Git explicitly to the
-leased working tree — so personal launch context cannot redirect a teardown
-commit.
+Driver-internal VCS children follow the opposite rule — they scrub both the loop
+controls and the repository selectors and are pinned to the leased working tree
+by their working directory — so personal launch context cannot redirect a
+teardown commit.
 
 ## Process ownership
 
 A working tree has at most one live driver. After provisioning, and before
 configuration validation or any `.grove/` observation, bare `grove` acquires a
 **driver lease**: a nonblocking exclusive advisory lock on a fixed file in a
-control directory derived from the closest on-disk VCS marker for that exact
-workspace — `<workspace>/.jj/grove/` for native, secondary, and colocated
-Jujutsu, or the canonical per-worktree Git directory's `grove/` child, never
-Git's common directory. The resolver invokes no repository discovery and ignores
-`GIT_DIR` and its relatives, so controls live in the exact workspace's
-administration area rather than the tracked working copy or an ambient temporary
-directory. Symlink and relative-path aliases contend on one lease; separate
-worktrees and workspaces stay independent.
+control directory derived from the closest on-disk `.jj/` marker for that exact
+workspace — `<workspace>/.jj/grove/`, for native, secondary, and colocated
+Jujutsu alike. The resolver invokes no repository discovery and ignores `GIT_DIR`
+and its relatives, so controls live in the exact workspace's administration area
+rather than the tracked working copy or an ambient temporary directory. Symlink
+and relative-path aliases contend on one lease; separate workspaces stay
+independent.
 
 Acquisition creates that control directory and proves the **workspace layout**
 can supply what teardown will need: an atomic same-filesystem rename target for
-the whole `.grove/` root. `<workspace>/.jj/grove/` and a `.git/` directory keep
-resolution inside the working tree, so every jj shape and a plain checkout pass;
-a `.git` *file* — a linked worktree or submodule — sends resolution to the main
-repository or superproject and is the only family whose devices can differ. Grove
-measures rather than classifies, because a symlinked marker escapes the working
-tree without changing its kind. A refusal is a resumable no-mutation stop, which
+the whole `.grove/` root. `<workspace>/.jj/grove/` keeps resolution inside the
+working tree, so every jj shape passes by construction; the devices differ only
+where `.jj/` has itself been put on another filesystem. Grove measures rather
+than classifies, because a symlinked marker escapes the working tree without
+changing its kind. A refusal is a resumable no-mutation stop, which
 is the point: an unfinishable workspace is named before it holds a task tree
 rather than at the finish gate. The finish transaction still repeats the
 comparison against its exact rename operands — see [supported workspace
@@ -1055,13 +1053,12 @@ no-follow recursive digest. Git and jj commit only those deletions at their
 original paths, excluding the witness; the task root stays visibly present and
 unwalkable throughout.
 
-One deep repository seam hides the Git, native-jj, and colocated-jj mechanics
-and returns one of three dispositions, classified from the recorded anchor and
-the exact immediate result rather than from command exit status:
+One repository seam owns the teardown commit and returns one of three
+dispositions, classified from the recorded anchor and the exact immediate result
+rather than from command exit status:
 
 - **Committed** — the exact handle-and-attempt-named, `.grove/`-scoped commit is
-  proven. Recovery never restores the tree; it finishes index activation, then
-  atomically renames the whole root to a workspace-control quarantine before
+  proven. Recovery never restores the tree; it atomically renames the whole root to a workspace-control quarantine before
   descriptor-rooted no-follow disposal. The quarantine is cleanup garbage, never
   a finish receipt, and a later lease-owning driver reaps only entries carrying
   Grove's own cleanup manifest.
@@ -1078,9 +1075,7 @@ The disposition is revalidated immediately before and after the filesystem
 handoff, so no caller acts on a stale one. A retry that has lost the helper's
 result does not trust task-root absence either: with `.grove/` gone it verifies
 the immediate VCS result against the same handle and attempt identity, which
-binds the proof to the still-active session epoch. Plain Git runs this internal
-commit with an empty hooks path, because an arbitrary hook could mutate the
-unrelated working-tree bytes the transaction promises to preserve. See
+binds the proof to the still-active session epoch. See
 [Task-tree transactions fail closed](adr/task-tree-transactions-fail-closed.md).
 
 <a id="user-owned-worktrees"></a>
@@ -1088,49 +1083,40 @@ unrelated working-tree bytes the transaction promises to preserve. See
 <a id="version-control-seam"></a>
 ## Version-control seam
 
-Grove walks upward from the current directory and lets the closest repository
-marker decide. `.jj/` wins over a colocated `.git`; otherwise `.git` selects
-Git. Working copies are committed with the tool the marker names — Jujutsu's
-operation log is preserved, and a colocated repository's Git index is never
-written behind it.
+Grove walks upward from the current directory looking for one thing: a `.jj/`
+directory. **jj is the only lane** — a tree without one is refused before any
+mutation, with `jj git init --colocate` named as the remedy
+([*jj is the only lane*](adr/jj-is-the-only-lane.md)). One gate,
+`repo::require_jj_workspace`, states that precondition, and nothing downstream
+branches on which version control owns the tree. A `.git` beside a `.jj` is a
+colocated repository and is jj's business: Grove never reads it, never spawns
+`git`, and makes no promise about the colocated index.
 
-**Moves are not commits, and no longer branch on the lane.** Every entry a
-flipped verb moves is renamed by `ordinal-fs-tree`, which does `rename(2)`,
-detects no repository and requires no tool on `PATH`. So a tracked entry marked
-`DONE` leaves Git's index holding the old path, and `git status` shows an
-unstaged deletion beside an untracked file where `git mv` once showed a staged
-rename. Both lanes still commit byte-identical trees — Git infers renames at
-diff time by content similarity — *provided the commit stages the tree*, which
-is why `content/references/commit.md` says so and `tests/leaf_ops.rs` asserts
-the three outcomes rather than describing them. See
+**Moves are not commits.** Every entry a flipped verb moves is renamed by
+`ordinal-fs-tree`, which does `rename(2)`, detects no repository and requires no
+tool on `PATH`. jj snapshots the working copy on its next command, so a leaf
+marked `DONE` shows up as one rename and the commit records it as one — nothing
+needs staging in between. See
 [`grove-does-not-stage-its-own-renames`](adr/grove-does-not-stage-its-own-renames.md).
-Grove's own trackedness-dispatching move is gone — it survived the migrate stage
-only for the verbs that had not yet flipped, and the contract stage deleted it,
-so `repo::vcs_of` now branches the lane for launch and `llm_cli` and for nothing
-that renames.
 
 Grove resolves that marker before a session exists and **states** the result in
-`${prompt}`, which is why sessions do not probe: every launch is told whether its
-working tree is jj-enabled or plain Git and which root Grove resolved for it.
+`${prompt}`, which is why sessions do not probe: every launch is told that its
+working tree is jj-enabled and which workspace root Grove resolved for it.
 *Not to re-derive the answer* is the skill's to say, not the prompt's — the core
 carries a launch-varying **value**, and every normative consequence of a value
-stays in `content/`. The driver already owns this fact and every
-tree-mutation verb already branches on it; only the session was working it out
-again, and working it out badly. A harness banner computed from `.git` alone
-reads a native Jujutsu workspace as no repository at all
+stays in `content/`. The driver already owns this fact; only the session was
+working it out again, and working it out badly. A harness banner computed from
+`.git` alone reads a native Jujutsu workspace as no repository at all
 ([claude-code#41435](https://github.com/anthropics/claude-code/issues/41435)),
 and detection carried as skill instructions is skippable, so a session that never
 loaded them commits with Git in a Jujutsu tree and bypasses the operation log.
-The line carries identity and root only. Which commands each lane uses stays in
+The line carries identity and root only. Which commands a session uses stays in
 the embedded methodology's Commit step, so a rebuild moves one source of truth
 rather than two.
 
-The finish commit is path- or fileset-scoped so unrelated user work survives: Git uses `--only` with an explicit `.grove` pathspec excluding the live
-witness, and Jujutsu commits a `.grove/` fileset with the same exclusion,
-leaving unrelated working-copy changes in the successor commit. A colocated
-workspace backs up the user's Git index before jj's preflight snapshot and
-activates its `.grove/`-free success image only after the exact jj result is
-proven.
+The finish commit is fileset-scoped so unrelated user work survives: Grove
+commits a `.grove/` fileset excluding the live witness, leaving unrelated
+working-copy changes in the successor commit.
 
 The user owns topology. Grove reads no branch or bookmark, creates no working
 tree, and performs no integration or teardown. The working-tree basename is
@@ -1542,7 +1528,7 @@ prescribing one command.
 | `task_tree`, `task_grow` | The reading and growing verbs expressed through the library: one snapshot per command, path construction, key prediction, and the cross-reference lint. |
 | `tree_lifecycle`, `tree_access` | The grove-only lifecycle around the tree, grove's own guard, and its transaction sentinel. |
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
-| `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
+| `finish_cleanup` | Post-commit quarantine of the completed task root, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
 | `methodology` | The embed itself and the build's methodology identity. Nothing else — the corpus is plain markdown, so there is no reader over it. |
 | `prompt` | The guaranteed core: the whole of `${prompt}`, the kind→reference-file map, and the too-late test the core's contents are admitted by. Depends on `methodology` for the embed. |

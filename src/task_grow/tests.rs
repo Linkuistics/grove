@@ -6,7 +6,7 @@
 //! across unchanged, and each is a finding rather than an adjustment —
 //! `.grove/07-grove-flip-k28/BRIEF.md` records them:
 //!
-//!   * the **`git mv` assertion** inverted, because the shift is now
+//!   * the **repository assertion** inverted, because the shift is now
 //!     `rename(2)` on every lane (`docs/adr/grove-does-not-stage-its-own-renames.md`);
 //!   * three **destination-machinery** tests stayed behind with the appender's
 //!     own helpers, which they actually exercised, and died with it in
@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
-/// A fresh `.grove/` directory (no git — the grow verbs write files and rename
+/// A fresh `.grove/` directory (no repository — the grow verbs write files and rename
 /// them, and neither needs a repository).
 fn grove() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
@@ -30,38 +30,43 @@ fn grove() -> (TempDir, PathBuf) {
     (tmp, root)
 }
 
-/// A `.grove/` inside a real git repo. The **instrument** rather than a
-/// prerequisite: entries rename whether or not git is tracking them, and the
+/// A `.grove/` inside a real jj repo — the only kind of working tree Grove
+/// drives (`docs/adr/jj-is-the-only-lane.md`). The **instrument** rather than a
+/// prerequisite: entries rename whether or not the repository knows them, and the
 /// repository is what lets a test observe what the index did — which, since the
 /// flip, is nothing.
-fn git_grove() -> (TempDir, PathBuf) {
+fn jj_grove() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let repo = tmp.path().to_path_buf();
-    run_git(&repo, &["init", "-q"]);
-    run_git(&repo, &["config", "user.email", "t@example.com"]);
-    run_git(&repo, &["config", "user.name", "Test"]);
+    run_jj(&repo, &["--config", "git.colocate=false", "git", "init", "."]);
     let root = repo.join(".grove");
     fs::create_dir_all(&root).unwrap();
     (tmp, root)
 }
 
-fn run_git(repo: &Path, args: &[&str]) {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(repo)
+fn run_jj(repo: &Path, args: &[&str]) {
+    let out = Command::new("jj")
+        .current_dir(repo)
+        .args([
+            "--config",
+            "user.name=Test",
+            "--config",
+            "user.email=t@example.com",
+        ])
         .args(args)
         .output()
         .unwrap();
     assert!(
         out.status.success(),
-        "git {args:?} failed: {}",
+        "jj {args:?} failed: {}",
         String::from_utf8_lossy(&out.stderr)
     );
 }
 
-/// Stage everything under the grove, putting the entries in git's index.
-fn stage_all(root: &Path) {
-    run_git(root.parent().unwrap(), &["add", "-A"]);
+/// Commit everything under the grove, putting the entries in the revision the
+/// working copy sits on.
+fn commit_all(root: &Path) {
+    run_jj(root.parent().unwrap(), &["commit", "-m", "fixture"]);
 }
 
 /// Write a leaf/brief stub file with a position-free `# <handle>` header.
@@ -115,13 +120,19 @@ fn list(dir: &Path) -> Vec<String> {
     names
 }
 
-/// The names git has **in its index** for the grove, lexically sorted. Distinct
-/// from [`list`] (what is on disk).
-fn indexed(root: &Path) -> Vec<String> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(["ls-files", "--", "."])
+/// The names the **committed revision** holds for the grove, lexically sorted.
+/// Distinct from [`list`] (what is on disk).
+fn committed(root: &Path) -> Vec<String> {
+    let out = Command::new("jj")
+        .current_dir(root)
+        .args([
+            "--ignore-working-copy",
+            "file",
+            "list",
+            "-r",
+            "@-",
+            ".",
+        ])
         .output()
         .unwrap();
     let mut names: Vec<String> = String::from_utf8_lossy(&out.stdout)
@@ -767,12 +778,12 @@ fn a_shape_is_byte_identical_to_the_same_leaves_cut_by_hand() {
 
 #[test]
 fn insert_at_occupied_position_shifts_occupant_and_later_siblings_keys_preserved() {
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     touch(&g, "01-impl-a-k1.md", "a-k1");
     touch(&g, "02-impl-b-k2.md", "b-k2");
     touch(&g, "03-impl-c-k3.md", "c-k3");
-    stage_all(&g);
+    commit_all(&g);
     let inserted = leaf_insert(&g, at(&g.join("02-impl-b-k2.md")), "new", Kind::Impl).unwrap();
     assert_eq!(name_of(&inserted.path), "02-impl-new-k4.md"); // fresh key, not a reused one
     assert_eq!(
@@ -793,7 +804,7 @@ fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
     // own directory name — its `BRIEF.md` and every grandchild stay
     // byte-identical, name *and* key, because a shift is one rename of one
     // directory.
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     let mid = mknode(&g, "02-mid-k3", "mid-k3");
     let grandchild = touch_body(
@@ -803,7 +814,7 @@ fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
     );
     let grandchild_before = body(&grandchild);
     let brief_before = body(&mid.join("BRIEF.md"));
-    stage_all(&g);
+    commit_all(&g);
     let inserted = leaf_insert(&g, at(&g.join("02-mid-k3")), "new", Kind::Impl).unwrap();
     assert_eq!(name_of(&inserted.path), "02-impl-new-k5.md");
     let shifted = g.join("03-mid-k3");
@@ -830,10 +841,10 @@ fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
 
 #[test]
 fn insert_writes_position_free_header_for_the_new_leaf() {
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     touch(&g, "01-impl-a-k1.md", "a-k1");
-    stage_all(&g);
+    commit_all(&g);
     let inserted = leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "head", Kind::Impl).unwrap();
     let text = body(&inserted.path);
     assert!(text.starts_with("# head-k2\n"), "got {text:?}");
@@ -848,7 +859,7 @@ fn insert_does_not_rewrite_any_existing_file_contents() {
     // through which a body could be touched. Pinned over every body in the tree
     // — the brief, a leaf, a node's charter and a grandchild — because the
     // claim is about all of them and not about the one that moved.
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     let root_brief = touch_body(&g, "BRIEF.md", "# root — brief\n\nsee 02-impl-b-k2\n");
     let a = touch_body(&g, "01-impl-a-k1.md", "# a-k1\n\nfirst\n");
     let b = touch_body(&g, "02-impl-b-k2.md", "# b-k2\n\nbody text\n");
@@ -858,7 +869,7 @@ fn insert_does_not_rewrite_any_existing_file_contents() {
         .iter()
         .map(|path| body(path))
         .collect();
-    stage_all(&g);
+    commit_all(&g);
 
     leaf_insert(&g, at(&b), "new", Kind::Impl).unwrap();
 
@@ -882,7 +893,7 @@ fn insert_does_not_rewrite_any_existing_file_contents() {
 fn insert_collision_free_for_a_dense_run_of_siblings() {
     // Stress the highest-first ordering: insert at the head of five siblings; a
     // wrong order would pass through a state carrying a duplicate ordinal.
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     for i in 1..=5 {
         touch(
@@ -891,7 +902,7 @@ fn insert_collision_free_for_a_dense_run_of_siblings() {
             &format!("s{i}-k{i}"),
         );
     }
-    stage_all(&g);
+    commit_all(&g);
     let inserted = leaf_insert(&g, at(&g.join("01-impl-s1-k1.md")), "head", Kind::Impl).unwrap();
     assert_eq!(name_of(&inserted.path), "01-impl-head-k6.md");
     assert_eq!(inserted.renumbers.len(), 5);
@@ -917,12 +928,12 @@ fn insert_shifts_highest_ordinal_first_and_reports_the_log_ascending() {
     // intermediate state, so a process killed mid-apply leaves a merely *gapped*
     // level — and `Report::renamed` is in that order. The log an operator reads
     // is the level's own, ascending, so the summary reads like the directory.
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     touch(&g, "01-impl-a-k1.md", "a-k1");
     touch(&g, "02-impl-b-k2.md", "b-k2");
     touch(&g, "03-impl-c-k3.md", "c-k3");
-    stage_all(&g);
+    commit_all(&g);
     let inserted = leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "head", Kind::Impl).unwrap();
     let positions: Vec<(u32, u32)> = inserted
         .renumbers
@@ -939,12 +950,12 @@ fn insert_shifts_highest_ordinal_first_and_reports_the_log_ascending() {
 
 #[test]
 fn insert_inside_a_nested_node_shifts_only_that_levels_siblings() {
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     let design = mknode(&g, "01-design-k1", "design-k1");
     touch(&design, "01-impl-a-k2.md", "a-k2");
     touch(&design, "02-impl-b-k3.md", "b-k3");
-    stage_all(&g);
+    commit_all(&g);
     let inserted =
         leaf_insert(&g, at(&design.join("01-impl-a-k2.md")), "first", Kind::Impl).unwrap();
     assert_eq!(name_of(&inserted.path), "01-impl-first-k4.md");
@@ -997,18 +1008,18 @@ fn insert_refuses_a_target_whose_key_names_two_entries() {
 
 #[test]
 fn insert_errors_on_invalid_slug() {
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     touch(&g, "01-impl-a-k1.md", "a-k1");
-    stage_all(&g);
+    commit_all(&g);
     assert!(leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "BRIEF", Kind::Impl).is_err());
 }
 
 #[test]
 fn insert_errors_when_target_is_a_brief() {
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
-    stage_all(&g);
+    commit_all(&g);
     let err = leaf_insert(&g, at(&g.join("BRIEF.md")), "x", Kind::Impl).unwrap_err();
     assert!(err.to_string().contains("brief"), "got {err}");
 }
@@ -1028,15 +1039,15 @@ fn insert_errors_when_the_target_is_the_grove_root() {
 
 #[test]
 fn insert_errors_when_target_missing() {
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
-    stage_all(&g);
+    commit_all(&g);
     assert!(leaf_insert(&g, at(&g.join("09-impl-nope-k9.md")), "x", Kind::Impl).is_err());
 }
 
 #[test]
 fn insert_errors_when_grove_root_absent() {
-    let (_t, g) = git_grove();
+    let (_t, g) = jj_grove();
     let missing = g.join("nope");
     let err = leaf_insert(&missing, "1", "x", Kind::Impl).unwrap_err();
     assert!(
@@ -1047,30 +1058,30 @@ fn insert_errors_when_grove_root_absent() {
 
 // ---- insert over untracked entries (issue #3) -------------------------------
 //
-// The grow verbs are working-tree-only by design — an added leaf is *untracked*
+// The grow verbs are working-tree-only by design — an added leaf is *uncommitted*
 // and the enclosing task's commit folds it in. So the ordinary rhythm of a
 // planning session (grow several leaves, then realise one must sequence earlier)
-// hands `leaf_insert` siblings that are not in git's index. Since the flip the
-// distinction has stopped mattering to the verb — a rename is a rename — and
-// these tests are what says so.
+// hands `leaf_insert` siblings the committed revision has never seen. Since the
+// flip the distinction has stopped mattering to the verb — a rename is a rename —
+// and these tests are what says so.
 
 #[test]
 fn insert_ahead_of_an_untracked_sibling_added_this_session() {
     // Issue #3 verbatim: `leaf-add` then `leaf-insert` ahead of it, with no
-    // `git add` in between.
-    let (_t, g) = git_grove();
+    // commit in between.
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     let release = leaf_add(&g, ".", "release", Kind::Impl).unwrap();
     assert_eq!(name_of(&release), "01-impl-release-k1.md");
 
-    // No stage_all: the leaf is untracked, exactly as the grow verb left it.
+    // No commit: the leaf is uncommitted, exactly as the grow verb left it.
     let inserted = leaf_insert(&g, at(&release), "review", Kind::Impl).unwrap();
 
     assert_eq!(name_of(&inserted.path), "01-impl-review-k2.md");
     let files = list(&g);
     assert!(
         files.contains(&"02-impl-release-k1.md".to_string()),
-        "the untracked sibling shifted 01->02, key preserved (files: {files:?})"
+        "the uncommitted sibling shifted 01->02, key preserved (files: {files:?})"
     );
     assert!(
         !files.contains(&"01-impl-release-k1.md".to_string()),
@@ -1080,12 +1091,12 @@ fn insert_ahead_of_an_untracked_sibling_added_this_session() {
 }
 
 #[test]
-fn insert_renumbers_a_mix_of_tracked_and_untracked_siblings() {
-    let (_t, g) = git_grove();
+fn insert_renumbers_a_mix_of_committed_and_uncommitted_siblings() {
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     touch(&g, "01-impl-a-k1.md", "a-k1");
     touch(&g, "02-impl-b-k2.md", "b-k2");
-    stage_all(&g); // a and b are tracked
+    commit_all(&g); // a and b are committed
     touch(&g, "03-impl-c-k3.md", "c-k3"); // c is not
 
     let inserted = leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "new", Kind::Impl).unwrap();
@@ -1095,38 +1106,38 @@ fn insert_renumbers_a_mix_of_tracked_and_untracked_siblings() {
     for expected in ["02-impl-a-k1.md", "03-impl-b-k2.md", "04-impl-c-k3.md"] {
         assert!(
             files.contains(&expected.to_string()),
-            "every sibling shifted up one, tracked or not: missing {expected} (files: {files:?})"
+            "every sibling shifted up one, committed or not: missing {expected} (files: {files:?})"
         );
     }
     assert_eq!(inserted.renumbers.len(), 3, "all three siblings shifted");
 }
 
 #[test]
-fn insert_leaves_a_tracked_siblings_index_entry_where_it_was() {
+fn insert_records_nothing_in_the_committed_revision() {
     // **Inverted, and it is question 1 arriving at the last verbs that answered
-    // it the other way.** A shift was `git mv` for a tracked entry, so the
-    // rename was staged; it is `rename(2)` now, on every lane, because that is
-    // what `ordinal-fs-tree` does and grove does not reassemble the deleted
-    // primitive one layer up
-    // (`docs/adr/grove-does-not-stage-its-own-renames.md`). What an operator
-    // sees between the verb and the commit is a deletion at the old name beside
-    // an untracked file at the new one, and the commit is unaffected **provided
-    // it stages the tree**.
-    let (_t, g) = git_grove();
+    // it the other way.** A shift used to be a version-control-aware move, so it
+    // reached the repository; it is `rename(2)` now, because that is what
+    // `ordinal-fs-tree` does and grove does not reassemble the deleted primitive
+    // one layer up (`docs/adr/grove-does-not-stage-its-own-renames.md`). The
+    // verb moves the working copy and records nothing: the revision it sits on
+    // still holds the old name, and the enclosing task's own commit is what
+    // folds the shift in.
+    let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     touch(&g, "01-impl-a-k1.md", "a-k1");
-    stage_all(&g);
+    commit_all(&g);
 
     leaf_insert(&g, at(&g.join("01-impl-a-k1.md")), "new", Kind::Impl).unwrap();
 
-    let index = indexed(&g);
+    let recorded = committed(&g);
     assert!(
-        index.contains(&"01-impl-a-k1.md".to_string()),
-        "the index still carries the old name — nothing staged the rename (index: {index:?})"
+        recorded.contains(&"01-impl-a-k1.md".to_string()),
+        "the committed revision still carries the old name — the verb recorded \
+         nothing (revision: {recorded:?})"
     );
     assert!(
-        !index.contains(&"02-impl-a-k1.md".to_string()),
-        "and nothing staged the new one either (index: {index:?})"
+        !recorded.contains(&"02-impl-a-k1.md".to_string()),
+        "and it recorded no new one either (revision: {recorded:?})"
     );
     assert!(
         g.join("02-impl-a-k1.md").is_file(),

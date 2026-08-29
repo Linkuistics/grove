@@ -28,14 +28,10 @@ const SESSION_KINDS: &[&str] = &[
     "finish",
 ];
 
-fn init_git_worktree(path: &Path) {
-    fs::create_dir_all(path).unwrap();
-    assert!(Command::new("git")
-        .args(["init", "-q"])
-        .current_dir(path)
-        .status()
-        .unwrap()
-        .success());
+/// The ordinary fixture: a native jj workspace, which is the only kind of
+/// working tree Grove drives (`docs/adr/jj-is-the-only-lane.md`).
+fn init_worktree(path: &Path) {
+    init_jj_worktree(path, false);
 }
 
 fn run_command(binary: &str, directory: &Path, arguments: &[&str]) {
@@ -90,15 +86,6 @@ fn init_jj_worktree(path: &Path, colocate: bool) {
     );
 }
 
-fn configure_git_identity(worktree: &Path) {
-    run_command(
-        "git",
-        worktree,
-        &["config", "user.email", "test@example.com"],
-    );
-    run_command("git", worktree, &["config", "user.name", "Test User"]);
-}
-
 fn write_executable(path: &Path, body: &str) {
     fs::write(path, body).unwrap();
     let mut permissions = fs::metadata(path).unwrap().permissions();
@@ -140,13 +127,18 @@ fn run_grove(home: &Path, worktree: &Path) -> Output {
         .unwrap()
 }
 
-/// The real `git`, resolved before a stand-in of the same name goes on PATH.
-fn resolve_real_git() -> std::path::PathBuf {
+/// The real `jj`, resolved before an isolated PATH replaces the ambient one.
+///
+/// The isolated directory exists to control which `grove-llm` the driver
+/// resolves, and it takes the whole PATH with it — so the one binary Grove
+/// itself shells out to has to be linked back in, or the run fails on
+/// `jj workspace root` rather than on the thing under test.
+fn resolve_real_jj() -> std::path::PathBuf {
     let output = Command::new("sh")
-        .args(["-c", "command -v git"])
+        .args(["-c", "command -v jj"])
         .output()
         .unwrap();
-    assert!(output.status.success(), "git is not on PATH");
+    assert!(output.status.success(), "jj is not on PATH");
     std::path::PathBuf::from(String::from_utf8(output.stdout).unwrap().trim())
 }
 
@@ -193,7 +185,7 @@ fn bare_grove_launches_the_selected_filename_kind_with_one_mandate_argument() {
     fs::create_dir_all(home.join(".codex")).unwrap();
 
     let worktree = fixture.path().join("work tree with spaces");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# cutover — brief\n").unwrap();
@@ -279,7 +271,7 @@ exit 0
     );
     assert_eq!(
         Path::new(signal).parent().unwrap(),
-        canonical_worktree.join(".git/grove")
+        canonical_worktree.join(".jj/grove")
     );
     assert!(log.contains("legacy_harness_pid=<unset>\n"), "{log:?}");
     assert!(log.contains("legacy_claude_pid=<unset>\n"), "{log:?}");
@@ -292,38 +284,23 @@ exit 0
 }
 
 #[test]
-fn linked_worktree_expands_scalars_through_literal_env_word_zero() {
+fn a_secondary_workspace_expands_scalars_through_literal_env_word_zero() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
 
     let repository = fixture.path().join("main-repository");
-    init_git_worktree(&repository);
+    init_worktree(&repository);
+    let worktree = fixture.path().join("secondary-workspace");
     run_command(
-        "git",
+        "jj",
         &repository,
-        &[
-            "-c",
-            "user.email=t@example.com",
-            "-c",
-            "user.name=Test",
-            "commit",
-            "-q",
-            "--allow-empty",
-            "-m",
-            "seed",
-        ],
-    );
-    let worktree = fixture.path().join("linked-worktree");
-    run_command(
-        "git",
-        &repository,
-        &["worktree", "add", "-q", worktree.to_str().unwrap()],
+        &["workspace", "add", "--quiet", worktree.to_str().unwrap()],
     );
 
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# linked — brief\n").unwrap();
+    fs::write(grove.join("BRIEF.md"), "# secondary — brief\n").unwrap();
     fs::write(grove.join("01-impl-scalars-k7.md"), "# scalars-k7\n").unwrap();
 
     let argv_log = fixture.path().join("scalar-argv.log");
@@ -366,7 +343,7 @@ printf 'mode=%s\nrepo=%s\nprompt=%s\nworktree=%s\nsession=%s\n' \
         "{argv}"
     );
     assert!(
-        argv.contains("session=main-repository: linked-worktree grove\n"),
+        argv.contains("session=main-repository: secondary-workspace grove\n"),
         "{argv}"
     );
     assert!(argv.contains(&mandate_naming("scalars-k7")), "{argv}");
@@ -433,7 +410,7 @@ fn invalid_config_cannot_create_a_fresh_grove() {
     fs::create_dir_all(&config_dir).unwrap();
     fs::write(config_dir.join("config.kdl"), "impl \"runner ${prompt}\"\n").unwrap();
     let worktree = fixture.path().join("rootless");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
 
     let output = run_grove(&home, &worktree);
 
@@ -454,7 +431,7 @@ fn invalid_config_leaves_current_empty_and_partial_trees_byte_identical() {
 
     for state in ["current", "empty", "partial"] {
         let worktree = fixture.path().join(format!("{state}-worktree"));
-        init_git_worktree(&worktree);
+        init_worktree(&worktree);
         let grove = worktree.join(".grove");
         fs::create_dir_all(&grove).unwrap();
         fs::write(grove.join("BRIEF.md"), format!("# {state} — brief\n")).unwrap();
@@ -501,17 +478,17 @@ fn an_unwritable_control_directory_fails_before_configuration_or_tree_access() {
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("worktree");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# unwritable — brief\n").unwrap();
     fs::write(grove.join("01-task-k1.md"), "# task-k1\n\n**Kind:** impl\n").unwrap();
     let before = tree_snapshot(&grove);
 
-    let git_directory = worktree.join(".git");
-    fs::set_permissions(&git_directory, fs::Permissions::from_mode(0o500)).unwrap();
+    let jj_directory = worktree.join(".jj");
+    fs::set_permissions(&jj_directory, fs::Permissions::from_mode(0o500)).unwrap();
     let output = run_grove(&home, &worktree);
-    fs::set_permissions(&git_directory, fs::Permissions::from_mode(0o700)).unwrap();
+    fs::set_permissions(&jj_directory, fs::Permissions::from_mode(0o700)).unwrap();
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!output.status.success(), "unexpected success: {stderr}");
@@ -536,7 +513,7 @@ fn fresh_grove_creates_and_launches_the_requirements_leaf() {
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("fresh worktree");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let log = fixture.path().join("fresh.log");
     let fake = fixture.path().join("fresh-command.sh");
     write_executable(
@@ -567,7 +544,7 @@ fn partial_fresh_scaffold_recovers_before_selection_and_launch() {
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("partial-scaffold");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     // The window `root-init` leaves between its two phases: the root and its
     // charter, and no first leaf. The operator's slug lived only in the leaf, so
@@ -613,7 +590,7 @@ fn relaunch_reloads_config_and_uses_the_new_filename_kind() {
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("reload-worktree");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# reload — brief\n").unwrap();
@@ -682,7 +659,7 @@ fn insertion_during_launch_does_not_change_the_session_mandate() {
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("insert-worktree");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# insertion — brief\n").unwrap();
@@ -724,7 +701,7 @@ fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf(
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("spawn-failure-worktree");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# failure — brief\n").unwrap();
@@ -745,7 +722,7 @@ fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf(
         stderr.contains(home.join(".config/grove/config.kdl").to_str().unwrap()),
         "{stderr}"
     );
-    let leaked_signal_channels = fs::read_dir(worktree.join(".git/grove"))
+    let leaked_signal_channels = fs::read_dir(worktree.join(".jj/grove"))
         .unwrap()
         .filter_map(Result::ok)
         .map(|entry| entry.file_name())
@@ -784,7 +761,7 @@ fn nonsignalled_nonzero_exit_reports_status_elapsed_and_launch_identity() {
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("nonzero-worktree");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# nonzero — brief\n").unwrap();
@@ -862,7 +839,7 @@ fn drive_with_resolved_grove_llm(label: &str, grove_llm: Option<&str>) -> Pairin
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join(format!("{label}-worktree"));
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
 
     let launched = fixture.path().join("launched");
     let configured = fixture.path().join("configured.sh");
@@ -879,7 +856,7 @@ fn drive_with_resolved_grove_llm(label: &str, grove_llm: Option<&str>) -> Pairin
     // agent CLI this case wants found.
     let isolated_path = fixture.path().join("isolated-path");
     fs::create_dir(&isolated_path).unwrap();
-    std::os::unix::fs::symlink(resolve_real_git(), isolated_path.join("git")).unwrap();
+    std::os::unix::fs::symlink(resolve_real_jj(), isolated_path.join("jj")).unwrap();
     let resolved = isolated_path.join("grove-llm");
     if let Some(body) = grove_llm {
         write_executable(&resolved, body);
@@ -985,7 +962,7 @@ fn the_checked_grove_llm_is_the_one_on_path_not_the_drivers_own_sibling() {
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("sibling-worktree");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# sibling — brief\n").unwrap();
@@ -1067,7 +1044,7 @@ fn a_relative_path_entry_resolves_from_the_worktree_the_session_is_spawned_in() 
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("nested-path-worktree");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# nested-path — brief\n").unwrap();
@@ -1115,7 +1092,7 @@ fn a_relative_path_entry_resolves_from_the_worktree_the_session_is_spawned_in() 
     // whole point here is that the driver's and the session's differ.
     let isolated_path = fixture.path().join("isolated-path");
     fs::create_dir(&isolated_path).unwrap();
-    std::os::unix::fs::symlink(resolve_real_git(), isolated_path.join("git")).unwrap();
+    std::os::unix::fs::symlink(resolve_real_jj(), isolated_path.join("jj")).unwrap();
     let search = OsString::from(format!(":{}", isolated_path.display()));
 
     let output = Command::new(env!("CARGO_BIN_EXE_grove"))
@@ -1190,7 +1167,7 @@ fn a_skill_directory_clobbered_mid_loop_is_restored_before_the_next_launch() {
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("clobber-worktree");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# clobber — brief\n").unwrap();
@@ -1336,8 +1313,7 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
         let home = fixture.path().join("home");
         fs::create_dir_all(home.join(".codex")).unwrap();
         let worktree = fixture.path().join(name);
-        init_git_worktree(&worktree);
-        configure_git_identity(&worktree);
+        init_worktree(&worktree);
         let grove = worktree.join(".grove");
         fs::create_dir_all(&grove).unwrap();
         for (relative, body) in files {
@@ -1345,8 +1321,7 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(&path, body).unwrap();
         }
-        run_command("git", &worktree, &["add", "-A"]);
-        run_command("git", &worktree, &["commit", "-q", "-m", "seed legacy"]);
+        run_command("jj", &worktree, &["commit", "-m", "seed legacy"]);
 
         let before = tree_snapshot(&grove);
         let seeded_subjects = git_subjects(&worktree);
@@ -1406,7 +1381,7 @@ fn empty_current_tree_allocates_and_launches_one_resumable_finish_leaf() {
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("empty-current");
-    init_git_worktree(&worktree);
+    init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# empty-current — brief\n").unwrap();

@@ -14,11 +14,11 @@ said to delete itself into an ADR once they were answered.
 |---|---|---|
 | **Q1 — does the quarantine need to exist?** | **defer** | no run has decided it. The only candidate ever executed needs a capability `EN-03` says does not exist, and the criterion that judges it is blind to the difference it judges; the available candidate has never been run in either family |
 | **Q2 — can the three dispositions become two?** | **keep** | `FN-15.d` answered by the **witness** branch in both families: `Indeterminate` is reachable on every lane under the incumbent |
-| **Q3 — is the marker-replacement sub-transaction reachable?** | **keep** | `FN-31.a`'s witness lands in both families; the source state is reached rather than posited |
+| **Q3 — is the marker-replacement sub-transaction reachable?** | **moot** | it was reachable, and `FN-31.a`'s witness landed in both families — but its only caller was the colocated Git-index auxiliary, which went with the Git lane at `drop-git-lane-k7` ([*jj is the only lane*](jj-is-the-only-lane.md)). The sub-transaction is deleted, so the question has no subject rather than a new answer |
 | **Q4 — what does finish still owe the user?** | **keep** for six rows, **defer** for the cleanup layer's three | six of ten removal-matrix rows name a shared-safety obligation. The three that read `none` in both families are the pre-registered evidence for `delete/replace`, and each of the three has a different reason it cannot be read as a licence |
 
 **Keeping the code while deferring the question is the safe side of the
-asymmetry, not an answer to it.** A wrong `keep` retains 10,366 lines and 31
+asymmetry, not an answer to it.** A wrong `keep` retains the whole layer and its
 `unsafe` blocks and nothing downstream reopens it; a wrong `delete` converts a
 fail-closed refusal into a silent wrong state
 ([`task-tree-transactions-fail-closed`](task-tree-transactions-fail-closed.md)).
@@ -325,16 +325,18 @@ annotate the `none` cells as such** — and say which, because a matrix whose
 
 ## What keeping it costs, which is the whole of the other side
 
+Re-measured after `drop-git-lane-k7`, which removed the Git-index auxiliary
+family and two thirds of the commit seam — **not** by answering Q1 or Q4, but by
+deleting the lane those parts existed for.
+
 | module | lines | role |
 |---|---|---|
-| `src/finish_transaction.rs` | 3,632 | preflight, witness, evacuation, rollback, quarantine handoff, recovery |
-| `src/repo/finish_commit.rs` | 2,953 | the Git / native-jj / colocated-jj commit seam and its three dispositions |
-| `src/finish_cleanup.rs` | 950 | post-commit quarantine disposal |
-| `src/finish_cleanup/auxiliary.rs` | 1,257 | the cleanup marker protocol |
-| `src/finish_cleanup/auxiliary/marker_replacement.rs` | 960 | the crash-safe marker-replacement sub-transaction |
-| `src/finish_cleanup/unix.rs` | 535 | raw `openat` / `renameat2` / `unlinkat` wrappers, 31 `unsafe` blocks |
-| `src/finish_cleanup/reaper.rs` | 79 | lease-owned reaping of orphaned quarantine |
-| **total** | **10,366** | **34% of `src/`**, plus 6,701 lines of test |
+| `src/finish_transaction.rs` | 3,645 | preflight, witness, evacuation, rollback, quarantine handoff, recovery |
+| `src/repo/finish_commit.rs` | 608 | the teardown commit seam and its three dispositions |
+| `src/finish_cleanup.rs` | 944 | post-commit quarantine disposal |
+| `src/finish_cleanup/unix.rs` | 459 | raw `openat` / `renameat2` / `unlinkat` wrappers and their `unsafe` blocks |
+| `src/finish_cleanup/reaper.rs` | 34 | lease-owned reaping of orphaned quarantine |
+| **total** | **5,690** | plus 6,901 lines of test |
 
 For one operation, run once per grove, at the end. The 2026-08-17 simplification
 pass measured this and left it alone as a redesign rather than a
@@ -377,7 +379,7 @@ recorded here because the scoping note that carried them is gone.
 | **fold the replacement into a branching write** | `marker_replacement.rs`, 960 lines | answers Q3 by construction rather than by reachability, which is a false-confidence incident rather than a finding. Both families reach the source state |
 | **declare Q1 and the cleanup rows `keep` on the strength of the counterfactual** | nothing | this is what the record previously did. A criterion shown to be mis-typed yields no verdict in either direction, and a `none` row is overridden by re-measurement rather than by a paragraph |
 | **remove one of the three `none` rows on its own, on the matrix's evidence** | one of the quarantine, the marker, the replacement | the rows are real; the three reasons above are why none is yet a licence. Removing on them today would be acting on a counterfactual cell, a claim set that never asks whether the sweep can prove what it touches, and a green produced by the mutation that erased the claim's content |
-| **close the questions as `defer` and never commission the control** | nothing | leaves 10,366 lines standing on an argument, which is the asymmetry `finish-verdicts-k77` named. The commission is cheap next to what it decides |
+| **close the questions as `defer` and never commission the control** | nothing | leaves the whole layer standing on an argument, which is the asymmetry `finish-verdicts-k77` named. The commission is cheap next to what it decides |
 
 ## What would reopen — or close — this
 

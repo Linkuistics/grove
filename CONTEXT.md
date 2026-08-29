@@ -438,13 +438,13 @@ the two makes one claim forbid the classification another requires.
 
 **Grove name**:
 The working-tree directory's basename — never a branch, a bookmark, or a
-canonical layout — resolved **jj-first** from the closest repository marker
-walking up, so a plain-git checkout nested under a jj tree stays git. The name
+canonical layout — resolved from the closest `.jj/` marker walking up. The name
 supplies the root brief (`# <name> — brief`) and the harness session name
 (`<repo-basename>: <name> grove`).
 _Avoid_: "the grove name equals the branch name" — grove reads no branch anywhere.
-_Avoid_: describing resolution as git-with-jj-fallback — it is the other way
-round, in repository detection and in every tree-mutation verb.
+_Avoid_: describing resolution as consulting `.git` at all. Grove drives jj only
+(`docs/adr/jj-is-the-only-lane.md`); a tree with no `.jj/` is refused before any
+mutation, and a `.git` beside a `.jj` is jj's business, never grove's.
 
 **Meta-grove**:
 A grove whose subject *is* the grove machinery — this repo. The distinguishing
@@ -500,17 +500,15 @@ whole task — the artifact, whatever the grow verbs wrote, the [[DONE infix]]
 rename, and whatever the parent-chain close promoted or added — and names it by
 the [[Work-item handle]], each closed node's alongside the leaf's. Everything in
 that list is written by **Retire**, so **Retire precedes Commit** as a loop step
-order, not merely as advice. In plain Git the commit *is* the boundary; in a
-jj-enabled tree the working copy is itself a commit, so **sealing** with `jj
-new`, once the rename has landed, is what leaves the next session its own empty
-change.
+order, not merely as advice. The working copy is itself a commit, so **sealing**
+with `jj new`, once the rename has landed, is what leaves the next session its
+own empty change.
 _Avoid_: reading `jj describe` as the boundary — it records the task but leaves
 `@` open, so the next session's first edit is snapshotted into this task's change,
 and a file both tasks touched cannot be separated afterwards by
 `jj split <fileset>`.
-_Avoid_: the **Commit → Retire** order any prose or diagram may still show. In jj
-it is the exact cross-task contamination sealing exists to stop; in Git it leaves
-the rename and every close-time edit uncommitted or forces a second commit.
+_Avoid_: the **Commit → Retire** order any prose or diagram may still show. It is
+the exact cross-task contamination sealing exists to stop.
 
 **Driver lease**:
 The exclusive, process-scoped ownership of one working tree by one bare `grove`
@@ -802,21 +800,19 @@ template, which is where the routing decision was actually made.
 
 **Stated VCS**:
 The version-control fact the driver resolves *before* a session exists and
-states in that session's mandate: whether the working tree is jj-enabled or
-plain Git, the root it resolved, and an explicit instruction not to probe for it
-and to disregard a harness banner that disagrees. It rides beside the handle in
-[[Kind routing]]'s `${prompt}` — not a template word, not a verb, and not
-anything a task file carries — and stops at identity and root: the marker kind
-and each lane's commit-boundary commands stay out, the latter because they
-already live in the [[Embedded methodology]]'s Commit step and a copy would be a
-second source of truth drifting across the build boundary.
+states in that session's mandate: that the working tree is jj-enabled, and the
+workspace root it resolved. It rides beside the handle in [[Kind routing]]'s
+`${prompt}` — not a template word, not a verb, and not anything a task file
+carries — and stops at identity and root: the commit-boundary commands stay out,
+because they already live in the [[Embedded methodology]]'s Commit step and a
+copy would be a second source of truth drifting across the build boundary.
 _Avoid_: re-deriving it in-session. A harness banner is computed from `.git`
 alone and reads a native jj workspace as no repository at all, and detection
 carried as skill instructions is skippable — a session that never loads them
 commits with git in a jj tree and bypasses the operation log.
-_Avoid_: a third "no VCS" case. Grove cannot run without a marker, because the
-driver lease lives in the VCS-administration directory, so the mandate has two
-lanes and no fallback.
+_Avoid_: reading it as a choice among lanes. There is one, and a working tree
+with no `.jj/` never reaches a mandate at all — it is refused at the gate, with
+`jj git init --colocate` named as the remedy.
 
 **Review target diversity**:
 Whether a scheduled review uses a different harness or model from its producer

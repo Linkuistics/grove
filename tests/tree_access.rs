@@ -8,17 +8,13 @@ use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 
+mod support;
+
 const WAITING_DIAGNOSTIC: &str = "waiting for active Grove tree operation";
 
 fn init_repo() -> TempDir {
     let temporary_directory = TempDir::new().unwrap();
-    let status = Command::new("git")
-        .arg("init")
-        .arg("-q")
-        .arg(temporary_directory.path())
-        .status()
-        .unwrap();
-    assert!(status.success());
+    support::init_jj_repo(temporary_directory.path());
     temporary_directory
 }
 

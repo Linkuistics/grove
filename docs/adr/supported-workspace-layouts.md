@@ -18,8 +18,8 @@ configuration — both are properties the driver establishes directly, unlike a
 
 The two required properties are established differently, and only one is
 measured. **Untracked** is structural: the resolver places controls exclusively
-inside the workspace's own `.jj/` or the canonical per-worktree Git directory,
-never a working-tree sibling, so no ordinary commit can reach them. **Same
+inside the workspace's own `.jj/`, never a working-tree sibling, so no ordinary
+commit can reach them. **Same
 device** is contingent on how the operator laid the workspace out, so it is
 compared rather than assumed — the preflight stats the created control directory
 and the pinned working-tree root and requires one device.
@@ -29,17 +29,16 @@ resolution stays inside the working tree.
 
 | Layout | Marker | Control directory | Verdict |
 | --- | --- | --- | --- |
-| Plain Git checkout | `.git/` directory | `<canonical .git>/grove/` | In-root; passes unless `.git` is a symlink onto another filesystem |
-| Linked Git worktree | `.git` file → `<main>/.git/worktrees/<name>` | that directory's `grove/` | **The at-risk family**; refused when the main repository is on another filesystem |
-| Git submodule | `.git` file → `<super>/.git/modules/<name>` | that directory's `grove/` | Same at-risk family |
 | Native jj, default or secondary workspace | `.jj/` | `<workspace root>/.jj/grove/` | In-root; the deliberate non-following of `.jj/repo` keeps a secondary workspace's controls beside its own working copy even though the store is shared |
-| Colocated jj, default or secondary workspace | `.jj/` wins over `.git` | `<workspace root>/.jj/grove/` | In-root |
+| Colocated jj, default or secondary workspace | `.jj/` (the `.git` beside it is jj's business) | `<workspace root>/.jj/grove/` | In-root |
 
-So a `.git` **file** identifies the entire family that can fail, which is what
-makes the diagnostic specific and the acceptance matrix small. Grove still
-measures every layout rather than trusting the table: a symlinked `.git` or `.jj`
-marker, or a control directory that is its own mount point, escapes the working
-tree without changing the marker's kind.
+Since [*jj is the only lane*](jj-is-the-only-lane.md), every admitted layout is
+in-root by construction: `.jj/` sits at the root of the working tree, so the two
+operands can differ only where `.jj/` has itself been put elsewhere. Grove still
+measures every layout rather than trusting the table: a symlinked `.jj` marker,
+or a control directory that is its own mount point, escapes the working tree
+without changing the marker's kind. That is now the *whole* at-risk family, and
+it is the reason the comparison survives the lane it was written for.
 
 Acquiring the lease is the right gate because it is the unique chokepoint. Root
 initialization, session-kind migration, ordinary selection, finish allocation,
@@ -53,9 +52,9 @@ independent reasons. It compares **proxies**: the rename Grove will eventually
 perform moves `.grove/` into the control directory's `grove/` child, and at lease
 time neither operand need exist, so a `.grove/` that is itself a mount point
 passes here and is correctly refused there. Layout is **mutable** while the lease
-is held — `git worktree repair`, a rewritten gitfile, a moved main repository, or
-a changed bind mount all alter the answer, and the lease pins the root's identity
-rather than the destination's device. And `finish-commit` is **separately
+is held — a remounted `.jj/`, a relocated workspace, or a changed bind mount all
+alter the answer, and the lease pins the root's identity rather than the
+destination's device. And `finish-commit` is **separately
 invocable**, including by an operator retrying a blocked transaction, so it can
 attest nothing about which driver validated what. Carrying a startup fact to the
 teardown gate would be precisely the stale disposition the transaction's

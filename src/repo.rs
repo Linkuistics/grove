@@ -1,45 +1,34 @@
-// Working-tree and repo resolution, jj-aware. Grove drives whichever VCS owns
-// the working tree, decided **jj-first** by [`vcs_of`]: a `.jj/` directory
-// makes the tree jj-enabled and picks jj plumbing even when a `.git` sits
-// beside it (colocated) — the symmetric VCS rule the using-jujutsu skill also
-// follows. Git remains the interface only in not-jj-enabled trees. The probe
-// is a thin filesystem walk, not an abstraction layer: the handful of call
-// sites (launch, llm_cli) each branch on it where the two VCSes
-// genuinely differ. Renaming is no longer among them: since the flip every
-// entry moves inside an `ordinal-fs-tree` operation, which is a plain
-// `rename(2)` on either lane (`docs/adr/grove-does-not-stage-its-own-renames.md`).
+// Working-tree and workspace resolution. Grove drives **jj and nothing else**:
+// [`require_jj_workspace`] is the precondition gate every path passes through,
+// and a working tree with no `.jj/` at or above it is refused with the command
+// that fixes it, before anything is created or changed
+// (`docs/adr/jj-is-the-only-lane.md`). A `.git` beside a `.jj` is a colocated
+// repo and is jj's business, not Grove's — nothing here reads it, spawns `git`,
+// or branches on its presence.
+//
+// The probe is a thin filesystem walk, not an abstraction layer. Renaming never
+// went through it: since the flip every entry moves inside an `ordinal-fs-tree`
+// operation, which is a plain `rename(2)`
+// (`docs/adr/grove-does-not-stage-its-own-renames.md`).
 
-use anyhow::{anyhow, bail, Context, Result};
-use std::fs;
+use anyhow::{bail, Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 mod finish_commit;
 
 pub(crate) use finish_commit::{
-    abort_preparing_finish, git_index_path, prepare_finish, recover_finish,
-    verify_lost_finish_result, FinishCommitOutcome, FinishProof, FinishRecoveryOutcome,
-    FinishStartAnchor, FinishStartProof, PreparedFinish,
+    abort_preparing_finish, prepare_finish, recover_finish, verify_lost_finish_result,
+    FinishCommitOutcome, FinishProof, FinishRecoveryOutcome, FinishStartAnchor, FinishStartProof,
+    PreparedFinish,
 };
 
-/// The VCS that owns a working tree.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Vcs {
-    /// jj-enabled: a `.jj/` directory heads the tree — a native repo, a
-    /// secondary `jj workspace`, or a colocated repo (jj-first). The carried
-    /// root is the workspace root (the directory holding `.jj/`).
-    Jj { workspace_root: PathBuf },
-    /// A plain git working tree (checkout or linked worktree), not jj-enabled.
-    Git,
-}
-
 /// Canonical paths that scope Grove's untracked process coordination to one
-/// exact working tree or workspace.
+/// exact jj workspace.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkspaceControl {
     worktree_root: PathBuf,
     control_dir: PathBuf,
-    marker: ControlMarker,
 }
 
 impl WorkspaceControl {
@@ -51,121 +40,67 @@ impl WorkspaceControl {
         &self.control_dir
     }
 
-    pub fn marker(&self) -> &ControlMarker {
-        &self.marker
+    /// The on-disk marker this control resolved from, for a diagnostic to name.
+    ///
+    /// Derived rather than carried: with one lane the marker is always the
+    /// resolved root's own `.jj`, so there is nothing a second walk could
+    /// disagree about.
+    pub fn marker(&self) -> PathBuf {
+        self.worktree_root.join(".jj")
     }
 }
 
-/// The on-disk VCS marker that produced a [`WorkspaceControl`], carried
-/// alongside the paths it resolved to.
+/// The jj workspace root at or above `path` — the closest ancestor holding a
+/// `.jj/` directory, whether native, secondary, or colocated. `None` when there
+/// is none, which is the only answer *absence* has: it is a refusal everywhere
+/// except where nothing-owns-it is itself the answer ([`path_is_tracked`]).
+pub fn jj_workspace_root(path: &Path) -> Option<PathBuf> {
+    path.ancestors()
+        .find(|dir| dir.join(".jj").is_dir())
+        .map(Path::to_path_buf)
+}
+
+/// The precondition gate. Every Grove path that is about to read or mutate a
+/// task tree passes through this or through [`workspace_control`], and both
+/// refuse the same way, before any mutation.
 ///
-/// The workspace layout preflight reports this, and re-deriving it at diagnostic
-/// time would walk the ancestors a second time and could name a different marker
-/// than the one that actually resolved. The gitfile variant carries its target
-/// because that indirection *is* the step which leaves the working tree — it is
-/// what the operator has to look at, not a detail of the marker.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ControlMarker {
-    /// A `.jj/` directory: native, secondary, or colocated.
-    JjDirectory { path: PathBuf },
-    /// A `.git/` directory: a plain checkout.
-    GitDirectory { path: PathBuf },
-    /// A `.git` **file**: a linked worktree or a submodule, plus the canonical
-    /// gitdir it named.
-    GitFile { path: PathBuf, gitdir: PathBuf },
+/// The refusal is the product: it names what was looked for, where, and the one
+/// command that fixes it (principle 2 — an error that only reports detection is
+/// unfinished). Both remedies are stated unconditionally rather than chosen by
+/// probing for a `.git`, because a message that guesses which one applies can
+/// guess wrong, and the pair is two lines.
+pub fn require_jj_workspace(path: &Path) -> Result<PathBuf> {
+    jj_workspace_root(path).ok_or_else(|| not_a_jj_workspace(path))
 }
 
-impl std::fmt::Display for ControlMarker {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::JjDirectory { path } => {
-                write!(formatter, "the `.jj` directory {}", path.display())
-            }
-            Self::GitDirectory { path } => {
-                write!(formatter, "the `.git` directory {}", path.display())
-            }
-            Self::GitFile { path, gitdir } => write!(
-                formatter,
-                "the `.git` file {}, naming gitdir {}",
-                path.display(),
-                gitdir.display()
-            ),
-        }
-    }
-}
-
-/// The VCS owning `path`, walking up from it: at each ancestor a `.jj/`
-/// directory wins (jj-first, even when a `.git` sits beside it), then a
-/// `.git` (directory, or a linked worktree's gitfile). The *closest* marker
-/// decides, so a plain-git checkout nested under a jj-enabled tree stays git.
-/// `None`: no VCS marker all the way up.
-pub fn vcs_of(path: &Path) -> Option<Vcs> {
-    for dir in path.ancestors() {
-        if dir.join(".jj").is_dir() {
-            return Some(Vcs::Jj {
-                workspace_root: dir.to_path_buf(),
-            });
-        }
-        if dir.join(".git").exists() {
-            return Some(Vcs::Git);
-        }
-    }
-    None
+/// The one refusal, so every gate says the same thing. Returned as a value
+/// rather than bailed so the callers that report an outcome instead of a
+/// `Result` — finish recovery — can carry it too.
+pub fn not_a_jj_workspace(path: &Path) -> anyhow::Error {
+    anyhow::anyhow!(
+        "Grove drives jj, and this is not a jj working tree\n  \
+         looked for a `.jj` directory at and above: {}\n\n\
+         Make the tree jj-enabled and rerun:\n      \
+         jj git init --colocate     # an existing Git repository, history kept\n      \
+         jj git init                # no repository here yet\n\n\
+         Nothing was created or changed.",
+        path.display()
+    )
 }
 
 /// Resolve the workspace-scoped directory for untracked Grove process
-/// coordination from the closest on-disk VCS marker. This deliberately does
-/// not invoke `git` or `jj`, so repository-selection environment variables and
-/// a shared repository store cannot redirect the result.
+/// coordination from the closest `.jj/` marker. This deliberately does not
+/// invoke `jj`, so repository-selection environment variables and a shared
+/// repository store cannot redirect the result.
 pub fn workspace_control(path: &Path) -> Result<WorkspaceControl> {
-    for candidate in path.ancestors() {
-        let jj_dir = candidate.join(".jj");
-        if jj_dir.is_dir() {
-            let worktree_root = candidate.canonicalize().with_context(|| {
-                format!("canonicalizing jj workspace root {}", candidate.display())
-            })?;
-            return Ok(WorkspaceControl {
-                control_dir: worktree_root.join(".jj/grove"),
-                marker: ControlMarker::JjDirectory {
-                    path: worktree_root.join(".jj"),
-                },
-                worktree_root,
-            });
-        }
-
-        let git_marker = candidate.join(".git");
-        if git_marker.is_dir() {
-            let worktree_root = candidate.canonicalize().with_context(|| {
-                format!("canonicalizing Git working tree {}", candidate.display())
-            })?;
-            let git_dir = git_marker
-                .canonicalize()
-                .with_context(|| format!("canonicalizing {}", git_marker.display()))?;
-            return Ok(WorkspaceControl {
-                control_dir: git_dir.join("grove"),
-                marker: ControlMarker::GitDirectory {
-                    path: worktree_root.join(".git"),
-                },
-                worktree_root,
-            });
-        }
-        if git_marker.is_file() {
-            let worktree_root = candidate.canonicalize().with_context(|| {
-                format!("canonicalizing Git working tree {}", candidate.display())
-            })?;
-            let git_dir = gitfile_target(&git_marker)?;
-            return Ok(WorkspaceControl {
-                control_dir: git_dir.join("grove"),
-                marker: ControlMarker::GitFile {
-                    path: worktree_root.join(".git"),
-                    gitdir: git_dir,
-                },
-                worktree_root,
-            });
-        }
-    }
-
-    bail!("not in a git or jj working tree (path: {})", path.display())
+    let candidate = require_jj_workspace(path)?;
+    let worktree_root = candidate
+        .canonicalize()
+        .with_context(|| format!("canonicalizing jj workspace root {}", candidate.display()))?;
+    Ok(WorkspaceControl {
+        control_dir: worktree_root.join(".jj/grove"),
+        worktree_root,
+    })
 }
 
 /// The filesystem Grove acts on for `path`, and the single point where a test may
@@ -216,149 +151,22 @@ fn foreign_filesystem_root() -> Option<PathBuf> {
     Some(path.canonicalize().unwrap_or(path))
 }
 
-/// The empty hooks directory every internal Grove Git commit runs with.
-///
-/// Migration and finish both promise that their path-scoped commit preserves
-/// unrelated staged and working-tree bytes, and both roll back from an index
-/// image. A user hook is an arbitrary program that can mutate those unrelated
-/// bytes even while rejecting the commit, and no index image restores them — so
-/// the guard belongs to the seam both commits share rather than to either
-/// transaction. The directory is untracked workspace-control scratch, created on
-/// demand and never swept: it carries no cleanup manifest, so the finish reaper
-/// leaves it alone.
-///
-/// Being empty is the whole contract, so a non-directory or non-empty path is
-/// refused rather than emptied — Grove did not put anything there.
-pub(crate) fn empty_hooks_path(worktree: &Path) -> Result<PathBuf> {
-    let control = workspace_control(worktree)?;
-    fs::create_dir_all(control.control_dir()).with_context(|| {
-        format!(
-            "creating workspace-control directory for internal commit hooks {}",
-            control.control_dir().display()
-        )
-    })?;
-    let hooks_path = control.control_dir().join("internal-hooks-empty");
-    match fs::create_dir(&hooks_path) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-            let metadata = fs::symlink_metadata(&hooks_path).with_context(|| {
-                format!(
-                    "checking internal commit hooks path {}",
-                    hooks_path.display()
-                )
-            })?;
-            if !metadata.file_type().is_dir() {
-                bail!(
-                    "internal commit hooks path is not a directory: {}",
-                    hooks_path.display()
-                );
-            }
-            if fs::read_dir(&hooks_path)
-                .with_context(|| {
-                    format!(
-                        "reading internal commit hooks path {}",
-                        hooks_path.display()
-                    )
-                })?
-                .next()
-                .is_some()
-            {
-                bail!(
-                    "internal commit hooks path is not empty: {}",
-                    hooks_path.display()
-                );
-            }
-        }
-        Err(error) => {
-            return Err(error).with_context(|| {
-                format!(
-                    "creating internal commit hooks path {}",
-                    hooks_path.display()
-                )
-            })
-        }
-    }
-    Ok(hooks_path)
-}
-
-fn gitfile_target(gitfile: &Path) -> Result<PathBuf> {
-    let contents = fs::read_to_string(gitfile)
-        .with_context(|| format!("reading Git worktree marker {}", gitfile.display()))?;
-    let target = contents
-        .lines()
-        .next()
-        .and_then(|line| line.strip_prefix("gitdir:"))
-        .map(str::trim)
-        .filter(|target| !target.is_empty())
-        .with_context(|| format!("malformed Git worktree marker {}", gitfile.display()))?;
-    let target = PathBuf::from(target);
-    let target = if target.is_absolute() {
-        target
-    } else {
-        gitfile
-            .parent()
-            .context("Git worktree marker has no parent")?
-            .join(target)
-    };
-    target
-        .canonicalize()
-        .with_context(|| format!("canonicalizing Git worktree gitdir {}", target.display()))
-}
-
 /// Resolve the working-tree top directory of `cwd`. This *is* the grove
 /// worktree (user-owned-worktrees) — grove runs from inside it and never
-/// creates or relocates it. In a jj-enabled tree the workspace root is the
-/// directory holding `.jj/` (already found by the probe — no jj binary
-/// needed); in a git tree it is `git rev-parse --show-toplevel`.
+/// creates or relocates it. It is the directory holding `.jj/`, already found
+/// by the probe: no jj binary is spawned to answer it.
 pub fn toplevel(cwd: &Path) -> Result<PathBuf> {
-    match vcs_of(cwd) {
-        Some(Vcs::Jj { workspace_root }) => Ok(workspace_root),
-        Some(Vcs::Git) => git_show_toplevel(cwd),
-        None => bail!("not in a git or jj repo (cwd: {})", cwd.display()),
-    }
+    require_jj_workspace(cwd)
 }
 
 /// The **main repo** behind the working tree holding `cwd` — the checkout the
 /// worktree belongs to, whose basename names the repo in session names and
-/// whose path anchors the harness stamp. From a git linked worktree that is
-/// the parent of the git common dir; from a secondary jj workspace it is the
-/// `default` workspace's root (`jj workspace root --name default`). A plain
-/// checkout of either VCS is its own main repo.
+/// whose path anchors the harness stamp. From a secondary jj workspace that is
+/// the `default` workspace's root (`jj workspace root --name default`); a
+/// native or colocated checkout is its own main repo.
 pub fn main_repo_of(cwd: &Path) -> Result<PathBuf> {
-    match vcs_of(cwd) {
-        Some(Vcs::Jj { .. }) => jj_default_workspace_root(cwd),
-        Some(Vcs::Git) => {
-            let common_dir = git_common_dir(cwd)?;
-            // common_dir points to .git or worktrees/<name>/.git; the main
-            // repo is its parent.
-            Ok(common_dir
-                .parent()
-                .ok_or_else(|| anyhow!("git common-dir has no parent"))?
-                .to_path_buf())
-        }
-        None => bail!("not in a git or jj repo (cwd: {})", cwd.display()),
-    }
-}
-
-/// Make one subprocess resolve Git operations against the exact on-disk
-/// worktree Grove already selected.
-///
-/// Removing the *discovery* selectors prevents an inherited Git context from
-/// choosing a foreign repository. Setting `GIT_WORK_TREE` also overrides a
-/// hostile `core.worktree` while leaving Git to discover the selected root's
-/// own `.git` marker.
-///
-/// This is **anchoring, not scrubbing**, and the remaining selector is the
-/// reason to say so: `GIT_INDEX_FILE` names an index rather than a repository,
-/// so nothing here removes it. A call site whose answer depends on the index —
-/// [`git_path_is_tracked`] is the one — must scrub the internal child
-/// environment first via [`vcs_probe`]; anchoring alone leaves it reading
-/// whatever index the launching process chose.
-pub(crate) fn anchor_git_worktree_environment(command: &mut Command, worktree: &Path) {
-    command
-        .env_remove("GIT_DIR")
-        .env("GIT_WORK_TREE", worktree)
-        .env_remove("GIT_COMMON_DIR");
+    require_jj_workspace(cwd)?;
+    jj_default_workspace_root(cwd)
 }
 
 /// `jj workspace root --name default` — the main repo of a jj-enabled tree.
@@ -388,71 +196,28 @@ fn jj_default_workspace_root(cwd: &Path) -> Result<PathBuf> {
     Ok(PathBuf::from(s.trim()))
 }
 
-/// `git rev-parse --show-toplevel` of `cwd` — the git branch of [`toplevel`].
-fn git_show_toplevel(cwd: &Path) -> Result<PathBuf> {
-    let out = Command::new("git")
-        .arg("rev-parse")
-        .arg("--show-toplevel")
-        .current_dir(cwd)
-        .output()
-        .context("running git rev-parse --show-toplevel")?;
-    if !out.status.success() {
-        bail!("not in a git repo (cwd: {})", cwd.display());
-    }
-    let s = String::from_utf8(out.stdout).context("git output not utf-8")?;
-    Ok(PathBuf::from(s.trim()))
-}
-
-/// Absolutized `git rev-parse --git-common-dir` of `cwd`: the checkout's own
-/// `.git` in a plain repo, the main repo's `.git` from a linked worktree
-/// (whose own gitdir is a subpath of it). Git may print the path *relative*
-/// (`.git`, from a plain checkout's toplevel), so it is absolutized against
-/// `cwd` before use.
-pub fn git_common_dir(cwd: &Path) -> Result<PathBuf> {
-    let worktree = workspace_control(cwd)?.worktree_root().to_path_buf();
-    let mut command = Command::new("git");
-    command
-        .arg("rev-parse")
-        .arg("--git-common-dir")
-        .current_dir(&worktree);
-    anchor_git_worktree_environment(&mut command, &worktree);
-    let out = command
-        .output()
-        .context("running git rev-parse --git-common-dir")?;
-    if !out.status.success() {
-        bail!("not in a git repo (cwd: {})", cwd.display());
-    }
-    let s = String::from_utf8(out.stdout).context("git output not utf-8")?;
-    let common = PathBuf::from(s.trim());
-    if common.is_absolute() {
-        Ok(common)
-    } else {
-        Ok(worktree.join(common))
-    }
-}
-
-/// Is `path` **tracked** by the VCS that owns the tree `path` itself sits in?
+/// Is `path` **tracked** by the jj workspace `path` itself sits in?
 ///
-/// The one read-only question [`crate::session_config`] asks a VCS, and the
+/// The one read-only question [`crate::session_config`] asks the VCS, and the
 /// enforcement behind [the untracked configuration
 /// delta](../docs/adr/untracked-configuration-delta.md): a delta names a program
 /// to execute, so a repository that could ship one would choose what Grove
 /// spawns in any checkout of it. Documentation cannot establish that boundary
 /// and neither can an ignore rule — a file already committed stays tracked when
-/// a `.gitignore` line is added.
+/// an ignore line is added.
 ///
 /// Anchored to the candidate's **own** directory rather than to the leased
-/// worktree, because the two searched roots may live in different trees (a
-/// linked worktree, a secondary jj workspace) and the tree that owns the file is
-/// the one whose index or working-copy commit can hold it. Lane chosen jj-first
-/// by [`vcs_of`], both probes spawned as internal children by [`vcs_probe`],
-/// Git then anchored by [`anchor_git_worktree_environment`], jj kept read-only
-/// by `--ignore-working-copy`.
+/// worktree, because the two searched roots may live in different workspaces (a
+/// secondary jj workspace) and the one that owns the file is the one whose
+/// working-copy commit can hold it. The probe is spawned as an internal child by
+/// [`vcs_probe`] and kept read-only by `--ignore-working-copy`.
 ///
-/// No VCS marker at all answers `false` rather than failing: nothing owns the
-/// file, so nothing tracks it, and the hostile repository this guards against
-/// has a marker by definition. A probe that cannot be *completed* — the binary
-/// missing, the command failing — is an error, and its caller fails closed.
+/// No `.jj` marker at all answers `false` rather than refusing: this is the one
+/// place absence is an answer rather than a precondition failure — nothing owns
+/// the file, so nothing tracks it, and the hostile repository this guards
+/// against has a marker by definition. A probe that cannot be *completed* — the
+/// binary missing, the command failing — is an error, and its caller fails
+/// closed.
 pub(crate) fn path_is_tracked(path: &Path) -> Result<bool> {
     let directory = path
         .parent()
@@ -460,26 +225,20 @@ pub(crate) fn path_is_tracked(path: &Path) -> Result<bool> {
     let name = path
         .file_name()
         .with_context(|| format!("candidate path has no file name: {}", path.display()))?;
-    match vcs_of(directory) {
-        Some(Vcs::Jj { .. }) => jj_path_is_tracked(directory, Path::new(name)),
-        Some(Vcs::Git) => git_path_is_tracked(directory, Path::new(name)),
-        None => Ok(false),
+    if jj_workspace_root(directory).is_none() {
+        return Ok(false);
     }
+    jj_path_is_tracked(directory, Path::new(name))
 }
 
-/// One read-only VCS probe, spawned as an **internal child**: it must answer
-/// about the tree Grove selected, not about whatever repository — or whatever
-/// index — the process that launched Grove had selected for itself.
+/// One read-only jj probe, spawned as an **internal child**: it must answer
+/// about the workspace Grove selected, not about whatever repository the
+/// process that launched Grove had selected for itself.
 ///
-/// [`crate::launch::scrub_internal_child_env`] first, lane-specific anchoring
-/// after. The order matters and the split does too: anchoring re-establishes the
-/// selectors Grove *does* want (`GIT_WORK_TREE`), while scrubbing removes the
-/// ones it never does. `GIT_INDEX_FILE` is the case that makes the distinction
-/// load-bearing here — it selects the index independently of the worktree, so an
-/// anchored-but-unscrubbed `git ls-files` reads an inherited alternate index and
-/// reports a tracked delta as untracked, defeating the whole seam. Routing both
-/// probes through one constructor is what stops the next one being written
-/// without it.
+/// [`crate::launch::scrub_internal_child_env`] removes the selectors Grove never
+/// wants, `JJ_*` and the inherited `GIT_*` a colocated repo would still honour
+/// among them. Routing the probe through one constructor is what stops the next
+/// one being written without it.
 fn vcs_probe(program: &str, directory: &Path) -> Command {
     let mut command = Command::new(program);
     command.current_dir(directory);
@@ -505,26 +264,6 @@ fn jj_path_is_tracked(directory: &Path, name: &Path) -> Result<bool> {
     if !out.status.success() {
         bail!(
             "jj file list --ignore-working-copy failed in {}: {}",
-            directory.display(),
-            String::from_utf8_lossy(&out.stderr).trim()
-        );
-    }
-    Ok(!out.stdout.is_empty())
-}
-
-/// `git ls-files -- <name>` in the candidate's own directory: it prints the path
-/// when the index holds it and nothing when it does not, so trackedness is the
-/// emptiness of stdout rather than an exit status (`--error-unmatch` would make
-/// "untracked" indistinguishable from "the probe broke").
-fn git_path_is_tracked(directory: &Path, name: &Path) -> Result<bool> {
-    let worktree = workspace_control(directory)?.worktree_root().to_path_buf();
-    let mut command = vcs_probe("git", directory);
-    command.arg("ls-files").arg("--").arg(name);
-    anchor_git_worktree_environment(&mut command, &worktree);
-    let out = command.output().context("running git ls-files")?;
-    if !out.status.success() {
-        bail!(
-            "git ls-files failed in {}: {}",
             directory.display(),
             String::from_utf8_lossy(&out.stderr).trim()
         );

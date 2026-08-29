@@ -1,8 +1,11 @@
 # Using Grove
 
 Grove drives a long-running workstream as a sequence of fresh agent sessions.
-The workstream lives in a `.grove/` task tree inside a Git or Jujutsu working
-tree that you create and own.
+The workstream lives in a `.grove/` task tree inside a **Jujutsu** working tree
+that you create and own. Grove drives jj and nothing else: run it in a tree with
+no `.jj/` and it stops before touching anything, naming
+`jj git init --colocate` — which makes an existing Git repository jj-enabled
+while keeping its history and leaving every Git tool working.
 
 Before starting, install Grove as described in the [README](../README.md) and
 write the complete personal configuration described in
@@ -24,7 +27,6 @@ inspects the filesystem and does the appropriate next thing:
 | What it finds | What it does |
 |---|---|
 | No `.grove/` | Creates the root brief and a first `requirements` leaf, then launches it. |
-| An older `.grove/` layout | Migrates it in one focused commit, then continues. |
 | Live leaves | Launches the first one in tree order. |
 | No live leaves | Materializes a `finish` leaf and launches the teardown session. |
 
@@ -36,9 +38,9 @@ Because `grove` takes no arguments, **the working directory is the only thing
 that selects a workstream**. There is no tree to name and no confirmation step:
 Grove scaffolds and commits against whichever working tree encloses the
 directory you ran it from. That is what makes the command short, and it is worth
-knowing before you run it in a repository that holds several linked worktrees or
-Jujutsu workspaces — running it in the wrong one starts a grove there, not in the
-one you meant. `jj op restore` and `git reset` recover it if that happens.
+knowing before you run it in a repository that holds several Jujutsu workspaces —
+running it in the wrong one starts a grove there, not in the one you meant.
+`jj op restore` recovers it if that happens.
 
 To resume, run `grove` again. Grove has no progress database; it re-derives its
 position from the task tree every iteration, which is what makes restart and
@@ -48,37 +50,32 @@ Full configuration validation precedes every one of those tree mutations, so a
 missing or malformed `config.kdl` leaves your working tree byte-identical.
 
 Grove makes one commit of its own — the teardown commit at the end. It touches
-only `.grove/`, and in plain Git it runs with your Git hooks disabled: an
-arbitrary hook can modify unrelated files even while rejecting the commit, and
-the commit's rollback could not put those files back. Signing and other
-repository failures still surface normally.
+only `.grove/`, leaving unrelated working-copy changes in the successor commit.
+Repository failures surface normally, and `jj op restore` undoes the commit like
+any other jj operation.
 
 ### One driver per working tree
 
 A working tree can have only one live Grove driver. A second `grove` in the same
 tree exits immediately, names the canonical working tree, and leaves the existing
 driver as owner — it does not queue, because two drivers would issue two
-mandates for the same task. Different Git worktrees and jj workspaces are
-independent even when they share a repository; path aliases and symlinks to the
-same tree are not.
+mandates for the same task. Different jj workspaces are independent even when
+they share a repository; path aliases and symlinks to the same tree are not.
 
 Ownership is held by a kernel lock, so normal exit, a panic, and process death
 all release it. Restarting after a crash is ordinary continuation.
 
 ### Supported workspace layouts
 
-Grove keeps its controls in your workspace's VCS administration directory
-(`.jj/grove/`, or the per-worktree Git directory's `grove/`), and teardown ends by
+Grove keeps its controls in your workspace's `.jj/grove/`, and teardown ends by
 moving `.grove/` there in a single atomic rename. That rename cannot cross a
-filesystem boundary, so **your working tree and its administration directory must
-be on the same filesystem**.
+filesystem boundary, so **your working tree and its `.jj/` directory must be on
+the same filesystem**.
 
-Almost every layout satisfies this for free, because the administration directory
-sits inside the working tree: plain checkouts, and native, secondary, and
-colocated jj workspaces alike. The exception is a **linked Git worktree or a
-submodule**, whose `.git` is a file pointing at the main repository — put one on
-an external volume, a network mount, or a container bind-mount that does not
-include the main repository, and the two are on different filesystems.
+Every ordinary layout satisfies this for free, because `.jj/` sits at the root of
+the working tree: native, secondary, and colocated jj workspaces alike. It fails
+only where `.jj/` has itself been put elsewhere — a mount point, or a symlink
+onto another volume.
 
 Grove checks this when it starts, not when you finish. An unsupported layout
 exits before creating or touching anything, names both directories and their
@@ -328,10 +325,8 @@ happens.
 
 What this means for you:
 
-- The deletion commit touches only `.grove/`. Unrelated staged changes,
-  working-tree edits, and Jujutsu working-copy changes are preserved, and plain
-  Git runs this internal commit with hooks disabled, because an arbitrary hook
-  could modify files the transaction promises to leave alone.
+- The deletion commit touches only `.grove/`. Unrelated working-copy changes are
+  preserved, landing in the successor commit rather than in the teardown.
 - If teardown fails or the session dies mid-way, you get either your live
   workstream tree back — rerun and it retries — or a blocked tree that says
   exactly what is wrong. You never get a half-deleted tree, and an absent
@@ -344,8 +339,7 @@ What this means for you:
   rebase, or rewrite history on your behalf, so nothing you did outside Grove is
   discarded to unblock it.
 - After a successful teardown, the tree's bytes move to a quarantine directory
-  inside your VCS administration directory (`.git/` or `.jj/`) and are deleted
-  from there. That quarantine is disposable cleanup, never workflow state; a
+  inside your workspace's `.jj/` and are deleted from there. That quarantine is disposable cleanup, never workflow state; a
   later Grove run tidies up any a crash left behind.
 - Once `.grove/` is gone, that workstream is over. A later `grove` in the same
   tree starts a **new** grove rather than recovering the finished one — Grove

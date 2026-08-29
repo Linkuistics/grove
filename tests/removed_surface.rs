@@ -595,10 +595,14 @@ fn removed_environment() -> Vec<(String, String)> {
         .collect()
 }
 
+/// The two shapes a jj working tree comes in. Grove drives jj only
+/// (`docs/adr/jj-is-the-only-lane.md`), so this is the cross-tree axis that
+/// remains: a colocated workspace carries a `.git` beside its `.jj`, a native
+/// one does not.
 #[derive(Clone, Copy, Debug)]
 enum Tree {
-    Git,
-    Jj,
+    Native,
+    Colocated,
 }
 
 fn write_executable(path: &Path, body: &str) {
@@ -641,29 +645,24 @@ impl Fixture {
         fs::create_dir_all(home.join(".codex")).unwrap();
         let worktree = root.path().join("worktree");
         fs::create_dir_all(&worktree).unwrap();
-        match tree {
-            Tree::Git => {
-                run_vcs("git", &worktree, &["init", "-q", "."]);
-            }
-            Tree::Jj => {
-                run_vcs(
-                    "jj",
-                    &worktree,
-                    &[
-                        "--config",
-                        "git.colocate=false",
-                        "git",
-                        "init",
-                        "--quiet",
-                        ".",
-                    ],
-                );
-                assert!(
-                    !worktree.join(".git").exists(),
-                    "the jj fixture must have no .git/, or a git fallback would pass unnoticed"
-                );
-            }
-        }
+        let colocate = matches!(tree, Tree::Colocated);
+        run_vcs(
+            "jj",
+            &worktree,
+            &[
+                "--config",
+                &format!("git.colocate={colocate}"),
+                "git",
+                "init",
+                "--quiet",
+                ".",
+            ],
+        );
+        assert_eq!(
+            worktree.join(".git").exists(),
+            colocate,
+            "the fixture must be exactly the shape it names"
+        );
         let grove = worktree.join(".grove");
         fs::create_dir_all(&grove).unwrap();
         fs::write(grove.join("BRIEF.md"), "# removed-surface — brief\n").unwrap();
@@ -808,17 +807,16 @@ fn assert_launch_is_unchanged_by_the_removed_environment(tree: Tree) {
 }
 
 #[test]
-fn a_configured_launch_in_a_git_tree_ignores_the_removed_environment() {
-    assert_launch_is_unchanged_by_the_removed_environment(Tree::Git);
+fn a_configured_launch_in_a_native_jj_tree_ignores_the_removed_environment() {
+    assert_launch_is_unchanged_by_the_removed_environment(Tree::Native);
 }
 
-/// The cross-tree half. A Git worktree and a jj workspace take different paths
-/// through lease acquisition and the lifecycle transition before either reaches
-/// a launch, so "the configured argv is the whole of launch policy" is a claim
-/// about both or about neither.
+/// The cross-tree half. "The configured argv is the whole of launch policy" is a
+/// claim about every workspace shape or about none, and a colocated tree is the
+/// one carrying a second marker that a resolution could still be tempted by.
 #[test]
-fn a_configured_launch_in_a_jj_tree_ignores_the_removed_environment() {
-    assert_launch_is_unchanged_by_the_removed_environment(Tree::Jj);
+fn a_configured_launch_in_a_colocated_jj_tree_ignores_the_removed_environment() {
+    assert_launch_is_unchanged_by_the_removed_environment(Tree::Colocated);
 }
 
 /// The positive control for the behavioural half: the same fixture *does*
@@ -827,7 +825,7 @@ fn a_configured_launch_in_a_jj_tree_ignores_the_removed_environment() {
 /// launch is the configuration, and changing it changes the recorded argv.
 #[test]
 fn the_launch_fixture_still_observes_a_configuration_driven_change() {
-    let fixture = Fixture::new(Tree::Git);
+    let fixture = Fixture::new(Tree::Native);
     assert!(fixture.run(&[]).status.success());
 
     write_complete_config(

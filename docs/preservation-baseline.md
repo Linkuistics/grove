@@ -15,6 +15,12 @@ approved exception:
 - Configuration keys, environment overrides, defaults, and the current
   `session-kinds-v1` `.grove` format.
 - Abstract outcomes across Git, native jj, and colocated jj workspaces.
+  **Excepted for Git, from `drop-git-lane-k7`.** Grove now drives jj only and
+  refuses a working tree with no `.jj/` before any mutation, so every Git row
+  measured below records a lane that has been dropped rather than one that must
+  still hold. The exception is the approved kind this ledger allows for, argued
+  in [`jj-is-the-only-lane`](adr/jj-is-the-only-lane.md); the measurements
+  themselves stay as they were taken.
 - Methodology embedding/provisioning, package and binary names, release/install
   behaviour, MSRV 1.85, and the Linux glibc 2.17 compatibility target.
 - Fail-closed ownership: Grove never resets, merges, deletes, or rewrites work

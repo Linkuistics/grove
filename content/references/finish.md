@@ -46,8 +46,8 @@ deliveries of it, and neither can drift from the other. On confirmation, run:
    directory, nothing in the working tree.
 
 Nothing after: integrating the grove's branch and tearing down the working tree
-are **not** grove workflow — both belong to plain git/gh or jj, or the user's
-own worktree tooling (user-owned-worktrees). Whoever integrates does so after step
+are **not** grove workflow — both belong to jj, to `gh`, or to the user's own
+workspace tooling (user-owned-worktrees). Whoever integrates does so after step
 2, so the integrated history never carries `.grove/`.
 
 **Resume is state-checked, never a marker file** (constraint 1) — and the state

@@ -125,102 +125,38 @@ fn find_entry_named(root: &Path, name: &OsStr) -> Option<PathBuf> {
     None
 }
 
-fn git(repository: &Path, arguments: &[&str]) -> String {
-    String::from_utf8(run("git", repository, arguments).stdout)
-        .unwrap()
-        .trim()
-        .to_string()
-}
-
-fn git_index_path(repository: &Path) -> PathBuf {
-    let path = PathBuf::from(git(repository, &["rev-parse", "--git-path", "index"]));
-    if path.is_absolute() {
-        path
-    } else {
-        repository.join(path)
-    }
-}
-
-fn auxiliary_markers(repository: &Path) -> Vec<PathBuf> {
-    let mut markers = fs::read_dir(git_index_path(repository).parent().unwrap())
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| {
-            let name = path.file_name().unwrap().to_string_lossy();
-            name.starts_with("GROVE-FINISH-AUXILIARY-") && name.ends_with(".json")
-        })
-        .collect::<Vec<_>>();
-    markers.sort();
-    markers
-}
-
-fn auxiliary_artifact(marker: &Path) -> PathBuf {
-    let name = marker.file_name().unwrap().to_string_lossy();
-    marker.with_file_name(name.strip_suffix(".json").unwrap())
-}
-
-/// Every entry the auxiliary protocol can leave beside the Git index: canonical
-/// artifacts, their markers, replacement state documents, and the drawn-name
-/// staging entries an exchange passes through.
-fn auxiliary_entries(directory: &Path) -> Vec<String> {
-    let mut names = fs::read_dir(directory)
-        .unwrap()
-        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-        .filter(|name| name.starts_with("GROVE-FINISH-AUXILIARY-"))
-        .collect::<Vec<_>>();
-    names.sort();
-    names
-}
-
-/// The private directories the colocated index filter stages Git's own
-/// lock-and-rename through. Their only disposal is an in-process owner, so
-/// anything here after a finish process has ended is a leak nothing sweeps.
-fn filter_staging_entries(directory: &Path) -> Vec<String> {
-    let mut names = fs::read_dir(directory)
-        .unwrap()
-        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-        .filter(|name| name.starts_with("GROVE-FINISH-FILTER-"))
-        .collect::<Vec<_>>();
-    names.sort();
-    names
-}
-
-/// The ten boundaries of the artifact-and-marker replacement, in transition
-/// order: the state document that binds the intended replacement, then the
-/// artifact exchange, the marker exchange, and the two retirements.
-const REBIND_CHECKPOINTS: &[&str] = &[
-    "before-state-publication",
-    "after-state-publication",
-    "before-artifact-exchange",
-    "after-artifact-exchange",
-    "before-marker-exchange",
-    "after-marker-exchange",
-    "before-retired-marker-removal",
-    "after-retired-marker-removal",
-    "before-retired-artifact-removal",
-    "after-retired-artifact-removal",
-];
-
-/// A colocated-Jujutsu grove whose `.grove/` is tracked in the Git index and
-/// whose working copy carries unrelated staged and unstaged work — the shape
-/// the success-index rebind exists to preserve. Returns the working-copy commit
-/// the finish must leave alone.
-///
-/// The seeded working copy is snapshotted *before* the caller reads the Git
-/// index: any colocated jj command exports its snapshot to that index, so a
-/// first snapshot taken later would otherwise read as a finish-side change.
-fn seed_colocated_rebind_fixture(repository: &Path) -> String {
-    init_jj(repository, true);
-    seed_jj_terminal_grove(repository);
-    fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
-    let commit = git_like_jj_output(
+/// The revision the working copy sits on, and its description — jj's answers to
+/// `git rev-parse HEAD` and `git log -1 --pretty=%s`, which are what "the
+/// refused run changed no history" is asserted against. Read with
+/// `--ignore-working-copy` so the reading cannot be the mutation it checks for.
+fn parent_commit(repository: &Path) -> String {
+    jj_output(
         repository,
-        &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
-    );
-    fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
-    run("git", repository, &["add", "staged.txt"]);
-    fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
-    commit
+        &[
+            "--ignore-working-copy",
+            "log",
+            "-r",
+            "@-",
+            "--no-graph",
+            "-T",
+            "commit_id",
+        ],
+    )
+}
+
+fn parent_description(repository: &Path) -> String {
+    jj_output(
+        repository,
+        &[
+            "--ignore-working-copy",
+            "log",
+            "-r",
+            "@-",
+            "--no-graph",
+            "-T",
+            "description",
+        ],
+    )
 }
 
 fn write_executable(path: &Path, body: &str) {
@@ -230,26 +166,17 @@ fn write_executable(path: &Path, body: &str) {
     fs::set_permissions(path, permissions).unwrap();
 }
 
-fn init_git(repository: &Path) {
-    fs::create_dir_all(repository).unwrap();
-    run("git", repository, &["init", "-q", "."]);
-    run("git", repository, &["config", "user.name", "Grove Test"]);
-    run(
-        "git",
-        repository,
-        &["config", "user.email", "grove-test@example.com"],
-    );
-    run(
-        "git",
-        repository,
-        &["config", "core.hooksPath", "/dev/null"],
-    );
+/// The ordinary fixture: a native jj workspace.
+fn init_repo(repository: &Path) {
+    init_jj(repository, false);
 }
 
+/// `git.colocate` is forced either way rather than inherited, because an
+/// ambient jj config may default it on and would turn every "native" fixture
+/// into a colocated one.
 fn init_jj(repository: &Path, colocated: bool) {
     fs::create_dir_all(repository).unwrap();
     if colocated {
-        init_git(repository);
         run(
             "jj",
             repository,
@@ -300,8 +227,7 @@ fn seed_committed_terminal_grove(repository: &Path) {
     fs::write(grove.join("BRIEF.md"), "# finish-test — brief\n").unwrap();
     fs::write(grove.join("01-DONE-impl-finished-k1.md"), "# finished-k1\n").unwrap();
     fs::write(repository.join("kept.txt"), "kept\n").unwrap();
-    run("git", repository, &["add", "-A"]);
-    run("git", repository, &["commit", "-q", "-m", "fixture"]);
+    run("jj", repository, &["commit", "-m", "fixture"]);
     fs::write(
         grove.join("02-finish-finish-k2.md"),
         "# finish-k2\n\n## Goal\n\nFinish.\n",
@@ -411,100 +337,10 @@ fn tree_snapshot(root: &Path) -> Vec<(String, Option<Vec<u8>>)> {
 }
 
 #[test]
-fn plain_git_finish_commit_deletes_only_the_grove_and_preserves_other_work() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("plain-git");
-    init_git(&repository);
-    seed_committed_terminal_grove(&repository);
-    fs::write(repository.join("staged.txt"), "staged\n").unwrap();
-    run("git", &repository, &["add", "staged.txt"]);
-    fs::write(repository.join("unstaged.txt"), "unstaged\n").unwrap();
-
-    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
-
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(!repository.join(".grove").exists());
-    let subject = git(&repository, &["log", "-1", "--pretty=%s"]);
-    let attempt = subject
-        .strip_prefix("finish-k2 (finish attempt ")
-        .and_then(|subject| subject.strip_suffix("): remove completed grove task tree"))
-        .expect("finish commit subject must identify the handle and attempt");
-    assert_eq!(attempt.len(), 32, "{subject}");
-    assert!(
-        attempt.bytes().all(|byte| byte.is_ascii_hexdigit()),
-        "{subject}"
-    );
-    let committed = git(&repository, &["show", "--pretty=", "--name-only", "HEAD"]);
-    assert!(committed.contains(".grove/NOTES.md"));
-    assert!(!committed.contains("staged.txt"));
-    assert_eq!(
-        git(&repository, &["diff", "--cached", "--name-only"]),
-        "staged.txt"
-    );
-    assert_eq!(
-        git(&repository, &["ls-files", "--stage", "--", ".grove"]),
-        "",
-        "the successful finish must leave no task-tree paths in the index"
-    );
-    assert_eq!(
-        fs::read_to_string(repository.join("unstaged.txt")).unwrap(),
-        "unstaged\n"
-    );
-}
-
-/// The generated finish leaf is normally working-tree-only, but nothing stops a
-/// broad task commit from sweeping it into history first — the Git counterpart
-/// of Jujutsu's intermediate working-copy snapshot, which every jj case here
-/// already exercises. The leaf then becomes part of the tracked deletion rather
-/// than an exception to it, so the contract is unchanged: one commit removes the
-/// whole tree, its addition and deletion still cancel from the final history.
-#[test]
-fn plain_git_finish_deletes_a_finish_leaf_a_broad_task_commit_already_tracked() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("tracked-finish-leaf");
-    init_git(&repository);
-    seed_committed_terminal_grove(&repository);
-    run("git", &repository, &["add", "-A"]);
-    run(
-        "git",
-        &repository,
-        &["commit", "-q", "-m", "broad task commit"],
-    );
-    assert_eq!(
-        git(
-            &repository,
-            &["ls-files", "--", ".grove/02-finish-finish-k2.md"]
-        ),
-        ".grove/02-finish-finish-k2.md"
-    );
-
-    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
-
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(!repository.join(".grove").exists());
-    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
-    let committed = git(&repository, &["show", "--pretty=", "--name-status", "HEAD"]);
-    assert!(
-        committed.contains("D\t.grove/02-finish-finish-k2.md"),
-        "{committed}"
-    );
-    assert!(committed.contains("D\t.grove/NOTES.md"), "{committed}");
-    assert_eq!(git(&repository, &["ls-files", "--", ".grove"]), "");
-}
-
-#[test]
 fn finish_commit_refuses_byte_identically_when_ordinary_work_appeared() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("work-appeared");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     fs::write(
         repository.join(".grove/03-impl-late-work-k3.md"),
@@ -512,27 +348,27 @@ fn finish_commit_refuses_byte_identically_when_ordinary_work_appeared() {
     )
     .unwrap();
     let before = tree_snapshot(&repository.join(".grove"));
-    let head_before = git(&repository, &["rev-parse", "HEAD"]);
+    let head_before = parent_commit(&repository);
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("late-work-k3"));
     assert_eq!(tree_snapshot(&repository.join(".grove")), before);
-    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(parent_commit(&repository), head_before);
 }
 
 /// Task-root absence proves nothing: with no teardown result to verify, a
 /// rootless retry is a refusal, and a refusal never licenses `complete --done`.
 ///
-/// A repository with no commits at all is the degenerate case, and it must read
-/// as Grove's own statement about what it needed rather than as a leaked
-/// `git rev-list` usage error.
+/// A repository with nothing but its root commit is the degenerate case, and it
+/// must read as Grove's own statement about what it needed rather than as a
+/// leaked VCS usage error.
 #[test]
 fn rootless_finish_retry_refuses_when_no_teardown_result_exists() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("already-finished");
-    init_git(&repository);
+    init_repo(&repository);
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
@@ -543,12 +379,12 @@ fn rootless_finish_retry_refuses_when_no_teardown_result_exists() {
         "{stderr}"
     );
     assert!(
-        stderr.contains("has no commits"),
-        "the unborn repository leaked a raw VCS diagnostic: {stderr}"
+        stderr.contains("is not this finish attempt's teardown commit"),
+        "the empty repository must be told what was required: {stderr}"
     );
     assert!(
-        !stderr.contains("ambiguous argument"),
-        "the unborn repository leaked a raw VCS diagnostic: {stderr}"
+        !stderr.contains("Usage:") && !stderr.contains("error: unexpected"),
+        "the empty repository leaked a raw VCS diagnostic: {stderr}"
     );
 }
 
@@ -561,14 +397,9 @@ fn rootless_finish_retry_refuses_when_no_teardown_result_exists() {
 fn rootless_finish_retry_names_the_message_it_required_and_the_one_it_observed() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("near-miss");
-    init_git(&repository);
+    init_repo(&repository);
     fs::write(repository.join("unrelated.txt"), "unrelated\n").unwrap();
-    run("git", &repository, &["add", "-A"]);
-    run(
-        "git",
-        &repository,
-        &["commit", "-q", "-m", "unrelated work"],
-    );
+    run("jj", &repository, &["commit", "-m", "unrelated work"]);
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
@@ -652,28 +483,6 @@ fn assert_lost_result_retry_was_idempotent(run: &LostResultRun) {
     );
 }
 
-#[test]
-fn lost_plain_git_finish_result_makes_the_same_launch_retry_idempotent() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("lost-plain-git");
-    init_git(&repository);
-    seed_committed_terminal_grove(&repository);
-    fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
-
-    let run = run_lost_finish_result_session(fixture.path(), &repository);
-
-    assert_lost_result_retry_was_idempotent(&run);
-    assert!(!repository.join(".grove").exists());
-    assert_eq!(
-        git(&repository, &["rev-list", "--count", "HEAD"]),
-        "2",
-        "the retry made a second teardown commit instead of verifying the first"
-    );
-    assert!(
-        git(&repository, &["log", "-1", "--pretty=%s"]).starts_with("finish-k2 (finish attempt")
-    );
-}
-
 fn assert_lost_jj_finish_result_retry_is_idempotent(colocated: bool) {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join(if colocated {
@@ -689,7 +498,7 @@ fn assert_lost_jj_finish_result_retry_is_idempotent(colocated: bool) {
 
     assert_lost_result_retry_was_idempotent(&run);
     assert!(!repository.join(".grove").exists());
-    let teardown = git_like_jj_output(
+    let teardown = jj_output(
         &repository,
         &["log", "-r", "@-", "--no-graph", "-T", "description"],
     );
@@ -697,7 +506,7 @@ fn assert_lost_jj_finish_result_retry_is_idempotent(colocated: bool) {
         teardown.starts_with("finish-k2 (finish attempt"),
         "{teardown}"
     );
-    let grandparent = git_like_jj_output(
+    let grandparent = jj_output(
         &repository,
         &["log", "-r", "@--", "--no-graph", "-T", "description"],
     );
@@ -746,7 +555,7 @@ fn drive_finish_session(
 fn rootless_finish_retry_refuses_a_teardown_result_from_another_finish_attempt() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("reused-handle");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
     let home = fixture.path().join("home");
@@ -764,7 +573,7 @@ fn rootless_finish_retry_refuses_a_teardown_result_from_another_finish_attempt()
         "{}",
         String::from_utf8_lossy(&first.stderr)
     );
-    let teardown = git(&repository, &["rev-parse", "HEAD"]);
+    let teardown = parent_commit(&repository);
 
     let session_log = fixture.path().join("session");
     fs::create_dir(&session_log).unwrap();
@@ -799,7 +608,7 @@ printf '%s\n' "$?" > {log}/status
     );
     assert!(out.contains("finish attempt"), "{out}");
     assert_eq!(
-        git(&repository, &["rev-parse", "HEAD"]),
+        parent_commit(&repository),
         teardown,
         "the refused retry changed repository history"
     );
@@ -812,7 +621,7 @@ printf '%s\n' "$?" > {log}/status
 fn rootless_finish_retry_refuses_a_teardown_result_that_is_no_longer_immediate() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("not-immediate");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
     let home = fixture.path().join("home");
@@ -828,7 +637,7 @@ fn rootless_finish_retry_refuses_a_teardown_result_that_is_no_longer_immediate()
             r#"#!/bin/sh
 {llm} finish-commit finish-k2 > {log}/first-out 2>&1
 printf '%s\n' "$?" > {log}/first-status
-git -C {repo} commit -q --allow-empty -m 'later work'
+jj -R {repo} commit -m 'later work'
 {llm} finish-commit finish-k2 > {log}/second-out 2>&1
 printf '%s\n' "$?" > {log}/second-status
 {llm} complete --done
@@ -854,7 +663,7 @@ printf '%s\n' "$?" > {log}/second-status
     );
     assert!(second.contains("later work"), "{second}");
     assert_eq!(
-        git(&repository, &["log", "-1", "--pretty=%s"]),
+        parent_description(&repository),
         "later work",
         "the refused retry changed repository history"
     );
@@ -864,12 +673,17 @@ printf '%s\n' "$?" > {log}/second-status
 /// result keeps the exact message — handle *and* this launch's attempt identity
 /// — and differs only in the shape the proof also requires. The message alone is
 /// not the proof.
+///
+/// `amendment` runs in the repository and owns its own `jj squash`: squashing
+/// the working copy into its parent is jj's `commit --amend`, and it keeps the
+/// parent's description, which is the whole point. The still-tracked case has
+/// work to do *after* the squash, so the squash cannot live in this template.
 fn run_amended_teardown_retry(
     fixture: &Path,
     repository: &Path,
     amendment: &str,
 ) -> (String, String) {
-    init_git(repository);
+    init_repo(repository);
     seed_committed_terminal_grove(repository);
     fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
     let home = fixture.join("home");
@@ -887,7 +701,6 @@ fn run_amended_teardown_retry(
 printf '%s\n' "$?" > {log}/first-status
 cd {repo} || exit 1
 {amendment}
-git commit -q --amend --no-edit
 {llm} finish-commit finish-k2 > {log}/second-out 2>&1
 printf '%s\n' "$?" > {log}/second-status
 {llm} complete --done
@@ -905,7 +718,7 @@ printf '%s\n' "$?" > {log}/second-status
     let read = |name: &str| fs::read_to_string(session_log.join(name)).unwrap();
     assert_eq!(read("first-status").trim(), "0", "{}", read("first-out"));
     assert!(
-        git(repository, &["log", "-1", "--pretty=%s"]).starts_with("finish-k2 (finish attempt"),
+        parent_description(repository).starts_with("finish-k2 (finish attempt"),
         "the amendment did not preserve the exact teardown message"
     );
     (read("second-status").trim().to_owned(), read("second-out"))
@@ -919,7 +732,7 @@ fn rootless_finish_retry_refuses_a_matching_message_that_changes_paths_outside_t
     let (status, output) = run_amended_teardown_retry(
         fixture.path(),
         &repository,
-        "printf 'outside\\n' > outside.txt\ngit add outside.txt",
+        "printf 'outside\\n' > outside.txt\njj squash",
     );
 
     assert_ne!(
@@ -942,8 +755,7 @@ fn rootless_finish_retry_refuses_a_matching_message_that_still_tracks_the_grove(
     let (status, output) = run_amended_teardown_retry(
         fixture.path(),
         &repository,
-        "mkdir -p .grove\nprintf 'notes\\n' > .grove/NOTES.md\n\
-         git add .grove/NOTES.md\ngit commit -q --amend --no-edit\nrm -rf .grove",
+        "mkdir -p .grove\nprintf 'notes\\n' > .grove/NOTES.md\njj squash\nrm -rf .grove",
     );
 
     assert_ne!(
@@ -962,17 +774,6 @@ fn assert_jj_finish_commit_preserves_other_work(colocated: bool) {
     });
     init_jj(&repository, colocated);
     seed_jj_terminal_grove(&repository);
-    if colocated {
-        fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
-        run("git", &repository, &["add", "staged.txt"]);
-        fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
-    }
-    let outside_git_index_before = colocated.then(|| {
-        git(
-            &repository,
-            &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
-        )
-    });
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
@@ -982,33 +783,19 @@ fn assert_jj_finish_commit_preserves_other_work(colocated: bool) {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(!repository.join(".grove").exists());
-    let committed = git_like_jj_output(&repository, &["diff", "-r", "@-", "--summary"]);
+    let committed = jj_output(&repository, &["diff", "-r", "@-", "--summary"]);
     assert!(committed.contains(".grove/NOTES.md"));
     assert!(!committed.contains("outside.txt"));
-    let successor = git_like_jj_output(&repository, &["diff", "-r", "@", "--summary"]);
+    let successor = jj_output(&repository, &["diff", "-r", "@", "--summary"]);
     assert!(successor.contains("outside.txt"));
-    let description = git_like_jj_output(
+    let description = jj_output(
         &repository,
         &["log", "-r", "@-", "--no-graph", "-T", "description"],
     );
     assert!(description.contains("finish-k2"));
-    if let Some(index_before) = outside_git_index_before {
-        assert_eq!(
-            git(
-                &repository,
-                &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
-            ),
-            index_before
-        );
-        assert_eq!(
-            git(&repository, &["ls-files", "--stage", "--", ".grove"]),
-            "",
-            "the colocated Git index must not re-stage the deleted grove"
-        );
-    }
 }
 
-fn git_like_jj_output(repository: &Path, arguments: &[&str]) -> String {
+fn jj_output(repository: &Path, arguments: &[&str]) -> String {
     String::from_utf8(run("jj", repository, arguments).stdout)
         .unwrap()
         .trim()
@@ -1034,23 +821,13 @@ fn assert_failed_jj_finish_restores_the_tree_and_repository(colocated: bool) {
     });
     init_jj(&repository, colocated);
     seed_jj_terminal_grove(&repository);
-    if colocated {
-        fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
-        run("git", &repository, &["add", "staged.txt"]);
-        fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
-    }
 
     let grove = repository.join(".grove");
     let tree_before = tree_snapshot(&grove);
-    let commit_before = git_like_jj_output(
+    let commit_before = jj_output(
         &repository,
         &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
     );
-    let index_before = colocated.then(|| {
-        let index = repository.join(git(&repository, &["rev-parse", "--git-path", "index"]));
-        fs::read(index).unwrap()
-    });
-
     let real_jj = String::from_utf8(run("which", &repository, &["jj"]).stdout)
         .unwrap()
         .trim()
@@ -1073,16 +850,12 @@ fn assert_failed_jj_finish_restores_the_tree_and_repository(colocated: bool) {
     assert!(grove.is_dir(), "the failed jj finish removed the task root");
     assert_eq!(tree_snapshot(&grove), tree_before, "{stderr}");
     assert_eq!(
-        git_like_jj_output(
+        jj_output(
             &repository,
             &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
         ),
         commit_before
     );
-    if let Some(index_before) = index_before {
-        let index = repository.join(git(&repository, &["rev-parse", "--git-path", "index"]));
-        assert_eq!(fs::read(index).unwrap(), index_before);
-    }
 }
 
 #[test]
@@ -1091,101 +864,19 @@ fn failed_native_jj_finish_restores_the_tree_and_preflight_commit() {
 }
 
 #[test]
-fn failed_colocated_jj_finish_restores_the_tree_preflight_commit_and_git_index() {
+fn failed_colocated_jj_finish_restores_the_tree_and_preflight_commit() {
     assert_failed_jj_finish_restores_the_tree_and_repository(true);
 }
 
 #[test]
-fn colocated_jj_finish_refuses_before_commit_when_success_index_cannot_be_prepared() {
+fn an_untracked_grove_finish_is_refused_before_deleting_the_tree() {
     let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("colocated-jj-index-failure");
-    init_jj(&repository, true);
-    seed_jj_terminal_grove(&repository);
-    fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
-    run("git", &repository, &["add", "staged.txt"]);
-    fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
-    let outside_index_before = git(
-        &repository,
-        &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
-    );
-    let parent_before = git_like_jj_output(
-        &repository,
-        &["log", "-r", "@-", "--no-graph", "-T", "commit_id"],
-    );
-    let git_directory = repository.join(git(&repository, &["rev-parse", "--git-dir"]));
-    let real_git =
-        String::from_utf8(Command::new("which").arg("git").output().unwrap().stdout).unwrap();
-    let fake_bin = fixture.path().join("fake-bin");
-    fs::create_dir(&fake_bin).unwrap();
-    write_executable(
-        &fake_bin.join("git"),
-        r#"#!/bin/sh
-case "${GIT_INDEX_FILE-}" in
-  *GROVE-FINISH-AUXILIARY-git-index-success-*)
-    printf '%s\n' 'forced success-index preparation failure' >&2
-    exit 71
-    ;;
-esac
-exec "$GROVE_TEST_REAL_GIT" "$@"
-"#,
-    );
-    let path = format!(
-        "{}:{}",
-        fake_bin.display(),
-        std::env::var_os("PATH")
-            .unwrap_or_default()
-            .to_string_lossy()
-    );
-
-    let output = Command::cargo_bin("grove-llm")
-        .unwrap()
-        .current_dir(&repository)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .env("PATH", path)
-        .env("GROVE_TEST_REAL_GIT", real_git.trim())
-        .args(["finish-commit", "finish-k2"])
-        .output()
-        .unwrap();
-
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("forced success-index preparation failure"),
-        "{stderr}"
-    );
-    assert!(!fs::read_dir(&git_directory).unwrap().any(|entry| {
-        entry
-            .unwrap()
-            .file_name()
-            .as_encoded_bytes()
-            .starts_with(b"GROVE-FINISH-AUXILIARY-")
-    }));
-    assert_eq!(
-        git(
-            &repository,
-            &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
-        ),
-        outside_index_before
-    );
-    assert_eq!(
-        git_like_jj_output(
-            &repository,
-            &["log", "-r", "@-", "--no-graph", "-T", "commit_id"],
-        ),
-        parent_before,
-        "index preparation must fail before jj records the finish commit"
-    );
-}
-
-#[test]
-fn plain_git_unborn_finish_is_refused_before_deleting_the_tree() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("unborn-git");
-    init_git(&repository);
+    let repository = fixture.path().join("untracked-grove");
+    init_repo(&repository);
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("NOTES.md"), "notes\n").unwrap();
-    fs::write(grove.join("BRIEF.md"), "# unborn-git — brief\n").unwrap();
+    fs::write(grove.join("BRIEF.md"), "# untracked-grove — brief\n").unwrap();
     fs::write(
         grove.join("01-finish-finish-k1.md"),
         "# finish-k1\n\n## Goal\n\nFinish.\n",
@@ -1197,7 +888,7 @@ fn plain_git_unborn_finish_is_refused_before_deleting_the_tree() {
 
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("no tracked state in HEAD"), "{stderr}");
+    assert!(stderr.contains("has no tracked state"), "{stderr}");
     assert_eq!(tree_snapshot(&grove), before);
 }
 
@@ -1205,14 +896,12 @@ fn plain_git_unborn_finish_is_refused_before_deleting_the_tree() {
 fn finish_preflight_refuses_special_entries_before_deleting_the_tree() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("special-entry");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
-    fs::write(repository.join("staged.txt"), "staged\n").unwrap();
-    run("git", &repository, &["add", "staged.txt"]);
+    fs::write(repository.join("unrelated.txt"), "unrelated\n").unwrap();
     let socket_path = repository.join(".grove/runtime.sock");
     let _listener = UnixListener::bind(&socket_path).unwrap();
-    let head_before = git(&repository, &["rev-parse", "HEAD"]);
-    let index_before = git(&repository, &["ls-files", "--stage"]);
+    let head_before = parent_commit(&repository);
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
@@ -1222,8 +911,12 @@ fn finish_preflight_refuses_special_entries_before_deleting_the_tree() {
     assert!(stderr.contains("runtime.sock"), "{stderr}");
     assert!(repository.join(".grove").is_dir());
     assert!(socket_path.exists());
-    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
-    assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
+    assert_eq!(parent_commit(&repository), head_before);
+    assert_eq!(
+        fs::read_to_string(repository.join("unrelated.txt")).unwrap(),
+        "unrelated\n",
+        "a refused finish must leave unrelated working-copy bytes alone"
+    );
 }
 
 /// A reserved finish-transaction path already in the root is refused before
@@ -1243,12 +936,12 @@ fn finish_preflight_refuses_special_entries_before_deleting_the_tree() {
 fn finish_commit_refuses_a_reserved_witness_collision_before_deletion() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("reserved-collision");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     let collision = repository.join(".grove/FINISHING-finish-k2");
     fs::create_dir(&collision).unwrap();
     fs::write(collision.join("foreign"), "keep\n").unwrap();
-    let head_before = git(&repository, &["rev-parse", "HEAD"]);
+    let head_before = parent_commit(&repository);
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
@@ -1263,7 +956,7 @@ fn finish_commit_refuses_a_reserved_witness_collision_before_deletion() {
         fs::read_to_string(collision.join("foreign")).unwrap(),
         "keep\n"
     );
-    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(parent_commit(&repository), head_before);
 }
 
 /// A task root that is a symlink rather than a real directory is refused before
@@ -1277,14 +970,13 @@ fn finish_commit_refuses_a_reserved_witness_collision_before_deletion() {
 fn finish_preflight_refuses_a_symlinked_task_root_before_deleting_the_tree() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("symlinked-root");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     let grove_root = repository.join(".grove");
     let store = repository.join("grove-store");
     fs::rename(&grove_root, &store).unwrap();
     std::os::unix::fs::symlink("grove-store", &grove_root).unwrap();
-    let head_before = git(&repository, &["rev-parse", "HEAD"]);
-    let index_before = git(&repository, &["ls-files", "--stage"]);
+    let head_before = parent_commit(&repository);
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
@@ -1298,83 +990,14 @@ fn finish_preflight_refuses_a_symlinked_task_root_before_deleting_the_tree() {
         .is_symlink());
     assert!(store.join("02-finish-finish-k2.md").is_file());
     assert!(store.join("NOTES.md").is_file());
-    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
-    assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
-}
-
-#[test]
-fn plain_git_finish_commit_disables_user_hooks() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("failed-git-commit");
-    init_git(&repository);
-    seed_committed_terminal_grove(&repository);
-    fs::write(repository.join("staged.txt"), "staged\n").unwrap();
-    run("git", &repository, &["add", "staged.txt"]);
-    run("git", &repository, &["config", "--unset", "core.hooksPath"]);
-    let hook = repository.join(".git/hooks/pre-commit");
-    let hook_marker = repository.join("hook-ran");
-    fs::create_dir_all(hook.parent().unwrap()).unwrap();
-    write_executable(
-        &hook,
-        "#!/bin/sh\nprintf 'hook ran\\n' >hook-ran\nprintf 'blocked finish commit\\n' >&2\nexit 1\n",
-    );
-    let index_before = git(
-        &repository,
-        &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
-    );
-
-    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
-
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(!hook_marker.exists(), "the user hook ran during finish");
-    assert_eq!(
-        git(
-            &repository,
-            &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
-        ),
-        index_before
-    );
-}
-
-#[test]
-fn failed_plain_git_finish_commit_restores_the_tree_and_index() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("failed-git-commit");
-    init_git(&repository);
-    seed_committed_terminal_grove(&repository);
-    fs::write(repository.join("staged.txt"), "staged\n").unwrap();
-    run("git", &repository, &["add", "staged.txt"]);
-    let failing_gpg = repository.join("failing-gpg");
-    write_executable(&failing_gpg, "#!/bin/sh\nexit 1\n");
-    run(
-        "git",
-        &repository,
-        &["config", "gpg.program", failing_gpg.to_str().unwrap()],
-    );
-    run("git", &repository, &["config", "commit.gpgsign", "true"]);
-    let grove = repository.join(".grove");
-    let tree_before = tree_snapshot(&grove);
-    let head_before = git(&repository, &["rev-parse", "HEAD"]);
-    let index_before = git(&repository, &["ls-files", "--stage"]);
-
-    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
-
-    assert!(!output.status.success());
-    assert!(grove.is_dir(), "the failed finish removed the task root");
-    assert_eq!(tree_snapshot(&grove), tree_before);
-    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
-    assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
+    assert_eq!(parent_commit(&repository), head_before);
 }
 
 #[test]
 fn tree_readers_refuse_a_ready_finish_transaction() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("ready-finish-transaction");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     let grove = repository.join(".grove");
     let witness = grove.join("FINISHING-finish-k2");
@@ -1411,7 +1034,7 @@ fn tree_readers_refuse_a_ready_finish_transaction() {
 fn tree_readers_refuse_a_preparing_finish_transaction() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("preparing-finish-transaction");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     let preparing = repository
         .join(".grove")
@@ -1433,7 +1056,7 @@ fn tree_readers_refuse_a_preparing_finish_transaction() {
 fn configured_finish_target_commits_teardown_then_stops_the_loop_cleanly() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("clean-stop");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
     let home = fixture.path().join("home");
@@ -1466,7 +1089,7 @@ fn configured_finish_target_commits_teardown_then_stops_the_loop_cleanly() {
     );
     assert!(!repository.join(".grove").exists());
     assert!(String::from_utf8_lossy(&output.stderr).contains("grove finished"));
-    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+    assert!(parent_description(&repository).contains("finish-k2"));
 }
 
 /// **The fixtures' own discriminator, under the leaf that defeats every prompt
@@ -1491,14 +1114,13 @@ fn configured_finish_target_commits_teardown_then_stops_the_loop_cleanly() {
 fn the_finish_route_is_not_taken_by_an_ordinary_leaf_whose_slug_is_finish() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("ordinary-finish-slug");
-    init_git(&repository);
+    init_repo(&repository);
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("NOTES.md"), "notes\n").unwrap();
     fs::write(grove.join("BRIEF.md"), "# ordinary-finish-slug — brief\n").unwrap();
     fs::write(grove.join("01-impl-finish-k1.md"), "# finish-k1\n").unwrap();
-    run("git", &repository, &["add", "-A"]);
-    run("git", &repository, &["commit", "-q", "-m", "fixture"]);
+    run("jj", &repository, &["commit", "-m", "fixture"]);
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let launch_log = fixture.path().join("launch-log");
@@ -1549,7 +1171,7 @@ fn the_finish_route_is_not_taken_by_an_ordinary_leaf_whose_slug_is_finish() {
 fn a_no_signal_exit_after_successful_teardown_stops_and_then_starts_a_fresh_grove() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("teardown-then-no-signal");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
     let home = fixture.path().join("home");
@@ -1585,7 +1207,7 @@ fn a_no_signal_exit_after_successful_teardown_stops_and_then_starts_a_fresh_grov
     assert!(stderr.contains("elapsed "), "{stderr}");
     assert!(!stderr.contains("grove finished"), "{stderr}");
     assert!(!repository.join(".grove").exists());
-    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+    assert!(parent_description(&repository).contains("finish-k2"));
     assert!(
         !launch_log.exists(),
         "the driver relaunched after no signal"
@@ -1622,7 +1244,7 @@ fn a_no_signal_exit_after_successful_teardown_stops_and_then_starts_a_fresh_grov
 fn a_done_signal_abandoned_by_a_killed_driver_reinitializes_instead_of_finishing() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("done-signal-driver-death");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
     let home = fixture.path().join("home");
@@ -1682,11 +1304,11 @@ printf '%s\n' "$2" > {launch_log}
         "the driver was not killed mid-launch"
     );
     assert!(!repository.join(".grove").exists());
-    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+    assert!(parent_description(&repository).contains("finish-k2"));
 
     let abandoned_signal = PathBuf::from(fs::read_to_string(&signal_log).unwrap().trim());
     assert_eq!(fs::read_to_string(&abandoned_signal).unwrap(), "done\n");
-    let epoch_path = repository.join(".git/grove/session.epoch");
+    let epoch_path = repository.join(".jj/grove/session.epoch");
     let abandoned_epoch = fs::read_to_string(&epoch_path).unwrap();
     assert!(
         abandoned_epoch.starts_with("state=active\n"),
@@ -1724,7 +1346,7 @@ printf '%s\n' "$2" > {launch_log}
         "the abandoned completion channel survived crash handoff"
     );
     assert!(
-        control_entries_starting_with(repository.join(".git/grove").as_path(), "signal-")
+        control_entries_starting_with(repository.join(".jj/grove").as_path(), "signal-")
             .is_empty()
     );
     let handed_over = fs::read_to_string(&epoch_path).unwrap();
@@ -1748,7 +1370,7 @@ printf '%s\n' "$2" > {launch_log}
 fn a_shared_epoch_guard_blocks_the_post_finish_replacement_without_creating_a_tree() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("post-finish-orphan-guard");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
     let home = fixture.path().join("home");
@@ -1781,7 +1403,7 @@ fn a_shared_epoch_guard_blocks_the_post_finish_replacement_without_creating_a_tr
     );
     assert!(!repository.join(".grove").exists());
 
-    let epoch_path = repository.join(".git/grove/session.epoch");
+    let epoch_path = repository.join(".jj/grove/session.epoch");
     let orphan_guard = File::open(&epoch_path).unwrap();
     assert_eq!(
         unsafe { libc::flock(orphan_guard.as_raw_fd(), libc::LOCK_SH) },
@@ -1854,7 +1476,7 @@ fn a_shared_epoch_guard_blocks_the_post_finish_replacement_without_creating_a_tr
 fn bare_driver_validates_config_before_recovering_an_interrupted_finish() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-recovers-finish");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     let grove = repository.join(".grove");
 
@@ -1921,10 +1543,10 @@ fn bare_driver_validates_config_before_recovering_an_interrupted_finish() {
 }
 
 #[test]
-fn plain_git_restart_recovers_a_process_exit_after_preparing_witness_publication() {
+fn restart_recovers_a_process_exit_after_preparing_witness_publication() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-recovers-preparing-finish");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let interrupted = Command::cargo_bin("grove-llm")
@@ -1948,7 +1570,6 @@ fn plain_git_restart_recovers_a_process_exit_after_preparing_witness_publication
         })
         .expect("process exit must leave the atomically published preparing witness");
     assert!(preparing.is_dir());
-    assert!(auxiliary_markers(&repository).is_empty());
 
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -1971,12 +1592,11 @@ fn plain_git_restart_recovers_a_process_exit_after_preparing_witness_publication
 }
 
 #[test]
-fn plain_git_restart_recovers_a_process_exit_after_repository_preparation() {
+fn restart_recovers_a_process_exit_after_repository_preparation() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-recovers-prepared-finish");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
-    let index_before = fs::read(git_index_path(&repository)).unwrap();
 
     let interrupted = Command::cargo_bin("grove-llm")
         .unwrap()
@@ -1999,7 +1619,6 @@ fn plain_git_restart_recovers_a_process_exit_after_repository_preparation() {
         })
         .expect("process exit must leave the repository preparation owner");
     assert!(preparing.is_dir());
-    assert_eq!(auxiliary_markers(&repository).len(), 1);
 
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -2018,19 +1637,16 @@ fn plain_git_restart_recovers_a_process_exit_after_repository_preparation() {
         String::from_utf8_lossy(&recovered.stderr)
     );
     assert!(!preparing.exists());
-    assert!(auxiliary_markers(&repository).is_empty());
-    assert_eq!(fs::read(git_index_path(&repository)).unwrap(), index_before);
     assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
 }
 
 #[test]
-fn plain_git_restart_recovers_each_preparing_witness_materialization_state() {
+fn restart_recovers_each_preparing_witness_materialization_state() {
     for checkpoint in ["after-recovery-tree", "after-manifest", "after-ready"] {
         let fixture = TempDir::new().unwrap();
         let repository = fixture.path().join(format!("driver-recovers-{checkpoint}"));
-        init_git(&repository);
+        init_repo(&repository);
         seed_committed_terminal_grove(&repository);
-        let index_before = fs::read(git_index_path(&repository)).unwrap();
 
         let interrupted = Command::cargo_bin("grove-llm")
             .unwrap()
@@ -2052,7 +1668,6 @@ fn plain_git_restart_recovers_each_preparing_witness_materialization_state() {
                     .starts_with("PREPARING-FINISH-finish-k2-")
             })
             .unwrap_or_else(|| panic!("{checkpoint} did not retain preparing state"));
-        assert_eq!(auxiliary_markers(&repository).len(), 1, "{checkpoint}");
 
         let home = fixture.path().join("home");
         fs::create_dir_all(home.join(".codex")).unwrap();
@@ -2071,12 +1686,6 @@ fn plain_git_restart_recovers_each_preparing_witness_materialization_state() {
             String::from_utf8_lossy(&recovered.stderr)
         );
         assert!(!preparing.exists(), "{checkpoint}");
-        assert!(auxiliary_markers(&repository).is_empty(), "{checkpoint}");
-        assert_eq!(
-            fs::read(git_index_path(&repository)).unwrap(),
-            index_before,
-            "{checkpoint}"
-        );
         assert!(
             repository.join(".grove/02-finish-finish-k2.md").is_file(),
             "{checkpoint}"
@@ -2085,12 +1694,11 @@ fn plain_git_restart_recovers_each_preparing_witness_materialization_state() {
 }
 
 #[test]
-fn plain_git_restart_recovers_a_ready_witness_before_evacuation() {
+fn restart_recovers_a_ready_witness_before_evacuation() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-recovers-ready-finish");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
-    let index_before = fs::read(git_index_path(&repository)).unwrap();
 
     let interrupted = Command::cargo_bin("grove-llm")
         .unwrap()
@@ -2106,7 +1714,6 @@ fn plain_git_restart_recovers_a_ready_witness_before_evacuation() {
     assert!(witness.is_dir());
     assert!(repository.join(".grove/NOTES.md").is_file());
     assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
-    assert_eq!(auxiliary_markers(&repository).len(), 1);
 
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -2125,34 +1732,28 @@ fn plain_git_restart_recovers_a_ready_witness_before_evacuation() {
         String::from_utf8_lossy(&recovered.stderr)
     );
     assert!(!witness.exists());
-    assert!(auxiliary_markers(&repository).is_empty());
-    assert_eq!(fs::read(git_index_path(&repository)).unwrap(), index_before);
     assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
 }
 
 #[test]
 fn colocated_jj_restart_recovers_each_pre_evacuation_publication_state() {
-    for (checkpoint, expected_auxiliaries) in [
-        ("after-preparing-witness", 0),
-        ("after-repository-preparation", 2),
-        ("after-recovery-tree", 2),
-        ("after-manifest", 2),
-        ("after-ready", 2),
-        ("after-ready-witness", 2),
+    for checkpoint in [
+        "after-preparing-witness",
+        "after-repository-preparation",
+        "after-recovery-tree",
+        "after-manifest",
+        "after-ready",
+        "after-ready-witness",
     ] {
         let fixture = TempDir::new().unwrap();
         let repository = fixture.path().join(format!("jj-recovers-{checkpoint}"));
         init_jj(&repository, true);
         seed_jj_terminal_grove(&repository);
-        fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
-        let commit_before = git_like_jj_output(
+        fs::write(repository.join("unrelated.txt"), "unrelated\n").unwrap();
+        let commit_before = jj_output(
             &repository,
             &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
         );
-        fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
-        run("git", &repository, &["add", "staged.txt"]);
-        fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
-        let index_before = fs::read(git_index_path(&repository)).unwrap();
 
         let interrupted = Command::cargo_bin("grove-llm")
             .unwrap()
@@ -2164,11 +1765,6 @@ fn colocated_jj_restart_recovers_each_pre_evacuation_publication_state() {
             .unwrap();
 
         assert!(!interrupted.status.success(), "{checkpoint}");
-        assert_eq!(
-            auxiliary_markers(&repository).len(),
-            expected_auxiliaries,
-            "{checkpoint}"
-        );
 
         let home = fixture.path().join("home");
         fs::create_dir_all(home.join(".codex")).unwrap();
@@ -2186,14 +1782,8 @@ fn colocated_jj_restart_recovers_each_pre_evacuation_publication_state() {
             "{checkpoint}: {}",
             String::from_utf8_lossy(&recovered.stderr)
         );
-        assert!(auxiliary_markers(&repository).is_empty(), "{checkpoint}");
         assert_eq!(
-            fs::read(git_index_path(&repository)).unwrap(),
-            index_before,
-            "{checkpoint}"
-        );
-        assert_eq!(
-            git_like_jj_output(
+            jj_output(
                 &repository,
                 &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
             ),
@@ -2211,7 +1801,7 @@ fn colocated_jj_restart_recovers_each_pre_evacuation_publication_state() {
 fn bare_driver_recovers_a_committed_witness_into_the_fresh_root_contract() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-recovers-committed-finish");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let interrupted = Command::cargo_bin("grove-llm")
@@ -2224,7 +1814,7 @@ fn bare_driver_recovers_a_committed_witness_into_the_fresh_root_contract() {
         .unwrap();
     assert!(!interrupted.status.success());
     assert!(repository.join(".grove/FINISHING-finish-k2").is_dir());
-    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+    assert!(parent_description(&repository).contains("finish-k2"));
 
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -2257,7 +1847,7 @@ fn bare_driver_recovers_a_committed_witness_into_the_fresh_root_contract() {
         .join(".grove/01-requirements-plan-k1.md")
         .is_file());
     assert!(fs::read_to_string(launch_log).unwrap().contains("plan-k1"));
-    let control = repository.join(".git/grove");
+    let control = repository.join(".jj/grove");
     assert!(fs::read_dir(control).unwrap().all(|entry| !entry
         .unwrap()
         .file_name()
@@ -2301,7 +1891,7 @@ fn configure_fresh_requirements_launch(fixture: &Path, home: &Path) -> PathBuf {
 fn a_death_before_the_quarantine_rename_keeps_the_complete_in_tree_witness() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("death-before-quarantine-rename");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let interrupted = Command::cargo_bin("grove-llm")
@@ -2316,7 +1906,7 @@ fn a_death_before_the_quarantine_rename_keeps_the_complete_in_tree_witness() {
     assert!(!interrupted.status.success());
     let grove_root = repository.join(".grove");
     let witness = grove_root.join("FINISHING-finish-k2");
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
     assert_eq!(
         fs::read_dir(&grove_root)
             .unwrap()
@@ -2370,7 +1960,7 @@ fn a_death_before_the_quarantine_rename_keeps_the_complete_in_tree_witness() {
 fn a_death_after_the_quarantine_rename_leaves_the_complete_quarantine() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("death-after-quarantine-rename");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let interrupted = Command::cargo_bin("grove-llm")
@@ -2384,7 +1974,7 @@ fn a_death_after_the_quarantine_rename_leaves_the_complete_quarantine() {
 
     assert!(!interrupted.status.success());
     assert!(!repository.join(".grove").exists());
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
     let quarantines = control_entries_starting_with(&control_directory, "FINISHED-finish-k2-");
     let [quarantine] = quarantines.as_slice() else {
         panic!("the rename must leave exactly one complete quarantine, found {quarantines:?}");
@@ -2435,7 +2025,7 @@ fn a_death_after_the_quarantine_rename_leaves_the_complete_quarantine() {
 fn bare_driver_blocks_on_divergent_finish_recovery_without_launching() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-blocks-divergent-finish");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let interrupted = Command::cargo_bin("grove-llm")
@@ -2451,8 +2041,7 @@ fn bare_driver_blocks_on_divergent_finish_recovery_without_launching() {
     assert!(witness.is_dir());
 
     fs::write(repository.join("divergent"), "preserve\n").unwrap();
-    git(&repository, &["add", "divergent"]);
-    git(&repository, &["commit", "-q", "-m", "divergent"]);
+    run("jj", &repository, &["commit", "-m", "divergent"]);
 
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -2514,11 +2103,11 @@ fn a_barrier_waiter_blocks_until_the_payload_is_complete() {
 fn cleanup_marker_publication_uses_the_validated_control_directory_object() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("descriptor-bound-marker-publication");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     let barrier = fixture.path().join("marker-publication-barrier");
-    let control_directory = repository.join(".git/grove");
-    let validated_control_directory = repository.join(".git/grove-validated");
+    let control_directory = repository.join(".jj/grove");
+    let validated_control_directory = repository.join(".jj/grove-validated");
 
     let child = Command::cargo_bin("grove-llm")
         .unwrap()
@@ -2566,11 +2155,11 @@ fn cleanup_marker_publication_uses_the_validated_control_directory_object() {
 fn process_cleanup_does_not_unlink_a_substituted_non_directory_entry() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("identity-bound-entry-unlink");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
     fs::write(repository.join(".grove/race-entry"), "original\n").unwrap();
     let barrier = fixture.path().join("entry-unlink-barrier");
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
 
     let child = Command::cargo_bin("grove-llm")
         .unwrap()
@@ -2628,7 +2217,7 @@ fn process_cleanup_does_not_unlink_a_substituted_non_directory_entry() {
 fn interrupted_post_commit_cleanup_leaves_attempt_bound_reaping_evidence() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("retryable-finish-cleanup");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let output = Command::cargo_bin("grove-llm")
@@ -2646,7 +2235,7 @@ fn interrupted_post_commit_cleanup_leaves_attempt_bound_reaping_evidence() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(!repository.join(".grove").exists());
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
     let names = fs::read_dir(&control_directory)
         .unwrap()
         .map(|entry| entry.unwrap().file_name())
@@ -2693,7 +2282,7 @@ fn interrupted_post_commit_cleanup_leaves_attempt_bound_reaping_evidence() {
 fn bare_driver_reaps_orphaned_quarantine_after_valid_config_and_starts_fresh_grove() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-reaps-finish-cleanup");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let interrupted = Command::cargo_bin("grove-llm")
@@ -2711,7 +2300,7 @@ fn bare_driver_reaps_orphaned_quarantine_after_valid_config_and_starts_fresh_gro
     );
     assert!(!repository.join(".grove").exists());
 
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
     let cleanup_evidence_count = || {
         fs::read_dir(&control_directory)
             .unwrap()
@@ -2781,7 +2370,7 @@ fn bare_driver_reaps_orphaned_quarantine_after_valid_config_and_starts_fresh_gro
 fn bare_driver_waits_for_the_universal_tree_lock_before_reaping() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-locks-finish-cleanup");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let interrupted = Command::cargo_bin("grove-llm")
@@ -2793,7 +2382,7 @@ fn bare_driver_waits_for_the_universal_tree_lock_before_reaping() {
         .output()
         .unwrap();
     assert!(interrupted.status.success());
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
     let cleanup_marker = fs::read_dir(&control_directory)
         .unwrap()
         .map(|entry| entry.unwrap().path())
@@ -2857,7 +2446,7 @@ fn bare_driver_waits_for_the_universal_tree_lock_before_reaping() {
 fn bare_driver_reaps_old_attempt_but_preserves_exact_in_tree_cleanup_owner() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-distinguishes-cleanup-attempts");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let old_finish = Command::cargo_bin("grove-llm")
@@ -2873,7 +2462,7 @@ fn bare_driver_reaps_old_attempt_but_preserves_exact_in_tree_cleanup_owner() {
         "{}",
         String::from_utf8_lossy(&old_finish.stderr)
     );
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
     let cleanup_markers = || {
         fs::read_dir(&control_directory)
             .unwrap()
@@ -2912,8 +2501,7 @@ fn bare_driver_reaps_old_attempt_but_preserves_exact_in_tree_cleanup_owner() {
     assert_eq!(cleanup_markers().len(), 2);
 
     fs::write(repository.join("divergent"), "preserve\n").unwrap();
-    git(&repository, &["add", "divergent"]);
-    git(&repository, &["commit", "-q", "-m", "divergent"]);
+    run("jj", &repository, &["commit", "-m", "divergent"]);
 
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -2945,7 +2533,7 @@ fn corrupt_in_tree_owner_leaves_every_cleanup_candidate_untouched() {
 
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-refuses-corrupt-cleanup-owner");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let old_finish = Command::cargo_bin("grove-llm")
@@ -2957,7 +2545,7 @@ fn corrupt_in_tree_owner_leaves_every_cleanup_candidate_untouched() {
         .output()
         .unwrap();
     assert!(old_finish.status.success());
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
     let old_marker = fs::read_dir(&control_directory)
         .unwrap()
         .map(|entry| entry.unwrap().path())
@@ -3024,7 +2612,7 @@ fn corrupt_in_tree_owner_leaves_every_cleanup_candidate_untouched() {
 fn invalid_in_tree_attempt_identity_leaves_every_cleanup_candidate_untouched() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-refuses-invalid-cleanup-owner");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let old_finish = Command::cargo_bin("grove-llm")
@@ -3051,7 +2639,7 @@ fn invalid_in_tree_attempt_identity_leaves_every_cleanup_candidate_untouched() {
         .unwrap();
     assert!(!current_finish.status.success());
 
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
     let cleanup_markers = || {
         fs::read_dir(&control_directory)
             .unwrap()
@@ -3175,831 +2763,10 @@ fn bare_driver_reaps_orphans_and_ignores_abandoned_signals_in_jj_workspaces() {
 }
 
 #[test]
-fn linked_git_driver_reaps_its_auxiliary_without_following_an_ambient_index() {
-    let fixture = TempDir::new().unwrap();
-    let main_repository = fixture.path().join("main");
-    init_git(&main_repository);
-    fs::write(main_repository.join("README"), "fixture\n").unwrap();
-    run("git", &main_repository, &["add", "README"]);
-    run("git", &main_repository, &["commit", "-q", "-m", "base"]);
-    let linked = fixture.path().join("linked");
-    run(
-        "git",
-        &main_repository,
-        &[
-            "worktree",
-            "add",
-            "-q",
-            "-b",
-            "cleanup-linked",
-            linked.to_str().unwrap(),
-        ],
-    );
-    seed_committed_terminal_grove(&linked);
-
-    let failed = Command::cargo_bin("grove-llm")
-        .unwrap()
-        .current_dir(&linked)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .env("GROVE_TEST_FINISH_FAIL_AT", "after-evacuation")
-        .args(["finish-commit", "finish-k2"])
-        .output()
-        .unwrap();
-    assert!(!failed.status.success());
-    assert!(linked.join(".grove/FINISHING-finish-k2").is_dir());
-    let markers = auxiliary_markers(&linked);
-    assert_eq!(markers.len(), 1);
-    let actual_marker = markers[0].clone();
-    let actual_artifact = auxiliary_artifact(&actual_marker);
-    fs::remove_dir_all(linked.join(".grove")).unwrap();
-
-    let foreign_directory = fixture.path().join("foreign-gitdir");
-    fs::create_dir(&foreign_directory).unwrap();
-    let foreign_index = foreign_directory.join("index");
-    fs::copy(git_index_path(&linked), &foreign_index).unwrap();
-    let foreign_artifact = foreign_directory.join(actual_artifact.file_name().unwrap());
-    fs::hard_link(&actual_artifact, &foreign_artifact).unwrap();
-    let foreign_marker = foreign_directory.join(actual_marker.file_name().unwrap());
-    fs::copy(&actual_marker, &foreign_marker).unwrap();
-
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    write_complete_config(&home, "sh -c true '${prompt}'");
-    let recovered = Command::cargo_bin("grove")
-        .unwrap()
-        .current_dir(&linked)
-        .env("HOME", &home)
-        .env("GIT_INDEX_FILE", &foreign_index)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .output()
-        .unwrap();
-
-    assert!(
-        recovered.status.success(),
-        "{}",
-        String::from_utf8_lossy(&recovered.stderr)
-    );
-    assert!(!actual_marker.exists());
-    assert!(!actual_artifact.exists());
-    assert!(foreign_marker.is_file());
-    assert!(foreign_artifact.is_file());
-}
-
-#[test]
-fn colocated_jj_driver_preserves_owned_auxiliary_then_reaps_it_after_owner_removal() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("colocated-owned-auxiliary");
-    init_jj(&repository, true);
-    seed_jj_terminal_grove(&repository);
-
-    let failed = Command::cargo_bin("grove-llm")
-        .unwrap()
-        .current_dir(&repository)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .env("GROVE_TEST_FINISH_FAIL_AT", "after-evacuation")
-        .args(["finish-commit", "finish-k2"])
-        .output()
-        .unwrap();
-    assert!(!failed.status.success());
-    assert!(repository.join(".grove/FINISHING-finish-k2").is_dir());
-    let markers = auxiliary_markers(&repository);
-    assert_eq!(markers.len(), 2);
-    let artifacts = markers
-        .iter()
-        .map(|marker| auxiliary_artifact(marker))
-        .collect::<Vec<_>>();
-
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    write_complete_config(&home, "sh -c true '${prompt}'");
-    fs::write(repository.join("divergent"), "preserve\n").unwrap();
-    run(
-        "jj",
-        &repository,
-        &["commit", "-m", "divergent", "divergent"],
-    );
-    let blocked = Command::cargo_bin("grove")
-        .unwrap()
-        .current_dir(&repository)
-        .env("HOME", &home)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .output()
-        .unwrap();
-    assert!(!blocked.status.success());
-    assert!(
-        markers.iter().all(|marker| marker.is_file()),
-        "the matching in-tree owner was ignored"
-    );
-    assert!(artifacts.iter().all(|artifact| artifact.is_file()));
-
-    fs::remove_dir_all(repository.join(".grove")).unwrap();
-    let reaped = Command::cargo_bin("grove")
-        .unwrap()
-        .current_dir(&repository)
-        .env("HOME", &home)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .output()
-        .unwrap();
-    assert!(
-        reaped.status.success(),
-        "{}",
-        String::from_utf8_lossy(&reaped.stderr)
-    );
-    assert!(markers.iter().all(|marker| !marker.exists()));
-    assert!(artifacts.iter().all(|artifact| !artifact.exists()));
-}
-
-/// Process death at every marker-rebind boundary.
-///
-/// The rebind runs while the colocated success index is being prepared, so the
-/// preparing witness — not the committed-finish path — owns the recovery. Each
-/// death must leave the user's own Git index byte-identical, the working-copy
-/// commit untouched, the finish leaf still selectable, and no auxiliary state
-/// for a later reader to interpret.
-#[test]
-fn colocated_jj_restart_recovers_every_marker_rebind_checkpoint() {
-    for checkpoint in REBIND_CHECKPOINTS {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path().join(format!("jj-rebind-{checkpoint}"));
-        let commit_before = seed_colocated_rebind_fixture(&repository);
-        let git_directory = git_index_path(&repository).parent().unwrap().to_path_buf();
-        let index_before = fs::read(git_index_path(&repository)).unwrap();
-
-        let interrupted = Command::cargo_bin("grove-llm")
-            .unwrap()
-            .current_dir(&repository)
-            .env_remove("GROVE_SIGNAL_FILE")
-            .env("GROVE_TEST_FINISH_REBIND_EXIT_AT", checkpoint)
-            .args(["finish-commit", "finish-k2"])
-            .output()
-            .unwrap();
-
-        assert!(
-            !interrupted.status.success(),
-            "{checkpoint} was not reachable from the finish process: {}",
-            String::from_utf8_lossy(&interrupted.stderr)
-        );
-        let preparing = fs::read_dir(repository.join(".grove"))
-            .unwrap()
-            .map(|entry| entry.unwrap().path())
-            .find(|path| {
-                path.file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .starts_with("PREPARING-FINISH-finish-k2-")
-            })
-            .unwrap_or_else(|| panic!("{checkpoint} left no repository-preparation owner"));
-
-        let home = fixture.path().join("home");
-        fs::create_dir_all(home.join(".codex")).unwrap();
-        write_complete_config(&home, "sh -c true '${prompt}'");
-        let recovered = Command::cargo_bin("grove")
-            .unwrap()
-            .current_dir(&repository)
-            .env("HOME", &home)
-            .env_remove("GROVE_SIGNAL_FILE")
-            .output()
-            .unwrap();
-
-        assert!(
-            recovered.status.success(),
-            "{checkpoint}: {}",
-            String::from_utf8_lossy(&recovered.stderr)
-        );
-        assert!(!preparing.exists(), "{checkpoint}");
-        // Nothing a later reader interprets may survive: no marker, no
-        // replacement state document, no canonical artifact. The single
-        // exception is a death in the window between the staging copy and the
-        // state document that would name it — that entry sits at a drawn name
-        // nothing durable claims, and recovery may not unlink bytes it cannot
-        // prove it wrote, so it is deliberately left where it is.
-        let residue = auxiliary_entries(&git_directory);
-        let abandoned_staging = usize::from(*checkpoint == "before-state-publication");
-        assert_eq!(
-            residue.len(),
-            abandoned_staging,
-            "{checkpoint} left auxiliary state behind: {residue:?}"
-        );
-        assert!(
-            residue.iter().all(|name| name.contains(".staging-")),
-            "{checkpoint} left interpretable auxiliary state: {residue:?}"
-        );
-        // The index filter's private staging directory is not in that exception.
-        // It holds a whole copy of the Git index, it is released before any
-        // checkpoint here can fire, and nothing sweeps it afterwards.
-        assert_eq!(
-            filter_staging_entries(&git_directory),
-            Vec::<String>::new(),
-            "{checkpoint} left the index filter's staging directory behind"
-        );
-        assert_eq!(
-            fs::read(git_index_path(&repository)).unwrap(),
-            index_before,
-            "{checkpoint} did not restore the exact Git index"
-        );
-        assert_eq!(
-            git_like_jj_output(
-                &repository,
-                &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
-            ),
-            commit_before,
-            "{checkpoint}"
-        );
-        assert!(
-            repository.join(".grove/02-finish-finish-k2.md").is_file(),
-            "{checkpoint}"
-        );
-    }
-}
-
-/// A synchronous failure at every marker-rebind boundary, inside one driver
-/// launch.
-///
-/// The finish attempt identity is the launch's signal nonce, so both
-/// `finish-commit` runs below share an attempt: a failure that leaves any
-/// attempt-scoped auxiliary behind would collide on the retry and wedge the
-/// whole launch rather than merely failing once.
-#[test]
-fn colocated_jj_synchronous_rebind_failure_retries_within_the_same_attempt() {
-    for checkpoint in REBIND_CHECKPOINTS {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path().join(format!("jj-rebind-retry-{checkpoint}"));
-        seed_colocated_rebind_fixture(&repository);
-        let git_index = git_index_path(&repository);
-
-        let git_directory = git_index.parent().unwrap().to_path_buf();
-        let index_before = fs::read(&git_index).unwrap();
-        let staged_before = git(
-            &repository,
-            &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
-        );
-
-        let session_log = fixture.path().join("session");
-        fs::create_dir(&session_log).unwrap();
-        let script = fixture.path().join("finish-session.sh");
-        write_executable(
-            &script,
-            &format!(
-                r#"#!/bin/sh
-printf '%s\n' "${{GROVE_TEST_FINISH_REBIND_FAIL_AT-scrubbed}}" > {log}/inherited-seam
-GROVE_TEST_FINISH_REBIND_FAIL_AT={checkpoint} {llm} finish-commit finish-k2 \
-  > {log}/first-out 2>&1
-printf '%s\n' "$?" > {log}/first-status
-cp {index} {log}/index-after-failure
-ls -1 {git_dir} > {log}/entries-after-failure
-{llm} finish-commit finish-k2 > {log}/second-out 2>&1
-printf '%s\n' "$?" > {log}/second-status
-"#,
-                llm = env!("CARGO_BIN_EXE_grove-llm"),
-                log = session_log.display(),
-                index = git_index.display(),
-                git_dir = git_directory.display(),
-            ),
-        );
-        let home = fixture.path().join("home");
-        fs::create_dir_all(home.join(".codex")).unwrap();
-        write_complete_config(&home, &format!("sh {} '${{prompt}}'", script.display()));
-
-        let driven = Command::cargo_bin("grove")
-            .unwrap()
-            .current_dir(&repository)
-            .env("HOME", &home)
-            .env_remove("GROVE_SIGNAL_FILE")
-            // A developer shell that happens to carry the seam must not reach a
-            // configured session: it is an internal test control, not launch
-            // configuration. The session sets its own value below, so the
-            // failure it injects is deliberate rather than inherited.
-            .env("GROVE_TEST_FINISH_REBIND_FAIL_AT", "before-marker-exchange")
-            .output()
-            .unwrap();
-
-        assert!(
-            driven.status.success(),
-            "{checkpoint}: {}",
-            String::from_utf8_lossy(&driven.stderr)
-        );
-        let read_log = |name: &str| fs::read_to_string(session_log.join(name)).unwrap();
-        assert_eq!(
-            read_log("inherited-seam").trim(),
-            "scrubbed",
-            "{checkpoint}: the launched session inherited the failure seam"
-        );
-        let first = read_log("first-out");
-        assert_ne!(
-            read_log("first-status").trim(),
-            "0",
-            "{checkpoint} was not reachable from the launched session: {first}"
-        );
-        assert!(
-            first.contains(&format!(
-                "injected finish rebind interruption at {checkpoint}"
-            )),
-            "{checkpoint}: {first}"
-        );
-        assert_eq!(
-            fs::read(session_log.join("index-after-failure")).unwrap(),
-            index_before,
-            "{checkpoint} did not leave the exact Git index bytes"
-        );
-        assert_eq!(
-            read_log("second-status").trim(),
-            "0",
-            "{checkpoint} wedged the same-attempt retry: {}",
-            read_log("second-out")
-        );
-        let leftovers = read_log("entries-after-failure")
-            .lines()
-            .filter(|name| name.starts_with("GROVE-FINISH-AUXILIARY-"))
-            .map(str::to_owned)
-            .collect::<Vec<_>>();
-        assert_eq!(
-            leftovers,
-            Vec::<String>::new(),
-            "{checkpoint} left attempt-scoped auxiliary state for the retry to collide with"
-        );
-
-        assert!(!repository.join(".grove").exists(), "{checkpoint}");
-        assert_eq!(
-            auxiliary_entries(&git_directory),
-            Vec::<String>::new(),
-            "{checkpoint}"
-        );
-        assert_eq!(
-            git(
-                &repository,
-                &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
-            ),
-            staged_before,
-            "{checkpoint} disturbed unrelated staged work"
-        );
-        assert_eq!(
-            git(&repository, &["ls-files", "--stage", "--", ".grove"]),
-            "",
-            "{checkpoint} left the finished grove staged"
-        );
-    }
-}
-
-/// Every entry a colocated rebind owns while it is interrupted at
-/// `before-marker-exchange`: both auxiliaries' canonical pairs, the success
-/// auxiliary's replacement state document, and the two drawn staging entries
-/// the exchange is about to swap.
-struct RebindEntries {
-    directory: PathBuf,
-    success_artifact: PathBuf,
-    success_marker: PathBuf,
-    success_state: PathBuf,
-    staged_artifact: PathBuf,
-    staged_marker: PathBuf,
-    backup_artifact: PathBuf,
-    backup_marker: PathBuf,
-}
-
-impl RebindEntries {
-    fn discover(directory: &Path) -> Self {
-        let names = auxiliary_entries(directory);
-        let only = |what: &str, predicate: &dyn Fn(&str) -> bool| {
-            let mut matched = names.iter().filter(|name| predicate(name));
-            let found = matched
-                .next()
-                .unwrap_or_else(|| panic!("no {what} among {names:?}"));
-            assert!(
-                matched.next().is_none(),
-                "more than one {what} among {names:?}"
-            );
-            directory.join(found)
-        };
-        // The canonical artifact is the only name in its role that carries no
-        // suffix at all; every other entry adds `.json`, `.replacing` or
-        // `.staging-<nonce>` to it.
-        let plain = |name: &str| !name.contains('.');
-        Self {
-            directory: directory.to_path_buf(),
-            success_artifact: only("success artifact", &|name| {
-                name.contains("-git-index-success-") && plain(name)
-            }),
-            success_marker: only("success marker", &|name| {
-                name.contains("-git-index-success-") && name.ends_with(".json")
-            }),
-            success_state: only("replacement state document", &|name| {
-                name.ends_with(".json.replacing")
-            }),
-            staged_artifact: only("staged artifact", &|name| {
-                name.contains(".staging-") && !name.contains(".json")
-            }),
-            staged_marker: only("staged marker", &|name| name.contains(".json.staging-")),
-            backup_artifact: only("backup artifact", &|name| {
-                name.contains("-git-index-backup-") && plain(name)
-            }),
-            backup_marker: only("backup marker", &|name| {
-                name.contains("-git-index-backup-") && name.ends_with(".json")
-            }),
-        }
-    }
-
-    /// The marker whose auxiliary a refusal about `target` must name.
-    fn owning_marker(&self, target: &Path) -> &Path {
-        if target
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .contains("-git-index-backup-")
-        {
-            &self.backup_marker
-        } else {
-            &self.success_marker
-        }
-    }
-}
-
-/// Drive a colocated finish to the point where both sides of the artifact
-/// exchange are staged and bound, then kill it there. Returns the in-flight
-/// entries and the preparing witness that owns them.
-fn interrupt_before_marker_exchange(repository: &Path) -> (RebindEntries, PathBuf) {
-    let interrupted = Command::cargo_bin("grove-llm")
-        .unwrap()
-        .current_dir(repository)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .env("GROVE_TEST_FINISH_REBIND_EXIT_AT", "before-marker-exchange")
-        .args(["finish-commit", "finish-k2"])
-        .output()
-        .unwrap();
-    assert!(
-        !interrupted.status.success(),
-        "the rebind was not interrupted: {}",
-        String::from_utf8_lossy(&interrupted.stderr)
-    );
-    let witness = fs::read_dir(repository.join(".grove"))
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .find(|path| {
-            path.file_name()
-                .unwrap()
-                .to_string_lossy()
-                .starts_with("PREPARING-FINISH-finish-k2-")
-        })
-        .expect("the interrupted rebind left no repository-preparation owner");
-    let directory = git_index_path(repository).parent().unwrap().to_path_buf();
-    (RebindEntries::discover(&directory), witness)
-}
-
-/// What an entry is, as an inode plus its bytes — enough to prove Grove neither
-/// replaced nor rewrote it. A symlink is compared by its target and never
-/// followed, so a test can tell "left alone" from "resolved and read".
-fn entry_fingerprint(path: &Path) -> (u64, Vec<u8>) {
-    use std::os::unix::fs::MetadataExt;
-
-    let metadata = fs::symlink_metadata(path).unwrap();
-    let bytes = if metadata.file_type().is_symlink() {
-        fs::read_link(path).unwrap().into_os_string().into_vec()
-    } else {
-        fs::read(path).unwrap()
-    };
-    (metadata.ino(), bytes)
-}
-
-/// The user's own files beside the auxiliaries. In a colocated tree the
-/// auxiliary directory *is* `.git/`, so these are what a path that followed a
-/// symlink or removed an entry it had not proven it wrote would reach. `index`
-/// is asserted by its exact bytes instead, because restoring it legitimately
-/// republishes it through a fresh inode.
-const AUXILIARY_NEIGHBOURS: &[&str] = &["HEAD", "config"];
-
-fn neighbour_fingerprints(directory: &Path) -> Vec<(u64, Vec<u8>)> {
-    AUXILIARY_NEIGHBOURS
-        .iter()
-        .map(|name| entry_fingerprint(&directory.join(name)))
-        .collect()
-}
-
-/// Replace `path` with a different inode carrying bytes Grove never wrote —
-/// what a rewrite through a temporary plus a rename leaves behind.
-fn substitute_foreign_file(path: &Path) {
-    let temporary = path.with_file_name("foreign-substitution");
-    fs::write(&temporary, b"foreign substitution\n").unwrap();
-    fs::rename(&temporary, path).unwrap();
-}
-
-fn substitute_symlink(path: &Path, target: &Path) {
-    fs::remove_file(path).unwrap();
-    std::os::unix::fs::symlink(target, path).unwrap();
-}
-
-type RebindTarget = (&'static str, fn(&RebindEntries) -> PathBuf);
-
-/// Every entry the rebind carries, each one substitutable in place.
-const REBIND_TARGETS: &[RebindTarget] = &[
-    ("success-artifact", |entries| {
-        entries.success_artifact.clone()
-    }),
-    ("success-marker", |entries| entries.success_marker.clone()),
-    ("replacement-state", |entries| entries.success_state.clone()),
-    ("staged-artifact", |entries| entries.staged_artifact.clone()),
-    ("staged-marker", |entries| entries.staged_marker.clone()),
-    ("backup-artifact", |entries| entries.backup_artifact.clone()),
-    ("backup-marker", |entries| entries.backup_marker.clone()),
-];
-
-/// Substitution at every entry a colocated rebind owns.
-///
-/// Each case interrupts the finish mid-rebind, puts bytes Grove never wrote at
-/// one of its entries, and restarts. The refusal must name the witness and the
-/// auxiliary, leave the substituted inode exactly where it was, and leave every
-/// other entry alone as well: the unchanged entry set is what makes the
-/// diagnostic's "left untouched" true rather than a claim made after a mutation
-/// landed. Both auxiliaries belong to the live witness, so nothing here is an
-/// orphan for the reaper to recover on its way past.
-#[test]
-fn colocated_jj_recovery_refuses_every_substituted_rebind_entry() {
-    for (label, select) in REBIND_TARGETS {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path().join(format!("jj-substitute-{label}"));
-        seed_colocated_rebind_fixture(&repository);
-        let (entries, witness) = interrupt_before_marker_exchange(&repository);
-        let names_before = auxiliary_entries(&entries.directory);
-        let neighbours_before = neighbour_fingerprints(&entries.directory);
-        let index_before = fs::read(git_index_path(&repository)).unwrap();
-
-        let target = select(&entries);
-        substitute_foreign_file(&target);
-        let substituted = entry_fingerprint(&target);
-
-        let home = fixture.path().join("home");
-        fs::create_dir_all(home.join(".codex")).unwrap();
-        write_complete_config(&home, "sh -c true '${prompt}'");
-        let recovered = Command::cargo_bin("grove")
-            .unwrap()
-            .current_dir(&repository)
-            .env("HOME", &home)
-            .env_remove("GROVE_SIGNAL_FILE")
-            .output()
-            .unwrap();
-
-        let diagnostic = String::from_utf8_lossy(&recovered.stderr);
-        assert!(
-            !recovered.status.success(),
-            "{label}: a substituted rebind entry was accepted: {diagnostic}"
-        );
-        assert!(
-            diagnostic.contains("Recovery pending")
-                && diagnostic.contains(&witness.display().to_string()),
-            "{label}: the refusal does not name the witness: {diagnostic}"
-        );
-        assert!(
-            diagnostic.contains(&entries.owning_marker(&target).display().to_string()),
-            "{label}: the refusal does not name the auxiliary: {diagnostic}"
-        );
-        assert!(
-            !diagnostic.contains("could not complete orphaned finish cleanup"),
-            "{label}: the live witness's own auxiliary was reaped as an orphan: {diagnostic}"
-        );
-        assert_eq!(
-            entry_fingerprint(&target),
-            substituted,
-            "{label}: the substituted entry was moved or rewritten"
-        );
-        assert_eq!(
-            auxiliary_entries(&entries.directory),
-            names_before,
-            "{label}: a mutation landed on a path that reports untouched state"
-        );
-        assert_eq!(
-            neighbour_fingerprints(&entries.directory),
-            neighbours_before,
-            "{label}: an external inode beside the auxiliaries changed"
-        );
-        assert_eq!(
-            fs::read(git_index_path(&repository)).unwrap(),
-            index_before,
-            "{label}: the user's Git index changed"
-        );
-        assert!(witness.is_dir(), "{label}: the blocked witness is gone");
-        assert!(
-            repository.join(".grove/02-finish-finish-k2.md").is_file(),
-            "{label}: the finish leaf is no longer selectable"
-        );
-    }
-}
-
-/// The same matrix, substituting a symlink into `.git/config`.
-///
-/// Every one of these entries is opened, digested or unlinked somewhere in the
-/// protocol. If any of that followed the link, the user's Git configuration
-/// would be read as a marker, exchanged into an auxiliary name, or removed —
-/// so the neighbour's inode and bytes surviving is the property, not the
-/// refusal.
-#[test]
-fn colocated_jj_recovery_never_follows_a_symlink_substituted_into_the_rebind() {
-    for (label, select) in REBIND_TARGETS {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path().join(format!("jj-symlink-{label}"));
-        seed_colocated_rebind_fixture(&repository);
-        let (entries, witness) = interrupt_before_marker_exchange(&repository);
-        let names_before = auxiliary_entries(&entries.directory);
-        let neighbours_before = neighbour_fingerprints(&entries.directory);
-
-        let target = select(&entries);
-        substitute_symlink(&target, &entries.directory.join("config"));
-        let substituted = entry_fingerprint(&target);
-
-        let home = fixture.path().join("home");
-        fs::create_dir_all(home.join(".codex")).unwrap();
-        write_complete_config(&home, "sh -c true '${prompt}'");
-        let recovered = Command::cargo_bin("grove")
-            .unwrap()
-            .current_dir(&repository)
-            .env("HOME", &home)
-            .env_remove("GROVE_SIGNAL_FILE")
-            .output()
-            .unwrap();
-
-        let diagnostic = String::from_utf8_lossy(&recovered.stderr);
-        assert!(
-            !recovered.status.success(),
-            "{label}: a symlinked rebind entry was accepted: {diagnostic}"
-        );
-        assert!(
-            diagnostic.contains("Recovery pending")
-                && diagnostic.contains(&witness.display().to_string()),
-            "{label}: the refusal does not name the witness: {diagnostic}"
-        );
-        assert!(
-            !diagnostic.contains("could not complete orphaned finish cleanup"),
-            "{label}: the live witness's own auxiliary was reaped as an orphan: {diagnostic}"
-        );
-        assert_eq!(
-            entry_fingerprint(&target),
-            substituted,
-            "{label}: the substituted symlink was moved or replaced"
-        );
-        assert_eq!(
-            auxiliary_entries(&entries.directory),
-            names_before,
-            "{label}: a mutation landed on a path that reports untouched state"
-        );
-        assert_eq!(
-            neighbour_fingerprints(&entries.directory),
-            neighbours_before,
-            "{label}: the symlink was followed to an external inode"
-        );
-        assert!(witness.is_dir(), "{label}: the blocked witness is gone");
-    }
-}
-
-/// Foreign entries at the names the rebind could otherwise claim.
-///
-/// `<artifact>.filtered` is the deterministic name the removed reclamation used
-/// to unlink whatever sat there, and `.staging-<32 hex>` is the reserved
-/// namespace every drawn name comes from. Nothing derives either any more, so a
-/// recovery that completes normally must walk straight past all of them —
-/// including a symlink, which nothing may resolve.
-#[test]
-fn colocated_jj_recovery_leaves_foreign_entries_at_grove_owned_replacement_names() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("jj-foreign-replacement-names");
-    let commit_before = seed_colocated_rebind_fixture(&repository);
-    let index_before = fs::read(git_index_path(&repository)).unwrap();
-    let (entries, witness) = interrupt_before_marker_exchange(&repository);
-
-    let unclaimed_nonce = "0123456789abcdef0123456789abcdef";
-    let suffixed = |path: &Path, suffix: &str| {
-        let mut name = path.file_name().unwrap().to_os_string().into_vec();
-        name.extend_from_slice(suffix.as_bytes());
-        path.with_file_name(std::ffi::OsString::from_vec(name))
-    };
-    let foreign = [
-        suffixed(&entries.success_artifact, ".filtered"),
-        suffixed(&entries.backup_artifact, ".filtered"),
-        suffixed(
-            &entries.success_artifact,
-            &format!(".staging-{unclaimed_nonce}"),
-        ),
-        suffixed(
-            &entries.success_marker,
-            &format!(".staging-{unclaimed_nonce}"),
-        ),
-    ];
-    for path in &foreign {
-        fs::write(path, b"foreign entry\n").unwrap();
-    }
-    let foreign_link = suffixed(
-        &entries.backup_marker,
-        &format!(".staging-{unclaimed_nonce}"),
-    );
-    std::os::unix::fs::symlink(entries.directory.join("config"), &foreign_link).unwrap();
-    let placed = foreign
-        .iter()
-        .chain([&foreign_link])
-        .map(|path| entry_fingerprint(path))
-        .collect::<Vec<_>>();
-    let neighbours_before = neighbour_fingerprints(&entries.directory);
-
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    write_complete_config(&home, "sh -c true '${prompt}'");
-    let recovered = Command::cargo_bin("grove")
-        .unwrap()
-        .current_dir(&repository)
-        .env("HOME", &home)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .output()
-        .unwrap();
-
-    assert!(
-        recovered.status.success(),
-        "{}",
-        String::from_utf8_lossy(&recovered.stderr)
-    );
-    assert!(!witness.exists());
-    assert_eq!(
-        foreign
-            .iter()
-            .chain([&foreign_link])
-            .map(|path| entry_fingerprint(path))
-            .collect::<Vec<_>>(),
-        placed,
-        "recovery moved, rewrote or resolved an entry it never created"
-    );
-    assert_eq!(
-        neighbour_fingerprints(&entries.directory),
-        neighbours_before
-    );
-    assert_eq!(
-        fs::read(git_index_path(&repository)).unwrap(),
-        index_before,
-        "recovery did not restore the exact Git index"
-    );
-    assert_eq!(
-        git_like_jj_output(
-            &repository,
-            &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
-        ),
-        commit_before
-    );
-    assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
-}
-
-#[test]
-fn persistent_auxiliary_failure_warns_and_retries_without_blocking_the_driver() {
-    let fixture = TempDir::new().unwrap();
-    let repository = fixture.path().join("persistent-auxiliary-failure");
-    init_git(&repository);
-    seed_committed_terminal_grove(&repository);
-
-    let failed = Command::cargo_bin("grove-llm")
-        .unwrap()
-        .current_dir(&repository)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .env("GROVE_TEST_FINISH_FAIL_AT", "after-evacuation")
-        .args(["finish-commit", "finish-k2"])
-        .output()
-        .unwrap();
-    assert!(!failed.status.success());
-    fs::remove_dir_all(repository.join(".grove")).unwrap();
-    let markers = auxiliary_markers(&repository);
-    assert_eq!(markers.len(), 1);
-    let marker = markers[0].clone();
-    let artifact = auxiliary_artifact(&marker);
-    let preserved = artifact.with_file_name("preserved-original-index-auxiliary");
-    fs::rename(&artifact, &preserved).unwrap();
-    fs::write(&artifact, "replacement\n").unwrap();
-
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    write_complete_config(&home, "sh -c true '${prompt}'");
-    for invocation in 1..=2 {
-        let output = Command::cargo_bin("grove")
-            .unwrap()
-            .current_dir(&repository)
-            .env("HOME", &home)
-            .env_remove("GROVE_SIGNAL_FILE")
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "invocation {invocation}: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        let diagnostic = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            diagnostic.contains("could not complete orphaned finish cleanup"),
-            "invocation {invocation}: {diagnostic}"
-        );
-        assert!(
-            diagnostic.contains("identity does not match"),
-            "{diagnostic}"
-        );
-        assert!(marker.is_file());
-        assert_eq!(fs::read_to_string(&artifact).unwrap(), "replacement\n");
-        assert!(preserved.is_file());
-    }
-}
-
-#[test]
 fn persistent_cleanup_failure_warns_and_retries_without_blocking_fresh_lifecycle() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("persistent-driver-cleanup-failure");
-    init_git(&repository);
+    init_repo(&repository);
     seed_committed_terminal_grove(&repository);
 
     let interrupted = Command::cargo_bin("grove-llm")
@@ -4011,7 +2778,7 @@ fn persistent_cleanup_failure_warns_and_retries_without_blocking_fresh_lifecycle
         .output()
         .unwrap();
     assert!(interrupted.status.success());
-    let control_directory = repository.join(".git/grove");
+    let control_directory = repository.join(".jj/grove");
     let marker = fs::read_dir(&control_directory)
         .unwrap()
         .map(|entry| entry.unwrap().path())

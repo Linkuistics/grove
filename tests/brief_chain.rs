@@ -8,28 +8,19 @@
 // root→leaf order. A directory level with no `BRIEF.md` is skipped silently.
 // Every brief is named `BRIEF.md`, so the assertions key on the **parent
 // directory name** of each printed path (mirroring the unit tests in
-// src/task_tree.rs). Each test stands up a real git repo so
-// `git rev-parse --show-toplevel` resolves to the fixture path.
+// src/task_tree.rs). Each test stands up a real jj repo, because every verb
+// resolves its grove root through the jj workspace gate.
 
 use assert_cmd::Command;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command as Pcmd;
 use tempfile::TempDir;
+
+mod support;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git")
-        .arg("init")
-        .arg(tmp.path())
-        .status()
-        .unwrap();
-    Pcmd::new("git")
-        .args(["-C"])
-        .arg(tmp.path())
-        .args(["commit", "--allow-empty", "-m", "init"])
-        .status()
-        .unwrap();
+    support::init_jj_repo(tmp.path());
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();
     tmp

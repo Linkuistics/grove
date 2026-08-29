@@ -242,13 +242,13 @@ fn session_prompt(handle: &str, kind: Kind, worktree: &Path) -> Result<String> {
 /// The **value** that states this working tree's VCS to the session, so no
 /// session ever detects it (`docs/ARCHITECTURE.md#symmetric-vcs-rule`).
 ///
-/// The fact is the driver's: [`crate::repo::vcs_of`] is the named authority every
-/// tree-mutation verb already branches on, and it resolved before this session
-/// existed. Only the session re-derived it, and re-derived it badly — a harness
-/// banner computed from `.git` alone reads a jj workspace as no repository at
-/// all, and detection carried as skill instructions is skippable, so a session
-/// that never loaded them commits with Git in a jj tree and bypasses the
-/// operation log.
+/// The fact is the driver's: [`crate::repo::require_jj_workspace`] is the named
+/// authority every tree-mutation verb already passes through, and it resolved
+/// before this session existed. Only the session re-derived it, and re-derived
+/// it badly — a harness banner computed from `.git` alone reads a jj workspace
+/// as no repository at all, and detection carried as skill instructions is
+/// skippable, so a session that never loaded them commits with Git in a jj tree
+/// and bypasses the operation log.
 ///
 /// **Two elements, and the third one left**: identity and the resolved root, and
 /// no *do not probe for it*. That clause is a normative consequence of a value,
@@ -259,40 +259,27 @@ fn session_prompt(handle: &str, kind: Kind, worktree: &Path) -> Result<String> {
 /// real cost: a rule the prompt used to carry now depends on the skill being
 /// read, like every other rule.
 ///
-/// Still not the marker kind, and still deliberately **not** the
+/// Still deliberately **not** the
 /// commit-boundary commands — those live in the methodology's Commit step, and a
 /// copy here would drift across the build boundary
 /// (`docs/ARCHITECTURE.md#the-boundary-is-a-build-not-a-commit`).
 fn stated_vcs(worktree: &Path) -> Result<String> {
     // Unreachable in a driver that got this far: the lease it holds lives *in*
-    // the VCS-administration directory, so a marker was already found. Spent as
-    // an error rather than a panic — the prompt has no third case to express,
-    // and a driver with nothing to say here must not launch a session that then
-    // has to guess.
-    let vcs = crate::repo::vcs_of(worktree).with_context(|| {
-        format!(
-            "no Git or jj marker at or above {}, so the session prompt cannot state \
-             the version control",
-            worktree.display()
-        )
-    })?;
-    let (identity, root) = match &vcs {
-        // Taken from the resolution rather than assumed. It *is* `worktree` —
-        // `vcs_of` starts its walk at the path itself and the lease root is the
-        // marker's own directory — but `Vcs::Jj` is the variant that carries a
-        // root, so reading it cannot drift if either end moves.
-        crate::repo::Vcs::Jj { workspace_root } => (
-            "this working tree is jj-enabled (jj workspace root:",
-            workspace_root.as_path(),
-        ),
-        // `Vcs::Git` carries none: the lease already canonicalized the working
-        // tree from the marker, and that is the tree the session runs in.
-        crate::repo::Vcs::Git => (
-            "this working tree is plain Git, not jj-enabled (worktree root:",
-            worktree,
-        ),
-    };
-    Ok(format!("{identity} `{}`)", root.display()))
+    // the workspace's own `.jj/`, so a marker was already found. Spent as an
+    // error rather than a panic — the prompt has no second case to express, and
+    // a driver with nothing to say here must not launch a session that then has
+    // to guess.
+    //
+    // Taken from the resolution rather than assumed. It *is* `worktree` — the
+    // probe starts its walk at the path itself and the lease root is the
+    // marker's own directory — but reading the resolved root cannot drift if
+    // either end moves.
+    let workspace_root = crate::repo::require_jj_workspace(worktree)
+        .context("the session prompt cannot state the version control")?;
+    Ok(format!(
+        "this working tree is jj-enabled (jj workspace root: `{}`)",
+        workspace_root.display()
+    ))
 }
 
 /// Launch one fresh foreground session owning the real TTY, then watch it while
@@ -854,12 +841,12 @@ mod tests {
     #[test]
     fn successive_launches_get_independent_workspace_signal_files() {
         let worktree = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(worktree.path().join(".git")).unwrap();
+        std::fs::create_dir_all(worktree.path().join(".jj")).unwrap();
         let lease = DriverLease::acquire(worktree.path()).unwrap();
 
         let first = lease.allocate_signal_channel().unwrap();
         let second = lease.allocate_signal_channel().unwrap();
-        let expected_control_dir = worktree.path().canonicalize().unwrap().join(".git/grove");
+        let expected_control_dir = worktree.path().canonicalize().unwrap().join(".jj/grove");
 
         assert_ne!(
             first.path(),

@@ -353,7 +353,15 @@ have had — rather than classified and converted; Grove does not migrate an old
 layout. Task bodies carry no launch metadata at all — only the `**Reviews:**` and
 `**Integrates:**` composition relationships below.
 
-`task_name` parses identities, `task_tree` walks and resolves them and owns the
+`task_name` parses identities **and renders them** — including the handle
+`<slug>-k<key>`, the position-free identity that crosses every module boundary.
+`Handle` is a type there, and in production code the grammar is written in
+exactly one function (`Handle::render`, which both arms of `TaskName`'s
+rendering end in) and taken apart in exactly one other (`peel_key`, which
+`Handle::parse`, `terminal_key` and the filename parser all go through). So the
+handle and the filename cannot say different things (`name-ownership-k14`).
+Tests spell the grammar independently on purpose, since a test reusing the
+renderer would assert nothing. `task_tree` walks and resolves them and owns the
 read and write seams onto the library, `task_grow` creates leaves and composition
 shapes, `tree_lifecycle` applies terminal outcomes and owns the grove-only
 lifecycle. Every entry that moves,
@@ -1587,12 +1595,9 @@ prescribing one command.
 | `loop_driver` | Provisioning and lease acquisition on the way in, then foreground iteration and selection. Names the child-environment scrub list and the escalation's two graces; hands both to `crates/keyed-launch`, which owns the spawn, the supervision and the kill. |
 | `driver_lease` | Driver lease, session epoch, and ambient-session validation. Supplies the control directory each launch's channel is allocated in; the channel itself is `crates/keyed-launch`'s. |
 | `harness` | The provisioning-target registry — delivery destinations only. |
-| `repo` | Git/Jujutsu detection, scoped commits, and the read-only trackedness probe. |
-| `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has. |
+| `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has, handle included (`Slug`, `Outcome`, `Handle`, `Parts`, `TaskName`). |
 | `task_tree`, `task_grow` | The reading and growing verbs expressed through the library: one snapshot per command, path construction, key prediction, and the cross-reference lint. |
 | `tree_lifecycle` | The grove-only lifecycle around the tree: the terminal outcomes, the finish sentinel, and the grove's own creation through the store's vacancy. |
-| `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
-| `finish_cleanup` | Post-commit quarantine of the completed task root, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
 | `methodology` | The embed itself and the build's methodology identity. Nothing else — the corpus is plain markdown, so there is no reader over it. |
 | `prompt` | The guaranteed core: the whole of `${prompt}`, the kind→reference-file map, and the too-late test the core's contents are admitted by. Depends on `methodology` for the embed. |

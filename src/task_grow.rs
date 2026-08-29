@@ -47,7 +47,7 @@ use anyhow::{bail, Context, Result};
 use ordinal_fs_tree::{Created, Entry, Key, NewEntry, Report, Snapshot, Species, Target};
 
 use crate::leaf::Kind;
-use crate::task_name::{Outcome, Parts, Slug, TaskName};
+use crate::task_name::{Handle, Outcome, Parts, Slug, TaskName};
 use crate::task_tree::{self, TreeWrite};
 
 /// `leaf-add <parent> <slug>`: append a child leaf under `parent` at the next
@@ -391,7 +391,7 @@ pub(crate) fn new_leaf(
     match key {
         Some(key) => NewEntry::new(
             parts,
-            task_template_body(slug.as_str(), key.get()).into_bytes(),
+            task_template_body(&Handle::new(slug.clone(), key)).into_bytes(),
         ),
         None => NewEntry::empty(parts),
     }
@@ -475,8 +475,8 @@ pub(crate) fn refuse_finish_kind(kind: Kind, verb: &str) -> Result<()> {
 /// convention). That is the whole point of creating a review step late: the
 /// session that cuts it knows the specific finding the step exists for, which no
 /// constructor rendering a goal sentence from a handle could.
-pub(crate) fn task_template_body(slug: &str, key: u32) -> String {
-    format!("# {slug}-k{key}\n\n\n## Goal\n\n\n\n## Context\n\n## Done when\n\n## Notes\n")
+pub(crate) fn task_template_body(handle: &Handle) -> String {
+    format!("# {handle}\n\n\n## Goal\n\n\n\n## Context\n\n## Done when\n\n## Notes\n")
 }
 
 /// The path's final component as an owned `String`.

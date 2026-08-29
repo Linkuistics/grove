@@ -323,6 +323,62 @@ fn finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf() {
     assert_eq!(tree_snapshot(&grove), before);
 }
 
+/// A lenient key spelling names the leaf it means, and the **permanent record
+/// still names it canonically**.
+///
+/// `Handle::parse` does not require the key's canonical spelling — a handle is a
+/// reference an operator types, not a name on disk — so `finish-k0002` is the
+/// live `finish-k2` and the teardown proceeds, where the string comparison this
+/// replaced refused it. What must not follow is the raw text reaching the commit
+/// message: a task commit names its work item by a handle, and `finish-k0002` is
+/// a handle no name in this tree ever wore (`CONTEXT.md`, *Work-item handle*).
+/// Both halves are asserted here because only the second is a defect, and a test
+/// that pinned the acceptance alone would have passed while the record lied.
+#[test]
+fn a_lenient_key_spelling_is_accepted_and_committed_canonically() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("repository");
+    init_repo(&repository);
+    seed_terminal_grove(&repository);
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k0002"]);
+
+    assert!(
+        output.status.success(),
+        "a lenient key spelling was refused: {}",
+        stderr(&output)
+    );
+    assert!(!repository.join(".grove").exists(), "the tree survived");
+    assert_eq!(
+        parent_description(&repository),
+        "finish-k2: remove completed grove task tree",
+        "the teardown commit named a handle no leaf ever wore"
+    );
+}
+
+/// A refusal quotes **what the operator typed**, not a re-rendering of it.
+///
+/// The mismatch message exists to show the operator their own argument beside
+/// the live leaf, so canonicalising it first — reporting `other-k7` at someone
+/// who wrote `other-k007` — removes the only half they can act on.
+#[test]
+fn a_refused_handle_is_quoted_as_the_operator_wrote_it() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("repository");
+    init_repo(&repository);
+    seed_terminal_grove(&repository);
+    let grove = repository.join(".grove");
+    let before = tree_snapshot(&grove);
+
+    let output = grove_llm(&repository, &["finish-commit", "other-k007"]);
+
+    assert!(!output.status.success(), "a foreign handle tore the tree down");
+    let error = stderr(&output);
+    assert!(error.contains("other-k007"), "{error}");
+    assert!(error.contains("finish-k2"), "{error}");
+    assert_eq!(tree_snapshot(&grove), before);
+}
+
 /// A `.grove` symlinked at a directory elsewhere is refused **unfollowed**. The
 /// transaction refused it because it opened the root no-follow; the plain commit
 /// refuses it because a verb that deletes a tree may not delete one that is not

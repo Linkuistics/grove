@@ -79,3 +79,14 @@ verification, and delete the throwaway afterwards.
 **Do not tear the grove down here.** The finish cycle is the driver's to trigger
 and the `finish` kind's to perform, on explicit human confirmation. Retiring this
 leaf is an ordinary retirement.
+
+**One known doc residue, handed forward from `name-ownership-k14`.**
+`docs/ARCHITECTURE.md`'s `finish-commit` paragraph still contrasts the current
+guard against `finish_transaction::preflight_root`, a module
+`delete-finish-transaction-k8` deleted, so the sentence compares the present to
+something that no longer exists to compare against. k14 fixed the mechanical
+cases beside it — three module-table rows naming `repo`, `finish_transaction` and
+`finish_cleanup`, and `crates/ordinal-fs-tree/src/reference.rs`'s stale claim
+that grove's own grammar is lenient — but rewriting this paragraph needs whoever
+knows what k8 put in the transaction's place, which is this walk. Not a gap in
+the decomposition; a sentence that outlived its subject.

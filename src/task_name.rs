@@ -42,6 +42,25 @@
 //   - `NN-…-k<key>[.md]`                      -> an entry, or `Malformed` if it
 //                                                does not parse completely
 //   - `README.md`, anything else              -> `Foreign`
+//
+// **The handle is part of this grammar, not a second one** (`name-ownership-k14`,
+// `docs/specs/module-decomposition.md` decision 4). `<slug>-k<key>` — the
+// position-free identity that crosses every module boundary, from the store that
+// produces it, through the prompt, to the verbs a session hands it back to — was
+// spelled by four `format!`s outside this file and by both arms of the renderer
+// inside it, and peeled by `split_shape` here and by `task_tree::handle_key`
+// there, whose own comment conceded it *"mirrors the filename grammar"*. None of
+// them was behind a type.
+// It is now [`Handle`], and the ownership is structural rather than
+// disciplinary: [`Handle::render`] is the only `write!` the grammar appears in,
+// [`peel_key`] the only place it is taken apart, and **both of [`TaskName`]'s
+// renderings end in a call to the former**. So a filename and a handle saying
+// different things is not a bug this module can have — it is not expressible.
+//
+// The same fact read the other way: the handle is a **contiguous terminal
+// substring** of every name that has one, a leaf's followed only by the `.md`
+// its species takes. That is the property `grammar-separator-k15` is buying with
+// its rename, and with one renderer that leaf is an edit to one function.
 
 use core::fmt;
 
@@ -172,6 +191,190 @@ impl fmt::Display for Slug {
     }
 }
 
+/// Why a string is not a well-formed [`Handle`].
+///
+/// The same model as [`TaskNameError`]: every variant carries what it was
+/// handed **and** what it should have been, because a handle reaches this type
+/// from a human's command line as often as from a name, and a refusal that only
+/// says *no* leaves the operator guessing at the grammar.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HandleError {
+    /// No terminal `-k<digits>` at all — not a handle, whatever else it is.
+    NotHandleShaped {
+        /// What was handed in.
+        text: String,
+    },
+    /// A terminal key that does not fit in 32 bits, so there is no key to name.
+    KeyOutOfRange {
+        /// What was handed in.
+        text: String,
+        /// The digit run that overflowed.
+        digits: String,
+    },
+    /// A terminal key preceded by something that is not a slug.
+    BadSlug {
+        /// What was handed in.
+        text: String,
+        /// The offending slug.
+        slug: String,
+        /// Why it is not a slug.
+        error: SlugError,
+    },
+}
+
+impl fmt::Display for HandleError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotHandleShaped { text } => write!(
+                f,
+                "{text:?} is not a Grove handle: expected <slug>-k<key>, the position-free \
+                 identity a task keeps for its whole life — `name-ownership-k14`. The key is \
+                 the terminal `-k<digits>`, so a slug may contain `-k9` and still be read \
+                 unambiguously."
+            ),
+            Self::KeyOutOfRange { text, digits } => write!(
+                f,
+                "{text:?} is not a Grove handle: the key {digits:?} does not fit in 32 bits. \
+                 A handle's key is the one the tree allocated, and no tree has allocated \
+                 that."
+            ),
+            Self::BadSlug { text, slug, error } => write!(
+                f,
+                "{text:?} is not a Grove handle: the slug {slug:?} is not one — {error}. A \
+                 handle is <slug>-k<key> and its slug obeys the same rule a filename's does."
+            ),
+        }
+    }
+}
+
+impl std::error::Error for HandleError {}
+
+/// The permanent, position-free identity of a work item: `<slug>-k<key>`.
+///
+/// **This type owns the `<slug>-k<key>` grammar, and it is the only thing that
+/// spells it.** [`Handle::render`] is the single `write!` the grammar appears
+/// in, and both of [`TaskName`]'s renderings end in a call to it — so the
+/// filename and the handle cannot drift, because saying two different things is
+/// not expressible. That is the *structural* form of `one type owns a name`
+/// (`docs/specs/module-decomposition.md`, decision 4); the disciplinary form —
+/// a rule a review has to hold — is what the six hand-rolled sites this type
+/// replaced showed does not hold.
+///
+/// It is also why the handle is a **contiguous terminal substring** of every
+/// name that has one. That property is what `grammar-separator-k15` is buying,
+/// and with the grammar in one function that leaf is an edit to [`render`]
+/// rather than a rewrite.
+///
+/// [`render`]: Handle::render
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Handle {
+    slug: Slug,
+    key: Key,
+}
+
+impl Handle {
+    /// The handle of a slug and the key the tree allocated for it.
+    #[must_use]
+    pub const fn new(slug: Slug, key: Key) -> Self {
+        Self { slug, key }
+    }
+
+    /// The handle of a positioned name.
+    ///
+    /// `None` for the charter brief, which is the one name in the grammar with
+    /// no key — and therefore no identity of its own, its subject being the node
+    /// that contains it.
+    #[must_use]
+    pub fn of(name: &TaskName) -> Option<Self> {
+        match name {
+            TaskName::Brief => None,
+            TaskName::Positioned { key, parts, .. } => {
+                Some(Self::new(parts.slug().clone(), *key))
+            }
+        }
+    }
+
+    /// Read a handle back out of its rendering.
+    ///
+    /// The inverse of [`Handle::render`], and the *only* peel of the terminal
+    /// `-k<digits>` outside [`split_shape`], which shares [`peel_key`] with it —
+    /// so a handle and a filename find the key by one rule and cannot disagree.
+    ///
+    /// **Deliberately lenient on the key's spelling where [`TaskName::parse`] is
+    /// canonical, and the asymmetry is the point.** Canonicity exists because
+    /// two spellings of one *filename* are two files on disk sharing one key and
+    /// one position (`docs/adr/task-names-are-canonical.md`); a handle is never
+    /// on disk, so that argument does not reach it. It is a **reference**
+    /// namespace — typed by a human at `resolve` and at `finish-commit` — and
+    /// `parse_ref` is already lenient beside it, taking a bare `007` for key 7.
+    /// So `a-k007` is key 7 here, exactly as the `task_tree::handle_key` this
+    /// replaced had it, and `Handle::parse(x).to_string() == x` holds only for
+    /// what [`Handle::render`] writes.
+    ///
+    /// **It is stricter than the deleted `task_tree::handle_key` on the slug**,
+    /// which that function did not look at — and that is why `resolve`'s
+    /// fallback asks [`terminal_key`] instead. This is the *handle* question,
+    /// asked where a handle is genuinely meant: `finish-commit`'s argument. A
+    /// caller who only wants the key a reference ends in must not ask it here,
+    /// or an operator pasting `01-DONE-impl-build-k5` gets a refusal for a head
+    /// that was never going to be a slug.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HandleError`] when there is no terminal `-k<digits>`, when the
+    /// key does not fit in 32 bits, or when what precedes the key is not a
+    /// [`Slug`].
+    pub fn parse(text: &str) -> Result<Self, HandleError> {
+        let Some((before, digits)) = peel_key(text) else {
+            return Err(HandleError::NotHandleShaped {
+                text: text.to_string(),
+            });
+        };
+        let Ok(key) = digits.parse::<u32>() else {
+            return Err(HandleError::KeyOutOfRange {
+                text: text.to_string(),
+                digits: digits.to_string(),
+            });
+        };
+        match Slug::new(before) {
+            Ok(slug) => Ok(Self::new(slug, Key::new(key))),
+            Err(error) => Err(HandleError::BadSlug {
+                text: text.to_string(),
+                slug: before.to_string(),
+                error,
+            }),
+        }
+    }
+
+    /// Its human-facing part.
+    #[must_use]
+    pub const fn slug(&self) -> &Slug {
+        &self.slug
+    }
+
+    /// Its permanent identity.
+    #[must_use]
+    pub const fn key(&self) -> Key {
+        self.key
+    }
+
+    /// **The one place the `<slug>-k<key>` grammar is spelled.**
+    ///
+    /// Taken by parts rather than by `&self` so [`TaskName`]'s renderings can
+    /// end in it without cloning a slug they already hold — the point being that
+    /// there is one `write!`, not that a `Handle` value has to exist to reach
+    /// it.
+    fn render(f: &mut fmt::Formatter<'_>, slug: &Slug, key: Key) -> fmt::Result {
+        write!(f, "{slug}{KEY_MARK}{}", key.get())
+    }
+}
+
+impl fmt::Display for Handle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Self::render(f, &self.slug, self.key)
+    }
+}
+
 /// Everything in a name that grove understands and the library does not.
 ///
 /// The two variants are how *the species follows from the parts*: a task is a
@@ -271,7 +474,13 @@ impl fmt::Display for TaskName {
                 // at least two digits, and no other leading zero" — `05` and
                 // `100` canonical, `5` and `005` not.
                 let ordinal = ordinal.get();
-                let key = key.get();
+                // **Both arms below end in `Handle::render`**, and neither
+                // spells `<slug>-k<key>` itself. That is decision 4's structural
+                // form: the filename and the handle are one rendering, so drift
+                // between them is not something this type can express — and the
+                // handle is a contiguous terminal substring of the name (a leaf
+                // then takes its suffix), which is the property
+                // `grammar-separator-k15` builds on.
                 match parts {
                     // A leaf is a regular file and takes the `.md` suffix; a node
                     // is a directory and takes none. The suffix is what the
@@ -281,13 +490,15 @@ impl fmt::Display for TaskName {
                         outcome,
                         kind,
                         slug,
-                    } => write!(
-                        f,
-                        "{ordinal:02}-{}{}-{slug}{KEY_MARK}{key}.md",
-                        outcome.infix(),
-                        kind.label()
-                    ),
-                    Parts::Node { slug } => write!(f, "{ordinal:02}-{slug}{KEY_MARK}{key}"),
+                    } => {
+                        write!(f, "{ordinal:02}-{}{}-", outcome.infix(), kind.label())?;
+                        Handle::render(f, slug, *key)?;
+                        f.write_str(".md")
+                    }
+                    Parts::Node { slug } => {
+                        write!(f, "{ordinal:02}-")?;
+                        Handle::render(f, slug, *key)
+                    }
                 }
             }
         }
@@ -566,12 +777,52 @@ fn split_shape(stem: &str) -> Option<(&str, &str, &str)> {
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
-    let key_start = rest.len() - rest.bytes().rev().take_while(u8::is_ascii_digit).count();
-    if key_start == rest.len() {
-        return None; // no trailing key digits
+    let (middle, key_digits) = peel_key(rest)?;
+    Some((digits, middle, key_digits))
+}
+
+/// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
+/// `None` when there is none.
+///
+/// **The only peel of the key in grove**, shared by [`split_shape`] and
+/// [`Handle::parse`] — which is what makes *a handle and a filename find the key
+/// identically* a fact rather than a claim. It was two functions
+/// (`task_tree::handle_key` was the second, and its own comment conceded it
+/// "mirrors the filename grammar"), and the terminality rule is subtle enough
+/// that two of it is one too many: the key is the **last** `-k<digits>`, so
+/// `migrate-v1-to-v2-k27` is key 27 and a slug may contain `-k9` and still read
+/// unambiguously.
+///
+/// The digits are returned unparsed because the two callers disagree about what
+/// an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
+/// handle says [`HandleError::KeyOutOfRange`] — and that is their judgement, not
+/// this function's.
+/// The [`Key`] a reference ends in, or `None` when it does not end in one.
+///
+/// **A narrower question than [`Handle::parse`], asked by the reference
+/// namespace and answered by the same peel.** `resolve`'s bare-slug fallback
+/// wants *does this end in a key*, not *is this a handle*: an operator pastes a
+/// retired leaf's whole stem — `01-DONE-impl-build-k5` — and means key 5, and
+/// nothing before the key is a slug there or needs to be. Routing that through
+/// `Handle::parse` narrows `resolve` to references whose head happens to be a
+/// well-formed slug, which is a change to the verb rather than to the grammar's
+/// ownership, and this leaf owns the second and not the first.
+///
+/// One peel still: this and [`Handle::parse`] both go through [`peel_key`], and
+/// the difference between them is what they *require of what precedes it*.
+#[must_use]
+pub fn terminal_key(reference: &str) -> Option<Key> {
+    let (_, digits) = peel_key(reference)?;
+    digits.parse().ok().map(Key::new)
+}
+
+fn peel_key(text: &str) -> Option<(&str, &str)> {
+    let digits_start = text.len() - text.bytes().rev().take_while(u8::is_ascii_digit).count();
+    if digits_start == text.len() {
+        return None; // no trailing digits → no key
     }
-    let middle = rest[..key_start].strip_suffix(KEY_MARK)?;
-    Some((digits, middle, &rest[key_start..]))
+    let before = text[..digits_start].strip_suffix(KEY_MARK)?;
+    Some((before, &text[digits_start..]))
 }
 
 #[cfg(test)]
@@ -925,6 +1176,166 @@ mod tests {
             "ABANDONED",
         ] {
             assert!(Slug::new(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    // ---- the handle owns the grammar ----------------------------------------
+
+    /// **The structural claim decision 4 asks for, asserted rather than
+    /// reviewed.** Every positioned name's rendering ends in its own handle's
+    /// rendering — a node's exactly, a leaf's followed only by the `.md` suffix
+    /// its species takes. A second spelling of `<slug>-k<key>` anywhere in
+    /// `TaskName`'s `Display` fails this the moment the two disagree, which is
+    /// what *drift is not expressible* has to mean if it is not to be a promise.
+    #[test]
+    fn every_positioned_name_ends_in_its_own_handle() {
+        let names = [
+            TaskName::compose(
+                Ordinal::new(5),
+                Key::new(14),
+                Parts::leaf(Outcome::Live, Kind::Impl, slug("name-ownership")),
+            ),
+            TaskName::compose(
+                Ordinal::new(1),
+                Key::new(3),
+                Parts::leaf(Outcome::Done, Kind::Design, slug("decomposition")),
+            ),
+            TaskName::compose(
+                Ordinal::new(100),
+                Key::new(1),
+                Parts::leaf(Outcome::Abandoned, Kind::Finish, slug("a")),
+            ),
+            // The slug that contains the key marker: the case terminality
+            // exists for.
+            TaskName::compose(
+                Ordinal::new(7),
+                Key::new(2),
+                Parts::node(slug("migrate-k9-to-k10")),
+            ),
+        ];
+        for name in names {
+            let handle = Handle::of(&name).expect("a positioned name has a handle");
+            let rendered = name.to_string();
+            let tail = rendered.strip_suffix(".md").unwrap_or(&rendered);
+            assert!(
+                tail.ends_with(&handle.to_string()),
+                "{rendered:?} does not end in its handle {handle}"
+            );
+            // And the handle read back out of that tail is the same handle, so
+            // the terminal substring is not merely a suffix by coincidence.
+            assert_eq!(
+                Handle::parse(&tail[tail.len() - handle.to_string().len()..]),
+                Ok(handle)
+            );
+        }
+    }
+
+    /// The charter is the one name with no key, and therefore no identity of its
+    /// own — `of` says so rather than inventing one.
+    #[test]
+    fn the_brief_has_no_handle() {
+        assert_eq!(Handle::of(&TaskName::Brief), None);
+    }
+
+    /// `parse` is the inverse of the rendering, including across the slug that
+    /// contains the key marker.
+    #[test]
+    fn a_handle_round_trips_through_its_own_rendering() {
+        for (text, expect_slug, expect_key) in [
+            ("name-ownership-k14", "name-ownership", 14u32),
+            ("a-k1", "a", 1),
+            ("migrate-v1-to-v2-k27", "migrate-v1-to-v2", 27),
+            // The terminal rule: the *last* `-k<digits>` is the key, so a slug
+            // may carry one. This is the fact `split_shape` and `Handle::parse`
+            // now share a single peel to guarantee.
+            ("task-k9-k3", "task-k9", 3),
+        ] {
+            let handle = Handle::parse(text).expect("a well-formed handle");
+            assert_eq!(handle.slug().as_str(), expect_slug);
+            assert_eq!(handle.key().get(), expect_key);
+            assert_eq!(handle.to_string(), text);
+        }
+    }
+
+    /// A handle and a filename find the key by one rule. Asserted over the pair
+    /// rather than over either alone, because the failure this replaces was two
+    /// implementations agreeing on the easy cases.
+    #[test]
+    fn a_handle_and_a_filename_peel_the_same_key() {
+        for (filename, handle_text) in [
+            ("05-impl-task-k9-k3.md", "task-k9-k3"),
+            ("01-DONE-design-decomposition-k2.md", "decomposition-k2"),
+            ("07-migrate-k9-to-k10-k2", "migrate-k9-to-k10-k2"),
+        ] {
+            let found = if filename.ends_with(".md") { Found::File } else { Found::Dir };
+            let name = entry(filename, found);
+            let from_name = Handle::of(&name).expect("a positioned name has a handle");
+            let from_text = Handle::parse(handle_text).expect("a well-formed handle");
+            assert_eq!(from_name, from_text, "{filename:?} vs {handle_text:?}");
+        }
+    }
+
+    /// Every refusal names what it was handed and what a handle is, which is the
+    /// error model the rest of this design follows.
+    #[test]
+    fn a_refused_handle_says_what_it_should_have_been() {
+        let not_shaped = Handle::parse("build").expect_err("not handle-shaped");
+        assert_eq!(
+            not_shaped,
+            HandleError::NotHandleShaped {
+                text: "build".to_string()
+            }
+        );
+        assert!(not_shaped.to_string().contains("<slug>-k<key>"));
+
+        // Trailing digits without the marker are not a handle either.
+        assert!(matches!(
+            Handle::parse("build-14"),
+            Err(HandleError::NotHandleShaped { .. })
+        ));
+
+        let wide = Handle::parse("a-k99999999999").expect_err("key too wide");
+        assert!(matches!(wide, HandleError::KeyOutOfRange { .. }));
+        assert!(wide.to_string().contains("99999999999"));
+
+        let bad = Handle::parse("Bad-Slug-k2").expect_err("not a slug");
+        assert!(matches!(bad, HandleError::BadSlug { .. }));
+        assert!(bad.to_string().contains("lowercase"));
+
+        // The empty slug: both of the grammar's markers, nothing between them.
+        assert!(matches!(
+            Handle::parse("-k3"),
+            Err(HandleError::BadSlug { .. })
+        ));
+    }
+
+    /// The two ways `parse` departs from the `task_tree::handle_key` it
+    /// replaced, pinned because they are the only behaviour this leaf moved.
+    ///
+    /// Lenient where `handle_key` was, on the key's spelling — a handle is a
+    /// reference a human types and never a name on disk, so canonicity has no
+    /// argument here. Stricter where `handle_key` looked at nothing, on the
+    /// slug — `handle_key` answered *key 3* for three references no entry could
+    /// ever wear, since every slug on disk went through `Slug::new`.
+    #[test]
+    fn parse_is_lenient_on_the_key_and_strict_on_the_slug() {
+        for (text, key) in [("a-k007", 7u32), ("a-k0", 0)] {
+            assert_eq!(
+                Handle::parse(text).expect("a lenient key spelling").key().get(),
+                key
+            );
+        }
+        // Not canonical, and deliberately so: the rendering normalises.
+        assert_eq!(
+            Handle::parse("a-k007").expect("parses").to_string(),
+            "a-k7"
+        );
+        // What `handle_key` used to resolve by key and this refuses.
+        for text in ["-k3", "A-k3", "DONE-k3", "a_b-k3"] {
+            assert!(
+                matches!(Handle::parse(text), Err(HandleError::BadSlug { .. })),
+                "{text:?} should be refused for its slug"
+            );
         }
     }
 }

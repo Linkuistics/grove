@@ -44,7 +44,7 @@
 
 use crate::leaf::Kind;
 use crate::task_grow;
-use crate::task_name::{Outcome, Parts, Slug, TaskName};
+use crate::task_name::{Handle, Outcome, Parts, Slug, TaskName};
 use crate::task_tree::{self, Opening, TreeVacancy};
 use anyhow::{bail, Context, Result};
 use jj_workspace::Workspace;
@@ -133,7 +133,7 @@ pub fn materialize_finish(worktree: &Path) -> Result<crate::task_tree::SelectedL
     let path = task_grow::allocated(report.created(), &[key])?.remove(0);
     Ok(crate::task_tree::SelectedLeaf {
         path,
-        handle: finish_handle(key.context("a finish sentinel was created without a key")?),
+        handle: finish_handle(key.context("a finish sentinel was created without a key")?)?,
         kind: Kind::Finish,
     })
 }
@@ -145,22 +145,29 @@ pub fn materialize_finish(worktree: &Path) -> Result<crate::task_tree::SelectedL
 /// state; the entry carries no bytes then and never needs any, because a refusal
 /// writes nothing (`task_grow::new_leaf` says the same of an ordinary leaf).
 fn new_finish_leaf(key: Option<Key>) -> Result<NewEntry<Parts>> {
-    let parts = Parts::leaf(
-        Outcome::Live,
-        Kind::Finish,
-        Slug::new("finish").map_err(|error| anyhow::anyhow!("slug \"finish\": {error}"))?,
-    );
+    let parts = Parts::leaf(Outcome::Live, Kind::Finish, finish_slug()?);
     Ok(match key {
-        Some(key) => NewEntry::new(parts, finish_body(&finish_handle(key)).into_bytes()),
+        Some(key) => NewEntry::new(parts, finish_body(&finish_handle(key)?).into_bytes()),
         None => NewEntry::empty(parts),
     })
 }
 
-fn finish_handle(key: Key) -> String {
-    format!("finish-k{}", key.get())
+/// The driver's own leaf wears the handle `finish-k<key>`, composed through
+/// [`Handle`] rather than spelled here — one of the five hand-rolled produce
+/// sites `name-ownership-k14` retired.
+fn finish_handle(key: Key) -> Result<Handle> {
+    Ok(Handle::new(finish_slug()?, key))
 }
 
-fn finish_body(handle: &str) -> String {
+/// `finish`, validated as a [`Slug`]. A constant that has to go through the
+/// validating constructor is still one constant, and going through it is what
+/// keeps `Slug`'s guarantee — *a `Slug` that exists renders and re-parses* —
+/// true of every `Slug` in the process rather than of most of them.
+fn finish_slug() -> Result<Slug> {
+    Slug::new("finish").map_err(|error| anyhow::anyhow!("slug \"finish\": {error}"))
+}
+
+fn finish_body(handle: &Handle) -> String {
     format!(
         "# {handle}\n\n\
          ## Goal\n\n\
@@ -227,7 +234,28 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
             selection.path.display()
         );
     }
-    if selection.handle != finish_handle {
+    // The argument arrives as text from a session's command line, so it is read
+    // by the type that owns the grammar rather than compared as a string: a
+    // handle that is not one is told *why*, and only a well-formed handle
+    // reaches the mismatch below.
+    //
+    // **The refusals quote what the operator typed; everything downstream uses
+    // the tree's own handle.** `Handle::parse` is deliberately lenient on the
+    // key's spelling, so `finish-k0001` is the live `finish-k1` and is accepted
+    // where the old string comparison refused it — an improvement, since the
+    // operator meant that leaf. But the teardown commit is a permanent record
+    // and must name the work item by the handle a name on disk actually wore
+    // (`CONTEXT.md`, *Work-item handle*), so `selection.handle` is what goes
+    // past this point and the raw text goes no further than the error messages
+    // that are quoting it back.
+    let requested = Handle::parse(finish_handle).map_err(|error| {
+        anyhow::anyhow!(
+            "{error}\n\nThe live finish leaf is {handle}; rerun \
+             `grove-llm finish-commit {handle}`.",
+            handle = selection.handle
+        )
+    })?;
+    if selection.handle != requested {
         bail!(
             "requested finish handle {finish_handle:?} does not match the live finish leaf {}",
             selection.handle
@@ -239,7 +267,7 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
     // dropped when this function returns — after the root it names is gone,
     // which the lock does not care about, because the lock is on the directory
     // *containing* the root.
-    let outcome = delete_and_commit(worktree, &grove_root, finish_handle);
+    let outcome = delete_and_commit(worktree, &grove_root, &selection.handle);
     drop(tree);
     outcome
 }
@@ -249,7 +277,7 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
 ///
 /// The refusal wording is grove's and the remedy is jj's: the seam has no
 /// `.grove/` to speak about, and grove has no operation log to repair with.
-fn delete_and_commit(worktree: &Path, grove_root: &Path, finish_handle: &str) -> Result<()> {
+fn delete_and_commit(worktree: &Path, grove_root: &Path, finish_handle: &Handle) -> Result<()> {
     let workspace = Workspace::resolve(worktree).context("cannot commit the finished grove")?;
     require_recoverable_grove(&workspace, grove_root)?;
     // What makes a half-removed tree recoverable is that the snapshot holding it
@@ -564,7 +592,7 @@ pub fn leaf_decompose(
     // `reopen_write`, not `write`: the wait this command made was announced by
     // the promotion (`docs/ARCHITECTURE.md#tree-access-lock`).
     let _guard = task_tree::reopen_write(grove_root)?;
-    append_brief_suffix_in_file(&brief_path, slug.as_str(), key.get())?;
+    append_brief_suffix_in_file(&brief_path, &Handle::new(slug.clone(), key))?;
     Ok((brief_path, child_path))
 }
 
@@ -985,16 +1013,21 @@ fn root_brief_body(name: &str) -> String {
 /// position-free handle `# <slug>-k<key>` (the form `leaf_add_unlocked` writes), and is
 /// idempotent against an already-suffixed title; any other (hand-edited) first line
 /// is left alone (conservative — never clobbers a custom title).
-fn append_brief_suffix_in_file(path: &Path, slug: &str, key: u32) -> Result<()> {
+///
+/// It takes the [`Handle`] rather than a slug and a key so the line it looks for
+/// is rendered by the same code that wrote it. Recognising a title by
+/// re-spelling the grammar is how this and [`task_grow::task_template_body`]
+/// could once have drifted into a retitle that silently matched nothing.
+fn append_brief_suffix_in_file(path: &Path, handle: &Handle) -> Result<()> {
     let body =
         std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     let (first, rest) = match body.split_once('\n') {
         Some((f, r)) => (f, Some(r)),
         None => (body.as_str(), None),
     };
-    let handle = format!("# {slug}-k{key}");
-    let new_first = if first.trim_end() == handle {
-        format!("{handle} — brief")
+    let title = format!("# {handle}");
+    let new_first = if first.trim_end() == title {
+        format!("{title} — brief")
     } else {
         return Ok(()); // already suffixed, or a custom title — leave alone
     };
@@ -1340,7 +1373,7 @@ mod tests {
         let selection = materialize_finish(&wt).unwrap();
 
         assert_eq!(name_of(&selection.path), "02-finish-finish-k2.md");
-        assert_eq!(selection.handle, "finish-k2");
+        assert_eq!(selection.handle.to_string(), "finish-k2");
         assert_eq!(selection.kind, Kind::Finish);
         let body = body(&selection.path);
         assert!(body.starts_with("# finish-k2\n"), "got {body:?}");

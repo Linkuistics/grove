@@ -57,6 +57,7 @@
 use crate::complete::{self, Disposition};
 use crate::driver_lease::DriverLease;
 use crate::leaf::Kind;
+use crate::task_name::Handle;
 use crate::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
 use anyhow::{Context, Result};
 use jj_workspace::Workspace;
@@ -348,10 +349,12 @@ fn run_configured_loop_with_lease(
 /// already asserted every mapped path against the embed, so an error here is a
 /// bug — and the answer to it is still not to spawn a session pointed at a file
 /// that is not there.
-fn session_prompt(handle: &str, kind: Kind, worktree: &Path) -> Result<String> {
+fn session_prompt(handle: &Handle, kind: Kind, worktree: &Path) -> Result<String> {
     crate::prompt::compose(
         kind,
-        handle,
+        // Rendered by its owner. `prompt` composes text and holds no grammar of
+        // its own, so it takes the string the handle renders to, not the handle.
+        &handle.to_string(),
         &stated_vcs(worktree)?,
         &crate::provision::installed_skill_dirs(),
     )

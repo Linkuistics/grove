@@ -22,10 +22,14 @@
 //! on — a domain implements [`EntryName`] and this module is only what one
 //! looks like.
 //!
-//! **The grammar is strict where grove's own is lenient**, and the difference is
-//! the canonicity obligation. `src/tree_id.rs` accepts a hand-typed `5-…` and
-//! renders `05-…`, so two filenames name one entry there. Here `5-…` is
-//! [`Verdict::Malformed`] with the canonical spelling in the message.
+//! **The grammar is strict, and so is grove's** — this paragraph used to say
+//! otherwise, citing a `src/tree_id.rs` that accepted a hand-typed `5-…` and
+//! rendered `05-…`, so that two filenames named one entry there. That model was
+//! withdrawn: grove's `task_name` refuses a lenient position by rendering what
+//! it parsed and comparing, and `docs/adr/task-names-are-canonical.md` carries
+//! why. Here too, `5-…` is [`Verdict::Malformed`] with the canonical spelling in
+//! the message — no longer a contrast with its first consumer, just the
+//! obligation both meet.
 
 use core::fmt;
 

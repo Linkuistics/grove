@@ -47,7 +47,7 @@ use ordinal_fs_tree::fs::{Reading, Vacancy, Writing};
 use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Sought, Verdict};
 
 use crate::leaf::Kind;
-use crate::task_name::{Outcome, Parts, TaskName};
+use crate::task_name::{self, Handle, Outcome, Parts, TaskName};
 
 /// The task tree, read once under the library's shared lock.
 ///
@@ -516,14 +516,14 @@ pub fn next_key(snapshot: &Snapshot<TaskName>) -> Option<Key> {
 }
 
 /// A live leaf's session kind and handle, or `None` when the entry is not one.
-fn live_leaf(entry: &Entry<'_, TaskName>) -> Option<(Kind, String)> {
+fn live_leaf(entry: &Entry<'_, TaskName>) -> Option<(Kind, Handle)> {
     let triple = entry.triple()?;
     match triple.parts {
         Parts::Leaf {
             outcome: Outcome::Live,
             kind,
             slug,
-        } => Some((*kind, format!("{slug}-k{}", triple.key.get()))),
+        } => Some((*kind, Handle::new(slug.clone(), triple.key))),
         _ => None,
     }
 }
@@ -544,7 +544,7 @@ fn entry_outcome(entry: &Entry<'_, TaskName>) -> Outcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectedLeaf {
     pub path: PathBuf,
-    pub handle: String,
+    pub handle: Handle,
     pub kind: Kind,
 }
 
@@ -864,8 +864,17 @@ fn lookup<'a>(snapshot: &'a Snapshot<TaskName>, reference: &str) -> Result<Looku
                 })
                 .collect();
             Ok(match matches.len() {
-                0 => match handle_key(&slug) {
-                    Some(key) => by_key(key),
+                // A bare slug that matched nothing is retried as a reference
+                // ending in a key, and the peel is the name owner's —
+                // `task_name::terminal_key`, which shares `peel_key` with the
+                // filename grammar. **Not `Handle::parse`**, which would also
+                // require the head to be a slug: an operator pastes a retired
+                // leaf's whole stem (`01-DONE-impl-build-k5`) and means key 5,
+                // and the deleted `task_tree::handle_key` served that by
+                // ignoring everything before the key. A reference that ends in
+                // no key is simply unmatched.
+                0 => match task_name::terminal_key(&slug) {
+                    Some(key) => by_key(key.get()),
                     None => Lookup::NotFound,
                 },
                 1 => Lookup::Found(matches[0]),
@@ -960,25 +969,6 @@ pub(crate) fn parse_ref(reference: &str) -> Result<Ref> {
     } else {
         Ok(Ref::Slug(reference.to_string()))
     }
-}
-
-/// Peel the terminal `-k<digits>` of a full `<slug>-k<key>` handle into its key,
-/// or `None` when the reference is not handle-shaped. Mirrors the filename
-/// grammar's *the key is the terminal `-k<digits>`* rule, so a handle and a
-/// filename peel the key identically — `migrate-v1-to-v2-k27` → `27`, `build` →
-/// `None`.
-pub(crate) fn handle_key(reference: &str) -> Option<u32> {
-    let digits_start = reference.len()
-        - reference
-            .bytes()
-            .rev()
-            .take_while(u8::is_ascii_digit)
-            .count();
-    if digits_start == reference.len() {
-        return None; // no trailing digits → not a handle
-    }
-    reference[..digits_start].strip_suffix("-k")?;
-    reference[digits_start..].parse().ok()
 }
 
 /// Render a [`Resolution`] to the `(stdout, stderr)` the `resolve` verb emits.
@@ -1096,7 +1086,7 @@ mod tests {
             selected,
             SelectedLeaf {
                 path,
-                handle: "selected-k7".to_string(),
+                handle: Handle::parse("selected-k7").expect("a well-formed handle"),
                 kind: Kind::ReviewImpl,
             }
         );
@@ -1822,6 +1812,55 @@ mod tests {
                 assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
+        }
+    }
+
+    /// The fallback reads a **terminal key**, not a handle, and nothing before
+    /// that key has to be a slug.
+    ///
+    /// The realistic case is the first: an operator pastes a retired leaf's
+    /// whole filename stem, which carries a position and a `DONE` infix and is
+    /// therefore not a slug at all. `name-ownership-k14` briefly routed this
+    /// through `Handle::parse` and lost every row below — a change to what
+    /// `resolve` accepts, smuggled in by a refactor whose subject was who owns
+    /// the grammar. Pinned so the next such routing has to be deliberate.
+    #[test]
+    fn resolve_reads_a_terminal_key_whatever_precedes_it() {
+        let (_t, g) = resolve_fixture();
+        for reference in [
+            // A retired leaf's stem, as it literally appears on disk.
+            "02-DONE-impl-add-k4",
+            // A live leaf's stem.
+            "03-impl-build-k5",
+            // Shapes no slug may take: uppercase, an underscore, a reserved
+            // word, an empty head. All of them still end in a key.
+            "Build-k5",
+            "a_b-k5",
+            "DONE-k5",
+            "-k5",
+            // A lenient key spelling, as `parse_ref` already accepts for a bare
+            // integer.
+            "build-k005",
+        ] {
+            match resolve(&g, reference).unwrap() {
+                Resolution::Found { path, .. } => assert_eq!(
+                    name_of(&path),
+                    if reference.contains("-k4") {
+                        "02-DONE-impl-add-k4.md"
+                    } else {
+                        "03-impl-build-k5.md"
+                    },
+                    "{reference:?}"
+                ),
+                other => panic!("{reference:?}: expected Found, got {other:?}"),
+            }
+        }
+        // A reference ending in no key at all is still simply unmatched.
+        for reference in ["nothing", "nothing-k", "nothing-kx"] {
+            assert!(
+                matches!(resolve(&g, reference).unwrap(), Resolution::NotFound),
+                "{reference:?} should not resolve"
+            );
         }
     }
 

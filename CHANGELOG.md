@@ -51,6 +51,32 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **One type owns the name, and the handle is a rendering of it.**
+  `task_name::Handle` — the position-free `<slug>-k<key>` identity that crosses
+  every module boundary — is a type with `of`, `parse`, `slug`, `key` and a
+  `Display`, and it is now the only thing that spells that grammar. `Handle::render`
+  is the single `write!` it appears in and **both of `TaskName`'s renderings end
+  in a call to it**, so a filename and a handle disagreeing is not expressible
+  rather than merely reviewed against; `task_name::peel_key` is the single place
+  the terminal `-k<digits>` is taken apart, shared by `Handle::parse` and the
+  filename parser. Four hand-rolled produce sites and the duplicate peel are
+  gone — `task_tree::live_leaf`'s `format!`, `tree_lifecycle::finish_handle`,
+  `tree_lifecycle::append_brief_suffix_in_file`'s title match,
+  `task_grow::task_template_body`, and `task_tree::handle_key`, whose own comment
+  conceded it "mirrors the filename grammar" — and the renderer's own two inline
+  arms went with them. `SelectedLeaf::handle` is a
+  `Handle` rather than a `String`, and `finish-commit` now reads its argument
+  through `Handle::parse`, so a malformed one is told what a handle is instead of
+  being reported as a mismatch (`docs/specs/module-decomposition.md`, decision 4;
+  `name-ownership-k14`). `Kind` keeps its closed set — `open-kind-k20` removes
+  it, and not before the separator lands.
+- **`finish-commit` accepts a lenient key spelling and still records the
+  canonical handle.** `finish-k0002` now names the live `finish-k2` rather than
+  being reported as a mismatch, because a handle is a reference an operator
+  types and not a name on disk. The teardown commit and the refusals were
+  separated to make that safe: the commit message renders the *tree's* handle,
+  so a permanent record can no longer name a handle no leaf ever wore, while a
+  refusal quotes the argument exactly as it was typed.
 - **Grove's second lock layer is gone.** `src/tree_access.rs` is deleted, and
   with it Grove's own `flock` on the directory containing the task tree. Every
   tree operation now opens through the store's `read` / `write` and takes its

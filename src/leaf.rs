@@ -11,6 +11,18 @@
 // verb path, made dead by the migration and deleted with it. Its last lodgers,
 // the `NNN-slug` prefix parser and the lenient read-side kind parser, went with
 // migration itself (`delete-migration-k6`).
+//
+// **`Kind` is one of the four validated components of a name**, and the other
+// three — `Slug`, `Outcome` and `Handle` — live with the grammar in
+// `task_name`. It sits here rather than there because it is also the key a
+// session's command template is configured under, and `llm_cli`, `task_grow`,
+// `tree_lifecycle` and `session_config` all carry it without carrying the
+// grammar. What `task_name` owns of it is exactly where it appears in a name:
+// `Kind::split_filename_prefix` is called from `parse` and `Kind::label` from
+// the renderer, and nothing else in the tree spells a kind into or out of a
+// filename. The closed set survives `name-ownership-k14` deliberately —
+// `open-kind-k20` removes it, and not before `grammar-separator-k15` has made
+// `02-design-decomposition-k2.md` unambiguous.
 
 use anyhow::{bail, Result};
 

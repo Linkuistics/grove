@@ -49,6 +49,9 @@ pub mod session_config;
 // `use` line has to be read to know which model it means. The grammar it
 // replaced was lenient on the position's padding where this one is canonical,
 // which is why the order mattered while both were live; `sweep-k37` deleted it.
+// Since `name-ownership-k14` it also owns the *handle* — `Handle`, the
+// position-free `<slug>-k<key>` identity every other module carries — so there
+// is one grammar rather than a filename grammar plus six copies of half of one.
 pub mod task_name;
 // `task_grow` is `leaf-add`, `leaf-add-pair` and `leaf-insert` expressed through
 // that seam — the *migrate* stage's third leaf. What is left in it is what the

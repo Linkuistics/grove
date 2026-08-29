@@ -36,6 +36,14 @@ development history, not skill-specific vocabulary.
   addresses observed failures and preserves successful default behavior.
 - `skill-evaluation-k22` reruns the same rubric with the skill enabled, closes
   demonstrated wording gaps, and proves deployment.
+- The completed evaluation report remains a negative historical result.
+  `acceptance-contract-reconciliation-k75`, its lazy review chain, and
+  `acceptance-replication-authority` now precede `recovery-campaign-k54`; they
+  decide whether a post-failure replication has authority to discharge the
+  unchanged-rubric clause and keep any new instrument supplemental.
+- `supplemental-evaluation` follows the exact-instrument campaign as a separate
+  planning increment. It owns F1–F14's stronger controls and cannot supply or
+  alter an unchanged-rubric verdict.
 
 ## Pointers
 

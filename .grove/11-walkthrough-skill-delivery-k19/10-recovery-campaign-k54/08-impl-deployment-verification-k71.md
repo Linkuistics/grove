@@ -18,11 +18,9 @@ result without selecting away a failure.
   treatment frozen and checked before every campaign attempt is recorded as
   pass, failed, or unavailable.
 - Current-digest positive tests exercise the reusable runner, access auditor,
-  exposure/replacement gate, automatic pair-atomic resource-window resumption,
-  scorer/resolver
-  invocation harness, template delta, exact prompts, fixtures, adjacent-pair
-  assignment records and timestamps, normalized scorer bundles, forced arm
-  guesses, and every fail-closed terminal outcome path.
+  acceptance-manifest identity checks, historical replacement/sampling mode,
+  refusal of supplemental fields, scorer invocation, template delta, exact
+  prompts and fixtures, assignment records, bundles, and terminal outcome paths.
 - Skill frontmatter, description, harness eligibility, progressive-disclosure
   bounds, citations, plugin manifest, installation/reconciliation behavior, and
   local-link check results are preserved without requiring a pass to retire the
@@ -37,4 +35,5 @@ result without selecting away a failure.
 ## Notes
 
 A deterministic pass proves bytes and machinery, not discovery, compliance,
-walkthrough quality, reader comprehension, or behavioral improvement.
+walkthrough quality, reader comprehension, behavioral improvement, or authority
+to supersede the original failed experiment.

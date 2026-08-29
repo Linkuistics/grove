@@ -25,3 +25,9 @@ the future walkthrough skill.
 ## Notes
 
 This leaf interprets evidence; it does not write or scaffold the skill.
+
+## Decisions (running log)
+
+- The durable synthesis is `docs/evaluations/writing-code-walkthroughs/baseline/README.md`, beside the frozen rubric and the three case directories it summarizes.
+- Only Case A can support behavioral classifications and candidate skill guidance: Cases B and C exhausted their replacement allowances without a final answer, so their infrastructure failures remain sample shortfalls rather than behavioral failures.
+- The authoring brief groups the fifteen repeated Case A gaps into six rules while retaining the atomic criterion mapping. Mixed and present-in-sample behavior is explicitly excluded, and deterministic properties remain assigned to mechanical checks without being claimed as observed baseline gaps.

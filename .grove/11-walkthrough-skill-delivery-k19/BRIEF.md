@@ -59,3 +59,10 @@ from judgment scored over agent outputs.
 `leaf-decompose` candidates split by scenario group when the campaign exceeds a
 focused session. The first baseline child commits the rubric once; all remaining
 baseline and enabled-evaluation children share it unchanged.
+
+The baseline completed under the frozen invalid-run rule with behavioral
+evidence only for scope elicitation. The source/fragment and
+exposition/assurance cases each exhausted their replacement allowance without a
+final answer, so downstream authoring must not infer failures from those cases;
+enabled evaluation still runs their unchanged prompts and criteria and reports
+the historical sample shortfalls.

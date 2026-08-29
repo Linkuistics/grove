@@ -26,6 +26,7 @@ fn write_leaf(grove: &Path, name: &str, body: &str) -> PathBuf {
 fn grove_llm(repository: &Path, arguments: &[&str]) -> std::process::Output {
     Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .current_dir(repository)
         .args(arguments)
         .output()

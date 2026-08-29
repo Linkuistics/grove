@@ -1,0 +1,35 @@
+[package]
+name = "keyed-launch"
+version = "0.1.0"
+edition = "2021"
+description = "A configuration of key → complete command template, validated whole and expanded into an argv"
+license = "Apache-2.0"
+repository = "https://github.com/Linkuistics/grove"
+# Inherited from the workspace root, whose comment carries the evidence: the
+# locked dependency graph cannot be parsed by a cargo below 1.85.
+rust-version = "1.85"
+
+# **Two dependencies, and each is a document format this crate reads rather than
+# a framework it is built on.** `kdl` is the configuration language; `shell-words`
+# splits a template into words the way a reader of the line expects, without ever
+# handing it to a shell. Errors are the crate's own opaque `ConfigError`
+# implementing `std::error::Error`, so a consumer using `anyhow`, `thiserror` or
+# nothing at all takes on neither — the same rule `crates/jj-workspace` and
+# `crates/ordinal-fs-tree` state for theirs.
+[dependencies]
+kdl = "4.7"
+shell-words = "1.1"
+
+[dev-dependencies]
+tempfile = "3.10"
+
+[lints]
+workspace = true
+
+# `cargo release` drives the workspace, and `release.toml` configures a cut of
+# *grove*. Excluding this member keeps that cut what it was before this crate
+# existed. Whether an extracted crate earns its own release lane is
+# `spec-to-current-state-k23`'s question; this line keeps the next `cargo release`
+# from answering it by accident.
+[package.metadata.release]
+release = false

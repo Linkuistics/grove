@@ -38,6 +38,22 @@ interface, [*jj is the only lane*](./docs/adr/jj-is-the-only-lane.md) for the
 refusal. A separate context becomes worth declaring only if it grows terms whose
 meaning departs from grove's.
 
+**`crates/keyed-launch` is another crate and, for the same reason, not another
+context — but only because it was named to avoid being one.** Its vocabulary is
+*key*, *template*, *slot*, *argv*, *launch*, *overlay*: a key is an opaque string
+a consumer names, and a slot is a name that consumer declares. None of those
+words appears in grove's glossary meaning something else. The word it would have
+reached for is **session**, and using it would have put a third meaning beside
+grove's **Session** and the methodology's, adding a row to the collision table
+below for nothing — the crate never learns what a launch is *for*. Grove's
+mapping is one line: a **Session kind** is a key. Its decisions live in the grove
+context that owns them:
+[decision 7](./docs/specs/module-decomposition.md) for the interface,
+[*complete session configuration*](./docs/adr/complete-session-configuration.md)
+for what a template must be, and
+[*the untracked configuration delta*](./docs/adr/untracked-configuration-delta.md)
+for the second document.
+
 ## Relationships
 
 - **grove → skills, a documentation-level prerequisite that binds without the

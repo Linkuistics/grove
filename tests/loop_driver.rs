@@ -801,7 +801,10 @@ fn an_unrecognised_filename_kind_refuses_to_launch() {
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
     plant_tree(&worktree, "01-reserch-a-k1.md");
-    jj(&worktree, &["commit", "-m", "tree with an unrecognised kind"]);
+    jj(
+        &worktree,
+        &["commit", "-m", "tree with an unrecognised kind"],
+    );
 
     let log = fixture.path().join("log");
     let configured = fixture.path().join("configured-command.sh");

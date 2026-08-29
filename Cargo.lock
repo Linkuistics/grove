@@ -246,11 +246,10 @@ dependencies = [
  "clap",
  "include_dir",
  "jj-workspace",
- "kdl",
+ "keyed-launch",
  "libc",
  "ordinal-fs-tree",
  "sha2",
- "shell-words",
  "tempfile",
 ]
 
@@ -340,6 +339,15 @@ dependencies = [
  "miette",
  "nom",
  "thiserror",
+]
+
+[[package]]
+name = "keyed-launch"
+version = "0.1.0"
+dependencies = [
+ "kdl",
+ "shell-words",
+ "tempfile",
 ]
 
 [[package]]

@@ -51,6 +51,52 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The runner's template half is a crate, and it has never heard of a session.**
+  `crates/keyed-launch` owns a configuration of `key -> complete command
+  template`: the KDL grammar, whole-document validation against a *slot
+  vocabulary* the consumer supplies at load, aggregate diagnostics with source
+  locations, whole-word expansion into an argv, and a conformance kit
+  (`keyed_launch::conformance::check`) that holds a consumer's configuration to
+  the crate's contract from outside the consumer's own suite. A key is an opaque
+  string and a slot is a name the consumer declares; the crate holds no set of
+  either. `src/session_config.rs` falls from 673 lines to the part that could not
+  move — the personal file's path, grove's four slots (`prompt`, `session_name`,
+  `worktree`, `repo`), and the configuration delta's search and trackedness
+  rules, which are questions about grove's worktree answered through grove's
+  version control seam. Grove drops `kdl` and `shell-words` as direct
+  dependencies.
+
+  **Configuration presence is now per kind and just-in-time.** The personal file
+  no longer has to declare all nineteen session kinds. The whole of both
+  documents is still validated eagerly — before every tree mutation and again
+  before every launch, for syntax, duplicates, node shape and every template
+  rule, so a malformed entry for a kind this run will never reach still fails
+  before anything is spawned. What moved is *presence*: before Grove writes a
+  leaf of kind K, and before it launches K, K must resolve to exactly one
+  complete template read whole out of one file. **What is lost is exactly the
+  early warning for a kind not yet reached** — a stale configuration now fails at
+  the first `leaf-add` of that kind rather than at the next tree mutation of any
+  kind. What is bought is that adding a kind no longer wedges every operation in
+  every stale configuration until each owner edits their file. The five verbs
+  that write a leaf — `leaf-add`, `leaf-add-pair`, `leaf-insert`,
+  `leaf-decompose`, `root-init` — now check before mutating, so a refusal leaves
+  the tree byte-identical.
+
+  **A key resolves only if the primary file declares it.** The all-nineteen rule
+  was what made a partial second source safe: a delta could only ever override a
+  kind the operator had already written down. That argument goes with the
+  quantifier, so it is restated one kind at a time — the delta overrides and
+  never supplies, and where only the delta declares a kind, the kind does not
+  resolve and the refusal names it and the personal file that must declare it.
+  `docs/adr/untracked-configuration-delta.md` now states that as its own property
+  rather than borrowing one.
+
+  **`unknown session kind` is no longer a diagnostic.** It was a claim about a
+  closed key set, and neither the crate nor grove holds one; a key nobody uses
+  costs nothing, and a key that is used must resolve. Configuration diagnostics
+  say *key* rather than *session kind* for the same reason. `Kind` itself stays a
+  closed enum for filenames.
+
 - **The version control seam is a crate, and it has never heard of grove.**
   `crates/jj-workspace` is the workspace's third package and the whole of what
   grove knows about Jujutsu: resolve a workspace, refuse a working tree that is

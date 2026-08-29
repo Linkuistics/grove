@@ -136,7 +136,7 @@ pub fn leaf_add_pair(grove_root: &Path, parent: &str, stem: &str) -> Result<Vec<
 
 /// The pair's three steps, in the order they land. The kind is the whole of what
 /// distinguishes them, so this is the whole of the shape.
-const PAIR: [Kind; 3] = [Kind::ResearchA, Kind::ResearchB, Kind::CombineResearch];
+pub(crate) const PAIR: [Kind; 3] = [Kind::ResearchA, Kind::ResearchB, Kind::CombineResearch];
 
 /// What a `leaf-insert` did: where the new leaf landed, and every sibling whose
 /// ordinal moved.

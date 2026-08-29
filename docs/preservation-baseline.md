@@ -371,6 +371,15 @@ holding a complete command template. No properties, no child blocks. All ninetee
 must appear **exactly once**; there are no defaults, families, profiles or
 inheritance, and nothing is assembled from a precedence chain.
 
+> **Excepted, from `keyed-launch-templates-k10`.** The *quantifier* is gone: a
+> kind may appear at most once, and presence is checked per kind at the moment
+> the kind is used rather than over a set of nineteen. Everything else in this
+> section still binds — one complete template, read whole, out of one file — and
+> the delta gains an explicit rule of its own: **a kind resolves only if the
+> personal file declares it**. Every row below that reports `missing session
+> kinds` or `unknown session kind` records behaviour that has been deliberately
+> removed. See `docs/adr/complete-session-configuration.md`.
+
 **Per-checkout delta**: `.grove.kdl`, same grammar, **any subset** of the
 nineteen. Looked for at the worktree root first, then the main repository root;
 **the first of the two that holds a file is the delta** and the other is not read.

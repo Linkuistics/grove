@@ -41,6 +41,7 @@ fn grove() -> TempDir {
 fn run(worktree: &Path, args: &[&str]) -> (String, String, bool) {
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .current_dir(worktree)
         .args(args)
         .output()
@@ -695,11 +696,7 @@ fn pair_refuses_a_kind_because_its_kinds_are_fixed() {
         stderr.contains("unexpected argument '--kind'"),
         "the pair has no configurable kind: {stderr}"
     );
-    assert_eq!(
-        tree(t.path()),
-        vec!["BRIEF.md"],
-        "nothing created"
-    );
+    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
 }
 
 #[test]
@@ -732,11 +729,7 @@ fn pair_rejects_removed_harness_flags() {
         stderr.contains("unexpected argument '--harness-a'"),
         "{stderr}"
     );
-    assert_eq!(
-        tree(t.path()),
-        vec!["BRIEF.md"],
-        "nothing created"
-    );
+    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
 }
 
 #[test]
@@ -762,6 +755,7 @@ fn the_surviving_composite_verb_sits_beside_leaf_add_in_help() {
     // the verb it composes.
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .arg("--help")
         .output()
         .unwrap();

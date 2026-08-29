@@ -592,9 +592,13 @@ fn the_size_alarm_fires_on_an_oversized_prompt() {
 /// iteration.
 #[test]
 fn a_machine_with_no_harness_root_still_composes_a_truthful_prompt() {
-    let prompt =
-        prompt::compose::<&Path>(Kind::Impl, "x-k1", "this working tree is jj-enabled (jj workspace root: `/w`)", &[])
-            .expect("composition must not depend on a harness being installed");
+    let prompt = prompt::compose::<&Path>(
+        Kind::Impl,
+        "x-k1",
+        "this working tree is jj-enabled (jj workspace root: `/w`)",
+        &[],
+    )
+    .expect("composition must not depend on a harness being installed");
     assert!(
         prompt.contains("no known harness root"),
         "the location sentence must say so rather than name nowhere:\n{prompt}"

@@ -1,3 +1,13 @@
+//! What is genuinely grove's about its launch configuration.
+//!
+//! The template grammar, the slot rules, aggregate diagnostics and the
+//! primary-declares rule live in `crates/keyed-launch` and are tested there,
+//! without a session or a kind in sight. What is left here is the part that
+//! could not move: grove's own **slot vocabulary**, the just-in-time presence
+//! rule, and the configuration delta — where it is searched, which candidate
+//! wins, and the refusal of a tracked one
+//! (`docs/adr/untracked-configuration-delta.md`).
+
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -5,31 +15,14 @@ use std::path::{Path, PathBuf};
 use grove::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
 use tempfile::TempDir;
 
-const SESSION_KINDS: &[&str] = &[
-    "requirements",
-    "review-requirements",
-    "integrate-review-requirements",
-    "design",
-    "review-design",
-    "integrate-review-design",
-    "planning",
-    "review-planning",
-    "integrate-review-planning",
-    "prototype",
-    "review-prototype",
-    "integrate-review-prototype",
-    "impl",
-    "review-impl",
-    "integrate-review-impl",
-    "research-a",
-    "research-b",
-    "combine-research",
-    "finish",
-];
+/// Kinds the fixtures below declare. Not *the* kind set — grove no longer holds
+/// one — just enough distinct keys for an overlay to override one and leave
+/// another alone.
+const FIXTURE_KINDS: &[&str] = &["requirements", "design", "impl", "finish"];
 
 fn complete_document(template_for_requirements: &str) -> String {
     let mut document = String::new();
-    for kind in SESSION_KINDS {
+    for kind in FIXTURE_KINDS {
         let template = if *kind == "requirements" {
             template_for_requirements
         } else {
@@ -72,14 +65,16 @@ fn load_from(home: &Path, worktree: &Path, repository: &Path) -> anyhow::Result<
 }
 
 fn load_error(home: &Path) -> String {
-    load(home).err().unwrap().to_string()
+    format!("{:#}", load(home).err().expect("expected a load failure"))
 }
 
 fn load_error_from(home: &Path, worktree: &Path, repository: &Path) -> String {
-    load_from(home, worktree, repository)
-        .err()
-        .unwrap()
-        .to_string()
+    format!(
+        "{:#}",
+        load_from(home, worktree, repository)
+            .err()
+            .expect("expected a load failure")
+    )
 }
 
 fn write_delta(root: &Path, document: &str) -> PathBuf {
@@ -97,25 +92,38 @@ fn context<'a>(prompt: &'a str) -> ExpansionContext<'a> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Grove's slot vocabulary
+//
+// The four names, and their cardinalities, are the whole of what grove tells the
+// runner about its own domain. Everything else about a template is the runner's
+// and is tested in `crates/keyed-launch/tests/templates.rs`.
+
+/// Each of the four slots expands to exactly one argument, whatever it holds —
+/// nothing re-splits a prompt, a session name or a path with spaces in it.
 #[test]
-fn load_and_expand_preserve_argument_boundaries_and_prompt_position() {
+fn each_grove_slot_expands_to_one_argument() {
     let home = TempDir::new().unwrap();
     write_config(
         home.path(),
-        "env RUN_MODE=review wrapper --before '${prompt}' --tree '${worktree}' --after",
+        "env RUN_MODE=review wrapper --before ${prompt} --name ${session_name} \
+         --tree ${worktree} --repo ${repo}",
     );
 
     let config = load(home.path()).unwrap();
     let worktree = Path::new("/worktrees/config with spaces; touch nope");
-    let repository = Path::new("/repos/grove");
-    let context = ExpansionContext {
-        prompt: "mandate; echo not-a-shell",
-        session_name: "grove: config grove",
-        worktree,
-        repository,
-    };
-
-    let argv = config.expand("requirements", &context).unwrap();
+    let repository = Path::new("/repos/main with spaces");
+    let argv = config
+        .expand(
+            "requirements",
+            &ExpansionContext {
+                prompt: "mandate; echo not-a-shell",
+                session_name: "grove repo: config grove",
+                worktree,
+                repository,
+            },
+        )
+        .unwrap();
 
     assert_eq!(
         argv,
@@ -125,70 +133,133 @@ fn load_and_expand_preserve_argument_boundaries_and_prompt_position() {
             OsString::from("wrapper"),
             OsString::from("--before"),
             OsString::from("mandate; echo not-a-shell"),
+            OsString::from("--name"),
+            OsString::from("grove repo: config grove"),
             OsString::from("--tree"),
             worktree.as_os_str().to_owned(),
-            OsString::from("--after"),
+            OsString::from("--repo"),
+            repository.as_os_str().to_owned(),
         ]
     );
 }
 
+/// `${prompt}` is required — a launch that does not carry the prompt launches a
+/// session with no mandate — and the other three are optional. There is no
+/// fifth.
 #[test]
-fn raw_kdl_strings_are_valid_command_templates() {
-    let home = TempDir::new().unwrap();
-    let mut document = String::from(
-        r##"requirements r#"runner --label "quoted value" ${prompt}"#
-"##,
-    );
-    for kind in &SESSION_KINDS[1..] {
-        document.push_str(&format!("{kind} {:?}\n", "runner ${prompt}"));
+fn the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one() {
+    for (template, expected) in [
+        ("runner", "must contain `${prompt}` exactly once"),
+        (
+            "runner ${prompt} ${prompt}",
+            "must contain `${prompt}` exactly once",
+        ),
+        (
+            "runner ${worktree} ${worktree} ${prompt}",
+            "`${worktree}` may appear at most once",
+        ),
+        (
+            "runner ${session_name} ${session_name} ${prompt}",
+            "`${session_name}` may appear at most once",
+        ),
+        (
+            "runner ${repo} ${repo} ${prompt}",
+            "`${repo}` may appear at most once",
+        ),
+        (
+            "runner ${settings} ${prompt}",
+            "unknown substitution `${settings}`",
+        ),
+    ] {
+        let home = TempDir::new().unwrap();
+        write_config(home.path(), template);
+        let error = load_error(home.path());
+        assert!(
+            error.contains(expected),
+            "expected {expected:?} for template {template:?}, got:\n{error}"
+        );
     }
-    write_raw_config(home.path(), &document);
 
-    let config = load(home.path()).unwrap();
-    let context = ExpansionContext {
-        prompt: "mandate",
-        session_name: "session",
-        worktree: Path::new("/worktree"),
-        repository: Path::new("/repo"),
-    };
-
-    assert_eq!(
-        config.expand("requirements", &context).unwrap(),
-        vec!["runner", "--label", "quoted value", "mandate"]
-    );
-}
-
-#[test]
-fn scalar_substitutions_each_expand_to_one_argument() {
+    // And the three optional ones may be left out entirely.
     let home = TempDir::new().unwrap();
-    write_config(home.path(), "runner ${session_name} ${repo} ${prompt}");
-    let config = load(home.path()).unwrap();
-    let context = ExpansionContext {
-        prompt: "mandate",
-        session_name: "grove repo: config grove",
-        worktree: Path::new("/worktree"),
-        repository: Path::new("/repos/main with spaces"),
-    };
-
-    let argv = config.expand("requirements", &context).unwrap();
-
+    write_config(home.path(), "runner ${prompt}");
     assert_eq!(
-        argv,
-        vec![
-            OsString::from("runner"),
-            OsString::from("grove repo: config grove"),
-            OsString::from("/repos/main with spaces"),
-            OsString::from("mandate"),
-        ]
+        load(home.path())
+            .unwrap()
+            .expand("requirements", &context("mandate"))
+            .unwrap(),
+        vec![OsString::from("runner"), OsString::from("mandate")]
     );
 }
 
+// ---------------------------------------------------------------------------
+// Presence is per-kind and just-in-time
+// (`docs/adr/complete-session-configuration.md`)
+
+/// A document that declares some kinds and not others is **valid**. The question
+/// grove asks is about the kind in hand, at the moment it commits to it.
 #[test]
-fn missing_file_names_its_path_and_every_required_kind() {
+fn a_kind_the_file_does_not_declare_is_refused_only_when_it_is_used() {
+    let home = TempDir::new().unwrap();
+    write_raw_config(home.path(), "impl \"runner ${prompt}\"\n");
+
+    let config = load(home.path()).expect("an incomplete document is not an invalid one");
+
+    config.require("impl").expect("a declared kind resolves");
+    let refusal = format!(
+        "{:#}",
+        config.require("design").expect_err("an undeclared kind")
+    );
+    assert!(
+        refusal.contains("key `design` does not resolve"),
+        "{refusal}"
+    );
+    assert!(
+        refusal.contains(
+            &home
+                .path()
+                .join(".config/grove/config.kdl")
+                .display()
+                .to_string()
+        ),
+        "the refusal must name the file that should declare it:\n{refusal}"
+    );
+    assert!(
+        format!("{:#}", config.expand("design", &context("m")).unwrap_err())
+            .contains("does not resolve"),
+        "expansion asks the same question"
+    );
+}
+
+/// The eager half survives whole: a malformed template for a kind this run will
+/// never reach still fails the load.
+#[test]
+fn every_template_in_the_document_is_validated_however_few_kinds_it_declares() {
+    let home = TempDir::new().unwrap();
+    write_raw_config(
+        home.path(),
+        "impl \"runner ${prompt}\"\nnever-reached \"runner\"\n",
+    );
+
+    let error = load_error(home.path());
+
+    assert!(
+        error.contains(
+            "key `never-reached`: command template must contain `${prompt}` exactly once"
+        ),
+        "{error}"
+    );
+}
+
+/// A missing file is still a refusal naming its path — it just no longer recites
+/// a set of kinds grove does not hold.
+#[test]
+fn a_missing_file_names_its_path() {
     let home = TempDir::new().unwrap();
 
     let error = load_error(home.path());
 
+    assert!(error.contains("configuration is missing at"), "{error}");
     assert!(error.contains(
         &home
             .path()
@@ -196,228 +267,54 @@ fn missing_file_names_its_path_and_every_required_kind() {
             .display()
             .to_string()
     ));
-    assert!(error.contains(&SESSION_KINDS.join(", ")));
 }
 
+// ---------------------------------------------------------------------------
+// The cross-crate seam (`docs/specs/module-decomposition.md`, test seam 3)
+
+/// The runner's conformance kit, run against grove's own vocabulary.
+///
+/// This is what keeps *reusable outside grove* honest without a second
+/// repository: the kit is written in `crates/keyed-launch` with no knowledge of
+/// a session kind, and grove's configuration is held to it from here. A document
+/// that passes below is one any consumer of the crate could load.
 #[test]
-fn schema_and_template_failures_are_aggregated_with_source_locations() {
-    let home = TempDir::new().unwrap();
-    let path = write_raw_config(
-        home.path(),
-        concat!(
-            "requirements \"runner\"\n",
-            "requirements \"runner ${prompt}\"\n",
-            "mystery \"runner ${prompt}\"\n",
-            "design \"runner ${prompt}\" property=true { child; }\n",
-            "planning 42\n",
-            "prototype \"runner ${prompt}\" \"extra\"\n",
-            "impl \"runner 'unterminated ${prompt}\"\n",
-        ),
-    );
-
-    let error = load_error(home.path());
-    let display_path = path.display().to_string();
-
-    assert!(
-        error.contains("missing session kinds: review-requirements, integrate-review-requirements, review-design"),
-        "{error}"
-    );
-    assert!(error.contains(
-        "review-impl, integrate-review-impl, research-a, research-b, combine-research, finish"
-    ));
-    assert!(error.contains(&format!("{display_path}:1:1")));
-    assert!(error.contains(&format!("{display_path}:2:1")));
-    assert!(error.contains("duplicate session kind `requirements`"));
-    assert!(error.contains(&format!(
-        "{display_path}:3:1: unknown session kind `mystery`"
-    )));
-    assert!(error.contains(&format!("{display_path}:4:1")));
-    assert!(error.contains("properties and child blocks are not allowed"));
-    assert!(error.contains(&format!("{display_path}:5:1")));
-    assert!(error.contains("sole argument must be a string"));
-    assert!(error.contains(&format!("{display_path}:6:1")));
-    assert!(error.contains("exactly one positional argument"));
-    assert!(error.contains(&format!("{display_path}:7:1")));
-    assert!(error.contains("command template has unmatched quotes"));
-    assert!(error.contains(&format!(
-        "{display_path}:1:1: session kind `requirements`: command template must contain `${{prompt}}` exactly once"
-    )));
-}
-
-#[test]
-fn kdl_syntax_errors_name_the_source_location() {
-    let home = TempDir::new().unwrap();
-    let path = write_raw_config(
-        home.path(),
-        "requirements \"runner ${prompt}\"\ndesign 1.\n",
-    );
-
-    let error = load_error(home.path());
-
-    assert!(error.contains(&format!("{}:2:", path.display())));
-    assert!(error.contains("KDL syntax error"));
-    assert!(error.contains("Expected valid value"));
-}
-
-#[test]
-fn invalid_placeholder_forms_are_rejected() {
-    let cases = [
-        ("", "literal non-empty executable"),
-        ("${prompt} runner", "word zero must be a literal executable"),
-        ("runner", "must contain `${prompt}` exactly once"),
-        (
-            "runner ${prompt} ${prompt}",
-            "must contain `${prompt}` exactly once",
-        ),
-        (
-            "runner ${session_name} ${session_name} ${prompt}",
-            "`${session_name}` may appear at most once",
-        ),
-        (
-            "runner prefix${prompt}",
-            "substitutions must occupy a complete shell word",
-        ),
-        (
-            "runner ${unknown} ${prompt}",
-            "unknown substitution `${unknown}`",
-        ),
-        (
-            "runner ${a}${prompt}",
-            "substitutions must occupy a complete shell word",
-        ),
-        (
-            "runner ${prompt}${session_name}",
-            "substitutions must occupy a complete shell word",
-        ),
-    ];
-
-    for (template, expected) in cases {
-        let home = TempDir::new().unwrap();
-        write_config(home.path(), template);
-
-        let error = load_error(home.path());
-
-        assert!(
-            error.contains(expected),
-            "expected {expected:?} for template {template:?}, got:\n{error}"
-        );
-    }
-}
-
-#[test]
-fn herdr_settings_is_not_a_supported_substitution() {
+fn a_grove_configuration_conforms_to_the_runners_own_kit() {
     let home = TempDir::new().unwrap();
     write_config(
         home.path(),
-        "runner ${herdr_settings} --model opus ${prompt}",
+        "runner ${session_name} ${worktree} ${repo} ${prompt}",
     );
 
-    let error = load_error(home.path());
-
-    assert!(
-        error.contains("unknown substitution `${herdr_settings}`"),
-        "Herdr-specific launch policy must not remain in Grove configuration:\n{error}"
+    let outcome = keyed_launch::conformance::check(
+        &SessionConfig::path(home.path()),
+        grove::session_config::vocabulary(),
     );
+
+    assert!(outcome.passed(), "{}", outcome.failures.join("\n"));
 }
 
+/// And it fails the same document for the same reason grove's own load does —
+/// one contract, checked from two sides.
 #[test]
-fn empty_word_zero_reports_one_diagnostic() {
+fn the_kit_and_grove_refuse_the_same_document() {
     let home = TempDir::new().unwrap();
-    write_config(home.path(), "'' runner ${prompt}");
+    write_config(home.path(), "runner ${settings} ${prompt}");
 
-    let error = load_error(home.path());
-
-    assert_eq!(
-        error.matches("word zero must be a literal").count(),
-        1,
-        "{error}"
+    let outcome = keyed_launch::conformance::check(
+        &SessionConfig::path(home.path()),
+        grove::session_config::vocabulary(),
     );
-}
 
-#[test]
-fn shell_metacharacters_remain_literal_arguments() {
-    let home = TempDir::new().unwrap();
-    write_config(home.path(), "runner '$(touch nope)' '*' '>' '${prompt}'");
-    let config = load(home.path()).unwrap();
-    let context = ExpansionContext {
-        prompt: "mandate",
-        session_name: "session",
-        worktree: Path::new("/worktree"),
-        repository: Path::new("/repo"),
-    };
-
-    assert_eq!(
-        config.expand("requirements", &context).unwrap(),
-        vec!["runner", "$(touch nope)", "*", ">", "mandate"]
-    );
-}
-
-#[test]
-fn unquoted_shell_comment_introducers_are_rejected_instead_of_truncating_argv() {
-    for template in [
-        "runner ${prompt} --color #ff0000 --verbose",
-        "runner ${prompt} #ff0000 --trailing",
-    ] {
-        let home = TempDir::new().unwrap();
-        write_config(home.path(), template);
-
-        let error = load_error(home.path());
-
-        assert!(
-            error.contains("`#` starts a comment in a command template"),
-            "expected a comment diagnostic for template {template:?}, got:\n{error}"
-        );
-    }
-}
-
-#[test]
-fn quoted_escaped_and_midword_hashes_remain_literal_arguments() {
-    for (template, expected) in [
-        ("runner ${prompt} --color '#ff0000'", "#ff0000"),
-        ("runner ${prompt} --color \\#ff0000", "#ff0000"),
-        ("runner ${prompt} --tag tag#1", "tag#1"),
-    ] {
-        let home = TempDir::new().unwrap();
-        write_config(home.path(), template);
-        let config = load(home.path()).unwrap();
-        let context = ExpansionContext {
-            prompt: "mandate",
-            session_name: "session",
-            worktree: Path::new("/worktree"),
-            repository: Path::new("/repo"),
-        };
-
-        let argv = config.expand("requirements", &context).unwrap();
-
-        assert_eq!(
-            argv.last().unwrap(),
-            &OsString::from(expected),
-            "{template:?}"
-        );
-    }
-}
-
-#[test]
-fn duplicate_unknown_nodes_report_every_declaration_location() {
-    let home = TempDir::new().unwrap();
-    let mut document = complete_document("runner ${prompt}");
-    document.push_str("mystery \"runner ${prompt}\"\n");
-    document.push_str("mystery \"other ${prompt}\"\n");
-    let path = write_raw_config(home.path(), &document);
-
-    let error = load_error(home.path());
-
+    assert!(!outcome.passed());
     assert!(
-        error.contains("duplicate session kind `mystery`"),
-        "{error}"
+        outcome.failures[0].contains("unknown substitution `${settings}`"),
+        "{:?}",
+        outcome.failures
     );
     assert!(
-        error.contains(&format!("{}:20:1", path.display())),
-        "{error}"
-    );
-    assert!(
-        error.contains(&format!("{}:21:1", path.display())),
-        "{error}"
+        load_error(home.path()).contains("unknown substitution `${settings}`"),
+        "grove's own load must refuse it too"
     );
 }
 
@@ -559,20 +456,35 @@ fn a_repository_root_delta_is_read_when_the_worktree_has_none() {
     );
 }
 
+/// The per-kind restatement of what the all-nineteen rule bought: an untracked
+/// file a project ships cannot introduce a program the operator never chose.
 #[test]
-fn a_delta_relaxes_nothing_about_the_personal_file() {
+fn a_kind_only_the_delta_declares_does_not_resolve() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
     let mut document = complete_document("runner ${prompt}");
     document = document.replace("impl \"runner ${prompt}\"\n", "");
     write_raw_config(home.path(), &document);
-    write_delta(worktree.path(), "impl \"other ${prompt}\"\n");
+    let delta_path = write_delta(worktree.path(), "impl \"other ${prompt}\"\n");
 
-    let error = load_error_from(home.path(), worktree.path(), worktree.path());
+    let config = load_from(home.path(), worktree.path(), worktree.path()).unwrap();
 
+    assert_eq!(config.source("impl"), None);
+    let refusal = format!("{:#}", config.require("impl").unwrap_err());
     assert!(
-        error.contains("missing session kinds: impl"),
-        "the personal file must still declare all nineteen, whatever a delta says:\n{error}"
+        refusal.contains(&delta_path.display().to_string()),
+        "the refusal must name where the key *is* written, so the reader knows it \
+         is in the wrong file rather than misspelled:\n{refusal}"
+    );
+    assert!(
+        refusal.contains(
+            &home
+                .path()
+                .join(".config/grove/config.kdl")
+                .display()
+                .to_string()
+        ),
+        "and the file that must declare it:\n{refusal}"
     );
 }
 
@@ -584,7 +496,6 @@ fn delta_diagnostics_are_aggregated_against_the_deltas_own_path_and_location() {
     let delta_path = write_delta(
         worktree.path(),
         concat!(
-            "mystery \"runner ${prompt}\"\n",
             "impl \"runner ${prompt}\"\n",
             "impl \"other ${prompt}\"\n",
             "design \"runner ${prompt}\" property=true { child; }\n",
@@ -597,20 +508,12 @@ fn delta_diagnostics_are_aggregated_against_the_deltas_own_path_and_location() {
     let display_path = delta_path.display().to_string();
 
     assert!(
-        error.contains(&format!(
-            "invalid Grove configuration delta at {display_path}"
-        )),
+        error.contains(&format!("invalid configuration overlay at {display_path}")),
         "{error}"
     );
-    assert!(
-        error.contains(&format!(
-            "{display_path}:1:1: unknown session kind `mystery`"
-        )),
-        "{error}"
-    );
-    assert!(error.contains("duplicate session kind `impl`"), "{error}");
+    assert!(error.contains("duplicate key `impl`"), "{error}");
+    assert!(error.contains(&format!("{display_path}:1:1")), "{error}");
     assert!(error.contains(&format!("{display_path}:2:1")), "{error}");
-    assert!(error.contains(&format!("{display_path}:3:1")), "{error}");
     assert!(
         error.contains("properties and child blocks are not allowed"),
         "{error}"
@@ -621,8 +524,8 @@ fn delta_diagnostics_are_aggregated_against_the_deltas_own_path_and_location() {
         "{error}"
     );
     assert!(
-        !error.contains("missing session kinds"),
-        "a delta is a partial; completeness is not its rule:\n{error}"
+        !error.contains("does not resolve"),
+        "validation is about the document; resolution is a later question:\n{error}"
     );
 }
 
@@ -654,7 +557,7 @@ fn an_unreadable_delta_fails_closed() {
     let error = load_error_from(home.path(), worktree.path(), worktree.path());
 
     assert!(
-        error.contains("failed to read the Grove configuration delta"),
+        error.contains("failed to read the configuration overlay"),
         "{error}"
     );
 }

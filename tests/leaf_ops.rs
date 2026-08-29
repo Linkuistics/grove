@@ -66,6 +66,7 @@ fn stage_all(repo: &Path) {
 fn run(repo: &Path, args: &[&str]) -> (String, String, bool) {
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .current_dir(repo)
         .args(args)
         .output()
@@ -396,9 +397,7 @@ fn retiring_a_tracked_leaf_is_one_rename_in_the_working_copy() {
 
     assert_eq!(
         working_copy_changes(tmp.path()),
-        vec![
-            "R .grove/{01-impl-target-k1.md => 01-DONE-impl-target-k1.md}".to_string()
-        ],
+        vec!["R .grove/{01-impl-target-k1.md => 01-DONE-impl-target-k1.md}".to_string()],
         "one rename, entire — not a deletion plus an arrival"
     );
 }
@@ -420,7 +419,14 @@ fn a_commit_after_the_verb_records_the_retire_as_a_rename() {
     assert_eq!(
         support::jj(
             tmp.path(),
-            &["--ignore-working-copy", "diff", "-r", "@-", "--summary", "root:.grove"]
+            &[
+                "--ignore-working-copy",
+                "diff",
+                "-r",
+                "@-",
+                "--summary",
+                "root:.grove"
+            ]
         ),
         "R .grove/{01-impl-target-k1.md => 01-DONE-impl-target-k1.md}",
         "the commit records one rename"
@@ -566,6 +572,7 @@ fn prune_that_marks_nothing_stays_quiet() {
 fn leaf_decompose_and_retire_listed_in_grove_llm_help() {
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .arg("--help")
         .output()
         .unwrap();

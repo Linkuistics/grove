@@ -441,7 +441,9 @@ fn what_is_tracked_is_answered_about_the_tree_as_it_is_now() {
     jj(&root, &["commit", "-m", "a file"]);
 
     write(&root.join("appeared-since.txt"), "not yet snapshotted");
-    assert!(workspace.is_tracked(Path::new("appeared-since.txt")).unwrap());
+    assert!(workspace
+        .is_tracked(Path::new("appeared-since.txt"))
+        .unwrap());
 }
 
 #[test]

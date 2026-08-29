@@ -408,7 +408,13 @@ fn invalid_config_cannot_create_a_fresh_grove() {
     fs::create_dir_all(home.join(".codex")).unwrap();
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
-    fs::write(config_dir.join("config.kdl"), "impl \"runner ${prompt}\"\n").unwrap();
+    // A template that violates a slot rule, not a document missing a kind.
+    // Presence is per-kind and just-in-time now
+    // (`docs/adr/complete-session-configuration.md`), so an absent key is no
+    // longer what makes a document invalid — but *every* template rule is still
+    // checked eagerly, over the whole document, before any tree mutation, and
+    // that is the property this test defends.
+    fs::write(config_dir.join("config.kdl"), "impl \"runner\"\n").unwrap();
     let worktree = fixture.path().join("rootless");
     init_worktree(&worktree);
 
@@ -417,7 +423,10 @@ fn invalid_config_cannot_create_a_fresh_grove() {
     assert!(!output.status.success());
     assert!(!worktree.join(".grove").exists());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("missing session kinds"), "{stderr}");
+    assert!(
+        stderr.contains("must contain `${prompt}` exactly once"),
+        "{stderr}"
+    );
 }
 
 #[test]
@@ -427,7 +436,8 @@ fn invalid_config_leaves_current_empty_and_partial_trees_byte_identical() {
     fs::create_dir_all(home.join(".codex")).unwrap();
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
-    fs::write(config_dir.join("config.kdl"), "impl \"runner ${prompt}\"\n").unwrap();
+    // As above: a malformed template rather than an absent key.
+    fs::write(config_dir.join("config.kdl"), "impl \"runner\"\n").unwrap();
 
     for state in ["current", "empty", "partial"] {
         let worktree = fixture.path().join(format!("{state}-worktree"));
@@ -458,7 +468,7 @@ fn invalid_config_leaves_current_empty_and_partial_trees_byte_identical() {
         assert_eq!(tree_snapshot(&grove), before, "state {state} was mutated");
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
-            stderr.contains("missing session kinds"),
+            stderr.contains("must contain `${prompt}` exactly once"),
             "{state}: {stderr}"
         );
     }
@@ -473,8 +483,8 @@ fn invalid_config_leaves_current_empty_and_partial_trees_byte_identical() {
 #[test]
 fn an_unwritable_control_directory_fails_before_configuration_or_tree_access() {
     let fixture = TempDir::new().unwrap();
-    // No `~/.config/grove/config.kdl` at all: reaching configuration would name
-    // every one of the nineteen kinds instead.
+    // No `~/.config/grove/config.kdl` at all: reaching configuration would
+    // report the missing file instead.
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("worktree");
@@ -497,7 +507,7 @@ fn an_unwritable_control_directory_fails_before_configuration_or_tree_access() {
         "the failure must name the control directory it could not create: {stderr}"
     );
     assert!(
-        !stderr.contains("config.kdl") && !stderr.contains("missing session kinds"),
+        !stderr.contains("config.kdl") && !stderr.contains("configuration is missing"),
         "configuration must not have been reached: {stderr}"
     );
     assert_eq!(
@@ -1372,6 +1382,44 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
             "a refusal commits nothing"
         );
     }
+}
+
+/// The finish sentinel is a leaf grove writes itself, so the just-in-time
+/// presence rule binds it exactly as it binds `leaf-add`: a configuration with
+/// no `finish` template refuses **before** the leaf is written, not at the
+/// launch that would follow it
+/// (`docs/adr/complete-session-configuration.md`). A tree left holding a leaf
+/// whose kind cannot launch is the state the rule exists to prevent.
+#[test]
+fn a_finish_leaf_is_not_written_when_no_finish_template_resolves() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    // Valid, and silent about `finish`.
+    fs::write(config_dir.join("config.kdl"), "impl \"true ${prompt}\"\n").unwrap();
+    let worktree = fixture.path().join("no-finish-template");
+    init_worktree(&worktree);
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("BRIEF.md"), "# no-finish-template — brief\n").unwrap();
+    fs::write(grove.join("01-DONE-impl-finished-k1.md"), "# finished-k1\n").unwrap();
+    let before = tree_snapshot(&grove);
+
+    let output = run_grove(&home, &worktree);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "unexpected success: {stderr}");
+    assert!(
+        stderr.contains("key `finish` does not resolve"),
+        "the refusal must name the kind and the file that should declare it: {stderr}"
+    );
+    assert_eq!(
+        tree_snapshot(&grove),
+        before,
+        "no finish leaf may be written for a kind that cannot launch"
+    );
 }
 
 #[test]

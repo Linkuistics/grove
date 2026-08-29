@@ -22,10 +22,13 @@ mandate wins, and the inserted leaf is simply the next iteration's work.
 
 Every session is launched from personal configuration, which gives each session
 kind exactly one complete command template. It has two possible homes: the file
-at `~/.config/grove/config.kdl`, which must declare all nineteen kinds, and an
-untracked `.grove.kdl` **delta** beside the worktree (or at the repository root)
-which may replace any subset of those entries outright, one whole template at a
-time. That template chooses the executable or wrapper and every user-controlled
+at `~/.config/grove/config.kdl`, and an untracked `.grove.kdl` **delta** beside
+the worktree (or at the repository root) which may replace any subset of its
+entries outright, one whole template at a time — **the delta overrides and never
+supplies**, so a kind resolves only if the personal file declares it. Presence is
+checked per kind, at the moment the kind is used: a kind with no template stops
+the `leaf-add` that would write it and the launch that would run it, and the
+refusal names the kind and the file that must declare it. That template chooses the executable or wrapper and every user-controlled
 argument — harness, model, reasoning effort, approval, permission and sandbox
 policy — and grove neither knows nor infers which harness it eventually reaches:
 it reads the selected leaf's kind from the filename, looks that one kind up,

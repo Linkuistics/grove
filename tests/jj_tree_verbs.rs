@@ -30,6 +30,8 @@
 // driver runs it before it selects anything. The claim is the same one, made
 // about the one mutation with no command-line spelling.
 
+mod support;
+
 use assert_cmd::Command;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -118,6 +120,7 @@ fn llm(repo: &Path, args: &[&str]) -> (String, String, bool) {
 fn bin(name: &str, repo: &Path, args: &[&str]) -> (String, String, bool) {
     let out = Command::cargo_bin(name)
         .unwrap()
+        .env("HOME", support::fixture_home())
         .current_dir(repo)
         .args(args)
         .output()
@@ -374,6 +377,7 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
     );
     let output = Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .current_dir(repo)
         .args(["leaf-retire", ".grove/01-impl-build-k1.md"])
         .output()
@@ -509,11 +513,7 @@ fn leaf_decompose_in_a_colocated_tree_leaves_the_git_index_alone() {
     assert!(ok, "leaf-decompose failed: {stderr}");
 
     assert!(exists(repo, ".grove/01-alpha-k1/BRIEF.md"));
-    assert_eq!(
-        git_index(repo),
-        before,
-        "the colocated index is untouched"
-    );
+    assert_eq!(git_index(repo), before, "the colocated index is untouched");
 }
 
 #[test]
@@ -526,11 +526,7 @@ fn leaf_retire_in_a_colocated_tree_leaves_the_git_index_alone() {
     assert!(ok, "leaf-retire failed: {stderr}");
 
     assert!(exists(repo, ".grove/01-DONE-impl-alpha-k1.md"));
-    assert_eq!(
-        git_index(repo),
-        before,
-        "the colocated index is untouched"
-    );
+    assert_eq!(git_index(repo), before, "the colocated index is untouched");
 }
 
 #[test]
@@ -546,10 +542,5 @@ fn leaf_prune_in_a_colocated_tree_leaves_the_git_index_alone() {
         repo,
         ".grove/02-node-k2/01-ABANDONED-impl-child-k3.md"
     ));
-    assert_eq!(
-        git_index(repo),
-        before,
-        "the colocated index is untouched"
-    );
+    assert_eq!(git_index(repo), before, "the colocated index is untouched");
 }
-

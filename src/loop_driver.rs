@@ -126,12 +126,23 @@ fn run_configured_loop_with_lease(
         crate::provision::reverify_installed()?;
         crate::provision::report_absent_skill_destination();
         report_build_pairing(worktree);
-        let _pre_transition_config = SessionConfig::load(&home, &delta_roots)?;
+        let pre_transition_config = SessionConfig::load(&home, &delta_roots)?;
 
         crate::tree_lifecycle::transition_to_current(worktree)?;
         let selection = match crate::task_tree::select(&worktree.join(".grove"))? {
             Some(selection) => selection,
-            None => crate::tree_lifecycle::materialize_finish(worktree)?,
+            None => {
+                // The finish sentinel is a leaf grove writes itself, so the
+                // just-in-time presence rule binds it exactly as it binds
+                // `leaf-add` — before the write, not at the launch that follows
+                // (`docs/adr/complete-session-configuration.md`). Asked against
+                // the pre-transition load, which is the document as it stood
+                // before anything was mutated.
+                pre_transition_config
+                    .require(crate::leaf::Kind::Finish.label())
+                    .context("materializing the driver-owned finish leaf")?;
+                crate::tree_lifecycle::materialize_finish(worktree)?
+            }
         };
 
         let config = SessionConfig::load(&home, &delta_roots)?;

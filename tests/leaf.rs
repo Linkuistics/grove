@@ -65,6 +65,7 @@ fn stage_all(repo: &Path) {
 fn run(repo: &Path, args: &[&str]) -> (String, String, bool) {
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .current_dir(repo)
         .args(args)
         .output()
@@ -492,6 +493,7 @@ fn insert_requires_an_existing_target() {
 fn leaf_add_and_insert_listed_in_grove_llm_help() {
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .arg("--help")
         .output()
         .unwrap();

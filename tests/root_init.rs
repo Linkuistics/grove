@@ -35,6 +35,7 @@ fn init_repo() -> TempDir {
 fn run(repo: &Path, args: &[&str]) -> (String, String, bool) {
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .current_dir(repo)
         .args(args)
         .output()
@@ -76,7 +77,11 @@ fn root_init_creates_root_brief_and_first_requirements_leaf() {
         rel_line(&stdout, tmp.path(), 1),
         PathBuf::from(".grove/01-requirements-plan-k1.md")
     );
-    assert_eq!(stdout.lines().count(), 2, "two paths and no more: {stdout:?}");
+    assert_eq!(
+        stdout.lines().count(),
+        2,
+        "two paths and no more: {stdout:?}"
+    );
 
     // Both entries exist on disk.
     assert!(tmp.path().join(".grove/BRIEF.md").is_file());
@@ -212,7 +217,15 @@ fn root_init_makes_no_commit() {
     let tmp = init_repo();
     let before = support::jj(
         tmp.path(),
-        &["--ignore-working-copy", "log", "-r", "@-", "--no-graph", "-T", "commit_id"],
+        &[
+            "--ignore-working-copy",
+            "log",
+            "-r",
+            "@-",
+            "--no-graph",
+            "-T",
+            "commit_id",
+        ],
     );
 
     let (_, _, ok) = run(tmp.path(), &["root-init"]);
@@ -220,7 +233,15 @@ fn root_init_makes_no_commit() {
 
     let after = support::jj(
         tmp.path(),
-        &["--ignore-working-copy", "log", "-r", "@-", "--no-graph", "-T", "commit_id"],
+        &[
+            "--ignore-working-copy",
+            "log",
+            "-r",
+            "@-",
+            "--no-graph",
+            "-T",
+            "commit_id",
+        ],
     );
     assert_eq!(before, after, "root-init unexpectedly committed");
     // The scaffold is on disk and is *not* in the revision the working copy sits
@@ -231,7 +252,14 @@ fn root_init_makes_no_commit() {
     assert_eq!(
         support::jj(
             tmp.path(),
-            &["--ignore-working-copy", "file", "list", "-r", "@-", "root:.grove"],
+            &[
+                "--ignore-working-copy",
+                "file",
+                "list",
+                "-r",
+                "@-",
+                "root:.grove"
+            ],
         ),
         "",
         "root-init left `.grove/` in the committed revision"
@@ -245,6 +273,7 @@ fn root_init_makes_no_commit() {
 fn root_init_listed_in_grove_llm_help() {
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
+        .env("HOME", support::fixture_home())
         .arg("--help")
         .output()
         .unwrap();

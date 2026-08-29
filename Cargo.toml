@@ -15,11 +15,19 @@
 # rather than knowing grove's name — and it is the only thing in this workspace
 # that spawns `jj`.
 #
+# `crates/keyed-launch` is the runner's template half (decision 7): a configuration
+# of `key -> complete command template`, validated whole against a slot vocabulary
+# supplied at load, and expanded into an argv. It is domain-free down to the
+# noun — it says *key*, never *session kind* — and it holds no set of keys, which
+# is what let decision 6's completeness quantifier become per-key and
+# just-in-time. The channel, the spawn and the escalation follow at
+# `keyed-launch-run-k11`.
+#
 # `resolver = "2"` is stated rather than inherited. A workspace root that is also
 # a package takes its resolver from that package's edition, so this is what 2021
 # already implies — written down so a later edition bump cannot move it silently.
 [workspace]
-members = ["crates/jj-workspace", "crates/ordinal-fs-tree"]
+members = ["crates/jj-workspace", "crates/keyed-launch", "crates/ordinal-fs-tree"]
 resolver = "2"
 
 # Hold the clippy baseline at zero, for every member. `clippy-baseline-k4` cleared
@@ -126,7 +134,6 @@ clap = { version = "4", features = ["derive"] }
 # `rerun-if-changed` for every content file: on stable Rust the macro does not
 # register its reads with Cargo, so an edit would otherwise leave a stale embed.
 include_dir = "0.7"
-kdl = "4.7"
 # Used by the self-driving loop substrate (self-driving-loop): `loop_driver.rs` ignores
 # SIGINT (`libc::signal`) so the driver survives the human's Ctrl-C and checks
 # `isatty` before launching, and its session watcher ends a signalled session
@@ -149,9 +156,13 @@ libc = "0.2"
 # `std::error::Error`, which `anyhow` swallows through `?` without either crate
 # knowing about the other.
 jj-workspace = { path = "crates/jj-workspace" }
+# The runner's template half (`docs/specs/module-decomposition.md`, decision 7).
+# It imposes `kdl` and `shell-words` — the two document formats a template
+# configuration is written in, both of which grove already depended on directly
+# for the module this replaces.
+keyed-launch = { path = "crates/keyed-launch" }
 ordinal-fs-tree = { path = "crates/ordinal-fs-tree", default-features = false }
 sha2 = "0.10"
-shell-words = "1.1"
 tempfile = "3.10"
 
 [dev-dependencies]

@@ -38,7 +38,10 @@ fn grove() -> (TempDir, PathBuf) {
 fn jj_grove() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let repo = tmp.path().to_path_buf();
-    run_jj(&repo, &["--config", "git.colocate=false", "git", "init", "."]);
+    run_jj(
+        &repo,
+        &["--config", "git.colocate=false", "git", "init", "."],
+    );
     let root = repo.join(".grove");
     fs::create_dir_all(&root).unwrap();
     (tmp, root)
@@ -125,14 +128,7 @@ fn list(dir: &Path) -> Vec<String> {
 fn committed(root: &Path) -> Vec<String> {
     let out = Command::new("jj")
         .current_dir(root)
-        .args([
-            "--ignore-working-copy",
-            "file",
-            "list",
-            "-r",
-            "@-",
-            ".",
-        ])
+        .args(["--ignore-working-copy", "file", "list", "-r", "@-", "."])
         .output()
         .unwrap();
     let mut names: Vec<String> = String::from_utf8_lossy(&out.stdout)

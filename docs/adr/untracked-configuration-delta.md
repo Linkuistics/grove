@@ -4,13 +4,23 @@ Launch policy may be overridden per session kind by a **configuration delta**: a
 `.grove.kdl` searched at the leased worktree root and, failing that, at the main
 repository root — the same two roots `${worktree}` and `${repo}` expand to. The
 first of the two paths that holds a file is *the* delta; the other is not read,
-and the two are never merged with each other. Each kind the delta declares wins
-outright and every kind it does not declare comes from the personal file
-untouched, so search order is never merge order and resolution is two deep and
-flat. What a delta may supply is unchanged by its existence: one kind's whole
+and the two are never merged with each other. Each kind the delta declares **and
+the personal file also declares** wins outright, and every other kind comes from
+the personal file untouched, so search order is never merge order and resolution
+is two deep and flat. What a delta may supply is unchanged by its existence: one kind's whole
 template, read whole, exactly as [complete session
-configuration](complete-session-configuration.md) requires, and that record's
-completeness rule still binds the personal file whatever a delta says.
+configuration](complete-session-configuration.md) requires.
+
+**A delta overrides and never supplies, and that is this record's own property.**
+A kind resolves only if the *personal* file declares it; where only the delta
+declares one, the kind does not resolve, and the refusal names the kind and the
+personal file that must declare it. This is what stands between an untracked file
+a project ships and a program its operator never chose, and it has to be stated
+here because nothing else states it any more: it used to be inherited from the
+personal file's all-kinds completeness rule — a delta could only ever override a
+kind the operator had already written down — and that quantifier is gone.
+Refusing per kind buys the same thing at the moment the kind is used, and buys it
+without either file having to know what the whole set of kinds is.
 
 The delta is **untracked, and Grove enforces it** rather than asking for it. A
 tracked candidate is refused and the session fails closed. The property is worth
@@ -71,14 +81,14 @@ writes no ignore rule.
 ## Considered options
 
 - **Let a second file replace the personal one rather than override it per
-  kind.** Rejected because a replacement must itself be complete, so it
-  duplicates eighteen unchanged templates in order to change one and gives
-  personal policy two places to drift; and completeness would then guard only
-  whichever file is in play, so a newly added kind would stop failing visibly in
-  the file that was not consulted. The partial delta buys the override without
-  moving the completeness rule. Reopen only if a supported machine can have no
-  personal configuration at all, which would leave a project-supplied file as
-  the only complete one.
+  kind.** Rejected because a replacement duplicates every unchanged template in
+  order to change one and gives personal policy two places to drift; and, worse,
+  it makes the project-supplied file the sole authority for kinds it happens to
+  mention, which is the arbitrary-code-execution hazard below arriving by the
+  front door. The partial delta buys the override while leaving the personal
+  file the only source a kind can originate in. Reopen only if a supported
+  machine can have no personal configuration at all, which would leave a
+  project-supplied file as the only one.
 - **Track the delta so a project can share its launch policy.** Rejected because
   the file names a program to execute, so a tracked one would let any repository
   — including one merely cloned to read — choose what Grove spawns, and no

@@ -5,13 +5,13 @@ whole out of a single file; Grove executes the expanded argv directly and does
 not infer a harness, model, defaults, or hidden harness-specific arguments.
 Nothing is merged within a kind — a template is authored entire or not at all —
 so one kind's command has exactly one author and no rule decides which words of
-a launch come from where. The personal `~/.config/grove/config.kdl` declares all
-nineteen kinds exactly once. A second source may supply a kind's whole template
-in place of the personal file's, and that is all it may do; where such a file
-comes from and what makes it admissible belong to [the untracked configuration
-delta](untracked-configuration-delta.md), which leaves this record intact
-precisely because what it selects is still one complete string read whole out of
-one file.
+a launch come from where. The personal `~/.config/grove/config.kdl` declares
+each kind it supplies exactly once. A second source may supply a kind's whole
+template in place of the personal file's, and that is all it may do; where such a
+file comes from and what makes it admissible belong to [the untracked
+configuration delta](untracked-configuration-delta.md), which leaves this record
+intact precisely because what it selects is still one complete string read whole
+out of one file.
 
 This binds because launch policy includes choices Grove cannot own — model,
 reasoning effort, approval, sandboxing, wrappers, and harness-specific
@@ -22,12 +22,32 @@ whole command from one file rather than another is not that split: a reader of
 whichever file supplies a kind sees the entire launch on one line, and Grove
 still understands nothing about the words it expands.
 
-The personal file's completeness is load-bearing in its own right, and it is
-what makes a partial second source safe. It is validated in full — before every
-tree mutation and again before every launch — whether or not another source is
-in play, so a newly added session kind still fails visibly in every stale
-personal config and can never be supplied by a source that does not mention it.
-Grove creates and edits no configuration file.
+**Presence is per-kind and just-in-time; everything else about a document is
+eager.** The whole of the personal file — and of any second source — is read and
+validated before every tree mutation and again before every launch, for syntax,
+duplicates, node shape and every template rule, so a malformed entry for a kind
+this iteration will not reach still fails before anything is spawned. What is
+checked at the moment of use is *presence*: before Grove writes a leaf of kind K,
+and before it launches kind K, K must resolve to exactly one complete template
+read whole out of one file.
+
+The quantifier moved because Grove can no longer state it. It holds no set of
+session kinds, writes no skill directory and keeps no registry, so it cannot
+enumerate what a methodology declares, and a rule quantified over a set nobody
+can produce is not a rule. **What is lost is exactly one thing: the early warning
+for a kind not yet reached.** A stale personal configuration now fails at the
+first `leaf-add` of that kind rather than at the next tree mutation of any kind.
+Nothing else goes — a kind that is used still fails visibly, and it fails before
+the tree is mutated rather than after. What is bought is that adding a kind no
+longer wedges every operation in every stale configuration until each owner edits
+their file.
+
+The property the old quantifier was really carrying is restated per kind rather
+than dropped: **a key resolves only if the primary file declares it**. A second
+source may replace such a key's template and may not introduce one, so it can
+never name a program the operator has not already chosen for themselves — see
+[the untracked configuration delta](untracked-configuration-delta.md), which now
+states that as its own property. Grove creates and edits no configuration file.
 
 Before spawning the configured foreground command, Grove removes stale Grove
 control values and grants its fresh signal path; it otherwise preserves the
@@ -54,11 +74,10 @@ redirect lifecycle mutations.
   property this record defends, and it is why no source may say "the same
   command with a different model". The other half of the original objection —
   that a new kind could inherit policy its owner never reviewed — is **retired
-  rather than upheld**: the personal file is complete and fully validated
-  whatever another source says, so an unlisted kind is a validation failure and
-  never an inherited default. Reopen if the session-kind set grows large enough
-  that explicit targets are no longer auditable and a replacement can preserve
-  fail-on-kind-addition behavior.
+  rather than upheld**: an unlisted kind resolves to nothing and is refused where
+  it is used, never to an inherited default. Reopen if the session-kind set grows
+  large enough that explicit targets are no longer auditable and a replacement
+  can preserve refusal-on-unlisted-kind behaviour.
 - **Execute templates through a shell.** Rejected because shell evaluation
   turns quoting, environment expansion, pipelines, and redirection into a
   second configuration language and obscures the direct foreground child Grove

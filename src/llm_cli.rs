@@ -22,6 +22,7 @@
 use crate::complete;
 use crate::driver_lease;
 use crate::leaf::Kind;
+use crate::session_config::SessionConfig;
 use crate::task_grow;
 use crate::task_tree;
 use crate::tree_lifecycle;
@@ -479,6 +480,7 @@ fn cmd_complete(
 
 fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
     let (worktree, _) = grove_paths()?;
+    require_declared(&worktree, &[Kind::Requirements])?;
     let paths = tree_lifecycle::root_init(&worktree, &args.slug)?;
     for p in &paths {
         println!("{}", p.display());
@@ -557,8 +559,9 @@ fn cmd_resolve(reference: &str) -> Result<()> {
 }
 
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
-    let (_, grove_root) = grove_paths()?;
+    let (worktree, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
+    require_declared(&worktree, &[kind])?;
     let path = task_grow::leaf_add(&grove_root, &args.parent, &args.slug, kind)?;
     println!("{}", path.display());
     Ok(())
@@ -575,15 +578,17 @@ fn print_paths(paths: &[PathBuf]) {
 }
 
 fn cmd_leaf_add_pair(args: &LeafAddPairArgs) -> Result<()> {
-    let (_, grove_root) = grove_paths()?;
+    let (worktree, grove_root) = grove_paths()?;
+    require_declared(&worktree, &task_grow::PAIR)?;
     let paths = task_grow::leaf_add_pair(&grove_root, &args.parent, &args.stem)?;
     print_paths(&paths);
     Ok(())
 }
 
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
-    let (_, grove_root) = grove_paths()?;
+    let (worktree, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
+    require_declared(&worktree, &[kind])?;
     let inserted = task_grow::leaf_insert(&grove_root, &args.target, &args.slug, kind)?;
     report_insert(&grove_root, &args.slug, &inserted)
 }
@@ -618,11 +623,30 @@ fn report_insert(grove_root: &Path, slug: &str, inserted: &task_grow::Inserted) 
 }
 
 fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
-    let (_, grove_root) = grove_paths()?;
+    let (worktree, grove_root) = grove_paths()?;
     // `None` (the default) inherits the decomposed leaf's own kind; `--kind`
     // overrides it (task-kind-taxonomy).
     let kind_override = args.kind.as_deref().map(Kind::parse).transpose()?;
     let leaf_path = normalize_leaf_path(&args.leaf_path);
+    // The first child's kind, resolved *before* the mutation so the presence
+    // rule can be asked about the kind this call will actually write. With no
+    // `--kind` that is the decomposed leaf's own, read off its filename — the
+    // same answer `leaf_decompose` will reach for itself, and the only one it
+    // ever reaches.
+    //
+    // A kind that cannot be read is left to the verb: `leaf-decompose` refuses a
+    // brief, a retired leaf and a malformed name with its own message, and a
+    // presence check that errored first would replace those refusals with a
+    // complaint about configuration.
+    let child_kind = match kind_override {
+        Some(kind) => Some(kind),
+        None => task_tree::kind(&grove_root, Some(&leaf_path))
+            .ok()
+            .flatten(),
+    };
+    if let Some(kind) = child_kind {
+        require_declared(&worktree, &[kind])?;
+    }
     let (brief_path, child_path) = tree_lifecycle::leaf_decompose(
         &grove_root,
         &leaf_path,
@@ -686,6 +710,33 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
     // to close.
     if !result.marked.is_empty() {
         eprint_next_steps("leaf-prune", result.marked.len());
+    }
+    Ok(())
+}
+
+/// The **just-in-time presence rule**, asked at the moment grove writes a leaf.
+///
+/// Before writing a leaf of kind K, K must resolve to exactly one complete
+/// template read whole out of one file
+/// (`docs/adr/complete-session-configuration.md`). This replaces the
+/// all-nineteen completeness check, which grove can no longer make: nothing here
+/// enumerates the kinds a methodology declares, so the only honest question is
+/// about the kind in hand.
+///
+/// It runs **before** the mutation, so a refusal leaves the tree byte-identical
+/// — and it loads the whole configuration to ask, which is what keeps the other
+/// half of the amendment true: every template rule in both documents is still
+/// checked eagerly, and a malformed entry for a kind this call will never touch
+/// still fails here.
+fn require_declared(worktree: &Path, kinds: &[Kind]) -> Result<()> {
+    let config = SessionConfig::load_for_worktree(worktree)?;
+    for kind in kinds {
+        config.require(kind.label()).with_context(|| {
+            format!(
+                "refusing to write a leaf of kind `{}`: no launch template resolves for it",
+                kind.label()
+            )
+        })?;
     }
     Ok(())
 }

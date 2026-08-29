@@ -37,10 +37,11 @@ The doctor checks the pinned Rust toolchain, all release targets, Zig,
 
 Record the shipped behavior under `## Unreleased` in
 [`CHANGELOG.md`](../CHANGELOG.md). If the release adds, removes, or renames a
-session kind, say so explicitly there. The
-[configuration schema](CONFIGURATION.md#the-nineteen-kinds) has no partial
-compatibility mode: every complete `~/.config/grove/config.kdl` fails validation
-until its owner edits it, so the release note is the only warning users get.
+session kind, say so explicitly there. Presence is checked
+[per kind, when the kind is used](CONFIGURATION.md#when-a-missing-kind-is-reported),
+so an added kind does not break every configuration on upgrade — it stops the
+first task of that kind, in the middle of a workstream, and the release note is
+what lets an owner get ahead of it.
 
 Then run the normal checks. For the complete repository suite:
 

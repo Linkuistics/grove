@@ -284,7 +284,10 @@ impl Drop for EnvGuard {
 /// colocation on, which would silently turn every "native" fixture into a
 /// colocated one and hide a `.git` Grove is supposed never to look at.
 pub fn init_jj_repo(path: &Path) {
-    jj(path, &["--config", "git.colocate=false", "git", "init", "."]);
+    jj(
+        path,
+        &["--config", "git.colocate=false", "git", "init", "."],
+    );
 }
 
 /// Run `jj` in `path` with a test-local identity, so no global user
@@ -308,3 +311,57 @@ pub fn jj(path: &Path, args: &[&str]) -> String {
     );
     String::from_utf8(output.stdout).unwrap().trim().to_owned()
 }
+
+/// A `$HOME` holding a personal Grove configuration that declares every session
+/// kind, shared by every command one test binary spawns.
+///
+/// **Why a verb-driving test needs one at all.** Writing a leaf of kind K now
+/// asks whether K resolves to a launch template before it mutates the tree
+/// (`docs/adr/complete-session-configuration.md`). Without this the check would
+/// be answered by whatever is in the developer's own
+/// `~/.config/grove/config.kdl` — passing on a configured machine, failing on a
+/// fresh checkout, and testing the machine rather than the code either way.
+///
+/// The templates are `true ${prompt}`: word zero is a literal executable, which
+/// is all validation asks, and nothing here ever spawns one.
+pub fn fixture_home() -> &'static Path {
+    static HOME: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
+    let home = HOME.get_or_init(|| {
+        let home = tempfile::TempDir::new().expect("fixture $HOME");
+        let dir = home.path().join(".config/grove");
+        fs::create_dir_all(&dir).expect("fixture config dir");
+        let document: String = EVERY_SESSION_KIND
+            .iter()
+            .map(|kind| format!("{kind} \"true ${{prompt}}\"\n"))
+            .collect();
+        fs::write(dir.join("config.kdl"), document).expect("fixture config");
+        home
+    });
+    home.path()
+}
+
+/// The nineteen kinds this repository's own methodology ships, enumerated
+/// **here** rather than in the binary: grove no longer holds a set of kinds to
+/// validate a configuration against, so a fixture that wants a template for
+/// every kind a test might write has to say which those are.
+pub const EVERY_SESSION_KIND: &[&str] = &[
+    "requirements",
+    "review-requirements",
+    "integrate-review-requirements",
+    "design",
+    "review-design",
+    "integrate-review-design",
+    "planning",
+    "review-planning",
+    "integrate-review-planning",
+    "prototype",
+    "review-prototype",
+    "integrate-review-prototype",
+    "impl",
+    "review-impl",
+    "integrate-review-impl",
+    "research-a",
+    "research-b",
+    "combine-research",
+    "finish",
+];

@@ -1,9 +1,8 @@
 # Grove Configuration
 
-One personal file, `~/.config/grove/config.kdl`, gives each of the nineteen
-session kinds one complete command template. Grove parses a template into
-arguments, expands its own substitutions, and executes the result directly as its
-foreground child.
+One personal file, `~/.config/grove/config.kdl`, gives each session kind you use
+one complete command template. Grove parses a template into arguments, expands
+its own substitutions, and executes the result directly as its foreground child.
 
 Grove neither knows nor infers which agent harness a template runs. Executable,
 model, reasoning effort, approval, permission, and sandbox policy all live in the
@@ -22,14 +21,16 @@ file**. Nothing is ever assembled from two.
 
 ## The file
 
-The document is a flat set of nineteen top-level KDL nodes. A node's name is the
-session kind; its sole positional argument is a string holding the complete
-command template. Nodes take no properties and no child blocks. Comments and
-ordering are free.
+The document is a flat set of top-level KDL nodes. A node's name is the session
+kind; its sole positional argument is a string holding the complete command
+template. Nodes take no properties and no child blocks. Comments and ordering are
+free.
 
-All nineteen kinds must appear exactly once. A complete example, keeping design
-work on one command, sending every review to a second, and running the research
-pair across two:
+A kind may appear at most once, and Grove asks whether a kind is there only when
+it needs it — see [when a missing kind is
+reported](#when-a-missing-kind-is-reported). An example covering every kind this
+methodology ships, keeping design work on one command, sending every review to a
+second, and running the research pair across two:
 
 ```kdl
 requirements "grove-claude --session ${session_name} ${prompt}"
@@ -66,7 +67,7 @@ template may equally invoke a harness directly:
 impl "claude --model sonnet --permission-mode acceptEdits ${prompt}"
 ```
 
-### The nineteen kinds
+### The kinds this methodology ships
 
 ```text
 requirements  design  planning  prototype  impl
@@ -81,6 +82,11 @@ finish
 configuration keys, so a research vendor pair reaches two different commands
 without any per-leaf metadata. `finish` is the driver-reserved teardown session.
 
+Grove itself holds no list of kinds — a kind is an opaque string it looks up —
+so the list above is what the *methodology* declares, not a schema the binary
+enforces. A configuration declaring fewer is valid; you find out about a kind you
+have not configured at the moment you use it.
+
 There are no defaults, families, profiles, or inheritance. Each kind's target is
 complete when read on its own — nothing is assembled from a precedence chain.
 The disciplines behind these names are in
@@ -94,7 +100,7 @@ say, to balance usage across vendors. A **configuration delta** does that withou
 touching the personal file.
 
 It is a KDL file named `.grove.kdl`, in exactly the grammar above, declaring
-**any subset** of the nineteen kinds:
+**any subset** of the kinds your personal file declares:
 
 ```kdl
 impl "claude --model opus ${prompt}"
@@ -114,11 +120,14 @@ what makes a delta at the repository root apply to every workspace of that
 project while one in a workspace's own worktree shadows it for a one-off.
 
 Each kind the delta declares wins outright — one whole template replaces one
-whole template. Every kind it does not declare comes from the personal file
-untouched, and the personal file must still declare all nineteen exactly once and
-is still fully validated whatever the delta says. So adding a session kind still
-fails visibly in a stale personal config and can never be silently supplied by a
-delta.
+whole template — and every kind it does not declare comes from the personal file
+untouched. The delta is still validated in full whatever it declares.
+
+**A delta overrides and never supplies.** A kind resolves only if your *personal*
+file declares it; a kind only the delta declares does not resolve, and Grove says
+so, naming the kind and the personal file that must declare it. That is what
+keeps a file a project could hand you from choosing a program you never chose for
+yourself.
 
 It sits **beside** `.grove/`, not inside it: `finish` commits and then deletes
 that directory wholesale, and your launch policy belongs to the checkout rather
@@ -149,8 +158,8 @@ already ignored, because it would re-add it on the next snapshot.
 ### An invalid delta fails closed
 
 Unreadable, unparseable, tracked, or invalid in any way the personal file could
-be — an unknown kind name, a duplicate kind, a node with properties or children
-or the wrong argument count, a template breaking any rule below — and Grove
+be — a duplicate kind, a node with properties or children or the wrong argument
+count, a template breaking any rule below — and Grove
 launches nothing, at both read points, exactly as for the personal file. There is
 no warn-and-fall-back: falling back would run the session on precisely the policy
 you were moving work away from, and say so only afterwards.
@@ -251,32 +260,53 @@ is.
 ## Validation and diagnostics
 
 Loading is all-or-nothing. A successful load proves the file exists, is readable,
-parses as KDL, declares every required kind exactly once with no unknown node,
-property, child block, or extra argument, and that every template splits cleanly
-and obeys the executable and substitution rules above.
+parses as KDL, declares each kind it declares at most once with no property,
+child block, or extra argument, and that every template splits cleanly and obeys
+the executable and substitution rules above. It proves nothing about which kinds
+are *present* — that question is asked per kind, when the kind is used.
 
-A missing file names the exact path and the complete required kind set. A KDL
-syntax error names the path with its line and column.
+A missing file names the exact path. A KDL syntax error names the path with its
+line and column.
 
 Past syntax, diagnostics are **aggregate, not first-error**: one report lists
-every missing kind, every unknown kind, every duplicate with all of its source
-locations, every malformed node, and every invalid template with its kind and
-location.
+every duplicate with all of its source locations, every malformed node, and every
+invalid template with its kind and location.
 
 A delta gets the same aggregate report, reported against its own path, line and
-column — never the personal file's — minus the completeness rule, which is not
-its.
+column — never the personal file's.
 
 ```text
-invalid Grove configuration at ~/.config/grove/config.kdl:
-  - missing session kinds: research-b, finish
-  - ~/.config/grove/config.kdl:14:1: duplicate session kind `impl`; declarations at ~/.config/grove/config.kdl:14:1, ~/.config/grove/config.kdl:31:1
-  - ~/.config/grove/config.kdl:22:1: session kind `review-impl`: command template must contain `${prompt}` exactly once
+invalid configuration at ~/.config/grove/config.kdl:
+  - ~/.config/grove/config.kdl:14:1: duplicate key `impl`; declarations at ~/.config/grove/config.kdl:14:1, ~/.config/grove/config.kdl:31:1
+  - ~/.config/grove/config.kdl:22:1: key `review-impl`: command template must contain `${prompt}` exactly once
 ```
 
-(Grove prints the absolute path; `~` stands in for your home directory here.)
+(Grove prints the absolute path; `~` stands in for your home directory here. The
+report says *key* rather than *session kind* because the code that produces it —
+`crates/keyed-launch` — is a general template runner that has never heard of a
+session.)
 
 No diagnostic silently fills a target or falls back to another kind.
+
+### When a missing kind is reported
+
+Grove asks whether kind K resolves at the two moments it commits to K, and not
+before: **when it writes a leaf of kind K** — `grove-llm leaf-add`,
+`leaf-add-pair`, `leaf-insert`, `leaf-decompose` and `root-init` — and **when it
+launches K**. The check runs before the tree is mutated, so a refusal leaves the
+task tree byte-identical.
+
+```text
+Error: refusing to write a leaf of kind `prototype`: no launch template resolves for it
+
+Caused by:
+    key `prototype` does not resolve: no template for it.
+      Declare `prototype` in /Users/you/.config/grove/config.kdl
+```
+
+Adding a kind to the methodology is therefore no longer a breaking schema change
+for everyone at once: your configuration keeps working until the first task of
+that kind, and only then asks you for a template.
 
 Validation does not try to identify the configured program or understand its
 arguments. If the literal executable cannot be resolved or spawned, that is a
@@ -296,19 +326,21 @@ grove: session ended without a completion signal — status exit status: 127, el
 ### When configuration is read
 
 Grove reads and fully validates the whole file — and resolves the delta, if there
-is one — before **every** task-tree mutation (root initialization, partial-root
-recovery, and finish-leaf materialization) and again immediately before every
-launch. Nothing is cached between loop iterations, so editing either file affects
-the next session.
+is one — before **every** task-tree mutation: the driver's own (root
+initialization, partial-root recovery, and finish-leaf materialization) and every
+`grove-llm` verb that writes a leaf. It reads them again immediately before every
+launch. Nothing is cached between loop iterations or between verbs, so editing
+either file affects the next session.
 
 A failed pre-mutation read leaves a rootless, partial, or complete tree
 byte-identical. If either file becomes invalid after a mutation but before the
 launch read, that mutation stays as resumable tree state and no session launches.
 Either way an existing selected leaf remains live and resumable.
 
-Adding a session kind is an intentional breaking schema change: a release
-announces the new entry, and complete configs fail validation until their owner
-adds it.
+A configuration that declares no template for a kind you never reach is neither
+invalid nor a problem. One that declares a *malformed* template for such a kind
+is invalid, and fails at the next read — validation is about the document,
+presence is about the kind in hand.
 
 ## Adjacent settings Grove does not own
 

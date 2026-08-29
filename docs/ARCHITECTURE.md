@@ -163,22 +163,35 @@ owns the human grammar; `src/llm_cli.rs` owns the agent grammar.
 
 ## Session configuration
 
-`~/.config/grove/config.kdl` carries user launch policy: a flat map of all
-nineteen session kinds to one complete command-template string each, with no
-defaults, families, or inheritance. The configuration module loads that one file
-into a total kind-to-template map and expands one selected template from a
-context of prompt, session name, worktree, and repository root. It hides KDL
-handling, aggregate schema diagnostics, POSIX shell-word splitting, substitution
-validation, and argv construction; callers cannot ask it for a default, family,
-harness, or model. The user-facing grammar and diagnostics are in
+`~/.config/grove/config.kdl` carries user launch policy: a flat map of session
+kinds to one complete command-template string each, with no defaults, families,
+or inheritance.
+
+**The whole of that is `crates/keyed-launch`, which has never heard of a
+session.** It loads the file — and at most one overlay — into a key-to-template
+map, validated whole against a *slot vocabulary* the consumer supplies at load,
+and expands one selected template into an argv. It hides KDL handling, aggregate
+schema diagnostics, POSIX shell-word splitting, substitution validation, and argv
+construction; callers cannot ask it for a default, family, harness, or model, and
+it holds no set of keys. `src/session_config.rs` is what is left of grove's side:
+the personal file's path, the four slots (`prompt`, `session_name`, `worktree`,
+`repo`) grove's templates are written against, and the delta's search and
+trackedness rules below. The user-facing grammar and diagnostics are in
 [CONFIGURATION.md](CONFIGURATION.md).
+
+**Presence is per kind and just-in-time**
+(`docs/adr/complete-session-configuration.md`): both documents are validated
+whole before every tree mutation and every launch, but whether a *particular*
+kind resolves is asked at the two moments grove commits to it — before it writes
+a leaf of that kind, and before it launches one.
 
 At most one second file takes part: an untracked `.grove.kdl` **configuration
 delta**, searched at the worktree root and then the main repository root, the
 first one found selected outright and the two never merged. It declares any
 subset of the kinds and each declared kind's whole template replaces the personal
-file's, while the personal file stays mandatorily complete and fully validated.
-Resolution is therefore two deep and flat rather than a precedence lattice, and a
+file's. **It overrides and never supplies**: a kind resolves only if the personal
+file declares it, so a file a project could hand you cannot introduce a program
+its operator never chose. Resolution is therefore two deep and flat rather than a precedence lattice, and a
 kind's launch remains one complete string read whole out of one file — which is
 why this leaves [complete session
 configuration](adr/complete-session-configuration.md) intact. The module takes
@@ -187,8 +200,8 @@ disagree with what `${repo}` expands to in the template it selected.
 
 That gives the module its one non-filesystem dependency: because a delta names a
 program to execute, a **tracked** candidate is refused rather than trusted to an
-ignore rule, so `session_config` asks `repo` one read-only question about one
-path — and only when a candidate file exists. An unreadable, unparseable,
+ignore rule, so `session_config` asks the VCS seam one read-only question about
+one path — and only when a candidate file exists. An unreadable, unparseable,
 invalid, or tracked delta fails the load at both read points, with the same
 aggregate diagnostics attributed to the delta's own path and location. See [the
 untracked configuration delta](adr/untracked-configuration-delta.md).
@@ -1529,7 +1542,7 @@ prescribing one command.
 | Module | Responsibility |
 |---|---|
 | `launch` | Provisioning, lease acquisition, and child-environment scrubbing rules. |
-| `session_config` | The whole of launch configuration: load and validate the personal file, resolve at most one untracked delta over it per kind, expand one template to argv. Asks `repo` whether a delta candidate is tracked; nothing else leaves the filesystem. |
+| `session_config` | Grove's side of launch configuration: the personal file's path, the four slots grove's templates are written against, and the delta — where it is searched, which candidate wins, and the refusal of a tracked one. The grammar, the validation and the expansion are `crates/keyed-launch`'s. Asks the VCS seam whether a delta candidate is tracked; nothing else leaves the filesystem. |
 | `loop_driver` | Foreground iteration, selection, child lifecycle, and completion signals. |
 | `driver_lease` | Driver lease, session epoch, signal-channel allocation, and ambient-session validation. |
 | `harness` | The provisioning-target registry — delivery destinations only. |

@@ -12,17 +12,19 @@ Audit, blindly score, and publish the frozen source/fragments case result.
 
 ## Done when
 
-- Every model-requested access and fixture mutation check is deterministically
-  classified before scoring.
-- Two independent blind scorers apply the exact atomic rows to randomized
-  normalized bundles, and frozen blind resolution settles disagreements with
-  citations.
+- Complete attempt history is replayed before scoring; every replacement,
+  model-requested access, exposure phase, and fixture mutation check is
+  deterministically classified. An illegal replacement marks the case
+  protocol-failed and excludes it from attainment.
+- Two independent blind scorers apply the exact atomic rows to every randomized
+  normalized scored bundle, record forced arm guesses, and use frozen blind
+  resolution to settle disagreements with citations.
 - The record distinguishes judged presence of inventory, reader order,
   fragment ownership, worked execution, and proposed validation from the
   deterministic fact that the campaign fixture and manifests stayed exact.
 - Per-row, pair-aware, absolute, materiality, regression, disagreement,
-  unblinding, and treatment-delivery results are published under the frozen
-  complete/protocol-failed/unavailable semantics.
+  arm-guess accuracy as a limitation, and treatment-delivery results are
+  published under fail-closed complete/protocol-failed/unavailable semantics.
 
 ## Notes
 

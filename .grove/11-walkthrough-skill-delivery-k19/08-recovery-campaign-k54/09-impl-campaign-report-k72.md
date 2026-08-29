@@ -18,15 +18,20 @@ parent acceptance requirement is met.
   and identifies the new campaign by its own manifest, treatment digest,
   runtime, prompts, criteria, and chronology.
 - Same-case absolute attainment, per-family gates, paired material improvement,
-  regression, incomplete/protocol semantics, variance, and scorer disagreement
-  are reported without changing any frozen score or denominator.
-- Transfer is a separately labelled verdict and neither rescues nor weakens the
-  primary result.
+  exhaustive regression coverage including mixed-control rows,
+  incomplete/protocol semantics, variance, scorer disagreement, and forced
+  arm-guess accuracy are reported without changing any frozen score or
+  denominator.
+- Transfer is the separately labelled conjunct for the parent brief's
+  cross-codebase and cross-language applicability clause. It neither rescues nor
+  weakens the primary same-case result and cannot drive skill wording.
 - Bytes delivered, discovery, exact-file read, announcement, adherence,
   deterministic guarantees, and judged answer behavior remain distinct.
 - The report states whether fresh enabled scenarios met the predeclared rubric,
   materially improved over the paired no-skill baseline, and passed the
-  deterministic deployment checks. A failed conjunct leaves the parent open.
+  deterministic deployment checks. Missing, unavailable, protocol-failed, and
+  unblindable data never contribute to attainment; any failed or unavailable
+  primary, transfer, or deterministic conjunct leaves the parent open.
 - Claims are limited to the bounded executions; no visible read is called
   comprehension or use, and no sample threshold is generalized to readers,
   models, codebases, or future service versions.

@@ -21,7 +21,8 @@ or same-case outcome exists.
 - A separate criterion author receives the requirement-derived behavior
   contract and selected task metadata but not treatment bytes or campaign
   outcomes; its paired prompt, exact criteria, absolute/relative thresholds,
-  regression rules, and unavailable semantics are frozen before execution.
+  regression rules, and fail-closed unavailable semantics are frozen before
+  execution.
 - Each role's exact inputs, raw outputs, runtime identity, chronology, and
   digests are preserved, and the information flow is checkable rather than
   asserted.
@@ -33,4 +34,6 @@ or same-case outcome exists.
 ## Notes
 
 Transfer has its own verdict. Its rows never enter the same-case primary set and
-its outcome cannot change skill bytes in this campaign.
+its outcome cannot change skill bytes in this campaign. The verdict is a
+required, separately reported conjunct of the parent brief's cross-codebase and
+cross-language applicability clause.

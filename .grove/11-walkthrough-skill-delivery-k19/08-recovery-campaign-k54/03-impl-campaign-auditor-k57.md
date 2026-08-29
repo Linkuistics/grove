@@ -20,6 +20,10 @@ blinding reproducible over the runner's preserved records.
 - The auditor records bytes delivered, exact pinned-file read, generic or exact
   announcement, and scored adherence as different observations. None changes
   assignment membership or replacement eligibility after exposure.
+- The exposure classifier and replacement gate are deterministic over preserved
+  runner records. Tests replay complete attempt histories and prove that an
+  illegal replacement is detected and classified as a case-level protocol
+  failure before scoring.
 - Full events feed the deterministic access audit. A separately generated,
   treatment-neutral behavioral bundle contains the final answer and only the
   normalized fixture events needed by the criteria; deterministic redaction,
@@ -27,9 +31,14 @@ blinding reproducible over the runner's preserved records.
 - Fixture tests prove that an enabled `SKILL.md` read is allowed and recorded,
   the same legal search can finish in a no-skill control home, and prohibited
   direct, indirect, compound, expanded, and symlinked accesses are detected.
+- One invocation harness runs two independent blind scorer contexts for every
+  scored bundle and the blind resolver for disagreements. It preserves prompts,
+  raw outputs, citations, runtime identities, chronology, forced per-bundle arm
+  guesses, and guess accuracy without exposing arm labels before scoring.
 - Tests cover refusals, timeouts, missing finals, truncation, post-exposure
-  access violations, pre-exposure failures, and exhausted replacement
-  allowances without selecting a replacement answer.
+  access violations, pre-exposure resource-budget exhaustion and resumption,
+  illegal replacement histories, dual scoring, resolver invocation, and arm
+  guesses without selecting a replacement answer.
 - Documentation states that the audit covers observable model-requested access,
   not operating-system filesystem unreadability or every library file an
   allowed executable touches.
@@ -37,4 +46,6 @@ blinding reproducible over the runner's preserved records.
 ## Notes
 
 The auditor classifies evidence already produced by the runner. It never edits
-raw streams or supplies treatment bytes to a behavioral scorer.
+raw streams or supplies treatment bytes to a behavioral scorer. All prohibited-
+access and scorer-invocation fixtures are synthesized event records; this leaf
+launches no live evaluated treatment or control model before the joint freeze.

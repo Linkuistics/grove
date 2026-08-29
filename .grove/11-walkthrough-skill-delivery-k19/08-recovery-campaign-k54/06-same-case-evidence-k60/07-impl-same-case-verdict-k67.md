@@ -16,12 +16,15 @@ Apply the frozen primary acceptance contract across all three same-case records.
   score, criterion, set-membership, or denominator change.
 - The verdict separately evaluates enabled absolute attainment, the gate for
   every required behavior family, paired material improvement over the
-  contemporaneous no-skill baseline, and regression over every protected
-  required behavior.
+  contemporaneous no-skill baseline, and regression over every
+  requirement-derived row outside the target set, using the frozen paired rule
+  for mixed-control rows.
 - Empty, incomplete, protocol-failed, and unblindable data follow the exact
-  non-vacuous frozen outcome; no partial arithmetic supplies a missing sample.
+  fail-closed frozen outcome: they never contribute to attainment, leave the
+  primary conjunct open, and receive no partial arithmetic for a missing sample.
 - Treatment delivery/read/announcement/adherence and scorer disagreement remain
-  limitations or secondary observations, never sample filters.
+  limitations or secondary observations, never sample filters. Forced arm-guess
+  accuracy is reported as a limitation of the primary result.
 - The record states only what this bounded execution sample establishes and
   does not claim reader comprehension, population generality, or that a visible
   skill read proves behavioral use.

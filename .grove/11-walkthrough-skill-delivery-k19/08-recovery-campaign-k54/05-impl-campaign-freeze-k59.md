@@ -16,14 +16,21 @@ pre-execution campaign contract.
 
 - One manifest pins every same-case and transfer prompt, criterion file, exact
   target/regression set, threshold, schedule, fixture, template, skill byte,
-  runner, auditor, scorer instrument, outcome rule, test, and runtime identity.
+  runner, exposure classifier, automatic bounded execution windows, pair reserve
+  and between-pair resumption rule,
+  auditor, scorer/resolver invocation harness, scorer instrument, arm-guess
+  probe, outcome rule, test, and runtime identity.
 - The deployed skill is pinned by recursive manifest and aggregate digest; the
   historical instrument and records remain unchanged.
 - Stubbed end-to-end tests prove each arm can complete, exact skill discovery is
-  legal, control and enabled assignment are counterbalanced, post-exposure
-  failures remain outcomes, normalized scorer bundles contain the required
-  score evidence without access-audit surfaces, and every unavailable path has
-  a terminal record.
+  legal, pair arms execute back-to-back with timestamps, control and enabled
+  assignment are counterbalanced, replacement legality replays over complete
+  attempt history, illegal replacement fails the case, post-exposure failures
+  remain outcomes, and resumption is automatic, bounded, pair-atomic, and
+  schedule-only. The stubs
+  invoke both scorers and the blind resolver, record forced arm guesses, prove
+  normalized bundles contain required score evidence without access-audit
+  surfaces, and prove every unavailable path fails closed.
 - One fresh adversarial reviewer receives only the complete freeze candidate
   and parent contract. Every finding is classified and settled before the
   manifest is signed; a second substantive review need is externalized through

@@ -10,10 +10,14 @@ same-case campaign.
 
 - Five assigned control/enabled pairs reach frozen terminal records against the
   external fixture, without skill edits or post-outcome criterion changes.
-- Full access/outcome auditing and two-context blind adjudication publish all
-  absolute, paired, regression, disagreement, and treatment-delivery evidence.
+- Pair arms run back-to-back with per-arm timestamps. Full access/outcome and
+  replacement-history auditing plus two-context blind adjudication of every
+  scored bundle publish all absolute, paired, regression, disagreement,
+  forced-arm-guess, and treatment-delivery evidence.
 - The transfer verdict is complete, protocol-failed, or unavailable exactly as
-  predeclared and remains outside the same-case primary endpoint.
+  predeclared and remains outside the same-case primary endpoint. It is the
+  separately reported conjunct for the parent brief's cross-codebase and
+  cross-language applicability clause; missing data never satisfy it.
 
 ## Decomposition
 
@@ -28,5 +32,6 @@ separate transfer verdict.
 
 ## Notes
 
-Transfer cannot drive wording changes in this cycle. A miss or unavailable
-sample is reported, not repaired with a target-specific instruction.
+Transfer cannot drive wording changes in this cycle or rescue the same-case
+endpoint. A miss or unavailable sample is reported, not repaired with a
+target-specific instruction.

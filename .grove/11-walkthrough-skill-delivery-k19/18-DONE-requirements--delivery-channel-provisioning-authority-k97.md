@@ -82,3 +82,46 @@ existence, client readiness, and technical possibility do not answer it.
 If the human declines provisioning, closure is a legitimate requirements result,
 not a failure to complete this leaf. Preserve the original failed evaluation and
 its Case A limitation as contrary historical evidence in either branch.
+
+## Decisions (running log)
+
+The human chose outcome 3 after the three branches were priced: decline both a
+hosted final-boundary attestation channel and controlled self-hosted inference,
+and close the parent behavioral-acceptance conjunct as unmet rather than pending
+or passed. `delivery-channel-authority-k94: authorization = none` remains the
+exact channel value. No evaluated treatment, control, scorer, or resolver
+context will run.
+
+The options were priced on 2026-08-30 before the choice. No inspected hosted
+Claude/OpenAI/Codex product documented the required final-boundary attestation,
+so ordinary API spend bought no acceptance authority and a qualifying hosted
+route had unknown enterprise procurement and engineering cost. Controlled
+self-hosting was estimated at two to five engineering days plus model-dependent
+compute; published on-demand rental examples ranged from US$0.27/hour for a
+24 GB GPU to US$4.79/hour for an 80 GB H100. Closure required no inference
+infrastructure or evaluated campaign spend, only this requirements change and
+its review chain. Primary sources: [Anthropic request IDs](https://platform.claude.com/docs/en/api/errors),
+[Anthropic token counting](https://platform.claude.com/docs/en/build-with-claude/token-counting),
+[Anthropic prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching),
+[OpenAI request IDs](https://developers.openai.com/api/reference/overview),
+[llama.cpp server mechanics](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md),
+and [Runpod GPU pricing](https://www.runpod.io/pricing).
+
+The root and `walkthrough-skill-delivery-k19` briefs state the closure directly.
+They make no behavioral pass, causal-use, or skill-effect claim and preserve the
+original failed evaluation, its Case A selection limitation, and its Case B/C
+sample shortfalls as contrary historical evidence.
+
+`paired-acceptance-campaign-k80` is considered on its merits and rejected. With
+the human's explicit confirmation it is marked `ABANDONED` in place rather than
+deleted, so its task files remain as history but no descendant remains live.
+
+The source/fragment fixture choice and the raw-frontmatter versus deployed-body
+treatment choice are inapplicable under closure. No evaluated intervention is
+authorized, so choosing either would invent an unused acceptance condition
+rather than settle a model-visible difference.
+
+The human agreed the closure test seams: the brief chain states that behavioral
+acceptance is unmet; the abandoned campaign has no live descendant; historical
+evaluation records remain byte-identical; and a `review-requirements` sibling
+adversarially checks the closure before the parent node may close.

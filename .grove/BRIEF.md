@@ -37,13 +37,14 @@ as a deployable Linkuistics skill.
 - The preserved historical evaluation remains the sole pre-skill baseline; its
   failed enabled verdict, sample shortfalls, and Case A selection limitation
   remain contrary evidence rather than being repaired or rescored.
-- A separately frozen paired acceptance instrument covers intake,
-  source/fragment planning, and exposition/assurance. Every enabled context
-  receives verified final skill bytes before answering; controls receive no
-  skill; user prompts remain byte-identical between arms.
-- Each of the three behavioral surfaces independently shows predeclared
-  material improvement over its contemporaneous no-skill comparator and clears
-  its predeclared absolute enabled-performance floor. All three must pass.
+- The replacement behavioral-acceptance conjunct is closed as unmet rather than
+  pending or passed. No hosted provider with the required final-boundary
+  attestation was identified, controlled self-hosting was declined, and no
+  paired acceptance campaign runs.
+- No acceptance claim is made from installed skill bytes, command construction,
+  request identifiers, usage counts, or the abandoned campaign plan. The
+  fixture-interface and frontmatter-delivery choices remain inapplicable because
+  no evaluated intervention is authorized.
 - Mechanical checks cover fragment tangling, source coverage, Markdown
   structure, and local links. Independent reviews cover technical accuracy and
   editorial quality. The crate's existing verification remains green.
@@ -64,9 +65,10 @@ The requirements agreement is followed by five dependency-ordered increments:
   filesystem interpreter, and the CLI before whole-corpus assembly and
   independent technical and editorial review;
 - the validated method is tested first without a skill and authored
-  generically; after the historical enabled campaign fails, a new predeclared
-  paired instrument tests verified skill delivery against contemporaneous
-  no-skill comparators without rewriting the historical record.
+  generically; after the historical enabled campaign fails, the proposed
+  replacement campaign is closed without execution because no qualifying
+  delivery channel is authorized, leaving behavioral acceptance unmet without
+  rewriting the historical record.
 
 Research is an eager vendor pair because one evidence base informs both
 deliverables and the split-attention/redundancy question benefits from
@@ -86,10 +88,10 @@ editorial reviewer commissions integration only when it has findings.
 - Skill destination: `plugins/linkuistics/skills/writing-code-walkthroughs`
 - Agreed test seams: exact-source tangling; complete source-to-fragment
   coverage; Markdown/link validation; technical review; editorial review;
-  existing crate verification; a pre-run behavioral acceptance manifest;
-  auditable skill delivery and arm assignment; preserved execution records;
-  blind per-surface scoring and independent rescoring; a non-compensating
-  three-surface verdict
+  existing crate verification; explicit brief wording that closes behavioral
+  acceptance as unmet; no live descendant in the abandoned paired-campaign
+  subtree; byte-identical historical evaluation records; requirements review
+  before the skill-delivery node closes
 
 ## Notes
 

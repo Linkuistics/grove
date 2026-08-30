@@ -79,12 +79,14 @@ fn an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other() {
     // Phase 2 — a signal arriving between launches belongs to the launcher, and
     // `take_interrupt` is where it collects it. Exactly once.
     raise_sigterm();
-    assert!(
+    assert_eq!(
         take_interrupt(),
-        "a signal arriving outside a launch must be collectable"
+        Some(SIGTERM),
+        "a signal arriving outside a launch must be collectable, and must say which"
     );
-    assert!(
-        !take_interrupt(),
+    assert_eq!(
+        take_interrupt(),
+        None,
         "collecting the interrupt must consume it, or a launcher stops twice"
     );
 
@@ -104,8 +106,9 @@ fn an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other() {
         "the child was killed for a signal that predated it: {:?}",
         ended.status
     );
-    assert!(
-        !take_interrupt(),
+    assert_eq!(
+        take_interrupt(),
+        None,
         "the launch must have consumed the stale latch rather than leaving it armed"
     );
 
@@ -123,8 +126,8 @@ fn an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other() {
 
     assert_eq!(
         ended.end,
-        End::Interrupted,
-        "a signal arriving during a launch is that launch's ending"
+        End::Interrupted { signal: SIGTERM },
+        "a signal arriving during a launch is that launch's ending, and names itself"
     );
     assert_eq!(ended.token, None, "an interrupt leaves no token");
     assert_eq!(
@@ -132,8 +135,9 @@ fn an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other() {
         Some(SIGTERM),
         "the child must be forwarded the signal, not left running"
     );
-    assert!(
-        !take_interrupt(),
+    assert_eq!(
+        take_interrupt(),
+        None,
         "an interrupt reported as an ending must not also stop the next launch"
     );
 }

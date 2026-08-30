@@ -630,6 +630,12 @@ fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_inter
 // The real binary installs the SIGTERM/SIGHUP handler that forwards termination
 // to a live child and reaps it through the ordinary watcher escalation. A
 // driver that merely died would orphan an interactive session onto the TTY.
+//
+// **And it reports the killing to whoever started it.** Every other way this
+// loop ends is a decision it was designed to reach and exits cleanly; this one
+// is the loop being taken away mid-grove, and a systemd unit, a `timeout(1)` or
+// a shell `wait` can only tell the two apart through the wait status. So the
+// driver dies of the same signal after its cleanup rather than exiting 0.
 #[test]
 fn a_sigtermed_driver_stops_and_reaps_its_child() {
     let fixture = TempDir::new().unwrap();
@@ -672,16 +678,125 @@ fn a_sigtermed_driver_stops_and_reaps_its_child() {
     unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
 
     let deadline = Instant::now() + Duration::from_secs(20);
-    loop {
-        if child.try_wait().unwrap().is_some() {
-            break;
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
         }
         assert!(
             Instant::now() < deadline,
             "a SIGTERM'd driver must stop, not hang"
         );
         thread::sleep(Duration::from_millis(50));
-    }
+    };
+
+    use std::os::unix::process::ExitStatusExt as _;
+    assert_eq!(
+        status.signal(),
+        Some(libc::SIGTERM),
+        "a SIGTERM'd driver must die of the signal, so its own parent reads \
+         128+N rather than a clean finish: {status:?}"
+    );
+    assert_eq!(
+        status.code(),
+        None,
+        "there is no exit code that means \"killed\", which is why the signal \
+         is re-raised rather than mapped to one"
+    );
+    assert!(
+        !diagnostics_of(&diagnostics).is_empty(),
+        "the interruption must still be reported in the driver's own output"
+    );
+    assert!(
+        diagnostics_of(&diagnostics).contains("interrupted by signal 15"),
+        "the diagnostic must name the signal that ended the loop: {}",
+        diagnostics_of(&diagnostics)
+    );
+}
+
+fn diagnostics_of(path: &Path) -> String {
+    fs::read_to_string(path).unwrap_or_default()
+}
+
+// The escalation signals the session's **process group**, so a command the
+// session spawned — a tool subprocess, a language server, an agent's own
+// in-flight `grove-llm` — is reaped with it rather than surviving the SIGKILL
+// and staying attached to the terminal.
+//
+// The expensive failure this closes is not untidiness. A surviving `grove-llm`
+// holds *shared* epoch admission for the whole of its operation, so the
+// driver's post-reap `invalidate_session_epoch` waits out its full 30s bound
+// and then turns a session that finished correctly into a fatal error with its
+// token discarded uninterpreted. Here the session signals `done`, so the loop
+// must reach a clean finish inside the escalation's own timescale instead.
+#[test]
+fn the_escalation_reaps_the_sessions_descendants() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    plant_tree(&worktree, "01-impl--subject-k1.md");
+
+    let descendant_pid = fixture.path().join("descendant-pid");
+    let configured = fixture.path().join("configured-command.sh");
+    // Signals and then declines to end — an interactive session returning to
+    // its prompt — so the launch reaches the full escalation, which is what
+    // this test is about.
+    write_exec(
+        &configured,
+        &format!(
+            "#!/bin/sh\n\
+             sh -c 'while : ; do sleep 0.05 ; done' &\n\
+             printf '%s\\n' \"$!\" > {pid}\n\
+             printf 'done\\n' > \"$GROVE_SIGNAL_FILE\"\n\
+             while : ; do sleep 0.05 ; done\n",
+            pid = shell_quote(&descendant_pid),
+        ),
+    );
+    write_complete_config(&home, &configured);
+
+    // The cross-check: the same shape of process, in *this* process's group
+    // rather than the session's. A probe that reported every pid gone would
+    // read identically without it.
+    let mut bystander = Command::new("sh")
+        .arg("-c")
+        .arg("while : ; do sleep 0.05 ; done")
+        .spawn()
+        .unwrap();
+
+    let output = run_driver(&worktree, &home);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("grove finished — loop complete"),
+        "the `done` signal must survive the escalation and finish the loop: {stderr}"
+    );
+
+    let descendant: i32 = fs::read_to_string(&descendant_pid)
+        .expect("the session never reported its descendant")
+        .trim()
+        .parse()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let reaped = loop {
+        let alive = unsafe { libc::kill(descendant, 0) } == 0;
+        if !alive {
+            break true;
+        }
+        if Instant::now() >= deadline {
+            break false;
+        }
+        thread::sleep(Duration::from_millis(50));
+    };
+    assert!(
+        reaped,
+        "a command the session spawned outlived the escalation that killed it"
+    );
+    assert!(
+        bystander.try_wait().unwrap().is_none(),
+        "the escalation reached a process outside the session's own group"
+    );
+
+    bystander.kill().unwrap();
+    bystander.wait().unwrap();
 }
 
 // A leaf whose filename kind this binary does not know is a tree the driver
@@ -732,6 +847,17 @@ fn an_unrecognised_filename_kind_refuses_to_launch() {
 // the completion signal deliberately unconsumed — a relaunch on a tree some
 // orphan is still mutating is the outcome the bound exists to prevent.
 //
+// **The orphan is spawned by this test, not by the session**, and that is the
+// whole difference between an orphan and a descendant. Since
+// `child-signal-disposition-k31` the escalation signals the session's process
+// *group*, so a command the session itself launched is reaped with it and the
+// contention below never arises — which is the point of that change, and is
+// asserted next door in `the_escalation_reaps_the_sessions_descendants`. What
+// survives a group kill is a process that was never in the group: one launched
+// from a different session, a different terminal, or by a human. That is the
+// process this fixture stands in for, and it is why the bounded timeout is
+// still load-bearing.
+//
 // Slow by construction (~40s): the fixed invalidation timeout is the subject.
 #[test]
 fn an_orphaned_epoch_guard_stops_before_consuming_the_relaunch_signal() {
@@ -743,8 +869,6 @@ fn an_orphaned_epoch_guard_stops_before_consuming_the_relaunch_signal() {
     plant_tree(&worktree, "01-impl--subject-k1.md");
 
     let launch_ready = fixture.path().join("launch-ready");
-    let tree_locked = fixture.path().join("tree-locked");
-    let orphan_started = fixture.path().join("orphan-started");
     let epoch_held = fixture.path().join("epoch-held");
     let orphan_done = fixture.path().join("orphan-done");
     let orphan_stderr = fixture.path().join("orphan-stderr");
@@ -764,12 +888,6 @@ printf '%s\n' "$n" > {count}
 printf '%s\n' "$GROVE_SIGNAL_FILE" > {observed}
 printf '%s\n' "$$" > {pid}
 : > {ready}
-while [ ! -e {locked} ]; do sleep 0.01; done
-(
-  {llm} pick >/dev/null 2>{orphan_err}
-  : > {orphan_done}
-) >/dev/null 2>{orphan_err} &
-: > {orphan_started}
 while [ ! -e {held} ]; do sleep 0.01; done
 : > "$GROVE_SIGNAL_FILE"
 trap ': > {term}' TERM
@@ -779,11 +897,6 @@ while :; do sleep 0.1; done
             observed = shell_quote(&observed_signal),
             pid = shell_quote(&session_pid),
             ready = shell_quote(&launch_ready),
-            locked = shell_quote(&tree_locked),
-            llm = shell_quote(&own_grove_llm()),
-            orphan_err = shell_quote(&orphan_stderr),
-            orphan_done = shell_quote(&orphan_done),
-            orphan_started = shell_quote(&orphan_started),
             held = shell_quote(&epoch_held),
             term = shell_quote(&term_received),
         ),
@@ -793,8 +906,9 @@ while :; do sleep 0.1; done
     let (release_tx, release_rx) = mpsc::channel();
     let lock_worktree = worktree.clone();
     let lock_launch_ready = launch_ready.clone();
-    let lock_tree_locked = tree_locked.clone();
-    let lock_orphan_started = orphan_started.clone();
+    let lock_observed_signal = observed_signal.clone();
+    let lock_orphan_stderr = orphan_stderr.clone();
+    let lock_orphan_done = orphan_done.clone();
     let lock_epoch_held = epoch_held.clone();
     let lock_thread = thread::spawn(move || {
         use std::os::fd::AsRawFd;
@@ -806,6 +920,20 @@ while :; do sleep 0.1; done
             );
             thread::sleep(Duration::from_millis(10));
         }
+        // The channel path the driver published to *this* session, which is
+        // what makes the command below admissible under the live epoch. Read
+        // from the session's own report rather than reconstructed, because the
+        // suffix is fresh OS randomness.
+        let signal_path = loop {
+            assert!(
+                Instant::now() < deadline,
+                "the session never reported its signal path"
+            );
+            match fs::read_to_string(&lock_observed_signal) {
+                Ok(reported) if !reported.trim().is_empty() => break reported.trim().to_string(),
+                _ => thread::sleep(Duration::from_millis(10)),
+            }
+        };
 
         let tree_guard = fs::File::open(&lock_worktree).unwrap();
         assert_eq!(
@@ -813,15 +941,20 @@ while :; do sleep 0.1; done
             0,
             "locking the worktree failed"
         );
-        fs::write(&lock_tree_locked, "").unwrap();
 
-        while !lock_orphan_started.exists() {
-            assert!(
-                Instant::now() < deadline,
-                "orphaned tree command did not start"
-            );
-            thread::sleep(Duration::from_millis(10));
-        }
+        // Spawned **here**, in the test process's own process group, so the
+        // driver's escalation cannot reach it however wide it signals. A
+        // command the session launched would be a descendant and would be
+        // reaped with it.
+        let mut orphan = Command::new(support::grove_llm())
+            .arg("pick")
+            .current_dir(&lock_worktree)
+            .env("GROVE_SIGNAL_FILE", &signal_path)
+            .stdout(Stdio::null())
+            .stderr(Stdio::from(fs::File::create(&lock_orphan_stderr).unwrap()))
+            .spawn()
+            .unwrap();
+
         let epoch_path = lock_worktree.join(".jj/grove/session.epoch");
         loop {
             assert!(
@@ -851,6 +984,8 @@ while :; do sleep 0.1; done
         fs::write(&lock_epoch_held, "").unwrap();
         release_rx.recv().unwrap();
         drop(tree_guard);
+        orphan.wait().unwrap();
+        fs::write(&lock_orphan_done, "").unwrap();
     });
 
     let started = Instant::now();

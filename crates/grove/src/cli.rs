@@ -1,5 +1,5 @@
 use clap::Parser;
-use grove_loop::{DriverLease, TemplateSource, Workspace};
+use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
 
 /// The complete human command surface: bare `grove`, plus clap's own `--help`
 /// and `--version`. There are no subcommands and no flags — the driver reads
@@ -26,6 +26,15 @@ pub struct Cli {}
 /// needed a workspace had two derivations of one fact and no way to see that
 /// they agreed (`docs/adr/one-live-driver-per-working-tree.md`).
 ///
+/// **A driver that was killed does not exit 0.** The loop returns *why* it
+/// stopped, and one of the reasons is that this process was sent SIGTERM or
+/// SIGHUP mid-grove. Every other reason is an outcome the loop was designed to
+/// reach and exits cleanly; that one is the loop being taken away, and the only
+/// way to say so through a wait status is to die of the same signal after the
+/// cleanup — the lease is dropped by the `run` above, and the session was
+/// already reaped by the runner. Whoever started `grove` — a systemd unit, a
+/// `timeout(1)`, a shell `wait` — then reads `128 + N` instead of success.
+///
 /// # Errors
 ///
 /// A working tree that is not a jj workspace, a lease another driver holds, or
@@ -36,8 +45,10 @@ pub fn run() -> anyhow::Result<()> {
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
     let templates = TemplateSource::from_env()?;
-    grove_loop::run(&workspace, lease, &templates)?;
-    Ok(())
+    match grove_loop::run(&workspace, lease, &templates)? {
+        LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
+        LoopOutcome::Interrupted(signal) => grove_loop::reraise(signal),
+    }
 }
 
 #[cfg(test)]

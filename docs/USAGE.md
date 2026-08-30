@@ -34,6 +34,16 @@ It then keeps going: when a session signals that its task is complete, Grove
 relaunches with fresh context for the next leaf. Any other ending — you exit the
 session, press Ctrl-C, or the process dies — stops the loop.
 
+**Ctrl-C is the session's, not the loop's.** While a session runs it owns the
+terminal in its own right, so an interrupt you type reaches the session and
+leaves the driver standing to make the relaunch-or-stop decision. Ending the
+loop from outside is `kill` on the `grove` process: it forwards the signal to the
+session's whole process group, waits for it, restores your terminal, and then
+**dies of the same signal** — so a wrapper script, a `timeout`, or a systemd unit
+reads `128 + N` and can tell an interrupted grove from a finished one. A grove
+that ran to a clean finish, or stopped because a session ended without
+signalling, exits 0.
+
 Because `grove` takes no arguments, **the working directory is the only thing
 that selects a workstream**. There is no tree to name and no confirmation step:
 Grove scaffolds and commits against whichever working tree encloses the

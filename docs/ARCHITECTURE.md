@@ -287,7 +287,10 @@ returns. Each of the four epoch acquisitions — driver, pre-spawn, post-reap, a
 ambient — tries without blocking, prints one diagnostic on contention, then
 waits a fixed internal 30-second handoff bound; a timeout does no tree access
 and no epoch rewrite, so an orphan that outlives its parent makes the driver
-stop `blocked` rather than silently park. Manual `grove-llm` commands with no
+stop `blocked` rather than silently park. The escalation signals the session's
+process group, so an ambient command the session itself launched is reaped with
+it and only a process outside that group can still hold the guard
+([the launched child is a job](./adr/the-launched-child-is-a-job.md)). Manual `grove-llm` commands with no
 loop-control context keep their ordinary behavior.
 
 The lock order is fixed: lease, then a scoped exclusive epoch guard, released

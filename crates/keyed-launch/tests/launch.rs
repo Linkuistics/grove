@@ -11,6 +11,7 @@ use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::os::unix::process::ExitStatusExt as _;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::Duration;
 
 use keyed_launch::{
@@ -446,4 +447,170 @@ fn arguments_reach_the_child_as_written() {
         ended.token.as_ref().map(|t| t.as_str()),
         Some("one two  three")
     );
+}
+
+// ---------------------------------------------------------------------------
+// The child is a job of its own: its dispositions and its process group
+
+/// A path interpolated into a fixture script, single-quoted.
+///
+/// Every path below is a `TempDir`'s, so this only has to survive spaces —
+/// `/var/folders/…` on macOS. A path containing a single quote would need the
+/// real dance, and no fixture here can produce one.
+fn quoted(path: &Path) -> String {
+    format!("'{}'", path.display())
+}
+
+/// Ignore SIGINT for as long as this value lives — a launcher's own policy,
+/// which is what a driver that must survive a terminal Ctrl-C actually sets.
+///
+/// Restored on drop, because a disposition is process-global and every other
+/// test in this binary shares it.
+struct IgnoringSigint(libc::sighandler_t);
+
+impl IgnoringSigint {
+    fn new() -> Self {
+        // SAFETY: `signal(2)` setting and later restoring one disposition.
+        Self(unsafe { libc::signal(libc::SIGINT, libc::SIG_IGN) })
+    }
+}
+
+impl Drop for IgnoringSigint {
+    fn drop(&mut self) {
+        // SAFETY: restoring the disposition this value replaced.
+        unsafe { libc::signal(libc::SIGINT, self.0) };
+    }
+}
+
+/// **An ignored disposition is the one kind that survives `execve`.** A
+/// launcher that ignores SIGINT for its own reasons hands the ignore to its
+/// child, to that child's children, and to every wrapper the template names —
+/// and a non-interactive shell that inherits an ignored SIGINT keeps ignoring
+/// it *and forces it on what it spawns*. An interactive session under
+/// `sh -lc '…'` then cannot be interrupted at all, and nothing in it can say
+/// why.
+///
+/// The child here **reports what it inherited** rather than installing a
+/// handler of its own, which is the only fixture that can see the fault: a
+/// child that installs a handler overwrites the inherited disposition, so it
+/// behaves identically whether or not the launcher leaked one. `kill -INT $$`
+/// against the inherited disposition is that report — the default action kills
+/// a non-interactive shell, and an inherited ignore lets it run on to the line
+/// below.
+#[test]
+fn an_ignored_sigint_in_the_launcher_does_not_reach_the_child() {
+    const SIGINT: i32 = 2;
+
+    let harness = Harness::new();
+    let survived = harness.dir.path().join("survived-sigint");
+    let script = harness.script(&format!(
+        "kill -INT $$\nprintf 'inherited\\n' > {marker}\n",
+        marker = quoted(&survived)
+    ));
+
+    let ignoring = IgnoringSigint::new();
+
+    // The positive control, and it runs first on purpose. The same script under
+    // a plain `Command` — no runner, no reset — *does* inherit the ignore and
+    // writes the marker. Without seeing that, the assertion below would pass
+    // just as well on a fixture that could never detect an inherited ignore at
+    // all, which is the one thing it exists to rule out.
+    let control = Command::new("sh").arg(&script).status().unwrap();
+    assert!(
+        survived.exists(),
+        "control: a plain spawn must inherit the launcher's ignored SIGINT — \
+         the fixture cannot detect the fault it is testing for (status {control:?})"
+    );
+    fs::remove_file(&survived).unwrap();
+
+    let argv = harness.argv(&script);
+    let channel = Channel::allocate(&harness.control()).unwrap();
+    let ended = run(launch(&argv, &channel, &[], None)).unwrap();
+
+    drop(ignoring);
+
+    assert!(
+        !survived.exists(),
+        "the child inherited the launcher's ignored SIGINT: a session under a \
+         wrapper cannot be interrupted, and neither can anything it spawns"
+    );
+    assert_eq!(
+        ended.status.signal(),
+        Some(SIGINT),
+        "the child must have died of the SIGINT it sent itself, which is what \
+         the default disposition means: {:?}",
+        ended.status
+    );
+}
+
+/// The escalation signals the child's **process group**, so a grandchild — a
+/// tool subprocess, a language server, an agent's own in-flight command — is
+/// reaped with its parent instead of surviving it and staying attached to the
+/// terminal. A survivor is not merely untidy: it can hold a lock the launcher's
+/// caller is about to wait on, and then the SIGKILL buys a stall rather than a
+/// teardown.
+#[test]
+fn the_escalation_reaps_the_childs_descendants() {
+    let harness = Harness::new();
+    let grandchild_pid = harness.dir.path().join("grandchild-pid");
+    // Signals, then declines to end: the launch reaches the full escalation,
+    // and what it reaches for is what this test is about.
+    let script = harness.script(&format!(
+        "sh -c 'while : ; do sleep 0.05 ; done' &\n\
+         printf '%s\\n' \"$!\" > {pid}\n\
+         : > \"$TEST_CHANNEL\"\n\
+         while : ; do sleep 0.05 ; done\n",
+        pid = quoted(&grandchild_pid)
+    ));
+    let argv = harness.argv(&script);
+    let channel = Channel::allocate(&harness.control()).unwrap();
+
+    // The cross-check: the same shape of process, started at the same moment,
+    // in *this* process's group rather than the child's. It must be untouched.
+    // A fixture that reported "gone" for any pid — a `kill(2)` probe reading
+    // the wrong errno, say — would look identical without it.
+    let mut bystander = Command::new("sh")
+        .arg("-c")
+        .arg("while : ; do sleep 0.05 ; done")
+        .spawn()
+        .unwrap();
+
+    let ended = run(launch(&argv, &channel, &[], None)).unwrap();
+    assert_eq!(ended.end, End::Signalled);
+
+    let grandchild: i32 = fs::read_to_string(&grandchild_pid)
+        .expect("the fixture never reported its grandchild")
+        .trim()
+        .parse()
+        .unwrap();
+    assert!(
+        gone(grandchild),
+        "the grandchild outlived the escalation that killed its parent"
+    );
+    assert!(
+        bystander.try_wait().unwrap().is_none(),
+        "the escalation reached a process outside the launched job's group"
+    );
+
+    bystander.kill().unwrap();
+    bystander.wait().unwrap();
+}
+
+/// Whether `pid` is gone, waiting out the moment between its parent's death and
+/// `init` reaping it.
+fn gone(pid: i32) -> bool {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        // SAFETY: `kill(2)` with signal 0 — the existence probe, which sends
+        // nothing.
+        if unsafe { libc::kill(pid, 0) } == -1
+            && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+        {
+            return true;
+        }
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }

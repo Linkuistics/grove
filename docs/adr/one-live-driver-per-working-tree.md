@@ -83,9 +83,14 @@ beginning after invalidation fail against the inactive record or new nonce.
 Every epoch acquisition first tries without blocking, emits one diagnostic on
 contention, and waits for a fixed internal 30-second handoff bound. A timeout
 performs no tree access or epoch rewrite. In particular, if an orphaned
-`grove-llm` process retains a shared guard after its foreground parent is killed,
-post-reap invalidation times out and the driver stops `blocked` without
-interpreting the completion signal or launching another session. A restart may
+`grove-llm` process retains a shared guard, post-reap invalidation times out and
+the driver stops `blocked` without interpreting the completion signal or
+launching another session. *Orphaned* is narrower than it once was: the
+escalation signals the session's whole process group, so a command the session
+itself launched is reaped with it (*[the launched child is a
+job](./the-launched-child-is-a-job.md)*). What can still hold the guard is a
+process that was never in that group — one started from another session, another
+terminal, or by hand. A restart may
 continue once that already-admitted operation releases its guard. The bound,
 clock, control-path resolver, and randomness source are internal test seams, not
 user configuration. A test lock/filesystem backend with post-open/post-lock
@@ -119,8 +124,9 @@ given commit was this attempt's, and no retry path that reads one. The version
 control system owns the transaction, so a lost result is read from the operation
 log and rerun or undone there. Absence alone never licenses `done`. An operation
 already admitted under the crashed driver's epoch may also delay replacement
-invalidation; an orphan that holds the shared guard to the handoff bound makes
-that replacement stop `blocked` without creating a new task tree. Once the guard
+invalidation; an orphan outside the dead session's process group that holds the
+shared guard to the handoff bound makes that replacement stop `blocked` without
+creating a new task tree. Once the guard
 releases, a later invocation can invalidate the epoch and initialize the fresh
 tree. That tree may reuse keys such as `plan-k1`; epoch rotation, rather than
 global key uniqueness, rejects the old cooperating session's `grove-llm`

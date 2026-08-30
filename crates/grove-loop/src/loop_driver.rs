@@ -151,6 +151,17 @@ pub enum LoopOutcome {
     /// both that report and the skill directory it was about, so a session's
     /// environment is now entirely the human's to keep right.
     Stopped,
+    /// **The driver itself** was sent SIGTERM or SIGHUP and stopped the loop
+    /// because of it — carrying which one, because whoever started the driver
+    /// has to be told.
+    ///
+    /// Distinct from `Stopped`, which is the loop reaching a decision it was
+    /// designed to reach. This is the loop being taken away mid-grove: a
+    /// systemd unit restarting, a `timeout(1)` firing, a terminal closing. A
+    /// caller that mapped it to a clean exit would be telling its own parent
+    /// that a grove finished, so `crates/grove` ends on
+    /// [`keyed_launch::reraise`] and the parent sees `128 + N` instead.
+    Interrupted(i32),
 }
 
 /// **The whole loop**: `exists? → create or find next → determine the command →
@@ -218,9 +229,11 @@ fn drive(
         // spending it on the next child. Collecting it here is what keeps the
         // driver from going on mutating the tree and taking commits after its
         // terminal has gone.
-        if keyed_launch::take_interrupt() {
-            eprintln!("grove: interrupted between sessions — stopping the loop.");
-            return Ok(LoopOutcome::Stopped);
+        if let Some(signal) = keyed_launch::take_interrupt() {
+            eprintln!(
+                "grove: interrupted by signal {signal} between sessions — stopping the loop."
+            );
+            return Ok(LoopOutcome::Interrupted(signal));
         }
         driver_lease
             .revalidate()
@@ -298,9 +311,9 @@ fn drive(
             );
         }
 
-        if ended.end == End::Interrupted {
-            eprintln!("grove: interrupted — stopping the loop.");
-            return Ok(LoopOutcome::Stopped);
+        if let End::Interrupted { signal } = ended.end {
+            eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
+            return Ok(LoopOutcome::Interrupted(signal));
         }
 
         match signal {
@@ -457,9 +470,23 @@ const ESCALATION: Escalation = Escalation {
 
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
-/// (headless / test runs).
+/// (headless / test runs), or when this driver is not the terminal's foreground
+/// process group.
+///
+/// **The second guard is not tidiness, it is a hang.** `stty` sets terminal
+/// attributes, and `tcsetattr` from a *background* process group raises SIGTTOU
+/// at the caller whatever `TOSTOP` says — so a driver that is not the terminal's
+/// owner would spawn an `stty` that stops on its first act, and wait on a
+/// stopped child forever. A driver reaches here as the owner in the ordinary
+/// case, because the runner hands the terminal to the session and takes it back
+/// before returning; what this covers is the case where it never had it, which
+/// is `grove &` from a shell that kept the foreground for itself.
 fn reset_terminal() {
     if unsafe { libc::isatty(libc::STDIN_FILENO) } != 1 {
+        return;
+    }
+    // SAFETY: `tcgetpgrp(3)` on stdin, proved a terminal above, and `getpgrp(2)`.
+    if unsafe { libc::tcgetpgrp(libc::STDIN_FILENO) != libc::getpgrp() } {
         return;
     }
     let mut stty = Command::new("stty");
@@ -473,17 +500,31 @@ fn reset_terminal() {
     let _ = std::io::stdout().flush();
 }
 
-/// Ignore SIGINT in the driver so a terminal Ctrl-C (delivered to the whole
-/// foreground process group) does not kill the loop; the child session
-/// installs its own handler and still responds. The driver must survive the
-/// interrupt to reach the relaunch-vs-stop decision.
+/// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
+/// driver must survive the interrupt to reach the relaunch-vs-stop decision.
+///
+/// **This covers the gaps between sessions, and only those.** While a session
+/// is running it is the terminal's foreground process group in its own right —
+/// the runner puts it there and hands it the terminal — so a typed Ctrl-C is
+/// delivered to the session and never reaches the driver at all. This ignore is
+/// what holds in the moments the driver is transitioning the tree, selecting a
+/// leaf and expanding a template with no child in front of it.
+///
+/// **It does not leak into the session.** An ignored disposition is the one
+/// kind that survives `execve`, which is exactly why this used to reach the
+/// configured session, everything it spawned, and every wrapper a template
+/// named — a login shell that inherits an ignored SIGINT keeps ignoring it and
+/// passes it on, so Ctrl-C did nothing at all and nothing in the session could
+/// say why. The runner now resets the child's dispositions to their defaults
+/// across the spawn (`keyed_launch::run`), so this stays the driver's own
+/// policy rather than the subtree's.
 ///
 /// SIGINT and SIGINT alone, because it is the one disposition that is a
 /// *policy* rather than a mechanism: what a loop does about the human's Ctrl-C
 /// is the loop's business. SIGTERM and SIGHUP belong to the runner, which
-/// catches them itself so it can forward one to its child and reap it rather
-/// than orphan it onto the terminal — and reports that as
-/// [`keyed_launch::End::Interrupted`].
+/// catches them itself so it can forward one to its child's process group and
+/// reap it rather than orphan it onto the terminal — and reports that, with the
+/// signal, as [`keyed_launch::End::Interrupted`].
 fn ignore_interrupts() {
     unsafe {
         libc::signal(libc::SIGINT, libc::SIG_IGN);

@@ -52,9 +52,12 @@ mapping is one line: a **Session kind** is a key. Its decisions live in the grov
 context that owns them:
 [decision 7](./docs/specs/module-decomposition.md) for the interface,
 [*complete session configuration*](./docs/adr/complete-session-configuration.md)
-for what a template must be, and
+for what a template must be,
 [*the untracked configuration delta*](./docs/adr/untracked-configuration-delta.md)
-for the second document.
+for the second document, and
+[*the launched child is a job*](./docs/adr/the-launched-child-is-a-job.md) for
+what the child inherits, what the escalation reaps, and who owns the terminal
+while it runs.
 
 **`crates/grove-loop` and `crates/grove-llm` are two more crates and, unlike the
 three above, not even candidate contexts — they *are* the grove context.** The
@@ -176,6 +179,7 @@ for. Its decisions are the grove context's, as ever:
   [`a-lifecycle-claim-says-what-it-is-over`](docs/adr/a-lifecycle-claim-says-what-it-is-over.md),
   [`a-shared-safety-claim-names-the-role-not-the-artifact`](docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md),
   [`evidence-outlives-the-instrument`](docs/adr/evidence-outlives-the-instrument.md),
+  [`the-launched-child-is-a-job`](docs/adr/the-launched-child-is-a-job.md),
   and the two specs
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
   and [`module-decomposition`](docs/specs/module-decomposition.md). The rule

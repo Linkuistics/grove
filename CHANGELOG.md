@@ -51,6 +51,31 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The launched session is a job of its own** — its own process group, holding
+  the terminal, with default signal dispositions
+  (`docs/adr/the-launched-child-is-a-job.md`). Three defects go with it, all of
+  which predate the runner's extraction:
+  - **Ctrl-C reaches the session again.** The driver ignores SIGINT so a typed
+    interrupt cannot kill the loop, and an *ignored* disposition is the one kind
+    that survives `execve` — so the session inherited it, and so did everything
+    it spawned and every wrapper its command template named. Under
+    `sh -lc 'claude …'` Ctrl-C did nothing at all and `/exit` was the only way
+    out. `keyed_launch::run` now resets the terminal-generated signals to their
+    defaults across the spawn, so the driver's policy stays the driver's.
+  - **The kill escalation reaps descendants.** It signalled the session's pid, so
+    a tool subprocess, a language server or an in-flight `grove-llm` survived the
+    SIGKILL and stayed attached to the terminal. It now signals the process
+    group. The expensive case that closes: a surviving `grove-llm` holds shared
+    epoch admission, so the driver's post-reap invalidation waited out its full
+    30-second bound and then turned a session that had finished correctly into a
+    fatal error with its completion token discarded uninterpreted.
+  - **A signalled driver no longer exits 0.** `grove` killed by SIGTERM or
+    SIGHUP mid-grove restores the default disposition and dies of the same
+    signal after its cleanup, so a systemd unit, a `timeout(1)` or a shell
+    `wait` reads `128 + N` rather than a clean finish. `LoopOutcome` gained
+    `Interrupted(signal)` to carry it, and `End::Interrupted` now names the
+    signal it forwarded.
+
 - **The driver is a crate, both binaries are thin, and the repository root is no
   longer a package.** `driver_lease`, `loop_driver`, `prompt` and
   `session_config` moved out of the root `src/` into `crates/grove-loop`, and
@@ -60,8 +85,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
   (`docs/specs/module-decomposition.md`, decision 9). Both binaries are now
   packages over `grove-loop` rather than targets inside it, so *the binary is
   thin* is compiler-enforced for the human's as it already was for the session's.
-- **`run(workspace, lease, templates)` is the loop, and `LoopOutcome` is
-  `Finished` or `Stopped`.** The lease is taken by value, so it is released
+- **`run(workspace, lease, templates)` is the loop, and `LoopOutcome` says why
+  it ended.** The lease is taken by value, so it is released
   exactly when the loop that justified holding it returns. `templates` is a
   `TemplateSource` — *where* the launch configuration is read from — rather than
   a loaded configuration, because the loop re-reads it once per iteration: a

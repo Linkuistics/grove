@@ -79,6 +79,12 @@ use std::path::{Path, PathBuf};
 pub use complete::{interpret, Disposition};
 pub use driver_lease::{admit_ambient_session, DriverLease, SessionEpochGuard};
 pub use loop_driver::{run, LoopOutcome};
+/// Re-exported so the binary that owns this process's exit status can end on it
+/// without taking a direct dependency on the runner. Undoing the handler is the
+/// runner's to do — it is the crate that installed one
+/// (`crates/keyed-launch/src/run.rs`); *whether* to die of the signal is the
+/// binary's, and [`LoopOutcome::Interrupted`] is how the loop says it may.
+pub use keyed_launch::reraise;
 pub use prompt::{compose, Mandate};
 pub use session_config::{SessionConfig, TemplateSource};
 pub use jj_workspace::{Commit, Workspace};

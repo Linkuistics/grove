@@ -12,6 +12,14 @@ approved exception:
 
 - CLI verb names, arguments, help shape, structured/human output fields, and
   exit-status meanings.
+  **Excepted for one exit status, from `child-signal-disposition-k31`.** Bare
+  `grove` killed by SIGTERM or SIGHUP mid-grove now dies of that signal after its
+  cleanup instead of exiting 0, so a parent reads `128 + N`. v19.3.0 reported a
+  killed driver and a finished one identically, which no wrapper could act on;
+  the exception is argued in
+  [`the-launched-child-is-a-job`](adr/the-launched-child-is-a-job.md). Every
+  other exit status below, `grove-llm`'s included, is unchanged — this is the
+  driver's own death, not a verb's answer.
 - Configuration keys, environment overrides, defaults, and the current
   `session-kinds-v1` `.grove` format.
   **Excepted for the leaf filename grammar, from `grammar-separator-k15`.** A

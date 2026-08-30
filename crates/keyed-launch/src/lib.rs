@@ -33,6 +33,12 @@
 //! only at `Argv`, and each is usable without the other: a launcher that builds
 //! its argv some other way still cannot construct one, which is the point.
 //!
+//! **The child is a job.** It is spawned into a process group of its own and
+//! handed the launcher's controlling terminal, so a terminal signal reaches the
+//! child rather than the launcher, the escalation can reap a grandchild the
+//! child spawned, and a launcher's own ignored dispositions are not inherited
+//! across the `exec` by every wrapper the template names. See [`run`].
+//!
 //! **A launch ends out of band.** An interactive child returns to its prompt
 //! when it finishes rather than exiting, so its own exit is not the event
 //! anyone is waiting for. [`Channel`] is: a fresh path per launch that the
@@ -57,6 +63,6 @@ mod vocabulary;
 pub use argv::{Argv, Slot};
 pub use channel::{signal, Channel, Token};
 pub use error::{ConfigError, LaunchError};
-pub use run::{run, take_interrupt, End, Ended, Escalation, Launch};
+pub use run::{reraise, run, take_interrupt, End, Ended, Escalation, Launch};
 pub use templates::Templates;
 pub use vocabulary::{Requirement, SlotRule, Vocabulary};

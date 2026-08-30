@@ -12,11 +12,13 @@
 //     does: append at the parent's next free position, with a body the
 //     *creating session* is free to write.
 //   * a **research pair** is still one call, because its two producers must not
-//     see each other's framing. The library owns the shape and its
-//     all-or-nothing contract (`append_many`'s own interpreter); what only the
-//     binary can show is the *command* contract — stdout is the shape or it is
-//     nothing, and the verb sits beside `leaf-add` in `--help`, the surface a
-//     session re-orients on when it drops context.
+//     see each other's framing — but it is no longer a verb of its own. Since
+//     `open-kind-k20` it is `leaf-add` given an ordered **list** of kinds, which
+//     is what took the last kind literal out of the machinery: the three tokens
+//     are the methodology's and are spelled on the command line by the session
+//     that owns them. The library owns the shape and its all-or-nothing contract
+//     (`append_many`'s own interpreter); what only the binary can show is the
+//     *command* contract — stdout is the whole shape or it is nothing.
 
 use assert_cmd::Command;
 use std::fs;
@@ -546,13 +548,30 @@ fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
 }
 
 // ---------------------------------------------------------------------------
-// The research pair: still one call
+// The research pair: still one call, now spelled as a list of kinds
+
+/// The pair, as `leaf-add` spells it since `open-kind-k20`.
+const PAIR: [&str; 6] = [
+    "--kind",
+    "research-a",
+    "--kind",
+    "research-b",
+    "--kind",
+    "combine-research",
+];
+
+/// `leaf-add <parent> <stem>` followed by the pair's three kinds.
+fn pair_args<'a>(parent: &'a str, stem: &'a str) -> Vec<&'a str> {
+    let mut args = vec!["leaf-add", parent, stem];
+    args.extend_from_slice(&PAIR);
+    args
+}
 
 #[test]
-fn pair_prints_three_flat_siblings_with_fixed_research_kinds() {
+fn a_kind_list_lands_three_flat_siblings_at_consecutive_positions_and_keys() {
     let t = grove();
-    let (stdout, stderr, ok) = run(t.path(), &["leaf-add-pair", ".", "survey"]);
-    assert!(ok, "pair should succeed: {stdout} {stderr}");
+    let (stdout, stderr, ok) = run(t.path(), &pair_args(".", "survey"));
+    assert!(ok, "the pair should succeed: {stdout} {stderr}");
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 3, "one path per step: {stdout:?}");
     for (line, expected) in lines.iter().zip([
@@ -667,7 +686,7 @@ fn a_failed_run_prints_no_path_at_all() {
     let t = grove();
     fs::create_dir(t.path().join(".grove").join("01-research-a--survey-k1.md")).unwrap();
 
-    let (stdout, stderr, ok) = run(t.path(), &["leaf-add-pair", ".", "survey"]);
+    let (stdout, stderr, ok) = run(t.path(), &pair_args(".", "survey"));
 
     assert!(!ok, "the run must fail");
     assert_eq!(
@@ -685,44 +704,93 @@ fn a_failed_run_prints_no_path_at_all() {
     );
 }
 
+/// **`--kind` is required**, and this is the defect it closes.
+///
+/// It used to default to `impl`, so a session that forgot the flag got a
+/// perfectly well-formed `impl` leaf and no complaint — the one kind literal in
+/// the machinery that produced a *wrong* leaf rather than an error
+/// (`open-kind-k20`). Nothing downstream catches that: the tree is valid, the
+/// launch resolves, and the mistake surfaces as a session running the wrong
+/// discipline.
 #[test]
-fn pair_refuses_a_kind_because_its_kinds_are_fixed() {
+fn leaf_add_refuses_to_guess_a_kind() {
     let t = grove();
-    let (stdout, stderr, ok) = run(
-        t.path(),
-        &["leaf-add-pair", ".", "survey", "--kind", "design"],
+    let (stdout, stderr, ok) = run(t.path(), &["leaf-add", ".", "survey"]);
+    assert!(!ok, "an add with no kind must be refused, not defaulted");
+    assert_eq!(stdout, "");
+    assert!(
+        stderr.contains("--kind"),
+        "the refusal must name the missing flag: {stderr}"
     );
+    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
+}
+
+/// The same for `leaf-insert`, which carried the same default.
+#[test]
+fn leaf_insert_refuses_to_guess_a_kind() {
+    let t = grove();
+    let (_, _, ok) = run(t.path(), &["leaf-add", ".", "first", "--kind", "impl"]);
+    assert!(ok);
+    let (stdout, stderr, ok) = run(t.path(), &["leaf-insert", "1", "earlier"]);
+    assert!(!ok, "an insert with no kind must be refused, not defaulted");
+    assert_eq!(stdout, "");
+    assert!(stderr.contains("--kind"), "{stderr}");
+    assert_eq!(
+        tree(t.path()),
+        vec!["01-impl--first-k1.md", "BRIEF.md"],
+        "nothing inserted, nothing renumbered"
+    );
+}
+
+/// A kind grove has never heard of is accepted by the *grammar* and refused, if
+/// at all, by the configuration — never by a membership check.
+///
+/// The refusal an ill-formed one gets is a **shape** refusal naming the
+/// character it refused, which is what replaced the nineteen-label listing.
+#[test]
+fn an_ill_formed_kind_is_refused_by_shape_and_names_the_character() {
+    let t = grove();
+    let (stdout, stderr, ok) = run(t.path(), &["leaf-add", ".", "survey", "--kind", "Impl"]);
     assert!(!ok);
     assert_eq!(stdout, "");
     assert!(
-        stderr.contains("unexpected argument '--kind'"),
-        "the pair has no configurable kind: {stderr}"
+        stderr.contains("'I'"),
+        "the refusal must name the character it refused: {stderr}"
+    );
+    assert!(
+        !stderr.contains("integrate-review-prototype"),
+        "and it must not list a set grove no longer holds: {stderr}"
     );
     assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
 }
 
 #[test]
-fn pair_help_exposes_no_routing_flags() {
+fn leaf_add_help_exposes_no_routing_flags() {
     let t = grove();
-    let (stdout, _, ok) = run(t.path(), &["leaf-add-pair", "--help"]);
+    let (stdout, _, ok) = run(t.path(), &["leaf-add", "--help"]);
     assert!(ok);
     assert!(!stdout.contains("harness"), "got {stdout:?}");
-    assert!(!stdout.contains("--kind"), "got {stdout:?}");
+    assert!(stdout.contains("--kind"), "got {stdout:?}");
+    // The help teaches the shape and lists no set, because there is none.
+    assert!(
+        !stdout.contains("integrate-review-prototype"),
+        "got {stdout:?}"
+    );
 }
 
 #[test]
-fn pair_rejects_removed_harness_flags() {
+fn leaf_add_rejects_removed_harness_flags() {
     let t = grove();
     let (stdout, stderr, ok) = run(
         t.path(),
         &[
-            "leaf-add-pair",
+            "leaf-add",
             ".",
             "survey",
+            "--kind",
+            "impl",
             "--harness-a",
             "claude",
-            "--harness-b",
-            "codex",
         ],
     );
     assert!(!ok);
@@ -735,26 +803,28 @@ fn pair_rejects_removed_harness_flags() {
 }
 
 #[test]
-fn pair_requires_parent_and_stem() {
+fn leaf_add_requires_parent_and_slug() {
     let t = grove();
-    let (stdout, stderr, ok) = run(t.path(), &["leaf-add-pair", "."]);
+    let (stdout, stderr, ok) = run(t.path(), &["leaf-add", ".", "--kind", "impl"]);
     assert!(!ok);
     assert_eq!(stdout, "");
-    assert!(stderr.contains("<STEM>"), "{stderr}");
+    assert!(stderr.contains("<SLUG>"), "{stderr}");
     assert_eq!(
         tree(t.path()),
         vec!["BRIEF.md"],
-        "a malformed command must not leave a partial pair on disk"
+        "a malformed command must not leave a partial shape on disk"
     );
 }
 
+/// **There is no composite verb any more, and `--help` must not advertise one.**
+///
+/// `leaf-add-pair` was the last place the machinery held a list of kinds — three
+/// of them, constant — so `open-kind-k20` generalised the ordinary add rather
+/// than deleting the verb outright: deleting it and telling the skill to call
+/// `leaf-add` three times would have put back the live-prefix hazard the atomic
+/// run exists to exclude. Twelve verbs, not thirteen.
 #[test]
-fn the_surviving_composite_verb_sits_beside_leaf_add_in_help() {
-    // compose-task-chains-k29's failure mode was five documented surfaces and
-    // zero chains: a verb nobody reaches for is that failure with a compile
-    // step. `--help` is the surface a session re-orients on, so the one verb a
-    // session cannot express with `leaf-add` has to be visible there, next to
-    // the verb it composes.
+fn the_composite_verb_is_gone_and_the_kind_list_replaces_it() {
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
         .env("HOME", support::fixture_home())
@@ -762,21 +832,11 @@ fn the_surviving_composite_verb_sits_beside_leaf_add_in_help() {
         .output()
         .unwrap();
     let s = String::from_utf8_lossy(&out.stdout);
-    for verb in ["leaf-add", "leaf-add-pair"] {
-        assert!(
-            s.contains(verb),
-            "`{verb}` missing from grove-llm --help: {s}"
-        );
-    }
-    for gone in ["leaf-add-chain", "leaf-promote-chain"] {
+    assert!(s.contains("leaf-add"), "`leaf-add` missing from help: {s}");
+    for gone in ["leaf-add-pair", "leaf-add-chain", "leaf-promote-chain"] {
         assert!(
             !s.contains(gone),
             "`{gone}` no longer exists and must not be advertised: {s}"
         );
     }
-    let at = |v: &str| s.find(v).unwrap();
-    assert!(
-        at("leaf-add") < at("leaf-add-pair"),
-        "the composite verb sits immediately after the verb it composes: {s}"
-    );
 }

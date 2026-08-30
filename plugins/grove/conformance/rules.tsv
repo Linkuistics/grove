@@ -92,7 +92,7 @@ body-carries-no-launch-metadata	grove/TASK-FORMAT.md	B	on(writing a task body) @
 convention-not-grammar	grove/TASK-FORMAT.md	B+S	on(cutting a step) @ grove/references/decompose.md	What is convention rather than grammar
 handle-is-slug-key	grove/TASK-FORMAT.md	B	on(naming a work item) @ grove/references/decompose.md	
 header-is-position-free	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	
-kind-set-is-closed-at-nineteen	grove/TASK-FORMAT.md	B	on(cutting a leaf) @ grove/references/decompose.md	
+kind-set-belongs-to-the-methodology	grove/TASK-FORMAT.md	B	on(cutting a leaf) @ grove/references/decompose.md	a twentieth is authored, not compiled
 leaf-name-grammar	grove/TASK-FORMAT.md	B+S	on(cutting or reading a leaf) @ grove/references/decompose.md	Five fields, all parsed
 suggested-body-shape	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	A sixth section appears when a session is keeping one
 grilling-procedure	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	

@@ -423,17 +423,29 @@ _Avoid_: inferring authority from the existence or bytes of a control file. The 
 The launch-and-discipline label encoded only in a [[Leaf]] `.md` filename as
 `NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md`. The kind is routing
 metadata, not identity: the stable [[Work-item handle]] remains `<slug>-k<key>`.
-The closed set has nineteen members — five producers (`requirements`, `design`,
-`planning`, `prototype`, `impl`), each with its corresponding `review-` and
-`integrate-review-` kind, plus `research-a`, `research-b`, `combine-research`,
-and the driver-reserved `finish`. Every kind resolves one complete target
-through [[Grove configuration]]; a missing or unknown kind is a malformed tree
-that stops tree operations, never a degradation to `impl`. A [[Node directory]]
-is kind-free by construction and is never passed through this parser.
+**The set is open** (*a kind is an open token*): a kind is any well-formed token
+— non-empty, lowercase ASCII letters, digits and single dashes, no `--`, not a
+reserved marker — and grove holds no enumeration of them. Which kinds *exist* is
+which `grove-<kind>` [[Kind skill]]s are installed; the methodology's current set
+is nineteen, five producers (`requirements`, `design`, `planning`, `prototype`,
+`impl`) each with its `review-` and `integrate-review-` kind, plus `research-a`,
+`research-b`, `combine-research`, and the driver-reserved `finish`. Grove spells
+two of those tokens and no others, at the two places it writes a leaf itself:
+`requirements` for root scaffolding and `finish` for the teardown sentinel.
+Before it writes or launches a kind, that kind must resolve one complete target
+through [[Grove configuration]]; a kind that is **ill-formed** is a malformed
+tree that stops tree operations, never a degradation to `impl`, while a kind
+that is merely unrecognised parses and launches and fails in the session that
+could not load its skill. A [[Node directory]] is kind-free by construction and
+is never passed through this parser.
 _Avoid_: **task kind** — the label shapes and launches a session, and no longer
 lives in a `**Kind:**` task-file field.
 _Avoid_: plain `research` — a vendor pair uses the independently configurable
 `research-a` and `research-b` kinds.
+_Avoid_: a list of kinds in the machinery, in any form — an enum, a manifest
+grove reads, a default on a grow verb's `--kind`, or a constant naming a shape's
+steps. The two tokens above are the whole of it, and each is licensed by grove
+writing that leaf itself.
 
 **No migration**:
 Grove converts no task tree. A tree whose names the current grammar cannot spell
@@ -592,7 +604,7 @@ into that cycle's own confirmation, giving up to four questions about one fact.
 
 **Grove configuration** (`~/.config/grove/config.kdl`):
 The complete source of Grove's user configuration: a flat document assigning each
-of the nineteen [[Session kind]]s one complete command-template string, which
+[[Session kind]] one complete command-template string, which
 chooses the executable or wrapper and every user-controlled argument — harness,
 model, reasoning effort, approval, permission, and sandbox policy included.
 Templates use POSIX shell-word quoting but Grove invokes no shell: it parses the

@@ -105,7 +105,10 @@ fn add_to_empty_root_uses_position_one() {
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "first-step"]);
+    let (stdout, _, ok) = run(
+        tmp.path(),
+        &["leaf-add", ".", "first-step", "--kind", "impl"],
+    );
     assert!(ok, "leaf-add failed");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
@@ -126,7 +129,7 @@ fn add_to_nonempty_root_uses_next_position_and_fresh_key() {
     touch(&grove.join("01-impl--existing-k1.md"), "# existing-k1\n");
     stage_all(tmp.path());
 
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "second"]);
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "second", "--kind", "impl"]);
     assert!(ok);
     // Next root child is position 02; fresh key is max key (1) + 1 = 2.
     assert_eq!(
@@ -144,7 +147,7 @@ fn add_under_a_node_by_key_uses_child_position() {
     stage_all(tmp.path());
 
     // Parent referenced by its permanent key `1`.
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "1", "second"]);
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "1", "second", "--kind", "impl"]);
     assert!(ok);
     // Next child under the node is position 02; fresh key is max (2) + 1 = 3.
     assert_eq!(
@@ -161,7 +164,10 @@ fn add_under_a_node_by_path() {
     stage_all(tmp.path());
 
     // Parent referenced by its grove-root-relative directory path.
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "01-node-k1", "only"]);
+    let (stdout, _, ok) = run(
+        tmp.path(),
+        &["leaf-add", "01-node-k1", "only", "--kind", "impl"],
+    );
     assert!(ok, "leaf-add by path failed");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
@@ -189,17 +195,17 @@ fn add_with_planning_kind_writes_planning_in_filename() {
 
 #[test]
 fn add_accepts_every_non_reserved_kind() {
-    // task-kind-taxonomy: the whole parameterised set is writable, including the
+    // Every kind the plugin ships a skill for is writable, including the
     // hyphenated `review-*` and `integrate-review-*` steps — the labels most
-    // likely to be mangled between the CLI, the enum, and the leaf template.
+    // likely to be mangled between the CLI, the grammar, and the leaf template.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
-    for (i, label) in support::KIND_LABELS
+    for (i, label) in support::kind_labels()
         .iter()
-        .filter(|label| **label != "finish")
+        .filter(|label| *label != "finish")
         .enumerate()
     {
         let slug = format!("x{i}");
@@ -217,58 +223,107 @@ fn add_accepts_every_non_reserved_kind() {
     }
 }
 
+/// **A kind grove has never heard of is written**, and the only thing that can
+/// refuse it is the launch configuration.
+///
+/// This test used to assert the opposite — that an unrecognised `--kind` was
+/// rejected with all nineteen labels listed. `open-kind-k20` deleted the set:
+/// the grammar validates a token's shape, and *which* kinds exist is the
+/// installed methodology's answer. So the refusal a typo now gets names the kind
+/// and the file that must declare it, which is strictly more actionable than a
+/// list of nineteen.
 #[test]
-fn add_rejects_an_unrecognised_kind_listing_every_kind() {
+fn add_refuses_an_undeclared_kind_by_naming_it_and_the_file_that_must_declare_it() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "reserch"]);
-    assert!(!ok, "an unrecognised --kind must be rejected at write time");
-    for label in support::KIND_LABELS {
+    assert!(
+        !ok,
+        "a kind no template declares must be rejected at write time"
+    );
+    assert!(stderr.contains("reserch"), "got {stderr:?}");
+    assert!(stderr.contains("config.kdl"), "got {stderr:?}");
+    assert!(
+        !stderr.contains("integrate-review-prototype"),
+        "the refusal must not list a set grove no longer holds: {stderr:?}"
+    );
+    assert!(
+        !exists(tmp.path(), ".grove/01-reserch--x-k1.md"),
+        "a refused --kind must not leave a leaf behind"
+    );
+}
+
+/// **An ill-formed kind is refused by shape, naming the character it refused.**
+///
+/// This is what replaced the membership refusal above: the one thing the
+/// grammar can still say about a kind is whether it can be written into a
+/// filename and read back.
+#[test]
+fn add_rejects_a_kind_that_is_not_a_token_and_names_the_character() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    stage_all(tmp.path());
+
+    for (token, refused) in [("Impl", "'I'"), ("my_kind", "'_'"), ("a--b", "`--`")] {
+        let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", token]);
+        assert!(!ok, "`--kind {token}` must be refused");
         assert!(
-            stderr.contains(label),
-            "error must list {label:?}, got {stderr:?}"
+            stderr.contains(refused),
+            "the refusal must name what it refused, got {stderr:?}"
         );
     }
 }
 
+/// **`work` is an ordinary kind now.**
+///
+/// It was the previous spelling of `impl`, and `Kind::parse` refused it by name
+/// so a human who typed it was told the replacement. That was grove holding an
+/// opinion about what a kind *means*, which is exactly what `open-kind-k20`
+/// removed: the token is well-formed, so the grammar writes it, and whether a
+/// skill or a template exists for it is the methodology's answer to give.
 #[test]
-fn add_refuses_the_retired_work_kind_and_names_its_replacement() {
-    // The write half of the `work` → `impl` rename (task-kind-taxonomy). Write
-    // gates where read aliases: a human is present at authoring time, and the
-    // error has to retrain rather than merely reject — "not in the list" is
-    // useless advice for a word that was correct last week.
+fn the_retired_work_kind_is_now_just_a_token_the_configuration_decides_on() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "work"]);
-    assert!(!ok, "`--kind work` must be refused on write");
+    assert!(!ok, "no template declares `work` in this fixture");
     assert!(
-        stderr.contains("impl"),
-        "the error must name the replacement, got {stderr:?}"
+        stderr.contains("`work`"),
+        "the refusal is about the template, and names the kind: {stderr:?}"
     );
     assert!(
-        !exists(tmp.path(), ".grove/01-impl--x-k1.md"),
-        "a refused --kind must not leave a leaf behind"
+        !stderr.contains("renamed"),
+        "grove no longer knows `work` was ever a spelling of anything: {stderr:?}"
     );
 }
 
+/// **`--kind` is required, and this is the defect that closes.**
+///
+/// It defaulted to `impl`: a session that forgot the flag got a well-formed
+/// `impl` leaf and no complaint, which is the one kind literal in the machinery
+/// that produced a *wrong* leaf rather than an error (`open-kind-k20`).
 #[test]
-fn add_defaults_to_impl_when_no_kind_is_given() {
+fn add_refuses_to_guess_a_kind() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x"]);
-    assert!(ok);
-    let path = rel_path(&stdout, tmp.path());
-    assert_eq!(path, PathBuf::from(".grove/01-impl--x-k1.md"));
-    assert!(!read(tmp.path(), path.to_str().unwrap()).contains("**Kind:**"));
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x"]);
+    assert!(!ok, "an add with no kind must be refused, not defaulted");
+    assert_eq!(stdout, "");
+    assert!(stderr.contains("--kind"), "got {stderr:?}");
+    assert!(
+        !exists(tmp.path(), ".grove/01-impl--x-k1.md"),
+        "and above all it must not silently write an impl leaf"
+    );
 }
 
 // ── Removed per-leaf routing declarations ──────────────────────────────────
@@ -311,7 +366,7 @@ fn add_without_a_harness_writes_no_harness_line_at_all() {
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x"]);
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "impl"]);
     assert!(ok);
     let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
     assert!(!body.contains("Harness"), "got {body:?}");
@@ -365,7 +420,7 @@ fn add_rejects_invalid_slug() {
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
-    let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "Bad Slug"]);
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "Bad Slug", "--kind", "impl"]);
     assert!(!ok, "expected invalid-slug rejection");
     assert!(
         stderr.contains("slug") || stderr.contains("lowercase"),
@@ -382,7 +437,7 @@ fn add_under_nonexistent_parent_errors() {
 
     // Key 9 resolves to nothing (not a path, not a key) → the ref-or-path mapping
     // reports it could not be resolved.
-    let (_, stderr, ok) = run(tmp.path(), &["leaf-add", "9", "orphan"]);
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-add", "9", "orphan", "--kind", "impl"]);
     assert!(!ok, "expected error adding under a nonexistent parent");
     assert!(
         stderr.contains("no entry matches") && stderr.contains('9'),
@@ -402,7 +457,7 @@ fn insert_at_start_shifts_root_siblings_up_by_one() {
     stage_all(tmp.path());
 
     // Target the entry holding key 1 (leaf `a`).
-    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-insert", "1", "fresh"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-insert", "1", "fresh", "--kind", "impl"]);
     assert!(ok, "leaf-insert failed: {stderr}");
     // New leaf lands at position 01 with a fresh key (max 2 + 1 = 3).
     assert_eq!(
@@ -438,7 +493,7 @@ fn insert_cascades_a_node_subtree_with_position_free_headers() {
     touch(&grove.join("02-design--outer-k3.md"), "# outer-k3\n");
     stage_all(tmp.path());
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-insert", "1", "fresh"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-insert", "1", "fresh", "--kind", "impl"]);
     assert!(ok, "leaf-insert failed: {stderr}");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
@@ -476,7 +531,7 @@ fn insert_requires_an_existing_target() {
     touch(&grove.join("01-impl--a-k1.md"), "# a-k1\n");
     stage_all(tmp.path());
 
-    let (_, stderr, ok) = run(tmp.path(), &["leaf-insert", "9", "tail"]);
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-insert", "9", "tail", "--kind", "impl"]);
     assert!(!ok, "leaf-insert at a nonexistent target should error");
     assert!(
         stderr.contains("no entry matches"),

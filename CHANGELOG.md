@@ -51,6 +51,50 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **A session kind is an open token: Grove holds no list of kinds.** `Kind` was a
+  compiled enum of nineteen variants with a parse arm, a label arm and a
+  hand-maintained `ALL` roster; it is now a validated token — non-empty,
+  lowercase ASCII letters, digits and single dashes, no `--`, not a reserved
+  marker — and nothing else. The kinds that *exist* are the `grove-<kind>` skills
+  the installed methodology ships, so adding one is authoring a skill rather than
+  editing and releasing a binary. A leaf whose kind no skill declares **parses
+  and launches**, and the failure is reported by the session that could not load
+  the skill. Grove spells exactly two kind tokens, at the two places it writes a
+  leaf itself with no session to delegate to: `requirements` for root scaffolding
+  and `finish` for the teardown sentinel
+  (`docs/adr/a-kind-is-an-open-token.md`, `docs/specs/module-decomposition.md`
+  decision 5).
+- **Breaking: `--kind` is now required on `grove-llm leaf-add` and
+  `grove-llm leaf-insert`.** Both defaulted to `impl` — a kind literal under a
+  friendlier name, and the one that produced a *wrong* leaf rather than an
+  error, since a forgotten flag yielded a well-formed `impl` leaf and no
+  complaint.
+- **Breaking: `grove-llm leaf-add-pair` is removed; `leaf-add` takes an ordered
+  list of kinds.** `leaf-add <parent> <stem> --kind research-a --kind research-b
+  --kind combine-research` lands the research pair as one unit, at consecutive
+  positions with consecutive keys, or lands none of it. The verb was the last
+  place the machinery held a list of kinds. It was **generalised rather than
+  deleted**: telling the skill to call `leaf-add` three times would reintroduce
+  the live-prefix hazard the atomic run exists to exclude. Twelve verbs, not
+  thirteen.
+- **Changed: an unrecognised kind is no longer refused by the grammar.** The
+  refusal that listed all nineteen labels is now a **shape** refusal naming the
+  character it refused (`TaskNameError::UnknownKind` → `BadKind`), and a kind no
+  launch template declares is refused before the tree is mutated, naming the kind
+  and the file that must declare it. `--kind work` is an ordinary token now: the
+  `work` → `impl` rename alias is gone, because refusing a well-formed token by
+  naming a replacement is Grove holding an opinion about what a kind means.
+- **Removed: `src/leaf.rs`.** It held `Kind` alone, apart from the grammar's
+  three other validated components, because the set was closed and the label
+  doubled as a configuration key. With the set open, `Kind` is what `Slug` is —
+  and the *canonicity* of a leaf filename depends on the two obeying the same
+  shape rule — so both are `task_name`'s, validated by one function.
+  `SlugError` becomes `TokenError`, shared by both.
+- `grove` / methodology: the spine's decomposition procedure now spells a
+  research pair as a kind list, both grow verbs are documented as requiring
+  `--kind`, and `TASK-FORMAT.md` states that its nineteen are the methodology's
+  set rather than the binary's.
+
 ## v19.5.0
 
 - **Provisioning is deleted: Grove writes no skill directory, embeds no

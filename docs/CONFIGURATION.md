@@ -290,8 +290,9 @@ No diagnostic silently fills a target or falls back to another kind.
 
 Grove asks whether kind K resolves at the two moments it commits to K, and not
 before: **when it writes a leaf of kind K** — `grove-llm leaf-add`,
-`leaf-add-pair`, `leaf-insert`, `leaf-decompose` and `root-init` — and **when it
-launches K**. The check runs before the tree is mutated, so a refusal leaves the
+`leaf-insert`, `leaf-decompose` and `root-init` — and **when it
+launches K**. An add given several kinds asks about every one of them, before
+any of them lands. The check runs before the tree is mutated, so a refusal leaves the
 task tree byte-identical.
 
 ```text

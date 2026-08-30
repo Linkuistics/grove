@@ -197,12 +197,11 @@ fn the_shipped_methodology_instructs_no_verb_the_cli_lacks() {
 /// verb it names wrongly is a call a session cannot make and has no second
 /// source to correct it from. That was already true while the corpus was
 /// embedded; it is more so now that the two ship separately.
-const INSTRUCTED_VERBS: [&str; 11] = [
+const INSTRUCTED_VERBS: [&str; 10] = [
     "brief-chain",
     "complete",
     "finish-commit",
     "leaf-add",
-    "leaf-add-pair",
     "leaf-decompose",
     "leaf-insert",
     "leaf-prune",

@@ -26,14 +26,15 @@ crosses every module boundary.
 Nothing in the grammar resolved it. What resolved it was a closed set of
 nineteen kind labels and a longest-label match against them, which is a second
 source of truth about names living outside the type that owns them — and one
-that disappears when the kind becomes an open token. So the grammar gained the
-separator instead:
+that has since gone, at
+[`a-kind-is-an-open-token`](a-kind-is-an-open-token.md). So the grammar gained
+the separator instead, which is what made opening the set possible at all:
 
     NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md      a leaf
     NN-<slug>-k<key>                                    a node directory
 
 The middle splits at the **first** `--`; neither the kind nor the slug may
-contain one, which `Slug::new` enforces and no kind label carries. Node names are
+contain one, which one shared token validator enforces for both. Node names are
 untouched — a node has no kind, so it never had the ambiguity. A leaf name with
 no separator is refused, and the refusal names the canonical form, as every
 refusal here does.

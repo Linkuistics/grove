@@ -97,3 +97,87 @@ required and no `leaf-add-pair` beside it.
 
 **The rule is the test.** After this leaf: *grove names a kind only where grove
 writes the leaf, and the two tokens are the whole of it.*
+
+## Decisions (running log)
+
+**`Kind` moved into `src/task_name.rs`, and `src/leaf.rs` is deleted.** The
+module's stated reason for holding `Kind` apart from the other three name
+components was that the set was closed and the label doubled as a configuration
+key. Opening the set leaves `Kind` as exactly what `Slug` is — a validated word
+of the filename grammar — and the *canonicity* of a leaf name depends on the two
+words obeying the **same** shape rule, which is a grammar fact. So one private
+`refuse_token(noun, token)` states the shape once and `Kind::new` / `Slug::new`
+are two nouns over it. A second validator would have been a second statement of
+a rule the two must share; the leading/trailing-dash clause is the proof that
+they must — a kind ending in `-` renders `impl---slug`, which splits at the
+first `--` and reads back as a different kind and a different slug.
+
+**One error type, `TokenError`, replaces `SlugError`.** Its `reason` became an
+owned `String` because the Done-when requires the refusal to name the character
+it refused, which a `&'static str` cannot. `TaskNameError::UnknownKind` became
+`BadKind { name, kind, error }`, mirroring `BadSlug`.
+
+**Grove spells its two tokens through two constructors and one predicate** —
+`Kind::requirements()`, `Kind::finish()`, `Kind::is_finish()` — so the two
+literals have one home and the three surviving recognition sites (selection
+ordering, the grow verbs' refusal, teardown) ask a question rather than carry a
+token.
+
+**The `work` → `impl` alias is deleted.** It refused a well-formed token by
+naming a replacement, which is grove holding an opinion about a kind's *meaning*
+— exactly what this leaf removes. `work` is now an ordinary kind, and whether a
+skill exists for it is the methodology's answer to give.
+
+**`root-init` keeps its kind fixed rather than gaining a `--kind` option.** Both
+the spec (decision 5) and this leaf's `## Context` describe root-init as *taking
+a kind option*, so that `requirements` is "a default rather than a constant".
+It does not take one, and never has — `RootInitArgs` carries only a slug. The
+rule this leaf must land is unaffected either way (`requirements` is one of the
+two leaves grove authors, so naming it is licensed whether it is a default or a
+constant), and adding an option no `## Done when` line asks for would grow the
+verb surface in the leaf that exists to shrink it. Recorded here and carried to
+`spec-to-current-state-k23`, which rewrites the spec to current state and would
+otherwise re-assert it.
+
+**The no-list-of-kinds claim, enumerated rather than swept.** Every string
+literal in `src/` was extracted (2,486) and filtered by the kind-token
+predicate — non-empty, lowercase ASCII letters, digits, single hyphens, no
+`--` — which is complete by construction, since a kind literal must be a string
+of that shape. 698 candidates; 48 once test regions are excluded. Classified,
+all 48: binary and namespace names (`grove`, `grove-llm`), verb names passed to
+refusals (`leaf-add`, `leaf-retire`, …), lease record fields, completion
+dispositions, template slot names, flag long-names (`kind` is the *flag*), the
+`slug`/`session kind` nouns `refuse_token` is parameterised on, `stty sane`, and
+two **slugs** — `plan` (root-init's default slug) and `finish` (the sentinel
+leaf's slug, `NN-finish--finish-kN.md`). Exactly **two** are kind literals:
+`requirements` and `finish`, both in `Kind`'s two constructors. No `format!` or
+`concat!` in production builds a kind string either.
+
+Three controls, each watched failing first: a planted roster in a copied tree
+came back **dirty** (six tokens, including two from a `fn` rather than an array);
+redacting the two licensed constants made them **disappear** from the reading, so
+the instrument reads those lines rather than printing them unconditionally; and
+the same instrument over `tests/` found 151. The corpus run initially read `0` —
+a false clean from a `*.rs` glob over a markdown tree, which is the mis-scope
+`references/execute.md` warns about; matched to the tree it finds 269, which is
+where the kind set legitimately lives now.
+
+**Cutover: re-derived, and confirmed — but for a corpus reason, not a tree
+one.** The root brief requires each remaining leaf to re-run k6's matrix rather
+than inherit the label. On the **tree**, no cell fails: this leaf adds, removes
+and renames nothing in `.grove/`, every leaf still carries one of the nineteen,
+and the installed 19.5.0 build reads the tree this leaf leaves exactly as before.
+The failing cell is elsewhere. The **corpus** now tells a session to cut a
+research pair as `leaf-add <parent> <stem> --kind research-a --kind research-b
+--kind combine-research`, and 19.5.0 refuses a repeated `--kind`; `leaf-add-pair`
+is documented nowhere any more, so a session needing a pair has no working route
+against the old binary. That is the installed build meeting what this leaf leaves
+and failing, so the cutover sequence runs. The latent second cell — a later
+session writing a leaf whose kind the old enum does not hold, which 19.5.0 reads
+as `UnknownKind` and which halts the read for the **whole tree** — is why
+deferring is not an option even though no queued leaf triggers it.
+
+Step 2's precondition is met: the new build, run read-only, agrees with 19.5.0
+on `pick` for all five other live groves on this machine
+(`APIAnyware.add-ocaml-target`, `grove.code-walkthrough-for-ordinal-fs-tree`,
+`grove.gh-issue-12`, `grove` and `Writegood`). Nobody is stranded.

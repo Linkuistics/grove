@@ -78,7 +78,7 @@ positions) encodes (dependencies, natural sequence). One line per child is enoug
 ## On the horizon
 Foreseen work too dim to leaf yet — a question you can already state
 precisely, not one you can already answer (the fog-or-ticket test, in
-references/decompose.md). Once precise, `leaf-add` it and drop the line here.
+references/decompose.md). Once precise, `leaf-add` it — with its `--kind` — and drop the line here.
 
 ## Notes
 Anything a session needs that is not yet an ADR or a glossary entry. On

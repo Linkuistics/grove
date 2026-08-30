@@ -94,13 +94,14 @@ fn kind_of_a_planning_leaf() {
 }
 
 #[test]
-fn every_one_of_the_nineteen_round_trips_through_the_verb() {
+fn every_shipped_kind_round_trips_through_the_verb() {
     // The verb is the loop driver's only view of a leaf's kind, so the whole set
     // has to survive the file → stdout round trip, hyphens and all — a single
-    // lowercase token plus a newline, with nothing on stderr.
+    // lowercase token plus a newline, with nothing on stderr. The set is the
+    // shipped plugin's since `open-kind-k20`; the verb itself knows of none.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    for (i, label) in support::KIND_LABELS.iter().enumerate() {
+    for (i, label) in support::kind_labels().iter().enumerate() {
         let name = format!("{:02}-{label}--a-k{}.md", i + 1, i + 1);
         touch_leaf(&grove, &name, "bogus");
         let (stdout, stderr, ok) = run(tmp.path(), &["kind", &format!(".grove/{name}")]);

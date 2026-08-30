@@ -89,6 +89,16 @@ verification, and delete the throwaway afterwards.
 and the `finish` kind's to perform, on explicit human confirmation. Retiring this
 leaf is an ordinary retirement.
 
+**One spec statement that was never true, from `open-kind-k20`.** Decision 5 says
+*"Root-init takes a kind option, so the second token is a default rather than a
+constant"*, and `root-init` has never taken one — `RootInitArgs` carries a slug
+and nothing else, and the kind is fixed. k20 left it that way deliberately: the
+rule the decision states holds either way, since `requirements` is licensed by
+grove authoring that leaf whether the token is a default or a constant, and
+adding a CLI option no `## Done when` line asked for would have grown the verb
+surface in the leaf that exists to shrink it. The rewrite should state what is
+built, not re-assert the option.
+
 **One known doc residue, handed forward from `name-ownership-k14`.**
 `docs/ARCHITECTURE.md`'s `finish-commit` paragraph still contrasts the current
 guard against `finish_transaction::preflight_root`, a module

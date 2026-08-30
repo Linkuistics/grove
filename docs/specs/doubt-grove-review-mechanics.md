@@ -218,8 +218,8 @@ more. `leaf-add` takes its destination with an atomic non-clobbering create, so
 it can neither truncate nor write through whatever a writer that ignored the
 lock may have planted there; on a reported error it leaves nothing behind.
 Process death is a different question and is deliberately **not** covered: a
-killed `leaf-add` can leave a created-but-empty leaf, and a killed
-`leaf-add-pair` a partial shape. Finish teardown and the one-time session-kind
+killed `leaf-add` can leave a created-but-empty leaf, and a killed multi-kind
+`leaf-add` a partial shape. Finish teardown and the one-time session-kind
 migration remain the only operations that promise process-interruption recovery,
 each with its own in-tree witness; the residue here is a file to delete, not a
 transaction to recover.
@@ -281,11 +281,11 @@ the review leaf and selects its complete command from personal configuration.
 - Assert both deleted constructors (`leaf-add-chain`, `leaf-promote-chain`) are
   refused by the command surface, with an untouched tree, and that neither is
   advertised in `--help`.
-- Exercise `leaf-add-pair` as the one surviving composite: three flat siblings
-  with the fixed research kinds, one snapshot for positions and keys, every
-  destination swept before the first write, and a mid-write failure that unwinds
-  every leaf it created. A generated pair is byte-identical to the same three
-  leaves cut by hand.
+- Exercise `leaf-add` with a **kind list** as the one composite shape: three flat
+  siblings carrying the research kinds the caller named, one snapshot for
+  positions and keys, every destination swept before the first write, and a
+  mid-write failure that unwinds every leaf it created. A pair cut in one call is
+  byte-identical to the same three leaves cut by hand.
 - Assert retirement and pruning are filename-only over the whole `.grove/`
   subtree, by snapshot comparison with a positive control, so a producer's
   retirement provably writes nothing into the review beside it.

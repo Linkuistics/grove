@@ -8,12 +8,12 @@ pub mod driver_lease;
 // item in a `pub` module is reachable by definition, so `dead_code` says
 // nothing about one. Crate-private, the compiler enumerates the next dead
 // launch function for us instead of it needing to be hunted.
-// `leaf` holds `Kind` and nothing else now — it is live everywhere. Its legacy
-// lodgers are gone with the readers they served: the `NNN-slug` prefix parser
-// and the whole `leaf_id` v1-flat module went when the v1 verb path was swept
-// (task-tree-scheme, the install-and-reflip-v2 leaf), and the last of them
-// followed migration itself out (`delete-migration-k6`).
-pub mod leaf;
+// There is no `leaf` module. It held one item, `Kind`, and its stated reason for
+// sitting apart from the other three name components was that the set was closed
+// and the label doubled as a configuration key. `open-kind-k20` opened the set,
+// which left `Kind` as exactly what `Slug` is — a validated word of the filename
+// grammar, obeying the *same* shape rule, on which the canonicity of a leaf name
+// depends. It is `task_name`'s, and one function states that shape for both.
 pub mod llm_cli;
 pub(crate) mod loop_driver;
 // `prompt` owns the whole of `${prompt}` — every part of it, and the only place
@@ -46,7 +46,7 @@ pub mod session_config;
 // position-free `<slug>-k<key>` identity every other module carries — so there
 // is one grammar rather than a filename grammar plus six copies of half of one.
 pub mod task_name;
-// `task_grow` is `leaf-add`, `leaf-add-pair` and `leaf-insert` expressed through
+// `task_grow` is `leaf-add` and `leaf-insert` expressed through
 // that seam — the *migrate* stage's third leaf. What is left in it is what the
 // library has no counterpart for: grove's reference grammar, the preconditions
 // the library cannot see, the task-file template, and the cross-reference lint.

@@ -25,12 +25,20 @@
 //! worth nothing, so the skill-set claim is shown failing on a kind the plugin
 //! does not ship, and the size alarm on a synthetic oversized prompt.
 
-use grove::leaf::Kind;
 use grove::prompt::{self, Mandate};
-use grove::task_name::Handle;
+use grove::task_name::{Handle, Kind};
 use jj_workspace::Workspace;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+
+/// A [`Kind`] for a test that needs one, by its label.
+///
+/// A kind is an **open token** since `open-kind-k20`, so a test names the token
+/// it means rather than a variant, and an invalid one is a test bug that panics
+/// here rather than a compile error somewhere else.
+fn a_kind(label: &str) -> Kind {
+    Kind::new(label).expect("a test kind must be well-formed")
+}
 
 /// The alarm on the too-late test, per kind — **not a budget the design was
 /// fitted to**.
@@ -66,7 +74,7 @@ fn workspace() -> Workspace {
         .expect("this repository is a jj workspace, which is what the prompt states")
 }
 
-fn compose_with(kind: Kind, handle: &str) -> String {
+fn compose_with(kind: &Kind, handle: &str) -> String {
     let handle = Handle::parse(handle).expect("the fixture handle must parse");
     prompt::compose(&Mandate {
         handle: &handle,
@@ -76,7 +84,7 @@ fn compose_with(kind: Kind, handle: &str) -> String {
     })
 }
 
-fn compose(kind: Kind) -> String {
+fn compose(kind: &Kind) -> String {
     compose_with(kind, FIXTURE_HANDLE)
 }
 
@@ -97,9 +105,9 @@ fn compose(kind: Kind) -> String {
 fn the_prompt_is_three_parts_in_the_sessions_own_timeline_order() {
     let root = workspace().root().display().to_string();
 
-    for kind in Kind::ALL {
-        let prompt = compose(kind);
-        let skill = prompt::skill_name(kind);
+    for kind in shipped_kinds() {
+        let prompt = compose(&kind);
+        let skill = prompt::skill_name(&kind);
 
         let load_ends = prompt
             .find("\nGrove mandate: ")
@@ -156,8 +164,8 @@ fn the_prompt_is_three_parts_in_the_sessions_own_timeline_order() {
 /// did not stop being a `replace` chain.
 #[test]
 fn no_placeholder_survives_composition() {
-    for kind in Kind::ALL {
-        let prompt = compose(kind);
+    for kind in shipped_kinds() {
+        let prompt = compose(&kind);
         assert!(
             !prompt.contains('{') && !prompt.contains('}'),
             "an unspent placeholder reached {}'s prompt:\n{prompt}",
@@ -176,8 +184,8 @@ fn no_placeholder_survives_composition() {
 /// a prompt that names one kind and tells the session it is another fails.
 #[test]
 fn the_load_instruction_says_the_kind_was_already_resolved() {
-    for kind in Kind::ALL {
-        let prompt = compose(kind);
+    for kind in shipped_kinds() {
+        let prompt = compose(&kind);
         assert!(
             prompt.contains(&format!(
                 "Your kind is `{}`; Grove resolved\nthat before this session existed, so \
@@ -237,7 +245,7 @@ fn the_signalling_contract_states_the_mechanism_and_defers_the_ending() {
 /// The third part, sliced off a composed prompt rather than re-declared, so a
 /// check on it cannot pass against a copy the driver does not send.
 fn signalling_contract() -> String {
-    let prompt = compose(Kind::Impl);
+    let prompt = compose(&a_kind("impl"));
     let at = prompt
         .find("**Signal.**")
         .expect("every prompt ends on grove's signalling contract");
@@ -252,18 +260,18 @@ fn signalling_contract() -> String {
 /// a kind.
 #[test]
 fn every_kind_gets_the_same_signalling_contract() {
-    let contract = |kind: Kind| {
+    let contract = |kind: &Kind| {
         let prompt = compose(kind);
         let at = prompt
             .find("**Signal.**")
             .unwrap_or_else(|| panic!("`{}`'s prompt states no contract", kind.label()));
         prompt[at..].to_owned()
     };
-    let first = contract(Kind::Requirements);
+    let first = contract(&a_kind("requirements"));
     assert_eq!(first, signalling_contract());
-    for kind in Kind::ALL {
+    for kind in shipped_kinds() {
         assert_eq!(
-            contract(kind),
+            contract(&kind),
             first,
             "`{}`'s signalling contract differs from every other kind's — the driver has \
              started interpreting a kind again, which is the `match` this leaf deleted",
@@ -280,9 +288,9 @@ fn every_kind_gets_the_same_signalling_contract() {
 /// kinds it is not an ending for, in the one channel a session cannot skip.
 #[test]
 fn no_prompt_states_the_stop_flag() {
-    for kind in Kind::ALL {
+    for kind in shipped_kinds() {
         assert!(
-            !compose(kind).contains("--done"),
+            !compose(&kind).contains("--done"),
             "`{}`'s prompt names `--done`. The prompt states the mechanism; which ending a \
              kind takes is that kind's skill's, and only `grove-finish` passes the flag.",
             kind.label()
@@ -329,8 +337,8 @@ fn the_finish_skill_carries_the_three_endings_the_prompt_no_longer_routes() {
 /// actually used, so a reinstatement fails by name rather than by size.
 #[test]
 fn the_runtime_facts_restate_no_rule_the_skill_owns() {
-    for kind in Kind::ALL {
-        let prompt = compose(kind);
+    for kind in shipped_kinds() {
+        let prompt = compose(&kind);
         for smuggled in [
             "do not probe",
             "authoritative",
@@ -408,7 +416,7 @@ fn the_prompt_publishes_the_release_version_the_version_flag_renders() {
     let handle: Handle = Handle::parse(FIXTURE_HANDLE).expect("the fixture handle must parse");
     let prompt = prompt::compose(&Mandate {
         handle: &handle,
-        kind: Kind::Impl,
+        kind: &a_kind("impl"),
         workspace: &workspace(),
         version: env!("CARGO_PKG_VERSION"),
     });
@@ -421,13 +429,16 @@ fn the_prompt_publishes_the_release_version_the_version_flag_renders() {
 
 // -- The coupling to the shipped plugin --------------------------------------
 
-/// **Every kind the driver can name is a skill the plugin ships.**
+/// **Every kind the driver can name is a skill the plugin ships**, asserted as
+/// a round trip now that the plugin is the only place the set exists.
 ///
 /// The prompt may not name a skill that does not exist, and nothing in the
-/// compiler stops it: `skill_name` renders a label, and a kind added without a
-/// skill would compose a prompt pointing at nothing. Generated from the closed
-/// kind set rather than enumerated, so a twentieth kind fails here until its
-/// skill is authored.
+/// compiler stops it: `skill_name` renders a token. Before `open-kind-k20` this
+/// swept a compiled roster and asked whether the plugin had caught up; there is
+/// no roster now, so the claim runs the other way — for every skill the plugin
+/// ships, the kind read out of its directory name composes a prompt naming *that
+/// same directory*. A skill whose name is not `grove-<token>`, or a token
+/// `skill_name` renders differently, breaks it.
 ///
 /// This walks **directories**, which is half the claim;
 /// [`every_shipped_skill_declares_the_name_of_its_own_directory`] is the other
@@ -436,8 +447,15 @@ fn the_prompt_publishes_the_release_version_the_version_flag_renders() {
 #[test]
 fn every_kind_names_a_skill_the_plugin_ships() {
     let shipped = shipped_skills();
-    for kind in Kind::ALL {
-        let skill = prompt::skill_name(kind);
+    let kinds = shipped_kinds();
+    assert_eq!(
+        kinds.len() + 1,
+        shipped.len(),
+        "every shipped skill but the bare `{}` spine must be a `grove-<kind>`: {shipped:?}",
+        prompt::PLUGIN
+    );
+    for kind in kinds {
+        let skill = prompt::skill_name(&kind);
         assert!(
             shipped.contains(&skill),
             "`{}`'s prompt names the `{skill}` skill, which `plugins/grove/skills` does not \
@@ -529,6 +547,30 @@ fn every_shipped_skill_declares_the_name_of_its_own_directory() {
     }
 }
 
+/// The kinds this repository's plugin ships a skill for.
+///
+/// **This is the whole of what "the kind set" means now**, and it is the
+/// methodology's rather than grove's: `open-kind-k20` deleted `Kind::ALL`, so
+/// there is no compiled roster for a sweep to walk and the shipped plugin is the
+/// only enumerable set there is. The bare `grove` directory is excluded — it is
+/// the shared spine every kind reads, not a kind.
+///
+/// A directory whose token is not well-formed panics here rather than being
+/// skipped: the prompt would spell it into a skill name either way, and a
+/// silently dropped kind is a sweep that shrinks without saying so.
+fn shipped_kinds() -> Vec<Kind> {
+    let prefix = format!("{}-", prompt::PLUGIN);
+    shipped_skills()
+        .iter()
+        .filter_map(|directory| directory.strip_prefix(&prefix))
+        .map(|label| {
+            Kind::new(label).unwrap_or_else(|error| {
+                panic!("`skills/{prefix}{label}` does not name a session kind: {error}")
+            })
+        })
+        .collect()
+}
+
 /// The `grove-*` skill directories the plugin ships, by directory name — the
 /// name a harness registers, and the name a prompt spells.
 fn shipped_skills() -> BTreeSet<String> {
@@ -544,8 +586,8 @@ fn shipped_skills() -> BTreeSet<String> {
 
 #[test]
 fn every_kinds_prompt_stays_under_the_size_alarm() {
-    for kind in Kind::ALL {
-        let size = compose(kind).len();
+    for kind in shipped_kinds() {
+        let size = compose(&kind).len();
         assert!(
             size <= SIZE_ALARM,
             "the `{}` prompt is {size} bytes, past the {SIZE_ALARM}-byte alarm. Size is a \
@@ -563,7 +605,7 @@ fn every_kinds_prompt_stays_under_the_size_alarm() {
 /// `>` working.
 #[test]
 fn the_size_alarm_fires_on_an_oversized_prompt() {
-    let oversized = compose_with(Kind::Impl, &format!("{}-k1", "pad".repeat(SIZE_ALARM)));
+    let oversized = compose_with(&a_kind("impl"), &format!("{}-k1", "pad".repeat(SIZE_ALARM)));
     assert!(
         oversized.len() > SIZE_ALARM,
         "the alarm's comparison must be able to say no about a composed prompt"

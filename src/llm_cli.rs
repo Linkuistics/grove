@@ -21,9 +21,9 @@
 
 use crate::complete;
 use crate::driver_lease;
-use crate::leaf::Kind;
 use crate::session_config::SessionConfig;
 use crate::task_grow;
+use crate::task_name::Kind;
 use crate::task_tree;
 use crate::tree_lifecycle;
 use anyhow::{bail, Context, Result};
@@ -83,8 +83,9 @@ pub enum Command {
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
     },
-    /// Print a leaf's task **kind** — one of the closed nineteen — read from its
-    /// current-format filename.
+    /// Print a leaf's task **kind** — the token before the `--` — read from its
+    /// current-format filename. Any well-formed token is a kind: grove holds no
+    /// list of them (`docs/adr/a-kind-is-an-open-token.md`).
     /// With no argument the kind is read for `pick`'s next live leaf; on an
     /// empty grove it prints the standard "no live leaves" diagnostic on stderr
     /// (mirroring `brief-chain`) and exits 0. A task-shaped current filename
@@ -114,10 +115,28 @@ pub enum Command {
         /// permanent key) or a bare slug.
         reference: String,
     },
-    /// Append a child leaf under `<parent>` at the next gapless child position,
-    /// with a fresh permanent key. `<parent>` is `.` for the grove root, or a
-    /// node by its key (`[n]` / `n` / `<slug>-k<key>`) or its path. Prints the
-    /// new leaf's absolute path on stdout. Working-tree change only — no commit.
+    /// Append **one leaf per `--kind`**, in the order given, under `<parent>` at
+    /// the next gapless child positions with consecutive fresh permanent keys —
+    /// as one unit. `<parent>` is `.` for the grove root, or a node by its key
+    /// (`[n]` / `n` / `<slug>-k<key>`) or its path. `--kind` is required and
+    /// repeatable; every leaf of one call carries the same slug, because the kind
+    /// is what tells a shape's steps apart. Prints each new leaf's absolute path
+    /// on stdout in position order — and nothing at all if the run could not be
+    /// created. Working-tree change only — no commit.
+    ///
+    /// **A list is how a research vendor pair is cut**, and the whole reason the
+    /// list exists: `leaf-add <parent> <stem> --kind research-a --kind research-b
+    /// --kind combine-research` lands three flat siblings at consecutive
+    /// positions, all slugged `<stem>`, or lands none of them. Three separate
+    /// calls are three chances to stop half way, and a live prefix of a pair is
+    /// indistinguishable from a deliberately hand-cut partial one — so the run is
+    /// atomic here rather than a rule the caller keeps.
+    ///
+    /// **A pair is created eagerly where a review chain is created lazily, and
+    /// the asymmetry is deliberate.** If `research-a` cut `research-b` at the end
+    /// of its own session, `b` would inherit `a`'s framing and corpus, destroying
+    /// the independence the pair is run for. Cut one when a question is
+    /// load-bearing enough to pay for two independent corpora and blind spots.
     ///
     /// This is also how a **review chain** is built — one step at a time, each
     /// created only when it is required. A producer's last act is
@@ -148,30 +167,6 @@ pub enum Command {
     /// an ancestor. A `review-*` step re-derives its citations from the
     /// producer's commit and needs none of this care.
     LeafAdd(LeafAddArgs),
-    /// Append a whole **research vendor pair** under `<parent>` in one call —
-    /// three **flat siblings** at consecutive positions, all slugged `<stem>`,
-    /// with fixed filename kinds and no routing metadata in task bodies. The kind
-    /// is what tells the three apart, and the slug does not restate it.
-    ///
-    /// Three siblings, with three consecutive fresh keys:
-    ///
-    ///   NN    `research-a-<stem>-k…`
-    ///   NN+1  `research-b-<stem>-k…`
-    ///   NN+2  `combine-research-<stem>-k…`
-    ///
-    /// **A pair is created eagerly where a review chain is created lazily, and
-    /// the asymmetry is deliberate.** If `research-a` cut `research-b` at the
-    /// end of its own session, `b` would inherit `a`'s framing and corpus,
-    /// destroying the independence the pair is run for. Research also has no
-    /// `review-` sibling, so its shape is a pair rather than a chain and gets
-    /// its own verb. The two producer kinds are distinct routing targets by
-    /// construction. Cut one when a question is load-bearing enough to pay for
-    /// two independent corpora and blind spots.
-    ///
-    /// The whole shape is created or none of it is. Prints **three** absolute
-    /// paths on stdout in position order — and prints nothing at all if the
-    /// shape could not be created. Working-tree change only — no commit.
-    LeafAddPair(LeafAddPairArgs),
     /// Insert a new leaf at the slot held by `<target>`, shifting `<target>` and
     /// every later sibling up one position. `<target>` is an existing leaf or
     /// node by its key or path. Because the hierarchy lives in directories, each
@@ -296,7 +291,6 @@ impl Command {
             Self::Kind { .. } => "grove-llm kind",
             Self::Resolve { .. } => "grove-llm resolve",
             Self::LeafAdd(_) => "grove-llm leaf-add",
-            Self::LeafAddPair(_) => "grove-llm leaf-add-pair",
             Self::LeafInsert(_) => "grove-llm leaf-insert",
             Self::LeafDecompose(_) => "grove-llm leaf-decompose",
             Self::LeafRetire(_) => "grove-llm leaf-retire",
@@ -328,42 +322,49 @@ pub struct RootInitArgs {
 }
 
 /// `--kind` help for the two verbs that *create* a leaf. One const rather than
-/// two hand-copied copies, and written **generatively** — the producers, then
-/// "each with its own `review-` and `integrate-review-` step" — because the
-/// point of a help string is to teach the shape of the set; the full nineteen
-/// are one `--kind reserch` away, from `Kind::parse`'s error.
-const KIND_HELP: &str = "Leaf kind, written into the filename. Producers: requirements, \
-design, planning, prototype, impl — each with its own review-<producer> and \
-integrate-review-<producer> step; plus research-a, research-b, and combine-research. \
-`finish` is driver-reserved and refused by this verb. An unrecognised value errors, \
-listing all nineteen";
+/// two hand-copied copies.
+///
+/// **It teaches the shape and lists nothing**, because there is nothing to list:
+/// a kind is any well-formed token, and the set lives in the installed
+/// methodology rather than in this binary
+/// (`docs/adr/a-kind-is-an-open-token.md`). What the help owes instead is the
+/// two facts a caller cannot guess — what the grammar accepts, and that a kind
+/// no template declares is refused before the tree moves.
+const KIND_HELP: &str = "Leaf kind, written into the filename: lowercase ASCII letters, \
+digits and single dashes, no `--`. Grove holds no list of kinds — the installed methodology \
+does — so any well-formed token is accepted here and refused later if no launch template \
+declares it. `finish` is driver-reserved and refused by this verb";
 
 /// [`KIND_HELP`] for `leaf-decompose`, whose `--kind` overrides an inherited
 /// kind rather than supplying a default.
-const KIND_OVERRIDE_HELP: &str = "Override the first child's filename kind — one of the \
-nineteen session kinds except driver-reserved finish. Default: inherit the kind of the \
-leaf being decomposed";
+const KIND_OVERRIDE_HELP: &str = "Override the first child's filename kind — any session kind \
+except driver-reserved finish. Default: inherit the kind of the leaf being decomposed";
+
+/// A `--kind` argument, as the grammar's own type.
+///
+/// The refusal is the grammar's — a shape refusal naming the character it
+/// refused — with the flag quoted in front of it, so an operator sees which
+/// argument was rejected as well as why.
+fn parse_kind(token: &str) -> Result<Kind> {
+    Kind::new(token).map_err(|error| anyhow::anyhow!("--kind {token:?}: {error}"))
+}
 
 #[derive(Parser)]
 pub struct LeafAddArgs {
     /// Parent node — `.` for the grove root, or a node by its key
     /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
     pub parent: String,
-    /// Slug for the new leaf (lowercase ASCII letters, digits, dashes).
+    /// Slug every leaf of this call carries (lowercase ASCII letters, digits,
+    /// dashes).
     pub slug: String,
-    #[arg(long = "kind", default_value = "impl", help = KIND_HELP)]
-    pub kind: String,
-}
-
-#[derive(Parser)]
-pub struct LeafAddPairArgs {
-    /// Parent node — `.` for the grove root, or a node by its key
-    /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
-    pub parent: String,
-    /// Shared stem for all three leaves (lowercase ASCII letters, digits,
-    /// dashes). All three carry it verbatim as their slug — the `research-a`,
-    /// `research-b` and `combine-research` kinds already say which step is which.
-    pub stem: String,
+    /// One leaf is written per occurrence, in the order given.
+    ///
+    /// **Required, and it used to default to `impl`.** A default is a kind
+    /// literal under a friendlier name, and it is the one that would silently
+    /// produce a *wrong* leaf rather than an error — a session that forgot the
+    /// flag got an `impl` leaf and no complaint (`open-kind-k20`).
+    #[arg(long = "kind", required = true, help = KIND_HELP)]
+    pub kind: Vec<String>,
 }
 
 #[derive(Parser)]
@@ -373,7 +374,8 @@ pub struct LeafInsertArgs {
     pub target: String,
     /// Slug for the new leaf (lowercase ASCII letters, digits, dashes).
     pub slug: String,
-    #[arg(long = "kind", default_value = "impl", help = KIND_HELP)]
+    /// Required, for the reason `leaf-add`'s is (`open-kind-k20`).
+    #[arg(long = "kind", required = true, help = KIND_HELP)]
     pub kind: String,
 }
 
@@ -417,7 +419,6 @@ pub fn run() -> Result<()> {
         Command::Kind { leaf_path } => cmd_kind(leaf_path.as_deref()),
         Command::Resolve { reference } => cmd_resolve(&reference),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
-        Command::LeafAddPair(args) => cmd_leaf_add_pair(&args),
         Command::LeafInsert(args) => cmd_leaf_insert(&args),
         Command::LeafDecompose(args) => cmd_leaf_decompose(&args),
         Command::LeafRetire(args) => cmd_leaf_retire(&args),
@@ -450,7 +451,7 @@ fn cmd_complete(
 
 fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
     let (worktree, _) = grove_paths()?;
-    require_declared(&worktree, &[Kind::Requirements])?;
+    require_declared(&worktree, &[Kind::requirements()])?;
     let paths = tree_lifecycle::root_init(&worktree, &args.slug)?;
     for p in &paths {
         println!("{}", p.display());
@@ -530,35 +531,31 @@ fn cmd_resolve(reference: &str) -> Result<()> {
 
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     let (worktree, grove_root) = grove_paths()?;
-    let kind = Kind::parse(&args.kind)?;
-    require_declared(&worktree, &[kind])?;
-    let path = task_grow::leaf_add(&grove_root, &args.parent, &args.slug, kind)?;
-    println!("{}", path.display());
+    let kinds = args
+        .kind
+        .iter()
+        .map(|token| parse_kind(token))
+        .collect::<Result<Vec<_>>>()?;
+    require_declared(&worktree, &kinds)?;
+    let paths = task_grow::leaf_add(&grove_root, &args.parent, &args.slug, &kinds)?;
+    print_paths(&paths);
     Ok(())
 }
 
-/// Print `leaf-add-pair`'s paths — **after** the mutation succeeded, never as
-/// each leaf lands. A run that fails is rolled back, so stdout describing a
-/// shape the command reported as failed would be describing files that are no
-/// longer there.
+/// Print an add's paths — **after** the mutation succeeded, never as each leaf
+/// lands. A run that fails is rolled back, so stdout describing a shape the
+/// command reported as failed would be describing files that are no longer
+/// there.
 fn print_paths(paths: &[PathBuf]) {
     for p in paths {
         println!("{}", p.display());
     }
 }
 
-fn cmd_leaf_add_pair(args: &LeafAddPairArgs) -> Result<()> {
-    let (worktree, grove_root) = grove_paths()?;
-    require_declared(&worktree, &task_grow::PAIR)?;
-    let paths = task_grow::leaf_add_pair(&grove_root, &args.parent, &args.stem)?;
-    print_paths(&paths);
-    Ok(())
-}
-
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
     let (worktree, grove_root) = grove_paths()?;
-    let kind = Kind::parse(&args.kind)?;
-    require_declared(&worktree, &[kind])?;
+    let kind = parse_kind(&args.kind)?;
+    require_declared(&worktree, std::slice::from_ref(&kind))?;
     let inserted = task_grow::leaf_insert(&grove_root, &args.target, &args.slug, kind)?;
     report_insert(&grove_root, &args.slug, &inserted)
 }
@@ -596,7 +593,7 @@ fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
     let (worktree, grove_root) = grove_paths()?;
     // `None` (the default) inherits the decomposed leaf's own kind; `--kind`
     // overrides it (task-kind-taxonomy).
-    let kind_override = args.kind.as_deref().map(Kind::parse).transpose()?;
+    let kind_override = args.kind.as_deref().map(parse_kind).transpose()?;
     let leaf_path = normalize_leaf_path(&args.leaf_path);
     // The first child's kind, resolved *before* the mutation so the presence
     // rule can be asked about the kind this call will actually write. With no
@@ -608,14 +605,14 @@ fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
     // brief, a retired leaf and a malformed name with its own message, and a
     // presence check that errored first would replace those refusals with a
     // complaint about configuration.
-    let child_kind = match kind_override {
-        Some(kind) => Some(kind),
+    let child_kind = match &kind_override {
+        Some(kind) => Some(kind.clone()),
         None => task_tree::kind(&grove_root, Some(&leaf_path))
             .ok()
             .flatten(),
     };
-    if let Some(kind) = child_kind {
-        require_declared(&worktree, &[kind])?;
+    if let Some(kind) = &child_kind {
+        require_declared(&worktree, std::slice::from_ref(kind))?;
     }
     let (brief_path, child_path) = tree_lifecycle::leaf_decompose(
         &grove_root,
@@ -690,8 +687,9 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
 /// template read whole out of one file
 /// (`docs/adr/complete-session-configuration.md`). This replaces the
 /// all-nineteen completeness check, which grove can no longer make: nothing here
-/// enumerates the kinds a methodology declares, so the only honest question is
-/// about the kind in hand.
+/// enumerates the kinds a methodology declares — since `open-kind-k20` there is
+/// no enumeration to make it from — so the only honest question is about the
+/// kind in hand.
 ///
 /// It runs **before** the mutation, so a refusal leaves the tree byte-identical
 /// — and it loads the whole configuration to ask, which is what keeps the other
@@ -758,6 +756,15 @@ fn label(worktree: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A [`Kind`] for a test that needs one, by its label.
+    ///
+    /// A kind is an **open token** since `open-kind-k20`, so a test names the token
+    /// it means rather than a variant, and an invalid one is a test bug that panics
+    /// here rather than a compile error somewhere else.
+    fn a_kind(label: &str) -> Kind {
+        Kind::new(label).expect("a test kind must be well-formed")
+    }
     use std::fs::{self, File};
     use std::io::{self, Write};
     use std::os::fd::AsRawFd;
@@ -767,7 +774,8 @@ mod tests {
         let worktree = TempDir::new().unwrap();
         let paths = tree_lifecycle::root_init(worktree.path(), "plan").unwrap();
         let grove_root = worktree.path().join(".grove");
-        tree_lifecycle::leaf_decompose(&grove_root, &paths[1], "first", Some(Kind::Impl)).unwrap();
+        tree_lifecycle::leaf_decompose(&grove_root, &paths[1], "first", Some(a_kind("impl")))
+            .unwrap();
         (worktree, grove_root)
     }
 
@@ -793,10 +801,20 @@ mod tests {
     #[test]
     fn reference_taking_commands_acquire_the_tree_lock_once() {
         assert_one_acquisition(|grove_root| {
-            task_grow::leaf_add(grove_root, "1", "later", Kind::Impl).unwrap();
+            task_grow::leaf_add(grove_root, "1", "later", &[a_kind("impl")]).unwrap();
         });
         assert_one_acquisition(|grove_root| {
-            task_grow::leaf_add_pair(grove_root, "1", "survey").unwrap();
+            task_grow::leaf_add(
+                grove_root,
+                "1",
+                "survey",
+                &[
+                    a_kind("research-a"),
+                    a_kind("research-b"),
+                    a_kind("combine-research"),
+                ],
+            )
+            .unwrap();
         });
         assert_one_acquisition(|grove_root| {
             brief_chain_for(grove_root, None).unwrap().unwrap();
@@ -845,7 +863,7 @@ mod tests {
         };
         crate::task_tree::reset_read_count();
 
-        let inserted = task_grow::leaf_insert(&grove_root, "2", "earlier", Kind::Impl).unwrap();
+        let inserted = task_grow::leaf_insert(&grove_root, "2", "earlier", a_kind("impl")).unwrap();
         task_grow::surface_cross_refs(&grove_root, &inserted.renumbers, &mut output).unwrap();
 
         assert!(

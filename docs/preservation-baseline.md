@@ -27,6 +27,20 @@ approved exception:
   `.grove/FORMAT` witness that same entry names is also gone — its writers and
   readers went at `delete-migration-k6`, and this leaf's release removed the
   last file.
+  **Excepted again for the session-kind set and two verb signatures, from
+  `open-kind-k20`.** A kind is now an open token rather than one of a closed
+  nineteen, so `--kind` is **required** on `leaf-add` and `leaf-insert` where
+  both defaulted to `impl`; `leaf-add` takes a repeatable `--kind` and writes one
+  leaf per occurrence; the `leaf-add-pair` verb is gone, its shape spelled as
+  `leaf-add <parent> <stem> --kind research-a --kind research-b --kind
+  combine-research`; and a refusal that used to list all nineteen labels is now
+  a shape refusal naming the character it refused. Every verb table, transcript
+  and refusal captured below therefore records the surface of v19.3.0 rather
+  than one that must still hold. The exception is the approved kind this ledger
+  allows for, argued in
+  [`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md) and
+  [`docs/specs/module-decomposition.md`](specs/module-decomposition.md)
+  decision 5; the measurements themselves stay as they were taken.
 - Abstract outcomes across Git, native jj, and colocated jj workspaces.
   **Excepted for Git, from `drop-git-lane-k7`.** Grove now drives jj only and
   refuses a working tree with no `.jj/` before any mutation, so every Git row

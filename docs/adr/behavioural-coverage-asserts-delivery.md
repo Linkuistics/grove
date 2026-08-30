@@ -28,7 +28,9 @@ gap rather than a check that quietly covers everything except the rule.
 
 It was two until `prompt-names-the-kind-k18`. A `finish` session's three endings
 rode the prompt because the driver inlined a per-kind signal file; the prompt now
-states one signalling contract for all nineteen kinds, and the ending a kind
+states one signalling contract for **every** kind — the same text whatever the
+token, which is what makes it a contract rather than a per-kind decision — and
+the ending a kind
 takes moved to `grove-finish/SKILL.md`, where the spine already said a kind's own
 ending belongs. So the gap narrowed by a rule, and it narrowed by the rule being
 brought back inside the runner's reach rather than by the runner learning to read

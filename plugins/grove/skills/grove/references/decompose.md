@@ -8,6 +8,8 @@ to cover work that should have been its own leaf.
 - **A new concern** — the human raises it, or a tangent appears that does not
   serve *this leaf's stated goal* — goes to the tree with `grove-llm leaf-add`
   (or `leaf-insert` when it must sequence ahead of live leaves), **never** inline.
+  Both **require `--kind`**, and neither guesses one: the kind is what routes the
+  session, and a leaf given the wrong one is well-formed and silently wrong.
 - **The current item proves bigger** than its brief assumed — turn the leaf into
   a node with `grove-llm leaf-decompose`, doing **only the first child** this
   session. The remaining children are leaves a later session picks up fresh.
@@ -20,6 +22,14 @@ just-in-time, at the genuine seam, never speculatively. Externalizing is cheap,
 so spend it freely — a permanent key never moves, a renumber rewrites zero file
 contents, and `leaf-insert` exists precisely so a late-surfacing concern can slot
 ahead of queued work without disturbing it.
+
+**Grove holds no list of kinds.** A kind is any well-formed token — lowercase
+ASCII letters, digits and single dashes — and it names the `grove-<kind>` skill a
+session of that kind loads, so the set is exactly the set of skills installed.
+A token no skill exists for is written, launched, and reported by the session
+that could not load it. What that buys is the whole of `TASK-FORMAT.md`'s set
+being the methodology's rather than the binary's; what it costs is that a typo'd
+kind is caught by the launch configuration rather than at the verb.
 
 Every grow verb is a working-tree change only; the enclosing task's commit folds
 it in. What each verb *does* — what it moves, retitles, creates, gates and
@@ -120,13 +130,18 @@ worth acting on**. A review that finds nothing creates nothing and simply
 retires — that empty session is what the laziness exists to remove, and deciding
 against review is a normal outcome at either step.
 
-**A pair is eager**: it lands in one call or not at all.
+**A pair is eager**: it lands in one call or not at all. There is no pair verb —
+the ordinary add takes an **ordered list of kinds** and appends them as one unit,
+at consecutive positions with consecutive keys:
 
-    grove-llm leaf-add-pair <parent> <stem>
+    grove-llm leaf-add <parent> <stem> --kind research-a --kind research-b --kind combine-research
 
 Cutting `research-b` lazily at the end of `research-a`'s session would let `b`
 inherit `a`'s framing and corpus, destroying the independence the pair is run
-for.
+for. Cutting the three as three separate `leaf-add` calls is the same failure
+wearing a different hat: three calls are three chances to stop half way, and a
+live prefix of a pair is indistinguishable from a deliberately hand-cut partial
+one. One call, one unit, or nothing.
 
 **The creating session writes the new leaf's body, and that is the payoff.**
 Because the leaf is cut by the session that knows *why* it is needed, it can

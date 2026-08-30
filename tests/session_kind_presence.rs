@@ -146,16 +146,31 @@ fn leaf_insert_asks_the_same_question() {
     assert_eq!(snapshot(&grove), before);
 }
 
-/// The pair verb writes three leaves as one unit, so all three kinds have to
-/// resolve before any of them lands.
+/// A kind **list** writes several leaves as one unit, so every kind in it has to
+/// resolve before any of them lands. The research pair is the shape that made
+/// this matter, and since `open-kind-k20` it is spelled as an ordinary add.
 #[test]
-fn leaf_add_pair_requires_all_three_of_its_kinds() {
+fn a_kind_list_requires_every_one_of_its_kinds() {
     let repo = init_repo();
     let grove = seed_grove(repo.path());
     let home = home_declaring(&["impl", "research-a", "research-b"]);
     let before = snapshot(&grove);
 
-    let (stderr, ok) = run(repo.path(), home.path(), &["leaf-add-pair", ".", "survey"]);
+    let (stderr, ok) = run(
+        repo.path(),
+        home.path(),
+        &[
+            "leaf-add",
+            ".",
+            "survey",
+            "--kind",
+            "research-a",
+            "--kind",
+            "research-b",
+            "--kind",
+            "combine-research",
+        ],
+    );
 
     assert!(!ok, "{stderr}");
     assert!(

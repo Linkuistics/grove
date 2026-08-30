@@ -83,7 +83,8 @@ needed — so every close has the same four steps:
 
 1. **Check** the node's brief `Done when` against what its subtree delivered.
 2. **`leaf-add`** the missing work if the check fails and you can name the gap —
-   a failed check names *work*, and grove has one answer for missing work.
+   a failed check names *work*, and grove has one answer for missing work. Name
+   its `--kind`; the verb requires one and guesses nothing.
 3. **Escalate** — stop and say so — if the check fails and you *cannot* name the
    gap, because the residue is a scope judgement rather than work. That is an
    ordinary escalation, discretionary and always legitimate, not a routine gate.

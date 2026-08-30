@@ -265,7 +265,7 @@ fn leaf_add_appends_a_child_in_a_jj_native_tree() {
     let repo = tmp.path();
     build_grove(repo);
 
-    let (stdout, stderr, ok) = llm(repo, &["leaf-add", ".", "next"]);
+    let (stdout, stderr, ok) = llm(repo, &["leaf-add", ".", "next", "--kind", "impl"]);
     assert!(ok, "leaf-add failed: {stderr}");
 
     assert_eq!(
@@ -285,7 +285,7 @@ fn leaf_insert_renumbers_siblings_in_a_jj_native_tree() {
     let repo = tmp.path();
     build_grove(repo);
 
-    let (stdout, stderr, ok) = llm(repo, &["leaf-insert", "[1]", "urgent"]);
+    let (stdout, stderr, ok) = llm(repo, &["leaf-insert", "[1]", "urgent", "--kind", "impl"]);
     assert!(ok, "leaf-insert failed: {stderr}");
 
     assert_eq!(
@@ -489,7 +489,7 @@ fn leaf_insert_in_a_colocated_tree_leaves_the_git_index_alone() {
     let repo = tmp.path();
     let before = git_index(repo);
 
-    let (_, stderr, ok) = llm(repo, &["leaf-insert", "[1]", "urgent"]);
+    let (_, stderr, ok) = llm(repo, &["leaf-insert", "[1]", "urgent", "--kind", "impl"]);
     assert!(ok, "leaf-insert failed: {stderr}");
 
     assert!(

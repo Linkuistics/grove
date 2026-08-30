@@ -1,4 +1,4 @@
-// Grove's **grow verbs** — `leaf-add`, `leaf-add-pair` and `leaf-insert` —
+// Grove's **grow verbs** — `leaf-add` and `leaf-insert` —
 // expressed through `ordinal-fs-tree` (gh issue #13, increment 2, the *migrate*
 // stage's third leaf). `append`, `append_many` and `insert` are the operations;
 // what is left here is grove's own: the reference grammar, the preconditions the
@@ -37,8 +37,16 @@
 // destination sweep, the `O_EXCL` claim, the per-run rollback, the injected
 // post-claim failure — because `append_many` *is* the atomic run: one snapshot answers
 // every ordinal and every key, the plan is checked against itself before a byte
-// is written, and the interpreter unwinds its own effects. `leaf-add-pair` got
-// simpler, exactly as its brief predicted.
+// is written, and the interpreter unwinds its own effects.
+//
+// And `leaf-add-pair`, whose three kinds were a constant here — `research-a`,
+// `research-b`, `combine-research` — naming three kinds grove has no business
+// knowing (`open-kind-k20`). What it was *for* survives untouched: `leaf-add`
+// now takes an ordered list of kinds and lands them through the same
+// `append_many`, so the pair is `--kind research-a --kind research-b --kind
+// combine-research`, spelled by the methodology that owns those tokens. Deleting
+// the verb and telling the skill to call `leaf-add` three times was rejected: it
+// puts back the live-prefix hazard the atomic run exists to exclude.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -46,17 +54,19 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use ordinal_fs_tree::{Created, Entry, Key, NewEntry, Report, Snapshot, Species, Target};
 
-use crate::leaf::Kind;
-use crate::task_name::{Handle, Outcome, Parts, Slug, TaskName};
+use crate::task_name::{Handle, Kind, Outcome, Parts, Slug, TaskName};
 use crate::task_tree::{self, TreeWrite};
 
-/// `leaf-add <parent> <slug>`: append a child leaf under `parent` at the next
-/// free ordinal with a fresh key. `parent` is `.` for the grove root, or a node
-/// by key, handle, slug or path. Returns the new leaf's absolute path.
-/// Working-tree only — no commit.
+/// `leaf-add <parent> <slug> --kind K…`: append **one leaf per kind**, in the
+/// order given, under `parent` at the next free ordinals with consecutive fresh
+/// keys — as one unit. `parent` is `.` for the grove root, or a node by key,
+/// handle, slug or path. Returns the new leaves' absolute paths in ordinal
+/// order. Working-tree only — no commit.
 ///
-/// The kind is part of the filename; the body is the bare template — the stable
-/// header and empty task sections — which the creating session then fills in.
+/// The kind is part of each filename; every body is the bare template — the
+/// stable header and empty task sections — which the creating session then fills
+/// in. All the leaves of one call share the slug, because a list of kinds is one
+/// shape being cut and the kind is what tells its steps apart.
 ///
 /// **This verb is how a review chain is built** (flat-lazy-review). A producer's
 /// last act is `leaf-add <parent> <stem> --kind review-<producer>` when review is
@@ -64,49 +74,38 @@ use crate::task_tree::{self, TreeWrite};
 /// when it has findings worth acting on — every step slugged with the same bare
 /// stem, since the kind states its role. The steps are flat siblings, so nothing
 /// here knows they compose one artifact.
-pub fn leaf_add(grove_root: &Path, parent: &str, slug: &str, kind: Kind) -> Result<PathBuf> {
-    refuse_finish_kind(kind, "leaf-add")?;
+///
+/// **And it is how a research pair is cut**, which is why the list exists at all:
+/// `--kind research-a --kind research-b --kind combine-research`. A chain is
+/// created lazily, one step at a time, because each step's session knows
+/// something the previous one did not; a pair is created **eagerly and at once**,
+/// because a `research-b` cut by `research-a`'s own session would inherit that
+/// session's framing and corpus, destroying the independence the pair is run for.
+///
+/// # A list is not `leaf_add` called N times, and `append_many` is why
+///
+/// N calls would be N snapshots, N guards and N chances to stop half way — and a
+/// live prefix of a shape looks exactly like a deliberately hand-cut partial one.
+/// `append_many` plans the whole run from **one** snapshot, so the ordinals are
+/// contiguous and the keys consecutive by construction, and applies it as a unit,
+/// so either the whole list lands or none of it does.
+pub fn leaf_add(
+    grove_root: &Path,
+    parent: &str,
+    slug: &str,
+    kinds: &[Kind],
+) -> Result<Vec<PathBuf>> {
+    // The CLI makes `--kind` required, so this is unreachable from the verb; it
+    // is the library boundary's own answer, because a caller asking for nothing
+    // would otherwise get an empty success and no leaf.
+    if kinds.is_empty() {
+        bail!("leaf-add writes one leaf per `--kind` and was given none");
+    }
+    for kind in kinds {
+        refuse_finish_kind(kind, "leaf-add")?;
+    }
+    // The slug is every leaf's, validated once at the verb's own boundary.
     let slug = leaf_slug(slug)?;
-    let tree = task_tree::write(grove_root)?;
-    let (target, key) = {
-        let target = parent_node(&tree, parent)?;
-        (target, task_tree::next_key(tree.snapshot()))
-    };
-    let entry = new_leaf(key, Outcome::Live, kind, &slug);
-    let report = tree.append(target, entry).map_err(task_tree::raised)?;
-    Ok(allocated(report.created(), &[key])?.remove(0))
-}
-
-/// `leaf-add-pair <parent> <stem>`: append a whole **research pair** — three flat
-/// siblings all slugged with the bare `stem`, at consecutive ordinals with
-/// consecutive keys — under `parent`, as one unit. Returns the three paths in
-/// ordinal order.
-///
-/// The steps have fixed filename kinds `research-a`, `research-b` and
-/// `combine-research`, and **the kind is the only thing that distinguishes
-/// them**. It is also the only thing that needs to: the kind field is the
-/// canonical statement of a leaf's role, so the slug names the artifact and does
-/// not restate it.
-///
-/// **The pair stays eager while the review chain went lazy** (flat-lazy-review).
-/// Lazy creation is actively *wrong* here: a `research-b` cut by `research-a`'s
-/// own session would inherit that session's framing and corpus, and the
-/// independence of the two corpora is the entire reason a pair is run.
-///
-/// # This is not `leaf_add` three times, and `append_many` is why
-///
-/// Three calls would be three snapshots, three guards and three chances to stop
-/// half way — and a live prefix of a pair looks exactly like a deliberately
-/// hand-cut partial one. `append_many` plans the whole run from **one** snapshot,
-/// so the ordinals are contiguous and the keys consecutive by construction, and
-/// applies it as a unit, so either the whole pair lands or none of it does. The
-/// verb no longer sweeps destinations, claims files or rolls back: all three were
-/// grove's own reconstruction of what the library's interpreter already does.
-pub fn leaf_add_pair(grove_root: &Path, parent: &str, stem: &str) -> Result<Vec<PathBuf>> {
-    // The stem *is* the slug, three times over. Validated at this verb's own
-    // boundary rather than by borrowing the loop below: a stem is a slug, and
-    // this verb takes a stem.
-    let stem = leaf_slug(stem)?;
     let tree = task_tree::write(grove_root)?;
     let (target, keys) = {
         let target = parent_node(&tree, parent)?;
@@ -114,7 +113,7 @@ pub fn leaf_add_pair(grove_root: &Path, parent: &str, stem: &str) -> Result<Vec<
         // across a run. A run whose first key would already overflow predicts
         // nothing at all, and the library refuses it.
         let first = task_tree::next_key(tree.snapshot());
-        let keys: Vec<Option<Key>> = (0..PAIR.len() as u32)
+        let keys: Vec<Option<Key>> = (0..kinds.len() as u32)
             .map(|step| {
                 first
                     .and_then(|key| key.get().checked_add(step))
@@ -123,20 +122,16 @@ pub fn leaf_add_pair(grove_root: &Path, parent: &str, stem: &str) -> Result<Vec<
             .collect();
         (target, keys)
     };
-    let entries = PAIR
+    let entries = kinds
         .iter()
         .zip(keys.iter())
-        .map(|(kind, key)| new_leaf(*key, Outcome::Live, *kind, &stem))
+        .map(|(kind, key)| new_leaf(*key, Outcome::Live, kind.clone(), &slug))
         .collect();
     let report = tree
         .append_many(target, entries)
         .map_err(task_tree::raised)?;
     allocated(report.created(), &keys)
 }
-
-/// The pair's three steps, in the order they land. The kind is the whole of what
-/// distinguishes them, so this is the whole of the shape.
-pub(crate) const PAIR: [Kind; 3] = [Kind::ResearchA, Kind::ResearchB, Kind::CombineResearch];
 
 /// What a `leaf-insert` did: where the new leaf landed, and every sibling whose
 /// ordinal moved.
@@ -176,7 +171,7 @@ pub struct Inserted {
 /// refusal for the things a *reference* can be and an ordinal cannot: nothing at
 /// all, two entries at once, the root, or the charter brief.
 pub fn leaf_insert(grove_root: &Path, target: &str, slug: &str, kind: Kind) -> Result<Inserted> {
-    refuse_finish_kind(kind, "leaf-insert")?;
+    refuse_finish_kind(&kind, "leaf-insert")?;
     let slug = leaf_slug(slug)?;
     let tree = task_tree::write(grove_root)?;
     let root = tree.root().to_path_buf();
@@ -458,8 +453,12 @@ pub(crate) fn leaf_slug(slug: &str) -> Result<Slug> {
 }
 
 /// The `finish` kind is the driver's own and no operator verb may create one.
-pub(crate) fn refuse_finish_kind(kind: Kind, verb: &str) -> Result<()> {
-    if kind == Kind::Finish {
+///
+/// One of the two places grove names a kind at all, and it names it by asking
+/// [`Kind::is_finish`] rather than by holding a token here: grove recognising
+/// the leaf it writes itself (`open-kind-k20`).
+pub(crate) fn refuse_finish_kind(kind: &Kind, verb: &str) -> Result<()> {
+    if kind.is_finish() {
         bail!("`finish` is driver-reserved and cannot be created by `{verb}`");
     }
     Ok(())

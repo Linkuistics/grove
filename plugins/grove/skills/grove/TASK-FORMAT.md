@@ -18,7 +18,7 @@ and all structural:
 |---|---|
 | position `NN` | a 2-digit per-level number, its place among its directory's children; orders the `pick` walk |
 | outcome infix | absent while the leaf is live; `DONE` for retired work (`03-DONE-impl--extract-k7.md`) and `ABANDONED` for a path decided against (`03-ABANDONED-impl--extract-k7.md`, `leaf-prune`) — either keeps the leaf out of `pick`, marked in place |
-| session kind | one member of the closed set below; the key one command template is configured under |
+| session kind | one of the kinds below — the ones this methodology ships a skill for; the key one command template is configured under |
 | slug | a human name for the **artifact**, not for the leaf's role |
 | key `-k<key>` | stable identity, the terminal token, assigned once and never reused |
 
@@ -49,6 +49,14 @@ non-task files in the tree stay ignored.
 The set is **parameterised, not flat**: five producers, each with its own
 `review-` and `integrate-review-` step, plus a research pair and one
 driver-owned step.
+
+**It is this methodology's set, not grove's.** Grove holds no list of kinds and
+no count of them: a kind is any well-formed token — lowercase ASCII letters,
+digits and single dashes, no `--` — and the kinds that exist are the
+`grove-<kind>` skills installed. A kind exists **iff** a skill of that name
+exists, and a twentieth is authored, not compiled. Grove spells exactly two
+tokens itself, at the two places it writes a leaf with no session to delegate to:
+`requirements` for root scaffolding and `finish` for the teardown sentinel.
 
 | kind | review | integrate |
 |---|---|---|

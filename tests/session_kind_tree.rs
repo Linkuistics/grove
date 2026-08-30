@@ -149,21 +149,45 @@ fn current_tree_refuses_a_task_shaped_leaf_with_no_separator() {
 }
 
 #[test]
-fn current_tree_refuses_a_task_shaped_leaf_with_an_unknown_kind() {
+fn current_tree_reads_a_task_shaped_leaf_whose_kind_no_skill_declares() {
+    // **The scenario `open-kind-k20` inverted.** A kind grove has never heard of
+    // used to halt the read with a refusal listing all nineteen labels; grove
+    // holds no set now, so the name is well-formed, `pick` returns it, and the
+    // failure — if there is one — belongs to the session that could not load a
+    // `grove-mystery` skill. That is the spec's own scenario: *an unknown kind
+    // reaches the loop* → the tree parses and the launch proceeds.
     let repository = init_repo();
     let grove = current_grove(repository.path());
     write_leaf(&grove, "01-mystery--untyped-k1.md", "# untyped-k1\n");
 
     let output = grove_llm(repository.path(), &["pick"]);
 
-    // With the separator present there *is* a single token to quote back, which
-    // is what the kind refusal names alongside the closed set.
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(stdout(&output).contains("01-mystery--untyped-k1.md"));
+
+    let output = grove_llm(
+        repository.path(),
+        &["kind", ".grove/01-mystery--untyped-k1.md"],
+    );
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output).trim(), "mystery");
+}
+
+#[test]
+fn current_tree_refuses_a_task_shaped_leaf_whose_kind_is_not_a_token() {
+    // What is left to refuse: a token that cannot be written into a name and
+    // read back. The refusal names the file, the token, and the character.
+    let repository = init_repo();
+    let grove = current_grove(repository.path());
+    write_leaf(&grove, "01-My_Kind--untyped-k1.md", "# untyped-k1\n");
+
+    let output = grove_llm(repository.path(), &["pick"]);
+
     assert!(!output.status.success());
     let error = stderr(&output);
-    assert!(error.contains("01-mystery--untyped-k1.md"), "{error}");
-    assert!(error.contains("\"mystery\""), "{error}");
-    assert!(error.contains("requirements"), "{error}");
-    assert!(error.contains("finish"), "{error}");
+    assert!(error.contains("01-My_Kind--untyped-k1.md"), "{error}");
+    assert!(error.contains("\"My_Kind\""), "{error}");
+    assert!(error.contains("'M'"), "{error}");
 }
 
 #[test]
@@ -390,7 +414,10 @@ fn work_appended_behind_a_reserved_finish_leaf_is_still_selected() {
     let grove = current_grove(repository.path());
     write_leaf(&grove, "01-finish--finish-k1.md", "# finish-k1\n");
 
-    let output = grove_llm(repository.path(), &["leaf-add", ".", "late-work"]);
+    let output = grove_llm(
+        repository.path(),
+        &["leaf-add", ".", "late-work", "--kind", "impl"],
+    );
 
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(

@@ -46,8 +46,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use ordinal_fs_tree::fs::{Reading, Vacancy, Writing};
 use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Sought, Verdict};
 
-use crate::leaf::Kind;
-use crate::task_name::{self, Handle, Outcome, Parts, TaskName};
+use crate::task_name::{self, Handle, Kind, Outcome, Parts, TaskName};
 
 /// The task tree, read once under the library's shared lock.
 ///
@@ -521,7 +520,7 @@ fn live_leaf(entry: &Entry<'_, TaskName>) -> Option<(Kind, Handle)> {
             outcome: Outcome::Live,
             kind,
             slug,
-        } => Some((*kind, Handle::new(slug.clone(), triple.key))),
+        } => Some((kind.clone(), Handle::new(slug.clone(), triple.key))),
         _ => None,
     }
 }
@@ -601,7 +600,7 @@ fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selecte
     }
     let finish: Vec<_> = live
         .iter()
-        .filter(|(_, kind, _)| *kind == Kind::Finish)
+        .filter(|(_, kind, _)| kind.is_finish())
         .collect();
     if finish.len() > 1 {
         bail!(
@@ -615,16 +614,16 @@ fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selecte
     }
     let selected = live
         .iter()
-        .find(|(_, kind, _)| *kind != Kind::Finish)
+        .find(|(_, kind, _)| !kind.is_finish())
         .or_else(|| finish.first().copied());
     Ok(selected.map(|(entry, kind, handle)| SelectedLeaf {
         path: entry_path(root, *entry),
         handle: handle.clone(),
-        kind: *kind,
+        kind: kind.clone(),
     }))
 }
 
-/// `kind [<leaf>]`: the task's session kind — one of the closed nineteen, read
+/// `kind [<leaf>]`: the task's session kind — whatever token the name carries, read
 /// from the filename and never from the body.
 ///
 /// With `leaf_path = Some`, that leaf; with `None`, [`pick`]'s next live leaf,
@@ -639,7 +638,7 @@ pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>>
         return Ok(None);
     };
     match leaf_entry(&tree, &target)?.triple().map(|t| t.parts) {
-        Some(Parts::Leaf { kind, .. }) => Ok(Some(*kind)),
+        Some(Parts::Leaf { kind, .. }) => Ok(Some(kind.clone())),
         // Unreachable: `leaf_entry` refuses anything that is not a leaf.
         _ => bail!(
             "path is not a current-format Grove leaf: {}",
@@ -1030,6 +1029,15 @@ pub(crate) fn read_count() -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A [`Kind`] for a test that needs one, by its label.
+    ///
+    /// A kind is an **open token** since `open-kind-k20`, so a test names the token
+    /// it means rather than a variant, and an invalid one is a test bug that panics
+    /// here rather than a compile error somewhere else.
+    fn a_kind(label: &str) -> Kind {
+        Kind::new(label).expect("a test kind must be well-formed")
+    }
     use std::fs;
     use tempfile::TempDir;
 
@@ -1085,7 +1093,7 @@ mod tests {
             SelectedLeaf {
                 path,
                 handle: Handle::parse("selected-k7").expect("a well-formed handle"),
-                kind: Kind::ReviewImpl,
+                kind: a_kind("review-impl"),
             }
         );
         assert_eq!(
@@ -1501,23 +1509,41 @@ mod tests {
     fn kind_reads_an_impl_leaf() {
         let (_t, g) = grove();
         let leaf = touch_body(&g, "01-impl--a-k1.md", "**Kind:** impl\n\n## Goal\n");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(a_kind("impl")));
     }
 
     #[test]
     fn kind_reads_a_planning_leaf() {
         let (_t, g) = grove();
         let leaf = touch_body(&g, "01-planning--a-k1.md", "**Kind:** impl\n\n## Goal\n");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Planning));
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(a_kind("planning")));
     }
 
+    /// The verb reads whatever token the filename carries, including tokens no
+    /// methodology declares and none this repo has ever configured.
+    ///
+    /// It used to sweep `Kind::ALL`, which made the assertion *the reader agrees
+    /// with the enum* — true by construction and blind to the property that
+    /// matters now (`open-kind-k20`). The list below is shapes plus two tokens
+    /// grove has never heard of, and the point is that it cannot tell.
     #[test]
-    fn kind_reads_every_one_of_the_nineteen_from_filenames() {
+    fn kind_reads_whatever_token_the_filename_carries() {
         let (_t, g) = grove();
-        for (i, want) in Kind::ALL.into_iter().enumerate() {
-            let name = format!("{:02}-{}--a-k{}.md", i + 1, want.label(), i + 1);
+        for (i, label) in [
+            "requirements",
+            "impl",
+            "research-a",
+            "integrate-review-prototype",
+            "finish",
+            "postmortem",
+            "spike-2",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let name = format!("{:02}-{}--a-k{}.md", i + 1, label, i + 1);
             let leaf = touch_body(&g, &name, "**Kind:** bogus\n**Harness:** bogus\n");
-            assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(want));
+            assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(a_kind(label)));
         }
     }
 
@@ -1525,7 +1551,7 @@ mod tests {
     fn kind_ignores_a_legacy_work_label_in_the_body() {
         let (_t, g) = grove();
         let leaf = touch_body(&g, "01-impl--a-k1.md", "**Kind:** work\n\n## Goal\n");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(a_kind("impl")));
     }
 
     #[test]
@@ -1534,7 +1560,7 @@ mod tests {
         touch(&g, "01-DONE-impl--old-k1.md"); // skipped by pick
         touch_body(&g, "02-planning--live-k2.md", "**Kind:** impl\n");
         // No leaf arg ⇒ pick's next live leaf (02-live), whose kind is planning.
-        assert_eq!(kind(&g, None).unwrap(), Some(Kind::Planning));
+        assert_eq!(kind(&g, None).unwrap(), Some(a_kind("planning")));
     }
 
     #[test]
@@ -1553,7 +1579,7 @@ mod tests {
         touch(&node, "BRIEF.md");
         touch_body(&node, "01-impl--leaf-k2.md", "**Kind:** impl\n");
         let got = kind(&g, Some(Path::new("01-design-k1/01-impl--leaf-k2.md"))).unwrap();
-        assert_eq!(got, Some(Kind::Impl));
+        assert_eq!(got, Some(a_kind("impl")));
     }
 
     #[test]
@@ -1564,28 +1590,28 @@ mod tests {
             "01-impl--a-k1.md",
             "**Kind:** impl          (or: planning)\n",
         );
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(a_kind("impl")));
     }
 
     #[test]
     fn kind_reads_an_impl_filename_with_no_kind_line() {
         let (_t, g) = grove();
         let leaf = touch(&g, "01-impl--a-k1.md");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(a_kind("impl")));
     }
 
     #[test]
     fn kind_ignores_a_garbled_kind_token_in_the_body() {
         let (_t, g) = grove();
         let leaf = touch_body(&g, "01-impl--a-k1.md", "**Kind:** bogus\n");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(a_kind("impl")));
     }
 
     #[test]
     fn kind_ignores_a_family_name_written_in_the_body() {
         let (_t, g) = grove();
         let leaf = touch_body(&g, "01-impl--a-k1.md", "**Kind:** review\n");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(a_kind("impl")));
     }
 
     #[test]

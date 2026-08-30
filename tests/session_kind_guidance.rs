@@ -1,6 +1,6 @@
 //! The provisioned methodology's **session-kind** surface, asserted against the
-//! two things that cannot drift from the shipped behaviour: `Kind::ALL` and the
-//! real `grove-llm` command model.
+//! two things that cannot drift from the shipped behaviour: the plugin's own
+//! `grove-<kind>` skill set and the real `grove-llm` command model.
 //!
 //! The obvious way to write this file is a list of retired spellings —
 //! `**Kind:**`, `**Harness:**`, `--harness-a`, `seventeen` — checked one by one.
@@ -12,9 +12,12 @@
 //! So each claim here is generated from a source that moves when the product
 //! does:
 //!
-//! * The **set** comes from [`Kind::ALL`], so a kind added to the enum fails
-//!   until `content/TASK-FORMAT.md` names it, and the set's *size word* fails
-//!   until the prose is recounted.
+//! * The **set** comes from [`shipped_kinds`] — the `grove-<kind>` skills the
+//!   plugin ships — so a kind added by authoring a skill fails until
+//!   `TASK-FORMAT.md` names it, and the set's *size word* fails until the prose
+//!   is recounted. It came from a compiled `Kind::ALL` until `open-kind-k20`
+//!   deleted it; the plugin is now where the set exists, which is also the only
+//!   place a *reader* can find it.
 //! * The **filename grammar** is enumerated out of the guidance itself, and each
 //!   concrete example is put through `TaskName::parse` — the same call `pick`,
 //!   `resolve` and the grow verbs make — so an example the binary would refuse
@@ -38,11 +41,11 @@
 //! nothing: each classifier is shown rejecting the shape it exists to reject and
 //! accepting the one it exists to allow.
 //!
-//! **One surface here, and two that left.** Every sweep above reads `content/`
-//! as *documents*, which is what a provisioned skill is, and each is generated
-//! from `Kind::ALL` so that a twentieth kind fails in it. `Kind::ALL` itself is
-//! held to the enum in `src/leaf.rs`, without which every claim on this page is
-//! a claim about whatever `ALL` happens to hold.
+//! **One surface here, and two that left.** Every sweep above reads the shipped
+//! skills as *documents*, and each is generated from [`shipped_kinds`] so that a
+//! twentieth kind fails in it. That set is read off the plugin directory rather
+//! than listed, without which every claim on this page is a claim about whatever
+//! someone remembered to type.
 //!
 //! The **session-ending guard** read the corpus as composed mandates, and the
 //! **family-scope guard** read the units' declared `kinds=` scopes as data.
@@ -54,8 +57,7 @@
 //! pin** on the two ending files' own prose — not a claim about delivery at all.
 
 use clap::CommandFactory;
-use grove::leaf::Kind;
-use grove::task_name::{Parts, TaskName};
+use grove::task_name::{Kind, Parts, TaskName};
 use ordinal_fs_tree::{EntryName, Found, Verdict};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -80,6 +82,42 @@ const DOUBT_SKILL: &str =
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
+/// The session kinds the shipped plugin declares — one `grove-<kind>` skill
+/// each, read off the directory rather than listed.
+///
+/// **This is where the kind set lives now.** `open-kind-k20` deleted
+/// `Kind::ALL`: the machinery holds no enumeration, so the only honest source
+/// for a sweep is the methodology's own delivery. The bare `grove` directory is
+/// the shared spine every kind reads, not a kind, and is excluded. A directory
+/// whose token is not well-formed panics rather than being skipped — a silently
+/// dropped kind is a sweep that shrinks without saying so.
+fn shipped_kinds() -> Vec<String> {
+    let mut kinds: Vec<String> = fs::read_dir(manifest_dir().join("plugins/grove/skills"))
+        .expect("the plugin must ship a skills directory")
+        .map(|entry| entry.expect("readable directory entry"))
+        .filter(|entry| entry.path().is_dir())
+        .filter_map(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .strip_prefix("grove-")
+                .map(ToOwned::to_owned)
+        })
+        .inspect(|label| {
+            Kind::new(label)
+                .unwrap_or_else(|error| panic!("`skills/grove-{label}` is not a kind: {error}"));
+        })
+        .collect();
+    kinds.sort();
+    assert!(
+        kinds.len() > 3,
+        "the walk found {} `grove-<kind>` skills — a mis-scoped walk reports a clean \
+         surface for the wrong reason",
+        kinds.len()
+    );
+    kinds
 }
 
 /// Every `.md` file the shipped `grove` plugin carries, read from disk rather
@@ -161,10 +199,10 @@ fn cardinal(count: usize) -> &'static str {
 /// the moment it reaches the enum.
 #[test]
 fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
-    let missing: Vec<&str> = Kind::ALL
+    let kinds = shipped_kinds();
+    let missing: Vec<&String> = kinds
         .iter()
-        .map(|kind| kind.label())
-        .filter(|label| !TASK_FORMAT.contains(*label))
+        .filter(|label| !TASK_FORMAT.contains(label.as_str()))
         .collect();
     assert!(
         missing.is_empty(),
@@ -213,11 +251,11 @@ fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
 #[test]
 fn the_guidance_counts_the_kind_set_correctly() {
     const SURFACE: &str = "grove/TASK-FORMAT.md";
-    let word = cardinal(Kind::ALL.len());
+    let count = shipped_kinds().len();
+    let word = cardinal(count);
     assert!(
         TASK_FORMAT.contains(word),
-        "{SURFACE} must state the set's size as {word:?} — the taxonomy has {} members",
-        Kind::ALL.len()
+        "{SURFACE} must state the set's size as {word:?} — the plugin ships {count} kinds"
     );
 
     // The other direction: no *other* cardinal may be used to count kinds. Stated
@@ -225,8 +263,8 @@ fn the_guidance_counts_the_kind_set_correctly() {
     // "the five producers" and "all five `review-*` kinds" — real counts of real
     // subsets — do not read as stale claims about the whole set.
     let collapsed = TASK_FORMAT.split_whitespace().collect::<Vec<_>>().join(" ");
-    for (count, stale) in CARDINALS {
-        if count == Kind::ALL.len() {
+    for (stale_count, stale) in CARDINALS {
+        if stale_count == count {
             continue;
         }
         for phrasing in [
@@ -238,8 +276,7 @@ fn the_guidance_counts_the_kind_set_correctly() {
             assert!(
                 !collapsed.contains(&phrasing),
                 "{SURFACE} still counts the kind set as {stale:?} ({phrasing:?}); \
-                 it has {} members",
-                Kind::ALL.len()
+                 it has {count} members"
             );
         }
     }
@@ -273,9 +310,8 @@ enum Example {
 /// The kind labels plus the placeholders the guidance writes in a grammar
 /// sketch, longest first so `review-design` cannot be shadowed by `design`.
 fn kind_tokens() -> Vec<String> {
-    let mut tokens: Vec<String> = Kind::ALL
-        .iter()
-        .map(|kind| kind.label().to_owned())
+    let mut tokens: Vec<String> = shipped_kinds()
+        .into_iter()
         .chain(["<session-kind>".to_owned(), "<kind>".to_owned()])
         .collect();
     tokens.sort_by_key(|token| std::cmp::Reverse(token.len()));
@@ -784,7 +820,7 @@ fn own_long_flags(command: &clap::Command) -> BTreeSet<String> {
 
 /// Every long flag the `grove-llm` command model exposes, **indexed by the verb
 /// that owns it**. Flattening these into one set is what let a documented
-/// `leaf-add-pair --kind` pass on the strength of some *other* verb's `--kind`,
+/// `leaf-retire --kind` pass on the strength of some *other* verb's `--kind`,
 /// so the index is the point: a flag is real only on the verb the line names.
 /// Each verb's entry already includes the root command's own flags, which are
 /// accepted everywhere.
@@ -803,9 +839,9 @@ fn real_long_flags_by_verb() -> BTreeMap<String, BTreeSet<String>> {
          accepts every invented flag"
     );
     assert!(
-        !out["leaf-add-pair"].contains("kind"),
-        "`leaf-add-pair` must not own `--kind`: its three kinds are fixed by the \
-         shape, and this guard exists to catch guidance that says otherwise"
+        !out["leaf-retire"].contains("kind"),
+        "`leaf-retire` must not own `--kind`: it marks a leaf that already has \
+         one, and this guard exists to catch guidance that says otherwise"
     );
     out
 }
@@ -821,16 +857,18 @@ fn hyphenated_verbs() -> Vec<String> {
         .filter(|name| name.contains('-'))
         .collect();
     assert!(
-        verbs.iter().any(|verb| verb == "leaf-add-pair"),
-        "the verb walk missed `leaf-add-pair`: {verbs:?}"
+        verbs.iter().any(|verb| verb == "leaf-decompose"),
+        "the verb walk missed `leaf-decompose`: {verbs:?}"
     );
     verbs
 }
 
 /// One byte that can continue a verb name. A match must be bounded by
-/// non-continuing bytes on both sides, which is what stops `leaf-add-pair` from
-/// also reading as `leaf-add` — and so what keeps a `leaf-add-pair` line from
-/// borrowing `leaf-add`'s `--kind`.
+/// non-continuing bytes on both sides, so a longer token containing a verb name
+/// — `leaf-add-pair`, the composite verb `open-kind-k20` deleted, or any future
+/// one — cannot borrow that verb's flags. No verb is a prefix of another today,
+/// which is exactly why the boundary is asserted against a token rather than
+/// against a real pair: the property must not depend on the set staying flat.
 fn continues_verb(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'-'
 }
@@ -932,11 +970,11 @@ fn every_documented_grove_llm_flag_exists_on_the_real_verb() {
 #[test]
 fn the_flag_sweep_rejects_an_invented_selector_and_skips_an_anchor() {
     assert_eq!(
-        long_flags_in("grove-llm leaf-add-pair . stem --harness-a claude --harness-b codex"),
+        long_flags_in("grove-llm leaf-add . stem --harness-a claude --harness-b codex"),
         ["harness-a", "harness-b"]
     );
     let real = real_long_flags_by_verb();
-    assert!(!real["leaf-add-pair"].contains("harness-a") && !real["leaf-add"].contains("harness"));
+    assert!(!real["leaf-retire"].contains("harness-a") && !real["leaf-add"].contains("harness"));
     assert!(real["leaf-add"].contains("kind") && real["complete"].contains("done"));
 
     // A markdown anchor's double hyphen is not a flag.
@@ -954,10 +992,9 @@ fn the_flag_sweep_indexes_by_the_verb_the_line_names() {
     // A verb name is matched at its boundaries, so the longer verb on a line
     // does not also register as its own prefix.
     let verbs = hyphenated_verbs();
-    assert_eq!(
-        verbs_named_in("`grove-llm leaf-add-pair <parent> <stem>`", &verbs),
-        ["leaf-add-pair"],
-        "the longer verb must not also register as its own prefix"
+    assert!(
+        verbs_named_in("`grove-llm leaf-add-pair <parent> <stem>`", &verbs).is_empty(),
+        "a longer token containing a verb name must not register as that verb"
     );
     assert_eq!(
         verbs_named_in("`grove-llm leaf-add <parent> <slug> --kind impl`", &verbs),
@@ -965,9 +1002,9 @@ fn the_flag_sweep_indexes_by_the_verb_the_line_names() {
     );
 
     // The class of mismatch the flattened set could not see: `--kind` is real on
-    // `leaf-add`, and documenting it on `leaf-add-pair` must still fail.
+    // `leaf-add`, and documenting it on `leaf-retire` must still fail.
     assert_eq!(
-        unreal_flags_in("`grove-llm leaf-add-pair <parent> <stem> --kind design`"),
+        unreal_flags_in("`grove-llm leaf-retire <leaf> --kind design`"),
         ["kind"]
     );
     assert!(unreal_flags_in("`grove-llm leaf-add <parent> <slug> --kind design`").is_empty());

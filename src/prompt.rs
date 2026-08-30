@@ -39,8 +39,7 @@
 //! (`plugins/grove/skills/grove/SKILL.md`), and grove states the version it is
 //! so a session can see which plugin it needs.
 
-use crate::leaf::Kind;
-use crate::task_name::Handle;
+use crate::task_name::{Handle, Kind};
 
 use jj_workspace::Workspace;
 
@@ -60,7 +59,7 @@ pub const PLUGIN: &str = "grove";
 /// which kind it is, which is the whole of what decision 5 asked for: grove
 /// names a kind only where grove writes the leaf, and the last two places that
 /// *interpreted* one were the two `match`es this replaces.
-pub fn skill_name(kind: Kind) -> String {
+pub fn skill_name(kind: &Kind) -> String {
     format!("{PLUGIN}-{}", kind.label())
 }
 
@@ -127,7 +126,7 @@ Grove version: {version}.
 /// **Part 3 — grove's own signalling contract.** Last, because it describes the
 /// last action.
 ///
-/// **One text for all nineteen kinds**, where two embedded files used to serve
+/// **One text for every kind**, where two embedded files used to serve
 /// them, and the trade is deliberate rather than an oversight. What the driver
 /// holds — that it is watching a named file, that writing it ends the session,
 /// that not writing it stops the loop — is a fact about the process tree no
@@ -144,7 +143,7 @@ Grove version: {version}.
 /// the one session that may have just deleted the task tree, relaunches the loop
 /// onto a torn-down grove, and whose stated precondition (*the task is retired
 /// and committed*) a completed teardown satisfies exactly. A default stated as
-/// the main verb would put that imperative back in all nineteen prompts and rest
+/// the main verb would put that imperative back in every prompt and rest
 /// its repair on the skill being read, which is the argument this module's
 /// too-late test rejects. Stated as *ordinarily*, subordinate to the kind's own
 /// ending, no prompt ends on a bare imperative for the wrong action.
@@ -180,8 +179,8 @@ died.
 /// Everything one launch varies, and the whole of what composition reads.
 ///
 /// The shape is `docs/specs/module-decomposition.md`'s, decision 9. `kind` is
-/// taken by value rather than by reference — it is a `Copy` field-less enum, and
-/// which of the two the struct holds is not one of that decision's decisions.
+/// borrowed rather than owned: it became a validated token holding a `String` at
+/// `open-kind-k20`, and a mandate is read once and dropped.
 pub struct Mandate<'a> {
     /// The selected leaf's stable handle. Held as the owning type rather than as
     /// a rendered string: a handle is a projection of a name and the name's
@@ -189,7 +188,7 @@ pub struct Mandate<'a> {
     /// decision 4). This module composes text and spells no grammar of its own.
     pub handle: &'a Handle,
     /// The selected leaf's kind — rendered into a skill name, never interpreted.
-    pub kind: Kind,
+    pub kind: &'a Kind,
     /// The resolved jj workspace the session will run in. The **value** the
     /// prompt states the version control from, so no session ever detects it
     /// (`docs/ARCHITECTURE.md#symmetric-vcs-rule`).

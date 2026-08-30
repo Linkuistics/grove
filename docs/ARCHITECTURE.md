@@ -135,8 +135,11 @@ for how to launch it, so there is nothing left for an argument to select;
 
 `grove-llm` is for deterministic operations the methodology instructs:
 `root-init`; `pick`, `brief-chain`, `kind`, and `resolve`; `leaf-add`,
-`leaf-insert`, `leaf-decompose`, and `leaf-add-pair`; `leaf-retire` and
-`leaf-prune`; `finish-commit`; and `complete`. Every one of them mutates or
+`leaf-insert`, and `leaf-decompose`; `leaf-retire` and
+`leaf-prune`; `finish-commit`; and `complete`. **Twelve**, not thirteen:
+`open-kind-k20` deleted the research-pair verb by generalising `leaf-add` to take
+an ordered list of kinds, which is what took the last list of kinds out of the
+machinery. Every one of them mutates or
 resolves a task tree, so every one of them is admitted through the session-epoch
 guard. This split keeps a discoverable human API without forcing the agent to
 reproduce filesystem mutations from prose.
@@ -318,16 +321,19 @@ decomposition, and completion; `<slug>-k<key>` is the stable handle. A node is a
 directory; a leaf is Markdown. `DONE` and `ABANDONED` are terminal filename
 infixes, so picking and rendering need not parse file contents.
 
-`<session-kind>` is one member of the closed set, separated after the optional
-outcome infix. The set maintains a non-prefix invariant — no kind label followed
-by `-` prefixes another — so a shorter kind plus a slug can never render the same
-bytes as a longer kind plus a different slug. Node directory names stay
-kind-free, and kind is routing metadata rather than identity.
+`<session-kind>` is any well-formed token, separated from the slug by `--` after
+the optional outcome infix. The **separator** is what makes a name unambiguous:
+the middle splits at the *first* `--`, and neither token may contain one, so a
+shorter kind plus a slug can never render the same bytes as a longer kind plus a
+different slug. That used to rest on a non-prefix invariant over a closed label
+set; `open-kind-k20` removed the set, and the separator is what made removing it
+safe ([`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md)). Node directory
+names stay kind-free, and kind is routing metadata rather than identity.
 
 Every positioned, keyed name is task-shaped, and its `.md` suffix declares which
 species it is — present a leaf, absent a node directory. Such a name must parse
 completely as that species and name an entry that *is* that species on disk. A
-leaf with a missing or unknown kind, a node directory wearing a `DONE` or
+leaf with a missing or ill-formed kind, a node directory wearing a `DONE` or
 `ABANDONED` infix, a directory at a leaf's name, and a file or symlink at a
 node's name are all malformed trees that stop reads and mutations. Entries
 outside the grammar remain foreign and ignored at either species; `BRIEF.md`,
@@ -525,8 +531,7 @@ rollback has damaged.
 | verb | library operation | `Refusal`s it can reach |
 |---|---|---|
 | `pick`, `brief-chain`, `kind`, `resolve` | `walk`, `by_key`, `ancestors`, `distinguished_chain` | **none** — a search answers with `Sought`, which is deliberately not a refusal (nothing was asked to change), so no refusal exists to raise |
-| `leaf-add` | `append` | `KeysExhausted`, `OrdinalsExhausted` — and **not** `TargetNotNode` or `DestinationOccupied`; `growing-k33` corrected both rows |
-| `leaf-add-pair` | `append_many` | the same two |
+| `leaf-add` | `append` for one kind, `append_many` for a list | `KeysExhausted`, `OrdinalsExhausted` — and **not** `TargetNotNode` or `DestinationOccupied`; `growing-k33` corrected both rows. It reaches the same two through either operation, which is why `open-kind-k20` could fold the pair verb into it without adding a row |
 | `leaf-insert` | `insert` | `KeysExhausted`, `OrdinalsExhausted` — not `TargetNotNode`, because the target passed is the resolved entry's **container**, a node by construction; and not `DestinationOccupied`, per the row below |
 | `leaf-decompose` | `promote` | `KeysExhausted` alone, from the **first child** — a promotion allocates no key for the node, the entity being unchanged; and no ordinal at all, since the node takes the leaf's own and the child takes the first. `promotion-k34` corrected the `DestinationOccupied` this row predicted |
 | `leaf-retire`, `leaf-prune` | `rewrite` | **none**, and the row below says why the `DestinationOccupied` this table first predicted is unreachable |
@@ -572,7 +577,7 @@ message that collides is one no argument produces.
 | `NoDistinguishedChild` | **no** — Grove's distinguished child is `BRIEF.md`, so `TaskName::distinguished()` is `Some` and the refusal is about the *domain* rather than about any call. Asserted rather than assumed. That covers both operations the refusal serves: `leaf-decompose`'s promotion, and the root initialization Grove does not yet call. |
 | `RewriteSpeciesChange` | **no** — `leaf-retire` and `leaf-prune` compose leaf parts for an entry they have already matched as a live leaf. Confirmed by `marking-k32`: the classification reads `Parts::Leaf` off the snapshot and composes from its own `kind` and `slug`, so no path through either verb can hand `rewrite` node parts. |
 | `DestinationOccupied` | **no from any flipped verb**, and it took three leaves to establish. **Not from `leaf-retire` or `leaf-prune`** (`marking-k32`): the occupying name must be exactly the name the mark would place, and an outcome infix and a key are both *parts of one name*, so a `DONE` twin beside the live leaf necessarily carries the live leaf's key — which `task_tree::addressable_key` refuses first. **Not from the grow verbs either** (`growing-k33`), though this row predicted *yes on a hand-edited tree: a copied leaf duplicating a key*, and composing that tree is what showed otherwise. An **append** composes its name with `max + 1` over the whole tree, so no entry in the snapshot can already carry it, whatever a hand edit did. A **shift** composes `(ordinal + 1, key, parts)`, and the only entry that could already carry that name is the sibling one ordinal higher — itself a mover, and already vacated, because the renames run highest-first and the plan is folded through the snapshot in that order. That is the second thing highest-first buys, after the intermediate state, and `ops.rs` says as much in passing — *lowest-first is refused only where a hand edit already duplicated a key and its parts at adjacent ordinals*, which is the tree this row was reaching for. Asserted against `operations.qnt`'s `corrupted` instance rendered in Grove's grammar. **And not from `leaf-decompose`** (`promotion-k34`), which is the row this table predicted longest and the one that looked most likely, since a promotion's destination is composed from an ordinal and a key that already exist. That is exactly why it cannot fire: the node is `compose(ordinal, key, node parts)` with the promoted **leaf's own** ordinal and key, so an occupant of that name is a node carrying that key, the key is duplicated tree-wide, and `addressable_key` refuses before anything is planned. Both shapes of occupant are asserted — the node with a `BRIEF.md`, which is an ordinary hand edit, and the node without one, which is the interrupted promotion below. An adversarial pass sharpened this and is worth carrying: a promotion's **only** exposure to the refusal is its first effect. The two later destinations sit in the directory the plan has just created, and `plan.rs::occupied` answers `false` for a `Level::Created` unconditionally, so no tree state whatsoever — hand-edited, nested, or rollback-damaged — can make them refuse. **So this row rests on exactly one line of Grove's code**, `task_tree::addressable_key`'s tree-wide twin scan, and that is what would reopen it: narrowing the scan from `snapshot.walk()` to a level or a subtree, downgrading its refusal to a warning, or adding a verb that hands `promote` a key without it. A `read` that attached entries unreachable from the root would do it too, since the twin scan and the occupancy scan would stop seeing the same set. |
-| `ContentForANode` | **no** — discharged by the verb set. A node arises only through `leaf-decompose`, whose node parts carry no bytes and whose first child is a leaf; `leaf-add`, `leaf-add-pair` and `leaf-insert` compose leaf parts and nothing else. |
+| `ContentForANode` | **no** — discharged by the verb set. A node arises only through `leaf-decompose`, whose node parts carry no bytes and whose first child is a leaf; `leaf-add` and `leaf-insert` compose leaf parts and nothing else. |
 | `KeysExhausted` / `OrdinalsExhausted` | **yes** — a hand-written `-k4294967295`, or a position of `4294967295`. That is the exact edge: one more is refused by the grammar as [not canonical](adr/task-names-are-canonical.md), so nothing between the two states is representable. `KeysExhausted` reaches `leaf-decompose` too, and through the **first child** alone: a promotion allocates no key for the node, the entity being unchanged, so the verb's only `max + 1` is the child's. `OrdinalsExhausted` does not — the node takes the promoted leaf's own ordinal and the child takes the first. |
 
 | non-`Io` `Error` variant | reachable from Grove's verbs? |
@@ -665,8 +670,18 @@ that without re-deriving this table.
 <a id="task-kind-taxonomy"></a>
 ## Task kinds and composition
 
-The closed set of nineteen session kinds gives each session a discipline and
-gives the driver its configuration key.
+A session kind gives each session a discipline and gives the driver its
+configuration key. **Grove holds no set of them**
+([`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md)): a kind is any
+well-formed token — lowercase ASCII letters, digits and single hyphens, no `--` —
+and the kinds that *exist* are the `grove-<kind>` skills the installed
+methodology ships. The table below is the methodology's current set of nineteen,
+not the binary's; adding a twentieth is authoring a skill and declaring a
+template for it, never editing this repository's Rust.
+
+Grove spells exactly two kind tokens, and only where it writes the leaf itself
+with no session to delegate to: `requirements`, for the leaf `root-init` lays
+down, and `finish`, for the teardown sentinel.
 
 | Producer | Purpose | Review | Integration |
 |---|---|---|---|
@@ -679,6 +694,8 @@ gives the driver its configuration key.
 
 The nineteenth kind, `finish`, is driver-reserved: only the lifecycle creates a
 finish leaf, and the grow and terminal verbs refuse it as a kind or operand.
+That refusal is grove recognising a leaf it wrote itself, which is the licence
+for naming the token at all.
 
 Reviews are fresh-context adversarial reads that produce findings rather than
 fixes. Integrations verify each finding, then fix the contract, fix the
@@ -691,6 +708,12 @@ shared stem — neither gets a node directory:
 
 - Review chain: `X → review-X → integrate-review-X`
 - Research pair: `research-a → research-b → combine-research`
+
+Neither shape is known to the machinery. A chain is three separate `leaf-add`
+calls; a pair is one `leaf-add` given three kinds, which lands them as one unit
+at consecutive positions with consecutive keys. The three tokens are spelled on
+the command line by the session that owns them, which is what took the last list
+of kinds out of `src/`.
 
 Every step carries that stem as its **whole slug**, so a shape's leaves differ
 only by kind and key. The kind field is the canonical statement of a step's role
@@ -716,9 +739,13 @@ is required and a review cuts `integrate-review-<producer>` only when it has
 findings worth acting on. That removes the empty triage session, and it lets the
 creating session — the one that knows why the step is needed — write the new
 leaf's body with the specific case, finding, or datum a constructor could not
-have known. A research pair stays **eager**, one all-or-nothing call, because a
-`research-b` cut by `research-a`'s session would inherit that session's framing
-and corpus and destroy the independence the pair is run for.
+have known. A research pair stays **eager**, one all-or-nothing call — `leaf-add`
+with an ordered list of kinds — because a `research-b` cut by `research-a`'s
+session would inherit that session's framing and corpus and destroy the
+independence the pair is run for. Three separate calls would be the same failure
+in another form: three snapshots, three chances to stop half way, and a live
+prefix of a pair that is indistinguishable from a deliberately hand-cut partial
+one.
 
 Grove does not validate a cross-leaf grammar, so nothing groups the steps, orders
 them, or requires that a chain be complete or contiguous. Where a step *should*
@@ -786,9 +813,9 @@ teardown is restored with `jj undo` rather than by a Grove-authored recovery
 process-interruption consistency between cooperating Grove processes, not
 power-loss durability and not crash atomicity.
 
-Composite grow verbs need neither, and the promise they make is correspondingly
-narrower. `leaf-add-pair` is all-or-nothing **on a reported error** within one
-exclusive lock, and since `growing-k33` that is the library's doing rather than
+A multi-leaf add needs neither, and the promise it makes is correspondingly
+narrower. `leaf-add` given a list of kinds is all-or-nothing **on a reported
+error** within one exclusive lock, and since `growing-k33` that is the library's doing rather than
 Grove's: `append_many` plans the whole run from one snapshot — so the ordinals
 are contiguous and the keys consecutive by construction — checks the plan against
 that snapshot before a byte is written, and unwinds its own effects when the
@@ -896,7 +923,7 @@ every verb the migrate stage has yet to move should: the hazard belongs to
 
 #### A verb that reports on the tree it changed needs a second guard
 
-`growing-k33` moved `leaf-add`, `leaf-add-pair` and `leaf-insert` onto `append`,
+`growing-k33` moved `leaf-add` and `leaf-insert` onto `append`,
 `append_many` and `insert`, and one of them has an epilogue: `leaf-insert` lints
 stray position-prefixed cross-references left stale by the renumber it just made.
 The lint reads the tree the **shift left** — a shifted node took its whole

@@ -107,8 +107,11 @@ NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
 - `NN` is the mutable position among siblings.
 - `DONE` and `ABANDONED` are the two terminal outcomes, kept in place until the
   grove finishes.
-- `<session-kind>` is one of the nineteen kinds, and is what selects the command
-  template from your configuration.
+- `<session-kind>` is any well-formed token — lowercase ASCII letters, digits and
+  single dashes, no `--` — and is what selects the command template from your
+  configuration and names the skill a session loads. Grove holds no list of
+  kinds; the ones that exist are the `grove-<kind>` skills you have installed.
+  The `--` between the kind and the slug is what makes the name unambiguous.
 - `<slug>` is the human-readable name.
 - `k<key>` is the permanent identity. `<slug>-k<key>` is the **stable handle**,
   the way a work item is named in commit messages; it survives renumbering and
@@ -291,10 +294,14 @@ uncheckable. To abandon the whole reviewed path, prune each of its live steps �
 usually just the one, since a review leaf exists only because a producer decided
 review was required.
 
-Research is the exception that stays eager: `grove-llm leaf-add-pair <parent>
-<stem>` cuts all three steps in one all-or-nothing call. If `research-a` cut
-`research-b` at the end of its own session, `b` would inherit `a`'s framing and
-corpus — destroying the independence the pair is run for.
+Research is the exception that stays eager: `grove-llm leaf-add <parent> <stem>
+--kind research-a --kind research-b --kind combine-research` cuts all three steps
+in one all-or-nothing call. If `research-a` cut `research-b` at the end of its own
+session, `b` would inherit `a`'s framing and corpus — destroying the independence
+the pair is run for; and three separate calls would leave a live prefix
+indistinguishable from a deliberately hand-cut partial pair. There is no pair
+verb — `leaf-add` takes an ordered list of kinds, so the three tokens are spelled
+by the methodology that owns them rather than held in the binary.
 
 ## Finish
 

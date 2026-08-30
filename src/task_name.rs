@@ -45,6 +45,15 @@
 //                                                does not parse completely
 //   - `README.md`, anything else              -> `Foreign`
 //
+// **Both of a leaf name's words are this module's**, and since `open-kind-k20`
+// they are validated by one rule. `Kind` was a compiled enum living in a module
+// of its own, justified by being the key a command template is configured under;
+// what it actually was, once the set opened, is the other half of the shape
+// `Slug` already had — and the canonicity of a leaf name depends on the two
+// obeying the *same* rule, which is a grammar fact and belongs here. So
+// `src/leaf.rs` went, `refuse_token` states the shape once, and `Kind::new` and
+// `Slug::new` are two nouns over it.
+//
 // **The handle is part of this grammar, not a second one** (`name-ownership-k14`,
 // `docs/specs/module-decomposition.md` decision 4). `<slug>-k<key>` — the
 // position-free identity that crosses every module boundary, from the store that
@@ -71,8 +80,6 @@ use ordinal_fs_tree::{
     EntryName, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Triple, Verdict,
 };
 
-use crate::leaf::Kind;
-
 /// The name of a node's distinguished child: the charter every node directory is
 /// headed by.
 pub const BRIEF: &str = "BRIEF.md";
@@ -87,11 +94,12 @@ const KEY_MARK: &str = "-k";
 ///
 /// A single `-` cannot delimit them: both tokens are hyphenated words, so
 /// `design-decomposition` reads as kind `design` + slug `decomposition` **and**
-/// as kind `design-decomposition` + empty slug. Only matching the middle against
-/// the closed kind set resolves that today — the very thing `open-kind-k20`
-/// removes — so one filename would name two entries, differing in the *handle*.
+/// as kind `design-decomposition` + empty slug. Matching the middle against a
+/// closed kind set was the only thing that resolved that, and `open-kind-k20`
+/// took the set away — so the separator is now the *whole* of what says where
+/// the kind ends, and a name without it has no reading at all rather than two.
 /// The middle splits at the **first** `--`; neither token may contain one, which
-/// is why [`Slug::new`] refuses it and why no kind label carries it.
+/// is why [`refuse_token`] refuses it for both.
 const SEPARATOR: &str = "--";
 
 /// A leaf's outcome: live, retired (`DONE`), or abandoned (`ABANDONED`) —
@@ -138,20 +146,163 @@ impl Outcome {
     }
 }
 
-/// Why a string is not a well-formed [`Slug`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SlugError {
-    /// What is wrong with it, phrased for whoever has to fix the filename.
-    pub reason: &'static str,
+/// Why a string is not a well-formed [`Slug`] or [`Kind`].
+///
+/// **One refusal because there is one rule.** A leaf name is built from two
+/// words — the session kind and the slug — and whatever else they mean, each has
+/// to survive being written into a filename beside the `--` that separates them
+/// and read back as the same two words. A second error type would be a second
+/// statement of that shape, and the two would drift the first time either word's
+/// character set moved. `open-kind-k20` is what made the sharing possible: until
+/// then a kind was checked against a closed set rather than against a shape.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TokenError {
+    /// What is wrong with it, phrased for whoever has to fix the filename, and
+    /// **naming the offending character** where there is one — "not one of
+    /// those" about a forty-character name is a hunt.
+    pub reason: String,
 }
 
-impl fmt::Display for SlugError {
+impl fmt::Display for TokenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.reason)
+        f.write_str(&self.reason)
     }
 }
 
-impl std::error::Error for SlugError {}
+impl std::error::Error for TokenError {}
+
+/// The shape a leaf name's two words share — or the reason this string has not
+/// got it.
+///
+/// `noun` is the word being refused, so one rule produces a message that reads
+/// as though it had been written for the word in hand. Every clause here is
+/// load-bearing on the grammar rather than on taste:
+///
+/// * **empty** — a missing word would move the `--` and change where the name
+///   splits;
+/// * **the grammar's own markers** — reserved so a name cannot spell one;
+/// * **a leading or trailing dash** — a kind ending in one renders `impl---slug`,
+///   which splits at the *first* `--` and reads back as kind `impl`, slug
+///   `-slug`. Canonicity is what this clause protects, not tidiness;
+/// * **the separator** — either word containing `--` gives the name two readings;
+/// * **the character set** — everything outside it either blurs a name boundary
+///   (`.`, `/`) or collides with the uppercase outcome infixes.
+fn refuse_token(noun: &str, token: &str) -> Option<String> {
+    if token.is_empty() {
+        return Some(format!("a {noun} may not be empty"));
+    }
+    if matches!(token, "BRIEF" | "DONE" | "ABANDONED") {
+        return Some(format!(
+            "`BRIEF`, `DONE` and `ABANDONED` are reserved: the grammar's own markers, and a \
+             {noun} spelling one would name a marker instead"
+        ));
+    }
+    if token.starts_with('-') || token.ends_with('-') {
+        return Some(format!("a {noun} may not start or end with a dash"));
+    }
+    if token.contains(SEPARATOR) {
+        return Some(format!(
+            "a {noun} may not contain `{SEPARATOR}`: that is the separator between the session \
+             kind and the slug"
+        ));
+    }
+    if let Some(refused) = token
+        .chars()
+        .find(|c| !(c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-'))
+    {
+        return Some(format!(
+            "a {noun} holds lowercase ASCII letters, digits and dashes only, and {refused:?} is \
+             none of those"
+        ));
+    }
+    None
+}
+
+/// A leaf's **session kind**: the word before the `--`, the skill a session is
+/// told to load, and the key its command template is configured under.
+///
+/// **It is an open token, and that is the whole of the type**
+/// (`docs/adr/a-kind-is-an-open-token.md`, `docs/specs/module-decomposition.md`
+/// decision 5). It was a compiled enum of nineteen variants until
+/// `open-kind-k20`, with a parse arm, a label arm and an `ALL` roster per kind —
+/// so every kind the methodology has ever had was also a fact about the binary,
+/// and adding one meant editing and shipping Rust. Now grove validates the
+/// *shape* and holds no opinion about the meaning: a kind for which no skill is
+/// installed parses, launches, and fails in the session that could not load the
+/// skill, where a human is present to read the message.
+///
+/// **Grove spells exactly two of them**, and only because it writes those two
+/// leaves itself with no session to delegate to: [`Kind::requirements`] for
+/// root scaffolding and [`Kind::finish`] for the teardown sentinel. No third
+/// *kind* literal exists in the machinery, and no enumeration at all. (Other
+/// kind-**shaped** literals do — `plan` and `finish` are the two slugs grove
+/// names, and `leaf-add` and friends are verb names in refusals — which is why
+/// the claim is checked by enumerating every string literal and classifying it,
+/// never by grepping a list of kind names.)
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Kind(String);
+
+/// Root scaffolding's kind. One of the two tokens grove may name.
+const REQUIREMENTS: &str = "requirements";
+
+/// The driver-owned teardown sentinel's kind. The other one.
+const FINISH: &str = "finish";
+
+impl Kind {
+    /// Validate a string as a session kind.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TokenError`] for anything the grammar cannot render and read
+    /// back — the same shape a [`Slug`] obeys, for the same reasons.
+    pub fn new(kind: &str) -> Result<Self, TokenError> {
+        match refuse_token("session kind", kind) {
+            Some(reason) => Err(TokenError { reason }),
+            None => Ok(Self(kind.to_string())),
+        }
+    }
+
+    /// The kind of the leaf `root-init` lays down.
+    ///
+    /// A constructor rather than a constant so the literal has one home; grove
+    /// authors that leaf before any session exists, which is the licence for
+    /// naming a kind at all.
+    #[must_use]
+    pub fn requirements() -> Self {
+        Self(REQUIREMENTS.to_string())
+    }
+
+    /// The kind of the teardown sentinel the loop writes between the last
+    /// ordinary session and the finish session — the other leaf grove authors.
+    #[must_use]
+    pub fn finish() -> Self {
+        Self(FINISH.to_string())
+    }
+
+    /// Is this the driver's own sentinel?
+    ///
+    /// Grove recognising the leaf it wrote itself — which is what licenses the
+    /// three places that ask: `finish` sorting last in selection, the grow verbs
+    /// refusing to create one, and the loop's own teardown. Not an
+    /// interpretation of the methodology, which grove performs nowhere.
+    #[must_use]
+    pub fn is_finish(&self) -> bool {
+        self.0 == FINISH
+    }
+
+    /// The token as it appears in a filename, in a skill name, and as a
+    /// configuration key.
+    #[must_use]
+    pub fn label(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for Kind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 
 /// The human-facing part of a name. Not unique, and not identity — the key is.
 ///
@@ -167,36 +318,15 @@ impl Slug {
     ///
     /// # Errors
     ///
-    /// Returns [`SlugError`] for anything the grammar cannot render and read
+    /// Returns [`TokenError`] for anything the grammar cannot render and read
     /// back: an empty string, a leading or trailing hyphen, a character outside
     /// lowercase ASCII, digits and hyphens, or one of the reserved words the
     /// grammar's own markers use.
-    pub fn new(slug: &str) -> Result<Self, SlugError> {
-        let reason = |reason| Err(SlugError { reason });
-        if slug.is_empty() {
-            return reason("a slug may not be empty");
+    pub fn new(slug: &str) -> Result<Self, TokenError> {
+        match refuse_token("slug", slug) {
+            Some(reason) => Err(TokenError { reason }),
+            None => Ok(Self(slug.to_string())),
         }
-        if matches!(slug, "BRIEF" | "DONE" | "ABANDONED") {
-            return reason(
-                "`BRIEF`, `DONE` and `ABANDONED` are reserved: the grammar's own markers",
-            );
-        }
-        if slug.starts_with('-') || slug.ends_with('-') {
-            return reason("a slug may not start or end with a dash");
-        }
-        if slug.contains(SEPARATOR) {
-            return reason(
-                "a slug may not contain `--`: that is the separator between the session kind \
-                 and the slug",
-            );
-        }
-        if !slug
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-        {
-            return reason("a slug holds lowercase ASCII letters, digits and dashes only");
-        }
-        Ok(Self(slug.to_string()))
     }
 
     /// The slug as it appears in a filename.
@@ -239,7 +369,7 @@ pub enum HandleError {
         /// The offending slug.
         slug: String,
         /// Why it is not a slug.
-        error: SlugError,
+        error: TokenError,
     },
 }
 
@@ -554,12 +684,19 @@ pub enum TaskNameError {
         /// What is on disk.
         name: String,
     },
-    /// A task-shaped leaf whose session-kind token is not one of the closed set.
-    UnknownKind {
+    /// A task-shaped leaf whose session-kind token is not a well-formed one.
+    ///
+    /// **A shape refusal, not an unknown-kind one** (`open-kind-k20`). Grove
+    /// holds no set of kinds to fail membership in; what it can still say is
+    /// that a token cannot be written into a name and read back, and the
+    /// refusal names the character that made it so.
+    BadKind {
         /// What is on disk.
         name: String,
         /// The token that sat before the separator.
         kind: String,
+        /// Why it is not a session kind.
+        error: TokenError,
     },
     /// A node directory wearing an outcome infix.
     NodeWearsOutcome {
@@ -573,7 +710,7 @@ pub enum TaskNameError {
         /// The offending slug.
         slug: String,
         /// Why it is not a slug.
-        error: SlugError,
+        error: TokenError,
     },
     /// A task-shaped name whose species contradicts what the listing found under
     /// it — a directory named `01-impl--a-k1.md`, a file named `01-a-k1`.
@@ -607,12 +744,12 @@ impl fmt::Display for TaskNameError {
                  separator a hyphenated kind beside a hyphenated slug has more than one \
                  reading, and the readings differ in the handle."
             ),
-            Self::UnknownKind { name, kind } => write!(
+            Self::BadKind { name, kind, error } => write!(
                 f,
-                "malformed Grove leaf {name:?}: {kind:?} is not a session kind. Expected \
-                 NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md with session kind \
-                 one of {}",
-                Kind::label_list()
+                "malformed Grove leaf {name:?}: the session kind {kind:?} is not one — \
+                 {error}. Expected NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md. \
+                 Any well-formed token is a kind; whether a skill exists for it is the \
+                 methodology's business and not this grammar's."
             ),
             Self::NodeWearsOutcome { name } => write!(
                 f,
@@ -703,11 +840,15 @@ impl EntryName for TaskName {
             // Two distinct failures now, where the old grammar could only report
             // one: a name with no separator is *shaped* wrong, and a name with a
             // separator has a single token to quote back at whoever wrote it.
-            let Some(kind) = Kind::from_label(kind_token) else {
-                return Verdict::Malformed(TaskNameError::UnknownKind {
-                    name: name.to_string(),
-                    kind: kind_token.to_string(),
-                });
+            let kind = match Kind::new(kind_token) {
+                Ok(kind) => kind,
+                Err(error) => {
+                    return Verdict::Malformed(TaskNameError::BadKind {
+                        name: name.to_string(),
+                        kind: kind_token.to_string(),
+                        error,
+                    })
+                }
             };
             match Slug::new(slug) {
                 Ok(slug) => Parts::leaf(outcome, kind, slug),
@@ -793,7 +934,7 @@ fn disagreement(declares: Species, found: Found, name: &str) -> Option<TaskNameE
     })
 }
 
-fn bad_slug(name: &str, slug: &str, error: SlugError) -> TaskNameError {
+fn bad_slug(name: &str, slug: &str, error: TokenError) -> TaskNameError {
     TaskNameError::BadSlug {
         name: name.to_string(),
         slug: slug.to_string(),
@@ -880,6 +1021,15 @@ fn peel_key(text: &str) -> Option<(&str, &str)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A [`Kind`] for a test that needs one, by its label.
+    ///
+    /// A kind is an **open token** since `open-kind-k20`, so a test names the token
+    /// it means rather than a variant, and an invalid one is a test bug that panics
+    /// here rather than a compile error somewhere else.
+    fn a_kind(label: &str) -> Kind {
+        Kind::new(label).expect("a test kind must be well-formed")
+    }
     use ordinal_fs_tree::conformance;
 
     fn slug(s: &str) -> Slug {
@@ -940,7 +1090,7 @@ mod tests {
             (
                 Ordinal::new(1),
                 Key::new(1),
-                Parts::leaf(Outcome::Live, Kind::Impl, slug("domain")),
+                Parts::leaf(Outcome::Live, a_kind("impl"), slug("domain")),
             ),
             (
                 Ordinal::new(2),
@@ -962,18 +1112,32 @@ mod tests {
     }
 
     /// The kit's canonicity check reparses what the domain composes, so a kind
-    /// whose label does not survive the round trip is a defect it would catch —
-    /// but only for the kinds the fixture happens to compose. The label set is
-    /// closed and nineteen strong, several of them multi-word, and
-    /// `Kind::from_label` reads them back by exact equality against the token the
-    /// `--` delimits. So every one of them goes through the kit rather than the
-    /// two the fixture names.
+    /// whose token does not survive the round trip is a defect it would catch —
+    /// but only for the kinds the fixture happens to compose.
+    ///
+    /// **There is no set to sweep any more** (`open-kind-k20`), so the fixture is
+    /// over the *shapes* a token can have rather than over nineteen labels: one
+    /// word, two words, four words, a pair where one token is a proper prefix of
+    /// another, digits, and a single character. Those are the shapes that could
+    /// break the round trip — the `--` has to be found in the right place and
+    /// the token read back whole — and a token nobody has ever configured is in
+    /// the list deliberately, because the grammar must not be able to tell.
     #[test]
-    fn every_session_kind_survives_the_round_trip() {
-        let triples: Vec<_> = Kind::ALL
+    fn every_shape_of_session_kind_survives_the_round_trip() {
+        let kinds = [
+            "impl",
+            "research-a",
+            "review-impl",
+            "integrate-review-impl",
+            "integrate-review-prototype",
+            "postmortem-2",
+            "x",
+            "9",
+        ];
+        let triples: Vec<_> = kinds
             .into_iter()
             .enumerate()
-            .flat_map(|(index, kind)| {
+            .flat_map(|(index, label)| {
                 let ordinal = Ordinal::new(u32::try_from(index).unwrap() + 1);
                 let key = Key::new(u32::try_from(index).unwrap() + 1);
                 // The outcome infix is part of the name a kind renders into, and
@@ -981,11 +1145,34 @@ mod tests {
                 [Outcome::Live, Outcome::Done, Outcome::Abandoned]
                     .into_iter()
                     .map(move |outcome| {
-                        (ordinal, key, Parts::leaf(outcome, kind, slug("a-slug-9")))
+                        (
+                            ordinal,
+                            key,
+                            Parts::leaf(outcome, a_kind(label), slug("a-slug-9")),
+                        )
                     })
             })
             .collect();
         conformance::check::<TaskName>(&listings(), &triples).assert_conforming();
+    }
+
+    /// The other half of the same claim, and the one that would have been a
+    /// *compile* error before: a token no methodology has ever declared parses,
+    /// because the grammar checks shape and holds no set to fail membership in.
+    #[test]
+    fn a_kind_no_methodology_declares_still_parses() {
+        for label in ["wrok", "work", "postmortem", "spike", "impl2"] {
+            let name = format!("01-{label}--a-k1.md");
+            assert_eq!(
+                entry(&name, Found::File),
+                TaskName::Positioned {
+                    ordinal: Ordinal::new(1),
+                    key: Key::new(1),
+                    parts: Parts::leaf(Outcome::Live, a_kind(label), slug("a")),
+                },
+                "{name:?}"
+            );
+        }
     }
 
     // ---- classification: the four verdicts ---------------------------------
@@ -1020,7 +1207,7 @@ mod tests {
             TaskName::Positioned {
                 ordinal: Ordinal::new(2),
                 key: Key::new(29),
-                parts: Parts::leaf(Outcome::Live, Kind::Impl, slug("domain")),
+                parts: Parts::leaf(Outcome::Live, a_kind("impl"), slug("domain")),
             }
         );
         assert_eq!(name.to_string(), "02-impl--domain-k29.md");
@@ -1125,33 +1312,47 @@ mod tests {
 
     // ---- refusals inside the shape -----------------------------------------
 
-    /// A task-shaped leaf whose kind is not one of the closed set is Malformed,
-    /// never Foreign: skipping it is lost work. The advice is the grammar and
-    /// the whole set — and now also the offending token, which is what the
-    /// separator makes quotable: before it, an unknown kind and a missing one
-    /// were the same failure with no single token to name.
+    /// A task-shaped leaf whose kind is not a well-formed **token** is
+    /// Malformed, never Foreign: skipping it is lost work.
+    ///
+    /// **A shape refusal, and it names the character it refused**
+    /// (`open-kind-k20`). It used to be a membership refusal that listed all
+    /// nineteen labels — which is why `01-wrok--a-k1.md` was the fixture here
+    /// and is now in the test above, parsing. What is left to refuse is what
+    /// cannot be written and read back: an empty token, and one carrying a
+    /// character the grammar does not spell.
     #[test]
-    fn an_unknown_session_kind_is_malformed() {
-        for (name, token) in [
-            ("01-wrok--a-k1.md", "wrok"),
-            ("01-DONE-x-y--a-k1.md", "x-y"),
+    fn a_session_kind_that_is_not_a_token_is_malformed() {
+        for (name, token, expected) in [
             // The degenerate kind: a separator with nothing before it.
-            ("01---a-k1.md", ""),
+            ("01---a-k1.md", "", "may not be empty"),
+            ("01-Impl--a-k1.md", "Impl", "'I'"),
+            ("01-DONE-my_kind--a-k1.md", "my_kind", "'_'"),
+            ("01-impl.rs--a-k1.md", "impl.rs", "'.'"),
         ] {
             let error = malformed(name, Found::File);
-            assert_eq!(
-                error,
-                TaskNameError::UnknownKind {
-                    name: name.to_string(),
-                    kind: token.to_string(),
-                },
-                "{name:?}"
-            );
+            let TaskNameError::BadKind {
+                name: reported,
+                kind,
+                error: token_error,
+            } = &error
+            else {
+                panic!("{name:?} should be a bad-kind refusal, got {error:?}")
+            };
+            assert_eq!(reported, name, "{name:?}");
+            assert_eq!(kind, token, "{name:?}");
             let advice = error.to_string();
             assert!(advice.contains("malformed Grove leaf"), "{advice}");
             assert!(advice.contains(&format!("{token:?}")), "{advice}");
-            assert!(advice.contains("`impl`"), "{advice}");
-            assert!(advice.contains("`integrate-review-prototype`"), "{advice}");
+            assert!(
+                token_error.reason.contains(expected),
+                "the refusal must name what it refused: {advice}"
+            );
+            // The advice states the grammar, and states no set — there is none.
+            assert!(
+                advice.contains("<session-kind>--<slug>-k<key>.md"),
+                "{advice}"
+            );
         }
     }
 
@@ -1209,24 +1410,49 @@ mod tests {
                 key: Key::new(5),
                 parts: Parts::leaf(
                     Outcome::Live,
-                    Kind::IntegrateReviewDesign,
+                    a_kind("integrate-review-design"),
                     slug("module-decomposition"),
                 ),
             }
         );
         assert_eq!(name.to_string(), filename);
-        // The old spelling, and the one a mis-placed separator would give: each
-        // is now a name that does not parse at all, rather than a rival reading
-        // of this one.
-        for rival in [
-            "04-integrate-review-design-module-decomposition-k5.md",
-            "04-integrate-review--design-module-decomposition-k5.md",
-        ] {
-            assert!(
-                !matches!(verdict(rival, Found::File), Verdict::Entry(_)),
-                "{rival:?} still parses"
-            );
-        }
+        // The old spelling — no separator at all — is the one that had four
+        // readings, and it now has none: there is nothing to match the middle
+        // against since `open-kind-k20`, so it is refused rather than guessed at.
+        assert!(
+            !matches!(
+                verdict(
+                    "04-integrate-review-design-module-decomposition-k5.md",
+                    Found::File
+                ),
+                Verdict::Entry(_)
+            ),
+            "a name with no separator must not parse"
+        );
+        // Moving the separator does **not** give a rival reading of this name;
+        // it gives a *different name*, which parses to different parts and
+        // renders back to itself. That is the requirement — *a leaf filename has
+        // exactly one reading* — and not *only one placement of `--` is legal*.
+        // The distinction was invisible while the kind set was closed, because
+        // `integrate-review` was not a kind and the name simply failed; with an
+        // open token it is one, and the property still holds because the two
+        // spellings are two files.
+        let moved = "04-integrate-review--design-module-decomposition-k5.md";
+        let other = entry(moved, Found::File);
+        assert_eq!(
+            other,
+            TaskName::Positioned {
+                ordinal: Ordinal::new(4),
+                key: Key::new(5),
+                parts: Parts::leaf(
+                    Outcome::Live,
+                    a_kind("integrate-review"),
+                    slug("design-module-decomposition"),
+                ),
+            }
+        );
+        assert_ne!(other, name, "two filenames must never name one entry");
+        assert_eq!(other.to_string(), moved);
     }
 
     /// A directory wearing an outcome infix keeps the diagnostic it has today,
@@ -1336,17 +1562,17 @@ mod tests {
             TaskName::compose(
                 Ordinal::new(5),
                 Key::new(14),
-                Parts::leaf(Outcome::Live, Kind::Impl, slug("name-ownership")),
+                Parts::leaf(Outcome::Live, a_kind("impl"), slug("name-ownership")),
             ),
             TaskName::compose(
                 Ordinal::new(1),
                 Key::new(3),
-                Parts::leaf(Outcome::Done, Kind::Design, slug("decomposition")),
+                Parts::leaf(Outcome::Done, a_kind("design"), slug("decomposition")),
             ),
             TaskName::compose(
                 Ordinal::new(100),
                 Key::new(1),
-                Parts::leaf(Outcome::Abandoned, Kind::Finish, slug("a")),
+                Parts::leaf(Outcome::Abandoned, a_kind("finish"), slug("a")),
             ),
             // The slug that contains the key marker: the case terminality
             // exists for.

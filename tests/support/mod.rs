@@ -126,33 +126,42 @@ pub fn wait_for_ready(path: &Path, producer: &mut Child, diagnostics: Option<&Pa
     readiness(path, producer, diagnostics).unwrap_or_else(|failure| panic!("{failure}"));
 }
 
-/// Every task-kind label, in taxonomy order (task-kind-taxonomy;
-/// membership in `docs/ARCHITECTURE.md#task-kind-taxonomy`) — the same strings a live
-/// task filename carries, and what the env-var suffixes below are
-/// formed from. Spelled out here rather than reached for from the crate so
-/// these tests stay honest about *which* names they use, independent of
-/// production wiring drifting under them unnoticed.
-pub const KIND_LABELS: [&str; 19] = [
-    "requirements",
-    "design",
-    "planning",
-    "prototype",
-    "impl",
-    "research-a",
-    "research-b",
-    "combine-research",
-    "finish",
-    "review-requirements",
-    "review-design",
-    "review-planning",
-    "review-prototype",
-    "review-impl",
-    "integrate-review-requirements",
-    "integrate-review-design",
-    "integrate-review-planning",
-    "integrate-review-prototype",
-    "integrate-review-impl",
-];
+/// Every task-kind label the shipped plugin declares — one `grove-<kind>` skill
+/// each, read off `plugins/grove/skills/` rather than listed.
+///
+/// **This is where the kind set lives.** It used to be a hand-written array of
+/// nineteen here, spelled out so these tests stayed honest about *which* names
+/// they used while production carried its own `Kind::ALL`. `open-kind-k20`
+/// deleted that enum: the machinery holds no enumeration of kinds, a kind is any
+/// well-formed token, and the only thing that decides which kinds *exist* is
+/// which `grove-<kind>` skills are installed. So a copy here would no longer be
+/// an independent witness to anything — it would be the only list in the
+/// repository, and it would be the one that went stale.
+///
+/// The bare `grove` directory is the shared spine every kind reads, not a kind.
+pub fn kind_labels() -> Vec<String> {
+    let skills = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins/grove/skills");
+    let mut labels: Vec<String> = std::fs::read_dir(&skills)
+        .unwrap_or_else(|error| panic!("reading {}: {error}", skills.display()))
+        .map(|entry| entry.expect("readable directory entry"))
+        .filter(|entry| entry.path().is_dir())
+        .filter_map(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .strip_prefix("grove-")
+                .map(ToOwned::to_owned)
+        })
+        .collect();
+    labels.sort();
+    assert!(
+        labels.len() > 3,
+        "the walk found {} `grove-<kind>` skills — a mis-scoped walk reports a \
+         clean surface for the wrong reason",
+        labels.len()
+    );
+    labels
+}
 
 /// The loop driver's **control channel** (self-driving-loop), scrubbed for the
 /// duration of tests so a nested launch cannot signal the developer's live
@@ -203,9 +212,10 @@ const FAMILY_LABELS: [&str; 2] = ["review", "integrate-review"];
 /// via `Command::env_remove` — a `Command` does not isolate itself from the
 /// parent's ambient env just because some vars are set explicitly.
 pub fn grove_env_names() -> Vec<String> {
-    let suffixes: Vec<String> = KIND_LABELS
+    let suffixes: Vec<String> = kind_labels()
         .iter()
-        .chain(FAMILY_LABELS.iter())
+        .map(String::as_str)
+        .chain(FAMILY_LABELS.iter().copied())
         .map(|label| label.to_uppercase().replace('-', "_"))
         .collect();
     let mut names = Vec::new();

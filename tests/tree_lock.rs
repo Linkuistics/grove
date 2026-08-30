@@ -174,7 +174,7 @@ fn mutator_waits_for_a_shared_worktree_reader_before_allocating_a_leaf() {
 
     let mut writer = WaitingChild::spawn(
         worktree.path(),
-        &["leaf-add", ".", "later"],
+        &["leaf-add", ".", "later", "--kind", "impl"],
         worktree.path().join("writer.stderr"),
     );
     writer.wait_until_contended();

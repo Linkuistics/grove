@@ -87,7 +87,8 @@ redirect lifecycle mutations.
 - **Compare `research-a` and `research-b` targets to enforce vendor diversity.**
   Rejected because opaque command strings do not expose a stable harness or
   model identity: different wrappers may reach the same target and equal words
-  may still produce independent corpora. `leaf-add-pair` therefore records two
-  research sessions while material target diversity remains configuration-owner
-  policy. Reopen only if target identity becomes an explicit comparable part of
+  may still produce independent corpora. A research pair — `leaf-add` given
+  `--kind research-a --kind research-b --kind combine-research` — therefore
+  records two research sessions while material target diversity remains
+  configuration-owner policy. Reopen only if target identity becomes an explicit comparable part of
   configuration without reintroducing harness inference.

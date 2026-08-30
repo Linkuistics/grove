@@ -42,9 +42,8 @@
 // These are the verbs `llm_cli` dispatches; the flat-scheme `leaf_lifecycle` they
 // replaced is gone.
 
-use crate::leaf::Kind;
 use crate::task_grow;
-use crate::task_name::{Handle, Outcome, Parts, Slug, TaskName};
+use crate::task_name::{Handle, Kind, Outcome, Parts, Slug, TaskName};
 use crate::task_tree::{self, Opening, TreeVacancy};
 use anyhow::{bail, Context, Result};
 use jj_workspace::Workspace;
@@ -134,7 +133,7 @@ pub fn materialize_finish(worktree: &Path) -> Result<crate::task_tree::SelectedL
     Ok(crate::task_tree::SelectedLeaf {
         path,
         handle: finish_handle(key.context("a finish sentinel was created without a key")?)?,
-        kind: Kind::Finish,
+        kind: Kind::finish(),
     })
 }
 
@@ -145,7 +144,7 @@ pub fn materialize_finish(worktree: &Path) -> Result<crate::task_tree::SelectedL
 /// state; the entry carries no bytes then and never needs any, because a refusal
 /// writes nothing (`task_grow::new_leaf` says the same of an ordinary leaf).
 fn new_finish_leaf(key: Option<Key>) -> Result<NewEntry<Parts>> {
-    let parts = Parts::leaf(Outcome::Live, Kind::Finish, finish_slug()?);
+    let parts = Parts::leaf(Outcome::Live, Kind::finish(), finish_slug()?);
     Ok(match key {
         Some(key) => NewEntry::new(parts, finish_body(&finish_handle(key)?).into_bytes()),
         None => NewEntry::empty(parts),
@@ -227,7 +226,7 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
     let tree = task_tree::write(&grove_root)?;
     let selection = task_tree::select_in_write(&tree)?
         .context("the requested finish leaf is no longer live")?;
-    if selection.kind != Kind::Finish {
+    if !selection.kind.is_finish() {
         bail!(
             "cannot finish while live work remains: {} ({})",
             selection.handle,
@@ -393,7 +392,7 @@ fn default_root_slug() -> Slug {
 /// to it rather than trusting it.
 fn initialize_grove(vacancy: TreeVacancy, name: &str, slug: &Slug) -> Result<Vec<PathBuf>> {
     let key = Some(Key::new(1));
-    let leaf = task_grow::new_leaf(key, Outcome::Live, Kind::Requirements, slug);
+    let leaf = task_grow::new_leaf(key, Outcome::Live, Kind::requirements(), slug);
     let report = vacancy
         .initialize(Some(root_brief_body(name).into_bytes()), vec![leaf])
         .map_err(task_tree::raised)?;
@@ -565,7 +564,7 @@ pub fn leaf_decompose(
         // task-kind-taxonomy: the first child inherits the decomposed leaf's own
         // kind unless `--kind` overrides it.
         let kind = kind_override.unwrap_or(parent_kind);
-        task_grow::refuse_finish_kind(kind, "leaf-decompose")?;
+        task_grow::refuse_finish_kind(&kind, "leaf-decompose")?;
         (
             task_tree::addressable_key(&root, tree.snapshot(), &entry)?,
             slug.clone(),
@@ -626,10 +625,10 @@ fn decomposable<'a>(entry: &Entry<'a, TaskName>) -> Result<(Kind, &'a Slug)> {
             kind,
             slug,
         } => {
-            if *kind == Kind::Finish {
+            if kind.is_finish() {
                 bail!("`finish` is driver-reserved and cannot be decomposed");
             }
-            Ok((*kind, slug))
+            Ok((kind.clone(), slug))
         }
     }
 }
@@ -763,10 +762,10 @@ fn retire_parts(entry: &Entry<'_, TaskName>) -> Result<Parts> {
             kind,
             slug,
         } => {
-            if *kind == Kind::Finish {
+            if kind.is_finish() {
                 bail!("`finish` is driver-reserved and cannot be retired");
             }
-            Ok(Parts::leaf(Outcome::Done, *kind, slug.clone()))
+            Ok(Parts::leaf(Outcome::Done, kind.clone(), slug.clone()))
         }
     }
 }
@@ -928,12 +927,12 @@ fn plan_leaf(
         Outcome::Abandoned => bail!("leaf is already pruned (ABANDONED): {name}"),
         Outcome::Live => {}
     }
-    if *kind == Kind::Finish {
+    if kind.is_finish() {
         bail!("`finish` is driver-reserved and cannot be pruned");
     }
     Ok(Planned::ToMark {
         key: task_tree::addressable_key(root, snapshot, entry)?,
-        parts: Parts::leaf(Outcome::Abandoned, *kind, slug.clone()),
+        parts: Parts::leaf(Outcome::Abandoned, kind.clone(), slug.clone()),
     })
 }
 
@@ -1044,6 +1043,15 @@ fn append_brief_suffix_in_file(path: &Path, handle: &Handle) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A [`Kind`] for a test that needs one, by its label.
+    ///
+    /// A kind is an **open token** since `open-kind-k20`, so a test names the token
+    /// it means rather than a variant, and an invalid one is a test bug that panics
+    /// here rather than a compile error somewhere else.
+    fn a_kind(label: &str) -> Kind {
+        Kind::new(label).expect("a test kind must be well-formed")
+    }
     use std::fs;
     use std::process::Command;
     use tempfile::TempDir;
@@ -1113,7 +1121,9 @@ mod tests {
     /// the resolve-then-mutate composition entirely, which is the composition
     /// production performs and the only one it can.
     fn grow_leaf(root: &Path, slug: &str) -> PathBuf {
-        task_grow::leaf_add(root, ".", slug, Kind::Impl).unwrap()
+        task_grow::leaf_add(root, ".", slug, &[a_kind("impl")])
+            .unwrap()
+            .remove(0)
     }
 
     /// Write a leaf/brief stub with a position-free `# <handle>` header.
@@ -1378,7 +1388,7 @@ mod tests {
 
         assert_eq!(name_of(&selection.path), "02-finish--finish-k2.md");
         assert_eq!(selection.handle.to_string(), "finish-k2");
-        assert_eq!(selection.kind, Kind::Finish);
+        assert_eq!(selection.kind, a_kind("finish"));
         let body = body(&selection.path);
         assert!(body.starts_with("# finish-k2\n"), "got {body:?}");
         assert!(
@@ -1562,7 +1572,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k3.md"),
             "step",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap();
         // The entity that was leaf k3 becomes node k3 — a directory holding BRIEF.md.
@@ -1594,7 +1604,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k3.md"),
             "step",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap();
         let text = body(&brief);
@@ -1619,7 +1629,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k3.md"),
             "step",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap();
         assert_eq!(name_of(&child), "01-impl--step-k4.md");
@@ -1637,7 +1647,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k3.md"),
             "step",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap();
         let text = body(&child);
@@ -1656,7 +1666,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k3.md"),
             "design",
-            Some(Kind::Planning),
+            Some(a_kind("planning")),
         )
         .unwrap();
         assert_eq!(name_of(&child), "01-planning--design-k4.md");
@@ -1695,7 +1705,7 @@ mod tests {
             &g,
             Path::new("02-research-a--build-k3.md"),
             "step",
-            Some(Kind::ReviewImpl),
+            Some(a_kind("review-impl")),
         )
         .unwrap();
         assert_eq!(name_of(&child), "01-review-impl--step-k4.md");
@@ -1713,7 +1723,7 @@ mod tests {
             &g,
             &build.join("02-impl--mid-k5.md"),
             "first",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap();
         assert_eq!(
@@ -1734,7 +1744,8 @@ mod tests {
         let (_t, g) = jj_grove();
         let node = mknode(&g, "02-build-k3", "build-k3");
         commit_all(&g);
-        let err = leaf_decompose(&g, &node.join("BRIEF.md"), "x", Some(Kind::Impl)).unwrap_err();
+        let err =
+            leaf_decompose(&g, &node.join("BRIEF.md"), "x", Some(a_kind("impl"))).unwrap_err();
         assert!(err.to_string().contains("brief"), "got {err}");
     }
 
@@ -1743,7 +1754,7 @@ mod tests {
         let (_t, g) = jj_grove();
         let node = mknode(&g, "02-build-k3", "build-k3");
         commit_all(&g);
-        let err = leaf_decompose(&g, &node, "x", Some(Kind::Impl)).unwrap_err();
+        let err = leaf_decompose(&g, &node, "x", Some(a_kind("impl"))).unwrap_err();
         assert!(err.to_string().contains("node"), "got {err}");
     }
 
@@ -1757,7 +1768,7 @@ mod tests {
             &g,
             Path::new("02-DONE-impl--build-k3.md"),
             "x",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap_err();
         assert!(
@@ -1776,7 +1787,7 @@ mod tests {
             &g,
             Path::new("02-ABANDONED-impl--build-k3.md"),
             "x",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap_err();
         assert!(err.to_string().contains("abandoned"), "got {err}");
@@ -1787,7 +1798,8 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "README.md", "readme");
         commit_all(&g);
-        let err = leaf_decompose(&g, Path::new("README.md"), "x", Some(Kind::Impl)).unwrap_err();
+        let err =
+            leaf_decompose(&g, Path::new("README.md"), "x", Some(a_kind("impl"))).unwrap_err();
         assert!(err.to_string().contains("leaf"), "got {err}");
     }
 
@@ -1803,7 +1815,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k3.md"),
             "Bad Slug",
-            Some(Kind::Impl)
+            Some(a_kind("impl"))
         )
         .is_err());
         let files = list(&g);
@@ -1824,7 +1836,7 @@ mod tests {
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let abs = g.join("02-impl--build-k3.md");
-        let (brief, _child) = leaf_decompose(&g, &abs, "step", Some(Kind::Impl)).unwrap();
+        let (brief, _child) = leaf_decompose(&g, &abs, "step", Some(a_kind("impl"))).unwrap();
         assert_eq!(name_of(brief.parent().unwrap()), "02-build-k3");
     }
 
@@ -1836,7 +1848,7 @@ mod tests {
             &missing,
             Path::new("02-impl--build-k3.md"),
             "x",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap_err();
         assert!(
@@ -1871,7 +1883,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k3.md"),
             "step",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap();
 
@@ -1894,8 +1906,8 @@ mod tests {
         touch(&g, "01-DONE-impl--a-k1.md", "a-k1");
         commit_all(&g);
 
-        let err =
-            leaf_decompose(&g, Path::new("01-impl--a-k1.md"), "x", Some(Kind::Impl)).unwrap_err();
+        let err = leaf_decompose(&g, Path::new("01-impl--a-k1.md"), "x", Some(a_kind("impl")))
+            .unwrap_err();
 
         assert!(
             err.to_string()
@@ -1930,7 +1942,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k3.md"),
             "step",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap_err();
 
@@ -1998,7 +2010,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k3.md"),
             "step",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap_err();
 
@@ -2037,7 +2049,7 @@ mod tests {
             &g,
             Path::new("02-impl--build-k4294967295.md"),
             "step",
-            Some(Kind::Impl),
+            Some(a_kind("impl")),
         )
         .unwrap_err();
 
@@ -2088,7 +2100,7 @@ mod tests {
             node.as_path(),
             &node.join("BRIEF.md"),
         ] {
-            let err = leaf_decompose(&g, argument, "step", Some(Kind::Impl))
+            let err = leaf_decompose(&g, argument, "step", Some(a_kind("impl")))
                 .unwrap_err()
                 .to_string();
             for library_wording in [

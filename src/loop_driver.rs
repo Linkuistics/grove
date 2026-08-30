@@ -49,9 +49,8 @@
 
 use crate::complete::{self, Disposition};
 use crate::driver_lease::DriverLease;
-use crate::leaf::Kind;
 use crate::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
-use crate::task_name::Handle;
+use crate::task_name::{Handle, Kind};
 use anyhow::{Context, Result};
 use jj_workspace::Workspace;
 use keyed_launch::{Argv, Channel, End, Ended, Escalation, Launch};
@@ -231,7 +230,7 @@ fn run_configured_loop_with_lease(
                 // the pre-transition load, which is the document as it stood
                 // before anything was mutated.
                 pre_transition_config
-                    .require(crate::leaf::Kind::Finish.label())
+                    .require(Kind::finish().label())
                     .context("materializing the driver-owned finish leaf")?;
                 crate::tree_lifecycle::materialize_finish(worktree)?
             }
@@ -246,7 +245,7 @@ fn run_configured_loop_with_lease(
             .source(selection.kind.label())
             .unwrap_or(config_path.as_path())
             .to_path_buf();
-        let prompt = session_prompt(&selection.handle, selection.kind, worktree)?;
+        let prompt = session_prompt(&selection.handle, &selection.kind, worktree)?;
         let argv = config.expand(
             selection.kind.label(),
             &ExpansionContext {
@@ -346,7 +345,7 @@ fn run_configured_loop_with_lease(
 /// workspace's own `.jj/`, so a marker was already found. Spent as an error
 /// rather than a panic — the prompt has no second case to express, and a driver
 /// with nothing to say here must not launch a session that then has to guess.
-fn session_prompt(handle: &Handle, kind: Kind, worktree: &Path) -> Result<String> {
+fn session_prompt(handle: &Handle, kind: &Kind, worktree: &Path) -> Result<String> {
     // Taken from the resolution rather than assumed. It *is* `worktree` — the
     // walk starts at the path itself and the lease root is the marker's own
     // directory — but reading the resolved root cannot drift if either end

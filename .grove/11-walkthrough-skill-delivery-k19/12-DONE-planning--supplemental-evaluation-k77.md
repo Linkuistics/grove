@@ -68,3 +68,54 @@ This handle retains the word `supplemental` because Grove has no retitle verb in
 the installed build. The amended parent wording explicitly promotes only the
 pre-run manifest's three-surface paired verdict to acceptance authority;
 everything else produced here remains supplemental.
+
+## Decisions (running log)
+
+The accepted work is one `paired-acceptance-campaign-k80` node. Its first four
+increments independently author the requirement-derived instrument, implement
+the minimum auditable apparatus, verify the final treatment, and freeze the
+only acceptance manifest. Three raw generation increments then run before all
+three adjudication increments; a final leaf applies the non-compensating
+three-surface endpoint. Each raw record and each surface verdict is independently
+useful and auditable, while splitting any one pair's generation from its record
+capture would not leave a working increment.
+
+The apparatus is deliberately bounded. Exact operator inputs, procedure,
+outputs, and declaration can replace reusable automation for a simple one-use
+step. Automation is required only where determinism is load-bearing: digest and
+prompt equality, delivery checks, assignment, exposure classification,
+replacement replay, resumption order, record validation, bundle formation, and
+verdict calculation.
+
+F1 is applied by tree order: all three generation leaves precede every
+adjudication leaf. F2 assigns deterministic replacement classification and
+replay to `campaign-apparatus-k82` and every adjudication. F3 replaces attempt
+caps for proven pre-exposure failures with a frozen global resource budget and
+earliest-incomplete, pair-atomic, non-selective resumption. F4 is applied under
+the amended requirements decision: transfer is not an acceptance conjunct, the
+frozen `fzf` result remains supplemental generality evidence, and ten new
+repetitions do not earn their cost. No new transfer probe is cut.
+
+F5 is applied by restricted criterion-author inputs and preserved chronology in
+`acceptance-instrument-k81`; treatment and historical coverage maps occur only
+later and cannot alter rows. F6 assigns every requirement-derived row to either
+a primary or exhaustive no-regression set and freezes mixed-control handling.
+F7 requires a retained/reworded/dropped map against every historical row as
+audit evidence only. F8 states the fail-closed direction for missing,
+unavailable, protocol-failed, and unblindable evidence.
+
+F9 gives `campaign-apparatus-k82` ownership of scorer and blind-resolver
+invocation. F10 freezes post-score, pre-reveal arm guesses in the supplemental
+namespace. F11 dual-scores every bundle, including irregular or incomplete
+ones. F12 makes each pair adjacent and preserves arm timestamps. F13 prohibits
+live evaluated execution before the freeze and uses synthesized apparatus
+fixtures. F14 earns a scheduled `review-impl` of the complete freeze candidate;
+`campaign-freeze-k84` must commission that lazy sibling immediately before the
+first generation leaf and settle any earned integration before execution.
+
+Verified preload is the treatment assignment. Missing or mismatched preload is
+an apparatus failure; failure to follow successfully delivered instructions is
+a valid behavioral outcome. Controls receive no skill and paired user prompts
+remain byte-identical. Historical records remain the sole pre-skill baseline,
+new controls are contemporaneous comparators, and the new accepted verdict can
+neither pool with nor rewrite the failed historical campaign.

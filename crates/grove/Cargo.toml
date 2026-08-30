@@ -1,0 +1,53 @@
+[package]
+name = "grove"
+description = "Hierarchical, self-extending workstream tool for AI agents"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+# **The human's binary, and nothing else.** Bare `grove` parses no argument that
+# selects anything, acquires the driver lease and calls `grove_loop::run`; the
+# whole of the loop is behind that call (`docs/specs/module-decomposition.md`,
+# decision 9).
+#
+# **A crate, not a `[[bin]]` target, and that is the point** (decision 1). A
+# binary target inside `grove-loop` could reach that library's private items, so
+# *the binary is thin* would stop being compiler-enforced. Here the compiler
+# holds it: everything `main.rs` can reach is something `grove-loop` chose to
+# publish.
+#
+# **There is no `[lib]`.** The package is one binary target, so `cli.rs` is a
+# module of the binary and its clap model is asserted by the binary's own unit
+# tests rather than by an integration test that would need a library to import.
+[[bin]]
+name = "grove"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4", features = ["derive"] }
+# The loop. This binary's only grove dependency, and the reason it is three
+# functions long.
+grove-loop = { path = "../grove-loop" }
+
+# **The repository-surface tests live here**, and that is deliberate rather than
+# incidental. `tests/reference_navigation.rs`, `tests/plugin_fallback.rs`,
+# `tests/commit_guidance.rs` and `tests/retire_guidance.rs` make claims about the
+# repository — its user-facing documents, and the methodology plugin it ships —
+# rather than about any crate's code. They lived at the root while the root was a
+# package; `loop-crate-driver-k22` made it a bare workspace, and this is the
+# package that *is* grove-the-product, so they came here rather than into a
+# library that has never heard of a README. Their paths are spelled `../../`
+# relative to this manifest.
+# `grove` itself is driven as a *process* by the loop fixtures, so the only
+# harness they need is a real spawn against a temporary tree.
+[dev-dependencies]
+# `libc` for the loop fixtures' own `kill(2)`: they signal the driver process to
+# drive its interrupt path, which `std::process::Child::kill` cannot express.
+libc = "0.2"
+tempfile = "3.10"
+
+[lints]
+workspace = true

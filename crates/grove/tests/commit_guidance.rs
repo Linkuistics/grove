@@ -1,4 +1,4 @@
-const GROVE_SKILL: &str = include_str!("../plugins/grove/skills/grove/SKILL.md");
+const GROVE_SKILL: &str = include_str!("../../../plugins/grove/skills/grove/SKILL.md");
 /// The Commit step's procedure, which the trigger sentence on the loop page
 /// defers to — **including the commit's scope**, which used to be proved against
 /// `SKILL.md` and no longer can be.
@@ -7,7 +7,7 @@ const GROVE_SKILL: &str = include_str!("../plugins/grove/skills/grove/SKILL.md")
 /// path; `one-focused-commit` and `name-by-handle` are this file's
 /// (`plugins/grove/conformance/rules.tsv`). Left pointed at `SKILL.md`, the three
 /// claims below would have asserted that the router had re-grown a procedure.
-const COMMIT_REFERENCE: &str = include_str!("../plugins/grove/skills/grove/references/commit.md");
+const COMMIT_REFERENCE: &str = include_str!("../../../plugins/grove/skills/grove/references/commit.md");
 
 fn normalized(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")

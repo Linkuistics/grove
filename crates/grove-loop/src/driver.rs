@@ -7,9 +7,15 @@
 //! (`finish` is driver-reserved). Putting them beside the twelve would say the
 //! surface has fourteen verbs, which it does not.
 //!
-//! `loop-crate-driver-k22` moves `DriverLease`, `compose` and `run` into this
-//! crate; when it does, these two become `run`'s internals and this module stops
-//! being public.
+//! `loop-crate-driver-k22` moved `DriverLease`, `compose` and `run` into this
+//! crate, so both of these are now [`crate::run`]'s internals and nothing
+//! outside the crate calls either in production. **The module stayed public
+//! anyway**, and the reason is stated rather than glossed: they are the only way
+//! to put a tree into the two states the verb suite has to test against — the
+//! pre-loop transition, and the driver-reserved `finish` leaf `verbs::leaf_add`
+//! refuses to write. Making them crate-private would have bought nothing the
+//! compiler can check and cost a second copy of `tests/verbs.rs`'s jj fixture
+//! harness inside the crate.
 //!
 //! **Both open the tree themselves**, so neither may be called while a
 //! [`crate::TreeWrite`] or [`crate::Tree`] is held: two file descriptions on one

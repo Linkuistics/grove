@@ -60,12 +60,15 @@
 # "whoever next runs a real cut" to settle. This is that cut.)
 #
 # Installing the new build mid-session is safe, and the proofs belong in the
-# same session as the install. The driver's version-skew guard is the first
-# thing in the loop *body* (`src/loop_driver.rs`), so it fires between
-# iterations: a `brew upgrade` under a live `grove` loop lets the session that
-# ran it finish normally and stops the loop before the next one. A shipping
-# task therefore does not have to defer its installed-binary checks to a
-# follow-up — see `scripts/release-publish.sh` for the rig.
+# same session as the install. **There is no version-skew guard in the loop**,
+# and no leaf may rely on one: the build-pairing report *reported* rather than
+# refused (`docs/USAGE.md`), and it went with provisioning at
+# `delete-provisioning-k19`. What stops a loop across a reinstall is the
+# session's own ending — a session that retires, commits and exits **without**
+# `grove-llm complete` breaks the loop, so the old driver process cannot run
+# another iteration against a delivery it no longer understands. A shipping task
+# therefore does its installed-binary checks in its own session and ends that
+# way — see `scripts/release-publish.sh` for the rig.
 
 # Not a crates.io crate — `cargo release` must skip `cargo publish`.
 publish = false
@@ -95,7 +98,12 @@ tag-message = "Release v{{version}}"
 pre-release-commit-message = "chore: release v{{version}}"
 
 # Keep the release commit per-crate so `{{version}}` is unambiguous in the
-# commit message. Grove has one released crate.
+# commit message. Grove has one released crate — `crates/grove`, the human's
+# binary and the thing the tag names. Every other member takes
+# `version.workspace = true`, so a cut rewrites one field and moves all six
+# versions together (`docs/specs/module-decomposition.md`, decision 1: one
+# workspace, one release version); what `release = false` buys those members is
+# no tag, no changelog section and no publish of their own, not a frozen version.
 consolidate-commits = false
 
 # Close `CHANGELOG.md`'s standing `## Unreleased` heading as part of the cut, and
@@ -133,8 +141,14 @@ consolidate-commits = false
 # hand — or deleted the standing one — fails the same way instead of shipping a
 # release whose entries are filed under the wrong heading.
 #
-# It cannot double-apply: Grove has one crate and cargo-release runs this
-# replacement once relative to its manifest directory.
+# It cannot double-apply: Grove releases one package and cargo-release runs this
+# replacement once relative to *its* manifest directory. That directory is
+# `crates/grove` since `loop-crate-driver-k22` made the workspace root a bare
+# workspace, which is why the path below climbs two levels — the file it names is
+# the repository's one changelog, and cargo-release resolves it against the
+# released package rather than against the workspace. Written the old way
+# (`CHANGELOG.md`) the cut aborts with *unable to find file
+# crates/grove/CHANGELOG.md*, which is loud, but only at release time.
 #
 # Robust to an empty `## Unreleased` — a release of work already filed under a
 # version yields an empty `## v<next>` between the standing heading and the previous
@@ -144,5 +158,5 @@ consolidate-commits = false
 # Verify a change here with `cargo release patch` (without `--execute`); the dry
 # run prints the replacement diff without cutting a release.
 pre-release-replacements = [
-  { file = "CHANGELOG.md", search = "^## Unreleased$", replace = "## Unreleased\n\n## v{{version}}", exactly = 1 },
+  { file = "../../CHANGELOG.md", search = "^## Unreleased$", replace = "## Unreleased\n\n## v{{version}}", exactly = 1 },
 ]

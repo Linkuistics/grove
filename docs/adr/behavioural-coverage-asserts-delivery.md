@@ -11,7 +11,7 @@ runner over the files a harness installs, with its controls in
 `plugins/grove/conformance.test.sh`.
 
 **The instrument moved because two of the four things its walk covered stopped
-existing.** It used to walk what the *binary* composed: `src/prompt.rs`'s
+existing.** It used to walk what the *binary* composed: the prompt module's
 guaranteed core, the provisioned `content/SKILL.md` acting as a kind router,
 `reference_file(kind)`, and the closure of what those named. Once the methodology
 ships as a plugin, the middle two have no counterpart — the prompt names one

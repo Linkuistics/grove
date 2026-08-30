@@ -51,6 +51,49 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The driver is a crate, both binaries are thin, and the repository root is no
+  longer a package.** `driver_lease`, `loop_driver`, `prompt` and
+  `session_config` moved out of the root `src/` into `crates/grove-loop`, and
+  `src/` is gone. What was the root package is now `crates/grove`: a binary with
+  no library at all, three steps long — parse an empty command line, resolve the
+  workspace, take the lease — and then `grove_loop::run`, which is the whole loop
+  (`docs/specs/module-decomposition.md`, decision 9). Both binaries are now
+  packages over `grove-loop` rather than targets inside it, so *the binary is
+  thin* is compiler-enforced for the human's as it already was for the session's.
+- **`run(workspace, lease, templates)` is the loop, and `LoopOutcome` is
+  `Finished` or `Stopped`.** The lease is taken by value, so it is released
+  exactly when the loop that justified holding it returns. `templates` is a
+  `TemplateSource` — *where* the launch configuration is read from — rather than
+  a loaded configuration, because the loop re-reads it once per iteration: a
+  session that adds a kind to `config.kdl` is launched from the document as it
+  stands, and the just-in-time presence rule is asked against the document as it
+  stood **before** the tree was mutated
+  (`docs/adr/complete-session-configuration.md`).
+- **`DriverLease::acquire` takes a resolved workspace instead of a path.** The
+  binary resolves the working tree once and hands that value to both the lease
+  and the loop, so one resolution stands behind the lease, the configuration
+  delta's search order, `${repo}` and the version control the prompt states —
+  where two derivations could previously only be checked by eye. `main_repo()`
+  goes with it, and composing the prompt became infallible: it used to resolve a
+  workspace it had already proved was there.
+- **One release version is a manifest fact.** `[workspace.package] version` is
+  the only place a version is written and every member takes
+  `version.workspace = true`, so a `cargo release` cut rewrites one field and
+  moves all six together. That is what lets `grove_loop::VERSION` be grove's
+  published release version rather than a library's own `0.1.0` — the constant
+  the prompt publishes (decision 10) and both binaries answer `--version` with.
+  `release.toml`'s changelog replacement now resolves against `crates/grove`, so
+  it names `../../CHANGELOG.md`; written the old way a cut aborts, loudly but
+  only at release time.
+- **The shared test helpers live at `testing/support.rs`.** They were the root
+  package's `tests/support/mod.rs`, and there is no root package; they are about
+  the repository rather than any of the three packages that use them, so each
+  keeps a one-line shim naming the single file by path. The repository-surface
+  suites — reference navigation, plugin citations, the two guidance checks — moved
+  to `crates/grove/tests/`, and the human CLI's two clap-model assertions became
+  unit tests beside the `Cli` they are about, which is the only place a
+  binary-only package's model is reachable from.
+
 - **The task tree and its twelve verbs are a crate: `grove-loop`.** `task_name`,
   `task_tree`, `task_grow`, `tree_lifecycle` and the completion signal moved out
   of the `grove` package into `crates/grove-loop`, behind the surface

@@ -107,7 +107,7 @@ split, and `finish` needed the second: a fixed instruction would relaunch the
 loop onto a torn-down grove, while omitting the part would drop the
 too-late-shaped sentence in the session where a forgotten signal costs most. The
 contract answers both by stating neither ending — and the residue it does carry,
-a default `finish` overrides, is recorded at `src/prompt.rs`.
+a default `finish` overrides, is recorded at `crates/grove-loop/src/prompt.rs`.
 _Avoid_: reading its 4 KiB assertion as a budget the design was fitted to — it is
 an alarm on the test, and nothing legitimate approaches it.
 
@@ -231,7 +231,7 @@ lost.
 
 **Composed loaded path**:
 The [[Loaded path]] read off a *shipped skill set* instead of computed from
-`src/prompt.rs`: the closure of every skill-relative file the [[Kind skill]]'s
+`crates/grove-loop/src/prompt.rs`: the closure of every skill-relative file the [[Kind skill]]'s
 and the [[Spine skill]]'s `SKILL.md` reach, following what the bytes actually
 name. It is what the plugin's conformance runner asserts a behavioural rule is
 **present on**, for every kind that binds it — a rule stated but unreachable is

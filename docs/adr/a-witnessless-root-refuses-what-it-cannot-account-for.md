@@ -136,7 +136,7 @@ evidence it currently cannot ask for.
 
 ## What enforces it
 
-Three unit tests in `src/tree_lifecycle.rs`, one per branch, each asserting the
+Three unit tests in `crates/grove-loop/src/tree_lifecycle.rs`, one per branch, each asserting the
 mutation as well as the verdict:
 `transition_completes_a_partial_root_scaffold_before_pick` (branch 1),
 `transition_does_not_scaffold_over_a_name_grove_refuses` (branch 2), and

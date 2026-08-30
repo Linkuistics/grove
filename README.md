@@ -9,7 +9,7 @@ also contains a separately installed collection of agent skills.
 
 | Product | Source | Purpose |
 |---|---|---|
-| Grove | [`src/`](src/) | The Rust CLI: the loop that launches one session per task. |
+| Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over four library crates, the loop that launches one session per task among them. |
 | Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, the Linkuistics coding/design skills, and the Testanyware GUI-testing skill. |
 
 The products share a repository but have separate installation paths, and Grove

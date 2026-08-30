@@ -1,4 +1,12 @@
-//! Every generated help surface in both binaries describes everything it lists.
+//! Every generated help surface in this binary describes everything it lists.
+//!
+//! **The human binary's half is asserted in its own crate**, as a unit test
+//! beside its `Cli` (`crates/grove/src/cli.rs`). `loop-crate-driver-k22` made
+//! `grove` a binary-only package, so its clap model is reachable only from
+//! inside it — and giving that package a library purely so a test here could
+//! import one would hand the binary a library to reach into, which is the
+//! property `docs/specs/module-decomposition.md`'s decision 1 made it a crate to
+//! keep.
 //!
 //! `grove retire --no-launch` shipped with **no doc comment at all** and rendered
 //! as a padded blank row beside two described options
@@ -60,11 +68,6 @@ fn assert_fully_described<C: CommandFactory>(binary: &str) {
         "these render as blank rows in a generated help surface:\n  {}",
         out.join("\n  ")
     );
-}
-
-#[test]
-fn the_human_facing_binary_describes_every_option_it_lists() {
-    assert_fully_described::<grove::cli::Cli>("grove");
 }
 
 #[test]

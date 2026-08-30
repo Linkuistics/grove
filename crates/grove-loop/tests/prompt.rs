@@ -25,11 +25,13 @@
 //! worth nothing, so the skill-set claim is shown failing on a kind the plugin
 //! does not ship, and the size alarm on a synthetic oversized prompt.
 
-use grove::prompt::{self, Mandate};
+mod support;
+
+use grove_loop::prompt::{self, Mandate};
 use grove_loop::{Handle, Kind};
 use jj_workspace::Workspace;
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// A [`Kind`] for a test that needs one, by its label.
 ///
@@ -62,7 +64,7 @@ const FIXTURE_VERSION: &str = "19.4.0";
 /// The plugin directory this repository ships, and the source of truth for which
 /// `grove-<kind>` skills exist.
 fn plugin_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins/grove")
+    support::repo_root().join("plugins/grove")
 }
 
 /// A resolved workspace to state the version control from.
@@ -70,7 +72,7 @@ fn plugin_dir() -> PathBuf {
 /// The repository itself is one — the suite runs inside it — so no fixture tree
 /// is scaffolded for a value the prompt only renders.
 fn workspace() -> Workspace {
-    Workspace::resolve(Path::new(env!("CARGO_MANIFEST_DIR")))
+    Workspace::resolve(&support::repo_root())
         .expect("this repository is a jj workspace, which is what the prompt states")
 }
 
@@ -488,7 +490,7 @@ fn the_skill_set_claim_fails_on_a_kind_the_plugin_does_not_ship() {
 #[test]
 fn the_namespace_is_the_shipped_plugin_entrys_declared_name() {
     let manifest = std::fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join(".claude-plugin/marketplace.json"),
+        support::repo_root().join(".claude-plugin/marketplace.json"),
     )
     .expect("the marketplace manifest must be readable");
     let entry = manifest

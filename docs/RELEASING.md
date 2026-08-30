@@ -80,10 +80,11 @@ cargo release patch
 cargo release patch --execute
 ```
 
-The first `cargo release` is a dry run. The executed command bumps
-`Cargo.toml` and `Cargo.lock`, closes the changelog's `## Unreleased` section,
-creates a `chore: release v<version>` commit, and creates the corresponding
-`v<version>` tag. Use `minor` or `major` instead of `patch` when appropriate.
+The first `cargo release` is a dry run. The executed command bumps the root
+`Cargo.toml`'s `[workspace.package] version` — the one field every member
+inherits, so all six move together — and `Cargo.lock`, closes the changelog's
+`## Unreleased` section, creates a `chore: release v<version>` commit, and
+creates the corresponding `v<version>` tag. Use `minor` or `major` instead of `patch` when appropriate.
 
 Inspect the imported release change, then move and push the bookmark:
 
@@ -114,9 +115,11 @@ Do the three edits `cargo release` would have made, then let jj and git make the
 two artifacts it would have created:
 
 ```sh
-# 1. the version, in both manifests
-#    edit Cargo.toml's `version = "<old>"` → "<new>", then:
-cargo check                                  # rewrites Cargo.lock's grove entry
+# 1. the version — ONE field, the workspace's. Every member takes
+#    `version.workspace = true`, so editing `[workspace.package] version` in the
+#    root `Cargo.toml` moves all six together; no member manifest is touched.
+#    Edit `version = "<old>"` → "<new>" there, then:
+cargo check                                  # rewrites Cargo.lock's six entries
 # 2. close the changelog heading, exactly as pre-release-replacements would:
 #    insert `## v<new>` two lines under the standing `## Unreleased`
 # 3. the release change, the bookmark, and git's HEAD
@@ -127,7 +130,7 @@ git tag -a v<new> -m "Release v<new>"
 git describe --tags --exact-match HEAD       # the precondition release-build.sh checks
 ```
 
-Verify the change is exactly `Cargo.toml`, `Cargo.lock`, and two added
+Verify the change is exactly the root `Cargo.toml`, `Cargo.lock`, and two added
 `CHANGELOG.md` lines before tagging — that is the whole of what the automated cut
 produces. The `jj new` is not optional: a colocated `HEAD` follows the working
 copy's **parent**, so without it the tag lands on the wrong commit and

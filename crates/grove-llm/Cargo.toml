@@ -1,24 +1,25 @@
 [package]
 name = "grove-llm"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "The verbs the LLM driving a grove session invokes mid-session"
-license = "Apache-2.0"
-repository = "https://github.com/Linkuistics/grove"
-rust-version = "1.85"
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 # **A crate, not a `[[bin]]` target, and that is the whole point**
 # (`docs/specs/module-decomposition.md`, decision 1). A binary target can reach
 # its own library's private items, so *the binary is thin* stops being
 # compiler-enforced the moment it is a target rather than a crate. Here the
 # compiler holds it: everything this binary can reach is something
-# `grove-loop` (or `grove`) chose to publish.
+# `grove-loop` chose to publish.
 #
-# It depends on `grove` as well as `grove-loop` because two of its concerns are
-# still the driver's: the session-epoch admission every verb passes through, and
-# the just-in-time launch-template check `root-init` and the leaf-writing verbs
-# make. `loop-crate-driver-k22` moves both into `grove-loop`, and this manifest
-# loses the `grove` line when it does.
+# It once depended on `grove` as well, because two of its concerns were the
+# driver's: the session-epoch admission every verb passes through, and the
+# just-in-time launch-template check `root-init` and the leaf-writing verbs make.
+# `loop-crate-driver-k22` moved both into `grove-loop`, and this manifest lost
+# that line with them — so `grove-loop` is now the whole of what this binary can
+# reach of grove.
 [[bin]]
 name = "grove-llm"
 path = "src/main.rs"
@@ -26,7 +27,6 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
-grove = { path = "../.." }
 grove-loop = { path = "../grove-loop" }
 jj-workspace = { path = "../jj-workspace" }
 

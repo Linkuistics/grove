@@ -1,15 +1,15 @@
 [package]
 name = "ordinal-fs-tree"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "An ordered tree of entries stored as a directory tree, where each entry's position, identity and metadata live in its filename"
-license = "Apache-2.0"
-repository = "https://github.com/Linkuistics/grove"
+license.workspace = true
+repository.workspace = true
 # Inherited from the workspace root, whose comment carries the evidence: the
 # locked dependency graph cannot be parsed by a cargo below 1.85. This crate has
 # no dependencies of its own and would build far lower, but a member that
 # promises more than the workspace can deliver promises nothing.
-rust-version = "1.85"
+rust-version.workspace = true
 
 # One dependency, and the bar it had to clear is that `std` cannot do the job at
 # all. The library is published for reuse, so every dependency it takes it
@@ -96,10 +96,12 @@ proc-macro2 = { version = "1.0", features = ["span-locations"] }
 [lints]
 workspace = true
 
-# `cargo release` drives the workspace, and `release.toml` configures a cut of
-# *grove*. Excluding this member keeps that cut byte-identical to what it was
-# before the workspace existed: no version bump here, no tag, no changelog
-# section.
+# `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures
+# that cut. `release = false` here means no tag, no changelog section and no
+# publish of its own. It does **not** mean a frozen version: since
+# `loop-crate-driver-k22` this crate takes `version.workspace = true`, so a cut
+# moves it with every other member — one workspace, one release version
+# (`docs/specs/module-decomposition.md`, decision 1).
 #
 # **Whether this crate wants its own `CHANGELOG`, version and release lane is
 # still open**, and it is open because it depends on an answer nothing has yet
@@ -110,7 +112,9 @@ workspace = true
 # anyway. Answering it **by accident**, at grove's next release, is the outcome
 # this line prevents — `publish = false` is repo-wide in `release.toml`, so
 # without this exclusion the member would simply be swept along by a `cargo
-# release` cut of grove and the question would be settled by a version bump
-# nobody decided on.
+# release` cut of grove and the question would be settled by a tag and a
+# changelog section nobody decided on. (The *version* it wears is already the
+# workspace's, and deliberately so; what stays undecided is whether it gets a
+# lane of its own.)
 [package.metadata.release]
 release = false

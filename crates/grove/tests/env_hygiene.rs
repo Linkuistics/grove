@@ -16,8 +16,12 @@ use std::path::PathBuf;
 
 mod support;
 
-fn manifest_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+/// The repository root, where `.cargo/config.toml` lives. Found by walking up
+/// rather than by `CARGO_MANIFEST_DIR`, which names this package since
+/// `loop-crate-driver-k22` moved these tests off a root package that no longer
+/// exists.
+fn repo_root() -> PathBuf {
+    support::repo_root()
 }
 
 /// `.cargo/config.toml` force-overrides `GROVE_SIGNAL_FILE` into `target/` for
@@ -64,7 +68,7 @@ fn the_shared_scrub_list_covers_the_loop_control_channel() {
 /// on the grounds that the other exists.
 #[test]
 fn both_guards_are_present_and_neither_subsumes_the_other() {
-    let config = manifest_dir().join(".cargo/config.toml");
+    let config = repo_root().join(".cargo/config.toml");
     let text = std::fs::read_to_string(&config)
         .unwrap_or_else(|e| panic!("reading {}: {e}", config.display()));
 
@@ -85,7 +89,7 @@ fn both_guards_are_present_and_neither_subsumes_the_other() {
         support::grove_env_names()
             .iter()
             .any(|n| n == "GROVE_SIGNAL_FILE"),
-        "the tests/support scrub list is the other half of this pair"
+        "the testing/support.rs scrub list is the other half of this pair"
     );
 }
 

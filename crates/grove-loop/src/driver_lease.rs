@@ -1,3 +1,13 @@
+//! **One live driver per working tree** — the lease that makes it true, and the
+//! session-epoch handoff that decides which `grove-llm` calls it admits.
+//!
+//! It arrived here with the rest of the driver at `loop-crate-driver-k22`. The
+//! one thing that is not a move is its derivation of a control directory: it
+//! takes a resolved [`Workspace`] and asks the seam for grove's namespace inside
+//! it (`docs/adr/one-live-driver-per-working-tree.md`), rather than resolving a
+//! path itself. The caller has already resolved the workspace — `run` takes one
+//! — so a second resolution here could only disagree with the first.
+
 use anyhow::{bail, Context, Result};
 use jj_workspace::Workspace;
 use std::ffi::OsString;
@@ -82,7 +92,6 @@ impl FileIdentity {
 #[derive(Debug)]
 pub struct DriverLease {
     worktree_root: PathBuf,
-    main_repo: PathBuf,
     control_dir: PathBuf,
     _worktree_directory: File,
     worktree_identity: FileIdentity,
@@ -99,7 +108,17 @@ pub struct SessionEpochGuard {
 }
 
 impl SessionEpochGuard {
-    pub fn require_signal_path(&self, signal_path: Option<&Path>) -> Result<()> {
+    /// Refuse an operation whose completion channel is not the one this epoch
+    /// admitted.
+    ///
+    /// # Errors
+    ///
+    /// Any other path, including none.
+    pub fn require_signal_path(&self, signal_path: Option<&Path>) -> Result<(), crate::Error> {
+        Ok(self.require_signal_path_inner(signal_path)?)
+    }
+
+    fn require_signal_path_inner(&self, signal_path: Option<&Path>) -> Result<()> {
         if signal_path != Some(self.signal_path.as_path()) {
             bail!(
                 "completion signal path does not match the admitted session epoch: expected {}, got {}",
@@ -114,19 +133,27 @@ impl SessionEpochGuard {
 }
 
 impl DriverLease {
-    pub fn acquire(path: &Path) -> Result<Self> {
-        Self::acquire_with(path, || {})
+    /// Take exclusive driver ownership of `workspace`'s working tree.
+    ///
+    /// # Errors
+    ///
+    /// A workspace whose control directory cannot be created, a working tree
+    /// root that cannot be opened, or a predecessor whose session epoch does not
+    /// hand over.
+    pub fn acquire(workspace: &Workspace) -> Result<Self, crate::Error> {
+        Ok(Self::acquire_with(workspace, || {})?)
     }
 
-    fn acquire_with(path: &Path, before_initial_epoch_handoff: impl FnOnce()) -> Result<Self> {
-        // The precondition gate and the control directory in one resolution:
-        // the seam refuses a working tree that is not jj-enabled before
-        // anything is created, and hands back grove's own namespace inside it,
-        // created if absent.
-        let workspace = Workspace::resolve(path)?;
+    fn acquire_with(
+        workspace: &Workspace,
+        before_initial_epoch_handoff: impl FnOnce(),
+    ) -> Result<Self> {
+        // The control directory comes from the resolution the caller already
+        // performed: the seam refuses a working tree that is not jj-enabled
+        // before it hands one out, and it hands back grove's own namespace
+        // inside it, created if absent.
         let control_dir = workspace.control_dir(CONTROL_NAMESPACE)?;
         let worktree_root = workspace.root().to_path_buf();
-        let main_repo = workspace.main_repo().to_path_buf();
         let worktree_directory = File::open(&worktree_root).with_context(|| {
             format!(
                 "opening working tree root {} for driver ownership",
@@ -146,7 +173,6 @@ impl DriverLease {
 
         let mut lease = Self {
             worktree_root,
-            main_repo,
             control_dir,
             _worktree_directory: worktree_directory,
             worktree_identity,
@@ -155,7 +181,7 @@ impl DriverLease {
             lease_identity,
             nonce,
         };
-        lease.revalidate()?;
+        lease.revalidate_inner()?;
         before_initial_epoch_handoff();
         lease.initialize_epoch_record()?;
         // Only after this lease owns the workspace, and after the replacement
@@ -172,19 +198,11 @@ impl DriverLease {
         Ok(lease)
     }
 
+    /// The working tree this lease owns, in the spelling the workspace resolved
+    /// to.
+    #[must_use]
     pub fn worktree_root(&self) -> &Path {
         &self.worktree_root
-    }
-
-    /// The main repo behind this working tree — the checkout the workspace
-    /// belongs to, whose basename names the repo in session names and whose
-    /// path anchors the harness stamp.
-    ///
-    /// Taken from the resolution the lease already performed rather than
-    /// resolved a second time: the two answers cannot then disagree, and the
-    /// borrowed-repository case is one subprocess rather than two.
-    pub fn main_repo(&self) -> &Path {
-        &self.main_repo
     }
 
     /// Grove's control directory inside the workspace's administration area —
@@ -206,7 +224,16 @@ impl DriverLease {
     }
 
     /// Confirm that the paths still name the descriptors this process owns.
-    pub fn revalidate(&self) -> Result<()> {
+    ///
+    /// # Errors
+    ///
+    /// A working tree root or a lease file that was replaced while this process
+    /// held ownership, or either one gone unreadable.
+    pub fn revalidate(&self) -> Result<(), crate::Error> {
+        Ok(self.revalidate_inner()?)
+    }
+
+    fn revalidate_inner(&self) -> Result<()> {
         let current_root =
             FileIdentity::from_metadata(&fs::metadata(&self.worktree_root).with_context(|| {
                 format!(
@@ -680,8 +707,17 @@ fn probe_live_lease_with_post_unlock_hook(
 /// The returned guard owns the shared epoch lock and must remain alive through
 /// the operation's separately acquired Tree access guard. With no ambient
 /// signal path this is a manual command and no driver epoch is required.
-pub fn admit_ambient_session(path: &Path, operation: &str) -> Result<Option<SessionEpochGuard>> {
-    admit_session(path, operation, ambient_signal_path())
+///
+/// # Errors
+///
+/// A stale session: an epoch that is inactive, one belonging to another working
+/// tree, one whose channel is not the ambient one, or one whose driver is no
+/// longer alive.
+pub fn admit_ambient_session(
+    path: &Path,
+    operation: &str,
+) -> Result<Option<SessionEpochGuard>, crate::Error> {
+    Ok(admit_session(path, operation, ambient_signal_path())?)
 }
 
 /// The loop-control context this process was launched into, if any.
@@ -783,6 +819,13 @@ fn write_record(
 
 #[cfg(test)]
 mod tests {
+    /// The fixtures below build a `.jj` marker directly and then acquire against
+    /// it. Resolving here rather than inside `acquire` is the shape of the
+    /// change this leaf made: the lease takes a workspace it did not resolve.
+    fn workspace_at(path: &Path) -> Workspace {
+        Workspace::resolve(path).expect("a fixture worktree carries a `.jj` marker")
+    }
+
     use super::*;
     use std::cell::{Cell, RefCell};
     use std::process::Command;
@@ -900,7 +943,7 @@ mod tests {
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
 
-        let lease = DriverLease::acquire(&root).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
 
         for (label, descriptor) in [
             ("working-tree root", lease._worktree_directory.as_raw_fd()),
@@ -921,7 +964,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
-        let lease = DriverLease::acquire(&root).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let epoch_path = root.join(".jj/grove").join(EPOCH_FILE_NAME);
         let epoch_identity = FileIdentity::from_metadata(&fs::metadata(&epoch_path).unwrap());
         let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
@@ -1080,7 +1123,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
-        let lease = DriverLease::acquire(&root).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
 
@@ -1103,7 +1146,7 @@ mod tests {
         let replacement_root = root.clone();
         let replacement = thread::spawn(move || {
             let _ = started_tx.send(());
-            let result = DriverLease::acquire(&replacement_root);
+            let result = DriverLease::acquire(&workspace_at(&replacement_root));
             if result_tx.send(result).is_err() {
                 panic!("replacement result receiver disappeared");
             }
@@ -1140,7 +1183,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
-        let old_lease = DriverLease::acquire(&root).unwrap();
+        let old_lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         old_lease.activate_session_epoch(&signal_path).unwrap();
         let lease_path = root.join(".jj/grove").join(LEASE_FILE_NAME);
@@ -1156,7 +1199,7 @@ mod tests {
         let (release_tx, release_rx) = mpsc::channel();
         let replacement_root = root.clone();
         let replacement = thread::spawn(move || {
-            DriverLease::acquire_with(&replacement_root, || {
+            DriverLease::acquire_with(&workspace_at(&replacement_root), || {
                 reached_tx.send(()).unwrap();
                 release_rx.recv().unwrap();
             })
@@ -1182,7 +1225,7 @@ mod tests {
         let foreign_root = tmp.path().join("foreign");
         fs::create_dir_all(owner_root.join(".jj")).unwrap();
         fs::create_dir_all(foreign_root.join(".jj")).unwrap();
-        let lease = DriverLease::acquire(&owner_root).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&owner_root)).unwrap();
         let signal_path = owner_root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
 
@@ -1205,7 +1248,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
-        let _lease = DriverLease::acquire(&root).unwrap();
+        let _lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let stale_signal = root.join(".jj/grove/signal-11111111111111111111111111111111");
 
         let error = admit_session(&root, "test pick", ambient(&stale_signal)).unwrap_err();
@@ -1220,7 +1263,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
-        let lease = DriverLease::acquire(&root).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let old_signal = root.join(".jj/grove/signal-11111111111111111111111111111111");
         let new_signal = root.join(".jj/grove/signal-22222222222222222222222222222222");
         lease.activate_session_epoch(&old_signal).unwrap();
@@ -1246,7 +1289,7 @@ mod tests {
             .path()
             .join(OsString::from_vec(b"worktree-\n-name".to_vec()));
         fs::create_dir_all(root.join(".jj")).unwrap();
-        let lease = DriverLease::acquire(&root).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
 
@@ -1267,7 +1310,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
-        let lease = DriverLease::acquire(&root).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
         let control_dir = root.join(".jj/grove");
@@ -1309,7 +1352,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
-        let lease = DriverLease::acquire(&root).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
         drop(lease);
@@ -1326,7 +1369,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".jj")).unwrap();
-        let lease = DriverLease::acquire(&root).unwrap();
+        let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
         let signal_path = root.join(".jj/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
         fs::write(root.join(".jj/grove/session.epoch"), "state=active\n").unwrap();

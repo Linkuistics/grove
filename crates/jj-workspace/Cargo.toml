@@ -1,15 +1,15 @@
 [package]
 name = "jj-workspace"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "Resolve a Jujutsu workspace, refuse a working tree that is not one, and take a path-scoped commit"
-license = "Apache-2.0"
-repository = "https://github.com/Linkuistics/grove"
+license.workspace = true
+repository.workspace = true
 # Inherited from the workspace root, whose comment carries the evidence: the
 # locked dependency graph cannot be parsed by a cargo below 1.85. This crate has
 # no dependencies of its own and would build far lower, but a member that
 # promises more than the workspace can deliver promises nothing.
-rust-version = "1.85"
+rust-version.workspace = true
 
 # **No dependencies, and that is the deliverable rather than an accident.** The
 # crate spawns `jj` and reads a directory; `std` does both. Errors are its own
@@ -28,10 +28,14 @@ tempfile = "3.10"
 [lints]
 workspace = true
 
-# `cargo release` drives the workspace, and `release.toml` configures a cut of
-# *grove*. Excluding this member keeps that cut what it was before this crate
-# existed: no version bump here, no tag, no changelog section. Whether an
-# extracted crate earns its own release lane is the open question
+# `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures
+# that cut. `release = false` here means no tag, no changelog section and no
+# publish of its own. It does **not** mean a frozen version: since
+# `loop-crate-driver-k22` this crate takes `version.workspace = true`, so a cut
+# moves it with every other member — one workspace, one release version
+# (`docs/specs/module-decomposition.md`, decision 1).
+#
+# Whether an extracted crate earns its own release *lane* is the open question
 # `crates/ordinal-fs-tree/Cargo.toml` states at length and
 # `spec-to-current-state-k23` is scheduled to answer; this line keeps the next
 # `cargo release` from answering it by accident.

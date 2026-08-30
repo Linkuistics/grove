@@ -50,8 +50,9 @@ product, not a preference between columns.** `SY-04` says *so an invalid
 configuration leaves the working tree byte-identical*, and a gate in front of
 `close-epoch` or `release-lease` buys that nothing — neither writes a tree. A
 claim whose justification reaches only part of its own quantifier is stated too
-wide. And `src/loop_driver.rs` is the sole caller of `SessionConfig::load`,
-calling it twice an iteration, which is
+wide. And the loop
+(`crates/grove-loop/src/loop_driver.rs`) reads the configuration twice an
+iteration — once before the tree transition and once before the launch — which is
 [`complete-session-configuration`](complete-session-configuration.md)'s
 *validated in full — before every tree mutation and again before every launch*.
 That record needed no change; it had already said what `SY-04.b` did not.

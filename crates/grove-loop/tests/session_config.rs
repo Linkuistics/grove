@@ -12,7 +12,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use grove::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
+use grove_loop::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
 use tempfile::TempDir;
 
 /// Kinds the fixtures below declare. Not *the* kind set — grove no longer holds
@@ -49,12 +49,16 @@ fn write_raw_config(home: &Path, document: &str) -> PathBuf {
 /// pre-delta case: resolution must land exactly where it did before the search
 /// existed. A bare temp directory is deliberate — with no candidate file the
 /// trackedness probe never runs, so no VCS fixture is needed to assert it.
-fn load(home: &Path) -> anyhow::Result<SessionConfig> {
+fn load(home: &Path) -> Result<SessionConfig, grove_loop::Error> {
     let empty = TempDir::new().unwrap();
     load_from(home, empty.path(), empty.path())
 }
 
-fn load_from(home: &Path, worktree: &Path, repository: &Path) -> anyhow::Result<SessionConfig> {
+fn load_from(
+    home: &Path,
+    worktree: &Path,
+    repository: &Path,
+) -> Result<SessionConfig, grove_loop::Error> {
     SessionConfig::load(
         home,
         &DeltaRoots {
@@ -290,7 +294,7 @@ fn a_grove_configuration_conforms_to_the_runners_own_kit() {
 
     let outcome = keyed_launch::conformance::check(
         &SessionConfig::path(home.path()),
-        grove::session_config::vocabulary(),
+        grove_loop::session_config::vocabulary(),
     );
 
     assert!(outcome.passed(), "{}", outcome.failures.join("\n"));
@@ -305,7 +309,7 @@ fn the_kit_and_grove_refuse_the_same_document() {
 
     let outcome = keyed_launch::conformance::check(
         &SessionConfig::path(home.path()),
-        grove::session_config::vocabulary(),
+        grove_loop::session_config::vocabulary(),
     );
 
     assert!(!outcome.passed());

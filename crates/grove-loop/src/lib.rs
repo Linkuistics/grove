@@ -9,6 +9,11 @@
 //! *outcome*, a *handle* or *finishing*. Those are here, and so are the twelve
 //! verbs stated in them.
 //!
+//! Since `loop-crate-driver-k22` it is also the **driver**: the one-driver-per
+//! -working-tree lease, the prompt composition, the launch configuration grove
+//! reads, and [`run`] — the loop itself. What is left outside is one binary per
+//! audience, each three functions long.
+//!
 //! # Opening mirrors the store's, one level up
 //!
 //! [`read`] and [`write`] answer [`Reading`] and [`Writing`] for the same reason
@@ -45,19 +50,37 @@
 //! ours.
 
 mod complete;
+pub mod driver;
+mod driver_lease;
+mod loop_driver;
 mod task_grow;
 mod task_name;
 mod task_tree;
 mod tree_lifecycle;
 
-pub mod driver;
+pub mod prompt;
+pub mod session_config;
 pub mod verbs;
+
+/// The version this repository ships, and the only one.
+///
+/// **One workspace, one release version** (`docs/specs/module-decomposition.md`,
+/// decision 1): every member takes `version.workspace = true`, so this constant
+/// is the workspace's field however it is reached. The two binaries and the
+/// prompt's published version all read it — `crates/grove-llm` would otherwise
+/// answer `--version` with a package version of its own, and the prompt would
+/// publish one, neither of which names anything an operator can install.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 use std::cell::RefCell;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
 pub use complete::{interpret, Disposition};
+pub use driver_lease::{admit_ambient_session, DriverLease, SessionEpochGuard};
+pub use loop_driver::{run, LoopOutcome};
+pub use prompt::{compose, Mandate};
+pub use session_config::{SessionConfig, TemplateSource};
 pub use jj_workspace::{Commit, Workspace};
 pub use ordinal_fs_tree::Sought;
 pub use task_name::{Handle, HandleError, Kind, Outcome, Parts, Slug, TaskName, TokenError};
@@ -120,8 +143,8 @@ pub enum Writing {
 ///   because *one verb's* later guards are part of a wait already announced, and
 ///   the gap between two verbs is not that wait.
 /// * **Do not hold one while calling anything that opens the tree itself.**
-///   [`read`], [`write`], [`verbs::finish_commit`] and both of
-///   [`driver`]'s operations take their own lock on a second file description,
+///   [`read`], [`write`], [`verbs::finish_commit`] and both of the driver's own
+///   two tree operations take their own lock on a second file description,
 ///   and two descriptions on one directory do not share an `flock` — so the call
 ///   blocks forever, against this process. That is the deadlock
 ///   `collapse-tree-access-k13` deleted a whole layer to remove, and the shape

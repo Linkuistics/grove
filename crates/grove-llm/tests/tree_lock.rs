@@ -244,9 +244,10 @@ fn worktree_readers_share_the_lock_without_reporting_contention() {
 /// (`support::grove_sources`), so a verb that reaches for `ordinal_fs_tree::fs::`
 /// in a module of its own fails here whether or not anyone remembered to add it.
 /// The control is the count — the call sites must still exist, so a rename that
-/// hides them fails too. Since `loop-crate-verbs-k21` that walk covers **four**
-/// packages rather than one `src/`, which is the narrowing that would otherwise
-/// have made this pass by looking in the wrong place.
+/// hides them fails too. Since `loop-crate-driver-k22` that walk covers **five**
+/// packages under `crates/` and no repository-root `src/` at all, which is the
+/// narrowing that would otherwise have made this pass by looking in the wrong
+/// place.
 #[test]
 fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
     let mut callers: Vec<(String, usize)> = Vec::new();

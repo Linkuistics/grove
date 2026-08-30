@@ -39,7 +39,7 @@
 //! (`plugins/grove/skills/grove/SKILL.md`), and grove states the version it is
 //! so a session can see which plugin it needs.
 
-use grove_loop::{Handle, Kind};
+use crate::{Handle, Kind};
 
 use jj_workspace::Workspace;
 

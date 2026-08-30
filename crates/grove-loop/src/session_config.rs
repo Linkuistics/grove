@@ -82,6 +82,58 @@ pub struct DeltaRoots<'a> {
     pub repository: &'a Path,
 }
 
+/// **Where each iteration's launch templates are read from** — the third
+/// argument [`crate::run`] takes.
+///
+/// It is a *source* rather than a snapshot, and that is deliberate. The loop
+/// re-reads the configuration once per iteration, so a session that adds a kind
+/// to `config.kdl` is launched from the document as it stands rather than as it
+/// stood when the loop started, and the just-in-time presence rule is asked
+/// against the document that was live before the tree was mutated
+/// (`docs/adr/complete-session-configuration.md`). A loaded [`SessionConfig`]
+/// handed in once could express neither.
+///
+/// The delta roots are not held here: they come from the workspace `run` is
+/// given, so there is one derivation of them and nothing to keep in step.
+pub struct TemplateSource {
+    home: PathBuf,
+}
+
+impl TemplateSource {
+    /// The personal configuration under `home`.
+    #[must_use]
+    pub fn under(home: impl Into<PathBuf>) -> Self {
+        Self { home: home.into() }
+    }
+
+    /// The personal configuration under `$HOME`.
+    ///
+    /// # Errors
+    ///
+    /// `$HOME` unset, which leaves nothing to locate the file from.
+    pub fn from_env() -> Result<Self, crate::Error> {
+        let home = std::env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
+            crate::Error::msg(
+                "$HOME is not set; cannot locate ~/.config/grove/config.kdl. Set it, or run \
+                 `grove` from a login shell.",
+            )
+        })?;
+        Ok(Self { home })
+    }
+
+    /// The personal file's path — the one a diagnostic names when nothing
+    /// overrode it.
+    #[must_use]
+    pub fn personal_path(&self) -> PathBuf {
+        SessionConfig::path(&self.home)
+    }
+
+    /// Read the personal file, and at most one delta laid over it.
+    pub(crate) fn load(&self, roots: &DeltaRoots<'_>) -> Result<SessionConfig> {
+        SessionConfig::read(&self.home, roots)
+    }
+}
+
 pub struct SessionConfig {
     templates: Templates,
 }
@@ -107,7 +159,17 @@ impl SessionConfig {
     /// validated whatever a delta says, and an unreadable, unparseable, invalid
     /// or **tracked** delta fails the load rather than falling back to the very
     /// policy its owner was moving work away from.
-    pub fn load(home: &Path, roots: &DeltaRoots<'_>) -> Result<Self> {
+    ///
+    /// # Errors
+    ///
+    /// A personal file that is missing, unparseable or invalid; a delta that is
+    /// any of those or **tracked**; or a candidate whose state could not be
+    /// established at all.
+    pub fn load(home: &Path, roots: &DeltaRoots<'_>) -> Result<Self, crate::Error> {
+        Ok(Self::read(home, roots)?)
+    }
+
+    fn read(home: &Path, roots: &DeltaRoots<'_>) -> Result<Self> {
         let path = Self::path(home);
         let delta = find_delta(roots)?;
         if let Some(delta) = &delta {
@@ -122,18 +184,18 @@ impl SessionConfig {
     ///
     /// The seam's `main_repo` is the one derivation of *the repository root*, so
     /// a verb and the driver search the delta in the same order.
-    pub fn load_for_worktree(worktree: &Path) -> Result<Self> {
-        let home = std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .context("$HOME is not set; cannot locate ~/.config/grove/config.kdl")?;
-        let repository = Workspace::resolve(worktree)?.main_repo().to_path_buf();
-        Self::load(
-            &home,
-            &DeltaRoots {
-                worktree,
-                repository: &repository,
-            },
-        )
+    ///
+    /// # Errors
+    ///
+    /// `$HOME` unset, a working tree that is not a jj workspace, or any refusal
+    /// [`Self::load`] makes.
+    pub fn load_for_worktree(worktree: &Path) -> Result<Self, crate::Error> {
+        let source = TemplateSource::from_env()?;
+        let workspace = Workspace::resolve(worktree).map_err(anyhow::Error::from)?;
+        Ok(source.load(&DeltaRoots {
+            worktree,
+            repository: workspace.main_repo(),
+        })?)
     }
 
     /// The file the resolved template for `kind` was read from — the personal
@@ -147,8 +209,12 @@ impl SessionConfig {
     /// The just-in-time half of `docs/adr/complete-session-configuration.md`:
     /// asked before grove writes a leaf of this kind, and again — through
     /// [`Self::expand`] — before it launches one.
-    pub fn require(&self, kind: &str) -> Result<()> {
-        self.templates.require(kind)?;
+    ///
+    /// # Errors
+    ///
+    /// A kind no template resolves for, or one whose template is incomplete.
+    pub fn require(&self, kind: &str) -> Result<(), crate::Error> {
+        self.templates.require(kind).map_err(anyhow::Error::from)?;
         Ok(())
     }
 
@@ -158,7 +224,12 @@ impl SessionConfig {
     /// constructor, so passing it through to `keyed_launch::run` is what makes
     /// *nothing reaches a spawn that a template did not author* a fact about
     /// the types rather than a convention grove keeps.
-    pub fn expand(&self, kind: &str, context: &ExpansionContext<'_>) -> Result<Argv> {
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::require`], plus a slot the template spells that grove's
+    /// vocabulary does not supply.
+    pub fn expand(&self, kind: &str, context: &ExpansionContext<'_>) -> Result<Argv, crate::Error> {
         let argv = self.templates.expand(
             kind,
             &[
@@ -179,7 +250,7 @@ impl SessionConfig {
                     value: context.repository.as_os_str(),
                 },
             ],
-        )?;
+        ).map_err(anyhow::Error::from)?;
         Ok(argv)
     }
 }

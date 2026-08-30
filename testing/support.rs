@@ -1,11 +1,20 @@
-// Shared test-only env-isolation helpers for the integration test binaries
-// that drive the loop/provisioning/complete verbs against process-global env
-// vars. Cargo's `tests/*.rs` target auto-discovery only scans direct
-// children of `tests/`, so `tests/support/mod.rs` is not itself a test
-// binary — pull it in per-file with `mod support;`.
+// Shared test-only helpers for the integration-test binaries that drive the
+// loop and its verbs: env isolation against process-global variables, the
+// readiness seam, the jj fixtures, and the kind-label walk.
 //
-// Each `tests/*.rs` file compiles this module into its own separate binary
-// (one per Cargo test target), so not every item is used by every consumer.
+// **It lives outside every package on purpose.** `loop-crate-driver-k22` made
+// the repository root a bare workspace, so there is no root package to own a
+// shared `tests/` directory any more — and these helpers are about the
+// *repository* rather than about any one of the three packages that use them.
+// Copying them into each would have produced three that drift. Each consumer
+// pulls this one in through a `tests/support/mod.rs` shim that names it by
+// `#[path]`, and `mod support;` from there.
+//
+// A `tests/support/` shim is not itself a test binary: cargo's `tests/*.rs`
+// auto-discovery only scans direct children of `tests/`.
+//
+// Each consuming `tests/*.rs` compiles this module into its own separate binary
+// (one per cargo test target), so not every item is used by every consumer.
 #![allow(dead_code)]
 
 use std::ffi::OsStr;
@@ -379,11 +388,11 @@ pub const EVERY_SESSION_KIND: &[&str] = &[
 
 /// The repository root, found by walking up from this file's own package.
 ///
-/// This module is compiled into test binaries in **two** packages since
-/// `loop-crate-verbs-k21` — `grove` at the root and `crates/grove-llm` beside it
-/// — so `CARGO_MANIFEST_DIR` is not one answer any more. The workspace manifest
-/// is the marker, and it is the only file in this tree that is a `Cargo.toml`
-/// with a `[workspace]` table in it.
+/// This module is compiled into test binaries in **three** packages —
+/// `crates/grove`, `crates/grove-llm` and `crates/grove-loop` — so
+/// `CARGO_MANIFEST_DIR` is not one answer any more. The workspace manifest is
+/// the marker, and it is the only file in this tree that is a `Cargo.toml` with
+/// a `[workspace]` table in it.
 pub fn repo_root() -> PathBuf {
     let mut dir = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
     loop {
@@ -442,10 +451,15 @@ fn workspace_binary(name: &str) -> PathBuf {
 
 /// Every Rust source file grove itself ships, as `(repo-relative path, body)`.
 ///
-/// **Grove's source is four packages now**, not one directory:
-/// `loop-crate-verbs-k21` split the tree and its verbs into
-/// `crates/grove-loop` and the agent CLI into `crates/grove-llm`, so a sweep
-/// anchored on one `src/` would report a clean tree because it stopped looking.
+/// **Grove's source is five packages under `crates/`**, and no repository-root
+/// `src/` at all: `loop-crate-verbs-k21` split the tree and its verbs into
+/// `crates/grove-loop` and the agent CLI into `crates/grove-llm`, and
+/// `loop-crate-driver-k22` took the driver after them and left the human binary
+/// at `crates/grove`. A sweep anchored on one `src/` would report a clean tree
+/// because it stopped looking — and a sweep that merely *kept* a stale root
+/// entry would too, silently, since a directory that is not there is skipped
+/// rather than refused. Hence the enumeration below is the member list, and the
+/// size floor at the foot of this function is what makes a shortened one fail.
 /// `crates/ordinal-fs-tree` is excluded deliberately and is the one exclusion:
 /// it is the **store**, and the claims these sweeps make — *the store's lock is
 /// taken from exactly one module*, *nothing grove locks for itself ever waits* —
@@ -453,9 +467,22 @@ fn workspace_binary(name: &str) -> PathBuf {
 /// blocks on it by design.
 pub fn grove_sources() -> Vec<(String, String)> {
     let root = repo_root();
-    let mut roots = vec![root.join("src")];
-    for member in ["grove-llm", "grove-loop", "jj-workspace", "keyed-launch"] {
-        roots.push(root.join("crates").join(member).join("src"));
+    let mut roots = Vec::new();
+    for member in [
+        "grove",
+        "grove-llm",
+        "grove-loop",
+        "jj-workspace",
+        "keyed-launch",
+    ] {
+        let member_src = root.join("crates").join(member).join("src");
+        assert!(
+            member_src.is_dir(),
+            "{} is not a directory — the member list has gone stale, and a stale \
+             entry narrows this sweep silently",
+            member_src.display()
+        );
+        roots.push(member_src);
     }
     let mut found = Vec::new();
     while let Some(path) = roots.pop() {

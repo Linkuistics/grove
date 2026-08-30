@@ -1,13 +1,26 @@
-# This repo is a **workspace** whose root package is still `grove`, and whose
-# other members are the domain-free libraries grove is being decomposed into
-# (`docs/specs/module-decomposition.md`).
+# **The workspace root is not a package.** It was `grove` until
+# `loop-crate-driver-k22`, which moved the last of `src/` into
+# `crates/grove-loop` and gave the human-facing binary its own crate at
+# `crates/grove`. What is left here is the workspace itself: its members, the one
+# release version they all wear, and the lint gate they all inherit.
+#
+# `crates/grove` is the human's binary — bare `grove`, the loop's entry point —
+# and `crates/grove-llm` is the session's. Both are **crates rather than
+# `[[bin]]` targets inside a library**, and that is the point: a binary target
+# can reach its own library's private items, so *the binary is thin* stops being
+# compiler-enforced the moment it is a target rather than a crate
+# (`docs/specs/module-decomposition.md`, decision 1).
+#
+# `crates/grove-loop` is grove's loop (decision 9): the task tree in grove's own
+# vocabulary, the twelve verbs a session invokes over it, and — since this leaf —
+# the driver, its lease, the prompt it composes and the launch configuration it
+# reads. It is the one library crate allowed to be domain-bound.
 #
 # `crates/ordinal-fs-tree` is the tree library grove's own tree modules were
 # extracted into (gh issue #13); grove's side of that is a domain implementation
 # of one seam, and its algebra is gone. Its design documents stay at
 # `docs/ordinal-fs-tree/` rather than moving under the crate: `docs/adr/` is flat
-# and repo-wide while grove occupies the root, and four artifacts link into that
-# path.
+# and repo-wide, and four artifacts link into that path.
 #
 # `crates/jj-workspace` is the VCS seam (decision 8): resolve a jj workspace,
 # refuse a working tree that is not one, take a path-scoped commit. It is
@@ -15,19 +28,17 @@
 # rather than knowing grove's name — and it is the only thing in this workspace
 # that spawns `jj`.
 #
-# `crates/keyed-launch` is the runner's template half (decision 7): a configuration
-# of `key -> complete command template`, validated whole against a slot vocabulary
-# supplied at load, and expanded into an argv. It is domain-free down to the
-# noun — it says *key*, never *session kind* — and it holds no set of keys, which
-# is what let decision 6's completeness quantifier become per-key and
-# just-in-time. The channel, the spawn and the escalation follow at
-# `keyed-launch-run-k11`.
+# `crates/keyed-launch` is the runner (decision 7): a configuration of
+# `key -> complete command template`, validated whole against a slot vocabulary
+# supplied at load, expanded into an argv, spawned directly and supervised. It is
+# domain-free down to the noun — it says *key*, never *session kind*.
 #
-# `resolver = "2"` is stated rather than inherited. A workspace root that is also
-# a package takes its resolver from that package's edition, so this is what 2021
-# already implies — written down so a later edition bump cannot move it silently.
+# `resolver = "2"` is stated rather than inherited. A workspace root that is not
+# a package has no package edition to take a resolver from, so this line is now
+# load-bearing rather than a restatement of what 2021 implies.
 [workspace]
 members = [
+    "crates/grove",
     "crates/grove-llm",
     "crates/grove-loop",
     "crates/jj-workspace",
@@ -36,50 +47,27 @@ members = [
 ]
 resolver = "2"
 
-# Hold the clippy baseline at zero, for every member. `clippy-baseline-k4` cleared
-# eight warnings that had accumulated unnoticed, and a baseline with nothing
-# defending it just climbs back — an ordinary `cargo build` or `cargo test` never
-# mentions a clippy lint, so the count is invisible between deliberate audits.
-# This repo has no CI (see the `rust-version` note below), so the manifest is the
-# only place a gate can live; there is no workflow step to put one in.
-#
-# Denying the group costs ordinary builds nothing: rustc does not evaluate
-# `clippy::` tool lints, so `cargo build` and `cargo test` are unaffected and
-# this bites only under `cargo clippy` — exactly when it should. Run
-# `cargo clippy --workspace --all-targets` before committing, where a new
-# warning is now an error rather than a line of scrollback.
-#
-# `--workspace` is load-bearing rather than belt-and-braces. This root is *also*
-# a package, so a bare `cargo clippy` lints `grove` alone and every member
-# crate's warnings go unread — which is how `crates/keyed-launch` came to carry
-# two of them unnoticed between `keyed-launch-templates-k10` and
-# `keyed-launch-run-k11`, with the baseline below in force the whole time.
-#
-# `priority = -1` keeps the group from outranking a future single-lint override
-# placed beside it.
-#
-# These live at the workspace rather than in each package so a new member
-# inherits the baseline by writing `[lints] workspace = true` and cannot start
-# below it by omission — the failure mode of the per-package form, where the
-# gate is a thing each crate has to remember.
-[workspace.lints.clippy]
-all = { level = "deny", priority = -1 }
+# `.grove-worktrees/` holds active grove worktrees — whole checkouts of this
+# repository, each with its own `crates/`. Excluded so a stray manifest under
+# one can never be mistaken for a member of *this* workspace.
+exclude = [".grove-worktrees"]
 
-[workspace.lints.rust]
-# Suppressions in this workspace prefer `#[expect(...)]` over `#[allow(...)]`
-# wherever the justification could stop holding — an enum whose variant-size
-# ratio is a fact about today's types, say. An expectation only expires loudly
-# if going stale is itself an error;
-# left at the default `warn` it would be swallowed by the same inattention this
-# table exists to prevent. Permanent suppressions (portability, say) stay
-# `#[allow]`.
-unfulfilled_lint_expectations = "deny"
-
-[package]
-name = "grove"
+# **One workspace, one release version** (`docs/specs/module-decomposition.md`,
+# decision 1), and since `loop-crate-driver-k22` that is a fact about the
+# manifests rather than a convention: every member takes `version.workspace =
+# true`, so there is exactly one place a version can be written and no way for
+# two members to disagree. `cargo release` cuts `crates/grove` — the binary the
+# tag names and an operator installs — and bumping it rewrites the field below,
+# which every member reads.
+#
+# That is what makes `grove_loop::VERSION` answerable at all. The prompt
+# publishes grove's release version (decision 10) and the loop composes the
+# prompt, so the constant has to be readable from `crates/grove-loop`; with a
+# per-package version it would have answered `0.1.0`, which names nothing an
+# operator can install.
+[workspace.package]
 version = "19.6.0"
 edition = "2021"
-description = "Hierarchical, self-extending workstream tool for AI agents"
 license = "Apache-2.0"
 repository = "https://github.com/Linkuistics/grove"
 # Minimum supported Rust version — the floor the locked graph actually builds on.
@@ -101,72 +89,40 @@ repository = "https://github.com/Linkuistics/grove"
 # would have bought nothing and needed re-litigating at every update.
 rust-version = "1.85"
 
-# Sibling git worktrees live alongside the crate root but aren't part
-# of the crate: `.grove-worktrees/` holds active grove worktrees.
-exclude = [".grove-worktrees"]
-
-[[bin]]
-name = "grove"
-path = "src/main.rs"
-
-# **There is no second `[[bin]]` here.** `grove-llm` is `crates/grove-llm`, its
-# own package, and that is the point: a binary target can reach its own
-# library's private items, so *the binary is thin* stops being compiler-enforced
-# the moment it is a target rather than a crate
-# (`docs/specs/module-decomposition.md`, decision 1). The audience split is
-# unchanged — the human's `grove --help` shows none of those verbs
-# (cli-binary-split).
-
-[lib]
-name = "grove"
-path = "src/lib.rs"
-
-# The clippy baseline and the `#[expect]` policy live in `[workspace.lints]` at
-# the head of this file, so every member inherits one gate rather than each
-# restating it.
-[lints]
-workspace = true
-
-# **No `build.rs` at all**, and no `[build-dependencies]`. The script was a
-# `std`-only `rerun-if-changed` walk over `content/`, emitting one hint per file
-# so an edit reached the `include_dir!` embed that `include_dir` does not
-# register with Cargo on stable. `delete-provisioning-k19` deleted `content/`,
-# the embed and the module that carried it, so the walk had nothing left to
-# re-run for and went with them.
-
-[dependencies]
-# **No `include_dir`, no `sha2`, and no production `tempfile`.** All three were
-# provisioning's: `include_dir` embedded `content/`, `sha2` hashed the embed for
-# the methodology identity the build-pairing report compared, and `tempfile`
-# staged an extraction so a rename was the only thing to touch a live skill
-# directory. `delete-provisioning-k19` deleted the sweep, so grove writes no
-# skill directory and carries no corpus — the methodology installs as a plugin
-# like every other skill this repo ships. `tempfile` survives below as a
-# dev-dependency, which is all the fixtures ever needed it as.
-anyhow = "1.0"
-clap = { version = "4", features = ["derive"] }
-# Used by the self-driving loop substrate (self-driving-loop): `loop_driver.rs` ignores
-# SIGINT (`libc::signal`) so the driver survives the human's Ctrl-C and checks
-# `isatty` before launching, and its session watcher ends a signalled session
-# with `libc::kill` (SIGTERM, then SIGKILL).
-libc = "0.2"
+# Hold the clippy baseline at zero, for every member. `clippy-baseline-k4` cleared
+# eight warnings that had accumulated unnoticed, and a baseline with nothing
+# defending it just climbs back — an ordinary `cargo build` or `cargo test` never
+# mentions a clippy lint, so the count is invisible between deliberate audits.
+# This repo has no CI (see the `rust-version` note above), so the manifest is the
+# only place a gate can live; there is no workflow step to put one in.
 #
-# The VCS seam (`docs/specs/module-decomposition.md`, decision 8). It imposes no
-# dependency of its own — its errors are an opaque `Refusal` implementing
-# `std::error::Error`, which `anyhow` swallows through `?` without either crate
-# knowing about the other.
-jj-workspace = { path = "crates/jj-workspace" }
-# The runner's template half (`docs/specs/module-decomposition.md`, decision 7).
-# It imposes `kdl` and `shell-words` — the two document formats a template
-# configuration is written in, both of which grove already depended on directly
-# for the module this replaces.
-keyed-launch = { path = "crates/keyed-launch" }
-# The loop's tree layer and its twelve verbs (`docs/specs/module-decomposition.md`,
-# decision 9). `loop-crate-verbs-k21` moved them out of this package; what is
-# left here — the driver, the lease, the prompt — consumes them, and
-# `loop-crate-driver-k22` follows them across.
-grove-loop = { path = "crates/grove-loop" }
+# Denying the group costs ordinary builds nothing: rustc does not evaluate
+# `clippy::` tool lints, so `cargo build` and `cargo test` are unaffected and
+# this bites only under `cargo clippy` — exactly when it should. Run
+# `cargo clippy --workspace --all-targets` before committing, where a new
+# warning is now an error rather than a line of scrollback.
+#
+# `--workspace` is no longer load-bearing the way it was — this root is not a
+# package any more, so a bare `cargo clippy` from here already covers every
+# member — but it is still what `docs/RELEASING.md` and the leaf bodies name,
+# and it is the invocation that cannot become narrower by accident.
+#
+# `priority = -1` keeps the group from outranking a future single-lint override
+# placed beside it.
+#
+# These live at the workspace rather than in each package so a new member
+# inherits the baseline by writing `[lints] workspace = true` and cannot start
+# below it by omission — the failure mode of the per-package form, where the
+# gate is a thing each crate has to remember.
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
 
-[dev-dependencies]
-assert_cmd = "2.0"
-tempfile = "3.10"
+[workspace.lints.rust]
+# Suppressions in this workspace prefer `#[expect(...)]` over `#[allow(...)]`
+# wherever the justification could stop holding — an enum whose variant-size
+# ratio is a fact about today's types, say. An expectation only expires loudly
+# if going stale is itself an error;
+# left at the default `warn` it would be swallowed by the same inattention this
+# table exists to prevent. Permanent suppressions (portability, say) stay
+# `#[allow]`.
+unfulfilled_lint_expectations = "deny"

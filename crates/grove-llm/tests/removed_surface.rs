@@ -169,11 +169,13 @@ fn this_file() -> PathBuf {
 /// scripting, and the manifests that carry ignore rules and build metadata.
 fn roots() -> Vec<PathBuf> {
     let base = manifest_dir();
+    // `crates/` rather than `src` and `tests`: `loop-crate-driver-k22` made the
+    // repository root a bare workspace, so every package's production code and
+    // suite is under one directory, and `testing/` holds the helpers they share.
     [
-        "src",
-        "tests",
+        "crates",
+        "testing",
         "scripts",
-        "build.rs",
         "Cargo.toml",
         "release.toml",
         ".gitignore",
@@ -350,7 +352,7 @@ fn the_classification_table_carries_no_stale_entry() {
 #[test]
 fn the_walk_reaches_every_root_that_should_carry_names() {
     let found = occurrences();
-    for expected in ["src", "tests", "scripts", ".cargo/config.toml"] {
+    for expected in ["crates", "testing", "scripts", ".cargo/config.toml"] {
         assert!(
             found
                 .iter()
@@ -409,30 +411,6 @@ fn render(occurrences: &[Occurrence]) -> String {
 
 // ---------------------------------------------------------------------------
 // The command surface, enumerated from clap's own model
-
-/// Stated as a closure property rather than as a list of rejected verbs: the
-/// human CLI has *nothing* to select. That subsumes `do` / `migrate` / `retire`
-/// / `--harness` / `--no-launch` without naming them, and it fails on the next
-/// flag too — which a list of five rejected argument vectors would not.
-#[test]
-fn the_human_command_surface_has_nothing_left_to_select() {
-    let command = grove::cli::Cli::command();
-    let subcommands: Vec<&str> = command.get_subcommands().map(|s| s.get_name()).collect();
-    assert!(
-        subcommands.is_empty(),
-        "bare `grove` is the whole human lifecycle; it has subcommands: {subcommands:?}"
-    );
-    let arguments: Vec<String> = command
-        .get_arguments()
-        .map(|argument| argument.get_id().to_string())
-        .filter(|id| id != "help" && id != "version")
-        .collect();
-    assert!(
-        arguments.is_empty(),
-        "launch policy has one home and it is not the command line; `grove` \
-         accepts: {arguments:?}"
-    );
-}
 
 /// The agent CLI keeps its verbs, so the claim here is narrower: no removed
 /// verb came back, and nothing in the whole subtree selects a harness. Walking
@@ -978,8 +956,9 @@ fn module_occurrences(roots: &[PathBuf]) -> Vec<Occurrence> {
 ///
 /// **Read from every package grove ships**, not from one `src/`.
 /// `loop-crate-verbs-k21` moved the whole `task_*` / `tree_*` family into
-/// `crates/grove-loop`, so a walk anchored on the root package would find no
-/// live module the sweep's pattern can match — and the count control below would
+/// `crates/grove-loop` and `loop-crate-driver-k22` took the driver after it, so
+/// there is no root `src/` left at all — a walk anchored on one would find no
+/// live module the sweep's pattern can match, and the count control below would
 /// then be comparing zero against zero.
 fn live_modules() -> BTreeSet<String> {
     source_roots()
@@ -1003,7 +982,7 @@ fn live_modules() -> BTreeSet<String> {
 fn source_roots() -> Vec<PathBuf> {
     let base = manifest_dir();
     vec![
-        base.join("src"),
+        base.join("crates/grove/src"),
         base.join("crates/grove-llm/src"),
         base.join("crates/grove-loop/src"),
     ]
@@ -1016,8 +995,10 @@ fn source_roots() -> Vec<PathBuf> {
 fn code_roots() -> Vec<PathBuf> {
     let base = manifest_dir();
     let mut roots = source_roots();
-    roots.push(base.join("tests"));
+    roots.push(base.join("crates/grove/tests"));
     roots.push(base.join("crates/grove-llm/tests"));
+    roots.push(base.join("crates/grove-loop/tests"));
+    roots.push(base.join("testing"));
     roots
 }
 
@@ -1064,8 +1045,16 @@ fn every_module_file_on_disk_is_declared_and_every_declaration_has_a_file() {
     let declared: BTreeSet<String> = source_roots()
         .iter()
         .flat_map(|root| {
-            let text = fs::read_to_string(root.join("lib.rs"))
-                .unwrap_or_else(|error| panic!("reading {}: {error}", root.display()));
+            // `lib.rs` where the package has a library, `main.rs` where it is a
+            // binary and nothing else — `crates/grove` since
+            // `loop-crate-driver-k22`, which is exactly the shape that keeps
+            // *the binary is thin* compiler-enforced.
+            let crate_root = [root.join("lib.rs"), root.join("main.rs")]
+                .into_iter()
+                .find(|candidate| candidate.is_file())
+                .unwrap_or_else(|| panic!("{} has no crate root", root.display()));
+            let text = fs::read_to_string(&crate_root)
+                .unwrap_or_else(|error| panic!("reading {}: {error}", crate_root.display()));
             text.lines()
                 .filter_map(|line| {
                     let rest = line.trim().strip_prefix("pub mod ").or_else(|| {

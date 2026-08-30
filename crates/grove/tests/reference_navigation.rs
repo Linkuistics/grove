@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+mod support;
+
 /// The user-facing documentation surface: the files a reader reaches without
 /// opening `src/`, and the only ones this check walks.
 ///
@@ -222,8 +224,12 @@ fn unresolved_reason(repository_root: &Path, source: &str, target: &str) -> Opti
     })
 }
 
+/// The repository root — the surface these documents live on. Walked up to
+/// rather than read from `CARGO_MANIFEST_DIR`, which names `crates/grove` since
+/// `loop-crate-driver-k22` moved these tests off a root package that no longer
+/// exists.
 fn repository_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    support::repo_root()
 }
 
 #[test]
@@ -326,7 +332,7 @@ const HISTORY: &str = "CHANGELOG.md";
 /// mislabelled form it exists to reject — in its own explanation and in its
 /// fixtures. Named as a constant so the exclusion is one visible decision
 /// rather than a silent filter.
-const THIS_FILE: &str = "tests/reference_navigation.rs";
+const THIS_FILE: &str = "crates/grove/tests/reference_navigation.rs";
 
 fn collect_files(directory: &Path, prefix: &str, extensions: &[&str], into: &mut Vec<String>) {
     let entries = std::fs::read_dir(directory)

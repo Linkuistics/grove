@@ -71,7 +71,7 @@ The repository contains two independently installed products:
 
 | Product | Source | Delivery |
 |---|---|---|
-| Grove CLI | `src/` | Homebrew installs `grove` and `grove-llm`. |
+| Grove CLI | `crates/` | Homebrew installs `grove` and `grove-llm`. |
 | Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for the skills whose `harnesses:` key declares them installable off Claude Code. |
 
 Grove and the skill plugins share a repository because their documented
@@ -158,11 +158,15 @@ report the build pairing; that flag, that identity and that report all went with
 provisioning at `delete-provisioning-k19`. There is no metadata argument left, so
 `grove-llm` takes a verb or prints help.
 
-`src/main.rs` and `crates/grove-llm/src/main.rs` are thin entry points.
-`src/cli.rs` owns the human grammar; `crates/grove-llm/src/cli.rs` owns the
-agent grammar — and since `loop-crate-verbs-k21` the agent's is a **separate
-crate**, so *the binary is thin* is compiler-enforced rather than reviewed
-(`docs/specs/module-decomposition.md`, decision 1).
+`crates/grove/src/main.rs` and `crates/grove-llm/src/main.rs` are thin entry
+points. `crates/grove/src/cli.rs` owns the human grammar;
+`crates/grove-llm/src/cli.rs` owns the agent grammar. Since
+`loop-crate-driver-k22` **both are separate crates** over `grove-loop`, so *the
+binary is thin* is compiler-enforced rather than reviewed
+(`docs/specs/module-decomposition.md`, decision 1): a binary target inside a
+library could reach that library's private items, and neither of these is one.
+The human binary is three steps — parse, resolve the workspace, take the lease —
+and then `grove_loop::run`.
 
 ## Session configuration
 
@@ -183,7 +187,8 @@ completion channel, spawns the argv directly with no shell, supervises the child
 and applies the kill escalation — so `Argv`, which has no constructor, is both
 the only thing expansion produces and the only thing a spawn accepts. *Nothing
 reaches a spawn that a template did not author* is therefore a fact about the
-types rather than a convention grove keeps. `src/session_config.rs` is what is left of grove's side:
+types rather than a convention grove keeps. `crates/grove-loop/src/session_config.rs`
+is what is left of grove's side:
 the personal file's path, the four slots (`prompt`, `session_name`, `worktree`,
 `repo`) grove's templates are written against, and the delta's search and
 trackedness rules below. The user-facing grammar and diagnostics are in
@@ -396,7 +401,8 @@ recorded reasons had dissolved.
 
 **The deletion is checked rather than asserted**, in `tests/removed_surface.rs`,
 by the method that file already used for the removed launch environment:
-enumerate every module-shaped token under `src/` and `tests/` — prose included,
+enumerate every module-shaped token under every package's `src/` and `tests/`,
+and under `testing/` — prose included,
 since an essay arguing about a module that no longer exists is worse than no
 essay — and classify each against a live set read off disk and a listed
 withdrawn set. It carries a positive control (the tokeniser finds a withdrawn
@@ -716,7 +722,7 @@ Neither shape is known to the machinery. A chain is three separate `leaf-add`
 calls; a pair is one `leaf-add` given three kinds, which lands them as one unit
 at consecutive positions with consecutive keys. The three tokens are spelled on
 the command line by the session that owns them, which is what took the last list
-of kinds out of `src/`.
+of kinds out of grove's source.
 
 Every step carries that stem as its **whole slug**, so a shape's leaves differ
 only by kind and key. The kind field is the canonical statement of a step's role
@@ -761,8 +767,8 @@ integration is cut where `select` would reach it next: `leaf-insert` at the firs
 sibling entry after the review whose subtree still holds live work — an *entry*,
 because `collect_live_leaf_entries` descends a node directory in place, and
 directory-local, because that same pre-order finishes the review's own directory
-before any later sibling of an ancestor. Nothing in `src/` enforces or checks
-that. `research-a` and
+before any later sibling of an ancestor. Nothing in the binaries enforces or
+checks that. `research-a` and
 `research-b` share one discipline but are separate configuration keys, which is
 how a vendor pair reaches two different commands without any per-leaf metadata;
 whether those two commands are materially independent is configuration-owner
@@ -858,9 +864,10 @@ left no legacy shape to recognise, and `delete-finish-transaction-k8` left no
 transaction. The one thing Grove's guard covered that the library could not —
 creating the root, which needs the root to not exist yet — is
 `Vacancy::initialize`'s, taken under the exclusive lock the vacancy already
-holds. Grove now takes exactly one `flock` of its own anywhere in `src/`: the
-non-blocking contention probe below, which is released in the same expression.
-`tests/tree_lock.rs` holds both halves by enumerating `src/`.
+holds. Grove now takes exactly one `flock` of its own anywhere in its source:
+the non-blocking contention probe below, which is released in the same
+expression. `crates/grove-llm/tests/tree_lock.rs` holds both halves by
+enumerating every package's `src/`.
 
 Two consumer-side obligations came out of that move, and every later flip leaf
 inherits both.
@@ -1269,8 +1276,8 @@ records that argued the design — `skill-delivers-the-methodology` and
 
 ### The boundary that survives, and the one that does not
 
-**A build boundary still separates an edit to `src/` from the sessions it
-reaches.** A running driver is the build already in memory; it never re-execs,
+**A build boundary still separates an edit to grove's source from the sessions
+it reaches.** A running driver is the build already in memory; it never re-execs,
 so committing a change to the loop, the verbs or the prompt changes nothing any
 session in that loop sees until the binary is rebuilt *and installed*. That is
 what makes a meta-grove's cutover leaves cutover leaves.
@@ -1545,32 +1552,35 @@ was never a statable claim either; what is statable is that the two halves this
 repository publishes agree with each other.
 
 A stale *installed* binary is an ordinary upgrade concern, diagnosed with
-`grove --version` against the repository's `Cargo.toml`, and resolved by
+`grove --version` against the workspace's one version field, and resolved by
 rebuilding and installing — not by anything Grove does at runtime. A stale
 installed methodology is the same kind of concern, resolved by updating the
 plugin.
 
 ## Main module seams
 
-**Grove is five packages in one workspace**, and a module's package is now part
-of its identity (`docs/specs/module-decomposition.md`, decision 1). Three of them
-have never heard of grove — `crates/ordinal-fs-tree` (the store),
-`crates/keyed-launch` (the runner) and `crates/jj-workspace` (the VCS seam) — and
-each has its own architecture. What follows is the two that are grove, plus
-`crates/grove-llm`, which is a clap surface and nothing else.
+**Grove is six packages in one workspace, and the workspace root is not one of
+them**, so a module's package is part of its identity
+(`docs/specs/module-decomposition.md`, decision 1). Three have never heard of
+grove — `crates/ordinal-fs-tree` (the store), `crates/keyed-launch` (the runner)
+and `crates/jj-workspace` (the VCS seam) — and each has its own architecture.
+Two are binaries with nothing behind them: `crates/grove` is the human's, and
+`crates/grove-llm` is the session's, and each is a clap surface plus a call.
+What follows is `grove-loop`, which is the whole of grove, plus those two.
 
 | Package | Module | Responsibility |
 |---|---|---|
-| `grove` | `session_config` | Grove's side of launch configuration: the personal file's path, the four slots grove's templates are written against, and the delta — where it is searched, which candidate wins, and the refusal of a tracked one. The grammar, the validation and the expansion are `crates/keyed-launch`'s. Asks the VCS seam whether a delta candidate is tracked; nothing else leaves the filesystem. |
-| `grove` | `loop_driver` | Lease acquisition on the way in, then foreground iteration and selection. Names the child-environment scrub list and the escalation's two graces; hands both to `crates/keyed-launch`, which owns the spawn, the supervision and the kill. |
-| `grove` | `driver_lease` | Driver lease, session epoch, and ambient-session validation. Supplies the control directory each launch's channel is allocated in; the channel itself is `crates/keyed-launch`'s. |
-| `grove` | `prompt` | The guaranteed core: the whole of `${prompt}` — the `grove-<kind>` load instruction, the runtime facts, Grove's signalling contract — and the too-late test its contents are admitted by. Reads nothing and depends on no corpus. |
 | `grove-loop` | *the crate root* | The opening — `read`, `write`, `Reading`, `Writing` — which mirrors the store's one level up, so a caller can neither scaffold over a live grove nor read one that is not there. Plus `Reference`, `Selection`, and the crate's one opaque `Error`. |
 | `grove-loop` | `verbs` | The twelve verbs a session invokes. A verb that reads takes a `Tree` and one that writes takes a `TreeWrite`, so the lock it needs is in its signature; a search that matched nothing answers the store's `Sought`; and every one returns the paths it wrote, because its caller writes the commit message by hand. |
 | `grove-loop` | `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has, handle included (`Slug`, `Kind`, `Outcome`, `Handle`, `Parts`, `TaskName`). |
 | `grove-loop` | `task_tree`, `task_grow` | The reading and growing verbs expressed through the library: one snapshot per command, path construction, key prediction, and the cross-reference lint. |
 | `grove-loop` | `tree_lifecycle` | The grove-only lifecycle around the tree: the terminal outcomes, the finish sentinel, and the grove's own creation through the store's vacancy. |
-| `grove-loop` | `complete`, `driver` | The completion channel's token — written by one verb, read back by the driver — and the two tree operations the driver performs that no verb exposes. |
+| `grove-loop` | `complete`, `driver` | The completion channel's token — written by one verb, read back by the loop — and the two tree operations the loop performs that no verb exposes. |
+| `grove-loop` | `loop_driver` | **The loop**: `run(workspace, lease, templates)`, and `LoopOutcome`. Foreground iteration and selection; names the child-environment scrub list and the escalation's two graces and hands both to `crates/keyed-launch`, which owns the spawn, the supervision and the kill. |
+| `grove-loop` | `driver_lease` | Driver lease, session epoch, and ambient-session validation. Takes a resolved workspace and asks the seam for grove's namespace inside it; supplies the control directory each launch's channel is allocated in, the channel itself being `crates/keyed-launch`'s. |
+| `grove-loop` | `prompt` | The guaranteed core: the whole of `${prompt}` — the `grove-<kind>` load instruction, the runtime facts, Grove's signalling contract — and the too-late test its contents are admitted by. Reads nothing and depends on no corpus. |
+| `grove-loop` | `session_config` | Grove's side of launch configuration: the personal file's path, the four slots grove's templates are written against, the `TemplateSource` the loop re-reads once per iteration, and the delta — where it is searched, which candidate wins, and the refusal of a tracked one. The grammar, the validation and the expansion are `crates/keyed-launch`'s. Asks the VCS seam whether a delta candidate is tracked; nothing else leaves the filesystem. |
+| `grove` | `cli` | The human command surface, which selects nothing: parse, resolve the workspace, take the lease, call `grove_loop::run`. |
 | `grove-llm` | `cli` | The deterministic agent command surface: argument parsing, the just-in-time presence rule, and rendering. Every verb is one `grove_loop::verbs::` call plus output. |
 
 There is no `harness`, `methodology` or `provision` module. All three were
@@ -1598,13 +1608,15 @@ through a door a test cannot open (`grove_loop::driver::transition_to_current`),
 and nothing else — a second exemption for **a frozen grammar kept whole** covered
 `leaf_id`, the v1-flat parser, and retired with it when that layout stopped being
 read. The list is reproduced by copying a package's `src/` to a scratch crate,
-making every module private except its own entry surface — `cli` for `grove`,
-`cli` for `grove-llm`, and `verbs` plus the crate root for `grove-loop` — and
-reading the compiler's reachability warnings.
+making every module private except its own entry surface — `cli` for
+`grove-llm`, and `verbs`, `prompt`, `session_config` and the crate root for
+`grove-loop` — and reading the compiler's reachability warnings. `crates/grove`
+needs no such copy: it is a binary with no library, so every item in it is
+already private to one target.
 
 **Since `loop-crate-verbs-k21` the compiler does more of this on its own.** A
 module that moved into `crates/grove-loop` is private to *that* crate, so
-`dead_code` now reports an item whose only callers are the `grove` package's
+`dead_code` now reports an item whose only callers are another package's
 tests — which is how the four path-taking compositions (`task_tree::read`,
 `pick`, `select`, `kind`) turned out to be the tests' alone and moved into the
 module's own `mod tests`. A crate boundary is a reachability boundary, and that

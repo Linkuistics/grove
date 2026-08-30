@@ -24,11 +24,10 @@
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use grove::driver_lease;
-use grove::session_config::SessionConfig;
 use grove_loop::verbs::{self, Resolution, Signalled};
 use grove_loop::{
-    Handle, Kind, Outcome, Reading, Reference, Slug, Sought, Tree, TreeWrite, Writing,
+    Handle, Kind, Outcome, Reading, Reference, SessionConfig, SessionEpochGuard, Slug, Sought,
+    Tree, TreeWrite, Writing,
 };
 use jj_workspace::Workspace;
 use std::path::{Path, PathBuf};
@@ -41,7 +40,7 @@ use std::path::{Path, PathBuf};
     // operator can install, and `grove --version` and `grove-llm --version` have
     // to agree because a skew between them is exactly what an operator reaches
     // for them to diagnose.
-    version = grove::VERSION,
+    version = grove_loop::VERSION,
     arg_required_else_help = true,
     about = "Grove: LLM-driven verbs for mid-session use",
     long_about = "Verbs the LLM driving a grove session invokes deterministically. \
@@ -418,7 +417,7 @@ pub fn run() -> Result<()> {
         bail!("no verb given; run `grove-llm --help` for the verb set");
     };
     let cwd = std::env::current_dir().context("getting cwd for session epoch admission")?;
-    let session_epoch = driver_lease::admit_ambient_session(&cwd, command.operation_label())?;
+    let session_epoch = grove_loop::admit_ambient_session(&cwd, command.operation_label())?;
     match command {
         Command::RootInit(args) => cmd_root_init(&args),
         Command::Pick => cmd_pick(),
@@ -458,7 +457,7 @@ fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
 
 fn cmd_complete(
     args: &CompleteArgs,
-    session_epoch: Option<&driver_lease::SessionEpochGuard>,
+    session_epoch: Option<&SessionEpochGuard>,
 ) -> Result<()> {
     // **Asked before the write, which is why the channel is resolved here.** The
     // lease admits this session against the channel it is about to signal, and

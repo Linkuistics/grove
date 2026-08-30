@@ -33,6 +33,8 @@
 //! signal, with the grove-local statement each step needs asserted present in the
 //! file that step opens.
 
+mod support;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -51,7 +53,7 @@ fn normalised(text: &str) -> String {
 
 /// The shipped skill set, normalised, as `skills/`-relative path→text.
 fn corpus() -> BTreeMap<String, String> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins/grove/skills");
+    let root = support::repo_root().join("plugins/grove/skills");
     let mut out = BTreeMap::new();
     collect(&root, &root, &mut out);
     assert!(

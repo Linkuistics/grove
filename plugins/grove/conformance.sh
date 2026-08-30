@@ -5,7 +5,7 @@
 # `docs/adr/behavioural-coverage-asserts-delivery.md` states the rule: a
 # methodology is delivered only where a session actually reads it. The
 # instruments used to be Rust suites over the binary's embedded `content/`, and
-# they walked a composition — `src/prompt.rs`'s guaranteed core, the provisioned
+# they walked a composition — `crates/grove-loop/src/prompt.rs`'s guaranteed core, the provisioned
 # `content/SKILL.md` as a kind router, `reference_file(kind)`, and the closure of
 # what those name — of which the middle two have no counterpart once the
 # methodology ships as a plugin: the prompt names one `grove-<kind>` skill, and

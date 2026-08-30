@@ -10,6 +10,14 @@ and created if absent. Grove supplies only the namespace — the one thing the
 seam cannot know, because *where a lease file may live* is not sayable without
 naming whose lease it is.
 
+**The lease is handed a resolved workspace; it does not resolve one.** Since
+`loop-crate-driver-k22` the binary resolves the working tree once and passes that
+value to both `DriverLease::acquire` and `grove_loop::run`, so there is one
+resolution behind the lease, the delta search, the `${repo}` expansion and the
+prompt's stated version control — and no second derivation that could disagree
+with it. The lease is then moved into the loop, so it is released exactly when
+the loop that justified holding it returns.
+
 The seam resolves the workspace by walking the filesystem for the closest `.jj/`
 and canonicalising it. It invokes no repository discovery, does not follow a
 secondary workspace's repository link, and removes `GIT_DIR`, `GIT_WORK_TREE`

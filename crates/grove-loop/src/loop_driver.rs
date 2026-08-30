@@ -21,6 +21,12 @@
 // scrubbed, and how long the two graces are. The shell sketch below is still the
 // whole loop, because a boundary is not a step.
 //
+// **The entry point is [`run`], and it is handed everything it cannot derive.**
+// `loop-crate-driver-k22` moved this module into `grove-loop` and left
+// `crates/grove` a binary that parses an empty command line, resolves the
+// workspace, takes the lease and calls in. So the sketch's first line — owning
+// the workspace lease — happens in the caller, and the loop is what follows it.
+//
 // The driver is deliberately tiny — a plain shell `while` loop could stand in
 // (constraint 6, walk-away-able). Nothing below infers anything about the
 // session: the selected leaf's filename kind indexes one complete-config entry,
@@ -48,37 +54,16 @@
 //     done
 
 use crate::driver_lease::DriverLease;
-use crate::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
+use crate::session_config::{DeltaRoots, ExpansionContext, TemplateSource};
+use crate::{interpret, Disposition, Handle, Kind, Reading, Selection, Sought};
 use anyhow::{Context, Result};
-use grove_loop::{interpret, Disposition, Reading, Selection, Sought};
-use grove_loop::{Handle, Kind};
 use jj_workspace::Workspace;
 use keyed_launch::{Argv, Channel, End, Ended, Escalation, Launch};
 use std::ffi::OsStr;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
-
-/// Drive the config-defined lifecycle from the current working tree. This is
-/// the sole path reached by the human-facing bare command: acquire the
-/// workspace lease, and run one configured foreground session per selected task
-/// until the agent stops signalling.
-///
-/// Nothing here inspects the working tree for a harness, and nothing chooses a
-/// binary: the configured argv is the whole of launch policy. Nothing here
-/// delivers the methodology either — since `delete-provisioning-k19` the
-/// methodology is a plugin a human installs, so the driver's first act is the
-/// lease rather than a sweep over three personal skill directories.
-pub fn bare_grove() -> Result<()> {
-    let cwd = std::env::current_dir().context("getting cwd")?;
-    let driver_lease = DriverLease::acquire(&cwd)?;
-    let worktree = driver_lease.worktree_root().to_path_buf();
-    let repository = driver_lease.main_repo().to_path_buf();
-    let name = worktree_name(&worktree);
-
-    run_configured(&repository, &worktree, &name, driver_lease)
-}
 
 /// The grove name is the worktree directory's basename (user-owned-worktrees).
 fn worktree_name(worktree: &Path) -> String {
@@ -168,32 +153,55 @@ pub enum LoopOutcome {
     Stopped,
 }
 
-/// Entry point for the bare config-driven lifecycle.
-pub fn run_configured(
-    repo_path: &Path,
-    worktree: &Path,
-    name: &str,
-    driver_lease: DriverLease,
-) -> Result<()> {
+/// **The whole loop**: `exists? → create or find next → determine the command →
+/// run → finalise`, one configured foreground session per selected task, until
+/// a session stops signalling (`docs/specs/module-decomposition.md`, decision
+/// 9).
+///
+/// The three arguments are the three things a loop cannot derive for itself and
+/// is therefore handed: the **workspace** it drives (resolved by its caller,
+/// which had to resolve one to take the lease), the **lease** proving it is the
+/// only driver in that working tree, and the **templates** naming where each
+/// launch is read from.
+///
+/// Nothing here inspects the working tree for a harness, and nothing chooses a
+/// binary: the configured argv is the whole of launch policy. Nothing here
+/// delivers the methodology either — since `delete-provisioning-k19` the
+/// methodology is a plugin a human installs, so the loop's first act is a
+/// transition rather than a sweep over three personal skill directories.
+///
+/// **The lease is taken by value.** It is dropped when the loop returns, which
+/// is the point at which the working tree stops being owned; a caller that kept
+/// one could go on holding ownership after the loop that justified it ended.
+///
+/// # Errors
+///
+/// A configuration that does not load or does not cover the selected kind, a
+/// lease that stops naming the descriptors this process owns, a tree the store
+/// refuses, or a session that could not be spawned.
+pub fn run(
+    workspace: &Workspace,
+    lease: DriverLease,
+    templates: &TemplateSource,
+) -> Result<LoopOutcome, crate::Error> {
     ignore_interrupts();
-    run_configured_loop_with_lease(repo_path, worktree, name, &driver_lease).map(|_| ())
+    Ok(drive(workspace, &lease, templates)?)
 }
 
-fn run_configured_loop_with_lease(
-    repo_path: &Path,
-    worktree: &Path,
-    name: &str,
+fn drive(
+    workspace: &Workspace,
     driver_lease: &DriverLease,
+    templates: &TemplateSource,
 ) -> Result<LoopOutcome> {
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .context("$HOME is not set; cannot locate ~/.config/grove/config.kdl")?;
-    let config_path = SessionConfig::path(&home);
-    // The two roots the configuration delta is searched at, taken from the
-    // resolution that already happened rather than recomputed here: `repo_path`
-    // is the seam's `main_repo` answer and the very value `${repo}` expands to,
-    // so the search order cannot drift from the template it selects
+    // Both taken from the resolution that already happened rather than
+    // recomputed here: `main_repo` is the seam's one derivation of *the
+    // repository root* and the very value `${repo}` expands to, so the delta
+    // search order cannot drift from the template it selects
     // (`docs/adr/untracked-configuration-delta.md`).
+    let worktree = driver_lease.worktree_root();
+    let repo_path = workspace.main_repo();
+    let name = worktree_name(worktree);
+    let config_path = templates.personal_path();
     let delta_roots = DeltaRoots {
         worktree,
         repository: repo_path,
@@ -217,9 +225,9 @@ fn run_configured_loop_with_lease(
         driver_lease
             .revalidate()
             .context("revalidating driver lease before loop transition")?;
-        let pre_transition_config = SessionConfig::load(&home, &delta_roots)?;
+        let pre_transition_config = templates.load(&delta_roots)?;
 
-        grove_loop::driver::transition_to_current(worktree)?;
+        crate::driver::transition_to_current(worktree)?;
         let selection = match picked(worktree)? {
             Sought::Match(selection) => selection,
             Sought::Nothing => {
@@ -232,11 +240,11 @@ fn run_configured_loop_with_lease(
                 pre_transition_config
                     .require(Kind::finish().label())
                     .context("materializing the driver-owned finish leaf")?;
-                grove_loop::driver::materialize_finish(worktree)?
+                crate::driver::materialize_finish(worktree)?
             }
         };
 
-        let config = SessionConfig::load(&home, &delta_roots)?;
+        let config = templates.load(&delta_roots)?;
         // The file this kind actually resolved from — the personal file, or the
         // delta that overrode it. Every diagnostic below names *that*, because
         // naming the personal file for a delta-supplied kind points a reader at
@@ -245,7 +253,7 @@ fn run_configured_loop_with_lease(
             .source(selection.kind.label())
             .unwrap_or(config_path.as_path())
             .to_path_buf();
-        let prompt = session_prompt(&selection.handle, &selection.kind, worktree)?;
+        let prompt = session_prompt(&selection.handle, &selection.kind, workspace);
         let argv = config.expand(
             selection.kind.label(),
             &ExpansionContext {
@@ -340,24 +348,18 @@ fn run_configured_loop_with_lease(
 /// is what makes the flag a fallback for the published fact rather than a second
 /// source of it (`docs/specs/module-decomposition.md`, decision 10).
 ///
-/// Resolving the workspace is the one thing here that can fail, and it is
-/// unreachable in a driver that got this far: the lease it holds lives *in* the
-/// workspace's own `.jj/`, so a marker was already found. Spent as an error
-/// rather than a panic — the prompt has no second case to express, and a driver
-/// with nothing to say here must not launch a session that then has to guess.
-fn session_prompt(handle: &Handle, kind: &Kind, worktree: &Path) -> Result<String> {
-    // Taken from the resolution rather than assumed. It *is* `worktree` — the
-    // walk starts at the path itself and the lease root is the marker's own
-    // directory — but reading the resolved root cannot drift if either end
-    // moves.
-    let workspace = Workspace::resolve(worktree)
-        .context("the session prompt cannot state the version control")?;
-    Ok(crate::prompt::compose(&crate::prompt::Mandate {
+/// **Infallible**, and that is what taking the workspace as an argument bought.
+/// This used to resolve one, which could fail in a driver that had already
+/// proved a marker existed by leasing the `.jj/` beside it — an unreachable
+/// error arm the loop still had to carry. The loop is handed the workspace it
+/// is driving, so there is nothing left here to fail.
+fn session_prompt(handle: &Handle, kind: &Kind, workspace: &Workspace) -> String {
+    crate::prompt::compose(&crate::prompt::Mandate {
         handle,
         kind,
-        workspace: &workspace,
+        workspace,
         version: crate::VERSION,
-    }))
+    })
 }
 
 /// Launch one fresh foreground session owning the real TTY, and hand it to
@@ -387,7 +389,7 @@ fn session_prompt(handle: &Handle, kind: &Kind, worktree: &Path) -> Result<Strin
 /// refused.
 fn launch_configured_session(
     argv: &Argv,
-    selection: &grove_loop::Selection,
+    selection: &Selection,
     resolved_source: &Path,
     worktree: &Path,
     channel: &Channel,
@@ -491,12 +493,12 @@ fn ignore_interrupts() {
 /// The driver's own `pick`, over the worktree it is driving.
 ///
 /// The transition above has already brought the worktree to a grove, so the
-/// vacant arm is unreachable in practice — but it is an arm of
-/// [`grove_loop::read`], and answering it as *no live leaves* is the same thing
+/// vacant arm is unreachable in practice — but it is an arm of [`crate::read`],
+/// and answering it as *no live leaves* is the same thing
 /// the transition would have made true a moment earlier.
 fn picked(worktree: &Path) -> anyhow::Result<Sought<Selection>> {
-    match grove_loop::read(worktree)? {
-        Reading::Tree(tree) => Ok(grove_loop::verbs::pick(&tree)?),
+    match crate::read(worktree)? {
+        Reading::Tree(tree) => Ok(crate::verbs::pick(&tree)?),
         Reading::Vacant => Ok(Sought::Nothing),
     }
 }

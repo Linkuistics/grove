@@ -1,6 +1,14 @@
 mod support;
 
-use grove::driver_lease::DriverLease;
+use jj_workspace::Workspace;
+
+/// The lease takes a resolved workspace since `loop-crate-driver-k22`, so every
+/// fixture below resolves the tree it just built and hands that over.
+fn workspace_at(path: &Path) -> Workspace {
+    Workspace::resolve(path).expect("a fixture worktree carries a `.jj` marker")
+}
+
+use grove_loop::DriverLease;
 use std::fs;
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
@@ -120,7 +128,7 @@ fn grove_driver(root: &Path, harness: &Path, home: &Path) -> Command {
         .collect::<String>();
     fs::write(config_dir.join("config.kdl"), document).unwrap();
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_grove"));
+    let mut command = Command::new(support::grove_bin());
     command.current_dir(root);
     for name in support::grove_env_names() {
         command.env_remove(name);
@@ -228,7 +236,7 @@ fn spawn_producer(script: &str, diagnostics: Option<&Path>) -> Child {
 // process test that depends on it — in this binary and in `tests/loop_driver.rs`
 // — is asserting about something else and none of them can express what the
 // seam must get right. They live here rather than beside the seam because
-// `tests/support/mod.rs` is compiled into every consumer binary, so a `#[test]`
+// `testing/support.rs` is compiled into every consumer binary, so a `#[test]`
 // there would run a copy per binary; this is the binary whose fixtures can hold
 // a producer back past the removed deadline, so it is the one home they get
 // (loop-driver-readiness-deadline-k170).
@@ -354,7 +362,7 @@ fn lease_holder_process() {
         return;
     };
     let ready = PathBuf::from(std::env::var_os(HOLDER_READY).unwrap());
-    let lease = DriverLease::acquire(Path::new(&root)).unwrap();
+    let lease = DriverLease::acquire(&workspace_at(Path::new(&root))).unwrap();
     fs::write(&ready, b"ready").unwrap();
 
     if std::env::var_os(HOLDER_PANIC).is_some() {
@@ -397,7 +405,7 @@ fn an_alias_equivalent_second_owner_is_refused_immediately() {
     let holder = Holder::spawn(&root, &ready);
 
     let started = Instant::now();
-    let error = DriverLease::acquire(&alias).unwrap_err();
+    let error = DriverLease::acquire(&workspace_at(&alias)).unwrap_err();
 
     assert!(started.elapsed() < Duration::from_secs(1));
     assert!(
@@ -541,7 +549,7 @@ fn distinct_worktrees_hold_independent_leases() {
     fake_jj_worktree(&second);
     let holder = Holder::spawn(&first, &tmp.path().join("ready"));
 
-    let second_lease = DriverLease::acquire(&second).unwrap();
+    let second_lease = DriverLease::acquire(&workspace_at(&second)).unwrap();
 
     second_lease.revalidate().unwrap();
     drop(holder);
@@ -620,9 +628,9 @@ fn every_worktree_shape_holds_independent_default_and_secondary_leases() {
     let tmp = TempDir::new().unwrap();
 
     for (shape, default, secondary) in worktree_shape_pairs(tmp.path()) {
-        let default_lease = DriverLease::acquire(&default)
+        let default_lease = DriverLease::acquire(&workspace_at(&default))
             .unwrap_or_else(|error| panic!("{shape} default: {error:#}"));
-        let secondary_lease = DriverLease::acquire(&secondary)
+        let secondary_lease = DriverLease::acquire(&workspace_at(&secondary))
             .unwrap_or_else(|error| panic!("{shape} secondary: {error:#}"));
         default_lease.revalidate().unwrap();
         secondary_lease.revalidate().unwrap();
@@ -652,7 +660,7 @@ fn an_alias_into_any_worktree_shape_is_refused_by_the_live_owner() {
             let holder = Holder::spawn(root, &ready);
 
             let started = Instant::now();
-            let error = DriverLease::acquire(&alias)
+            let error = DriverLease::acquire(&workspace_at(&alias))
                 .expect_err(&format!("{shape} {role}: an alias was admitted twice"));
 
             assert!(
@@ -685,7 +693,7 @@ fn normal_owner_exit_releases_the_lease_without_cleanup() {
 
     holder.release_normally();
 
-    DriverLease::acquire(&root).unwrap().revalidate().unwrap();
+    DriverLease::acquire(&workspace_at(&root)).unwrap().revalidate().unwrap();
 }
 
 #[test]
@@ -697,7 +705,7 @@ fn forced_owner_exit_releases_the_lease_without_pid_cleanup() {
 
     holder.kill();
 
-    DriverLease::acquire(&root).unwrap().revalidate().unwrap();
+    DriverLease::acquire(&workspace_at(&root)).unwrap().revalidate().unwrap();
 }
 
 #[test]
@@ -722,7 +730,7 @@ fn owner_panic_releases_the_lease_during_unwind() {
     support::wait_for_ready(&ready, &mut child, None);
 
     assert!(!child.wait().unwrap().success());
-    DriverLease::acquire(&root).unwrap().revalidate().unwrap();
+    DriverLease::acquire(&workspace_at(&root)).unwrap().revalidate().unwrap();
 }
 
 #[test]
@@ -730,7 +738,7 @@ fn revalidation_refuses_a_replaced_lease_path() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
     fake_jj_worktree(&root);
-    let lease = DriverLease::acquire(&root).unwrap();
+    let lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
     let path = lease_path(&root);
     fs::rename(&path, path.with_extension("replaced")).unwrap();
     fs::write(&path, b"replacement").unwrap();
@@ -778,7 +786,7 @@ fn a_new_owner_installs_an_inactive_epoch_for_its_exact_lease() {
     let root = tmp.path().join("worktree");
     fake_jj_worktree(&root);
 
-    let _lease = DriverLease::acquire(&root).unwrap();
+    let _lease = DriverLease::acquire(&workspace_at(&root)).unwrap();
 
     let lease_record = fs::read_to_string(lease_path(&root)).unwrap();
     let epoch_record = fs::read_to_string(epoch_path(&root)).unwrap();
@@ -808,7 +816,7 @@ fn a_non_directory_control_location_fails_before_a_lease_is_created() {
     fake_jj_worktree(&root);
     fs::write(root.join(".jj/grove"), b"not a directory").unwrap();
 
-    let error = DriverLease::acquire(&root).unwrap_err();
+    let error = DriverLease::acquire(&workspace_at(&root)).unwrap_err();
 
     assert!(
         error.to_string().contains("is not usable"),
@@ -824,7 +832,7 @@ fn an_unwritable_control_parent_fails_before_a_lease_is_created() {
     let jj_directory = root.join(".jj");
     fs::set_permissions(&jj_directory, fs::Permissions::from_mode(0o500)).unwrap();
 
-    let result = DriverLease::acquire(&root);
+    let result = DriverLease::acquire(&workspace_at(&root));
 
     fs::set_permissions(&jj_directory, fs::Permissions::from_mode(0o700)).unwrap();
     let error = result.unwrap_err();
@@ -858,7 +866,7 @@ fn an_execed_descendant_does_not_inherit_driver_ownership() {
     support::wait_for_ready(&exec_ready, &mut child, None);
     support::wait_for_ready(&released, &mut child, None);
 
-    DriverLease::acquire(&root).unwrap().revalidate().unwrap();
+    DriverLease::acquire(&workspace_at(&root)).unwrap().revalidate().unwrap();
 
     drop(child.stdin.take());
     assert!(child.wait().unwrap().success());

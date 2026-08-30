@@ -38,9 +38,12 @@ as a deployable Linkuistics skill.
   failed enabled verdict, sample shortfalls, and Case A selection limitation
   remain contrary evidence rather than being repaired or rescored.
 - The replacement behavioral-acceptance conjunct is closed as unmet rather than
-  pending or passed. No hosted provider with the required final-boundary
-  attestation was identified, controlled self-hosting was declined, and no
-  paired acceptance campaign runs.
+  pending or passed. It required intake, source/fragment planning, and
+  exposition/assurance to each show predeclared material improvement over a
+  contemporaneous no-skill comparator and clear an absolute enabled-performance
+  floor. No inspected hosted provider documented the required final-boundary
+  attestation, controlled self-hosting was declined, and no paired acceptance
+  campaign runs.
 - No acceptance claim is made from installed skill bytes, command construction,
   request identifiers, usage counts, or the abandoned campaign plan. The
   fixture-interface and frontmatter-delivery choices remain inapplicable because
@@ -86,6 +89,8 @@ editorial reviewer commissions integration only when it has findings.
 - Evidence: the crate's tests and the Alloy and Quint models under
   `docs/ordinal-fs-tree/models`
 - Skill destination: `plugins/linkuistics/skills/writing-code-walkthroughs`
+- Behavioral-acceptance closure:
+  `docs/adr/behavioral-acceptance-is-closed-unmet.md`
 - Agreed test seams: exact-source tangling; complete source-to-fragment
   coverage; Markdown/link validation; technical review; editorial review;
   existing crate verification; explicit brief wording that closes behavioral

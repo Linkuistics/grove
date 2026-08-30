@@ -45,6 +45,11 @@ the skill does not claim controlled reader-outcome evidence for them. The
 [behavioral evaluation campaign](../../docs/evaluations/writing-code-walkthroughs/README.md)
 did not establish its predeclared acceptance rubric; the report distinguishes
 the retained judged outputs from the stronger deterministic checks.
+The proposed replacement campaign did not run: the behavioral-acceptance
+conjunct is closed as unmet after no inspected hosted provider documented the
+required final-boundary attestation and controlled self-hosting was declined.
+The current decision and its reopening boundary are recorded in
+[`behavioral-acceptance-is-closed-unmet`](../../docs/adr/behavioral-acceptance-is-closed-unmet.md).
 
 ### `decision-records`
 

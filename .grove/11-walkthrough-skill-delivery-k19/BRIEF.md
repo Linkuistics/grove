@@ -25,8 +25,12 @@ development history, not skill-specific vocabulary.
 - Skill frontmatter, progressive disclosure, citations, harness declaration,
   plugin layout, and description follow the Linkuistics authoring conventions.
 - The replacement behavioral-acceptance conjunct is closed as unmet rather than
-  pending or passed. No provider with the required final-boundary attestation is
-  identified, controlled self-hosting is declined, and
+  pending or passed. It required intake, source/fragment planning, and
+  exposition/assurance to each show predeclared material improvement over a
+  contemporaneous no-skill comparator and clear an absolute enabled-performance
+  floor. No inspected hosted provider documented the required final-boundary
+  attestation, controlled self-hosting was declined, and no paired acceptance
+  campaign runs.
   `delivery-channel-authority-k94: authorization = none` remains unchanged.
 - `paired-acceptance-campaign-k80` is abandoned in place without launching an
   evaluated treatment, control, scorer, or resolver context. Its planned
@@ -51,8 +55,8 @@ development history, not skill-specific vocabulary.
   `acceptance-replication-authority-k76` establish why an exact-instrument retry
   has no acceptance authority and preserve that result unchanged.
 - `recovery-campaign-k54` is abandoned as the exact-replication path.
-  `supplemental-evaluation-k77` now plans the replacement paired acceptance
-  instrument, applies the relevant F1–F14 protections, and keeps discovery and
+  `supplemental-evaluation-k77` planned the replacement paired acceptance
+  instrument, applied the relevant F1–F14 protections, and kept discovery and
   transfer work outside the primary verdict.
 - Review integration exposed that installed files and captured CLI arguments do
   not prove guaranteed treatment delivery. `delivery-channel-authority-k94`
@@ -69,6 +73,8 @@ development history, not skill-specific vocabulary.
 - House rules: `plugins/linkuistics/skills/authoring-conventions/SKILL.md` and
   the `writing-skills` skill, including its referenced best-practices file.
 - Plugin provenance: `plugins/linkuistics/PROVENANCE.md`.
+- Behavioral-acceptance closure:
+  `docs/adr/behavioral-acceptance-is-closed-unmet.md`.
 
 ## Notes
 

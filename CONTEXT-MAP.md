@@ -209,6 +209,10 @@ consumer names, and no call site passes one where the other is expected.
   inventory `corpus-rule-ownership` held is now
   [`plugins/grove/conformance/rules.tsv`](plugins/grove/conformance/rules.tsv),
   which is data the conformance runner reads rather than a spec.
+  The **skills** context owns
+  [`behavioral-acceptance-is-closed-unmet`](docs/adr/behavioral-acceptance-is-closed-unmet.md),
+  which records the acceptance boundary for the shipped
+  `writing-code-walkthroughs` skill.
   The **ordinal-fs-tree** context owns
   [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md),
   [`entries-are-never-removed`](docs/adr/entries-are-never-removed.md) and

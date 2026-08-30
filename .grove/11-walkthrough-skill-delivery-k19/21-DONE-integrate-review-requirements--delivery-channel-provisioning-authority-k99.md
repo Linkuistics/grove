@@ -49,3 +49,26 @@ and consistent from the root brief down before this node closes.
 The closure itself was settled with the human and is not in scope. What is in
 scope is whether the tree and the repository say it exactly, say it in the same
 words at both levels, and keep saying it after `.grove/` is gone.
+
+## Findings disposition
+
+- **H1 — applied.** The closure is hard to reverse, surprising without context,
+  and the result of a real trade-off, so it clears Grove's three-part ADR test.
+  `docs/adr/behavioral-acceptance-is-closed-unmet.md` records the current
+  decision, rejected alternatives, reopening boundary, and prohibition on
+  inheriting authority from the abandoned campaign. `CONTEXT-MAP.md` assigns it
+  to the skills context, the two briefs point to it, and
+  `plugins/linkuistics/PROVENANCE.md` carries a reciprocal durable pointer.
+- **H2 — applied.** The parent brief's unqualified present-tense provider claim
+  exceeded the evidence contract. Both briefs now use the supported statement
+  that no inspected hosted provider documented the required attestation.
+- **H3 — applied.** The parent decomposition now says the replacement instrument
+  was planned; it no longer describes the terminal plan as current live work.
+- **H4 — applied.** Both briefs now state the closed conjunct's three surfaces,
+  comparative material-improvement requirement, absolute enabled-performance
+  floor, and durable ADR pointer.
+
+All four findings repair the expression or durability of the settled closure;
+none reopens the human's decision, provisions a channel, changes
+`delivery-channel-authority-k94: authorization = none`, or authorizes an
+evaluated context.

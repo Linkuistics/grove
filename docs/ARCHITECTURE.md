@@ -71,10 +71,16 @@ The repository contains two independently installed products:
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI and methodology | `src/`, `content/`, `build.rs` | Homebrew installs `grove` and `grove-llm`; bare `grove` provisions the embedded methodology. |
-| Agent skill plugins | `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for the skills whose `harnesses:` key declares them installable off Claude Code. |
+| Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for the skills whose `harnesses:` key declares them installable off Claude Code. |
 
 Grove and the skill plugins share a repository because their documented
 interfaces evolve together, but they do not install one another.
+
+**The methodology is mid-move between the two rows.**
+`plugins/grove/skills/grove/` is the shared spine and is the source; `content/`'s
+copy of those files is what the binary still compiles in and provisions, and it
+is deleted with provisioning. Which file is which, and where the rest of
+`content/` lands, is in [`../plugins/grove/README.md`](../plugins/grove/README.md).
 
 ## Runtime flow
 

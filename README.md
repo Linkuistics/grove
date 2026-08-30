@@ -41,9 +41,14 @@ For Claude Code:
 
 ```text
 /plugin marketplace add Linkuistics/grove
+/plugin install grove@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
 ```
+
+`grove@linkuistics` is grove's own methodology as skills — the delivery path that
+replaces the binary provisioning its embedded `content/`. It is Claude Code only
+for now; see [`plugins/grove/README.md`](plugins/grove/README.md).
 
 For Codex, Gemini CLI, and Pi, clone this repository and run:
 
@@ -52,7 +57,7 @@ For Codex, Gemini CLI, and Pi, clone this repository and run:
 ```
 
 That script installs, by symlink, every bundled skill whose `harnesses:`
-frontmatter key declares it installable there — both plugins are scanned, and a
+frontmatter key declares it installable there — every bundled plugin is scanned, and a
 skill that cannot work off Claude Code (`guardrail`, whose mechanism is a Claude
 Code hook) is skipped and reported rather than linked. See
 [`plugins/README.md`](plugins/README.md) for the complete plugin catalogue and

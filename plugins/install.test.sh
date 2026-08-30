@@ -197,6 +197,38 @@ problem=""
   problem+=" exit $(last_status) — one under-annotated skill must not block the other 15;"
 record "absent metadata skips rather than installs, and says so" "${problem}" "${output}"
 
+# --- a real file or directory already at a target path -----------------------
+
+# The live case is the `grove` binary, which provisions its own methodology into
+# ~/.codex/skills/grove and ~/.pi/agent/skills/grove — a real directory at
+# exactly a path this script installs to. Nothing there is this script's to
+# replace, so it must leave it alone; and leaving it alone silently is the
+# failure mode the workspace guard already refuses, because the skill is then
+# uninstalled with nothing in the harness saying so.
+occupied="${scratch}/occupied"
+make_repo "${occupied}"
+home="$(make_home)"
+mkdir -p "${home}/.codex/skills/portable-one"
+printf 'provisioned by something else\n' >"${home}/.codex/skills/portable-one/SKILL.md"
+output="$(run_install "${home}" "${occupied}")"
+problem=""
+[[ "$(last_status)" == 1 ]] ||
+  problem+=" exit $(last_status) (want 1) — an uninstalled skill must not read as success;"
+[[ -f "${home}/.codex/skills/portable-one/SKILL.md" ]] ||
+  problem+=" the occupying directory was replaced;"
+[[ "$(cat "${home}/.codex/skills/portable-one/SKILL.md")" == "provisioned by something else" ]] ||
+  problem+=" the occupying directory's contents changed;"
+[[ "${output}" =~ error[[:space:]]+.*portable-one[[:space:]]not[[:space:]]installed ]] ||
+  problem+=" the collision was not reported against the skill;"
+[[ "${output}" =~ Nothing[[:space:]]was[[:space:]]overwritten ]] ||
+  problem+=" the closing report does not say what was and was not done;"
+# Every other skill still installs: one blocked path must not cost the rest.
+[[ -L "${home}/.pi/agent/skills/portable-one" ]] ||
+  problem+=" a collision on one harness blocked the same skill on another;"
+[[ -L "${home}/.codex/skills/portable-two" ]] ||
+  problem+=" a collision on one path blocked an unrelated skill;"
+record "a real file at a target path refuses rather than clobbers" "${problem}" "${output}"
+
 # --- reconciliation on re-run ------------------------------------------------
 
 # Losing eligibility must remove the link, not leave it installed from a

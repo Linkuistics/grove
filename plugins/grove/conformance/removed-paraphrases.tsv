@@ -1,0 +1,12 @@
+# Wordings removed because they restated a rule another file owns.
+#
+# A phrase sweep cannot see a paraphrase: each canonical wording in `rules.tsv`
+# reads clean over every row below, which is how all three shipped. So the
+# removed wordings are pinned themselves. This closes three known holes; it
+# claims nothing about a fourth.
+#
+# Three tab-separated columns: the rule restated, the file that restated it,
+# and the removed wording — which must now appear in no shipped skill file.
+glossary-is-the-forcing-function	references/grove.md	the Ubiquitous Language — read every session, appended inline
+adr-set-is-minimum-coherent	references/grove.md	one decision and its trade-off each, slug-named, edited in place
+adr-set-is-minimum-coherent	references/integrate-review.md	merge / split / delete, never a superseding record

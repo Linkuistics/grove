@@ -65,6 +65,15 @@ A directed load is not a selection, which is the property
 **Lands green**, and still removes nothing from the binary — `content/` is
 untouched here and dies at `delete-provisioning-k19`.
 
+**What is left to move is already listed.** `plugins/grove/README.md`'s migration
+ledger names it: the seven single-kind references and `grilling.md` (reachable
+only from `references/requirements.md`, so it is that kind's), plus
+`LICENSES/addyosmani-agent-skills.LICENSE`, which `references/impl.md` cites and
+the spine therefore does not carry. The three *family* files — `review.md`,
+`integrate-review.md`, `research.md` — are already in the spine and are **not**
+restated in a member's skill; each member directs a load of one by name. Spine
+membership was settled at `plugin-spine-k16` and is not to be re-derived.
+
 **Record the gap rather than claiming it closed.** The wording micro-test
 measured **one** hop, from a prompt naming two targets. Nothing measures the
 second hop, from `grove-<kind>` to the spine. What is inline is unaffected; what

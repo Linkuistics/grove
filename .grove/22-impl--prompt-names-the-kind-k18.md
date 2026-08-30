@@ -57,7 +57,13 @@ are provisioning's and the build-pairing report's, and both live until
 **Lands green**, and it **depends on `plugin-kind-skills-k17`**: the prompt may
 not name a skill that does not exist. k16 decided the exact token to name —
 plugin-namespaced or bare — and this leaf uses that decision rather than
-re-deriving it.
+re-deriving it. It is written down in `plugins/grove/README.md`, *The token a
+prompt names*: **both spellings of one target in one imperative** — ``Load the
+`grove-<kind>` skill now — on Claude Code, where plugin skills are namespaced,
+that is `grove:grove-<kind>`.`` One imperative, one target, so the micro-test's
+load-bearing element survives; grove branches on no harness and grows no
+registry to branch on. The glossary carries it as *Namespaced invocation*
+(`plugins/CONTEXT.md`).
 
 **Why the delivery deletions moved to `delete-provisioning-k19`.** Provisioning is
 still live here, and its per-iteration path calls `methodology::identity()`

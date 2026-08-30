@@ -13,8 +13,10 @@ mean something else in grove's, and its crate ships by no path of its own —
 
 - [grove](./CONTEXT.md) — the `grove` CLI, the workstream methodology it embeds
   in `content/`, and the task tree that methodology drives.
-- [skills](./plugins/CONTEXT.md) — the `linkuistics` and `testanyware` skill
-  plugins: how a skill is authored, packaged, triggered and installed.
+- [skills](./plugins/CONTEXT.md) — the `grove`, `linkuistics` and `testanyware`
+  skill plugins: how a skill is authored, packaged, triggered and installed. The
+  `grove` plugin's *contents* are the grove context's, by that glossary's own
+  scope boundary; what is here is its packaging and delivery.
 - [ordinal-fs-tree](./docs/ordinal-fs-tree/CONTEXT.md) — the domain-independent
   ordered-tree library extracted from grove's tree modules: entries, ordinals,
   keys, and the algebra over them. Its glossary sits beside

@@ -1,7 +1,7 @@
 # Skill plugins
 
-Two Claude Code plugins live here — `linkuistics` and `testanyware` — published
-through the marketplace declared in
+Three Claude Code plugins live here — `grove`, `linkuistics` and `testanyware` —
+published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). They
 share this repo with the Grove CLI because the two change in lockstep
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
@@ -9,6 +9,20 @@ path and are installed separately from Grove.
 
 The vocabulary of authoring, packaging, triggering and installing a skill is in
 [`CONTEXT.md`](CONTEXT.md).
+
+## `grove` — the methodology, as skills
+
+Grove's own methodology: one shared `grove` spine skill, with one
+`grove-<kind>` skill per session kind landing beside it. It is the delivery path
+that replaces the `grove` binary provisioning its embedded `content/`, and while
+both exist the spine is the source. Its own
+[`grove/README.md`](grove/README.md) carries the fatness rule, the migration
+ledger, and the dependency-free conformance runner that asserts delivery over the
+shipped skill set.
+
+The spine declares `harnesses: [claude-code]` for now — the binary still owns
+`~/.codex/skills/grove` and `~/.pi/agent/skills/grove`, and `install.sh` refuses
+to install over a real directory at a path it does not own.
 
 ## `linkuistics` — engineering-practice skills
 
@@ -60,6 +74,7 @@ Windows/Linux environment from macOS. It installs independently of `linkuistics`
 
 ```
 /plugin marketplace add Linkuistics/grove
+/plugin install grove@linkuistics
 /plugin install linkuistics@linkuistics
 /plugin install testanyware@linkuistics
 ```
@@ -136,6 +151,14 @@ declares `[any]` and installs everywhere like the portable `linkuistics` skills.
 Its exclusion until now was an artefact of the script scanning one plugin
 directory, not a judgement about the skill.
 
+It does **not** yet cover the `grove` plugin's spine, which declares
+`harnesses: [claude-code]` — the binary still provisions `~/.codex/skills/grove`
+and `~/.pi/agent/skills/grove`, and those are directories, not this script's
+symlinks. A real file or directory at a target path is now an **error**: the path
+is left untouched, every other skill still installs, and the run exits non-zero
+naming what was not installed. Leaving it as a `warn` among the `ok` lines meant
+an uninstalled skill read as a successful install.
+
 This is a separate install path from grove's own. The `grove` binary provisions
 *grove's* methodology to `~/.claude/skills/grove/` (and the codex and pi
 equivalents) and nothing else — it never provisions these plugins. See
@@ -145,12 +168,12 @@ equivalents) and nothing else — it never provisions these plugins. See
 
 **Neither `plugin.json` declares a `version`, and that is deliberate — do not add
 one.** Without it Claude Code versions a plugin by the commit SHA of its source,
-and the source is the repo rather than the subdirectory, so both plugins report one
-shared version that moves with every commit. Every push therefore delivers: edit a
+and the source is the repo rather than the subdirectory, so all three plugins report
+one shared version that moves with every commit. Every push therefore delivers: edit a
 skill, commit, done. Nothing to bump, nothing to grade, nothing to forget.
 
 The cost is churn — in this repo, where most commits are grove's, each one reads as
-an update to both plugins and re-installs content that did not change. That is the
+an update to every plugin and re-installs content that did not change. That is the
 accepted side of the trade, because pinning an explicit semver fails the other way:
 the version is the cache key an update is decided on, so an unbumped change reaches
 nobody, `/plugin update` reports "already at the latest version", and nothing
@@ -162,7 +185,7 @@ and delivery boundary is described in
 [the architecture](../docs/ARCHITECTURE.md#skills-monorepo).
 
 One trap: `claude plugin validate --strict` warns on the missing `version` and so
-fails on both manifests. That warning is expected — silencing it by adding a
+fails on all three manifests. That warning is expected — silencing it by adding a
 `version` is the change this section exists to prevent.
 
 None of this touches the symlink install above — those skills update with a

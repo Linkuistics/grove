@@ -1,6 +1,6 @@
 {
   "name": "linkuistics",
-  "description": "Coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Two plugins: linkuistics and testanyware.",
+  "description": "Grove's session methodology, coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Three plugins: grove, linkuistics and testanyware.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
@@ -15,6 +15,11 @@
       "name": "testanyware",
       "source": "./plugins/testanyware",
       "description": "TestAnyware GUI-testing skill: drive GUI apps in isolated macOS/Linux/Windows VMs for host-isolation, cross-platform testing, UI experiments, and documentation screenshots/recordings."
+    },
+    {
+      "name": "grove",
+      "source": "./plugins/grove",
+      "description": "Grove's methodology spine: the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the review and research family files, and the five format documents."
     }
   ]
 }

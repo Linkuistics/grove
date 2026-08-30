@@ -259,6 +259,7 @@ is_ours() {
 linked=0
 unlinked=0
 skipped=0
+blocked=()
 declared_none=()
 personal=()
 
@@ -319,7 +320,16 @@ for target in "${harness_targets[@]}"; do
     if [[ -L "${link}" ]]; then
       rm "${link}"
     elif [[ -e "${link}" ]]; then
-      echo "warn   ${link} exists and is not a symlink — left untouched" >&2
+      # Refuse rather than warn, for the reason the workspace guard above
+      # refuses: the skill is not installed, nothing in the harness says so, and
+      # a `warn` line among 48 `ok` lines is read once. The live case is real —
+      # the `grove` binary provisions its own methodology into
+      # `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`, which is exactly
+      # a non-symlink at a path this script would otherwise want. The run
+      # continues so every other skill still installs, and the exit status and
+      # the closing report carry the failure.
+      echo "error  ${link} exists and is not a symlink — ${skill_name} not installed" >&2
+      blocked+=("${link}")
       continue
     fi
     ln -s "${skill_path}" "${link}"
@@ -344,3 +354,24 @@ if ((${#personal[@]})); then
 fi
 
 echo "linked ${linked} skill symlink(s); removed ${unlinked}; skipped ${skipped}"
+
+if ((${#blocked[@]})); then
+  cat >&2 <<EOF
+
+error: ${#blocked[@]} skill(s) not installed — a real file or directory sits at
+       the path this script installs to:
+
+$(printf '         %s\n' "${blocked[@]}")
+
+Something else owns those paths. The grove binary provisions its own methodology
+into ~/.codex/skills/grove and ~/.pi/agent/skills/grove, and a provisioned
+directory is not this script's to replace.
+
+  keep both:    let the other owner keep the path; the skill stays uninstalled
+                for that harness until the owner stops writing it
+  hand over:    remove the path yourself, then re-run this script
+
+Nothing was overwritten.
+EOF
+  exit 1
+fi

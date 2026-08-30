@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "grove",
+  "description": "Grove's methodology as skills — the shared spine every grove session reads: the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the review and research family files, and the five format documents for task files, briefs, decision records, specs and the glossary.",
+  "author": {
+    "name": "Antony Blakey",
+    "email": "antony.blakey@gmail.com"
+  },
+  "repository": "https://github.com/Linkuistics/grove",
+  "keywords": [
+    "grove",
+    "methodology",
+    "workstream",
+    "task-tree",
+    "decision-records",
+    "adr",
+    "specifications",
+    "ubiquitous-language",
+    "agent-workflow",
+    "jujutsu"
+  ]
+}

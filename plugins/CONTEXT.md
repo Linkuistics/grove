@@ -1,7 +1,7 @@
 # skills
 
-The `linkuistics` and `testanyware` skill plugins under `plugins/` — the
-language of **authoring, packaging, triggering and installing** a skill.
+The `grove`, `linkuistics` and `testanyware` skill plugins under `plugins/` —
+the language of **authoring, packaging, triggering and installing** a skill.
 
 **Scope boundary.** A skill's own *subject matter* — jj's working-copy-as-commit,
 testanyware's VM vocabulary — belongs to that skill and its ADRs, not here. This
@@ -21,8 +21,8 @@ _Avoid_: "command" (a Claude Code slash command is a different artifact), "promp
 **Plugin**:
 Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugin.json`
 and a `skills/` directory — and a Claude Code concept only; other harnesses receive
-the same [[Skill]] directories by [[Symlink install]]. Two ship here: `linkuistics`
-and `testanyware`.
+the same [[Skill]] directories by [[Symlink install]]. Three ship here: `grove`,
+`linkuistics` and `testanyware`.
 
 **Marketplace**:
 `.claude-plugin/marketplace.json`, the catalogue a user adds once to reach every
@@ -33,6 +33,20 @@ where the marketplace is added from.
 _Avoid_: treating the repository URL or owner as the namespace.
 
 ### Invocation and triggering
+
+**Namespaced invocation** (`<plugin>:<skill>`):
+How Claude Code addresses a [[Skill]] that arrived inside a [[Plugin]] —
+`linkuistics:using-jujutsu`, `grove:grove`. A [[Symlink install]] has no
+namespace, so the same skill is the bare directory name there. Two consequences.
+A plugin skill is **addressed differently** from a personal skill of the same
+name, which is why `grove:grove` coexists with the `grove` the binary provisions
+into `~/.claude/skills/`. Claude Code's plugins reference states the namespacing;
+it does not state a collision rule, so that consequence rests on the namespacing
+plus the observed case. And a prompt that names a skill for a session to load names
+**one target in two spellings** rather than branching on the harness — the
+session uses whichever its own offers.
+_Avoid_: treating the two spellings as two skills, or making the caller choose
+between them. A selection is the thing the naming exists to remove.
 
 **Model-invoked** (the default):
 A [[Skill]] whose `description` sits in every session's context, so the agent can
@@ -92,9 +106,9 @@ the literal marker `UNVERIFIED` rather than let the prose imply confidence.
 **Commit-SHA version** (no `version` in `plugin.json`):
 The version Claude Code derives for a [[Plugin]] when neither its manifest nor its
 [[Marketplace]] entry declares one: the commit SHA of the plugin's *source*, which is
-the **repo** and not the subdirectory — so both plugins here report one shared version
+the **repo** and not the subdirectory — so every plugin here reports one shared version
 string. It is the **cache key** an update is decided on, and it moves with every commit,
-so every push delivers. Both plugins use it deliberately
+so every push delivers. Every plugin here uses it deliberately
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); the alternative, an explicit semver, *pins* — a skill
 change shipped without a bump reaches no consumer and raises no error.
 _Avoid_: adding a `version` to silence `claude plugin validate --strict`, which pins
@@ -107,8 +121,11 @@ mechanism: symlink each **eligible** skill directory into that harness's persona
 skills folder (`~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills`).
 Because the targets are links, a `git pull` updates content in place — re-run only
 when skills are added, removed, or change their [[Harness eligibility]]. It scans
-**both** bundled plugins: which harnesses a skill reaches is the skill's own
-declaration, not a property of the directory it ships in.
+**every** bundled plugin: which harnesses a skill reaches is the skill's own
+declaration, not a property of the directory it ships in. A real file or directory
+already at a target path is **left untouched and refused** — the run reports it,
+still installs every other skill, and exits non-zero, because a skill silently not
+installed is indistinguishable from one installed successfully.
 _Avoid_: running it for Claude Code, which installs by [[Marketplace]]; reading it
 as append-only — a re-run also **reconciles** (see [[Link reconciliation]]).
 
@@ -118,8 +135,9 @@ installed into — a YAML flow list, either the single claim `[any]` or an expli
 allowlist of harness ids (`claude-code`, `codex`, `gemini`, `pi`). It answers one
 question: *can a session on this harness follow these instructions?* `guardrail`
 declares `[claude-code]` because its whole mechanism is a Claude Code
-[[Hook-carrying skill]] frontmatter block; every other bundled skill declares
-`[any]`. Frontmatter is a safe carrier because a conforming loader parses the
+[[Hook-carrying skill]] frontmatter block, and the `grove` spine declares it
+because the binary still owns `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`
+until provisioning is deleted; every other bundled skill declares `[any]`. Frontmatter is a safe carrier because a conforming loader parses the
 block into a map and reads only the keys it knows — verified by reading pi's
 `core/skills.js`, and already relied on by `paths:` and `hooks:` reaching codex
 today. Gemini CLI is the one target not checked directly (it is not installed

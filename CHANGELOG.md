@@ -51,6 +51,45 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The methodology now ships as a Claude Code plugin: `plugins/grove/`.** A
+  third marketplace entry beside `linkuistics` and `testanyware`, carrying one
+  `grove` **spine** skill — the seven constraints, the bootstrap, execution,
+  decomposition, retirement and commit procedures, the review / integration /
+  research family files, and the five format documents. One `grove-<kind>` skill
+  per session kind lands beside it next; a kind exists **iff** a skill of that
+  name exists, and nothing here enumerates them.
+  Nothing the binary does changes: it still compiles `content/` in and still
+  provisions `~/.claude/skills/grove` and its two siblings. **The spine is the
+  source and `content/`'s copy of those files is what gets deleted** with
+  provisioning; which file is which, and where the rest of `content/` lands, is
+  in [`plugins/grove/README.md`](plugins/grove/README.md). The one file that is
+  *split* rather than shared is `SKILL.md` — `content/`'s is a kind router, the
+  spine's is a condition register — and the two are expected to differ.
+- **`grove` / conformance: the methodology's delivery assertion moves to a
+  dependency-free shell runner**, `plugins/grove/conformance.sh`, with its
+  controls in `conformance.test.sh`. Over the shipped skill set it asserts that
+  every behavioural rule is present on the composed loaded path of every kind
+  that binds it, that no rule has two owners, and that every file a skill names
+  by path exists — and nothing about how many kinds there are. Its inventory is
+  `plugins/grove/conformance/rules.tsv`, all 146 rows of
+  `docs/specs/corpus-rule-ownership.md`'s.
+  Why a shell runner: two of the four things
+  [`behavioural-coverage-asserts-delivery`](docs/adr/behavioural-coverage-asserts-delivery.md)'s
+  walk covers stop existing in the binary, so the assertion cannot stay in the
+  Rust suite. Those suites are untouched here and are deleted only once their
+  assertion has a home. A spine with no kind skills beside it is a legitimate
+  intermediate state: the runner reports it and stays green.
+- **`plugins/install.sh` refuses rather than warns when a real file or directory
+  already sits at a target path.** The path is still left untouched and every
+  other skill still installs, but the collision is an `error`, the closing report
+  names each blocked path and the two ways out, and the run exits non-zero.
+  Why: the previous `warn` line was read once among the `ok` lines, and an
+  uninstalled skill then reads as a successful install — the silent, delayed
+  failure the script's own workspace guard already refuses for. The live case is
+  grove itself, which provisions directories into `~/.codex/skills/grove` and
+  `~/.pi/agent/skills/grove`; the spine declares `harnesses: [claude-code]` so
+  those paths are not contested until the binary stops writing them.
+
 ## v19.4.0
 
 - **A leaf filename separates its session kind from its slug with `--`.** The

@@ -249,6 +249,37 @@ was checkable — never that a session notices the situation a condition describ
 That noticing was always the session's, and it is the whole of what the delivery
 change is judged on.
 
+**Spine skill** / **kind skill**:
+The two species the corpus becomes once the methodology ships as a skill plugin
+rather than as bytes the binary provisions ([`plugins/CONTEXT.md`](./plugins/CONTEXT.md)
+owns that delivery vocabulary). The **spine** is one skill, `grove`,
+carrying every rule shared across families — the numbered constraints, the
+[[Loop-step reference file]] set, the format documents, and the three *family*
+files (the five reviews, the five integrations, the two research halves). A
+**kind skill** is `grove-<kind>`, carrying inline what that kind alone owns, and
+directing a load of a family file **by name** where its family owns the rule. A
+kind exists **iff** a skill of that name exists, so nothing enumerates them.
+**Nowhere twice** is the property, and it is the same one
+[[Condition]] / [[procedure]] already files: the two halves cannot both claim the
+family text.
+_Avoid_: reading a directed load as a selection. The member's skill names one
+file; the session chooses nothing, which is the property the wording micro-test
+found load-bearing.
+_Avoid_: a manifest of kinds anywhere — in the machinery, in the conformance
+runner, or in the spine. Writing one is the signal that the openness has been
+lost.
+
+**Composed loaded path**:
+The [[Loaded path]] read off a *shipped skill set* instead of computed from
+`src/prompt.rs`: the closure of every skill-relative file the [[Kind skill]]'s
+and the [[Spine skill]]'s `SKILL.md` reach, following what the bytes actually
+name. It is what the plugin's conformance runner asserts a behavioural rule is
+**present on**, for every kind that binds it — a rule stated but unreachable is
+delivered nowhere, and a single-source sweep cannot see that.
+_Avoid_: recomputing it from a table of edges. A path computed by a parallel
+notion of what a session reads drifts from the real one and then lies, which is
+the failure mode the measurement exists to avoid rather than reproduce.
+
 **Loaded path**:
 The bytes one session actually **reads** on its normal path for its kind — the
 [[Guaranteed core]] in `${prompt}`, the provisioned `SKILL.md`, that kind's

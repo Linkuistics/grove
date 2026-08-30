@@ -167,6 +167,6 @@ standalone skill.
 
 As the corpus grows, add **mechanical CI lints** rather than trusting reviewer vigilance:
 a per-skill size-budget regression (`gstack-S3`), `skills-ref validate` spec-conformance
-(`anthropics-S1`), a skill/command **name-collision** check across both plugins
+(`anthropics-S1`), a skill/command **name-collision** check across every bundled plugin
 (`wshobson-S5` — the one with a present-day hazard), and a manifest↔README invariant
 (`mattpocock-S5`). Tracked as `[LINT]` in the survey synthesis; **not** part of this note.

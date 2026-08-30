@@ -11,9 +11,9 @@
 | `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 116 |
 | `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,439 |
 | `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 94 |
-| `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 636 |
+| `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 667 |
 | `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 342 |
-| `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 700 |
+| `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 716 |
 | `source-operations` | `crates/ordinal-fs-tree/src/ops.rs` | 543 |
 | `source-plan` | `crates/ordinal-fs-tree/src/plan.rs` | 568 |
 | `source-reference` | `crates/ordinal-fs-tree/src/reference.rs` | 555 |
@@ -37,13 +37,13 @@
 <!-- source-root «source-library» source="crates/ordinal-fs-tree/src/lib.rs" lines="1-94" -->
 <!-- insert «library-crate-surface» -->
 <!-- /source-root -->
-<!-- source-root «source-conformance» source="crates/ordinal-fs-tree/src/conformance.rs" lines="1-636" -->
+<!-- source-root «source-conformance» source="crates/ordinal-fs-tree/src/conformance.rs" lines="1-667" -->
 <!-- insert «reference-conformance-source» -->
 <!-- /source-root -->
 <!-- source-root «source-error» source="crates/ordinal-fs-tree/src/error.rs" lines="1-342" -->
 <!-- insert «filesystem-error-source» -->
 <!-- /source-root -->
-<!-- source-root «source-name» source="crates/ordinal-fs-tree/src/name.rs" lines="1-700" -->
+<!-- source-root «source-name» source="crates/ordinal-fs-tree/src/name.rs" lines="1-716" -->
 <!-- insert «name-seam-source» -->
 <!-- /source-root -->
 <!-- source-root «source-operations» source="crates/ordinal-fs-tree/src/ops.rs" lines="1-543" -->
@@ -93,9 +93,9 @@
 | `manifest-development-and-release` | `source-crate-manifest` | `orientation-k11` | `66-116` | 51 | `resolved` |
 | `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1439` | 1,439 | `resolved` |
 | `library-crate-surface` | `source-library` | `orientation-k11` | `1-94` | 94 | `resolved` |
-| `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-636` | 636 | `resolved` |
+| `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-667` | 667 | `resolved` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `resolved` |
-| `name-seam-source` | `source-name` | `name-seam-k12` | `1-700` | 700 | `resolved` |
+| `name-seam-source` | `source-name` | `name-seam-k12` | `1-716` | 716 | `resolved` |
 | `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-543` | 543 | `resolved` |
 | `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `resolved` |
 | `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-555` | 555 | `resolved` |
@@ -136,13 +136,13 @@
 | `cli-stream-contract-tests` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1260-1439` | `syllabus-cli-source` | `—` |
 | `source-library` | `source-index` | `source-library` | `root` | `—` | `1-94` | `—` | `library-crate-surface` |
 | `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-94` | `source-library` | `—` |
-| `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-636` | `—` | `reference-conformance-source` |
-| `conformance-obligations` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `1-177` | `reference-conformance-source` | `—` |
-| `reference-conformance-source` | `reference-domain` | `source-conformance` | `composite` | `reference-domain-k13` | `1-636` | `source-conformance` | `conformance-obligations`, `conformance-report`, `conformance-compose-and-canonical`, `conformance-component-and-distinguished`, `conformance-found-agreement` |
-| `conformance-report` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `178-282` | `reference-conformance-source` | `—` |
-| `conformance-compose-and-canonical` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `283-442` | `reference-conformance-source` | `—` |
-| `conformance-component-and-distinguished` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `443-541` | `reference-conformance-source` | `—` |
-| `conformance-found-agreement` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `542-636` | `reference-conformance-source` | `—` |
+| `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-667` | `—` | `reference-conformance-source` |
+| `conformance-obligations` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `1-208` | `reference-conformance-source` | `—` |
+| `reference-conformance-source` | `reference-domain` | `source-conformance` | `composite` | `reference-domain-k13` | `1-667` | `source-conformance` | `conformance-obligations`, `conformance-report`, `conformance-compose-and-canonical`, `conformance-component-and-distinguished`, `conformance-found-agreement` |
+| `conformance-report` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `209-313` | `reference-conformance-source` | `—` |
+| `conformance-compose-and-canonical` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `314-473` | `reference-conformance-source` | `—` |
+| `conformance-component-and-distinguished` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `474-572` | `reference-conformance-source` | `—` |
+| `conformance-found-agreement` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `573-667` | `reference-conformance-source` | `—` |
 | `source-error` | `source-index` | `source-error` | `root` | `—` | `1-342` | `—` | `filesystem-error-source` |
 | `error-boundary` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `1-23` | `filesystem-error-source` | `—` |
 | `filesystem-error-source` | `filesystem-interpreter` | `source-error` | `composite` | `filesystem-interpreter-k16` | `1-342` | `source-error` | `error-boundary`, `error-taxonomy`, `error-debug`, `error-display`, `error-sources` |
@@ -150,14 +150,14 @@
 | `error-debug` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `164-238` | `filesystem-error-source` | `—` |
 | `error-display` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `239-322` | `filesystem-error-source` | `—` |
 | `error-sources` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `323-342` | `filesystem-error-source` | `—` |
-| `source-name` | `source-index` | `source-name` | `root` | `—` | `1-700` | `—` | `name-seam-source` |
+| `source-name` | `source-index` | `source-name` | `root` | `—` | `1-716` | `—` | `name-seam-source` |
 | `name-identifiers` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `1-91` | `name-seam-source` | `—` |
-| `name-seam-source` | `name-seam` | `source-name` | `composite` | `name-seam-k12` | `1-700` | `source-name` | `name-identifiers`, `name-classification`, `name-representation`, `entry-name-trait`, `entry-name-derived-readings`, `name-component-check` |
+| `name-seam-source` | `name-seam` | `source-name` | `composite` | `name-seam-k12` | `1-716` | `source-name` | `name-identifiers`, `name-classification`, `name-representation`, `entry-name-trait`, `entry-name-derived-readings`, `name-component-check` |
 | `name-classification` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `92-246` | `name-seam-source` | `—` |
 | `name-representation` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `247-345` | `name-seam-source` | `—` |
-| `entry-name-trait` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `346-602` | `name-seam-source` | `—` |
-| `entry-name-derived-readings` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `603-674` | `name-seam-source` | `—` |
-| `name-component-check` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `675-700` | `name-seam-source` | `—` |
+| `entry-name-trait` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `346-615` | `name-seam-source` | `—` |
+| `entry-name-derived-readings` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `616-690` | `name-seam-source` | `—` |
+| `name-component-check` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `691-716` | `name-seam-source` | `—` |
 | `source-operations` | `source-index` | `source-operations` | `root` | `—` | `1-543` | `—` | `mutation-operations-source` |
 | `ops-surface-and-inputs` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `1-68` | `mutation-operations-source` | `—` |
 | `mutation-operations-source` | `mutation-algebra` | `source-operations` | `composite` | `mutation-algebra-k15` | `1-543` | `source-operations` | `ops-surface-and-inputs`, `ops-append`, `ops-insert`, `ops-promote`, `ops-rewrite`, `ops-resolution-and-allocation` |
@@ -239,4 +239,4 @@
 | `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `explained` |
 | `WriteGuard`, `Error`, `apply::Faults`, `apply::Run` | `01-orientation.md#insert-tour` | `filesystem-interpreter-k16` | A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state. | `explained` |
 | `Cli`, `Verb`, `Streams`, `Failure` | `01-orientation.md#insert-tour` | `syllabus-cli-k17` | Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category. | `explained` |
-| `conformance` | `02-name-seam.md#entry-name-contract` | `reference-domain-k13` | The reusable conformance kit exercises the five semantic `EntryName` obligations that Rust cannot discharge on consumer-supplied samples; the reference-domain chapter defines its scope and limits. | `explained` |
+| `conformance` | `02-name-seam.md#entry-name-contract` | `reference-domain-k13` | The reusable conformance kit samples five semantic `EntryName` obligations and publishes the two type-shape constraints with their remaining deterministic-call assumptions; the reference-domain chapter defines its scope and limits. | `explained` |

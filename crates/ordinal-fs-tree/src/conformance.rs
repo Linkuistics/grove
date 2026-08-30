@@ -38,10 +38,12 @@ use crate::{EntryName, EntryNameExt, Found, NameView, Species, Verdict};
 
 /// One of the obligations this kit checks.
 ///
-/// Five, not seven. The other two — *a name is positioned or distinguished,
-/// never neither* and *the species follows from the parts* — are discharged by
-/// the type system and are listed in [`DISCHARGED_BY_THE_TYPE_SYSTEM`] rather
-/// than checked here.
+/// Five, not seven. Rust constrains the visible shape of the other two — *a
+/// name is positioned or distinguished, never neither* and *the species
+/// follows from the parts* — and those constraints are listed in
+/// [`TYPE_SHAPE_CONSTRAINTS`]. Their stability across calls remains a semantic
+/// law: neither Rust nor this sample-based kit proves the absence of hidden
+/// mutable state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Obligation {
     /// `compose(o, k, p)` yields a name whose triple is `Some` and equal to
@@ -135,44 +137,73 @@ impl fmt::Display for Obligation {
     }
 }
 
-/// An obligation the target language already makes unrepresentable, and how.
+/// The part of an obligation constrained by Rust's type shape.
+pub struct TypeShapeConstraint {
+    /// The obligation, as the architecture document states it.
+    pub statement: &'static str,
+    /// What the type shape enforces for each call.
+    pub enforced: &'static str,
+    /// The semantic law that the type shape does not enforce.
+    pub assumed: &'static str,
+}
+
+/// The structural constraints this kit does **not** sample because each return
+/// value already has the required Rust shape.
+///
+/// Reporting them is the point: a consumer reading five checks where the
+/// document states seven needs to know that the other two were not forgotten.
+/// This table deliberately does not call either obligation discharged: trait
+/// methods may consult interior or global mutable state, so identical explicit
+/// inputs can produce different well-shaped answers across calls. A finite
+/// conformance sample could expose an implementation that changes during that
+/// sample, but could not prove deterministic behavior in general.
+pub const TYPE_SHAPE_CONSTRAINTS: &[TypeShapeConstraint] = &[
+    TypeShapeConstraint {
+        statement: "a name is positioned or distinguished, never neither",
+        enforced: "Each `EntryName::view` call returns one `NameView`: either a `Triple` — \
+                   the ordinal, key and parts together — or the distinguished child, which \
+                   has none of them. A single returned value cannot carry only some triple \
+                   fields or carry a triple while claiming the distinguished species.",
+        assumed: "Repeated `EntryName::view` calls with the same receiver and no \
+                  caller-visible mutation are deterministic; hidden mutable state does not \
+                  influence the variant or triple.",
+    },
+    TypeShapeConstraint {
+        statement: "the species follows from the parts",
+        enforced: "`EntryName::positioned_species` is an associated function whose only \
+                   explicit input is `&Parts`: it receives no `self`, ordinal or key.",
+        assumed: "`EntryName::positioned_species` is deterministic from the parts value \
+                  across calls and does not derive its answer from hidden mutable state. A \
+                  `Parts` equality coarser than the species remains lawful; occupancy uses \
+                  `EntryNameExt::same_name`, which compares both view and species.",
+    },
+];
+
+/// Legacy description of a type-shape constraint.
+#[deprecated(note = "use TypeShapeConstraint and TYPE_SHAPE_CONSTRAINTS")]
 pub struct Discharged {
     /// The obligation, as the architecture document states it.
     pub statement: &'static str,
-    /// What makes it free.
+    /// What Rust constrains and which deterministic behavior remains assumed.
     pub how: &'static str,
 }
 
-/// The obligations this kit does **not** check because Rust does not admit a
-/// violation of them.
+/// Compatibility view of [`TYPE_SHAPE_CONSTRAINTS`] under its original name.
 ///
-/// Reporting them is the point: a consumer reading five checks where the
-/// document states seven needs to know that the other two were not forgotten. The
-/// finding that produced this list is `docs/formalism-findings.md` entry 002 —
-/// *before modelling a structural property, ask whether the target language
-/// already forbids it*.
+/// The name is retained for source compatibility, not as a claim that Rust
+/// proves call stability. New code should use [`TYPE_SHAPE_CONSTRAINTS`].
+#[allow(deprecated)]
+#[deprecated(note = "use TYPE_SHAPE_CONSTRAINTS; call stability is a semantic law")]
 pub const DISCHARGED_BY_THE_TYPE_SYSTEM: &[Discharged] = &[
     Discharged {
         statement: "a name is positioned or distinguished, never neither",
-        how: "`EntryName::view` returns one `NameView`: either a `Triple` — the ordinal, the \
-              key and the parts together — or the distinguished child, which has none of \
-              them. A name carrying some of the three and not the others cannot be written, \
-              and neither can one carrying a triple while claiming the distinguished \
-              species. The document states the obligation of three separate `Option` \
-              accessors beside an independent `species()`, where both halves are real things \
-              to get wrong (witness_leaf_name_without_an_ordinal).",
+        how: "Each call returns one complete `NameView`; repeated calls with the same \
+              receiver are assumed deterministic because hidden state is not excluded.",
     },
     Discharged {
         statement: "the species follows from the parts",
-        how: "`EntryName::positioned_species` is an associated function over a `&Parts`: no \
-              `self`, no ordinal, no key. A species that varied with an entry's position \
-              cannot be written, so a sibling shift — which is a `compose` with a new \
-              ordinal — cannot turn a leaf into a node. `structure.als` assumes it as \
-              `SpeciesFromParts` and every derived operation rests on it. What is \
-              discharged is that the species is *definable* from the parts alone; a \
-              `Parts` equality coarser than the species is still lawful, and the library \
-              handles that itself rather than asking for it — occupancy compares \
-              `EntryNameExt::same_name`, which is the view and the species together.",
+        how: "The only explicit input is `&Parts`; the answer is assumed deterministic from \
+              that input because global mutable state is not excluded.",
     },
 ];
 

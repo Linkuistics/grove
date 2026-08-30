@@ -81,12 +81,12 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-conformance",
         path: "crates/ordinal-fs-tree/src/conformance.rs",
-        lines: 636,
+        lines: 667,
         blocks: &[BlockSpec {
             id: "reference-conformance-source",
             owner: "reference-domain-k13",
             first: 1,
-            last: 636,
+            last: 667,
         }],
     },
     RootSpec {
@@ -103,12 +103,12 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-name",
         path: "crates/ordinal-fs-tree/src/name.rs",
-        lines: 700,
+        lines: 716,
         blocks: &[BlockSpec {
             id: "name-seam-source",
             owner: "name-seam-k12",
             first: 1,
-            last: 700,
+            last: 716,
         }],
     },
     RootSpec {

@@ -32,10 +32,10 @@ pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
     (
         "source-conformance",
         "crates/ordinal-fs-tree/src/conformance.rs",
-        636,
+        667,
     ),
     ("source-error", "crates/ordinal-fs-tree/src/error.rs", 342),
-    ("source-name", "crates/ordinal-fs-tree/src/name.rs", 700),
+    ("source-name", "crates/ordinal-fs-tree/src/name.rs", 716),
     (
         "source-operations",
         "crates/ordinal-fs-tree/src/ops.rs",
@@ -139,7 +139,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         "source-conformance",
         "reference-domain-k13",
         1,
-        636,
+        667,
     ),
     block(
         "filesystem-error-source",
@@ -148,7 +148,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         1,
         342,
     ),
-    block("name-seam-source", "source-name", "name-seam-k12", 1, 700),
+    block("name-seam-source", "source-name", "name-seam-k12", 1, 716),
     block(
         "mutation-operations-source",
         "source-operations",

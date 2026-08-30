@@ -117,8 +117,8 @@ fn ownership_state_must_match_the_directive_authority() {
     let mut snapshot = support::corpus(false);
     edit_source_index(&mut snapshot, |text| {
         text.replacen(
-            "| `name-seam-source` | `source-name` | `name-seam-k12` | `1-700` | 700 | `deferred` |",
-            "| `name-seam-source` | `source-name` | `name-seam-k12` | `1-700` | 700 | `resolved` |",
+            "| `name-seam-source` | `source-name` | `name-seam-k12` | `1-716` | 716 | `deferred` |",
+            "| `name-seam-source` | `source-name` | `name-seam-k12` | `1-716` | 716 | `resolved` |",
             1,
         )
     });

@@ -241,8 +241,9 @@ Seven obligations. Six the library assumes and cannot check at run time; the
 seventh it **enforces**, and the asymmetry has a reason worth stating rather
 than leaving to be noticed. They are stated because the structural model found
 that four were missing, and that a design missing any one of them admits a tree
-the library will quietly corrupt. Two of the seven are discharged by the Rust
-seam's *shape* rather than checked, and both are marked below.
+the library will quietly corrupt. Rust constrains the visible shape of two of
+the seven rather than checking them, and both are marked below. Their
+deterministic behavior across calls remains an assumed semantic law.
 
 **Compose places what it is given.** `compose(o, k, p)` yields a name whose
 view is `Positioned` with `ordinal == o`, `key == k` and `parts == p`. Without
@@ -256,21 +257,29 @@ direction only and a grammar may accept two spellings of one name — at which
 point two files on disk *are* one entry, sharing a key and an ordinal, and the
 tree carries a duplicate key that no invariant rules out.
 
-**A name is positioned or distinguished, never neither.** *In Rust this one is
-discharged by the type system, and it is stated because it is not free
-everywhere.* Under three separate `Option` accessors beside an independent
+**A name is positioned or distinguished, never neither.** *Rust constrains each
+returned value, but does not discharge stability across calls.* Under three
+separate `Option` accessors beside an independent
 `species()` — the shape this document carried while the structural model was
 written — two states are admitted: a name of species `Leaf` with no ordinal, an
 entry that cannot be ordered, shifted or promoted and that no triple names; and
 a name carrying a triple while claiming species `Distinguished`. `NameView`
-carries the triple *and* the positioned-or-distinguished choice in one value, so
-neither can be written. `seam-k17` found the first version of this claim
+carries the triple *and* the positioned-or-distinguished choice in one returned
+value, so neither malformed value can be written. `seam-k17` found the first version of this claim
 overstated: one `Option` over the three fields closed the first state and left
 the second, while the document, the model and the kit all said the obligation
-was discharged. Discharging it takes the *view*, not the `Option`.
+was discharged. Closing the visible representation defect takes the *view*, not
+the `Option`.
 
-**The species follows from the parts.** *Discharged by the seam's shape too, and
-by the signature rather than by a sum type:* `positioned_species` is an
+That sum type says nothing about whether repeated calls with the same receiver
+and no caller-visible mutation choose the same variant or triple. An implementation can consult interior
+or global mutable state and alternate between two individually valid
+`NameView`s. `EntryName` therefore assumes the semantic law that hidden state
+does not affect `view`'s answer. The library does not memoize the answer, and
+the conformance kit cannot prove the law from finite samples.
+
+**The species follows from the parts.** *The signature constrains explicit
+inputs rather than enforcing the complete law:* `positioned_species` is an
 associated function over a `&Parts`, so there is no `self`, no ordinal and no
 key to consult. The structural model assumes this as `SpeciesFromParts`, and the
 sibling shift is what rests on it — shifting is `compose(new_ordinal, key,
@@ -279,9 +288,11 @@ into a node, which on disk is a file renamed into a directory. `seam-k17` found
 the trait exposing `fn species(&self)` independently, where an implementation
 could do exactly that and pass every check the kit made.
 
-What the signature discharges is that the species is **definable** from the
-parts and from nothing else. It does not make the species a function of the
-parts' *equivalence class*, and the difference is not academic. `Parts` is
+The signature prevents direct access to `self`, ordinal, and key. It does not
+prevent access to global mutable state, so `EntryName` additionally assumes
+that `positioned_species` is deterministic from the parts value across calls.
+It also does not make the species a function of the parts' *equivalence class*,
+and the difference is not academic. `Parts` is
 bounded by `Eq`, which is any lawful equivalence — a domain may compare two
 parts equal while `positioned_species` calls one a leaf and the other a node,
 and it breaks no obligation by doing so. Both models assume the congruence for
@@ -298,11 +309,13 @@ of parts can exercise it: the kit reports an obligation it cannot reach as
 untested, so every well-behaved domain would have failed conformance to state a
 property only a misbehaving one can demonstrate.
 
-Both are `docs/formalism-findings.md` entry 002's own counterfactual applied to
-the implementation: **before modelling a structural property, ask whether the
+Both apply `docs/formalism-findings.md` entry 002's counterfactual to the
+implementation: **before modelling a structural property, ask whether the
 target language already forbids it.** The conformance kit checks the other five
-obligations and names these two as discharged, so a reader counting five checks
-against seven obligations can see that the other two were not forgotten.
+obligations and publishes the two type-shape constraints beside their remaining
+deterministic-call assumptions, so a reader counting five checks
+against seven obligations can see that the other two were not forgotten or
+overstated.
 
 **`distinguished()` names the only entry of its species.** `parse` yields
 species `Distinguished` for that name and for nothing else. This is what makes

@@ -13,7 +13,7 @@ fn the_frozen_fifteen_file_corpus_expands_byte_for_byte() {
     );
 
     assert_eq!(report.coverage.files, 15);
-    assert_eq!(report.coverage.resolved_lines, 6_929);
+    assert_eq!(report.coverage.resolved_lines, 6_976);
     assert_eq!(report.coverage.deferred_lines, 0);
     assert!(report.valid, "{:#?}", report.diagnostics);
 }
@@ -57,7 +57,7 @@ fn orientation_scope_reports_resolved_and_deferred_bytes_separately() {
         book_validation::Coverage {
             files: 15,
             resolved_lines: 203,
-            deferred_lines: 6_726,
+            deferred_lines: 6_773,
             final_: false,
         }
     );
@@ -72,8 +72,8 @@ fn a_well_formed_defer_absent_from_the_ownership_ledger_is_rejected() {
         .get_mut("docs/ordinal-fs-tree/book/source-index.md")
         .unwrap();
     let text = String::from_utf8(source_index.clone()).unwrap().replace(
-        "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-700\" -->",
-        "<!-- defer «never-filled» owner=\"name-seam-k12\" lines=\"1-700\" -->",
+        "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-716\" -->",
+        "<!-- defer «never-filled» owner=\"name-seam-k12\" lines=\"1-716\" -->",
     );
     *source_index = text.into_bytes();
 
@@ -98,7 +98,7 @@ fn a_later_owned_block_cannot_be_defined_early() {
         .get_mut("docs/ordinal-fs-tree/book/source-index.md")
         .unwrap();
     let text = String::from_utf8(source_index.clone()).unwrap().replace(
-        "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-700\" -->",
+        "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-716\" -->",
         "<!-- insert «name-seam-source» -->",
     );
     *source_index = text.into_bytes();

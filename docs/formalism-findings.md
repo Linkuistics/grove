@@ -643,17 +643,21 @@ that was weaker than the claim it stood for.
   independent method. `src/name.rs` said so in one sentence; `ARCHITECTURE.md`,
   `structure.als`'s comment and `DISCHARGED_BY_THE_TYPE_SYSTEM` all said the
   obligation was discharged, full stop. **A partial discharge annotated in prose
-  is a full discharge to the next three readers.**
+  is a full discharge to the next three readers.** A later contract pass found
+  the same overstatement one level deeper: `NameView` constrains each return but
+  cannot prevent interior state from changing the choice across calls.
 - **The model stated a law the seam did not carry.** `SpeciesFromParts` is one
   of `structure.als`'s assumed trait laws, and every derivation rests on it — a
   shift is `compose(new_ordinal, key, parts)`, so a species free to vary with the
   ordinal turns a shift into a file renamed to a directory. The Rust trait
   exposed `fn species(&self)` beside the parts and required nothing, so a
   conforming domain could break a law the model was entitled to assume. Both are
-  now unrepresentable — one `NameView`, and `positioned_species(parts: &Parts)`
-  as an associated function with no `self`, no ordinal and no key — and the
-  obligation count went from five to six because the second law was always an
-  obligation and had been filed as a consequence.
+  now constrained at their explicit surface — one `NameView`, and
+  `positioned_species(parts: &Parts)` as an associated function with no `self`,
+  no ordinal and no key. Determinism from those explicit inputs remains an
+  assumed semantic law because global state is still reachable. The obligation
+  count went from five to six because the second law was always an obligation
+  and had been filed as a consequence.
 - **Two tests cited a model claim and checked something weaker.**
   `SpeciesAgreementIsParsed` says a contradicted name is *malformed*; the kit
   accepted *anything that is not an entry*, so a domain returning `Foreign` —

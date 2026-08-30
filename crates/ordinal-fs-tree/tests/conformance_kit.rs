@@ -11,9 +11,13 @@
 //! obligation the library also enforces at run time. `tests/names_are_confined.rs`
 //! is that half.
 
-use core::fmt;
+use core::{cell::Cell, fmt};
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use ordinal_fs_tree::conformance::{self, Finding, Obligation, DISCHARGED_BY_THE_TYPE_SYSTEM};
+#[allow(deprecated)]
+use ordinal_fs_tree::conformance::{
+    self, Finding, Obligation, DISCHARGED_BY_THE_TYPE_SYSTEM, TYPE_SHAPE_CONSTRAINTS,
+};
 use ordinal_fs_tree::reference::{Label, Parts, Status, SyllabusError, SyllabusName};
 use ordinal_fs_tree::{
     EntryName, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Verdict,
@@ -98,27 +102,119 @@ fn samples_that_reach_only_half_the_seam_say_so() {
                           if *obligation == Obligation::ComposePlacesWhatItIsGiven)));
 }
 
-/// The obligations Rust discharges are named rather than dropped: a consumer
-/// counting five checks against the document's seven needs to see that the other
-/// two were not forgotten.
+/// The obligations constrained by Rust's type shape are named rather than
+/// dropped. Each entry also names the semantic stability that Rust cannot
+/// enforce, so five sampled checks cannot be mistaken for a complete proof of
+/// seven obligations.
 #[test]
-fn the_obligation_the_type_system_discharges_is_reported() {
-    assert_eq!(DISCHARGED_BY_THE_TYPE_SYSTEM.len(), 2);
+fn the_type_shape_constraints_and_their_semantic_limit_are_published() {
+    assert_eq!(TYPE_SHAPE_CONSTRAINTS.len(), 2);
     assert_eq!(
-        Obligation::ALL.len() + DISCHARGED_BY_THE_TYPE_SYSTEM.len(),
+        Obligation::ALL.len() + TYPE_SHAPE_CONSTRAINTS.len(),
         7,
         "the architecture document states seven obligations"
     );
-    let discharged: Vec<&str> = DISCHARGED_BY_THE_TYPE_SYSTEM
+    let constrained: Vec<&str> = TYPE_SHAPE_CONSTRAINTS
         .iter()
-        .map(|d| d.statement)
+        .map(|constraint| constraint.statement)
         .collect();
-    assert!(discharged
+    assert!(constrained
         .iter()
         .any(|s| s.contains("positioned or distinguished")));
-    assert!(discharged
+    assert!(constrained
         .iter()
         .any(|s| s.contains("follows from the parts")));
+    assert!(TYPE_SHAPE_CONSTRAINTS
+        .iter()
+        .all(|constraint| constraint.assumed.contains("determin")));
+}
+
+#[allow(deprecated)]
+#[test]
+fn the_legacy_discharge_table_preserves_its_public_shape_without_overclaiming() {
+    assert_eq!(DISCHARGED_BY_THE_TYPE_SYSTEM.len(), 2);
+    assert!(DISCHARGED_BY_THE_TYPE_SYSTEM
+        .iter()
+        .all(|discharged| discharged.how.contains("determin")));
+}
+
+static NEXT_POSITIONED_SPECIES_IS_NODE: AtomicBool = AtomicBool::new(false);
+
+/// A legal Rust implementation that changes both structural readings while
+/// their explicit inputs remain unchanged. `view` uses interior state and
+/// `positioned_species` uses global state, the two channels the signatures do
+/// not exclude.
+#[derive(Clone)]
+struct Stateful {
+    inner: SyllabusName,
+    next_view_is_distinguished: Cell<bool>,
+}
+
+impl fmt::Display for Stateful {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.inner.fmt(f)
+    }
+}
+
+impl EntryName for Stateful {
+    type Parts = Parts;
+    type Err = SyllabusError;
+
+    fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
+        match SyllabusName::parse(name, found) {
+            Verdict::Entry(inner) => Verdict::Entry(Self {
+                inner,
+                next_view_is_distinguished: Cell::new(false),
+            }),
+            Verdict::Foreign => Verdict::Foreign,
+            Verdict::Malformed(error) => Verdict::Malformed(error),
+            Verdict::Reserved(error) => Verdict::Reserved(error),
+        }
+    }
+
+    fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
+        Self {
+            inner: SyllabusName::compose(ordinal, key, parts),
+            next_view_is_distinguished: Cell::new(false),
+        }
+    }
+
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        let distinguished = self.next_view_is_distinguished.get();
+        self.next_view_is_distinguished.set(!distinguished);
+        if distinguished {
+            NameView::Distinguished
+        } else {
+            self.inner.view()
+        }
+    }
+
+    fn positioned_species(_parts: &Self::Parts) -> PositionedSpecies {
+        if NEXT_POSITIONED_SPECIES_IS_NODE.fetch_xor(true, Ordering::Relaxed) {
+            PositionedSpecies::Node
+        } else {
+            PositionedSpecies::Leaf
+        }
+    }
+}
+
+#[test]
+fn hidden_mutable_state_is_not_excluded_by_the_trait_shape() {
+    let parts = Parts::lesson(Status::Published, Label::new("stateful").unwrap());
+    let name = Stateful::compose(Ordinal::new(1), Key::new(1), parts.clone());
+
+    assert!(matches!(name.view(), NameView::Positioned(_)));
+    assert!(matches!(name.view(), NameView::Distinguished));
+
+    NEXT_POSITIONED_SPECIES_IS_NODE.store(false, Ordering::Relaxed);
+    assert_eq!(
+        Stateful::positioned_species(&parts),
+        PositionedSpecies::Leaf
+    );
+    assert_eq!(
+        Stateful::positioned_species(&parts),
+        PositionedSpecies::Node
+    );
 }
 
 // ===========================================================================

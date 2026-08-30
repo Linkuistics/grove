@@ -517,9 +517,9 @@ visible in the root row and ownership table.
 | `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 116 |
 | `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,439 |
 | `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 94 |
-| `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 636 |
+| `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 667 |
 | `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 342 |
-| `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 700 |
+| `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 716 |
 | `source-operations` | `crates/ordinal-fs-tree/src/ops.rs` | 543 |
 | `source-plan` | `crates/ordinal-fs-tree/src/plan.rs` | 568 |
 | `source-reference` | `crates/ordinal-fs-tree/src/reference.rs` | 555 |
@@ -545,9 +545,9 @@ the matching defer with an insert and adds the definition.
 | `manifest-development-and-release` | `source-crate-manifest` | `orientation-k11` | `66-116` | 51 | `resolved` |
 | `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1439` | 1,439 | `deferred` |
 | `library-crate-surface` | `source-library` | `orientation-k11` | `1-94` | 94 | `resolved` |
-| `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-636` | 636 | `deferred` |
+| `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-667` | 667 | `deferred` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `deferred` |
-| `name-seam-source` | `source-name` | `name-seam-k12` | `1-700` | 700 | `deferred` |
+| `name-seam-source` | `source-name` | `name-seam-k12` | `1-716` | 716 | `deferred` |
 | `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-543` | 543 | `deferred` |
 | `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `deferred` |
 | `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-555` | 555 | `deferred` |
@@ -574,14 +574,14 @@ shown above. Every other root contains one full-file top-level block.
 | Slice | Page | Owned lines |
 |---|---|---:|
 | `orientation-k11` | `01-orientation.md` | 203 |
-| `name-seam-k12` | `02-name-seam.md` | 700 |
-| `reference-domain-k13` | `03-reference-domain.md` | 1,191 |
+| `name-seam-k12` | `02-name-seam.md` | 716 |
+| `reference-domain-k13` | `03-reference-domain.md` | 1,222 |
 | `read-path-k14` | `04-read-path.md` | 963 |
 | `mutation-algebra-k15` | `05-mutation-algebra.md` | 1,263 |
 | `filesystem-interpreter-k16` | `06-filesystem-interpreter.md` | 1,163 |
 | `syllabus-cli-k17` | `07-syllabus-cli.md` | 1,446 |
 | `book-assembly-k18` | `08-invariants-and-trade-offs.md` | 0 |
-| **Total** | 15 source roots | **6,929** |
+| **Total** | 15 source roots | **6,976** |
 
 The totals count each source line once at its top-level block and do not count
 composite ancestors or lookup prose. A scoped report prints completed lines,
@@ -759,7 +759,7 @@ Final mode requires exactly the fifteen source roots and source paths in this
 specification, no extras, every top-level block resolved, no defer directives,
 one reachable definition per ID, gapless non-overlapping coverage, and byte-for-
 byte equality for every recursively expanded root. The final report must state
-15 files, 6,929 lines, zero deferred ranges, and final=true.
+15 files, 6,976 lines, zero deferred ranges, and final=true.
 
 ### Deterministic diagnostics
 

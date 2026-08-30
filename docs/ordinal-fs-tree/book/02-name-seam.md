@@ -12,7 +12,7 @@ The complete `src/name.rs` source is the composition below. Its six children
 follow the conceptual order of this page and expand without gaps into lines
 1–700.
 
-<!-- fragment «name-seam-source» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-700" parent="source-name" -->
+<!-- fragment «name-seam-source» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-716" parent="source-name" -->
 <!-- insert «name-identifiers» -->
 <!-- insert «name-classification» -->
 <!-- insert «name-representation» -->
@@ -491,12 +491,12 @@ The trait establishes seven obligations:
 6. `parse` returns `Malformed` when the declared species contradicts `Found`.
 7. `Display` renders one nonempty path component other than `.` or `..`.
 
-The signatures discharge the visible structural forms of obligations 3 and 4.
+The signatures constrain the visible structural forms of obligations 3 and 4.
 Each `view` result is one complete positioned-or-distinguished choice, and
 `positioned_species` receives only `&Parts`, leaving the triple's ordinal and
 key out of scope. Rust does not prove that consumer methods are deterministic
 or free of hidden mutable state; stability across calls remains part of the
-semantic trait contract. The remaining five are semantic assumptions Rust
+semantic trait contract. The remaining five are also semantic obligations Rust
 cannot check; the reference domain's reusable conformance kit exercises them on
 consumer-supplied samples. The filesystem layer separately enforces the seventh
 before a rendering can become a path. The [reference-domain
@@ -519,7 +519,7 @@ the parsing and rendering round trips constrain that separate boundary.
 This fragment is present at the seam itself. A consumer implements these inputs
 and transformations; snapshot reads and mutation planning depend on the stated
 round trips, species rule, and one-component rendering contract.
-<!-- fragment «entry-name-trait» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="346-602" parent="name-seam-source" -->
+<!-- fragment «entry-name-trait» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="346-615" parent="name-seam-source" -->
 ````rust
 /// The one trait. All genericity lives here: there are no callbacks, no hooks,
 /// no registration and no configuration objects, and there is no `Domain` type.
@@ -536,10 +536,11 @@ round trips, species rule, and one-component rendering contract.
 /// that four were missing, and that a design missing any one of them admits a
 /// tree the library will quietly corrupt. Each is written on the method it
 /// constrains — except the seventh, which constrains [`fmt::Display`] and is
-/// therefore written here. [`crate::conformance`] checks the five that Rust
-/// does not already make unrepresentable, and names the two it does —
-/// [`view`](EntryName::view) and
-/// [`positioned_species`](EntryName::positioned_species) carry those two.
+/// therefore written here. [`crate::conformance`] samples five semantic
+/// obligations and separately publishes the visible constraints Rust places on
+/// the other two. [`view`](EntryName::view) and
+/// [`positioned_species`](EntryName::positioned_species) carry those
+/// constraints; deterministic answers across calls remain semantic laws.
 ///
 /// # Obligation: a name renders as one path component
 ///
@@ -662,31 +663,40 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// `species()` accessors an earlier draft had, because the choice is one
     /// choice. Read a triple off it with [`EntryNameExt::triple`] and a species
     /// with [`EntryNameExt::species`]; both are derived from this and from
-    /// [`positioned_species`](EntryName::positioned_species), so neither is an
-    /// implementation's to get wrong.
+    /// [`positioned_species`](EntryName::positioned_species), so an
+    /// implementation cannot override the derived readings independently. The
+    /// readings still depend on the implementation honoring their deterministic
+    /// call laws.
     ///
     /// # Obligation: a name is positioned or distinguished, never neither
     ///
-    /// **Rust discharges this one, and both halves of it.** The architecture
-    /// document states it of three separate `Option` accessors — `ordinal()`,
-    /// `key()` and `parts()`, which "are `Some` together or `None` together" —
-    /// and a name of species [`Species::Leaf`] with no ordinal is then
-    /// admitted: an entry that cannot be ordered, shifted or promoted, and that
-    /// no triple names (`witness_leaf_name_without_an_ordinal`). A `None`
-    /// triple beside a `Distinguished` species was the same defect inverted.
-    /// [`NameView`] carries the triple *and* the distinguished-or-not choice in
-    /// one value, so neither state can be written and there is nothing here for
-    /// [`crate::conformance`] to check.
+    /// Rust constrains each returned value, and both halves of its visible
+    /// shape. The architecture document states the obligation of three separate
+    /// `Option` accessors — `ordinal()`, `key()` and `parts()`, which "are `Some`
+    /// together or `None` together" — beside an independent species. That
+    /// admits both a leaf with no ordinal and a name carrying a triple while
+    /// claiming species [`Species::Distinguished`]
+    /// (`witness_leaf_name_without_an_ordinal`). [`NameView`] carries the triple
+    /// and the positioned-or-distinguished choice in one returned value, so
+    /// neither malformed value can be returned.
+    ///
+    /// The type does **not** make the choice stable across calls. An
+    /// implementation can consult interior or global mutable state and return
+    /// `Positioned` once and `Distinguished` next on repeated calls with the
+    /// same receiver and no caller-visible mutation. The semantic law is
+    /// therefore explicit: hidden state does not affect `view`'s answer. Rust
+    /// does not enforce that law, and a finite sample in [`crate::conformance`]
+    /// cannot prove it.
     fn view(&self) -> NameView<'_, Self::Parts>;
 
     /// The species of a positioned name carrying these parts.
     ///
     /// # Obligation: the species follows from the parts
     ///
-    /// **Rust discharges this one too**, by the signature: this is an
-    /// associated function of the *name type* over a `&Parts`, so there is no
-    /// `self`, no ordinal and no key to consult. A domain whose leaves and
-    /// nodes differ expresses that as variants of [`Parts`](EntryName::Parts).
+    /// Rust constrains the method's explicit inputs: this is an associated
+    /// function of the *name type* over a `&Parts`, so it receives no `self`,
+    /// ordinal or key. A domain whose leaves and nodes differ expresses that as
+    /// variants of [`Parts`](EntryName::Parts).
     ///
     /// `structure.als` assumes it as `SpeciesFromParts`, and the derivation
     /// that rests on it is the sibling shift: shifting is
@@ -694,10 +704,13 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// the ordinal would make a shift able to turn a leaf into a node — a
     /// rename of a file into a directory, with the subtree that implies.
     ///
-    /// # What the discharge covers, and what it does not
+    /// # What the signature covers, and what it does not
     ///
-    /// It makes the species **definable** from the parts and from nothing else.
-    /// It does not make it a function of the parts' *equivalence class*: the
+    /// It prevents the body from reading a name, ordinal or key through an
+    /// explicit parameter. It does not prevent global mutable state, so the
+    /// semantic law remains an assumption: `positioned_species` is deterministic
+    /// from the parts value across calls. It also does not make the answer a
+    /// function of the parts' *equivalence class*: the
     /// bound on [`Parts`](EntryName::Parts) is `Eq` and not "equality as fine as
     /// this function", so `a == b` with differing species is lawful and breaks
     /// no obligation. That is a real domain — `promote-k25` wrote one — and the
@@ -707,9 +720,9 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// no sample of parts can exercise it, so [`crate::conformance`] could only
     /// ever report it untested.
     ///
-    /// A discharge claim is a proof nobody wrote down, so here is the control.
-    /// The domain below wants its species to depend on where the entry sits,
-    /// and does not compile — there is no `self` to ask:
+    /// The compile-time control below establishes only the explicit-input
+    /// constraint. This domain wants its species to depend directly on where
+    /// the entry sits, and does not compile because there is no `self` to ask:
     ///
     /// ```compile_fail
     /// # use core::fmt;
@@ -803,7 +816,7 @@ This fragment derives the readings used throughout snapshots, operations,
 plans, and consumers. Sealing keeps the algebra's identity and species rules
 uniform even though the underlying parts and their equality belong to the
 consumer.
-<!-- fragment «entry-name-derived-readings» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="603-674" parent="name-seam-source" -->
+<!-- fragment «entry-name-derived-readings» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="616-690" parent="name-seam-source" -->
 ````rust
 
 mod sealed {
@@ -818,9 +831,12 @@ mod sealed {
 /// Blanket-implemented and sealed, which is the load-bearing part: these are
 /// not provided methods an implementation may override, they are readings of
 /// [`EntryName::view`] and [`EntryName::positioned_species`]. That is what
-/// makes *a name is positioned or distinguished, never neither* and *the
-/// species follows from the parts* unrepresentable rather than checkable — an
-/// overridable `species()` would put both back within reach.
+/// constrains the visible shape of *a name is positioned or distinguished,
+/// never neither* and *the species follows from the parts*. Stable answers
+/// across calls remain semantic laws of [`EntryName`]; Rust permits an
+/// implementation to consult hidden mutable state. An overridable `species()`
+/// would weaken even the visible constraint by adding `self` as an explicit
+/// input.
 pub trait EntryNameExt: EntryName + sealed::Sealed {
     /// `Some` for a positioned name, `None` for the distinguished one.
     fn triple(&self) -> Option<Triple<'_, Self::Parts>> {
@@ -906,7 +922,7 @@ partial plan needs rollback for this boundary error.
 This fragment implements that shared boundary predicate. The reader and
 interpreter supply rendered names, and the result either certifies one Unix
 filename component or gives the stable reason carried by the error.
-<!-- fragment «name-component-check» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="675-700" parent="name-seam-source" -->
+<!-- fragment «name-component-check» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="691-716" parent="name-seam-source" -->
 ````rust
 /// Why a rendering is not one filename, or `None` when it is one.
 ///

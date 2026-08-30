@@ -31,3 +31,20 @@ methods can depend on hidden mutable state across calls.
 The production source corpus is frozen while `ordinal-fs-tree-book-k10` is
 active. This leaf records the source concern instead of changing the crate
 inside a book-authoring slice.
+
+## Decisions (running log)
+
+- Treat stability across calls as an assumed semantic law of `EntryName`, not
+  as a property enforced by the library or the conformance sampler. Rust makes
+  each `NameView` structurally complete and keeps `self`, ordinal, and key out
+  of `positioned_species`'s explicit inputs, but interior or global mutable
+  state can still change either answer for identical explicit inputs.
+- Replace conformance's full-discharge terminology with type-shape constraints.
+  Each reported constraint will state both what Rust enforces and the
+  deterministic behavior that remains assumed.
+- Preserve the existing public `Discharged` and
+  `DISCHARGED_BY_THE_TYPE_SYSTEM` surface as deprecated compatibility data. Its
+  legacy `how` text must carry the same per-call limitation; new code uses the
+  explicit constraint fields.
+- Describe the conformance module as publishing the constraints beside its
+  sampled report, not as including them in `Report` itself.

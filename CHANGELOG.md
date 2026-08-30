@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v19.4.0
+
 - **A leaf filename separates its session kind from its slug with `--`.** The
   grammar is now
   `NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md`; the middle splits at

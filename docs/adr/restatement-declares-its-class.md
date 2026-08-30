@@ -1,13 +1,18 @@
 # A restatement in the condition register declares its class
 
-`content/SKILL.md` is the corpus's **condition register** — it carries *that a
-situation exists calling for something other than what this session is doing* —
-and every reference and format file is a **procedure register**, carrying how to
-act once a rule applies. A procedure register holds exactly one file per rule and
-never mirrors. `SKILL.md`'s relationship to a rule is one of **three declared
-classes**, and every inventory row states which:
+The `grove` **spine** skill's `SKILL.md` is the methodology's **condition
+register** — it carries *that a situation exists calling for something other than
+what this session is doing* — and every reference file, format file and
+`grove-<kind>` skill is a **procedure register**, carrying how to act once a rule
+applies. The register was `content/SKILL.md`, inside the binary's embedded
+corpus, until `plugin-kind-skills-k17`; the split below is unchanged by the move,
+and only the file it names is.
 
-- **`own`** — `SKILL.md` is the canonical source. Legal only at
+A procedure register holds exactly one file per rule and never mirrors. The
+condition register's relationship to a rule is one of **three declared classes**,
+and every inventory row states which:
+
+- **`own`** — the spine's `SKILL.md` is the canonical source. Legal only at
   `Occasion = orientation`, where the rule's whole content is its trigger and no
   procedure remains to defer. A procedure file may explain such a rule; none may
   restate it.
@@ -52,10 +57,11 @@ adverb. Under `trigger`, naming the file is what a sentence is allowed to be, an
 the AND/OR contradiction that shipped in the corpus could not have been written.
 
 **Per-kind rules lose their `SKILL.md` statement entirely.** The driver resolves
-the kind before the session exists and names that kind's reference file in
-`${prompt}`, so the session performs no selection and there is nothing to trigger
-it into. This is most of what `SKILL.md` carries today, and it is most of why the
-file shrinks without anything being deleted from the corpus.
+the kind before the session exists and names that kind's own `grove-<kind>` skill
+in `${prompt}`, so the session performs no selection and there is nothing to
+trigger it into. That is most of why the spine's `SKILL.md` is short without
+anything having been deleted, and it is why the spine carries no list of kinds:
+a kind exists **iff** a skill of that name exists.
 
 **The word budget becomes arithmetic over a measured set.** With the classes
 counted, `SKILL.md`'s size is the sum of its `own` bodies and its trigger

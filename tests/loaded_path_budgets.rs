@@ -8,8 +8,12 @@
 //! `docs/specs/corpus-rule-ownership.md` records in its **load** column.
 //!
 //! Nineteen kinds share ten reference files, so the budget is a **table, not a
-//! number**, and this file owns the inventory's **load** column as
-//! `tests/rule_ownership.rs` owns its **owner** column.
+//! number**, and this file owns the inventory's **load** column. The **owner**
+//! column's sweep used to sit beside it in `tests/rule_ownership.rs`; that suite
+//! was deleted at `plugin-kind-skills-k17` once
+//! `plugins/grove/conformance.sh` asserted the same 68 pinned wordings over the
+//! shipped plugin. This file stays because its subject — the word cost of a path
+//! the *binary* composes — has no counterpart there.
 //!
 //! The two read the same tables by different means and are **not** a shared
 //! reader: that file sweeps normalised text for a rule id under a heading, this
@@ -44,8 +48,8 @@
 //! replaced the 500-line ceiling to stop over-claiming.** It says a path is
 //! small. It says nothing about whether the path still carries the rules — that
 //! is `tests/lifecycle_invariants.rs`'s behavioural coverage, and
-//! `tests/rule_ownership.rs`'s single-source sweep. Neither is evidence for the
-//! other, and a green budget is not evidence that a session obeys anything.
+//! `plugins/grove/conformance.sh`'s single-source sweep. Neither is evidence for
+//! the other, and a green budget is not evidence that a session obeys anything.
 
 use grove::leaf::Kind;
 use grove::{methodology, prompt};

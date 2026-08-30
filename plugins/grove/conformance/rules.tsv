@@ -8,164 +8,183 @@
 # Five tab-separated columns:
 #
 #   rule    the inventory's rule id, unique across the whole file
-#   owner   the file that states it, skill-relative. Comma-separated where the
-#           inventory's grouping heading names two.
+#   owner   the file that states it, **shipped-set-relative**: the skill
+#           directory, then the path inside it — `grove/references/execute.md`,
+#           `grove-impl/SKILL.md`. Comma-separated where the inventory's
+#           grouping heading names two files that both state part of it.
+#
+#           The grain used to be skill-relative, which was unambiguous while the
+#           spine was the only skill. It is not once every kind owns a file
+#           called `SKILL.md`: two kinds stating one rule would both report it,
+#           collapse to a single site, and read clean — a false negative in the
+#           one assertion this file exists for.
+#
+#           `${prompt}` is the owner of a rule the **driver** delivers, inlined
+#           byte-frozen into the launch prompt rather than carried by any skill.
+#           Two rows have it. Neither assertion below can reach a prompt, so
+#           those rows are reported as prompt-delivered and asserted nowhere;
+#           calling them *pending* would promise a later leaf that ships them,
+#           and no leaf will.
 #   class   the inventory's test column: B (behavioural), S (structural), B+S.
 #           `B*` is `B★` and `B (k5)` is the row landed by a later leaf; both
 #           are behavioural.
-#   load    the inventory's load predicate, verbatim, `content/` stripped:
-#           `static(K)` or `on(<trigger>) @ <file>`.
+#   load    the inventory's load predicate: `static(K)`, or `on(<trigger>) @
+#           <file>` with the file written at the owner column's grain — the
+#           trigger binds a kind only where that kind's composed loaded path
+#           reaches the naming file, so a trigger in `grove-requirements/SKILL.md`
+#           binds `requirements` and nothing else.
 #   phrase  the rule's canonical wording, distinctive enough to identify it,
 #           or empty where no wording has been pinned. Only a pinned row can
 #           carry the single-source sweep; the loaded-path assertion covers
 #           every row.
 #
-# A row whose owner is not in the shipped skill set is *pending* — its file is
-# still in the binary's `content/` and lands here at `plugin-kind-skills-k17`.
-# The runner reports pending rows; it does not fail on them.
-adr-minimal-template	ADR-FORMAT.md	B	on(writing an ADR) @ content/ADR-FORMAT.md	
-adr-placement-and-slug-identity	ADR-FORMAT.md	B	on(writing an ADR) @ content/ADR-FORMAT.md	
-adr-set-is-minimum-coherent	ADR-FORMAT.md	B+S	on(changing a recorded decision) @ SKILL.md	never appends a superseding record
-adr-split-is-conditional-on-repo-shape	ADR-FORMAT.md	B	on(writing an ADR in a multi-context repo) @ content/ADR-FORMAT.md	
-adr-when-to-write	ADR-FORMAT.md	B+S	on(considering an ADR) @ SKILL.md	All three, not any one
-research-to-adr-bridge	ADR-FORMAT.md	B	on(adopting a research finding) @ content/ADR-FORMAT.md	bridge pointing both ways
-brief-content-is-durable	BRIEF-FORMAT.md	B	on(writing a brief) @ references/decompose.md	
-brief-is-never-marked-done	BRIEF-FORMAT.md	B	on(a node closes) @ references/retire.md	
-brief-is-process-scaffolding	BRIEF-FORMAT.md	B	on(writing a brief) @ references/decompose.md	
-briefs-inherit	BRIEF-FORMAT.md	B	on(writing a brief) @ references/decompose.md	
-every-node-carries-a-brief	BRIEF-FORMAT.md	B	on(cutting a node) @ references/decompose.md	
-horizon-note-shape	BRIEF-FORMAT.md	B	on(recording fog) @ references/decompose.md	
-challenge-and-sharpen-terms	CONTEXT-FORMAT.md	B	on(a term is used loosely) @ content/CONTEXT-FORMAT.md	Propose a precise canonical term for a fuzzy one
-context-map-when-multiple	CONTEXT-FORMAT.md	B	on(the repo has a context map) @ content/CONTEXT-FORMAT.md	
-glossary-is-only-a-glossary	CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ content/CONTEXT-FORMAT.md	
-glossary-is-the-forcing-function	CONTEXT-FORMAT.md	B+S	on(a term is resolved) @ SKILL.md	Never batch a session's terms for the end
-terms-are-context-specific	CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ content/CONTEXT-FORMAT.md	
-signal-is-the-last-action	SIGNAL.md	B*	static(18)	
-bootstrap-order	SKILL.md	B	static(19)	
-hitl-afk-mark-predicts	SKILL.md	B	static(19)	
-kind-routing-table	SKILL.md	B	static(19)	
-mandate-is-authoritative	SKILL.md	B*	static(19)	
-no-second-pick	SKILL.md	B*	static(19)	
-one-task-is-one-session	SKILL.md	B+S	static(19)	
-spine-seven-constraints	SKILL.md	B+S	static(19)	
-stated-vcs-is-definitive	SKILL.md	B*	static(19)	
-spec-at-an-agreement-point	SPEC-FORMAT.md	B	on(the increment may be an agreement point) @ SKILL.md	
-spec-grain-rule	SPEC-FORMAT.md	B+S	on(writing a spec) @ content/SPEC-FORMAT.md	
-spec-is-behavioural-not-procedural	SPEC-FORMAT.md	B	on(writing a spec) @ content/SPEC-FORMAT.md	
-spec-membership-test	SPEC-FORMAT.md	B	on(writing a spec) @ content/SPEC-FORMAT.md	
-spec-set-is-current-state	SPEC-FORMAT.md	B+S	on(changing a spec) @ SKILL.md	never append a superseding spec
-spec-synthesises-never-re-interviews	SPEC-FORMAT.md	B	on(writing a spec) @ content/SPEC-FORMAT.md	
-test-seams-agreed-and-recorded	SPEC-FORMAT.md	B	on(the increment covers tested code) @ content/SPEC-FORMAT.md	
-body-carries-no-launch-metadata	TASK-FORMAT.md	B	on(writing a task body) @ references/decompose.md	The body carries no launch metadata at all
-convention-not-grammar	TASK-FORMAT.md	B+S	on(cutting a step) @ references/decompose.md	What is convention rather than grammar
-handle-is-slug-key	TASK-FORMAT.md	B	on(naming a work item) @ references/decompose.md	
-header-is-position-free	TASK-FORMAT.md	B	on(writing a task body) @ references/decompose.md	
-kind-set-is-closed-at-nineteen	TASK-FORMAT.md	B	on(cutting a leaf) @ references/decompose.md	
-leaf-name-grammar	TASK-FORMAT.md	B+S	on(cutting or reading a leaf) @ references/decompose.md	Five fields, all parsed
-suggested-body-shape	TASK-FORMAT.md	B	on(writing a task body) @ references/decompose.md	A sixth section appears when a session is keeping one
-grilling-procedure	grilling.md	B	on(the grilling threshold is met) @ references/requirements.md	
-no-writes-before-shared-understanding	grilling.md	B	on(the grilling threshold is met) @ references/requirements.md	
-probe-with-concrete-scenarios	grilling.md	B	on(the grilling threshold is met) @ references/requirements.md	stress-test them with specific scenarios
-brief-chain-tolerates-gaps	references/bootstrap.md	B	on(reading the brief chain) @ references/bootstrap.md	A level with no brief is skipped silently
-stale-launch-stops	references/bootstrap.md	B*	on(the handle does not resolve to a live leaf) @ SKILL.md	is a stale or hand-edited launch — not work to redo
-agreement-without-independent-primary-sourcing-is-a-red-flag	references/combine-research.md	B+S	static({combine-research})	
-combine-writes-the-union	references/combine-research.md	B	static({combine-research})	
-jj-seal	references/commit.md	B	on(the stated VCS is jj) @ references/commit.md	`jj new` after describing, once the rename has landed
-name-by-handle	references/commit.md	B	on(the leaf is retired) @ SKILL.md	Name each node the cascade closed the same way
-no-kind-prefix-in-commit-subject	references/commit.md	B	on(writing the commit subject) @ references/commit.md	Do not compensate for the bare stem with a subject convention
-one-focused-commit	references/commit.md	B*	on(the leaf is retired) @ SKILL.md	One task is **one focused commit**
-bigger-than-brief-decomposes	references/decompose.md	B*	on(the leaf is bigger than its brief) @ SKILL.md	doing **only the first child** this session
-chain-is-lazy	references/decompose.md	B	on(an artifact may need review) @ references/decompose.md	only if it has findings worth acting on
-creating-session-writes-the-body	references/decompose.md	B	on(cutting a step) @ references/decompose.md	The creating session writes the new leaf's body
-diversity-is-the-configs	references/decompose.md	B	on(cutting a review step) @ references/decompose.md	Diversity is the configuration's, not the tree's
-externalize-by-default	references/decompose.md	B*	on(work surfaces that does not serve this goal) @ SKILL.md	the bar is *"fits this session,"* not "I can finish it."
-fog-or-ticket	references/decompose.md	B	on(foreseeing work you cannot yet state) @ SKILL.md	a speculative leaf is the wrong shape for fog
-grow-verbs-are-working-tree-only	references/decompose.md	B	on(growing the tree) @ references/decompose.md	
-integration-body-carries-the-handle	references/decompose.md	B+S	on(cutting a step) @ references/decompose.md	An integration's body carries the review's handle, never its findings
-integration-placement	references/decompose.md	B	on(cutting an integration) @ SKILL.md	the first sibling entry after the review whose subtree still holds live work
-name-step-kind-off-the-producer	references/decompose.md	B	on(cutting a step) @ references/decompose.md	Name a chain step's kind off the producer that actually ran
-no-adjacency-exception	references/decompose.md	B+S	on(cutting an integration) @ references/decompose.md	A session that departs anyway owns the drift
-pair-is-eager	references/decompose.md	B	on(a question needs two corpora) @ references/decompose.md	it lands in one call or not at all
-prior-art-research-is-its-own-leaf	references/decompose.md	B	on(the codebase cannot answer it) @ SKILL.md	a research leaf of its own, cut ahead of the leaf that needs it
-research-brief-names-downstream-questions	references/decompose.md	B	on(cutting a research leaf) @ references/decompose.md	The research leaf's brief names the downstream questions
-review-chain-when-load-bearing	references/decompose.md	B	on(an artifact may need review) @ SKILL.md	artifact size and vendor preference are not the test
-steps-share-the-producers-stem	references/decompose.md	B+S	on(cutting a step) @ references/decompose.md	Give every step of a composed shape the producer's bare stem as its whole slug
-task-and-brief-shape	references/decompose.md	B	on(cutting a leaf or a node) @ references/decompose.md	
-vendor-pair-when-load-bearing	references/decompose.md	B	on(a question may need two surveys) @ SKILL.md	is earned by a question load-bearing enough to pay for two corpora
-vertical-slice	references/decompose.md	B	on(cutting children) @ references/decompose.md	A good child leaf is a **vertical slice**
-wide-refactor-expand-contract	references/decompose.md	B	on(cutting children) @ references/decompose.md	Sequence it **expand → migrate → contract** instead, one leaf per stage
-design-deliverable	references/design.md	B	static({design})	
-design-does-not-cut-impl-leaves	references/design.md	B	static({design})	
-config-edit-lands-next-session	references/driver.md	B	on(the configuration is wrong or edited) @ references/driver.md	
-migration-is-the-drivers	references/driver.md	B	on(the tree looks legacy) @ references/driver.md	Neither conversion is yours to perform by hand
-one-configuration	references/driver.md	S	on(how this session was launched matters) @ SKILL.md	**Nothing else routes a session**
-pick-walk-order	references/driver.md	B	on(how this session was launched matters) @ SKILL.md	first live leaf in a depth-first **pre-order** walk
-restart-equals-continuation	references/driver.md	B	on(resuming) @ references/driver.md	**restart ≡ continuation**
-scaffold-is-the-drivers	references/driver.md	B	on(the tree was just created) @ references/driver.md	a session **never scaffolds the tree itself**
-session-name-suggested-once	references/driver.md	B	on(the session name does not match) @ references/driver.md	suggest `/rename
-check-the-rescued-clause	references/execute.md	B	on(deleting prose) @ references/execute.md	A clause rescued by its neighbour is not correct
-control-must-be-seen-to-fail	references/execute.md	B+S	on(making a repo-wide claim) @ references/execute.md	A control that has never been seen to fail is not a control
-decisions-land-as-they-settle	references/execute.md	B	on(a decision settles) @ SKILL.md	Never reconstruct a session's decisions at the end of it
-doubt-pass-procedure	references/execute.md	B	on(spending the allowance) @ references/execute.md	stripping the conclusion
-enumerate-then-classify	references/execute.md	B	on(making a repo-wide claim) @ references/execute.md	Enumerate, then classify. Do not sweep a pattern list
-escalated-review-routes-through-config	references/execute.md	B	on(a review leaf exists) @ references/execute.md	Once review is escalated to the tree, grove owns the route
-escalation-names-the-tradeoff	references/execute.md	B	on(handing a question back to a human) @ SKILL.md	name the trade-off you want input on
-measure-a-frozen-subject	references/execute.md	B+S	on(reporting a measured result) @ references/execute.md	an instrument you adjust mid-reading has not read anything
-no-self-invalidating-count	references/execute.md	B	on(making a repo-wide claim) @ references/execute.md	Never document a claim with a count of itself
-one-measurement-one-writer	references/execute.md	B+S	on(reporting a measured result) @ references/execute.md	never infer that a background job has finished from the return of the thing that launched it
-re-run-is-confirmed-item-by-item	references/execute.md	B+S	on(reporting a measured result) @ references/execute.md	Confirm a re-run item by item, not by matching totals
-review-budget	references/execute.md	B*	on(considering a reviewer) @ SKILL.md	at most one in-session reviewer across the whole picked leaf
-review-budget-by-kind	references/execute.md	B	on(considering a reviewer) @ references/execute.md	spend **none** — the pair supplies independent corpora
-review-budget-predicate	references/execute.md	B	on(considering a reviewer) @ references/execute.md	adopted that mandate by running Bootstrap
-sweep-scope-is-the-claim	references/execute.md	B	on(making a repo-wide claim) @ references/execute.md	The sweep's scope is the claim's scope
-verify-repo-claims-with-controls	references/execute.md	B	on(about to make a repo-wide claim) @ SKILL.md	clean-here plus dirty-there cannot be produced by a broken instrument
-absent-tree-proves-nothing	references/finish.md,SIGNAL-FINISH.md	B	static({finish})	
-declined-finish-stays-live	references/finish.md,SIGNAL-FINISH.md	B	static({finish})	
-finish-confirmation-gate	references/finish.md,SIGNAL-FINISH.md	B	static({finish})	
-finish-promotes-before-teardown	references/finish.md,SIGNAL-FINISH.md	B	static({finish})	
-finish-resume-reruns-the-same-command	references/finish.md,SIGNAL-FINISH.md	B	static({finish})	
-finish-three-endings	references/finish.md,SIGNAL-FINISH.md	B*	static({finish})	
-nothing-after-finish	references/finish.md,SIGNAL-FINISH.md	B+S	static({finish})	
-recovery-pending-stops	references/finish.md,SIGNAL-FINISH.md	B	static({finish})	
-teardown-via-finish-commit	references/finish.md,SIGNAL-FINISH.md	B	static({finish})	
-build-boundary-is-the-binary	references/grove.md	B	on(the grove's subject is grove) @ references/grove.md	changes nothing any session receives until the binary is rebuilt and installed
-durable-artifact-set	references/grove.md	B	on(deciding where a durable artifact belongs) @ SKILL.md	The first three **outlive the grove**
-plugin-prerequisite	references/grove.md	S	on(a rule cites the plugin) @ SKILL.md	each citation states what binds in the plugin's absence
-cite-framework-decisions-to-source	references/impl.md	B+S	static({impl})	Cite at the decision site
-hard-to-reverse-pairs-with-doubt	references/impl.md	B+S	static({impl})	cite the source *and* have a fresh context try to break it
-impl-ships	references/impl.md	B	static({impl})	
-findings-read-from-the-reviews-commit	references/integrate-review.md	B+S	static(integrate-review-*)	Read the findings from the review's commit, not from this task's body
-integration-escalates-redesign	references/integrate-review.md	B	static(integrate-review-*)	
-triage-four-ways	references/integrate-review.md	B	static(integrate-review-*)	
-what-each-integration-may-change	references/integrate-review.md	B	static(integrate-review-*)	
-planning-grows-generatively	references/planning.md	B	static({planning})	
-planning-writes-the-briefs	references/planning.md	B	static({planning})	
-working-increments-before-slices	references/planning.md	B+S	static({planning})	
-prototype-is-throwaway	references/prototype.md	B	static({prototype})	
-agree-the-seams-during-grilling	references/requirements.md	B	static({requirements})	
-grilling-threshold	references/requirements.md	B*	static({requirements})	
-pre-decided-is-not-a-grilling-question	references/requirements.md	B	static({requirements})	
-requirements-establishes-what	references/requirements.md	B	static({requirements})	
-sequence-interdependent-questions	references/requirements.md	B	static({requirements})	
-small-workstream-may-fuse-the-three	references/requirements.md	B	static({requirements})	
-when-not-to-start-a-grove	references/requirements.md	B	static({requirements})	
-both-researchers-get-one-brief	references/research.md	B	static(research)	
-citation-per-failure-mode-claim	references/research.md	B	static(research)	
-research-output-path-per-kind	references/research.md	B	static(research)	
-researchers-are-not-adversarial	references/research.md	B	static(research)	
-silence-is-a-finding	references/research.md	B	static(research)	
-walk-away-check-per-system	references/research.md	B	static(research)	
-cascade-is-silent	references/retire.md	B	on(a node has no live leaf left) @ SKILL.md	
-finish-is-the-drivers-to-discover	references/retire.md	B	on(the last live leaf retires) @ SKILL.md	You do not discover that a grove is finished
-no-fourth-status	references/retire.md	B+S	on(a leaf's place is in doubt) @ SKILL.md	There is no fourth state
-node-close-four-steps	references/retire.md	B	on(a node has no live leaf left) @ references/retire.md	
-node-close-is-implicit	references/retire.md	B	on(a node has no live leaf left) @ SKILL.md	The close asks the human nothing
-prune-scopes-to-the-whole-path	references/retire.md	B	on(pruning a reviewed producer) @ references/retire.md	prune each of its live steps
-pruning-is-hitl	references/retire.md	B*	on(the path looks decided against) @ SKILL.md	
-reconcile-records-at-retire	references/retire.md	B	on(retiring) @ references/retire.md	
-retire-before-commit	references/retire.md	B*	on(the work is done) @ SKILL.md	
-retirement-is-filename-only	references/retire.md	B	on(the work is done) @ SKILL.md	Retirement touches one filename and nothing else
-triage-picks-the-verb	references/retire.md	B	on(a leaf's place is in doubt) @ SKILL.md	name which of the three sentences is actually true before reaching for the CLI
-review-is-inspection-only	references/review.md	B	static(review-*)	
-review-output-is-findings-only	references/review.md	B	static(review-*)	
-the-five-reads-differ	references/review.md	B	static(review-*)	
+# A row whose owner is not in the shipped skill set is *pending*. The runner
+# reports pending rows; it does not fail on them. The count reached zero at
+# `plugin-kind-skills-k17`, which shipped one `grove-<kind>` skill per kind, and
+# a run that reports a pending row again is reporting a skill that did not ship.
+adr-minimal-template	grove/ADR-FORMAT.md	B	on(writing an ADR) @ grove/ADR-FORMAT.md	
+adr-placement-and-slug-identity	grove/ADR-FORMAT.md	B	on(writing an ADR) @ grove/ADR-FORMAT.md	
+adr-set-is-minimum-coherent	grove/ADR-FORMAT.md	B+S	on(changing a recorded decision) @ grove/SKILL.md	never appends a superseding record
+adr-split-is-conditional-on-repo-shape	grove/ADR-FORMAT.md	B	on(writing an ADR in a multi-context repo) @ grove/ADR-FORMAT.md	
+adr-when-to-write	grove/ADR-FORMAT.md	B+S	on(considering an ADR) @ grove/SKILL.md	All three, not any one
+research-to-adr-bridge	grove/ADR-FORMAT.md	B	on(adopting a research finding) @ grove/ADR-FORMAT.md	bridge pointing both ways
+brief-content-is-durable	grove/BRIEF-FORMAT.md	B	on(writing a brief) @ grove/references/decompose.md	
+brief-is-never-marked-done	grove/BRIEF-FORMAT.md	B	on(a node closes) @ grove/references/retire.md	
+brief-is-process-scaffolding	grove/BRIEF-FORMAT.md	B	on(writing a brief) @ grove/references/decompose.md	
+briefs-inherit	grove/BRIEF-FORMAT.md	B	on(writing a brief) @ grove/references/decompose.md	
+every-node-carries-a-brief	grove/BRIEF-FORMAT.md	B	on(cutting a node) @ grove/references/decompose.md	
+horizon-note-shape	grove/BRIEF-FORMAT.md	B	on(recording fog) @ grove/references/decompose.md	
+challenge-and-sharpen-terms	grove/CONTEXT-FORMAT.md	B	on(a term is used loosely) @ grove/CONTEXT-FORMAT.md	Propose a precise canonical term for a fuzzy one
+context-map-when-multiple	grove/CONTEXT-FORMAT.md	B	on(the repo has a context map) @ grove/CONTEXT-FORMAT.md	
+glossary-is-only-a-glossary	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
+glossary-is-the-forcing-function	grove/CONTEXT-FORMAT.md	B+S	on(a term is resolved) @ grove/SKILL.md	Never batch a session's terms for the end
+terms-are-context-specific	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
+signal-is-the-last-action	${prompt}	B*	static(18)	
+bootstrap-order	grove/SKILL.md	B	static(19)	
+hitl-afk-mark-predicts	grove/SKILL.md	B	static(19)	
+kind-routing-table	grove/SKILL.md	B	static(19)	
+mandate-is-authoritative	grove/SKILL.md	B*	static(19)	
+no-second-pick	grove/SKILL.md	B*	static(19)	
+one-task-is-one-session	grove/SKILL.md	B+S	static(19)	
+spine-seven-constraints	grove/SKILL.md	B+S	static(19)	
+stated-vcs-is-definitive	grove/SKILL.md	B*	static(19)	
+spec-at-an-agreement-point	grove/SPEC-FORMAT.md	B	on(the increment may be an agreement point) @ grove/SKILL.md	
+spec-grain-rule	grove/SPEC-FORMAT.md	B+S	on(writing a spec) @ grove/SPEC-FORMAT.md	
+spec-is-behavioural-not-procedural	grove/SPEC-FORMAT.md	B	on(writing a spec) @ grove/SPEC-FORMAT.md	
+spec-membership-test	grove/SPEC-FORMAT.md	B	on(writing a spec) @ grove/SPEC-FORMAT.md	
+spec-set-is-current-state	grove/SPEC-FORMAT.md	B+S	on(changing a spec) @ grove/SKILL.md	never append a superseding spec
+spec-synthesises-never-re-interviews	grove/SPEC-FORMAT.md	B	on(writing a spec) @ grove/SPEC-FORMAT.md	
+test-seams-agreed-and-recorded	grove/SPEC-FORMAT.md	B	on(the increment covers tested code) @ grove/SPEC-FORMAT.md	
+body-carries-no-launch-metadata	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	The body carries no launch metadata at all
+convention-not-grammar	grove/TASK-FORMAT.md	B+S	on(cutting a step) @ grove/references/decompose.md	What is convention rather than grammar
+handle-is-slug-key	grove/TASK-FORMAT.md	B	on(naming a work item) @ grove/references/decompose.md	
+header-is-position-free	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	
+kind-set-is-closed-at-nineteen	grove/TASK-FORMAT.md	B	on(cutting a leaf) @ grove/references/decompose.md	
+leaf-name-grammar	grove/TASK-FORMAT.md	B+S	on(cutting or reading a leaf) @ grove/references/decompose.md	Five fields, all parsed
+suggested-body-shape	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	A sixth section appears when a session is keeping one
+grilling-procedure	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	
+no-writes-before-shared-understanding	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	
+probe-with-concrete-scenarios	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	stress-test them with specific scenarios
+brief-chain-tolerates-gaps	grove/references/bootstrap.md	B	on(reading the brief chain) @ grove/references/bootstrap.md	A level with no brief is skipped silently
+stale-launch-stops	grove/references/bootstrap.md	B*	on(the handle does not resolve to a live leaf) @ grove/SKILL.md	is a stale or hand-edited launch — not work to redo
+agreement-without-independent-primary-sourcing-is-a-red-flag	grove-combine-research/SKILL.md	B+S	static({combine-research})	
+combine-writes-the-union	grove-combine-research/SKILL.md	B	static({combine-research})	
+jj-seal	grove/references/commit.md	B	on(the stated VCS is jj) @ grove/references/commit.md	`jj new` after describing, once the rename has landed
+name-by-handle	grove/references/commit.md	B	on(the leaf is retired) @ grove/SKILL.md	Name each node the cascade closed the same way
+no-kind-prefix-in-commit-subject	grove/references/commit.md	B	on(writing the commit subject) @ grove/references/commit.md	Do not compensate for the bare stem with a subject convention
+one-focused-commit	grove/references/commit.md	B*	on(the leaf is retired) @ grove/SKILL.md	One task is **one focused commit**
+bigger-than-brief-decomposes	grove/references/decompose.md	B*	on(the leaf is bigger than its brief) @ grove/SKILL.md	doing **only the first child** this session
+chain-is-lazy	grove/references/decompose.md	B	on(an artifact may need review) @ grove/references/decompose.md	only if it has findings worth acting on
+creating-session-writes-the-body	grove/references/decompose.md	B	on(cutting a step) @ grove/references/decompose.md	The creating session writes the new leaf's body
+diversity-is-the-configs	grove/references/decompose.md	B	on(cutting a review step) @ grove/references/decompose.md	Diversity is the configuration's, not the tree's
+externalize-by-default	grove/references/decompose.md	B*	on(work surfaces that does not serve this goal) @ grove/SKILL.md	the bar is *"fits this session,"* not "I can finish it."
+fog-or-ticket	grove/references/decompose.md	B	on(foreseeing work you cannot yet state) @ grove/SKILL.md	a speculative leaf is the wrong shape for fog
+grow-verbs-are-working-tree-only	grove/references/decompose.md	B	on(growing the tree) @ grove/references/decompose.md	
+integration-body-carries-the-handle	grove/references/decompose.md	B+S	on(cutting a step) @ grove/references/decompose.md	An integration's body carries the review's handle, never its findings
+integration-placement	grove/references/decompose.md	B	on(cutting an integration) @ grove/SKILL.md	the first sibling entry after the review whose subtree still holds live work
+name-step-kind-off-the-producer	grove/references/decompose.md	B	on(cutting a step) @ grove/references/decompose.md	Name a chain step's kind off the producer that actually ran
+no-adjacency-exception	grove/references/decompose.md	B+S	on(cutting an integration) @ grove/references/decompose.md	A session that departs anyway owns the drift
+pair-is-eager	grove/references/decompose.md	B	on(a question needs two corpora) @ grove/references/decompose.md	it lands in one call or not at all
+prior-art-research-is-its-own-leaf	grove/references/decompose.md	B	on(the codebase cannot answer it) @ grove/SKILL.md	a research leaf of its own, cut ahead of the leaf that needs it
+research-brief-names-downstream-questions	grove/references/decompose.md	B	on(cutting a research leaf) @ grove/references/decompose.md	The research leaf's brief names the downstream questions
+review-chain-when-load-bearing	grove/references/decompose.md	B	on(an artifact may need review) @ grove/SKILL.md	artifact size and vendor preference are not the test
+steps-share-the-producers-stem	grove/references/decompose.md	B+S	on(cutting a step) @ grove/references/decompose.md	Give every step of a composed shape the producer's bare stem as its whole slug
+task-and-brief-shape	grove/references/decompose.md	B	on(cutting a leaf or a node) @ grove/references/decompose.md	
+vendor-pair-when-load-bearing	grove/references/decompose.md	B	on(a question may need two surveys) @ grove/SKILL.md	is earned by a question load-bearing enough to pay for two corpora
+vertical-slice	grove/references/decompose.md	B	on(cutting children) @ grove/references/decompose.md	A good child leaf is a **vertical slice**
+wide-refactor-expand-contract	grove/references/decompose.md	B	on(cutting children) @ grove/references/decompose.md	Sequence it **expand → migrate → contract** instead, one leaf per stage
+design-deliverable	grove-design/SKILL.md	B	static({design})	
+design-does-not-cut-impl-leaves	grove-design/SKILL.md	B	static({design})	
+config-edit-lands-next-session	grove/references/driver.md	B	on(the configuration is wrong or edited) @ grove/references/driver.md	
+migration-is-the-drivers	grove/references/driver.md	B	on(the tree looks legacy) @ grove/references/driver.md	Neither conversion is yours to perform by hand
+one-configuration	grove/references/driver.md	S	on(how this session was launched matters) @ grove/SKILL.md	**Nothing else routes a session**
+pick-walk-order	grove/references/driver.md	B	on(how this session was launched matters) @ grove/SKILL.md	first live leaf in a depth-first **pre-order** walk
+restart-equals-continuation	grove/references/driver.md	B	on(resuming) @ grove/references/driver.md	**restart ≡ continuation**
+scaffold-is-the-drivers	grove/references/driver.md	B	on(the tree was just created) @ grove/references/driver.md	a session **never scaffolds the tree itself**
+session-name-suggested-once	grove/references/driver.md	B	on(the session name does not match) @ grove/references/driver.md	suggest `/rename
+check-the-rescued-clause	grove/references/execute.md	B	on(deleting prose) @ grove/references/execute.md	A clause rescued by its neighbour is not correct
+control-must-be-seen-to-fail	grove/references/execute.md	B+S	on(making a repo-wide claim) @ grove/references/execute.md	A control that has never been seen to fail is not a control
+decisions-land-as-they-settle	grove/references/execute.md	B	on(a decision settles) @ grove/SKILL.md	Never reconstruct a session's decisions at the end of it
+doubt-pass-procedure	grove/references/execute.md	B	on(spending the allowance) @ grove/references/execute.md	stripping the conclusion
+enumerate-then-classify	grove/references/execute.md	B	on(making a repo-wide claim) @ grove/references/execute.md	Enumerate, then classify. Do not sweep a pattern list
+escalated-review-routes-through-config	grove/references/execute.md	B	on(a review leaf exists) @ grove/references/execute.md	Once review is escalated to the tree, grove owns the route
+escalation-names-the-tradeoff	grove/references/execute.md	B	on(handing a question back to a human) @ grove/SKILL.md	name the trade-off you want input on
+measure-a-frozen-subject	grove/references/execute.md	B+S	on(reporting a measured result) @ grove/references/execute.md	an instrument you adjust mid-reading has not read anything
+no-self-invalidating-count	grove/references/execute.md	B	on(making a repo-wide claim) @ grove/references/execute.md	Never document a claim with a count of itself
+one-measurement-one-writer	grove/references/execute.md	B+S	on(reporting a measured result) @ grove/references/execute.md	never infer that a background job has finished from the return of the thing that launched it
+re-run-is-confirmed-item-by-item	grove/references/execute.md	B+S	on(reporting a measured result) @ grove/references/execute.md	Confirm a re-run item by item, not by matching totals
+review-budget	grove/references/execute.md	B*	on(considering a reviewer) @ grove/SKILL.md	at most one in-session reviewer across the whole picked leaf
+review-budget-by-kind	grove/references/execute.md	B	on(considering a reviewer) @ grove/references/execute.md	spend **none** — the pair supplies independent corpora
+review-budget-predicate	grove/references/execute.md	B	on(considering a reviewer) @ grove/references/execute.md	adopted that mandate by running Bootstrap
+sweep-scope-is-the-claim	grove/references/execute.md	B	on(making a repo-wide claim) @ grove/references/execute.md	The sweep's scope is the claim's scope
+verify-repo-claims-with-controls	grove/references/execute.md	B	on(about to make a repo-wide claim) @ grove/SKILL.md	clean-here plus dirty-there cannot be produced by a broken instrument
+absent-tree-proves-nothing	grove-finish/SKILL.md	B	static({finish})	
+declined-finish-stays-live	grove-finish/SKILL.md	B	static({finish})	
+finish-confirmation-gate	grove-finish/SKILL.md	B	static({finish})	
+finish-promotes-before-teardown	grove-finish/SKILL.md	B	static({finish})	
+finish-resume-reruns-the-same-command	grove-finish/SKILL.md	B	static({finish})	
+finish-three-endings	${prompt}	B*	static({finish})	
+nothing-after-finish	grove-finish/SKILL.md	B+S	static({finish})	
+recovery-pending-stops	grove-finish/SKILL.md	B	static({finish})	
+teardown-via-finish-commit	grove-finish/SKILL.md	B	static({finish})	
+build-boundary-is-the-binary	grove/references/grove.md	B	on(the grove's subject is grove) @ grove/references/grove.md	changes nothing any session receives until the binary is rebuilt and installed
+durable-artifact-set	grove/references/grove.md	B	on(deciding where a durable artifact belongs) @ grove/SKILL.md	The first three **outlive the grove**
+plugin-prerequisite	grove/references/grove.md	S	on(a rule cites the plugin) @ grove/SKILL.md	each citation states what binds in the plugin's absence
+cite-framework-decisions-to-source	grove-impl/SKILL.md	B+S	static({impl})	Cite at the decision site
+hard-to-reverse-pairs-with-doubt	grove-impl/SKILL.md	B+S	static({impl})	cite the source *and* have a fresh context try to break it
+impl-ships	grove-impl/SKILL.md	B	static({impl})	
+findings-read-from-the-reviews-commit	grove/references/integrate-review.md	B+S	static(integrate-review-*)	Read the findings from the review's commit, not from this task's body
+integration-escalates-redesign	grove/references/integrate-review.md	B	static(integrate-review-*)	
+triage-four-ways	grove/references/integrate-review.md	B	static(integrate-review-*)	
+what-each-integration-may-change	grove/references/integrate-review.md	B	static(integrate-review-*)	
+planning-grows-generatively	grove-planning/SKILL.md	B	static({planning})	
+planning-writes-the-briefs	grove-planning/SKILL.md	B	static({planning})	
+working-increments-before-slices	grove-planning/SKILL.md	B+S	static({planning})	
+prototype-is-throwaway	grove-prototype/SKILL.md	B	static({prototype})	
+agree-the-seams-during-grilling	grove-requirements/SKILL.md	B	static({requirements})	
+grilling-threshold	grove-requirements/SKILL.md	B*	static({requirements})	
+pre-decided-is-not-a-grilling-question	grove-requirements/SKILL.md	B	static({requirements})	
+requirements-establishes-what	grove-requirements/SKILL.md	B	static({requirements})	
+sequence-interdependent-questions	grove-requirements/SKILL.md	B	static({requirements})	
+small-workstream-may-fuse-the-three	grove-requirements/SKILL.md	B	static({requirements})	
+when-not-to-start-a-grove	grove-requirements/SKILL.md	B	static({requirements})	
+both-researchers-get-one-brief	grove/references/research.md	B	static(research)	
+citation-per-failure-mode-claim	grove/references/research.md	B	static(research)	
+research-output-path-per-kind	grove/references/research.md	B	static(research)	
+researchers-are-not-adversarial	grove/references/research.md	B	static(research)	
+silence-is-a-finding	grove/references/research.md	B	static(research)	
+walk-away-check-per-system	grove/references/research.md	B	static(research)	
+cascade-is-silent	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	
+finish-is-the-drivers-to-discover	grove/references/retire.md	B	on(the last live leaf retires) @ grove/SKILL.md	You do not discover that a grove is finished
+no-fourth-status	grove/references/retire.md	B+S	on(a leaf's place is in doubt) @ grove/SKILL.md	There is no fourth state
+node-close-four-steps	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/references/retire.md	
+node-close-is-implicit	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	The close asks the human nothing
+prune-scopes-to-the-whole-path	grove/references/retire.md	B	on(pruning a reviewed producer) @ grove/references/retire.md	prune each of its live steps
+pruning-is-hitl	grove/references/retire.md	B*	on(the path looks decided against) @ grove/SKILL.md	
+reconcile-records-at-retire	grove/references/retire.md	B	on(retiring) @ grove/references/retire.md	
+retire-before-commit	grove/references/retire.md	B*	on(the work is done) @ grove/SKILL.md	
+retirement-is-filename-only	grove/references/retire.md	B	on(the work is done) @ grove/SKILL.md	Retirement touches one filename and nothing else
+triage-picks-the-verb	grove/references/retire.md	B	on(a leaf's place is in doubt) @ grove/SKILL.md	name which of the three sentences is actually true before reaching for the CLI
+review-is-inspection-only	grove/references/review.md	B	static(review-*)	
+review-output-is-findings-only	grove/references/review.md	B	static(review-*)	
+the-five-reads-differ	grove/references/review.md	B	static(review-*)	

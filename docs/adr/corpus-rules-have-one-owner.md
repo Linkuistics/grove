@@ -1,20 +1,29 @@
 # Every normative rule has one owner
 
-A rule in the embedded corpus is filed by **when a session meets it**, not by
-what it is about. Two facts are recorded per rule: `Bound(R)`, the set of session
-kinds that must obey it, and `Occasion(R)`, a **non-empty set** of moments at
+A rule in the methodology is filed by **when a session meets it**, not by what
+it is about. The register it is filed into is the `grove` plugin — a shared
+**spine** skill and one `grove-<kind>` skill per kind — and was the binary's
+embedded `content/` until `plugin-kind-skills-k17`. The function below is
+unchanged by that move; only the names of its outputs are.
+
+Two facts are recorded per rule: `Bound(R)`, the set of session kinds that must
+obey it, and `Occasion(R)`, a **non-empty set** of moments at
 which it applies, drawn from `orientation`, `launch`, `context`,
 `step:<loop step>`, `artifact:<artifact>`, and `none`. Placement is then an
 **ordered** decision, first match winning:
 
-1. `Bound(R) = ∅` or `Occasion(R) = {none}` → not normative; leaves `content/`.
-2. `Bound(R)` is one kind or one family → that kind reference.
+1. `Bound(R) = ∅` or `Occasion(R) = {none}` → not normative; leaves the skill
+   set.
+2. `Bound(R)` is one kind → that kind's own `grove-<kind>` skill. One family —
+   the five reviews, the five integrations, the two research halves — → the
+   family's single file in the spine, which each member's skill directs a load
+   of by name.
 3. `artifact:A ∈ Occasion(R)` → A's format file.
 4. `launch ∈ Occasion(R)` → `references/driver.md`.
 5. `context ∈ Occasion(R)` → `references/grove.md`.
-6. `step:S ∈ Occasion(R)` → the loop-step reference for the **earliest** such S
-   in loop order.
-7. `Occasion(R) = {orientation}` → `content/SKILL.md`.
+6. `step:S ∈ Occasion(R)` → the spine's loop-step reference for the **earliest**
+   such S in loop order.
+7. `Occasion(R) = {orientation}` → the spine's `SKILL.md`.
 
 No other file states R, and the ordering **is** the tie-break: a rule with two
 plausible homes has exactly one, decided by which rule fires first.
@@ -30,11 +39,12 @@ are twins: `references/grove.md` and `references/driver.md` sit either side of t
 loop, so no `step:S` reaches either, and without a value of its own a rule belonging
 to one of them is a hand-assignment wearing a derivation's clothes.
 
-**Reachability is an edge, and both ends are asserted.** `src/prompt.rs` fixes
-each kind's static path; every other rule records the file whose sentence triggers
-it, and where that file is **not** the owner it must **actually name the owner's
-path**. A test that asks only whether the recorded file can be loaded certifies
-the failure it exists to catch.
+**Reachability is an edge, and both ends are asserted.** A kind's static path is
+now its own skill's `SKILL.md` and the spine's, read off the shipped bytes rather
+than fixed by a module of the binary; every other rule records the file whose
+sentence triggers it, and where that file is **not** the owner it must
+**actually name the owner's path**. A test that asks only whether the recorded
+file can be loaded certifies the failure it exists to catch.
 
 **A rule triggered from inside its own owner records no edge.** Roughly half the
 conditional rules are reached by a condition in the file that owns them — the
@@ -83,22 +93,23 @@ session that touches the rule. It is not the stronger claim that placement needs
 no judgement at all; `Bound(R)` alone cannot decide a home, and a design that
 says otherwise ends up smuggling the second input in unstated.
 
-**The embedding boundary stops being a second rule.** Only `content/` is
-provisioned into harness skill directories, so a `docs/` path is reachable to a
-session inside this repository and to no session anywhere else. *Normative
-material stays embedded* is then the function's first case read backwards: a rule
-may move to `docs/` iff its `Bound` is empty or its `Occasion` is `none`. There
-is no separate boundary to remember and no judgement about whether a given move
+**The delivery boundary stops being a second rule.** Only the plugin's skills
+are installed into a harness, so a `docs/` path is reachable to a session inside
+this repository and to no session anywhere else. *Normative material ships in
+the skill set* is then the function's first case read backwards: a rule may move
+to `docs/` iff its `Bound` is empty or its `Occasion` is `none`. There is no
+separate boundary to remember and no judgement about whether a given move
 crosses it.
 
-**Reachability becomes checkable rather than assumed.** `src/prompt.rs` fixes
-each kind's static path — the guaranteed core, `SKILL.md`, and
-`reference_file(kind)` — and nothing else can be static. Every other rule states
-the file whose sentence triggers it, and the **cross-file** ones form a graph of
-edges that must terminate at a static path. A rule whose chain does not terminate is
-present in `content/` and deleted in effect, which is what `driving.md` does today
-to `impl`'s source-citation and repo-claim disciplines: they sit in a file no
-`impl` session is ever routed to.
+**Reachability becomes checkable rather than assumed.** A kind's static path is
+its own `grove-<kind>` skill's `SKILL.md` and the spine's `SKILL.md`, and nothing
+else can be static. Every other rule states the file whose sentence triggers it,
+and the **cross-file** ones form a graph of edges that must terminate at a static
+path — the **composed loaded path** `plugins/grove/conformance.sh` computes as
+the closure of what the shipped files actually name. A rule whose chain does not
+terminate is shipped and deleted in effect — which is what `content/driving.md`
+did to `impl`'s source-citation and repo-claim disciplines when this was written:
+they sat in a file no `impl` session was ever routed to.
 
 **The edge is the assertion, not the file.** Recording *the file whose sentence
 triggers R* is only worth something if that sentence is checked to exist: a row
@@ -136,17 +147,21 @@ placeable by writing a dishonest one. Nothing detects that, and nothing pretends
 
 ## Considered options
 
-- **Take `Bound(R)` alone, mapping "all nineteen kinds" to the loop-step
-  reference for the step the rule governs.** Rejected because it is not a
+- **Take `Bound(R)` alone, mapping "every kind" to the loop-step reference for
+  the step the rule governs.** (It read *all nineteen kinds* while the binary
+  held a set of nineteen to quantify over. A kind exists **iff** a skill of that
+  name exists, so nothing holds that set now, and the option is restated over the
+  quantifier that survives.) Rejected because it is not a
   function of its stated input. *Which step does it govern* is a second input,
   and leaving it unstated produces two failures rather than one: the rule reads
   as judgement-free while still requiring a judgement, and the judgement is
   unrecorded, so two readers file the same rule differently and neither can be
   shown wrong. It also mislabels the load predicate — read literally, "the
-  narrowest file every bound session already opens" sends every all-nineteen rule
+  narrowest file every bound session already opens" sends every every-kind rule
   to `SKILL.md`, because loop-step references are not on any static path. Reopen
-  only if `src/prompt.rs` ever puts the loop-step references on the static path,
-  which would make `Bound` sufficient and this record's rules 4–7 redundant.
+  only if the spine's `SKILL.md` ever states the loop-step procedures itself,
+  which would put them on every static path, make `Bound` sufficient and this
+  record's rules 4–7 redundant.
 - **Keep `Occasion(R)` single-valued and record the moment a rule *mainly*
   applies.** Rejected because "mainly" is the unrecorded judgement this record
   exists to remove, one layer down: a rule triggered at three steps has no

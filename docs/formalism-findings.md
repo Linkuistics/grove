@@ -10451,7 +10451,7 @@ is part of the rule rather than a caveat on it.
 
 ### What this distillation owes Grove — checked, not assumed
 
-[`grove-binds-without-the-plugin`](adr/grove-binds-without-the-plugin.md) asks
+[`a-skill-states-what-binds-without-its-dependencies`](adr/a-skill-states-what-binds-without-its-dependencies.md) asks
 one question of every rule that lands in the plugin rather than in `content/`:
 *does the plugin's absence change what a Grove session **writes**, or only how
 well?* Answered per rule rather than in aggregate, because the ADR's failure mode

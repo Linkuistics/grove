@@ -32,7 +32,7 @@ use grove::methodology;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Emphasis and code markers stripped, whitespace collapsed — the same
-/// normalisation `tests/rule_ownership.rs` uses, and for the same reason: the
+/// normalisation `plugins/grove/conformance.sh` uses, and for the same reason: the
 /// corpus wraps at 80 columns and marks up mid-phrase, so a raw `contains`
 /// misses real occurrences and reads as a clean sweep.
 fn normalised(text: &str) -> String {

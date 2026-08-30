@@ -51,13 +51,67 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **One `grove-<kind>` skill per session kind now ships beside the spine.** The
+  five producers each with their `review-` and `integrate-review-` steps, the two
+  research halves, `combine-research` and `finish` — and no list of them anywhere:
+  a kind exists **iff** a skill of that name exists, so nothing in `src/` gained a
+  manifest and the conformance runner still asserts nothing about how many there
+  are. The fatness rule ships in its two halves rather than collapsed into one.
+  A rule owned by one kind is **inline in that kind's own `SKILL.md`**, which is
+  what makes it a one-hop read; a rule owned by a *family* — the five reviews, the
+  five integrations, the two research halves — stays as **one file in the spine**
+  and each member's skill directs a load of it by name without restating a word.
+  Seven kinds are fat that way and twelve are thin. `grilling.md` moved into
+  `grove-requirements` and now points at that skill rather than at a reference
+  file that no longer exists. Nothing is removed from the binary: `content/` is
+  untouched and dies at `delete-provisioning-k19`.
+- **`grove` / conformance: a rule's owner is now written shipped-set-relative**
+  (`grove/references/execute.md`, `grove-impl/SKILL.md`) rather than
+  skill-relative. With one skill the two grains agreed; with a skill per kind they
+  do not — every kind owns a file called `SKILL.md`, so a sweep reporting sites
+  skill-relative collapses two kinds stating one rule into a single site and reads
+  clean over exactly the duplicate assertion 2 exists to find. The new control
+  *one kind-owned rule stated by a second kind is caught* is watched failing
+  against that case, which is what credits the grain. The runner also memoises its
+  loaded-path closures and normalised files; without that, nineteen kinds against
+  a 146-row manifest takes minutes.
+- **`grove` / conformance: two rules are now owned by `${prompt}` and asserted
+  nowhere** — the signal step and a `finish` session's three endings, whose bytes
+  the driver inlines into the launch prompt. A runner over an installed skill set
+  cannot read a prompt, so they are reported as prompt-delivered instead of
+  *pending*: pending promises a later leaf that ships the file, and no leaf will.
+  Every other row's owner is now shipped, so the pending count is zero.
+- **`tests/rule_ownership.rs` is deleted**, its subject being assertion 2 of
+  `plugins/grove/conformance.sh`: its 68 pinned wordings and 3 removed
+  paraphrases are `conformance/rules.tsv`'s rows, verbatim, and its three
+  controls are `conformance.test.sh`'s. The other Rust suites that overlap the
+  runner are **mixed** and stay — `tests/lifecycle_invariants.rs` holds the
+  behavioural coverage walk and `tests/loaded_path_budgets.rs` the load column and
+  the per-kind word budgets, neither of which has a home in the runner. Deleting
+  them now would retire an assertion whose subject is still shipping.
+- **`docs/adr/grove-binds-without-the-plugin.md` is reworked and renamed
+  `a-skill-states-what-binds-without-its-dependencies.md`.** Its opening was that
+  the binary sweeps `content/` into every harness's skill directory, which is no
+  longer how the methodology arrives; the obligation it records was never about
+  that, so its subject is now what binds when a *skill's* own dependencies are
+  absent. `behavioural-coverage-asserts-delivery`, `corpus-rules-have-one-owner`
+  and `restatement-declares-its-class` are amended in place: the rules survive
+  unchanged, and what moves is the register (the plugin spine, not an embedded
+  `content/`), the reachability edge (the composed loaded path, not a module of
+  the binary), and the instrument (the shell runner).
+- **The second hop is not measured, and that is written where a session meets
+  it** — [`plugins/grove/README.md`](plugins/grove/README.md). The wording
+  micro-test measured one hop, from a prompt naming one target; nothing measures
+  the hop from a `grove-<kind>` skill to the spine. What is inline is unaffected;
+  what is in the spine loses the guarantee. The reopen condition is a session
+  observed acting without a spine rule.
 - **The methodology now ships as a Claude Code plugin: `plugins/grove/`.** A
   third marketplace entry beside `linkuistics` and `testanyware`, carrying one
   `grove` **spine** skill — the seven constraints, the bootstrap, execution,
   decomposition, retirement and commit procedures, the review / integration /
   research family files, and the five format documents. One `grove-<kind>` skill
-  per session kind lands beside it next; a kind exists **iff** a skill of that
-  name exists, and nothing here enumerates them.
+  per session kind lands beside it (see the entry above); a kind exists **iff** a
+  skill of that name exists, and nothing here enumerates them.
   Nothing the binary does changes: it still compiles `content/` in and still
   provisions `~/.claude/skills/grove` and its two siblings. **The spine is the
   source and `content/`'s copy of those files is what gets deleted** with

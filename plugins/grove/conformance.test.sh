@@ -47,23 +47,13 @@ new_skill_set() {
   printf '%s\n' "${root}"
 }
 
-# add_kind <root> <kind>: a minimal `grove-<kind>` skill that directs a load of
-# the spine, which is the shape `plugin-kind-skills-k17` ships.
+# add_kind <root> <kind>: the real shipped `grove-<kind>` skill, copied in. A
+# stub would not do: the manifest's kind-owned rows name that skill's own file
+# as their owner, so a placeholder makes every one of them fail for the wrong
+# reason and the control stops testing what it names.
 add_kind() {
-  local root="$1" kind="$2" dir
-  dir="${root}/grove-${kind}"
-  mkdir -p "${dir}"
-  cat >"${dir}/SKILL.md" <<SKILL
----
-name: grove-${kind}
-description: The ${kind} kind.
-harnesses: [any]
----
-
-# grove-${kind}
-
-Read the \`grove\` spine's \`SKILL.md\` now.
-SKILL
+  local root="$1" kind="$2"
+  cp -R "${plugin_dir}/skills/grove-${kind}" "${root}/grove-${kind}"
 }
 
 # run_runner <root>: the runner's combined output; never aborts the test file.
@@ -165,10 +155,33 @@ mv "${root}/skill.tmp" "${root}/grove/SKILL.md"
 expect_dirty "${root}" "composed loaded path" \
   "a behavioural rule no bound kind can reach is caught"
 
+# -- Assertion 2: two kinds stating one kind-owned rule ----------------------
+#
+# The grain control. `cite-framework-decisions-to-source` is owned by
+# `grove-impl/SKILL.md`; restating its wording in `grove-design/SKILL.md` gives
+# it two owners. Both sites are a file called
+# `SKILL.md`, so a sweep reporting sites skill-relative would collapse them to
+# one site, match the owner cell, and read clean — the false negative the
+# shipped-set-relative owner grain exists to rule out. This control is the
+# reason that grain is credited.
+
+root="$(new_skill_set two-kinds-one-rule)"
+add_kind "${root}" impl
+add_kind "${root}" design
+expect_clean "${root}" "two real kind skills side by side read clean"
+
+root="$(new_skill_set two-kinds-one-rule-broken)"
+add_kind "${root}" impl
+add_kind "${root}" design
+printf '\nCite at the decision site, beside the non-obvious call.\n' \
+  >>"${root}/grove-design/SKILL.md"
+expect_dirty "${root}" "cite-framework-decisions-to-source" \
+  "one kind-owned rule stated by a second kind is caught"
+
 # -- Assertion 1: a load predicate in neither form ---------------------------
 
 root="$(new_skill_set bad-predicate)"
-printf 'invented-rule\tSKILL.md\tB\twhenever\t\n' >"${scratch}/bad-rules.tsv"
+printf 'invented-rule\tgrove/SKILL.md\tB\twhenever\t\n' >"${scratch}/bad-rules.tsv"
 out="$(bash "${runner}" --skills "${root}" --rules "${scratch}/bad-rules.tsv" 2>&1 || true)"
 if printf '%s\n' "${out}" | command grep -qF -- 'neither static(K) nor on(t) @ F'; then
   ok "an unreadable load predicate is caught"

@@ -1,11 +1,18 @@
-# Grove binds without the `linkuistics` plugin
+# A skill states what binds when its dependencies are absent
 
-Grove requires the `linkuistics` plugin and does not provision it: the `grove`
-binary sweeps its own `content/` into every harness's skill directory and nothing
-else, and the plugin installs separately through the Claude Code marketplace or
-`plugins/install.sh` — even though both are developed in this repository. So a
-checkout can be one where every `linkuistics:` citation points at a skill that is
-not there.
+A skill that cites another skill must state what binds in that skill's absence.
+Grove's methodology is itself a skill set now — the `grove` plugin, a shared
+spine and one `grove-<kind>` skill per kind — and it cites `linkuistics` skills
+it does not install: the two plugins are separate marketplace entries and
+separate rows in `plugins/install.sh`'s symlink farm, even though both are
+developed in this repository. So an installation can be one where every
+`linkuistics:` citation points at a skill that is not there.
+
+**A skill's dependency on its own spine is a different relation and is not
+covered here.** A `grove-<kind>` skill directs a load of the `grove` spine, and
+the two ship in one plugin: the spine cannot be absent while the member is
+present, so there is nothing for the member to state. What can be absent is a
+skill from *another* plugin, which is the case below.
 
 **Every citation states what binds in its absence.** The generating question is
 per citation and has one form: *does the absence change what a session writes, or
@@ -22,9 +29,9 @@ them. A fallback that taught what the skill teaches would make the plugin
 pointless and double the drift surface, which is the failure this record is as
 much about as the silent dependency.
 
-**One statement, reached by a pointer.** `content/references/grove.md` carries
-what binds for all three skills in one place, and `content/SKILL.md`'s trigger
-sentence routes a session meeting any citation there. A file whose own operative
+**One statement, reached by a pointer.** The spine's `references/grove.md`
+carries what binds for all three skills in one place, and the spine's `SKILL.md`
+trigger sentence routes a session meeting any citation there. A file whose own operative
 rules are complete says so in its own words; no file mirrors the hub's gloss,
 because a second statement of it is the duplication
 [every normative rule has one owner](corpus-rules-have-one-owner.md) exists to
@@ -39,16 +46,14 @@ what a session writes, and each one is recorded with its reason in
 `docs/specs/corpus-rule-ownership.md`. That bound is what keeps the exception
 from becoming the rule.
 
-**Rejected: make the plugin a hard install dependency of the binary.** It would
-remove the mirrors outright, and it is the wrong shape twice. The two contexts
-ship by different paths on purpose — a single-command `brew install` for the
-binary, the marketplace for the plugin, which
+**Rejected: make `linkuistics` a hard install dependency of the `grove` plugin.**
+It would remove the mirrors outright, and it is the wrong shape twice. The two
+contexts ship as separate products on purpose — which
 [the skill delivers the methodology](skill-delivers-the-methodology.md) settles
 and `docs/ARCHITECTURE.md`, *Repository products*, describes — so enforcing the
-dependency means the binary provisioning a context it does not own; and it
-violates walk-away-ability — a grove tree must stay
-legible with grove deleted, which a methodology that cannot state its own rules
-is not.
+dependency means one context installing another it does not own; and it violates
+walk-away-ability — a grove tree must stay legible with grove deleted, which a
+methodology that cannot state its own rules is not.
 
 **Rejected: defer everything and state nothing locally.** This was the prior
 state, and it produced a measurable defect rather than a hypothetical one: with
@@ -58,6 +63,7 @@ nothing local contradicted it. A cited test is no test.
 
 The enumeration of citations and their per-row decisions is in
 `docs/specs/corpus-rule-ownership.md`, *Plugin deferral policy*;
-`tests/plugin_fallback.rs` asserts both halves — that each citation states what
+`tests/plugin_fallback.rs` asserts both halves over the corpus the binary still
+embeds — that each citation states what
 binds, and that the enumeration is exhaustive, so a citation added later without
 a binding sentence fails before it reaches a session.

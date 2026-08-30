@@ -640,8 +640,8 @@ three into `content/`: A′ into `references/execute.md`'s two-controls block, B
 that file's *The provenance of a measurement* section, and C across
 `references/decompose.md` (what a review writes into the body it cuts) and
 `references/integrate-review.md` (where an integration reads findings from). Six
-rows were added to `docs/specs/corpus-rule-ownership.md` and its sweep in
-`tests/rule_ownership.rs`. **5b did not land**, on this document's own reasoning:
+rows were added to `docs/specs/corpus-rule-ownership.md` and its sweep, which was
+`tests/rule_ownership.rs` then and is `plugins/grove/conformance.sh` now. **5b did not land**, on this document's own reasoning:
 it is one instance, and stating it beside 5a's five in a rule a session is asked
 to obey is exactly the borrowing §5 split them to stop. It and the rest of
 cluster A go to the write-up, which is

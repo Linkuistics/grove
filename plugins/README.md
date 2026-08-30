@@ -13,16 +13,16 @@ The vocabulary of authoring, packaging, triggering and installing a skill is in
 ## `grove` — the methodology, as skills
 
 Grove's own methodology: one shared `grove` spine skill, with one
-`grove-<kind>` skill per session kind landing beside it. It is the delivery path
-that replaces the `grove` binary provisioning its embedded `content/`, and while
-both exist the spine is the source. Its own
+`grove-<kind>` skill per session kind beside it. It is the delivery path that
+replaces the `grove` binary provisioning its embedded `content/`, and while both
+exist the plugin is the source. Its own
 [`grove/README.md`](grove/README.md) carries the fatness rule, the migration
 ledger, and the dependency-free conformance runner that asserts delivery over the
 shipped skill set.
 
-The spine declares `harnesses: [claude-code]` for now — the binary still owns
-`~/.codex/skills/grove` and `~/.pi/agent/skills/grove`, and `install.sh` refuses
-to install over a real directory at a path it does not own.
+Every skill in it declares `harnesses: [claude-code]` for now — the binary still
+owns `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`, and `install.sh`
+refuses to install over a real directory at a path it does not own.
 
 ## `linkuistics` — engineering-practice skills
 
@@ -151,10 +151,12 @@ declares `[any]` and installs everywhere like the portable `linkuistics` skills.
 Its exclusion until now was an artefact of the script scanning one plugin
 directory, not a judgement about the skill.
 
-It does **not** yet cover the `grove` plugin's spine, which declares
-`harnesses: [claude-code]` — the binary still provisions `~/.codex/skills/grove`
-and `~/.pi/agent/skills/grove`, and those are directories, not this script's
-symlinks. A real file or directory at a target path is now an **error**: the path
+It does **not** yet cover the `grove` plugin, whose spine and every
+`grove-<kind>` skill declare `harnesses: [claude-code]` — the binary still
+provisions `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`, and those are
+directories, not this script's symlinks. A kind skill's own reason is one step
+further on: it directs a load of the spine, so installing it where the spine
+cannot go would send that load to the binary's provisioned corpus instead. A real file or directory at a target path is now an **error**: the path
 is left untouched, every other skill still installs, and the run exits non-zero
 naming what was not installed. Leaving it as a `warn` among the `ok` lines meant
 an uninstalled skill read as a successful install.

@@ -4,11 +4,21 @@
 #
 # `docs/adr/behavioural-coverage-asserts-delivery.md` states the rule: a
 # methodology is delivered only where a session actually reads it. The
-# instrument used to be a Rust suite over the binary's embedded `content/`
-# (`tests/rule_ownership.rs`, `tests/loaded_path_budgets.rs` and four others).
-# Once the methodology ships as a plugin, two of the four things that walk
-# covered no longer exist in the binary, so the assertion moves here — to a
-# dependency-free shell runner over the files a harness installs.
+# instruments used to be Rust suites over the binary's embedded `content/`, and
+# they walked a composition — `src/prompt.rs`'s guaranteed core, the provisioned
+# `content/SKILL.md` as a kind router, `reference_file(kind)`, and the closure of
+# what those name — of which the middle two have no counterpart once the
+# methodology ships as a plugin: the prompt names one `grove-<kind>` skill, and
+# there is no per-kind reference mapping left to consult. So the assertion moves
+# here, to a dependency-free shell runner over the files a harness installs.
+#
+# `plugin-kind-skills-k17` deleted `tests/rule_ownership.rs`, whose 68 pinned
+# rows and 3 removed paraphrases this runner's manifest carries with identical
+# wordings — assertion 2 below, and its controls, are that suite's whole subject.
+# The other Rust suites this overlaps are **mixed**: `tests/lifecycle_invariants.rs`
+# holds the behavioural coverage walk, `tests/loaded_path_budgets.rs` the load
+# column and the per-kind word budgets, and neither has a home here. They stay
+# until `content/` itself goes at `delete-provisioning-k19`.
 #
 # Three assertions, over `skills/`:
 #
@@ -25,6 +35,11 @@
 # binary still provisions its own `content/`, the spine and `content/` carry the
 # same bytes for every file they share. It dies with provisioning at
 # `delete-provisioning-k19`.
+#
+# Two rows in the manifest are owned by `${prompt}` — the driver inlines their
+# bytes into the launch prompt and no skill carries them. They are reported and
+# asserted nowhere; a runner over a skill set cannot read a prompt, and saying so
+# is better than a check that quietly covers eighteen kinds and not the rule.
 #
 # Usage: ./plugins/grove/conformance.sh [--verbose] [--skills <dir>] [--rules <file>]
 #
@@ -81,6 +96,16 @@ while (($#)); do
   esac
   shift
 done
+
+# A memo directory. The closure of a kind's loaded path and the normalised form
+# of a skill file are both read many times per run — nineteen kinds against a
+# 146-row manifest — and recomputing them turns a second into minutes. Cached in
+# files rather than an associative array, because macOS ships bash 3.2.
+cache_dir="$(mktemp -d "${TMPDIR:-/tmp}/grove-conformance-cache.XXXXXX")"
+trap 'rm -rf "${cache_dir}"' EXIT
+
+# print_cache_key <string>: a filesystem-safe key.
+print_cache_key() { printf '%s\n' "$1" | tr '/ ' '__'; }
 
 failures=0
 notes=0
@@ -142,8 +167,13 @@ normalised() {
   tr -d '*_`' | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' ' '
 }
 
-# print_normalised_file <path>
-print_normalised_file() { normalised <"$1"; }
+# print_normalised_file <path>, memoised.
+print_normalised_file() {
+  local key
+  key="${cache_dir}/norm.$(print_cache_key "$1")"
+  [[ -f "${key}" ]] || normalised <"$1" >"${key}"
+  cat "${key}"
+}
 
 # ---------------------------------------------------------------------------
 # Assertion 3 — every file a skill names by path exists
@@ -197,7 +227,15 @@ classify_reference() {
 }
 
 # print_references <file>: every backticked `*.md` token in a file, one per line.
+# Memoised: the closure walk reads the same files once per kind.
 print_references() {
+  local key
+  key="${cache_dir}/refs.$(print_cache_key "$1")"
+  [[ -f "${key}" ]] || print_references_uncached "$1" >"${key}"
+  cat "${key}"
+}
+
+print_references_uncached() {
   # HTML comments are blanked first: a `.md` inside one is provenance — the
   # upstream file an adapted passage came from — and never something a session
   # is told to open. Then split on backticks and keep the odd-numbered fields,
@@ -272,7 +310,14 @@ check_references() {
 # kind's own skill and one reached in the spine are the same rule to a session.
 
 # print_loaded_path <kind>: the closure, one skill-relative path per line.
+# Memoised: every behavioural row asks for the same nineteen closures.
 print_loaded_path() {
+  local key="${cache_dir}/path.$1"
+  [[ -f "${key}" ]] || print_loaded_path_uncached "$1" >"${key}"
+  cat "${key}"
+}
+
+print_loaded_path_uncached() {
   local kind="$1" dir seen frontier path token class
   dir="$(print_skill_dir "${kind}")"
   seen=$'\n'
@@ -329,24 +374,33 @@ print_spine_path() {
 
 print_manifest() { command grep -v '^#' "${manifest}" | command grep -v '^[[:space:]]*$'; }
 
-# owner_is_shipped <owner-list>: whether every file the row names is carried by
-# the spine or by some kind skill.
+# Owners and load triggers are written **shipped-set-relative** — `grove/...`
+# for the spine, `grove-<kind>/...` for a kind's own skill. That grain is what
+# lets a rule owned by `grove-impl/SKILL.md` be told apart from one owned by
+# `grove-design/SKILL.md`; skill-relative paths collapse every kind's `SKILL.md`
+# into one site and read clean over a real duplicate.
+
+# print_owner_skill <shipped-set-relative path>: the skill directory name.
+print_owner_skill() { printf '%s\n' "${1%%/*}"; }
+# print_owner_path <shipped-set-relative path>: the path inside that skill.
+print_owner_path() { printf '%s\n' "${1#*/}"; }
+
+# owner_is_shipped <owner-list>: whether every file the row names exists in the
+# shipped skill set at the path it names.
 owner_is_shipped() {
-  local owners="$1" owner found dir
+  local owners="$1" owner
   local IFS=','
   for owner in ${owners}; do
-    found=0
-    [[ -f "${spine}/${owner}" ]] && found=1
-    if ((!found)); then
-      for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
-        dir="$(print_skill_dir "${kind}")"
-        [[ -f "${dir}/${owner}" ]] && found=1 && break
-      done
-    fi
-    ((found)) || return 1
+    [[ -f "${skills_dir}/${owner}" ]] || return 1
   done
   return 0
 }
+
+# owner_is_prompt <owner-list>: the driver delivers it, inlined into the launch
+# prompt. Neither assertion here can reach a prompt, so such a row is reported
+# and asserted nowhere — it is not pending, because no leaf will ever ship it.
+# shellcheck disable=SC2016  # the literal three-token owner cell, not an expansion
+owner_is_prompt() { [[ "$1" == '${prompt}' ]]; }
 
 # print_bound_kinds <load>: the shipped kinds a load predicate binds, one per
 # line. `static(K)` names a kind set; `on(t) @ F` binds wherever F is reached.
@@ -375,21 +429,26 @@ print_bound_kinds() {
       \{*\}) set="${set#\{}"
         set="${set%\}}"
         for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
-          [[ "${kind}" == "${set}" ]] && printf '%s\n' "${kind}"
+          if [[ "${kind}" == "${set}" ]]; then printf '%s\n' "${kind}"; fi
         done ;;
       *) unreadable="static(${set})" ;;
     esac
     return
   fi
   if [[ "${load}" == on\(* ]]; then
-    local trigger_file="${load##*) @ }"
-    trigger_file="${trigger_file#content/}"
-    if [[ "${trigger_file}" == "${load}" || -z "${trigger_file}" ]]; then
+    local trigger="${load##*) @ }" trigger_skill trigger_path
+    if [[ "${trigger}" == "${load}" || -z "${trigger}" || "${trigger}" != */* ]]; then
       unreadable="${load}"
       return
     fi
+    trigger_skill="$(print_owner_skill "${trigger}")"
+    trigger_path="$(print_owner_path "${trigger}")"
+    # A trigger in the spine binds every kind that reaches it; a trigger in one
+    # kind's own skill binds that kind alone, however many other kinds carry a
+    # file of the same name.
     for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
-      if print_loaded_path "${kind}" | command grep -qxF "${trigger_file}"; then
+      [[ "${trigger_skill}" == "grove" || "${trigger_skill}" == "grove-${kind}" ]] || continue
+      if print_loaded_path "${kind}" | command grep -qxF "${trigger_path}"; then
         printf '%s\n' "${kind}"
       fi
     done
@@ -423,32 +482,41 @@ done
 print_sites() {
   local needle file label dir
   needle="$(printf '%s' "$1" | normalised)"
-  {
-    while IFS= read -r file; do
-      [[ "${file}" == "SKILL.md" ]] && continue
-      printf '%s\t%s\n' "grove" "${file}"
-    done < <(print_skill_files "${spine}")
-    for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
-      dir="$(print_skill_dir "${kind}")"
+  if [[ ! -f "${cache_dir}/sites.index" ]]; then
+    {
       while IFS= read -r file; do
-        printf '%s\t%s\n' "grove-${kind}" "${file}"
-      done < <(print_skill_files "${dir}")
-    done
-  } | while IFS=$'\t' read -r label file; do
+        [[ "${file}" == "SKILL.md" ]] && continue
+        printf '%s\t%s\n' "grove" "${file}"
+      done < <(print_skill_files "${spine}")
+      for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
+        dir="$(print_skill_dir "${kind}")"
+        while IFS= read -r file; do
+          printf '%s\t%s\n' "grove-${kind}" "${file}"
+        done < <(print_skill_files "${dir}")
+      done
+    } >"${cache_dir}/sites.index"
+  fi
+  while IFS=$'\t' read -r label file; do
     if [[ "${label}" == "grove" ]]; then dir="${spine}"; else dir="$(print_skill_dir "${label#grove-}")"; fi
     if print_normalised_file "${dir}/${file}" | command grep -qF -- "${needle}"; then
-      printf '%s\n' "${file}"
+      printf '%s/%s\n' "${label}" "${file}"
     fi
-  done | sort -u
+  done <"${cache_dir}/sites.index" | sort -u
 }
 
 pending=0
+prompt_delivered=0
 unpinned=0
 checked_ownership=0
 checked_path=0
 skipped_path=0
 
 while IFS=$'\t' read -r rule owner class load phrase; do
+  if owner_is_prompt "${owner}"; then
+    prompt_delivered=$((prompt_delivered + 1))
+    detail "prompt   ${rule} (delivered by the driver, inlined into \${prompt})"
+    continue
+  fi
   if ! owner_is_shipped "${owner}"; then
     pending=$((pending + 1))
     detail "pending  ${rule} (owner ${owner} not shipped yet)"
@@ -488,7 +556,15 @@ while IFS=$'\t' read -r rule owner class load phrase; do
         path="$(print_loaded_path "${kind}")"
         local_ok=1
         for one in ${owner//,/ }; do
-          printf '%s\n' "${path}" | command grep -qxF "${one}" || local_ok=0
+          # The owner must be carried by the spine or by *this* kind's own
+          # skill, and be on the path. A same-named file in a sibling kind's
+          # skill is a different file and delivers nothing here.
+          owner_skill="$(print_owner_skill "${one}")"
+          [[ "${owner_skill}" == "grove" || "${owner_skill}" == "grove-${kind}" ]] || {
+            local_ok=0
+            continue
+          }
+          printf '%s\n' "${path}" | command grep -qxF "$(print_owner_path "${one}")" || local_ok=0
         done
         if ((local_ok)); then
           checked_path=$((checked_path + 1))
@@ -542,7 +618,7 @@ fi
 
 echo "rules  ${checked_ownership} single-source checked, ${checked_path} loaded-path checked"
 echo "       ${pending} pending (owner not shipped yet), ${unpinned} with no pinned wording,"
-echo "       ${skipped_path} bound to no shipped kind"
+echo "       ${skipped_path} bound to no shipped kind, ${prompt_delivered} delivered by \${prompt}"
 
 if ((failures)); then
   echo "FAILED ${failures} assertion(s)" >&2

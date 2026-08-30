@@ -1198,7 +1198,7 @@ plainly that the plugin is required and separately installed — legible, and no
 dangling reference stepped over silently.
 
 The standing decision is recorded as
-`docs/adr/grove-binds-without-the-plugin.md`, which clears the AND
+`docs/adr/a-skill-states-what-binds-without-its-dependencies.md`, which clears the AND
 test: reversing it means revisiting every citation and either install-enforcing a
 context the binary does not own or dropping the local statements; the mirrors are
 surprising against this spec's own thesis without the reason; and the rejected

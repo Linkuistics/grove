@@ -3,10 +3,38 @@
 A rule the inventory classes **B** — *observable in a session's conduct* — is
 enforced by a deterministic assertion that the rule is **present and reachable on
 the composed loaded path of every kind it binds**, not by an evaluation that
-watches a session behave. The instrument is a normalised paragraph match over the
-loaded path the runtime actually composes (`src/prompt.rs`'s guaranteed core,
-`content/SKILL.md`, `reference_file(kind)`, and the transitive closure of the
-corpus files those name by path), and it runs on every `cargo test`.
+watches a session behave. The instrument is a normalised phrase match over the
+loaded path the shipped skill set composes — a kind's own `grove-<kind>/SKILL.md`,
+the spine's `SKILL.md`, and the transitive closure of the skill files those name
+by path — and it is `plugins/grove/conformance.sh`, a dependency-free shell
+runner over the files a harness installs, with its controls in
+`plugins/grove/conformance.test.sh`.
+
+**The instrument moved because two of the four things its walk covered stopped
+existing.** It used to walk what the *binary* composed: `src/prompt.rs`'s
+guaranteed core, the provisioned `content/SKILL.md` acting as a kind router,
+`reference_file(kind)`, and the closure of what those named. Once the methodology
+ships as a plugin, the middle two have no counterpart — the prompt names one
+`grove-<kind>` skill, and there is no per-kind reference mapping left to consult —
+so a walk defined over them measures a composition no session receives. What the
+runner walks is the closure, entered through the two `SKILL.md` files a session
+actually opens.
+
+The guaranteed core survives but moves **out of reach**: it is prose the driver
+composes at launch, and a runner over an installed skill set cannot read a prompt.
+Two rules are delivered there and nowhere else — the signal step, and a `finish`
+session's three endings — so the manifest owns them to `${prompt}` and asserts
+neither. That is a stated gap rather than a check that quietly covers everything
+except the rule.
+
+**What is still asserted in Rust, and until when.** `tests/rule_ownership.rs` was
+the single-source half and is deleted: its 68 pinned wordings and 3 removed
+paraphrases are `plugins/grove/conformance/rules.tsv`'s, verbatim.
+`tests/lifecycle_invariants.rs`'s coverage walk and
+`tests/loaded_path_budgets.rs`'s per-kind word budgets are **not** re-homed here —
+their subject is the corpus the binary still embeds and the path it still
+composes, both of which go at `delete-provisioning-k19`. Deleting them ahead of
+that would retire an assertion whose subject is still shipping.
 
 **Reachable means reached by *this rule's* condition.** The walk is file-grained,
 because that is what the owner record says an edge reaches — a file, whose in-file
@@ -34,12 +62,12 @@ grounds, in order of weight:
 
 1. **It is not repeatable, so it cannot be a net.** The rewrites need a check
    that is green before them and green after them, run by every contributor on
-   every commit. A scored session is a sample; a corpus rewrite that weakened a
+   every change to the methodology. A scored session is a sample; a corpus rewrite that weakened a
    rule would fail it sometimes.
 2. **It cannot localise.** A session that mis-conducts itself does not say which
    sentence went missing. The delivery assertion fails naming the rule, the kind,
    the unmet claim and the files that still state it.
-3. **Cost.** Nineteen kinds times twelve rules is not an occasional expense.
+3. **Cost.** Every kind times every rule it binds is not an occasional expense.
 
 The rejection is of the instrument's *place in the suite*, not of its value. A
 model-in-the-loop measurement is the right tool for the claim delivery cannot
@@ -59,12 +87,12 @@ eval *beside* these assertions rather than instead of them.
   holds that failure. The two instruments are complements — uniqueness is the
   **S** half of a `B+S` row — and neither substitutes for the other. Reopen never;
   this is a scope statement, not a rejection.
-- **Match against the whole embedded corpus rather than a per-kind path.**
+- **Match against the whole shipped skill set rather than a per-kind path.**
   Rejected because it passes on precisely the regression the refactor risks: a
   rule moved into an unreachable file. Its one attraction is that it never goes
-  red spuriously, which is the same thing said as a defect. Reopen if
-  `src/prompt.rs` ever hands every kind every file, which would make the two
-  measures identical.
+  red spuriously, which is the same thing said as a defect. Reopen if a session
+  is ever handed every skill at once, which would make the two measures
+  identical.
 - **Pin each rule to the file that states it today.** Rejected: eight leaves
   rehome rules on purpose, so a site pin fails on the intended change and reports
   nothing about the unintended one. The site is diagnostic output on failure, not

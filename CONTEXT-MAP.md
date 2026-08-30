@@ -72,8 +72,8 @@ for the second document.
   states this once per skill; `content/SKILL.md` routes any citation there. So a
   checkout without the plugin runs an ordinary task end to end, and absence
   changes how *well* these artifacts are written, never *what* is obliged.
-  Decision: `docs/adr/grove-binds-without-the-plugin.md`; enforcement:
-  `tests/plugin_fallback.rs`.
+  Decision: `docs/adr/a-skill-states-what-binds-without-its-dependencies.md`;
+  enforcement: `tests/plugin_fallback.rs`.
 
 - **Shared target: the personal skill directory.** grove and skills both write
   into the same per-harness namespace (`ordinal-fs-tree` provisions nothing). The `grove` binary sweeps `content/` to

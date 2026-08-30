@@ -1496,7 +1496,7 @@ into, and its near-constancy is the price of `SKILL.md` being a router.
 **What none of this establishes is that the paths still carry the rules.** A
 budget says the path is small; the behavioural coverage in
 `tests/lifecycle_invariants.rs` says it still delivers each rule, and
-`tests/rule_ownership.rs` says exactly one file states each. Neither is evidence
+`plugins/grove/conformance.sh` says exactly one file states each. Neither is evidence
 for the other, and a green budget over a corpus that lost a rule is a smaller
 path that teaches less.
 

@@ -321,7 +321,7 @@ evidence still citable and no longer loaded on every invocation.
 
 ### C · The governance constraint on doing either
 
-[`grove-binds-without-the-plugin`](adr/grove-binds-without-the-plugin.md) makes
+[`a-skill-states-what-binds-without-its-dependencies`](adr/a-skill-states-what-binds-without-its-dependencies.md) makes
 the direction of promotion consequential. Grove ships without the plugin, so every
 citation must state what binds in its absence, under one question: *does the
 absence change what a session writes, or only how well?* A rule Grove needs must

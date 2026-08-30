@@ -65,7 +65,7 @@ pub(crate) fn check(
         Scope::Final => CHAPTERS.len(),
         Scope::Through(slice) => crate::validator::SLICE_ORDER
             .iter()
-            .position(|candidate| *candidate == slice)
+            .position(|candidate| *candidate == slice.as_str())
             .map_or(0, |index| index + 1),
     };
     let expected: BTreeSet<String> = FIXED
@@ -73,7 +73,7 @@ pub(crate) fn check(
         .chain(CHAPTERS[..chapter_count].iter())
         .map(|page| format!("{ROOT}{}", page.file))
         .collect();
-    let actual: BTreeSet<String> = snapshot.book_files.keys().cloned().collect();
+    let actual = snapshot.book_entries.clone();
     for path in expected.difference(&actual) {
         diagnostics.push(markdown_diagnostic(
             "M101",
@@ -88,6 +88,13 @@ pub(crate) fn check(
             command_location(path),
         ));
     }
+    for path in expected.intersection(&snapshot.non_regular_book_entries) {
+        diagnostics.push(markdown_diagnostic(
+            "M101",
+            format!("required book page `{path}` is not a regular file"),
+            command_location(path),
+        ));
+    }
 
     for page in FIXED.iter().chain(CHAPTERS[..chapter_count].iter()) {
         let path = format!("{ROOT}{}", page.file);
@@ -97,6 +104,7 @@ pub(crate) fn check(
         check_identity(page, document, diagnostics);
         check_headings(page, document, diagnostics);
         check_fences(document, diagnostics);
+        check_fragment_introductions(parsed, document, diagnostics);
         check_links(snapshot, parsed, document, diagnostics);
     }
     for (index, page) in CHAPTERS[..chapter_count].iter().enumerate() {
@@ -259,6 +267,47 @@ fn check_fences(document: &ParsedDocument, diagnostics: &mut Vec<Diagnostic>) {
     }
 }
 
+fn check_fragment_introductions(
+    parsed: &ParsedBook,
+    document: &ParsedDocument,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for fragment in parsed.fragments.values().flatten().filter(|fragment| {
+        fragment.location.path == document.path
+            && matches!(fragment.body, crate::parser::FragmentBody::Literal(_))
+    }) {
+        let prefix = &document.text[..fragment.location.byte];
+        let previous = prefix.lines().rev().find(|line| !line.trim().is_empty());
+        if !previous.is_some_and(paragraph_line) {
+            diagnostics.push(markdown_diagnostic(
+                "M105",
+                format!(
+                    "literal fragment `{}` must have a prose paragraph as its nearest preceding nonblank block",
+                    fragment.id
+                ),
+                fragment.location.clone(),
+            ));
+        }
+    }
+}
+
+fn paragraph_line(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    !trimmed.is_empty()
+        && heading_level(trimmed).is_none()
+        && !trimmed.starts_with("<!--")
+        && !trimmed.starts_with('|')
+        && !trimmed.starts_with('>')
+        && !["- ", "* ", "+ "]
+            .iter()
+            .any(|prefix| trimmed.starts_with(prefix))
+        && !trimmed
+            .split_once(". ")
+            .is_some_and(|(prefix, _)| prefix.bytes().all(|byte| byte.is_ascii_digit()))
+        && !trimmed.starts_with("```")
+        && !trimmed.starts_with("~~~")
+}
+
 fn check_links(
     snapshot: &BookSnapshot,
     parsed: &ParsedBook,
@@ -304,8 +353,7 @@ fn check_links(
         let target_bytes = snapshot
             .book_files
             .get(&target)
-            .or_else(|| snapshot.source_files.get(&target))
-            .or_else(|| snapshot.linked_files.get(&target));
+            .or_else(|| snapshot.source_files.get(&target));
         let Some(target_bytes) = target_bytes else {
             diagnostics.push(markdown_diagnostic(
                 "M201",
@@ -319,14 +367,12 @@ fn check_links(
         };
         if let Some(anchor) = anchor {
             let has_anchor = std::str::from_utf8(target_bytes).ok().is_some_and(|text| {
-                let fallback_ranges;
-                let opaque_ranges = if let Some(target_document) = parsed.documents.get(&target) {
-                    &target_document.opaque_ranges
-                } else {
-                    fallback_ranges = repository_fence_ranges(text);
-                    &fallback_ranges
-                };
-                visible_explicit_anchor(text, opaque_ranges, anchor)
+                parsed
+                    .documents
+                    .get(&target)
+                    .is_some_and(|target_document| {
+                        visible_explicit_anchor(text, &target_document.opaque_ranges, anchor)
+                    })
             });
             if !target.ends_with(".md") || !valid_anchor(anchor) || !has_anchor {
                 diagnostics.push(markdown_diagnostic(
@@ -412,7 +458,17 @@ fn visible_explicit_anchor(text: &str, opaque_ranges: &[Range<usize>], anchor: &
 }
 
 pub fn scan_markdown_links(markdown: &str) -> Vec<MarkdownLink> {
-    scan_links(markdown, &repository_fence_ranges(markdown))
+    let path = "__standalone_markdown__.md";
+    let mut snapshot = BookSnapshot::default();
+    snapshot
+        .book_files
+        .insert(path.to_owned(), markdown.as_bytes().to_vec());
+    let parsed = crate::parser::parse(&snapshot);
+    let opaque_ranges = parsed
+        .documents
+        .get(path)
+        .map_or(&[][..], |document| document.opaque_ranges.as_slice());
+    scan_links(markdown, opaque_ranges)
 }
 
 fn scan_links(markdown: &str, opaque_ranges: &[Range<usize>]) -> Vec<MarkdownLink> {
@@ -519,47 +575,6 @@ fn exact_code_span_end(bytes: &[u8], mut index: usize, opening_count: usize) -> 
         index += count;
     }
     None
-}
-
-fn repository_fence_ranges(markdown: &str) -> Vec<Range<usize>> {
-    let mut ranges = Vec::new();
-    let mut active: Option<(u8, usize, usize)> = None;
-    let mut byte = 0;
-    for raw in markdown.split_inclusive('\n') {
-        let line = raw.trim_end_matches('\n');
-        let trimmed = line
-            .strip_prefix("   ")
-            .or_else(|| line.strip_prefix("  "))
-            .or_else(|| line.strip_prefix(' '))
-            .unwrap_or(line);
-        if let Some((marker, count, start)) = active {
-            let run = trimmed
-                .bytes()
-                .take_while(|candidate| *candidate == marker)
-                .count();
-            if run >= count && trimmed[run..].trim().is_empty() {
-                ranges.push(start..byte + raw.len());
-                active = None;
-            }
-        } else if let Some(marker) = trimmed
-            .bytes()
-            .next()
-            .filter(|marker| matches!(marker, b'`' | b'~'))
-        {
-            let count = trimmed
-                .bytes()
-                .take_while(|candidate| *candidate == marker)
-                .count();
-            if count >= 3 {
-                active = Some((marker, count, byte));
-            }
-        }
-        byte += raw.len();
-    }
-    if let Some((_, _, start)) = active {
-        ranges.push(start..markdown.len());
-    }
-    ranges
 }
 
 pub(crate) fn external_destination(destination: &str) -> bool {

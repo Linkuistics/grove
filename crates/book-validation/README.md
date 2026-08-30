@@ -25,9 +25,12 @@ cargo run --quiet -p book-validation --bin book-check -- \
 ```
 
 Use `--check fragments` or `--check markdown` to isolate one validation class;
-the default is `--check all`. Markdown validation checks the canonical page
-inventory, identities, heading and explicit-anchor shape, navigation, local
-files and anchors, and external URL syntax. It never fetches an external URL.
+the default is `--check all`. Markdown validation checks the canonical regular
+file inventory (without following symlinks), identities, heading and
+explicit-anchor shape, navigation, local files and anchors, literal-fragment
+introductions, and external URL syntax. Relative links may target only the book
+or the fifteen frozen source files. The validator never fetches an external
+URL.
 
 Use `--output json` for the versioned machine-readable envelope. Exit status
 `0` means valid, `1` means deterministic validation findings, `2` means invalid

@@ -282,23 +282,6 @@ const fn block(
 pub fn validate(snapshot: &BookSnapshot, request: Request) -> ValidationReport {
     let parsed = parser::parse(snapshot);
     let mut diagnostics = parsed.diagnostics.clone();
-    if let Scope::Through(slice) = &request.scope {
-        if !SLICE_ORDER[..SLICE_ORDER.len() - 1].contains(&slice.as_str()) {
-            diagnostics.push(Diagnostic::new(
-                "U001",
-                "parse",
-                format!("unknown scoped slice `{slice}`"),
-                crate::Location {
-                    path: "<command>".into(),
-                    byte: 0,
-                    line: 1,
-                    column: 1,
-                },
-                None,
-                None,
-            ));
-        }
-    }
     if matches!(request.check, crate::Check::Fragments | crate::Check::All) {
         check_inventory(snapshot, &parsed, &mut diagnostics);
         check_identities(&parsed, &mut diagnostics);
@@ -472,7 +455,9 @@ fn check_identities(parsed: &ParsedBook, diagnostics: &mut Vec<Diagnostic>) {
 
 fn check_references(parsed: &ParsedBook, scope: &Scope, diagnostics: &mut Vec<Diagnostic>) {
     let through = match scope {
-        Scope::Through(slice) => SLICE_ORDER.iter().position(|candidate| *candidate == slice),
+        Scope::Through(slice) => SLICE_ORDER
+            .iter()
+            .position(|candidate| *candidate == slice.as_str()),
         Scope::Final => Some(SLICE_ORDER.len()),
     };
     let declared_roots = declared_roots(parsed);
@@ -535,7 +520,9 @@ fn check_references(parsed: &ParsedBook, scope: &Scope, diagnostics: &mut Vec<Di
 
 fn check_ownership(parsed: &ParsedBook, scope: &Scope, diagnostics: &mut Vec<Diagnostic>) {
     let through = match scope {
-        Scope::Through(slice) => SLICE_ORDER.iter().position(|candidate| *candidate == slice),
+        Scope::Through(slice) => SLICE_ORDER
+            .iter()
+            .position(|candidate| *candidate == slice.as_str()),
         Scope::Final => Some(SLICE_ORDER.len()),
     };
     for roots in parsed.roots.values().filter(|roots| roots.len() == 1) {
@@ -1425,7 +1412,7 @@ fn page_key(path: &str) -> (bool, usize, &str) {
 mod tests {
     use std::cmp::Ordering;
 
-    use super::compare_diagnostics;
+    use super::{compare_diagnostics, BLOCKS, ROOTS};
     use crate::{Diagnostic, Location, RelatedLocation, SourceLocation};
 
     fn diagnostic() -> Diagnostic {
@@ -1455,6 +1442,71 @@ mod tests {
             }],
             remedy: Some("remedy".into()),
         }
+    }
+
+    #[test]
+    fn compiled_corpus_copy_matches_the_normative_spec_tables() {
+        let specification = include_str!("../../../docs/specs/ordinal-fs-tree-book.md");
+        let source_rows = table_rows(specification, "### Source roots", "| Root ID |");
+        let ownership_rows = table_rows(
+            specification,
+            "### Top-level ownership blocks",
+            "| Block ID |",
+        );
+
+        let expected_sources: Vec<String> = ROOTS
+            .iter()
+            .map(|(id, path, lines)| format!("| `{id}` | `{path}` | {} |", grouped(*lines)))
+            .collect();
+        let expected_ownership: Vec<String> = BLOCKS
+            .iter()
+            .map(|block| {
+                let count = block.last - block.first + 1;
+                let state = if block.owner == "orientation-k11" {
+                    "resolved"
+                } else {
+                    "deferred"
+                };
+                format!(
+                    "| `{}` | `{}` | `{}` | `{}-{}` | {} | `{state}` |",
+                    block.id,
+                    block.root,
+                    block.owner,
+                    block.first,
+                    block.last,
+                    grouped(count)
+                )
+            })
+            .collect();
+
+        assert_eq!(source_rows, expected_sources);
+        assert_eq!(ownership_rows, expected_ownership);
+    }
+
+    fn table_rows(specification: &str, heading: &str, header: &str) -> Vec<String> {
+        specification
+            .split_once(heading)
+            .unwrap()
+            .1
+            .split("\n\n")
+            .find(|block| block.starts_with(header))
+            .unwrap()
+            .lines()
+            .skip(2)
+            .map(str::to_owned)
+            .collect()
+    }
+
+    fn grouped(value: usize) -> String {
+        let digits = value.to_string();
+        let mut result = String::new();
+        for (index, digit) in digits.chars().enumerate() {
+            if index > 0 && (digits.len() - index) % 3 == 0 {
+                result.push(',');
+            }
+            result.push(digit);
+        }
+        result
     }
 
     #[test]

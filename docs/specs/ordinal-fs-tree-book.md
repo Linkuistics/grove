@@ -10,6 +10,9 @@ neither the book nor its validator generates or overwrites production files.
 The in-scope source corpus is frozen while the book node is active. An accepted
 source change requires the affected ownership ranges and fragments to change,
 followed by final validation against the new bytes.
+The repository's default test run performs final validation of the committed
+book against the committed fifteen-file corpus, so a source edit cannot bypass
+that comparison by changing only a fixture or an isolated command.
 
 ## Intended outcome
 
@@ -23,7 +26,7 @@ The system has four deliberate properties:
 1. The numbered pages form one canonical reading path.
 2. Source fragments sit beside the explanation that gives them meaning.
 3. Raw Markdown exposes every fragment's parent, children, source range, and
-   owning slice without requiring a separate manifest.
+   owning slice without requiring an author-maintained sidecar manifest.
 4. Scoped checks prove one authoring increment without confusing a named future
    hole with an accidental unresolved reference; final checks prove the whole
    corpus with no holes.
@@ -67,6 +70,13 @@ The final page inventory and identities are normative:
 | `08-invariants-and-trade-offs.md` | `invariants-and-trade-offs` | Invariants and trade-offs | `chapter` | `book-assembly-k18` | 8 | `syllabus-cli` | — |
 | `concept-index.md` | `concept-index` | Concept index | `lookup` | — | — | — | — |
 | `source-index.md` | `source-index` | Source index | `lookup` | — | — | — | — |
+
+The eight Slice values in this table are normative book-system identifiers.
+They were derived from the producing work items, but the specification defines
+them as opaque tokens: they remain valid after `.grove/` is removed and do not
+require a live Grove handle. Slice identity is deliberately distinct from Page
+ID so a page rename does not also migrate ownership directives, ledger rows,
+and `--through` values.
 
 During scoped authoring, the numbered pages present must be an exact prefix of
 the final sequence. `README.md` links every page in that prefix and lists later
@@ -152,8 +162,8 @@ CLI parse and run
 → CLI insert helper
 → fs::write
 → WriteGuard::insert with its captured Snapshot
-→ ops::insert returning Decision
-→ Plan::guarded
+→ ops::insert, which builds the effects and returns
+  Plan::of(effects).guarded(snapshot) as a Decision
 → WriteGuard::run
 → fs::apply::apply
 → Run::step and, on failure, Run::unwind
@@ -176,7 +186,7 @@ slice's settled fragment ownership while making the path technically exact.
 ### `02-name-seam.md` — filename algebra and the consumer seam
 
 Explain ordinal versus key, parsing and composition, `Found`, `Verdict`,
-`Species`, `Parts`, `Triple`, one-component rendering, and `EntryName`. Connect
+`Species`, `EntryName::Parts`, `Triple`, one-component rendering, and `EntryName`. Connect
 the seam to the surrounding read and mutation flow rather than presenting an
 API catalogue. Show concrete accepted, foreign, malformed, and reserved names
 without yet treating the syllabus vocabulary as a library default.
@@ -261,11 +271,14 @@ continues.
 
 ### Shared byte-level lexer
 
-Fragment and Markdown validation consume the same token stream from one shared
-byte-level lexer. Neither check rescans comments or fences independently. Book
-files must be valid UTF-8, contain only LF line endings, and end in LF. The
-lexer records the zero-based byte offset and 1-based line and column of every
-token.
+Fragment and Markdown validation consume the same directive and fenced-range
+token stream from one shared byte-level lexer. Neither check rescans comments
+or fences independently. The Markdown link scanner additionally recognizes
+exact inline-code spans once, using the accepted form in the link contract, so
+links inside them remain opaque without making inline code part of the fragment
+language. Book files must be valid UTF-8, contain only LF line endings, and end
+in LF. The lexer records the zero-based byte offset and 1-based line and column
+of every token.
 
 Outside a fence, these are the complete reserved line forms. Every space shown
 is one ASCII space, every directive begins at column zero, attribute order is
@@ -405,9 +418,10 @@ A future-owned source range is represented distinctly:
 <!-- defer «demo-tail» owner="syllabus-cli-k17" lines="3-4" -->
 ```
 
-A defer is legal only inside a source root or composite, occupies a complete
+A defer is legal only as a direct child of a source root, occupies a complete
 column-zero line, names one strictly later slice from the ledger, and declares
-the exact contiguous range it reserves. Its target definition may be absent.
+the exact contiguous range it reserves. A defer inside a composite or any other
+context is `P002`. Its target definition may be absent.
 The named owner owns the range immediately; the earlier slice does not receive
 credit for it.
 
@@ -468,10 +482,16 @@ ownership, and fragment rows follow source-root order, then ascending source
 range, then fragment ID; the early-use order is defined with that table. A
 missing, extra, reordered, or malformed column is `F009`.
 
-The directives are the graph authority. The tables are mandatory derived
-indexes: the validator recomputes every relationship and rejects a row that
-disagrees. Thus raw Markdown provides outward relationships in parents and
-inward lookup without a second file format.
+The source-root and top-level ownership tables in this specification are the
+design authority for the fixed corpus and its 26 ownership blocks. The
+validator's `ROOTS` and `BLOCKS` constants are a checked compiled copy: the
+repository test suite parses these normative tables and compares every field
+with the constants. The source-index directives are the authority for the
+fragment graph. Its four tables are mandatory derived indexes: the validator
+recomputes every relationship and reports `F009` for a row that disagrees with
+the compiled corpus copy or directives. Thus raw Markdown provides outward
+relationships in parents and inward lookup without an author-maintained second
+file format.
 
 The fragment index has this exact schema:
 
@@ -570,7 +590,8 @@ deferred lines, and final=false; it never presents a prefix as exhaustive.
 ## Early-use ledger
 
 When a page first uses a codebase-specific type whose source belongs to a later
-slice, `source-index.md` records:
+slice, or reproduces source bytes whose referent belongs to a later slice,
+`source-index.md` records:
 
 - the symbol or closely coupled type family;
 - the first-use page and explicit anchor;
@@ -584,7 +605,9 @@ The initial ledger has this exact schema and these minimum rows:
 | Symbol family | First use | Owner | Minimum local statement | Status |
 |---|---|---|---|---|
 | `Ordinal`, `Key`, `Found`, `Verdict`, `Species`, `EntryName` | `01-orientation.md#working-vocabulary` | `name-seam-k12` | Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam. | `pending` |
-| `Label`, `Status`, `Parts`, `SyllabusName` | `01-orientation.md#insert-tour` | `reference-domain-k13` | These values are the syllabus consumer's vocabulary and seam implementation, not library defaults. | `pending` |
+| `manifest-cli-binary` | `01-orientation.md#package-contract` | `syllabus-cli-k17` | The binary declaration is CLI-owned and deferred; it maps the demonstration executable to its external consumer source and requires the CLI feature. | `pending` |
+| `manifest-cli-feature` | `01-orientation.md#package-contract` | `syllabus-cli-k17` | The optional parser dependency is activated by a later CLI-owned feature range, enabled by default while library consumers may disable default features. | `pending` |
+| `Label`, `Status`, `reference::Parts`, `SyllabusName` | `01-orientation.md#insert-tour` | `reference-domain-k13` | These values are the syllabus consumer's vocabulary and seam implementation, not library defaults. | `pending` |
 | `Snapshot`, `Entry`, `ReadGuard` | `01-orientation.md#insert-tour` | `read-path-k14` | A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot. | `pending` |
 | `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `pending` |
 | `WriteGuard`, `Error`, `apply::Faults`, `apply::Run` | `01-orientation.md#insert-tour` | `filesystem-interpreter-k16` | A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state. | `pending` |
@@ -617,7 +640,7 @@ Each later source-owning slice performs this sequence:
 4. Change the corresponding source-index state from `deferred` to `resolved`
    and add fragment index rows.
 5. Add its page to the canonical prefix and update contents and navigation.
-6. Complete or add early-use rows and concept-index entries.
+6. Complete or add early-use rows and curate concept-index entries.
 7. Run both validators through its slice and the relevant crate checks.
 
 A slice may decompose into child work at a conceptual seam. The owning slice
@@ -637,20 +660,30 @@ pseudocode rather than a required Rust type layout:
 ```text
 validate(BookSnapshot, Request { scope, checks }) -> ValidationReport
 
-scope  = Through(slice-id) | Final
+scope  = Through(scoped-slice) | Final
 checks = Fragments | Markdown | All
 ```
 
-`BookSnapshot` contains the bytes of the book files and in-scope source files
-under explicit repository-relative paths. The core validator has no clock, VCS,
-network, environment, or directory-discovery dependency. A thin CLI loads the
-snapshot. Tests construct snapshots in memory.
+`scoped-slice` is a typed seven-value domain containing the source-owning
+prefixes from `orientation-k11` through `syllabus-cli-k17`. The core cannot
+represent an unknown scoped value or the final-only `book-assembly-k18`; parsing
+arbitrary command text and reporting invocation errors belong to the CLI.
+
+`BookSnapshot` contains the recursive book-directory entry inventory, including
+which entries are non-regular, and the bytes of the eleven book files and
+in-scope source files under explicit repository-relative paths. The core
+validator has no clock, VCS, network, environment, or directory-discovery
+dependency. A thin CLI loads the snapshot. Tests construct snapshots in memory.
 
 The CLI requires `--repo PATH`. It resolves a relative value against the process
 working directory and uses that directory as the only repository root.
 `--book PATH` is required, must be a normalized repository-relative path with
 no `..` component, and is joined to `--repo`; all ledger source paths are joined
-to the same root. The validator neither searches ancestors nor consults VCS.
+to the same root. The book root must be a real directory rather than a symlink.
+Inventory traversal records symlinks and other non-regular children but never
+follows them. An unreadable unexpected child directory remains an inventory
+entry and does not prevent its `M101` finding. The validator neither searches
+ancestors nor consults VCS.
 
 During the fragment-validator stage, the runnable author command is:
 
@@ -659,7 +692,7 @@ cargo run --quiet -p book-validation --bin book-check -- \
   --repo . \
   --book docs/ordinal-fs-tree/book \
   --through read-path-k14 \
-  --check fragments
+  --check all
 ```
 
 The corresponding runnable final command is:
@@ -669,15 +702,12 @@ cargo run --quiet -p book-validation --bin book-check -- \
   --repo . \
   --book docs/ordinal-fs-tree/book \
   --final \
-  --check fragments
+  --check all
 ```
 
-`--through` and `--final` are mutually exclusive and one is required. In the
-current staged surface, `--check` accepts only `fragments` and defaults to it;
-rejecting `markdown` and `all` prevents a fragment-only false success.
-`markdown-validation-k9` adds `markdown` and `all`, changes the default to
-`all`, and updates the two commands above to use `--check all`. `--output`
-accepts `text` or `json` and defaults to `text` throughout.
+`--through` and `--final` are mutually exclusive and one is required. `--check`
+accepts `fragments`, `markdown`, or `all` and defaults to `all`. `--output`
+accepts `text` or `json` and defaults to `text`.
 
 The accepted `--through` values, in order, are `orientation-k11`,
 `name-seam-k12`, `reference-domain-k13`, `read-path-k14`,
@@ -686,11 +716,11 @@ The accepted `--through` values, in order, are `orientation-k11`,
 seven. `book-assembly-k18` is final-only; passing it to `--through`, or passing
 an unknown slice, is an invocation error with exit status 2.
 
-`book-check --help` contains the currently runnable scoped and final
-invocations above, identifies the staged check surface and the increment that
-completes it, explains that validation is read-only, lists the exit statuses,
-and describes the JSON schema. The command is always non-interactive, never
-starts a pager or spinner, and emits no color. Validation reports go to stdout.
+`book-check --help` contains the runnable scoped and final invocations above,
+lists all three check selections, explains that validation is read-only, lists
+the exit statuses, and describes the JSON schema. The command is always
+non-interactive, never starts a pager or spinner, and emits no color. Validation
+reports go to stdout.
 Invocation and internal load failures go to stderr in text mode; after
 `--output json` has been recognized, they use the same versioned JSON envelope
 on stdout and leave stderr empty.
@@ -840,7 +870,7 @@ or `I001` for non-validation failures:
   "coverage": {
     "files": 15,
     "resolved_lines": 3057,
-    "deferred_lines": 3561,
+    "deferred_lines": 3872,
     "final": false
   },
   "diagnostics": []
@@ -866,7 +896,7 @@ consumes the shared lexer's page, ordinary-fence, and fragment-boundary tokens;
 it never recognizes those constructs independently and never compares source
 bytes. It checks:
 
-- the fixed file inventory and canonical prefix/final page order;
+- the recursive fixed file inventory and canonical prefix/final page order;
 - one H1 per page, no heading-level skips, and required explicit anchors;
 - unique anchors within each page;
 - exact top and bottom navigation, correct adjacency, and contents links;
@@ -875,8 +905,8 @@ bytes. It checks:
 - every relative file and page link, including its explicit Markdown anchor;
 - the prohibition on untracked `rust` or `toml` fences reported by the shared
   lexer; and
-- paths remaining inside the repository and inside the permitted book or
-  deliberately linked repository artifact.
+- paths remaining inside the eleven book files or the fifteen frozen source
+  paths. Other repository artifacts are not permitted link targets.
 
 Outside code fences and inline code, local Markdown links use the simple form
 `[descriptive label](relative/path)` with an optional `#explicit-anchor`.
@@ -885,16 +915,27 @@ not. Nested labels, link titles, and escaped destinations are outside the
 accepted book subset. Labels `here`, `this`, and `more` are rejected as
 non-descriptive. `http`, `https`, and `mailto` destinations are syntax-checked
 but never fetched.
+An inline-code span opens with a run of one or more unescaped backticks and
+closes only with an unescaped run of exactly the same length; its bytes are
+opaque to the one link scanner.
 
 Scoped mode permits later planned pages only as plain text in the contents. It
 does not permit missing page links or missing future anchors. Final mode
-requires all eleven book files and every link to resolve.
+requires the book directory to contain exactly the eleven named regular files
+and no other file, directory, symlink, or special entry at any depth, and every
+link must resolve.
 
 Markdown diagnostics use codes `M101` for page/inventory shape, `M102` for
 heading/anchor shape, `M103` for navigation, `M104` for forbidden source fences,
-and `M201` for local links. They report page, byte offset, line and column,
-offending text, and the expected target or structure, and follow the shared
-deterministic ordering.
+`M105` for a literal fragment whose nearest preceding nonblank block is not a
+paragraph block, and `M201` for local links. They report page, byte offset, line
+and column, offending text, and the expected target or structure, and follow
+the shared deterministic ordering.
+
+`concept-index.md` is curated optional navigation, not an exhaustive concept
+registry and not an authority for repetition decisions. Each entry is one
+descriptive local Markdown link; link syntax and targets are checked like every
+other book link. Entry selection and reader-useful ordering remain editorial.
 
 ## Prose contract
 
@@ -930,7 +971,6 @@ different categories.
 
 A later page repeats context only when at least one of these is true:
 
-- the page's audience may enter through an index at that point;
 - two previously explained concepts interact in a new way;
 - removing the link would make the local claim incomplete;
 - the earlier explanation is in a form unsuitable for the current operation;
@@ -945,10 +985,12 @@ must add local context.
 
 ### Source-fragment introductions
 
-Every literal fragment's opening directive is immediately preceded by a prose
-paragraph: one or more adjacent nonblank lines that are not a heading, list,
-table, fence, HTML comment, or fragment directive. No other nonblank block may
-intervene. That paragraph answers five review questions: Why is this fragment
+Every literal fragment's opening directive has a prose paragraph as its nearest
+preceding nonblank block: one or more adjacent nonblank lines that are not a
+heading, list, table, fence, HTML comment, or fragment directive. Blank lines
+may separate the paragraph from the directive; no other nonblank block may
+intervene. `M105` enforces that structural predecessor. The paragraph answers
+five editorial review questions: Why is this fragment
 present here? Which actor owns the behavior? What relevant input becomes what
 output? Which invariant does it establish or use? What role does it have in the
 page's current example? One paragraph may answer the questions in several
@@ -1039,3 +1081,12 @@ general literate-programming system. This book has a fixed, line-aligned corpus.
 Single-parent source trees make duplicated ownership, reachability, exact bytes,
 and scoped progress simpler and deterministic. A future need outside this
 corpus requires a new format version rather than an implicit extension.
+
+### Page IDs as slice IDs
+
+Using the eight Page IDs for ownership and scope values would remove the
+historical `-kN` spelling, but it would make a presentation-level page rename a
+fragment-ownership, ledger, fixture, and CLI migration. The book system instead
+defines a separate stable Slice domain. Its values remain meaningful because
+this specification and the validator enumerate them, not because the Grove task
+tree that originally named them remains live.

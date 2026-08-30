@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use book_validation::{validate, BookSnapshot, Check, Request, Scope};
+use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice};
 
 fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
     BookSnapshot {
@@ -12,7 +12,8 @@ fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
             "crates/ordinal-fs-tree/src/lib.rs".into(),
             source.as_bytes().to_vec(),
         )]),
-        linked_files: BTreeMap::new(),
+        book_entries: BTreeSet::new(),
+        non_regular_book_entries: BTreeSet::new(),
     }
 }
 
@@ -20,7 +21,7 @@ fn orientation(markdown: &str, source: &str) -> book_validation::ValidationRepor
     validate(
         &snapshot(markdown, source),
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     )
@@ -150,10 +151,11 @@ fn a_deep_graph_is_processed_without_recursion() {
                 "crates/ordinal-fs-tree/src/lib.rs".into(),
                 b"line\n".to_vec(),
             )]),
-            linked_files: BTreeMap::new(),
+            book_entries: BTreeSet::new(),
+            non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     );
@@ -239,7 +241,8 @@ fn an_invalid_root_suppresses_only_its_byte_cascade() {
                     report_source.into_bytes(),
                 ),
             ]),
-            linked_files: BTreeMap::new(),
+            book_entries: BTreeSet::new(),
+            non_regular_book_entries: BTreeSet::new(),
         },
         Request {
             scope: Scope::Final,
@@ -315,10 +318,11 @@ fn branching_invalid_graphs_do_not_expand_exponentially() {
                 "crates/ordinal-fs-tree/src/lib.rs".into(),
                 b"line\n".to_vec(),
             )]),
-            linked_files: BTreeMap::new(),
+            book_entries: BTreeSet::new(),
+            non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     );

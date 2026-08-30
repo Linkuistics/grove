@@ -41,7 +41,7 @@ fn markdown_and_all_are_accepted_check_selections() {
 }
 
 #[test]
-fn markdown_check_loads_a_deliberately_linked_repository_artifact() {
+fn markdown_check_rejects_a_repository_artifact_outside_the_fixed_domains() {
     let repository = tempfile::tempdir().unwrap();
     materialize(&support::corpus(false), repository.path());
     let book = repository.path().join("docs/ordinal-fs-tree/book");
@@ -108,7 +108,52 @@ fn markdown_check_loads_a_deliberately_linked_repository_artifact() {
         "markdown",
     ]);
 
-    assert_eq!(output.exit, 0, "{}{}", output.stdout, output.stderr);
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(output.stdout.contains("M201"));
+}
+
+#[test]
+fn recursive_book_inventory_reports_every_additional_entry_as_m101() {
+    for extra in ["notes.txt", "drafts", "drafts/notes.md"] {
+        let repository = tempfile::tempdir().unwrap();
+        materialize(&support::corpus(false), repository.path());
+        let path = repository
+            .path()
+            .join("docs/ordinal-fs-tree/book")
+            .join(extra);
+        if extra.contains('.') {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, "draft\n").unwrap();
+        } else {
+            std::fs::create_dir_all(&path).unwrap();
+        }
+
+        let output = run_from([
+            "book-check",
+            "--repo",
+            repository.path().to_str().unwrap(),
+            "--book",
+            "docs/ordinal-fs-tree/book",
+            "--through",
+            "orientation-k11",
+            "--check",
+            "markdown",
+        ]);
+
+        assert_eq!(
+            output.exit, 1,
+            "{extra}: {}{}",
+            output.stdout, output.stderr
+        );
+        assert!(
+            output
+                .stdout
+                .lines()
+                .any(|line| { line.contains("M101") && line.contains(&format!("book/{extra}")) }),
+            "{extra}: {}",
+            output.stdout
+        );
+    }
 }
 
 #[cfg(unix)]
@@ -139,8 +184,98 @@ fn book_page_symlinks_cannot_read_outside_the_explicit_repository() {
         "markdown",
     ]);
 
-    assert_eq!(output.exit, 2);
-    assert!(output.stderr.contains("outside-explicit-repository"));
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(output.stdout.contains("M101"));
+    assert!(output.stdout.contains("01-orientation.md"));
+}
+
+#[cfg(unix)]
+#[test]
+fn book_page_symlinks_inside_the_repository_are_inventory_findings() {
+    use std::os::unix::fs::symlink;
+
+    let repository = tempfile::tempdir().unwrap();
+    materialize(&support::corpus(false), repository.path());
+    let book = repository.path().join("docs/ordinal-fs-tree/book");
+    let page = book.join("01-orientation.md");
+    std::fs::remove_file(&page).unwrap();
+    symlink(book.join("README.md"), &page).unwrap();
+
+    let output = run_from([
+        "book-check",
+        "--repo",
+        repository.path().to_str().unwrap(),
+        "--book",
+        "docs/ordinal-fs-tree/book",
+        "--through",
+        "orientation-k11",
+        "--check",
+        "markdown",
+    ]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(output.stdout.contains("M101"));
+    assert!(output.stdout.contains("01-orientation.md"));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_book_root_is_refused_without_traversing_its_target() {
+    use std::os::unix::fs::symlink;
+
+    let repository = tempfile::tempdir().unwrap();
+    materialize(&support::corpus(false), repository.path());
+    symlink(
+        repository.path().join("docs/ordinal-fs-tree/book"),
+        repository.path().join("book-alias"),
+    )
+    .unwrap();
+
+    let output = run_from([
+        "book-check",
+        "--repo",
+        repository.path().to_str().unwrap(),
+        "--book",
+        "book-alias",
+        "--through",
+        "orientation-k11",
+        "--check",
+        "markdown",
+    ]);
+
+    assert_eq!(output.exit, 2, "{}{}", output.stdout, output.stderr);
+    assert!(output.stderr.contains("not-a-regular-file"));
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_unexpected_directory_still_reaches_m101() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let repository = tempfile::tempdir().unwrap();
+    materialize(&support::corpus(false), repository.path());
+    let drafts = repository
+        .path()
+        .join("docs/ordinal-fs-tree/book/private-drafts");
+    std::fs::create_dir(&drafts).unwrap();
+    std::fs::set_permissions(&drafts, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+    let output = run_from([
+        "book-check",
+        "--repo",
+        repository.path().to_str().unwrap(),
+        "--book",
+        "docs/ordinal-fs-tree/book",
+        "--through",
+        "orientation-k11",
+        "--check",
+        "markdown",
+    ]);
+    std::fs::set_permissions(&drafts, std::fs::Permissions::from_mode(0o700)).unwrap();
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(output.stdout.contains("M101"));
+    assert!(output.stdout.contains("private-drafts"));
 }
 
 #[cfg(unix)]

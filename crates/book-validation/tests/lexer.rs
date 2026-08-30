@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use book_validation::{validate, BookSnapshot, Check, Request, Scope};
+use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice};
 
 fn codes(bytes: &[u8]) -> Vec<String> {
     validate(
@@ -10,10 +10,11 @@ fn codes(bytes: &[u8]) -> Vec<String> {
                 bytes.to_vec(),
             )]),
             source_files: BTreeMap::new(),
-            linked_files: BTreeMap::new(),
+            book_entries: BTreeSet::new(),
+            non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     )
@@ -103,10 +104,11 @@ fn a_misclosed_literal_recovers_to_a_later_root() {
                 markdown.as_bytes().to_vec(),
             )]),
             source_files: BTreeMap::new(),
-            linked_files: BTreeMap::new(),
+            book_entries: BTreeSet::new(),
+            non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     );
@@ -133,10 +135,11 @@ fn an_unclosed_literal_recovers_to_a_later_root() {
                 markdown.as_bytes().to_vec(),
             )]),
             source_files: BTreeMap::new(),
-            linked_files: BTreeMap::new(),
+            book_entries: BTreeSet::new(),
+            non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     );
@@ -167,6 +170,17 @@ fn blank_lines_inside_roots_are_context_findings() {
 }
 
 #[test]
+fn defer_inside_a_composite_is_a_context_finding() {
+    let markdown = concat!(
+        "<!-- fragment «composite» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-94\" parent=\"source-library\" -->\n",
+        "<!-- defer «later» owner=\"name-seam-k12\" lines=\"1-94\" -->\n",
+        "<!-- /fragment -->\n",
+    );
+
+    assert!(codes(markdown.as_bytes()).contains(&"P002".into()));
+}
+
+#[test]
 fn invalid_utf8_reports_its_first_byte_and_recovers_after_the_line() {
     let bytes =
         b"<!-- insert \xc2\xabfirst\xc2\xbb -->\n\xff\n<!-- insert \xc2\xabsecond\xc2\xbb -->\n";
@@ -177,10 +191,11 @@ fn invalid_utf8_reports_its_first_byte_and_recovers_after_the_line() {
                 bytes.to_vec(),
             )]),
             source_files: BTreeMap::new(),
-            linked_files: BTreeMap::new(),
+            book_entries: BTreeSet::new(),
+            non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     );

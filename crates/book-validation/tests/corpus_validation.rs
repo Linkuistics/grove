@@ -1,6 +1,6 @@
 mod support;
 
-use book_validation::{validate, Check, Request, Scope};
+use book_validation::{validate, Check, Request, Scope, ScopedSlice};
 
 #[test]
 fn the_frozen_fifteen_file_corpus_expands_byte_for_byte() {
@@ -47,7 +47,7 @@ fn orientation_scope_reports_resolved_and_deferred_bytes_separately() {
     let report = validate(
         &support::corpus(false),
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     );
@@ -80,7 +80,7 @@ fn a_well_formed_defer_absent_from_the_ownership_ledger_is_rejected() {
     let report = validate(
         &snapshot,
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     );
@@ -111,7 +111,7 @@ fn a_later_owned_block_cannot_be_defined_early() {
     let report = validate(
         &snapshot,
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::Fragments,
         },
     );

@@ -289,7 +289,19 @@ const EARLY_USES: &[(&str, &str, &str, &str)] = &[
         "Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam.",
     ),
     (
-        "`Label`, `Status`, `Parts`, `SyllabusName`",
+        "`manifest-cli-binary`",
+        "01-orientation.md#package-contract",
+        "syllabus-cli-k17",
+        "The binary declaration is CLI-owned and deferred; it maps the demonstration executable to its external consumer source and requires the CLI feature.",
+    ),
+    (
+        "`manifest-cli-feature`",
+        "01-orientation.md#package-contract",
+        "syllabus-cli-k17",
+        "The optional parser dependency is activated by a later CLI-owned feature range, enabled by default while library consumers may disable default features.",
+    ),
+    (
+        "`Label`, `Status`, `reference::Parts`, `SyllabusName`",
         "01-orientation.md#insert-tour",
         "reference-domain-k13",
         "These values are the syllabus consumer's vocabulary and seam implementation, not library defaults.",
@@ -429,7 +441,7 @@ pub fn corpus(final_: bool) -> BookSnapshot {
         );
         if owner == "orientation-k11" {
             contents.push_str(
-                "<a id=\"working-vocabulary\"></a>\n## Working vocabulary\n<a id=\"insert-tour\"></a>\n## Insert tour\n",
+                "<a id=\"working-vocabulary\"></a>\n## Working vocabulary\n<a id=\"package-contract\"></a>\n## Package contract\n<a id=\"insert-tour\"></a>\n## Insert tour\n",
             );
         }
         contents.push_str(&body);
@@ -438,10 +450,12 @@ pub fn corpus(final_: bool) -> BookSnapshot {
             contents.into_bytes(),
         )
     }));
+    let book_entries = book_files.keys().cloned().collect();
     BookSnapshot {
         book_files,
         source_files,
-        linked_files: BTreeMap::new(),
+        book_entries,
+        non_regular_book_entries: Default::default(),
     }
 }
 

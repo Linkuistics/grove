@@ -388,7 +388,13 @@ fn push_child(parsed: &mut ParsedBook, active: Option<&mut Active>, child: Child
     match active {
         Some(Active::Root(root)) => root.children.push(child),
         Some(Active::Composite(fragment)) => {
-            if let FragmentBody::Composite(children) = &mut fragment.body {
+            if matches!(child, Child::Defer { .. }) {
+                invalid_context(
+                    parsed,
+                    child.location().clone(),
+                    "defer directive is not a direct child of a source root",
+                );
+            } else if let FragmentBody::Composite(children) = &mut fragment.body {
                 children.push(child);
             }
         }

@@ -4,7 +4,7 @@ mod markdown;
 mod parser;
 mod validator;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,8 @@ pub use validator::validate;
 pub struct BookSnapshot {
     pub book_files: BTreeMap<String, Vec<u8>>,
     pub source_files: BTreeMap<String, Vec<u8>>,
-    pub linked_files: BTreeMap<String, Vec<u8>>,
+    pub book_entries: BTreeSet<String>,
+    pub non_regular_book_entries: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -26,8 +27,46 @@ pub struct Request {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Scope {
-    Through(String),
+    Through(ScopedSlice),
     Final,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ScopedSlice {
+    Orientation,
+    NameSeam,
+    ReferenceDomain,
+    ReadPath,
+    MutationAlgebra,
+    FilesystemInterpreter,
+    SyllabusCli,
+}
+
+impl ScopedSlice {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Orientation => "orientation-k11",
+            Self::NameSeam => "name-seam-k12",
+            Self::ReferenceDomain => "reference-domain-k13",
+            Self::ReadPath => "read-path-k14",
+            Self::MutationAlgebra => "mutation-algebra-k15",
+            Self::FilesystemInterpreter => "filesystem-interpreter-k16",
+            Self::SyllabusCli => "syllabus-cli-k17",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "orientation-k11" => Self::Orientation,
+            "name-seam-k12" => Self::NameSeam,
+            "reference-domain-k13" => Self::ReferenceDomain,
+            "read-path-k14" => Self::ReadPath,
+            "mutation-algebra-k15" => Self::MutationAlgebra,
+            "filesystem-interpreter-k16" => Self::FilesystemInterpreter,
+            "syllabus-cli-k17" => Self::SyllabusCli,
+            _ => return None,
+        })
+    }
 }
 
 impl Serialize for Scope {
@@ -41,7 +80,7 @@ impl Serialize for Scope {
         match self {
             Self::Through(slice) => {
                 map.serialize_entry("kind", "through")?;
-                map.serialize_entry("slice", slice)?;
+                map.serialize_entry("slice", slice.as_str())?;
             }
             Self::Final => map.serialize_entry("kind", "final")?,
         }
@@ -225,6 +264,9 @@ fn default_remedy(code: &str) -> Option<&'static str> {
         "M102" => "restore the required heading and explicit-anchor structure",
         "M103" => "restore canonical contents and previous/contents/next navigation",
         "M104" => "move production source into a declared four-backtick fragment",
+        "M105" => {
+            "add a prose paragraph before the literal fragment with no intervening nonblank block"
+        }
         "M201" => "correct the link destination or restore its local target",
         "U001" => "run `book-check --help` for accepted arguments",
         "U002" => "restore read access to the required repository input",

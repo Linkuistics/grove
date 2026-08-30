@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs;
@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use clap::{error::ErrorKind, Parser, ValueEnum};
 use serde_json::json;
 
-use crate::{validate, BookSnapshot, Check, Request, Scope, SOURCE_PATHS};
+use crate::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice, SOURCE_PATHS};
 
 const AFTER_HELP: &str = "Exit status:\n  0  valid\n  1  deterministic findings\n  2  invalid invocation or input load failure\n  3  internal validator failure\n\nJSON output uses a versioned envelope with status, scope, coverage, and diagnostics.\n\nExamples:\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/ordinal-fs-tree/book --through read-path-k14 --check all\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/ordinal-fs-tree/book --final --check all";
 
@@ -142,12 +142,17 @@ fn run_arguments(arguments: Vec<OsString>, wants_json: bool) -> RunOutput {
         CheckArg::Markdown => Check::Markdown,
         CheckArg::All => Check::All,
     };
-    let snapshot = match load_snapshot(&repository, &cli.book, !matches!(check, Check::Fragments)) {
+    let snapshot = match load_snapshot(&repository, &cli.book) {
         Ok(snapshot) => snapshot,
         Err(error) => return input_error(error, cli.output == OutputArg::Json),
     };
     let request = Request {
-        scope: cli.through.map_or(Scope::Final, Scope::Through),
+        scope: cli.through.map_or(Scope::Final, |slice| {
+            Scope::Through(
+                ScopedSlice::parse(&slice)
+                    .expect("clap restricts --through to the typed scoped domain"),
+            )
+        }),
         check,
     };
     let report = validate(&snapshot, request);
@@ -166,14 +171,16 @@ fn run_arguments(arguments: Vec<OsString>, wants_json: bool) -> RunOutput {
     }
 }
 
-fn load_snapshot(
-    repository: &Path,
-    book: &Path,
-    load_links: bool,
-) -> Result<BookSnapshot, LoadFailure> {
+fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFailure> {
     let canonical_repository = fs::canonicalize(repository)
         .map_err(|error| LoadFailure::new(repository, "repository root", &error))?;
     let book_root = repository.join(book);
+    let book_root_type = fs::symlink_metadata(&book_root)
+        .map_err(|error| LoadFailure::new(book, "book directory", &error))?
+        .file_type();
+    if book_root_type.is_symlink() || !book_root_type.is_dir() {
+        return Err(LoadFailure::unsupported(book, "book directory"));
+    }
     let canonical_book_root = fs::canonicalize(&book_root)
         .map_err(|error| LoadFailure::new(book, "book directory", &error))?;
     if !canonical_book_root.starts_with(&canonical_repository) {
@@ -189,7 +196,10 @@ fn load_snapshot(
     paths.sort_by_key(|path| path.to_string_lossy().replace('\\', "/"));
     let mut book_files = BTreeMap::new();
     for path in paths {
-        if path.extension().is_some_and(|extension| extension == "md") {
+        let file_type = fs::symlink_metadata(&path)
+            .map_err(|error| LoadFailure::new(&path, "book entry", &error))?
+            .file_type();
+        if file_type.is_file() && path.extension().is_some_and(|extension| extension == "md") {
             let relative = path
                 .strip_prefix(&canonical_repository)
                 .expect("book path is confined to the canonical repository")
@@ -204,16 +214,57 @@ fn load_snapshot(
         let bytes = read_confined(repository, &canonical_repository, relative, "ledger source")?;
         source_files.insert((*relative).into(), bytes);
     }
-    let linked_files = if load_links {
-        load_linked_files(repository, &book_files, &source_files)?
-    } else {
-        BTreeMap::new()
-    };
+    let mut book_entries = BTreeSet::new();
+    let mut non_regular_book_entries = BTreeSet::new();
+    collect_book_entries(
+        &canonical_repository,
+        &canonical_book_root,
+        &mut book_entries,
+        &mut non_regular_book_entries,
+    )?;
     Ok(BookSnapshot {
         book_files,
         source_files,
-        linked_files,
+        book_entries,
+        non_regular_book_entries,
     })
+}
+
+fn collect_book_entries(
+    canonical_repository: &Path,
+    directory: &Path,
+    entries: &mut BTreeSet<String>,
+    non_regular_entries: &mut BTreeSet<String>,
+) -> Result<(), LoadFailure> {
+    let children = fs::read_dir(directory)
+        .map_err(|error| LoadFailure::new(directory, "book directory", &error))?;
+    let mut paths = Vec::new();
+    for child in children {
+        let child = child.map_err(|error| LoadFailure::new(directory, "book entry", &error))?;
+        paths.push(child.path());
+    }
+    paths.sort_by_key(|path| path.to_string_lossy().replace('\\', "/"));
+    for path in paths {
+        let relative = path
+            .strip_prefix(canonical_repository)
+            .expect("book entries are beneath the canonical repository")
+            .to_string_lossy()
+            .replace('\\', "/");
+        entries.insert(relative.clone());
+        let file_type = fs::symlink_metadata(&path)
+            .map_err(|error| LoadFailure::new(&path, "book entry", &error))?
+            .file_type();
+        if !file_type.is_file() {
+            non_regular_entries.insert(relative);
+        }
+        if file_type.is_dir() {
+            // A directory below the book root is already an inventory error.
+            // Preserve that diagnosable snapshot even when its contents cannot
+            // be enumerated; recurse only to report additional reachable entries.
+            let _ = collect_book_entries(canonical_repository, &path, entries, non_regular_entries);
+        }
+    }
+    Ok(())
 }
 
 fn read_confined(
@@ -235,52 +286,6 @@ fn read_confined(
         return Err(LoadFailure::unsupported(relative, subject));
     }
     fs::read(canonical).map_err(|error| LoadFailure::new(relative, subject, &error))
-}
-
-fn load_linked_files(
-    repository: &Path,
-    book_files: &BTreeMap<String, Vec<u8>>,
-    source_files: &BTreeMap<String, Vec<u8>>,
-) -> Result<BTreeMap<String, Vec<u8>>, LoadFailure> {
-    let canonical_repository = fs::canonicalize(repository)
-        .map_err(|error| LoadFailure::new(repository, "repository root", &error))?;
-    let mut targets = std::collections::BTreeSet::new();
-    for (source, bytes) in book_files {
-        let Ok(markdown) = std::str::from_utf8(bytes) else {
-            continue;
-        };
-        for link in crate::scan_markdown_links(markdown) {
-            if !link.valid_syntax || crate::markdown::external_destination(&link.destination) {
-                continue;
-            }
-            if let Some((target, _)) = crate::markdown::resolve_local(source, &link.destination) {
-                if !book_files.contains_key(&target) && !source_files.contains_key(&target) {
-                    targets.insert(target);
-                }
-            }
-        }
-    }
-    let mut linked_files = BTreeMap::new();
-    for target in targets {
-        let path = repository.join(&target);
-        let canonical = match fs::canonicalize(&path) {
-            Ok(path) if path.starts_with(&canonical_repository) => path,
-            Ok(_) | Err(_) => continue,
-        };
-        if !fs::metadata(&canonical).is_ok_and(|metadata| metadata.is_file()) {
-            continue;
-        }
-        match fs::read(&canonical) {
-            Ok(bytes) => {
-                linked_files.insert(target, bytes);
-            }
-            Err(error) if matches!(error.kind(), std::io::ErrorKind::IsADirectory) => {}
-            Err(error) => {
-                return Err(LoadFailure::new(&target, "linked repository file", &error));
-            }
-        }
-    }
-    Ok(linked_files)
 }
 
 fn normalized_relative(path: &Path) -> bool {

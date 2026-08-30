@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use book_validation::{
-    scan_markdown_links, validate, BookSnapshot, Check, Request, Scope, ValidationReport,
+    validate, BookSnapshot, Check, Request, Scope, ScopedSlice, ValidationReport,
 };
 
 const ROOT: &str = "docs/ordinal-fs-tree/book/";
@@ -65,10 +65,12 @@ fn valid_book() -> BookSnapshot {
             .to_vec(),
         ),
     ]);
+    let book_entries = book_files.keys().cloned().collect();
     BookSnapshot {
         book_files,
         source_files: BTreeMap::new(),
-        linked_files: BTreeMap::new(),
+        book_entries,
+        non_regular_book_entries: Default::default(),
     }
 }
 
@@ -76,11 +78,27 @@ fn validate_markdown(snapshot: &BookSnapshot) -> ValidationReport {
     validate_through(snapshot, "orientation-k11")
 }
 
+#[test]
+fn an_expected_page_path_with_a_non_regular_entry_is_an_inventory_finding() {
+    let mut snapshot = valid_book();
+    snapshot
+        .non_regular_book_entries
+        .insert(format!("{ROOT}01-orientation.md"));
+
+    let report = validate_markdown(&snapshot);
+
+    assert!(report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "M101"
+            && diagnostic.primary.path == format!("{ROOT}01-orientation.md")));
+}
+
 fn validate_through(snapshot: &BookSnapshot, slice: &str) -> ValidationReport {
     validate(
         snapshot,
         Request {
-            scope: Scope::Through(slice.into()),
+            scope: Scope::Through(ScopedSlice::parse(slice).unwrap()),
             check: Check::Markdown,
         },
     )
@@ -215,6 +233,26 @@ fn ordinary_rust_and_toml_fences_cannot_hide_production_source() {
 }
 
 #[test]
+fn literal_fragment_whose_nearest_nonblank_predecessor_is_not_prose_is_rejected() {
+    let mut snapshot = valid_book();
+    edit(&mut snapshot, "01-orientation.md", |text| {
+        text.replace(
+            "## Tour\n\n",
+            concat!(
+                "## Tour\n",
+                "<!-- fragment «opening» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-1\" parent=\"source-library\" -->\n",
+                "````rust\n",
+                "line\n",
+                "````\n",
+                "<!-- /fragment -->\n\n",
+            ),
+        )
+    });
+
+    assert!(codes(&validate_markdown(&snapshot)).contains(&"M105"));
+}
+
+#[test]
 fn broken_files_missing_explicit_anchors_and_scope_escapes_are_link_findings() {
     let cases = [
         "[Missing file](missing.md)",
@@ -238,7 +276,7 @@ fn broken_files_missing_explicit_anchors_and_scope_escapes_are_link_findings() {
 }
 
 #[test]
-fn repository_file_links_resolve_inside_the_explicit_snapshot() {
+fn repository_file_links_outside_the_book_and_frozen_corpus_are_rejected() {
     let mut snapshot = valid_book();
     snapshot.source_files.insert(
         "docs/ordinal-fs-tree/ARCHITECTURE.md".into(),
@@ -252,7 +290,11 @@ fn repository_file_links_resolve_inside_the_explicit_snapshot() {
     });
 
     let report = validate_markdown(&snapshot);
-    assert!(report.valid, "{:#?}", report.diagnostics);
+    assert!(
+        codes(&report).contains(&"M201"),
+        "{:#?}",
+        report.diagnostics
+    );
 }
 
 #[test]
@@ -291,33 +333,6 @@ fn links_in_inline_code_and_shared_lexer_fences_are_ignored() {
 
     let report = validate_markdown(&snapshot);
     assert!(report.valid, "{:#?}", report.diagnostics);
-}
-
-#[test]
-fn shared_link_scanner_respects_escaped_delimiters_and_exact_code_span_runs() {
-    assert_eq!(
-        scan_markdown_links(r"\`[Real](missing.md)")
-            .into_iter()
-            .map(|link| link.destination)
-            .collect::<Vec<_>>(),
-        ["missing.md"]
-    );
-    assert_eq!(
-        scan_markdown_links("`[Real](missing.md)``")
-            .into_iter()
-            .map(|link| link.destination)
-            .collect::<Vec<_>>(),
-        ["missing.md"]
-    );
-    assert!(scan_markdown_links(r"\[Escaped](missing.md)").is_empty());
-}
-
-#[test]
-fn shared_link_scanner_preserves_titled_destination_for_general_consumers() {
-    let links = scan_markdown_links(r#"[Guide](README.md "contents")"#);
-
-    assert_eq!(links[0].destination, "README.md");
-    assert!(!links[0].valid_syntax);
 }
 
 #[test]
@@ -370,7 +385,7 @@ fn all_selection_runs_fragment_and_markdown_checks() {
     let report = validate(
         &snapshot,
         Request {
-            scope: Scope::Through("orientation-k11".into()),
+            scope: Scope::Through(ScopedSlice::Orientation),
             check: Check::All,
         },
     );

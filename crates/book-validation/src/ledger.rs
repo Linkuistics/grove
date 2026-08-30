@@ -45,7 +45,19 @@ const EARLY_USES: &[(&str, &str, &str, &str)] = &[
         "Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam.",
     ),
     (
-        "`Label`, `Status`, `Parts`, `SyllabusName`",
+        "`manifest-cli-binary`",
+        "01-orientation.md#package-contract",
+        "syllabus-cli-k17",
+        "The binary declaration is CLI-owned and deferred; it maps the demonstration executable to its external consumer source and requires the CLI feature.",
+    ),
+    (
+        "`manifest-cli-feature`",
+        "01-orientation.md#package-contract",
+        "syllabus-cli-k17",
+        "The optional parser dependency is activated by a later CLI-owned feature range, enabled by default while library consumers may disable default features.",
+    ),
+    (
+        "`Label`, `Status`, `reference::Parts`, `SyllabusName`",
         "01-orientation.md#insert-tour",
         "reference-domain-k13",
         "These values are the syllabus consumer's vocabulary and seam implementation, not library defaults.",
@@ -739,7 +751,7 @@ fn owner_is_complete(scope: &Scope, owner: &str) -> bool {
     match scope {
         Scope::Final => true,
         Scope::Through(slice) => slice_order(owner)
-            .zip(slice_order(slice))
+            .zip(slice_order(slice.as_str()))
             .is_some_and(|(owner, through)| owner <= through),
     }
 }

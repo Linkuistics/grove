@@ -19,12 +19,24 @@
 #           collapse to a single site, and read clean — a false negative in the
 #           one assertion this file exists for.
 #
-#           `${prompt}` is the owner of a rule the **driver** delivers, inlined
-#           byte-frozen into the launch prompt rather than carried by any skill.
-#           Two rows have it. Neither assertion below can reach a prompt, so
-#           those rows are reported as prompt-delivered and asserted nowhere;
-#           calling them *pending* would promise a later leaf that ships them,
-#           and no leaf will.
+#           `${prompt}` is the owner of a rule the **driver** delivers, stated in
+#           the launch prompt rather than carried by any skill. One row has it,
+#           `signal-is-the-last-action`, and it binds all nineteen kinds:
+#           `prompt-names-the-kind-k18` replaced the two inlined signal files
+#           with one driver-authored signalling contract, so the mechanism is
+#           stated once for every kind and `finish-three-endings` — the ending
+#           that differs — moved to `grove-finish/SKILL.md`, where the spine
+#           already says a kind's own ending belongs. Neither assertion below can
+#           reach a prompt, so that row is reported as prompt-delivered and
+#           asserted nowhere; calling it *pending* would promise a later leaf
+#           that ships it, and no leaf will.
+#
+#           **Its `load` reads `static(19)` here and `static(18)` in the spec, and
+#           that is a difference of subject rather than drift.** The spec tabulates
+#           that row under `content/SIGNAL.md`, which is the corpus file eighteen
+#           kinds read; this file tabulates it under `${prompt}`, which every kind
+#           receives. Both are true of what they describe, and both die together
+#           at `delete-provisioning-k19` when the corpus does.
 #   class   the inventory's test column: B (behavioural), S (structural), B+S.
 #           `B*` is `B★` and `B (k5)` is the row landed by a later leaf; both
 #           are behavioural.
@@ -59,7 +71,7 @@ context-map-when-multiple	grove/CONTEXT-FORMAT.md	B	on(the repo has a context ma
 glossary-is-only-a-glossary	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
 glossary-is-the-forcing-function	grove/CONTEXT-FORMAT.md	B+S	on(a term is resolved) @ grove/SKILL.md	Never batch a session's terms for the end
 terms-are-context-specific	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
-signal-is-the-last-action	${prompt}	B*	static(18)	
+signal-is-the-last-action	${prompt}	B*	static(19)	
 bootstrap-order	grove/SKILL.md	B	static(19)	
 hitl-afk-mark-predicts	grove/SKILL.md	B	static(19)	
 kind-routing-table	grove/SKILL.md	B	static(19)	
@@ -143,7 +155,7 @@ declined-finish-stays-live	grove-finish/SKILL.md	B	static({finish})
 finish-confirmation-gate	grove-finish/SKILL.md	B	static({finish})	
 finish-promotes-before-teardown	grove-finish/SKILL.md	B	static({finish})	
 finish-resume-reruns-the-same-command	grove-finish/SKILL.md	B	static({finish})	
-finish-three-endings	${prompt}	B*	static({finish})	
+finish-three-endings	grove-finish/SKILL.md	B*	static({finish})	
 nothing-after-finish	grove-finish/SKILL.md	B+S	static({finish})	
 recovery-pending-stops	grove-finish/SKILL.md	B	static({finish})	
 teardown-via-finish-commit	grove-finish/SKILL.md	B	static({finish})	

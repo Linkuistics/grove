@@ -203,12 +203,25 @@ into a single site and read clean over the duplicate it exists to find. The cont
   three known ones are pinned in
   [`conformance/removed-paraphrases.tsv`](conformance/removed-paraphrases.tsv);
   nothing claims a fourth does not exist.
-- Two rows are delivered by the **driver**, not by any skill: the signal step,
-  and a `finish` session's three endings, whose bytes the driver inlines into
-  `${prompt}`. Their owner cell is `${prompt}` and neither assertion touches
-  them — a runner over an installed skill set cannot read a prompt. They are
-  reported as prompt-delivered rather than *pending*, because pending promises a
-  later leaf that ships the file and no leaf will.
+- **One** row is delivered by the **driver**, not by any skill: the signal step,
+  which `${prompt}` states as a mechanism for every kind. Its owner cell is
+  `${prompt}` and neither assertion touches it — a runner over an installed skill
+  set cannot read a prompt. It is reported as prompt-delivered rather than
+  *pending*, because pending promises a later leaf that ships the file and no
+  leaf will.
+
+  It was two until `prompt-names-the-kind-k18`. A `finish` session's three
+  endings rode the prompt because the driver inlined a per-kind signal file; they
+  are now inline in `grove-finish/SKILL.md`, so that row came back inside this
+  runner's reach. **What it does not reach is the corpus copy.** `content/`
+  still ships `SIGNAL-FINISH.md`, carrying the same table in nearly the same
+  words, until `delete-provisioning-k19` deletes it — and the temporary
+  spine-and-`content/` byte check below cannot see it, because
+  `SIGNAL-FINISH.md` has no spine counterpart to be compared against. That pair
+  is a restatement with no declared class for one more leaf, recorded here
+  rather than machinery written for a thing whose lifetime is one leaf. The
+  corpus copy is the one that is unreachable: nothing routes a session into
+  `content/` once the prompt names a plugin skill.
 - A row whose owner file is not shipped is **pending**, not asserted. The count
   reached zero at `plugin-kind-skills-k17`; a run reporting a pending row again
   is reporting a skill that did not ship.

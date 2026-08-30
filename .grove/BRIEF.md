@@ -156,6 +156,16 @@ inherit the label, and the test is the matrix k6 ran: is there a cell where the
 *installed* build meets the tree this leaf leaves and fails? If the tree-visible
 change can simply be deferred, defer it and do not deploy.
 
+**`prompt-names-the-kind-k18` is off the list too**, and its answer is shorter
+than k6's: it leaves the tree byte-identical in shape — no file added, removed or
+renamed, and no grammar moved — so the installed build meets the same tree it met
+before and there is no cell to fail in. What that leaf changes is what a *launch
+prompt* says, which never reaches a driver already running. Its
+`## Why this leaf does not install anything` carries the derivation. Two remain
+on the list, `delete-provisioning-k19` and `open-kind-k20`, and each still owes
+its own matrix — k18's finding is not transferable, because k19's cell is
+precisely the one k18 does not have.
+
 **A cutover release meets every grove on this machine, not just this one.**
 `grammar-separator-k15` ran the step-2 check and found four other live groves —
 `Writegood`, `grove.gh-issue-12`, `grove.code-walkthrough-for-ordinal-fs-tree`

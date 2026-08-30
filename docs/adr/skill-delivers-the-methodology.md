@@ -8,6 +8,23 @@ the other: a session that reads only the core has the three things it could not
 learn any other way, and everything else is on disk in one skill, named in the
 prompt, with this session's own reference file named too.
 
+> **Superseded in part by `prompt-names-the-kind-k18`, and retired whole at
+> `delete-provisioning-k19`.** What this record describes below is the delivery
+> design as it stood while the binary provisioned `content/` and composed a core
+> out of it. Three of its claims are no longer true of the code: the core no
+> longer names a [kind reference file](../../content/references/), it no longer
+> inlines a corpus signal file byte-exact, and it no longer lists the provisioned
+> directories — all three went with `src/prompt.rs`'s content dependency, so the
+> core is now three driver-authored parts that read nothing, and the four
+> structural couplings below are one (the `grove-<kind>` skill the prompt names
+> must exist). What replaces the byte-frozen ending is Grove's own signalling
+> contract, stated once for every kind, with the ending a kind takes inline in
+> that kind's `grove-<kind>` skill. The rest of the record — the too-late test,
+> the two observed failures it sits between, and the residue it accepts — is what
+> `docs/specs/module-decomposition.md`'s decisions 9 and 10 were argued from, and
+> it is left standing until provisioning itself goes, because rewriting it ahead
+> of that code would describe a delivery path that still runs.
+
 **Two failures are observed, not theorised, and they pull opposite ways.**
 Delivering the methodology through `${prompt}` degrades behaviour — sessions
 finish their work correctly and then fail to signal, stalling the loop. Delivering

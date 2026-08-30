@@ -109,34 +109,37 @@ kind's discipline is one bullet inside a nineteen-bullet section* — was that
 record's own stated reopen condition, and the corpus restructure satisfied it: a
 kind's discipline is now a whole [[Kind reference file]] the driver names by path,
 so the session performs no selection.
-_Avoid_: treating the surviving inline — `content/SIGNAL.md` and
-`content/SIGNAL-FINISH.md` in the [[Guaranteed core]] — as a summary or a
-paraphrase. It is the source bytes, or it is a second source of truth, and that
-reason never depended on selection.
+_Avoid_: reviving the inline that used to sit in the [[Guaranteed core]].
+`content/SIGNAL.md` and `content/SIGNAL-FINISH.md` rode it byte-exact so that a
+shared text could not become a paraphrase; `prompt-names-the-kind-k18` removed
+the sharing instead — the core states Grove's own signalling contract, and the
+ending a kind takes is inline in that kind's `grove-<kind>` skill — so there is
+nothing left for a second source to be a copy of.
 _Avoid_: reading specificity as removing **every** branch. It removes a branch on
 the [[Session kind]] — a fact the driver resolved before the session existed, so
 shipping the `if` makes the session re-derive it — which is why the core names
-one [[Kind reference file]] rather than printing the routing table. It cannot
+one `grove-<kind>` skill rather than printing a routing table. It cannot
 remove a branch on what happened *during* the session, which no driver can
 resolve; withholding one of those yields an unasked question rather than a
 saving.
 
 **Guaranteed core** / **the too-late test**:
-The whole of a session's `${prompt}` once [[Global skill provisioning]] is the
-delivery path again: a forceful instruction to load the provisioned skill and
-this kind's [[Kind reference file]], the runtime facts the driver resolved (the
-selected [[Work-item handle]] and the [[Stated VCS]]), and the session-ending
-instruction — in that order, which is the session's own timeline. What may join
-it is decided by the **too-late test**: a sentence earns `${prompt}` only when its
-failure mode is one the skill cannot repair, because by the time the skill could
-speak the moment has passed. Three shapes pass — a fact only the driver holds,
-the instruction to open the skill, and the session's last action — and the test's
-first output is a list of **one** methodology condition. Two channels, one
-source: two of the three cannot be in the skill at all, and the third is this
-kind's embedded signal file inlined verbatim, so the **prose** drift surface is zero
-bytes — what the channels share is four structural couplings (the skill's name,
-the reference path, the signal path, the provisioned locations), two closed by
-construction and two by assertion.
+The whole of a session's `${prompt}`: a forceful instruction to load this kind's
+[[Kind skill]], named in both the bare and the plugin-namespaced spelling of that
+one target; the runtime facts the driver resolved (the selected [[Work-item
+handle]], the [[Stated VCS]], and Grove's published release version); and Grove's
+own signalling contract — in that order, which is the session's own timeline.
+What may join it is decided by the **too-late test**: a sentence earns
+`${prompt}` only when its failure mode is one the skill cannot repair, because by
+the time the skill could speak the moment has passed. Three shapes pass — a fact
+only the driver holds, the instruction to open the skill, and the mechanism the
+session's last action drives — and the test's first output is a list of **one**
+methodology condition. The **prose** drift surface is zero bytes and is now zero
+by construction: `prompt-names-the-kind-k18` made all three parts driver prose,
+so the core reads nothing and there is no shared text to hold in step. One
+coupling survives — the `grove-<kind>` skill the prompt names has to exist — and
+it is not closeable from the binary, because what a machine has installed is
+outside any suite.
 Design: ADR `skill-delivers-the-methodology`, and `docs/ARCHITECTURE.md`,
 *Embedded methodology*.
 _Avoid_: admitting a sentence because it is **important**, needed every session,
@@ -144,25 +147,30 @@ or short. Importance is unbounded and is what builds a wall; frequency is not
 timing; size is a consequence of the rule and never a criterion.
 _Avoid_: reading the core as an abridged methodology a session may work from. It
 is three facts and one instruction, and it teaches nothing.
-_Avoid_: reading "one signal file" into the three parts. Two serve the nineteen
-kinds: `content/SIGNAL.md` for the eighteen that end one way, and
-`content/SIGNAL-FINISH.md` for `finish`, whose three endings are chosen by what
-the session did — so a fixed sentence would be wrong for two of them, and the one
-it would state relaunches the loop onto a torn-down grove. Omitting the part for
-`finish` is the other wrong answer: it drops the too-late-shaped instruction in
-the session where a forgotten signal costs most.
+_Avoid_: reading the third part as an instruction. It is a **mechanism** — the
+driver is watching a named file, writing it ends the session, not writing it
+stops the loop — and one text serves all nineteen kinds because of that. Which
+of the three endings a kind takes is a rule about that kind, and the shipped
+spine assigns it to that kind's own skill. Two embedded files used to carry the
+split, and `finish` needed the second: a fixed instruction would relaunch the
+loop onto a torn-down grove, while omitting the part would drop the
+too-late-shaped sentence in the session where a forgotten signal costs most. The
+contract answers both by stating neither ending — and the residue it does carry,
+a default `finish` overrides, is recorded at `src/prompt.rs`.
 _Avoid_: reading its 4 KiB assertion as a budget the design was fitted to — it is
 an alarm on the test, and nothing legitimate approaches it.
 
 **Kind reference file**:
 The one file of the provisioned skill's flat `references/` directory carrying a
-[[Session kind]]'s own discipline, named by path in that kind's [[Guaranteed
-core]]. Ten files serve nineteen kinds, because the set was **recovered from the
-narrowed marker scopes** of the retired classification rather than invented — the
-five `review-*` kinds already shared one, as did the five `integrate-review-*`
-and the two research producers. The kind→file map is an exhaustive match over the kind set in
-the driver, which is [[Kind routing]] doing what it already does; a twentieth
-kind fails to compile until it is classified. The files are
+[[Session kind]]'s own discipline. Ten files serve nineteen kinds, because the
+set was **recovered from the narrowed marker scopes** of the retired
+classification rather than invented — the five `review-*` kinds already shared
+one, as did the five `integrate-review-*` and the two research producers. The
+[[Guaranteed core]] used to name that file by path, through an exhaustive match
+over the kind set in the driver; `prompt-names-the-kind-k18` deleted the match
+along with the rest of the driver's content dependency, so the map is now what
+the file names themselves say — a kind's family is read off its own label. The
+files are
 `content/references/{requirements,design,planning,prototype,impl,review,
 integrate-review,research,combine-research,finish}.md`, one level deep and flat.
 _Avoid_: counting eleven. `skill-signal` is an eleventh narrowed scope and is not
@@ -282,17 +290,17 @@ the failure mode the measurement exists to avoid rather than reproduce.
 
 **Loaded path**:
 The bytes one session actually **reads** on its normal path for its kind — the
-[[Guaranteed core]] in `${prompt}`, the provisioned `SKILL.md`, that kind's
-[[Kind reference file]], and whatever a condition it meets sends it to. It is the
+provisioned `SKILL.md`, that kind's [[Kind reference file]], that kind's signal
+file, and whatever a condition it meets sends it to. It is the
 unit the corpus is measured and budgeted in, and it is per-kind: nineteen kinds
 share ten reference files, so nineteen paths run through one corpus.
 **It has a static half and a conditional half**, and only the static half is
-computable: the core, `SKILL.md` and `reference_file(kind)` are fixed by
-`src/prompt.rs`, while everything else is on the path because a condition fired.
-That is also what files a rule, though **not by narrowness alone**: exactly three
-files are ever static — `SKILL.md`, `reference_file(kind)`, and the **signal file**
-the core inlines (`SIGNAL.md` for eighteen kinds, `SIGNAL-FINISH.md` for `finish`)
-— so "the narrowest file every bound session already opens" would send every
+computable: `SKILL.md`, that kind's reference file and that kind's signal file
+are fixed by the corpus's own naming rule, while everything else is on the path
+because a condition fired. That is also what files a rule, though **not by
+narrowness alone**: exactly three files are ever static — `SKILL.md`,
+`reference_file(kind)`, and the **signal file** (`SIGNAL.md` for eighteen kinds,
+`SIGNAL-FINISH.md` for `finish`) — so "the narrowest file every bound session already opens" would send every
 all-nineteen rule to `SKILL.md`. What decides is the pair `Bound` and `Occasion` under an ordered
 first-match rule (ADR *corpus-rules-have-one-owner*), where `Occasion` is a **set**
 of moments so a rule that crosses steps records all of them and the earliest wins.

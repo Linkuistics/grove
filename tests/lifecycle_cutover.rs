@@ -256,7 +256,7 @@ exit 0
     // that clause is what reaches a session first, and the core's shape and
     // wording are pinned whole in `tests/prompt.rs`.
     assert!(
-        log.contains("arg=<**Load the `grove` skill now, and read its `references/impl.md`.**"),
+        log.contains("arg=<**Load the `grove-impl` skill now**"),
         "{log:?}"
     );
     assert!(log.contains(&mandate_naming("selected-work-k7")), "{log:?}");

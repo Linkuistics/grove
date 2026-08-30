@@ -28,10 +28,33 @@ the LLM (no Rust automation): the session **proposes** it and **waits for
 explicit human confirmation before any teardown** — never run steps 2–3
 unprompted; with no human to ask, report the plan instead.
 
-**How this session ends is decided by what it did, and the three outcomes are
-stated together in your prompt** — the driver inlines them there, byte for byte,
-as the last part of a `finish` prompt, so the outcomes have one source and no
-second statement anywhere that could drift from it. On confirmation, run:
+**How this session ends is decided by what it did**, and all three outcomes are
+open to you. In the two that signal, the signal is your **last action — then do
+nothing else**; the loop driver is watching for it and ends the session itself.
+
+| what the session did | ending |
+|---|---|
+| teardown completed | `grove-llm complete --done` — the loop stops |
+| externalised work instead | `grove-llm complete` — the loop relaunches and picks the new leaf; the sentinel waits |
+| declined, or no human present | no signal — the loop stops, the leaf stays live and resumable |
+
+**These override the default ending your prompt states.** Every prompt carries
+grove's signalling contract, whose default is a bare `grove-llm complete`; that
+is the wrong ending for a session that has just torn the task tree down, because
+it relaunches the loop onto a grove that is no longer there. This table is the
+`finish` ending, and it is stated here because the ending a kind takes is that
+kind's own rule.
+
+The middle outcome is the one worth holding on to. You are told, like every
+session, to externalize surfaced work rather than absorb it, and a session that
+does so **cannot** tear down: ordinary work is live, and `pick` passes the
+sentinel over until it is terminal. That is a plain relaunch rather than a
+failure, and it banks no confirmation — the sentinel is never retired, so the
+next `finish` session proposes the cycle and waits for a confirmation of its
+own. Declining, or finding no human to ask, leaves the leaf live and next, so
+the following bare `grove` proposes the cycle again.
+
+On confirmation, run:
 
 1. **Promote** anything from the briefs that should outlive the grove — ADRs,
    docs, glossary entries. Reviewable working-tree edits; often a near no-op
@@ -53,12 +76,12 @@ second statement anywhere that could drift from it. On confirmation, run:
    rerun the same command with the same handle. If you cannot tell what failed,
    stop and hand the diagnostic to the human; Grove never rewrites history to
    clear anything.
-3. **End on the row that matches what this session did** — the endings and which
-   one each outcome takes are your prompt's, and the signal is the **very
-   last** action. It must come last: the loop driver is watching for the signal
-   file and ends this session after a short grace, so signalling any earlier
-   would cut teardown short. Run it from inside this session's working tree —
-   the verb resolves the current directory to verify the live session epoch,
+3. **End on the row that matches what this session did** — the table above —
+   and the signal is the **very last** action. It must come last: the loop
+   driver is watching for the signal file and ends this session after a short
+   grace, so signalling any earlier would cut teardown short. Run it from inside
+   this session's working tree — the verb resolves the current directory to
+   verify the live session epoch,
    which stays valid after `.grove/` is deleted, and it writes only the launch's
    randomly named signal file in the workspace's VCS-administration control
    directory, nothing in the working tree.

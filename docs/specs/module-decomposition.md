@@ -642,6 +642,20 @@ gap is recorded there rather than argued away: a harness with a skill-loading
 affordance is unaffected, one without loses its fallback, and the reopen
 condition is a session that cannot reach the methodology by the affordance alone.
 
+**The signalling contract's own gap, recorded at the leaf that landed it.** One
+contract for nineteen kinds replaces two per-kind signal files whose split
+existed so that a `finish` prompt never carried *run `grove-llm complete`* — the
+ending that, taken by the one session that may have just deleted the task tree,
+relaunches the loop onto a torn-down grove, and whose stated precondition a
+completed teardown satisfies exactly. The contract answers that by making the
+kind's own ending the sentence's object and the ordinary verb subordinate to it,
+so no prompt ends on a bare imperative for the wrong action. What is not answered
+is the compound with decision 10's accepted residue: a `finish` session whose
+`grove-finish` skill is missing or unread meets the ordinary default and nothing
+contradicting it, where the old prompt alone was fail-safe for that kind whatever
+was installed. The reopen condition is a `finish` session observed signalling
+`complete` after a teardown.
+
 ### 10 — Grove publishes its version in the prompt
 
 The compatibility check inverts: the machinery states what it is, and the

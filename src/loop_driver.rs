@@ -335,74 +335,40 @@ fn run_configured_loop_with_lease(
 /// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
 ///
 /// **The driver hands a session a pointer, not the methodology.** What earns a
-/// place, and why the two facts below arrive as bare values with no normative
-/// tail, is [`crate::prompt`]'s to state and this function's to supply: the
-/// selected leaf's stable handle, the stated version control, and the
-/// directories provisioning actually wrote on this same iteration
-/// (`docs/adr/skill-delivers-the-methodology.md`).
+/// place, and why the facts below arrive as bare values with no normative tail,
+/// is [`crate::prompt`]'s to state and this function's to supply: the selected
+/// leaf's stable handle, the resolved workspace the prompt states the version
+/// control from, and grove's own published release version.
 ///
 /// The kind is passed in rather than re-read: it is the same value that indexed
 /// the configuration entry, taken from the one guarded selection, so the prompt
 /// and the command a session receives cannot disagree about what kind it is.
 ///
-/// A missing reference file fails the launch rather than degrading it. The suite
-/// already asserted every mapped path against the embed, so an error here is a
-/// bug — and the answer to it is still not to spawn a session pointed at a file
-/// that is not there.
+/// **The version is `CARGO_PKG_VERSION`, read here rather than in `prompt`**, so
+/// composition takes a value like every other runtime fact and the module that
+/// composes text does not also decide what build it is part of. It is the same
+/// value `grove --version` renders — clap derives that from this constant — which
+/// is what makes the flag a fallback for the published fact rather than a second
+/// source of it (`docs/specs/module-decomposition.md`, decision 10).
+///
+/// Resolving the workspace is the one thing here that can fail, and it is
+/// unreachable in a driver that got this far: the lease it holds lives *in* the
+/// workspace's own `.jj/`, so a marker was already found. Spent as an error
+/// rather than a panic — the prompt has no second case to express, and a driver
+/// with nothing to say here must not launch a session that then has to guess.
 fn session_prompt(handle: &Handle, kind: Kind, worktree: &Path) -> Result<String> {
-    crate::prompt::compose(
-        kind,
-        // Rendered by its owner. `prompt` composes text and holds no grammar of
-        // its own, so it takes the string the handle renders to, not the handle.
-        &handle.to_string(),
-        &stated_vcs(worktree)?,
-        &crate::provision::installed_skill_dirs(),
-    )
-}
-
-/// The **value** that states this working tree's VCS to the session, so no
-/// session ever detects it (`docs/ARCHITECTURE.md#symmetric-vcs-rule`).
-///
-/// The fact is the driver's: [`crate::repo::require_jj_workspace`] is the named
-/// authority every tree-mutation verb already passes through, and it resolved
-/// before this session existed. Only the session re-derived it, and re-derived
-/// it badly — a harness banner computed from `.git` alone reads a jj workspace
-/// as no repository at all, and detection carried as skill instructions is
-/// skippable, so a session that never loaded them commits with Git in a jj tree
-/// and bypasses the operation log.
-///
-/// **Two elements, and the third one left**: identity and the resolved root, and
-/// no *do not probe for it*. That clause is a normative consequence of a value,
-/// and the closed fact test hands every such consequence to the skill —
-/// `content/SKILL.md`'s `skill-stated-vcs-is-definitive` states it, and stating
-/// it here again would be the second source the core exists to avoid
-/// (`docs/adr/skill-delivers-the-methodology.md`). This is that closure's one
-/// real cost: a rule the prompt used to carry now depends on the skill being
-/// read, like every other rule.
-///
-/// Still deliberately **not** the
-/// commit-boundary commands — those live in the methodology's Commit step, and a
-/// copy here would drift across the build boundary
-/// (`docs/ARCHITECTURE.md#the-boundary-is-a-build-not-a-commit`).
-fn stated_vcs(worktree: &Path) -> Result<String> {
-    // Unreachable in a driver that got this far: the lease it holds lives *in*
-    // the workspace's own `.jj/`, so a marker was already found. Spent as an
-    // error rather than a panic — the prompt has no second case to express, and
-    // a driver with nothing to say here must not launch a session that then has
-    // to guess.
-    //
     // Taken from the resolution rather than assumed. It *is* `worktree` — the
     // walk starts at the path itself and the lease root is the marker's own
     // directory — but reading the resolved root cannot drift if either end
     // moves.
-    let workspace_root = Workspace::resolve(worktree)
-        .context("the session prompt cannot state the version control")?
-        .root()
-        .to_path_buf();
-    Ok(format!(
-        "this working tree is jj-enabled (jj workspace root: `{}`)",
-        workspace_root.display()
-    ))
+    let workspace = Workspace::resolve(worktree)
+        .context("the session prompt cannot state the version control")?;
+    Ok(crate::prompt::compose(&crate::prompt::Mandate {
+        handle,
+        kind,
+        workspace: &workspace,
+        version: env!("CARGO_PKG_VERSION"),
+    }))
 }
 
 /// Launch one fresh foreground session owning the real TTY, and hand it to

@@ -1,11 +1,21 @@
 //! **What a session actually pays to read, budgeted per kind.**
 //!
 //! A **loaded path** is per-kind and has two halves. The *static* half is what
-//! every session of that kind reads unconditionally: the guaranteed core in
-//! `${prompt}`, the provisioned `content/SKILL.md`, and that kind's reference
-//! file. The *reachable* half adds every file a condition on that path can send
-//! it to — the transitive closure of the pointer graph
-//! `docs/specs/corpus-rule-ownership.md` records in its **load** column.
+//! every session of that kind reads unconditionally: `content/SKILL.md`, that
+//! kind's reference file, and that kind's signal file. The *reachable* half adds
+//! every file a condition on that path can send it to — the transitive closure
+//! of the pointer graph `docs/specs/corpus-rule-ownership.md` records in its
+//! **load** column.
+//!
+//! **`${prompt}` left the static half at `prompt-names-the-kind-k18`, and the
+//! rows below were re-fitted to what remained.** The guaranteed core used to open
+//! every path, because it named this corpus's `SKILL.md` and inlined this
+//! corpus's signal file; the prompt now names one `grove-<kind>` plugin skill and
+//! states grove's signalling contract in grove's own words, so nothing routes a
+//! session into `content/` and there is no composition left to measure. What this
+//! file measures from that leaf on is the corpus's own three entry files, which
+//! is what the **load** column has always described. It goes with `content/` at
+//! `delete-provisioning-k19`.
 //!
 //! Nineteen kinds share ten reference files, so the budget is a **table, not a
 //! number**, and this file owns the inventory's **load** column. The **owner**
@@ -24,15 +34,15 @@
 //! spec by name: a row this reader loses fails the count control below, and a
 //! rule that file loses fails its own.
 //!
-//! **The measurement runs through the runtime, not beside it.**
-//! [`grove::prompt::compose`] composes the real core — the real template, the
-//! real per-kind reference mapping, the embed's own signal bytes — and the
-//! reference file is [`grove::prompt::reference_file`]'s answer, not a second
-//! table. A budget computed by a parallel notion of what a session reads drifts
-//! from the real one and then lies, which is the failure mode this file exists
-//! to avoid rather than to reproduce. The only fixtures are the three
-//! **launch-varying** values `compose` takes — handle, stated VCS, provisioned
-//! locations — held fixed so the measurement is reproducible on any machine.
+//! **The static path is derived from the corpus's own naming rule, never
+//! enumerated.** Ten reference files serve the nineteen kinds and each family
+//! shares one, which is exactly the routing table `SKILL.md` prints; the two
+//! signal files split the same way the ending does. Deriving both from the
+//! kind's own label means a twentieth kind joins its family the moment it is
+//! named, where a hand-written list would simply never see it — and it is the
+//! same derivation `tests/lifecycle_invariants.rs` makes, which is duplication
+//! on the same terms as the two readers below: two questions at two grains,
+//! pinned to one corpus.
 //!
 //! **The budget is in words, and that is a decision rather than an omission.**
 //! Tokens are what a session pays and words are what a `cargo test` can count:
@@ -52,29 +62,13 @@
 //! the other, and a green budget is not evidence that a session obeys anything.
 
 use grove::leaf::Kind;
-use grove::{methodology, prompt};
+use grove::methodology;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The inventory, read from the design it is an assertion over.
 const SPEC: &str = include_str!("../docs/specs/corpus-rule-ownership.md");
 
 // -- Measuring one kind's loaded path -----------------------------------------
-
-/// The launch-varying values [`grove::prompt::compose`] takes, held fixed.
-///
-/// A real launch's handle, VCS statement and provisioned-directory list vary by
-/// tree and by machine, so measuring the composed core against a live launch
-/// would make the budget machine-dependent. These are representative rather than
-/// minimal — three locations, because a machine with Claude Code, Codex and Pi
-/// installed is the common case and the widest of them, so the core is measured
-/// at its ordinary size rather than at its floor.
-const FIXTURE_HANDLE: &str = "loaded-path-budgets-k10";
-const FIXTURE_VCS: &str = "this working tree is jj-enabled (jj workspace root: `/w`)";
-const FIXTURE_LOCATIONS: [&str; 3] = [
-    "/home/u/.claude/skills/grove",
-    "/home/u/.codex/skills/grove",
-    "/home/u/.pi/agent/skills/grove",
-];
 
 /// Whitespace-separated tokens. The same measure `wc -w` makes, so a contributor
 /// can recompute a failure at a shell without this test.
@@ -126,13 +120,13 @@ fn file_words(corpus: &BTreeMap<String, &'static str>, path: &str) -> usize {
 
 /// One kind's measured loaded path, both halves, with the parts that make it up.
 struct Measured {
-    /// `${prompt}` in full, composed by the runtime — load instruction, runtime
-    /// facts, and this kind's signal file inlined verbatim.
-    core: usize,
     /// `content/SKILL.md`'s body.
     skill: usize,
-    /// `prompt::reference_file(kind)`.
+    /// This kind's reference file.
     reference: usize,
+    /// This kind's signal file — `SIGNAL-FINISH.md` for `finish`, `SIGNAL.md`
+    /// for the other eighteen.
+    signal: usize,
     /// Every file reachable from the static path by a cross-file edge, and not
     /// already on it.
     reached: BTreeMap<String, usize>,
@@ -141,7 +135,7 @@ struct Measured {
 impl Measured {
     /// What every session of this kind reads unconditionally.
     fn static_words(&self) -> usize {
-        self.core + self.skill + self.reference
+        self.skill + self.reference + self.signal
     }
 
     /// The static path plus everything a condition on it can open — the worst
@@ -162,12 +156,12 @@ impl Measured {
             "{}:\n      {:<32} {:>5}\n      {:<32} {:>5}\n      {:<32} {:>5}\n\
              \x20     {:<32} {:>5}\n{}\n      {:<32} {:>5}",
             kind.label(),
-            "guaranteed core",
-            self.core,
             "SKILL.md (body)",
             self.skill,
-            prompt::reference_file(kind),
+            reference_file(kind),
             self.reference,
+            signal_file(kind),
+            self.signal,
             "= static",
             self.static_words(),
             listed.join("\n"),
@@ -179,14 +173,10 @@ impl Measured {
 
 /// Measure `kind`'s loaded path against the real corpus and the real composition.
 fn measure(kind: Kind, corpus: &BTreeMap<String, &'static str>, graph: &Graph) -> Measured {
-    let core = prompt::compose(kind, FIXTURE_HANDLE, FIXTURE_VCS, &FIXTURE_LOCATIONS)
-        .expect("the real embed must compose every kind's prompt");
-    let reference = prompt::reference_file(kind);
-
     // The seed is the *whole* static path, signal file included — the same set
     // `static_files` computes. Seeding only `SKILL.md` and the reference file
-    // would silently drop an edge out of a signal file, and would double-count
-    // one into it: the signal file's words are already inside `core`.
+    // would silently drop an edge out of a signal file, and would count its
+    // words twice: once as a static member and once as a reached one.
     let seed = static_files(kind, corpus);
     let reached = graph
         .closure(&seed)
@@ -199,9 +189,9 @@ fn measure(kind: Kind, corpus: &BTreeMap<String, &'static str>, graph: &Graph) -
         .collect();
 
     Measured {
-        core: words(&core),
         skill: file_words(corpus, SKILL),
-        reference: file_words(corpus, reference),
+        reference: file_words(corpus, &reference_file(kind)),
+        signal: file_words(corpus, signal_file(kind)),
         reached,
     }
 }
@@ -263,154 +253,154 @@ const BUDGETS: &[Budget] = &[
     // requirements
     Budget {
         kind: Kind::Requirements,
-        measured_static: 1562,
-        static_words: 1725,
-        measured_reachable: 12533,
-        reachable_words: 13800,
+        measured_static: 1441,
+        static_words: 1600,
+        measured_reachable: 13118,
+        reachable_words: 14450,
     },
     // design
     Budget {
         kind: Kind::Design,
-        measured_static: 1149,
-        static_words: 1275,
-        measured_reachable: 11741,
-        reachable_words: 12925,
+        measured_static: 1028,
+        static_words: 1150,
+        measured_reachable: 12299,
+        reachable_words: 13550,
     },
     // planning
     Budget {
         kind: Kind::Planning,
-        measured_static: 1317,
-        static_words: 1450,
-        measured_reachable: 11909,
-        reachable_words: 13100,
+        measured_static: 1196,
+        static_words: 1325,
+        measured_reachable: 12467,
+        reachable_words: 13725,
     },
     // prototype
     Budget {
         kind: Kind::Prototype,
-        measured_static: 1169,
-        static_words: 1300,
-        measured_reachable: 11761,
-        reachable_words: 12950,
+        measured_static: 1048,
+        static_words: 1175,
+        measured_reachable: 12319,
+        reachable_words: 13550,
     },
     // impl
     Budget {
         kind: Kind::Impl,
-        measured_static: 1334,
-        static_words: 1475,
-        measured_reachable: 11926,
-        reachable_words: 13125,
+        measured_static: 1268,
+        static_words: 1400,
+        measured_reachable: 12539,
+        reachable_words: 13800,
     },
     // research-a
     Budget {
         kind: Kind::ResearchA,
-        measured_static: 1383,
-        static_words: 1525,
-        measured_reachable: 11975,
-        reachable_words: 13175,
+        measured_static: 1262,
+        static_words: 1400,
+        measured_reachable: 12533,
+        reachable_words: 13800,
     },
     // research-b
     Budget {
         kind: Kind::ResearchB,
-        measured_static: 1383,
-        static_words: 1525,
-        measured_reachable: 11975,
-        reachable_words: 13175,
+        measured_static: 1262,
+        static_words: 1400,
+        measured_reachable: 12533,
+        reachable_words: 13800,
     },
     // combine-research
     Budget {
         kind: Kind::CombineResearch,
-        measured_static: 1225,
-        static_words: 1350,
-        measured_reachable: 11817,
-        reachable_words: 13000,
+        measured_static: 1104,
+        static_words: 1225,
+        measured_reachable: 12375,
+        reachable_words: 13625,
     },
     // finish
     Budget {
         kind: Kind::Finish,
-        measured_static: 1938,
-        static_words: 2150,
-        measured_reachable: 12530,
-        reachable_words: 13800,
+        measured_static: 1801,
+        static_words: 2000,
+        measured_reachable: 13072,
+        reachable_words: 14400,
     },
     // review-requirements
     Budget {
         kind: Kind::ReviewRequirements,
-        measured_static: 1260,
-        static_words: 1400,
-        measured_reachable: 11852,
-        reachable_words: 13050,
+        measured_static: 1139,
+        static_words: 1275,
+        measured_reachable: 12410,
+        reachable_words: 13675,
     },
     // review-design
     Budget {
         kind: Kind::ReviewDesign,
-        measured_static: 1260,
-        static_words: 1400,
-        measured_reachable: 11852,
-        reachable_words: 13050,
+        measured_static: 1139,
+        static_words: 1275,
+        measured_reachable: 12410,
+        reachable_words: 13675,
     },
     // review-planning
     Budget {
         kind: Kind::ReviewPlanning,
-        measured_static: 1260,
-        static_words: 1400,
-        measured_reachable: 11852,
-        reachable_words: 13050,
+        measured_static: 1139,
+        static_words: 1275,
+        measured_reachable: 12410,
+        reachable_words: 13675,
     },
     // review-prototype
     Budget {
         kind: Kind::ReviewPrototype,
-        measured_static: 1260,
-        static_words: 1400,
-        measured_reachable: 11852,
-        reachable_words: 13050,
+        measured_static: 1139,
+        static_words: 1275,
+        measured_reachable: 12410,
+        reachable_words: 13675,
     },
     // review-impl
     Budget {
         kind: Kind::ReviewImpl,
-        measured_static: 1260,
-        static_words: 1400,
-        measured_reachable: 11852,
-        reachable_words: 13050,
+        measured_static: 1139,
+        static_words: 1275,
+        measured_reachable: 12410,
+        reachable_words: 13675,
     },
     // integrate-review-requirements
     Budget {
         kind: Kind::IntegrateReviewRequirements,
-        measured_static: 1280,
-        static_words: 1425,
-        measured_reachable: 11872,
-        reachable_words: 13075,
+        measured_static: 1240,
+        static_words: 1375,
+        measured_reachable: 12511,
+        reachable_words: 13775,
     },
     // integrate-review-design
     Budget {
         kind: Kind::IntegrateReviewDesign,
-        measured_static: 1280,
-        static_words: 1425,
-        measured_reachable: 11872,
-        reachable_words: 13075,
+        measured_static: 1240,
+        static_words: 1375,
+        measured_reachable: 12511,
+        reachable_words: 13775,
     },
     // integrate-review-planning
     Budget {
         kind: Kind::IntegrateReviewPlanning,
-        measured_static: 1280,
-        static_words: 1425,
-        measured_reachable: 11872,
-        reachable_words: 13075,
+        measured_static: 1240,
+        static_words: 1375,
+        measured_reachable: 12511,
+        reachable_words: 13775,
     },
     // integrate-review-prototype
     Budget {
         kind: Kind::IntegrateReviewPrototype,
-        measured_static: 1280,
-        static_words: 1425,
-        measured_reachable: 11872,
-        reachable_words: 13075,
+        measured_static: 1240,
+        static_words: 1375,
+        measured_reachable: 12511,
+        reachable_words: 13775,
     },
     // integrate-review-impl
     Budget {
         kind: Kind::IntegrateReviewImpl,
-        measured_static: 1280,
-        static_words: 1425,
-        measured_reachable: 11872,
-        reachable_words: 13075,
+        measured_static: 1240,
+        static_words: 1375,
+        measured_reachable: 12511,
+        reachable_words: 13775,
     },
 ];
 
@@ -610,10 +600,23 @@ fn read_row(cells: &[String], owners: &[String]) -> Row {
 /// The `mirror` column, per *the condition register* — **the whole cell, or
 /// nothing**.
 ///
-/// The grammar is closed: `` `own` ``, `` `none` ``, the byte-frozen spelling of
-/// `none`, or `` `trigger` `` followed by exactly one parenthesised citation of
-/// one sentence, optionally with an explanatory `— <note>` after the number.
-/// `None` here is a row the reader control fails on by name.
+/// The grammar is closed: `` `own` ``, `` `none` ``, one of the **enumerated**
+/// emphasised spellings of `none`, or `` `trigger` `` followed by exactly one
+/// parenthesised citation of one sentence, optionally with an explanatory
+/// `— <note>` after the number. `None` here is a row the reader control fails on
+/// by name.
+///
+/// **The emphasised form is enumerated and not a pattern, and the first attempt
+/// at this leaf got that wrong.** It used to be one hard-coded literal — the
+/// spelling the two `${prompt}`-delivered rows shared while the driver inlined a
+/// signal file byte-frozen — and `prompt-names-the-kind-k18` gave those two rows
+/// different notes. Generalising to `**none — <any prose>**` reads clean over a
+/// cell that *contradicts its own class*: `**none — also stated in SKILL.md**`
+/// declares a mirror while classifying as none, and `**none — see sentence 4**`
+/// is admitted where its unemphasised twin `` `none` — see sentence 4 `` is
+/// refused by the control below. Recording the two real spellings costs one line
+/// each and keeps the column a closed vocabulary, which is the only reason a
+/// reader over it means anything.
 ///
 /// **The plural is not in the grammar, and admitting it silently was a defect.**
 /// The reader this replaced rewrote `sentences ` to `sentence `, collected the
@@ -621,12 +624,25 @@ fn read_row(cells: &[String], owners: &[String]) -> Row {
 /// declared a citation of sentence 1 and hid an invalid citation of 999 behind
 /// it. No row cites a plural, and one that did would be a change to the sharing
 /// rule; until that change is made, a plural is refused rather than half-read.
+/// The emphasised spellings of `none` the inventory actually uses, in full.
+///
+/// Two rows carry one: the rule the driver states in `${prompt}` and the one the
+/// shipped `grove-finish` skill took over from it. A third row wanting a note
+/// adds its cell here, which is the point — the addition is reviewed rather than
+/// absorbed by a pattern.
+const EMPHASISED_NONE: [&str; 2] = [
+    "**none — the shipped `grove-finish/SKILL.md` owns it now**",
+    "**none — `${prompt}` states the same mechanism in grove's own words**",
+];
+
 fn read_mirror(cell: &str) -> Option<Class> {
-    const BYTE_FROZEN: &str = "**none — byte-frozen and inlined into `${prompt}`**";
     match cell {
         "`own`" => return Some(Class::Own),
-        "`none`" | BYTE_FROZEN => return Some(Class::None),
+        "`none`" => return Some(Class::None),
         _ => {}
+    }
+    if EMPHASISED_NONE.contains(&cell) {
+        return Some(Class::None);
     }
     let rest = cell.strip_prefix("`trigger` (")?.strip_suffix(')')?;
     let rest = rest.strip_prefix("shares ").unwrap_or(rest);
@@ -754,38 +770,51 @@ fn graph(rows: &[Row]) -> Graph {
     }
 }
 
+/// The reference file `kind` reads, derived from the kind's **own label**.
+///
+/// Read off the corpus's naming rule rather than off a table, so the two cannot
+/// agree by construction: `integrate-review-` is tested before `review-`, since
+/// every integration label contains the review one, and `combine-research` is
+/// deliberately its own group — it takes the research producers' output but not
+/// their discipline or their file.
+fn reference_file(kind: Kind) -> String {
+    let label = kind.label();
+    let group = ["integrate-review-", "review-", "research-"]
+        .into_iter()
+        .find(|prefix| label.starts_with(prefix))
+        .map_or(label, |prefix| prefix.trim_end_matches('-'));
+    format!("references/{group}.md")
+}
+
+/// The signal file `kind` reads: `finish` chooses between three outcomes, the
+/// other eighteen end exactly one way.
+fn signal_file(kind: Kind) -> &'static str {
+    if kind == Kind::Finish {
+        "SIGNAL-FINISH.md"
+    } else {
+        "SIGNAL.md"
+    }
+}
+
 /// Every file that is static for at least one kind: `SKILL.md`, the ten
 /// reference files, and the two signal files.
-///
-/// The signal paths are recovered **through the runtime seam** rather than
-/// named here: [`grove::prompt::ending_of`] returns the bytes a kind's prompt
-/// inlines, and the embed path carrying those bytes is that kind's ending file.
-/// `src/prompt.rs` is out of this workstream's scope, so the path is derived
-/// from what it already exposes instead of by widening it — and the derivation
-/// fails loudly if the two signal files ever stop being distinguishable.
 fn static_files(kind: Kind, corpus: &BTreeMap<String, &'static str>) -> BTreeSet<String> {
-    let ending = prompt::ending_of(kind).expect("every kind has an inlined ending");
-    let carriers: Vec<&String> = corpus
-        .iter()
-        .filter(|(_, text)| **text == ending)
-        .map(|(path, _)| path)
-        .collect();
-    assert_eq!(
-        carriers.len(),
-        1,
-        "{}'s inlined ending must be carried by exactly one embedded file, not {:?} — \
-         two files with identical bytes make the ending's provenance unrecoverable",
-        kind.label(),
-        carriers,
-    );
-
-    [
+    let files: BTreeSet<String> = [
         SKILL.to_owned(),
-        prompt::reference_file(kind).to_owned(),
-        carriers[0].clone(),
+        reference_file(kind),
+        signal_file(kind).to_owned(),
     ]
     .into_iter()
-    .collect()
+    .collect();
+    for path in &files {
+        assert!(
+            corpus.contains_key(path),
+            "{}'s static path names content/{path}, which the embedded corpus does not \
+             carry — a session of that kind is told to read nothing",
+            kind.label(),
+        );
+    }
+    files
 }
 
 // -- The budgets --------------------------------------------------------------
@@ -917,7 +946,10 @@ fn every_budget_is_the_stated_fit_over_its_recorded_measurement() {
 /// only appeared in a diagnostic string.
 #[test]
 fn the_fit_check_rejects_a_zero_width_ceiling_and_a_direct_refit() {
-    for measured in [1149usize, 1562, 1938, 11_741, 12_533] {
+    // Representative inputs drawn from the live table, so a reader recognises
+    // the magnitudes; the check itself is over `ceiling_over`'s arithmetic and
+    // holds for any input.
+    for measured in [1028usize, 1268, 1801, 12_299, 13_118] {
         let fitted = ceiling_over(measured);
 
         assert!(
@@ -1077,13 +1109,18 @@ fn every_budget_stays_within_headroom_of_the_measurement() {
 
 // -- The load column, checked against the runtime and against itself ----------
 
-/// **`static(K)` is checked against the runtime that composes the path.**
+/// **`static(K)` is checked against the corpus's own static path.**
 ///
-/// Only three things can be static, per *Load predicate notation*: the
-/// guaranteed core — whose one embedded part is the kind's signal file —
-/// `SKILL.md`, and `reference_file(k)`. A row claiming `static(K)` whose owner
-/// is none of those for some `k ∈ K` is claiming a session reads a file
-/// unconditionally that the runtime never puts in front of it.
+/// It was checked against `src/prompt.rs` until `prompt-names-the-kind-k18`,
+/// because the core named two of the three files and inlined the third. The
+/// prompt names a plugin skill now, so there is no runtime composition to
+/// consult and [`static_files`] derives the three from the kind's own label —
+/// which is the corpus's naming rule, not a second table.
+///
+/// Only three things can be static, per *Load predicate notation*: `SKILL.md`,
+/// `reference_file(k)`, and that kind's signal file. A row claiming `static(K)`
+/// whose owner is none of those for some `k ∈ K` is claiming a session reads a
+/// file unconditionally that this corpus never puts in front of it.
 ///
 /// The superseded inventory labelled the loop-step rows `always(19)`, which
 /// `src/prompt.rs` contradicts outright: `references/decompose.md` is on no
@@ -1097,7 +1134,7 @@ fn every_budget_stays_within_headroom_of_the_measurement() {
 /// strength of its real neighbour: the rows would be attributed to a phantom
 /// owner, and the spec's "the owner is on `k`'s path" would be false of it.
 #[test]
-fn every_static_row_is_owned_by_a_file_the_runtime_puts_on_that_kinds_path() {
+fn every_static_row_is_owned_by_a_file_this_corpus_puts_on_that_kinds_path() {
     let corpus = corpus();
     let statics: BTreeMap<&str, BTreeSet<String>> = Kind::ALL
         .into_iter()
@@ -1748,7 +1785,7 @@ fn the_kind_set_reader_resolves_every_spelling_the_notation_uses() {
             "`static({spelling})` must name all five kinds of the family, not {family:?}",
         );
         for kind in family {
-            assert_eq!(prompt::reference_file(kind), file);
+            assert_eq!(reference_file(kind), file);
         }
     }
 
@@ -1804,9 +1841,20 @@ fn the_mirror_class_reader_accepts_the_grammar_and_nothing_else() {
     assert_eq!(read_mirror("`own`"), Some(Class::Own));
     assert_eq!(read_mirror("`none`"), Some(Class::None));
     assert_eq!(
-        read_mirror("**none — byte-frozen and inlined into `${prompt}`**"),
+        read_mirror("**none — the shipped `grove-finish/SKILL.md` owns it now**"),
         Some(Class::None)
     );
+    assert_eq!(
+        read_mirror("**none — `${prompt}` states the same mechanism in grove's own words**"),
+        Some(Class::None)
+    );
+    // The emphasised form is a closed vocabulary, so a plausible-looking note
+    // nobody recorded is refused rather than absorbed — including one that
+    // contradicts the class it claims, and one whose unemphasised twin the
+    // rejection list below already refuses.
+    assert_eq!(read_mirror("**none — **"), None);
+    assert_eq!(read_mirror("**none — also stated in `SKILL.md`**"), None);
+    assert_eq!(read_mirror("**none — see sentence 4**"), None);
     assert_eq!(
         read_mirror("`trigger` (sentence 18)"),
         Some(Class::Trigger { sentence: 18 })

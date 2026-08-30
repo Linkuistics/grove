@@ -98,8 +98,8 @@ above.
 **And it was inconsistent with the fixed runtime.** `always(K)` was defined as a
 *static* path whose file is `SKILL.md` or `reference_file(k)`, while rows owned by
 `execute.md`, `decompose.md`, `retire.md` and `commit.md` were labelled
-`always(19)`. `src/prompt.rs:136` maps kinds only to the ten kind references, so a
-loop-step reference is never on a static path. Read literally, therefore, "the
+`always(19)`. Kinds map only to the ten kind references, so a loop-step
+reference is never on a static path. Read literally, therefore, "the
 narrowest file every bound session already opens" sends **every** all-nineteen
 rule to `SKILL.md` — which is the opposite of what the design intends and what
 the word budget permits. Rules 4–7 are what actually resolve those rows, and the
@@ -109,9 +109,18 @@ they are.
 ### Load predicate notation
 
 - `static(K)` — on the static loaded path of every kind in `K`. **Only three
-  things can be static**: the guaranteed core — whose one embedded part is the
-  kind's signal file — `SKILL.md`, and `reference_file(k)`. Nothing else may carry
-  this value.
+  things can be static**: `SKILL.md`, `reference_file(k)`, and that kind's signal
+  file — `content/SIGNAL.md` for eighteen kinds, `content/SIGNAL-FINISH.md` for
+  `finish`. Nothing else may carry this value.
+
+  Those three were the static path because the guaranteed core named the first
+  two and inlined the third. From `prompt-names-the-kind-k18` the core names one
+  `grove-<kind>` plugin skill and states grove's signalling contract in grove's
+  own words, so the set is unchanged but its authority is this corpus's own
+  naming rule rather than `src/prompt.rs` — see the note under *the assertions*
+  below, and `plugins/grove/conformance/rules.tsv`, whose `${prompt}` row states
+  a load predicate over the **prompt's** kinds and therefore reads `static(19)`
+  where the row below reads `static(18)`.
 
   **`K` is written one of six ways, and the list is closed.** A test asserting
   `static(K)` against the runtime has to resolve `K` to a kind set, and a
@@ -761,13 +770,13 @@ creates, gates and prints. `Bound ≠ ∅` for *when* to run them, so the when s
 | `recovery-pending-stops` — hand a `Recovery pending` diagnostic to the human; never rewrite history to clear it | {finish} · step:Finish | `none` | `static({finish})` | B |
 | `finish-resume-reruns-the-same-command` — if step 2's result is lost, rerun `finish-commit` with the same handle and let the repository answer; a refusal means teardown did not complete, and a no-signal stop after step 2 leaves nothing to resume | {finish} · step:Finish | `none` | `static({finish})` | B |
 | `nothing-after-finish` — branch integration and worktree teardown are not grove workflow | {finish} · step:Finish | `none` | `static({finish})` | B+S |
-| `finish-three-endings` — teardown → `complete --done`; externalised work → `complete`; declined → no signal | {finish} · step:Finish | **none — byte-frozen and inlined into `${prompt}`** | `static({finish})` | B★ |
+| `finish-three-endings` — teardown → `complete --done`; externalised work → `complete`; declined → no signal | {finish} · step:Finish | **none — the shipped `grove-finish/SKILL.md` owns it now** | `static({finish})` | B★ |
 
 #### `content/SIGNAL.md`
 
 | rule | Bound · Occasion | mirror | load | test |
 |---|---|---|---|---|
-| `signal-is-the-last-action` — `grove-llm complete` last, then nothing else; ending without signalling stops the loop | 18 · step:Commit | **none — byte-frozen and inlined into `${prompt}`** | `static(18)` | B★ |
+| `signal-is-the-last-action` — `grove-llm complete` last, then nothing else; ending without signalling stops the loop | 18 · step:Commit | **none — `${prompt}` states the same mechanism in grove's own words** | `static(18)` | B★ |
 
 **`finish-is-the-drivers-to-discover` is not this file's, and never was.** It is
 tabulated with `references/retire.md` above. Its occasion is `{step:Retire,
@@ -1300,16 +1309,23 @@ exists to prevent, and it would have shipped silently.
 - **Per-rule, never universal.** No parser over the corpus and no marker grammar.
   Each rule's instrument is named in its row and lands with the rewrite that
   homes it.
-- **The loaded path is computed from `src/prompt.rs`**, not transcribed. The
-  guaranteed core comes from `prompt::compose` and the reference file from
-  `prompt::reference_file`, both already exhaustive over the kind set; a budget
-  computed by a second notion of what a session reads drifts from the real one
-  and then lies. It costs no new production code: the kind's **signal file** is
-  identified by matching `prompt::ending_of`'s bytes against the embed, so the
-  seam is read rather than widened.
+- **The loaded path is derived from the corpus's own naming rule**, not
+  transcribed. Ten reference files serve the nineteen kinds and each family
+  shares one, and the two signal files split the same way an ending does, so a
+  kind's three static files are read off that kind's own label — which is what
+  makes a twentieth kind join its family the moment it is named, where a
+  hand-written table would simply never see it.
+
+  It was computed from `src/prompt.rs` until `prompt-names-the-kind-k18`, and
+  for the reason this bullet still gives: while the core named `SKILL.md` and
+  `reference_file(kind)` and inlined `ending_of(kind)`'s bytes, a second notion
+  of what a session reads would have drifted from the real one and then lied.
+  The core names none of them now — it names one `grove-<kind>` plugin skill —
+  so there is no runtime composition left to read, and the corpus's own naming
+  rule is the only source there is.
 - **The budget is a table of two halves, in words.** The **static** path is what
-  every session of a kind reads unconditionally — core, `SKILL.md`,
-  `reference_file(kind)`; the **reachable** path adds the transitive closure of
+  every session of a kind reads unconditionally — `SKILL.md`,
+  `reference_file(kind)`, and that kind's signal file; the **reachable** path adds the transitive closure of
   the pointer graph below, which is the worst case if every condition fires. Both
   are asserted from **both sides**, and the two sides are different numbers. A
   ceiling is **set** at the measurement it is fitted to plus 10%, rounded up to 25
@@ -1357,11 +1373,22 @@ exists to prevent, and it would have shipped silently.
   not exist while its real neighbour discharged the check for every row under it. That single
   check is what the `always(19)` labelling would not have survived.
   **Three files can be static, not two**: `SKILL.md`, `reference_file(k)`, and
-  the **signal file the guaranteed core inlines** — `content/SIGNAL.md` for the
-  eighteen, `content/SIGNAL-FINISH.md` for `finish`. The third is why
+  this corpus's own **signal file** — `content/SIGNAL.md` for the eighteen,
+  `content/SIGNAL-FINISH.md` for `finish`. The third is why
   `signal-is-the-last-action`'s `static(18)` is a correct predicate and not a
-  violation: the core *is* part of the loaded path, and its one embedded part is
-  that file.
+  violation.
+
+  **The runtime the `static(...)` predicate is asserted against is this corpus,
+  not `${prompt}`, from `prompt-names-the-kind-k18` onward.** The guaranteed core
+  used to inline the signal file and to name `reference_file(k)`, which is what
+  put both on a session's path; the prompt now names one `grove-<kind>` skill and
+  states grove's signalling contract in grove's own words, so nothing routes a
+  session into `content/` at all. What `tests/lifecycle_invariants.rs` and
+  `tests/loaded_path_budgets.rs` assert from that leaf on is this corpus's own
+  static path — `SKILL.md`, the kind's reference file, the kind's signal file,
+  and the closure of what those name — which is what the rows below have always
+  described. Both suites, and this document, go with `content/` at
+  `delete-provisioning-k19`.
 - **The `SKILL.md` budget is asserted, not hoped for — and it has no floor.**
   Total words **at most 900**, exactly the **26** `trigger` sentences of the
   canonical set, each at most 25 words, and the eight `own` rows present. Owned by

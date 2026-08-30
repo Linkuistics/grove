@@ -10,9 +10,12 @@ explicit human confirmation before any teardown** — never run steps 2–3
 unprompted; with no human to ask, report the plan instead.
 
 **How this session ends is decided by what it did, and the three outcomes are
-stated together in `SIGNAL-FINISH.md`** — the same bytes the driver inlines as
-the last part of a `finish` prompt, so the outcomes have one source and two
-deliveries of it, and neither can drift from the other. On confirmation, run:
+stated together in `SIGNAL-FINISH.md`** — read that file, it is one page and it
+is this kind's ending. Your prompt does **not** carry the outcomes: it states
+grove's signalling mechanism and one ordinary default, and the default is the
+wrong ending for a session that has just torn the task tree down, because it
+relaunches the loop onto a grove that is no longer there. `SIGNAL-FINISH.md`
+overrides it. On confirmation, run:
 
 1. **Promote** anything from the briefs that should outlive the grove — ADRs,
    docs, glossary entries. Reviewable working-tree edits; often a near no-op

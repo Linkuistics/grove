@@ -14,10 +14,22 @@
 //! `docs/adr/behavioural-coverage-asserts-delivery.md`. A green run is not
 //! evidence that a session obeyed.
 //!
-//! **The loaded path is composed, not enumerated** ([`loaded_path`]): the
-//! guaranteed core `src/prompt.rs` builds for that kind, `content/SKILL.md`,
-//! `prompt::reference_file(kind)`, and the transitive closure of the corpus files
-//! those name by path. Two consequences do real work:
+//! **The subject is `content/` itself, and that changed at
+//! `prompt-names-the-kind-k18`.** The loaded path used to open with the
+//! guaranteed core `src/prompt.rs` composed, because the core named this
+//! corpus's `SKILL.md` and inlined this corpus's signal file. The prompt now
+//! names one `grove-<kind>` plugin skill and states grove's signalling contract
+//! in grove's own words, so nothing routes a session into `content/` at all.
+//! What is asserted from that leaf on is **this corpus's own** static path — the
+//! three files a session that opened it reads unconditionally — which is what
+//! every row below has always described. The corpus, and this suite with it, go
+//! at `delete-provisioning-k19`; the plugin's own delivery assertion is
+//! `plugins/grove/conformance.sh`.
+//!
+//! **The loaded path is composed, not enumerated** ([`loaded_path`]):
+//! `content/SKILL.md`, this kind's reference file, this kind's signal file, and
+//! the transitive closure of the corpus files those name by path. Two
+//! consequences do real work:
 //!
 //! * A rule surviving only in a file no session's path reaches fails here, which
 //!   a sweep over the whole corpus could not see.
@@ -30,8 +42,8 @@
 //! rule's own trigger** ([`delivery_site`]). What a session has to be *holding* is
 //! the rule's condition — it cannot look up a procedure it does not know applies —
 //! so a rule counts as delivered exactly two ways: it is stated on the **static**
-//! path (`${prompt}`, `SKILL.md`, this kind's reference file), which needs no
-//! trigger; or a paragraph on the path states **this rule's situation** and the
+//! path (`SKILL.md`, this kind's reference file, this kind's signal file), which
+//! needs no trigger; or a paragraph on the path states **this rule's situation** and the
 //! procedure is in that paragraph's own file or in a file it names by path. A file
 //! reached by some *other* condition, carrying the procedure for a condition that
 //! is gone, is the deleted-in-effect state this file exists to reject.
@@ -53,7 +65,7 @@
 //! terms as the other eight.
 
 use grove::leaf::Kind;
-use grove::{methodology, prompt};
+use grove::methodology;
 use std::collections::{BTreeMap, BTreeSet};
 
 // -- The corpus, and the loaded path over it ---------------------------------
@@ -65,14 +77,8 @@ type Corpus = BTreeMap<String, String>;
 /// One member of a loaded path: where the bytes came from, and the bytes.
 type Loaded = (String, String);
 
-/// The pseudo-path the composed guaranteed core occupies. It is not a corpus
-/// file — it is the driver's own template with one embedded file inlined — and it
-/// is on the path of every session because `${prompt}` is the one channel a
-/// session cannot skip.
-const CORE: &str = "${prompt}";
-
 /// How many leading members of a [`loaded_path`] are **static** — the only three
-/// things `src/prompt.rs` puts on a path unconditionally, and therefore the only
+/// files this corpus puts on a path unconditionally, and therefore the only
 /// places a rule can be stated with no condition sending a session there.
 const STATIC_MEMBERS: usize = 3;
 
@@ -84,21 +90,33 @@ fn corpus() -> Corpus {
         .collect()
 }
 
-/// The guaranteed core for `kind`, composed through the production seam so that
-/// which signal file it inlines is the driver's decision and not this file's.
-fn core(kind: Kind) -> String {
-    prompt::compose(
-        kind,
-        "lifecycle-invariants-k3",
-        "this working tree is jj-enabled (jj workspace root: `/w`)",
-        &["/home/u/.claude/skills/grove"],
-    )
-    .unwrap_or_else(|error| {
-        panic!(
-            "the real embed must compose a `{}` prompt: {error:#}",
-            kind.label()
-        )
-    })
+/// This corpus's three static files for `kind`, in the order a session reads
+/// them: the router, the kind's reference file, and the kind's signal file.
+///
+/// **Derived from the corpus's own naming rule, never enumerated.** Ten files
+/// serve the nineteen kinds and each family shares one, which is exactly the
+/// routing table `SKILL.md` prints; deriving it from the label means a twentieth
+/// kind joins its family the moment it is named, where a hand-written list would
+/// simply never see it. `integrate-review-` is tested before `review-`, since
+/// every integration label contains the review one, and `combine-research` is
+/// deliberately its own group — it takes the research producers' output but not
+/// their discipline or their file.
+fn static_files(kind: Kind) -> [String; 3] {
+    let label = kind.label();
+    let group = ["integrate-review-", "review-", "research-"]
+        .into_iter()
+        .find(|prefix| label.starts_with(prefix))
+        .map_or(label, |prefix| prefix.trim_end_matches('-'));
+    let signal = if kind == Kind::Finish {
+        "SIGNAL-FINISH.md"
+    } else {
+        "SIGNAL.md"
+    };
+    [
+        "SKILL.md".to_owned(),
+        format!("references/{group}.md"),
+        signal.to_owned(),
+    ]
 }
 
 /// **The bytes a session of `kind` reads on its normal path**, in the order it
@@ -113,18 +131,18 @@ fn core(kind: Kind) -> String {
 /// rows only*). Which *rule* that edge delivers is a separate question, and
 /// [`delivery_site`] is where it is answered.
 fn loaded_path(corpus: &Corpus, kind: Kind) -> Vec<Loaded> {
-    let mut path: Vec<Loaded> = vec![(CORE.to_owned(), core(kind))];
-    for statik in ["SKILL.md", prompt::reference_file(kind)] {
-        let text = corpus.get(statik).unwrap_or_else(|| {
+    let mut path: Vec<Loaded> = Vec::new();
+    for statik in static_files(kind) {
+        let text = corpus.get(&statik).unwrap_or_else(|| {
             panic!("the corpus must carry the static path member content/{statik}")
         });
-        path.push((statik.to_owned(), text.clone()));
+        path.push((statik.clone(), text.clone()));
     }
     assert_eq!(
         path.len(),
         STATIC_MEMBERS,
-        "the static half of a loaded path is the core, SKILL.md and reference_file(kind); \
-         STATIC_MEMBERS is what every delivery check slices by"
+        "the static half of a loaded path is SKILL.md, this kind's reference file and its \
+         signal file; STATIC_MEMBERS is what every delivery check slices by"
     );
 
     let mut reached: BTreeSet<String> = path.iter().map(|(name, _)| name.clone()).collect();
@@ -334,9 +352,9 @@ fn states(text: &str, claim: &Claim) -> bool {
 ///
 /// Two modes, and no third:
 ///
-/// 1. **Static.** A paragraph of `${prompt}`, `SKILL.md` or this kind's reference
-///    file states it. Nothing has to send the session there, so no trigger is
-///    involved. This is how an `own` row and an inlined signal file deliver.
+/// 1. **Static.** A paragraph of `SKILL.md`, this kind's reference file or its
+///    signal file states it. Nothing has to send the session there, so no
+///    trigger is involved. This is how an `own` row and a signal file deliver.
 /// 2. **Through its own condition.** A paragraph somewhere on the path states the
 ///    rule's `situation`, and the procedure is either in that paragraph's own file
 ///    or in a file that paragraph names by path.

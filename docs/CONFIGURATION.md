@@ -184,7 +184,7 @@ can never change argument boundaries.
 
 | Substitution | Expands to | Required |
 |---|---|---|
-| `${prompt}` | The guaranteed core: an instruction to load the provisioned `grove` skill and the selected kind's reference file, then that leaf's stable handle as the session's mandate and the resolved version control, then the session's ending. A couple of KiB, not the methodology itself. | Exactly once, in any position after word zero. |
+| `${prompt}` | The guaranteed core: an instruction to load the selected kind's `grove-<kind>` skill, then that leaf's stable handle as the session's mandate, the resolved version control and Grove's published version, then Grove's signalling contract. A couple of KiB, not the methodology itself. | Exactly once, in any position after word zero. |
 | `${session_name}` | `<repo-basename>: <grove-name> grove`. | At most once. |
 | `${worktree}` | Absolute root of the working tree holding `.grove/`. | At most once. |
 | `${repo}` | Absolute root of the main repository — the default jj workspace's root. | At most once. |

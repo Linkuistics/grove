@@ -51,6 +51,57 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The launch prompt names one `grove-<kind>` skill and publishes Grove's
+  version, and the driver interprets a kind nowhere.** `${prompt}` is three
+  driver-authored parts and reads nothing: an imperative naming that kind's
+  skill in both spellings of the one target — bare, and `grove:grove-<kind>` on a
+  harness that namespaces plugin components — the runtime facts, now the selected
+  handle, the stated version control **and the workspace's release version**, and
+  Grove's own signalling contract. `grove --version` renders the same value and
+  stays as a fallback rather than as the mechanism: a verb needs the CLI on
+  `PATH` and fires only if the session thinks to run it, which is the deferred
+  read `docs/research/wording-micro-test.md` measured, while a value in the
+  prompt cannot fail. Deleted with the content dependency: `reference_file`'s
+  nineteen-to-ten `match`, `ending_file`'s nineteen-to-two one, the
+  provisioned-directory list, and `src/prompt.rs`'s call to
+  `methodology::embed()` — so composition is infallible and there is no launch
+  left to fail. `compose` now takes a `Mandate`
+  (`docs/specs/module-decomposition.md`, decisions 9 and 10).
+- **A `finish` session's three endings moved into `grove-finish`, and the prompt
+  states a mechanism instead of an instruction.** Two embedded signal files used
+  to serve the nineteen kinds so that `finish` — which chooses its ending by what
+  it did — never read *run `grove-llm complete`* last in the prompt of a session
+  that may have just deleted the task tree. One contract serves all nineteen now,
+  and the ending a kind takes is inline in that kind's skill, which is where the
+  spine already said it belongs. **The kind's own ending is the contract's
+  subject and the ordinary verb is subordinate to it** — *your kind's skill
+  states how this session ends … ordinarily it is `grove-llm complete`* — so no
+  prompt ends on a bare imperative for an action that is wrong for the session
+  reading it. The residue that remains is recorded in `src/prompt.rs` and in
+  decision 9 rather than argued away: a `finish` session whose skill is missing
+  or unread meets the default and nothing contradicting it, where the old prompt
+  alone was fail-safe for that kind whatever was installed. The reopen condition
+  is a `finish` session observed signalling `complete` after a teardown.
+  `content/references/finish.md` stopped claiming the outcomes ride the prompt,
+  which this change would otherwise have made false for every session the still-
+  live provisioning path reaches.
+- **`grove` / conformance: `finish-three-endings` is asserted again**, against
+  `grove-finish/SKILL.md`, where it used to be one of two rows the manifest owned
+  to `${prompt}` and checked nowhere. One row is left there,
+  `signal-is-the-last-action`, and it now binds all nineteen kinds. The mirror
+  column's emphasised `none` reads its note as prose rather than matching one
+  hard-coded sentence, since the two rows no longer share one.
+- **`tests/lifecycle_invariants.rs` and `tests/loaded_path_budgets.rs` now
+  measure `content/` as a corpus rather than as something the prompt routes
+  into.** Nothing routes a session into `content/` once the prompt names a plugin
+  skill, so the static path they walk is the corpus's own three entry files —
+  `SKILL.md`, the kind's reference file, the kind's signal file — derived from
+  each kind's own label rather than from a table a twentieth kind would never
+  appear in. Every budget row was re-fitted to what that measures; the static
+  paths fell (`impl` 1,334 → 1,268 words) and the reachable ones rose to what the
+  corpus had already grown to (`impl` 11,926 → 12,539). Both suites still go with
+  `content/` at `delete-provisioning-k19`.
+
 - **One `grove-<kind>` skill per session kind now ships beside the spine.** The
   five producers each with their `review-` and `integrate-review-` steps, the two
   research halves, `combine-research` and `finish` — and no list of them anywhere:

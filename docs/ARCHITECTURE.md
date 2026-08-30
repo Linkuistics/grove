@@ -438,14 +438,21 @@ mandate, with no second tree read. It is a fact, not a routing forecast, and it
 is not recomputed immediately before spawn.
 
 `${prompt}` carries the **guaranteed core** and nothing else: an instruction to
-load the provisioned skill and this kind's reference file by path, then the two
-facts Grove resolved at runtime — the stable handle as an explicit mandate, and
-the [version control](#symmetric-vcs-rule) Grove resolved for the working tree —
-then the session-ending text, which is the embed's own signal file for that kind —
-`SIGNAL.md`, or `SIGNAL-FINISH.md` for `finish`, whose ending is a choice between
-three outcomes — inlined byte-exact. The order is the session's own timeline, and the methodology itself
-arrives as the provisioned skill rather than in argv
-([the skill delivers the methodology](adr/skill-delivers-the-methodology.md)). No
+load this kind's `grove-<kind>` skill, given in both the bare and the
+plugin-namespaced spelling of that one target; then the three facts Grove
+resolved at runtime — the stable handle as an explicit mandate, the [version
+control](#symmetric-vcs-rule) Grove resolved for the working tree, and Grove's
+own published release version; then Grove's signalling contract, which states the
+mechanism the session's last action drives and leaves *which* ending a kind takes
+to that kind's skill. The order is the session's own timeline, and the
+methodology itself arrives as an installed plugin rather than in argv.
+
+The core reads nothing: all three parts are driver prose, so composition cannot
+fail and there is no per-kind content decision left in the binary. That is
+`prompt-names-the-kind-k18`'s deletion — a nineteen-to-ten reference map, a
+nineteen-to-two ending map, and the provisioned-directory list — and it is what
+leaves Grove interpreting a kind nowhere: it renders the kind's own label into a
+skill name and stops. No
 hidden leaf environment variable accompanies it. At Bootstrap the
 session resolves the handle with `grove-llm resolve`, rejects a missing,
 ambiguous, terminal, or non-leaf result, reads the glossary, cited decision
@@ -1205,7 +1212,8 @@ template may request.
 <a id="self-extension-core-and-methodology"></a>
 ## Embedded methodology
 
-**Provisioning is the delivery path.** [The skill delivers the
+**Provisioning is the delivery path, until `delete-provisioning-k19` removes
+it.** [The skill delivers the
 methodology](adr/skill-delivers-the-methodology.md) settles that the sweep, the
 stamps, the shared directory and the harness registry all stay, that `${prompt}`
 carries only a short guaranteed core pointing at what they wrote, and the
@@ -1278,10 +1286,12 @@ refreshed, so whichever one the command lands in already carries the current
 methodology. **A session depends on reaching it**, which is what the core's
 wording and the absent-destination report exist for: nothing else teaches a
 session the loop, the kinds, or which verbs exist. `content/SIGNAL.md` and
-`content/SIGNAL-FINISH.md` are the files that travel both channels — provisioned
-like every other, and one of them inlined into `${prompt}` byte-exact as its last
-part, so the instruction a session performs after everything else is the last
-thing it reads. One source, two deliveries, and no build boundary between them.
+`content/SIGNAL-FINISH.md` used to travel both channels — provisioned like every
+other file, and one of them inlined into `${prompt}` byte-exact as its last part.
+`prompt-names-the-kind-k18` ended that: the prompt states Grove's signalling
+contract in Grove's own words, once for every kind, and *which* of the three
+endings a kind takes is inline in that kind's own `grove-<kind>` skill. There is
+no shared byte-frozen text left, so there is nothing left to hold in step.
 
 The binary refuses to overwrite an unstamped foreign directory and replaces an
 old symlink as a link rather than following it. `content/` is the canonical
@@ -1368,10 +1378,14 @@ provisioned, a rule moved into `docs/` is unreachable to every session outside
 this repository, so *normative material stays embedded* is the placement
 function's own first case read backwards rather than a separate boundary. A
 second: exactly three files are ever on a static path — `SKILL.md`,
-`reference_file(kind)`, and the **signal file** the guaranteed core inlines
-(`content/SIGNAL.md` for eighteen kinds, `content/SIGNAL-FINISH.md` for `finish`)
-— so a rule owned by any other file states the file whose sentence triggers it,
-and those references form a chain that must terminate at a static path.
+`reference_file(kind)`, and that kind's **signal file** (`content/SIGNAL.md` for
+eighteen kinds, `content/SIGNAL-FINISH.md` for `finish`) — so a rule owned by any
+other file states the file whose sentence triggers it, and those references form
+a chain that must terminate at a static path. Those three were on the path
+because the guaranteed core named the first two and inlined the third; from
+`prompt-names-the-kind-k18` the core names one `grove-<kind>` skill instead, so
+what the two suites below measure is this corpus's own static path, and they go
+with `content/` at `delete-provisioning-k19`.
 
 Five numeric measures stand over that shape. All five are **budgets fitted to a
 measurement** rather than alarms set well clear of one — `SKILL.md`'s 900 against
@@ -1384,7 +1398,7 @@ not support:
 | `SKILL.md`'s body — the frontmatter is a routing header a harness reads, so counting it would let a description rewrite eat the ceiling | 900 words, and exactly 26 trigger sentences | `tests/methodology.rs` |
 | `SKILL.md`'s `## The loop` section — the unit constraint 7 actually names | 275 words, and trigger bullets only | `tests/methodology.rs` |
 | Each kind's composed `${prompt}` | 4 KiB | `tests/prompt.rs` |
-| Each kind's **static** loaded path — the guaranteed core, `SKILL.md`, and `reference_file(kind)` | per kind, the recorded measurement + 10%, held within +25% of the current one | `tests/loaded_path_budgets.rs` |
+| Each kind's **static** loaded path — `SKILL.md`, `reference_file(kind)`, and that kind's signal file | per kind, the recorded measurement + 10%, held within +25% of the current one | `tests/loaded_path_budgets.rs` |
 | Each kind's **reachable** loaded path — the static path plus the transitive closure of the pointer graph | per kind, the recorded measurement + 10%, held within +25% of the current one | `tests/loaded_path_budgets.rs` |
 
 Each loaded-path row records **the measurement it was fitted to**, beside the
@@ -1431,10 +1445,10 @@ session that arrived without a mandate actually reads.
 
 **The two loaded-path budgets are the shape measure this corpus is actually held
 to**, and they are the reason a per-file line count was not worth keeping: a file
-is not what a session reads. A kind reads the core, one page of conditions and
-one reference file, and the budget measures exactly that, **through
-`prompt::compose` and `prompt::reference_file`** rather than through a second
-notion of composition that would drift from the runtime and then lie. They are
+is not what a session reads. A kind reads one page of conditions, one reference
+file and one signal file, and the budget measures exactly that, over a static
+path **derived from the kind's own label** rather than from a hand-written table
+that a twentieth kind would simply never appear in. They are
 asserted from both sides: the corpus must stay under the ceiling, and the ceiling
 must stay within the stated headroom of the corpus, so a limit nothing approaches
 fails as loudly as a path that outgrew one.
@@ -1461,9 +1475,13 @@ that kind's reference file. The estimate was wrong at both ends, so every ratio
 below is computed per kind against its own measured before-figure rather than
 against a range — which is also why the ratios can be stated at all.
 
-The *static* column includes the guaranteed core (314 words, 353 for `finish`),
-which no *before* figure had; the *like-for-like* column strips it, so the two
-sides are `SKILL.md`'s body plus the kind reference in both.
+The *static* column below is **as it was measured then**, and included the
+guaranteed core (314 words, 353 for `finish`), which no *before* figure had; the
+*like-for-like* column strips it, so the two sides are `SKILL.md`'s body plus the
+kind reference in both. `prompt-names-the-kind-k18` took the core off the static
+path and put that kind's signal file on it, so today's rows in
+`tests/loaded_path_budgets.rs` measure a different composition; this table is the
+record of that acceptance and is not restated against it.
 
 | Kind | Static | Reachable | Like-for-like | Before | Ratio |
 |---|---|---|---|---|---|
@@ -1606,7 +1624,7 @@ prescribing one command.
 | `tree_lifecycle` | The grove-only lifecycle around the tree: the terminal outcomes, the finish sentinel, and the grove's own creation through the store's vacancy. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
 | `methodology` | The embed itself and the build's methodology identity. Nothing else — the corpus is plain markdown, so there is no reader over it. |
-| `prompt` | The guaranteed core: the whole of `${prompt}`, the kind→reference-file map, and the too-late test the core's contents are admitted by. Depends on `methodology` for the embed. |
+| `prompt` | The guaranteed core: the whole of `${prompt}` — the `grove-<kind>` load instruction, the runtime facts, Grove's signalling contract — and the too-late test its contents are admitted by. Reads nothing and depends on no corpus. |
 | `provision` | Embedded methodology installation, and the provisioned locations the core names. |
 
 The modules are intentionally file-sized rather than wrapped in another

@@ -22,10 +22,17 @@ actually opens.
 
 The guaranteed core survives but moves **out of reach**: it is prose the driver
 composes at launch, and a runner over an installed skill set cannot read a prompt.
-Two rules are delivered there and nowhere else — the signal step, and a `finish`
-session's three endings — so the manifest owns them to `${prompt}` and asserts
-neither. That is a stated gap rather than a check that quietly covers everything
-except the rule.
+**One** rule is delivered there and nowhere else — the signal step — so the
+manifest owns it to `${prompt}` and asserts nothing about it. That is a stated
+gap rather than a check that quietly covers everything except the rule.
+
+It was two until `prompt-names-the-kind-k18`. A `finish` session's three endings
+rode the prompt because the driver inlined a per-kind signal file; the prompt now
+states one signalling contract for all nineteen kinds, and the ending a kind
+takes moved to `grove-finish/SKILL.md`, where the spine already said a kind's own
+ending belongs. So the gap narrowed by a rule, and it narrowed by the rule being
+brought back inside the runner's reach rather than by the runner learning to read
+a prompt.
 
 **What is still asserted in Rust, and until when.** `tests/rule_ownership.rs` was
 the single-source half and is deleted: its 68 pinned wordings and 3 removed

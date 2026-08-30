@@ -6,6 +6,11 @@ Publish the bounded recovery-cycle synthesis and state each parent clause's
 status without substituting a new comparator or supplemental instrument for the
 accepted historical experiment.
 
+This exact-replication reporting path is abandoned under requirements option 3.
+The replacement campaign report must preserve the same historical limitations,
+label transfer only as generality evidence, and apply the newly frozen paired
+instrument without presenting it as an exact replication.
+
 ## Context
 
 - Historical synthesis and failed enabled verdict to preserve:

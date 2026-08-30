@@ -2,9 +2,9 @@
 
 ## Goal
 
-Run and judge the exact previously frozen transfer probe under the transfer
-status settled by `acceptance-replication-authority`: either an explicitly
-amended acceptance conjunct or separately reported generality evidence.
+Treat the exact previously frozen transfer probe only as separately reported
+generality evidence and re-test whether its ten evaluated repetitions are
+proportionate to that bounded claim.
 
 ## Done when
 
@@ -17,8 +17,7 @@ amended acceptance conjunct or separately reported generality evidence.
 - The historical transfer verdict retains its frozen semantics and remains
   outside the same-case primary endpoint. This node selects no new target and
   authors no new row.
-- If the parent contract remains unchanged, the requirements disposition
-  records whether ten evaluated repetitions remain proportionate to
+- Ten evaluated repetitions run only if their cost remains proportionate under
   `evaluation-recovery-k73` F4. A decision not to run them produces a terminal
   generality-evidence disposition and is not an acceptance shortfall.
 

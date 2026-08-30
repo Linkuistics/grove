@@ -6,6 +6,12 @@ Run only the exact-historical-instrument recovery evaluation authorized by
 `acceptance-replication-authority`, while preserving the accepted historical
 experiment as the authority for its pre-skill baseline and unchanged rubric.
 
+## Disposition
+
+The requirements decision selected a new paired instrument instead of an exact
+replication. This subtree is abandoned and launches no evaluated context;
+`supplemental-evaluation-k77` owns the replacement acceptance instrument.
+
 ## Context
 
 The clause-to-evidence trace in `acceptance-contract-reconciliation-k75` is the
@@ -49,6 +55,10 @@ new instrument and runs only after this subtree.
   separately reported generality evidence. This subtree never promotes the
   parent `Context` sentence to an acceptance clause and never selects a new
   target.
+- Under the selected transfer contract, the frozen `fzf` probe is generality
+  evidence only and ten repetitions must be re-justified against their cost; the
+  replacement-instrument planning leaf owns that decision because this subtree
+  is abandoned.
 - Current-digest campaign checks, plugin structure/installation checks, and
   applicable repository checks publish a terminal pass, failed, or unavailable
   record independently of judged model behavior; anything but pass leaves the

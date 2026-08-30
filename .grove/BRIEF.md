@@ -34,6 +34,16 @@ as a deployable Linkuistics skill.
 - `plugins/linkuistics` ships a generic `writing-code-walkthroughs` skill. The
   skill elicits the target, source scope, audience, depth, output form, style,
   and verification requirements one question at a time before authoring.
+- The preserved historical evaluation remains the sole pre-skill baseline; its
+  failed enabled verdict, sample shortfalls, and Case A selection limitation
+  remain contrary evidence rather than being repaired or rescored.
+- A separately frozen paired acceptance instrument covers intake,
+  source/fragment planning, and exposition/assurance. Every enabled context
+  receives verified final skill bytes before answering; controls receive no
+  skill; user prompts remain byte-identical between arms.
+- Each of the three behavioral surfaces independently shows predeclared
+  material improvement over its contemporaneous no-skill comparator and clears
+  its predeclared absolute enabled-performance floor. All three must pass.
 - Mechanical checks cover fragment tangling, source coverage, Markdown
   structure, and local links. Independent reviews cover technical accuracy and
   editorial quality. The crate's existing verification remains green.
@@ -53,8 +63,10 @@ The requirements agreement is followed by five dependency-ordered increments:
   low-resolution complete-operation tour, then expand reads, mutations, the
   filesystem interpreter, and the CLI before whole-corpus assembly and
   independent technical and editorial review;
-- the validated method is tested first without a skill, authored generically,
-  then tested with the skill enabled against the same behavioural rubric.
+- the validated method is tested first without a skill and authored
+  generically; after the historical enabled campaign fails, a new predeclared
+  paired instrument tests verified skill delivery against contemporaneous
+  no-skill comparators without rewriting the historical record.
 
 Research is an eager vendor pair because one evidence base informs both
 deliverables and the split-attention/redundancy question benefits from
@@ -74,7 +86,10 @@ editorial reviewer commissions integration only when it has findings.
 - Skill destination: `plugins/linkuistics/skills/writing-code-walkthroughs`
 - Agreed test seams: exact-source tangling; complete source-to-fragment
   coverage; Markdown/link validation; technical review; editorial review;
-  existing crate verification; baseline and skill-enabled behavioral scenarios
+  existing crate verification; a pre-run behavioral acceptance manifest;
+  auditable skill delivery and arm assignment; preserved execution records;
+  blind per-surface scoring and independent rescoring; a non-compensating
+  three-surface verdict
 
 ## Notes
 

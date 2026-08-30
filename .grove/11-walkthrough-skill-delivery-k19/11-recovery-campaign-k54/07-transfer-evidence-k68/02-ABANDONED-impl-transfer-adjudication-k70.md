@@ -2,7 +2,9 @@
 
 ## Goal
 
-Audit and publish the exact historical transfer verdict.
+Audit and publish the exact historical transfer result as generality evidence,
+or publish the pre-execution cost disposition when ten repetitions are not
+proportionate.
 
 ## Context
 
@@ -23,10 +25,9 @@ Audit and publish the exact historical transfer verdict.
 - Historical invalid and shortfall outcomes retain their exact frozen meaning.
   The result makes no same-case, population, reader-outcome, or wording-
   causation claim.
-- The result is labelled either an amended acceptance conjunct or separately
-  reported generality evidence exactly as settled by
-  `acceptance-replication-authority`; it never derives acceptance authority from
-  the parent brief's `Context` sentence.
+- The result is labelled separately reported generality evidence exactly as
+  settled by `acceptance-replication-authority`; it never derives acceptance
+  authority from the parent brief's `Context` sentence.
 
 ## Notes
 

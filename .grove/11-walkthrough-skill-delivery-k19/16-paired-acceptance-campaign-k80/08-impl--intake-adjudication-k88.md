@@ -21,8 +21,9 @@ surface verdict.
   including an irregular or incomplete one, receives two independent blind
   scores with minimal citations.
 - Each scorer records a forced arm guess only after scoring. Guess accuracy is
-  revealed and reported as a supplemental limitation after score records are
-  sealed.
+  sealed but neither labels nor accuracy are revealed yet. Fresh scorer and
+  resolver contexts are used for this surface; reveal waits until all three
+  surface score records are sealed by `exposition-assurance-adjudication-k90`.
 - Disagreements are resolved by the manifest-owned blind procedure, with both
   original scores, citations, resolver input, and resolver output preserved.
 - Only frozen acceptance rows feed the intake calculation. The report publishes

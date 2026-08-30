@@ -15,18 +15,24 @@ enabled environment delta before the acceptance manifest freezes.
 
 - The target skill receives a recursive path-and-digest manifest and aggregate
   digest. The verified bytes are the only treatment bytes the campaign may
-  preload.
+  inject.
 - Authoring-convention, progressive-disclosure, citation, harness declaration,
   plugin layout, installation/structure, skill-specific deterministic, and
   applicable repository checks run against that exact digest and preserve
   their commands and outputs.
-- Sealed control and enabled templates are manifest-verified. Removing only the
-  target skill subtree from the enabled template makes their declared content
-  identical; the control has no alternate copy, plugin, instruction, or
-  connector that delivers the treatment.
+- The target directory is exhaustively enumerated under the reviewed
+  `delivery-channel-authority-k94` transport contract. Path ordering and
+  boundaries, admissible file types and encoding, symlink/non-regular handling,
+  payload-size limits, framing bytes, and aggregate digest all match that
+  decision. The enabled effective request contains exactly that verified
+  treatment; the control request omits it and has no alternate copy, plugin,
+  instruction, or connector. Every other declared request and workspace byte is
+  identical.
 - The execution identity and reachable model-interface surfaces are enumerated
-  for both templates. Any undeclared treatment channel or inability to verify
-  the intended preload yields a terminal failed or unavailable record.
+  for both arms. The authority's three surface tool declarations are verified
+  separately from delivery. Any undeclared treatment channel or inability to
+  verify its authoritative receipt yields a terminal failed or unavailable
+  record.
 - The result is exactly pass, failed, or unavailable. Only pass may feed
   `campaign-freeze-k84`; anything else leaves the deterministic parent conjunct
   open and launches no evaluated context.

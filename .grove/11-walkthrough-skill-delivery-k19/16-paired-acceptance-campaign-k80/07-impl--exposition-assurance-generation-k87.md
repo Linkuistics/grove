@@ -14,16 +14,16 @@ assurance without adjudicating any behavioral row.
 
 ## Done when
 
-- The manifest, treatment, templates, prompt, fixtures, runtime identity, and
+- The manifest, treatment, arm request bodies, prompt, fixtures, runtime identity, and
   preceding raw-record status are verified before launch.
 - Every planned control/enabled pair runs back-to-back in frozen order with
-  byte-identical user prompts and the verified treatment preload only in the
-  enabled context.
+  byte-identical user messages, no declared tools, and the verified treatment
+  only in the enabled request's authoritative field.
 - Complete attempt histories preserve assignment, pair id, timestamps, all
-  relevant digests, preload evidence, exposure phase, raw events, final output,
-  manifests, access evidence, invalidity reason, and operator declaration where
-  applicable.
-- Replacement and resource resumption use only frozen deterministic state and
+  relevant digests, delivery-receipt evidence, emitted-assistant-token state,
+  raw events, final output, manifests, access evidence, invalidity reason, and
+  operator declaration where applicable.
+- Carrier-only replacement and automatic resource resumption use only frozen deterministic state and
   cannot depend on outcomes from either preceding surface. Post-delivery
   instruction failures remain valid behavioral outcomes.
 - The leaf publishes a terminal complete, protocol-failed, or unavailable raw
@@ -35,3 +35,7 @@ assurance without adjudicating any behavioral row.
 
 Sealing the barrier is an evidence-ordering control, not an aggregate behavioral
 result.
+
+Generation runs after any earlier surface protocol failure or unavailability,
+unless the shared apparatus is invalid, so the campaign has no outcome-aware
+stop branch.

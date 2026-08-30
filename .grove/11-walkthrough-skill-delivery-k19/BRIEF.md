@@ -52,6 +52,11 @@ development history, not skill-specific vocabulary.
   `supplemental-evaluation-k77` now plans the replacement paired acceptance
   instrument, applies the relevant F1–F14 protections, and keeps discovery and
   transfer work outside the primary verdict.
+- Review integration exposed that installed files and captured CLI arguments do
+  not prove guaranteed treatment delivery. `delivery-channel-authority-k94`
+  therefore settles a machine-checkable request/receipt mechanism, with its own
+  review chain, before `paired-acceptance-campaign-k80` may begin; without one,
+  the amended behavioral conjunct remains open and the campaign does not run.
 
 ## Pointers
 

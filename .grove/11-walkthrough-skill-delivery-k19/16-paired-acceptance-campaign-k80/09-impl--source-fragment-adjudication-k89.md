@@ -18,9 +18,12 @@ paired surface verdict.
   history before scoring.
 - Treatment-neutral randomized bundles preserve all evidence needed for the
   frozen source/fragment rows without explicit assignment metadata. Every
-  scored bundle receives two independent blind scores and minimal citations.
-- Forced arm guesses occur after scoring and before reveal; accuracy is reported
-  only under the supplemental namespace as a blinding limitation.
+  scored bundle, including an irregular or incomplete one, receives two
+  independent blind scores and minimal citations in fresh scorer and resolver
+  contexts for this surface.
+- Forced arm guesses occur after scoring, but neither labels nor accuracy are
+  revealed until all three surfaces are sealed. Accuracy is then reported only
+  under the supplemental namespace as a blinding limitation.
 - The manifest-owned blind resolver preserves both original decisions and
   citations and applies no criterion or discretion outside the frozen rule.
 - Every frozen primary and no-regression row is reported. The surface passes

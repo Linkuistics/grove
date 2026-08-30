@@ -33,9 +33,18 @@ immutable historical and deterministic evidence.
   B/C shortfalls, and superseded-digest limitations remain immutable contrary
   evidence. The new verdict is reported independently and never repairs,
   rescales, supersedes as a record, or erases that campaign.
-- Supplemental discovery measures, arm-guess accuracy, alternate analyses, and
-  the frozen `fzf` generality evidence are reported in a separate namespace and
-  cannot rescue or weaken acceptance. No new transfer probe is implied.
+- Before synthesis, the leaf replays the freeze-time recursive digest manifest
+  over `docs/evaluations/writing-code-walkthroughs/` and stops with a failed
+  historical-immutability check on any path or byte difference. All new
+  instrument, raw, score, and report artifacts remain under
+  `docs/evaluations/writing-code-walkthroughs-paired-acceptance/`.
+- Supplemental discovery measures, arm-guess accuracy, and predeclared
+  alternate analyses are reported separately and cannot rescue or weaken
+  acceptance. Post-hoc analyses are labelled `exploratory`, never supplemental.
+  The frozen `fzf` record is reported as an undefined transfer verdict with 20
+  of 21 attempts breaching its model-interface boundary, not as generality
+  evidence. No new transfer probe is implied because transfer is not an
+  acceptance conjunct and cannot change this campaign's frozen treatment.
 - Deterministic plugin and treatment-verification results are reported at the
   exact executed digest as a separate parent conjunct.
 - The conclusion is bounded to the frozen prompts, fixtures, returned artifacts,
@@ -49,3 +58,7 @@ immutable historical and deterministic evidence.
 If all three surfaces pass, this campaign independently discharges only the
 amended behavioral clause. If any does not, the parent remains open regardless
 of favorable supplemental or historical evidence.
+
+This is the sole acceptance-authorized campaign for its treatment digest. A
+non-pass authorizes no repeat: any later same-digest campaign is supplemental
+unless a new requirements decision explicitly grants acceptance authority.

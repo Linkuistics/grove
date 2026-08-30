@@ -30,6 +30,7 @@ use grove_loop::{
     Tree, TreeWrite, Writing,
 };
 use jj_workspace::Workspace;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
@@ -678,7 +679,15 @@ fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
 /// Keep the established CLI stream semantics: the standard print macros panic on
 /// a broken stdout/stderr, while the cross-reference lint is the one output that
 /// is allowed to come back empty — its own failures are the tree's, never the
-/// sink's, because the insert has already landed by the time it runs.
+/// sink's, because the insert has already landed by the time it runs. So the
+/// hits go out through `writeln!(…).ok()` rather than `eprintln!`, and this is
+/// the site that decides it: the verb hands back a list and holds no opinion
+/// about the sink (`lint-lock-scope-k32`).
+///
+/// **Nothing here is written under a tree lock.** The verb's shared guard is
+/// consumed by its own scan, so a stderr that has stopped draining blocks this
+/// process and no other — where a lint that printed under the tree's exclusive
+/// lock wedged every grove on the worktree behind a stalled harness.
 fn report_insert(tree: &TreeWrite, slug: &str, inserted: &verbs::Inserted) -> Result<()> {
     println!("{}", inserted.path.display());
     let renumbered = &inserted.renumbered;
@@ -700,12 +709,13 @@ fn report_insert(tree: &TreeWrite, slug: &str, inserted: &verbs::Inserted) -> Re
             renumber.to_name()
         );
     }
+    let hits = verbs::stale_cross_refs(tree, renumbered)?;
     eprintln!("cross-references to review (verb does not auto-rewrite):");
-    Ok(verbs::surface_cross_refs(
-        tree,
-        renumbered,
-        &mut std::io::stderr(),
-    )?)
+    let mut stderr = std::io::stderr();
+    for hit in &hits {
+        writeln!(stderr, "{hit}").ok();
+    }
+    Ok(())
 }
 
 fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {

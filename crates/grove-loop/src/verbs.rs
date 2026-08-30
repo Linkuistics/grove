@@ -11,7 +11,6 @@
 //! [`Sought`] instead of an option, and the paths every verb returns — are the
 //! crate root's, and stated there.
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use ordinal_fs_tree::Sought;
@@ -155,33 +154,59 @@ pub fn leaf_insert(
 
 pub use task_grow::{Inserted, Renumber};
 
-/// The stale position-prefixed references a [`leaf_insert`] left behind, written
-/// to `out`.
+/// The stale position-prefixed references a [`leaf_insert`] left behind, one
+/// `path:line: <old-name> (context)` line per hit, in path order.
 ///
 /// **Not a thirteenth verb**: it is the second half of `leaf-insert`'s contract,
 /// which the store cannot supply because nothing in it knows what a reference
-/// is. It takes a guard of its own, because the tree it scans is the one the
-/// shift *left*.
+/// is. It takes a tree of its own, because the tree it scans is the one the
+/// shift *left* — a mutation consumes its guard, and a shifted node took its
+/// whole subtree's paths with it.
+///
+/// # The lock is **shared**, and it is gone before the caller prints
+///
+/// The lint reads and never writes, so it takes the reading lock: it needs
+/// writers held off while it walks, and holding *readers* off as well only
+/// blocked `pick`, `kind` and `brief-chain` for the length of a whole-tree
+/// content scan. And it hands back the hits rather than writing them, so the
+/// caller's sink is written to with no tree lock held at all — a stalled sink
+/// blocks the printing process alone, where under the previous shape it wedged
+/// every grove process on the worktree.
+///
+/// Because the opening is its own, an unspent write guard on `tree` is given up
+/// before it is taken: a second file description on one directory does not share
+/// an `flock`, and holding both is the self-deadlock `TreeWrite`'s header warns
+/// about. See
+/// `task_grow::stale_cross_refs` for the argument, including what the weaker
+/// claim gives up.
 ///
 /// # Errors
 ///
-/// A tree that could not be reopened — and **only** that. A write to `out` that
-/// fails is dropped rather than returned: the insert has already landed by the
-/// time this runs, and a lint that cannot print must not turn a mutation the
-/// caller has been told about into a failure.
-pub fn surface_cross_refs(
-    tree: &TreeWrite,
-    renumbered: &[Renumber],
-    out: &mut impl Write,
-) -> Result<(), Error> {
+/// A tree that could not be read — and **only** that. It is the same refusal a
+/// reading verb states for a root that is not there, reached here after an
+/// insert has already landed, so a caller that wants the mutation's report
+/// regardless should say so rather than propagate.
+///
+/// A sink that cannot be written is no longer this function's concern at all:
+/// it returns a value, and the decision to drop a failed write belongs to
+/// whoever owns the stream — for `grove-llm leaf-insert` that is `report_insert`
+/// in `crates/grove-llm/src/cli.rs`, which drops it because the insert has
+/// landed and a lint that cannot print must not turn a reported mutation into a
+/// failure.
+pub fn stale_cross_refs(tree: &TreeWrite, renumbered: &[Renumber]) -> Result<Vec<String>, Error> {
     if renumbered.is_empty() {
-        return Ok(());
+        return Ok(Vec::new());
     }
-    Ok(task_grow::surface_cross_refs(
-        tree.guard()?,
+    // The reading opening is a **second file description**, and two of them on
+    // one directory do not share an `flock` — so an unspent write guard still
+    // held here would block this call against its own process, forever. Giving
+    // it up first is the whole of the fix, and it costs nothing: a `TreeWrite`
+    // reopens for the next verb that asks either way.
+    tree.relinquish();
+    Ok(task_grow::stale_cross_refs(
+        task_tree::read(tree.root())?,
         renumbered,
-        out,
-    )?)
+    ))
 }
 
 /// Turn a leaf into a node, its bytes becoming the node's charter, with one

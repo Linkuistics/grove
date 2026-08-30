@@ -342,6 +342,50 @@ fn leaf_insert_takes_the_slot_and_reports_every_sibling_it_shifted() {
 }
 
 #[test]
+fn the_cross_reference_lint_answers_through_an_unspent_write_guard() {
+    // **The one verb that opens the tree while a `TreeWrite` is in hand.** It
+    // reads under a *shared* lock of its own since `lint-lock-scope-k32`, and a
+    // second file description on one directory does not share an `flock` — so
+    // an unspent exclusive guard left on `tree` would block this call against
+    // its own process and never wake. `stale_cross_refs` gives that guard up
+    // before it opens, which is what this pins.
+    //
+    // Bounded rather than plain, because the regression is a hang: an
+    // unbounded call would take the whole suite's timeout with it and report
+    // nothing about why.
+    let (_tmp, root) = worktree();
+    scaffold(&root);
+    verbs::leaf_add(
+        &writable(&root),
+        &Reference::root(),
+        &slug("later"),
+        &[kind("impl")],
+    )
+    .unwrap();
+    let inserted = verbs::leaf_insert(
+        &writable(&root),
+        &reference("2"),
+        &slug("earlier"),
+        &kind("impl"),
+    )
+    .unwrap();
+
+    // Opened and *not* spent: the guard `writable` took is still held.
+    let tree = writable(&root);
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let answered = verbs::stale_cross_refs(&tree, &inserted.renumbered).is_ok();
+        sender.send(answered).ok();
+    });
+
+    assert_eq!(
+        receiver.recv_timeout(std::time::Duration::from_secs(30)),
+        Ok(true),
+        "the lint blocked against this process's own exclusive guard"
+    );
+}
+
+#[test]
 fn leaf_decompose_turns_a_leaf_into_a_node_with_one_first_child() {
     let (_tmp, root) = worktree();
     let initialized = scaffold(&root);

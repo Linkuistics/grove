@@ -120,6 +120,25 @@ pub(crate) type Opening = Writing<TaskName>;
 /// of a lock grove could not nest inside the library's.
 pub(crate) type TreeVacancy = Vacancy<TaskName>;
 
+/// Read the task tree under a shared lock, refusing a root that holds no tree.
+///
+/// One lock and one snapshot, and a reading verb takes exactly one of these.
+/// The shared/exclusive split is the whole of what the two entry points differ
+/// by: both keep the tree quiescent against **writers**, and only this one lets
+/// other readers through. So a verb that reads takes this, and takes it even
+/// when it is reporting on a mutation the same command just made — see
+/// [`crate::verbs::stale_cross_refs`], which is the one such caller.
+///
+/// [`read_or_vacant`] is the same acquisition with the vacancy left as an
+/// answer; **this** entry point is for verbs that act on a tree that must
+/// already be there, exactly as [`write`] is on the other side.
+pub(crate) fn read(grove_root: &Path) -> Result<Tree> {
+    match read_or_vacant(grove_root)? {
+        Vacant::Tree(tree) => Ok(tree),
+        Vacant::Nothing => Err(absent_tree(grove_root)),
+    }
+}
+
 /// Read the task tree under an exclusive lock, announcing contention first.
 ///
 /// The write-side twin of [`read`]. A root that holds no tree is the error
@@ -1002,19 +1021,12 @@ pub(crate) mod tests {
     //
     // Every verb takes an already-open tree since `loop-crate-verbs-k21`, so
     // *open the root, then read it* is the caller's composition and no longer
-    // production code here. The fixtures below all name a root, so the four
+    // production code here. The fixtures below all name a root, so the
     // compositions they were written against live here, where they are used.
+    // The shared *opening* itself is production again since
+    // `lint-lock-scope-k32` — `super::read` — because a verb finally needed one;
+    // what stays here is only the open-then-call pairing each fixture wants.
 
-    /// Read the task tree under a shared lock.
-    ///
-    /// One lock and one snapshot, and every read verb below takes exactly one of
-    /// these.
-    pub(crate) fn read(grove_root: &Path) -> Result<Tree> {
-        match read_or_vacant(grove_root)? {
-            Vacant::Tree(tree) => Ok(tree),
-            Vacant::Nothing => Err(absent_tree(grove_root)),
-        }
-    }
     /// `pick`: the first **live leaf** in walk order, or `None` for a grove with no
     /// live work left — the loop's finish signal, which the CLI renders as empty
     /// stdout and a *no live leaves* diagnostic.

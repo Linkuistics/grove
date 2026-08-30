@@ -156,7 +156,9 @@ pub enum Writing {
 ///   `collapse-tree-access-k13` deleted a whole layer to remove, and the shape
 ///   is expressible again as soon as a caller holds a lock across a call. The
 ///   rule is one sentence: **take the opening you need, spend it, and let it
-///   go.**
+///   go.** A verb that genuinely needs its own opening — there is exactly one,
+///   [`verbs::stale_cross_refs`] — calls `relinquish` below first, which
+///   is how it obeys that rule rather than an exception to it.
 ///
 /// The gap between one guard closing and the next opening is exactly the gap
 /// `docs/adr/bulk-marks-are-not-atomic.md` records: a subtree prune is *N*
@@ -186,6 +188,23 @@ impl TreeWrite {
     #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// Give up the guard this was opened with, if it still holds one.
+    ///
+    /// **The one safe way to open the tree while a `TreeWrite` is in hand.**
+    /// The type's header forbids that in general, and the reason is mechanical:
+    /// two file descriptions on one directory do not share an `flock`, so a
+    /// second opening blocks against this process's own exclusive lock and
+    /// never wakes. A verb that reads through its *own* opening therefore calls
+    /// this first, and the deadlock is then unexpressible rather than merely
+    /// unlikely — [`verbs::stale_cross_refs`] is the one such verb.
+    ///
+    /// It costs nothing a caller was promised: this value never was *the tree
+    /// under a lock held for as long as you hold it*, and the next verb to ask
+    /// reopens exactly as it would have after any other verb spent the guard.
+    fn relinquish(&self) {
+        drop(self.opened.borrow_mut().take());
     }
 
     /// One operation's guard: the one this was opened with, or a fresh one.

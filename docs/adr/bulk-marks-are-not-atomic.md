@@ -36,6 +36,14 @@ the guard it opened with before reopening for the next verb. That is this record
 made explicit rather than a second instance of it — the gap it exposes is the
 same one, and no verb gained a guard.
 
+`lint-lock-scope-k32` added the one affordance that shape needed. The
+cross-reference lint reads under a **shared** lock of its own, which is a second
+file description — so it would have met the deadlock the rejected
+*hold Grove's own exclusive guard around the whole run* option below describes,
+against its own process, whenever the caller still held an unspent guard. `TreeWrite::relinquish` gives that guard up before the second
+opening is taken, which is how a verb obeys *one opening at a time* rather than
+an exception to it. Still no verb holds two.
+
 ## The trade-off
 
 The guard is consumed for a reason the library argues at length: every operation
@@ -83,7 +91,8 @@ inline.
   take its guard inside it. Rejected because it deadlocks: both `flock` the
   directory containing the tree root, and two open file descriptions on one
   directory do not share a lock
-  ([`docs/ARCHITECTURE.md`](../ARCHITECTURE.md), *Two locks, one at a time*).
+  ([`docs/ARCHITECTURE.md`](../ARCHITECTURE.md#one-lock-and-it-is-the-librarys),
+  *One lock, and it is the library's*).
 - **Perform the first mark through the library and the rest with `fs::rename`,**
   under one guard. Rejected outright: it is Grove re-implementing the algebra the
   flip exists to delete, and the renames it took would be the ones the library's

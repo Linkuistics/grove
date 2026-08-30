@@ -48,14 +48,13 @@
 // the verb and telling the skill to call `leaf-add` three times was rejected: it
 // puts back the live-prefix hazard the atomic run exists to exclude.
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use ordinal_fs_tree::{Created, Entry, Key, NewEntry, Report, Snapshot, Species, Target};
 
 use crate::task_name::{Handle, Kind, Outcome, Parts, Slug, TaskName};
-use crate::task_tree::{self, Guard};
+use crate::task_tree::{self, Guard, Tree};
 
 /// `leaf-add <parent> <slug> --kind K…`: append **one leaf per kind**, in the
 /// order given, under `parent` at the next free ordinals with consecutive fresh
@@ -270,13 +269,14 @@ fn renumbered(report: &Report<TaskName>) -> Result<Vec<Renumber>> {
     Ok(log)
 }
 
-/// Surface stray **position-prefixed** cross-references left stale by a
-/// `leaf-insert` renumber, as a lint on stderr — never an auto-rewrite (durable
-/// references should use the stable `<slug>-k<key>` handle, which a renumber
-/// never changes, so the operator reviews each occurrence). Emits one
-/// `path:line: <old-name> (context)` per hit. A stable `<slug>-k<key>` reference
-/// is *not* surfaced (it did not move); only the position-prefixed form is stale.
-/// An empty renumber log means there is nothing to do.
+/// The stale **position-prefixed** cross-references a `leaf-insert` renumber
+/// left behind, as one `path:line: <old-name> (context)` line per hit.
+///
+/// A lint, never an auto-rewrite: durable references should use the stable
+/// `<slug>-k<key>` handle, which a renumber never changes, so the operator
+/// reviews each occurrence. A stable handle is therefore *not* surfaced (it did
+/// not move); only the position-prefixed form is stale. An empty renumber log
+/// means there is nothing to do.
 ///
 /// **It scans the tree, where it used to scan the directory.** The bodies are
 /// every leaf and every `BRIEF.md` the snapshot holds, which is what grove has
@@ -284,20 +284,37 @@ fn renumbered(report: &Report<TaskName>) -> Result<Vec<Renumber>> {
 /// dropped inside `.grove/` by hand is no longer scanned; grove writes none, and
 /// the alternative is a second, wider notion of *what is in the tree* than every
 /// other verb uses.
-pub(crate) fn surface_cross_refs(
-    tree: Guard,
-    renumbered: &[Renumber],
-    out: &mut impl Write,
-) -> Result<()> {
+///
+/// # It consumes a **shared** guard, and returns rather than prints
+///
+/// Both halves are `lint-lock-scope-k32`'s, and each closes something the
+/// exclusive, printing version had.
+///
+/// * **Shared.** The scan only reads. The property the lock is for — a hit
+///   names a path nothing renamed while the hit was being read — needs
+///   *writers* excluded, and `LOCK_SH` excludes them. Excluding readers as well
+///   bought nothing and blocked every other reader on the worktree for the
+///   length of a whole-tree content scan.
+/// * **Returned, not written.** The guard is consumed here and dropped with the
+///   scan, so the caller does its printing with **no lock held**. That matters
+///   because a `writeln!` to a pipe whose reader has stopped draining blocks
+///   forever, and under the old shape it blocked with the tree's exclusive lock
+///   held — wedging every grove process on the worktree behind a stalled
+///   harness. Making the hits a value rather than an effect is what makes that
+///   unexpressible rather than merely not-currently-done.
+///
+/// What the hits give up in exchange is the claim that each was printed while
+/// the tree was still held. That claim did not survive the call's own return in
+/// any case — the operator reads stderr long after the guard is gone — and what
+/// is load-bearing is the property that remains: every hit comes from **one
+/// consistent snapshot**, rather than from a tree walked while it moved.
+pub(crate) fn stale_cross_refs(tree: Tree, renumbered: &[Renumber]) -> Vec<String> {
     if renumbered.is_empty() {
-        return Ok(());
+        return Vec::new();
     }
     // A second observation, and it has to be: a mutation consumes its guard, and
     // the paths inside a shifted node moved with it, so the tree this scans is
-    // the one the shift *left*. Reopened exclusively — the lint's output is
-    // written while it is held, so nothing renames underneath a hit it is about
-    // to print — and without a second waiting diagnostic, because the wait this
-    // command made was announced by the insert.
+    // the one the shift *left*.
     // The stale tokens are the *old* position-prefixed names the renumber moved
     // (`02-mid-k3`), with any `.md` extension dropped so a path reference
     // `02-mid-k3/01-impl--x-k4.md` matches the directory token. The `-k<digits>`
@@ -314,6 +331,7 @@ pub(crate) fn surface_cross_refs(
         .collect();
     bodies.sort();
 
+    let mut hits = Vec::new();
     for path in &bodies {
         let Ok(body) = std::fs::read_to_string(path) else {
             continue;
@@ -321,20 +339,18 @@ pub(crate) fn surface_cross_refs(
         for (index, line) in body.lines().enumerate() {
             for token in &stale {
                 if line.contains(token) {
-                    writeln!(
-                        out,
+                    hits.push(format!(
                         "{}:{}: {} ({})",
                         path.display(),
                         index + 1,
                         token,
                         line.trim()
-                    )
-                    .ok();
+                    ));
                 }
             }
         }
     }
-    Ok(())
+    hits
 }
 
 // ---------------------------------------------------------------------------

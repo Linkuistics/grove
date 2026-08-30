@@ -1284,7 +1284,7 @@ fn insert_records_nothing_in_the_committed_revision() {
     );
 }
 
-// ---- surface_cross_refs (position-prefixed lint, not auto-rewrite) ----------
+// ---- stale_cross_refs (position-prefixed lint, not auto-rewrite) ------------
 
 /// A renumber as the verb reports one: two paths, and the positions a caller
 /// prints. The fixtures below name the two filenames, so the root they sit under
@@ -1298,10 +1298,18 @@ fn renum(root: &Path, old: u32, new: u32, old_name: &str, new_name: &str) -> Ren
     }
 }
 
+/// The shared guard the lint takes since `lint-lock-scope-k32`. It reads and
+/// never writes, so it takes the reading lock; the exclusive one is a write
+/// verb's.
+fn shared(grove_root: &Path) -> Tree {
+    task_tree::read(grove_root).expect("opening the tree for the lint")
+}
+
 fn surfaced(root: &Path, renumbered: &[Renumber]) -> String {
-    let mut buffer = Vec::new();
-    surface_cross_refs(guard(root), renumbered, &mut buffer).unwrap();
-    String::from_utf8(buffer).unwrap()
+    stale_cross_refs(shared(root), renumbered)
+        .into_iter()
+        .map(|hit| hit + "\n")
+        .collect()
 }
 
 #[test]
@@ -1396,55 +1404,72 @@ fn surface_scans_the_tree_and_not_the_directory() {
 }
 
 #[test]
-fn surface_holds_the_tree_while_it_reports() {
-    // The lint's own guard: a hit names a path, and a path anything else could
-    // rename between the read and the write is a path the operator cannot open.
+fn surface_scans_one_snapshot_under_a_shared_lock() {
+    // **What the lint's lock is for, restated at `lint-lock-scope-k32`.** It
+    // used to assert that a hit was *printed* while the tree was held
+    // exclusively. That claim bought nothing it could keep — it expired at the
+    // call's own return, long before an operator read stderr — and it cost a
+    // whole-tree content scan under the lock that every other reader waits on.
+    // What is load-bearing is what this asserts instead: the scan holds a
+    // **shared** guard, so writers are excluded while it walks and every hit
+    // comes from one consistent snapshot, while `pick`, `kind` and
+    // `brief-chain` run alongside it.
     let (_t, g) = grove();
     touch_body(
         &g,
         "BRIEF.md",
         "# root — brief\n\nthe plan is at 02-mid-k3\n",
     );
-    let mut probe = ProbingWriter {
-        directory: g.parent().unwrap().to_path_buf(),
-        bytes: Vec::new(),
-    };
-    surface_cross_refs(
-        guard(&g),
-        &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")],
-        &mut probe,
-    )
-    .unwrap();
+    let tree = shared(&g);
+    let worktree = g.parent().unwrap();
+
     assert!(
-        !probe.bytes.is_empty(),
-        "the fixture must produce a hit for the probe to fire on"
+        !exclusive_lock_is_free(worktree),
+        "a writer must be excluded while the lint scans"
+    );
+    assert!(
+        shared_lock_is_free(worktree),
+        "another reader must not be — that is the whole of what shared buys"
+    );
+
+    let hits = stale_cross_refs(tree, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]);
+    assert!(
+        hits.iter().any(|hit| hit.contains("BRIEF.md")),
+        "the fixture must produce a hit: {hits:?}"
+    );
+    // And the hazard the old shape had: the scan consumes its guard, so a
+    // caller printing these hits into a sink that has stopped draining blocks
+    // its own process and no other. Under the exclusive printing version that
+    // block held the tree, and every grove on the worktree wedged behind it.
+    assert!(
+        exclusive_lock_is_free(worktree),
+        "nothing is held once the scan returns, so a stalled sink wedges nobody"
     );
 }
 
-/// A writer that fails the test if the tree is not exclusively locked at the
-/// moment a byte of lint output is written.
-struct ProbingWriter {
-    directory: PathBuf,
-    bytes: Vec<u8>,
+/// Whether an exclusive lock on `directory` can be taken **right now**, on a
+/// second file description.
+///
+/// Two descriptions on one directory do not share an `flock` even within one
+/// process, which is what makes this a usable probe from inside a test that
+/// holds a guard of its own.
+fn exclusive_lock_is_free(directory: &Path) -> bool {
+    probe(directory, libc::LOCK_EX)
 }
 
-impl Write for ProbingWriter {
-    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
-        use std::os::fd::AsRawFd;
-        let directory = std::fs::File::open(&self.directory)?;
-        let taken =
-            unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) } == 0;
-        assert!(
-            !taken,
-            "cross-reference output was written without the tree held"
-        );
-        self.bytes.extend_from_slice(buffer);
-        Ok(buffer.len())
-    }
+/// The same for a shared lock: true while nothing holds the tree exclusively.
+fn shared_lock_is_free(directory: &Path) -> bool {
+    probe(directory, libc::LOCK_SH)
+}
 
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
+fn probe(directory: &Path, mode: i32) -> bool {
+    use std::os::fd::AsRawFd;
+    let opened = std::fs::File::open(directory).expect("opening the directory to probe its lock");
+    let taken = unsafe { libc::flock(opened.as_raw_fd(), mode | libc::LOCK_NB) } == 0;
+    if taken {
+        unsafe { libc::flock(opened.as_raw_fd(), libc::LOCK_UN) };
     }
+    taken
 }
 
 // ---- the reachability table, transcribed ------------------------------------
@@ -1610,66 +1635,46 @@ fn reference_taking_commands_acquire_the_tree_lock_once() {
         add_pair(grove_root, "1", "survey").unwrap();
     });
     assert_one_acquisition(|grove_root| {
-        let tree = task_tree::tests::read(grove_root).unwrap();
+        let tree = task_tree::read(grove_root).unwrap();
         let leaf = task_tree::pick_in(&tree).unwrap().unwrap();
         task_tree::brief_chain(&tree, &leaf).unwrap();
     });
 }
 
-struct ExclusiveLockAssertingWriter {
-    worktree: PathBuf,
-    bytes: Vec<u8>,
-}
-
-impl std::io::Write for ExclusiveLockAssertingWriter {
-    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
-        use std::os::fd::AsRawFd;
-        let directory = std::fs::File::open(&self.worktree)?;
-        let result = unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
-        assert_ne!(
-            result, 0,
-            "cross-reference output was written after leaf-insert released its exclusive lock"
-        );
-        self.bytes.extend_from_slice(buffer);
-        Ok(buffer.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
 #[test]
-fn leaf_insert_lints_cross_references_under_an_exclusive_lock_of_its_own() {
+fn leaf_insert_lints_cross_references_under_a_shared_opening_of_its_own() {
     // **Two observations, and the second is the lint's.** A mutation consumes
     // its guard, so the tree the shift *left* — which is the tree a stale
     // reference has to be read out of, since a shifted node took its whole
-    // subtree's paths with it — can only be seen through a second guard. What
-    // the property was ever about is that the output is written while the tree
-    // is **held**: a hit printed after the lock went would name a path anything
-    // else could already have renamed.
+    // subtree's paths with it — can only be seen through a second opening.
+    //
+    // That opening is **shared** since `lint-lock-scope-k32`. What the property
+    // is about is that the hits come from one snapshot of the tree the shift
+    // left, with writers excluded while it is walked. It is *not* that they are
+    // printed under the lock: the call cannot keep that claim past its own
+    // return, and holding it cost every other reader on the worktree a
+    // whole-tree content scan.
     let (worktree, grove_root) = grove_with_node();
     let brief = grove_root.join("01-plan-k1").join("BRIEF.md");
     let body = fs::read_to_string(&brief).unwrap() + "stale path: 01-impl--first-k2\n";
     fs::write(&brief, body).unwrap();
-    let mut output = ExclusiveLockAssertingWriter {
-        worktree: worktree.path().to_path_buf(),
-        bytes: Vec::new(),
-    };
     task_tree::reset_read_count();
 
     let inserted =
         leaf_insert(guard(&grove_root), "2", &a_slug("earlier"), &a_kind("impl")).unwrap();
-    surface_cross_refs(guard(&grove_root), &inserted.renumbered, &mut output).unwrap();
+    let hits = stale_cross_refs(shared(&grove_root), &inserted.renumbered);
 
     assert!(
-        String::from_utf8_lossy(&output.bytes).contains("BRIEF.md:"),
-        "fixture must exercise a cross-reference hit: {}",
-        String::from_utf8_lossy(&output.bytes)
+        hits.iter().any(|hit| hit.contains("BRIEF.md:")),
+        "fixture must exercise a cross-reference hit: {hits:?}"
     );
     assert_eq!(
         task_tree::read_count(),
         2,
-        "the insert, then the lint's own guard over the tree it left"
+        "the insert, then the lint's own opening over the tree it left"
+    );
+    assert!(
+        exclusive_lock_is_free(worktree.path()),
+        "and that opening is gone by the time the hits are in hand"
     );
 }

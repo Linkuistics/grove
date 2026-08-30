@@ -872,6 +872,17 @@ the non-blocking contention probe below, which is released in the same
 expression. `crates/grove-llm/tests/tree_lock.rs` holds both halves by
 enumerating every package's `src/`.
 
+**The one-at-a-time rule outlived the second layer, because two descriptions are
+enough to express it.** A caller holding a `TreeWrite` whose guard is still
+unspent, and calling something that opens the tree itself, blocks against its own
+process exactly as the deleted layer did — which is why that type's header says
+*take the opening you need, spend it, and let it go*. One verb genuinely needs
+its own opening: the cross-reference lint reports on the tree a `leaf-insert`
+left, and reads it under a shared lock (below, *A verb that reports on the tree
+it changed needs a second opening*). It calls `TreeWrite::relinquish` first, so
+it obeys the rule rather than excepting itself from it, and grove still never
+holds two.
+
 Two consumer-side obligations came out of that move, and every later flip leaf
 inherits both.
 
@@ -934,18 +945,44 @@ changed nothing, and reported success. Every flipped verb goes through it, and
 every verb the migrate stage has yet to move should: the hazard belongs to
 *resolve a path, then call by key*, which is the shape of all of them.
 
-#### A verb that reports on the tree it changed needs a second guard
+#### A verb that reports on the tree it changed needs a second opening
 
 `growing-k33` moved `leaf-add` and `leaf-insert` onto `append`,
 `append_many` and `insert`, and one of them has an epilogue: `leaf-insert` lints
 stray position-prefixed cross-references left stale by the renumber it just made.
 The lint reads the tree the **shift left** — a shifted node took its whole
 subtree's paths with it — and the mutation consumed the guard that could have
-shown it, so the verb reopens one. That is a second observation, deliberately,
-and the property it preserves is the one that mattered: the output is written
-while the tree is held, so a hit naming a path is a path nothing has renamed
-underneath it. The reopen takes no second waiting diagnostic, for the same reason
-a bulk mark's later guards do not.
+shown it, so the verb opens the tree again. That is a second observation,
+deliberately, and it announces its own wait like any other.
+
+**That second opening is shared, and it is gone before anything is printed.**
+Both halves are `lint-lock-scope-k32`'s, and the leaf's subject was the exclusive
+printing version it replaced.
+
+The lint reads and never writes, so what it needs is *writers* held off while it
+walks — which is what a shared lock is. The exclusive one held readers off too,
+so `pick`, `kind` and `brief-chain` waited on a whole-tree content scan for
+nothing. Holding **no** lock is not the third option it looks like: the store's
+reader takes one to take a snapshot at all, so a lint holding nothing would have
+to walk the tree outside the reader and could be handed a half-renamed level.
+
+And the hits are **returned rather than written**. The old shape took a caller's
+sink and `writeln!`d each hit into it under the lock — and a `writeln!` to a pipe
+whose reader has stopped draining blocks, so a harness that captured a session's
+stderr and stopped reading could wedge every grove process on the worktree behind
+the tree's exclusive lock. `verbs::stale_cross_refs` hands back a `Vec<String>`
+and drops its guard with the scan, so the printing happens with no lock held and
+there is no sink inside the critical section to stall in. `grove-llm`'s
+`report_insert` does that printing, and drops a failed write rather than
+returning it: the insert has already landed, and a lint that cannot print must
+not turn a reported mutation into a failure.
+
+What this gives up is the claim the old test made — that a hit was *printed*
+while the tree was held, so it could not name a path something had since
+renamed. That claim never survived the call's own return: an operator reads
+stderr long after the guard is gone, and any grove process may rename in that
+window. What remains is what was load-bearing, and the tests now say so: every
+hit comes from **one consistent snapshot**.
 
 The lint also **scans the snapshot** rather than the directory, so what it reads
 is every leaf and every charter — the same set every other verb calls the tree —

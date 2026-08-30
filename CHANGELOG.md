@@ -51,6 +51,19 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`grove-llm leaf-insert`'s cross-reference lint takes a shared lock, and
+  holds none while it prints.** The lint reads the tree the renumber left and
+  writes nothing to it, so it no longer takes the store's exclusive lock: a
+  concurrent `pick`, `kind` or `brief-chain` used to wait out a whole-tree
+  content scan for a guarantee only writers needed. And the hits are now
+  *returned* to the CLI rather than written to a sink under the lock — a stderr
+  that has stopped draining blocks the printing process alone, where before it
+  wedged every grove process on the worktree behind the held lock. A hit that
+  cannot be printed is still dropped rather than failing the command: the insert
+  has already landed. What is given up is a claim that never survived the call's
+  own return — that each hit was printed while the tree was held; what is kept,
+  and now asserted, is that every hit comes from one consistent snapshot.
+
 - **The launched session is a job of its own** — its own process group, holding
   the terminal, with default signal dispositions
   (`docs/adr/the-launched-child-is-a-job.md`). Three defects go with it, all of

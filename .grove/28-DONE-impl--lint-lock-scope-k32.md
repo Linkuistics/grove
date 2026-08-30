@@ -73,3 +73,67 @@ then being corrected.
 **No cutover.** Nothing here is tree-visible: no file in `.grove/` moves, no
 filename grammar changes, and the verb set is untouched. Re-derive it anyway —
 the root brief requires the matrix rather than the label — but expect it clean.
+
+## Decisions (running log)
+
+- **The lint's lock is shared, not exclusive.** The lint only reads. What the
+  recorded argument establishes — *nothing renames underneath a hit* — needs
+  writers excluded, which `LOCK_SH` does; excluding *readers* buys nothing and
+  blocks `pick`, `kind` and `brief-chain` for the length of a whole-tree content
+  scan. "None" is not on the table: the store's own reader takes `LOCK_SH` to
+  take a snapshot at all, so the scan would have to bypass the reader to hold
+  nothing, and a torn walk is the only thing that buys.
+- **The blocking-sink hazard is closed structurally, not by comment.** The scan
+  collects its hits, the guard is consumed by the scan and dropped with it, and
+  the verb returns a `Vec<String>`. The verb crate no longer writes to a caller's
+  sink at all, so *no lock is held while printing* is a property of the types
+  rather than of the order of two statements someone could later swap.
+- **The claim the test makes is weakened deliberately, and this is the argument.**
+  It asserted the hits were *printed* while the tree was held. That property was
+  never worth what it cost, because it does not survive the function's own
+  return: the operator reads stderr long after the guard is gone, and any grove
+  process may rename in that window. What is actually load-bearing is that the
+  hits come from **one consistent snapshot** — no half-walked tree, no hit read
+  out of a file another writer was renaming — and a shared guard over the scan
+  gives exactly that. The test now asserts the snapshot property, plus the new
+  one: that the tree is unlocked at the moment a hit is printed.
+- **The write errors stay swallowed, and move to where the stream semantics
+  live.** `report_insert` prints the hits with `writeln!(stderr).ok()` rather
+  than `eprintln!`, keeping today's behaviour — the insert has landed, so a lint
+  that cannot print must not turn a reported mutation into a failure — at the one
+  site whose doc comment already states that rule.
+
+- **A self-deadlock the old shape did not have, found and closed while
+  implementing.** The exclusive version reached the tree through
+  `TreeWrite::guard()`, which *consumes* the guard the value was opened with —
+  so it could never contend with it. Opening a shared lock instead is a **second
+  file description**, and two of those on one directory do not share an `flock`:
+  a caller holding an unspent write guard would have blocked the lint against
+  its own process, forever. `TreeWrite::relinquish()` gives the guard up before
+  the read is taken, which makes the hazard unexpressible rather than a rule in
+  a header, and `the_cross_reference_lint_answers_through_an_unspent_write_guard`
+  pins it — bounded by a channel timeout, because the regression is a hang and
+  an unbounded test would report nothing about why.
+
+## Why this leaf does not install anything
+
+Re-derived rather than inherited, on the test the root brief names: **is there a
+cell where the installed build meets the tree this leaf leaves and fails?**
+
+The tree this leaf leaves is the tree it found. Nothing under `.grove/` is
+added, removed or renamed by the change; the filename grammar is untouched; the
+verb set is the same twelve; and `grove-llm leaf-insert`'s three output streams
+are byte-identical in shape — the same path on stdout, the same renumber
+summary, the same `path:line: <old-name> (context)` lint lines on stderr, in the
+same path order. What moved is a library-internal signature (`Vec<String>`
+returned instead of an `impl Write` taken) and which `flock` mode one opening
+asks for, neither of which is visible to a reader of the tree or of the command.
+
+| | old tree | new tree |
+|---|---|---|
+| **installed build (19.6.0)** | drives (today) | *same tree* — drives |
+| **new build** | *same tree* — drives | drives |
+
+Two of the four cells are the same observation because the two trees are the
+same bytes. No cell fails, so there is no cutover, no release and no step-5 exit:
+this session signals `complete` like any other.

@@ -1,7 +1,7 @@
 ---
 name: grove-impl
 description: The `impl` session kind — produce code, docs, or tests that ship, verifying framework decisions against the source rather than memory. Use when a grove mandate names this skill, or when running an `impl` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from

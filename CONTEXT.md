@@ -8,110 +8,61 @@ them.
 
 ## Language
 
-**Global skill provisioning** / **skill precedence**:
-The `grove` binary's per-invocation sweep of its embedded `content/` into
-**every installed harness's** personal global skill directory, before it tries
-to own a working tree — every one, because an opaque configured command cannot
-be traced to a single harness. `content/` stays canonical and the binary is the
-only writer of these directories. **It is the delivery path**: the methodology
-reaches a session as the provisioned skill, and `${prompt}` carries only the
-[[Guaranteed core]] pointing at it by absolute path
-(`docs/adr/skill-delivers-the-methodology.md`). The directories are global, so a
-directory is owned by whichever build wrote it last; the loop therefore
-re-verifies each stamp before every launch and restores its own embed when
-another build has taken one ([[Build pairing]]).
-**Its retirement was settled and is cancelled.** Mandate delivery was measured
-against a real Grove run with a human watching — the check that record itself
-nominated — and came back negative: a ~49 KiB `${prompt}` degrades session
-behaviour, most visibly as sessions that finish their work and fail to signal.
-So the sweep, the stamp and the shared directory all stay, and the two failures
-this term sits between are named in [[Guaranteed core]].
+**Skill delivery** / **the retired sweep**:
+How grove's methodology reaches a session: it does not. The methodology is the
+**`grove` plugin** — a spine skill and one `grove-<kind>` skill per kind — and a
+human installs it the way this repo's other plugins are installed. `${prompt}`
+names the one skill this session's kind needs ([[Guaranteed core]]) and grove
+does nothing else about delivery.
+
+**What this replaces, and why the arguments are kept.** The binary used to embed
+its whole methodology as a `content/` tree and sweep it, on every invocation,
+into **every installed harness's** personal global skill directory — every one,
+because an opaque configured command cannot be traced to a single harness. Four
+terms hung off that one mechanism and are retired with it: *global skill
+provisioning* (the sweep), *embedded methodology* (the `include_dir!` tree fixed
+at build time), *methodology identity* (its content hash, written as the
+directory's stamp), and *build pairing* (the report comparing that hash against
+the `grove-llm` a session's `PATH` resolved). All four existed to make one
+mechanism safe, and none has a subject once the mechanism goes.
+
+**The cost, recorded rather than argued away.** Grove no longer guarantees the
+methodology is present, so a session can be launched pointing at a skill that is
+not installed. That is a message, not machinery: grove states the version it is,
+names the skill, and stops. A harness with a skill-loading affordance is
+unaffected; one without has lost its fallback. **The reopen condition is a
+session that cannot reach the methodology by the affordance alone** — an
+observation, not a suspicion.
+
+_Avoid_: reviving the sweep because a session missed its skill once. That is the
+delivery question, and it is answered by a better install route or a stronger
+trigger before it is answered by a binary writing into a global directory.
+_Avoid_: **serving the methodology over MCP.** Rejected where the registry was
+deleted: it would not remove the delivery machinery, only change what is served,
+and it puts a running server between a session and prose it can read off disk.
+_Avoid_: a harness registry, in any form. A row in one was only ever *a place to
+write files* — never a thing to run — so a new harness is answered by that
+harness's own skill-install route, not by a row grove carries.
 _Avoid_: naming `start.md`, `retire.md` or `continue.md` — those launcher prompts
 disappeared with their lifecycle verbs. There is no launcher and no launcher
-prose in the embed: `content/MANDATE.md` framed the mandate and went with it, and
+prose anywhere: `content/MANDATE.md` framed the mandate and went with it, and
 what the driver writes is the [[Guaranteed core]], in Rust, under a rule.
-_Avoid_: reading "current" as "as committed". What is swept is the
-[[Embedded methodology]] — the copy compiled into the *running* binary — so a
-sweep is current with respect to that build and to nothing else.
-
-**Methodology identity**:
-The content hash of a build's [[Embedded methodology]] — of its embedded file
-payload, every file's path and bytes — which is the value
-[[Global skill provisioning]] writes as its stamp and the name of *which build*
-a skill directory or a binary belongs to. It is a hash rather than the crate
-version because the version does not move between a released binary and an
-edited checkout at that same version, which is exactly the pairing that has to
-be detectable. **Both binaries hash the embed directly**, through one
-implementation. It was a **compile-time constant** for as long as only `grove`
-linked `content/` — the constant existed precisely so that naming the identity
-did not link the embed — and stopped being one the moment `grove-llm methodology`
-made the agent-facing binary link it anyway; the build-script traversal, the
-constant and the equality test that kept the two traversals in step went with
-that reason. **That verb is since deleted and the constant stays gone**: the
-identity itself is a second, independent reason for `grove-llm` to link the
-embed — `--content-hash` and the per-verb foreign-skill-directory warning both
-need it — and it outlived the first. **Separately and later**, once [[Global skill provisioning]]
-retires, it stamps nothing and names only binaries.
-_Avoid_: coupling that removal to this one — they are a grove apart, and pairing
-them would have preserved a duplicate traversal past its only justification.
-_Avoid_: treating it as a version — it orders nothing and answers only "same
-build or not".
-_Avoid_: reading it as the identity of the extracted *directory tree* — the
-payload is files, so an empty directory is not part of it.
-
-**Embedded methodology** / **the build boundary**:
-`content/` compiled into the binary by `include_dir!`, and therefore fixed at
-**build** time — so a session reads the methodology its own `grove` was built
-with, never the one committed in some working tree. The boundary is deliberate:
-*any* skew between a skill and the CLI it instructs is unsafe, and one embed per
-build is what holds it to none. Why that is so, and what enforces the checkable
-half, are in `docs/ARCHITECTURE.md#self-extension-core-and-methodology`.
-_Avoid_: "the next session picks up the committed `content/`" — it picks up the
-built one; the two coincide only after a rebuild and install.
-_Avoid_: proposing per-iteration re-*extraction* as the fix — a driver never
-re-execs, so every iteration would write identical bytes. Per-iteration stamp
-*re-verification* is a different question and is what the loop does do.
-_Avoid_: `cargo run --bin grove` as a way to get a fresher skill — the skill
-dirs are global, so it provisions a checkout's `content/` beside an *installed*
-`grove-llm`. [[Build pairing]] announces that launch twice and prevents it not
-at all; install the build the sessions resolve instead.
-
-**Build pairing**:
-The invariant that the methodology a session reads and the `grove-llm` it
-invokes come from one `grove` build. Which CLI a session resolves is reported and
-never enforced, because an opaque configured command's environment is not the
-driver's to observe. `docs/adr/one-build-owns-a-session.md` has the checks and
-the trade-offs. The second operand is a **shared directory Grove
-repairs**, and the skew this term was written for is the original one: two copies
-of a whole methodology, the provisioned skill and the resolved CLI. That skew is
-**quiet** — nothing errors, the two simply disagree — which is what the
-pre-launch report and the per-verb stamp warning exist for.
-_Avoid_: checking the sibling of the running `grove` — the driver never invokes
-`grove-llm`, so the sibling agrees with it by construction while the binary the
-session runs goes unchecked.
-_Avoid_: reading "the driver's `PATH`" as "the driver's working directory". The
-variable is the driver's, but a relative or empty entry in it resolves from the
-worktree root, because that is the cwd the *session* is given while bare `grove`
-is accepted from any directory inside the tree.
-_Avoid_: reading either report as a gate. The driver's is a proxy measured in
-its own environment, and a mid-task `grove-llm` refusal would cost more than the
-mismatch; the human who can fix either reads the same stream.
 
 **Mandate slice** *(retired)*:
 A byte-exact projection of one span of `content/` into one session's `${prompt}`
 — the grain a 100%-specific mandate was composed out of. **Nothing projects one,
 and every piece of machinery that did is deleted**: the methodology reaches a
-session as the provisioned skill, and `${prompt}` is the [[Guaranteed core]]
-(`docs/adr/skill-delivers-the-methodology.md`). The term is kept as a definition
-rather than dropped because three of its arguments outlived it.
+session as an installed skill it is told to load, and `${prompt}` is the
+[[Guaranteed core]] ([[Skill delivery]]). The term is kept as a definition rather
+than dropped because three of its arguments outlived it.
 _Avoid_: reviving it. The granularity objection to pointing at a location — *a
 kind's discipline is one bullet inside a nineteen-bullet section* — was that
 record's own stated reopen condition, and the corpus restructure satisfied it: a
-kind's discipline is now a whole [[Kind reference file]] the driver names by path,
-so the session performs no selection.
-_Avoid_: reviving the inline that used to sit in the [[Guaranteed core]].
-`content/SIGNAL.md` and `content/SIGNAL-FINISH.md` rode it byte-exact so that a
-shared text could not become a paraphrase; `prompt-names-the-kind-k18` removed
+kind's discipline is now a whole [[Kind skill]] the driver names, so the session
+performs no selection.
+_Avoid_: reviving the inline that used to sit in the [[Guaranteed core]]. Two
+corpus signal files rode it byte-exact so that a shared text could not become a
+paraphrase; `prompt-names-the-kind-k18` removed
 the sharing instead — the core states Grove's own signalling contract, and the
 ending a kind takes is inline in that kind's `grove-<kind>` skill — so there is
 nothing left for a second source to be a copy of.
@@ -140,8 +91,8 @@ so the core reads nothing and there is no shared text to hold in step. One
 coupling survives — the `grove-<kind>` skill the prompt names has to exist — and
 it is not closeable from the binary, because what a machine has installed is
 outside any suite.
-Design: ADR `skill-delivers-the-methodology`, and `docs/ARCHITECTURE.md`,
-*Embedded methodology*.
+Design: [[Skill delivery]], and `docs/ARCHITECTURE.md`, *How the methodology
+reaches a session*.
 _Avoid_: admitting a sentence because it is **important**, needed every session,
 or short. Importance is unbounded and is what builds a wall; frequency is not
 timing; size is a consequence of the rule and never a criterion.
@@ -170,15 +121,16 @@ one, as did the five `integrate-review-*` and the two research producers. The
 over the kind set in the driver; `prompt-names-the-kind-k18` deleted the match
 along with the rest of the driver's content dependency, so the map is now what
 the file names themselves say — a kind's family is read off its own label. The
-files are
+files were
 `content/references/{requirements,design,planning,prototype,impl,review,
-integrate-review,research,combine-research,finish}.md`, one level deep and flat.
+integrate-review,research,combine-research,finish}.md`, one level deep and flat;
+`plugin-kind-skills-k17` moved the seven single-kind ones inline into their
+[[Kind skill]]s and left the three family files in the spine's `references/`.
 _Avoid_: counting eleven. `skill-signal` is an eleventh narrowed scope and is not
 a family — it is the session ending, which the [[Guaranteed core]] carries, and
-`content/SIGNAL.md` is deliberately **not** under `references/`. Nor is
-`content/SIGNAL-FINISH.md`, which carries `finish`'s ending the same way: it
-shares `references/finish.md`'s scope rather than adding one, so it is a second
-signal file and not an eleventh reference file.
+the two signal files that carried it were deliberately **not** under
+`references/`, and are now driver prose plus one inline table in
+`grove-finish/SKILL.md`.
 _Avoid_: reading the pointer as the reasoning cost a [[Mandate slice]] was built
 to remove. The driver resolved the kind before the session existed, so the
 session performs no selection — it is handed a filename.
@@ -189,7 +141,7 @@ removed.
 **Loop-step reference file**:
 The other species in the same flat `references/` directory: a file carrying the
 **universal** procedures that one step of the loop needs, which no [[Session
-kind]] selects and which `content/SKILL.md`'s conditions reach by naming it.
+kind]] selects and which the spine's `SKILL.md` conditions reach by naming it.
 The seam is the loop itself — `bootstrap`, `execute`, `decompose`, `retire`,
 `commit` — with `grove` (what a grove is, the spine, the durable artifacts) and
 `driver` (how a session was launched and picked) either side of it, and `finish`
@@ -204,7 +156,7 @@ because a directory a session cannot hold in mind stops being disclosure and
 starts being a second corpus to search.
 
 **Condition** / **procedure** (the `if` / `then` split):
-The split the progressive-disclosure skill is cut along: `content/SKILL.md`
+The split the progressive-disclosure skill is cut along: the spine's `SKILL.md`
 states **conditions**, and each names the [[Kind reference file]] or
 [[Loop-step reference file]] its **procedure** lives in. Every rule in the
 methodology is a conditional. Its **condition** — *that a situation exists
@@ -227,7 +179,7 @@ family), and two rows may share one sentence only when their situation **and**
 their owner file are the same. Which file owns a rule is decided by **when a
 session meets it** — the pair `Bound` and `Occasion`, resolved by an ordered
 first-match rule — rather than by its topic
-(`docs/specs/corpus-rule-ownership.md`; ADRs *corpus-rules-have-one-owner* for
+(`plugins/grove/conformance/rules.tsv`; ADRs *corpus-rules-have-one-owner* for
 the owner function and *restatement-declares-its-class* for the three classes —
 two records, because either is reversible without the other).
 _Avoid_: a `trigger` that carries a test, a threshold, a branch or steps. That is
@@ -323,15 +275,15 @@ _Avoid_: reading a rule triggered from inside its own owner as a self-edge. What
 reached is a **file**, not a rule — once one cross-file edge lands the session
 there, every in-file condition is available — so the acyclicity law applies to the
 cross-file graph and would otherwise condemn roughly half the inventory.
-_Avoid_: treating a rule in `content/` as reachable because the file is embedded.
+_Avoid_: treating a rule as reachable because it is in the shipped skill set.
 A file no condition names is off every path, which is the failure that left two
 `impl` disciplines in a file no `impl` session is routed to — deleted in effect
 while sitting in the corpus.
-_Avoid_: reading a `docs/` path as reachable. Only `content/` is swept into the
-skill directories, so a rule relocated to `docs/` is unreachable to every session
-outside this repository — deleted rather than rehomed.
-_Avoid_: equating it with the size of `content/`. Most of the [[Embedded
-methodology]] is off every normal path, so shrinking a file no session loads
+_Avoid_: reading a `docs/` path as reachable. Only `plugins/grove/skills/` is
+installed, so a rule relocated to `docs/` is unreachable to every session outside
+this repository — deleted rather than rehomed.
+_Avoid_: equating it with the size of the corpus. Most of the shipped skill set
+is off every normal path, so shrinking a file no session loads
 improves no session's path — the two move independently and only one of them is
 what a session pays for.
 _Avoid_: reading "normal" as "maximum". A [[Loop-step reference file]] is on the
@@ -386,10 +338,12 @@ that session's control environment and can act on it. Read it as a
 authority, it merely has descendants that can spend the authority the session
 already holds (`tests/env_hygiene.rs` exists for exactly this). Its second
 distinguishing property is that it edits the very artifacts driving it, across
-the [[Embedded methodology]] build boundary: a meta-grove session runs against
-the *installed* `grove` and reads the *installed* skill, so the `content/`,
-`grove-llm` verbs and driver behaviour it commits reach no session in the same
-loop.
+an install boundary: a meta-grove session runs against the *installed* `grove`
+and reads the *installed* skills, so the `grove-llm` verbs and driver behaviour
+it commits reach no session in the same loop. The methodology's half of that
+boundary is softer since [[Skill delivery]] made the skills files rather than an
+embed — a symlinked install resolves to the checkout — but the binary's half is
+unchanged.
 _Avoid_: "nested grove" — that is `grove` launched from inside another grove's session (two drivers, two trees). A meta-grove is one grove whose *code under test* happens to be grove.
 _Avoid_: treating a meta-grove as self-hosting in the strong sense — it develops
 the next build's methodology while being driven by the last one's.
@@ -716,8 +670,8 @@ states in that session's mandate: that the working tree is jj-enabled, and the
 workspace root it resolved. It rides beside the handle in [[Kind routing]]'s
 `${prompt}` — not a template word, not a verb, and not anything a task file
 carries — and stops at identity and root: the commit-boundary commands stay out,
-because they already live in the [[Embedded methodology]]'s Commit step and a
-copy would be a second source of truth drifting across the build boundary.
+because they already live in the methodology's Commit step and a copy would be a
+second source of truth drifting away from it.
 _Avoid_: re-deriving it in-session. A harness banner is computed from `.git`
 alone and reads a native jj workspace as no repository at all, and detection
 carried as skill instructions is skippable — a session that never loads them
@@ -746,7 +700,7 @@ deleted once a spec describes nothing. Two rules bound the set — the
 this?* if not it is a [[Node directory]]'s `BRIEF.md` and dies with `.grove/`)
 and the **grain rule** (an ADR records *one decision and its trade-off*, a spec
 describes *how an area works* and **cites** the ADRs in its area rather than
-restating them). Shape and the seam-recording rule: `content/SPEC-FORMAT.md`;
+restating them). Shape and the seam-recording rule: the spine's `SPEC-FORMAT.md`;
 what a seam *is*: `linkuistics:codebase-design`.
 _Avoid_: "PRD" — grove names no product-requirements artifact. _Avoid_ a
 `## Decomposition` section inside a spec: that is brief material, dead when the
@@ -833,7 +787,7 @@ _Avoid_: **deleting** a leaf to abandon it (`git rm`, or just removing the file 
 **Work-item handle** / **title** (`<slug>-k<key>`):
 The position-free in-file `# …` header of a task or brief (`# <slug>-k<key>`, or `# <slug>-k<key> — brief` for a node; the root brief is `# <grove name> — brief`) **and** the canonical way to name a work item in commit messages and prose (task-tree-scheme §5). Stable across renumber, because it omits the mutable position. `resolve` also accepts the full handle, not just the bare key.
 _Avoid_: naming a work item by its position or directory path in a commit message.
-_Avoid_: citing a **real** work item in provisioned `content/` at all — not even by a
+_Avoid_: citing a **real** work item in the shipped methodology at all — not even by a
 correct handle. The handle resolves only inside the tree that issued it, a reader is
 rarely in that tree, and it dies at the [[Complete finish cycle]]; anchor a worked
 example on a durable artifact instead (task-tree-scheme §5). A *synthetic* name
@@ -991,7 +945,7 @@ the operator and no fairness premise is available to grant.
 
 **"grove"** is overloaded across this codebase. It can mean:
 1. The **CLI tool** / Rust crate published as `grove` — invoked as bare `grove`, with no subcommands or flags.
-2. The **methodology** embedded in `content/SKILL.md` and provisioned to the global skill dir.
+2. The **methodology**, shipped as the `grove` plugin under `plugins/grove/`.
 3. A single **workstream** — one named task tree at `.grove/` inside the working tree the user provides, named for that working tree's basename ([[Grove name]]), no canonical path. The `grove` command operates on this sense.
 4. The **repo** `Linkuistics/grove`, which holds two products — Grove and the
    `linkuistics` / `testanyware` plugins under `plugins/` (see

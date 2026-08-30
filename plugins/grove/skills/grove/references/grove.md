@@ -30,28 +30,29 @@ writing at all, and the membership and grain tests that keep the set honest.
 
 ## When the grove's subject is grove itself
 
-`content/` is compiled into the `grove` binary at **build** time, so editing it
-changes nothing any session receives until the binary is rebuilt and installed.
-The boundary is that build, not a commit: in a grove *of* grove, the corpus you
-are editing reaches the next session only after an install. Verify such work by
-reading the files and the tests, never by expecting the next session in the same
-loop to behave differently.
+This methodology and the `grove` binaries are **separate artifacts with separate
+lifetimes**. The skills you are reading are installed files; the binaries are
+installed separately. Editing a skill in a checkout reaches a session as soon as
+the install route resolves to that checkout — immediately through a symlink,
+at the next update through a marketplace — while editing the binary reaches no
+session until it is rebuilt *and installed*, because the running loop is the
+build already in memory.
 
-The methodology you are reading and the `grove-llm` verbs on your `PATH` are two
-copies, and grove **reports** their pairing rather than enforcing it — which
-`grove-llm` a session resolves is not a fact the driver can establish about a
-process it has not yet started (`docs/adr/one-build-owns-a-session.md`). So a
-skew diagnostic, before the launch or from a verb, is a real finding about this
-session and not noise to read past.
+Nothing checks that the two agree. Grove used to carry the methodology inside
+the binary and report the pairing on every iteration; it carries no corpus now,
+so a skew between what a skill instructs and what `grove-llm` exposes is
+un-reported and is yours to notice. Verify work on either by reading the files
+and the tests, never by expecting the next session in the same loop to behave
+differently.
 
 ## What the `linkuistics` plugin carries, and why it is separate
 
 Three bodies of guidance grove leans on live in a **separately installed**
-plugin. Grove requires it and does not provision it — the `grove` binary
-provisions only grove's own methodology, and the plugin is installed on its own
-through the Claude Code marketplace or the repo's `plugins/install.sh`, even
-though it is developed in grove's repository (`plugins/linkuistics/`). So each
-citation states what binds in the plugin's absence:
+plugin. Grove requires it and does not ship it — the `grove` binaries carry no
+skills at all, and this methodology and that plugin are installed the same way,
+each on its own, through the Claude Code marketplace or the repo's
+`plugins/install.sh`, even though both are developed in grove's repository. So
+each citation states what binds in the plugin's absence:
 
 - **`linkuistics:decision-records`** — ADR philosophy. What binds without it is
   `ADR-FORMAT.md`: grove states its own when-to-write test, placement and

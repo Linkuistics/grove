@@ -36,6 +36,14 @@ approved exception:
   themselves stay as they were taken.
 - Methodology embedding/provisioning, package and binary names, release/install
   behaviour, MSRV 1.85, and the Linux glibc 2.17 compatibility target.
+  **Excepted for embedding and provisioning entirely, from
+  `delete-provisioning-k19`.** No build embeds a methodology, writes a skill
+  directory, keeps a harness registry, answers `--content-hash`, or reports a
+  build pairing; the methodology ships as the `grove` plugin, installed by a
+  human. Section 4 below, and every provisioning line in the captured
+  transcripts, therefore records a delivery path that has been **dropped** rather
+  than one that must still hold. The measurements themselves stay as they were
+  taken, and the argument is `docs/specs/module-decomposition.md`, decision 11.
 - Fail-closed ownership: Grove never resets, merges, deletes, or rewrites work
   it cannot prove belongs to the current finish attempt.
 
@@ -162,17 +170,23 @@ Dev: `assert_cmd` 2.0, `tempfile` 3.10. No build-dependencies — `build.rs` is 
 
 ## 4. The embedded methodology, provisioning, and the launch blocker
 
-`content/` — 29 files, 1740 lines — is compiled into **both** binaries with
-`include_dir!`. `grove` extracts it verbatim into every installed harness's
-personal skill directory; `grove-llm` hashes it to name which build it is.
+> **Dropped, not preserved.** Every mechanism this section measures was deleted
+> at `delete-provisioning-k19` under the ledger exception recorded above. What
+> follows is the record of what 19.3.0 did, kept because the launch blocker below
+> is part of this workstream's history.
+
+`content/` — 29 files, 1740 lines — was compiled into **both** binaries with
+`include_dir!`. `grove` extracted it verbatim into every installed harness's
+personal skill directory; `grove-llm` hashed it to name which build it is.
 
 The **methodology identity** is a SHA-256 over the embedded file payload:
 files sorted by path, each contributing a little-endian `u64` length prefix and
 bytes for its `content/`-relative path, then the same for its contents. Embedded
 directories are excluded, so an empty directory is not part of a build's identity
-(`docs/adr/one-build-owns-a-session.md`). It is computed from the linked embed,
-not from a constant recorded beside it — which is what makes comparing it to a
-provisioned directory worth doing.
+(`one-build-owns-a-session`, a record retired with the mechanism at
+`delete-provisioning-k19`). It was computed from the linked embed, not from a
+constant recorded beside it — which is what made comparing it to a provisioned
+directory worth doing.
 
 ### Baseline value, and the launch blocker resolved
 

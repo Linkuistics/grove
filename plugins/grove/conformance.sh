@@ -9,16 +9,18 @@
 # `content/SKILL.md` as a kind router, `reference_file(kind)`, and the closure of
 # what those name — of which the middle two have no counterpart once the
 # methodology ships as a plugin: the prompt names one `grove-<kind>` skill, and
-# there is no per-kind reference mapping left to consult. So the assertion moves
+# there is no per-kind reference mapping left to consult. So the assertion moved
 # here, to a dependency-free shell runner over the files a harness installs.
 #
-# `plugin-kind-skills-k17` deleted `tests/rule_ownership.rs`, whose 68 pinned
-# rows and 3 removed paraphrases this runner's manifest carries with identical
-# wordings — assertion 2 below, and its controls, are that suite's whole subject.
-# The other Rust suites this overlaps are **mixed**: `tests/lifecycle_invariants.rs`
-# holds the behavioural coverage walk, `tests/loaded_path_budgets.rs` the load
-# column and the per-kind word budgets, and neither has a home here. They stay
-# until `content/` itself goes at `delete-provisioning-k19`.
+# **This is now the only standing instrument.** `plugin-kind-skills-k17` deleted
+# `tests/rule_ownership.rs`, whose 68 pinned rows and 3 removed paraphrases this
+# runner's manifest carries with identical wordings — assertion 2 below, and its
+# controls, are that suite's whole subject. `delete-provisioning-k19` deleted
+# `content/` and with it `tests/lifecycle_invariants.rs`'s coverage walk and
+# `tests/loaded_path_budgets.rs`'s per-kind word budgets, whose subject was the
+# corpus the binary embedded and the path it composed. A fourth, temporary
+# assertion here — that the spine and `content/` carried the same bytes for every
+# file they shared — went with them.
 #
 # Three assertions, over `skills/`:
 #
@@ -30,11 +32,6 @@
 # It asserts nothing about how many kinds there are. A kind exists iff a skill
 # of that name exists, so a spine with no `grove-<kind>` skills beside it is a
 # legitimate intermediate state and is reported rather than failed.
-#
-# A fourth, temporary assertion rides along and is named as temporary: while the
-# binary still provisions its own `content/`, the spine and `content/` carry the
-# same bytes for every file they share. It dies with provisioning at
-# `delete-provisioning-k19`.
 #
 # Two rows in the manifest are owned by `${prompt}` — the driver inlines their
 # bytes into the launch prompt and no skill carries them. They are reported and
@@ -54,7 +51,6 @@ set -euo pipefail
 IFS=$'\n\t'
 
 plugin_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(cd "${plugin_dir}/../.." && pwd)"
 skills_dir="${plugin_dir}/skills"
 spine="${skills_dir}/grove"
 manifest="${plugin_dir}/conformance/rules.tsv"
@@ -584,27 +580,6 @@ while IFS=$'\t' read -r rule site phrase; do
     fail "${rule}: the wording ${site} used to restate it is back, in [${sites}] — the owner states it, and this file points at the owner"
   fi
 done < <(command grep -v '^#' "${paraphrases}" | command grep -v '^[[:space:]]*$')
-
-# -- The temporary agreement with the binary's `content/` ---------------------
-#
-# Dies at `delete-provisioning-k19`, with `content/` itself.
-if [[ "${skills_dir}" == "${plugin_dir}/skills" && -d "${repo_root}/content" ]]; then
-  diverged=0
-  shared=0
-  while IFS= read -r file; do
-    # `SKILL.md` is **split**, not moved: `content/`'s copy is the kind router
-    # the live binary still provisions, and the spine's is the condition
-    # register. They are two documents and are expected to differ.
-    [[ "${file}" == "SKILL.md" ]] && continue
-    [[ -f "${repo_root}/content/${file}" ]] || continue
-    shared=$((shared + 1))
-    if ! cmp -s "${spine}/${file}" "${repo_root}/content/${file}"; then
-      diverged=$((diverged + 1))
-      fail "content/${file} and the spine's copy have diverged — the spine is the source, and the two ship at once until delete-provisioning-k19"
-    fi
-  done < <(print_skill_files "${spine}")
-  ((diverged)) || note "spine and content/ agree on ${shared} shared file(s) — temporary, until delete-provisioning-k19"
-fi
 
 # -- Report -------------------------------------------------------------------
 

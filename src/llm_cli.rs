@@ -42,25 +42,14 @@ They are separated from the human-facing `grove` binary; none of these verbs \
 are meant for direct human use."
 )]
 pub struct Cli {
-    /// Print this build's methodology identity — the content hash of the
-    /// `content/` payload this binary embeds — and exit.
+    /// The verb to run.
     ///
-    /// It is a claim about the content this binary actually **carries**, read
-    /// from the linked embed rather than from a constant recorded beside it,
-    /// which is what makes the driver's comparison worth making.
-    ///
-    /// **A flag rather than a verb, deliberately.** The loop driver asks it of
-    /// the `grove-llm` a session's `PATH` resolves, so it can report a
-    /// build-pairing mismatch (`docs/adr/one-build-owns-a-session.md`); no
-    /// session ever calls it and the embedded methodology instructs nothing
-    /// about it, so it stays out of the agent grammar `tests/methodology.rs`
-    /// scans. Like `--version` it is metadata the driver may ask from outside
-    /// any session, and it touches no task tree, so it is exempt from the
-    /// session-epoch guard.
-    #[arg(long = "content-hash", exclusive = true)]
-    pub content_hash: bool,
-    /// The verb to run. Optional only so `--content-hash` can stand alone; a
-    /// bare `grove-llm` prints help.
+    /// Optional only because clap's derive requires it to be for
+    /// `arg_required_else_help` to print help on a bare invocation; every
+    /// invocation that parses at all names a verb. It stopped being genuinely
+    /// optional at `delete-provisioning-k19`, which deleted `--content-hash` —
+    /// the one metadata flag that stood alone — along with the embed it named
+    /// and the build-pairing report that was its only caller.
     #[command(subcommand)]
     pub command: Option<Command>,
 }
@@ -413,31 +402,12 @@ pub struct LeafPruneArgs {
 
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
-    // Metadata first, and before anything that resolves a working tree: the
-    // driver asks this of a binary from outside any session, so it is exempt
-    // from the session-epoch guard exactly as clap's own `--version` is.
-    if cli.content_hash {
-        // clap's `exclusive` governs arguments and does not reach a subcommand,
-        // so the combination is rejected here rather than silently answering the
-        // flag and dropping the verb.
-        if let Some(command) = cli.command {
-            bail!(
-                "`--content-hash` is metadata and runs nothing; drop `{}` or drop the flag",
-                command.operation_label().trim_start_matches("grove-llm ")
-            );
-        }
-        println!("{}", crate::methodology::identity());
-        return Ok(());
-    }
     let Some(command) = cli.command else {
         // Unreachable through clap: a bare invocation prints help
-        // (`arg_required_else_help`), `--content-hash` returned above, and any
-        // other argument is either a verb or a parse error.
+        // (`arg_required_else_help`), and any other argument is either a verb or
+        // a parse error.
         bail!("no verb given; run `grove-llm --help` for the verb set");
     };
-    // On any verb, and before the guard that may refuse it: a clobbered skill
-    // directory is worth saying even when the verb itself cannot run.
-    crate::provision::warn_on_foreign_skill_dirs();
     let cwd = std::env::current_dir().context("getting cwd for session epoch admission")?;
     let session_epoch = driver_lease::admit_ambient_session(&cwd, command.operation_label())?;
     match command {

@@ -671,10 +671,10 @@ verb binary remains as a fallback, not as the mechanism.
 The methodology's content hash, the build-pairing report and the content-hash
 flag go with this. A release version orders and means something to a human, which
 a content hash never did. This retires
-[`one-build-owns-a-session`](../adr/one-build-owns-a-session.md) — there is no
-build pairing once no build writes a skill directory — and
-[`skill-delivers-the-methodology`](../adr/skill-delivers-the-methodology.md),
-whose delivery path ceases to exist.
+`one-build-owns-a-session` — there is no build pairing once no build writes a
+skill directory — and `skill-delivers-the-methodology`, whose delivery path
+ceases to exist. Both are deleted as of `delete-provisioning-k19`, which is why
+this section names them rather than linking to them.
 
 **The cost is the one that record existed to prevent:** grove no longer
 guarantees the methodology is present, so a session can be launched pointing at a
@@ -786,8 +786,8 @@ makes false and nobody listed is a record that quietly stops being true.
 |---|---|---|
 | `task-tree-transactions-fail-closed` | **retired** — the VCS owns the transaction (decision 8), and the tree-access lock it also specifies goes with the store owning `initialize` and `delete` | the leaf that deletes the finish transaction |
 | `supported-workspace-layouts` | **retired** — its whole subject is the same-device rename the quarantine needed | the same leaf |
-| [`skill-delivers-the-methodology`](../adr/skill-delivers-the-methodology.md) | **retired** — the provisioned-skill delivery path ceases to exist | the leaf that deletes provisioning |
-| [`one-build-owns-a-session`](../adr/one-build-owns-a-session.md) | **retired** — no build writes a skill directory, so there is no pairing to report | the same leaf |
+| `skill-delivers-the-methodology` | **retired, done** — the provisioned-skill delivery path ceased to exist | `delete-provisioning-k19` |
+| `one-build-owns-a-session` | **retired, done** — no build writes a skill directory, so there is no pairing to report | the same leaf |
 | [`one-live-driver-per-working-tree`](../adr/one-live-driver-per-working-tree.md) | **reworked** — the lease survives; independent provisioning, the Git lane, the Git-or-jj control-directory derivation, the same-device gate and the Git-or-jj lost-result path do not. The control directory becomes the namespace the VCS seam hands back | the leaf that extracts the VCS seam |
 | [`a-skill-states-what-binds-without-its-dependencies`](../adr/a-skill-states-what-binds-without-its-dependencies.md) | **reworked at `plugin-kind-skills-k17`** — it was `grove-binds-without-the-plugin`, opening on the binary sweeping its own `content/` into every harness's skill directory. The methodology *is* a plugin now, so the record's subject is what binds when a skill's own dependencies are absent | the leaf that ships the plugin |
 | [`complete-session-configuration`](../adr/complete-session-configuration.md) | **amended** — the quantifier becomes per-kind and just-in-time (decision 6) | the leaf that lands the configuration change |

@@ -32,8 +32,8 @@ while the two agree.
 [Every normative rule has one owner](corpus-rules-have-one-owner.md) decides
 *which* file owns a rule; this record decides what, if anything, the condition
 register may say about a rule it does not own.
-`docs/specs/corpus-rule-ownership.md` carries the per-row classes, the canonical
-trigger sentences and the arithmetic they measure to.
+`plugins/grove/conformance/rules.tsv` carries the per-row classes and the
+canonical trigger sentences, and `plugins/grove/conformance.sh` measures them.
 
 ## Why one uniform mirror rule does not survive contact
 
@@ -98,9 +98,8 @@ procedure or an enumeration that a reader would have to be handed anyway.
   rule true by vacuity.
 - **Allow no restatement at all — `SKILL.md` becomes a pure routing table.**
   Rejected because a session cannot look up a rule it does not know applies. The
-  `if`/`then` asymmetry [the skill delivers the
-  methodology](skill-delivers-the-methodology.md) settles applies here one channel
-  further in: a withheld procedure costs a lookup the session knows to make, while
+  `if`/`then` asymmetry applies here one channel further in: a withheld procedure
+  costs a lookup the session knows to make, while
   a withheld *condition* yields an unasked question, which is grove's primary
   failure mode. Reopen if the driver ever resolves the situation as well as the
   kind, which would make the condition a runtime fact rather than a judgement.

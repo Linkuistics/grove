@@ -1,7 +1,7 @@
 ---
 name: grove-combine-research
 description: The `combine-research` session kind — union two surveys' coverage into one research document, flag every disagreement, and carry the adversarial move neither survey can perform on itself. Use when a grove mandate names this skill, or when running a `combine-research` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # combine-research

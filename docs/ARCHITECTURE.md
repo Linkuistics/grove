@@ -1,7 +1,8 @@
 # Grove Architecture
 
-Grove is a small Rust launcher around a filesystem task tree and an embedded
-agent methodology. Durable work stays in ordinary repository files and VCS;
+Grove is a small Rust launcher around a filesystem task tree, with the agent
+methodology it names shipped separately as a plugin. Durable work stays in
+ordinary repository files and VCS;
 Grove adds only enough coordination to own one working tree, select one task,
 launch one configured agent session, and continue until the tree is complete.
 
@@ -22,11 +23,11 @@ process ownership, a task-tree data model, and three fail-closed transactions.
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
 | Relationships between this repository's bounded contexts | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
 | `ordinal-fs-tree` design and vocabulary | [`ordinal-fs-tree/ARCHITECTURE.md`](ordinal-fs-tree/ARCHITECTURE.md) and [`ordinal-fs-tree/CONTEXT.md`](ordinal-fs-tree/CONTEXT.md) |
-| Methodology executed by agents | [`content/SKILL.md`](../content/SKILL.md) and its adjacent format guides |
+| Methodology executed by agents | [`plugins/grove/skills/grove/SKILL.md`](../plugins/grove/skills/grove/SKILL.md), its adjacent format guides, and one `grove-<kind>` skill per session kind |
 | Skill-plugin operation | [`plugins/README.md`](../plugins/README.md) |
 | Scoping notes for work not yet started | `TODO.<subject>.md` at the repository root |
 | Whether the campaign's six self-reported lessons survive its own evidence | [`candidate-lessons.md`](candidate-lessons.md) — six adjudicated claims, over the measurements in [`loop-record.md`](loop-record.md) and [`review-yield.md`](review-yield.md) |
-| What the campaign taught about driving an LLM loop, and what it cost | [`driving-a-checkable-loop.md`](driving-a-checkable-loop.md) — the account for a reader outside this repository: the cost, the three lessons that now bind in `content/`, and the five that only get written down |
+| What the campaign taught about driving an LLM loop, and what it cost | [`driving-a-checkable-loop.md`](driving-a-checkable-loop.md) — the account for a reader outside this repository: the cost, the three lessons that now bind in the methodology, and the five that only get written down |
 | Alloy 6 against Quint, compared on models this repository no longer carries | [`formalism-findings.md`](formalism-findings.md) — the models were deleted once the lessons were distilled; the log is the surviving evidence |
 | How this grove's own sessions ran, session by session | [`loop-record.md`](loop-record.md) — derived, and frozen: its generator was retired with the models |
 | What nine review chains actually found, and what survived integration | [`review-yield.md`](review-yield.md) — derived, and frozen, on the same terms |
@@ -70,31 +71,30 @@ The repository contains two independently installed products:
 
 | Product | Source | Delivery |
 |---|---|---|
-| Grove CLI and methodology | `src/`, `content/`, `build.rs` | Homebrew installs `grove` and `grove-llm`; bare `grove` provisions the embedded methodology. |
+| Grove CLI | `src/` | Homebrew installs `grove` and `grove-llm`. |
 | Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for the skills whose `harnesses:` key declares them installable off Claude Code. |
 
 Grove and the skill plugins share a repository because their documented
 interfaces evolve together, but they do not install one another.
 
-**The methodology is mid-move between the two rows.**
-`plugins/grove/skills/grove/` is the shared spine and is the source; `content/`'s
-copy of those files is what the binary still compiles in and provisions, and it
-is deleted with provisioning. Which file is which, and where the rest of
-`content/` lands, is in [`../plugins/grove/README.md`](../plugins/grove/README.md).
+**The methodology is a plugin, and grove installs nothing.** It used to sit in
+both rows: the binary compiled a `content/` tree into itself and swept it into
+every installed harness's skill directory on each invocation.
+`delete-provisioning-k19` deleted that half, so `plugins/grove/` is the only
+copy and it installs the way its two neighbours do
+([`../plugins/grove/README.md`](../plugins/grove/README.md)). Grove names the
+skill a session needs and does not check that it is there.
 
 ## Runtime flow
 
 ```text
 human: grove
         │
-        ├─ provision embedded content/ into every installed harness skill dir
-        ├─ resolve the nearest jj or Git working-tree root
+        ├─ resolve the nearest jj working-tree root
         ├─ acquire that working tree's driver lease
         └─ foreground loop
              │
              ├─ revalidate the lease
-             ├─ re-verify each skill dir's stamp; restore a clobbered one
-             ├─ identity-check the grove-llm the session will resolve
              ├─ load and fully validate ~/.config/grove/config.kdl, then
              │    resolve any untracked .grove.kdl delta over it
              ├─ reap orphaned finish quarantine, then recover or perform the one
@@ -109,26 +109,20 @@ human: grove
                     └─ absent   → stop safely; the next `grove` resumes
 ```
 
-`grove --help` and `grove --version` stop before this flow: they provision
-nothing, discover no repository, and acquire no lease. Provisioning precedes
-ownership, so even a refused second driver receives the current methodology.
+`grove --help` and `grove --version` stop before this flow: they discover no
+repository and acquire no lease.
 
 The driver stays in the foreground and owns its child process. Completion
-signals are temporary control messages, not durable workflow state. Each
-iteration re-checks the `grove-llm` a session would resolve through `PATH`,
-because a mid-loop `brew upgrade` is exactly the skew a start-time check misses
-and a split signal protocol looks like every session hanging with nothing
-relaunching. The comparison is of [methodology
-identity](#the-boundary-is-a-build-not-a-commit), not crate version, and the
-subject is the `PATH` binary rather than the driver's own sibling — the driver
-never invokes `grove-llm`, so the sibling agrees with it by construction while
-the binary the session actually runs would go unchecked. The check **reports and
-launches anyway**: it measures the driver's environment, which is the session's
-only when the configured command inherits it, so a refusal would stall the loop
-on a proxy the driver cannot confirm ([one build owns a
-session](adr/one-build-owns-a-session.md)). Nothing else in the iteration is
-advisory — configuration, lease, and workspace layout are facts the driver
-establishes directly and stops on.
+signals are temporary control messages, not durable workflow state.
+
+**Two advisory steps used to open every iteration and are gone.** The driver
+restored any skill directory another build had clobbered, and re-checked the
+`grove-llm` a session would resolve through `PATH` against its own methodology
+identity — a mid-loop `brew upgrade` being exactly the skew a start-time check
+misses. Both had the same subject, the embedded corpus, and both went with it at
+`delete-provisioning-k19`. Nothing in the iteration is advisory now:
+configuration, lease, and workspace layout are facts the driver establishes
+directly and stops on, and the methodology's delivery is the human's.
 
 <a id="cli-binary-split"></a>
 <a id="command-surfaces"></a>
@@ -139,7 +133,7 @@ Bare `grove` reads the task tree for what to do and the personal configuration
 for how to launch it, so there is nothing left for an argument to select;
 `--help` and `--version` are the only other accepted arguments.
 
-`grove-llm` is for deterministic operations invoked by the embedded methodology:
+`grove-llm` is for deterministic operations the methodology instructs:
 `root-init`; `pick`, `brief-chain`, `kind`, and `resolve`; `leaf-add`,
 `leaf-insert`, `leaf-decompose`, and `leaf-add-pair`; `leaf-retire` and
 `leaf-prune`; `finish-commit`; and `complete`. Every one of them mutates or
@@ -148,21 +142,18 @@ guard. This split keeps a discoverable human API without forcing the agent to
 reproduce filesystem mutations from prose.
 
 The surface is **flat**: a verb name is a whole invocable command, with no
-nesting. That is what lets `tests/methodology.rs` compare the verbs the corpus
-instructs against the verbs the CLI exposes by name, and it is pinned there
-rather than merely observed.
+nesting. That is what lets `tests/instructed_verbs.rs` compare the verbs the
+shipped methodology instructs against the verbs the CLI exposes by name, and it
+is pinned there rather than merely observed.
 
-There was a twelfth, `methodology`, which served the embed by unit id to a
-session following a `defers=` marker. It went with the mandate machinery: the
-corpus routes by **path** now, so a session that needs a procedure opens the
-file its condition names.
-
-`grove-llm` also answers `--content-hash` with its build's [methodology
-identity](#the-boundary-is-a-build-not-a-commit). That is a flag rather than a
-verb on purpose: the driver reads it to report on the pair, no session ever
-calls it, and the embedded methodology instructs nothing about it — so it stays
-out of the agent grammar `tests/methodology.rs` scans. A binary old enough not to
-answer it is unidentifiable rather than mismatched, and is reported the same way.
+Two entries are gone rather than renamed. A twelfth verb, `methodology`, served
+the embed by unit id to a session following a `defers=` marker; it went with the
+mandate machinery, because the corpus routes by **path** and a session that needs
+a procedure opens the file its condition names. And `grove-llm` answered
+`--content-hash` with its build's methodology identity, which the driver read to
+report the build pairing; that flag, that identity and that report all went with
+provisioning at `delete-provisioning-k19`. There is no metadata argument left, so
+`grove-llm` takes a verb or prints help.
 
 `src/main.rs` and `src/bin/grove-llm.rs` are thin entry points. `src/cli.rs`
 owns the human grammar; `src/llm_cli.rs` owns the agent grammar.
@@ -238,8 +229,8 @@ teardown commit.
 
 ## Process ownership
 
-A working tree has at most one live driver. After provisioning, and before
-configuration validation or any `.grove/` observation, bare `grove` acquires a
+A working tree has at most one live driver. Before configuration validation or
+any `.grove/` observation, bare `grove` acquires a
 **driver lease**: a nonblocking exclusive advisory lock on a fixed file in a
 control directory derived from the closest on-disk `.jj/` marker for that exact
 workspace — `<workspace>/.jj/grove/`, for native, secondary, and colocated
@@ -450,7 +441,7 @@ methodology itself arrives as an installed plugin rather than in argv.
 The core reads nothing: all three parts are driver prose, so composition cannot
 fail and there is no per-kind content decision left in the binary. That is
 `prompt-names-the-kind-k18`'s deletion — a nineteen-to-ten reference map, a
-nineteen-to-two ending map, and the provisioned-directory list — and it is what
+nineteen-to-two ending map, and the skill-directory list — and it is what
 leaves Grove interpreting a kind nowhere: it renders the kind's own label into a
 skill name and stops. No
 hidden leaf environment variable accompanies it. At Bootstrap the
@@ -762,7 +753,7 @@ Sessions outside that procedural predicate retain standalone doubt behavior. See
 A chain's steps declare their relationships in their bodies: the review carries
 `**Reviews:** <producer-handle>` and the integration carries `**Integrates:**
 <review-handle>`. Those lines are **written by hand by the session authoring the
-body and parsed by nothing** — a documented convention (`content/TASK-FORMAT.md`)
+body and parsed by nothing** — a documented convention (the spine's `TASK-FORMAT.md`)
 for the human and for the session that picks the step up, which is constraint 3:
 task files are freeform markdown and nothing validates them. Names and positions
 likewise remain presentation and walk order, never relationship grammar, and the
@@ -1190,15 +1181,14 @@ Grove resolves that marker before a session exists and **states** the result in
 working tree is jj-enabled and which workspace root Grove resolved for it.
 *Not to re-derive the answer* is the skill's to say, not the prompt's — the core
 carries a launch-varying **value**, and every normative consequence of a value
-stays in `content/`. The driver already owns this fact; only the session was
+stays in the methodology. The driver already owns this fact; only the session was
 working it out again, and working it out badly. A harness banner computed from
 `.git` alone reads a native Jujutsu workspace as no repository at all
 ([claude-code#41435](https://github.com/anthropics/claude-code/issues/41435)),
 and detection carried as skill instructions is skippable, so a session that never
 loaded them commits with Git in a Jujutsu tree and bypasses the operation log.
 The line carries identity and root only. Which commands a session uses stays in
-the embedded methodology's Commit step, so a rebuild moves one source of truth
-rather than two.
+the methodology's Commit step, so there is one source of truth rather than two.
 
 The finish commit is fileset-scoped so unrelated user work survives: Grove
 commits a `.grove/` fileset excluding the live witness, leaving unrelated
@@ -1210,96 +1200,74 @@ the grove name, and `<repo-basename>: <grove-name> grove` is the session name a
 template may request.
 
 <a id="self-extension-core-and-methodology"></a>
-## Embedded methodology
+## How the methodology reaches a session
 
-**Provisioning is the delivery path, until `delete-provisioning-k19` removes
-it.** [The skill delivers the
-methodology](adr/skill-delivers-the-methodology.md) settles that the sweep, the
-stamps, the shared directory and the harness registry all stay, that `${prompt}`
-carries only a short guaranteed core pointing at what they wrote, and the
-too-late test that decides what may join that core. **The mandate machinery is
-gone** — the composer, the unit
-markers and the file directives, the two readers over them, the build gate, and
-`grove-llm methodology`. `content/` is plain markdown a harness reads as a skill,
-with no grammar over it and no grain finer than a file. The **build boundary** at
-the end of this section is unchanged by any of that.
+**It is installed, and Grove has nothing to do with it.** The methodology is the
+`grove` plugin — a spine skill plus one `grove-<kind>` skill per session kind
+([`../plugins/grove/README.md`](../plugins/grove/README.md)) — installed by a
+human through the Claude Code marketplace or `plugins/install.sh`. `${prompt}`
+names the one skill this session's kind needs and carries nothing else about
+delivery.
 
-`build.rs` embeds `content/` into **both** binaries — `grove` to extract it, and
-`grove-llm` to hash it for the identity its foreign-skill-directory warning
-needs. On every bare `grove`, `provision` sweeps that content into each installed
-harness's personal skill directory — a row of the registry is a place to write
-files, never a program to run, and an absent home root is skipped rather than
-created. A content hash makes this idempotent while still updating the skill when
-the binary changes.
+### What was here before, and why none of it survived
 
-That hash is the build's **methodology identity**, and it is the identity
-because the crate version does not move between a released binary and an edited
-checkout at the same version. It covers the embedded **file payload** — every
-embedded file's path and bytes — and deliberately not the embedded directory
-structure, so an empty directory is not part of a build's identity; hashing
-typed directory entries would make a traversal reproduce `include_dir`'s
-directory semantics as well as its file selection. Both binaries compute it from
-the linked embed through one implementation (`methodology::identity`). It used
-to be a compile-time constant the build script emitted, precisely so that
-*naming* the identity did not link `content/`; once the agent-facing binary
-linked it anyway, that reason ended, and the build-script traversal, the constant
-and the equality test that kept two traversals in step went with it. "Both
-binaries carry it" is a claim about linked artifacts rather than about source, so
-it is asserted by scanning binaries: an integration test scans the pair `cargo
-test` built, and the release path scans each staged pair before archiving it,
-which is where the cross-compiled `--release` targets a local test never sees are
-covered.
+Grove used to carry the methodology itself. `content/` was a markdown corpus
+compiled into **both** binaries with `include_dir!`, and every bare `grove` swept
+it into each installed harness's personal skill directory before taking
+ownership of a working tree. Six mechanisms hung off that one idea, and
+`delete-provisioning-k19` deleted all six together:
 
-`build.rs` walks `content/` for **one** reason now: to emit the per-file change
-tracking `include_dir!` does not register with Cargo. That walk is load-bearing
-on its own — without it, editing a content file leaves a stale embed baked into
-the binary and nothing complains — so `tests/methodology.rs` compares the linked
-embed against the directory to catch it going wrong. That comparison is on
-**contents**, not on paths: the failure it exists to catch is a missed *edit*,
-which moves no filename, so comparing path sets would report success on precisely
-that case.
+| mechanism | what it was for |
+|---|---|
+| the embed, and `build.rs`'s per-file `rerun-if-changed` walk | making the binary carry a corpus `include_dir!` does not change-track on stable |
+| the harness registry | naming the three directories to sweep into — a row was *a place to write files*, never a program to run |
+| the sweep, its content-hash stamp, and its staging-and-rename | writing those directories idempotently and crash-atomically |
+| the methodology identity (`sha2` over the embed) | naming *which build* a directory or a binary belonged to, since the crate version does not move between a release and an edited checkout at that version |
+| `grove-llm --content-hash`, and the driver's per-iteration probe of it | reporting when the `grove-llm` a session's `PATH` resolves came from a different build than the driver |
+| the per-verb foreign-skill-directory warning, and the absent-destination report | saying so when a directory carried another build's methodology, or when no destination existed at all |
 
-**What the deleted gate bought, and what pays for it now.** The gate refused to
-embed a corpus whose unit markers did not fully partition every file, whose ids
-were not unique, or whose `defers=` chains did not resolve and terminate. It
-bought a contributor a build error, with a file and an offset in hand, in place
-of a stranger's stalled loop. What replaces it is narrower and is the right
-grain for a corpus of prose: `tests/methodology.rs` asserts that `SKILL.md`'s
-routing table names a reference file for every kind and that each one exists,
-and that the body stays inside its progressive-disclosure budget. A contributor
-sees those at `cargo test` rather than at `cargo build`, which is the trade — a
-grammar can be gated at compile time, and whether a page of conditions is right
-never could be.
+Every one of them was machinery for making a **shared mutable directory** safe.
+A plugin has an install route of its own, so there is no directory for two
+builds to contend over, no stamp to compare, and no pairing to report. The two
+records that argued the design — `skill-delivers-the-methodology` and
+`one-build-owns-a-session` — are retired with it.
 
-**The one enforceable half of the build boundary survives unchanged**, and it is
-the check that matters most now: the embedded methodology instructs no
-`grove-llm` verb the embedded CLI lacks. It reads the corpus as **markdown**, file
-by file, rather than unit by unit — a unit boundary would have cut a wrapped
-invocation in half, so the file was always the safer corpus — and it is
-load-bearing precisely because the skill is once again the only thing teaching a
-session which verbs exist. `tests/methodology.rs` also pins the flat verb
-surface that makes the comparison mean what it claims.
+### The boundary that survives, and the one that does not
 
-Because a configured command is opaque, Grove cannot infer which harness a
-session eventually reaches and does not try: every known installed root is
-refreshed, so whichever one the command lands in already carries the current
-methodology. **A session depends on reaching it**, which is what the core's
-wording and the absent-destination report exist for: nothing else teaches a
-session the loop, the kinds, or which verbs exist. `content/SIGNAL.md` and
-`content/SIGNAL-FINISH.md` used to travel both channels — provisioned like every
-other file, and one of them inlined into `${prompt}` byte-exact as its last part.
-`prompt-names-the-kind-k18` ended that: the prompt states Grove's signalling
-contract in Grove's own words, once for every kind, and *which* of the three
-endings a kind takes is inline in that kind's own `grove-<kind>` skill. There is
-no shared byte-frozen text left, so there is nothing left to hold in step.
+**A build boundary still separates an edit to `src/` from the sessions it
+reaches.** A running driver is the build already in memory; it never re-execs,
+so committing a change to the loop, the verbs or the prompt changes nothing any
+session in that loop sees until the binary is rebuilt *and installed*. That is
+what makes a meta-grove's cutover leaves cutover leaves.
 
-The binary refuses to overwrite an unstamped foreign directory and replaces an
-old symlink as a link rather than following it. `content/` is the canonical
-source; repository-local or hand-edited copies are not supported.
+**No boundary separates an edit to the methodology from the next session.**
+Editing a skill in a checkout reaches a session as soon as the install route
+resolves to that checkout — immediately through `install.sh`'s symlinks, at the
+next update through the marketplace. The embed used to make that a build
+question and to drive the skew between skill and CLI to zero by construction;
+that guarantee is now weaker, and it is stated rather than pretended away.
+
+**What still holds the two in step is one test rather than one artifact.**
+`tests/instructed_verbs.rs` asserts that the shipped methodology instructs no
+`grove-llm` verb the CLI lacks — reading the skill set as markdown, file by file,
+so a verb invented in prose or dropped from the CLI fails without anyone
+remembering to add it. It is load-bearing precisely because the skill set is the
+only thing teaching a session which verbs exist, and it pins the flat verb
+surface that makes the comparison mean what it claims. Both halves are versioned
+in this one repository and land in one commit; a user who upgrades one and not
+the other is the residue, and it is
+[`../plugins/grove/README.md`](../plugins/grove/README.md)'s to state.
+
+**The delivery assertion is the plugin's own.** `plugins/grove/conformance.sh`
+walks the shipped skill set and asserts every behavioural rule is present on the
+composed loaded path of every kind that binds it, that no rule has two owners,
+and that every file a skill names by path exists. The Rust suites that made those
+claims over the embedded corpus went with it.
 
 ### The seven constraints, argued
 
-[`content/SKILL.md`](../content/SKILL.md) carries the numbered spine itself, and
+[`../plugins/grove/skills/grove/SKILL.md`](../plugins/grove/skills/grove/SKILL.md)
+carries the numbered spine itself, and
 carries it as the corpus's canonical statement because six other corpus files
 cite the constraints **by number** while only `SKILL.md` is on every kind's
 static path. What belongs here is the argument for each — why a rule the
@@ -1346,114 +1314,70 @@ in a diff, and both compound.
 resolved — is the one forcing function against that. Inline rather than batched
 is the whole of it: a term resolved and not written down is a term the next
 session re-resolves differently, and the batching interval is exactly the window
-in which that happens. The normative rule is `content/CONTEXT-FORMAT.md`'s; what
+in which that happens. The normative rule is the spine's `CONTEXT-FORMAT.md`'s; what
 this section records is why the corpus spends a static-path condition on it.
 
 <a id="corpus-shape"></a>
 ### The corpus's shape, and what is measured over it
 
-`SKILL.md` states **conditions** and routes; `references/` states the
-**procedures**. That split is the whole of what makes the skill progressively
-disclosed — a session reads one page of conditions and opens the single row its
-kind names. It is also why the opening screen *routes* rather than introduces: an
-opening that summarises the workflow becomes a shortcut a session takes instead
-of reading the body, and a routing table gives every kind a row, so a session
-that arrived by description match rather than by a Grove mandate still lands in
-its own reference file. Ten rows serve nineteen kinds, because each family is
-already one unit.
+The spine's `SKILL.md` states **conditions** and routes; `references/` states the
+shared **procedures**, and a kind's own rules are inline in its
+`grove-<kind>` skill. That split is the whole of what makes the methodology
+progressively disclosed — a session is handed one skill, reads a page of
+conditions, and opens only what its situation names.
 
-**Which file states a given rule** is decided by
-[`corpus-rule-ownership`](specs/corpus-rule-ownership.md), under
+**Which file states a given rule** is decided under
 [every normative rule has one owner](adr/corpus-rules-have-one-owner.md): a rule
 is filed by **when a session meets it** — the pair *which kinds must obey it* and
 *at which moments*, resolved by an ordered first-match rule over a set of
 occasions. Under [a restatement declares its
-class](adr/restatement-declares-its-class.md) a `SKILL.md` restatement declares one
-of three classes (`own`, a ≤25-word `trigger`, or
-`none`). That spec also carries the inventory of every rule with its owner, class,
-load predicate and test, and it is where the condition/procedure split above stops
-being a description of the corpus and becomes the rule that governs edits to it.
-One consequence belongs here rather than there: because only `content/` is
-provisioned, a rule moved into `docs/` is unreachable to every session outside
-this repository, so *normative material stays embedded* is the placement
-function's own first case read backwards rather than a separate boundary. A
-second: exactly three files are ever on a static path — `SKILL.md`,
-`reference_file(kind)`, and that kind's **signal file** (`content/SIGNAL.md` for
-eighteen kinds, `content/SIGNAL-FINISH.md` for `finish`) — so a rule owned by any
-other file states the file whose sentence triggers it, and those references form
-a chain that must terminate at a static path. Those three were on the path
-because the guaranteed core named the first two and inlined the third; from
-`prompt-names-the-kind-k18` the core names one `grove-<kind>` skill instead, so
-what the two suites below measure is this corpus's own static path, and they go
-with `content/` at `delete-provisioning-k19`.
+class](adr/restatement-declares-its-class.md) a `SKILL.md` restatement declares
+one of three classes (`own`, a ≤25-word `trigger`, or `none`). The inventory of
+every rule with its owner, class, load predicate and test is
+[`../plugins/grove/conformance/rules.tsv`](../plugins/grove/conformance/rules.tsv),
+which `plugins/grove/conformance.sh` reads as data — the spec it was transcribed
+from went with `content/`.
 
-Five numeric measures stand over that shape. All five are **budgets fitted to a
-measurement** rather than alarms set well clear of one — `SKILL.md`'s 900 against
-a measured 796 is 13% of headroom, the same order as the loaded paths' 10%, so
-calling one an alarm and the other a budget would be a distinction the numbers do
-not support:
+One consequence belongs here rather than there: only `plugins/grove/skills/` is
+installed, so a rule moved into `docs/` is unreachable to every session outside
+this repository. *Normative material stays in the skill set* is the placement
+function's own first case read backwards rather than a separate boundary.
 
-| Measure | Limit | Held by |
-|---|---|---|
-| `SKILL.md`'s body — the frontmatter is a routing header a harness reads, so counting it would let a description rewrite eat the ceiling | 900 words, and exactly 26 trigger sentences | `tests/methodology.rs` |
-| `SKILL.md`'s `## The loop` section — the unit constraint 7 actually names | 275 words, and trigger bullets only | `tests/methodology.rs` |
-| Each kind's composed `${prompt}` | 4 KiB | `tests/prompt.rs` |
-| Each kind's **static** loaded path — `SKILL.md`, `reference_file(kind)`, and that kind's signal file | per kind, the recorded measurement + 10%, held within +25% of the current one | `tests/loaded_path_budgets.rs` |
-| Each kind's **reachable** loaded path — the static path plus the transitive closure of the pointer graph | per kind, the recorded measurement + 10%, held within +25% of the current one | `tests/loaded_path_budgets.rs` |
+**What is measured, and by what.** `plugins/grove/conformance.sh` is the whole
+standing instrument: every behavioural rule present on the composed loaded path
+of every kind that binds it, no rule with two owners, and every file a skill
+names by path existing. It asserts nothing about how many kinds there are, on
+purpose — a kind exists iff a skill of that name exists.
 
-Each loaded-path row records **the measurement it was fitted to**, beside the
-ceiling and in the same table, so the +10% is a comparison a test makes rather
-than a convention a comment describes. Without it the only checked interval was
-`measurement ≤ ceiling ≤ measurement + 25%`, which admits a ceiling sitting
-exactly on today's measurement — the zero-width fit the band exists to prevent —
-and a ceiling raised straight to the far edge without ever being fitted.
+**Five numeric budgets used to stand beside it and are gone.** They measured
+`SKILL.md`'s body and its `## The loop` section in words, and each kind's static
+and reachable loaded path — the path composed out of `content/SKILL.md`,
+`reference_file(kind)` and that kind's signal file. `prompt-names-the-kind-k18`
+deleted the composition and `delete-provisioning-k19` deleted the corpus, so
+their subject is gone; `tests/prompt.rs`'s 4 KiB ceiling on each kind's
+`${prompt}` is the one that remains, because the prompt is still composed. The
+arguments the budgets were built on are worth keeping and are recorded below,
+because the next person to reach for a size measure over prose will need them.
 
-`SKILL.md`'s word ceiling is constraint 7 — *one page of rules* — made
-recomputable: "a page" is otherwise unmeasurable, and a limit no reader can
-reproduce is an assertion with no verification boundary. It replaced a 500-line
-ceiling on the same body, and a 100-line alarm on the loop section beside it.
+**Why words rather than lines.** A **line** is not a unit anyone reads: a line
+budget is discharged by rewrapping, which changes nothing a session pays. A word
+ceiling is constraint 7 — *one page of rules* — made recomputable, and "a page"
+is otherwise unmeasurable. But a word ceiling puts no upper bound on lines at
+all, so the deletion of the old line limits rested on density rather than
+domination: the body measured 7.1 words per line and the loop section 6.9, and
+reaching the old line limits under a 900-word ceiling would have needed prose
+3.9× and 2.8× sparser.
 
-**Neither was dominated, and it would be convenient but wrong to say so.** A word
-ceiling puts no upper bound on lines at all — blank lines cost nothing and short
-lines cost one word — so a 900-word body could in principle run to 900 lines and
-fail both line measures while passing the word one. What is true is narrower and
-is a claim about *density*: the body measures 7.1 words per line and the loop
-section 6.9, and reaching the line limits under a 900-word ceiling would need
-prose about 3.9× and 2.8× sparser respectively. Both are density arguments, and
-they differ in degree rather than in kind.
+**Why a section measure is not dominated by a body measure.** Constraint 7 is
+specifically that *the loop* fit a page. A whole-body budget sees one number and
+is indifferent to where inside it the words sit, so prose moved into *The loop*
+leaves every other measure exactly as it was while the section constraint 7 names
+grows without limit. That is why the section carried a structural claim beside
+its number — the section is `- When …` items and nothing else — since a word
+ceiling cannot distinguish a condition arriving from a paragraph of summary
+arriving, and it is the summary constraint 7 forbids.
 
-The ground for deleting them is therefore not domination. It is that a **line**
-is not a unit anyone reads: a line budget is discharged by rewrapping, which
-changes nothing a session pays. That argument retires the *unit*, and it is the
-whole of what was wrong with the loop alarm.
-
-**It does not retire the scope, and treating it as though it did was an
-overreach.** Constraint 7 is specifically that *the loop* fit a page. A
-loaded-path budget sees the whole body as one number and is indifferent to where
-inside it the words sit, so prose moved out of *Artifacts* into *The loop* leaves
-the body ceiling, every static path and every reachable path exactly as they
-were while the section constraint 7 names grows without limit. The section is
-therefore measured again, in words rather than lines, and with a structural claim
-beside the number — the section is `- When …` items and nothing else — because a
-word ceiling cannot distinguish a condition arriving from a paragraph of summary
-arriving, and it is the summary that constraint 7 forbids.
-
-The routing check stayed, and on different grounds again: it is not a shape
-measure at all — it asserts ten kind→file pairs resolve, which is a reachability
-claim about the first screen, and the only thing standing over the table a
-session that arrived without a mandate actually reads.
-
-**The two loaded-path budgets are the shape measure this corpus is actually held
-to**, and they are the reason a per-file line count was not worth keeping: a file
-is not what a session reads. A kind reads one page of conditions, one reference
-file and one signal file, and the budget measures exactly that, over a static
-path **derived from the kind's own label** rather than from a hand-written table
-that a twentieth kind would simply never appear in. They are
-asserted from both sides: the corpus must stay under the ceiling, and the ceiling
-must stay within the stated headroom of the corpus, so a limit nothing approaches
-fails as loudly as a path that outgrew one.
-
-The budgets are in **words**, not tokens. Tokens are what a session pays and are
+**Why words rather than tokens.** Tokens are what a session pays and are
 model-specific; a reproducible token count needs a vendored tokenizer and
 vocabulary, and a budget that needs a download is a budget that stops running.
 Words track tokens monotonically across prose in one voice, which is what a
@@ -1461,12 +1385,28 @@ Words track tokens monotonically across prose in one voice, which is what a
 register change, so the reading is always "this path grew", never "this path
 costs N tokens".
 
-#### What the loaded paths measure, before and after
+**Why a budget is asserted from both sides.** Each was fitted to a measurement
+recorded beside it, and held within a band above it, so a limit nothing
+approaches failed as loudly as a path that outgrew one. Without the recorded
+measurement the only checked interval was `measurement ≤ ceiling ≤ measurement +
+25%`, which admits a ceiling sitting exactly on today's measurement — the
+zero-width fit the band exists to prevent — and a ceiling raised straight to the
+far edge without ever being fitted.
+
+**And why none of it is coverage.** A budget says the path is small; only a
+delivery assertion says it still carries the rules. A green budget over a corpus
+that lost a rule is a smaller path that teaches less.
+
+#### What the loaded paths measured, before and after
+
+**A frozen record of one acceptance, not a live measure.** The instruments were
+deleted at `delete-provisioning-k19` with the corpus they measured; the numbers
+are kept because they are the evidence the corpus rewrite was accepted on.
 
 The corpus rewrite's acceptance, recorded as the comparison rather than as a
 claim. *Before* is the start of the workstream that produced this section
 (`b6ecdbd0`): `content/` totalled 23,532 words and `SKILL.md` 3,152, its body
-3,081. *After*, `content/` totals 14,741 words and `SKILL.md`'s body 796.
+3,081. *After*, `content/` totalled 14,741 words and `SKILL.md`'s body 796.
 
 The before figures are **recomputed here, per kind, and they correct the range
 the workstream carried**. Its brief estimated the old static path at "roughly
@@ -1479,9 +1419,9 @@ The *static* column below is **as it was measured then**, and included the
 guaranteed core (314 words, 353 for `finish`), which no *before* figure had; the
 *like-for-like* column strips it, so the two sides are `SKILL.md`'s body plus the
 kind reference in both. `prompt-names-the-kind-k18` took the core off the static
-path and put that kind's signal file on it, so today's rows in
-`tests/loaded_path_budgets.rs` measure a different composition; this table is the
-record of that acceptance and is not restated against it.
+path and put that kind's signal file on it, so the rows the budgets last
+measured were already a different composition; this table is the record of that
+acceptance and was never restated against it.
 
 | Kind | Static | Reachable | Like-for-like | Before | Ratio |
 |---|---|---|---|---|---|
@@ -1512,17 +1452,16 @@ session pays is the static column; the reachable column is what it can be sent
 into, and its near-constancy is the price of `SKILL.md` being a router.
 
 **What none of this establishes is that the paths still carry the rules.** A
-budget says the path is small; the behavioural coverage in
-`tests/lifecycle_invariants.rs` says it still delivers each rule, and
-`plugins/grove/conformance.sh` says exactly one file states each. Neither is evidence
-for the other, and a green budget over a corpus that lost a rule is a smaller
-path that teaches less.
+budget says the path is small; `plugins/grove/conformance.sh` says each rule is
+present on every bound kind's path and that exactly one file states it. Neither
+is evidence for the other.
 
 What none of them establishes is the semantic limb, *no procedure in
 `SKILL.md`*. That classification lost its classifier when the unit markers were
 deleted, so it is a **review obligation** — discharged per section against
-[`corpus-rule-ownership`](specs/corpus-rule-ownership.md)'s inventory, which names
-the file each rule's procedure must be found in — and never a passing test. A
+[`../plugins/grove/conformance/rules.tsv`](../plugins/grove/conformance/rules.tsv),
+which names the file each rule's procedure must be found in — and never a passing
+test. A
 budget test going green says nothing about it. Reviving a marker grammar to make
 it checkable is rejected there: enforcement is per rule, by the instrument that
 fits that rule, because whether a page of conditions is *right* was never
@@ -1530,22 +1469,19 @@ gateable.
 
 ### The boundary is a build, not a commit
 
-`include_dir!` reads `content/` at **compile time**, so what a session receives
-is the methodology the running binary was *built* with. The content hash that
-makes provisioning idempotent hashes that **embed**, not any working tree — a
-warm no-op is therefore correct even when a checkout's `content/` has moved far
-ahead of the binary. Nothing in the loop changes this: the full sweep runs once
-per bare `grove` (`loop_driver::bare_grove`, before lease acquisition), and
-re-*extracting* per iteration would write identical bytes, because a driver
-never re-execs and so carries one embed for its whole life. What the loop does
-do each iteration is *re-verify* the stamps and restore a directory another
-build has taken — the question there is ownership rather than freshness, and it
-is answered below.
+**For the binary, and no longer for the methodology.** A running driver is the
+build already in memory and never re-execs, so a change to the loop, the verbs
+or the prompt reaches no session in the same loop: the boundary is a rebuild
+*and* an install, not a commit. In a [meta-grove](../CONTEXT.md) that is the whole
+reason a leaf whose deliverable the installed build cannot read has to publish a
+release and stop the loop rather than signal.
 
-The consequence is sharpest in a [meta-grove](../CONTEXT.md): a session here can
-commit `content/SKILL.md` and the next session in the same loop still reads the
-old one. **That is the design, not a defect**, because *any* skew between the
-skill and the CLI it instructs is unsafe, in both directions:
+**The methodology no longer sits behind that boundary at all**, and what was
+bought by putting it there is worth stating, because it was real. `include_dir!`
+read `content/` at **compile time**, so a session received the methodology its
+own binary was built with, and Grove was the only writer of the skill
+directories — two properties which together made the skew between a skill and
+the CLI it instructs exactly zero:
 
 | Skew | What breaks |
 |---|---|
@@ -1553,79 +1489,48 @@ skill and the CLI it instructs is unsafe, in both directions:
 | Skill **older** than binary | It instructs verbs removed since that build; the binary lacks them too. |
 
 The second row is the one that surprises, and this repository already holds its
-ingredients: the `v17.0.0` skill instructs the composition constructors deleted
-after that tag (see the changelog's `### Removed`), so pairing that skill with
+ingredients: the `v17.0.0` methodology instructs the composition constructors
+deleted after that tag (see the changelog's `### Removed`), so pairing it with
 any post-`v17.0.0` binary hands a session a call that cannot succeed. Neither
-direction is the safe one, so there is no version of "refresh the skill more
-eagerly" that helps: **the only safe skew is none.**
+direction is safe, so there was no version of "refresh the skill more eagerly"
+that helped: **the only safe skew is none.**
 
-Zero skew is what the design actually delivers, by two properties together —
-one embed per build, and Grove as the *only* writer of these directories, always
-writing its own. Neither row above is reachable while both hold; a skill and its
-binary are the same artifact, seen twice. That is why there is no mechanism, and
-should be none, for a session to consume freshly committed methodology ahead of
-its binary — and why the exposure worth worrying about is not staleness but
-anything that breaks the second property (see the shared directory, below).
+`delete-provisioning-k19` gave that up deliberately, because the price of keeping
+it was a shared mutable global directory and every mechanism that made one safe —
+stamps, per-iteration repair, a build-pairing probe, a per-verb warning. The
+methodology and the binaries now have separate lifetimes and separate install
+routes, and a user who upgrades one and not the other can reach either row above.
 
-What is enforceable at this boundary is that the embed is **internally
-consistent**: every `grove-llm` verb the embedded methodology instructs is a verb
-the embedded CLI exposes (`tests/methodology.rs`, scanning the embed itself). No test can inspect a future
-build, so "the installed skill is current" is not a statable claim; "a binary
-that ships cannot hand a session a verb it lacks" is, and it is the claim that
-actually protects a session.
+**What replaces the guarantee is a test and a repository boundary.**
+`tests/instructed_verbs.rs` asserts that this checkout's skill set instructs no
+`grove-llm` verb this checkout's CLI lacks — the internally-consistent claim, made
+over the pair that ships together in one commit rather than over one linked
+artifact. No test can inspect a future build, so "the installed skill is current"
+was never a statable claim either; what is statable is that the two halves this
+repository publishes agree with each other.
 
-A stale *installed* binary is therefore an ordinary upgrade concern, diagnosed
-with `grove --version` against the repository's `Cargo.toml`, and resolved by
-rebuilding and installing — not by anything Grove does at runtime.
-
-### The shared directory, and who owns it
-
-"A session reads the embed its own binary carries" is a claim about one
-`grove`, and the skill directories are *global and shared* — the driver lease is
-per working tree, so it serializes nothing here. Two builds can write one
-directory: a second grove in another working tree, and — more likely inside this
-repository — `cargo run --bin grove` from a checkout, which lays that checkout's
-`content/` over the installed copy while the session's `PATH` still reaches the
-installed `grove-llm`. Grove acts on it in three places:
-
-| Where | What it does |
-|---|---|
-| Before each launch | Re-verify each installed skill directory's stamp; restore this driver's embed and say so when another build has taken one. |
-| Before each launch | Report — never refuse — when the `PATH` `grove-llm` a session would resolve is missing, unidentifiable, or carries a different methodology identity. The driver's environment is a proxy for the session's, exact only when the configured command inherits it. |
-| Inside a session | `grove-llm` warns — never refuses — when the installed directories are not stamped with its own identity. Its two operands are the ones that matter, and it is the only check a mid-session clobber can reach. |
-
-Only the middle row is still settled by [one build owns a
-session](adr/one-build-owns-a-session.md). That record now describes the pairing
-after the mandate becomes the delivery path, where there is no shared directory
-left to clobber, so it keeps the launch-time pairing report and no longer carries
-the stamp repair or the in-session directory warning. Those two are built
-behaviour whose reason *was* the shared directory, and they retire with it — the
-rationale is deliberately not restated in a record that would then have to be
-deleted at retirement.
-
-Concurrent groves at different builds stay unsupported: one directory cannot
-serve two builds, and the reports above make the alternation visible instead of
-silent. The supported way to run a build, dogfooding included, is to make it the
-installed one a session's `PATH` resolves first — which `cargo install --path .`
-achieves only where `~/.cargo/bin` outranks every other prefix carrying a
-`grove-llm`, so the diagnostic names the path it actually resolved rather than
-prescribing one command.
+A stale *installed* binary is an ordinary upgrade concern, diagnosed with
+`grove --version` against the repository's `Cargo.toml`, and resolved by
+rebuilding and installing — not by anything Grove does at runtime. A stale
+installed methodology is the same kind of concern, resolved by updating the
+plugin.
 
 ## Main module seams
 
 | Module | Responsibility |
 |---|---|
 | `session_config` | Grove's side of launch configuration: the personal file's path, the four slots grove's templates are written against, and the delta — where it is searched, which candidate wins, and the refusal of a tracked one. The grammar, the validation and the expansion are `crates/keyed-launch`'s. Asks the VCS seam whether a delta candidate is tracked; nothing else leaves the filesystem. |
-| `loop_driver` | Provisioning and lease acquisition on the way in, then foreground iteration and selection. Names the child-environment scrub list and the escalation's two graces; hands both to `crates/keyed-launch`, which owns the spawn, the supervision and the kill. |
+| `loop_driver` | Lease acquisition on the way in, then foreground iteration and selection. Names the child-environment scrub list and the escalation's two graces; hands both to `crates/keyed-launch`, which owns the spawn, the supervision and the kill. |
 | `driver_lease` | Driver lease, session epoch, and ambient-session validation. Supplies the control directory each launch's channel is allocated in; the channel itself is `crates/keyed-launch`'s. |
-| `harness` | The provisioning-target registry — delivery destinations only. |
 | `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has, handle included (`Slug`, `Outcome`, `Handle`, `Parts`, `TaskName`). |
 | `task_tree`, `task_grow` | The reading and growing verbs expressed through the library: one snapshot per command, path construction, key prediction, and the cross-reference lint. |
 | `tree_lifecycle` | The grove-only lifecycle around the tree: the terminal outcomes, the finish sentinel, and the grove's own creation through the store's vacancy. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
-| `methodology` | The embed itself and the build's methodology identity. Nothing else — the corpus is plain markdown, so there is no reader over it. |
 | `prompt` | The guaranteed core: the whole of `${prompt}` — the `grove-<kind>` load instruction, the runtime facts, Grove's signalling contract — and the too-late test its contents are admitted by. Reads nothing and depends on no corpus. |
-| `provision` | Embedded methodology installation, and the provisioned locations the core names. |
+
+There is no `harness`, `methodology` or `provision` module. All three were
+provisioning's — a registry of directories to sweep into, the embed and its
+identity, and the sweep itself — and went at `delete-provisioning-k19`.
 
 The modules are intentionally file-sized rather than wrapped in another
 service layer. The task tree, subprocess boundary, and VCS adapter are the
@@ -1642,9 +1547,8 @@ API — deleted where a test can assert on what production reads, demoted into
 that module's `mod tests` where the test still needs the convenience. Two *kinds*
 of surface are exempt and every item the sweep reports falls under one of them,
 argued where it lives: a **seam**, where production reaches the same behaviour
-through a door a test cannot open (`tree_lifecycle::transition_to_current`, and
-`methodology::markdown_files` — see [the embed test seam](#embed-test-seam)), and
-and nothing else — a second exemption for **a frozen grammar kept whole** covered
+through a door a test cannot open (`tree_lifecycle::transition_to_current`), and
+nothing else — a second exemption for **a frozen grammar kept whole** covered
 `leaf_id`, the v1-flat parser, and retired with it when that layout stopped being
 read. The list is reproduced by copying `src/` to a
 scratch crate, making every module private except `cli` and `llm_cli`, and
@@ -1668,16 +1572,17 @@ graces are injected through internal module seams, never through supported
 process configuration.
 
 <a id="embed-test-seam"></a>
-Two claims cannot be reached that way, and they have a seam of their own. Every
-assertion about the **real embedded corpus** — that each kind's reference file
-exists, that the methodology instructs no `grove-llm` verb the CLI lacks, that
-the composed core is what the design admits — runs through `methodology` and
-`prompt` rather than through a spawned driver. Production's own door onto the
-embed is `include_dir`, which a test cannot open without making a runtime
-dependency a dev dependency as well, and a driver spawned per claim would pay a
-process for each. Those two modules are `pub` on exactly that ground; the rule
+One claim cannot be reached that way and has a seam of its own: that the composed
+core is what the design admits, which runs through `prompt` rather than through a
+driver spawned per claim. That module is `pub` on exactly that ground; the rule
 that otherwise governs module visibility is under [main module
 seams](#main-module-seams).
+
+**`methodology` used to be the second such seam**, because assertions about the
+real corpus had to reach an embed whose only production door was `include_dir` —
+a crate a test cannot open without making a runtime dependency a dev one as well.
+The corpus is ordinary files under `plugins/grove/skills/` now, so a test opens
+it with `std::fs` and needs no seam at all.
 
 What is mechanically checkable here is narrower than what the design claims, and
 the boundary is stated rather than blurred: the core's three-part shape, its

@@ -24,7 +24,8 @@ the ownership predicate, the leaf-wide one-reviewer allowance and what spends it
 the per-kind allowances, the four-step doubt pass, and the rule that an escalated
 review's route belongs to configuration. A spec describes how an area works and
 **cites** the rules in its area rather than restating them
-(`docs/specs/corpus-rule-ownership.md`), and this one predates that map: it
+(`plugins/grove/conformance/rules.tsv`, transcribed from the ownership spec that
+went with `content/`), and this one predates that map: it
 carried the budget, the per-kind table and the diversity rule at full length,
 which is one source of truth too many for a rule that changes.
 

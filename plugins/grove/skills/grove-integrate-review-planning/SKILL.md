@@ -1,7 +1,7 @@
 ---
 name: grove-integrate-review-planning
 description: The `integrate-review-planning` session kind — triage one `review-planning` leaf's findings and apply the real ones. Use when a grove mandate names this skill, or when running an `integrate-review-planning` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # integrate-review-planning

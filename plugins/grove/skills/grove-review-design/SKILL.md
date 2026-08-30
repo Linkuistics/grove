@@ -1,7 +1,7 @@
 ---
 name: grove-review-design
 description: The `review-design` session kind — a fresh-context, inspection-only adversarial read of one design artifact — a spec, an ADR set, or both, producing findings and no fixes. Use when a grove mandate names this skill, or when running a `review-design` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # review-design

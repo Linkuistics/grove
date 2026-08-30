@@ -1,7 +1,7 @@
 ---
 name: grove
 description: Grove's shared methodology spine — the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the three review and research family files, and the five format documents. Use when a `grove-<kind>` skill directs you here; when running any session inside a grove working tree; or when starting, picking up, or continuing a task tree under .grove/.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # grove — hierarchical, self-extending workstreams

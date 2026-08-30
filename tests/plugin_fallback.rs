@@ -1,19 +1,24 @@
 //! **Grove does not depend on the `linkuistics` plugin silently.**
 //!
-//! Grove requires the plugin and does not provision it — the `grove` binary
-//! sweeps its own methodology and nothing else — so a checkout without it reads
-//! every `linkuistics:` citation as a pointer at a skill that is not there. The
-//! rule `plugin-prerequisite` (`docs/specs/corpus-rule-ownership.md`, *Plugin
-//! deferral policy*) closes that by requiring each citation to state **what binds
-//! in the plugin's absence**, and the generating question is per citation: does
-//! the absence change *what* a session writes, or only *how well*? Absence that
-//! changes *what* is owned locally; absence that changes *how well* is deferred,
-//! and the deferring sentence says so.
+//! Grove's methodology requires that plugin and neither ships nor installs it —
+//! the two are separate products with separate install steps — so a machine
+//! without it reads every `linkuistics:` citation as a pointer at a skill that is
+//! not there. The rule `plugin-prerequisite`
+//! (`plugins/grove/conformance/rules.tsv`) closes that by requiring each citation
+//! to state **what binds in the plugin's absence**, and the generating question
+//! is per citation: does the absence change *what* a session writes, or only *how
+//! well*? Absence that changes *what* is owned locally; absence that changes *how
+//! well* is deferred, and the deferring sentence says so.
+//!
+//! **The subject moved at `delete-provisioning-k19`, and the claims did not.**
+//! This swept the corpus the binary embedded; the same corpus is now the shipped
+//! `grove` plugin, and the sweep reads it off disk. Nothing about the audit
+//! changes, because a citation is a citation wherever it is delivered from.
 //!
 //! **The registry below is the audit, and the sweep is what keeps it honest.**
 //! [`CITATIONS`] names every citation site with the wording that discharges it;
-//! [`the_citation_registry_is_exhaustive_over_the_corpus`] sweeps the embedded
-//! corpus for `linkuistics:<skill>` and asserts the found set is exactly the
+//! [`the_citation_registry_is_exhaustive_over_the_corpus`] sweeps the shipped
+//! skill set for `linkuistics:<skill>` and asserts the found set is exactly the
 //! registry's. A citation added later without a binding sentence therefore fails
 //! here rather than reaching a session — which is the fail-closed direction, and
 //! the one a per-row presence check alone would miss.
@@ -28,8 +33,8 @@
 //! signal, with the grove-local statement each step needs asserted present in the
 //! file that step opens.
 
-use grove::methodology;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 
 /// Emphasis and code markers stripped, whitespace collapsed — the same
 /// normalisation `plugins/grove/conformance.sh` uses, and for the same reason: the
@@ -44,18 +49,36 @@ fn normalised(text: &str) -> String {
     stripped.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// The embedded corpus, normalised, as path→text.
+/// The shipped skill set, normalised, as `skills/`-relative path→text.
 fn corpus() -> BTreeMap<String, String> {
-    methodology::markdown_files()
-        .expect("the real embed must be readable")
-        .into_iter()
-        .map(|(path, text)| (path, normalised(text)))
-        .collect()
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins/grove/skills");
+    let mut out = BTreeMap::new();
+    collect(&root, &root, &mut out);
+    assert!(
+        !out.is_empty(),
+        "no markdown under {} — a mis-scoped walk audits nothing",
+        root.display()
+    );
+    out
+}
+
+fn collect(root: &Path, dir: &PathBuf, out: &mut BTreeMap<String, String>) {
+    for entry in std::fs::read_dir(dir).expect("the shipped skill set must be readable") {
+        let path = entry.expect("a readable directory entry").path();
+        if path.is_dir() {
+            collect(root, &path, out);
+        } else if path.extension().is_some_and(|extension| extension == "md") {
+            let relative = path.strip_prefix(root).expect("a path under the root");
+            let text = std::fs::read_to_string(&path)
+                .unwrap_or_else(|error| panic!("{} must be readable: {error}", path.display()));
+            out.insert(relative.to_string_lossy().into_owned(), normalised(&text));
+        }
+    }
 }
 
 /// One citation of a plugin skill, and the wording that discharges it.
 struct Citation {
-    /// The corpus file carrying the citation, relative to `content/`.
+    /// The file carrying the citation, relative to `plugins/grove/skills/`.
     file: &'static str,
     /// The plugin skill cited, without the `linkuistics:` prefix.
     skill: &'static str,
@@ -71,40 +94,40 @@ struct Citation {
 /// repointed those citations at `ADR-FORMAT.md` and `references/requirements.md`;
 /// the files no longer name the plugin at all, which is why they have no row.
 ///
-/// `references/grove.md` is the **hub**: it states what binds for all three
-/// skills in one place, and `SKILL.md`'s trigger sentence 19 routes every
+/// `grove/references/grove.md` is the **hub**: it states what binds for all
+/// three skills in one place, and the spine's `SKILL.md` routes every
 /// citation there ([`the_hub_is_reachable_from_the_condition_register`]). That is
 /// why no other file mirrors the seam gloss — a second statement of it would be
-/// the duplication `docs/specs/corpus-rule-ownership.md` exists to remove.
+/// the duplication the ownership inventory exists to remove.
 const CITATIONS: &[Citation] = &[
     Citation {
-        file: "ADR-FORMAT.md",
+        file: "grove/ADR-FORMAT.md",
         skill: "decision-records",
         binds: "what binds without it is stated here",
     },
     Citation {
-        file: "SPEC-FORMAT.md",
+        file: "grove/SPEC-FORMAT.md",
         skill: "codebase-design",
         binds: "those three rules are grove's own and bind without the plugin",
     },
     Citation {
-        file: "references/commit.md",
+        file: "grove/references/commit.md",
         skill: "using-jujutsu",
         binds: "the boundary above is the whole of what a grove session needs, \
                 and it binds on its own",
     },
     Citation {
-        file: "references/grove.md",
+        file: "grove/references/grove.md",
         skill: "decision-records",
         binds: "what binds without it is adr-format.md",
     },
     Citation {
-        file: "references/grove.md",
+        file: "grove/references/grove.md",
         skill: "codebase-design",
         binds: "are in spec-format.md and bind without the skill",
     },
     Citation {
-        file: "references/grove.md",
+        file: "grove/references/grove.md",
         skill: "using-jujutsu",
         binds: "what binds without it is references/commit.md",
     },
@@ -153,18 +176,18 @@ fn every_plugin_citation_states_what_binds_without_it() {
     for citation in CITATIONS {
         let text = corpus
             .get(citation.file)
-            .unwrap_or_else(|| panic!("content/{} must be in the embed", citation.file));
+            .unwrap_or_else(|| panic!("{} must be a shipped skill file", citation.file));
 
         assert!(
             text.contains(&format!("linkuistics:{}", citation.skill)),
-            "content/{} must still cite linkuistics:{} — a row whose citation is gone is a \
+            "{} must still cite linkuistics:{} — a row whose citation is gone is a \
              stale audit, not a discharged one",
             citation.file,
             citation.skill,
         );
         assert!(
             text.contains(&normalised(citation.binds)),
-            "content/{} cites linkuistics:{} without stating what binds in its absence. \
+            "{} cites linkuistics:{} without stating what binds in its absence. \
              Expected: {:?}",
             citation.file,
             citation.skill,
@@ -197,7 +220,7 @@ fn the_citation_registry_is_exhaustive_over_the_corpus() {
     assert_eq!(
         found.len(),
         6,
-        "the corpus carries six audited citations across four files: {found:?}"
+        "the shipped skill set carries six audited citations across four files: {found:?}"
     );
 }
 
@@ -206,7 +229,7 @@ fn the_citation_registry_is_exhaustive_over_the_corpus() {
 #[test]
 fn an_unregistered_citation_is_caught() {
     let fabricated: BTreeMap<String, String> = [(
-        "references/impl.md".to_owned(),
+        "grove-impl/SKILL.md".to_owned(),
         normalised("Judge the seam with the `linkuistics:codebase-design` skill."),
     )]
     .into_iter()
@@ -215,7 +238,7 @@ fn an_unregistered_citation_is_caught() {
     assert_eq!(
         citation_pairs(&fabricated),
         [(
-            "references/impl.md".to_owned(),
+            "grove-impl/SKILL.md".to_owned(),
             "codebase-design".to_owned()
         )]
         .into_iter()
@@ -245,10 +268,12 @@ fn the_sweep_survives_markup_and_wrapping() {
 #[test]
 fn the_hub_is_reachable_from_the_condition_register() {
     let corpus = corpus();
-    let register = corpus.get("SKILL.md").expect("SKILL.md is in the embed");
+    let register = corpus
+        .get("grove/SKILL.md")
+        .expect("the spine ships a SKILL.md");
     let hub = corpus
-        .get("references/grove.md")
-        .expect("references/grove.md is in the embed");
+        .get("grove/references/grove.md")
+        .expect("the spine ships references/grove.md");
 
     assert!(
         register.contains(&normalised(
@@ -264,7 +289,7 @@ fn the_hub_is_reachable_from_the_condition_register() {
         "the hub must carry `plugin-prerequisite` itself"
     );
     assert!(
-        hub.contains(&normalised("grove requires it and does not provision it")),
+        hub.contains(&normalised("grove requires it and does not ship it")),
         "the hub must state the prerequisite it is standing in for"
     );
 }
@@ -283,7 +308,7 @@ fn an_ordinary_task_completes_without_reading_a_plugin_skill() {
     let text = |path: &str| {
         corpus
             .get(path)
-            .unwrap_or_else(|| panic!("content/{path} must be in the embed"))
+            .unwrap_or_else(|| panic!("{path} must be a shipped skill file"))
             .clone()
     };
 
@@ -291,42 +316,42 @@ fn an_ordinary_task_completes_without_reading_a_plugin_skill() {
         // Bootstrap — the read order is grove's own and names no skill.
         (
             "bootstrap",
-            "references/bootstrap.md",
+            "grove/references/bootstrap.md",
             "grove-llm brief-chain",
         ),
         // Produce — the ADR when-to-write test is stated locally, in AND form.
         (
             "produce (adr)",
-            "ADR-FORMAT.md",
+            "grove/ADR-FORMAT.md",
             "write one only when all three hold",
         ),
         // Produce — the operative seam rules are grove's own.
         (
             "produce (seams)",
-            "SPEC-FORMAT.md",
+            "grove/SPEC-FORMAT.md",
             "prefer existing seams to new ones",
         ),
         // Retire — never append a superseding record.
         (
             "retire",
-            "references/retire.md",
+            "grove/references/retire.md",
             "adr-format.md carries how a set is reworked",
         ),
         // Commit — complete without the plugin.
         (
             "commit (jj)",
-            "references/commit.md",
+            "grove/references/commit.md",
             "jj new after describing, once the rename has landed",
         ),
         (
             "commit (sufficiency)",
-            "references/commit.md",
+            "grove/references/commit.md",
             "a checkout without the plugin commits correctly from this file alone",
         ),
     ] {
         assert!(
             text(file).contains(&normalised(statement)),
-            "{step}: content/{file} must bind on its own without the plugin. Expected: \
+            "{step}: {file} must bind on its own without the plugin. Expected: \
              {statement:?}"
         );
     }
@@ -334,15 +359,18 @@ fn an_ordinary_task_completes_without_reading_a_plugin_skill() {
     // The steps that must name no skill at all: reading one there would be a
     // dependency no binding sentence could discharge, because the session is
     // past the point of choosing.
+    // The two corpus signal files this list used to end on are gone: grove states
+    // its own signalling contract in `${prompt}` now, and `finish`'s three
+    // endings are inline in its skill, which is why that skill takes their place
+    // here.
     for path in [
-        "references/bootstrap.md",
-        "references/retire.md",
-        "SIGNAL.md",
-        "SIGNAL-FINISH.md",
+        "grove/references/bootstrap.md",
+        "grove/references/retire.md",
+        "grove-finish/SKILL.md",
     ] {
         assert!(
             cited_skills(&text(path)).is_empty(),
-            "content/{path} must cite no plugin skill: {:?}",
+            "{path} must cite no plugin skill: {:?}",
             cited_skills(&text(path))
         );
     }

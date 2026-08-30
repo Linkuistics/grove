@@ -183,14 +183,6 @@ impl Drop for DriverProcess {
     }
 }
 
-fn path_with_front(directory: &Path) -> std::ffi::OsString {
-    let mut paths = vec![directory.to_path_buf()];
-    paths.extend(std::env::split_paths(
-        &std::env::var_os("PATH").unwrap_or_default(),
-    ));
-    std::env::join_paths(paths).unwrap()
-}
-
 fn lease_path(root: &Path) -> PathBuf {
     root.join(".jj/grove/driver.lease")
 }
@@ -873,7 +865,7 @@ fn an_execed_descendant_does_not_inherit_driver_ownership() {
 }
 
 #[test]
-fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
+fn a_second_driver_refuses_before_tree_access_or_launch() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
     init_colocated_worktree(&root);
@@ -913,7 +905,6 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
         ),
     );
     let home = tmp.path().join("home");
-    let skill_dir = home.join(".codex/skills/grove");
     let mut first_command = grove_driver(&root, &fake_harness, &home);
     let mut first = DriverProcess::spawn(&mut first_command, &tmp.path().join("first-driver-log"));
     first.wait_for_ready(&first_ready);
@@ -923,8 +914,6 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     // driver that refuses before tree access leaves it exactly so.
     fs::remove_dir_all(root.join(".grove")).unwrap();
     let head_before_second = command_stdout("git", &root, &["rev-parse", "HEAD"]);
-    fs::remove_file(skill_dir.join("SKILL.md")).unwrap();
-    fs::write(skill_dir.join(".grove-content-hash"), "stale-hash\n").unwrap();
 
     let second = grove_driver(&root, &fake_harness, &home).output().unwrap();
 
@@ -937,7 +926,6 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
         stderr.contains("existing Grove driver must stop"),
         "unexpected stderr: {stderr}"
     );
-    assert!(skill_dir.join("SKILL.md").is_file());
     assert!(
         !duplicate_launch.exists(),
         "second driver launched a harness"
@@ -964,20 +952,23 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     );
 }
 
-// The driver revalidates its lease immediately before spawning the foreground
-// session, so a lease replaced under it between owning the tree and launching
-// refuses rather than launching into a working tree it no longer owns.
+// A lease replaced under a running driver refuses rather than driving a working
+// tree it no longer owns. The driver revalidates at two points — at the top of
+// every loop transition and again immediately before the foreground launch — and
+// this is the black-box witness for the first.
 //
-// The hook is the agent-CLI identity probe — the one subprocess the configured
-// loop runs before the launch. A `PATH`-front shadow reaches it directly, with
-// no isolation step: the driver resolves `grove-llm` through `PATH` rather than
-// preferring its own sibling, so this fixture is also the black-box witness that
-// the sibling no longer wins (one-build-owns-a-session). The shadow delegates
-// the answer to the real binary, so the pairing it reports is the paired one and
-// the only thing under test here is the lease.
+// **It used to witness the second, and no longer can.** The hook was the
+// agent-CLI identity probe: the one subprocess the driver ran between owning the
+// tree and launching, which a `PATH`-front shadow could reach and use to replace
+// the lease inside that window. `delete-provisioning-k19` deleted the probe with
+// the build-pairing report, and nothing else runs in that window, so a black-box
+// fixture has no way to interpose there any more. The narrower witness below is
+// what survives: the session itself replaces the lease, and the *next*
+// transition refuses before selecting, mutating or launching again. The
+// pre-launch call is still there and still tested in-process, through
+// [`DriverLease::revalidate`] directly.
 #[test]
-fn lease_replacement_before_the_foreground_launch_refuses_to_launch() {
-    let _lock = support::lock_env(&ENV_LOCK);
+fn a_lease_replaced_under_a_running_driver_refuses_the_next_transition() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
     init_colocated_worktree(&root);
@@ -987,41 +978,22 @@ fn lease_replacement_before_the_foreground_launch_refuses_to_launch() {
 
     let launch_log = tmp.path().join("launch-log");
     let configured = tmp.path().join("configured-command.sh");
+    // One session: count the launch, replace the lease with a fresh file at the
+    // same path, then signal so the driver takes another transition. The `mv`
+    // and truncate together give the path a new identity without removing it —
+    // the shape `revalidate` exists to catch, and the one a bare `rm` would not
+    // produce.
     write_executable(
         &configured,
         &format!(
-            "#!/bin/sh\nprintf launched > {}\n",
-            shell_quote(&launch_log)
+            "#!/bin/sh\nprintf x >> {log}\nmv {held} {held}.old\n: > {held}\nprintf relaunch > \"$GROVE_SIGNAL_FILE\"\n",
+            log = shell_quote(&launch_log),
+            held = shell_quote(&lease_path(&root)),
         ),
     );
 
-    let held_path = lease_path(&root);
-    let shadow_bin = tmp.path().join("shadow-bin");
-    fs::create_dir_all(&shadow_bin).unwrap();
-    write_executable(
-        &shadow_bin.join("grove-llm"),
-        &format!(
-            "#!/bin/sh\nif [ \"$1\" = --content-hash ]; then\n  mv {held} {held}.old\n  : > {held}\n  exec {real} --content-hash\nfi\nexec {real} \"$@\"\n",
-            held = shell_quote(&held_path),
-            real = shell_quote(Path::new(env!("CARGO_BIN_EXE_grove-llm"))),
-        ),
-    );
-
-    // `grove_driver` writes the complete config into `home`; the command it
-    // returns is discarded, because this run needs its own environment.
     let home = tmp.path().join("home");
-    let _ = grove_driver(&root, &configured, &home);
-
-    let mut driver = Command::new(env!("CARGO_BIN_EXE_grove"));
-    driver.current_dir(&root);
-    for name in support::grove_env_names() {
-        driver.env_remove(name);
-    }
-    let output = driver
-        .env("HOME", &home)
-        .env("PATH", path_with_front(&shadow_bin))
-        .output()
-        .unwrap();
+    let output = grove_driver(&root, &configured, &home).output().unwrap();
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!output.status.success(), "unexpected success: {stderr}");
@@ -1029,9 +1001,10 @@ fn lease_replacement_before_the_foreground_launch_refuses_to_launch() {
         stderr.contains("driver lease path was replaced"),
         "unexpected error: {stderr}"
     );
-    assert!(
-        !launch_log.exists(),
-        "the foreground session launched after the lease was lost"
+    assert_eq!(
+        fs::read_to_string(&launch_log).unwrap(),
+        "x",
+        "the driver launched again after losing the lease: {stderr}"
     );
 }
 

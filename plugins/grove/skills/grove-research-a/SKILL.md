@@ -1,7 +1,7 @@
 ---
 name: grove-research-a
 description: The `research-a` session kind — a citation-disciplined, breadth-seeking literature and prior-art survey. Use when a grove mandate names this skill, or when running a `research-a` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # research-a

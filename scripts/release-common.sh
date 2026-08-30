@@ -24,45 +24,17 @@ TARGETS=(
   x86_64-unknown-linux-gnu
 )
 
-# A phrase that exists only in content/, used to ask a *binary artifact* whether
-# it carries the embedded methodology.
+# NO METHODOLOGY PAIRING ASSERTION. Until delete-provisioning-k19 this file
+# carried CONTENT_MARKER -- a phrase that existed only in content/ -- and
+# assert_methodology_pairing, which grepped each staged binary for it and failed
+# the release if either lacked the embed. The check ran here rather than only in
+# the Rust suite because a release builds three targets in --release, two of them
+# cross-compiled, so a linker or codegen setting that kept the embed out of a
+# shipped binary was not something the test-profile pair could speak to.
 #
-# WHY THE RELEASE PATH ASKS AT ALL. tests/provision.rs makes the same assertion,
-# but only against the binaries `cargo test` built — one profile, one host
-# target. A release builds three targets in --release, two of them
-# cross-compiled, so a linker or codegen setting that keeps the embed out of a
-# shipped binary is not something the test-profile pair can speak to. The
-# invariant is asserted where it ships.
-#
-# Pinned against the const in tests/provision.rs by a test there, so the two
-# scans cannot drift apart silently.
-# shellcheck disable=SC2034  # consumed by the scripts that source this file
-readonly CONTENT_MARKER='hierarchical, self-extending workstreams'
-
-# Fail unless BOTH binaries carry the methodology.
-#
-# THIS CHECK INVERTED. It used to fail a release when grove-llm carried the
-# embed, because only grove extracted content and grove-llm needed nothing but a
-# compile-time identity constant. grove-llm computes the methodology identity
-# from its own embed now -- for --content-hash and for the per-verb warning about
-# a clobbered skill directory -- so both binaries hash content/ directly
-# (docs/adr/one-build-owns-a-session.md). A grove-llm without the embed cannot
-# name which build it is.
-#
-# Writes only to stderr, so it is safe inside the command substitution
-# build_target runs in.
-assert_methodology_pairing() {
-  local binary
-  for binary in "$@"; do
-    if ! grep -qF "$CONTENT_MARKER" "$binary"; then
-      echo "release-build: $binary does not carry the embedded methodology." >&2
-      echo "  grove extracts content/ and grove-llm hashes it for its identity, so both must link it." >&2
-      echo "  Either this build is broken, or the marker in release-common.sh has left content/" >&2
-      echo "  and needs updating alongside CONTENT_MARKER in tests/provision.rs." >&2
-      return 1
-    fi
-  done
-}
+# Neither binary embeds anything now: the methodology ships as the grove plugin,
+# and the marker phrase is not in either artifact. There is nothing left for a
+# binary scan to assert.
 
 # Put rustup's shim directory at the FRONT of PATH, so the release build gets a
 # coherent rustup toolchain rather than whatever `cargo` happens to resolve to.

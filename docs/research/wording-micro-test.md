@@ -1,8 +1,8 @@
 # Wording micro-test — does the guaranteed core get a session to read the skill?
 
-Design validation for [the skill delivers the
-methodology](../adr/skill-delivers-the-methodology.md), whose residue is paid for
-entirely by trigger strength. Run once, before any of the rewrite shipped, so the
+Design validation for *the skill delivers the methodology* — a decision record
+retired at `delete-provisioning-k19`, whose residue was paid for entirely by
+trigger strength. Run once, before any of the rewrite shipped, so the
 design's answer to the **first** observed failure could still be changed for
 free. Nothing re-runs it; it is not a gate.
 

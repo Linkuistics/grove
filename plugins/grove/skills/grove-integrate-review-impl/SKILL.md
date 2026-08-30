@@ -1,7 +1,7 @@
 ---
 name: grove-integrate-review-impl
 description: The `integrate-review-impl` session kind — triage one `review-impl` leaf's findings and apply the real ones. Use when a grove mandate names this skill, or when running an `integrate-review-impl` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # integrate-review-impl

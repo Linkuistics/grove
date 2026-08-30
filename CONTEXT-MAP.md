@@ -11,8 +11,8 @@ mean something else in grove's, and its crate ships by no path of its own —
 
 ## Contexts
 
-- [grove](./CONTEXT.md) — the `grove` CLI, the workstream methodology it embeds
-  in `content/`, and the task tree that methodology drives.
+- [grove](./CONTEXT.md) — the `grove` CLI, the workstream methodology shipped as
+  the `grove` plugin, and the task tree that methodology drives.
 - [skills](./plugins/CONTEXT.md) — the `grove`, `linkuistics` and `testanyware`
   skill plugins: how a skill is authored, packaged, triggered and installed. The
   `grove` plugin's *contents* are the grove context's, by that glossary's own
@@ -61,40 +61,38 @@ for the second document.
 - **grove → skills, a documentation-level prerequisite that binds without the
   install.** grove's methodology cites `linkuistics:decision-records` for ADR
   philosophy and `linkuistics:codebase-design` for seam judgement, and the
-  dependency is **not install-enforced** — the `grove` binary provisions its own
-  methodology and nothing else, so the plugins remain a separate install. It is
+  dependency is **not install-enforced** — the `grove` binary ships no skills at
+  all, so every plugin is a separate install. It is
   no longer **silent**: every citation states what binds in the plugin's absence,
   and grove owns locally the part whose absence would change *what* a session
   writes — the ADR when-to-write test and minimum-coherent-set discipline
-  (`content/ADR-FORMAT.md`), the operative seam rules
-  (`content/SPEC-FORMAT.md`), and the commit boundary
-  (`content/references/commit.md`). `content/references/grove.md` is the hub that
-  states this once per skill; `content/SKILL.md` routes any citation there. So a
+  (`plugins/grove/skills/grove/ADR-FORMAT.md`), the operative seam rules
+  (`plugins/grove/skills/grove/SPEC-FORMAT.md`), and the commit boundary
+  (`plugins/grove/skills/grove/references/commit.md`).
+  `plugins/grove/skills/grove/references/grove.md` is the hub that states this
+  once per skill; the spine's `SKILL.md` routes any citation there. So a
   checkout without the plugin runs an ordinary task end to end, and absence
   changes how *well* these artifacts are written, never *what* is obliged.
   Decision: `docs/adr/a-skill-states-what-binds-without-its-dependencies.md`;
   enforcement: `tests/plugin_fallback.rs`.
 
-- **Shared target: the personal skill directory.** grove and skills both write
-  into the same per-harness namespace (`ordinal-fs-tree` provisions nothing). The `grove` binary sweeps `content/` to
-  `~/.claude/skills/grove/` (and the Codex and Pi equivalents);
-  `plugins/install.sh`
-  symlinks each **`linkuistics`** skill into `~/.codex/skills/`,
-  `~/.gemini/skills/` and `~/.pi/agent/skills/` (`testanyware` ships by
-  marketplace only).
-  Nothing collides today — the overlap is `~/.codex/skills/`, where the names are
-  disjoint — but the namespace is shared, so any future decision to have one
-  context provision the other's content is a question about precedence and
-  double-provisioning, not a local change. Contention *within* the `grove` entry
-  — two `grove` builds writing it — is a separate, grove-owned question, settled
-  by [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md): the
-  directory is owned by whichever build wrote it last, and the driver re-verifies
-  the stamp before every launch.
-  [`skill-delivers-the-methodology`](docs/adr/skill-delivers-the-methodology.md)
-  is why the `grove` half of this shared target exists at all — the provisioned
-  skill is the delivery path, so the entry stays and the precedence question
-  stays open alongside the `linkuistics` symlinks. What reopens it is one context
-  provisioning the other's content, which no part of either design does.
+- **Shared target: the personal skill directory — and only one writer now.**
+  `plugins/install.sh` symlinks every eligible bundled skill into
+  `~/.codex/skills/`, `~/.gemini/skills/` and `~/.pi/agent/skills/`, and Claude
+  Code installs the same plugins through the marketplace (`ordinal-fs-tree`
+  installs nothing).
+  **This used to be a genuinely shared target**, because the `grove` binary swept
+  its embedded `content/` into `~/.claude/skills/grove/` and the Codex and Pi
+  equivalents while `install.sh` wrote the neighbouring entries. That was the one
+  place a code product and a documentation product met on disk, and it carried
+  two questions: precedence between the contexts, and contention *within* the
+  `grove` entry between two builds.
+  `delete-provisioning-k19` removed the binary from the picture entirely. Grove's
+  own methodology is now a plugin installed by the same script and the same
+  marketplace as the others, so the directory has one writer, the two questions
+  are closed, and the two records that answered them —
+  `skill-delivers-the-methodology` and `one-build-owns-a-session` — are retired.
+  What would reopen the entry is a *binary* writing into this namespace again.
 
 - **grove → ordinal-fs-tree, a vocabulary boundary held by hand.** grove is the
   library's first and so far only consumer: it supplies a domain implementation
@@ -138,14 +136,12 @@ for the second document.
   here; a record added later joins this list. Ownership names who keeps the
   record current, not every component it binds: the jj-first VCS rule, for
   example, is shared by the Grove binary and the plugin installer.
-  `content/ADR-FORMAT.md` defines when a flat
+  `plugins/grove/skills/grove/ADR-FORMAT.md` defines when a flat
   root set is appropriate. A term is defined in the glossary of its owning
   context, never both. The **grove** context owns
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
   [`untracked-configuration-delta`](docs/adr/untracked-configuration-delta.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
-  [`skill-delivers-the-methodology`](docs/adr/skill-delivers-the-methodology.md),
-  [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`corpus-rules-have-one-owner`](docs/adr/corpus-rules-have-one-owner.md),
   [`restatement-declares-its-class`](docs/adr/restatement-declares-its-class.md),
@@ -160,10 +156,12 @@ for the second document.
   [`a-lifecycle-claim-says-what-it-is-over`](docs/adr/a-lifecycle-claim-says-what-it-is-over.md),
   [`a-shared-safety-claim-names-the-role-not-the-artifact`](docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md),
   [`evidence-outlives-the-instrument`](docs/adr/evidence-outlives-the-instrument.md),
-  and the three specs
-  [`corpus-rule-ownership`](docs/specs/corpus-rule-ownership.md),
+  and the two specs
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
-  and [`module-decomposition`](docs/specs/module-decomposition.md).
+  and [`module-decomposition`](docs/specs/module-decomposition.md). The rule
+  inventory `corpus-rule-ownership` held is now
+  [`plugins/grove/conformance/rules.tsv`](plugins/grove/conformance/rules.tsv),
+  which is data the conformance runner reads rather than a spec.
   The **ordinal-fs-tree** context owns
   [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md),
   [`entries-are-never-removed`](docs/adr/entries-are-never-removed.md) and
@@ -171,7 +169,8 @@ for the second document.
   — the last of which **moved** here, and the move is the decision it records:
   while root creation and destruction were grove's, so was the record, and it was
   filed under grove for that reason. They sit
-  in the flat root set like every other record — `content/ADR-FORMAT.md`'s split
+  in the flat root set like every other record —
+  `plugins/grove/skills/grove/ADR-FORMAT.md`'s split
   rule keeps one directory while grove occupies the repo root, and ownership is
   what it says to record instead. grove consumes both decisions and maintains
   neither: their subject is the library's public surface and its key allocation,
@@ -208,7 +207,7 @@ for the second document.
   can hold it — `docs/ARCHITECTURE.md` describes what *is*, and an ADR records
   one decision rather than how an area works. Once the crates exist and the
   architecture describes them, the spec describes nothing new and is **deleted**,
-  which is what `content/SPEC-FORMAT.md`'s current-state rule says to do with a
+  which is what `plugins/grove/skills/grove/SPEC-FORMAT.md`'s current-state rule says to do with a
   spec that no longer describes anything. Whoever lands the last of its
   decisions deletes it and removes this paragraph with it.
 
@@ -220,9 +219,9 @@ for the second document.
 
 ## Choosing a context
 
-A topic about the `.grove/` tree, the loop, the CLI verbs, or the binary and its
-provisioning is **grove**. A topic about writing, packaging, triggering or
-installing a `SKILL.md` is **skills**.
+A topic about the `.grove/` tree, the loop, the CLI verbs, or the binary is
+**grove**. A topic about writing, packaging, triggering or installing a
+`SKILL.md` is **skills**.
 
 A topic about entries, ordinals, keys, the distinguished child, or the tree
 algebra over them is **ordinal-fs-tree**, which is now also where that code

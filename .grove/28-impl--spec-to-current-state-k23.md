@@ -41,10 +41,19 @@ rewrites it to current state rather than deleting it."*
   no implementation leaf, and saying so is what makes the walk complete rather than
   four-sixths of one.
 - **The plugin's symlink farm points at a durable tree.** `delete-provisioning-k19`
-  installs it with `--force` from this secondary workspace, which leaves every link
+  installed it with `--force` from this secondary workspace, which leaves every link
   aimed at a tree that is meant to disappear. Re-run `./plugins/install.sh` from the
   default workspace once this work is there, and confirm each installed skill
-  resolves to a path outside `grove.refactor-for-minimalism`.
+  resolves to a path outside `grove.refactor-for-minimalism`. **Done, and
+  confirmed with `readlink`** — a run that reports `linked` without the paths
+  being checked has not discharged this.
+- **And the Claude Code half is checked too**, which the row above did not
+  anticipate. `grove@linkuistics` was **not** installed there when
+  `delete-provisioning-k19` ran, contrary to `plugin-spine-k16`'s plan, and that
+  leaf installed it from the marketplace once its release was pushed. Fourteen of
+  the nineteen kinds launch `claude` and the binary no longer provisions
+  anything, so confirm `claude plugin list` still carries it and that its cached
+  commit is recent enough to hold `plugins/grove/` as this work leaves it.
 - `docs/ARCHITECTURE.md`, `docs/USAGE.md`, `docs/CONFIGURATION.md` and
   `README.md` describe the built thing.
 - `CONTEXT.md` and `CONTEXT-MAP.md` are reconciled: the collision table now spans

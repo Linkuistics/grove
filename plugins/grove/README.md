@@ -65,40 +65,25 @@ observation, not a suspicion. Recorded here rather than only in a commit message
 because this is where a future session meets it. If you are that session and you
 have just found the case, this paragraph is what you are reopening.
 
-## The source of truth, while there are two copies
+## One copy, and where it lives
 
-The `grove` binary still compiles its own `content/` into itself and provisions
-it to `~/.claude/skills/grove` and two siblings. So the same bytes exist twice
-right now, and which copy is authoritative is not a matter of taste:
+`plugins/grove/skills/` is the methodology. There is no second copy.
 
-- **`plugins/grove/skills/grove/` is the source.** Edit the methodology here.
-- **`content/`'s shared files are the copy, and they are what gets deleted** at
-  `delete-provisioning-k19`, along with provisioning itself. Nothing in
-  `content/` is edited on its own.
+There was one until `delete-provisioning-k19`: the `grove` binary compiled its
+own `content/` tree into itself and swept it into `~/.claude/skills/grove` and
+two siblings on every invocation, so the shared files existed twice and a
+`conformance.sh` assertion held them byte-identical. That leaf deleted
+`content/`, the embed, the sweep and the harness registry together, and the
+temporary agreement check with them.
 
-`conformance.sh` holds the two byte-identical for every file they share, and
-says so in its report. That check exists only while both do, and it goes with
-`content/`.
-
-**One file is split rather than shared, and is expected to differ.**
-`content/SKILL.md` is a *kind router*: it sends a session to one of ten reference
-files, and the live binary still provisions it. The spine's `SKILL.md` is a
-*condition register* — it states that the driver already named your
-`grove-<kind>` skill, and names only files the spine carries.
-
-**Where the rest of `content/` goes.**
-
-| still in `content/` | lands where | at |
-|---|---|---|
-| the seven single-kind references, and `grilling.md` | inline in `grove-<kind>` — **done** at `plugin-kind-skills-k17` | landed |
-| `SKILL.md`'s kind-routing table | deleted; the prompt names the kind's skill | `prompt-names-the-kind-k18` |
-| `SIGNAL.md`, `SIGNAL-FINISH.md` | driver-authored prose in the prompt | `prompt-names-the-kind-k18` |
-| everything else | already here | `plugin-spine-k16` |
-
-The two signal files never become skill files: the driver already inlines their
-bytes into `${prompt}`, and `grove-finish/SKILL.md` names the prompt rather than
-a file for the three endings. `k18` moves who authors them, not where a session
-reads them.
+Two files of that corpus have no counterpart here rather than a moved one.
+`content/SKILL.md` was a *kind router* — it sent a session to one of ten
+reference files — where the spine's `SKILL.md` is a *condition register*: it
+states that the driver already named your `grove-<kind>` skill, and names only
+files the spine carries. And `content/SIGNAL.md` and `content/SIGNAL-FINISH.md`
+became driver prose at `prompt-names-the-kind-k18`: `${prompt}` states grove's
+signalling contract once for every kind, and `finish`'s three endings are inline
+in `grove-finish/SKILL.md`.
 
 ## Installing
 
@@ -115,27 +100,31 @@ Claude Code namespaces a plugin's components — *"in the UI, the agent
 ([plugins reference](https://code.claude.com/docs/en/plugins-reference), *plugin
 name*) — so the spine is `grove:grove` there, and a kind's skill is
 `grove:grove-<kind>`.
-That is why it does not contend with the `grove` skill the binary provisions into
-`~/.claude/skills/`: the two are addressed differently. **The reference states
-the namespacing and does not state the collision rule**, so the second half rests
-on the namespacing plus the observed case — a session listing
-`linkuistics:cli-tool-design` and a bare `grove` side by side — rather than on a
-documented guarantee. If the two ever do contend, `delete-provisioning-k19`
-removes the provisioned copy and the question with it.
+**Other harnesses**, through [`../install.sh`](../install.sh)'s symlink farm:
 
-**Other harnesses**, through [`../install.sh`](../install.sh)'s symlink farm —
-**not yet**. Every skill here declares `harnesses: [claude-code]`, so the script
-skips them and says why. The kind skills declare it for a second reason of their
-own: a `grove-<kind>` name collides with nothing the binary writes, but each one
-directs a load of the spine, and installing a member where the spine cannot go
-would land its directed load on the binary's provisioned `content/` instead —
-a worse outcome than not installing it.
+```sh
+./plugins/install.sh
+```
 
-That is not a workaround for a collision; it is the declaration being true. The
-binary owns `~/.codex/skills/grove` and `~/.pi/agent/skills/grove` until
-`delete-provisioning-k19`, and `install.sh` refuses to install over a real
-directory at a path it does not own. Every declaration here flips to `[any]` when
-the binary stops writing those paths.
+Every skill here declares `harnesses: [any]`, so the script links all twenty
+into `~/.codex/skills/`, `~/.gemini/skills/` and `~/.pi/agent/skills/` — one
+directory per skill, named exactly as the skill is.
+
+**That declaration was `[claude-code]` for three leaves, and the reason it was
+is worth keeping.** The `grove` binary owned `~/.claude/skills/grove`,
+`~/.codex/skills/grove` and `~/.pi/agent/skills/grove`, and the spine is also
+called `grove`: linking it would have written a path the binary rewrote on its
+next invocation. The kind skills declared it for a second reason — a
+`grove-<kind>` name collided with nothing, but each directs a load of the spine,
+and installing a member where the spine could not go would have landed that load
+on the binary's provisioned copy instead. `delete-provisioning-k19` stopped the
+binary writing those paths, and the declarations flipped with it.
+
+**One consequence of that history is a debt, not a state.** The three
+binary-written directories are ordinary directories, not symlinks, and
+`install.sh` refuses to install over one at a path it does not own. They must be
+removed by hand once, on any machine that ran a pre-`delete-provisioning-k19`
+build.
 
 ## The token a prompt names
 
@@ -162,10 +151,11 @@ uses whichever spelling its harness offers.
 ([`behavioural-coverage-asserts-delivery`](../../docs/adr/behavioural-coverage-asserts-delivery.md)),
 moved out of the Rust suite because two of the four things that walk covered no
 longer exist once the methodology is a plugin. `plugin-kind-skills-k17` deleted
-`tests/rule_ownership.rs`, whose whole subject is assertion 2 below; the Rust
-suites that remain — the coverage walk in `tests/lifecycle_invariants.rs` and the
-per-kind word budgets in `tests/loaded_path_budgets.rs` — have subjects this
-runner does not carry, and go with `content/` at `delete-provisioning-k19`.
+`tests/rule_ownership.rs`, whose whole subject is assertion 2 below, and
+`delete-provisioning-k19` deleted the last two — the coverage walk in
+`tests/lifecycle_invariants.rs` and the per-kind word budgets in
+`tests/loaded_path_budgets.rs` — whose subject was the corpus the binary embedded
+and the path it composed. This runner is the only standing instrument now.
 Dependency-free bash over the shipped skill set:
 
 ```
@@ -185,9 +175,10 @@ Three assertions, and it asserts nothing about how many kinds there are:
    enumerated and then classified; a token the runner cannot classify fails,
    because a pattern list is complete only as far as the list.
 
-Its inventory is [`conformance/rules.tsv`](conformance/rules.tsv), transcribed
-from [`../../docs/specs/corpus-rule-ownership.md`](../../docs/specs/corpus-rule-ownership.md).
-Adding, removing or repointing a row edits both.
+Its inventory is [`conformance/rules.tsv`](conformance/rules.tsv). It was
+transcribed from `docs/specs/corpus-rule-ownership.md`, which went with
+`content/` at `delete-provisioning-k19`; the file is the inventory now rather
+than a copy of one, so a row changes here alone.
 
 **A row's owner is written shipped-set-relative** — `grove/references/execute.md`,
 `grove-impl/SKILL.md` — and not skill-relative. The grain matters exactly once
@@ -213,15 +204,9 @@ into a single site and read clean over the duplicate it exists to find. The cont
   It was two until `prompt-names-the-kind-k18`. A `finish` session's three
   endings rode the prompt because the driver inlined a per-kind signal file; they
   are now inline in `grove-finish/SKILL.md`, so that row came back inside this
-  runner's reach. **What it does not reach is the corpus copy.** `content/`
-  still ships `SIGNAL-FINISH.md`, carrying the same table in nearly the same
-  words, until `delete-provisioning-k19` deletes it — and the temporary
-  spine-and-`content/` byte check below cannot see it, because
-  `SIGNAL-FINISH.md` has no spine counterpart to be compared against. That pair
-  is a restatement with no declared class for one more leaf, recorded here
-  rather than machinery written for a thing whose lifetime is one leaf. The
-  corpus copy is the one that is unreachable: nothing routes a session into
-  `content/` once the prompt names a plugin skill.
+  runner's reach. The corpus copy that briefly restated it alongside,
+  `content/SIGNAL-FINISH.md`, went with `content/` at
+  `delete-provisioning-k19`, so the pair is one statement again.
 - A row whose owner file is not shipped is **pending**, not asserted. The count
   reached zero at `plugin-kind-skills-k17`; a run reporting a pending row again
   is reporting a skill that did not ship.

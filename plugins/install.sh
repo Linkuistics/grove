@@ -322,12 +322,14 @@ for target in "${harness_targets[@]}"; do
     elif [[ -e "${link}" ]]; then
       # Refuse rather than warn, for the reason the workspace guard above
       # refuses: the skill is not installed, nothing in the harness says so, and
-      # a `warn` line among 48 `ok` lines is read once. The live case is real —
-      # the `grove` binary provisions its own methodology into
+      # a `warn` line among 48 `ok` lines is read once. The live case was real —
+      # the `grove` binary used to provision its own methodology into
       # `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`, which is exactly
-      # a non-symlink at a path this script would otherwise want. The run
-      # continues so every other skill still installs, and the exit status and
-      # the closing report carry the failure.
+      # a non-symlink at a path this script wants. No build writes those since
+      # `delete-provisioning-k19`, so what remains is one left behind by an older
+      # build, or a directory a user made. The run continues so every other skill
+      # still installs, and the exit status and the closing report carry the
+      # failure.
       echo "error  ${link} exists and is not a symlink — ${skill_name} not installed" >&2
       blocked+=("${link}")
       continue
@@ -363,12 +365,14 @@ error: ${#blocked[@]} skill(s) not installed — a real file or directory sits a
 
 $(printf '         %s\n' "${blocked[@]}")
 
-Something else owns those paths. The grove binary provisions its own methodology
-into ~/.codex/skills/grove and ~/.pi/agent/skills/grove, and a provisioned
-directory is not this script's to replace.
+Something else owns those paths, and a directory this script did not create is
+not its to replace. The usual cause is a grove build older than
+delete-provisioning-k19, which swept its own methodology into
+~/.codex/skills/grove and ~/.pi/agent/skills/grove on every invocation; no
+current build writes them.
 
   keep both:    let the other owner keep the path; the skill stays uninstalled
-                for that harness until the owner stops writing it
+                for that harness
   hand over:    remove the path yourself, then re-run this script
 
 Nothing was overwritten.

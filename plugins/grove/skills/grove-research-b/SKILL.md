@@ -1,7 +1,7 @@
 ---
 name: grove-research-b
 description: The `research-b` session kind — a citation-disciplined, breadth-seeking literature and prior-art survey. Use when a grove mandate names this skill, or when running a `research-b` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # research-b

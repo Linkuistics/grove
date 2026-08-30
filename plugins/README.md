@@ -13,9 +13,9 @@ The vocabulary of authoring, packaging, triggering and installing a skill is in
 ## `grove` — the methodology, as skills
 
 Grove's own methodology: one shared `grove` spine skill, with one
-`grove-<kind>` skill per session kind beside it. It is the delivery path that
-replaces the `grove` binary provisioning its embedded `content/`, and while both
-exist the plugin is the source. Its own
+`grove-<kind>` skill per session kind beside it. It is **the** delivery path —
+it replaced the `grove` binary provisioning an embedded `content/` tree, which
+`delete-provisioning-k19` deleted, so this is the only copy. Its own
 [`grove/README.md`](grove/README.md) carries the fatness rule, the migration
 ledger, and the dependency-free conformance runner that asserts delivery over the
 shipped skill set.
@@ -151,19 +151,20 @@ declares `[any]` and installs everywhere like the portable `linkuistics` skills.
 Its exclusion until now was an artefact of the script scanning one plugin
 directory, not a judgement about the skill.
 
-It does **not** yet cover the `grove` plugin, whose spine and every
-`grove-<kind>` skill declare `harnesses: [claude-code]` — the binary still
-provisions `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`, and those are
-directories, not this script's symlinks. A kind skill's own reason is one step
-further on: it directs a load of the spine, so installing it where the spine
-cannot go would send that load to the binary's provisioned corpus instead. A real file or directory at a target path is now an **error**: the path
-is left untouched, every other skill still installs, and the run exits non-zero
-naming what was not installed. Leaving it as a `warn` among the `ok` lines meant
-an uninstalled skill read as a successful install.
+It covers the `grove` plugin too, since `delete-provisioning-k19`: all twenty of
+its skills declared `harnesses: [claude-code]` while the binary owned
+`~/.claude/skills/grove`, `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`,
+and every one flipped to `[any]` when the binary stopped writing them.
 
-This is a separate install path from grove's own. The `grove` binary provisions
-*grove's* methodology to `~/.claude/skills/grove/` (and the codex and pi
-equivalents) and nothing else — it never provisions these plugins. See
+A real file or directory at a target path is an **error**: the path is left
+untouched, every other skill still installs, and the run exits non-zero naming
+what was not installed. Leaving it as a `warn` among the `ok` lines meant an
+uninstalled skill read as a successful install. The one case that reliably
+produces it is a directory an older grove build swept into place; remove it by
+hand and re-run.
+
+The `grove` binary installs nothing at all — not these plugins and, since
+`delete-provisioning-k19`, not its own methodology either. See
 [`../README.md`](../README.md).
 
 ## Versioning

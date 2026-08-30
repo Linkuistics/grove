@@ -1,17 +1,18 @@
 use assert_cmd::Command;
 
-const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
+const GROVE_SKILL: &str = include_str!("../plugins/grove/skills/grove/SKILL.md");
 const CONTEXT: &str = include_str!("../CONTEXT.md");
-const TASK_FORMAT: &str = include_str!("../content/TASK-FORMAT.md");
-const PLANNING_REFERENCE: &str = include_str!("../content/references/planning.md");
+const TASK_FORMAT: &str = include_str!("../plugins/grove/skills/grove/TASK-FORMAT.md");
+const PLANNING_REFERENCE: &str = include_str!("../plugins/grove/skills/grove-planning/SKILL.md");
 // The universal reference files the loop page's conditions defer to. A claim
 // about a *procedure* is proved against the file that now states it — the same
 // path reconciliation `per-kind-references-k12` made, and for the same reason:
 // no claim below changes, only where it is kept.
-const EXECUTE_REFERENCE: &str = include_str!("../content/references/execute.md");
-const DECOMPOSE_REFERENCE: &str = include_str!("../content/references/decompose.md");
-const RETIRE_REFERENCE: &str = include_str!("../content/references/retire.md");
-const BRIEF_FORMAT: &str = include_str!("../content/BRIEF-FORMAT.md");
+const EXECUTE_REFERENCE: &str = include_str!("../plugins/grove/skills/grove/references/execute.md");
+const DECOMPOSE_REFERENCE: &str =
+    include_str!("../plugins/grove/skills/grove/references/decompose.md");
+const RETIRE_REFERENCE: &str = include_str!("../plugins/grove/skills/grove/references/retire.md");
+const BRIEF_FORMAT: &str = include_str!("../plugins/grove/skills/grove/BRIEF-FORMAT.md");
 const DOUBT_SKILL: &str =
     include_str!("../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
 const ARCHITECTURE: &str = include_str!("../docs/ARCHITECTURE.md");
@@ -42,7 +43,7 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
     // One surface, and that is the claim now: the allowance is
     // `references/execute.md`'s alone, and the two files that used to restate it
     // — `driving.md` and `TASK-FORMAT.md`'s doubt-budget table — have shed it
-    // (`docs/specs/corpus-rule-ownership.md`, `review-budget`).
+    // (`plugins/grove/conformance/rules.tsv`, `review-budget`).
     const OWNER: &str = "content/references/execute.md";
     assert_contains(OWNER, EXECUTE_REFERENCE, "whole picked leaf");
     // Escalation is one ordinary append now, so the owner must name the verb
@@ -171,7 +172,7 @@ fn guidance_binds_re_derivation_to_review_and_consumption_to_integration() {
     // `content/references/decompose.md` stands where `content/SKILL.md` used to.
     // The asymmetry is a *placement* rule — which hop needs protecting when a
     // step is cut — and the condition register keeps only the situation and this
-    // path (`docs/specs/corpus-rule-ownership.md`, `integration-placement`).
+    // path (`plugins/grove/conformance/rules.tsv`, `integration-placement`).
     for (surface, text) in [
         ("content/references/decompose.md", DECOMPOSE_REFERENCE),
         ("CONTEXT.md", CONTEXT),
@@ -421,7 +422,7 @@ fn every_ambiguity_cost_statement_matches_resolves_pick_style_contract() {
 /// binds `planning` alone, so rule 2 of the placement function sends it to that
 /// kind's own reference file and `references/execute.md` — which a session of
 /// every kind reads — states none of it
-/// (`docs/specs/corpus-rule-ownership.md`). The prose that used to sit in
+/// (`plugins/grove/conformance/rules.tsv`). The prose that used to sit in
 /// `driving.md`, `TASK-FORMAT.md` and `execute.md` is gone from all three; no
 /// claim moved with it.
 #[test]
@@ -498,7 +499,7 @@ fn every_handoff_passage_retires_before_it_commits() {
     // It used to close with a producer-handoff paragraph that walked the whole
     // finish-to-commit sequence, which restated `retire-before-commit` and
     // `one-focused-commit` in a file that owns neither
-    // (`docs/specs/corpus-rule-ownership.md`). The ordering is asserted where it
+    // (`plugins/grove/conformance/rules.tsv`). The ordering is asserted where it
     // is owned — `tests/commit_guidance.rs` over the two trigger sentences and
     // `content/references/commit.md`, and `tests/retire_guidance.rs` over the
     // Retire step — so what this removal drops is a duplicate, not a check.
@@ -703,7 +704,7 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
         // judgement made while *cutting* a review step, not while executing one —
         // and `retirement-is-filename-only` is `references/retire.md`'s. Both
         // anchors follow their rules; neither claim changed
-        // (`docs/specs/corpus-rule-ownership.md`).
+        // (`plugins/grove/conformance/rules.tsv`).
         (
             "content/references/decompose.md",
             DECOMPOSE_REFERENCE,
@@ -782,7 +783,7 @@ fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
         // The per-kind allowances moved out of the spec's table and into the file
         // that owns `review-budget-by-kind`. The spec cites rather than restates,
         // under the grain rule it is itself subject to
-        // (`docs/specs/corpus-rule-ownership.md`), so the research trio's row is
+        // (`plugins/grove/conformance/rules.tsv`), so the research trio's row is
         // proved where a session now reads it.
         (
             "content/references/execute.md",

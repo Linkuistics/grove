@@ -1,7 +1,7 @@
 ---
 name: grove-review-requirements
 description: The `review-requirements` session kind — a fresh-context, inspection-only adversarial read of one requirements artifact, producing findings and no fixes. Use when a grove mandate names this skill, or when running a `review-requirements` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # review-requirements

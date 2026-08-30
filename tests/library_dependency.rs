@@ -11,6 +11,15 @@
 // a test of the second alone would pass while the library grew a dependency
 // nobody noticed. So both are here.
 //
+// **Reconciled at `delete-provisioning-k19`, and unchanged by it.** That leaf
+// shrank grove's *direct* dependency set — `include_dir` and `sha2` deleted with
+// the embed and its content hash, `tempfile` demoted to a dev-dependency with the
+// provisioning staging directory — but this file's subject is the set
+// `ordinal-fs-tree` *imposes*, which no direct dependency of grove's can move.
+// Both halves below still hold, and neither was weakened: the library still
+// imposes only `libc`, and grove still asks for that set by taking the dependency
+// `default-features = false`.
+//
 // `cargo tree` rather than `cargo metadata` for the first half, deliberately.
 // `metadata`'s resolve unifies features across the whole workspace, so `clap`
 // appears in it whatever grove asks for — grove takes `clap` directly. `-p

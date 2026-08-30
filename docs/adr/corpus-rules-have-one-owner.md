@@ -57,9 +57,10 @@ checks.
 
 What the condition register may say about a rule it does not own is a separate
 decision: [a restatement declares its
-class](restatement-declares-its-class.md). `docs/specs/corpus-rule-ownership.md`
-carries this function's derivation, the inventory of every normative rule with its
-owner, class, load predicate and test, and the per-rule enforcement.
+class](restatement-declares-its-class.md).
+`plugins/grove/conformance/rules.tsv` carries the inventory of every normative
+rule with its owner, class, load predicate and test, and
+`plugins/grove/conformance.sh` is its enforcement.
 
 ## Why filing by topic cannot work
 
@@ -126,9 +127,8 @@ per owner file rather than per row.
 A session sometimes opens a second file where a self-contained one would have
 sufficed. That is the trade, and it is paid deliberately: the alternative is what
 the corpus has now, where the second read is avoided and the two copies drift.
-The `if`/`then` asymmetry [the skill delivers the
-methodology](skill-delivers-the-methodology.md) settles applies here one channel
-further in — a withheld procedure costs a lookup the session knows to make, while
+The `if`/`then` asymmetry applies here one channel further in — a withheld
+procedure costs a lookup the session knows to make, while
 a withheld *condition* yields an unasked question. So conditions may be restated
 and procedures may not, which is exactly the asymmetry, applied to files instead
 of channels; [a restatement declares its

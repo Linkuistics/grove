@@ -39,10 +39,11 @@ How Claude Code addresses a [[Skill]] that arrived inside a [[Plugin]] —
 `linkuistics:using-jujutsu`, `grove:grove`. A [[Symlink install]] has no
 namespace, so the same skill is the bare directory name there. Two consequences.
 A plugin skill is **addressed differently** from a personal skill of the same
-name, which is why `grove:grove` coexists with the `grove` the binary provisions
-into `~/.claude/skills/`. Claude Code's plugins reference states the namespacing;
-it does not state a collision rule, so that consequence rests on the namespacing
-plus the observed case. And a prompt that names a skill for a session to load names
+name, which is why `grove:grove` coexisted with the `grove` the binary used to
+provision into `~/.claude/skills/`. Claude Code's plugins reference states the
+namespacing; it does not state a collision rule, so that consequence rested on
+the namespacing plus the observed case — and the case is gone since
+`delete-provisioning-k19`, which stopped any binary writing that path. And a prompt that names a skill for a session to load names
 **one target in two spellings** rather than branching on the harness — the
 session uses whichever its own offers.
 _Avoid_: treating the two spellings as two skills, or making the caller choose
@@ -135,9 +136,10 @@ installed into — a YAML flow list, either the single claim `[any]` or an expli
 allowlist of harness ids (`claude-code`, `codex`, `gemini`, `pi`). It answers one
 question: *can a session on this harness follow these instructions?* `guardrail`
 declares `[claude-code]` because its whole mechanism is a Claude Code
-[[Hook-carrying skill]] frontmatter block, and the `grove` spine declares it
-because the binary still owns `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`
-until provisioning is deleted; every other bundled skill declares `[any]`. Frontmatter is a safe carrier because a conforming loader parses the
+[[Hook-carrying skill]] frontmatter block, and it is now the only one that does:
+the `grove` plugin's twenty skills declared it while the binary owned
+`~/.claude/skills/grove` and two siblings, and flipped to `[any]` at
+`delete-provisioning-k19` when it stopped writing them. Frontmatter is a safe carrier because a conforming loader parses the
 block into a map and reads only the keys it knows — verified by reading pi's
 `core/skills.js`, and already relied on by `paths:` and `hooks:` reaching codex
 today. Gemini CLI is the one target not checked directly (it is not installed
@@ -195,12 +197,15 @@ _Avoid_: reading it as a jj feature — a linked `git worktree` trips it identic
 
 ## Flagged ambiguities
 
-**"skill"** means two different things in this repo. In this context it is a member
-of the corpus under `plugins/*/skills/`, shipped by [[Marketplace]] or
-[[Symlink install]]. But grove's methodology is *also* provisioned as a skill
-(`~/.claude/skills/grove/`, written by the `grove` binary from `content/`) while
-being no part of this corpus. Qualify as "a marketplace skill" versus "grove's
-skill" when the distinction matters; see `CONTEXT-MAP.md`.
+**"skill"** used to mean two different things in this repo, and now means one.
+In this context it is a member of the corpus under `plugins/*/skills/`, shipped
+by [[Marketplace]] or [[Symlink install]]. Grove's methodology used to *also* be
+provisioned as a skill (`~/.claude/skills/grove/`, written by the `grove` binary
+from an embedded `content/`) while being no part of this corpus;
+`delete-provisioning-k19` deleted that path and moved the methodology into
+`plugins/grove/`, so grove's skills are members like any other. The distinction
+worth keeping is the one `CONTEXT-MAP.md` draws: a `grove` skill's *contents* are
+the grove context's, and its packaging is this one's.
 
 ## Example dialogue
 

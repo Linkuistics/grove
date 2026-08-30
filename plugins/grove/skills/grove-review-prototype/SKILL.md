@@ -1,7 +1,7 @@
 ---
 name: grove-review-prototype
 description: The `review-prototype` session kind — a fresh-context, inspection-only adversarial read of one prototype, producing findings and no fixes. Use when a grove mandate names this skill, or when running a `review-prototype` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # review-prototype

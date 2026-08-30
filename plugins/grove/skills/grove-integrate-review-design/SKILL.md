@@ -1,7 +1,7 @@
 ---
 name: grove-integrate-review-design
 description: The `integrate-review-design` session kind — triage one `review-design` leaf's findings and apply the real ones. Use when a grove mandate names this skill, or when running an `integrate-review-design` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # integrate-review-design

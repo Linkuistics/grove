@@ -1,7 +1,7 @@
 ---
 name: grove-finish
 description: The `finish` session kind — the driver-owned whole-grove teardown sentinel; propose the complete finish cycle, wait for explicit human confirmation, promote, tear down, and end on the row that matches. Use when a grove mandate names this skill, or when running a `finish` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # finish

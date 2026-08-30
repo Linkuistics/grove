@@ -233,7 +233,7 @@ if a rule stops being where the inventory says it is.
 
 ### A′ · A control that has never been seen to fail is not a control
 
-**The rule, as it ships** ([`content/references/execute.md`](../content/references/execute.md),
+**The rule, as it ships** ([`content/references/execute.md`](../plugins/grove/skills/grove/references/execute.md),
 in the block on verifying a claim about your own codebase):
 
 > A positive control that would find something whatever the tree held, and a
@@ -266,7 +266,7 @@ something to say.
 
 ### B · The provenance of a measurement
 
-**The rule, as it ships** ([`content/references/execute.md`](../content/references/execute.md),
+**The rule, as it ships** ([`content/references/execute.md`](../plugins/grove/skills/grove/references/execute.md),
 its own section): finish every edit *then* measure; digest every subject before
 and after and say which files those were; one measurement, one writer; **never
 infer that a background job has finished from the return of the thing that
@@ -296,9 +296,9 @@ self-contradictory log.
 
 ### C · An integration's body carries the review's handle, never its findings
 
-**The rule, as it ships** ([`content/references/decompose.md`](../content/references/decompose.md),
+**The rule, as it ships** ([`content/references/decompose.md`](../plugins/grove/skills/grove/references/decompose.md),
 on what a review writes into the task it cuts, and
-[`content/references/integrate-review.md`](../content/references/integrate-review.md),
+[`content/references/integrate-review.md`](../plugins/grove/skills/grove/references/integrate-review.md),
 on where an integration reads findings from): the review writes only the
 *pointer* to itself into the integration's task file; the integration reads the
 findings from the review's own commit. The previous text's *"or the findings

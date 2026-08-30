@@ -28,13 +28,6 @@
 //
 //     # after owning the workspace lease, clean abandoned signal-<128-bit> paths
 //     while :; do
-//       grove_reverify_skill_stamps                      # restore a clobbered dir
-//       # Build pairing is *reported*, never gated: the driver's PATH is only a
-//       # proxy for an opaque configured command's (one-build-owns-a-session).
-//       # Resolved from the session's cwd, so a relative PATH entry names what
-//       # the session would run rather than what the driver's cwd would.
-//       llm=$(cd "$worktree" && command -v grove-llm)
-//       [ "$(cd "$worktree" && "$llm" --content-hash)" = "<own identity>" ] || echo ...
 //       grove_recover_or_migrate_tree                    # driver-only transition
 //       # One in-process selection: the leaf's stable handle *and* its kind.
 //       read -r handle kind <<<"$(grove_select_or_materialize_finish)"
@@ -69,15 +62,16 @@ use std::process::Command;
 use std::time::Duration;
 
 /// Drive the config-defined lifecycle from the current working tree. This is
-/// the sole path reached by the human-facing bare command: provision installed
-/// harnesses, acquire the workspace lease, and run one configured foreground
-/// session per selected task until the agent stops signalling.
+/// the sole path reached by the human-facing bare command: acquire the
+/// workspace lease, and run one configured foreground session per selected task
+/// until the agent stops signalling.
 ///
 /// Nothing here inspects the working tree for a harness, and nothing chooses a
-/// binary: the configured argv is the whole of launch policy.
+/// binary: the configured argv is the whole of launch policy. Nothing here
+/// delivers the methodology either — since `delete-provisioning-k19` the
+/// methodology is a plugin a human installs, so the driver's first act is the
+/// lease rather than a sweep over three personal skill directories.
 pub fn bare_grove() -> Result<()> {
-    crate::provision::provision_installed()?;
-
     let cwd = std::env::current_dir().context("getting cwd")?;
     let driver_lease = DriverLease::acquire(&cwd)?;
     let worktree = driver_lease.worktree_root().to_path_buf();
@@ -121,8 +115,10 @@ fn worktree_name(worktree: &Path) -> String {
 /// commands write `"$GROVE_SIGNAL_FILE"` unconditionally, and `cargo test`
 /// killed the terminal it was typed into.
 ///
-/// Grove's own spawns are exactly three — the configured session, the
-/// build-pairing probe below, and `stty sane` — and all three scrub. The one
+/// Grove's own spawns are exactly two — the configured session and `stty sane`
+/// — and both scrub. (There were three: the build-pairing probe went with
+/// provisioning at `delete-provisioning-k19`, since a driver that writes no
+/// skill directory has no pairing to report.) The one
 /// other family, the VCS probes and the teardown commit, went to
 /// `jj-workspace`, which scrubs the *repository selectors* itself because
 /// choosing the right repository is its guarantee to make. It deliberately does
@@ -165,9 +161,11 @@ pub enum LoopOutcome {
     /// A non-signalled exit stopped the loop (human `/exit`/Ctrl-C, or a
     /// crash); resumable by re-running `grove` from the same working tree.
     ///
-    /// Build pairing is deliberately *not* among the reasons: the driver reports
-    /// a mismatched, unidentifiable or missing `grove-llm` and launches anyway
-    /// (`docs/adr/one-build-owns-a-session.md`).
+    /// Nothing about the *delivery* of the methodology is among the reasons.
+    /// The driver used to report a mismatched, unidentifiable or missing
+    /// `grove-llm` here and launch anyway; `delete-provisioning-k19` deleted
+    /// both that report and the skill directory it was about, so a session's
+    /// environment is now entirely the human's to keep right.
     Stopped,
 }
 
@@ -211,8 +209,8 @@ fn run_configured_loop_with_lease(
         // A SIGTERM or SIGHUP that arrived while no session was running has no
         // launch to be reported against, so the runner discards it rather than
         // spending it on the next child. Collecting it here is what keeps the
-        // driver from going on provisioning, mutating the tree and taking
-        // commits after its terminal has gone.
+        // driver from going on mutating the tree and taking commits after its
+        // terminal has gone.
         if keyed_launch::take_interrupt() {
             eprintln!("grove: interrupted between sessions — stopping the loop.");
             return Ok(LoopOutcome::Stopped);
@@ -220,14 +218,6 @@ fn run_configured_loop_with_lease(
         driver_lease
             .revalidate()
             .context("revalidating driver lease before loop transition")?;
-        // The one artifact Grove owns is repaired; the two things it can only
-        // predict — where the methodology landed, and which CLI a session will
-        // resolve — are reported. All three run before configuration validation
-        // and any tree mutation, so their lines land ahead of any mutation
-        // output.
-        crate::provision::reverify_installed()?;
-        crate::provision::report_absent_skill_destination();
-        report_build_pairing(worktree);
         let pre_transition_config = SessionConfig::load(&home, &delta_roots)?;
 
         crate::tree_lifecycle::transition_to_current(worktree)?;
@@ -464,183 +454,6 @@ const ESCALATION: Escalation = Escalation {
     kill_grace: Duration::from_secs(5),
 };
 
-/// The agent-side CLI name a session resolves. Not a path: resolution through
-/// `PATH` is the whole point of the check below.
-const AGENT_CLI: &str = "grove-llm";
-
-/// What the driver could learn about the `grove-llm` a session would run.
-enum Pairing {
-    /// No `PATH` entry holds an executable `grove-llm`.
-    Missing,
-    /// One resolved, but it could not name its methodology — too old to answer
-    /// `--content-hash`, or answering unparseably.
-    Unidentifiable { path: PathBuf, why: String },
-    /// One resolved and named a methodology other than this build's.
-    Mismatched { path: PathBuf, identity: String },
-    /// One resolved and named this build's methodology.
-    Paired,
-}
-
-/// Report — never gate on — the build pairing a session would get: resolve
-/// `grove-llm` the way a session inheriting this environment resolves it, ask it
-/// for its methodology identity, and compare with the driver's own.
-///
-/// **It reports because it is a proxy.** The driver never invokes `grove-llm`,
-/// and a configured command may be a wrapper, a login shell, an `ssh` hop or a
-/// container that re-derives `PATH` — a supported, deliberately opaque shape in
-/// which the driver's environment is simply not the one that matters. So the
-/// probe can disagree while the session is correct, and the two errors do not
-/// cost the same: a missed mismatch misleads one session, while a false refusal
-/// launches nothing at all on a machine that may be configured correctly
-/// (`docs/adr/one-build-owns-a-session.md`).
-///
-/// It deliberately does **not** prefer the sibling of the running executable.
-/// That sibling agrees with the driver by construction — `cargo run` builds both
-/// side by side — which is exactly what made the motivating case invisible while
-/// the session went on resolving the *installed* CLI.
-///
-/// Per iteration rather than per driver start: a long-running driver keeps
-/// executing the text segment it started with while `brew upgrade` replaces the
-/// binaries on disk under it, and a mid-loop upgrade is the case a start-time
-/// check misses.
-///
-/// `session_cwd` is the directory the configured session is spawned in — the
-/// worktree root, never the driver's own cwd. See [`resolve_in`] for why the
-/// difference is load-bearing.
-fn report_build_pairing(session_cwd: &Path) {
-    let own = crate::methodology::identity();
-    // One requirement, not one command. `cargo install --path .` makes the
-    // checkout resolve first only where `~/.cargo/bin` outranks every other
-    // prefix holding a `grove-llm`; where a package-manager prefix wins, that
-    // install is already done and still is not what a session reaches.
-    const REQUIREMENT: &str =
-        "       the build being driven must be the one a session's PATH resolves first.";
-    match resolve_agent_cli_pairing(own, session_cwd) {
-        Pairing::Paired => {}
-        Pairing::Missing => {
-            eprintln!("grove: no `{AGENT_CLI}` on this driver's PATH, so a session inheriting this environment would find none (this build's methodology is {own});");
-            eprintln!("{REQUIREMENT}");
-        }
-        Pairing::Unidentifiable { path, why } => {
-            eprintln!("grove: {} could not name its methodology ({why}), so its pairing with this build ({own}) is unknown;", path.display());
-            eprintln!("{REQUIREMENT}");
-        }
-        Pairing::Mismatched { path, identity } => {
-            eprintln!(
-                "grove: build pairing mismatch — this driver's methodology is {own}, but {} carries {identity};",
-                path.display()
-            );
-            eprintln!("{REQUIREMENT}");
-        }
-    }
-}
-
-fn resolve_agent_cli_pairing(own: &str, session_cwd: &Path) -> Pairing {
-    let Some(path) = resolve_on_path(AGENT_CLI, session_cwd) else {
-        return Pairing::Missing;
-    };
-    let mut command = Command::new(&path);
-    command.arg("--content-hash");
-    // Probed from the cwd the session will have, so a relative `PATH` entry is
-    // run as the session would run it and not as the driver's own cwd would.
-    command.current_dir(session_cwd);
-    // Every spawn that is not the configured session scrubs the loop's
-    // launch-scoped environment: this repository is a meta-grove, so the driver
-    // itself may be running inside a live session whose kill channel it must not
-    // hand down (guard-loop-signal-k37).
-    scrub_loop_control_env(&mut command);
-    let output = match command.output() {
-        Ok(output) => output,
-        Err(error) => {
-            return Pairing::Unidentifiable {
-                path,
-                why: format!("could not run it: {error}"),
-            }
-        }
-    };
-    if !output.status.success() {
-        return Pairing::Unidentifiable {
-            path,
-            why: format!(
-                "`--content-hash` failed ({}) — it may predate the flag",
-                output.status
-            ),
-        };
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let Some(identity) = parse_methodology_identity(&stdout) else {
-        return Pairing::Unidentifiable {
-            path,
-            why: format!("unrecognised `--content-hash` output {:?}", stdout.trim()),
-        };
-    };
-    if identity == own {
-        Pairing::Paired
-    } else {
-        Pairing::Mismatched {
-            path,
-            identity: identity.to_string(),
-        }
-    }
-}
-
-/// The first executable named `name` on this process's `PATH` — the way a
-/// session inheriting this environment would find it, from the cwd that session
-/// is given.
-fn resolve_on_path(name: &str, session_cwd: &Path) -> Option<PathBuf> {
-    resolve_in(&std::env::var_os("PATH")?, name, session_cwd)
-}
-
-/// The rule itself, over a `PATH`-shaped value given as an argument.
-///
-/// Split from the environment read above for the reason `driver_lease`'s own
-/// admission split states: a test that set the process `PATH` to exercise this
-/// would be writing a global that every parallel sibling test's `Command::new`
-/// reads at the same moment. That is not hypothetical: it hung a sibling test
-/// that spawns `sh` the first time this was written as one function, and it did
-/// so again in `crates/keyed-launch/tests/launch.rs` while the escalation tests
-/// were being moved there.
-///
-/// An empty entry means the current directory, as every POSIX shell reads it, so
-/// it is left to `join` rather than skipped — and **whose** current directory is
-/// the reason `session_cwd` is a parameter rather than the process's own cwd.
-/// Bare `grove` is deliberately accepted from any directory inside the working
-/// tree and keeps that cwd while it resolves the root ([`bare_grove`]),
-/// but the configured session is spawned with the worktree root as its cwd
-/// (`launch_configured_session`). Resolving an empty or relative entry against
-/// the driver's cwd would therefore inspect one `grove-llm` while the session
-/// ran another: from `<worktree>/subdir`, `PATH=:/usr/bin` would probe
-/// `<worktree>/subdir/grove-llm` and report on a binary no session can reach.
-/// `Path::join` already gives the whole rule — an absolute entry replaces the
-/// base, an empty or relative one extends it.
-fn resolve_in(search: &std::ffi::OsStr, name: &str, session_cwd: &Path) -> Option<PathBuf> {
-    std::env::split_paths(search)
-        .map(|directory| session_cwd.join(directory).join(name))
-        .find(|candidate| is_executable_file(candidate))
-}
-
-fn is_executable_file(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::metadata(path)
-        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
-}
-
-/// A lone lowercase-hex SHA-256 on its own line, and nothing else. Anything
-/// looser would let a shell's error text or another binary's chatter be
-/// "compared" as an identity.
-fn parse_methodology_identity(stdout: &str) -> Option<&str> {
-    let mut lines = stdout.lines();
-    let identity = lines.next()?.trim();
-    if lines.any(|line| !line.trim().is_empty()) {
-        return None;
-    }
-    let hex = identity.len() == 64
-        && identity
-            .chars()
-            .all(|character| character.is_ascii_digit() || ('a'..='f').contains(&character));
-    hex.then_some(identity)
-}
-
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
 /// (headless / test runs).
@@ -679,7 +492,6 @@ fn ignore_interrupts() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::unix::fs::PermissionsExt;
 
     /// The two `complete_post_reap_epoch_handoff` cases below drive that
     /// ordering with a stand-in for the launch result, because what the
@@ -743,112 +555,6 @@ mod tests {
         assert!(
             !continuation_called.get(),
             "signal interpretation must remain behind successful epoch invalidation"
-        );
-    }
-
-    /// The identity a binary reports is *compared*, so what counts as one has to
-    /// be exactly a lowercase-hex SHA-256 and nothing else. Everything rejected
-    /// here would otherwise be reported as a **mismatch** — a wrong claim about
-    /// a correctly paired machine — where the honest answer is
-    /// *unidentifiable*: an empty read, a shell's own error text, a version line
-    /// from a binary predating the flag, a truncated or uppercased digest.
-    #[test]
-    fn identity_parsing_accepts_a_lone_digest_and_rejects_everything_else() {
-        let digest = "a".repeat(64);
-        assert_eq!(parse_methodology_identity(&digest), Some(digest.as_str()));
-        assert_eq!(
-            parse_methodology_identity(&format!("{digest}\n\n")),
-            Some(digest.as_str())
-        );
-        assert_eq!(parse_methodology_identity(""), None);
-        assert_eq!(parse_methodology_identity("zsh: command not found\n"), None);
-        assert_eq!(parse_methodology_identity("grove-llm 17.0.0\n"), None);
-        assert_eq!(parse_methodology_identity(&"a".repeat(63)), None);
-        assert_eq!(parse_methodology_identity(&"A".repeat(64)), None);
-        assert_eq!(parse_methodology_identity(&"g".repeat(64)), None);
-        assert_eq!(
-            parse_methodology_identity(&format!("{digest}\ntrailing\n")),
-            None
-        );
-    }
-
-    /// The resolution rule the whole check turns on. It is `PATH` order and only
-    /// `PATH` order — never the sibling of the running executable, which agrees
-    /// with the driver by construction and so hides the one case worth seeing.
-    #[test]
-    fn path_resolution_takes_the_first_executable_and_skips_the_rest() {
-        let fixture = tempfile::tempdir().unwrap();
-        let empty = fixture.path().join("empty");
-        let non_executable = fixture.path().join("non-executable");
-        let winner = fixture.path().join("winner");
-        let loser = fixture.path().join("loser");
-        for directory in [&empty, &non_executable, &winner, &loser] {
-            std::fs::create_dir_all(directory).unwrap();
-        }
-        // A same-named *non-executable* file must not win: `PATH` resolution is
-        // about what can be run, and a stray data file would otherwise mask the
-        // real binary behind it.
-        std::fs::write(non_executable.join(AGENT_CLI), "not a program").unwrap();
-        for directory in [&winner, &loser] {
-            let path = directory.join(AGENT_CLI);
-            std::fs::write(&path, "#!/bin/sh\nexit 0\n").unwrap();
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
-
-        let search = std::env::join_paths([&empty, &non_executable, &winner, &loser]).unwrap();
-
-        assert_eq!(
-            resolve_in(&search, AGENT_CLI, fixture.path()),
-            Some(winner.join(AGENT_CLI))
-        );
-    }
-
-    #[test]
-    fn path_resolution_reports_nothing_when_no_entry_holds_the_agent_cli() {
-        let fixture = tempfile::tempdir().unwrap();
-        let search = std::env::join_paths([fixture.path()]).unwrap();
-
-        assert_eq!(resolve_in(&search, AGENT_CLI, fixture.path()), None);
-    }
-
-    /// A relative or empty `PATH` entry is resolved against the cwd the
-    /// *session* is spawned with, not the driver's. The driver may be run from
-    /// any directory inside the working tree while the session always starts at
-    /// the root, so resolving here against the driver's cwd would probe a binary
-    /// no session can reach — and could execute an unrelated repository-local
-    /// helper while doing it.
-    #[test]
-    fn relative_and_empty_path_entries_resolve_against_the_sessions_cwd() {
-        let fixture = tempfile::tempdir().unwrap();
-        let session_cwd = fixture.path().join("worktree");
-        let nested = session_cwd.join("nested");
-        std::fs::create_dir_all(&nested).unwrap();
-        let executable = |path: &Path| {
-            std::fs::write(path, "#!/bin/sh\nexit 0\n").unwrap();
-            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        };
-        executable(&session_cwd.join(AGENT_CLI));
-        executable(&nested.join(AGENT_CLI));
-
-        // An empty entry: the session's cwd itself, never the driver's.
-        let empty_first = std::ffi::OsString::from(format!(":{}", fixture.path().display()));
-        assert_eq!(
-            resolve_in(&empty_first, AGENT_CLI, &session_cwd),
-            Some(session_cwd.join(AGENT_CLI))
-        );
-
-        // A relative entry: extended from the session's cwd.
-        let relative = std::ffi::OsString::from("nested");
-        assert_eq!(
-            resolve_in(&relative, AGENT_CLI, &session_cwd),
-            Some(session_cwd.join("nested").join(AGENT_CLI))
-        );
-
-        // An absolute entry is unaffected — `join` replaces rather than extends.
-        let absolute = std::env::join_paths([&nested]).unwrap();
-        assert_eq!(
-            resolve_in(&absolute, AGENT_CLI, &session_cwd),
-            Some(nested.join(AGENT_CLI))
         );
     }
 }

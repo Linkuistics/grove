@@ -1,7 +1,7 @@
 ---
 name: grove-prototype
 description: The `prototype` session kind — build a cheap, deliberately throwaway artifact whose deliverable is the human reaction it provokes. Use when a grove mandate names this skill, or when running a `prototype` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # prototype

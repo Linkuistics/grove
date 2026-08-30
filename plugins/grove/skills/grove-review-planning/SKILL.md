@@ -1,7 +1,7 @@
 ---
 name: grove-review-planning
 description: The `review-planning` session kind — a fresh-context, inspection-only adversarial read of one planned subtree, producing findings and no fixes. Use when a grove mandate names this skill, or when running a `review-planning` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # review-planning

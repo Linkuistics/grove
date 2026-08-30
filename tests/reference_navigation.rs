@@ -369,7 +369,11 @@ fn every_repository_markdown_reference_resolves() {
 
     // The enumeration must reach past the named user surface, or this test is
     // just `user_documentation_references_resolve` under a wider name.
-    for expected in ["CONTEXT.md", "docs/ARCHITECTURE.md", "content/SKILL.md"] {
+    for expected in [
+        "CONTEXT.md",
+        "docs/ARCHITECTURE.md",
+        "plugins/grove/skills/grove/SKILL.md",
+    ] {
         assert!(
             documents.iter().any(|document| document == expected),
             "the repository-wide sweep must reach {expected}: {documents:?}"

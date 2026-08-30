@@ -1,19 +1,13 @@
-const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
+const GROVE_SKILL: &str = include_str!("../plugins/grove/skills/grove/SKILL.md");
 /// The Commit step's procedure, which the trigger sentence on the loop page
 /// defers to — **including the commit's scope**, which used to be proved against
 /// `SKILL.md` and no longer can be.
 ///
 /// The condition register keeps the situation (*the leaf is retired*) and the
 /// path; `one-focused-commit` and `name-by-handle` are this file's
-/// (`docs/specs/corpus-rule-ownership.md`). Left pointed at `SKILL.md`, the three
+/// (`plugins/grove/conformance/rules.tsv`). Left pointed at `SKILL.md`, the three
 /// claims below would have asserted that the router had re-grown a procedure.
-const COMMIT_REFERENCE: &str = include_str!("../content/references/commit.md");
-// Deliberately not prefixed the way `GROVE_SKILL` above is. The loop control
-// channel is an environment variable whose name begins the same way and ends in
-// `_FILE`, so a test constant one token short of it reads as that variable to
-// everyone but its author — and `tests/removed_surface.rs` would have to carry a
-// classification entry saying it is not one.
-const SIGNAL_PAGE: &str = include_str!("../content/SIGNAL.md");
+const COMMIT_REFERENCE: &str = include_str!("../plugins/grove/skills/grove/references/commit.md");
 
 fn normalized(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
@@ -29,19 +23,19 @@ fn normalized(text: &str) -> String {
 fn commit_scope() -> String {
     let (_, from_scope) = COMMIT_REFERENCE
         .split_once("## What one commit contains")
-        .expect("content/references/commit.md must say what one commit contains");
+        .expect("the Commit reference must say what one commit contains");
     let (section, _) = from_scope
         .split_once("\n## Where the boundary falls")
         .expect("the scope section must be followed by the boundary section");
     normalized(section)
 }
 
-/// Byte offsets of two claims in `content/SKILL.md`, so their **order** on the
-/// page can be asserted.
+/// Byte offsets of two claims in the spine's `SKILL.md`, so their **order** on
+/// the page can be asserted.
 fn skill_offset(phrase: &str) -> usize {
     GROVE_SKILL
         .find(phrase)
-        .unwrap_or_else(|| panic!("content/SKILL.md must carry {phrase:?}"))
+        .unwrap_or_else(|| panic!("the spine's SKILL.md must carry {phrase:?}"))
 }
 
 /// **Retire before Commit, still asserted on the page a session reads first.**
@@ -58,34 +52,31 @@ fn retire_precedes_commit_so_the_commit_can_contain_what_retire_writes() {
     assert!(
         skill_offset("When the work is done, retire the leaf")
             < skill_offset("When the leaf is retired, commit it"),
-        "content/SKILL.md must reach the retire condition before the commit one"
+        "the spine's SKILL.md must reach the retire condition before the commit one"
     );
 }
 
 /// **The Signal step is not on this page**, and that is the one thing this file
 /// still has to say about it.
 ///
-/// Commit-before-Signal used to be a byte ordering inside `content/SKILL.md`.
-/// It is now a *composition* ordering in `${prompt}` — the kind's signal file is
-/// the last of the three parts, so the instruction lands last in what a session
-/// reads — and `tests/prompt.rs::the_ending_is_the_embedded_signal_files_bytes`
-/// is where that is proved. What is left here is the local half: a Signal step written
-/// back into `SKILL.md` would restore the ordering these offsets used to check
-/// while defeating the placement, so a second copy has to fail somewhere, and
-/// this is the file that would stop noticing.
+/// Commit-before-Signal used to be a byte ordering inside the corpus's
+/// `SKILL.md`. It is now an ordering inside `${prompt}` — grove states its own
+/// signalling contract last, after the load instruction and the driver's facts —
+/// and `tests/prompt.rs` is where that is proved. What is left here is the local
+/// half: a Signal step written back into the spine would restore the ordering
+/// these offsets used to check while defeating the placement, so a second copy
+/// has to fail somewhere, and this is the file that would stop noticing.
+///
+/// The corpus half of this pair went at `delete-provisioning-k19`, which deleted
+/// `content/SIGNAL.md` along with the embed that carried it; the contract is
+/// driver-authored prose now and has no file in any skill set.
 #[test]
-fn the_signal_step_lives_in_its_own_file_rather_than_on_the_loop_page() {
+fn the_signal_step_lives_in_the_prompt_rather_than_on_the_loop_page() {
     assert!(
         !GROVE_SKILL.contains("\n**Signal.**"),
-        "content/SKILL.md must not carry a Signal step — it composes last from \
-         content/SIGNAL.md, and a copy here would arrive a whole mandate early"
-    );
-    // Anchored on the *first line* rather than on a preceding newline: with the
-    // unit markers deleted, `content/SIGNAL.md` opens on its own step and has no
-    // line before it to match against.
-    assert!(
-        SIGNAL_PAGE.starts_with("**Signal.**"),
-        "content/SIGNAL.md must carry the Signal step, and open on it"
+        "the spine's SKILL.md must not carry a Signal step — the launch prompt states \
+         the signalling contract last, and a copy here would arrive a whole \
+         mandate early"
     );
 }
 

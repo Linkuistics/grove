@@ -64,13 +64,17 @@ use std::path::{Path, PathBuf};
 // ---------------------------------------------------------------------------
 // The surfaces
 
-const TASK_FORMAT: &str = include_str!("../content/TASK-FORMAT.md");
-const SKILL: &str = include_str!("../content/SKILL.md");
+const TASK_FORMAT: &str = include_str!("../plugins/grove/skills/grove/TASK-FORMAT.md");
+// The spine's `SKILL.md` is deliberately not a surface here. It carried the
+// kind-routing table until `plugin-spine-k16`, which is why the taxonomy claims
+// below used to be asserted over it as well; it now holds no list of kinds and
+// no count of them, and `shipped_markdown()` reaches it for every claim that is
+// about the corpus as a whole rather than about the taxonomy's home.
 /// The Execute step's procedure. `SKILL.md` states the *condition* — the kind is
 /// in the filename, from a closed set of nineteen — and the enumeration of the
 /// kinds a summarising surface must spell out rather than derive lives in the
 /// file that condition routes to.
-const EXECUTE_REFERENCE: &str = include_str!("../content/references/execute.md");
+const EXECUTE_REFERENCE: &str = include_str!("../plugins/grove/skills/grove/references/execute.md");
 const DOUBT_SKILL: &str =
     include_str!("../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
 
@@ -78,9 +82,16 @@ fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-/// Every `.md` file the binary provisions, read from disk rather than listed, so
-/// a reference file added to `content/` joins the sweep by existing.
-fn provisioned_markdown() -> Vec<(PathBuf, String)> {
+/// Every `.md` file the shipped `grove` plugin carries, read from disk rather
+/// than listed, so a file added to a skill joins the sweep by existing.
+///
+/// **The subject moved at `delete-provisioning-k19`, and the claims did not.**
+/// This used to walk `content/`, the corpus the binary embedded and swept into
+/// three personal skill directories. The binary writes no directory now; the
+/// same corpus is `plugins/grove/skills/`, installed the way every other skill
+/// in this repo is. Every sweep below asks what the methodology a session reads
+/// says, which is a question about these bytes wherever they are delivered from.
+fn shipped_markdown() -> Vec<(PathBuf, String)> {
     fn walk(path: &Path, out: &mut Vec<(PathBuf, String)>) {
         if path.is_dir() {
             let mut entries: Vec<PathBuf> = fs::read_dir(path)
@@ -102,10 +113,10 @@ fn provisioned_markdown() -> Vec<(PathBuf, String)> {
     }
 
     let mut out = Vec::new();
-    walk(&manifest_dir().join("content"), &mut out);
+    walk(&manifest_dir().join("plugins/grove/skills"), &mut out);
     assert!(
         out.len() > 3,
-        "the walk found {} provisioned markdown files — a mis-scoped walk reports \
+        "the walk found {} shipped methodology files — a mis-scoped walk reports \
          a clean surface for the wrong reason",
         out.len()
     );
@@ -157,7 +168,7 @@ fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
         .collect();
     assert!(
         missing.is_empty(),
-        "content/TASK-FORMAT.md is the taxonomy's home and does not name {missing:?}"
+        "the spine's TASK-FORMAT.md is the taxonomy's home and does not name {missing:?}"
     );
 
     // The kinds a summarising surface must spell out rather than derive: the
@@ -168,7 +179,7 @@ fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
     // summary would demand a table it deliberately does not carry.
     for (surface, text, expected) in [
         (
-            "content/references/execute.md",
+            "grove/references/execute.md",
             EXECUTE_REFERENCE,
             ["research-a", "research-b", "combine-research", "finish"].as_slice(),
         ),
@@ -192,47 +203,44 @@ fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
 
 /// The prose states the set's size in words, and the word is the enum's. A kind
 /// added without recounting fails, which is the half a per-label check misses.
+///
+/// **One surface, not two.** The spine's `SKILL.md` used to state the count as
+/// well, because it carried a kind-routing table with a row per kind. It carries
+/// no such table and no list of kinds since `plugin-spine-k16` — a kind exists
+/// iff a skill of that name exists — so the taxonomy's only home is
+/// `TASK-FORMAT.md`, and asserting a count over a file that deliberately holds
+/// none would be asserting the opposite of the design.
 #[test]
 fn the_guidance_counts_the_kind_set_correctly() {
+    const SURFACE: &str = "grove/TASK-FORMAT.md";
     let word = cardinal(Kind::ALL.len());
-    for (surface, text) in [
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
-        ("content/SKILL.md", SKILL),
-    ] {
-        assert!(
-            text.contains(word),
-            "{surface} must state the set's size as {word:?} — the taxonomy has \
-             {} members",
-            Kind::ALL.len()
-        );
-    }
+    assert!(
+        TASK_FORMAT.contains(word),
+        "{SURFACE} must state the set's size as {word:?} — the taxonomy has {} members",
+        Kind::ALL.len()
+    );
 
     // The other direction: no *other* cardinal may be used to count kinds. Stated
     // against the two phrasings the guidance actually uses for a set size, so
     // "the five producers" and "all five `review-*` kinds" — real counts of real
     // subsets — do not read as stale claims about the whole set.
-    for (surface, text) in [
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
-        ("content/SKILL.md", SKILL),
-    ] {
-        let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
-        for (count, stale) in CARDINALS {
-            if count == Kind::ALL.len() {
-                continue;
-            }
-            for phrasing in [
-                format!("the {stale} kinds"),
-                format!("one of the {stale}"),
-                format!("set of **{stale}**"),
-                format!("listing all {stale}"),
-            ] {
-                assert!(
-                    !collapsed.contains(&phrasing),
-                    "{surface} still counts the kind set as {stale:?} ({phrasing:?}); \
-                     it has {} members",
-                    Kind::ALL.len()
-                );
-            }
+    let collapsed = TASK_FORMAT.split_whitespace().collect::<Vec<_>>().join(" ");
+    for (count, stale) in CARDINALS {
+        if count == Kind::ALL.len() {
+            continue;
+        }
+        for phrasing in [
+            format!("the {stale} kinds"),
+            format!("one of the {stale}"),
+            format!("set of **{stale}**"),
+            format!("listing all {stale}"),
+        ] {
+            assert!(
+                !collapsed.contains(&phrasing),
+                "{SURFACE} still counts the kind set as {stale:?} ({phrasing:?}); \
+                 it has {} members",
+                Kind::ALL.len()
+            );
         }
     }
 }
@@ -420,7 +428,7 @@ fn candidates_in(line: &str) -> Vec<String> {
 fn every_leaf_filename_example_in_the_methodology_matches_the_shipped_grammar() {
     let mut examples = 0;
     let mut findings = Vec::new();
-    for (path, text) in provisioned_markdown() {
+    for (path, text) in shipped_markdown() {
         for (offset, line) in text.lines().enumerate() {
             for candidate in candidates_in(line) {
                 examples += 1;
@@ -572,11 +580,17 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
 // ---------------------------------------------------------------------------
 // Launch policy has one home, and the methodology may not name another
 
-/// The one `GROVE_*` name the methodology legitimately mentions: the loop's
+/// The one `GROVE_*` name the methodology may legitimately mention: the loop's
 /// completion channel, which the driver grants its child and `complete` writes.
 /// It is a capability, not a setting — every removed routing variable is
-/// classified by `tests/removed_surface.rs`, which deliberately leaves `content/`
-/// to this file.
+/// classified by `tests/removed_surface.rs`, which deliberately leaves the
+/// shipped methodology to this file.
+///
+/// **It no longer occurs in the corpus, and that is not a failure.**
+/// `prompt-names-the-kind-k18` made the signalling contract driver prose, so the
+/// one legitimate mention moved into `${prompt}` and the skill set names no
+/// `GROVE_*` variable at all. The permission stays, because a kind's skill may
+/// legitimately name the channel again.
 const LIVE_CONTROL_CHANNEL: &str = "GROVE_SIGNAL_FILE";
 
 fn grove_names_in(line: &str) -> Vec<String> {
@@ -606,13 +620,11 @@ fn grove_names_in(line: &str) -> Vec<String> {
 
 #[test]
 fn the_methodology_names_no_launch_policy_environment_variable() {
-    let mut live = 0;
     let mut findings = Vec::new();
-    for (path, text) in provisioned_markdown() {
+    for (path, text) in shipped_markdown() {
         for (offset, line) in text.lines().enumerate() {
             for name in grove_names_in(line) {
                 if name == LIVE_CONTROL_CHANNEL {
-                    live += 1;
                     continue;
                 }
                 findings.push(format!("{}:{}: {name}", path.display(), offset + 1));
@@ -621,14 +633,25 @@ fn the_methodology_names_no_launch_policy_environment_variable() {
     }
     assert!(
         findings.is_empty(),
-        "configuration is the only launch policy; the provisioned methodology \
+        "configuration is the only launch policy; the shipped methodology \
          still names:\n  {}",
         findings.join("\n  ")
     );
+
+    // **The control is synthetic, and has to be.** It used to be that the sweep
+    // found the live channel somewhere in the corpus, which proved the scan was
+    // not reading a clean surface for the wrong reason. The corpus names no
+    // `GROVE_*` variable at all since the signalling contract became driver
+    // prose, so the classifier is pinned directly instead: it must see both a
+    // retired routing variable and the one permitted capability.
+    assert_eq!(
+        grove_names_in("set `GROVE_HARNESS` and read `GROVE_SIGNAL_FILE`"),
+        ["GROVE_HARNESS", LIVE_CONTROL_CHANNEL],
+        "the scan must find a launch-policy variable when one is present"
+    );
     assert!(
-        live > 0,
-        "the sweep found no {LIVE_CONTROL_CHANNEL} either — a scan that finds \
-         nothing reports a clean surface for the wrong reason"
+        grove_names_in("the GROVE_ prefix, and a MY_GROVE_THING identifier").is_empty(),
+        "a bare prefix and an embedded one are not variable names"
     );
 }
 
@@ -699,7 +722,7 @@ fn markers_in_code_blocks(text: &str) -> Vec<(usize, String)> {
 
 #[test]
 fn no_example_task_body_carries_a_launch_field() {
-    let findings: Vec<String> = provisioned_markdown()
+    let findings: Vec<String> = shipped_markdown()
         .into_iter()
         .flat_map(|(path, text)| {
             markers_in_code_blocks(&text)
@@ -874,7 +897,7 @@ fn every_documented_grove_llm_flag_exists_on_the_real_verb() {
     let verbs = hyphenated_verbs();
     let mut checked = 0;
     let mut findings = Vec::new();
-    for (path, text) in provisioned_markdown() {
+    for (path, text) in shipped_markdown() {
         for (offset, line) in text.lines().enumerate() {
             let named = verbs_named_in(line, &verbs);
             if named.is_empty() {
@@ -951,127 +974,4 @@ fn the_flag_sweep_indexes_by_the_verb_the_line_names() {
 
     // A flag discussed with no verb on the line stays out of scope, as stated.
     assert!(unreal_flags_in("pass `--kind` when the leaf is not an impl").is_empty());
-}
-
-// ---------------------------------------------------------------------------
-// The two ending files, and what still holds them
-//
-// **The per-kind ending claims left this file with the mandate.** They asked
-// what a *composed mandate* carried — exactly one declared ending, `--done`
-// nowhere but `finish`, the relaunch ending composing last, no second unit
-// naming the completion verb — and a composed mandate is what this workstream
-// deleted. The corpus now reaches a session whole, as a provisioned skill, so
-// "the `impl` mandate carries one ending" has no referent: every session can
-// read every ending, and which one applies is what the reference files say.
-//
-// The claims that survive moved to the seam that still makes a per-kind
-// selection, `tests/prompt.rs`: eighteen kinds' prompts end on
-// `content/SIGNAL.md`'s own bytes and `finish`'s on `content/SIGNAL-FINISH.md`'s,
-// `--done` appears in that one ending and nowhere else, and no prompt restates a
-// rule the skill owns. What stays here is the **drift pin** below, which is not a
-// claim about delivery at all — and which matters more now, since both files it
-// pins are inlined into a session's prompt byte-exact.
-//
-// The pin used to address its two subjects as **units**, by id. Units are gone
-// with the rest of the mandate machinery, and the re-basing costs nothing:
-// each of the two was the only unit of its own file, so the file's whole bytes
-// are the same subject named a coarser way — one that survives having no
-// grammar at all.
-
-// -- The drift pin ----------------------------------------------------------
-
-/// **The two ending files' own bytes, pinned.**
-///
-/// Two limbs of *Every kind's mandate states exactly one session ending* are
-/// prose rather than structure: that `SIGNAL-FINISH.md` states its endings **as
-/// outcomes of what the session did** rather than as a rule qualified by another
-/// kind's, and that neither file restates an ending in words naming neither the
-/// completion verb nor `--done`. Both are a reader's judgement, so a mechanical
-/// claim about either would be a substring heuristic wearing a SHALL. What this
-/// pin adds is that the judgement is **re-entered when the prose moves**.
-///
-/// It is a pin for **drift, not for correctness** — it says nothing about
-/// whether the prose is right, only that it changed since a human last read it.
-///
-/// **What it bounds, and what it does not.** The first limb is a claim about one
-/// file, so the pin bounds it exactly: `SIGNAL-FINISH.md` cannot be reworded
-/// without the judgement being re-entered. The second ranges over the **whole
-/// corpus**, and a pin of two files cannot bound that; there it reaches only
-/// these two, neither of which may grow a second restatement. A *third* place in
-/// `content/` restating an ending is caught by nothing mechanical and is a
-/// reviewer's alone — which is why it is written down here rather than left to
-/// be rediscovered.
-///
-/// **Not a regenerable golden file.** A `GROVE_TEST_UPDATE_GOLDENS=1` pin can be
-/// cleared without reading the new prose, and reading the new prose is the entire
-/// purpose. A constant that has to be retyped by hand is friction pointed the
-/// right way.
-///
-/// Both constants end without a blank line, which is what the files hold:
-/// `content/SIGNAL.md` and `content/SIGNAL-FINISH.md` are single-purpose files
-/// with no trailing separator, and adding one here would pin a byte neither has.
-const RELAUNCH_ENDING_SOURCE: &str = r#"**Signal.** Once the task is retired and committed (and any parent-chain cascade
-is settled and included), run **`grove-llm complete`** as your **last action — then do
-nothing else**. This is how the self-driving loop ends this session and starts
-the next task with fresh context: the verb only writes the relaunch flag to a
-signal file (`GROVE_SIGNAL_FILE`) and returns. Ending the session is the **loop
-driver's** job, not this verb's — the driver launched this session and is
-watching for the signal file while it runs, so it applies grace → SIGTERM →
-kill-grace → SIGKILL to its own child once the file appears (driver-side
-watcher: the driver can always signal its child, unlike an in-agent self-kill,
-which some harness sandboxes — e.g. codex's Seatbelt — silently deny). Run
-outside a `grove` loop (no `GROVE_SIGNAL_FILE`) it is a safe no-op that just
-tells you to exit manually. Ending *without* signalling stops the loop instead —
-a crash or a Ctrl-C is exactly that — so the signal is what separates a task you
-finished from a session that died, and it is the whole of what you have to do to
-hand back.
-"#;
-
-/// The `finish` half of the pin. See [`RELAUNCH_ENDING_SOURCE`] for what it is
-/// and is not; the limb it carries is that this table reads as **outcomes** —
-/// three rows keyed by what the session did — and never as one kind's rule with
-/// another kind's beside it.
-const FINISH_ENDING_SOURCE: &str = r#"**How this session ends is decided by what it did**, and all three outcomes are
-open to you. In the two that signal, the signal is your **last action — then do
-nothing else**; the loop driver is watching for it and ends the session itself.
-
-| what the session did | ending |
-|---|---|
-| teardown completed | `grove-llm complete --done` — the loop stops |
-| externalised work instead | `grove-llm complete` — the loop relaunches and picks the new leaf; the sentinel waits |
-| declined, or no human present | no signal — the loop stops, the leaf stays live and resumable |
-
-The middle outcome is the one worth holding on to. You are told, like every
-session, to externalize surfaced work rather than absorb it, and a session that
-does so **cannot** tear down: ordinary work is live, and `pick` passes the
-sentinel over until it is terminal. That is a plain relaunch rather than a
-failure, and it banks no confirmation — the sentinel is never retired, so the
-next `finish` session proposes the cycle and waits for a confirmation of its
-own. Declining, or finding no human to ask, leaves the leaf live and next, so
-the following bare `grove` proposes the cycle again. On confirmation, run the
-teardown steps in `references/finish.md`, then end on whichever row above
-matches what this session actually did.
-"#;
-
-#[test]
-fn the_ending_files_prose_is_pinned_for_drift() {
-    for (path, pinned) in [
-        ("SIGNAL.md", RELAUNCH_ENDING_SOURCE),
-        ("SIGNAL-FINISH.md", FINISH_ENDING_SOURCE),
-    ] {
-        let file = grove::methodology::embed()
-            .get_file(path)
-            .unwrap_or_else(|| panic!("content/{path} must exist — it is a declared ending"));
-        let source = std::str::from_utf8(file.contents()).expect("the ending is UTF-8");
-        assert_eq!(
-            source, pinned,
-            "content/{path}'s prose moved. This pin is not a specification and the \
-             diff is not a defect — it is the signal to re-read the two limbs no \
-             test can check: that the `finish` endings still read as outcomes of \
-             what the session did rather than as a rule qualified by another \
-             kind's, and that neither file has grown a restatement of an ending \
-             phrased around the completion verb. Confirm both, then update the \
-             constant."
-        );
-    }
 }

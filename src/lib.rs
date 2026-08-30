@@ -1,7 +1,6 @@
 pub mod cli;
 pub mod complete;
 pub mod driver_lease;
-pub mod harness;
 // `loop_driver` is crate-private because nothing outside the crate reaches it
 // any more: the human verbs the suite used to drive through the old `launch`
 // module are gone, that module has been absorbed here, and `loop_driver`'s
@@ -17,23 +16,17 @@ pub mod harness;
 pub mod leaf;
 pub mod llm_cli;
 pub(crate) mod loop_driver;
-// `methodology` owns the embed itself — the `include_dir!` static and the
-// build's methodology identity. It is `pub` on the same footing as `provision`:
-// the suite asserts claims about the *real* corpus through it — that every
-// kind's reference file exists, that the methodology instructs no `grove-llm`
-// verb the CLI lacks — and production's own door onto that corpus is
-// `include_dir`, which a test cannot open without making a runtime dependency a
-// dev one as well (`docs/ARCHITECTURE.md`, *the embed test seam*).
-// It also outlives `provision` — the embed survives the retirement of the
-// directory it is currently also swept into.
-pub mod methodology;
-// `prompt` owns the guaranteed core — the whole of `${prompt}`, and the only
-// place driver-authored prose about a session's own conduct lives. `pub` for
-// the same reason `methodology` is: every interesting check runs through this
-// seam against the *real* embed, and the alternative door is a spawned driver
-// per claim (`docs/ARCHITECTURE.md`, *the embed test seam*).
+// `prompt` owns the whole of `${prompt}` — every part of it, and the only place
+// driver-authored prose about a session's own conduct lives. `pub` because the
+// suite checks the core through this seam rather than by spawning a driver per
+// claim; there is no longer an embed behind it to be the *real* subject, since
+// `delete-provisioning-k19` deleted `content/` and the module that carried it.
+// There is no `provision` module and no `harness` registry. Grove writes no
+// skill directory: the methodology installs as a plugin like every other skill
+// this repo ships (`plugins/grove/`), so the delivery question grove used to
+// answer by sweeping an embed into three personal skill directories is now
+// answered by the same install route the other plugins use.
 pub mod prompt;
-pub mod provision;
 // There is no `repo` module. The VCS seam is `crates/jj-workspace`
 // (`docs/specs/module-decomposition.md`, decision 8): resolving a workspace,
 // refusing a working tree that is not one, and taking a path-scoped commit are

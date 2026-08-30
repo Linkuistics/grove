@@ -1,7 +1,7 @@
 ---
 name: grove-planning
 description: The `planning` session kind — given the design, grow the tree; find the smallest independently useful working increments before cutting any leaf. Use when a grove mandate names this skill, or when running a `planning` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from

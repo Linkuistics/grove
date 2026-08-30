@@ -120,26 +120,24 @@ path = "src/lib.rs"
 [lints]
 workspace = true
 
-# No `[build-dependencies]`. `build.rs` is a `std`-only `rerun-if-changed` walk
-# over `content/`: it emits one hint per file so an edit reaches the embed, and
-# does nothing else. It used to `#[path]`-include the crate's own unit-marker
-# parser (and, through `src/leaf.rs`, `anyhow`) to gate the embed on that
-# grammar; the markers are gone, and what the gate bought is asserted over the
-# embed in `tests/methodology.rs`. It does not hash `content/` either — both
-# binaries link the embed and compute the methodology identity from it directly.
+# **No `build.rs` at all**, and no `[build-dependencies]`. The script was a
+# `std`-only `rerun-if-changed` walk over `content/`, emitting one hint per file
+# so an edit reached the `include_dir!` embed that `include_dir` does not
+# register with Cargo on stable. `delete-provisioning-k19` deleted `content/`,
+# the embed and the module that carried it, so the walk had nothing left to
+# re-run for and went with them.
 
 [dependencies]
+# **No `include_dir`, no `sha2`, and no production `tempfile`.** All three were
+# provisioning's: `include_dir` embedded `content/`, `sha2` hashed the embed for
+# the methodology identity the build-pairing report compared, and `tempfile`
+# staged an extraction so a rename was the only thing to touch a live skill
+# directory. `delete-provisioning-k19` deleted the sweep, so grove writes no
+# skill directory and carries no corpus — the methodology installs as a plugin
+# like every other skill this repo ships. `tempfile` survives below as a
+# dev-dependency, which is all the fixtures ever needed it as.
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
-# Embed the full `content/` methodology tree into the `grove` binary at compile
-# time (self-extension-core-and-methodology / task-tree-scheme). Bare `grove`
-# extracts this embed to the global personal skill dir
-# (`~/.claude/skills/grove/`), so the skill can never drift from the binary —
-# replacing the old fetch-tarball + materialise + `VERSION.md` model, now
-# deleted. Paired with `build.rs`, which emits
-# `rerun-if-changed` for every content file: on stable Rust the macro does not
-# register its reads with Cargo, so an edit would otherwise leave a stale embed.
-include_dir = "0.7"
 # Used by the self-driving loop substrate (self-driving-loop): `loop_driver.rs` ignores
 # SIGINT (`libc::signal`) so the driver survives the human's Ctrl-C and checks
 # `isatty` before launching, and its session watcher ends a signalled session
@@ -168,8 +166,6 @@ jj-workspace = { path = "crates/jj-workspace" }
 # for the module this replaces.
 keyed-launch = { path = "crates/keyed-launch" }
 ordinal-fs-tree = { path = "crates/ordinal-fs-tree", default-features = false }
-sha2 = "0.10"
-tempfile = "3.10"
 
 [dev-dependencies]
 assert_cmd = "2.0"

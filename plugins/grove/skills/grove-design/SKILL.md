@@ -1,7 +1,7 @@
 ---
 name: grove-design
 description: The `design` session kind — given requirements, establish how, and deliver a spec, an ADR set, or both. Use when a grove mandate names this skill, or when running a `design` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # design

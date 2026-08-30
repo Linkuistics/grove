@@ -1,7 +1,7 @@
 ---
 name: grove-review-impl
 description: The `review-impl` session kind — a fresh-context, inspection-only adversarial read of one implementation, producing findings and no fixes. Use when a grove mandate names this skill, or when running a `review-impl` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 # review-impl

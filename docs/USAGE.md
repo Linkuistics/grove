@@ -154,25 +154,27 @@ brief. Work that should no longer be done can be marked `ABANDONED`, but pruning
 requires explicit human confirmation — Grove guides that decision and never makes
 it autonomously.
 
-The runtime methodology is [`content/SKILL.md`](../content/SKILL.md), which the
-binary provisions to each installed harness's personal skill directory on every
-bare `grove` invocation. It provisions the copy **embedded in the running
-binary** — a session always reads the methodology its own `grove` was built
-with. Those directories are global, so Grove also checks the pairing on every
-iteration: it restores a skill directory another `grove` build has written, and
-reports — without refusing — when the `grove-llm` a session would find on `PATH`
-comes from a different build. It reports rather than refuses because it resolves
-in its *own* environment, which is the session's only when your configured
-command inherits it; a wrapper, login shell, `ssh` hop, or container may reach a
-different binary in either direction. Editing `content/` in a checkout therefore
-changes nothing any session reads until that checkout is **installed** — not
-`cargo run`, which provisions the checkout's methodology beside the installed
-CLI and is announced on every iteration as exactly that mismatch. Installing
-means making the build you are driving the one a session's `PATH` resolves
-first: `cargo install --path .` does that only if `~/.cargo/bin` outranks every
-other prefix holding a `grove-llm`, and the mismatch diagnostic names the path it
-actually resolved so you can tell which prefix won. See
-[Embedded methodology](ARCHITECTURE.md#self-extension-core-and-methodology).
+The runtime methodology is the **`grove` plugin**, whose spine is
+[`plugins/grove/skills/grove/SKILL.md`](../plugins/grove/skills/grove/SKILL.md)
+and whose nineteen `grove-<kind>` skills carry one session kind each. A launch
+prompt names the one skill this session's kind needs, and the session loads it
+through its harness's own skill-loading affordance.
+
+**Grove does not install it, and does not check that it is there.** The binary
+used to carry the methodology as an embedded `content/` tree and sweep it into
+every installed harness's personal skill directory on each bare `grove`
+invocation; that is gone, along with the build-pairing report the shared
+directories made necessary. Installing the plugin is a human step — see
+[Install the skill plugins](../README.md#install-the-skill-plugins) — and the
+cost of the change is that a session can now be launched pointing at a skill
+that is not installed. Grove states the version it is and names the skill; a
+harness with a skill-loading affordance reads it, and one without has lost its
+fallback.
+
+Editing the methodology in a checkout reaches a session as soon as the plugin
+resolves to that checkout, which for the symlink farm is immediately and for
+Claude Code is the next marketplace update — the build boundary that used to sit
+between an edit and a session is gone with the embed.
 
 `grove-llm` is the agent-facing tree interface the session drives during those
 steps. It is available for diagnostics — `grove-llm pick`, `grove-llm resolve`,
@@ -184,9 +186,9 @@ outside bare `grove` gives it no mandate.
 Both are yours rather than the session's — a session *is* the LLM and cannot
 perform either on itself. The session-facing counterparts are already in the
 methodology: naming the trade-off you want input on
-([`content/references/execute.md`](../content/references/execute.md)) and giving
-a recommended answer per question
-([`content/grilling.md`](../content/grilling.md)).
+([`plugins/grove/skills/grove/references/execute.md`](../plugins/grove/skills/grove/references/execute.md))
+and giving a recommended answer per question
+([`plugins/grove/skills/grove-requirements/grilling.md`](../plugins/grove/skills/grove-requirements/grilling.md)).
 
 **Ask the LLM "WDYT" before committing.** When a question feels close to
 settled, the easy default is to nod and move on. Don't — ask what it thinks,

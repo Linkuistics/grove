@@ -42,10 +42,10 @@ const READINESS_POLL: Duration = Duration::from_millis(10);
 /// on its own way out — so "will this file ever appear?" has an observable
 /// answer: while the producer runs it may still be coming, and once the producer
 /// is gone it never will. The fixed deadlines this replaces guessed at that
-/// answer from outside. Driver start-up is not a fixed cost — it provisions the
-/// embedded skill into a cold `HOME`, re-verifies each skill stamp, spawns
-/// `grove-llm --content-hash` to report the build pairing, and runs the tree
-/// transition — and eight concurrent copies of a process-driving binary
+/// answer from outside. Driver start-up is not a fixed cost — it resolves the
+/// workspace, takes the lease and runs the tree transition, and it used to sweep
+/// an embedded skill into a cold `HOME` and probe the build pairing besides —
+/// and eight concurrent copies of a process-driving binary
 /// stretch a perfectly healthy start-up from 0.7s to 4.7s, so the guess expired
 /// on drivers that were working normally (driver-lease-readiness-flake-k145).
 ///

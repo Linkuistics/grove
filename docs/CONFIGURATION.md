@@ -232,30 +232,28 @@ such policy with literal `env` arguments or in a wrapper. Grove's own internal
 VCS commands are separate and do scrub repository selectors, so your
 personal launch context cannot redirect a teardown commit.
 
-## Provisioned methodology is a prerequisite
+## The methodology is a prerequisite Grove does not supply
 
-Every bare `grove` invocation sweeps the embedded methodology into each installed
-harness's personal skill directory, before it takes ownership of a working tree:
+`${prompt}` names one `grove-<kind>` skill and carries no methodology of its own
+beyond grove's signalling contract, so a session that cannot reach that skill is
+told the loop, the kinds and the verbs by nothing. Installing the `grove` plugin
+is therefore a genuine prerequisite of a working configuration — see
+[Install the skill plugins](../README.md#install-the-skill-plugins).
 
-| Harness | Provisioned when this exists | Destination |
-|---|---|---|
-| Claude Code | `~/.claude` | `~/.claude/skills/grove/` |
-| Codex | `~/.codex` | `~/.codex/skills/grove/` |
-| Pi | `~/.pi` | `~/.pi/agent/skills/grove/` |
+**Grove neither installs it nor checks for it.** Every bare `grove` invocation
+used to sweep an embedded copy of the methodology into `~/.claude/skills/grove`,
+`~/.codex/skills/grove` and `~/.pi/agent/skills/grove` before taking ownership of
+a working tree, and report loudly when no such destination existed. Grove writes
+no skill directory now: the methodology ships as a plugin with its own install
+route, the registry that named those three destinations is gone, and so is the
+report.
 
-This registry is a delivery list, not a launch policy: a row is a place to write
-files, never a program to run, and it contributes nothing to any command. An
-absent home root is skipped, never created. Writes are idempotent against a
-content stamp, and a foreign directory carrying no Grove stamp is refused rather
-than overwritten.
-
-**`${prompt}` points a session at what the sweep wrote**, and carries no
-methodology of its own beyond the session's ending. So provisioning is a genuine
-prerequisite rather than a delivery list running in parallel: a session that
-cannot reach the provisioned skill is told the loop, the kinds and the verbs by
-nothing. Grove reports an absent destination loudly and launches anyway — it
-never refuses — but the launch is degraded, and the report is the warning that it
-is.
+The cost is recorded rather than argued away. A harness with a skill-loading
+affordance is unaffected — it resolves the named skill or says it cannot. A
+harness without one has lost its fallback: nothing puts the methodology in front
+of a session that does not go and get it. If that turns out to matter — a session
+that cannot reach the methodology by the affordance alone — the question to
+reopen is delivery, not the registry.
 
 ## Validation and diagnostics
 

@@ -46,10 +46,10 @@
 # and the fake stands in for every one of them. It exits 0 without signalling,
 # so the nested loop stops itself after one iteration.
 #
-# What that shows: the configured argv reaching the real foreground child, a
-# fresh completion-signal path granted to it, and — because every bare
-# lifecycle invocation re-provisions the skill from the binary — the methodology
-# surfaces. Point `HOME` at a directory with no `config.kdl` for the other half:
+# What that shows: the configured argv reaching the real foreground child and a
+# fresh completion-signal path granted to it. It shows nothing about the
+# methodology, which since delete-provisioning-k19 the binary neither carries nor
+# installs. Point `HOME` at a directory with no `config.kdl` for the other half:
 # the aggregate configuration diagnostic, with no tree mutation.
 #
 # Run this in the same session as the `brew upgrade` — see release.toml on why

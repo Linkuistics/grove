@@ -51,6 +51,52 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **Provisioning is deleted: Grove writes no skill directory, embeds no
+  methodology, and keeps no harness registry.** The binary used to compile
+  `content/` into itself with `include_dir!` and sweep it, on every invocation,
+  into `~/.claude/skills/grove`, `~/.codex/skills/grove` and
+  `~/.pi/agent/skills/grove`. The methodology now ships as the `grove` plugin,
+  installed the way this repo's other two plugins are, and all twenty of its
+  skills declare `harnesses: [any]` rather than `[claude-code]`. Deleted with the
+  sweep: `src/provision.rs`, `src/harness.rs`, `src/methodology.rs`, `content/`,
+  `build.rs`, and the three dependencies they were the only consumers of —
+  `include_dir`, `sha2`, and `tempfile` outside dev
+  (`docs/specs/module-decomposition.md`, decision 11).
+- **Removed: `grove-llm --content-hash`, and the driver's per-iteration build
+  pairing report.** Both had the same two operands — a hash of the binary's
+  embedded corpus, and the same hash stamped on a skill directory — and neither
+  operand exists. Gone with them: the per-verb warning that an installed
+  directory carried another build's methodology, the per-launch repair of a
+  clobbered one, and the report that no known harness root existed at all.
+  `grove-llm` takes a verb or prints help; it has no metadata argument left.
+- **Retired: `one-build-owns-a-session` and `skill-delivers-the-methodology`.**
+  Every mechanism either record argued was machinery for making one *shared
+  mutable global directory* safe. A plugin has its own install route, so there is
+  no directory for two builds to contend over and no pairing to report.
+- **The cost is recorded rather than argued away.** Grove no longer guarantees
+  the methodology is present, so a session can be launched pointing at a skill
+  that is not installed. That is a message, not machinery: the prompt states the
+  version Grove is and names the skill. A harness with a skill-loading affordance
+  is unaffected; one without loses its fallback, and the reopen condition is a
+  session that cannot reach the methodology by the affordance alone. Serving the
+  methodology over MCP is **rejected** in the same place: it would not remove the
+  delivery machinery, only change what is served. A harness registry row for a
+  further harness is answered by deletion — there is no registry left to hold one.
+- **Test-side: three corpus suites deleted, three re-homed.**
+  `tests/lifecycle_invariants.rs`'s coverage walk and
+  `tests/loaded_path_budgets.rs`'s per-kind word budgets measured the path the
+  binary composed out of `content/`, and `docs/specs/corpus-rule-ownership.md`
+  described it; all three went, and `plugins/grove/conformance.sh` — whose
+  fourth, temporary assertion holding the spine and `content/` byte-identical
+  went too — is the only standing delivery instrument. `tests/methodology.rs`'s
+  one claim whose subject survives is now `tests/instructed_verbs.rs`: the
+  shipped methodology instructs no `grove-llm` verb the CLI lacks, read off
+  `plugins/grove/skills/` rather than off an embed. `tests/plugin_fallback.rs`
+  and `tests/session_kind_guidance.rs` were repointed at the same files.
+- **`plugins/install.sh`'s workspace guard and non-symlink refusal both stand.**
+  A directory an older grove build swept into place is not a symlink, so the
+  script refuses it by name and says so; remove it once by hand and re-run.
+
 - **The launch prompt names one `grove-<kind>` skill and publishes Grove's
   version, and the driver interprets a kind nowhere.** `${prompt}` is three
   driver-authored parts and reads nothing: an imperative naming that kind's
@@ -1381,8 +1427,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   `content/SKILL.md`, which now states both. The load instruction's wording is the
   micro-test's winning arm verbatim, ablated to the three elements that arm
   measured ([`wording-micro-test`](docs/research/wording-micro-test.md)).
-  [The skill delivers the methodology](docs/adr/skill-delivers-the-methodology.md)
-  is that decision, reworked in place from the record it reverses.
+  *The skill delivers the methodology* is that decision, reworked in place from
+  the record it reverses. (That record was retired at `delete-provisioning-k19`,
+  which is why this entry names it rather than linking to it.)
 
 - **Two signal files serve the nineteen kinds, and every prompt still has three
   parts.** Eighteen kinds end exactly one way, and `content/SIGNAL.md` says so.

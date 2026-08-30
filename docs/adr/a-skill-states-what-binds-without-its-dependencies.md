@@ -43,15 +43,14 @@ A local statement of a rule the plugin also states is a **permitted mirror** —
 this repository's thesis is one canonical source per rule, and a fallback is a
 second source by construction. The mirror is admitted only where absence changes
 what a session writes, and each one is recorded with its reason in
-`docs/specs/corpus-rule-ownership.md`. That bound is what keeps the exception
+`plugins/grove/conformance/rules.tsv`. That bound is what keeps the exception
 from becoming the rule.
 
 **Rejected: make `linkuistics` a hard install dependency of the `grove` plugin.**
 It would remove the mirrors outright, and it is the wrong shape twice. The two
-contexts ship as separate products on purpose — which
-[the skill delivers the methodology](skill-delivers-the-methodology.md) settles
-and `docs/ARCHITECTURE.md`, *Repository products*, describes — so enforcing the
-dependency means one context installing another it does not own; and it violates
+contexts ship as separate products on purpose — `docs/ARCHITECTURE.md`,
+*Repository products*, describes the split — so enforcing the dependency means
+one context installing another it does not own; and it violates
 walk-away-ability — a grove tree must stay legible with grove deleted, which a
 methodology that cannot state its own rules is not.
 
@@ -61,9 +60,8 @@ the ADR when-to-write test only cited, grove had no bar of its own, and the
 corpus carried an OR-form paraphrase of the plugin's AND test for as long as
 nothing local contradicted it. A cited test is no test.
 
-The enumeration of citations and their per-row decisions is in
-`docs/specs/corpus-rule-ownership.md`, *Plugin deferral policy*;
-`tests/plugin_fallback.rs` asserts both halves over the corpus the binary still
-embeds — that each citation states what
-binds, and that the enumeration is exhaustive, so a citation added later without
-a binding sentence fails before it reaches a session.
+The enumeration of citations and their per-row decisions is
+`tests/plugin_fallback.rs`'s own registry, which asserts both halves over the
+shipped skill set — that each citation states what binds, and that the
+enumeration is exhaustive, so a citation added later without a binding sentence
+fails before it reaches a session.

@@ -1,7 +1,7 @@
 ---
 name: grove-requirements
 description: The `requirements` session kind — establish what should be built, in the human's own words, and decide whether the open questions meet the threshold for a full grilling. Use when a grove mandate names this skill, or when running a `requirements` session in a grove working tree.
-harnesses: [claude-code]
+harnesses: [any]
 ---
 
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from

@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v19.6.0
+
 - **A session kind is an open token: Grove holds no list of kinds.** `Kind` was a
   compiled enum of nineteen variants with a parse arm, a label arm and a
   hand-maintained `ALL` roster; it is now a validated token — non-empty,

@@ -71,7 +71,7 @@ unfulfilled_lint_expectations = "deny"
 
 [package]
 name = "grove"
-version = "19.5.0"
+version = "19.6.0"
 edition = "2021"
 description = "Hierarchical, self-extending workstream tool for AI agents"
 license = "Apache-2.0"

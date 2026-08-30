@@ -96,3 +96,68 @@ did not cover whether to provision a channel that does not yet stand, and that
 is the only question whose answer can change the value. If this session cannot
 answer it, it belongs back with the human as a named leaf, not as a sentence in
 a running log.
+
+## Decisions (running log)
+
+`authorization = none` remains the current value. Credential readiness and
+channel eligibility are separate from campaign authority: the provisioned
+multi-provider client reports direct Anthropic, OpenAI, and Google providers not
+ready, while `openai-codex` is OAuth-ready; no listed credential is authorized
+for this campaign.
+
+The bounded Claude mechanics probe succeeded with an explicit empty tool list,
+no MCP servers, a replacement system prompt, safe mode, no settings sources, and
+no session persistence. Its stream carried a provider request ID, message ID,
+model, fresh session ID, and usage, but no effective request body or provider
+digest. The unexpectedly large effective input-token count demonstrates hidden
+or transformed input rather than proving the explicit prompt's identity.
+
+Current Anthropic and OpenAI documentation confirms that request IDs are
+correlation and support identifiers, not content acknowledgements. Anthropic's
+usage counts are not one-to-one with visible request content, its token count is
+an estimate that may include provider-added tokens, and its prompt cache requires
+identical prefix segments but binds only equality with a prior cached prefix.
+None of those quantities proves that the prefix is the frozen treatment.
+
+The parent contract now states two sufficient final-boundary evidence classes: a
+provider attestation over independently recomputable canonical input bytes and
+token IDs immediately before inference, or an independently captured canonical
+byte stream and token sequence from a pinned self-hosted runtime. Only the
+self-hosted class is asserted operationally attainable, because its operator
+owns the complete transformation and inference boundary; it is not provisioned
+here. The provider class is sufficient if a provider later exposes it, not an
+existence claim. Hosted request IDs, usage, cache hits, upstream gateway
+receipts, client digests, argv, and local reads remain supporting evidence only.
+
+H1–H13 are classified in `delivery-channel-authority-k94`'s corrected running
+log. Transport, fixture, sampling, confinement, and freshness repairs that do
+not change the intervention land there. The two measurement choices—fixture
+inlining versus a one-use tool, and raw frontmatter versus deployed loading
+semantics—are re-owned by the new requirements producer
+`delivery-channel-provisioning-authority-k97`, with its own lazy review chain.
+
+`supplemental-evaluation-k92` G7 remains applied differently through a
+planning-only ephemeral VM, container, or enforced OS sandbox. Its filesystem
+namespace mounts only frozen permitted inputs and enumerated read-only runtime
+dependencies, denies host and undeclared mounts, and restricts network access to
+one model endpoint. The harness has a replacement system prompt, no tools or MCP
+servers, no settings or customizations, and no resumable session; the sandbox
+configuration, mount/input manifests, network policy, init event, raw output,
+runtime, and chronology are preserved. This seam is sufficient to bound local
+criterion-author reachability; it is explicitly not a delivery receipt for
+evaluated contexts.
+
+The in-session doubt reviewer found six substantive defects in the first repair:
+the provider receipt was too early, a digest over undisclosed additions was
+circular, the self-hosted class conflated bytes with token IDs, an upstream
+gateway could not attest the inference boundary, the isolation seam named only a
+directory, and the text overstated two-class attainability. All six were valid
+and actionable. The corrected contract now requires final-boundary timing,
+independently recomputable canonical bytes and token sequences, pinned
+tokenizer/template/special-token behavior, and an enforced filesystem/network
+boundary; it claims current attainability only for controlled self-hosting.
+
+The human provisioning-or-closure decision is now live as
+`delivery-channel-provisioning-authority-k97`, immediately before
+`paired-acceptance-campaign-k80`. The campaign subtree remains byte-unchanged and
+must not run while `authorization = none`.

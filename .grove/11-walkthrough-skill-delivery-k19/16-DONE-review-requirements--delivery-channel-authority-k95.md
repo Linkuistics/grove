@@ -171,11 +171,11 @@ one option the producer was told to recommend and the only one that can change
 the value. That question was never put back to the human, and after retirement
 there is no leaf that will put it.
 
-The tree now reads: once this review chain settles, the next entry the walk
-reaches is
-`18-paired-acceptance-campaign-k80/01-design--acceptance-instrument-k81.md`, a
-leaf chartered to consume a decision that forbids it to run. Its session can only
-escalate. Later, `walkthrough-skill-delivery-k19`'s node close will check a
+The tree at the review commit read: once this review chain settled, the next
+entry the walk reached was the `paired-acceptance-campaign-k80` node and its
+`acceptance-instrument-k81` leaf, chartered to consume a decision that forbade it
+to run. Its session could only escalate. Later,
+`walkthrough-skill-delivery-k19`'s node close would check a
 `Done when` carrying four behavioral conjuncts that no live leaf can discharge,
 and fail it with a gap that cannot be named as work — the escalation branch of
 `references/retire.md`, reached by construction rather than by discovery.

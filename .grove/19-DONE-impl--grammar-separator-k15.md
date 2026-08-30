@@ -117,3 +117,37 @@ installed 19.3.0 could keep driving — a stray `FORMAT` is a foreign entry ever
 reader ignores. Once this leaf's release is published the file has no reader on
 any build, and deleting it is a one-line tree-visible change that belongs with the
 rename: one deployment, one cutover.
+
+## What this leaf found, for the leaves that follow
+
+**The pre-publish check earned its place, and it failed.** The root brief's
+`### The cutover sequence` step 2 says to run the new build read-only against
+every other live grove on the machine before publishing. There were **four** —
+`Writegood`, `grove.gh-issue-12`, `grove.code-walkthrough-for-ordinal-fs-tree`
+and `APIAnyware.add-ocaml-target`, 505 leaves between them — and 19.4.0 refused
+every one at its first filename while 19.3.0 picked a live leaf in each. A
+release published without addressing that strands four workstreams.
+
+The measurement needs `env -u GROVE_SIGNAL_FILE`, and a probe from inside a
+session also trips the working-tree guard; without stripping the session's own
+environment both builds answer *wrong working tree* and the check silently
+measures nothing.
+
+**Resolved by renaming all four onto the new grammar in the same window**, on
+the human's decision. Three were clean and took a commit of their own;
+`grove.gh-issue-12` carried unrelated work in progress, so its rename is
+snapshotted in its working copy and its next session commits it with that work.
+`.grove/FORMAT` was left in place in all four — nothing on any build reads it,
+and a stray `FORMAT` is a foreign entry every reader ignores (`delete-migration-k6`).
+
+**The consequence for later cutover leaves.** Those four trees are now on the
+`--` grammar and pinned to 19.4.0 or later. A leaf that publishes a release
+which changes how a tree is *read* must repeat this check against all of them,
+and budget for renaming them, rather than treating this repo's tree as the
+only one the release meets.
+
+**The rename was one function of inference, used once on the way out.** The
+script matched the closed kind set longest-label-first to find where the kind
+ended — precisely the inference the separator abolishes — and every one of the
+535 leaves matched, with `FORMAT` the only unmatched entry in any tree. Node
+directory names were untouched, as the grammar says they are.

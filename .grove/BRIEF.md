@@ -156,6 +156,16 @@ inherit the label, and the test is the matrix k6 ran: is there a cell where the
 *installed* build meets the tree this leaf leaves and fails? If the tree-visible
 change can simply be deferred, defer it and do not deploy.
 
+**A cutover release meets every grove on this machine, not just this one.**
+`grammar-separator-k15` ran the step-2 check and found four other live groves —
+`Writegood`, `grove.gh-issue-12`, `grove.code-walkthrough-for-ordinal-fs-tree`
+and `APIAnyware.add-ocaml-target` — all of which 19.4.0 refused and 19.3.0
+drove. They were renamed onto the new grammar in the same window and are now
+pinned to 19.4.0 or later. A later leaf that publishes a release changing how a
+tree is *read* must repeat that check against all of them and budget for the
+renames; the probe needs `env -u GROVE_SIGNAL_FILE`, or the session's own
+working-tree guard answers before the tree is ever looked at.
+
 `grammar-separator-k15` is the one that cannot defer — the rename onto the new
 grammar **is** its deliverable, and 19.3.0 cannot parse the result. It therefore
 owns the release, and `.grove/FORMAT`'s deletion from this tree rides with it:

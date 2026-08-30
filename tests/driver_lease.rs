@@ -1035,7 +1035,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     driver.wait_for_ready(&ready);
     let live_signal = PathBuf::from(fs::read_to_string(&signal_log).unwrap());
 
-    let live = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+    let live = Command::new(support::grove_llm())
         .arg("pick")
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &live_signal)
@@ -1048,7 +1048,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     );
 
     let wrong_signal = live_signal.with_file_name("signal-22222222222222222222222222222222");
-    let misdirected_complete = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+    let misdirected_complete = Command::new(support::grove_llm())
         .args(["complete", "--signal-file"])
         .arg(&wrong_signal)
         .current_dir(&root)
@@ -1070,7 +1070,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
         String::from_utf8_lossy(&misdirected_complete.stderr)
     );
 
-    let stale = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+    let stale = Command::new(support::grove_llm())
         .arg("pick")
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &wrong_signal)
@@ -1086,7 +1086,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
         String::from_utf8_lossy(&stale.stderr)
     );
 
-    let version = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+    let version = Command::new(support::grove_llm())
         .arg("--version")
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &wrong_signal)
@@ -1106,10 +1106,10 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
     init_colocated_worktree(&root);
-    let grove_llm = env!("CARGO_BIN_EXE_grove-llm");
+    let grove_llm = support::grove_llm();
 
     let initialize = |root: &Path| {
-        let output = Command::new(grove_llm)
+        let output = Command::new(&grove_llm)
             .arg("root-init")
             .current_dir(root)
             .env_remove("GROVE_SIGNAL_FILE")
@@ -1147,7 +1147,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
     first_driver.wait_for_ready(&first_ready);
     let old_signal = PathBuf::from(fs::read_to_string(&first_signal_log).unwrap());
 
-    let old_pick = Command::new(grove_llm)
+    let old_pick = Command::new(&grove_llm)
         .arg("pick")
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &old_signal)
@@ -1162,7 +1162,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         "the first session did not resolve plan-k1"
     );
 
-    let retire = Command::new(grove_llm)
+    let retire = Command::new(&grove_llm)
         .args([
             "leaf-retire",
             root.join(".grove/01-requirements--plan-k1.md")
@@ -1183,7 +1183,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         "# finish-k2\n\n## Goal\n\nFinish.\n",
     )
     .unwrap();
-    let finish = Command::new(grove_llm)
+    let finish = Command::new(&grove_llm)
         .args(["finish-commit", "finish-k2"])
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &old_signal)
@@ -1220,7 +1220,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         "a new launch reused the old signal path"
     );
 
-    let stale_pick = Command::new(grove_llm)
+    let stale_pick = Command::new(&grove_llm)
         .arg("pick")
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &old_signal)
@@ -1236,7 +1236,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         String::from_utf8_lossy(&stale_pick.stderr)
     );
 
-    let stale_mutation = Command::new(grove_llm)
+    let stale_mutation = Command::new(&grove_llm)
         .args(["leaf-add", ".", "stale-mutation"])
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &old_signal)
@@ -1251,7 +1251,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         "stale mutation allocated a leaf in the new tree"
     );
 
-    let stale_complete = Command::new(grove_llm)
+    let stale_complete = Command::new(&grove_llm)
         .arg("complete")
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &old_signal)
@@ -1266,7 +1266,7 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         "stale complete recreated its old signal"
     );
 
-    let new_pick = Command::new(grove_llm)
+    let new_pick = Command::new(&grove_llm)
         .arg("pick")
         .current_dir(&root)
         .env("GROVE_SIGNAL_FILE", &new_signal)

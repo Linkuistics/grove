@@ -1,6 +1,6 @@
-// Tests for the `grove-llm complete` verb core (src/complete.rs): writing the
-// loop-disposition token into the completion channel the driver allocated, and
-// reading one back. The channel, the kill and the escalation are the runner's
+// Tests for the `grove-llm complete` verb (`grove_loop::verbs::complete`):
+// writing the loop-disposition token into the completion channel the driver
+// allocated, and reading one back. The channel, the kill and the escalation are the runner's
 // (`crates/keyed-launch`) — `complete` only ever writes a token and interprets
 // one.
 //
@@ -10,27 +10,16 @@
 // test that wrote and parsed its own file would agree with itself while
 // disagreeing with the driver.
 
-use grove::complete::{self, CompleteOpts, Disposition};
+use grove_loop::verbs::{self, Signalled};
+use grove_loop::{interpret, Disposition};
 use keyed_launch::Channel;
 use tempfile::TempDir;
 
 #[test]
-fn resolve_opts_passes_explicit_values_through() {
-    let o = complete::resolve_opts(Some("/tmp/relaunch.signal".into()), Disposition::Relaunch);
+fn an_explicit_channel_passes_through() {
     assert_eq!(
-        o.signal_file.as_deref(),
+        verbs::signal_channel(Some(std::path::Path::new("/tmp/relaunch.signal"))).as_deref(),
         Some(std::path::Path::new("/tmp/relaunch.signal"))
-    );
-    assert_eq!(o.disposition, Disposition::Relaunch);
-}
-
-#[test]
-fn resolve_opts_carries_the_done_disposition() {
-    let o = complete::resolve_opts(None, Disposition::Done);
-    assert_eq!(
-        o.disposition,
-        Disposition::Done,
-        "`complete --done` must reach the signal as a finish disposition"
     );
 }
 
@@ -38,11 +27,18 @@ fn resolve_opts_carries_the_done_disposition() {
 fn an_empty_signal_environment_is_no_loop_context() {
     assert_eq!(std::env::var_os("GROVE_SIGNAL_FILE"), Some("".into()));
 
-    let opts = complete::resolve_opts(None, Disposition::Relaunch);
-
     assert!(
-        opts.signal_file.is_none(),
+        verbs::signal_channel(None).is_none(),
         "the meta-grove's empty environment guard became a real signal path"
+    );
+}
+
+#[test]
+fn no_channel_at_all_is_answered_rather_than_refused() {
+    assert_eq!(
+        verbs::complete(None, false).unwrap(),
+        Signalled::NoLoop,
+        "outside a loop the verb is a no-op that says so"
     );
 }
 
@@ -50,14 +46,12 @@ fn an_empty_signal_environment_is_no_loop_context() {
 /// way the driver does.
 fn round_trip(tmp: &TempDir, disposition: Disposition) -> (Channel, Option<Disposition>) {
     let channel = Channel::allocate(tmp.path()).unwrap();
-    let opts = CompleteOpts {
-        signal_file: Some(channel.path().to_path_buf()),
-        disposition,
-    };
 
-    complete::signal_complete(&opts).unwrap();
+    let signalled =
+        verbs::complete(Some(channel.path()), disposition == Disposition::Done).unwrap();
+    assert_eq!(signalled, Signalled::Wrote(channel.path().to_path_buf()));
 
-    let read = complete::interpret(channel.read().as_ref());
+    let read = interpret(channel.read().as_ref());
     (channel, read)
 }
 
@@ -97,7 +91,7 @@ fn an_absent_token_is_none() {
     let channel = Channel::allocate(tmp.path()).unwrap();
 
     assert_eq!(
-        complete::interpret(channel.read().as_ref()),
+        interpret(channel.read().as_ref()),
         None,
         "no token → the loop stops (human exit / crash), it does not relaunch"
     );
@@ -113,7 +107,7 @@ fn unrecognised_signal_content_is_treated_as_relaunch() {
     std::fs::write(channel.path(), "complete\n").unwrap();
 
     assert_eq!(
-        complete::interpret(channel.read().as_ref()),
+        interpret(channel.read().as_ref()),
         Some(Disposition::Relaunch)
     );
 }

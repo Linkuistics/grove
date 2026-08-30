@@ -5,7 +5,7 @@ same entry, so `format(parse(f)) == f` holds and not merely `parse(format(n))
 == n`. A position is zero-padded to at least two digits and carries no other
 leading zero — `05` and `100` are names, `5` and `005` are not — and a name
 spelled any other way is refused, with the spelling Grove writes named in the
-refusal. `src/task_name.rs` discharges this in one line: parse leniently, render
+refusal. `crates/grove-loop/src/task_name.rs` discharges this in one line: parse leniently, render
 the result, refuse when the rendering differs from the input.
 
 This replaced a deliberate leniency. The grammar Grove carried before the flip —
@@ -93,7 +93,7 @@ which is loud rather than silent, and that is the property being bought.
   same assumption.
 - **Accept a lenient spelling and repair it in place** — parse `5-`, rename the
   file to `05-`, carry on. Rejected: a read verb would mutate the tree, which
-  breaks the read/write guard split (`src/task_tree.rs`) and would have a
+  breaks the read/write guard split (`crates/grove-loop/src/task_tree.rs`) and would have a
   `pick` taking the write lock. It also repairs under the *shared* lock, where a
   concurrent reader is looking at the name being replaced. Reopen as an explicit
   repair verb, which is a different thing from a parse.

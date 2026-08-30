@@ -55,7 +55,7 @@ use anyhow::{bail, Context, Result};
 use ordinal_fs_tree::{Created, Entry, Key, NewEntry, Report, Snapshot, Species, Target};
 
 use crate::task_name::{Handle, Kind, Outcome, Parts, Slug, TaskName};
-use crate::task_tree::{self, TreeWrite};
+use crate::task_tree::{self, Guard};
 
 /// `leaf-add <parent> <slug> --kind K…`: append **one leaf per kind**, in the
 /// order given, under `parent` at the next free ordinals with consecutive fresh
@@ -89,10 +89,10 @@ use crate::task_tree::{self, TreeWrite};
 /// `append_many` plans the whole run from **one** snapshot, so the ordinals are
 /// contiguous and the keys consecutive by construction, and applies it as a unit,
 /// so either the whole list lands or none of it does.
-pub fn leaf_add(
-    grove_root: &Path,
+pub(crate) fn leaf_add(
+    tree: Guard,
     parent: &str,
-    slug: &str,
+    slug: &Slug,
     kinds: &[Kind],
 ) -> Result<Vec<PathBuf>> {
     // The CLI makes `--kind` required, so this is unreachable from the verb; it
@@ -104,9 +104,6 @@ pub fn leaf_add(
     for kind in kinds {
         refuse_finish_kind(kind, "leaf-add")?;
     }
-    // The slug is every leaf's, validated once at the verb's own boundary.
-    let slug = leaf_slug(slug)?;
-    let tree = task_tree::write(grove_root)?;
     let (target, keys) = {
         let target = parent_node(&tree, parent)?;
         // One prediction per step, walking the same `max + 1` the library walks
@@ -125,7 +122,7 @@ pub fn leaf_add(
     let entries = kinds
         .iter()
         .zip(keys.iter())
-        .map(|(kind, key)| new_leaf(*key, Outcome::Live, kind.clone(), &slug))
+        .map(|(kind, key)| new_leaf(*key, Outcome::Live, kind.clone(), slug))
         .collect();
     let report = tree
         .append_many(target, entries)
@@ -140,7 +137,7 @@ pub struct Inserted {
     /// The new leaf's absolute path.
     pub path: PathBuf,
     /// The shifted siblings, ascending by new ordinal.
-    pub renumbers: Vec<Renumber>,
+    pub renumbered: Vec<Renumber>,
 }
 
 /// `leaf-insert <target> <slug>`: insert a new leaf at the slot `target` holds,
@@ -170,10 +167,8 @@ pub struct Inserted {
 /// is unreachable in all three of its messages. What grove owes in its place is a
 /// refusal for the things a *reference* can be and an ordinal cannot: nothing at
 /// all, two entries at once, the root, or the charter brief.
-pub fn leaf_insert(grove_root: &Path, target: &str, slug: &str, kind: Kind) -> Result<Inserted> {
-    refuse_finish_kind(&kind, "leaf-insert")?;
-    let slug = leaf_slug(slug)?;
-    let tree = task_tree::write(grove_root)?;
+pub(crate) fn leaf_insert(tree: Guard, target: &str, slug: &Slug, kind: &Kind) -> Result<Inserted> {
+    refuse_finish_kind(kind, "leaf-insert")?;
     let root = tree.root().to_path_buf();
     let (level, at, key) = {
         let entry = match task_tree::reference(&root, tree.snapshot(), target)? {
@@ -198,11 +193,11 @@ pub fn leaf_insert(grove_root: &Path, target: &str, slug: &str, kind: Kind) -> R
             task_tree::next_key(tree.snapshot()),
         )
     };
-    let entry = new_leaf(key, Outcome::Live, kind, &slug);
+    let entry = new_leaf(key, Outcome::Live, kind.clone(), slug);
     let report = tree.insert(level, at, entry).map_err(task_tree::raised)?;
     Ok(Inserted {
         path: allocated(report.created(), &[key])?.remove(0),
-        renumbers: renumbers(&report)?,
+        renumbered: renumbered(&report)?,
     })
 }
 
@@ -211,10 +206,39 @@ pub fn leaf_insert(grove_root: &Path, target: &str, slug: &str, kind: Kind) -> R
 /// are invariant — only the `NN` in this one entry's own name changed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Renumber {
-    pub old_position: u32,
-    pub new_position: u32,
-    pub old_name: String,
-    pub new_name: String,
+    /// Where the sibling was.
+    pub from: PathBuf,
+    /// Where it is now.
+    pub to: PathBuf,
+    /// Its old position, which is what a report of the shift reads as.
+    pub from_position: u32,
+    /// Its new position.
+    pub to_position: u32,
+}
+
+impl Renumber {
+    /// The filename it wore, for a report of the shift.
+    ///
+    /// A shifted entry's name is one path component by construction — the store
+    /// admits no other — so this cannot fail for a renumber the store produced.
+    #[must_use]
+    pub fn from_name(&self) -> String {
+        component(&self.from)
+    }
+
+    /// The filename it wears now.
+    #[must_use]
+    pub fn to_name(&self) -> String {
+        component(&self.to)
+    }
+}
+
+/// One path's final component, which every entry in a tree has.
+fn component(path: &Path) -> String {
+    path.file_name()
+        .unwrap_or(path.as_os_str())
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// The renumber log, read off the library's own report rather than kept by the
@@ -224,7 +248,7 @@ pub struct Renumber {
 /// and every one of them is a shift, since an `insert` renames nothing else. The
 /// log is reported ascending by new ordinal, which is how an operator reads a
 /// level.
-fn renumbers(report: &Report<TaskName>) -> Result<Vec<Renumber>> {
+fn renumbered(report: &Report<TaskName>) -> Result<Vec<Renumber>> {
     let mut log = Vec::with_capacity(report.renamed().len());
     for renamed in report.renamed() {
         let TaskName::Positioned { ordinal, .. } = &renamed.name else {
@@ -232,17 +256,17 @@ fn renumbers(report: &Report<TaskName>) -> Result<Vec<Renumber>> {
         };
         let new_position = ordinal.get();
         log.push(Renumber {
+            from: renamed.from.clone(),
+            to: renamed.to.clone(),
             // A shift is `+1` by definition, so the old ordinal is derived
             // rather than remembered — the one fact `Renamed` does not carry.
-            old_position: new_position
+            from_position: new_position
                 .checked_sub(1)
                 .context("the library reported a shift to ordinal 0")?,
-            new_position,
-            old_name: file_name(&renamed.from)?,
-            new_name: file_name(&renamed.to)?,
+            to_position: new_position,
         });
     }
-    log.sort_by_key(|renumber| renumber.new_position);
+    log.sort_by_key(|renumber| renumber.to_position);
     Ok(log)
 }
 
@@ -260,12 +284,12 @@ fn renumbers(report: &Report<TaskName>) -> Result<Vec<Renumber>> {
 /// dropped inside `.grove/` by hand is no longer scanned; grove writes none, and
 /// the alternative is a second, wider notion of *what is in the tree* than every
 /// other verb uses.
-pub fn surface_cross_refs(
-    grove_root: &Path,
-    renumbers: &[Renumber],
+pub(crate) fn surface_cross_refs(
+    tree: Guard,
+    renumbered: &[Renumber],
     out: &mut impl Write,
 ) -> Result<()> {
-    if renumbers.is_empty() {
+    if renumbered.is_empty() {
         return Ok(());
     }
     // A second observation, and it has to be: a mutation consumes its guard, and
@@ -274,14 +298,13 @@ pub fn surface_cross_refs(
     // written while it is held, so nothing renames underneath a hit it is about
     // to print — and without a second waiting diagnostic, because the wait this
     // command made was announced by the insert.
-    let tree = task_tree::reopen_write(grove_root)?;
     // The stale tokens are the *old* position-prefixed names the renumber moved
     // (`02-mid-k3`), with any `.md` extension dropped so a path reference
     // `02-mid-k3/01-impl--x-k4.md` matches the directory token. The `-k<digits>`
     // tail makes these specific enough to scan as plain substrings.
-    let stale: Vec<&str> = renumbers
+    let stale: Vec<String> = renumbered
         .iter()
-        .map(|renumber| stem(&renumber.old_name))
+        .map(|renumber| stem(&renumber.from_name()).to_string())
         .collect();
 
     let mut bodies: Vec<PathBuf> = tree
@@ -327,7 +350,7 @@ pub fn surface_cross_refs(
 /// [`Refusal::TargetNotNode`](ordinal_fs_tree::Refusal) because it needs it
 /// anyway: the charter brief is an entry with no key, so it cannot be handed to
 /// the library as a target at all.
-fn parent_node(tree: &TreeWrite, parent: &str) -> Result<Target> {
+fn parent_node(tree: &Guard, parent: &str) -> Result<Target> {
     let root = tree.root();
     match task_tree::reference(root, tree.snapshot(), parent)? {
         task_tree::Target::Root => Ok(Target::Root),
@@ -443,15 +466,6 @@ pub(crate) fn allocated(
 // ---------------------------------------------------------------------------
 // grove's own preconditions
 
-/// A new leaf's slug, refused here rather than by the grammar at render time.
-///
-/// [`Slug::new`] is the domain's own validator — the same one
-/// [`TaskName::parse`](ordinal_fs_tree::EntryName::parse) reads a filename
-/// through — so a slug this accepts is one the tree can carry and read back.
-pub(crate) fn leaf_slug(slug: &str) -> Result<Slug> {
-    Slug::new(slug).map_err(|error| anyhow::anyhow!("slug {slug:?}: {error}"))
-}
-
 /// The `finish` kind is the driver's own and no operator verb may create one.
 ///
 /// One of the two places grove names a kind at all, and it names it by asking
@@ -476,14 +490,6 @@ pub(crate) fn refuse_finish_kind(kind: &Kind, verb: &str) -> Result<()> {
 /// constructor rendering a goal sentence from a handle could.
 pub(crate) fn task_template_body(handle: &Handle) -> String {
     format!("# {handle}\n\n\n## Goal\n\n\n\n## Context\n\n## Done when\n\n## Notes\n")
-}
-
-/// The path's final component as an owned `String`.
-fn file_name(path: &Path) -> Result<String> {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .map(ToString::to_string)
-        .with_context(|| format!("path {} has no filename", path.display()))
 }
 
 /// Drop a trailing `.md` from a name so a directory-token reference matches; a

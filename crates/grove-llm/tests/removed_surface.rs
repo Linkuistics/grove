@@ -151,8 +151,11 @@ struct Occurrence {
     line: usize,
 }
 
+/// The repository root. It was `CARGO_MANIFEST_DIR` while every test lived in
+/// one package; `loop-crate-verbs-k21` split them across two, so the marker is
+/// the workspace manifest rather than whichever package compiled this file.
 fn manifest_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    support::repo_root()
 }
 
 /// This file's own path, relative to the manifest directory. The table lists
@@ -470,7 +473,7 @@ fn the_agent_command_surface_exposes_no_removed_verb_or_harness_selector() {
     let mut verbs = Vec::new();
     let mut arguments = Vec::new();
     walk(
-        &grove::llm_cli::Cli::command(),
+        &grove_llm::cli::Cli::command(),
         "grove-llm",
         &mut verbs,
         &mut arguments,
@@ -702,7 +705,7 @@ impl Fixture {
     }
 
     fn run(&self, extra_env: &[(String, String)]) -> Output {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_grove"));
+        let mut command = Command::new(support::grove_bin());
         command.current_dir(&self.worktree).env("HOME", &self.home);
         // A subprocess inherits this process's *whole* ambient environment, and
         // this repo dogfoods Grove — so scrub the legacy surface first and let
@@ -970,12 +973,22 @@ fn module_occurrences(roots: &[PathBuf]) -> Vec<Occurrence> {
     out
 }
 
-/// The modules `src/` actually holds, read off disk — a `foo.rs` file or a
+/// The modules grove actually holds, read off disk — a `foo.rs` file or a
 /// `foo/` directory beside it.
+///
+/// **Read from every package grove ships**, not from one `src/`.
+/// `loop-crate-verbs-k21` moved the whole `task_*` / `tree_*` family into
+/// `crates/grove-loop`, so a walk anchored on the root package would find no
+/// live module the sweep's pattern can match — and the count control below would
+/// then be comparing zero against zero.
 fn live_modules() -> BTreeSet<String> {
-    fs::read_dir(manifest_dir().join("src"))
-        .expect("src/ must be readable")
-        .map(|entry| entry.unwrap().path())
+    source_roots()
+        .iter()
+        .flat_map(|root| {
+            fs::read_dir(root)
+                .unwrap_or_else(|error| panic!("reading {}: {error}", root.display()))
+                .map(|entry| entry.unwrap().path())
+        })
         .filter_map(|path| {
             let name = path.file_name()?.to_str()?.to_owned();
             if path.is_dir() {
@@ -986,13 +999,26 @@ fn live_modules() -> BTreeSet<String> {
         .collect()
 }
 
-/// The code roots the module sweep is responsible for: production and the suite.
-/// `docs/` and `content/` are deliberately **out**, and they are the cross-tree
-/// control below rather than an oversight — a withdrawn module is history, and
-/// history is what a changelog and a decision record are for.
+/// The `src/` of every package grove ships.
+fn source_roots() -> Vec<PathBuf> {
+    let base = manifest_dir();
+    vec![
+        base.join("src"),
+        base.join("crates/grove-llm/src"),
+        base.join("crates/grove-loop/src"),
+    ]
+}
+
+/// The code roots the module sweep is responsible for: production and the suite,
+/// across every package. `docs/` is deliberately **out**, and it is the
+/// cross-tree control below rather than an oversight — a withdrawn module is
+/// history, and history is what a changelog and a decision record are for.
 fn code_roots() -> Vec<PathBuf> {
     let base = manifest_dir();
-    ["src", "tests"].iter().map(|r| base.join(r)).collect()
+    let mut roots = source_roots();
+    roots.push(base.join("tests"));
+    roots.push(base.join("crates/grove-llm/tests"));
+    roots
 }
 
 #[test]
@@ -1030,16 +1056,26 @@ fn no_withdrawn_tree_module_is_named_anywhere_in_grove_code() {
 #[test]
 fn every_module_file_on_disk_is_declared_and_every_declaration_has_a_file() {
     let live = live_modules();
-    let text = fs::read_to_string(manifest_dir().join("src/lib.rs")).unwrap();
-    let declared: BTreeSet<String> = text
-        .lines()
-        .filter_map(|line| {
-            let rest = line.trim().strip_prefix("pub mod ").or_else(|| {
-                line.trim()
-                    .strip_prefix("pub(crate) mod ")
-                    .or_else(|| line.trim().strip_prefix("mod "))
-            })?;
-            rest.strip_suffix(';').map(str::to_owned)
+    // **Every crate root, because grove is three packages now.** The equivalence
+    // this asserts — the module files on disk are exactly the modules declared —
+    // is per crate, and `loop-crate-verbs-k21` gave grove two more of them; a
+    // check that read only the root `lib.rs` would call every module of
+    // `grove-loop` undeclared.
+    let declared: BTreeSet<String> = source_roots()
+        .iter()
+        .flat_map(|root| {
+            let text = fs::read_to_string(root.join("lib.rs"))
+                .unwrap_or_else(|error| panic!("reading {}: {error}", root.display()));
+            text.lines()
+                .filter_map(|line| {
+                    let rest = line.trim().strip_prefix("pub mod ").or_else(|| {
+                        line.trim()
+                            .strip_prefix("pub(crate) mod ")
+                            .or_else(|| line.trim().strip_prefix("mod "))
+                    })?;
+                    rest.strip_suffix(';').map(str::to_owned)
+                })
+                .collect::<Vec<_>>()
         })
         .collect();
 

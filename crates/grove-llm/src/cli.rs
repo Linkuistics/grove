@@ -7,34 +7,41 @@
 // verb the LLM might call — important for bootstrap-recovery if a session
 // drops context.
 //
-// The task-tree verbs (`pick` / `brief-chain` / `resolve` / `leaf-add` /
-// `leaf-insert` / `leaf-decompose` / `leaf-retire` / `leaf-prune` / `root-init` /
-// `finish-commit`)
-// speak the **v2 directory scheme** (task-tree-scheme). Since `sweep-k37` every
-// one of them dispatches to `task_tree` / `task_grow` / `tree_lifecycle`, all of
-// which run through `ordinal-fs-tree`: the directory-walking modules the flip
-// replaced group by group are deleted, so there is no second reader left to
-// choose between. There is no transitional dual-format reader and no migration:
-// a tree whose names this grammar does not spell is refused by `TaskNameError`,
-// which already names what is on disk and what it should be
-// (`delete-migration-k6`).
+// # This crate is thin, and the compiler is what holds it thin
+//
+// Every verb below is one `grove_loop::verbs::` call plus rendering. Nothing
+// here walks a tree, spells a filename or decides what a kind is: those live in
+// a **different crate** since `loop-crate-verbs-k21`, so *the binary is thin*
+// stopped being a discipline held by review the moment `grove-llm` stopped being
+// a `[[bin]]` target inside the library it drives
+// (`docs/specs/module-decomposition.md`, decision 1).
+//
+// What is left here that is not rendering is the **order** three verbs depend
+// on, and each is stated where it happens: read the operator's text with the
+// type that owns it *before* taking a lock, ask the just-in-time presence rule
+// *before* the mutation, and admit the session against the completion channel
+// *before* writing to it.
 
-use crate::complete;
-use crate::driver_lease;
-use crate::session_config::SessionConfig;
-use crate::task_grow;
-use crate::task_name::Kind;
-use crate::task_tree;
-use crate::tree_lifecycle;
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use grove::driver_lease;
+use grove::session_config::SessionConfig;
+use grove_loop::verbs::{self, Resolution, Signalled};
+use grove_loop::{
+    Handle, Kind, Outcome, Reading, Reference, Slug, Sought, Tree, TreeWrite, Writing,
+};
 use jj_workspace::Workspace;
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
 #[command(
     name = "grove-llm",
-    version,
+    // **grove's version, not this package's.** One workspace, one release
+    // version: `crates/grove-llm` carries a `0.1.0` that names nothing an
+    // operator can install, and `grove --version` and `grove-llm --version` have
+    // to agree because a skew between them is exactly what an operator reaches
+    // for them to diagnose.
+    version = grove::VERSION,
     arg_required_else_help = true,
     about = "Grove: LLM-driven verbs for mid-session use",
     long_about = "Verbs the LLM driving a grove session invokes deterministically. \
@@ -429,99 +436,144 @@ pub fn run() -> Result<()> {
 }
 
 fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
-    let (worktree, _) = grove_paths()?;
-    tree_lifecycle::finish_commit(&worktree, finish_handle)
+    let worktree = worktree()?;
+    // The argument arrives as text from a session's command line, so it is read
+    // by the type that owns the grammar rather than compared as a string: a
+    // handle that is not one is told *why*, and only a well-formed handle
+    // reaches the verb.
+    //
+    // **The operator's own spelling is quoted here, and nowhere deeper.**
+    // `Handle::parse` is deliberately lenient on the key — `finish-k0001` is the
+    // live `finish-k1` and is accepted, which is right, since the operator meant
+    // that leaf — so everything past this point speaks in canonical handles. A
+    // refusal that only showed those would be answering a question the operator
+    // did not ask, and this is the last frame that still has what they typed.
+    let finish = Handle::parse(finish_handle)?;
+    let workspace = Workspace::resolve(&worktree).context("cannot commit the finished grove")?;
+    let commit = verbs::finish_commit(&workspace, &finish)
+        .with_context(|| format!("`grove-llm finish-commit {finish_handle}`"))?;
+    eprintln!("finish-commit {finish}: committed as {}", commit.change_id);
+    Ok(())
 }
 
 fn cmd_complete(
     args: &CompleteArgs,
     session_epoch: Option<&driver_lease::SessionEpochGuard>,
 ) -> Result<()> {
-    let disposition = if args.done {
-        complete::Disposition::Done
-    } else {
-        complete::Disposition::Relaunch
-    };
-    let opts = complete::resolve_opts(args.signal_file.clone(), disposition);
+    // **Asked before the write, which is why the channel is resolved here.** The
+    // lease admits this session against the channel it is about to signal, and
+    // an answer that came back with the signal would come back too late.
+    let channel = verbs::signal_channel(args.signal_file.as_deref());
     if let Some(session_epoch) = session_epoch {
-        session_epoch.require_signal_path(opts.signal_file.as_deref())?;
+        session_epoch.require_signal_path(channel.as_deref())?;
     }
-    complete::signal_complete(&opts)
-}
-
-fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
-    let (worktree, _) = grove_paths()?;
-    require_declared(&worktree, &[Kind::requirements()])?;
-    let paths = tree_lifecycle::root_init(&worktree, &args.slug)?;
-    for p in &paths {
-        println!("{}", p.display());
-    }
-    Ok(())
-}
-
-fn cmd_pick() -> Result<()> {
-    let (worktree, grove_root) = grove_paths()?;
-    match task_tree::pick(&grove_root)? {
-        Some(p) => {
-            println!("{}", p.display());
+    match verbs::complete(channel.as_deref(), args.done)? {
+        Signalled::Wrote(_) => {
+            let tail = if args.done {
+                "the grove is finished — the loop will stop"
+            } else {
+                "the loop will start the next task"
+            };
+            eprintln!("grove complete: signalled; {tail}.");
         }
-        None => {
-            eprintln!(
-                "grove {}: no live leaves; this grove is done",
-                label(&worktree)
-            );
-        }
-    }
-    Ok(())
-}
-
-fn cmd_brief_chain(leaf_path: Option<&Path>) -> Result<()> {
-    let (worktree, grove_root) = grove_paths()?;
-    let Some(chain) = brief_chain_for(&grove_root, leaf_path)? else {
-        eprintln!(
-            "grove {}: no live leaves; this grove is done",
-            label(&worktree)
-        );
-        return Ok(());
-    };
-    for p in &chain {
-        println!("{}", p.display());
-    }
-    Ok(())
-}
-
-fn brief_chain_for(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Vec<PathBuf>>> {
-    let tree = task_tree::read(grove_root)?;
-    let leaf = match leaf_path {
-        Some(path) => normalize_leaf_path(path),
-        None => match task_tree::pick_in(&tree)? {
-            Some(path) => path,
-            None => return Ok(None),
-        },
-    };
-    task_tree::brief_chain(&tree, &leaf).map(Some)
-}
-
-fn cmd_kind(leaf_path: Option<&Path>) -> Result<()> {
-    let (worktree, grove_root) = grove_paths()?;
-    // Normalize a cwd-relative path to what `task_tree::kind` accepts (absolute
-    // or grove-root-relative), matching `cmd_brief_chain`'s handling; a `None`
-    // stays `None` so the verb defaults to `pick`'s next live leaf.
-    let leaf = leaf_path.map(normalize_leaf_path);
-    match task_tree::kind(&grove_root, leaf.as_deref())? {
-        Some(kind) => println!("{}", kind.label()),
-        None => eprintln!(
-            "grove {}: no live leaves; this grove is done",
-            label(&worktree)
+        Signalled::NoLoop => eprintln!(
+            "grove complete: no GROVE_SIGNAL_FILE — not running under the loop driver; \
+             exit this session manually."
         ),
     }
     Ok(())
 }
 
+fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
+    let worktree = worktree()?;
+    // Read before the lock: refusing a bad slug without taking an exclusive one
+    // is strictly kinder, and the kind's presence rule is asked before anything
+    // is written.
+    let slug = slug(&args.slug)?;
+    let kind = Kind::requirements();
+    require_declared(&worktree, std::slice::from_ref(&kind))?;
+    // The refusal to clobber is the **shape** rather than a check: a live grove
+    // opens as a tree, and `root-init` takes a vacancy.
+    //
+    // `match` rather than `let … else`, and the reason is not style. A `let …
+    // else` binding drops the unmatched value at the end of the whole statement
+    // — *after* the `else` block — so the live `TreeWrite` would still be
+    // holding the exclusive lock while that block ran, and a later improvement
+    // to this message that read the tree to name the live leaf would deadlock
+    // against this process. `match` drops it on entry to the arm.
+    let vacancy = match grove_loop::write(&worktree)? {
+        Writing::Vacancy(vacancy) => vacancy,
+        Writing::Tree(_) => bail!(
+            "grove root already exists: {}",
+            worktree.join(".grove").display()
+        ),
+    };
+    let initialized = verbs::root_init(vacancy, &slug, &kind)?;
+    println!("{}", initialized.brief.display());
+    println!("{}", initialized.first_leaf.display());
+    Ok(())
+}
+
+fn cmd_pick() -> Result<()> {
+    let worktree = worktree()?;
+    let tree = readable(&worktree)?;
+    match verbs::pick(&tree)? {
+        Sought::Match(selection) => println!("{}", selection.path.display()),
+        Sought::Nothing => no_live_leaves(&worktree),
+    }
+    Ok(())
+}
+
+fn cmd_brief_chain(leaf_path: Option<&Path>) -> Result<()> {
+    let worktree = worktree()?;
+    let tree = readable(&worktree)?;
+    let Some(leaf) = leaf_in(&tree, leaf_path)? else {
+        no_live_leaves(&worktree);
+        return Ok(());
+    };
+    for path in verbs::brief_chain(&tree, &leaf)? {
+        println!("{}", path.display());
+    }
+    Ok(())
+}
+
+fn cmd_kind(leaf_path: Option<&Path>) -> Result<()> {
+    let worktree = worktree()?;
+    let tree = readable(&worktree)?;
+    // Normalize a cwd-relative path to what the verb accepts (absolute or
+    // grove-root-relative); a `None` stays `None` so the verb defaults to
+    // `pick`'s next live leaf.
+    let leaf = leaf_path.map(normalize_leaf_path);
+    match verbs::kind(&tree, leaf.as_deref())? {
+        Sought::Match(kind) => println!("{}", kind.label()),
+        Sought::Nothing => no_live_leaves(&worktree),
+    }
+    Ok(())
+}
+
+/// The leaf a read verb acts on: the one named, or `pick`'s next.
+fn leaf_in(tree: &Tree, leaf_path: Option<&Path>) -> Result<Option<PathBuf>> {
+    Ok(match leaf_path {
+        Some(path) => Some(normalize_leaf_path(path)),
+        None => match verbs::pick(tree)? {
+            Sought::Match(selection) => Some(selection.path),
+            Sought::Nothing => None,
+        },
+    })
+}
+
 fn cmd_resolve(reference: &str) -> Result<()> {
-    let (_, grove_root) = grove_paths()?;
-    let resolution = task_tree::resolve(&grove_root, reference)?;
-    let (stdout, stderr) = task_tree::render_resolution(reference, &resolution);
+    let worktree = worktree()?;
+    let parsed = Reference::parse(reference)?;
+    let resolution = verbs::resolve(&readable(&worktree)?, &parsed)?;
+    // **The root is the one answer with no entry behind it**, so its path is the
+    // one thing rendering cannot supply: it is the caller's own spelling of the
+    // tree, not something read out of it.
+    if matches!(resolution, Sought::Match(Resolution::Root)) {
+        println!("{}", worktree.join(".grove").display());
+        return Ok(());
+    }
+    let (stdout, stderr) = render_resolution(reference, &resolution);
     // `resolve` is pick-style: a not-found / ambiguous reference is reported on
     // stderr and still exits zero (it is information, not an error).
     print!("{stdout}");
@@ -529,16 +581,74 @@ fn cmd_resolve(reference: &str) -> Result<()> {
     Ok(())
 }
 
+/// Render a resolution to the `(stdout, stderr)` the `resolve` verb emits.
+///
+/// Kept pure and separate from the I/O so the exact contract is unit-testable
+/// without going through the CLI dispatch. It lives here rather than in
+/// `grove-loop` because it is presentation and nothing else — the loop crate
+/// answers what a reference names, and what a terminal should see about it is
+/// this binary's alone.
+#[must_use]
+pub fn render_resolution(reference: &str, resolution: &Sought<Resolution>) -> (String, String) {
+    match resolution {
+        // Unreachable through `resolve`, which answers the root before it gets
+        // here: the root's path is the caller's own spelling of the tree, and
+        // nothing in a resolution carries it.
+        Sought::Match(Resolution::Root) => (String::new(), String::new()),
+        Sought::Match(Resolution::Entry(entry)) => {
+            let stdout = format!("{}\n", entry.path.display());
+            let stderr = match entry.outcome {
+                Outcome::Live => String::new(),
+                Outcome::Done => format!(
+                    "note: referenced task is retired (DONE): {}\n",
+                    entry.path.display()
+                ),
+                // The abandoned counterpart of the DONE note above: `resolve`
+                // must not let a pruned dead end look live.
+                Outcome::Abandoned => format!(
+                    "note: referenced task is abandoned (ABANDONED): {}\n",
+                    entry.path.display()
+                ),
+            };
+            (stdout, stderr)
+        }
+        Sought::Nothing => (
+            String::new(),
+            format!("resolve: no entry matches reference {reference:?}\n"),
+        ),
+        Sought::Match(Resolution::Ambiguous(matches)) => {
+            let mut stderr =
+                format!("resolve: reference {reference:?} is ambiguous; re-query by key:\n");
+            for matched in matches {
+                let tag = match matched.outcome {
+                    Outcome::Live => "",
+                    Outcome::Done => " (retired)",
+                    Outcome::Abandoned => " (abandoned)",
+                };
+                stderr.push_str(&format!(
+                    "  [{}] {}{}\n",
+                    matched.handle.key(),
+                    matched.path.display(),
+                    tag
+                ));
+            }
+            (String::new(), stderr)
+        }
+    }
+}
+
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
-    let (worktree, grove_root) = grove_paths()?;
+    let worktree = worktree()?;
     let kinds = args
         .kind
         .iter()
         .map(|token| parse_kind(token))
         .collect::<Result<Vec<_>>>()?;
+    let slug = slug(&args.slug)?;
+    let parent = Reference::parse(&args.parent)?;
     require_declared(&worktree, &kinds)?;
-    let paths = task_grow::leaf_add(&grove_root, &args.parent, &args.slug, &kinds)?;
-    print_paths(&paths);
+    let tree = writable(&worktree)?;
+    print_paths(&verbs::leaf_add(&tree, &parent, &slug, &kinds)?);
     Ok(())
 }
 
@@ -553,48 +663,59 @@ fn print_paths(paths: &[PathBuf]) {
 }
 
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
-    let (worktree, grove_root) = grove_paths()?;
+    let worktree = worktree()?;
     let kind = parse_kind(&args.kind)?;
+    let slug = slug(&args.slug)?;
+    let target = Reference::parse(&args.target)?;
     require_declared(&worktree, std::slice::from_ref(&kind))?;
-    let inserted = task_grow::leaf_insert(&grove_root, &args.target, &args.slug, kind)?;
-    report_insert(&grove_root, &args.slug, &inserted)
+    let tree = writable(&worktree)?;
+    let inserted = verbs::leaf_insert(&tree, &target, &slug, &kind)?;
+    report_insert(&tree, &args.slug, &inserted)
 }
 
 /// `leaf-insert`'s output: the new leaf's path on stdout, the renumber summary
 /// and the cross-reference lint on stderr.
 ///
 /// Keep the established CLI stream semantics: the standard print macros panic on
-/// a broken stdout/stderr, while cross-reference scanning remains the only
-/// fallible output operation returned as an error.
-fn report_insert(grove_root: &Path, slug: &str, inserted: &task_grow::Inserted) -> Result<()> {
+/// a broken stdout/stderr, while the cross-reference lint is the one output that
+/// is allowed to come back empty — its own failures are the tree's, never the
+/// sink's, because the insert has already landed by the time it runs.
+fn report_insert(tree: &TreeWrite, slug: &str, inserted: &verbs::Inserted) -> Result<()> {
     println!("{}", inserted.path.display());
-    let renumbers = &inserted.renumbers;
-    if renumbers.is_empty() {
+    let renumbered = &inserted.renumbered;
+    if renumbered.is_empty() {
         eprintln!("leaf-insert {slug}: no siblings to renumber");
         return Ok(());
     }
     eprintln!(
         "leaf-insert {}: renumbered {} sibling{}:",
         slug,
-        renumbers.len(),
-        if renumbers.len() == 1 { "" } else { "s" }
+        renumbered.len(),
+        if renumbered.len() == 1 { "" } else { "s" }
     );
-    for renumber in renumbers {
+    for renumber in renumbered {
         eprintln!(
             "  {:02} -> {:02}  ({})",
-            renumber.old_position, renumber.new_position, renumber.new_name
+            renumber.from_position,
+            renumber.to_position,
+            renumber.to_name()
         );
     }
     eprintln!("cross-references to review (verb does not auto-rewrite):");
-    task_grow::surface_cross_refs(grove_root, renumbers, &mut std::io::stderr())
+    Ok(verbs::surface_cross_refs(
+        tree,
+        renumbered,
+        &mut std::io::stderr(),
+    )?)
 }
 
 fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
-    let (worktree, grove_root) = grove_paths()?;
+    let worktree = worktree()?;
     // `None` (the default) inherits the decomposed leaf's own kind; `--kind`
     // overrides it (task-kind-taxonomy).
     let kind_override = args.kind.as_deref().map(parse_kind).transpose()?;
     let leaf_path = normalize_leaf_path(&args.leaf_path);
+    let first_child = slug(&args.first_child_slug)?;
     // The first child's kind, resolved *before* the mutation so the presence
     // rule can be asked about the kind this call will actually write. With no
     // `--kind` that is the decomposed leaf's own, read off its filename — the
@@ -605,24 +726,37 @@ fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
     // brief, a retired leaf and a malformed name with its own message, and a
     // presence check that errored first would replace those refusals with a
     // complaint about configuration.
+    //
+    // **This read happens before the tree is opened for writing, and the order
+    // is load-bearing.** Both take a lock on the same directory through their
+    // own file description, and two descriptions do not share an `flock` — so
+    // reading the inherited kind while holding the write opening would block
+    // this process against itself, forever. `writable` is therefore the last
+    // thing before the verb, here and at every other call site.
     let child_kind = match &kind_override {
         Some(kind) => Some(kind.clone()),
-        None => task_tree::kind(&grove_root, Some(&leaf_path))
-            .ok()
-            .flatten(),
+        None => inherited_kind(&worktree, &leaf_path),
     };
     if let Some(kind) = &child_kind {
         require_declared(&worktree, std::slice::from_ref(kind))?;
     }
-    let (brief_path, child_path) = tree_lifecycle::leaf_decompose(
-        &grove_root,
-        &leaf_path,
-        &args.first_child_slug,
-        kind_override,
-    )?;
-    println!("{}", brief_path.display());
-    println!("{}", child_path.display());
+    let tree = writable(&worktree)?;
+    let decomposed =
+        verbs::leaf_decompose(&tree, &leaf_path, &first_child, kind_override.as_ref())?;
+    println!("{}", decomposed.brief.display());
+    println!("{}", decomposed.first_child.display());
     Ok(())
+}
+
+/// The kind a `leaf-decompose` with no `--kind` will write, or nothing readable.
+fn inherited_kind(worktree: &Path, leaf_path: &Path) -> Option<Kind> {
+    let Ok(Reading::Tree(tree)) = grove_loop::read(worktree) else {
+        return None;
+    };
+    match verbs::kind(&tree, Some(leaf_path)) {
+        Ok(Sought::Match(kind)) => Some(kind),
+        _ => None,
+    }
 }
 
 // The two steps that always follow a terminal mark: the commit that carries it,
@@ -644,18 +778,20 @@ fn eprint_next_steps(verb: &str, marked: usize) {
 }
 
 fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
-    let (_, grove_root) = grove_paths()?;
+    let worktree = worktree()?;
     let leaf_path = normalize_leaf_path(&args.leaf_path);
-    let dst = tree_lifecycle::leaf_retire(&grove_root, &leaf_path)?;
+    let tree = writable(&worktree)?;
+    let dst = verbs::leaf_retire(&tree, &leaf_path)?;
     println!("{}", dst.display());
     eprint_next_steps("leaf-retire", 1);
     Ok(())
 }
 
 fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
-    let (_, grove_root) = grove_paths()?;
+    let worktree = worktree()?;
     let path = normalize_leaf_path(&args.path);
-    let result = tree_lifecycle::leaf_prune(&grove_root, &path)?;
+    let tree = writable(&worktree)?;
+    let result = verbs::leaf_prune(&tree, &path)?;
     for p in &result.marked {
         println!("{}", p.display());
     }
@@ -691,11 +827,12 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
 /// no enumeration to make it from — so the only honest question is about the
 /// kind in hand.
 ///
-/// It runs **before** the mutation, so a refusal leaves the tree byte-identical
-/// — and it loads the whole configuration to ask, which is what keeps the other
-/// half of the amendment true: every template rule in both documents is still
-/// checked eagerly, and a malformed entry for a kind this call will never touch
-/// still fails here.
+/// It runs **before** the tree is opened, so a refusal leaves the tree
+/// byte-identical and takes no exclusive lock on the way — and it loads the
+/// whole configuration to ask, which is what keeps the other half of the
+/// amendment true: every template rule in both documents is still checked
+/// eagerly, and a malformed entry for a kind this call will never touch still
+/// fails here.
 fn require_declared(worktree: &Path, kinds: &[Kind]) -> Result<()> {
     let config = SessionConfig::load_for_worktree(worktree)?;
     for kind in kinds {
@@ -709,24 +846,62 @@ fn require_declared(worktree: &Path, kinds: &[Kind]) -> Result<()> {
     Ok(())
 }
 
-// Resolve `(worktree, grove_root)` from the cwd. The task-tree verbs run from
-// the worktree root (not from inside `.grove/`), so the grove root is always
-// `<worktree>/.grove`, matched across every verb so a leaf is never created or
-// read one level off.
-fn grove_paths() -> Result<(PathBuf, PathBuf)> {
-    let cwd = std::env::current_dir().context("getting cwd")?;
-    let worktree = Workspace::resolve(&cwd)?.root().to_path_buf();
-    let grove_root = worktree.join(".grove");
-    Ok((worktree, grove_root))
+/// A slug argument, as the grammar's own type.
+///
+/// One type owns the name (principle 3), so the text is read here — where an
+/// operator typed it — and every verb below takes the validated [`Slug`].
+fn slug(text: &str) -> Result<Slug> {
+    Slug::new(text).map_err(|error| anyhow::anyhow!("slug {text:?}: {error}"))
 }
 
-// Normalize a user-supplied leaf path to what the v2 modules accept (absolute, or
+// Resolve the worktree from the cwd. The task-tree verbs run from the worktree
+// root (not from inside `.grove/`), and `grove-loop` joins `.grove` itself, so
+// no caller here can spell the grove root a second way.
+fn worktree() -> Result<PathBuf> {
+    let cwd = std::env::current_dir().context("getting cwd")?;
+    Ok(Workspace::resolve(&cwd)?.root().to_path_buf())
+}
+
+/// The shared opening a read verb needs, refusing a worktree with no grove.
+///
+/// **A grove that is not there is not a grove that is finished**, and every verb
+/// here refuses rather than conflating them: a session run one directory off
+/// would otherwise be told its work was done. [`grove_loop::read`] answers the
+/// vacancy because the *driver* scaffolds one; a session cannot, so this is
+/// where the two callers part.
+fn readable(worktree: &Path) -> Result<Tree> {
+    match grove_loop::read(worktree)? {
+        Reading::Tree(tree) => Ok(tree),
+        Reading::Vacant => Err(absent(&worktree.join(".grove"))),
+    }
+}
+
+/// The exclusive opening a mutating verb needs, refusing a worktree with no
+/// grove.
+fn writable(worktree: &Path) -> Result<TreeWrite> {
+    match grove_loop::write(worktree)? {
+        Writing::Tree(tree) => Ok(tree),
+        Writing::Vacancy(vacancy) => Err(absent(vacancy.root())),
+    }
+}
+
+/// The refusal for a worktree that holds no grove — one wording, and it carries
+/// the remedy, because an error that only reports detection is unfinished
+/// (principle 2).
+fn absent(grove_root: &Path) -> anyhow::Error {
+    anyhow::anyhow!(
+        "grove root not found: {}\n\nScaffold one with `grove-llm root-init`.",
+        grove_root.display()
+    )
+}
+
+// Normalize a user-supplied leaf path to what the verbs accept (absolute, or
 // relative to the grove root). The real driving flow passes back the **absolute**
 // path `pick`/`brief-chain` printed — handled by the absolute branch. A path given
 // relative to the cwd that exists (e.g. `.grove/01-foo-k1.md` typed at the
 // worktree root) is resolved to absolute here; a bare grove-root-relative name
 // (`01-foo-k1.md`) does not exist relative to cwd, so it passes through for the
-// module to join onto the grove root.
+// verb to join onto the grove root.
 fn normalize_leaf_path(p: &Path) -> PathBuf {
     if p.is_absolute() {
         return p.to_path_buf();
@@ -753,128 +928,11 @@ fn label(worktree: &Path) -> String {
         .unwrap_or_else(|| worktree.display().to_string())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// A [`Kind`] for a test that needs one, by its label.
-    ///
-    /// A kind is an **open token** since `open-kind-k20`, so a test names the token
-    /// it means rather than a variant, and an invalid one is a test bug that panics
-    /// here rather than a compile error somewhere else.
-    fn a_kind(label: &str) -> Kind {
-        Kind::new(label).expect("a test kind must be well-formed")
-    }
-    use std::fs::{self, File};
-    use std::io::{self, Write};
-    use std::os::fd::AsRawFd;
-    use tempfile::TempDir;
-
-    fn grove_with_node() -> (TempDir, PathBuf) {
-        let worktree = TempDir::new().unwrap();
-        let paths = tree_lifecycle::root_init(worktree.path(), "plan").unwrap();
-        let grove_root = worktree.path().join(".grove");
-        tree_lifecycle::leaf_decompose(&grove_root, &paths[1], "first", Some(a_kind("impl")))
-            .unwrap();
-        (worktree, grove_root)
-    }
-
-    fn assert_one_acquisition(operation: impl FnOnce(&Path)) {
-        let (_worktree, grove_root) = grove_with_node();
-        crate::task_tree::reset_read_count();
-
-        operation(&grove_root);
-
-        // **One counter, where there used to be two summed.** Grove holds no
-        // guard of its own since `collapse-tree-access-k13`, so every
-        // observation of the tree is the store's and `task_tree` counts all of
-        // them. The property is unchanged: one CLI command reads the tree once,
-        // so a verb that selected a leaf and then re-read the tree to act on it
-        // could not slip through.
-        assert_eq!(
-            crate::task_tree::read_count(),
-            1,
-            "one CLI command must observe the tree exactly once"
-        );
-    }
-
-    #[test]
-    fn reference_taking_commands_acquire_the_tree_lock_once() {
-        assert_one_acquisition(|grove_root| {
-            task_grow::leaf_add(grove_root, "1", "later", &[a_kind("impl")]).unwrap();
-        });
-        assert_one_acquisition(|grove_root| {
-            task_grow::leaf_add(
-                grove_root,
-                "1",
-                "survey",
-                &[
-                    a_kind("research-a"),
-                    a_kind("research-b"),
-                    a_kind("combine-research"),
-                ],
-            )
-            .unwrap();
-        });
-        assert_one_acquisition(|grove_root| {
-            brief_chain_for(grove_root, None).unwrap().unwrap();
-        });
-    }
-
-    struct ExclusiveLockAssertingWriter {
-        worktree: PathBuf,
-        bytes: Vec<u8>,
-    }
-
-    impl Write for ExclusiveLockAssertingWriter {
-        fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
-            let directory = File::open(&self.worktree)?;
-            let result =
-                unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
-            assert_ne!(
-                result, 0,
-                "cross-reference output was written after leaf-insert released its exclusive lock"
-            );
-            self.bytes.extend_from_slice(buffer);
-            Ok(buffer.len())
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
-    #[test]
-    fn leaf_insert_lints_cross_references_under_an_exclusive_lock_of_its_own() {
-        // **Two observations, and the second is the lint's.** A mutation consumes
-        // its guard, so the tree the shift *left* — which is the tree a stale
-        // reference has to be read out of, since a shifted node took its whole
-        // subtree's paths with it — can only be seen through a second guard. What
-        // the property was ever about is that the output is written while the tree
-        // is **held**: a hit printed after the lock went would name a path anything
-        // else could already have renamed.
-        let (worktree, grove_root) = grove_with_node();
-        let brief = grove_root.join("01-plan-k1").join("BRIEF.md");
-        let body = fs::read_to_string(&brief).unwrap() + "stale path: 01-impl--first-k2\n";
-        fs::write(&brief, body).unwrap();
-        let mut output = ExclusiveLockAssertingWriter {
-            worktree: worktree.path().to_path_buf(),
-            bytes: Vec::new(),
-        };
-        crate::task_tree::reset_read_count();
-
-        let inserted = task_grow::leaf_insert(&grove_root, "2", "earlier", a_kind("impl")).unwrap();
-        task_grow::surface_cross_refs(&grove_root, &inserted.renumbers, &mut output).unwrap();
-
-        assert!(
-            String::from_utf8_lossy(&output.bytes).contains("BRIEF.md:"),
-            "fixture must exercise a cross-reference hit: {}",
-            String::from_utf8_lossy(&output.bytes)
-        );
-        assert_eq!(
-            crate::task_tree::read_count(),
-            2,
-            "the insert, then the lint's own guard over the tree it left"
-        );
-    }
+/// The one diagnostic every read verb shares, printed once here rather than
+/// spelled four times.
+fn no_live_leaves(worktree: &Path) {
+    eprintln!(
+        "grove {}: no live leaves; this grove is done",
+        label(worktree)
+    );
 }

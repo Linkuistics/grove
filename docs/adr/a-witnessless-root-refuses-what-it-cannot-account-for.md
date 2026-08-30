@@ -18,7 +18,8 @@ makes it fail closed:
 3. **`Unrecognised`** — the root holds names Grove disclaims, and nothing else.
    Refused, mutating nothing.
 
-`tree_lifecycle::root_shape` ([`src/tree_lifecycle.rs`](../../src/tree_lifecycle.rs))
+`tree_lifecycle::root_shape`
+([`crates/grove-loop/src/tree_lifecycle.rs`](../../crates/grove-loop/src/tree_lifecycle.rs))
 is that test.
 
 ## What the witness's removal changed, and what it did not

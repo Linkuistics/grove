@@ -1,0 +1,50 @@
+[package]
+name = "grove-loop"
+version = "0.1.0"
+edition = "2021"
+description = "Grove's loop: the task tree in grove's vocabulary, and the verbs a session invokes over it"
+license = "Apache-2.0"
+repository = "https://github.com/Linkuistics/grove"
+# Inherited from the workspace root, whose comment carries the evidence: the
+# locked dependency graph cannot be parsed by a cargo below 1.85.
+rust-version = "1.85"
+
+# **This crate is the one that is allowed to be domain-bound.** The other three
+# library crates say nothing about grove; this one is grove — kind, handle, brief
+# chain, outcome, finishing — and `docs/specs/module-decomposition.md`, decision
+# 1, marks it *not domain-free* for exactly that reason.
+#
+# Its dependencies are the three modules it composes plus `anyhow` and `libc`.
+# `anyhow` is **internal only**: every public entry point answers this crate's
+# own opaque [`Error`], so a consumer takes on no error library of ours — the
+# same rule `crates/jj-workspace`, `crates/keyed-launch` and
+# `crates/ordinal-fs-tree` state for theirs. `libc` is the lock-contention probe
+# in `task_tree`, which needs `flock(2)` non-blocking before it announces a wait.
+# `keyed-launch` is the runner, reached by exactly one verb: `complete` writes
+# the relaunch flag into the channel the driver allocated, through the runner's
+# own child-side half of it.
+[dependencies]
+anyhow = "1.0"
+jj-workspace = { path = "../jj-workspace" }
+keyed-launch = { path = "../keyed-launch" }
+libc = "0.2"
+# The extracted tree library (gh issue #13). `default-features = false` turns off
+# its `cli` feature, which exists for its own `syllabus` binary and pulls in
+# `clap`: with it off, the dependency set this crate *imposes* is exactly `libc`,
+# which is already taken above. That claim is the point of the line rather than a
+# note beside it, so `tests/library_dependency.rs` holds it against `cargo
+# metadata` — the crate's own manifest says the set is `libc`, and nothing but a
+# test says the consumer asked for that set.
+ordinal-fs-tree = { path = "../ordinal-fs-tree", default-features = false }
+
+[dev-dependencies]
+tempfile = "3.10"
+
+[lints]
+workspace = true
+
+# `cargo release` drives the workspace, and `release.toml` configures a cut of
+# *grove*. Excluding this member keeps that cut what it was before this crate
+# existed, exactly as the other three members do.
+[package.metadata.release]
+release = false

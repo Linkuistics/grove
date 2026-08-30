@@ -105,44 +105,44 @@ fn the_cli_feature_is_what_the_flag_turns_off() {
     );
 }
 
-/// grove's half: the dependency line actually asks for that set.
+/// grove's half: **every** dependency line in this workspace actually asks for
+/// that set.
 ///
-/// Read out of the manifest through `cargo metadata --no-deps`, which reports
+/// Enumerated rather than named, and `loop-crate-verbs-k21` is why: the consumer
+/// used to be the `grove` package and is now `grove-loop`, so a test naming one
+/// package would have gone on passing against a manifest that no longer took the
+/// dependency at all. One package taking the defaults puts `clap` back in the
+/// imposed set for everybody, so the claim is over all of them.
+///
+/// Read out of the manifests through `cargo metadata --no-deps`, which reports
 /// each declared dependency's `uses_default_features` — the resolved feature
 /// graph cannot answer this, because the workspace unifies grove's own `clap`
 /// into it either way.
 #[test]
-fn grove_takes_the_library_with_default_features_off() {
+fn every_consumer_takes_the_library_with_default_features_off() {
     let metadata = cargo(&["metadata", "--format-version", "1", "--no-deps"]);
-    let grove = package(&metadata, "grove");
-    let dependency = grove
-        .split("{\"name\":\"")
-        .find(|chunk| chunk.starts_with("ordinal-fs-tree\""))
-        .expect("grove declares a dependency on ordinal-fs-tree");
-    let dependency = &dependency[..dependency.find('}').expect("the dependency object ends")];
+    let mut consumers = Vec::new();
+    for chunk in metadata.split("{\"name\":\"ordinal-fs-tree\"").skip(1) {
+        // A **dependency** object names its source next; the library's own
+        // `packages` entry names its version. Told apart by that rather than by
+        // looking for `uses_default_features`, which appears inside the package
+        // entry too — on the `clap` dependency nested in it.
+        if !chunk.starts_with(",\"source\"") {
+            continue;
+        }
+        let dependency = &chunk[..chunk.find('}').expect("the dependency object ends")];
+        consumers.push(dependency.to_string());
+    }
     assert!(
-        dependency.contains("\"uses_default_features\":false"),
-        "grove's ordinal-fs-tree dependency must read `default-features = false`, so the \
-         imposed set stays `libc`: {dependency}"
+        !consumers.is_empty(),
+        "no package in this workspace declares a dependency on ordinal-fs-tree — a \
+         mis-scoped read reports a clean manifest for the wrong reason"
     );
-}
-
-/// The `packages` entry for one workspace member, as raw JSON.
-///
-/// Hand-sliced rather than deserialised: grove takes no JSON dependency at all
-/// since `delete-finish-transaction-k8` dropped `serde` and `serde_json` with
-/// the evacuation manifest, and pulling one back in to read two fields would
-/// make this file the reason it returns. The two facts wanted are flat string
-/// fields on a flat object, and the assertions above name the whole slice when
-/// they fail, so a shape change is legible rather than silent.
-fn package<'a>(metadata: &'a str, name: &str) -> &'a str {
-    let marker = format!("\"name\":\"{name}\",");
-    let start = metadata
-        .find(&marker)
-        .unwrap_or_else(|| panic!("cargo metadata names the package {name:?}"));
-    let rest = &metadata[start..];
-    let end = rest
-        .find("\"manifest_path\"")
-        .unwrap_or_else(|| panic!("the {name:?} package entry has a manifest_path"));
-    &rest[..end]
+    for dependency in &consumers {
+        assert!(
+            dependency.contains("\"uses_default_features\":false"),
+            "every ordinal-fs-tree dependency must read `default-features = false`, so the \
+             imposed set stays `libc`: {dependency}"
+        );
+    }
 }

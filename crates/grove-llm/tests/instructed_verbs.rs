@@ -14,6 +14,8 @@
 //! `plugins/grove/conformance.sh`'s, which asserts it over the same files a
 //! harness installs.
 
+mod support;
+
 use clap::CommandFactory;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -25,7 +27,7 @@ use std::path::{Path, PathBuf};
 /// too, and the claim is about what *any* session can be told. Sorted so a
 /// failure names the same file on every machine.
 fn shipped_markdown() -> Vec<(String, String)> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins/grove/skills");
+    let root = support::repo_root().join("plugins/grove/skills");
     let mut files = Vec::new();
     collect_markdown(&root, &root, &mut files);
     assert!(
@@ -225,7 +227,7 @@ const INSTRUCTED_VERBS: [&str; 10] = [
 /// nesting appears, since the scanner must learn full command paths before
 /// either side means what this test says it means.
 fn exposed_verbs() -> BTreeSet<String> {
-    grove::llm_cli::Cli::command()
+    grove_llm::cli::Cli::command()
         .get_subcommands()
         .map(|sub| sub.get_name().to_string())
         .collect()
@@ -240,7 +242,7 @@ fn exposed_verbs() -> BTreeSet<String> {
 /// it names the two ways out rather than just the fact.
 #[test]
 fn the_grove_llm_verb_surface_is_flat() {
-    let nested: Vec<String> = grove::llm_cli::Cli::command()
+    let nested: Vec<String> = grove_llm::cli::Cli::command()
         .get_subcommands()
         .filter(|sub| sub.has_subcommands())
         .map(|sub| sub.get_name().to_string())

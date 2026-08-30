@@ -30,10 +30,41 @@ fn a_kind(label: &str) -> Kind {
     Kind::new(label).expect("a test kind must be well-formed")
 }
 
+/// A [`Slug`] for a test that needs one. The verbs take the validated type since
+/// `loop-crate-verbs-k21` — one type owns the name (principle 3), so validation
+/// happens where the text is read and not once per verb.
+fn a_slug(text: &str) -> Slug {
+    Slug::new(text).expect("a test slug must be well-formed")
+}
+
+/// The exclusive guard a write verb now takes, opened from a grove root.
+///
+/// The verbs stopped opening the tree themselves at `loop-crate-verbs-k21`: the
+/// lock a verb needs is visible in its signature, and the caller holds it. Every
+/// fixture below still names a root, so this is where the two meet.
+fn guard(grove_root: &Path) -> Guard {
+    open(grove_root).expect("opening the tree for a write verb")
+}
+
+/// The same, as a `Result`, for the fixtures whose subject *is* the opening.
+fn open(grove_root: &Path) -> Result<Guard> {
+    task_tree::write(grove_root)
+}
+
 /// `leaf-add` with **one** kind, which is what most fixtures below want: the
 /// list form is the research pair's, and a one-kind list is the ordinary add.
 fn add_one(root: &Path, parent: &str, slug: &str, kind: &str) -> Result<PathBuf> {
-    leaf_add(root, parent, slug, &[a_kind(kind)]).map(|mut paths| paths.remove(0))
+    add(root, parent, slug, &[a_kind(kind)]).map(|mut paths| paths.remove(0))
+}
+
+/// `leaf-add` as its own CLI drives it: read the slug, open the tree, call the
+/// verb — **in that order**, which is what the fixtures about a refused slug and
+/// an absent root are asserting. The verb takes a validated [`Slug`] and an open
+/// guard since `loop-crate-verbs-k21`, so both refusals happen at the boundary
+/// that owns them rather than inside it.
+fn add(root: &Path, parent: &str, slug: &str, kinds: &[Kind]) -> Result<Vec<PathBuf>> {
+    let slug = Slug::new(slug).map_err(|error| anyhow::anyhow!("slug {slug:?}: {error}"))?;
+    leaf_add(open(root)?, parent, &slug, kinds)
 }
 
 /// The research pair, as `leaf-add` now spells it: three kinds in one call.
@@ -44,7 +75,7 @@ fn add_one(root: &Path, parent: &str, slug: &str, kind: &str) -> Result<PathBuf>
 /// generalising the verb had to preserve (`open-kind-k20`). The three tokens are
 /// the *methodology's*, spelled here in a test rather than in the machinery.
 fn add_pair(root: &Path, parent: &str, stem: &str) -> Result<Vec<PathBuf>> {
-    leaf_add(
+    add(
         root,
         parent,
         stem,
@@ -343,7 +374,7 @@ fn every_grow_verb_writes_a_handle_that_matches_its_own_filename() {
 
     add_one(&g, ".", "added", "impl").unwrap();
     add_pair(&g, at(&node), "surveyed").unwrap();
-    leaf_insert(&g, "2", "inserted", a_kind("impl")).unwrap();
+    leaf_insert(guard(&g), "2", &a_slug("inserted"), &a_kind("impl")).unwrap();
 
     let mut checked = 0;
     for directory in [&g, &node] {
@@ -486,10 +517,10 @@ fn an_integration_cut_with_insert_lands_beside_the_review_it_integrates() {
     let unrelated = add_one(&g, ".", "unrelated", "impl").unwrap();
 
     let inserted = leaf_insert(
-        &g,
+        guard(&g),
         at(&unrelated),
-        "sync",
-        a_kind("integrate-review-design"),
+        &a_slug("sync"),
+        &a_kind("integrate-review-design"),
     )
     .unwrap();
 
@@ -510,7 +541,7 @@ fn an_integration_cut_with_insert_lands_beside_the_review_it_integrates() {
         "and the unrelated leaf shifts down, keeping its own key"
     );
     assert_eq!(
-        inserted.renumbers.len(),
+        inserted.renumbered.len(),
         1,
         "only the displaced sibling moved"
     );
@@ -552,26 +583,37 @@ fn add_errors_when_grove_root_absent() {
     );
 }
 
+/// The driver's own kind, refused at the verb's boundary before anything is
+/// planned — the counterpart of [`insert_rejects_finish`], and its header
+/// carries why the *before inspecting the tree* phrasing went.
 #[test]
-fn add_rejects_finish_before_inspecting_the_tree() {
-    // The driver's own kind, refused at the verb's boundary — no tree is read,
-    // so a missing grove root is not what the operator hears about.
+fn add_rejects_finish() {
     let (_t, g) = grove();
-    let missing = g.join("nope");
-    let err = add_one(&missing, ".", "x", "finish")
-        .unwrap_err()
-        .to_string();
+    touch(&g, "BRIEF.md", "root — brief");
+    let err = add_one(&g, ".", "x", "finish").unwrap_err().to_string();
     assert!(err.contains("driver-reserved"), "got {err}");
+    assert_eq!(list(&g), vec!["BRIEF.md"], "nothing was created");
 }
 
+/// The driver's own kind is refused whatever the tree holds — here, before the
+/// target `1` is even looked for.
+///
+/// It used to be phrased *before inspecting the tree*, against a missing root.
+/// That premise is gone: since `loop-crate-verbs-k21` the caller opens the tree
+/// and hands the verb a guard, so a missing root has no `leaf-insert` to reach —
+/// [`crate::write`] answers a vacancy, and the vacancy offers only `root-init`.
+/// What is left to assert is the refusal itself, and that nothing was created.
 #[test]
-fn insert_rejects_finish_before_inspecting_the_tree() {
-    let (_t, g) = grove();
-    let missing = g.join("nope");
-    let err = leaf_insert(&missing, "1", "x", a_kind("finish"))
+fn insert_rejects_finish() {
+    let (_t, g) = jj_grove();
+    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "01-impl--a-k1.md", "a-k1");
+    commit_all(&g);
+    let err = leaf_insert(guard(&g), "1", &a_slug("x"), &a_kind("finish"))
         .unwrap_err()
         .to_string();
     assert!(err.contains("driver-reserved"), "got {err}");
+    assert_eq!(list(&g), vec!["01-impl--a-k1.md", "BRIEF.md"]);
 }
 
 // ---- leaf-add-pair ----------------------------------------------------------
@@ -815,7 +857,13 @@ fn insert_at_occupied_position_shifts_occupant_and_later_siblings_keys_preserved
     touch(&g, "02-impl--b-k2.md", "b-k2");
     touch(&g, "03-impl--c-k3.md", "c-k3");
     commit_all(&g);
-    let inserted = leaf_insert(&g, at(&g.join("02-impl--b-k2.md")), "new", a_kind("impl")).unwrap();
+    let inserted = leaf_insert(
+        guard(&g),
+        at(&g.join("02-impl--b-k2.md")),
+        &a_slug("new"),
+        &a_kind("impl"),
+    )
+    .unwrap();
     assert_eq!(name_of(&inserted.path), "02-impl--new-k4.md"); // fresh key, not a reused one
     assert_eq!(
         list(&g),
@@ -846,7 +894,13 @@ fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
     let grandchild_before = body(&grandchild);
     let brief_before = body(&mid.join("BRIEF.md"));
     commit_all(&g);
-    let inserted = leaf_insert(&g, at(&g.join("02-mid-k3")), "new", a_kind("impl")).unwrap();
+    let inserted = leaf_insert(
+        guard(&g),
+        at(&g.join("02-mid-k3")),
+        &a_slug("new"),
+        &a_kind("impl"),
+    )
+    .unwrap();
     assert_eq!(name_of(&inserted.path), "02-impl--new-k5.md");
     let shifted = g.join("03-mid-k3");
     assert!(shifted.is_dir(), "node dir shifted to 03-mid-k3");
@@ -862,12 +916,12 @@ fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
         "the grandchild is byte-identical — only the ancestor dir name moved"
     );
     assert_eq!(
-        inserted.renumbers.len(),
+        inserted.renumbered.len(),
         1,
         "exactly one sibling (the node) shifted"
     );
-    assert_eq!(inserted.renumbers[0].old_position, 2);
-    assert_eq!(inserted.renumbers[0].new_position, 3);
+    assert_eq!(inserted.renumbered[0].from_position, 2);
+    assert_eq!(inserted.renumbered[0].to_position, 3);
 }
 
 #[test]
@@ -876,8 +930,13 @@ fn insert_writes_position_free_header_for_the_new_leaf() {
     touch(&g, "BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     commit_all(&g);
-    let inserted =
-        leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "head", a_kind("impl")).unwrap();
+    let inserted = leaf_insert(
+        guard(&g),
+        at(&g.join("01-impl--a-k1.md")),
+        &a_slug("head"),
+        &a_kind("impl"),
+    )
+    .unwrap();
     let text = body(&inserted.path);
     assert!(text.starts_with("# head-k2\n"), "got {text:?}");
     assert!(!text.contains("**Kind:**"), "got {text:?}");
@@ -903,7 +962,7 @@ fn insert_does_not_rewrite_any_existing_file_contents() {
         .collect();
     commit_all(&g);
 
-    leaf_insert(&g, at(&b), "new", a_kind("impl")).unwrap();
+    leaf_insert(guard(&g), at(&b), &a_slug("new"), &a_kind("impl")).unwrap();
 
     let after: Vec<String> = [
         &g.join("BRIEF.md"),
@@ -935,10 +994,15 @@ fn insert_collision_free_for_a_dense_run_of_siblings() {
         );
     }
     commit_all(&g);
-    let inserted =
-        leaf_insert(&g, at(&g.join("01-impl--s1-k1.md")), "head", a_kind("impl")).unwrap();
+    let inserted = leaf_insert(
+        guard(&g),
+        at(&g.join("01-impl--s1-k1.md")),
+        &a_slug("head"),
+        &a_kind("impl"),
+    )
+    .unwrap();
     assert_eq!(name_of(&inserted.path), "01-impl--head-k6.md");
-    assert_eq!(inserted.renumbers.len(), 5);
+    assert_eq!(inserted.renumbered.len(), 5);
     let leaves: Vec<String> = list(&g).into_iter().filter(|n| n != "BRIEF.md").collect();
     assert_eq!(
         leaves,
@@ -967,19 +1031,25 @@ fn insert_shifts_highest_ordinal_first_and_reports_the_log_ascending() {
     touch(&g, "02-impl--b-k2.md", "b-k2");
     touch(&g, "03-impl--c-k3.md", "c-k3");
     commit_all(&g);
-    let inserted =
-        leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "head", a_kind("impl")).unwrap();
+    let inserted = leaf_insert(
+        guard(&g),
+        at(&g.join("01-impl--a-k1.md")),
+        &a_slug("head"),
+        &a_kind("impl"),
+    )
+    .unwrap();
     let positions: Vec<(u32, u32)> = inserted
-        .renumbers
+        .renumbered
         .iter()
-        .map(|renumber| (renumber.old_position, renumber.new_position))
+        .map(|renumber| (renumber.from_position, renumber.to_position))
         .collect();
     assert_eq!(positions, vec![(1, 2), (2, 3), (3, 4)]);
     assert_eq!(
-        inserted.renumbers[0].old_name, "01-impl--a-k1.md",
+        inserted.renumbered[0].from_name(),
+        "01-impl--a-k1.md",
         "the log carries the name each entry left behind, which is what the lint scans for"
     );
-    assert_eq!(inserted.renumbers[0].new_name, "02-impl--a-k1.md");
+    assert_eq!(inserted.renumbered[0].to_name(), "02-impl--a-k1.md");
 }
 
 #[test]
@@ -991,10 +1061,10 @@ fn insert_inside_a_nested_node_shifts_only_that_levels_siblings() {
     touch(&design, "02-impl--b-k3.md", "b-k3");
     commit_all(&g);
     let inserted = leaf_insert(
-        &g,
+        guard(&g),
         at(&design.join("01-impl--a-k2.md")),
-        "first",
-        a_kind("impl"),
+        &a_slug("first"),
+        &a_kind("impl"),
     )
     .unwrap();
     assert_eq!(name_of(&inserted.path), "01-impl--first-k4.md");
@@ -1003,7 +1073,7 @@ fn insert_inside_a_nested_node_shifts_only_that_levels_siblings() {
     assert!(children.contains(&"01-impl--first-k4.md".to_string()));
     assert!(children.contains(&"02-impl--a-k2.md".to_string()));
     assert!(children.contains(&"03-impl--b-k3.md".to_string()));
-    assert_eq!(inserted.renumbers.len(), 2);
+    assert_eq!(inserted.renumbered.len(), 2);
 }
 
 #[test]
@@ -1013,7 +1083,7 @@ fn insert_addresses_its_target_by_key_handle_and_slug_alike() {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "01-impl--a-k1.md", "a-k1");
         touch(&g, "02-impl--b-k2.md", "b-k2");
-        let inserted = leaf_insert(&g, target, "new", a_kind("impl")).unwrap();
+        let inserted = leaf_insert(guard(&g), target, &a_slug("new"), &a_kind("impl")).unwrap();
         assert_eq!(
             name_of(&inserted.path),
             "02-impl--new-k3.md",
@@ -1033,7 +1103,7 @@ fn insert_refuses_a_target_whose_key_names_two_entries() {
     touch(&g, "01-impl--a-k1.md", "a-k1");
     touch(&g, "02-impl--b-k1.md", "b-k1");
 
-    let err = leaf_insert(&g, "1", "new", a_kind("impl"))
+    let err = leaf_insert(guard(&g), "1", &a_slug("new"), &a_kind("impl"))
         .unwrap_err()
         .to_string();
 
@@ -1045,13 +1115,16 @@ fn insert_refuses_a_target_whose_key_names_two_entries() {
     );
 }
 
+/// An invalid slug never reaches the verb any more, and that is the point.
+///
+/// `leaf-insert` used to take `&str` and validate it first; since
+/// `loop-crate-verbs-k21` it takes a [`Slug`], so the refusal happens where the
+/// text is read — one type owns the name (principle 3) — and there is no way to
+/// call the verb with a slug that is not one. What is left to check is that the
+/// owner still refuses this token, which the tree reserves for its charter.
 #[test]
-fn insert_errors_on_invalid_slug() {
-    let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    touch(&g, "01-impl--a-k1.md", "a-k1");
-    commit_all(&g);
-    assert!(leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "BRIEF", a_kind("impl")).is_err());
+fn insert_cannot_be_reached_with_an_invalid_slug() {
+    assert!(Slug::new("BRIEF").is_err());
 }
 
 #[test]
@@ -1059,7 +1132,13 @@ fn insert_errors_when_target_is_a_brief() {
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     commit_all(&g);
-    let err = leaf_insert(&g, at(&g.join("BRIEF.md")), "x", a_kind("impl")).unwrap_err();
+    let err = leaf_insert(
+        guard(&g),
+        at(&g.join("BRIEF.md")),
+        &a_slug("x"),
+        &a_kind("impl"),
+    )
+    .unwrap_err();
     assert!(err.to_string().contains("brief"), "got {err}");
 }
 
@@ -1070,7 +1149,7 @@ fn insert_errors_when_the_target_is_the_grove_root() {
     // could not have derived.
     let (_t, g) = grove();
     touch(&g, "BRIEF.md", "root — brief");
-    let err = leaf_insert(&g, ".", "x", a_kind("impl"))
+    let err = leaf_insert(guard(&g), ".", &a_slug("x"), &a_kind("impl"))
         .unwrap_err()
         .to_string();
     assert!(err.contains("cannot insert at the grove root"), "got {err}");
@@ -1081,14 +1160,22 @@ fn insert_errors_when_target_missing() {
     let (_t, g) = jj_grove();
     touch(&g, "BRIEF.md", "root — brief");
     commit_all(&g);
-    assert!(leaf_insert(&g, at(&g.join("09-impl--nope-k9.md")), "x", a_kind("impl")).is_err());
+    assert!(leaf_insert(
+        guard(&g),
+        at(&g.join("09-impl--nope-k9.md")),
+        &a_slug("x"),
+        &a_kind("impl")
+    )
+    .is_err());
 }
 
 #[test]
 fn insert_errors_when_grove_root_absent() {
     let (_t, g) = jj_grove();
     let missing = g.join("nope");
-    let err = leaf_insert(&missing, "1", "x", a_kind("impl")).unwrap_err();
+    let err = open(&missing)
+        .err()
+        .expect("an absent root has no tree to open");
     assert!(
         err.to_string().contains("grove root not found"),
         "got {err}"
@@ -1114,7 +1201,8 @@ fn insert_ahead_of_an_untracked_sibling_added_this_session() {
     assert_eq!(name_of(&release), "01-impl--release-k1.md");
 
     // No commit: the leaf is uncommitted, exactly as the grow verb left it.
-    let inserted = leaf_insert(&g, at(&release), "review", a_kind("impl")).unwrap();
+    let inserted =
+        leaf_insert(guard(&g), at(&release), &a_slug("review"), &a_kind("impl")).unwrap();
 
     assert_eq!(name_of(&inserted.path), "01-impl--review-k2.md");
     let files = list(&g);
@@ -1126,7 +1214,7 @@ fn insert_ahead_of_an_untracked_sibling_added_this_session() {
         !files.contains(&"01-impl--release-k1.md".to_string()),
         "old name gone (files: {files:?})"
     );
-    assert_eq!(inserted.renumbers.len(), 1, "one sibling shifted");
+    assert_eq!(inserted.renumbered.len(), 1, "one sibling shifted");
 }
 
 #[test]
@@ -1138,7 +1226,13 @@ fn insert_renumbers_a_mix_of_committed_and_uncommitted_siblings() {
     commit_all(&g); // a and b are committed
     touch(&g, "03-impl--c-k3.md", "c-k3"); // c is not
 
-    let inserted = leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "new", a_kind("impl")).unwrap();
+    let inserted = leaf_insert(
+        guard(&g),
+        at(&g.join("01-impl--a-k1.md")),
+        &a_slug("new"),
+        &a_kind("impl"),
+    )
+    .unwrap();
 
     assert_eq!(name_of(&inserted.path), "01-impl--new-k4.md");
     let files = list(&g);
@@ -1148,7 +1242,7 @@ fn insert_renumbers_a_mix_of_committed_and_uncommitted_siblings() {
             "every sibling shifted up one, committed or not: missing {expected} (files: {files:?})"
         );
     }
-    assert_eq!(inserted.renumbers.len(), 3, "all three siblings shifted");
+    assert_eq!(inserted.renumbered.len(), 3, "all three siblings shifted");
 }
 
 #[test]
@@ -1166,7 +1260,13 @@ fn insert_records_nothing_in_the_committed_revision() {
     touch(&g, "01-impl--a-k1.md", "a-k1");
     commit_all(&g);
 
-    leaf_insert(&g, at(&g.join("01-impl--a-k1.md")), "new", a_kind("impl")).unwrap();
+    leaf_insert(
+        guard(&g),
+        at(&g.join("01-impl--a-k1.md")),
+        &a_slug("new"),
+        &a_kind("impl"),
+    )
+    .unwrap();
 
     let recorded = committed(&g);
     assert!(
@@ -1186,18 +1286,21 @@ fn insert_records_nothing_in_the_committed_revision() {
 
 // ---- surface_cross_refs (position-prefixed lint, not auto-rewrite) ----------
 
-fn renum(old: u32, new: u32, old_name: &str, new_name: &str) -> Renumber {
+/// A renumber as the verb reports one: two paths, and the positions a caller
+/// prints. The fixtures below name the two filenames, so the root they sit under
+/// is joined here.
+fn renum(root: &Path, old: u32, new: u32, old_name: &str, new_name: &str) -> Renumber {
     Renumber {
-        old_position: old,
-        new_position: new,
-        old_name: old_name.to_string(),
-        new_name: new_name.to_string(),
+        from: root.join(old_name),
+        to: root.join(new_name),
+        from_position: old,
+        to_position: new,
     }
 }
 
-fn surfaced(root: &Path, renumbers: &[Renumber]) -> String {
+fn surfaced(root: &Path, renumbered: &[Renumber]) -> String {
     let mut buffer = Vec::new();
-    surface_cross_refs(root, renumbers, &mut buffer).unwrap();
+    surface_cross_refs(guard(root), renumbered, &mut buffer).unwrap();
     String::from_utf8(buffer).unwrap()
 }
 
@@ -1220,7 +1323,7 @@ fn surface_reports_a_stale_position_prefixed_reference_in_a_body() {
         "01-impl--a-k1.md",
         "# a-k1\n\nthe design lives at 02-mid-k3/01-impl--x-k4.md\n",
     );
-    let out = surfaced(&g, &[renum(2, 3, "02-mid-k3", "03-mid-k3")]);
+    let out = surfaced(&g, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]);
     assert!(out.contains("01-impl--a-k1.md"), "names the file: {out:?}");
     assert!(out.contains("02-mid-k3"), "shows the stale name: {out:?}");
     assert!(
@@ -1238,7 +1341,10 @@ fn surface_does_not_flag_the_stable_slug_key_handle() {
         "01-impl--a-k1.md",
         "# a-k1\n\nsee mid-k3 for the design\n",
     );
-    assert_eq!(surfaced(&g, &[renum(2, 3, "02-mid-k3", "03-mid-k3")]), "");
+    assert_eq!(
+        surfaced(&g, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]),
+        ""
+    );
 }
 
 #[test]
@@ -1255,7 +1361,7 @@ fn surface_reports_hits_recursively_across_nested_files() {
         "01-impl--a-k2.md",
         "# a-k2\n\nalso 02-mid-k3 here\n",
     );
-    let out = surfaced(&g, &[renum(2, 3, "02-mid-k3", "03-mid-k3")]);
+    let out = surfaced(&g, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]);
     assert!(
         out.contains("BRIEF.md") && out.contains("02-mid-k3"),
         "{out:?}"
@@ -1281,7 +1387,7 @@ fn surface_scans_the_tree_and_not_the_directory() {
         "# root — brief\n\nthe plan is at 02-mid-k3\n",
     );
     touch_body(&g, "NOTES.md", "# notes\n\nalso 02-mid-k3 here\n");
-    let out = surfaced(&g, &[renum(2, 3, "02-mid-k3", "03-mid-k3")]);
+    let out = surfaced(&g, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]);
     assert!(
         out.contains("BRIEF.md"),
         "the charter is in the tree: {out:?}"
@@ -1303,7 +1409,12 @@ fn surface_holds_the_tree_while_it_reports() {
         directory: g.parent().unwrap().to_path_buf(),
         bytes: Vec::new(),
     };
-    surface_cross_refs(&g, &[renum(2, 3, "02-mid-k3", "03-mid-k3")], &mut probe).unwrap();
+    surface_cross_refs(
+        guard(&g),
+        &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")],
+        &mut probe,
+    )
+    .unwrap();
     assert!(
         !probe.bytes.is_empty(),
         "the fixture must produce a hit for the probe to fire on"
@@ -1426,7 +1537,7 @@ fn destination_occupied_is_unreachable_from_a_shift_however_the_tree_was_edited(
     touch(&g, "02-impl--twin-k5.md", "twin-k5");
     touch(&g, "03-impl--twin-k5.md", "twin-k5");
 
-    let inserted = leaf_insert(&g, "9", "new", a_kind("impl")).unwrap();
+    let inserted = leaf_insert(guard(&g), "9", &a_slug("new"), &a_kind("impl")).unwrap();
 
     assert_eq!(name_of(&inserted.path), "01-impl--new-k10.md");
     assert_eq!(
@@ -1439,5 +1550,126 @@ fn destination_occupied_is_unreachable_from_a_shift_however_the_tree_was_edited(
             "BRIEF.md",
         ],
         "the duplicated pair shifted past each other without a collision"
+    );
+}
+
+// ---- one command, one observation of the tree ------------------------------
+//
+// Carried across from `llm_cli`'s own test module at `loop-crate-verbs-k21`.
+// They belong here rather than with the CLI for the reason they always did:
+// their subject is `task_tree`'s read counter, which is crate-private, and what
+// they assert is a property of the **verbs** — one command reads the tree once —
+// not of the argument parsing in front of them.
+
+fn grove_with_node() -> (TempDir, PathBuf) {
+    let worktree = TempDir::new().unwrap();
+    let grove_root = worktree.path().join(".grove");
+    let paths = {
+        let task_tree::Opening::Vacancy(vacancy) =
+            task_tree::write_or_vacancy(&grove_root).unwrap()
+        else {
+            panic!("a fresh worktree holds no grove");
+        };
+        crate::tree_lifecycle::root_init(vacancy, &a_slug("plan"), &Kind::requirements()).unwrap()
+    };
+    crate::tree_lifecycle::leaf_decompose(
+        guard(&grove_root),
+        &paths[1],
+        &a_slug("first"),
+        Some(a_kind("impl")),
+    )
+    .unwrap();
+    (worktree, grove_root)
+}
+
+fn assert_one_acquisition(operation: impl FnOnce(&Path)) {
+    let (_worktree, grove_root) = grove_with_node();
+    task_tree::reset_read_count();
+
+    operation(&grove_root);
+
+    // **One counter, where there used to be two summed.** Grove holds no
+    // guard of its own since `collapse-tree-access-k13`, so every
+    // observation of the tree is the store's and `task_tree` counts all of
+    // them. The property is unchanged: one command reads the tree once, so a
+    // verb that selected a leaf and then re-read the tree to act on it could
+    // not slip through.
+    assert_eq!(
+        task_tree::read_count(),
+        1,
+        "one command must observe the tree exactly once"
+    );
+}
+
+#[test]
+fn reference_taking_commands_acquire_the_tree_lock_once() {
+    assert_one_acquisition(|grove_root| {
+        add_one(grove_root, "1", "later", "impl").unwrap();
+    });
+    assert_one_acquisition(|grove_root| {
+        add_pair(grove_root, "1", "survey").unwrap();
+    });
+    assert_one_acquisition(|grove_root| {
+        let tree = task_tree::tests::read(grove_root).unwrap();
+        let leaf = task_tree::pick_in(&tree).unwrap().unwrap();
+        task_tree::brief_chain(&tree, &leaf).unwrap();
+    });
+}
+
+struct ExclusiveLockAssertingWriter {
+    worktree: PathBuf,
+    bytes: Vec<u8>,
+}
+
+impl std::io::Write for ExclusiveLockAssertingWriter {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        use std::os::fd::AsRawFd;
+        let directory = std::fs::File::open(&self.worktree)?;
+        let result = unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
+        assert_ne!(
+            result, 0,
+            "cross-reference output was written after leaf-insert released its exclusive lock"
+        );
+        self.bytes.extend_from_slice(buffer);
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn leaf_insert_lints_cross_references_under_an_exclusive_lock_of_its_own() {
+    // **Two observations, and the second is the lint's.** A mutation consumes
+    // its guard, so the tree the shift *left* — which is the tree a stale
+    // reference has to be read out of, since a shifted node took its whole
+    // subtree's paths with it — can only be seen through a second guard. What
+    // the property was ever about is that the output is written while the tree
+    // is **held**: a hit printed after the lock went would name a path anything
+    // else could already have renamed.
+    let (worktree, grove_root) = grove_with_node();
+    let brief = grove_root.join("01-plan-k1").join("BRIEF.md");
+    let body = fs::read_to_string(&brief).unwrap() + "stale path: 01-impl--first-k2\n";
+    fs::write(&brief, body).unwrap();
+    let mut output = ExclusiveLockAssertingWriter {
+        worktree: worktree.path().to_path_buf(),
+        bytes: Vec::new(),
+    };
+    task_tree::reset_read_count();
+
+    let inserted =
+        leaf_insert(guard(&grove_root), "2", &a_slug("earlier"), &a_kind("impl")).unwrap();
+    surface_cross_refs(guard(&grove_root), &inserted.renumbered, &mut output).unwrap();
+
+    assert!(
+        String::from_utf8_lossy(&output.bytes).contains("BRIEF.md:"),
+        "fixture must exercise a cross-reference hit: {}",
+        String::from_utf8_lossy(&output.bytes)
+    );
+    assert_eq!(
+        task_tree::read_count(),
+        2,
+        "the insert, then the lint's own guard over the tree it left"
     );
 }

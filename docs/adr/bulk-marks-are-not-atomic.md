@@ -24,9 +24,17 @@ decision:
 
 What is genuinely lost is the window *between* guards: another writer that
 arrives mid-run, or a filesystem fault on the fourth of six marks, now leaves
-part of the subtree marked. `src/tree_lifecycle.rs`'s
+part of the subtree marked. `crates/grove-loop/src/tree_lifecycle.rs`'s
 `pruning_a_node_takes_one_guard_per_mark` asserts the guard count, so the cost is
 a number a later change moves rather than a paragraph it can quietly contradict.
+
+`loop-crate-verbs-k21` **re-checked this and moved nothing.** A subtree prune is
+still *N* rewrites under *N* guards, and the count that test asserts is
+unchanged. What the leaf added is a name for the window: `grove_loop::TreeWrite`
+is a caller's *right to be the writer* rather than one guard, and it hands out
+the guard it opened with before reopening for the next verb. That is this record
+made explicit rather than a second instance of it — the gap it exposes is the
+same one, and no verb gained a guard.
 
 ## The trade-off
 

@@ -257,3 +257,41 @@ fn grove_help_does_not_list_resolve() {
         "grove --help leaked resolve from the LLM surface: {s}"
     );
 }
+
+/// `.` is the grove root, which is the one reference that names no entry.
+///
+/// `Reference::parse` covers it and `resolve` answers `Resolution::Root`
+/// (`docs/specs/module-decomposition.md`, decision 9); what a session gets back
+/// is the tree's own path, because the root carries no key, no slug and no kind
+/// for anything else to print.
+#[test]
+fn resolve_dot_prints_the_grove_root() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove, "BRIEF.md");
+    touch(&grove, "01-impl--only-k1.md");
+
+    let (out, err, ok) = run(tmp.path(), &["resolve", "."]);
+
+    assert!(ok, "{err}");
+    // Compared through `canonicalize`, because the worktree here is under
+    // macOS's `/var` → `/private/var` symlink and `Workspace::resolve` reports
+    // the real path. The claim is *the tree itself*, not a spelling of it.
+    assert_eq!(
+        std::path::PathBuf::from(out.trim()),
+        grove.canonicalize().unwrap(),
+        "`.` resolves to the tree itself"
+    );
+}
+
+/// An empty reference names nothing, and is refused before the tree is opened.
+#[test]
+fn resolve_refuses_an_empty_reference() {
+    let tmp = init_repo();
+    touch(&tmp.path().join(".grove"), "BRIEF.md");
+
+    let (out, err, ok) = run(tmp.path(), &["resolve", "  "]);
+
+    assert!(!ok, "an empty reference must be refused: {out}");
+    assert!(err.contains("names nothing"), "{err}");
+}

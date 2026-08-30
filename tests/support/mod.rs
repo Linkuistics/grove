@@ -11,6 +11,7 @@
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Child;
 use std::sync::{Mutex, MutexGuard};
 use std::thread;
@@ -140,7 +141,7 @@ pub fn wait_for_ready(path: &Path, producer: &mut Child, diagnostics: Option<&Pa
 ///
 /// The bare `grove` directory is the shared spine every kind reads, not a kind.
 pub fn kind_labels() -> Vec<String> {
-    let skills = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins/grove/skills");
+    let skills = repo_root().join("plugins/grove/skills");
     let mut labels: Vec<String> = std::fs::read_dir(&skills)
         .unwrap_or_else(|error| panic!("reading {}: {error}", skills.display()))
         .map(|entry| entry.expect("readable directory entry"))
@@ -375,3 +376,115 @@ pub const EVERY_SESSION_KIND: &[&str] = &[
     "combine-research",
     "finish",
 ];
+
+/// The repository root, found by walking up from this file's own package.
+///
+/// This module is compiled into test binaries in **two** packages since
+/// `loop-crate-verbs-k21` — `grove` at the root and `crates/grove-llm` beside it
+/// — so `CARGO_MANIFEST_DIR` is not one answer any more. The workspace manifest
+/// is the marker, and it is the only file in this tree that is a `Cargo.toml`
+/// with a `[workspace]` table in it.
+pub fn repo_root() -> PathBuf {
+    let mut dir = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
+    loop {
+        let manifest = dir.join("Cargo.toml");
+        if manifest.is_file()
+            && fs::read_to_string(&manifest).is_ok_and(|body| body.contains("\n[workspace]"))
+        {
+            return dir;
+        }
+        assert!(
+            dir.pop(),
+            "no workspace manifest above {}",
+            env!("CARGO_MANIFEST_DIR")
+        );
+    }
+}
+
+/// The `grove-llm` binary, for a test that drives it from a package that does
+/// not build it.
+///
+/// `env!("CARGO_BIN_EXE_…")` only names a binary of the test's **own** package,
+/// and `grove-llm` is its own package now. `cargo test --workspace` — the run
+/// `docs/RELEASING.md` and `docs/preservation-baseline.md` both name — compiles
+/// every target before running any test, so the file is there; a narrower run
+/// gets it built here rather than a confusing *no such file*.
+pub fn grove_llm() -> PathBuf {
+    workspace_binary("grove-llm")
+}
+
+/// The `grove` binary, on the same terms.
+pub fn grove_bin() -> PathBuf {
+    workspace_binary("grove")
+}
+
+fn workspace_binary(name: &str) -> PathBuf {
+    // `target/<profile>/deps/<test binary>` — so the profile directory is two
+    // levels up from the running test executable, whatever the profile is and
+    // wherever `CARGO_TARGET_DIR` put it.
+    let exe = std::env::current_exe().expect("a running test has a path");
+    let profile = exe
+        .parent()
+        .and_then(Path::parent)
+        .expect("a test binary sits under <target>/<profile>/deps");
+    let binary = profile.join(name);
+    if !binary.is_file() {
+        let built = std::process::Command::new(env!("CARGO"))
+            .args(["build", "--quiet", "-p", name])
+            .current_dir(repo_root())
+            .status()
+            .unwrap_or_else(|error| panic!("building {name}: {error}"));
+        assert!(built.success(), "building {name} failed");
+    }
+    assert!(binary.is_file(), "{} was not built", binary.display());
+    binary
+}
+
+/// Every Rust source file grove itself ships, as `(repo-relative path, body)`.
+///
+/// **Grove's source is four packages now**, not one directory:
+/// `loop-crate-verbs-k21` split the tree and its verbs into
+/// `crates/grove-loop` and the agent CLI into `crates/grove-llm`, so a sweep
+/// anchored on one `src/` would report a clean tree because it stopped looking.
+/// `crates/ordinal-fs-tree` is excluded deliberately and is the one exclusion:
+/// it is the **store**, and the claims these sweeps make — *the store's lock is
+/// taken from exactly one module*, *nothing grove locks for itself ever waits* —
+/// are claims about grove's side of that seam. The store owns the lock and
+/// blocks on it by design.
+pub fn grove_sources() -> Vec<(String, String)> {
+    let root = repo_root();
+    let mut roots = vec![root.join("src")];
+    for member in ["grove-llm", "grove-loop", "jj-workspace", "keyed-launch"] {
+        roots.push(root.join("crates").join(member).join("src"));
+    }
+    let mut found = Vec::new();
+    while let Some(path) = roots.pop() {
+        if path.is_dir() {
+            roots.extend(
+                fs::read_dir(&path)
+                    .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()))
+                    .map(|entry| entry.expect("a readable directory entry").path()),
+            );
+            continue;
+        }
+        if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
+            continue;
+        }
+        let relative = path
+            .strip_prefix(&root)
+            .expect("a path under the repository root")
+            .display()
+            .to_string();
+        let body = fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
+        found.push((relative, body));
+    }
+    assert!(
+        found.len() > 8,
+        "the walk found {} source files — a mis-scoped walk reports a clean \
+         surface for the wrong reason",
+        found.len()
+    );
+    found.sort();
+    found
+}

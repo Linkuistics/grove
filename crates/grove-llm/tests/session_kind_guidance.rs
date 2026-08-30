@@ -56,8 +56,10 @@
 //! longer a thing `content/` contains. What is left of either here is the **drift
 //! pin** on the two ending files' own prose — not a claim about delivery at all.
 
+mod support;
+
 use clap::CommandFactory;
-use grove::task_name::{Kind, Parts, TaskName};
+use grove_loop::{Kind, Parts, TaskName};
 use ordinal_fs_tree::{EntryName, Found, Verdict};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -66,7 +68,7 @@ use std::path::{Path, PathBuf};
 // ---------------------------------------------------------------------------
 // The surfaces
 
-const TASK_FORMAT: &str = include_str!("../plugins/grove/skills/grove/TASK-FORMAT.md");
+const TASK_FORMAT: &str = include_str!("../../../plugins/grove/skills/grove/TASK-FORMAT.md");
 // The spine's `SKILL.md` is deliberately not a surface here. It carried the
 // kind-routing table until `plugin-spine-k16`, which is why the taxonomy claims
 // below used to be asserted over it as well; it now holds no list of kinds and
@@ -76,12 +78,16 @@ const TASK_FORMAT: &str = include_str!("../plugins/grove/skills/grove/TASK-FORMA
 /// in the filename, from a closed set of nineteen — and the enumeration of the
 /// kinds a summarising surface must spell out rather than derive lives in the
 /// file that condition routes to.
-const EXECUTE_REFERENCE: &str = include_str!("../plugins/grove/skills/grove/references/execute.md");
+const EXECUTE_REFERENCE: &str =
+    include_str!("../../../plugins/grove/skills/grove/references/execute.md");
 const DOUBT_SKILL: &str =
-    include_str!("../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
+    include_str!("../../../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
 
+/// The repository root. It was `CARGO_MANIFEST_DIR` while every test lived in
+/// one package; `loop-crate-verbs-k21` split them across two, so the marker is
+/// the workspace manifest rather than whichever package compiled this file.
 fn manifest_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    support::repo_root()
 }
 
 /// The session kinds the shipped plugin declares — one `grove-<kind>` skill
@@ -825,7 +831,7 @@ fn own_long_flags(command: &clap::Command) -> BTreeSet<String> {
 /// Each verb's entry already includes the root command's own flags, which are
 /// accepted everywhere.
 fn real_long_flags_by_verb() -> BTreeMap<String, BTreeSet<String>> {
-    let root = grove::llm_cli::Cli::command();
+    let root = grove_llm::cli::Cli::command();
     let global = own_long_flags(&root);
     let mut out = BTreeMap::new();
     for sub in root.get_subcommands() {
@@ -851,7 +857,7 @@ fn real_long_flags_by_verb() -> BTreeMap<String, BTreeSet<String>> {
 /// (`kind`, `pick`, `resolve`, `complete`) are ordinary English words that appear
 /// throughout the prose.
 fn hyphenated_verbs() -> Vec<String> {
-    let verbs: Vec<String> = grove::llm_cli::Cli::command()
+    let verbs: Vec<String> = grove_llm::cli::Cli::command()
         .get_subcommands()
         .map(|sub| sub.get_name().to_owned())
         .filter(|name| name.contains('-'))

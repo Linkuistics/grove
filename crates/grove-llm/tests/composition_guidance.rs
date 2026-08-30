@@ -1,24 +1,27 @@
 use assert_cmd::Command;
 
-const GROVE_SKILL: &str = include_str!("../plugins/grove/skills/grove/SKILL.md");
-const CONTEXT: &str = include_str!("../CONTEXT.md");
-const TASK_FORMAT: &str = include_str!("../plugins/grove/skills/grove/TASK-FORMAT.md");
-const PLANNING_REFERENCE: &str = include_str!("../plugins/grove/skills/grove-planning/SKILL.md");
+const GROVE_SKILL: &str = include_str!("../../../plugins/grove/skills/grove/SKILL.md");
+const CONTEXT: &str = include_str!("../../../CONTEXT.md");
+const TASK_FORMAT: &str = include_str!("../../../plugins/grove/skills/grove/TASK-FORMAT.md");
+const PLANNING_REFERENCE: &str =
+    include_str!("../../../plugins/grove/skills/grove-planning/SKILL.md");
 // The universal reference files the loop page's conditions defer to. A claim
 // about a *procedure* is proved against the file that now states it — the same
 // path reconciliation `per-kind-references-k12` made, and for the same reason:
 // no claim below changes, only where it is kept.
-const EXECUTE_REFERENCE: &str = include_str!("../plugins/grove/skills/grove/references/execute.md");
+const EXECUTE_REFERENCE: &str =
+    include_str!("../../../plugins/grove/skills/grove/references/execute.md");
 const DECOMPOSE_REFERENCE: &str =
-    include_str!("../plugins/grove/skills/grove/references/decompose.md");
-const RETIRE_REFERENCE: &str = include_str!("../plugins/grove/skills/grove/references/retire.md");
-const BRIEF_FORMAT: &str = include_str!("../plugins/grove/skills/grove/BRIEF-FORMAT.md");
+    include_str!("../../../plugins/grove/skills/grove/references/decompose.md");
+const RETIRE_REFERENCE: &str =
+    include_str!("../../../plugins/grove/skills/grove/references/retire.md");
+const BRIEF_FORMAT: &str = include_str!("../../../plugins/grove/skills/grove/BRIEF-FORMAT.md");
 const DOUBT_SKILL: &str =
-    include_str!("../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
-const ARCHITECTURE: &str = include_str!("../docs/ARCHITECTURE.md");
-const USAGE: &str = include_str!("../docs/USAGE.md");
-const SPEC: &str = include_str!("../docs/specs/doubt-grove-review-mechanics.md");
-const CHANGELOG: &str = include_str!("../CHANGELOG.md");
+    include_str!("../../../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
+const ARCHITECTURE: &str = include_str!("../../../docs/ARCHITECTURE.md");
+const USAGE: &str = include_str!("../../../docs/USAGE.md");
+const SPEC: &str = include_str!("../../../docs/specs/doubt-grove-review-mechanics.md");
+const CHANGELOG: &str = include_str!("../../../CHANGELOG.md");
 
 fn assert_contains(surface: &str, text: &str, expected: &str) {
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");

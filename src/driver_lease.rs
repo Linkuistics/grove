@@ -93,13 +93,13 @@ pub struct DriverLease {
 }
 
 #[derive(Debug)]
-pub(crate) struct SessionEpochGuard {
+pub struct SessionEpochGuard {
     _epoch_file: File,
     signal_path: PathBuf,
 }
 
 impl SessionEpochGuard {
-    pub(crate) fn require_signal_path(&self, signal_path: Option<&Path>) -> Result<()> {
+    pub fn require_signal_path(&self, signal_path: Option<&Path>) -> Result<()> {
         if signal_path != Some(self.signal_path.as_path()) {
             bail!(
                 "completion signal path does not match the admitted session epoch: expected {}, got {}",
@@ -680,10 +680,7 @@ fn probe_live_lease_with_post_unlock_hook(
 /// The returned guard owns the shared epoch lock and must remain alive through
 /// the operation's separately acquired Tree access guard. With no ambient
 /// signal path this is a manual command and no driver epoch is required.
-pub(crate) fn admit_ambient_session(
-    path: &Path,
-    operation: &str,
-) -> Result<Option<SessionEpochGuard>> {
+pub fn admit_ambient_session(path: &Path, operation: &str) -> Result<Option<SessionEpochGuard>> {
     admit_session(path, operation, ambient_signal_path())
 }
 

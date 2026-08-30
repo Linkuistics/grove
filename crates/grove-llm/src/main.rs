@@ -1,3 +1,3 @@
 fn main() -> anyhow::Result<()> {
-    grove::llm_cli::run()
+    grove_llm::cli::run()
 }

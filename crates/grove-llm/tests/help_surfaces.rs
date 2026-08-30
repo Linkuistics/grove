@@ -73,5 +73,5 @@ fn the_llm_facing_binary_describes_every_option_it_lists() {
     // its own long_about says a session reads `grove-llm --help` to recover the
     // verb set after dropping context, so an undescribed row here costs a
     // *session* its bearings rather than a human a second look.
-    assert_fully_described::<grove::llm_cli::Cli>("grove-llm");
+    assert_fully_described::<grove_llm::cli::Cli>("grove-llm");
 }

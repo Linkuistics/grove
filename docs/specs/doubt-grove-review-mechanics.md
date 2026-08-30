@@ -148,7 +148,7 @@ blocking-sibling condition, and why there is no exception to check — is
 second full statement of it.
 
 What belongs here is the **implementation** that condition is true of. The seam
-is `selected` in `src/task_tree.rs`, which is a **composition**: the library's
+is `selected` in `crates/grove-loop/src/task_tree.rs`, which is a **composition**: the library's
 `Snapshot::walk` gathers live entries in tree order, and `selected` applies the
 `finish`-sentinel rule over the result. The walk moved into `ordinal-fs-tree`
 with the rest of the tree algebra (gh issue #13, increment 2) and the

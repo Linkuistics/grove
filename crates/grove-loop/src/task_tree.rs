@@ -47,6 +47,7 @@ use ordinal_fs_tree::fs::{Reading, Vacancy, Writing};
 use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Sought, Verdict};
 
 use crate::task_name::{self, Handle, Kind, Outcome, Parts, TaskName};
+use crate::Reference;
 
 /// The task tree, read once under the library's shared lock.
 ///
@@ -54,18 +55,30 @@ use crate::task_name::{self, Handle, Kind, Outcome, Parts, TaskName};
 /// directly. Note that `Tree::root` is the **path** the caller spelled, while
 /// `Snapshot::root` is the root *level* — the inherent method wins, and both are
 /// wanted here.
-pub type Tree = ordinal_fs_tree::fs::ReadGuard<TaskName>;
+pub(crate) type Tree = ordinal_fs_tree::fs::ReadGuard<TaskName>;
 
 #[cfg(test)]
 thread_local! {
     static READ_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
-/// Read the task tree under a shared lock.
+/// The whole of what a shared opening found: the tree, or the fact that there is
+/// none — under the lock either way.
 ///
-/// One lock and one snapshot, and every read verb below takes exactly one of
-/// these.
-pub fn read(grove_root: &Path) -> Result<Tree> {
+/// The read-side twin of [`Opening`], and named here for the same reason: the
+/// crate root's [`crate::read`] is the one caller that has to distinguish the
+/// two arms, and it does so without reaching for the library's `fs` module
+/// itself.
+pub(crate) enum Vacant {
+    Tree(Tree),
+    Nothing,
+}
+
+/// Read the task tree under a shared lock, **or** find that there is none.
+///
+/// An absent root is an answer here rather than the refusal [`read`] states,
+/// because `grove` asks this of a fresh checkout on every iteration.
+pub(crate) fn read_or_vacant(grove_root: &Path) -> Result<Vacant> {
     #[cfg(test)]
     READ_COUNT.with(|count| count.set(count.get() + 1));
 
@@ -73,8 +86,8 @@ pub fn read(grove_root: &Path) -> Result<Tree> {
     match ordinal_fs_tree::fs::read::<TaskName>(grove_root)
         .map_err(|error| restate(grove_root, &error))?
     {
-        Reading::Tree(tree) => Ok(tree),
-        Reading::Vacant => Err(absent_tree(grove_root)),
+        Reading::Tree(tree) => Ok(Vacant::Tree(tree)),
+        Reading::Vacant => Ok(Vacant::Nothing),
     }
 }
 
@@ -86,7 +99,7 @@ pub fn read(grove_root: &Path) -> Result<Tree> {
 /// whole of what a bulk verb has to work around; `tree_lifecycle::leaf_prune`
 /// carries the consequence and `docs/adr/bulk-marks-are-not-atomic.md` records
 /// what Grove chose to do about it.
-pub type TreeWrite = ordinal_fs_tree::fs::WriteGuard<TaskName>;
+pub(crate) type Guard = ordinal_fs_tree::fs::WriteGuard<TaskName>;
 
 /// The whole of what an exclusive opening found: the tree, or the **vacancy**
 /// a tree may be created in — under the lock either way.
@@ -115,7 +128,7 @@ pub(crate) type TreeVacancy = Vacancy<TaskName>;
 /// turn a mistyped root into a second workstream. Creating one is
 /// [`write_or_vacancy`]'s, and `grove new` and the driver's own scaffold are its
 /// only callers.
-pub fn write(grove_root: &Path) -> Result<TreeWrite> {
+pub(crate) fn write(grove_root: &Path) -> Result<Guard> {
     announce_contention(grove_root, libc::LOCK_EX);
     reopen_write(grove_root)
 }
@@ -136,7 +149,7 @@ pub(crate) fn write_or_vacancy(grove_root: &Path) -> Result<Opening> {
 /// otherwise probe and print. The verb announces once, through [`write`], and
 /// takes the rest through here: the diagnostic is about the command's wait, not
 /// about each lock it happens to need.
-pub(crate) fn reopen_write(grove_root: &Path) -> Result<TreeWrite> {
+pub(crate) fn reopen_write(grove_root: &Path) -> Result<Guard> {
     match open_write(grove_root)? {
         Writing::Tree(tree) => Ok(tree),
         Writing::Vacancy(_) => Err(absent_tree(grove_root)),
@@ -264,7 +277,7 @@ fn restate(grove_root: &Path, error: &Error<TaskName>) -> anyhow::Error {
 /// algebra, so this is the consumer's half of that decision — and every later
 /// flip leaf calls it rather than writing a second one.
 #[must_use]
-pub fn entry_path(root: &Path, entry: Entry<'_, TaskName>) -> PathBuf {
+pub(crate) fn entry_path(root: &Path, entry: Entry<'_, TaskName>) -> PathBuf {
     let mut path = root.to_path_buf();
     for container in entry.ancestors() {
         if let Some(node) = container.entry() {
@@ -281,7 +294,7 @@ pub fn entry_path(root: &Path, entry: Entry<'_, TaskName>) -> PathBuf {
 /// words its refusal of it differently — `leaf-prune`'s is about abandoning a
 /// whole workstream, `leaf-retire`'s about the argument not being a leaf — and
 /// the resolver has no business choosing between them.
-pub enum Target<'a> {
+pub(crate) enum Target<'a> {
     /// The grove root itself. Not an entry: it carries no name to rewrite.
     Root,
     /// An entry of the snapshot — a task file, a node directory, or a `BRIEF.md`.
@@ -300,7 +313,7 @@ pub enum Target<'a> {
 /// Canonicalised to **compare** and never to report, exactly as `leaf_entry`
 /// does: two spellings of one path name one entry, and the paths this module
 /// returns are still built from the caller's own spelling of the root.
-pub fn target<'a>(
+pub(crate) fn target<'a>(
     root: &Path,
     snapshot: &'a Snapshot<TaskName>,
     path: &Path,
@@ -392,7 +405,7 @@ fn unreachable_by_any_walk(candidate: &Path, resolved: &Path, name: &str) -> any
 /// One walk per call, which is quadratic over a bulk mark. A `.grove/` tree is
 /// tens of entries and this runs once per marked leaf, so the simpler shape is
 /// kept deliberately.
-pub fn addressable_key(
+pub(crate) fn addressable_key(
     root: &Path,
     snapshot: &Snapshot<TaskName>,
     entry: &Entry<'_, TaskName>,
@@ -502,7 +515,7 @@ fn interrupted_promotion<'a>(twins: &[Entry<'a, TaskName>]) -> Option<Entry<'a, 
 /// library no bytes and lets it refuse — a refusal writes nothing, so the
 /// unrenderable content is never reached.
 #[must_use]
-pub fn next_key(snapshot: &Snapshot<TaskName>) -> Option<Key> {
+pub(crate) fn next_key(snapshot: &Snapshot<TaskName>) -> Option<Key> {
     let greatest = snapshot
         .walk()
         .filter_map(|entry| entry.key())
@@ -539,36 +552,16 @@ fn entry_outcome(entry: &Entry<'_, TaskName>) -> Outcome {
 /// Everything a launch needs about one selected leaf, copied while a single
 /// shared guard is held. Callers never reopen or reparse the tree before launch.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SelectedLeaf {
+pub struct Selection {
     pub path: PathBuf,
     pub handle: Handle,
     pub kind: Kind,
 }
 
-/// `pick`: the first **live leaf** in walk order, or `None` for a grove with no
-/// live work left — the loop's finish signal, which the CLI renders as empty
-/// stdout and a *no live leaves* diagnostic.
-///
-/// Walk order is the library's: within a level the distinguished child first
-/// (`BRIEF.md`, never a leaf), then the positioned children by ordinal, with
-/// nodes descended in place — so a node at an earlier ordinal is fully explored
-/// before a later sibling. `DONE` and `ABANDONED` leaves are skipped; foreign
-/// names never reach the snapshot at all.
-pub fn pick(grove_root: &Path) -> Result<Option<PathBuf>> {
-    let tree = read(grove_root)?;
-    pick_in(&tree)
-}
-
 /// [`pick`] against a tree already read. Used by every verb that needs a leaf
 /// and its brief chain from the *same* observation.
-pub fn pick_in(tree: &Tree) -> Result<Option<PathBuf>> {
+pub(crate) fn pick_in(tree: &Tree) -> Result<Option<PathBuf>> {
     Ok(select_in(tree)?.map(|selection| selection.path))
-}
-
-/// `select`: one live leaf and every launch fact about it, from one observation.
-pub fn select(grove_root: &Path) -> Result<Option<SelectedLeaf>> {
-    let tree = read(grove_root)?;
-    select_in(&tree)
 }
 
 /// [`select`] against a tree already read.
@@ -577,7 +570,7 @@ pub fn select(grove_root: &Path) -> Result<Option<SelectedLeaf>> {
 /// `finish` leaf is the driver's own, so ordinary work outranks it wherever it
 /// sits, and more than one live `finish` leaf is a malformed tree rather than a
 /// choice.
-pub fn select_in(tree: &Tree) -> Result<Option<SelectedLeaf>> {
+pub(crate) fn select_in(tree: &Tree) -> Result<Option<Selection>> {
     selected(tree.root(), tree.snapshot())
 }
 
@@ -587,11 +580,11 @@ pub fn select_in(tree: &Tree) -> Result<Option<SelectedLeaf>> {
 /// finish sentinel is allocated only if the same snapshot found no live work —
 /// and a mutation is on the exclusive guard. Both guards deref to a
 /// [`Snapshot`], so this is the same selection and not a second one.
-pub(crate) fn select_in_write(tree: &TreeWrite) -> Result<Option<SelectedLeaf>> {
+pub(crate) fn select_in_write(tree: &Guard) -> Result<Option<Selection>> {
     selected(tree.root(), tree.snapshot())
 }
 
-fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<SelectedLeaf>> {
+fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selection>> {
     let mut live = Vec::new();
     for entry in snapshot.walk() {
         if let Some((kind, handle)) = live_leaf(&entry) {
@@ -616,28 +609,23 @@ fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selecte
         .iter()
         .find(|(_, kind, _)| !kind.is_finish())
         .or_else(|| finish.first().copied());
-    Ok(selected.map(|(entry, kind, handle)| SelectedLeaf {
+    Ok(selected.map(|(entry, kind, handle)| Selection {
         path: entry_path(root, *entry),
         handle: handle.clone(),
         kind: kind.clone(),
     }))
 }
 
-/// `kind [<leaf>]`: the task's session kind — whatever token the name carries, read
-/// from the filename and never from the body.
-///
-/// With `leaf_path = Some`, that leaf; with `None`, [`pick`]'s next live leaf,
-/// and `Ok(None)` on a grove with no live work — the same signal `pick` gives.
-pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
-    let tree = read(grove_root)?;
+/// [`kind`] against a tree already read.
+pub(crate) fn kind_in(tree: &Tree, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
     let target = match leaf_path {
         Some(path) => Some(path.to_path_buf()),
-        None => pick_in(&tree)?,
+        None => pick_in(tree)?,
     };
     let Some(target) = target else {
         return Ok(None);
     };
-    match leaf_entry(&tree, &target)?.triple().map(|t| t.parts) {
+    match leaf_entry(tree, &target)?.triple().map(|t| t.parts) {
         Some(Parts::Leaf { kind, .. }) => Ok(Some(kind.clone())),
         // Unreachable: `leaf_entry` refuses anything that is not a leaf.
         _ => bail!(
@@ -655,7 +643,7 @@ pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>>
 /// that have none — which is exactly `brief-chain`'s documented *a directory
 /// level with no `BRIEF.md` is skipped silently*. A leaf has no brief of its
 /// own, so its containing node's is the deepest one collected.
-pub fn brief_chain(tree: &Tree, leaf_path: &Path) -> Result<Vec<PathBuf>> {
+pub(crate) fn brief_chain(tree: &Tree, leaf_path: &Path) -> Result<Vec<PathBuf>> {
     let entry = leaf_entry(tree, leaf_path)?;
     Ok(entry
         .distinguished_chain()
@@ -737,48 +725,78 @@ fn leaf_entry<'a>(tree: &'a Tree, leaf_path: &Path) -> Result<Entry<'a, TaskName
     )
 }
 
-/// The outcome of resolving a reference. The CLI maps this to stdout/stderr via
-/// [`render_resolution`]; the split keeps the I/O contract unit-testable without
-/// a live verb dispatch.
+/// What a reference resolved to.
+///
+/// **Ambiguity is an answer, not an error**: the caller is a session that can
+/// re-ask with a narrower reference, and the whole point of listing the matches
+/// is that it can. *Nothing matched* is not here at all — that is the store's
+/// [`Sought::Nothing`](ordinal_fs_tree::Sought), which is what
+/// [`crate::verbs::resolve`] answers with.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Resolution {
-    /// Exactly one entry matched, with the matched entry's own outcome — so an
-    /// abandoned match is distinguishable from both a live and a `DONE` one.
-    Found { path: PathBuf, outcome: Outcome },
-    /// No entry matched the reference (pick-style: not an error).
-    NotFound,
-    /// A bare-slug reference matched more than one entry. Each carries its
-    /// permanent key so the caller re-queries by the unambiguous key.
-    Ambiguous(Vec<AmbiguousMatch>),
+    /// The reference was `.`, the grove root. It is not an entry: it carries no
+    /// key, no slug and no kind.
+    Root,
+    /// Exactly one entry matched.
+    Entry(Located),
+    /// A bare-slug reference matched more than one entry. Each carries its own
+    /// handle, so the caller re-queries by the unambiguous key in it.
+    Ambiguous(Vec<Located>),
 }
 
-/// One entry of a [`Resolution::Ambiguous`] result.
+/// One entry a reference matched.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AmbiguousMatch {
-    pub key: u32,
+pub struct Located {
+    /// Where it is now.
     pub path: PathBuf,
+    /// Its position-free identity, which is also how to re-ask for it
+    /// unambiguously.
+    pub handle: Handle,
+    /// Its session kind — `None` for a node directory, which is not driven as a
+    /// session.
+    pub kind: Option<Kind>,
+    /// Live, `DONE` or `ABANDONED`.
+    ///
+    /// **Not in `docs/specs/module-decomposition.md`'s listing of this struct,
+    /// and deliberately added back.** `resolve` must not let a retired or
+    /// abandoned dead end look live, and the note that says so is the caller's
+    /// to print — the alternative was for the caller to read the outcome off the
+    /// filename, which is the one thing principle 3 forbids anything but
+    /// [`crate::TaskName`] to do.
     pub outcome: Outcome,
 }
 
-/// `resolve <ref>`: turn a reference into the current path of the entity it
-/// names, searching the whole tree — live leaves, `DONE` and `ABANDONED` leaves,
-/// and node directories alike.
+/// Everything a resolved reference says about one entry.
+fn located(root: &Path, entry: Entry<'_, TaskName>) -> Result<Located> {
+    let triple = entry
+        .triple()
+        .context("a resolved reference matched the root brief, which carries no identity")?;
+    let (kind, slug) = match &triple.parts {
+        Parts::Leaf { kind, slug, .. } => (Some(kind.clone()), slug.clone()),
+        Parts::Node { slug } => (None, slug.clone()),
+    };
+    Ok(Located {
+        path: entry_path(root, entry),
+        handle: Handle::new(slug, triple.key),
+        kind,
+        outcome: entry_outcome(&entry),
+    })
+}
+
+/// `resolve <ref>` against a tree already read.
 ///
+/// Turn a reference into the current path of the entity it names, searching the
+/// whole tree — live leaves, `DONE` and `ABANDONED` leaves, and node directories
+/// alike.
+///
+///   * `.` → [`Resolution::Root`].
 ///   * `[n]` / `n` → the entity whose permanent key is `n`. Keys are unique
 ///     tree-wide, so this is the library's `by_key`.
 ///   * `[n]-slug` → same; the slug part is decorative (ignored).
-///   * bare slug → 0 ⇒ `NotFound`; 1 ⇒ `Found`; >1 ⇒ `Ambiguous`.
+///   * bare slug → 0 ⇒ `Sought::Nothing`; 1 ⇒ `Entry`; >1 ⇒ `Ambiguous`.
 ///   * `<slug>-k<key>` → the full canonical handle, read as its terminal
 ///     `-k<key>`. Tried only after the bare slug fails, so a literal slug ending
 ///     in `-k<digits>` still wins.
-///
-/// The root brief is unreferenceable: it carries no key and no slug.
-pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
-    let tree = read(grove_root)?;
-    resolve_in(&tree, reference)
-}
-
-/// [`resolve`] against a tree already read.
 ///
 /// **The one lookup grove has that is not by key**, and the one place the seam's
 /// narrowness is felt from grove's side. The library offers `by_key` and a
@@ -788,23 +806,21 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
 /// `Parts`, and it is a whole walk rather than a `seek` because ambiguity is a
 /// property of the match *set*: `seek` short-circuits at the first hit, which is
 /// precisely the answer `resolve` must not give.
-pub fn resolve_in(tree: &Tree, reference: &str) -> Result<Resolution> {
-    Ok(match lookup(tree.snapshot(), reference)? {
-        Lookup::Found(entry) => Resolution::Found {
-            path: entry_path(tree.root(), entry),
-            outcome: entry_outcome(&entry),
-        },
-        Lookup::NotFound => Resolution::NotFound,
-        Lookup::Ambiguous(matches) => Resolution::Ambiguous(
+///
+/// The root brief is unreferenceable: it carries no key and no slug.
+pub(crate) fn resolve_in(tree: &Tree, reference: &Reference) -> Result<Sought<Resolution>> {
+    if reference.is_root() {
+        return Ok(Sought::Match(Resolution::Root));
+    }
+    Ok(match lookup(tree.snapshot(), reference.as_str())? {
+        Lookup::Found(entry) => Sought::Match(Resolution::Entry(located(tree.root(), entry)?)),
+        Lookup::NotFound => Sought::Nothing,
+        Lookup::Ambiguous(matches) => Sought::Match(Resolution::Ambiguous(
             matches
                 .into_iter()
-                .map(|entry| AmbiguousMatch {
-                    key: slug_match_key(&entry),
-                    path: entry_path(tree.root(), entry),
-                    outcome: entry_outcome(&entry),
-                })
-                .collect(),
-        ),
+                .map(|entry| located(tree.root(), entry))
+                .collect::<Result<Vec<_>>>()?,
+        )),
     })
 }
 
@@ -894,7 +910,7 @@ fn lookup<'a>(snapshot: &'a Snapshot<TaskName>, reference: &str) -> Result<Looku
 /// non-existent path is re-tried as a reference, so the two namespaces never
 /// collide in practice. `.` is a path — the grove root — and so needs no case of
 /// its own.
-pub fn reference<'a>(
+pub(crate) fn reference<'a>(
     root: &Path,
     snapshot: &'a Snapshot<TaskName>,
     argument: &str,
@@ -968,54 +984,6 @@ pub(crate) fn parse_ref(reference: &str) -> Result<Ref> {
     }
 }
 
-/// Render a [`Resolution`] to the `(stdout, stderr)` the `resolve` verb emits.
-/// Kept pure and separate from the I/O so the exact contract is unit-testable
-/// without going through the CLI dispatch.
-#[must_use]
-pub fn render_resolution(reference: &str, resolution: &Resolution) -> (String, String) {
-    match resolution {
-        Resolution::Found { path, outcome } => {
-            let stdout = format!("{}\n", path.display());
-            let stderr = match outcome {
-                Outcome::Live => String::new(),
-                Outcome::Done => format!(
-                    "note: referenced task is retired (DONE): {}\n",
-                    path.display()
-                ),
-                // The abandoned counterpart of the DONE note above: `resolve`
-                // must not let a pruned dead end look live.
-                Outcome::Abandoned => format!(
-                    "note: referenced task is abandoned (ABANDONED): {}\n",
-                    path.display()
-                ),
-            };
-            (stdout, stderr)
-        }
-        Resolution::NotFound => (
-            String::new(),
-            format!("resolve: no entry matches reference {reference:?}\n"),
-        ),
-        Resolution::Ambiguous(matches) => {
-            let mut stderr =
-                format!("resolve: reference {reference:?} is ambiguous; re-query by key:\n");
-            for matched in matches {
-                let tag = match matched.outcome {
-                    Outcome::Live => "",
-                    Outcome::Done => " (retired)",
-                    Outcome::Abandoned => " (abandoned)",
-                };
-                stderr.push_str(&format!(
-                    "  [{}] {}{}\n",
-                    matched.key,
-                    matched.path.display(),
-                    tag
-                ));
-            }
-            (String::new(), stderr)
-        }
-    }
-}
-
 #[cfg(test)]
 pub(crate) fn reset_read_count() {
     READ_COUNT.with(|count| count.set(0));
@@ -1027,8 +995,53 @@ pub(crate) fn read_count() -> usize {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+
+    // ---- the path-taking compositions, which are the tests' alone -----------
+    //
+    // Every verb takes an already-open tree since `loop-crate-verbs-k21`, so
+    // *open the root, then read it* is the caller's composition and no longer
+    // production code here. The fixtures below all name a root, so the four
+    // compositions they were written against live here, where they are used.
+
+    /// Read the task tree under a shared lock.
+    ///
+    /// One lock and one snapshot, and every read verb below takes exactly one of
+    /// these.
+    pub(crate) fn read(grove_root: &Path) -> Result<Tree> {
+        match read_or_vacant(grove_root)? {
+            Vacant::Tree(tree) => Ok(tree),
+            Vacant::Nothing => Err(absent_tree(grove_root)),
+        }
+    }
+    /// `pick`: the first **live leaf** in walk order, or `None` for a grove with no
+    /// live work left — the loop's finish signal, which the CLI renders as empty
+    /// stdout and a *no live leaves* diagnostic.
+    ///
+    /// Walk order is the library's: within a level the distinguished child first
+    /// (`BRIEF.md`, never a leaf), then the positioned children by ordinal, with
+    /// nodes descended in place — so a node at an earlier ordinal is fully explored
+    /// before a later sibling. `DONE` and `ABANDONED` leaves are skipped; foreign
+    /// names never reach the snapshot at all.
+    pub(crate) fn pick(grove_root: &Path) -> Result<Option<PathBuf>> {
+        let tree = read(grove_root)?;
+        pick_in(&tree)
+    }
+    /// `select`: one live leaf and every launch fact about it, from one observation.
+    fn select(grove_root: &Path) -> Result<Option<Selection>> {
+        let tree = read(grove_root)?;
+        select_in(&tree)
+    }
+    /// `kind [<leaf>]`: the task's session kind — whatever token the name carries, read
+    /// from the filename and never from the body.
+    ///
+    /// With `leaf_path = Some`, that leaf; with `None`, [`pick`]'s next live leaf,
+    /// and `Ok(None)` on a grove with no live work — the same signal `pick` gives.
+    fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
+        let tree = read(grove_root)?;
+        kind_in(&tree, leaf_path)
+    }
 
     /// A [`Kind`] for a test that needs one, by its label.
     ///
@@ -1090,7 +1103,7 @@ mod tests {
 
         assert_eq!(
             selected,
-            SelectedLeaf {
+            Selection {
                 path,
                 handle: Handle::parse("selected-k7").expect("a well-formed handle"),
                 kind: a_kind("review-impl"),
@@ -1641,6 +1654,17 @@ mod tests {
     ///   02-add-k4.DONE? -> 02-DONE-impl--add-k4.md   retired leaf, slug "add"
     ///   03-impl--build-k5.md
     /// ```
+    /// `resolve` against a grove root, for the tests: the verb takes a tree
+    /// already read, and every case below is about the answer rather than about
+    /// the opening.
+    fn resolve(grove_root: &Path, reference: &str) -> Result<Sought<Resolution>> {
+        let tree = read(grove_root)?;
+        resolve_in(
+            &tree,
+            &Reference::parse(reference).map_err(|error| anyhow!("{error}"))?,
+        )
+    }
+
     fn resolve_fixture() -> (TempDir, PathBuf) {
         let (tmp, g) = grove();
         touch(&g, "BRIEF.md");
@@ -1657,12 +1681,12 @@ mod tests {
     fn resolve_by_bracket_key_finds_a_nested_leaf() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[2]").unwrap() {
-            Resolution::Found { path, outcome } => {
+            Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "01-impl--add-k2.md");
                 assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
                 assert_eq!(outcome, Outcome::Live);
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
     }
 
@@ -1670,11 +1694,11 @@ mod tests {
     fn resolve_by_bare_number_finds_a_done_leaf() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "4").unwrap() {
-            Resolution::Found { path, outcome } => {
+            Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "02-DONE-impl--add-k4.md");
                 assert_eq!(outcome, Outcome::Done, "the key-4 task is DONE");
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
     }
 
@@ -1691,38 +1715,31 @@ mod tests {
         touch(&g, "BRIEF.md");
         touch(&g, "01-ABANDONED-impl--spike-k1.md");
         match resolve(&g, "[1]").unwrap() {
-            Resolution::Found { path, outcome } => {
+            Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "01-ABANDONED-impl--spike-k1.md");
                 assert_eq!(outcome, Outcome::Abandoned);
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
         // The full `<slug>-k<key>` handle resolves it too.
         match resolve(&g, "spike-k1").unwrap() {
-            Resolution::Found { path, outcome } => {
+            Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "01-ABANDONED-impl--spike-k1.md");
                 assert_eq!(outcome, Outcome::Abandoned);
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
-        // And the CLI-facing render carries the same note a DONE match gets,
-        // in its own wording.
-        let (_out, err) = render_resolution("[1]", &resolve(&g, "[1]").unwrap());
-        assert!(
-            err.contains("abandoned") && err.contains("ABANDONED"),
-            "got {err:?}"
-        );
     }
 
     #[test]
     fn resolve_bracket_key_ignores_decorative_slug() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[5]-whatever").unwrap() {
-            Resolution::Found { path, outcome } => {
+            Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "03-impl--build-k5.md");
                 assert_eq!(outcome, Outcome::Live);
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
     }
 
@@ -1732,30 +1749,30 @@ mod tests {
         // node resolves to the directory path (append /BRIEF.md to read it).
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[1]").unwrap() {
-            Resolution::Found { path, outcome } => {
+            Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "01-design-k1");
                 assert!(path.is_dir());
                 assert_eq!(outcome, Outcome::Live);
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
     }
 
     #[test]
     fn resolve_key_not_found() {
         let (_t, g) = resolve_fixture();
-        assert_eq!(resolve(&g, "[99]").unwrap(), Resolution::NotFound);
+        assert_eq!(resolve(&g, "[99]").unwrap(), Sought::Nothing);
     }
 
     #[test]
     fn resolve_bare_slug_unique_across_dirs() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "build").unwrap() {
-            Resolution::Found { path, outcome } => {
+            Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "03-impl--build-k5.md");
                 assert_eq!(outcome, Outcome::Live);
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
     }
 
@@ -1764,44 +1781,65 @@ mod tests {
         // `remove` lives only inside the node directory — slug search recurses.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "remove").unwrap() {
-            Resolution::Found { path, outcome } => {
+            Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "02-impl--remove-k3.md");
                 assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
                 assert_eq!(outcome, Outcome::Live);
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
     }
 
     #[test]
     fn resolve_bare_slug_not_found() {
         let (_t, g) = resolve_fixture();
-        assert_eq!(resolve(&g, "nope").unwrap(), Resolution::NotFound);
+        assert_eq!(resolve(&g, "nope").unwrap(), Sought::Nothing);
     }
 
     #[test]
     fn resolve_bare_slug_ambiguous_lists_every_match_by_key() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "add").unwrap() {
-            Resolution::Ambiguous(matches) => {
+            Sought::Match(Resolution::Ambiguous(matches)) => {
                 // Pre-order: the nested `01-design/01-add-k2` precedes the
                 // root-level `02-DONE-add-k4`.
                 assert_eq!(matches.len(), 2);
-                assert_eq!(matches[0].key, 2);
+                // The key comes back inside the handle now: it is the handle
+                // that a caller re-queries with, and the key alone was never
+                // enough to name the entry back.
+                assert_eq!(matches[0].handle.to_string(), "add-k2");
                 assert_eq!(name_of(&matches[0].path), "01-impl--add-k2.md");
                 assert_eq!(matches[0].outcome, Outcome::Live);
-                assert_eq!(matches[1].key, 4);
+                assert_eq!(matches[1].handle.to_string(), "add-k4");
                 assert_eq!(name_of(&matches[1].path), "02-DONE-impl--add-k4.md");
                 assert_eq!(matches[1].outcome, Outcome::Done);
             }
-            other => panic!("expected Ambiguous, got {other:?}"),
+            other => panic!("expected an ambiguous match, got {other:?}"),
         }
     }
 
     #[test]
     fn resolve_root_brief_is_unreferenceable() {
         let (_t, g) = resolve_fixture();
-        assert_eq!(resolve(&g, "").unwrap(), Resolution::NotFound);
+        // It carries no key and no slug, so nothing spells it. Its own filename
+        // does not either.
+        assert_eq!(resolve(&g, "BRIEF").unwrap(), Sought::Nothing);
+        assert_eq!(resolve(&g, "BRIEF.md").unwrap(), Sought::Nothing);
+    }
+
+    #[test]
+    fn resolve_dot_is_the_grove_root_itself() {
+        let (_t, g) = resolve_fixture();
+        assert_eq!(
+            resolve(&g, ".").unwrap(),
+            Sought::Match(Resolution::Root),
+            "`.` is the root, and the root is not an entry"
+        );
+    }
+
+    #[test]
+    fn an_empty_reference_names_nothing_and_is_refused_before_the_tree() {
+        assert!(Reference::parse("   ").is_err());
     }
 
     #[test]
@@ -1831,11 +1869,11 @@ mod tests {
         // — so the handle round-trips back to a path.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "build-k5").unwrap() {
-            Resolution::Found { path, outcome } => {
+            Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "03-impl--build-k5.md");
                 assert_eq!(outcome, Outcome::Live);
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
     }
 
@@ -1867,7 +1905,7 @@ mod tests {
             "build-k005",
         ] {
             match resolve(&g, reference).unwrap() {
-                Resolution::Found { path, .. } => assert_eq!(
+                Sought::Match(Resolution::Entry(Located { path, .. })) => assert_eq!(
                     name_of(&path),
                     if reference.contains("-k4") {
                         "02-DONE-impl--add-k4.md"
@@ -1876,13 +1914,13 @@ mod tests {
                     },
                     "{reference:?}"
                 ),
-                other => panic!("{reference:?}: expected Found, got {other:?}"),
+                other => panic!("{reference:?}: expected one entry, got {other:?}"),
             }
         }
         // A reference ending in no key at all is still simply unmatched.
         for reference in ["nothing", "nothing-k", "nothing-kx"] {
             assert!(
-                matches!(resolve(&g, reference).unwrap(), Resolution::NotFound),
+                matches!(resolve(&g, reference).unwrap(), Sought::Nothing),
                 "{reference:?} should not resolve"
             );
         }
@@ -1894,11 +1932,11 @@ mod tests {
         // names exactly the nested live leaf via its key.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "add-k2").unwrap() {
-            Resolution::Found { path, .. } => {
+            Sought::Match(Resolution::Entry(Located { path, .. })) => {
                 assert_eq!(name_of(&path), "01-impl--add-k2.md");
                 assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
     }
 
@@ -1907,11 +1945,11 @@ mod tests {
         // A node's handle (`design-k1`) resolves to the node directory, like its key.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "design-k1").unwrap() {
-            Resolution::Found { path, .. } => {
+            Sought::Match(Resolution::Entry(Located { path, .. })) => {
                 assert_eq!(name_of(&path), "01-design-k1");
                 assert!(path.is_dir());
             }
-            other => panic!("expected Found, got {other:?}"),
+            other => panic!("expected one entry, got {other:?}"),
         }
     }
 
@@ -1925,7 +1963,7 @@ mod tests {
         touch(&g, "01-impl--foo-k5-k7.md"); // slug "foo-k5", key 7
         touch(&g, "02-impl--other-k5.md"); // slug "other", key 5
         match resolve(&g, "foo-k5").unwrap() {
-            Resolution::Found { path, .. } => {
+            Sought::Match(Resolution::Entry(Located { path, .. })) => {
                 assert_eq!(
                     name_of(&path),
                     "01-impl--foo-k5-k7.md",
@@ -1941,93 +1979,7 @@ mod tests {
         // A handle whose key matches nothing is NotFound (not an error), like any
         // unmatched reference.
         let (_t, g) = resolve_fixture();
-        assert_eq!(resolve(&g, "ghost-k99").unwrap(), Resolution::NotFound);
-    }
-
-    // ---- render_resolution --------------------------------------------------
-
-    #[test]
-    fn render_found_prints_path_no_stderr() {
-        let r = Resolution::Found {
-            path: PathBuf::from("/g/.grove/03-impl--build-k5.md"),
-            outcome: Outcome::Live,
-        };
-        let (out, err) = render_resolution("[5]", &r);
-        assert_eq!(out, "/g/.grove/03-impl--build-k5.md\n");
-        assert!(err.is_empty(), "got {err:?}");
-    }
-
-    #[test]
-    fn render_found_retired_notes_on_stderr_but_still_prints_path() {
-        let r = Resolution::Found {
-            path: PathBuf::from("/g/.grove/02-DONE-impl--add-k4.md"),
-            outcome: Outcome::Done,
-        };
-        let (out, err) = render_resolution("4", &r);
-        assert_eq!(out, "/g/.grove/02-DONE-impl--add-k4.md\n");
-        assert!(err.contains("retired"), "got {err:?}");
-    }
-
-    #[test]
-    fn render_found_abandoned_notes_on_stderr_but_still_prints_path() {
-        // The abandoned counterpart of the DONE case above: a resolved
-        // `ABANDONED` entry must get its own stderr note, not silence
-        // (silence is what a live match gets) and not the DONE wording.
-        let r = Resolution::Found {
-            path: PathBuf::from("/g/.grove/01-ABANDONED-impl--spike-k1.md"),
-            outcome: Outcome::Abandoned,
-        };
-        let (out, err) = render_resolution("1", &r);
-        assert_eq!(out, "/g/.grove/01-ABANDONED-impl--spike-k1.md\n");
-        assert!(err.contains("abandoned"), "got {err:?}");
-        assert!(!err.contains("retired"), "got {err:?}");
-    }
-
-    #[test]
-    fn render_not_found_empty_stdout_diagnostic_stderr() {
-        let (out, err) = render_resolution("nope", &Resolution::NotFound);
-        assert!(out.is_empty(), "got {out:?}");
-        assert!(err.contains("no entry matches"), "got {err:?}");
-        assert!(err.contains("nope"), "got {err:?}");
-    }
-
-    #[test]
-    fn render_ambiguous_lists_keys_on_stderr_empty_stdout() {
-        let r = Resolution::Ambiguous(vec![
-            AmbiguousMatch {
-                key: 2,
-                path: PathBuf::from("/g/.grove/01-design-k1/01-impl--add-k2.md"),
-                outcome: Outcome::Live,
-            },
-            AmbiguousMatch {
-                key: 4,
-                path: PathBuf::from("/g/.grove/02-DONE-impl--add-k4.md"),
-                outcome: Outcome::Done,
-            },
-        ]);
-        let (out, err) = render_resolution("add", &r);
-        assert!(
-            out.is_empty(),
-            "stdout must be empty for ambiguous; got {out:?}"
-        );
-        assert!(err.contains("ambiguous"), "got {err:?}");
-        assert!(err.contains("[2]"), "got {err:?}");
-        assert!(err.contains("[4]"), "got {err:?}");
-        assert!(err.contains("retired"), "got {err:?}");
-    }
-
-    #[test]
-    fn render_ambiguous_tags_an_abandoned_match() {
-        let r = Resolution::Ambiguous(vec![AmbiguousMatch {
-            key: 1,
-            path: PathBuf::from("/g/.grove/01-ABANDONED-impl--spike-k1.md"),
-            outcome: Outcome::Abandoned,
-        }]);
-        let (_out, err) = render_resolution("spike", &r);
-        assert!(
-            err.contains("[1]") && err.contains("(abandoned)"),
-            "got {err:?}"
-        );
+        assert_eq!(resolve(&g, "ghost-k99").unwrap(), Sought::Nothing);
     }
 
     // ---- pick + brief-chain together ----------------------------------------

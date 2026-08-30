@@ -18,7 +18,6 @@
 
 use anyhow::Result;
 use keyed_launch::Token;
-use std::path::PathBuf;
 
 /// What a finished session tells the self-driving loop to do next. The agent
 /// picks this when it signals; the loop driver reads it back from the signal
@@ -86,53 +85,12 @@ pub fn interpret(token: Option<&Token>) -> Option<Disposition> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct CompleteOpts {
-    /// Relaunch-signal file the loop driver watches for while its harness
-    /// child runs. Defaults to `$GROVE_SIGNAL_FILE`.
-    pub signal_file: Option<PathBuf>,
-    /// What the loop should do once this session ends: relaunch the next
-    /// task (default) or finish the whole grove (`--done`).
-    pub disposition: Disposition,
-}
-
-/// Resolve options from an explicit flag, falling back to the loop driver's
-/// environment handle. `disposition` comes straight from the verb (no env
-/// fallback): the default verb relaunches, the `--done` flag finishes.
-pub fn resolve_opts(signal_file: Option<PathBuf>, disposition: Disposition) -> CompleteOpts {
-    CompleteOpts {
-        signal_file: signal_file.or_else(|| {
-            std::env::var_os("GROVE_SIGNAL_FILE")
-                .filter(|value| !value.is_empty())
-                .map(PathBuf::from)
-        }),
-        disposition,
-    }
-}
-
-/// Write the disposition signal and return. Ending this session is the loop
-/// driver's job now — it is watching for this very channel — not this
-/// process's, so there is nothing else to do here.
+/// Write the disposition into the channel the driver allocated.
 ///
-/// Written through `keyed_launch::signal`, the child-side half of the channel
-/// the driver allocated: this process holds only the path it was handed, and
-/// the file's framing belongs to whoever reads it back.
-pub fn signal_complete(opts: &CompleteOpts) -> Result<()> {
-    match &opts.signal_file {
-        Some(sig) => {
-            keyed_launch::signal(sig, opts.disposition.token())?;
-            let tail = match opts.disposition {
-                Disposition::Relaunch => "the loop will start the next task",
-                Disposition::Done => "the grove is finished — the loop will stop",
-            };
-            eprintln!("grove complete: signalled; {tail}.");
-        }
-        None => {
-            eprintln!(
-                "grove complete: no GROVE_SIGNAL_FILE — not running under the loop driver; \
-                 exit this session manually."
-            );
-        }
-    }
+/// Written through `keyed_launch::signal`, the child-side half of that channel:
+/// this process holds only the path it was handed, and the file's framing
+/// belongs to whoever reads it back.
+pub(crate) fn signal(path: &std::path::Path, disposition: Disposition) -> Result<()> {
+    keyed_launch::signal(path, disposition.token())?;
     Ok(())
 }

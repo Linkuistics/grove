@@ -19,7 +19,7 @@ fn init_repo() -> TempDir {
 }
 
 fn seed_current_grove(worktree: &Path) {
-    let output = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+    let output = Command::new(support::grove_llm())
         .current_dir(worktree)
         .arg("root-init")
         .output()
@@ -51,7 +51,7 @@ struct WaitingChild {
 impl WaitingChild {
     fn spawn(worktree: &Path, args: &[&str], stderr_path: PathBuf) -> Self {
         let stderr = File::create(&stderr_path).unwrap();
-        let child = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+        let child = Command::new(support::grove_llm())
             .current_dir(worktree)
             .args(args)
             .stdout(Stdio::piped())
@@ -199,7 +199,7 @@ fn worktree_readers_share_the_lock_without_reporting_contention() {
     seed_current_grove(worktree.path());
     let external_guard = lock_worktree(worktree.path(), libc::LOCK_SH);
 
-    let output = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+    let output = Command::new(support::grove_llm())
         .current_dir(worktree.path())
         .arg("pick")
         .output()
@@ -240,33 +240,17 @@ fn worktree_readers_share_the_lock_without_reporting_contention() {
 /// holds the exclusive lock, and creates the root, the charter and the first
 /// leaf under it.
 ///
-/// Enumerated rather than listed: the scan is every `.rs` file under `src/`, so a
-/// verb that reaches for `ordinal_fs_tree::fs::` in a module of its own fails
-/// here whether or not anyone remembered to add it. The control is the count —
-/// the call sites must still exist, so a rename that hides them fails too.
+/// Enumerated rather than listed: the scan is every `.rs` file grove ships
+/// (`support::grove_sources`), so a verb that reaches for `ordinal_fs_tree::fs::`
+/// in a module of its own fails here whether or not anyone remembered to add it.
+/// The control is the count — the call sites must still exist, so a rename that
+/// hides them fails too. Since `loop-crate-verbs-k21` that walk covers **four**
+/// packages rather than one `src/`, which is the narrowing that would otherwise
+/// have made this pass by looking in the wrong place.
 #[test]
 fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
-    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut callers: Vec<(String, usize)> = Vec::new();
-    let mut files = vec![source.clone()];
-    while let Some(path) = files.pop() {
-        if path.is_dir() {
-            files.extend(
-                fs::read_dir(&path)
-                    .unwrap()
-                    .map(|entry| entry.unwrap().path()),
-            );
-            continue;
-        }
-        if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
-            continue;
-        }
-        let relative = path
-            .strip_prefix(source.parent().unwrap())
-            .unwrap()
-            .display()
-            .to_string();
-        let body = fs::read_to_string(&path).unwrap();
+    for (relative, body) in support::grove_sources() {
         // Any **non-comment** mention of the library's `fs` module, and not just
         // the turbofished call spelling: a caller writing `use ordinal_fs_tree::fs;`
         // and then `fs::write(...)` would evade a narrower pattern, and that is
@@ -284,7 +268,7 @@ fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
     callers.sort();
     assert_eq!(
         callers,
-        vec![("src/task_tree.rs".to_string(), 5)],
+        vec![("crates/grove-loop/src/task_tree.rs".to_string(), 5)],
         "the library's lock is `task_tree`'s to take: two guard type aliases, the \
          two acquisitions themselves — shared and exclusive — and the one import \
          of `Reading`/`Writing`/`Vacancy`, which are the shapes those acquisitions \
@@ -306,7 +290,7 @@ fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
 ///
 /// What survives is the property rather than an absence: **every `flock` Grove
 /// takes in production is non-blocking**. Waiting belongs to the store, on the
-/// store's own lock, and nothing else in `src/` may wait at all. Grove's two
+/// store's own lock, and nothing else grove ships may wait at all. Grove's two
 /// remaining lockers both satisfy it by design — the one-driver-per-workspace
 /// lease *refuses* a contender rather than queueing behind it, and
 /// `task_tree`'s contention probe acquires non-blockingly only to learn whether
@@ -314,39 +298,20 @@ fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
 /// layer growing back, and its symptom is a hang rather than a failure, which is
 /// exactly the kind of regression a test has to catch before a human does.
 ///
-/// Enumerated, like its neighbour above: every `.rs` file under `src/` is
+/// Enumerated, like its neighbour above: every `.rs` file grove ships is
 /// scanned, so a module that grows a guard of its own is checked whether or not
 /// anyone thought to look. Unit tests are cut at their `#[cfg(test)]` boundary —
 /// a fixture that *deliberately* blocks to provoke contention is not production
 /// waiting on itself.
 #[test]
 fn no_production_lock_grove_takes_for_itself_ever_blocks() {
-    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut blocking: Vec<String> = Vec::new();
     let mut checked = 0_usize;
-    let mut files = vec![source.clone()];
-    while let Some(path) = files.pop() {
-        if path.is_dir() {
-            files.extend(
-                fs::read_dir(&path)
-                    .unwrap()
-                    .map(|entry| entry.unwrap().path()),
-            );
-            continue;
-        }
-        if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
-            continue;
-        }
+    for (relative, body) in support::grove_sources() {
         // A whole file of tests, named as one. Nothing in it is production.
-        if path.file_name() == Some(std::ffi::OsStr::new("tests.rs")) {
+        if relative.ends_with("tests.rs") {
             continue;
         }
-        let relative = path
-            .strip_prefix(source.parent().unwrap())
-            .unwrap()
-            .display()
-            .to_string();
-        let body = fs::read_to_string(&path).unwrap();
         let production = body
             .split_once("#[cfg(test)]")
             .map_or(body.as_str(), |(before, _)| before);

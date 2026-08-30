@@ -26,7 +26,7 @@
 //! does not ship, and the size alarm on a synthetic oversized prompt.
 
 use grove::prompt::{self, Mandate};
-use grove::task_name::{Handle, Kind};
+use grove_loop::{Handle, Kind};
 use jj_workspace::Workspace;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};

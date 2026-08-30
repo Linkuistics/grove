@@ -51,6 +51,55 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The task tree and its twelve verbs are a crate: `grove-loop`.** `task_name`,
+  `task_tree`, `task_grow`, `tree_lifecycle` and the completion signal moved out
+  of the `grove` package into `crates/grove-loop`, behind the surface
+  `docs/specs/module-decomposition.md` decision 9 fixes: `read` / `write`
+  answering `Reading` / `Writing`, a `Reference` covering `.`, a key, a handle
+  and a path, a `Selection`, and `verbs::` — twelve of them, each taking the
+  lock it needs in its signature (a `Tree` to read, a `TreeWrite` to write),
+  each answering the store's `Sought` where a search can match nothing, and each
+  returning the paths it wrote. Opening mirrors the store's one level up, so
+  `root-init` takes the `Vacancy` and **cannot** run over a live grove: the
+  refusal to clobber is the shape of the types rather than a check inside them.
+- **`grove-llm` is its own crate, not a second `[[bin]]`.** A binary target can
+  reach its own library's private items, so *the binary is thin* stopped being
+  compiler-enforced the moment it was one. It is now a package over `grove-loop`,
+  and every verb in it is one `grove_loop::verbs::` call plus rendering.
+- **`grove-loop` answers one opaque `Error` for the whole crate**, under the
+  obligation the runner's and the VCS seam's are under: every one names what is
+  wrong *and* what fixes it. `anyhow` stops at that boundary, so a consumer takes
+  on no error library of grove's.
+- **The finish teardown deletes through the store.** `finish-commit` was the last
+  caller keeping its own `remove_dir_all` spelling of an operation
+  `root-lifecycle-belongs-to-the-store` had already moved across; it now consumes
+  its write guard through `WriteGuard::delete`, which refuses a root spelled
+  through a link and reports what went. The commit it takes is unchanged.
+- **`grove-llm resolve .` answers the grove root.** `.` was previously read as a
+  bare slug and reported as matching nothing; it is the root, which is the one
+  reference that names no entry (decision 9). An empty or blank reference is now
+  refused rather than searched for.
+- **`grove-llm pick` / `brief-chain` / `kind` / `resolve` refuse a worktree with
+  no grove, and say how to make one.** They always refused it; the message now
+  carries the remedy. A grove that is not there is still not a grove that is
+  finished — a session run one directory off is told so rather than told its work
+  is done.
+- **`grove-llm leaf-prune` that stops partway now names what it already marked.**
+  A subtree prune is *N* renames under *N* guards
+  (`docs/adr/bulk-marks-are-not-atomic.md`), accepted on the argument that the
+  marks *are* the state so rerunning converges — and that argument is only
+  available to an operator who can see the residue. A stopped run now lists the
+  leaves already marked `ABANDONED` and says to rerun the same command.
+- **A second tree operation under one opening announces its own wait.** It
+  reopens the lock rather than keeping one, so a contender arriving in the gap
+  used to block the command with nothing printed. The two commands with a second
+  operation are `leaf-insert` (the cross-reference lint) and `leaf-prune` on a
+  node.
+- No release is cut for any of this and nothing is reinstalled: the change is
+  which package a module compiles in, and the tree, its grammar and the verb set
+  are untouched. The leaf's own `## Why this leaf does not install anything`
+  carries the measured matrix.
+
 ## v19.6.0
 
 - **A session kind is an open token: Grove holds no list of kinds.** `Kind` was a

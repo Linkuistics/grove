@@ -47,15 +47,23 @@ build_target() {
   # reliably abort a function in that context (notably under macOS's bash 3.2). A
   # bare failing cargo would otherwise fall through to the `cp` below and tarball a
   # STALE binary from a previous build. The caller also tests the exit status.
+  # **Both packages, named explicitly.** `grove-llm` is its own package since
+  # `loop-crate-verbs-k21` — a crate rather than a `[[bin]]` of `grove`, so that
+  # *the binary is thin* is compiler-enforced — and this workspace root is also a
+  # package, so a bare `cargo build` builds `grove` alone and the `cp` below
+  # would tarball a stale `grove-llm` or fail outright. `--workspace` would work
+  # too and would also build the store's own `syllabus` binary, which ships in no
+  # archive; naming the two that do is what keeps this line honest.
   case "$target" in
     *-apple-darwin)
-      cargo build --release --target "$target" || return 1
+      cargo build --release --target "$target" -p grove -p grove-llm || return 1
       ;;
     *-unknown-linux-gnu)
       # grove is pure Rust with no system-lib deps (the TUI tower that once pulled
       # curl/openssl was shed in `shed-tui-k20`), so a plain zigbuild cross-build
       # suffices with no vendored-lib feature.
-      cargo zigbuild --release --target "${target}.${LINUX_GLIBC}" || return 1
+      cargo zigbuild --release --target "${target}.${LINUX_GLIBC}" -p grove -p grove-llm \
+        || return 1
       ;;
     *)
       die "unknown target: $target"

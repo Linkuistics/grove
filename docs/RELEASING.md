@@ -43,11 +43,13 @@ so an added kind does not break every configuration on upgrade — it stops the
 first task of that kind, in the middle of a workstream, and the release note is
 what lets an owner get ahead of it.
 
-Then run the normal checks. For the complete repository suite:
+Then run the normal checks. For the complete repository suite — `--workspace` on
+both cargo lines, because this root is *also* a package and a bare invocation
+tests and lints `grove` alone, leaving `grove-loop` and `grove-llm` unread:
 
 ```sh
-cargo fmt --check
-cargo test --locked
+cargo fmt --all --check
+cargo test --locked --workspace
 cargo clippy --workspace --all-targets
 bash plugins/install.test.sh
 bash plugins/grove/conformance.sh

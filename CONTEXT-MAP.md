@@ -56,6 +56,26 @@ for what a template must be, and
 [*the untracked configuration delta*](./docs/adr/untracked-configuration-delta.md)
 for the second document.
 
+**`crates/grove-loop` and `crates/grove-llm` are two more crates and, unlike the
+three above, not even candidate contexts — they *are* the grove context.** The
+other extractions each had to argue their way out of declaring one, because each
+took a vocabulary with it; these took grove's own. `grove-loop` is where *kind*,
+*handle*, *brief chain*, *outcome*, *selection* and *finishing* live, and
+[`CONTEXT.md`](./CONTEXT.md) is already their glossary; `grove-llm` is the verb
+surface over it. A context is a language boundary, and moving a module across a
+crate boundary inside one language is not one.
+
+What the split does buy is the **collision table's** enforcement rather than its
+contents. Four crates now compile separately, so a word that meant two things
+across them would have to be spelled twice to compile at all — and two of the
+four rows the table keeps apart, *entry* and *key*, are exactly the words
+`ordinal-fs-tree` and `grove-loop` both use. Nothing in `grove-loop` re-declares
+either; it takes the store's `Key` and the store's `Entry` and adds grove's own
+`Kind`, `Handle` and `Outcome` beside them, which is the shape the table asks
+for. Its decisions are the grove context's, as ever:
+[decision 1](./docs/specs/module-decomposition.md) for the crate split and
+[decision 9](./docs/specs/module-decomposition.md) for the loop's own surface.
+
 ## Relationships
 
 - **grove → skills, a documentation-level prerequisite that binds without the

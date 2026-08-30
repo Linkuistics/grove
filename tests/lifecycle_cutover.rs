@@ -548,7 +548,8 @@ fn a_taskless_root_stops_the_driver_before_selection_and_launch() {
     let worktree = fixture.path().join("taskless-root");
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
-    let created = grove::tree_lifecycle::root_init(&worktree, "custom-plan").unwrap();
+    let created = root_init(&worktree, "custom-plan");
+
     fs::remove_file(&created[1]).unwrap();
     let prompt_log = fixture.path().join("taskless.log");
     let fake = fixture.path().join("taskless-command.sh");
@@ -1115,4 +1116,23 @@ fn cli_metadata_exposes_only_the_bare_entrypoint_and_writes_no_skill_directory()
     // the binary may create that directory any more — not the metadata paths
     // above, and not the refused verb, which used to be the sweep's entry point.
     assert!(!home.join(".codex/skills/grove").exists());
+}
+
+/// Scaffold a grove the way `grove-llm root-init` does: read the slug, take the
+/// vacancy, then write.
+///
+/// The verb takes a `Vacancy` since `loop-crate-verbs-k21` — that is what makes
+/// *cannot clobber a live grove* a fact about the types — so a fixture that
+/// wants a fresh grove composes the two halves exactly as the CLI does.
+fn root_init(worktree: &Path, slug: &str) -> Vec<std::path::PathBuf> {
+    let slug = grove_loop::Slug::new(slug).expect("a fixture slug must be well-formed");
+    let grove_loop::Writing::Vacancy(vacancy) =
+        grove_loop::write(worktree).expect("opening a fresh worktree")
+    else {
+        panic!("{} already holds a grove", worktree.display());
+    };
+    let initialized =
+        grove_loop::verbs::root_init(vacancy, &slug, &grove_loop::Kind::requirements())
+            .expect("scaffolding a grove");
+    vec![initialized.brief, initialized.first_leaf]
 }

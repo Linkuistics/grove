@@ -51,7 +51,8 @@ the decisions it names.
 | 16 | `loop-crate-verbs-k21` | the tree layer and the twelve verbs as a crate |
 | 17 | `loop-crate-driver-k22` | the driver, the lease, the loop; thin binaries |
 | 18 | `child-signal-disposition-k31` | what the child inherits, what the escalation reaps, what a signalled driver reports |
-| 19 | `spec-to-current-state-k23` | the spec rewritten; the whole set closed out |
+| 19 | `lint-lock-scope-k32` | what lock the cross-reference lint holds, and for how long |
+| 20 | `spec-to-current-state-k23` | the spec rewritten; the whole set closed out |
 
 ### Where each spec decision lands
 
@@ -86,6 +87,7 @@ Written down so coverage can be checked without re-reading both documents.
 | out of scope: serving the methodology over MCP | **rejected, no work** — recorded at k19, which states the rejection where provisioning dies |
 | out of scope: invoking a harness plugin | **rejected, no work** — a command template expresses it today; anything more is a runner capability, and k10 owns the runner's contract |
 | **not a spec decision at all** — the signal boundary between launcher and child | k31, cut at k11 from that leaf's review; the spec never covered what a child inherits across `exec` or what the escalation reaps, and the run above would otherwise close with three known defects unrecorded |
+| **not a spec decision at all** — the lock the `leaf-insert` lint holds | k32, cut at k21 from that leaf's doubt pass. Decision 9 fixes the verb *surface* and says nothing about the lint's lock scope; `bulk-marks-are-not-atomic` establishes that the lint must hold **a** lock and not which, and a whole-tree read plus a blocking write to a caller's sink under the **exclusive** one was never argued. Placed before k23 so the spec's rewrite describes what k32 settles rather than being corrected after it |
 
 `minimalism-k1`'s `## Deletion list` — roughly 15,200 non-test lines — is spread
 across k6, k7, k8, k13, k18 and k19; its one awkward row, `tree_access`'s seven

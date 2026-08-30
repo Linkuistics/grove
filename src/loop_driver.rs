@@ -47,11 +47,11 @@
 //       [ -n "$disposition" ] || break # no completion signal → stop
 //     done
 
-use crate::complete::{self, Disposition};
 use crate::driver_lease::DriverLease;
 use crate::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
-use crate::task_name::{Handle, Kind};
 use anyhow::{Context, Result};
+use grove_loop::{interpret, Disposition, Reading, Selection, Sought};
+use grove_loop::{Handle, Kind};
 use jj_workspace::Workspace;
 use keyed_launch::{Argv, Channel, End, Ended, Escalation, Launch};
 use std::ffi::OsStr;
@@ -219,10 +219,10 @@ fn run_configured_loop_with_lease(
             .context("revalidating driver lease before loop transition")?;
         let pre_transition_config = SessionConfig::load(&home, &delta_roots)?;
 
-        crate::tree_lifecycle::transition_to_current(worktree)?;
-        let selection = match crate::task_tree::select(&worktree.join(".grove"))? {
-            Some(selection) => selection,
-            None => {
+        grove_loop::driver::transition_to_current(worktree)?;
+        let selection = match picked(worktree)? {
+            Sought::Match(selection) => selection,
+            Sought::Nothing => {
                 // The finish sentinel is a leaf grove writes itself, so the
                 // just-in-time presence rule binds it exactly as it binds
                 // `leaf-add` — before the write, not at the launch that follows
@@ -232,7 +232,7 @@ fn run_configured_loop_with_lease(
                 pre_transition_config
                     .require(Kind::finish().label())
                     .context("materializing the driver-owned finish leaf")?;
-                crate::tree_lifecycle::materialize_finish(worktree)?
+                grove_loop::driver::materialize_finish(worktree)?
             }
         };
 
@@ -279,7 +279,7 @@ fn run_configured_loop_with_lease(
             ended,
             || driver_lease.invalidate_session_epoch(),
             |ended: Ended| {
-                let signal = complete::interpret(ended.token.as_ref());
+                let signal = interpret(ended.token.as_ref());
                 (ended, signal)
             },
         )?;
@@ -356,7 +356,7 @@ fn session_prompt(handle: &Handle, kind: &Kind, worktree: &Path) -> Result<Strin
         handle,
         kind,
         workspace: &workspace,
-        version: env!("CARGO_PKG_VERSION"),
+        version: crate::VERSION,
     }))
 }
 
@@ -387,7 +387,7 @@ fn session_prompt(handle: &Handle, kind: &Kind, worktree: &Path) -> Result<Strin
 /// refused.
 fn launch_configured_session(
     argv: &Argv,
-    selection: &crate::task_tree::SelectedLeaf,
+    selection: &grove_loop::Selection,
     resolved_source: &Path,
     worktree: &Path,
     channel: &Channel,
@@ -485,6 +485,19 @@ fn reset_terminal() {
 fn ignore_interrupts() {
     unsafe {
         libc::signal(libc::SIGINT, libc::SIG_IGN);
+    }
+}
+
+/// The driver's own `pick`, over the worktree it is driving.
+///
+/// The transition above has already brought the worktree to a grove, so the
+/// vacant arm is unreachable in practice — but it is an arm of
+/// [`grove_loop::read`], and answering it as *no live leaves* is the same thing
+/// the transition would have made true a moment earlier.
+fn picked(worktree: &Path) -> anyhow::Result<Sought<Selection>> {
+    match grove_loop::read(worktree)? {
+        Reading::Tree(tree) => Ok(grove_loop::verbs::pick(&tree)?),
+        Reading::Vacant => Ok(Sought::Nothing),
     }
 }
 

@@ -39,7 +39,12 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 /// `delete-provisioning-k19` — so nothing here has to point it anywhere and a
 /// suite run on a machine whose installed CLI is a different build is
 /// unaffected.
-const OWN_GROVE_LLM: &str = env!("CARGO_BIN_EXE_grove-llm");
+/// It is a function rather than a `const` now: `grove-llm` is its own package
+/// since `loop-crate-verbs-k21`, so its path is not a compile-time constant of
+/// *this* package any more.
+fn own_grove_llm() -> PathBuf {
+    support::grove_llm()
+}
 
 const SESSION_KINDS: &[&str] = &[
     "requirements",
@@ -247,7 +252,7 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
             mandates = shell_quote(&mandates),
             verbs = shell_quote(&verbs),
             first_run = shell_quote(&first_run),
-            grove_llm = shell_quote(Path::new(OWN_GROVE_LLM)),
+            grove_llm = shell_quote(&own_grove_llm()),
         ),
     );
     write_complete_config(&home, &configured);
@@ -775,7 +780,7 @@ while :; do sleep 0.1; done
             pid = shell_quote(&session_pid),
             ready = shell_quote(&launch_ready),
             locked = shell_quote(&tree_locked),
-            llm = shell_quote(Path::new(OWN_GROVE_LLM)),
+            llm = shell_quote(&own_grove_llm()),
             orphan_err = shell_quote(&orphan_stderr),
             orphan_done = shell_quote(&orphan_done),
             orphan_started = shell_quote(&orphan_started),

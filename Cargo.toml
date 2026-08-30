@@ -27,7 +27,13 @@
 # a package takes its resolver from that package's edition, so this is what 2021
 # already implies — written down so a later edition bump cannot move it silently.
 [workspace]
-members = ["crates/jj-workspace", "crates/keyed-launch", "crates/ordinal-fs-tree"]
+members = [
+    "crates/grove-llm",
+    "crates/grove-loop",
+    "crates/jj-workspace",
+    "crates/keyed-launch",
+    "crates/ordinal-fs-tree",
+]
 resolver = "2"
 
 # Hold the clippy baseline at zero, for every member. `clippy-baseline-k4` cleared
@@ -103,12 +109,13 @@ exclude = [".grove-worktrees"]
 name = "grove"
 path = "src/main.rs"
 
-# Second binary: the verbs the LLM driving a grove invokes mid-session.
-# Audience-split per cli-binary-split — the human's `grove --help` shows none of
-# these. Shares all internal logic with `grove` via the [lib] below.
-[[bin]]
-name = "grove-llm"
-path = "src/bin/grove-llm.rs"
+# **There is no second `[[bin]]` here.** `grove-llm` is `crates/grove-llm`, its
+# own package, and that is the point: a binary target can reach its own
+# library's private items, so *the binary is thin* stops being compiler-enforced
+# the moment it is a target rather than a crate
+# (`docs/specs/module-decomposition.md`, decision 1). The audience split is
+# unchanged — the human's `grove --help` shows none of those verbs
+# (cli-binary-split).
 
 [lib]
 name = "grove"
@@ -143,18 +150,7 @@ clap = { version = "4", features = ["derive"] }
 # `isatty` before launching, and its session watcher ends a signalled session
 # with `libc::kill` (SIGTERM, then SIGKILL).
 libc = "0.2"
-# The extracted tree library (gh issue #13). `default-features = false` turns off
-# its `cli` feature, which exists for its own `syllabus` binary and pulls in
-# `clap`: with it off, the dependency set this crate *imposes* on grove is
-# exactly `libc`, which grove already takes for `flock` and the loop driver's
-# signals. That claim is the point of the line rather than a note beside it, so
-# `tests/library_dependency.rs` holds it against `cargo metadata` — the crate's
-# own manifest says the set is `libc` and nothing but a test says grove asked for
-# that set.
 #
-# Nothing consumes it yet: `src/task_name.rs` is Grove's `EntryName`
-# implementation, written in the flip's *expand* stage before any verb moves onto
-# the library.
 # The VCS seam (`docs/specs/module-decomposition.md`, decision 8). It imposes no
 # dependency of its own — its errors are an opaque `Refusal` implementing
 # `std::error::Error`, which `anyhow` swallows through `?` without either crate
@@ -165,7 +161,11 @@ jj-workspace = { path = "crates/jj-workspace" }
 # configuration is written in, both of which grove already depended on directly
 # for the module this replaces.
 keyed-launch = { path = "crates/keyed-launch" }
-ordinal-fs-tree = { path = "crates/ordinal-fs-tree", default-features = false }
+# The loop's tree layer and its twelve verbs (`docs/specs/module-decomposition.md`,
+# decision 9). `loop-crate-verbs-k21` moved them out of this package; what is
+# left here — the driver, the lease, the prompt — consumes them, and
+# `loop-crate-driver-k22` follows them across.
+grove-loop = { path = "crates/grove-loop" }
 
 [dev-dependencies]
 assert_cmd = "2.0"

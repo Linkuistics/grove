@@ -44,9 +44,9 @@
 
 use crate::task_grow;
 use crate::task_name::{Handle, Kind, Outcome, Parts, Slug, TaskName};
-use crate::task_tree::{self, Opening, TreeVacancy};
+use crate::task_tree::{self, Guard, Opening, TreeVacancy};
 use anyhow::{bail, Context, Result};
-use jj_workspace::Workspace;
+use jj_workspace::{Commit, Workspace};
 use ordinal_fs_tree::{Entry, EntryName, Found, Key, NewEntry, Report, Snapshot, Target, Verdict};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -72,11 +72,16 @@ pub enum CurrentTransition {
 /// no tree here* as a **shape** rather than an error, so the whole transition is
 /// one [`task_tree::write_or_vacancy`] and the vacancy arm creates the grove
 /// under the lock it already holds.
-pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
+pub(crate) fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
     let grove_root = worktree.join(".grove");
     match task_tree::write_or_vacancy(&grove_root)? {
         Opening::Vacancy(vacancy) => {
-            initialize_grove(vacancy, &grove_name(worktree), &default_root_slug())?;
+            initialize_grove(
+                vacancy,
+                &grove_name(&grove_root),
+                &default_root_slug(),
+                &Kind::requirements(),
+            )?;
             Ok(CurrentTransition::RootInitialized)
         }
         Opening::Tree(tree) => match root_shape(&tree)? {
@@ -105,12 +110,7 @@ pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
 /// no live work. The exclusive re-selection closes the gap between that read
 /// and allocation: newly inserted ordinary work wins, and an existing finish
 /// is reused.
-pub fn materialize_finish(worktree: &Path) -> Result<crate::task_tree::SelectedLeaf> {
-    let grove_root = worktree.join(".grove");
-    // One observation for both halves: the re-selection that may return early
-    // and the append that happens when it does not read the *same* snapshot, so
-    // nothing can appear between them.
-    let tree = task_tree::write(&grove_root)?;
+pub(crate) fn materialize_finish(tree: Guard) -> Result<crate::task_tree::Selection> {
     if let Some(selection) = task_tree::select_in_write(&tree)? {
         return Ok(selection);
     }
@@ -130,7 +130,7 @@ pub fn materialize_finish(worktree: &Path) -> Result<crate::task_tree::SelectedL
         .append(Target::Root, entry)
         .map_err(task_tree::raised)?;
     let path = task_grow::allocated(report.created(), &[key])?.remove(0);
-    Ok(crate::task_tree::SelectedLeaf {
+    Ok(crate::task_tree::Selection {
         path,
         handle: finish_handle(key.context("a finish sentinel was created without a key")?)?,
         kind: Kind::finish(),
@@ -192,7 +192,8 @@ fn finish_body(handle: &Handle) -> String {
 /// working copy before every command and its operation log is the transaction
 /// record, so a teardown that does not commit is restored by `jj undo`, which is
 /// what the seam's own refusal says ([`jj_workspace::Workspace::commit`]).
-pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
+pub(crate) fn finish_commit(workspace: &Workspace, finish: &Handle) -> Result<Commit> {
+    let worktree = workspace.root();
     let grove_root = worktree.join(".grove");
     // **The root is classified before the tree is opened, because two of the
     // three answers are not the library's to give.** A `.grove` that is a
@@ -233,30 +234,17 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
             selection.path.display()
         );
     }
-    // The argument arrives as text from a session's command line, so it is read
-    // by the type that owns the grammar rather than compared as a string: a
-    // handle that is not one is told *why*, and only a well-formed handle
-    // reaches the mismatch below.
-    //
-    // **The refusals quote what the operator typed; everything downstream uses
-    // the tree's own handle.** `Handle::parse` is deliberately lenient on the
-    // key's spelling, so `finish-k0001` is the live `finish-k1` and is accepted
-    // where the old string comparison refused it — an improvement, since the
-    // operator meant that leaf. But the teardown commit is a permanent record
-    // and must name the work item by the handle a name on disk actually wore
-    // (`CONTEXT.md`, *Work-item handle*), so `selection.handle` is what goes
-    // past this point and the raw text goes no further than the error messages
-    // that are quoting it back.
-    let requested = Handle::parse(finish_handle).map_err(|error| {
-        anyhow::anyhow!(
-            "{error}\n\nThe live finish leaf is {handle}; rerun \
-             `grove-llm finish-commit {handle}`.",
-            handle = selection.handle
-        )
-    })?;
-    if selection.handle != requested {
+    // **The refusal quotes what the operator asked for; everything downstream
+    // uses the tree's own handle.** `Handle::parse` — which the caller ran to
+    // get here — is deliberately lenient on the key's spelling, so
+    // `finish-k0001` is the live `finish-k1` and compares equal, which is right:
+    // the operator meant that leaf. But the teardown commit is a permanent
+    // record and must name the work item by the handle a name on disk actually
+    // wore (`CONTEXT.md`, *Work-item handle*), so `selection.handle` is what
+    // goes past this point.
+    if &selection.handle != finish {
         bail!(
-            "requested finish handle {finish_handle:?} does not match the live finish leaf {}",
+            "requested finish handle {finish} does not match the live finish leaf {}",
             selection.handle
         );
     }
@@ -266,9 +254,7 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
     // dropped when this function returns — after the root it names is gone,
     // which the lock does not care about, because the lock is on the directory
     // *containing* the root.
-    let outcome = delete_and_commit(worktree, &grove_root, &selection.handle);
-    drop(tree);
-    outcome
+    delete_and_commit(workspace, tree, &selection.handle)
 }
 
 /// Delete `.grove/` and commit the deletion. Two steps, and each names the
@@ -276,9 +262,10 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
 ///
 /// The refusal wording is grove's and the remedy is jj's: the seam has no
 /// `.grove/` to speak about, and grove has no operation log to repair with.
-fn delete_and_commit(worktree: &Path, grove_root: &Path, finish_handle: &Handle) -> Result<()> {
-    let workspace = Workspace::resolve(worktree).context("cannot commit the finished grove")?;
-    require_recoverable_grove(&workspace, grove_root)?;
+fn delete_and_commit(workspace: &Workspace, tree: Guard, finish_handle: &Handle) -> Result<Commit> {
+    let grove_root = tree.root().to_path_buf();
+    let grove_root = grove_root.as_path();
+    require_recoverable_grove(workspace, grove_root)?;
     // What makes a half-removed tree recoverable is that the snapshot holding it
     // is already in the operation log, not anything done here: `jj restore
     // .grove` returns what was removed — measured on jj 0.44.0
@@ -286,15 +273,24 @@ fn delete_and_commit(worktree: &Path, grove_root: &Path, finish_handle: &Handle)
     // log, which is a fact about a working copy jj has not seen rather than a
     // guarantee grove could hand-build, and principle 1 is that grove does not
     // hand-build it.
-    fs::remove_dir_all(grove_root).with_context(|| {
-        format!(
-            "deleting the finished task tree {}\n\n\
-             Jujutsu still holds it: restore what was removed with `jj restore .grove`, then \
-             fix what blocked the deletion and rerun `grove-llm finish-commit {finish_handle}`.",
-            grove_root.display()
+    //
+    // **The removal is the store's.** `root-lifecycle-belongs-to-the-store`
+    // moved both halves of a root's lifetime across, and
+    // [`WriteGuard::delete`](ordinal_fs_tree::fs::WriteGuard::delete) is the
+    // half this verb needs: it consumes the guard — so the lock is held right up
+    // to the unlink and released with nothing left to guard — refuses a root
+    // spelled through a link, and reports what went. A bare `remove_dir_all`
+    // had none of that, and grove kept its own spelling of a store operation
+    // for no reason but history.
+    tree.delete().map_err(|error| {
+        anyhow::anyhow!(
+            "{error}\n\n\
+             Jujutsu still holds the tree: restore what was removed with `jj restore .grove`, \
+             then fix what blocked the deletion and rerun \
+             `grove-llm finish-commit {finish_handle}`."
         )
     })?;
-    workspace
+    let commit = workspace
         .commit(
             &[grove_root],
             &format!("{finish_handle}: remove completed grove task tree"),
@@ -306,7 +302,7 @@ fn delete_and_commit(worktree: &Path, grove_root: &Path, finish_handle: &Handle)
                  rerun `grove-llm finish-commit {finish_handle}`."
             )
         })?;
-    Ok(())
+    Ok(commit)
 }
 
 /// The one precondition deletion has: jj can only put back what it tracks.
@@ -346,18 +342,10 @@ fn require_recoverable_grove(workspace: &Workspace, grove_root: &Path) -> Result
 /// being fixed is also load-bearing for routing: the loop driver launches the
 /// `start` session *before* this verb has run, so it can only route the
 /// bootstrap by construction (`fresh-grove-start-contract`).
-pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
-    // Validate before touching the filesystem so a bad slug never leaves a stray
-    // `.grove/` behind — and before the lock, since refusing without taking an
-    // exclusive one is strictly kinder.
-    let slug = task_grow::leaf_slug(slug)?;
-    let grove_root = worktree.join(".grove");
-    match task_tree::write_or_vacancy(&grove_root)? {
-        // The refusal to clobber is now the *shape* rather than a check: an
-        // existing `.grove/` opens as a tree, and a tree is not a vacancy.
-        Opening::Tree(_) => bail!("grove root already exists: {}", grove_root.display()),
-        Opening::Vacancy(vacancy) => initialize_grove(vacancy, &grove_name(worktree), &slug),
-    }
+pub(crate) fn root_init(vacancy: TreeVacancy, slug: &Slug, kind: &Kind) -> Result<Vec<PathBuf>> {
+    task_grow::refuse_finish_kind(kind, "root-init")?;
+    let name = grove_name(vacancy.root());
+    initialize_grove(vacancy, &name, slug, kind)
 }
 
 /// The slug `root-init` uses when nobody supplied one, and the only slug the
@@ -390,9 +378,14 @@ fn default_root_slug() -> Slug {
 /// rule `append_many` uses over an empty tree — `Ordinal::FIRST` onward with keys
 /// from 1 — so the prediction is 1, and [`task_grow::allocated`] holds the store
 /// to it rather than trusting it.
-fn initialize_grove(vacancy: TreeVacancy, name: &str, slug: &Slug) -> Result<Vec<PathBuf>> {
+fn initialize_grove(
+    vacancy: TreeVacancy,
+    name: &str,
+    slug: &Slug,
+    kind: &Kind,
+) -> Result<Vec<PathBuf>> {
     let key = Some(Key::new(1));
-    let leaf = task_grow::new_leaf(key, Outcome::Live, Kind::requirements(), slug);
+    let leaf = task_grow::new_leaf(key, Outcome::Live, kind.clone(), slug);
     let report = vacancy
         .initialize(Some(root_brief_body(name).into_bytes()), vec![leaf])
         .map_err(task_tree::raised)?;
@@ -459,7 +452,7 @@ enum RootShape {
 /// them in a refusal means listing the directory. That is safe here in a way it
 /// was not before — grove holds the store's own lock rather than a second one
 /// beside it.
-fn root_shape(tree: &task_tree::TreeWrite) -> Result<RootShape> {
+fn root_shape(tree: &task_tree::Guard) -> Result<RootShape> {
     if tree.snapshot().walk().any(|entry| entry.key().is_some()) {
         return Ok(RootShape::ATree);
     }
@@ -536,20 +529,20 @@ fn root_shape(tree: &task_tree::TreeWrite) -> Result<RootShape> {
 /// Both are checked against the report by [`promoted`], because both are embedded
 /// in bytes: the child's in the template handle it is created with, and the
 /// node's in the brief header this verb retitles afterwards.
-pub fn leaf_decompose(
-    grove_root: &Path,
+pub(crate) fn leaf_decompose(
+    tree: Guard,
     leaf_path: &Path,
-    first_child_slug: &str,
+    first_child_slug: &Slug,
     kind_override: Option<Kind>,
 ) -> Result<(PathBuf, PathBuf)> {
     // Grove's own precondition, before the tree is even observed, so a bad slug
     // leaves the leaf un-decomposed. It could sit inside the guard with the rest
     // of them; it stays out here because it needs nothing from the tree, and
     // refusing without taking an exclusive lock is strictly kinder.
-    let child_slug = task_grow::leaf_slug(first_child_slug)?;
+    let child_slug = first_child_slug;
 
-    let tree = task_tree::write(grove_root)?;
     let root = tree.root().to_path_buf();
+    let grove_root = root.clone();
     // The classification, then the operation: `promote` consumes the guard, so
     // every borrow of its snapshot has to end before the call.
     let (key, slug, kind, child_key) = {
@@ -577,7 +570,7 @@ pub fn leaf_decompose(
     // *this* entry as a node (`docs/adr/entry-name-is-the-only-seam.md`). The
     // same slug, so the species is the only thing that moved.
     let node_parts = Parts::node(slug.clone());
-    let child = task_grow::new_leaf(child_key, Outcome::Live, kind, &child_slug);
+    let child = task_grow::new_leaf(child_key, Outcome::Live, kind, child_slug);
     let report = tree
         .promote(key, node_parts, Some(child))
         .map_err(task_tree::raised)?;
@@ -590,7 +583,7 @@ pub fn leaf_decompose(
     // cooperating command should meet a node brief mid-retitle.
     // `reopen_write`, not `write`: the wait this command made was announced by
     // the promotion (`docs/ARCHITECTURE.md#tree-access-lock`).
-    let _guard = task_tree::reopen_write(grove_root)?;
+    let _guard = task_tree::reopen_write(&grove_root)?;
     append_brief_suffix_in_file(&brief_path, &Handle::new(slug.clone(), key))?;
     Ok((brief_path, child_path))
 }
@@ -711,8 +704,7 @@ fn promoted(
 /// the opaque remainder of its name moves. The rename underneath is
 /// `rename(2)` — plain, consulting no repository; see
 /// [`docs/adr/grove-does-not-stage-its-own-renames.md`](../docs/adr/grove-does-not-stage-its-own-renames.md).
-pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
-    let tree = task_tree::write(grove_root)?;
+pub(crate) fn leaf_retire(tree: Guard, leaf_path: &Path) -> Result<PathBuf> {
     // The classification, then the guard: `rewrite` consumes the guard, so the
     // borrow of its snapshot has to end before the call.
     let (key, parts) = {
@@ -811,8 +803,7 @@ pub struct PruneResult {
 /// confirmation — constraint 5 is "grove guides, it does not gate" — so the
 /// caller (the LLM driving the session) must already have explicit human
 /// confirmation before calling this at all.
-pub fn leaf_prune(grove_root: &Path, path: &Path) -> Result<PruneResult> {
-    let tree = task_tree::write(grove_root)?;
+pub(crate) fn leaf_prune(tree: Guard, path: &Path) -> Result<PruneResult> {
     let root = tree.root().to_path_buf();
     let plan = {
         let entry = match task_tree::target(&root, tree.snapshot(), path)? {
@@ -944,7 +935,7 @@ fn plan_leaf(
 /// second waiting diagnostic.
 fn apply_prune(
     root: &Path,
-    planning_guard: task_tree::TreeWrite,
+    planning_guard: task_tree::Guard,
     plan: Vec<Planned>,
 ) -> Result<PruneResult> {
     let mut result = PruneResult {
@@ -956,16 +947,51 @@ fn apply_prune(
         match step {
             Planned::LeftDone { path } => result.left_done.push(path),
             Planned::ToMark { key, parts } => {
-                let tree = match held.take() {
-                    Some(tree) => tree,
-                    None => task_tree::reopen_write(root)?,
+                let mark = || -> Result<PathBuf> {
+                    let tree = match held.take() {
+                        Some(tree) => tree,
+                        None => task_tree::reopen_write(root)?,
+                    };
+                    let report = tree.rewrite(key, parts).map_err(task_tree::raised)?;
+                    marked_path(&report)
                 };
-                let report = tree.rewrite(key, parts).map_err(task_tree::raised)?;
-                result.marked.push(marked_path(&report)?);
+                // **A stopped run names what it already marked, and how to
+                // finish.** `docs/adr/bulk-marks-are-not-atomic.md` accepts that
+                // a subtree prune is *N* rewrites under *N* guards, and it
+                // accepts it on one argument: the marks *are* the state, so
+                // re-running converges. That argument is only available to an
+                // operator who can see the residue, and a bare store refusal
+                // shows none of it — which is principle 2's *an error that only
+                // reports detection is unfinished*, in the one place the ADR
+                // most needs it not to be.
+                match mark() {
+                    Ok(path) => result.marked.push(path),
+                    Err(error) => return Err(error.context(stopped_partway(&result))),
+                }
             }
         }
     }
     Ok(result)
+}
+
+/// What a stopped `leaf-prune` has already done, and what to do about it.
+fn stopped_partway(result: &PruneResult) -> String {
+    if result.marked.is_empty() {
+        return String::from(
+            "leaf-prune marked nothing before it stopped; the subtree is as it was, and rerunning the same command is safe.",
+        );
+    }
+    let marked = result
+        .marked
+        .iter()
+        .map(|path| format!("  {}", path.display()))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let count = result.marked.len();
+    let leaves = if count == 1 { "leaf" } else { "leaves" };
+    format!(
+        "leaf-prune stopped partway: {count} {leaves} were already marked ABANDONED and are still marked —\n{marked}\n\nA mark is the state and an already-abandoned leaf is skipped, so rerun the same `grove-llm leaf-prune` once the cause below is fixed and it will finish the rest."
+    )
 }
 
 /// Where a mark left the entry, out of the library's own report.
@@ -987,9 +1013,17 @@ fn marked_path(report: &Report<TaskName>) -> Result<PathBuf> {
 /// The grove's name is the worktree directory's basename (user-owned-worktrees
 /// — grove reads no branch, ever). Used as the root brief's `# <name> — brief`
 /// title.
-fn grove_name(worktree: &Path) -> String {
-    worktree
-        .file_name()
+/// The grove's display name for its own charter: the **worktree** directory's
+/// basename, read off the tree root the store is about to create.
+///
+/// It takes the grove root rather than the worktree because that is what a
+/// [`TreeVacancy`] carries, and `<worktree>/.grove` is the only spelling grove
+/// ever opens — so the parent of the root is the worktree, and asking the
+/// vacancy is one fewer argument that could disagree with the lock.
+fn grove_name(grove_root: &Path) -> String {
+    grove_root
+        .parent()
+        .and_then(Path::file_name)
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "grove".to_string())
 }
@@ -1121,9 +1155,67 @@ mod tests {
     /// the resolve-then-mutate composition entirely, which is the composition
     /// production performs and the only one it can.
     fn grow_leaf(root: &Path, slug: &str) -> PathBuf {
-        task_grow::leaf_add(root, ".", slug, &[a_kind("impl")])
+        task_grow::leaf_add(guard(root), ".", &a_slug(slug), &[a_kind("impl")])
             .unwrap()
             .remove(0)
+    }
+
+    /// A [`Slug`] for a test that needs one.
+    fn a_slug(text: &str) -> Slug {
+        Slug::new(text).expect("a test slug must be well-formed")
+    }
+
+    /// The exclusive guard a lifecycle write verb now takes, opened from a grove
+    /// root — the tests still name roots, and the verbs no longer open one.
+    fn guard(grove_root: &Path) -> Guard {
+        open(grove_root).expect("opening the tree for a lifecycle verb")
+    }
+
+    /// The same, as a `Result`, for the fixtures whose subject *is* the opening.
+    fn open(grove_root: &Path) -> Result<Guard> {
+        task_tree::write(grove_root)
+    }
+
+    /// The refusal an absent root gets, now that the caller does the opening.
+    ///
+    /// It used to be each write verb's, because each opened the tree itself.
+    /// Since `loop-crate-verbs-k21` the lock is in the signature and the caller
+    /// holds it, so this is the one place the wording is checked — and the verbs
+    /// cannot be reached at all over a root with no tree, because
+    /// [`crate::write`] answers a vacancy there and a vacancy offers only
+    /// `root-init`.
+    fn refusal_for_an_absent_root(grove_root: &Path) -> String {
+        open(grove_root)
+            .err()
+            .expect("an absent root has no tree to open")
+            .to_string()
+    }
+
+    /// The same, from a **worktree** — the spelling the driver-facing operations
+    /// take, and the one `<worktree>/.grove` is joined in.
+    fn guard_at(worktree: &Path) -> Guard {
+        guard(&worktree.join(".grove"))
+    }
+
+    /// `root-init` as its own CLI drives it: read the slug, resolve the vacancy,
+    /// then scaffold — **in that order**, which is what the tests below about a
+    /// refused slug are actually asserting.
+    ///
+    /// The verb takes the [`TreeVacancy`] since `loop-crate-verbs-k21`, which is
+    /// what makes *cannot clobber a live grove* a fact about the types rather
+    /// than a check — so a fixture that wants that refusal asks for the opening
+    /// and finds a tree, exactly as the CLI does. The slug is read first, and
+    /// before the lock, since refusing without taking an exclusive one is
+    /// strictly kinder.
+    fn root_init_at(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
+        let slug = Slug::new(slug).map_err(|error| anyhow::anyhow!("slug {slug:?}: {error}"))?;
+        let grove_root = worktree.join(".grove");
+        match task_tree::write_or_vacancy(&grove_root)? {
+            Opening::Tree(_) => {
+                bail!("grove root already exists: {}", grove_root.display())
+            }
+            Opening::Vacancy(vacancy) => root_init(vacancy, &slug, &Kind::requirements()),
+        }
     }
 
     /// Write a leaf/brief stub with a position-free `# <handle>` header.
@@ -1172,7 +1264,7 @@ mod tests {
     #[test]
     fn root_init_creates_root_brief_then_first_leaf() {
         let (_t, wt) = worktree();
-        let created = root_init(&wt, "plan").unwrap();
+        let created = root_init_at(&wt, "plan").unwrap();
         assert_eq!(name_of(&created[0]), "BRIEF.md");
         assert_eq!(name_of(&created[1]), "01-requirements--plan-k1.md");
         assert_eq!(created.len(), 2);
@@ -1188,7 +1280,7 @@ mod tests {
     #[test]
     fn root_init_first_leaf_kind_lives_in_its_filename() {
         let (_t, wt) = worktree();
-        let created = root_init(&wt, "plan").unwrap();
+        let created = root_init_at(&wt, "plan").unwrap();
         assert_eq!(name_of(&created[1]), "01-requirements--plan-k1.md");
         assert!(!body(&created[1]).contains("**Kind:**"));
     }
@@ -1196,7 +1288,7 @@ mod tests {
     #[test]
     fn root_init_first_leaf_header_is_the_position_free_handle() {
         let (_t, wt) = worktree();
-        let created = root_init(&wt, "plan").unwrap();
+        let created = root_init_at(&wt, "plan").unwrap();
         assert!(
             body(&created[1]).starts_with("# plan-k1\n"),
             "got {:?}",
@@ -1207,7 +1299,7 @@ mod tests {
     #[test]
     fn root_init_root_brief_title_is_the_grove_name() {
         let (_t, wt) = worktree();
-        let created = root_init(&wt, "plan").unwrap();
+        let created = root_init_at(&wt, "plan").unwrap();
         assert_eq!(
             body(&created[0]).lines().next().unwrap(),
             "# my-grove — brief"
@@ -1218,14 +1310,14 @@ mod tests {
     fn root_init_refuses_an_existing_grove() {
         let (_t, wt) = worktree();
         fs::create_dir_all(wt.join(".grove")).unwrap();
-        let err = root_init(&wt, "plan").unwrap_err();
+        let err = root_init_at(&wt, "plan").unwrap_err();
         assert!(err.to_string().contains("already exists"), "got {err}");
     }
 
     #[test]
     fn root_init_rejects_a_bad_slug_without_leaving_a_grove_behind() {
         let (_t, wt) = worktree();
-        assert!(root_init(&wt, "Bad Slug").is_err());
+        assert!(root_init_at(&wt, "Bad Slug").is_err());
         assert!(
             !wt.join(".grove").exists(),
             ".grove must not be created on a bad slug"
@@ -1235,7 +1327,7 @@ mod tests {
     #[test]
     fn root_init_rejects_reserved_slug() {
         let (_t, wt) = worktree();
-        assert!(root_init(&wt, "BRIEF").is_err());
+        assert!(root_init_at(&wt, "BRIEF").is_err());
         assert!(!wt.join(".grove").exists());
     }
 
@@ -1253,7 +1345,7 @@ mod tests {
         // could not nest; the vacancy is one opening that answers both.
         assert_eq!(crate::task_tree::read_count(), 1);
         assert_eq!(
-            name_of(&crate::task_tree::pick(&grove_root).unwrap().unwrap()),
+            name_of(&crate::task_tree::tests::pick(&grove_root).unwrap().unwrap()),
             "01-requirements--plan-k1.md"
         );
     }
@@ -1271,7 +1363,7 @@ mod tests {
         let (_t, wt) = worktree();
         crate::task_tree::reset_read_count();
 
-        let created = root_init(&wt, "plan").unwrap();
+        let created = root_init_at(&wt, "plan").unwrap();
 
         assert_eq!(
             crate::task_tree::read_count(),
@@ -1297,9 +1389,9 @@ mod tests {
         // joined, and the point of the timeout is to report that rather than
         // inherit the hang.
         std::thread::spawn(move || {
-            let created = root_init(&worktree, "plan").unwrap();
+            let created = root_init_at(&worktree, "plan").unwrap();
             let grove_root = worktree.join(".grove");
-            let picked = crate::task_tree::pick(&grove_root).unwrap().unwrap();
+            let picked = crate::task_tree::tests::pick(&grove_root).unwrap().unwrap();
             let again = transition_to_current(&worktree).unwrap();
             sender.send((created, picked, again)).unwrap();
         });
@@ -1324,7 +1416,7 @@ mod tests {
     #[test]
     fn root_inits_first_leaf_handle_matches_the_key_the_library_allocated() {
         let (_t, wt) = worktree();
-        let created = root_init(&wt, "custom-plan").unwrap();
+        let created = root_init_at(&wt, "custom-plan").unwrap();
         assert_eq!(name_of(&created[1]), "01-requirements--custom-plan-k1.md");
         assert!(body(&created[1]).starts_with("# custom-plan-k1\n"));
     }
@@ -1339,7 +1431,7 @@ mod tests {
         let (_t, wt) = worktree();
 
         // A slug the grammar refuses, checked before the lock is taken.
-        assert!(root_init(&wt, "Bad Slug").is_err());
+        assert!(root_init_at(&wt, "Bad Slug").is_err());
 
         assert!(
             !wt.join(".grove").exists(),
@@ -1380,11 +1472,15 @@ mod tests {
     #[test]
     fn materialize_finish_writes_a_handle_that_matches_its_own_filename() {
         let (_t, wt) = worktree();
-        root_init(&wt, "plan").unwrap();
+        root_init_at(&wt, "plan").unwrap();
         let grove_root = wt.join(".grove");
-        leaf_retire(&grove_root, &grove_root.join("01-requirements--plan-k1.md")).unwrap();
+        leaf_retire(
+            guard(&grove_root),
+            &grove_root.join("01-requirements--plan-k1.md"),
+        )
+        .unwrap();
 
-        let selection = materialize_finish(&wt).unwrap();
+        let selection = materialize_finish(guard_at(&wt)).unwrap();
 
         assert_eq!(name_of(&selection.path), "02-finish--finish-k2.md");
         assert_eq!(selection.handle.to_string(), "finish-k2");
@@ -1414,7 +1510,7 @@ mod tests {
             "old-k4294967295",
         );
 
-        let error = materialize_finish(&wt).unwrap_err().to_string();
+        let error = materialize_finish(guard_at(&wt)).unwrap_err().to_string();
 
         assert!(error.contains("greatest a key can be"), "got {error}");
         assert_eq!(
@@ -1432,7 +1528,7 @@ mod tests {
         touch(&grove_root, "BRIEF.md", "my-grove — brief");
         touch(&grove_root, "4294967295-DONE-impl--last-k1.md", "last-k1");
 
-        assert!(materialize_finish(&wt).is_err());
+        assert!(materialize_finish(guard_at(&wt)).is_err());
 
         assert_eq!(
             fs::read_dir(&grove_root).unwrap().count(),
@@ -1448,13 +1544,17 @@ mod tests {
     #[test]
     fn materialize_finish_reuses_an_existing_sentinel_under_one_guard() {
         let (_t, wt) = worktree();
-        root_init(&wt, "plan").unwrap();
+        root_init_at(&wt, "plan").unwrap();
         let grove_root = wt.join(".grove");
-        leaf_retire(&grove_root, &grove_root.join("01-requirements--plan-k1.md")).unwrap();
-        let first = materialize_finish(&wt).unwrap();
+        leaf_retire(
+            guard(&grove_root),
+            &grove_root.join("01-requirements--plan-k1.md"),
+        )
+        .unwrap();
+        let first = materialize_finish(guard_at(&wt)).unwrap();
         crate::task_tree::reset_read_count();
 
-        let second = materialize_finish(&wt).unwrap();
+        let second = materialize_finish(guard_at(&wt)).unwrap();
 
         assert_eq!(first.path, second.path);
         assert_eq!(crate::task_tree::read_count(), 1);
@@ -1473,7 +1573,10 @@ mod tests {
 
         assert_eq!(outcome, CurrentTransition::AlreadyCurrent);
         assert_eq!(crate::task_tree::read_count(), 1);
-        assert_eq!(crate::task_tree::pick(&grove_root).unwrap(), Some(leaf));
+        assert_eq!(
+            crate::task_tree::tests::pick(&grove_root).unwrap(),
+            Some(leaf)
+        );
     }
 
     /// **A tree grove cannot read is not a tree grove scaffolds over.** A
@@ -1569,9 +1672,9 @@ mod tests {
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let (brief, _child) = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-impl--build-k3.md"),
-            "step",
+            &a_slug("step"),
             Some(a_kind("impl")),
         )
         .unwrap();
@@ -1601,9 +1704,9 @@ mod tests {
         );
         commit_all(&g);
         let (brief, _child) = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-impl--build-k3.md"),
-            "step",
+            &a_slug("step"),
             Some(a_kind("impl")),
         )
         .unwrap();
@@ -1626,9 +1729,9 @@ mod tests {
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let (_brief, child) = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-impl--build-k3.md"),
-            "step",
+            &a_slug("step"),
             Some(a_kind("impl")),
         )
         .unwrap();
@@ -1644,9 +1747,9 @@ mod tests {
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let (_brief, child) = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-impl--build-k3.md"),
-            "step",
+            &a_slug("step"),
             Some(a_kind("impl")),
         )
         .unwrap();
@@ -1663,9 +1766,9 @@ mod tests {
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let (_brief, child) = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-impl--build-k3.md"),
-            "design",
+            &a_slug("design"),
             Some(a_kind("planning")),
         )
         .unwrap();
@@ -1685,8 +1788,13 @@ mod tests {
             "# build-k3\n\n**Kind:** impl\n",
         );
         commit_all(&g);
-        let (_brief, child) =
-            leaf_decompose(&g, Path::new("02-research-a--build-k3.md"), "step", None).unwrap();
+        let (_brief, child) = leaf_decompose(
+            guard(&g),
+            Path::new("02-research-a--build-k3.md"),
+            &a_slug("step"),
+            None,
+        )
+        .unwrap();
         assert_eq!(name_of(&child), "01-research-a--step-k4.md");
         assert!(!body(&child).contains("**Kind:**"));
     }
@@ -1702,9 +1810,9 @@ mod tests {
         );
         commit_all(&g);
         let (_brief, child) = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-research-a--build-k3.md"),
-            "step",
+            &a_slug("step"),
             Some(a_kind("review-impl")),
         )
         .unwrap();
@@ -1720,9 +1828,9 @@ mod tests {
         touch(&build, "02-impl--mid-k5.md", "mid-k5");
         commit_all(&g);
         let (brief, child) = leaf_decompose(
-            &g,
+            guard(&g),
             &build.join("02-impl--mid-k5.md"),
-            "first",
+            &a_slug("first"),
             Some(a_kind("impl")),
         )
         .unwrap();
@@ -1744,8 +1852,13 @@ mod tests {
         let (_t, g) = jj_grove();
         let node = mknode(&g, "02-build-k3", "build-k3");
         commit_all(&g);
-        let err =
-            leaf_decompose(&g, &node.join("BRIEF.md"), "x", Some(a_kind("impl"))).unwrap_err();
+        let err = leaf_decompose(
+            guard(&g),
+            &node.join("BRIEF.md"),
+            &a_slug("x"),
+            Some(a_kind("impl")),
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("brief"), "got {err}");
     }
 
@@ -1754,7 +1867,7 @@ mod tests {
         let (_t, g) = jj_grove();
         let node = mknode(&g, "02-build-k3", "build-k3");
         commit_all(&g);
-        let err = leaf_decompose(&g, &node, "x", Some(a_kind("impl"))).unwrap_err();
+        let err = leaf_decompose(guard(&g), &node, &a_slug("x"), Some(a_kind("impl"))).unwrap_err();
         assert!(err.to_string().contains("node"), "got {err}");
     }
 
@@ -1765,9 +1878,9 @@ mod tests {
         touch(&g, "02-DONE-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let err = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-DONE-impl--build-k3.md"),
-            "x",
+            &a_slug("x"),
             Some(a_kind("impl")),
         )
         .unwrap_err();
@@ -1784,9 +1897,9 @@ mod tests {
         touch(&g, "02-ABANDONED-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let err = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-ABANDONED-impl--build-k3.md"),
-            "x",
+            &a_slug("x"),
             Some(a_kind("impl")),
         )
         .unwrap_err();
@@ -1798,26 +1911,33 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "README.md", "readme");
         commit_all(&g);
-        let err =
-            leaf_decompose(&g, Path::new("README.md"), "x", Some(a_kind("impl"))).unwrap_err();
+        let err = leaf_decompose(
+            guard(&g),
+            Path::new("README.md"),
+            &a_slug("x"),
+            Some(a_kind("impl")),
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("leaf"), "got {err}");
     }
 
+    /// A bad child slug leaves the leaf un-decomposed — and now it cannot even
+    /// be spelled.
+    ///
+    /// The claim used to be about ordering: the slug was validated before the
+    /// rename, so a bad one left no half-built node directory. Since
+    /// `loop-crate-verbs-k21` the verb takes a [`Slug`], so the text is read by
+    /// the type that owns it and a bad slug never reaches a tree at all —
+    /// ordering it correctly is no longer something this verb can get wrong.
     #[test]
-    fn decompose_rejects_a_bad_child_slug_without_touching_the_leaf() {
-        // Atomicity: the child slug is validated BEFORE the rename, so a bad slug
-        // leaves the leaf un-decomposed (no half-built node directory).
+    fn decompose_cannot_be_reached_with_a_bad_child_slug() {
         let (_t, g) = jj_grove();
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
-        assert!(leaf_decompose(
-            &g,
-            Path::new("02-impl--build-k3.md"),
-            "Bad Slug",
-            Some(a_kind("impl"))
-        )
-        .is_err());
+
+        assert!(Slug::new("Bad Slug").is_err());
+
         let files = list(&g);
         assert!(
             files.contains(&"02-impl--build-k3.md".to_string()),
@@ -1836,25 +1956,16 @@ mod tests {
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let abs = g.join("02-impl--build-k3.md");
-        let (brief, _child) = leaf_decompose(&g, &abs, "step", Some(a_kind("impl"))).unwrap();
+        let (brief, _child) =
+            leaf_decompose(guard(&g), &abs, &a_slug("step"), Some(a_kind("impl"))).unwrap();
         assert_eq!(name_of(brief.parent().unwrap()), "02-build-k3");
     }
 
     #[test]
-    fn decompose_errors_when_grove_root_absent() {
+    fn an_absent_grove_root_is_refused_by_the_opening() {
         let (_t, g) = jj_grove();
-        let missing = g.join("nope");
-        let err = leaf_decompose(
-            &missing,
-            Path::new("02-impl--build-k3.md"),
-            "x",
-            Some(a_kind("impl")),
-        )
-        .unwrap_err();
-        assert!(
-            err.to_string().contains("grove root not found"),
-            "got {err}"
-        );
+        let err = refusal_for_an_absent_root(&g.join("nope"));
+        assert!(err.contains("grove root not found"), "got {err}");
     }
 
     // ---- leaf-decompose: the seam --------------------------------------------
@@ -1880,9 +1991,9 @@ mod tests {
         crate::task_tree::reset_read_count();
 
         leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-impl--build-k3.md"),
-            "step",
+            &a_slug("step"),
             Some(a_kind("impl")),
         )
         .unwrap();
@@ -1906,8 +2017,13 @@ mod tests {
         touch(&g, "01-DONE-impl--a-k1.md", "a-k1");
         commit_all(&g);
 
-        let err = leaf_decompose(&g, Path::new("01-impl--a-k1.md"), "x", Some(a_kind("impl")))
-            .unwrap_err();
+        let err = leaf_decompose(
+            guard(&g),
+            Path::new("01-impl--a-k1.md"),
+            &a_slug("x"),
+            Some(a_kind("impl")),
+        )
+        .unwrap_err();
 
         assert!(
             err.to_string()
@@ -1939,9 +2055,9 @@ mod tests {
         commit_all(&g);
 
         let err = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-impl--build-k3.md"),
-            "step",
+            &a_slug("step"),
             Some(a_kind("impl")),
         )
         .unwrap_err();
@@ -2007,9 +2123,9 @@ mod tests {
         commit_all(&g);
 
         let err = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-impl--build-k3.md"),
-            "step",
+            &a_slug("step"),
             Some(a_kind("impl")),
         )
         .unwrap_err();
@@ -2046,9 +2162,9 @@ mod tests {
         commit_all(&g);
 
         let err = leaf_decompose(
-            &g,
+            guard(&g),
             Path::new("02-impl--build-k4294967295.md"),
-            "step",
+            &a_slug("step"),
             Some(a_kind("impl")),
         )
         .unwrap_err();
@@ -2100,7 +2216,7 @@ mod tests {
             node.as_path(),
             &node.join("BRIEF.md"),
         ] {
-            let err = leaf_decompose(&g, argument, "step", Some(a_kind("impl")))
+            let err = leaf_decompose(guard(&g), argument, &a_slug("step"), Some(a_kind("impl")))
                 .unwrap_err()
                 .to_string();
             for library_wording in [
@@ -2124,7 +2240,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "02-impl--add-k4.md", "add-k4");
         commit_all(&g);
-        let done = leaf_retire(&g, Path::new("02-impl--add-k4.md")).unwrap();
+        let done = leaf_retire(guard(&g), Path::new("02-impl--add-k4.md")).unwrap();
         assert_eq!(name_of(&done), "02-DONE-impl--add-k4.md");
         let files = list(&g);
         assert!(files.contains(&"02-DONE-impl--add-k4.md".to_string()));
@@ -2140,7 +2256,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch_body(&g, "02-impl--add-k4.md", "# add-k4\n\nbody\n");
         commit_all(&g);
-        let done = leaf_retire(&g, Path::new("02-impl--add-k4.md")).unwrap();
+        let done = leaf_retire(guard(&g), Path::new("02-impl--add-k4.md")).unwrap();
         assert_eq!(body(&done), "# add-k4\n\nbody\n", "content byte-identical");
     }
 
@@ -2151,7 +2267,7 @@ mod tests {
         let design = mknode(&g, "01-design-k1", "design-k1");
         touch(&design, "02-impl--add-k4.md", "add-k4");
         commit_all(&g);
-        let done = leaf_retire(&g, &design.join("02-impl--add-k4.md")).unwrap();
+        let done = leaf_retire(guard(&g), &design.join("02-impl--add-k4.md")).unwrap();
         assert_eq!(name_of(&done), "02-DONE-impl--add-k4.md");
         assert_eq!(name_of(done.parent().unwrap()), "01-design-k1");
     }
@@ -2161,7 +2277,7 @@ mod tests {
         let (_t, g) = jj_grove();
         let node = mknode(&g, "02-build-k3", "build-k3");
         commit_all(&g);
-        let err = leaf_retire(&g, &node).unwrap_err();
+        let err = leaf_retire(guard(&g), &node).unwrap_err();
         assert!(err.to_string().contains("node"), "got {err}");
     }
 
@@ -2170,7 +2286,7 @@ mod tests {
         let (_t, g) = jj_grove();
         let node = mknode(&g, "02-build-k3", "build-k3");
         commit_all(&g);
-        let err = leaf_retire(&g, &node.join("BRIEF.md")).unwrap_err();
+        let err = leaf_retire(guard(&g), &node.join("BRIEF.md")).unwrap_err();
         assert!(err.to_string().contains("brief"), "got {err}");
     }
 
@@ -2179,7 +2295,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "BRIEF.md", "root — brief");
         commit_all(&g);
-        let err = leaf_retire(&g, Path::new("BRIEF.md")).unwrap_err();
+        let err = leaf_retire(guard(&g), Path::new("BRIEF.md")).unwrap_err();
         assert!(err.to_string().contains("brief"), "got {err}");
     }
 
@@ -2188,7 +2304,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "02-DONE-impl--add-k4.md", "add-k4");
         commit_all(&g);
-        let err = leaf_retire(&g, Path::new("02-DONE-impl--add-k4.md")).unwrap_err();
+        let err = leaf_retire(guard(&g), Path::new("02-DONE-impl--add-k4.md")).unwrap_err();
         assert!(err.to_string().contains("already"), "got {err}");
     }
 
@@ -2200,7 +2316,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "02-ABANDONED-impl--add-k4.md", "add-k4");
         commit_all(&g);
-        let err = leaf_retire(&g, Path::new("02-ABANDONED-impl--add-k4.md")).unwrap_err();
+        let err = leaf_retire(guard(&g), Path::new("02-ABANDONED-impl--add-k4.md")).unwrap_err();
         assert!(err.to_string().contains("abandoned"), "got {err}");
     }
 
@@ -2209,7 +2325,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "README.md", "readme");
         commit_all(&g);
-        let err = leaf_retire(&g, Path::new("README.md")).unwrap_err();
+        let err = leaf_retire(guard(&g), Path::new("README.md")).unwrap_err();
         assert!(err.to_string().contains("leaf"), "got {err}");
     }
 
@@ -2219,19 +2335,8 @@ mod tests {
         touch(&g, "02-impl--add-k4.md", "add-k4");
         commit_all(&g);
         let abs = g.join("02-impl--add-k4.md");
-        let done = leaf_retire(&g, &abs).unwrap();
+        let done = leaf_retire(guard(&g), &abs).unwrap();
         assert_eq!(name_of(&done), "02-DONE-impl--add-k4.md");
-    }
-
-    #[test]
-    fn retire_errors_when_grove_root_absent() {
-        let (_t, g) = jj_grove();
-        let missing = g.join("nope");
-        let err = leaf_retire(&missing, Path::new("02-impl--add-k4.md")).unwrap_err();
-        assert!(
-            err.to_string().contains("grove root not found"),
-            "got {err}"
-        );
     }
 
     // ---- lifecycle over untracked leaves (issue #3's root cause) -------------
@@ -2251,7 +2356,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         let leaf = grow_leaf(&g, "ship");
         // No commit_all: the grow verb leaves it uncommitted, by design.
-        let done = leaf_retire(&g, &leaf).unwrap();
+        let done = leaf_retire(guard(&g), &leaf).unwrap();
         assert_eq!(name_of(&done), "01-DONE-impl--ship-k1.md");
         assert!(
             done.is_file(),
@@ -2266,7 +2371,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         let leaf = grow_leaf(&g, "big");
         // "The current item proving bigger" — the canonical mid-session decompose.
-        let (brief, child) = leaf_decompose(&g, &leaf, "first", None).unwrap();
+        let (brief, child) = leaf_decompose(guard(&g), &leaf, &a_slug("first"), None).unwrap();
         assert_eq!(name_of(&brief), "BRIEF.md");
         assert_eq!(name_of(&child), "01-impl--first-k2.md");
         assert!(g.join("01-big-k1").is_dir(), "the leaf became a node dir");
@@ -2281,7 +2386,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "BRIEF.md", "root — brief");
         let leaf = grow_leaf(&g, "dead");
-        let result = leaf_prune(&g, &leaf).unwrap();
+        let result = leaf_prune(guard(&g), &leaf).unwrap();
         assert_eq!(result.marked.len(), 1);
         assert_eq!(name_of(&result.marked[0]), "01-ABANDONED-impl--dead-k1.md");
         assert!(!leaf.exists(), "the live name is gone");
@@ -2295,7 +2400,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "02-impl--add-k4.md", "add-k4");
         commit_all(&g);
-        let result = leaf_prune(&g, Path::new("02-impl--add-k4.md")).unwrap();
+        let result = leaf_prune(guard(&g), Path::new("02-impl--add-k4.md")).unwrap();
         assert_eq!(result.marked.len(), 1);
         assert_eq!(name_of(&result.marked[0]), "02-ABANDONED-impl--add-k4.md");
         assert!(result.left_done.is_empty());
@@ -2313,7 +2418,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch_body(&g, "02-impl--add-k4.md", "# add-k4\n\nbody\n");
         commit_all(&g);
-        let result = leaf_prune(&g, Path::new("02-impl--add-k4.md")).unwrap();
+        let result = leaf_prune(guard(&g), Path::new("02-impl--add-k4.md")).unwrap();
         assert_eq!(
             body(&result.marked[0]),
             "# add-k4\n\nbody\n",
@@ -2328,7 +2433,7 @@ mod tests {
         let design = mknode(&g, "01-design-k1", "design-k1");
         touch(&design, "02-impl--add-k4.md", "add-k4");
         commit_all(&g);
-        let result = leaf_prune(&g, &design.join("02-impl--add-k4.md")).unwrap();
+        let result = leaf_prune(guard(&g), &design.join("02-impl--add-k4.md")).unwrap();
         assert_eq!(name_of(&result.marked[0]), "02-ABANDONED-impl--add-k4.md");
         assert_eq!(name_of(result.marked[0].parent().unwrap()), "01-design-k1");
     }
@@ -2338,7 +2443,7 @@ mod tests {
         let (_t, g) = jj_grove();
         let node = mknode(&g, "02-build-k3", "build-k3");
         commit_all(&g);
-        let err = leaf_prune(&g, &node.join("BRIEF.md")).unwrap_err();
+        let err = leaf_prune(guard(&g), &node.join("BRIEF.md")).unwrap_err();
         assert!(err.to_string().contains("brief"), "got {err}");
     }
 
@@ -2347,7 +2452,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "BRIEF.md", "root — brief");
         commit_all(&g);
-        let err = leaf_prune(&g, Path::new("BRIEF.md")).unwrap_err();
+        let err = leaf_prune(guard(&g), Path::new("BRIEF.md")).unwrap_err();
         assert!(err.to_string().contains("brief"), "got {err}");
     }
 
@@ -2356,7 +2461,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "02-DONE-impl--add-k4.md", "add-k4");
         commit_all(&g);
-        let err = leaf_prune(&g, Path::new("02-DONE-impl--add-k4.md")).unwrap_err();
+        let err = leaf_prune(guard(&g), Path::new("02-DONE-impl--add-k4.md")).unwrap_err();
         assert!(err.to_string().contains("DONE"), "got {err}");
     }
 
@@ -2365,7 +2470,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "02-ABANDONED-impl--add-k4.md", "add-k4");
         commit_all(&g);
-        let err = leaf_prune(&g, Path::new("02-ABANDONED-impl--add-k4.md")).unwrap_err();
+        let err = leaf_prune(guard(&g), Path::new("02-ABANDONED-impl--add-k4.md")).unwrap_err();
         assert!(err.to_string().contains("already"), "got {err}");
     }
 
@@ -2374,7 +2479,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "README.md", "readme");
         commit_all(&g);
-        let err = leaf_prune(&g, Path::new("README.md")).unwrap_err();
+        let err = leaf_prune(guard(&g), Path::new("README.md")).unwrap_err();
         assert!(err.to_string().contains("leaf"), "got {err}");
     }
 
@@ -2384,19 +2489,8 @@ mod tests {
         touch(&g, "02-impl--add-k4.md", "add-k4");
         commit_all(&g);
         let abs = g.join("02-impl--add-k4.md");
-        let result = leaf_prune(&g, &abs).unwrap();
+        let result = leaf_prune(guard(&g), &abs).unwrap();
         assert_eq!(name_of(&result.marked[0]), "02-ABANDONED-impl--add-k4.md");
-    }
-
-    #[test]
-    fn prune_errors_when_grove_root_absent() {
-        let (_t, g) = jj_grove();
-        let missing = g.join("nope");
-        let err = leaf_prune(&missing, Path::new("02-impl--add-k4.md")).unwrap_err();
-        assert!(
-            err.to_string().contains("grove root not found"),
-            "got {err}"
-        );
     }
 
     // ---- leaf-prune on a node: bulk arity (pruning) -------------------
@@ -2409,7 +2503,7 @@ mod tests {
         touch(&node, "01-impl--a-k3.md", "a-k3");
         touch(&node, "02-impl--b-k4.md", "b-k4");
         commit_all(&g);
-        let result = leaf_prune(&g, &node).unwrap();
+        let result = leaf_prune(guard(&g), &node).unwrap();
         let names: Vec<String> = result.marked.iter().map(|p| name_of(p)).collect();
         assert_eq!(
             names,
@@ -2428,7 +2522,7 @@ mod tests {
         touch(&node, "01-DONE-impl--a-k3.md", "a-k3");
         touch(&node, "02-impl--b-k4.md", "b-k4");
         commit_all(&g);
-        let result = leaf_prune(&g, &node).unwrap();
+        let result = leaf_prune(guard(&g), &node).unwrap();
         assert_eq!(result.marked.len(), 1);
         assert_eq!(name_of(&result.marked[0]), "02-ABANDONED-impl--b-k4.md");
         assert_eq!(result.left_done.len(), 1);
@@ -2445,7 +2539,7 @@ mod tests {
         let inner = mknode(&outer, "01-inner-k2", "inner-k2");
         touch(&inner, "01-impl--deep-k3.md", "deep-k3");
         commit_all(&g);
-        let result = leaf_prune(&g, &outer).unwrap();
+        let result = leaf_prune(guard(&g), &outer).unwrap();
         assert_eq!(result.marked.len(), 1);
         assert_eq!(name_of(&result.marked[0]), "01-ABANDONED-impl--deep-k3.md");
         assert_eq!(
@@ -2469,7 +2563,7 @@ mod tests {
         commit_all(&g); // a and b are tracked
         touch(&node, "03-impl--c-k5.md", "c-k5"); // c is not
 
-        let result = leaf_prune(&g, &node).unwrap();
+        let result = leaf_prune(guard(&g), &node).unwrap();
 
         assert_eq!(result.marked.len(), 3, "every live leaf marked");
         let names = list(&node);
@@ -2511,7 +2605,7 @@ mod tests {
         touch(&node, "03-ABANDONED-impl--c-k5.md", "c-k5");
         commit_all(&g);
 
-        let err = leaf_prune(&g, &node).unwrap_err();
+        let err = leaf_prune(guard(&g), &node).unwrap_err();
         assert!(
             err.to_string()
                 .contains("two entries in this tree carry key 5"),
@@ -2553,7 +2647,7 @@ mod tests {
         touch(&g, "01-DONE-impl--a-k1.md", "a-k1");
         commit_all(&g);
 
-        let err = leaf_retire(&g, Path::new("01-impl--a-k1.md")).unwrap_err();
+        let err = leaf_retire(guard(&g), Path::new("01-impl--a-k1.md")).unwrap_err();
 
         assert!(
             err.to_string()
@@ -2584,7 +2678,7 @@ mod tests {
         commit_all(&g);
         crate::task_tree::reset_read_count();
 
-        let result = leaf_prune(&g, &node).unwrap();
+        let result = leaf_prune(guard(&g), &node).unwrap();
 
         assert_eq!(result.marked.len(), 3);
         assert_eq!(result.left_done.len(), 1);
@@ -2603,7 +2697,7 @@ mod tests {
         let node = mknode(&g, "02-build-k2", "build-k2");
         touch(&node, "01-DONE-impl--a-k3.md", "a-k3");
         commit_all(&g);
-        let result = leaf_prune(&g, &node).unwrap();
+        let result = leaf_prune(guard(&g), &node).unwrap();
         assert!(result.marked.is_empty());
         assert_eq!(result.left_done.len(), 1);
     }
@@ -2614,7 +2708,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "01-impl--a-k1.md", "a-k1");
         commit_all(&g);
-        let err = leaf_prune(&g, &g).unwrap_err();
+        let err = leaf_prune(guard(&g), &g).unwrap_err();
         assert!(err.to_string().contains("grove root"), "got {err}");
         // Nothing was touched.
         assert!(g.join("01-impl--a-k1.md").is_file());
@@ -2625,7 +2719,7 @@ mod tests {
         let (_t, g) = jj_grove();
         touch(&g, "BRIEF.md", "root — brief");
         commit_all(&g);
-        let err = leaf_prune(&g, Path::new(".")).unwrap_err();
+        let err = leaf_prune(guard(&g), Path::new(".")).unwrap_err();
         assert!(err.to_string().contains("grove root"), "got {err}");
     }
 }

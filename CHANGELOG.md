@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v19.5.0
+
 - **Provisioning is deleted: Grove writes no skill directory, embeds no
   methodology, and keeps no harness registry.** The binary used to compile
   `content/` into itself with `include_dir!` and sweep it, on every invocation,

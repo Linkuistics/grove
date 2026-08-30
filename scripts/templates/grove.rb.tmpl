@@ -23,26 +23,37 @@ class Grove < Formula
   end
 
   def install
-    # The methodology skill is NOT fetched or installed here. The `grove` binary
-    # embeds the full `content/` tree (self-extension-core-and-methodology / task-tree-scheme) and provisions it to
-    # ~/.claude/skills/grove/ on the first run, so the skill can never drift
-    # from the binary. Do NOT reintroduce a content/ download into this formula
-    # or the release tarball — `brew install grove` is the sole gesture.
+    # Two binaries and nothing else. The methodology is NOT fetched or installed
+    # here, and is no longer carried inside the binary either: it ships as the
+    # `grove` agent-skill plugin with its own install route (see the caveats).
+    # Do NOT reintroduce a content/ download into this formula or the release
+    # tarball — that was the pre-v19.5.0 shape, and its replacement is a plugin
+    # rather than a second thing brew installs.
     bin.install "grove", "grove-llm"
   end
 
   def caveats
     <<~EOS
-      grove ships its methodology inside the binary. The first
-        grove
-      run from inside your working tree provisions the global skill at
-      ~/.claude/skills/grove/ — there is no separate install step. The skill
-      re-provisions automatically the next time you run `grove` after upgrading
-      the formula.
+      grove needs two things this formula does not install.
 
-      grove reads all of its launch policy from ~/.config/grove/config.kdl,
-      which it never creates: give every session kind one command template
-      before the first run.
+      1. Its methodology, as an agent-skill plugin. Grove names the skill a
+         session must load and does not deliver it — a session whose harness
+         cannot load that skill has nothing to read.
+
+           Claude Code:  /plugin marketplace add Linkuistics/grove
+                         /plugin install grove@linkuistics
+           Codex, Gemini CLI, Pi:
+                         git clone https://github.com/Linkuistics/grove
+                         ./grove/plugins/install.sh
+
+         Before v19.5.0 grove embedded the methodology and swept it into
+         ~/.claude/skills/grove/ and two siblings on every run. It no longer
+         writes those directories; if an older grove left one behind, remove it
+         before running plugins/install.sh, which refuses to clobber it.
+
+      2. Its launch policy, ~/.config/grove/config.kdl, which grove never
+         creates: give every session kind one command template before the first
+         run.
     EOS
   end
 

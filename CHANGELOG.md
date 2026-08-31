@@ -51,6 +51,17 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`docs/RELEASING.md` carries the check a tree-reading release owes every
+  other grove on the machine.** They all resolve the same `/opt/homebrew/bin`
+  binaries, so publishing is not scoped to the workstream that cut the release:
+  `v19.4.0` moved the filename grammar and refused four live groves that
+  `v19.3.0` drove, and they were renamed inside that release window. The lesson
+  lived only in a task tree's root brief and would have gone with it. The step is
+  a read-only probe of each live tree with the new build, run **before**
+  publishing, with `env -u GROVE_SIGNAL_FILE` so it does not inherit the calling
+  session's signal channel. A release that does not move how a tree is read owes
+  no such check — this one does not.
+
 - **The principal checks are one runnable command, `scripts/check.sh`.** They
   were prose in `docs/ARCHITECTURE.md` and `docs/RELEASING.md`, and the two
   copies had diverged — only the release list ran `shellcheck`. `cargo fmt --all

@@ -334,6 +334,7 @@ impl Corpus {
 pub struct Manifest {
     root: String,
     id: String,
+    subject: String,
     corpus: Corpus,
     pages: Vec<Page>,
     scoped: Vec<String>,
@@ -370,6 +371,15 @@ impl Manifest {
 
     pub fn book_id(&self) -> &str {
         &self.id
+    }
+
+    /// The repository-relative directory the corpus rule is rooted in. It is
+    /// the floor of the corpus — the base `include` patterns are derived from
+    /// it — so a reader outside the validator needs it to check that floor
+    /// against the specification's inventory rather than take the book's word
+    /// for it (`crates/grove/tests/corpus_exception_inventory.rs`).
+    pub fn subject(&self) -> &str {
+        &self.subject
     }
 
     pub fn corpus(&self) -> &Corpus {
@@ -745,6 +755,7 @@ impl RawManifest {
         Ok(Manifest {
             root: book_root.trim_end_matches('/').to_owned(),
             id: self.book.id,
+            subject: self.book.subject,
             corpus,
             pages,
             scoped,

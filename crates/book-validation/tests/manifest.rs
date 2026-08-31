@@ -29,6 +29,10 @@ fn the_fixture_manifest_is_schema_valid() {
 
     assert_eq!(manifest.book_root(), BOOK_ROOT);
     assert_eq!(manifest.book_id(), "ordinal-fs-tree");
+    // `subject` is read back rather than merely consumed: it is the corpus
+    // rule's floor, and the repository's subject-inventory test compares this
+    // value against a document the book does not own.
+    assert_eq!(manifest.subject(), "crates/ordinal-fs-tree");
     assert_eq!(manifest.chapter_count(), 7);
 }
 

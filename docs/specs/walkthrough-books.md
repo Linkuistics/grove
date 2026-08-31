@@ -67,7 +67,8 @@ The system has five deliberate properties.
    no tooling.
 4. **What a book owes is stated outside it, and checked in two directions.** The
    manifest declares the corpus as a rule whose base patterns are fixed by the
-   book's declared subject rather than chosen, with named additions and
+   book's subject rather than chosen — and the subject by this specification
+   rather than by the book — with named additions and
    exclusions drawn from a closed class, and the validator requires the declared
    root set to equal the set derived from the real directory. Derivation alone
    would not make the corpus external — it proves that the declared patterns
@@ -199,7 +200,10 @@ change is a refusal rather than a misreading.
 **`[book]`** carries `id`, `title` and `subject`. `id` equals the directory name.
 `title` is the `README.md` H1 and its page-table title. `subject` is the
 repository-relative directory the corpus rule is rooted in, and exists so a
-diagnostic can name what the book is about without inferring it from a path.
+diagnostic can name what the book is about without inferring it from a path. It
+is not the author's to choose either: the subject inventory under *The corpus
+rule and its witness* fixes one value per book, and a manifest departing from it
+is a disagreement a repository test reports.
 
 **`[corpus]`** carries `include`, an ordered non-empty array of patterns, and any
 number of `[[corpus.add]]` and `[[corpus.exclude]]` entries. Each `add` and
@@ -332,14 +336,54 @@ direction it is weaker, and saying otherwise would misdescribe the control.
 Derivation proves that the declared patterns matched. It cannot prove the author
 declared the right patterns, and it cannot judge an exception: a `reason` is
 prose, and one manifest edit could otherwise move both the asserted rule and the
-roots checked against it. Two of this specification's rules exist to close that,
-and they are what make the corpus external rather than self-declared:
+roots checked against it. Three of this specification's rules exist to close
+that, and they are what make the corpus external rather than self-declared:
 
 1. the base patterns are fixed by `[book].subject` (*Groups*), so the rule's
-   floor is not the author's to choose; and
-2. every exception is declared twice — in the manifest, and in the normative
+   floor is not the author's to choose;
+2. `[book].subject` is itself fixed by the inventory below, so the floor cannot
+   be moved by moving what it is anchored to; and
+3. every exception is declared twice — in the manifest, and in the normative
    inventory below — so an addition or exclusion is an agreement between the book
    and this specification rather than an assertion the book makes about itself.
+
+Rule 2 exists because rule 1 alone only moves the choice one level up. A
+manifest naming a subdirectory of its crate — `crates/ordinal-fs-tree/src/fs`
+rather than `crates/ordinal-fs-tree` — narrows both base patterns with it. Every
+root outside that subdirectory is then reached by no pattern, so the book drops
+those `[[root]]` rows and the pages that reconstructed them, and every check
+remains internally consistent over a fraction of the crate the book claims to be
+about. No diagnostic fires, because nothing the book says disagrees with anything
+else the book says.
+
+**The book subject inventory.** These are the `[book].subject` values every book
+in this repository may declare, one row per book. A manifest whose `subject` is
+not the value this table gives for its `id` is a disagreement between the book
+and this specification.
+
+| Book | Subject |
+|---|---|
+| `ordinal-fs-tree` | `crates/ordinal-fs-tree` |
+| `overview` | `crates/grove` |
+| `grove-llm` | `crates/grove-llm` |
+| `grove-loop` | `crates/grove-loop` |
+| `jj-workspace` | `crates/jj-workspace` |
+| `keyed-launch` | `crates/keyed-launch` |
+
+The rows for books that do not exist yet are commitments, not descriptions: each
+of the campaign's five remaining deliverables is authored against the subject
+this table already fixes, including the book directory name it will take, rather
+than declaring one the table then follows. A repository test requires the two
+sides to agree per book for every book that exists, requires the table to keep
+carrying rows for books that do not, and holds the narrowing attack above as a
+case: it rewrites each manifest's `subject` one directory down, with the base
+patterns moved to match, and requires the result to disagree with this table.
+
+This is the same shape of agreement as the exception inventory below and lives in
+the same document for that reason. It is deliberately not folded into
+`docs/ARCHITECTURE.md`'s *Documentation ownership* row for a book: that row says
+which document is canonical for a subject, in prose, and a source directory a
+validator reads is not the same kind of fact.
 
 **The corpus exception inventory.** These are the complete `[[corpus.add]]` and
 `[[corpus.exclude]]` entries every book in this repository may carry. The

@@ -45,25 +45,30 @@ Derivation on its own is not an external witness, and calling it one was the
 mistake worth recording here. It proves that the declared patterns matched; it
 cannot prove the author declared the right patterns, and it cannot judge an
 exception, since a `reason` is prose. A manifest free to choose its own patterns
-could include one file, declare that one root, and pass. So two constraints carry
-the externality that derivation cannot:
+could include one file, declare that one root, and pass. So three constraints
+carry the externality that derivation cannot:
 
 - **the rule's floor is not the book's to choose** — `include` must contain the
   base patterns derived from `[book].subject`, `<subject>/Cargo.toml` and
-  `<subject>/src/**/*.rs`; and
+  `<subject>/src/**/*.rs`;
+- **the floor's anchor is not the book's to choose either** — `[book].subject` is
+  restated per book in `docs/specs/walkthrough-books.md`'s subject inventory and
+  compared against every manifest by the same repository test; and
 - **every exception is declared twice** — each addition and exclusion carries a
   `class` from a closed list, and the complete set of them across all books is
   restated in `docs/specs/walkthrough-books.md` and compared against every
   manifest by a repository test.
 
-**The floor's own anchor is the next question, and stating it here is part of
-being honest about the control.** `include` is pinned to `[book].subject`, and
-nothing yet pins `subject`. A manifest that points it at a subdirectory of its
-own crate narrows the base patterns with it, can then drop every root outside
-that subdirectory and every page that reconstructed them, and validates green
-while covering a fraction of what it claims. The remedy is the mechanism already
-here — declare it twice — applied to one more field; until it is, the externality
-above holds against a careless author and not against a determined one.
+**The second constraint exists because the first one only moves the choice one
+level up.** A manifest pointing `subject` at a subdirectory of its own crate
+narrows the base patterns with it, can then drop every root outside that
+subdirectory and every page that reconstructed them, and validates green while
+covering a fraction of what it claims — with no diagnostic, because nothing the
+book says disagrees with anything else the book says. The remedy is the mechanism
+already here, declare it twice, applied to one more field, and the narrowing
+attack is itself a case in the repository test. The subject inventory carries a
+row for every deliverable this campaign will write, so a book that lands later is
+authored against a subject a second party already fixed rather than choosing one.
 
 What scales with the corpus — every root, every block — is derived and per-book;
 only the handful of exceptions, which are exactly what derivation cannot check,
@@ -125,6 +130,10 @@ is what moved.
 - A book whose corpus no rule can describe, so that its manifest degenerates into
   a hand-listed root set with no derivation to check it against. The witness, not
   the file, is what this record is for.
+- A book whose subject cannot be stated before the book exists — a corpus
+  assembled from several directories, say, or one whose boundary is decided while
+  writing. The subject inventory is a commitment made in advance, and a book that
+  cannot be committed to in advance is not covered by it.
 - An exception class the two named here cannot express, or an exception inventory
   long enough that maintaining it costs more than the self-declaration it
   prevents. Both mean the corpus rule has stopped fitting the repository.

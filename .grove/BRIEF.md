@@ -132,6 +132,22 @@ Three arms, ordered so the documentation is never blocked on unbuilt machinery.
   12's "four roots, 698 lines" for `jj-workspace` reproducible. The relocated
   `ordinal-fs-tree` book keeps its own seventeen-file corpus unchanged. Counts
   are of the corpus as frozen; a book proves its own roots and no others.
+- **What a new book owes beyond its own pages.** Every book root under
+  `docs/walkthroughs/` is *discovered* by four checks rather than listed in any of
+  them, so a sixth book joins all four by existing: `scripts/check.sh` runs
+  `book-check --final --check all` over each book directory;
+  `crates/grove/tests/corpus_exception_inventory.rs` requires each manifest's
+  `[[corpus.add]]`, `[[corpus.exclude]]` and `[book].subject` to equal the
+  normative tables in `docs/specs/walkthrough-books.md`; and
+  `crates/grove/tests/reference_navigation.rs` both link-checks every page of
+  every book as part of the curated user-documentation surface and fails on a
+  book root with no row in `docs/ARCHITECTURE.md`'s *Documentation ownership*
+  table. Discovery is what makes them checks rather than reminders, but two of
+  them still demand an edit **outside** the book, and a book that skips either is
+  red rather than silently unowned: its exception and subject rows in the
+  specification's inventories, and one ownership row naming its contents page.
+  Delivered by `walkthrough-machinery-k10`; the last of the four is
+  `book-assurance-surface-k39`.
 - **Ownership**: `docs/ARCHITECTURE.md`, *Documentation ownership* — one
   canonical source per subject, and the rule bounding what may sit directly
   under `docs/`.

@@ -6,19 +6,33 @@ mod support;
 /// The user-facing documentation surface: the files a reader reaches without
 /// opening `src/`, and the only ones this check walks.
 ///
-/// Enumerated rather than globbed, because the claim is about a *surface* a
-/// person navigates, not about every Markdown file in the tree. Architecture,
-/// decision records, specs, and the provisioned methodology are separately
-/// owned; a repo-wide sweep belongs to whoever owns all of them at once.
-/// Each entry must exist and must actually contain a relative link, so the
-/// check cannot pass by finding nothing to do.
-const USER_DOCS: [&str; 5] = [
+/// The guides are enumerated rather than globbed, because the claim is about a
+/// *surface* a person navigates, not about every Markdown file in the tree.
+/// Architecture, decision records, specs, and the provisioned methodology are
+/// separately owned; a repo-wide sweep belongs to whoever owns all of them at
+/// once, and is [`every_repository_markdown_reference_resolves`] below.
+///
+/// The code walkthroughs are the one part of the surface that is not a list.
+/// A book is navigated exactly as a guide is — a contents page, chapters, two
+/// lookup indexes — so it belongs here; but naming each one would cost an edit
+/// per book, and decision 8 of `plan-k1` requires the membership to be held by
+/// a machine rather than by the next author's memory. So the guides are named
+/// and the books are discovered. That is an addition to this list's membership
+/// rule, not the abandonment of it: `docs/walkthroughs/` is a reader's surface
+/// in exactly the way `docs/adr/` is not.
+const NAMED_GUIDES: [&str; 5] = [
     "README.md",
     "CHANGELOG.md",
     "docs/USAGE.md",
     "docs/CONFIGURATION.md",
     "docs/RELEASING.md",
 ];
+
+/// Where the code walkthroughs live. One directory here is one book — the same
+/// rule `scripts/check.sh` and `crates/grove/tests/corpus_exception_inventory.rs`
+/// already discover by, so all three agree on what a book root is without
+/// sharing a list of them.
+const BOOKS: &str = "docs/walkthroughs";
 
 #[derive(Clone, Copy)]
 struct Fence {
@@ -208,27 +222,107 @@ fn repository_root() -> PathBuf {
     support::repo_root()
 }
 
+/// One member of the curated surface. A named guide is a single document; a
+/// book is every page in its directory, which a reader moves through as one
+/// document by way of its navigation lines.
+struct SurfaceEntry {
+    label: String,
+    documents: Vec<String>,
+}
+
+/// The book roots under [`BOOKS`], repository-relative and sorted. A sixth book
+/// joins this surface by existing, which is the whole of decision 8's
+/// "machine-held": there is no list here to forget to add it to.
+fn book_roots(root: &Path) -> Vec<String> {
+    let mut roots: Vec<String> = std::fs::read_dir(root.join(BOOKS))
+        .unwrap_or_else(|error| panic!("{BOOKS} must be readable: {error}"))
+        .map(|entry| entry.expect("book directory entries must be readable"))
+        .filter(|entry| {
+            entry
+                .file_type()
+                .expect("entry type must be readable")
+                .is_dir()
+        })
+        .map(|entry| format!("{BOOKS}/{}", entry.file_name().to_string_lossy()))
+        .collect();
+    roots.sort();
+    roots
+}
+
+/// The Markdown pages of one book, sorted. Shallow, because a book is a flat
+/// directory of pages beside its manifest.
+fn book_pages(root: &Path, book: &str) -> Vec<String> {
+    let mut pages: Vec<String> = std::fs::read_dir(root.join(book))
+        .unwrap_or_else(|error| panic!("{book} must be readable: {error}"))
+        .map(|entry| entry.expect("book page entries must be readable"))
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.ends_with(".md"))
+        .map(|name| format!("{book}/{name}"))
+        .collect();
+    pages.sort();
+    pages
+}
+
+/// The curated surface: the named guides, then every book root by discovery.
+fn user_documentation(root: &Path) -> Vec<SurfaceEntry> {
+    let mut surface: Vec<SurfaceEntry> = NAMED_GUIDES
+        .into_iter()
+        .map(|guide| SurfaceEntry {
+            label: guide.to_owned(),
+            documents: vec![guide.to_owned()],
+        })
+        .collect();
+
+    let books = book_roots(root);
+    assert!(
+        !books.is_empty(),
+        "no book root found under {BOOKS} — a surface that discovers nothing passes for any \
+         set of books"
+    );
+    for book in books {
+        let documents = book_pages(root, &book);
+        assert!(
+            !documents.is_empty(),
+            "{book} is a book root with no Markdown page"
+        );
+        surface.push(SurfaceEntry {
+            label: book,
+            documents,
+        });
+    }
+
+    surface
+}
+
 #[test]
 fn user_documentation_references_resolve() {
     let root = repository_root();
 
-    for document in USER_DOCS {
-        let path = root.join(document);
-        let markdown = std::fs::read_to_string(&path)
-            .unwrap_or_else(|error| panic!("{document} must be readable: {error}"));
-        let targets = relative_link_targets(&markdown);
-        assert!(
-            !targets.is_empty(),
-            "{document} must carry at least one relative reference for this check to mean anything"
-        );
+    for entry in user_documentation(&root) {
+        // Counted per surface *entry*, not per file. A guide with no relative
+        // link is a guide this check would pass over silently, and that is what
+        // the count exists to reject; a single chapter of a book may honestly
+        // carry none, while a book that carries none is not navigable at all.
+        let mut references = 0;
 
-        for (target, line_number) in targets {
-            if let Some(reason) = unresolved_reason(&root, document, &target) {
-                panic!(
-                    "{document}:{line_number}: reference `{target}` does not resolve — {reason}"
-                );
+        for document in &entry.documents {
+            let markdown = std::fs::read_to_string(root.join(document))
+                .unwrap_or_else(|error| panic!("{document} must be readable: {error}"));
+            for (target, line_number) in relative_link_targets(&markdown) {
+                references += 1;
+                if let Some(reason) = unresolved_reason(&root, document, &target) {
+                    panic!(
+                        "{document}:{line_number}: reference `{target}` does not resolve — {reason}"
+                    );
+                }
             }
         }
+
+        assert!(
+            references > 0,
+            "{} must carry at least one relative reference for this check to mean anything",
+            entry.label
+        );
     }
 }
 
@@ -295,7 +389,7 @@ fn github_heading_namespace_includes_subsections_fences_and_deduplication() {
 // ---------------------------------------------------------------------------
 // The repository-wide sweep
 //
-// [`USER_DOCS`] above enumerates *a surface* — the files a reader reaches
+// [`user_documentation`] above builds *a surface* — the files a reader reaches
 // without opening `src/`. Everything else was left to "whoever owns all of them
 // at once", which is what follows: the same resolver, run over every Markdown
 // document the repository ships, plus the citations that name a durable record
@@ -662,4 +756,182 @@ fn the_citation_check_distinguishes_a_record_kind_from_prose() {
     );
     // "ADR set" and "ADRs" are prose, not citations.
     assert!(adr_citations("the ADR set holds the why; ADRs are minimal.\n").is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// The documentation-ownership table
+//
+// Decision 8 of `plan-k1` settled two obligations for books: they join the
+// curated user surface above, and each earns a row in `docs/ARCHITECTURE.md`'s
+// *Documentation ownership* table. [`user_documentation`] holds the first by
+// discovery; this holds the second.
+//
+// It is deliberately a check about a document the book does not own. Everything
+// else that gates a book — `book-check`, the manifest, the fragment ledger — is
+// the book's own account of itself, and a book can be complete, reconstructing,
+// and green while no document in the repository says what subject it is
+// canonical for. The table is where that is said, and a row is what makes a new
+// book joining `docs/` a decision somebody recorded rather than a directory
+// that appeared.
+
+const ARCHITECTURE: &str = "docs/ARCHITECTURE.md";
+const OWNERSHIP_HEADING: &str = "## Documentation ownership";
+
+/// Resolve a link destination written inside `directory` to a
+/// repository-relative path, textually.
+///
+/// Textual on purpose: what is read here is what the table *claims* is
+/// canonical, and whether that claim resolves to a real file is already
+/// [`every_repository_markdown_reference_resolves`]' job. Two checks reporting
+/// the same broken link would only make the second one's message worse.
+fn repository_relative(directory: &str, destination: &str) -> String {
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in directory.split('/').chain(destination.split('/')) {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                segments.pop();
+            }
+            segment => segments.push(segment),
+        }
+    }
+    segments.join("/")
+}
+
+/// Every repository-relative path the *Documentation ownership* table names as
+/// a canonical source.
+///
+/// Bounded by the next `##` heading and taken from table rows only, so neither
+/// the prose under the table — which cites `docs/adr/` and the specification
+/// sets — nor a later section can be mistaken for a row.
+fn documentation_ownership_targets(architecture: &str) -> Vec<String> {
+    let after = architecture
+        .split_once(OWNERSHIP_HEADING)
+        .unwrap_or_else(|| panic!("{ARCHITECTURE} must carry `{OWNERSHIP_HEADING}`"))
+        .1;
+    let section = after
+        .split_once("\n## ")
+        .map_or(after, |(section, _)| section);
+
+    let mut targets = Vec::new();
+    for row in section
+        .lines()
+        .filter(|line| line.trim_start().starts_with('|'))
+    {
+        for link in book_validation::scan_markdown_links(row) {
+            let destination = link.destination;
+            if destination.starts_with('#')
+                || destination.contains("://")
+                || destination.starts_with("mailto:")
+            {
+                continue;
+            }
+            let path = destination.split('#').next().unwrap_or_default();
+            if !path.is_empty() {
+                targets.push(repository_relative("docs", path));
+            }
+        }
+    }
+    targets
+}
+
+/// The book roots the table declares nothing canonical for. Total and pure, so
+/// the check below can be shown failing without a scratch book on disk.
+///
+/// A row naming a page *inside* the book counts, because the canonical source
+/// for a book is its contents page rather than its directory — but only a page
+/// inside it: the trailing separator is what stops `…/keyed-launch-notes` from
+/// answering for `…/keyed-launch`.
+fn book_roots_without_ownership_row(book_roots: &[String], targets: &[String]) -> Vec<String> {
+    book_roots
+        .iter()
+        .filter(|book| {
+            let inside = format!("{book}/");
+            !targets
+                .iter()
+                .any(|target| target == *book || target.starts_with(&inside))
+        })
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn every_book_root_has_a_documentation_ownership_row() {
+    let root = repository_root();
+    let architecture = std::fs::read_to_string(root.join(ARCHITECTURE))
+        .unwrap_or_else(|error| panic!("{ARCHITECTURE} must be readable: {error}"));
+
+    let targets = documentation_ownership_targets(&architecture);
+    // The parse must reach the real table, or an empty target set would report
+    // every book as unowned — a check that fails for the wrong reason is no
+    // better than one that passes for the wrong reason.
+    assert!(
+        targets.iter().any(|target| target == "docs/USAGE.md"),
+        "the ownership table was not read: its row for the human workflow guide is missing from \
+         {targets:?}"
+    );
+
+    let books = book_roots(&root);
+    assert!(
+        !books.is_empty(),
+        "no book root found under {BOOKS} — a table compared against nothing has a row for \
+         every book"
+    );
+
+    let missing = book_roots_without_ownership_row(&books, &targets);
+    assert!(
+        missing.is_empty(),
+        "book roots with no row in {ARCHITECTURE}'s *Documentation ownership* table: {missing:?}"
+    );
+}
+
+#[test]
+fn the_ownership_row_check_reports_a_book_with_no_row() {
+    let books = [
+        "docs/walkthroughs/declared".to_owned(),
+        "docs/walkthroughs/undeclared".to_owned(),
+    ];
+    let targets = [
+        "docs/USAGE.md".to_owned(),
+        "docs/walkthroughs/declared/README.md".to_owned(),
+    ];
+    assert_eq!(
+        book_roots_without_ownership_row(&books, &targets),
+        ["docs/walkthroughs/undeclared"],
+        "a book root the table names nothing for must be reported"
+    );
+
+    // A shared prefix is not a row.
+    assert_eq!(
+        book_roots_without_ownership_row(
+            &books[..1],
+            &["docs/walkthroughs/declared-elsewhere/README.md".to_owned()]
+        ),
+        ["docs/walkthroughs/declared"]
+    );
+
+    // The row for a book is written relative to `docs/`, and the guides above
+    // it reach back out of the directory; both must land on the same surface
+    // the book roots are named on.
+    assert_eq!(repository_relative("docs", "../README.md"), "README.md");
+    assert_eq!(
+        repository_relative("docs", "walkthroughs/ordinal-fs-tree/README.md"),
+        "docs/walkthroughs/ordinal-fs-tree/README.md"
+    );
+
+    // Only rows are read: a link in the prose under the table is not a
+    // canonical-source declaration.
+    assert_eq!(
+        documentation_ownership_targets(concat!(
+            "## Documentation ownership\n",
+            "| Subject | Canonical source |\n",
+            "|---|---|\n",
+            "| A book | [`contents`](walkthroughs/a-book/README.md) |\n",
+            "\nSee [prose](NOT-A-ROW.md).\n",
+            "\n## Repository products\n",
+            "| Product | Source |\n",
+            "| Grove | [`later`](LATER.md) |\n",
+        )),
+        ["docs/walkthroughs/a-book/README.md"]
+    );
 }

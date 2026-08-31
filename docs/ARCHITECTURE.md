@@ -24,6 +24,7 @@ modules. There are no transactions: the version control system owns them.
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
 | Relationships between this repository's bounded contexts | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
 | `ordinal-fs-tree` design and vocabulary | [`ordinal-fs-tree/ARCHITECTURE.md`](ordinal-fs-tree/ARCHITECTURE.md) and [`ordinal-fs-tree/CONTEXT.md`](ordinal-fs-tree/CONTEXT.md) |
+| `ordinal-fs-tree` source, read page by page | [`walkthroughs/ordinal-fs-tree/README.md`](walkthroughs/ordinal-fs-tree/README.md) — the code walkthrough: a reader-navigable book whose fragments reconstruct every byte of the crate's frozen corpus |
 | Methodology executed by agents | [`plugins/grove/skills/grove/SKILL.md`](../plugins/grove/skills/grove/SKILL.md), its adjacent format guides, and one `grove-<kind>` skill per session kind |
 | Skill-plugin operation | [`plugins/README.md`](../plugins/README.md) |
 | Scoping notes for work not yet started | `TODO.<subject>.md` at the repository root |
@@ -59,6 +60,18 @@ guides of a bounded context that does not yet ship by its own path, and travels
 with that context's code when it does.
 Those sets describe current state and should be merged or deleted when they no
 longer do; VCS holds their history.
+
+`docs/walkthroughs/` is the other kind of subdirectory: it holds the code
+walkthroughs, one directory per book, each a document a reader navigates from a
+contents page through chapters to two lookup indexes. A book root there is owed
+a row above, and the obligation is machine-held rather than remembered —
+`every_book_root_has_a_documentation_ownership_row`
+(`crates/grove/tests/reference_navigation.rs`) discovers the directories and
+fails on any this table names nothing canonical for. The same file's curated
+user-documentation surface discovers them too, so a book's pages are
+link-checked exactly as a guide's are. A sixth book therefore joins that surface
+by existing, and joins this table by the single edit the check demands: its own
+row.
 
 The former decision-record slugs remain explicit HTML anchors in this document
 (for example, `task-tree-scheme` and `symmetric-vcs-rule`). Source comments and

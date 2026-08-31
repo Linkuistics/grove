@@ -383,7 +383,12 @@ This is the same shape of agreement as the exception inventory below and lives i
 the same document for that reason. It is deliberately not folded into
 `docs/ARCHITECTURE.md`'s *Documentation ownership* row for a book: that row says
 which document is canonical for a subject, in prose, and a source directory a
-validator reads is not the same kind of fact.
+validator reads is not the same kind of fact. That row is separately owed by
+every book — decision 8 of `plan-k1`, held by a repository test that discovers
+the book roots under `docs/walkthroughs/` and fails on any the table names
+nothing canonical for — and adding a book means adding it. The two obligations
+are neighbours, not one obligation: the row is the book's declaration to a
+reader, and the table above is its agreement with a validator.
 
 **The corpus exception inventory.** These are the complete `[[corpus.add]]` and
 `[[corpus.exclude]]` entries every book in this repository may carry. The

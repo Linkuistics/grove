@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v20.0.0
+
 - **`docs/RELEASING.md` carries the check a tree-reading release owes every
   other grove on the machine.** They all resolve the same `/opt/homebrew/bin`
   binaries, so publishing is not scoped to the workstream that cut the release:

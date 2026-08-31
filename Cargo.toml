@@ -66,7 +66,7 @@ exclude = [".grove-worktrees"]
 # per-package version it would have answered `0.1.0`, which names nothing an
 # operator can install.
 [workspace.package]
-version = "19.6.0"
+version = "20.0.0"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/Linkuistics/grove"

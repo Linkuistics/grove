@@ -170,7 +170,7 @@ fn a_well_formed_defer_absent_from_the_ownership_ledger_is_rejected() {
     let mut snapshot = support::corpus(false);
     let source_index = snapshot
         .book_files
-        .get_mut("docs/ordinal-fs-tree/book/source-index.md")
+        .get_mut("docs/walkthroughs/ordinal-fs-tree/source-index.md")
         .unwrap();
     let text = String::from_utf8(source_index.clone()).unwrap().replace(
         "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-717\" -->",
@@ -196,7 +196,7 @@ fn a_later_owned_block_cannot_be_defined_early() {
     let mut snapshot = support::corpus(false);
     let source_index = snapshot
         .book_files
-        .get_mut("docs/ordinal-fs-tree/book/source-index.md")
+        .get_mut("docs/walkthroughs/ordinal-fs-tree/source-index.md")
         .unwrap();
     let text = String::from_utf8(source_index.clone()).unwrap().replace(
         "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-717\" -->",
@@ -205,8 +205,8 @@ fn a_later_owned_block_cannot_be_defined_early() {
     *source_index = text.into_bytes();
     let final_snapshot = support::corpus(true);
     snapshot.book_files.insert(
-        "docs/ordinal-fs-tree/book/02-name-seam.md".into(),
-        final_snapshot.book_files["docs/ordinal-fs-tree/book/02-name-seam.md"].clone(),
+        "docs/walkthroughs/ordinal-fs-tree/02-name-seam.md".into(),
+        final_snapshot.book_files["docs/walkthroughs/ordinal-fs-tree/02-name-seam.md"].clone(),
     );
 
     let report = validate(

@@ -5,7 +5,7 @@ use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice
 fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
     BookSnapshot {
         book_files: BTreeMap::from([(
-            "docs/ordinal-fs-tree/book/source-index.md".into(),
+            "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
             markdown.as_bytes().to_vec(),
         )]),
         source_files: BTreeMap::from([(
@@ -222,7 +222,7 @@ fn literal_newline_and_whitespace_drift_is_byte_failure() {
     assert_eq!(finding.root_id.as_deref(), Some("source-library"));
     assert_eq!(
         finding.primary.path,
-        "docs/ordinal-fs-tree/book/source-index.md"
+        "docs/walkthroughs/ordinal-fs-tree/source-index.md"
     );
     assert_eq!(
         serde_json::to_vec(&first).unwrap(),

@@ -7,7 +7,7 @@ like and what it says are the consumer's. Its terms are deliberately *not*
 grove's — see [Flagged ambiguities](#flagged-ambiguities) and the
 [context map](../../CONTEXT-MAP.md). The design itself is
 [`ARCHITECTURE.md`](ARCHITECTURE.md), and the completed self-contained account
-of the implementation is the [code walkthrough](book/README.md).
+of the implementation is the [code walkthrough](../walkthroughs/ordinal-fs-tree/README.md).
 
 ## Language
 

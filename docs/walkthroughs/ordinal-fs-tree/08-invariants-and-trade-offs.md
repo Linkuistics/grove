@@ -229,7 +229,7 @@ Assembly uses these commands:
 ```console
 cargo run --quiet -p book-validation --bin book-check -- \
   --repo . \
-  --book docs/ordinal-fs-tree/book \
+  --book docs/walkthroughs/ordinal-fs-tree \
   --final \
   --check all
 cargo test -p ordinal-fs-tree

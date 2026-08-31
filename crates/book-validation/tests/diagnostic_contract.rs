@@ -5,7 +5,7 @@ use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice
 fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
     BookSnapshot {
         book_files: BTreeMap::from([(
-            "docs/ordinal-fs-tree/book/source-index.md".into(),
+            "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
             markdown.as_bytes().to_vec(),
         )]),
         source_files: BTreeMap::from([(
@@ -144,7 +144,7 @@ fn a_deep_graph_is_processed_without_recursion() {
     let report = validate(
         &BookSnapshot {
             book_files: BTreeMap::from([(
-                "docs/ordinal-fs-tree/book/01-orientation.md".into(),
+                "docs/walkthroughs/ordinal-fs-tree/01-orientation.md".into(),
                 markdown.into_bytes(),
             )]),
             source_files: BTreeMap::from([(
@@ -228,7 +228,7 @@ fn an_invalid_root_suppresses_only_its_byte_cascade() {
     let report = validate(
         &BookSnapshot {
             book_files: BTreeMap::from([(
-                "docs/ordinal-fs-tree/book/source-index.md".into(),
+                "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 markdown.as_bytes().to_vec(),
             )]),
             source_files: BTreeMap::from([
@@ -311,7 +311,7 @@ fn branching_invalid_graphs_do_not_expand_exponentially() {
     let report = validate(
         &BookSnapshot {
             book_files: BTreeMap::from([(
-                "docs/ordinal-fs-tree/book/01-orientation.md".into(),
+                "docs/walkthroughs/ordinal-fs-tree/01-orientation.md".into(),
                 markdown.into_bytes(),
             )]),
             source_files: BTreeMap::from([(

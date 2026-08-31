@@ -11,7 +11,7 @@ use serde_json::json;
 
 use crate::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice, SOURCE_PATHS};
 
-const AFTER_HELP: &str = "Exit status:\n  0  valid\n  1  deterministic findings\n  2  invalid invocation or input load failure\n  3  internal validator failure\n\nJSON output uses a versioned envelope with status, scope, coverage, and diagnostics.\n\nExamples:\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/ordinal-fs-tree/book --through read-path-k14 --check all\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/ordinal-fs-tree/book --final --check all";
+const AFTER_HELP: &str = "Exit status:\n  0  valid\n  1  deterministic findings\n  2  invalid invocation or input load failure\n  3  internal validator failure\n\nJSON output uses a versioned envelope with status, scope, coverage, and diagnostics.\n\nExamples:\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/walkthroughs/ordinal-fs-tree --through read-path-k14 --check all\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/walkthroughs/ordinal-fs-tree --final --check all";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -575,7 +575,7 @@ mod tests {
                 phase: "identity".into(),
                 message: "duplicate ID".into(),
                 primary: Location {
-                    path: "docs/ordinal-fs-tree/book/source-index.md".into(),
+                    path: "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                     byte: 10,
                     line: 2,
                     column: 1,
@@ -584,7 +584,7 @@ mod tests {
                 root_id: None,
                 source: None,
                 related: vec![RelatedLocation {
-                    path: "docs/ordinal-fs-tree/book/source-index.md".into(),
+                    path: "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                     byte: 20,
                     line: 4,
                     column: 1,
@@ -597,8 +597,8 @@ mod tests {
         assert_eq!(
             render_text(&report),
             concat!(
-                "F001 docs/ordinal-fs-tree/book/source-index.md:2:1: duplicate ID\n",
-                "  related duplicate occurrence docs/ordinal-fs-tree/book/source-index.md:4:1\n",
+                "F001 docs/walkthroughs/ordinal-fs-tree/source-index.md:2:1: duplicate ID\n",
+                "  related duplicate occurrence docs/walkthroughs/ordinal-fs-tree/source-index.md:4:1\n",
                 "  remedy: give every ID a unique name\n",
             )
         );

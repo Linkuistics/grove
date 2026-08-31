@@ -4,7 +4,7 @@ use crate::parser::{Child, Fragment, FragmentBody, ParsedBook, Root};
 use crate::validator::{BLOCKS, ROOTS, SLICE_ORDER};
 use crate::{BookSnapshot, Diagnostic, Location, Scope};
 
-const SOURCE_INDEX: &str = "docs/ordinal-fs-tree/book/source-index.md";
+const SOURCE_INDEX: &str = "docs/walkthroughs/ordinal-fs-tree/source-index.md";
 
 const PAGE_BY_OWNER: &[(&str, &str, &str, usize)] = &[
     ("orientation-k11", "orientation", "01-orientation.md", 1),
@@ -581,7 +581,7 @@ fn check_early_uses(
             ));
             continue;
         };
-        let page_path = format!("docs/ordinal-fs-tree/book/{filename}");
+        let page_path = format!("docs/walkthroughs/ordinal-fs-tree/{filename}");
         let anchor_line = format!("<a id=\"{anchor}\"></a>\n");
         let anchor_byte = snapshot
             .book_files
@@ -704,7 +704,7 @@ fn check_fragment_locations(parsed: &ParsedBook, diagnostics: &mut Vec<Diagnosti
         else {
             continue;
         };
-        let required = format!("docs/ordinal-fs-tree/book/{filename}");
+        let required = format!("docs/walkthroughs/ordinal-fs-tree/{filename}");
         if fragment.location.path != required {
             diagnostics.push(Diagnostic::new(
                 "F010",
@@ -768,7 +768,7 @@ fn slice_order(slice: &str) -> Option<usize> {
 
 fn page_id_for_path(path: &str) -> Option<&'static str> {
     PAGE_BY_OWNER.iter().find_map(|(_, id, filename, _)| {
-        (path == format!("docs/ordinal-fs-tree/book/{filename}")).then_some(*id)
+        (path == format!("docs/walkthroughs/ordinal-fs-tree/{filename}")).then_some(*id)
     })
 }
 

@@ -6,7 +6,7 @@ fn codes(bytes: &[u8]) -> Vec<String> {
     validate(
         &BookSnapshot {
             book_files: BTreeMap::from([(
-                "docs/ordinal-fs-tree/book/source-index.md".into(),
+                "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 bytes.to_vec(),
             )]),
             source_files: BTreeMap::new(),
@@ -100,7 +100,7 @@ fn a_misclosed_literal_recovers_to_a_later_root() {
     let report = validate(
         &BookSnapshot {
             book_files: BTreeMap::from([(
-                "docs/ordinal-fs-tree/book/source-index.md".into(),
+                "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 markdown.as_bytes().to_vec(),
             )]),
             source_files: BTreeMap::new(),
@@ -131,7 +131,7 @@ fn an_unclosed_literal_recovers_to_a_later_root() {
     let report = validate(
         &BookSnapshot {
             book_files: BTreeMap::from([(
-                "docs/ordinal-fs-tree/book/source-index.md".into(),
+                "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 markdown.as_bytes().to_vec(),
             )]),
             source_files: BTreeMap::new(),
@@ -187,7 +187,7 @@ fn invalid_utf8_reports_its_first_byte_and_recovers_after_the_line() {
     let report = validate(
         &BookSnapshot {
             book_files: BTreeMap::from([(
-                "docs/ordinal-fs-tree/book/source-index.md".into(),
+                "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 bytes.to_vec(),
             )]),
             source_files: BTreeMap::new(),

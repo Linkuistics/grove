@@ -429,7 +429,7 @@ fn check_inventory(
                 "inventory",
                 format!("required source root `{id}` is missing"),
                 crate::Location {
-                    path: "docs/ordinal-fs-tree/book/source-index.md".into(),
+                    path: "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                     byte: 0,
                     line: 1,
                     column: 1,
@@ -1445,17 +1445,17 @@ fn compare_locations(left: &crate::Location, right: &crate::Location) -> std::cm
 
 fn page_key(path: &str) -> (bool, usize, &str) {
     const PAGES: &[&str] = &[
-        "docs/ordinal-fs-tree/book/README.md",
-        "docs/ordinal-fs-tree/book/01-orientation.md",
-        "docs/ordinal-fs-tree/book/02-name-seam.md",
-        "docs/ordinal-fs-tree/book/03-reference-domain.md",
-        "docs/ordinal-fs-tree/book/04-read-path.md",
-        "docs/ordinal-fs-tree/book/05-mutation-algebra.md",
-        "docs/ordinal-fs-tree/book/06-filesystem-interpreter.md",
-        "docs/ordinal-fs-tree/book/07-syllabus-cli.md",
-        "docs/ordinal-fs-tree/book/08-invariants-and-trade-offs.md",
-        "docs/ordinal-fs-tree/book/concept-index.md",
-        "docs/ordinal-fs-tree/book/source-index.md",
+        "docs/walkthroughs/ordinal-fs-tree/README.md",
+        "docs/walkthroughs/ordinal-fs-tree/01-orientation.md",
+        "docs/walkthroughs/ordinal-fs-tree/02-name-seam.md",
+        "docs/walkthroughs/ordinal-fs-tree/03-reference-domain.md",
+        "docs/walkthroughs/ordinal-fs-tree/04-read-path.md",
+        "docs/walkthroughs/ordinal-fs-tree/05-mutation-algebra.md",
+        "docs/walkthroughs/ordinal-fs-tree/06-filesystem-interpreter.md",
+        "docs/walkthroughs/ordinal-fs-tree/07-syllabus-cli.md",
+        "docs/walkthroughs/ordinal-fs-tree/08-invariants-and-trade-offs.md",
+        "docs/walkthroughs/ordinal-fs-tree/concept-index.md",
+        "docs/walkthroughs/ordinal-fs-tree/source-index.md",
     ];
     PAGES
         .iter()
@@ -1476,7 +1476,7 @@ mod tests {
             phase: "coverage".into(),
             message: "message".into(),
             primary: Location {
-                path: "docs/ordinal-fs-tree/book/source-index.md".into(),
+                path: "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 byte: 20,
                 line: 2,
                 column: 1,
@@ -1489,7 +1489,7 @@ mod tests {
                 line: 2,
             }),
             related: vec![RelatedLocation {
-                path: "docs/ordinal-fs-tree/book/source-index.md".into(),
+                path: "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 byte: 30,
                 line: 3,
                 column: 1,
@@ -1587,7 +1587,7 @@ mod tests {
         assert_eq!(compare_diagnostics(&base, &later), Ordering::Less);
 
         let mut earlier = base.clone();
-        earlier.primary.path = "docs/ordinal-fs-tree/book/01-orientation.md".into();
+        earlier.primary.path = "docs/walkthroughs/ordinal-fs-tree/01-orientation.md".into();
         assert_eq!(compare_diagnostics(&earlier, &base), Ordering::Less);
         let mut earlier = base.clone();
         earlier.primary.byte = 10;

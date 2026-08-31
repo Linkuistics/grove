@@ -8,7 +8,7 @@ slice:
 ```console
 cargo run --quiet -p book-validation --bin book-check -- \
   --repo . \
-  --book docs/ordinal-fs-tree/book \
+  --book docs/walkthroughs/ordinal-fs-tree \
   --through read-path-k14 \
   --check all
 ```
@@ -19,7 +19,7 @@ no deferred ranges:
 ```console
 cargo run --quiet -p book-validation --bin book-check -- \
   --repo . \
-  --book docs/ordinal-fs-tree/book \
+  --book docs/walkthroughs/ordinal-fs-tree \
   --final \
   --check all
 ```

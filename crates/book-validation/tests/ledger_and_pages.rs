@@ -2,7 +2,7 @@ mod support;
 
 use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice};
 
-const SOURCE_INDEX: &str = "docs/ordinal-fs-tree/book/source-index.md";
+const SOURCE_INDEX: &str = "docs/walkthroughs/ordinal-fs-tree/source-index.md";
 
 fn validate_final(snapshot: &BookSnapshot) -> book_validation::ValidationReport {
     validate(
@@ -167,7 +167,7 @@ fn early_use_target_anchor_must_exist() {
     let mut snapshot = support::corpus(true);
     let orientation = snapshot
         .book_files
-        .get_mut("docs/ordinal-fs-tree/book/01-orientation.md")
+        .get_mut("docs/walkthroughs/ordinal-fs-tree/01-orientation.md")
         .unwrap();
     *orientation = String::from_utf8(orientation.clone())
         .unwrap()
@@ -229,7 +229,7 @@ fn source_roots_cannot_move_to_a_numbered_page() {
     let block = edit_out_root(&mut snapshot, "source-library", "source-conformance");
     snapshot
         .book_files
-        .get_mut("docs/ordinal-fs-tree/book/01-orientation.md")
+        .get_mut("docs/walkthroughs/ordinal-fs-tree/01-orientation.md")
         .unwrap()
         .extend_from_slice(block.as_bytes());
 
@@ -239,7 +239,7 @@ fn source_roots_cannot_move_to_a_numbered_page() {
 #[test]
 fn definitions_must_live_on_their_owners_canonical_numbered_page() {
     let mut snapshot = support::corpus(true);
-    let source_page = "docs/ordinal-fs-tree/book/02-name-seam.md";
+    let source_page = "docs/walkthroughs/ordinal-fs-tree/02-name-seam.md";
     let bytes = snapshot.book_files.get_mut(source_page).unwrap();
     let text = String::from_utf8(bytes.clone()).unwrap();
     let start = text.find("<!-- fragment «name-seam-source»").unwrap();
@@ -249,7 +249,7 @@ fn definitions_must_live_on_their_owners_canonical_numbered_page() {
     *bytes = format!("{}{}", &text[..start], &text[end..]).into_bytes();
     snapshot
         .book_files
-        .get_mut("docs/ordinal-fs-tree/book/01-orientation.md")
+        .get_mut("docs/walkthroughs/ordinal-fs-tree/01-orientation.md")
         .unwrap()
         .extend_from_slice(definition.as_bytes());
 
@@ -261,7 +261,7 @@ fn definitions_must_live_on_their_owners_canonical_numbered_page() {
         .expect("misplaced definition should produce F010");
     assert_eq!(
         placement.primary.path,
-        "docs/ordinal-fs-tree/book/01-orientation.md"
+        "docs/walkthroughs/ordinal-fs-tree/01-orientation.md"
     );
     assert!(placement.message.contains("02-name-seam.md"));
 }

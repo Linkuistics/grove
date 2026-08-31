@@ -21,7 +21,7 @@ separately (`docs/RELEASING.md`, *One release, six packages, one tag*).
 - [ordinal-fs-tree](./docs/ordinal-fs-tree/CONTEXT.md) — the domain-independent
   ordered-tree library extracted from grove's tree modules: entries, ordinals,
   keys, and the algebra over them. Its completed
-  [code walkthrough](./docs/ordinal-fs-tree/book/README.md) is the self-contained
+  [code walkthrough](./docs/walkthroughs/ordinal-fs-tree/README.md) is the self-contained
   reader-facing account of the crate and demonstration CLI. Its glossary sits beside
   [its architecture](./docs/ordinal-fs-tree/ARCHITECTURE.md). The crate lands at
   `crates/ordinal-fs-tree/`, a member of a workspace whose root is no package at

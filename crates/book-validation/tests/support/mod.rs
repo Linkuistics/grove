@@ -489,7 +489,7 @@ pub fn corpus(final_: bool) -> BookSnapshot {
     }
 
     let mut book_files = BTreeMap::from([(
-        "docs/ordinal-fs-tree/book/source-index.md".into(),
+        "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
         source_index.into_bytes(),
     )]);
     book_files.extend(pages.into_iter().map(|(owner, body)| {
@@ -504,7 +504,7 @@ pub fn corpus(final_: bool) -> BookSnapshot {
         }
         contents.push_str(&body);
         (
-            format!("docs/ordinal-fs-tree/book/{filename}"),
+            format!("docs/walkthroughs/ordinal-fs-tree/{filename}"),
             contents.into_bytes(),
         )
     }));

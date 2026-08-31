@@ -4,7 +4,7 @@ use book_validation::{
     validate, BookSnapshot, Check, Request, Scope, ScopedSlice, ValidationReport,
 };
 
-const ROOT: &str = "docs/ordinal-fs-tree/book/";
+const ROOT: &str = "docs/walkthroughs/ordinal-fs-tree/";
 
 fn valid_book() -> BookSnapshot {
     let book_files = BTreeMap::from([
@@ -279,7 +279,7 @@ fn broken_files_missing_explicit_anchors_and_scope_escapes_are_link_findings() {
 fn repository_file_links_outside_the_book_and_frozen_corpus_are_rejected() {
     let mut snapshot = valid_book();
     snapshot.source_files.insert(
-        "docs/ordinal-fs-tree/ARCHITECTURE.md".into(),
+        "docs/walkthroughs/ARCHITECTURE.md".into(),
         b"# Architecture\n<a id=\"boundary\"></a>\n## Boundary\n".to_vec(),
     );
     edit(&mut snapshot, "01-orientation.md", |text| {

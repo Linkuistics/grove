@@ -28,7 +28,7 @@ fn markdown_and_all_are_accepted_check_selections() {
             "--repo",
             repository.path().to_str().unwrap(),
             "--book",
-            "docs/ordinal-fs-tree/book",
+            "docs/walkthroughs/ordinal-fs-tree",
             "--through",
             "orientation-k11",
             "--check",
@@ -44,7 +44,7 @@ fn markdown_and_all_are_accepted_check_selections() {
 fn markdown_check_rejects_a_repository_artifact_outside_the_fixed_domains() {
     let repository = tempfile::tempdir().unwrap();
     materialize(&support::corpus(false), repository.path());
-    let book = repository.path().join("docs/ordinal-fs-tree/book");
+    let book = repository.path().join("docs/walkthroughs/ordinal-fs-tree");
     std::fs::write(
         book.join("README.md"),
         concat!(
@@ -89,9 +89,7 @@ fn markdown_check_rejects_a_repository_artifact_outside_the_fixed_domains() {
     );
     std::fs::write(source_index, text).unwrap();
     std::fs::write(
-        repository
-            .path()
-            .join("docs/ordinal-fs-tree/ARCHITECTURE.md"),
+        repository.path().join("docs/walkthroughs/ARCHITECTURE.md"),
         "# Architecture\n<a id=\"boundary\"></a>\n## Boundary\n",
     )
     .unwrap();
@@ -101,7 +99,7 @@ fn markdown_check_rejects_a_repository_artifact_outside_the_fixed_domains() {
         "--repo",
         repository.path().to_str().unwrap(),
         "--book",
-        "docs/ordinal-fs-tree/book",
+        "docs/walkthroughs/ordinal-fs-tree",
         "--through",
         "orientation-k11",
         "--check",
@@ -119,7 +117,7 @@ fn recursive_book_inventory_reports_every_additional_entry_as_m101() {
         materialize(&support::corpus(false), repository.path());
         let path = repository
             .path()
-            .join("docs/ordinal-fs-tree/book")
+            .join("docs/walkthroughs/ordinal-fs-tree")
             .join(extra);
         if extra.contains('.') {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -133,7 +131,7 @@ fn recursive_book_inventory_reports_every_additional_entry_as_m101() {
             "--repo",
             repository.path().to_str().unwrap(),
             "--book",
-            "docs/ordinal-fs-tree/book",
+            "docs/walkthroughs/ordinal-fs-tree",
             "--through",
             "orientation-k11",
             "--check",
@@ -146,10 +144,9 @@ fn recursive_book_inventory_reports_every_additional_entry_as_m101() {
             output.stdout, output.stderr
         );
         assert!(
-            output
-                .stdout
-                .lines()
-                .any(|line| { line.contains("M101") && line.contains(&format!("book/{extra}")) }),
+            output.stdout.lines().any(|line| {
+                line.contains("M101") && line.contains(&format!("ordinal-fs-tree/{extra}"))
+            }),
             "{extra}: {}",
             output.stdout
         );
@@ -166,7 +163,7 @@ fn book_page_symlinks_cannot_read_outside_the_explicit_repository() {
     let outside = tempfile::tempdir().unwrap();
     let page = repository
         .path()
-        .join("docs/ordinal-fs-tree/book/01-orientation.md");
+        .join("docs/walkthroughs/ordinal-fs-tree/01-orientation.md");
     let bytes = std::fs::read(&page).unwrap();
     std::fs::write(outside.path().join("page.md"), bytes).unwrap();
     std::fs::remove_file(&page).unwrap();
@@ -177,7 +174,7 @@ fn book_page_symlinks_cannot_read_outside_the_explicit_repository() {
         "--repo",
         repository.path().to_str().unwrap(),
         "--book",
-        "docs/ordinal-fs-tree/book",
+        "docs/walkthroughs/ordinal-fs-tree",
         "--through",
         "orientation-k11",
         "--check",
@@ -196,7 +193,7 @@ fn book_page_symlinks_inside_the_repository_are_inventory_findings() {
 
     let repository = tempfile::tempdir().unwrap();
     materialize(&support::corpus(false), repository.path());
-    let book = repository.path().join("docs/ordinal-fs-tree/book");
+    let book = repository.path().join("docs/walkthroughs/ordinal-fs-tree");
     let page = book.join("01-orientation.md");
     std::fs::remove_file(&page).unwrap();
     symlink(book.join("README.md"), &page).unwrap();
@@ -206,7 +203,7 @@ fn book_page_symlinks_inside_the_repository_are_inventory_findings() {
         "--repo",
         repository.path().to_str().unwrap(),
         "--book",
-        "docs/ordinal-fs-tree/book",
+        "docs/walkthroughs/ordinal-fs-tree",
         "--through",
         "orientation-k11",
         "--check",
@@ -226,7 +223,7 @@ fn a_symlinked_book_root_is_refused_without_traversing_its_target() {
     let repository = tempfile::tempdir().unwrap();
     materialize(&support::corpus(false), repository.path());
     symlink(
-        repository.path().join("docs/ordinal-fs-tree/book"),
+        repository.path().join("docs/walkthroughs/ordinal-fs-tree"),
         repository.path().join("book-alias"),
     )
     .unwrap();
@@ -256,7 +253,7 @@ fn an_unreadable_unexpected_directory_still_reaches_m101() {
     materialize(&support::corpus(false), repository.path());
     let drafts = repository
         .path()
-        .join("docs/ordinal-fs-tree/book/private-drafts");
+        .join("docs/walkthroughs/ordinal-fs-tree/private-drafts");
     std::fs::create_dir(&drafts).unwrap();
     std::fs::set_permissions(&drafts, std::fs::Permissions::from_mode(0o000)).unwrap();
 
@@ -265,7 +262,7 @@ fn an_unreadable_unexpected_directory_still_reaches_m101() {
         "--repo",
         repository.path().to_str().unwrap(),
         "--book",
-        "docs/ordinal-fs-tree/book",
+        "docs/walkthroughs/ordinal-fs-tree",
         "--through",
         "orientation-k11",
         "--check",
@@ -287,11 +284,11 @@ fn fragment_only_check_does_not_load_markdown_link_targets() {
     materialize(&support::corpus(false), repository.path());
     let source_index = repository
         .path()
-        .join("docs/ordinal-fs-tree/book/source-index.md");
+        .join("docs/walkthroughs/ordinal-fs-tree/source-index.md");
     let mut text = std::fs::read_to_string(&source_index).unwrap();
     text.push_str("[Private](../private.md)\n");
     std::fs::write(source_index, text).unwrap();
-    let private = repository.path().join("docs/ordinal-fs-tree/private.md");
+    let private = repository.path().join("docs/walkthroughs/private.md");
     std::fs::write(&private, "secret\n").unwrap();
     std::fs::set_permissions(&private, std::fs::Permissions::from_mode(0o000)).unwrap();
 
@@ -300,7 +297,7 @@ fn fragment_only_check_does_not_load_markdown_link_targets() {
         "--repo",
         repository.path().to_str().unwrap(),
         "--book",
-        "docs/ordinal-fs-tree/book",
+        "docs/walkthroughs/ordinal-fs-tree",
         "--through",
         "orientation-k11",
         "--check",
@@ -317,7 +314,7 @@ fn invalid_scope_is_exit_two_and_uses_json_when_requested() {
         "--repo",
         ".",
         "--book",
-        "docs/ordinal-fs-tree/book",
+        "docs/walkthroughs/ordinal-fs-tree",
         "--through",
         "book-assembly-k18",
         "--output",
@@ -353,7 +350,7 @@ fn load_failure_has_path_category_and_complete_json_schema() {
         "--repo",
         temporary.path().to_str().unwrap(),
         "--book",
-        "docs/ordinal-fs-tree/book",
+        "docs/walkthroughs/ordinal-fs-tree",
         "--final",
         "--output",
         "json",
@@ -363,7 +360,10 @@ fn load_failure_has_path_category_and_complete_json_schema() {
 
     assert_eq!(output.exit, 2);
     assert_eq!(diagnostic["code"], "U002");
-    assert_eq!(diagnostic["primary"]["path"], "docs/ordinal-fs-tree/book");
+    assert_eq!(
+        diagnostic["primary"]["path"],
+        "docs/walkthroughs/ordinal-fs-tree"
+    );
     assert!(diagnostic["message"]
         .as_str()
         .unwrap()
@@ -381,7 +381,7 @@ fn final_fragment_command_loads_only_the_explicit_repository() {
         "--repo",
         temporary.path().to_str().unwrap(),
         "--book",
-        "docs/ordinal-fs-tree/book",
+        "docs/walkthroughs/ordinal-fs-tree",
         "--final",
         "--check",
         "fragments",

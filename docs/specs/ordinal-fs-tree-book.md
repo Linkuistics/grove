@@ -33,10 +33,10 @@ The system has four deliberate properties:
 
 ## Book location and pages
 
-The book lives at `docs/ordinal-fs-tree/book/`:
+The book lives at `docs/walkthroughs/ordinal-fs-tree/`:
 
 ```text
-docs/ordinal-fs-tree/book/
+docs/walkthroughs/ordinal-fs-tree/
 ├── README.md
 ├── 01-orientation.md
 ├── 02-name-seam.md
@@ -702,7 +702,7 @@ During the fragment-validator stage, the runnable author command is:
 ```console
 cargo run --quiet -p book-validation --bin book-check -- \
   --repo . \
-  --book docs/ordinal-fs-tree/book \
+  --book docs/walkthroughs/ordinal-fs-tree \
   --through read-path-k14 \
   --check all
 ```
@@ -712,7 +712,7 @@ The corresponding runnable final command is:
 ```console
 cargo run --quiet -p book-validation --bin book-check -- \
   --repo . \
-  --book docs/ordinal-fs-tree/book \
+  --book docs/walkthroughs/ordinal-fs-tree \
   --final \
   --check all
 ```
@@ -841,7 +841,7 @@ known caller action exists:
   "phase": "bytes",
   "message": "expanded bytes differ from authoritative source",
   "primary": {
-    "path": "docs/ordinal-fs-tree/book/05-mutation-algebra.md",
+    "path": "docs/walkthroughs/ordinal-fs-tree/05-mutation-algebra.md",
     "byte": 8421,
     "line": 214,
     "column": 1
@@ -855,7 +855,7 @@ known caller action exists:
   },
   "related": [
     {
-      "path": "docs/ordinal-fs-tree/book/source-index.md",
+      "path": "docs/walkthroughs/ordinal-fs-tree/source-index.md",
       "byte": 18002,
       "line": 311,
       "column": 1,

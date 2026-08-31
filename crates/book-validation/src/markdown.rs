@@ -4,7 +4,7 @@ use std::ops::Range;
 use crate::parser::{ParsedBook, ParsedDocument};
 use crate::{BookSnapshot, Diagnostic, Location, Scope};
 
-const ROOT: &str = "docs/ordinal-fs-tree/book/";
+const ROOT: &str = "docs/walkthroughs/ordinal-fs-tree/";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MarkdownLink {

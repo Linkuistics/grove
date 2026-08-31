@@ -73,6 +73,7 @@ fn valid_book() -> BookSnapshot {
         manifest,
         book_files,
         source_files: BTreeMap::new(),
+        outbound_files: Default::default(),
         book_entries,
         non_regular_book_entries: Default::default(),
     }

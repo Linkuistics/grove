@@ -306,6 +306,63 @@ impl Exception {
     }
 }
 
+/// One document outside the book that its manifest declares, with the anchors
+/// the book reserves from it.
+///
+/// The guide and the glossaries are the same shape, and the checks over them
+/// are the same checks: the CLI loads the document, a citation may name only a
+/// listed anchor, and a listed anchor the document does not carry is a finding
+/// against the manifest whether or not any page cites it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OutboundDocument {
+    path: String,
+    anchors: Vec<String>,
+}
+
+impl OutboundDocument {
+    /// The repository-relative path of the declared document.
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// The anchors this book reserves from it, in declaration order.
+    pub fn anchors(&self) -> &[String] {
+        &self.anchors
+    }
+}
+
+/// `[guide]`, which is exactly one of two shapes.
+///
+/// The omitted reason is kept rather than discarded at load: it is the whole
+/// reason the exemption is a declared decision a reader can find rather than an
+/// absence (`docs/specs/walkthrough-books.md`, *The relocated book declares no
+/// guide link*).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Guide {
+    Declared(OutboundDocument),
+    Omitted(String),
+}
+
+impl Guide {
+    /// The declared guide document, or `None` when the book declares
+    /// `omitted` — in which case the guide is not a permitted link target at
+    /// all, which is how the absence is enforced.
+    pub fn declared(&self) -> Option<&OutboundDocument> {
+        match self {
+            Self::Declared(document) => Some(document),
+            Self::Omitted(_) => None,
+        }
+    }
+}
+
+impl Default for Guide {
+    /// A book that declares nothing declares no guide, which is the shape an
+    /// in-memory test snapshot takes unless it says otherwise.
+    fn default() -> Self {
+        Self::Omitted(String::new())
+    }
+}
+
 /// The book's corpus rule: what the include patterns reach, minus every
 /// exclusion, plus every addition.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -342,6 +399,8 @@ pub struct Manifest {
     roots: Vec<SourceRoot>,
     blocks: Vec<OwnershipBlock>,
     early_uses: Vec<EarlyUse>,
+    guide: Guide,
+    glossaries: Vec<OutboundDocument>,
 }
 
 impl Manifest {
@@ -414,6 +473,27 @@ impl Manifest {
     /// The rows a book may not omit from its early-use ledger.
     pub fn early_uses(&self) -> &[EarlyUse] {
         &self.early_uses
+    }
+
+    /// `[guide]`, in whichever of its two shapes the book declared.
+    pub fn guide(&self) -> &Guide {
+        &self.guide
+    }
+
+    /// The declared `[[glossary]]` documents, in declaration order.
+    pub fn glossaries(&self) -> &[OutboundDocument] {
+        &self.glossaries
+    }
+
+    /// Every document outside the book the manifest declares: the guide, when
+    /// it is not omitted, then each glossary.
+    ///
+    /// The CLI loads exactly these into the snapshot, and they are exactly the
+    /// non-book link targets the book may name — so one iterator is what keeps
+    /// the loader, the permitted-target set and the anchor check reading the
+    /// same declaration.
+    pub fn outbound_documents(&self) -> impl Iterator<Item = &OutboundDocument> {
+        self.guide.declared().into_iter().chain(&self.glossaries)
     }
 
     /// The repository-relative path of `file` inside the book directory.
@@ -683,10 +763,10 @@ impl RawManifest {
                 "`[book] title` and `[book] subject` must be non-empty",
             ));
         }
-        check_guide(&self.guide)?;
+        let guide = check_guide(&self.guide)?;
         let corpus = check_corpus(&self.corpus, &self.book.subject)?;
         check_early_uses(&self.early_use)?;
-        check_glossary(&self.glossary)?;
+        let glossaries = check_glossary(&self.glossary)?;
         let pages = build_pages(self.page)?;
         for root in &self.root {
             if !valid_id(&root.id) {
@@ -772,6 +852,8 @@ impl RawManifest {
                     statement: entry.statement,
                 })
                 .collect(),
+            guide,
+            glossaries,
         })
     }
 }
@@ -914,25 +996,35 @@ fn plain_markdown_file(file: &str) -> bool {
         && !file.contains('\\')
 }
 
-fn check_guide(guide: &RawGuide) -> Result<(), ManifestError> {
+fn check_guide(guide: &RawGuide) -> Result<Guide, ManifestError> {
     match (&guide.path, &guide.anchors, &guide.omitted) {
-        (Some(path), Some(anchors), None) if !path.is_empty() && !anchors.is_empty() => Ok(()),
-        (None, None, Some(reason)) if !reason.is_empty() => Ok(()),
+        (Some(path), Some(anchors), None) if !path.is_empty() && !anchors.is_empty() => {
+            Ok(Guide::Declared(OutboundDocument {
+                path: path.clone(),
+                anchors: anchors.clone(),
+            }))
+        }
+        (None, None, Some(reason)) if !reason.is_empty() => Ok(Guide::Omitted(reason.clone())),
         _ => Err(ManifestError::new(
             "`[guide]` is either `path` with a non-empty `anchors` array or `omitted` with a non-empty reason",
         )),
     }
 }
 
-fn check_glossary(entries: &[RawGlossary]) -> Result<(), ManifestError> {
+fn check_glossary(entries: &[RawGlossary]) -> Result<Vec<OutboundDocument>, ManifestError> {
+    let mut documents = Vec::with_capacity(entries.len());
     for entry in entries {
         if entry.path.is_empty() || entry.anchors.is_empty() {
             return Err(ManifestError::new(
                 "every `[[glossary]]` entry carries a `path` and a non-empty `anchors` array",
             ));
         }
+        documents.push(OutboundDocument {
+            path: entry.path.clone(),
+            anchors: entry.anchors.clone(),
+        });
     }
-    Ok(())
+    Ok(documents)
 }
 
 /// The two base patterns every book's `include` must contain, anchored to

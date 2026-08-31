@@ -12,6 +12,7 @@ fn core_scope_accepts_only_the_typed_scoped_domain() {
             manifest: support::manifest(),
             book_files: BTreeMap::new(),
             source_files: BTreeMap::new(),
+            outbound_files: Default::default(),
             book_entries: BTreeSet::new(),
             non_regular_book_entries: BTreeSet::new(),
         },

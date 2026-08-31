@@ -73,6 +73,8 @@ pub(crate) fn check(
         }
     }
     check_contents(manifest, parsed, chapter_count, diagnostics);
+    check_guide_citation(snapshot, parsed, diagnostics);
+    check_declared_anchors(snapshot, diagnostics);
 }
 
 /// The contents page, the chapters of the requested prefix, and both lookup
@@ -342,7 +344,8 @@ fn check_links(
         let target_bytes = snapshot
             .book_files
             .get(&target)
-            .or_else(|| snapshot.source_files.get(&target));
+            .or_else(|| snapshot.source_files.get(&target))
+            .or_else(|| snapshot.outbound_files.get(&target));
         let Some(target_bytes) = target_bytes else {
             diagnostics.push(markdown_diagnostic(
                 "M201",
@@ -355,6 +358,28 @@ fn check_links(
             continue;
         };
         if let Some(anchor) = anchor {
+            // A citation into a declared outbound document is checked against
+            // the *declaration*: the anchor must be one the manifest reserves.
+            // Whether the target carries it is reported once, against the
+            // manifest, by `check_declared_anchors` — a book must not be able
+            // to reserve an anchor nothing guarantees, cited or not.
+            if let Some(document) = snapshot
+                .manifest
+                .outbound_documents()
+                .find(|document| document.path() == target)
+            {
+                if !document.anchors().iter().any(|declared| declared == anchor) {
+                    diagnostics.push(markdown_diagnostic(
+                        "M201",
+                        format!(
+                            "link `{}` names anchor `{anchor}`, which this book's manifest does not declare for `{target}`",
+                            link.destination
+                        ),
+                        location,
+                    ));
+                }
+                continue;
+            }
             let has_anchor = std::str::from_utf8(target_bytes).ok().is_some_and(|text| {
                 parsed
                     .documents
@@ -447,6 +472,151 @@ fn check_contents(
             }
         }
     }
+}
+
+/// Rule 1 of *Outbound links*: a book declaring a `[guide]` path cites one of
+/// its declared guide anchors from its `README.md` reader contract.
+///
+/// A book declaring `omitted` is checked by omission and not here: it declares
+/// no guide path, so the guide is in no book's permitted-target set and a
+/// `README.md` citing it fails as an unresolvable link.
+fn check_guide_citation(
+    snapshot: &BookSnapshot,
+    parsed: &ParsedBook,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let manifest = &snapshot.manifest;
+    let (Some(guide), Some(contents_page)) =
+        (manifest.guide().declared(), manifest.contents_page())
+    else {
+        return;
+    };
+    let readme_path = manifest.path(contents_page.file());
+    let Some(readme) = parsed.documents.get(&readme_path) else {
+        return;
+    };
+    let mut cites_an_anchor = false;
+    for link in scan_links(&readme.text, &readme.opaque_ranges)
+        .iter()
+        .filter(|link| link.valid_syntax)
+    {
+        let Some((target, anchor)) = resolve_local(&readme_path, &link.destination) else {
+            continue;
+        };
+        if target != guide.path() {
+            continue;
+        }
+        if anchor.is_some() {
+            // Whether the named anchor is one the manifest declares is
+            // `check_links`' finding, so a citation is counted here and judged
+            // there.
+            cites_an_anchor = true;
+        } else {
+            diagnostics.push(markdown_diagnostic(
+                "M201",
+                format!(
+                    "guide link `{}` in `{}` carries no anchor; a book declaring a guide cites one of its declared anchors",
+                    link.destination,
+                    contents_page.file()
+                ),
+                Location {
+                    path: readme_path.clone(),
+                    byte: link.byte,
+                    line: link.line,
+                    column: link.column,
+                },
+            ));
+        }
+    }
+    if !cites_an_anchor {
+        diagnostics.push(markdown_diagnostic(
+            "M201",
+            format!(
+                "`{}` must cite one of the guide anchors declared in the manifest for `{}`",
+                contents_page.file(),
+                guide.path()
+            ),
+            command_location(&readme_path),
+        ));
+    }
+}
+
+/// Rule 3 of *Outbound links*: every anchor the manifest declares exists in its
+/// target document, reported once per missing anchor **whether or not any page
+/// cites it**.
+///
+/// Against the manifest, because the manifest is what reserved it. A check
+/// driven by citations would let a book reserve an anchor nothing guarantees,
+/// and a guide edit that removed an anchor would fail later and elsewhere
+/// instead of failing the books that reserved it — which is the property the
+/// guide-first ordering was for.
+fn check_declared_anchors(snapshot: &BookSnapshot, diagnostics: &mut Vec<Diagnostic>) {
+    let manifest = &snapshot.manifest;
+    for document in manifest.outbound_documents() {
+        let present = snapshot
+            .outbound_files
+            .get(document.path())
+            .and_then(|bytes| std::str::from_utf8(bytes).ok())
+            .map(explicit_anchors)
+            .unwrap_or_default();
+        for anchor in document.anchors() {
+            if !present.contains(anchor.as_str()) {
+                diagnostics.push(markdown_diagnostic(
+                    "M201",
+                    format!(
+                        "the manifest reserves anchor `{anchor}` from `{}`, which carries no such explicit anchor",
+                        document.path()
+                    ),
+                    command_location(&manifest.manifest_path()),
+                ));
+            }
+        }
+    }
+}
+
+/// The explicit anchors a document outside the book carries: an
+/// `<a id="…"></a>` line, outside any fenced code block, immediately preceding
+/// a heading.
+///
+/// Requiring the explicit form is the whole mechanism. A renderer-generated
+/// heading slug changes silently when the heading is retitled; an explicit
+/// anchor does not, and an anchor line that precedes no heading is a label for
+/// nothing.
+///
+/// This is a scan rather than a book parse: an outbound document is not a book
+/// page, and running the book lexer over it would report the book's own
+/// directive and encoding rules against a document that never agreed to them.
+fn explicit_anchors(text: &str) -> BTreeSet<&str> {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut anchors = BTreeSet::new();
+    let mut fence: Option<usize> = None;
+    for (index, line) in lines.iter().enumerate() {
+        let backticks = line.bytes().take_while(|byte| *byte == b'`').count();
+        match fence {
+            Some(opened) => {
+                if backticks >= opened && line.trim_end().len() == backticks {
+                    fence = None;
+                }
+                continue;
+            }
+            None => {
+                if backticks >= 3 {
+                    fence = Some(backticks);
+                    continue;
+                }
+            }
+        }
+        if let Some(anchor) = explicit_anchor(line) {
+            if lines
+                .get(index + 1)
+                .and_then(|next| heading_level(next))
+                .is_some()
+            {
+                anchors.insert(anchor);
+            }
+        }
+    }
+    anchors
 }
 
 fn visible_explicit_anchor(text: &str, opaque_ranges: &[Range<usize>], anchor: &str) -> bool {

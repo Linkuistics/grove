@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 
 pub use corpus::{derive as derive_corpus, CorpusError};
 pub use manifest::{
-    Class, Corpus, EarlyUse, Exception, Manifest, ManifestError, OwnershipBlock, Page, Pattern,
-    Role, ScopedSlice, SourceRoot,
+    Class, Corpus, EarlyUse, Exception, Guide, Manifest, ManifestError, OutboundDocument,
+    OwnershipBlock, Page, Pattern, Role, ScopedSlice, SourceRoot,
 };
 pub use markdown::{scan_markdown_links, MarkdownLink};
 pub use validator::validate;
@@ -32,6 +32,12 @@ pub struct BookSnapshot {
     pub derived_corpus: BTreeSet<String>,
     pub book_files: BTreeMap<String, Vec<u8>>,
     pub source_files: BTreeMap<String, Vec<u8>>,
+    /// The bytes of the documents outside the book its manifest declares — the
+    /// `[guide]` path and each `[[glossary]]` path. A book is self-contained
+    /// for its claims and still cites two documents it does not own, and the
+    /// anchors it reserves from them cannot be checked against bytes nobody
+    /// read.
+    pub outbound_files: BTreeMap<String, Vec<u8>>,
     pub book_entries: BTreeSet<String>,
     pub non_regular_book_entries: BTreeSet<String>,
 }

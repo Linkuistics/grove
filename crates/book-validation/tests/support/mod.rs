@@ -657,6 +657,7 @@ pub fn corpus(final_: bool) -> BookSnapshot {
         derived_corpus,
         book_files,
         source_files,
+        outbound_files: Default::default(),
         book_entries,
         non_regular_book_entries: Default::default(),
     }

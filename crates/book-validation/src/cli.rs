@@ -239,6 +239,20 @@ fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFai
         let bytes = read_confined(repository, &canonical_repository, relative, "ledger source")?;
         source_files.insert(relative.clone(), bytes);
     }
+    // The declared outbound documents are required inputs, not best-effort
+    // reads: an anchor a book reserves is checked against the target's bytes,
+    // so a document that could not be read would leave every reservation over
+    // it silently satisfied.
+    let mut outbound_files = BTreeMap::new();
+    for document in manifest.outbound_documents() {
+        let bytes = read_confined(
+            repository,
+            &canonical_repository,
+            document.path(),
+            "outbound document",
+        )?;
+        outbound_files.insert(document.path().to_owned(), bytes);
+    }
     let mut book_entries = BTreeSet::new();
     let mut non_regular_book_entries = BTreeSet::new();
     collect_book_entries(
@@ -252,6 +266,7 @@ fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFai
         derived_corpus,
         book_files,
         source_files,
+        outbound_files,
         book_entries,
         non_regular_book_entries,
     })

@@ -99,8 +99,29 @@ owner     = "inner-workings-w2"
 statement = "A widget is the fixture's one value and its constructor is explained later."
 
 [guide]
-omitted = "the widget guide is a fixture and cites no user guide"
+path    = "docs/USAGE.md"
+anchors = ["scaffolding-a-grove"]
+
+[[glossary]]
+path    = "CONTEXT.md"
+anchors = ["widget", "never-cited"]
 "#;
+
+/// The two documents outside the book that its manifest declares, and the
+/// anchors it reserves from each.
+///
+/// They are fixtures rather than the repository's own `docs/USAGE.md` and
+/// `CONTEXT.md`: the book under test lives in a temporary repository, and the
+/// contract is that a book reserves anchors from whatever documents its own
+/// manifest names.
+const GUIDE_PATH: &str = "docs/USAGE.md";
+const GUIDE_ANCHOR: &str = "scaffolding-a-grove";
+const GUIDE: &str = "# Grove user guide\n\n<a id=\"scaffolding-a-grove\"></a>\n## Scaffolding a grove\n\nRun the scaffolding verb.\n";
+const GLOSSARY_PATH: &str = "CONTEXT.md";
+/// Three anchors, and the third is declared by nothing: `undeclared` exists in
+/// the target so a citation of it can fail for the one reason under test — the
+/// manifest does not list it — rather than for missing from the document.
+const GLOSSARY: &str = "# Context\n\n<a id=\"widget\"></a>\n## Widget\n\nThe fixture's one value.\n\n<a id=\"never-cited\"></a>\n## Never cited\n\nAn anchor the book reserves and no page cites.\n\n<a id=\"undeclared\"></a>\n## Undeclared\n\nAn anchor the target carries and the manifest does not list.\n";
 
 /// The fixture crate's one source file, and the only bytes the book
 /// reconstructs. Six lines, partitioned `1-3` and `4-6` by the two blocks.
@@ -235,6 +256,9 @@ fn materialize(repository: &Path, chapters: usize) {
         "// evidence, not production source\n",
     )
     .unwrap();
+    std::fs::create_dir_all(repository.join("docs")).unwrap();
+    std::fs::write(repository.join(GUIDE_PATH), GUIDE).unwrap();
+    std::fs::write(repository.join(GLOSSARY_PATH), GLOSSARY).unwrap();
     let book = repository.join(BOOK);
     std::fs::create_dir_all(&book).unwrap();
     write(&book, "walkthrough.toml", MANIFEST);
@@ -249,6 +273,10 @@ fn materialize(repository: &Path, chapters: usize) {
         }
     }
     contents.push_str("[Concept index](concept-index.md)\n[Source index](source-index.md)\n");
+    // The reader contract, and the one place a book links the guide.
+    contents.push_str(&format!(
+        "\nThis book assumes the [grove user guide](../../USAGE.md#{GUIDE_ANCHOR}).\n"
+    ));
     write(&book, "README.md", &contents);
 
     for (index, (file, id, title)) in CHAPTERS.iter().take(chapters).enumerate() {
@@ -263,7 +291,7 @@ fn materialize(repository: &Path, chapters: usize) {
         }
         let navigation = parts.join(" | ");
         let anchor = if index == 0 {
-            "<a id=\"vocabulary\"></a>\n## Vocabulary\n\nA widget is the fixture's one value.\n"
+            "<a id=\"vocabulary\"></a>\n## Vocabulary\n\nA widget is the fixture's one value, named in the [glossary](../../../CONTEXT.md#widget).\n"
         } else {
             ""
         };
@@ -539,8 +567,196 @@ fn an_exclusion_the_include_patterns_never_matched_is_a_u002() {
 }
 
 fn edit_manifest(repository: &Path, from: &str, to: &str) {
-    let manifest = repository.join(BOOK).join("walkthrough.toml");
-    let text = std::fs::read_to_string(&manifest).unwrap();
-    assert!(text.contains(from), "fixture manifest lacks `{from}`");
-    std::fs::write(&manifest, text.replacen(from, to, 1)).unwrap();
+    replace_in(repository, &format!("{BOOK}/walkthrough.toml"), from, to);
+}
+
+/// Replace the first occurrence of `from` in a fixture file, asserting it was
+/// there: a mutation that silently matched nothing would leave the test
+/// asserting against the untouched fixture.
+fn replace_in(repository: &Path, relative: &str, from: &str, to: &str) {
+    let path = repository.join(relative);
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains(from), "fixture `{relative}` lacks `{from}`");
+    std::fs::write(&path, text.replacen(from, to, 1)).unwrap();
+}
+
+// ---------------------------------------------------------------------------
+// Outbound links: the guide and the glossary.
+//
+// The fixture declares both a `[guide]` and a `[[glossary]]`, so the positive
+// branch of every rule below is asserted by
+// `a_second_book_validates_from_its_own_manifest` above: a book whose README
+// cites a declared guide anchor, whose chapter cites a declared glossary
+// anchor, and whose targets carry both, is green. Each test here breaks exactly
+// one of those conditions.
+// ---------------------------------------------------------------------------
+
+/// Rule 1. The obligation the guide-first ordering buys: a book declaring a
+/// guide path cites one of its declared anchors from its reader contract, and a
+/// link carrying no anchor does not discharge it.
+#[test]
+fn a_readme_guide_link_carrying_no_anchor_is_m201() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    replace_in(
+        repository.path(),
+        &format!("{BOOK}/README.md"),
+        &format!("../../USAGE.md#{GUIDE_ANCHOR}"),
+        "../../USAGE.md",
+    );
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(
+        output.stdout.contains("M201") && output.stdout.contains("carries no anchor"),
+        "{}",
+        output.stdout
+    );
+}
+
+/// Rule 1, the other way it is missed: no guide link at all.
+#[test]
+fn a_readme_that_cites_no_guide_anchor_is_m201() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    replace_in(
+        repository.path(),
+        &format!("{BOOK}/README.md"),
+        &format!("This book assumes the [grove user guide](../../USAGE.md#{GUIDE_ANCHOR}).\n"),
+        "This book stands alone.\n",
+    );
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(
+        output.stdout.contains("M201")
+            && output
+                .stdout
+                .contains("must cite one of the guide anchors declared in the manifest"),
+        "{}",
+        output.stdout
+    );
+}
+
+/// Rule 2. The cited anchor is in the target document, so the citation fails
+/// for the one reason under test: the manifest does not list it.
+#[test]
+fn a_citation_naming_an_anchor_the_manifest_does_not_list_is_m201() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    replace_in(
+        repository.path(),
+        &format!("{BOOK}/01-first-look.md"),
+        "CONTEXT.md#widget",
+        "CONTEXT.md#undeclared",
+    );
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(
+        output.stdout.contains("M201")
+            && output.stdout.contains("names anchor `undeclared`")
+            && output.stdout.contains("manifest does not declare"),
+        "{}",
+        output.stdout
+    );
+}
+
+/// Rule 3, and the half a citation-driven check would miss: `never-cited` is
+/// reserved by the manifest and cited by no page, so removing it from the
+/// target is a finding against the manifest or it is no finding at all. That is
+/// what makes a guide edit fail the books that reserved the anchor.
+#[test]
+fn a_declared_anchor_the_target_does_not_carry_is_m201_against_the_manifest() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    replace_in(
+        repository.path(),
+        GLOSSARY_PATH,
+        "<a id=\"never-cited\"></a>\n## Never cited\n",
+        "## Never cited\n",
+    );
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(
+        output.stdout.contains("M201")
+            && output.stdout.contains("walkthrough.toml")
+            && output.stdout.contains("reserves anchor `never-cited`"),
+        "{}",
+        output.stdout
+    );
+}
+
+/// Requiring the *explicit* form is the whole mechanism, so an anchor line the
+/// renderer would still honour but that precedes no heading does not satisfy a
+/// declaration.
+#[test]
+fn a_declared_anchor_that_precedes_no_heading_is_m201() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    replace_in(
+        repository.path(),
+        GLOSSARY_PATH,
+        "<a id=\"never-cited\"></a>\n## Never cited",
+        "<a id=\"never-cited\"></a>\n\n## Never cited",
+    );
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(
+        output.stdout.contains("M201") && output.stdout.contains("reserves anchor `never-cited`"),
+        "{}",
+        output.stdout
+    );
+}
+
+/// The absence half of rule 1, which is what the relocated book exercises: a
+/// book declaring `[guide] omitted` declares no guide path, so the guide is not
+/// a permitted local target and a README citing it anyway is `M201`.
+#[test]
+fn a_book_declaring_the_guide_omitted_may_not_cite_it() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    edit_manifest(
+        repository.path(),
+        "path    = \"docs/USAGE.md\"\nanchors = [\"scaffolding-a-grove\"]",
+        "omitted = \"the widget guide is a fixture and cites no user guide\"",
+    );
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(
+        output.stdout.contains("M201")
+            && output
+                .stdout
+                .contains("resolves to missing repository file `docs/USAGE.md`"),
+        "{}",
+        output.stdout
+    );
+}
+
+/// A declared outbound document is a required input: the anchors a book
+/// reserves cannot be checked against a document that was not read, and a
+/// silent skip would read exactly like a book whose reservations all hold.
+#[test]
+fn a_declared_outbound_document_that_cannot_be_read_is_a_u002() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    std::fs::remove_file(repository.path().join(GUIDE_PATH)).unwrap();
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 2, "{}{}", output.stdout, output.stderr);
+    assert!(
+        output.stderr.contains("U002") && output.stderr.contains(GUIDE_PATH),
+        "{}",
+        output.stderr
+    );
 }

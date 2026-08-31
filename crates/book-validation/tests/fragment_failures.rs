@@ -16,6 +16,7 @@ fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
             "crates/ordinal-fs-tree/src/lib.rs".into(),
             source.as_bytes().to_vec(),
         )]),
+        outbound_files: Default::default(),
         book_entries: BTreeSet::new(),
         non_regular_book_entries: BTreeSet::new(),
     }

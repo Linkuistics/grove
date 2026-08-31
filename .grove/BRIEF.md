@@ -148,6 +148,18 @@ Three arms, ordered so the documentation is never blocked on unbuilt machinery.
   specification's inventories, and one ownership row naming its contents page.
   Delivered by `walkthrough-machinery-k10`; the last of the four is
   `book-assurance-surface-k39`.
+
+  **And its outbound links are checked** (`book-outbound-links-k49`, closing
+  that node): a manifest declares `[guide]` as a path plus a non-empty `anchors`
+  array or as `omitted` with a reason; a book declaring a path must cite one of
+  those anchors from its `README.md` reader contract; a citation may name only a
+  declared anchor; and every declared anchor must exist in its target as an
+  explicit `<a id="…"></a>` line immediately preceding a heading — reported
+  against the manifest whether or not any page cites it. So the guide-before-books
+  ordering now binds rather than merely happens: `docs/USAGE.md` publishes the
+  anchor set books reserve from, `CONTEXT.md` gains the glossary anchors the
+  first citing book reserves, and no book validates before the anchors it
+  reserves exist in the explicit form.
 - **Ownership**: `docs/ARCHITECTURE.md`, *Documentation ownership* — one
   canonical source per subject, and the rule bounding what may sit directly
   under `docs/`.

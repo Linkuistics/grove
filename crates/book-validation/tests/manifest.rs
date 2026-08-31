@@ -145,6 +145,47 @@ fn a_block_naming_no_declared_root_is_refused() {
     );
 }
 
+/// The guide and the glossaries are *retained*, not merely checked at load:
+/// the CLI loads the documents they name and the anchor checks read the
+/// anchors they reserve, so a schema that validated and discarded them would
+/// leave both obligations with no data to run on.
+#[test]
+fn a_declared_guide_and_glossary_are_retained_as_outbound_documents() {
+    let text = edited(
+        "[guide]\nomitted = \"the fixture book is self-contained\"",
+        "[guide]\npath = \"docs/USAGE.md\"\nanchors = [\"scaffolding-a-grove\"]\n\n[[glossary]]\npath = \"docs/ordinal-fs-tree/CONTEXT.md\"\nanchors = [\"entry\", \"ordinal\"]",
+    );
+
+    let manifest = Manifest::load(BOOK_ROOT, &text).expect("manifest is schema-valid");
+
+    let guide = manifest
+        .guide()
+        .declared()
+        .expect("the edited manifest declares a guide path");
+    assert_eq!(guide.path(), "docs/USAGE.md");
+    assert_eq!(guide.anchors(), ["scaffolding-a-grove"]);
+    assert_eq!(manifest.glossaries().len(), 1);
+    assert_eq!(manifest.glossaries()[0].anchors(), ["entry", "ordinal"]);
+    // The guide first, then each glossary: the one iterator the loader, the
+    // permitted-target set and the anchor check all read.
+    let paths: Vec<&str> = manifest
+        .outbound_documents()
+        .map(book_validation::OutboundDocument::path)
+        .collect();
+    assert_eq!(paths, ["docs/USAGE.md", "docs/ordinal-fs-tree/CONTEXT.md"]);
+}
+
+/// The relocated book's exemption, read back from its own manifest: it declares
+/// no guide path, so it declares no outbound document and the guide is not a
+/// permitted link target for it.
+#[test]
+fn the_fixture_manifest_declares_the_guide_omitted() {
+    let manifest = support::manifest();
+
+    assert!(manifest.guide().declared().is_none());
+    assert_eq!(manifest.outbound_documents().count(), 0);
+}
+
 #[test]
 fn a_guide_declaring_a_path_without_anchors_is_refused() {
     let text = edited(

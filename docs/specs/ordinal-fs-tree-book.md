@@ -524,10 +524,10 @@ visible in the root row and ownership table.
 | `source-plan` | `crates/ordinal-fs-tree/src/plan.rs` | 568 |
 | `source-reference` | `crates/ordinal-fs-tree/src/reference.rs` | 559 |
 | `source-report` | `crates/ordinal-fs-tree/src/report.rs` | 152 |
-| `source-snapshot` | `crates/ordinal-fs-tree/src/snapshot.rs` | 650 |
+| `source-snapshot` | `crates/ordinal-fs-tree/src/snapshot.rs` | 677 |
 | `source-sought` | `crates/ordinal-fs-tree/src/sought.rs` | 132 |
 | `source-filesystem-module` | `crates/ordinal-fs-tree/src/fs/mod.rs` | 393 |
-| `source-filesystem-read` | `crates/ordinal-fs-tree/src/fs/read.rs` | 179 |
+| `source-filesystem-read` | `crates/ordinal-fs-tree/src/fs/read.rs` | 407 |
 | `source-filesystem-apply` | `crates/ordinal-fs-tree/src/fs/apply.rs` | 471 |
 | `source-filesystem-lock` | `crates/ordinal-fs-tree/src/fs/lock.rs` | 91 |
 
@@ -553,7 +553,7 @@ the matching defer with an insert and adds the definition.
 | `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `deferred` |
 | `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-559` | 559 | `deferred` |
 | `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-152` | 152 | `deferred` |
-| `read-snapshot-source` | `source-snapshot` | `read-path-k14` | `1-650` | 650 | `deferred` |
+| `read-snapshot-source` | `source-snapshot` | `read-path-k14` | `1-677` | 677 | `deferred` |
 | `sought-object-answer` | `source-sought` | `name-seam-k12` | `1-132` | 132 | `deferred` |
 | `filesystem-read-opening` | `source-filesystem-module` | `read-path-k14` | `1-86` | 86 | `deferred` |
 | `filesystem-write-acquire` | `source-filesystem-module` | `filesystem-interpreter-k16` | `87-105` | 19 | `deferred` |
@@ -563,7 +563,7 @@ the matching defer with an insert and adds the definition.
 | `filesystem-write-guard-api` | `source-filesystem-module` | `filesystem-interpreter-k16` | `169-378` | 210 | `deferred` |
 | `filesystem-read-deref` | `source-filesystem-module` | `read-path-k14` | `379-386` | 8 | `deferred` |
 | `filesystem-write-deref` | `source-filesystem-module` | `filesystem-interpreter-k16` | `387-393` | 7 | `deferred` |
-| `read-filesystem-source` | `source-filesystem-read` | `read-path-k14` | `1-179` | 179 | `deferred` |
+| `read-filesystem-source` | `source-filesystem-read` | `read-path-k14` | `1-407` | 407 | `deferred` |
 | `filesystem-interpreter-source` | `source-filesystem-apply` | `filesystem-interpreter-k16` | `1-471` | 471 | `deferred` |
 | `filesystem-lock-source` | `source-filesystem-lock` | `filesystem-interpreter-k16` | `1-91` | 91 | `deferred` |
 
@@ -578,12 +578,12 @@ shown above. Every other root contains one full-file top-level block.
 | `orientation-k11` | `01-orientation.md` | 208 |
 | `name-seam-k12` | `02-name-seam.md` | 849 |
 | `reference-domain-k13` | `03-reference-domain.md` | 1,226 |
-| `read-path-k14` | `04-read-path.md` | 963 |
+| `read-path-k14` | `04-read-path.md` | 1,218 |
 | `mutation-algebra-k15` | `05-mutation-algebra.md` | 1,263 |
 | `filesystem-interpreter-k16` | `06-filesystem-interpreter.md` | 1,163 |
 | `syllabus-cli-k17` | `07-syllabus-cli.md` | 1,446 |
 | `book-assembly-k18` | `08-invariants-and-trade-offs.md` | 0 |
-| **Total** | 16 source roots | **7,118** |
+| **Total** | 16 source roots | **7,373** |
 
 The totals count each source line once at its top-level block and do not count
 composite ancestors or lookup prose. A scoped report prints completed lines,

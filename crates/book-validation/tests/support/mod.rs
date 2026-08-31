@@ -158,12 +158,12 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-snapshot",
         path: "crates/ordinal-fs-tree/src/snapshot.rs",
-        lines: 650,
+        lines: 677,
         blocks: &[BlockSpec {
             id: "read-snapshot-source",
             owner: "read-path-k14",
             first: 1,
-            last: 650,
+            last: 677,
         }],
     },
     RootSpec {
@@ -235,12 +235,12 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-filesystem-read",
         path: "crates/ordinal-fs-tree/src/fs/read.rs",
-        lines: 179,
+        lines: 407,
         blocks: &[BlockSpec {
             id: "read-filesystem-source",
             owner: "read-path-k14",
             first: 1,
-            last: 179,
+            last: 407,
         }],
     },
     RootSpec {

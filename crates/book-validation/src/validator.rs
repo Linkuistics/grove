@@ -51,7 +51,7 @@ pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
     (
         "source-snapshot",
         "crates/ordinal-fs-tree/src/snapshot.rs",
-        650,
+        677,
     ),
     ("source-sought", "crates/ordinal-fs-tree/src/sought.rs", 132),
     (
@@ -62,7 +62,7 @@ pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
     (
         "source-filesystem-read",
         "crates/ordinal-fs-tree/src/fs/read.rs",
-        179,
+        407,
     ),
     (
         "source-filesystem-apply",
@@ -183,7 +183,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         "source-snapshot",
         "read-path-k14",
         1,
-        650,
+        677,
     ),
     block(
         "sought-object-answer",
@@ -253,7 +253,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         "source-filesystem-read",
         "read-path-k14",
         1,
-        179,
+        407,
     ),
     block(
         "filesystem-interpreter-source",

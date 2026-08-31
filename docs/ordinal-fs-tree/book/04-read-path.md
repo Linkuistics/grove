@@ -2,13 +2,13 @@
 <!-- book-page id="read-path" slice="read-path-k14" order="4" -->
 [Previous: Reference domain](03-reference-domain.md) | [Contents](README.md) | [Next: Mutation algebra](05-mutation-algebra.md)
 
-A read turns one directory tree into an immutable set of names under a shared
-advisory lock. The filesystem layer observes directory entries without following
-them, the consumer classifies each observed name, and the snapshot layer freezes
-the accepted names into deterministic level and walk order. File contents are not
+An opening under a shared advisory lock answers with a tree or a vacancy. For a
+tree, the filesystem layer observes directory entries without following them,
+the consumer classifies each observed name, and the snapshot layer freezes the
+accepted names into deterministic level and walk order. File contents are not
 read. The snapshot contains names, hierarchy, depth, and ordered child lists.
 
-<!-- fragment «read-snapshot-source» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="1-650" parent="source-snapshot" -->
+<!-- fragment «read-snapshot-source» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="1-677" parent="source-snapshot" -->
 <!-- insert «snapshot-storage» -->
 <!-- insert «snapshot-builder» -->
 <!-- insert «snapshot-entry-views» -->
@@ -16,7 +16,7 @@ read. The snapshot contains names, hierarchy, depth, and ordered child lists.
 <!-- insert «snapshot-queries» -->
 <!-- /fragment -->
 
-<!-- fragment «read-filesystem-source» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-179" parent="source-filesystem-read" -->
+<!-- fragment «read-filesystem-source» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-407" parent="source-filesystem-read" -->
 <!-- insert «read-tree-discovery» -->
 <!-- insert «read-directory-listing» -->
 <!-- insert «read-lock-location» -->
@@ -42,11 +42,12 @@ s/
 A call to `fs::read::<SyllabusName>(Path::new("s"))` performs this
 sequence:
 
-1. `containing_directory` resolves `s/..` through the kernel and
-   identifies the directory whose lock covers this tree.
-2. `acquire` takes a shared advisory lock on that directory and calls
-   `read::snapshot` while the lock is held.
-3. `snapshot` lists the root. Each `DirEntry::file_type` result becomes
+1. `containing_directory` classifies the root spelling and resolves `s/..`
+   through the kernel to identify the directory whose lock covers this tree.
+2. `acquire` takes a shared advisory lock on that directory, then `presence`
+   classifies the root as a tree, a vacancy, or a non-tree while locked.
+3. For the tree branch, `snapshot` lists the root. Each `DirEntry::file_type`
+   result becomes
    `Found::File`, `Found::Dir`, or `Found::Other` without following a symbolic
    link. Each UTF-8 filename and its `Found` value go to `SyllabusName::parse`.
 4. Every accepted name is added to the snapshot builder. Accepted nodes add
@@ -54,8 +55,8 @@ sequence:
    do not.
 5. The worklist reaches `02-linear-algebra-i2`, repeats the same listing and
    classification there, then `Builder::finish` sorts every level.
-6. `ReadGuard` returns the caller-spelled root, the frozen snapshot, and the
-   still-open lock descriptor.
+6. `Reading::Tree` returns a `ReadGuard` containing the caller-spelled root, the
+   frozen snapshot, and the still-open lock descriptor.
 
 Calling `guard.walk().map(|entry| (entry.depth(), entry.name().to_string()))`
 produces the following public query result. Indentation is derived from `depth`;
@@ -101,6 +102,7 @@ non-component owned name halts construction; here it processes the complete
 
 use std::ffi::OsString;
 use std::fs;
+use std::io;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
@@ -116,7 +118,7 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
     let mut pending = vec![(root.to_path_buf(), builder.root())];
     while let Some((directory, place)) = pending.pop() {
         let mut descend = Vec::new();
-        for (name, found) in listing(&directory)? {
+        for (name, found) in listing(&directory).map_err(Unlistable::into_io)? {
             let path = directory.join(&name);
             let Some(name) = name.to_str() else {
                 return Err(Error::NonUtf8Name { path });
@@ -192,23 +194,53 @@ links, establishing a total order and retaining the observed filesystem species
 for the consumer's parser. On the example root it supplies the four direct
 names and marks only `02-linear-algebra-i2` as a directory.
 
-<!-- fragment «read-directory-listing» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="82-124" parent="read-filesystem-source" -->
+<!-- fragment «read-directory-listing» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="82-155" parent="read-filesystem-source" -->
 ````rust
+/// A directory that could not be listed, before either caller has decided what
+/// that means.
+///
+/// [`listing`] has two consumers whose framing of the same failure differs —
+/// reading a tree has changed nothing, while removing one may already have
+/// removed a great deal — so it hands back the three parts of an error and
+/// neither of the two `Error` variants they become.
+pub(super) struct Unlistable {
+    pub(super) path: PathBuf,
+    pub(super) doing: &'static str,
+    pub(super) source: io::Error,
+}
+
+impl Unlistable {
+    /// The reading side's framing: an [`Error::Io`], which claims nothing about
+    /// the tree because reading changed nothing.
+    pub(super) fn into_io<N: EntryName>(self) -> Error<N> {
+        Error::Io {
+            path: self.path,
+            doing: self.doing,
+            source: self.source,
+        }
+    }
+}
+
 /// One directory's names and what is under each, sorted.
 ///
 /// Sorted because the halt has to be deterministic: a tree carrying two names
 /// the consumer cannot parse would otherwise report whichever one `read_dir`
 /// reached first, so the recovery advice a consumer sees would depend on the
 /// filesystem rather than on the tree.
-fn listing<N: EntryName>(directory: &Path) -> Result<Vec<(OsString, Found)>, Error<N>> {
-    let reading = fs::read_dir(directory).map_err(|source| Error::<N>::Io {
+///
+/// Shared with [`remove`](super::remove), which needs the same determinism and
+/// the same *unfollowed* look at each name. One listing rather than two is what
+/// stops those two properties drifting apart between reading a tree and
+/// destroying one.
+pub(super) fn listing(directory: &Path) -> Result<Vec<(OsString, Found)>, Unlistable> {
+    let reading = fs::read_dir(directory).map_err(|source| Unlistable {
         path: directory.to_path_buf(),
         doing: "reading the directory",
         source,
     });
     let mut found = Vec::new();
     for entry in reading? {
-        let entry = entry.map_err(|source| Error::<N>::Io {
+        let entry = entry.map_err(|source| Unlistable {
             path: directory.to_path_buf(),
             doing: "reading the directory",
             source,
@@ -218,7 +250,7 @@ fn listing<N: EntryName>(directory: &Path) -> Result<Vec<(OsString, Found)>, Err
         // link wearing an entry's name `Found::Other`, and therefore
         // `Malformed`, rather than whatever it points at.
         // <https://doc.rust-lang.org/std/fs/struct.DirEntry.html#method.file_type>
-        let kind = entry.file_type().map_err(|source| Error::<N>::Io {
+        let kind = entry.file_type().map_err(|source| Unlistable {
             path: entry.path(),
             doing: "inspecting",
             source,
@@ -246,6 +278,10 @@ a symbolic link. A symlink wearing a syllabus filename is consequently
 malformed rather than reading the link's target. The raw listing is sorted by
 `OsString` before UTF-8 conversion and parsing, making both accepted discovery
 and the first reported failure independent of filesystem enumeration order.
+`Unlistable` preserves the failed path, operation, and `io::Error` without
+choosing a public error variant. Snapshot reading converts it to `Error::Io`;
+whole-tree removal shares the same listing primitive and adds its own partial
+removal context.
 
 <a id="snapshot-construction"></a>
 ## Snapshot construction and level order
@@ -295,7 +331,7 @@ the accepted syllabus names acquire parents and depths without carrying paths.
 //! entry on two filesystems holding byte-identical trees.
 
 use crate::plan::Level;
-use crate::{EntryName, EntryNameExt, Key, NameView, Ordinal, Species, Triple};
+use crate::{EntryName, EntryNameExt, Key, NameView, Ordinal, Sought, Species, Triple};
 
 /// One entry as the snapshot holds it: its name, where it sits, and — when it
 /// is a node — what is under it.
@@ -555,12 +591,14 @@ fn sort_level<N: EntryName>(level: &mut [usize], entries: &[EntryData<N>]) {
 depth, appends the new arena index to its level, and returns a child place only
 for a node. Arrival order is intentionally provisional. `finish` extracts
 every level, sorts it, restores it, and consumes the builder into an immutable
-`Snapshot`.
+`Snapshot`. `Snapshot::empty` uses the same builder transition for mutation
+planning against a vacancy, without exposing an unguarded empty snapshot to a
+consumer.
 
 Within a level, sorting places distinguished names first. Positioned names are
 ordered by ordinal, then key, then rendered name. The final two comparisons
 make the order total even for a hand-edited tree with duplicate ordinals or
-keys. They make `walk`, `find`, and the documented duplicate-key behavior
+keys. They make `walk`, `seek`, and the documented duplicate-key behavior
 deterministic; they do not validate or repair those duplicates.
 
 <a id="borrowed-views"></a>
@@ -772,7 +810,7 @@ iterators, preserving every stored name even when a consumer violates the
 one-distinguished-name obligation. In the example, the module container yields
 its overview before vectors and matrices while the root uses no entry index.
 
-<!-- fragment «snapshot-containers» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="439-532" parent="read-snapshot-source" -->
+<!-- fragment «snapshot-containers» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="439-540" parent="read-snapshot-source" -->
 ````rust
 /// A level of the tree: the root, or a node.
 ///
@@ -862,6 +900,14 @@ impl<'a, N: EntryName> Container<'a, N> {
     /// cannot hold two entries of one name. A domain that broke it would put
     /// two in this level, and this answers with the first in walk order rather
     /// than hiding either.
+    ///
+    /// **`Option` and not [`Sought`], deliberately.** This is an accessor: a
+    /// level either has a distinguished child or does not, and the absence is a
+    /// fact about the level, exactly as [`Entry::key`]'s is a fact about the
+    /// entry. `Sought` answers a *search* — a criterion the caller supplied and
+    /// a set scanned for it — and no criterion crosses this call. That it is
+    /// implemented over a walk is an implementation detail; if it were the test,
+    /// every accessor here would be a search.
     #[must_use]
     pub fn distinguished(&self) -> Option<Entry<'a, N>> {
         self.children()
@@ -887,10 +933,20 @@ matching borrowed view, preserving the same total level order for every query.
 The example walk produces the indented name sequence above, while draft and key
 predicates both select matrices at their documented first match.
 
-<!-- fragment «snapshot-queries» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="533-650" parent="read-snapshot-source" -->
+<!-- fragment «snapshot-queries» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="541-677" parent="read-snapshot-source" -->
 ````rust
 
 impl<N: EntryName> Snapshot<N> {
+    /// The snapshot of a tree that holds no names at all.
+    ///
+    /// What a **vacancy** is, as the algebra sees one: root initialization is
+    /// planned against this, so its arithmetic is the ordinary arithmetic over
+    /// an empty level rather than a special case. Not public — a consumer with
+    /// no tree has a `Vacancy`, which is the shape that also holds the lock.
+    pub(crate) fn empty() -> Self {
+        Builder::new().finish()
+    }
+
     /// The tree root: a node that is not an entry.
     #[must_use]
     pub fn root(&self) -> Container<'_, N> {
@@ -946,15 +1002,22 @@ impl<N: EntryName> Snapshot<N> {
         }
     }
 
-    /// **`find`**: the first entry in walk order satisfying a predicate.
+    /// **`seek`**: the first entry in walk order satisfying a predicate.
     ///
     /// Short-circuits. This is also how a consumer asks every question about
     /// its own attributes — *which entry is next*, *which is a draft* — without
     /// the library ever learning what was asked. There is deliberately no
     /// lookup by label: the trait names no label type, so a `by_label` would
     /// have nothing to take as an argument.
-    pub fn find(&self, mut predicate: impl FnMut(&Entry<'_, N>) -> bool) -> Option<Entry<'_, N>> {
-        self.walk().find(|entry| predicate(entry))
+    ///
+    /// Named `seek` and not `find` because the answer is a [`Sought`] and not an
+    /// `Option`: `find` is [`Iterator`]'s word, it is right there on
+    /// [`Walk`], and two operations one character apart answering in two
+    /// vocabularies is exactly the confusion one word for one concept exists to
+    /// prevent. `Walk::find` stays — it is the iterator's, and the iterator's
+    /// vocabulary is `Option`'s.
+    pub fn seek(&self, mut predicate: impl FnMut(&Entry<'_, N>) -> bool) -> Sought<Entry<'_, N>> {
+        self.walk().find(|entry| predicate(entry)).into()
     }
 
     /// **`by_key`**: the entry with a given key, or nothing.
@@ -964,9 +1027,11 @@ impl<N: EntryName> Snapshot<N> {
     /// first in walk order, and the caller has a tree to repair. That tie-break
     /// is the one reading behaviour no model checks; `operations.qnt` picks the
     /// least internal id instead, and says so in its handoff block.
-    #[must_use]
-    pub fn by_key(&self, key: Key) -> Option<Entry<'_, N>> {
-        self.find(|entry| entry.key() == Some(key))
+    ///
+    /// [`Sought::Nothing`] is not a refusal: no key was asked to change, and a
+    /// tree holding no such key is not a damaged tree.
+    pub fn by_key(&self, key: Key) -> Sought<Entry<'_, N>> {
+        self.seek(|entry| entry.key() == Some(key))
     }
 
     /// How many entries the tree holds, distinguished children included.
@@ -1016,14 +1081,16 @@ children in reverse. The observable result is depth-first pre-order while
 preserving the sorted order within every level. Distinguished children are
 regular files, so they never add descendants.
 
-`find` short-circuits at the first entry in walk order satisfying a consumer
-predicate. This is the generic attribute query: for the worked tree, a
-predicate over `Parts::Lesson { status: Draft, .. }` first finds matrices.
-`by_key(Key::new(6))` is the specialized predicate lookup and also returns
-matrices. If a hand edit duplicates a key, it returns the first occurrence in
-walk order; the read API reports rather than repairs the tree's current names.
-`len` counts distinguished children as entries, and `is_empty` means the root
-contains no accepted entry at all.
+`seek` short-circuits at the first entry in walk order satisfying a consumer
+predicate and returns `Sought::Match` or `Sought::Nothing`. This is the generic
+attribute search: for the worked tree, a predicate over
+`Parts::Lesson { status: Draft, .. }` answers a match containing matrices.
+`by_key(Key::new(6))` is the specialized search and answers the same match. If
+a hand edit duplicates a key, it matches the first occurrence in walk order;
+the read API reports rather than repairs the tree's current names. Accessors
+such as `Container::distinguished` retain `Option` because they scan no
+caller-supplied criterion. `len` counts distinguished children as entries, and
+`is_empty` means the root contains no accepted entry at all.
 
 <a id="read-guard"></a>
 ## Shared lock and snapshot lifetime
@@ -1218,33 +1285,116 @@ impl<N: EntryName> core::ops::Deref for ReadGuard<N> {
 
 `ReadGuard::root` returns the caller-spelled path and `snapshot` returns the
 immutable capture made after locking. `Deref<Target = Snapshot<N>>` makes
-`guard.walk()`, `guard.find(...)`, and `guard.by_key(...)` ordinary snapshot
+`guard.walk()`, `guard.seek(...)`, and `guard.by_key(...)` ordinary snapshot
 calls. Every returned `Entry` or `Container` borrows that snapshot, so Rust
 prevents a view from outliving the guard that owns it. Using such a view keeps
 its borrow of the guard valid and prevents the guard from being dropped first;
 the shared lock remains held for that interval.
 
-`containing_directory` and `identity` own lock-location resolution. They turn
-the caller's root spelling into a containing-directory path while comparing
-device/inode pairs, establishing one lock identity for direct, roundabout, and
-symlinked spellings and refusing a root with no distinct parent. For the `s`
-example, this produces `s/..` without canonicalizing the root later returned by
-the guard.
+`containing_directory` and `directory_identity` own lock-location resolution.
+They distinguish a plain absent or non-directory final component from one the
+kernel follows, select the lexical parent only for the former, and otherwise
+compare device/inode pairs for the root and `<root>/..`. Direct, roundabout,
+and symlinked spellings therefore converge on one lock identity, while a
+dangling final symlink and a root with no distinct containing directory are
+refused. For the `s` example, this produces `s/..` without canonicalizing the
+root later returned by the guard.
 
-<!-- fragment «read-lock-location» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="125-179" parent="read-filesystem-source" -->
+<!-- fragment «read-lock-location» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="156-407" parent="read-filesystem-source" -->
 ````rust
-/// The directory whose lock covers this tree: the one **containing** the root,
-/// as the *kernel* resolves it.
+/// What is at the tree root: a tree, nothing at all, or something a tree cannot
+/// be.
 ///
-/// Asked for as `<root>/..`, and that spelling is the whole of the fix
-/// `reading-k19` found necessary. A lexical `Path::parent` chops a component
-/// off a string, but `..` and symbolic links are resolved by the kernel, one
-/// component at a time, against the directory actually reached — so the
-/// accepted spelling `syllabus/02-linear-algebra-i2/..` reads the tree
-/// `syllabus` while its lexical parent is `syllabus/02-linear-algebra-i2`, a
-/// different directory from the one the direct spelling locks. Two spellings of
-/// one tree would then take two locks, and the premise that a snapshot is read
-/// under the lock covering it would be false.
+/// The trichotomy [`fs::read`](crate::fs::read) and
+/// [`fs::write`](crate::fs::write) answer with, and it is read **under the
+/// lock** — that is the whole reason it is a separate step from
+/// [`containing_directory`] rather than folded into it. A vacancy that were
+/// decided before the lock was taken would be a check-then-act split, and the
+/// initialization that follows it would race every other writer.
+pub(super) enum Presence {
+    /// A directory, which is what a tree is.
+    Tree,
+    /// Nothing is there. The root may be created under the lock now held.
+    Vacant,
+    /// Something else is there, and this is what it turned out to be.
+    NotATree(Found),
+}
+
+/// Which of the three the root is.
+///
+/// **One observation decides it, and the follow-up only classifies.**
+/// `symlink_metadata` answers *is anything here, and what sort of name is it*
+/// without following the last component; only where that says **symbolic link**
+/// is `metadata` asked, because a link is the one final component the kernel
+/// follows and a link naming a directory is an accepted spelling of a root (see
+/// [`containing_directory`], and `reading_on_disk.rs`'s round-about spellings).
+///
+/// Deriving *dangling* from the two calls **disagreeing** is what this shape
+/// avoids, and the case that forces it is not exotic: an ordinary directory
+/// removed between the two calls answers `symlink_metadata` yes and `metadata`
+/// `NotFound`, which is the identical pair a dangling link gives. Read that way,
+/// a tree someone deleted underneath is reported as a symbolic link occupying
+/// the root — the wrong one of the three answers, and one whose advice names a
+/// file that is not there. Asking whether the *first* answer was a link cannot
+/// make that mistake: where it was not, `NotFound` from `metadata` is a
+/// disappearance, and a disappearance is a vacancy.
+pub(super) fn presence<N: EntryName>(root: &Path) -> Result<Presence, Error<N>> {
+    let here = match fs::symlink_metadata(root) {
+        Ok(here) => here,
+        Err(source) if source.kind() == io::ErrorKind::NotFound => return Ok(Presence::Vacant),
+        Err(source) => {
+            return Err(Error::Io {
+                path: root.to_path_buf(),
+                doing: "looking at the tree root",
+                source,
+            })
+        }
+    };
+    if !here.file_type().is_symlink() {
+        return Ok(if here.is_dir() {
+            Presence::Tree
+        } else {
+            Presence::NotATree(if here.is_file() {
+                Found::File
+            } else {
+                Found::Other
+            })
+        });
+    }
+    match fs::metadata(root) {
+        Ok(target) if target.is_dir() => Ok(Presence::Tree),
+        Ok(target) => Ok(Presence::NotATree(if target.is_file() {
+            Found::File
+        } else {
+            Found::Other
+        })),
+        // A link that names nothing. It is not a vacancy — it occupies the name,
+        // and an `initialize` sent at it would collide — and `Found::Other` is
+        // what an ordinary listing calls the link itself, so this is the same
+        // answer from the same place in the vocabulary.
+        Err(source) if source.kind() == io::ErrorKind::NotFound => {
+            Ok(Presence::NotATree(Found::Other))
+        }
+        Err(source) => Err(Error::Io {
+            path: root.to_path_buf(),
+            doing: "reading the tree root",
+            source,
+        }),
+    }
+}
+
+/// The directory whose lock covers this tree: the one **containing** the root.
+///
+/// Asked for as `<root>/..` wherever the root resolves to a directory, and that
+/// spelling is the whole of the fix `reading-k19` found necessary. A lexical
+/// `Path::parent` chops a component off a string, but `..` and symbolic links
+/// are resolved by the kernel, one component at a time, against the directory
+/// actually reached — so the accepted spelling
+/// `syllabus/02-linear-algebra-i2/..` reads the tree `syllabus` while its
+/// lexical parent is `syllabus/02-linear-algebra-i2`, a different directory from
+/// the one the direct spelling locks. Two spellings of one tree would then take
+/// two locks, and the premise that a snapshot is read under the lock covering it
+/// would be false.
 ///
 /// Handing the kernel `<root>/..` makes it resolve the root — following a final
 /// symbolic link, because a component in the middle of a path is followed — and
@@ -1252,49 +1402,175 @@ the guard.
 /// therefore reaches one inode, and nothing here canonicalises: the path is
 /// still built from the caller's own spelling, so what a refusal reports is
 /// still what went in.
+///
+/// # Where no directory resolves, the route is chosen by *one* question
+///
+/// `<root>/..` is meaningful only when a directory is there — nothing at all and
+/// the kernel has no directory to step out of, a regular file and it is
+/// `ENOTDIR`. Both of those still have to be lockable: a vacancy because
+/// creating the tree happens under the lock, and a root that is not a tree
+/// because the message saying so is decided under the lock like every other
+/// answer.
+///
+/// **The question that decides the route is whether the kernel follows the last
+/// component**, and that is `symlink_metadata`, not resolvability. Where the
+/// last component is *not* a symbolic link — a name with nothing at it, a
+/// regular file, a socket — the lexical parent is the directory that component
+/// literally sits in, so the two routes cannot disagree, and every component
+/// before it is still resolved by the kernel exactly as before. That is the
+/// whole of why the fallback is exact rather than approximate: the two spellings
+/// that made a lexical parent wrong, a final `..` and a followed final symbolic
+/// link, both require the last component to be followed.
+///
+/// # A **dangling** symbolic link is refused here rather than locked
+///
+/// It is the one case where the two questions come apart, and reading it as
+/// *nothing is there* is what makes it dangerous. Its last component **is**
+/// followed, so its lexical parent is the directory holding the *link* while
+/// `<root>/..` would be the directory holding the *target* — and if the target
+/// appears a moment later, a caller through the link and a caller through the
+/// target path hold two different locks over one tree. `reading-k19`'s defect,
+/// re-entering through the door absence opened.
+///
+/// So it is answered before any lock is taken, with the error [`presence`] would
+/// have given it: a link naming nothing is not a tree, and there is no operation
+/// to protect by locking first. What that costs is that a link which becomes
+/// resolvable in the same instant is reported stale — an observation, never a
+/// mutation, and a retry sees the tree.
+///
+/// A link naming something that is not a directory keeps the lexical route: it
+/// is not a tree either, so nothing proceeds under whichever lock it took.
+///
+/// # What a symbolic link spelling still costs, and it is stated rather than fixed
+///
+/// For a root spelled through a link, `<root>/..` is the directory containing
+/// the **target**. That is what makes every spelling of one tree converge, and
+/// it is also the price: the lock does not cover creation or deletion of the
+/// *link's own name*, and a hand that re-points the link between one operation
+/// and the next moves the tree out from under a spelling the caller thinks is
+/// stable. That hand is a writer ignoring the advisory lock, which is already
+/// outside what this library defends against — the same neighbour `claim_vacant`
+/// names — and nothing path-based can defend against it, because nothing here
+/// canonicalises or holds the root open.
 pub(super) fn containing_directory<N: EntryName>(root: &Path) -> Result<PathBuf, Error<N>> {
     // The spellings with nothing to open at all — a filesystem root, and the
     // empty path. Refused lexically because there is no directory to ask about.
-    if root.parent().is_none() {
+    let Some(lexical) = root.parent() else {
         return Err(Error::NoContainingDirectory {
             root: root.to_path_buf(),
         });
+    };
+    // `Path::parent` yields the empty path for a one-component root, which names
+    // no directory; the directory such a root sits in is the working directory,
+    // spelled `.`.
+    let lexical = if lexical.as_os_str().is_empty() {
+        PathBuf::from(".")
+    } else {
+        lexical.to_path_buf()
+    };
+    match fs::symlink_metadata(root) {
+        // Nothing at the root: the last component is a plain name, so the
+        // lexical parent is the directory it would be created in.
+        Err(source) if source.kind() == io::ErrorKind::NotFound => return Ok(lexical),
+        // Including `ENOTDIR`, which says a component *before* the last is a
+        // regular file. There is no directory anywhere on this path to lock, and
+        // opening the lexical parent would `flock` that regular file.
+        Err(source) => {
+            return Err(Error::Io {
+                path: root.to_path_buf(),
+                doing: "looking at the tree root",
+                source,
+            })
+        }
+        // A plain name that is there and is not a directory: still lexical, and
+        // still exact, because nothing about it is followed.
+        Ok(here) if !here.file_type().is_symlink() && !here.is_dir() => return Ok(lexical),
+        // A directory, spelled directly: the `<root>/..` route below.
+        Ok(here) if !here.file_type().is_symlink() => debug_assert!(here.is_dir()),
+        Ok(_) => match fs::metadata(root) {
+            Ok(target) if target.is_dir() => {}
+            Ok(_) => return Ok(lexical),
+            Err(source) if source.kind() == io::ErrorKind::NotFound => {
+                return Err(Error::RootIsNotATree {
+                    root: root.to_path_buf(),
+                    found: Found::Other,
+                })
+            }
+            Err(source) => {
+                return Err(Error::Io {
+                    path: root.to_path_buf(),
+                    doing: "reading the tree root",
+                    source,
+                })
+            }
+        },
     }
     let directory = root.join("..");
     // And the spellings that *do* open and land back on the root: `/..` is `/`,
     // and so is any symbolic link to it. The identity is the filesystem's own —
-    // device and inode — because that is the identity `flock` attaches to, and
-    // a lexical rule is exactly what was wrong before.
-    if identity(root, "reading the tree root")?
-        == identity(&directory, "reading the directory containing the tree")?
-    {
-        return Err(Error::NoContainingDirectory {
+    // device and inode — because that is the identity `flock` attaches to, and a
+    // lexical rule is exactly what was wrong before.
+    // Both sides are `Some` on this path — the match above reached it only for a
+    // directory, and `<a directory>/..` always resolves to one — so the
+    // comparison is written to require it rather than letting two `None`s read
+    // as *the same inode*.
+    match (
+        directory_identity::<N>(&directory)?,
+        directory_identity::<N>(root)?,
+    ) {
+        (Some(above), Some(here)) if above != here => Ok(directory),
+        _ => Err(Error::NoContainingDirectory {
             root: root.to_path_buf(),
-        });
+        }),
     }
-    Ok(directory)
 }
 
-/// What the filesystem calls this path: the pair `flock` attaches to.
+/// The pair `flock` attaches to for a path that resolves to a directory, or
+/// `None` for one that does not.
 ///
 /// `metadata` follows symbolic links, deliberately — the question is which
 /// directory the caller's spelling *names*, not what its last component is
 /// stored as.
-fn identity<N: EntryName>(path: &Path, doing: &'static str) -> Result<(u64, u64), Error<N>> {
-    let metadata = fs::metadata(path).map_err(|source| Error::<N>::Io {
-        path: path.to_path_buf(),
-        doing,
-        source,
-    })?;
-    Ok((metadata.dev(), metadata.ino()))
+fn directory_identity<N: EntryName>(path: &Path) -> Result<Option<(u64, u64)>, Error<N>> {
+    match fs::metadata(path) {
+        Ok(metadata) if metadata.is_dir() => Ok(Some((metadata.dev(), metadata.ino()))),
+        Ok(_) => Ok(None),
+        // `NotADirectory` is what a *component* of the path being a plain file
+        // reports — `<a-regular-file>/..`. It is stable since 1.83, below this
+        // workspace's 1.85 floor:
+        // <https://doc.rust-lang.org/std/io/enum.ErrorKind.html#variant.NotADirectory>
+        Err(source)
+            if matches!(
+                source.kind(),
+                io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+            ) =>
+        {
+            Ok(None)
+        }
+        Err(source) => Err(Error::<N>::Io {
+            path: path.to_path_buf(),
+            doing: "reading the directory containing the tree",
+            source,
+        }),
+    }
 }
 ````
 <!-- /fragment -->
 
+`presence` runs after the lock and makes one unfollowed observation of the root.
+A plain `NotFound` is a vacancy; a directory is a tree; a plain non-directory,
+a dangling symlink, or a symlink to a non-directory is a non-tree. Only a
+symlink needs a followed `metadata` call, so disappearance of an ordinary
+directory between observations is not misreported as a dangling link.
+
 `containing_directory` rejects a filesystem root because no containing
-directory exists to lock. It resolves `<root>/..` through the filesystem and
-compares device/inode identity, which unifies direct, roundabout, and symlinked
-spellings of one tree without changing the path later reported to the caller.
+directory exists to lock. A plain vacant name or plain non-directory uses its
+lexical parent, allowing absence and non-tree errors to be decided under the
+same lock as a live tree. A directory or a symlink to one resolves `<root>/..`
+through the filesystem and compares device/inode identity, which unifies
+direct, roundabout, and symlinked spellings without changing the path later
+reported to the caller. A dangling symlink is refused before locking because
+its lexical parent and a future target's parent could name different locks.
 
 <a id="read-errors"></a>
 ## Read failures and recovery
@@ -1312,6 +1588,9 @@ The remaining boundary outcomes are `Error` variants:
   or remove the offending filesystem entry before retrying.
 - `NameIsNotOneComponent` reports a broken consumer implementation. Correct
   its rendering contract; changing unrelated tree names cannot make it safe.
+- `RootIsNotATree` reports the caller-spelled root and observed filesystem
+  species when a file, special object, dangling symlink, or link to a non-tree
+  occupies the root.
 - `NoContainingDirectory` means the selected root cannot participate in the
   lock protocol. Select a tree with a containing directory.
 - `Io` records the caller-spelled path, the operation being attempted, and the
@@ -1321,6 +1600,8 @@ The remaining boundary outcomes are `Error` variants:
 All of these fail before a `ReadGuard` is returned. Any `Builder` or lock
 descriptor already created is dropped during error propagation, and no
 filesystem mutation has been attempted. `NoContainingDirectory`, identity
-failure, and lock-acquisition failure can occur before either resource exists.
+failure, a dangling-symlink refusal, and lock-acquisition failure can occur
+before either resource exists. Root presence and tree discovery fail only
+after the lock has been acquired, and error propagation then releases it.
 
 [Previous: Reference domain](03-reference-domain.md) | [Contents](README.md) | [Next: Mutation algebra](05-mutation-algebra.md)

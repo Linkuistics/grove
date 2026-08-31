@@ -162,6 +162,34 @@ produces. The `jj new` is not optional: a colocated `HEAD` follows the working
 copy's **parent**, so without it the tag lands on the wrong commit and
 `release-build.sh` refuses.
 
+### A release that changes how a tree is read meets every grove on the machine
+
+Every live grove on this machine resolves the same `/opt/homebrew/bin` binaries,
+so publishing is not scoped to the workstream that cut the release. If this
+release changes how a task tree is **read** — the filename grammar, what `pick`
+walks, what the driver accepts as a well-formed tree — run the new build
+read-only against every other live grove's tree **before** publishing, and
+confirm it picks what their drivers are already on. A build that refuses one of
+those trees strands that workstream mid-run, and the fix is renaming it, which is
+work to budget for in the release window rather than discover after the fact.
+
+```sh
+for t in ~/Development/*/.grove; do
+  ( cd "$(dirname "$t")" && env -u GROVE_SIGNAL_FILE ./path/to/new/grove-llm pick )
+done
+```
+
+`env -u GROVE_SIGNAL_FILE` matters: without it the probe inherits the calling
+session's signal channel. A session's own working-tree guard answers before the
+tree is ever looked at, which is the other way to keep the probe honest.
+
+This is not hypothetical. `v19.4.0` moved the filename grammar and refused four
+other live groves — `Writegood`, `grove.gh-issue-12`,
+`grove.code-walkthrough-for-ordinal-fs-tree` and `APIAnyware.add-ocaml-target` —
+all of which `v19.3.0` drove. They were renamed onto the new grammar inside that
+release window and pinned to `v19.4.0` or later. A release that does **not** move
+how a tree is read owes no such check.
+
 ## 3. Build and publish
 
 Build the three platform archives and render their checksums into a Homebrew

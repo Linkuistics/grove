@@ -32,13 +32,18 @@ Ordered by what each leaf makes possible for the next.
    cite real paths.
 2. `walkthrough-books-spec-k20` — the design: where a per-book corpus lives, and
    the split of the existing spec into a shared one plus per-book data.
-3. `validator-structure-k21` — the structural half of the ledger becomes data.
-4. `validator-fragments-k22` — the fragment half becomes data, and the check
+3. `walkthrough-books-spec-k46` — an adversarial read of leaf 2, `leaf-insert`ed
+   ahead of the two leaves that implement against it. Cut by leaf 2 because it
+   did not leave the sidecar rejection standing unchanged: it split it, kept the
+   fragment-graph half, and moved the authoring contract into a per-book
+   `walkthrough.toml`.
+4. `validator-structure-k21` — the structural half of the ledger becomes data.
+5. `validator-fragments-k22` — the fragment half becomes data, and the check
    script gates every book.
-5. `book-assurance-surface-k39` — the curated user surface and the ownership
+6. `book-assurance-surface-k39` — the curated user surface and the ownership
    table discover book roots, and both checks are seen to fail first.
 
-Leaf 5 was added by `walkthroughs-k38` against `walkthroughs-k9`'s F3: decision 8
+The last leaf was added by `walkthroughs-k38` against `walkthroughs-k9`'s F3: decision 8
 of `plan-k1` had settled both obligations and no leaf in the subtree carried
 either, so the campaign could have closed green in breach of a settled
 requirement. It sits in this node because it is book-*system* assurance, and last
@@ -58,9 +63,14 @@ two constant sets are disjoint, not that their readers are — and each leaf owe
 
 ## Pointers
 
-- `docs/specs/ordinal-fs-tree-book.md` is the contract the existing book was
-  built to, and the artifact leaf 2 rewrites. Its *Rejected alternatives* section
-  contains the sidecar-manifest rejection that leaf 2 reopens.
+- `docs/specs/walkthrough-books.md` is the contract every book is built to, and
+  the artifact leaf 2 produced by rewriting the one-book
+  `ordinal-fs-tree-book.md` in place. It settles the sidecar question leaf 2
+  reopened: per-book data lives in a `walkthrough.toml` manifest beside each
+  book, the fragment graph stays in Markdown, and
+  `docs/adr/a-book-cannot-witness-its-own-corpus.md` records why. Leaves 3 and 4
+  implement against its *The manifest* and *The corpus rule and its witness*
+  sections.
 - `crates/book-validation/` holds the validator. The compiled-in ledger is
   `SLICE_ORDER`, `ROOTS` and `BLOCKS` in `src/validator.rs` and `SOURCE_INDEX`,
   `PAGE_BY_OWNER` and `EARLY_USES` in `src/ledger.rs`; `src/cli.rs` additionally

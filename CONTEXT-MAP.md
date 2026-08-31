@@ -203,9 +203,21 @@ consumer names, and no call site passes one where the other is expected.
   [`a-shared-safety-claim-names-the-role-not-the-artifact`](docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md),
   [`evidence-outlives-the-instrument`](docs/adr/evidence-outlives-the-instrument.md),
   [`the-launched-child-is-a-job`](docs/adr/the-launched-child-is-a-job.md),
-  and the two specs
-  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
-  and [`module-decomposition`](docs/specs/module-decomposition.md). The rule
+  [`a-book-cannot-witness-its-own-corpus`](docs/adr/a-book-cannot-witness-its-own-corpus.md),
+  and the three specs
+  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
+  [`module-decomposition`](docs/specs/module-decomposition.md) and
+  [`walkthrough-books`](docs/specs/walkthrough-books.md). The last two rows are
+  the walkthrough book system, and they are **grove's while its validator is**:
+  `crates/book-validation/` is a member of this workspace and
+  `docs/walkthroughs/` is a surface `scripts/check.sh` gates and
+  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#documentation-ownership) accounts
+  for. They are not the *skills* context's despite documenting that context's
+  `writing-code-walkthroughs` method, because that glossary's own scope boundary
+  excludes a skill's subject matter. Ownership follows the validator if it is
+  ever relocated into the skill — the move
+  [`root-lifecycle-belongs-to-the-store`](docs/adr/root-lifecycle-belongs-to-the-store.md)
+  already made, and made only once the extraction had happened. The rule
   inventory `corpus-rule-ownership` held is now
   [`plugins/grove/conformance/rules.tsv`](plugins/grove/conformance/rules.tsv),
   which is data the conformance runner reads rather than a spec.

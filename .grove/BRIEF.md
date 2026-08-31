@@ -104,9 +104,12 @@ Three arms, ordered so the documentation is never blocked on unbuilt machinery.
   authoring method; its eight-field intake is answered in `plan-k1`'s decision
   log — except the source manifest, which is the next bullet — and must not be
   re-elicited.
-- **Precedent**: `docs/ordinal-fs-tree/book/` is the worked example every new
-  book is uniform with, and `docs/specs/ordinal-fs-tree-book.md` is the
-  contract it was built to.
+- **Precedent**: `docs/walkthroughs/ordinal-fs-tree/` is the worked example
+  every new book is uniform with, and `docs/specs/walkthrough-books.md` is the
+  contract every book is built to. That spec was `ordinal-fs-tree-book.md` —
+  one book's contract — until `walkthrough-books-spec-k20` rewrote it into a
+  specification of the book *system* whose per-book data is a
+  `walkthrough.toml` manifest beside each book.
 - **The corpus, exactly.** A root is a file whose every byte a book must
   reconstruct. Per crate that is every `src/**/*.rs` file **plus the crate's
   own `Cargo.toml`** — that manifest is authored prose here and carries
@@ -189,7 +192,7 @@ own leaf" says who fixes it, not what the fix may commit — and a code change
 invalidates the very ranges the freeze protects. The book contract already
 carries the missing invariant for one book: *an accepted source change requires
 the affected ownership ranges and fragments to change, followed by final
-validation against the new bytes* (`docs/specs/ordinal-fs-tree-book.md`). The
+validation against the new bytes* (`docs/specs/walkthrough-books.md`). The
 campaign takes the cross-book form of it. **One commit carries the source
 change, every affected ledger and page, and a green run of the validator over
 every book it touched.** A defect leaf that cannot land that whole set does not

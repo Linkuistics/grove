@@ -1499,15 +1499,35 @@ mod tests {
         }
     }
 
+    /// The corpus control, in its interim form.
+    ///
+    /// It used to compare these constants against normative tables in
+    /// `docs/specs/ordinal-fs-tree-book.md` — two independently authored
+    /// statements of one corpus, which is what made *complete reconstruction* a
+    /// claim about an externally stated corpus rather than a self-declaration.
+    /// `walkthrough-books-spec-k20` replaced that one-book specification with
+    /// `docs/specs/walkthrough-books.md`, which carries no book's tables, so the
+    /// comparison is re-pointed at the book's own ledger — the same rows, in the
+    /// artifact that now holds them.
+    ///
+    /// **This is a bridge and it is deliberately weaker than what it replaces**:
+    /// both sides are the same book's account of itself, so it catches drift
+    /// between the constants and the ledger and cannot catch a file left out of
+    /// both. `validator-fragments-k22` deletes it, and the corpus-derivation
+    /// check in `docs/specs/walkthrough-books.md` — the declared root set against
+    /// the set the corpus rule derives from the real directory — is what restores
+    /// the external witness. That check must be seen to fail against a manifest
+    /// missing a real root before this test is removed.
     #[test]
-    fn compiled_corpus_copy_matches_the_normative_spec_tables() {
-        let specification = include_str!("../../../docs/specs/ordinal-fs-tree-book.md");
-        let source_rows = table_rows(specification, "### Source roots", "| Root ID |");
-        let ownership_rows = table_rows(
-            specification,
-            "### Top-level ownership blocks",
-            "| Block ID |",
-        );
+    fn compiled_corpus_copy_matches_the_book_ledger_tables() {
+        let specification =
+            include_str!("../../../docs/walkthroughs/ordinal-fs-tree/source-index.md");
+        let source_rows = table_rows(specification, "## Source roots", "| Root ID |");
+        let ownership_rows: Vec<String> =
+            table_rows(specification, "## Ownership blocks", "| Block ID |")
+                .iter()
+                .map(|row| without_state(row))
+                .collect();
 
         let expected_sources: Vec<String> = ROOTS
             .iter()
@@ -1517,13 +1537,8 @@ mod tests {
             .iter()
             .map(|block| {
                 let count = block.last - block.first + 1;
-                let state = if block.owner == "orientation-k11" {
-                    "resolved"
-                } else {
-                    "deferred"
-                };
                 format!(
-                    "| `{}` | `{}` | `{}` | `{}-{}` | {} | `{state}` |",
+                    "| `{}` | `{}` | `{}` | `{}-{}` | {} |",
                     block.id,
                     block.root,
                     block.owner,
@@ -1536,6 +1551,17 @@ mod tests {
 
         assert_eq!(source_rows, expected_sources);
         assert_eq!(ownership_rows, expected_ownership);
+    }
+
+    /// The ledger's State column is dropped before comparison: it is the book's
+    /// own progress record — `deferred` until the owning slice lands, `resolved`
+    /// after — while `BLOCKS` carries only the corpus. Comparing it would tie a
+    /// corpus check to how far the book had been authored, which is what the
+    /// superseded specification's frozen "state after the first slice" table did.
+    fn without_state(row: &str) -> String {
+        let cells: Vec<&str> = row.trim_matches('|').split('|').collect();
+        let kept: Vec<&str> = cells[..cells.len() - 1].to_vec();
+        format!("|{}|", kept.join("|"))
     }
 
     fn table_rows(specification: &str, heading: &str, header: &str) -> Vec<String> {

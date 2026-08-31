@@ -131,3 +131,48 @@ construct run as their own arms and retrofit as they land.
 reversed, executed by a long chain of sessions with no human present. A
 `review-requirements` leaf is cut ahead of planning; it creates nothing if it
 finds nothing.
+
+## Amendments (`plan-k8`)
+
+`plan-k2` read this log adversarially and reported nine findings; `plan-k8`
+triaged them. **No decision above is reversed or rewritten** — the human's words
+stand as recorded. What changed is the summary layer that was inconsistent with
+them, and it changed in `.grove/BRIEF.md`. For a downstream session the brief is
+now authoritative wherever it is more specific than a decision here.
+
+- **Decision 6** stands: `book-validation` is excluded. The root *goal* said
+  "every crate" and contradicted it; the goal now says *every Grove runtime
+  crate* and records why the validator is outside the boundary.
+- **Decisions 1, 6, 9 and 12** depended on a corpus nobody had written down.
+  The 33 roots / 14,525 lines are now enumerated per deliverable in the brief's
+  *Pointers*, with both exclusions named. The manifest field of the
+  `writing-code-walkthroughs` intake is answered there rather than here.
+- **Decision 5** claimed the architecture move is guarded because red tests
+  re-point the citations. The repository-wide resolver reads Markdown only, and
+  the one `.rs` check matches the `ADR <slug>` form — not the twenty-six raw
+  `docs/ARCHITECTURE.md#<anchor>` citations in Rust sources. The move is
+  mechanical *after* the resolver is widened; the brief now requires that first.
+- **Decision 9** said a defect becomes its own leaf and left open what such a
+  leaf may commit. The brief now carries the cross-book transition, taken from
+  the contract the existing book already holds.
+- **Decision 12** said "the kinds and the loop are derived from what that
+  measured", which reads as gating scale-out on P3. The brief now gates it on
+  P2 only, which is what decision 17's *retrofit as they land* already implied.
+  Its measure is preregistered rather than reported, so a stage can fail.
+- **Decision 2** settled the file, not the content. "Complete" is now a stated
+  coverage inventory written before the guide is edited.
+- **Decision 16** stands as the human's position, and is now marked in the brief
+  as the arm's hypothesis rather than its premise — matching what k4/k5/k6 were
+  already chartered to do. The brief's *Done when* gains P4's deliverable, which
+  it lacked entirely.
+- **Decision 18** is the eighteenth; the brief called this an adversarial read
+  of seventeen. Corrected.
+
+Two of `plan-k2`'s findings were narrowed rather than accepted whole. F5 argued
+the research was commissioned against a fact it was supposed to test — but
+`specification-capture-k4` already says *test that expectation rather than
+assuming it* and k6 already owes a verdict, so only the root brief's wording and
+its missing acceptance criterion were at fault. F2 argued the tree order cannot
+deliver the scale-out without blocking documentation; against the actual
+depth-first pre-order walk the current order is sound once scale-out is gated on
+P2, so the ambiguity was fixed and **no leaf was moved**.

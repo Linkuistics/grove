@@ -54,3 +54,37 @@ the standard and meets it cannot show that the standard was met; the two-leaf
 split exists for exactly that reason and folding them back defeats it. Anything
 you notice about the guide's content goes in the inventory as a gap row, which is
 `usage-guide-k23`'s work list.
+
+## Decisions (running log)
+
+1. **The inventory lives at `docs/specs/user-guide-coverage.md`.** The ownership
+   table bounds what may sit *directly* under `docs/` and explicitly permits
+   focused files under `docs/adr/`, `docs/specs/` and `docs/research/`.
+   `SPEC-FORMAT.md`'s membership test passes: a session on a later grove editing
+   the guide, and every book reserving a guide anchor, must read it. A section of
+   `docs/USAGE.md` was rejected because writing it there is editing the guide,
+   which this leaf may not do.
+2. **The guide owns the whole installed command surface — both binaries, every
+   subcommand and flag — in the human's register.** Delivery is the
+   justification: `docs/ARCHITECTURE.md`'s *Repository products* table has
+   Homebrew install `grove` and `grove-llm` together, and no other ownership row
+   documents either. `grove-llm --help`'s "not meant for direct human use" is
+   about who drives the verbs, not who must understand them. The register limit —
+   what a verb does to the tree and when a human runs it, not the session's
+   calling contract — is what keeps the guide off `CONFIGURATION.md`'s subject.
+3. **Every command row is derived from `--help` at grove 20.1.0**, run against a
+   fresh `cargo build --bins`, not from the guide's current contents. The guide is
+   the artifact under test.
+4. **Eight stable entry points, `usage-`-prefixed.** The prefix exists because
+   books cite them as `USAGE.md#…`, where a bare `finish` or `pick` would read as
+   a repository term rather than a location. The set is closed and additive: a
+   book needing a ninth changes the inventory first.
+5. **`book-check` and `syllabus` are excluded** as repository-internal authoring
+   tools — the *Repository products* table ships `grove` and `grove-llm` only.
+6. **No in-session reviewer spent.** The adversarial read the node's *Done when*
+   asks for is already scheduled downstream: `usage-guide-k23`'s notes cut a
+   `review-impl` that reads the guide against this inventory, which is the root
+   brief's stated closer, and a reviewer here would inspect the same boundary
+   argument one leaf earlier without the guide to test it against. This session's
+   harness also forbids subagent dispatch, so the pass could not have been run in
+   the prescribed four-step form.

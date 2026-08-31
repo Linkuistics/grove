@@ -7,7 +7,8 @@ Bring `docs/USAGE.md` to complete coverage of every row of the inventory
 
 ## Context
 
-- The inventory is the specification. Read it from its own commit; if a row is
+- The inventory is `docs/specs/user-guide-coverage.md`, and it is the
+  specification. Read it from its own commit; if a row is
   wrong, say so and fix the inventory in this session's commit rather than
   quietly covering something else.
 - Decision 2 of `plan-k1`: one document, expanded in place. The guide owns

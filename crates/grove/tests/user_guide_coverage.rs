@@ -39,14 +39,25 @@ mod support;
 const INVENTORY: &str = "docs/specs/user-guide-coverage.md";
 const GUIDE: &str = "docs/USAGE.md";
 
-/// The row ids the inventory declares, read from the leading cell of every
-/// table row whose first cell is `G`/`L`/`J` followed by digits.
+/// The row ids the inventory declares, in the order it declares them and with
+/// **every occurrence kept**, read from the leading cell of every table row
+/// whose first cell is `G`/`L`/`J` followed by digits.
 ///
 /// A scan rather than a table parse: the inventory is prose with tables in it,
 /// and the row id is the one thing about it that has a fixed shape. Anything
 /// else here would be this test having an opinion about the standard's layout.
-fn inventory_rows(text: &str) -> BTreeSet<String> {
-    let mut rows = BTreeSet::new();
+///
+/// **Occurrences, not a set, and that is the whole point of the signature.**
+/// Collapsing these into a `BTreeSet` on the way out would make a second,
+/// *different* obligation accidentally filed under an existing id vanish behind
+/// the first — and the guide's single map entry for that id would go on
+/// satisfying every equality check, so one obligation would disappear in the one
+/// place the test exists to watch. The guide's side already keeps occurrences
+/// for exactly this reason (see [`coverage_map`]); the standard's side is not
+/// entitled to less. [`unique_inventory_rows`] is where they are collapsed,
+/// after uniqueness has been asserted.
+fn inventory_row_occurrences(text: &str) -> Vec<String> {
+    let mut rows = Vec::new();
     for line in outside_fences(text) {
         let Some(rest) = line.trim().strip_prefix('|') else {
             continue;
@@ -56,10 +67,30 @@ fn inventory_rows(text: &str) -> BTreeSet<String> {
         };
         let cell = first.trim();
         if is_row_id(cell) {
-            rows.insert(cell.to_owned());
+            rows.push(cell.to_owned());
         }
     }
     rows
+}
+
+/// The declared row ids as a set, refusing a duplicate rather than absorbing it.
+///
+/// Returns the offending ids on the error side so the caller can name them; a
+/// panic here would put the message in the wrong place and make the rule
+/// untestable from a unit test.
+fn unique_inventory_rows(text: &str) -> Result<BTreeSet<String>, Vec<String>> {
+    let mut rows = BTreeSet::new();
+    let mut duplicated = BTreeSet::new();
+    for row in inventory_row_occurrences(text) {
+        if !rows.insert(row.clone()) {
+            duplicated.insert(row);
+        }
+    }
+    if duplicated.is_empty() {
+        Ok(rows)
+    } else {
+        Err(duplicated.into_iter().collect())
+    }
 }
 
 fn is_row_id(cell: &str) -> bool {
@@ -234,7 +265,12 @@ fn read(root: &Path, relative: &str) -> String {
 #[test]
 fn the_guide_answers_every_inventory_row_exactly_once() {
     let root = support::repo_root();
-    let rows = inventory_rows(&read(&root, INVENTORY));
+    let rows = unique_inventory_rows(&read(&root, INVENTORY)).unwrap_or_else(|duplicated| {
+        panic!(
+            "{INVENTORY} declares these row ids more than once, \
+             so one obligation is hidden behind another: {duplicated:?}"
+        )
+    });
     let map = coverage_map(&read(&root, GUIDE));
 
     assert!(
@@ -313,5 +349,44 @@ fn every_coverage_map_link_resolves_within_the_guide() {
     assert!(
         unlinked.is_empty(),
         "every coverage-map row must link to the section that answers it; these do not: {unlinked:?}"
+    );
+}
+
+/// The counterexample the reader of this file most needs to see fail.
+///
+/// `the_guide_answers_every_inventory_row_exactly_once` reads its name as a
+/// statement about *both* documents, but the equality checks alone cannot make
+/// it one: two rows filed under a single id are one member of any set, so the
+/// guide's single map entry answers both and every difference comes back empty.
+/// The duplicate has to be refused where it is read, and this is the test that
+/// says so about the reading rather than about the repository's current files —
+/// which, being correct, cannot exercise the rule at all.
+#[test]
+fn a_duplicated_inventory_row_id_is_refused_rather_than_absorbed() {
+    let standard = "\
+| Row | Verb | Obligation |\n\
+|---|---|---|\n\
+| L1 | `root-init` | Worked. |\n\
+| L2 | `pick` | Worked. |\n\
+\n\
+| Row | Journey | End state |\n\
+|---|---|---|\n\
+| L2 | a second, different obligation under a used id | Worked. |\n";
+
+    assert_eq!(
+        inventory_row_occurrences(standard),
+        vec!["L1", "L2", "L2"],
+        "occurrences must survive the scan, or the duplicate is gone before it can be refused"
+    );
+    assert_eq!(
+        unique_inventory_rows(standard),
+        Err(vec!["L2".to_owned()]),
+        "a repeated row id must be reported, not collapsed into the id it repeats"
+    );
+
+    let sound = "| Row | Verb | Obligation |\n|---|---|---|\n| L1 | `root-init` | Worked. |\n";
+    assert_eq!(
+        unique_inventory_rows(sound).map(|rows| rows.into_iter().collect::<Vec<_>>()),
+        Ok(vec!["L1".to_owned()])
     );
 }

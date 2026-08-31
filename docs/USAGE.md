@@ -125,11 +125,25 @@ leaves the driver standing to make the relaunch-or-stop decision. Ending the
 loop from outside is `kill` on the `grove` process:
 
 ```console
-$ kill -TERM "$(pgrep -x grove)"
+# the shell running the loop
+$ grove
+grove: launching impl with configured "claude" — api-k7
 grove: interrupted by signal 15 — stopping the loop.
 $ echo $?
 143
 ```
+
+```console
+# a second shell
+$ kill -TERM "$(pgrep -x grove)"
+$ echo $?
+0
+```
+
+**Read the status where Grove exits, not where you signal it.** `$?` after the
+`kill` is the *signal delivery*'s status and is `0` whenever the signal was
+sent; only the wait status of the `grove` process itself carries `128 + N`. A
+wrapper script that backgrounds Grove reads it with `wait "$grove_pid"`.
 
 It forwards the signal to the session's whole process group, waits for it,
 restores your terminal, and then **dies of the same signal** — so a wrapper
@@ -308,10 +322,18 @@ $ grove-llm --version
 grove-llm 20.1.0
 ```
 
-Two facts hold across every verb below. **None of them commits** — each is a
-working-tree change, and the session that ran it commits the result with its own
-work. And each prints absolute paths on stdout with diagnostics on stderr, so a
-caller can read the answer without parsing prose.
+Two facts nearly hold across the verbs below, and the three verbs that break them
+are named rather than glossed over. **Only `finish-commit` commits** — every
+other verb makes a working-tree change and leaves it there, for the session that
+ran it to commit with its own work. And a verb's *answer* is absolute paths on
+stdout, with diagnostics on stderr, so a caller can read it without parsing
+prose. The exceptions:
+
+| Verb | Commits? | On stdout |
+|---|---|---|
+| `kind` | No | A kind **token**, not a path — the one answer that is not a location. |
+| `finish-commit` | **Yes** — deletes `.grove/` and commits that deletion | Nothing; the change id goes to stderr. |
+| `complete` | No | Nothing, ever; it reports what it signalled on stderr. |
 
 One thing to expect if you run these inside a running session's own terminal:
 `grove-llm` binds itself to the working tree that session was launched for, and
@@ -537,7 +559,10 @@ instead of relaunching:
 
 ```console
 $ grove-llm complete            # this task is done; relaunch for the next leaf
+grove complete: signalled; the loop will start the next task.
+
 $ grove-llm complete --done     # the last action of the Finish cycle
+grove complete: signalled; the grove is finished — the loop will stop.
 ```
 
 Run outside a loop it is a safe no-op that tells you so, and still exits `0`:
@@ -550,9 +575,24 @@ grove complete: no GROVE_SIGNAL_FILE — not running under the loop driver; exit
 `finish-commit` is the teardown, covered in [Finish](#usage-finish) below. It
 takes the launched finish leaf's stable handle, revalidates under the tree lock
 that this really is the live finish leaf and that no ordinary work has appeared,
-and only then deletes and commits `.grove/`. It **does not** stand in for the
-human confirmation the finish session owes you — it enforces tree and VCS facts
-and infers nothing about your consent:
+and only then deletes and commits `.grove/`. On success it names the change it
+made, on stderr:
+
+```console
+$ grove-llm finish-commit finish-k42
+finish-commit finish-k42: committed as qrsuvwxy
+$ ls .grove
+ls: cannot access '.grove': No such file or directory
+```
+
+That commit is path-scoped to `.grove/` alone, so anything else in your working
+copy is left uncommitted and untouched. It is the **one verb here that commits**,
+and the deletion it records is the only thing in it.
+
+It **does not** stand in for the human confirmation the finish session owes you —
+it enforces tree and VCS facts and infers nothing about your consent. Both of its
+refusals leave the tree exactly as it was; this is the stale-handle one, and
+[Finish](#usage-finish) below shows the live-work one:
 
 ```console
 $ grove-llm finish-commit finish-k42
@@ -565,13 +605,13 @@ Caused by:
 <a id="usage-review-composition"></a>
 ## Review composition and escalation
 
-A session that Grove launched, and that adopted its mandate, may use at most
-**one in-session** fresh-context reviewer across that whole leaf. A producer that
-already has a review leaf beside it, a `review-*` session, and the three
-research-pair sessions use none. An `integrate-review-*` session may use one
-narrow reviewer; substantial redesign becomes a new reviewed producer beside the
-leaf being integrated. Outside a Grove-launched session, the standalone
-doubt-driven-development procedure is unchanged.
+Review in Grove happens two ways, and only one of them is yours to see in the
+tree. A session may spend at most **one in-session** fresh-context reviewer over
+its whole leaf — *which* kinds may spend it, and on what, is methodology the
+`grove` plugin's skills own (`references/execute.md` in the `grove` skill) and
+this guide does not restate. That reviewer leaves no trace in `.grove/`. What
+does, and what this section covers, is the other way: a **review leaf**, a whole
+session of its own, standing beside the producer as a file you can read.
 
 **A review chain is built one step at a time, by the session that needs the next
 one.** There is no chain verb and no chain node — each step is an ordinary

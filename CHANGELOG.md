@@ -51,6 +51,79 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`docs/specs/module-decomposition.md` describes the design's current state.**
+  The spec was written as the agreement point a twenty-leaf run built against and
+  carried a retirement condition — *delete it once the crates exist*. Reaching
+  that condition, it was rewritten rather than deleted: what it describes, how the
+  five module boundaries work, is a spec's own grain, four artifacts link into it,
+  and its decisions are cited **by number** from source comments, `Cargo.toml`
+  headers and tests across all six packages. Gone are the `## Problem`, the *what
+  changes* framing, the `## ADR reconciliation` table and the line-count
+  arithmetic about a codebase that no longer looks like that; the eleven
+  decisions, the requirements and the four test seams stay, in the present tense.
+  `CONTEXT-MAP.md`'s retirement paragraph is replaced by the reason it was kept.
+
+- **The whole decomposition is closed out, by walking each list rather than
+  asserting it.** All nineteen rows of the spec's ADR table are confirmed landed —
+  four retirements (the records are absent), two reworks, eight amendments, one
+  re-check (`bulk-marks-are-not-atomic`, unchanged, and *checked*), two unchanged,
+  and the two added records `jj-is-the-only-lane` and `a-kind-is-an-open-token`.
+  All six `## Out of scope` entries are walked to a disposition with evidence.
+
+- **One ADR amendment that had not landed, found by that walk.**
+  `a-witnessless-root-refuses-what-it-cannot-account-for` still documented a
+  `PartialScaffold` branch that grove **completed**, and cited a test
+  (`transition_completes_a_partial_root_scaffold_before_pick`) deleted with it.
+  `collapse-tree-access-k13` made root creation one store operation that unwinds
+  itself, so nothing grove does produces a charter-only root any more and the
+  branch **refuses**, under the name `Taskless`. The record is reworked in place:
+  the rule it states is unchanged, and the repair went with the anomaly it
+  repaired. `CONTEXT.md`'s term is renamed to match.
+
+- **`ordinal-fs-tree` is not published on its own, and that is now an answer
+  rather than a deferral** (`docs/RELEASING.md`, *One release, six packages, one
+  tag*). It ships inside grove's cut wearing grove's version; no library member
+  has a release lane of its own. `[package.metadata.release] release = false` is
+  the expression of that answer and **not** a line to delete: measured on
+  cargo-release 1.1.2 in a throwaway fixture, dropping it makes the cut release
+  two packages, run `pre-release-replacements` twice against the one
+  `CHANGELOG.md` — two `## v<version>` headings, the first empty — and attempt one
+  tag name twice, with the `exactly = 1` guard blind to it.
+
+- **The `finish-commit` paragraph that outlived its subject is rewritten**
+  (handed forward from `name-ownership-k14`). It contrasted the guard against
+  `finish_transaction::preflight_root`, deleted at `delete-finish-transaction-k8`.
+  What replaced the preflight is nothing: a stray `FINISHING-*` is a **foreign**
+  entry every reader walks past, the removal is the store's `WriteGuard::delete`,
+  and the one check that survives is the unfollowed `.grove` classification the
+  guard cannot make. Same treatment for the teardown's `fs::remove_dir_all`, the
+  fileset "excluding the live witness", the quarantine reap in the runtime flow,
+  "three fail-closed transactions", the `root-init` and `finish-commit` rows of
+  the verbs-to-algebra table, and *nine of thirteen* verbs, which are twelve.
+
+- **Documentation citations follow the code into `crates/`.** Eight test suites
+  cited at their pre-`loop-crate-driver-k22` root `tests/` paths are repointed;
+  a link checker with two proven controls — one missing target, one case-wrong
+  target that resolves anyway on a case-insensitive filesystem — reports zero
+  broken links across the thirty-four maintained documents. References to
+  deliberately deleted artifacts stay: `crates/*/tests/removed_surface.rs`'s
+  cross-tree control reads `docs/`, so tidying them breaks the check.
+
+- **`CONTEXT.md` and `CONTEXT-MAP.md` are reconciled.** The map gains a
+  term-ownership table spanning the four vocabulary-carrying crates plus the
+  plugin, counts six packages rather than four, admits `crates/grove`, and stops
+  saying `release.toml` excludes the store from grove's cut. The glossary retires
+  **Kind reference file** for **Family reference file** (three, in the spine, not
+  ten) and corrects **Loop-step reference file**, **Loaded path** and **Kind
+  routing**, none of which had survived the prompt naming a skill instead of a
+  path.
+
+- **Condition 4 of the brief is verified by doing it.** A twentieth kind was
+  added to the *installed* 19.6.0 build — one `grove-smoke` skill and one
+  configuration line, no Rust edited and nothing rebuilt — and bare `grove`
+  resolved its template, picked its leaf and composed a prompt naming
+  `grove-smoke`. The throwaway was deleted afterwards.
+
 - **`grove-llm leaf-insert`'s cross-reference lint takes a shared lock, and
   holds none while it prints.** The lint reads the tree the renumber left and
   writes nothing to it, so it no longer takes the store's exclusive lock: a

@@ -98,23 +98,15 @@ workspace = true
 
 # `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures
 # that cut. `release = false` here means no tag, no changelog section and no
-# publish of its own. It does **not** mean a frozen version: since
-# `loop-crate-driver-k22` this crate takes `version.workspace = true`, so a cut
-# moves it with every other member — one workspace, one release version
-# (`docs/specs/module-decomposition.md`, decision 1).
+# publish of its own. It does **not** mean a frozen version: this crate takes
+# `version.workspace = true`, so a cut moves it with every other member — one
+# workspace, one release version (`docs/specs/module-decomposition.md`,
+# decision 1).
 #
-# **Whether this crate wants its own `CHANGELOG`, version and release lane is
-# still open**, and it is open because it depends on an answer nothing has yet
-# had to give: is `ordinal-fs-tree` ever published on its own, or is it only
-# ever consumed in-tree by grove? Published separately, it owes consumers a
-# version they can pin and a changelog they can read; consumed in-tree only, a
-# second release lane is ceremony over a crate that ships inside grove's tag
-# anyway. Answering it **by accident**, at grove's next release, is the outcome
-# this line prevents — `publish = false` is repo-wide in `release.toml`, so
-# without this exclusion the member would simply be swept along by a `cargo
-# release` cut of grove and the question would be settled by a tag and a
-# changelog section nobody decided on. (The *version* it wears is already the
-# workspace's, and deliberately so; what stays undecided is whether it gets a
-# lane of its own.)
+# **This crate is not published on its own, and that is settled**
+# (`docs/RELEASING.md`, *One release, six packages, one tag*): it ships inside
+# grove's cut, wearing grove's version, and no library member has a release lane
+# of its own. Removing this line does not reopen the question — it corrupts the
+# cut, which was measured rather than assumed.
 [package.metadata.release]
 release = false

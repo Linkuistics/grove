@@ -30,7 +30,7 @@ creates the control directory, so a working tree that is not jj-enabled and a
 create or drive a task tree; that the directory is *writable* is proved by the
 lease file itself, at the moment it is opened, rather than by a probe whose
 answer could already be stale. Standard `--help` and `--version` return without
-provisioning, workspace resolution, or a lease.
+workspace resolution or a lease.
 
 The lease is an exclusive, nonblocking advisory lock keyed by the filesystem
 device and inode of an already-open working-tree-root descriptor. Every lease

@@ -9,7 +9,7 @@ R .grove/{04-impl--marking-k32.md => 04-DONE-impl--marking-k32.md}
 ```
 
 is `jj status`, and the commit that follows records exactly that.
-`tests/leaf_ops.rs` asserts it rather than describing it.
+`crates/grove-llm/tests/leaf_ops.rs` asserts it rather than describing it.
 
 ## The trade-off
 
@@ -47,7 +47,7 @@ cost has closed on its own.
 
 - **Have Grove take the commit itself** for the marking verbs, the way the finish
   transaction does. Rejected because it inverts the methodology:
-  `content/references/commit.md` puts one focused commit at the end of a task,
+  the spine's `references/commit.md` puts one focused commit at the end of a task,
   carrying the artifact, the grow verbs' output and the `DONE` rename
   *together*. A verb that committed its own rename would split every task into
   two commits and take the boundary decision away from the session that owns it.

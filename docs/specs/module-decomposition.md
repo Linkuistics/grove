@@ -1,28 +1,10 @@
 # module-decomposition
 
-## Problem
-
-Grove is one crate of roughly 27,300 non-test lines behind two binaries, and the
-bulk of it defends guarantees the version control system already provides. A
-finish teardown hand-builds a durable pre-operation record, a proven rollback and
-a crash-atomic multi-path mutation; a migration path does the same for a legacy
-tree shape no live tree wears; a provisioning sweep writes skill directories and
-then re-verifies its own writes; and roughly twenty-five auto-repair functions
-exist to unwind machinery that would not need unwinding.
-
-Three costs follow, and the third is the one that bites daily. The code cannot be
-reused outside grove, because grove's vocabulary reaches everywhere. Nothing is
-testable except through the binaries — forty-one integration files and 27,719
-lines almost all drive a subprocess. And adding a session kind means editing and
-rebuilding a binary, because nineteen kinds are a compiled enum, matched in some
-places and spelled literally in others. Counting the `match` arms has undercounted
-that surface twice; decision 5 enumerates it instead.
-
 ## Solution
 
-Five modules with independent lifetimes, three of them reusable outside grove,
-and what remains of grove shrunk to the loop that composes them: a launcher that
-owns a loop and a vocabulary, and nothing else.
+Grove is **five modules with independent lifetimes**, three of them reusable
+outside grove, and the launcher that composes them: a loop and a vocabulary, and
+nothing else.
 
 The version control system owns safety, history and transactionality — jj
 snapshots the working copy before every command and its operation log is the
@@ -34,11 +16,11 @@ and grove is ambient: grove keeps only what a session physically cannot do for
 itself — relaunch itself with fresh context, be killed under a sandbox, have its
 vendor chosen before it exists, and be told to load the methodology.
 
-Where this design *changes* a recorded decision rather than applying it, the
-record is named below. No record is rewritten here:
-[`docs/adr/`](../adr/) describes the design's current state, and a record
-rewritten to describe unbuilt code would make the set lie. This spec carries the
-target design until the leaf that lands each change reworks its record in place.
+This document describes how the module boundaries work. The decisions below are
+numbered, and the numbering is load-bearing: source comments, `Cargo.toml`
+headers and tests across all six packages cite them as *decision N*. What each
+one *cost* is in [`docs/adr/`](../adr/), which describes the design's current
+state and is cited here rather than restated.
 
 ## Decisions
 
@@ -46,16 +28,18 @@ target design until the leaf that lands each change reworks its record in place.
 
 | module | package | domain-free |
 |---|---|---|
-| tree store | `ordinal-fs-tree` (unchanged) | yes |
+| tree store | `ordinal-fs-tree` | yes |
 | runner | `keyed-launch` | yes |
 | VCS seam | `jj-workspace` | yes |
 | loop | `grove-loop` | no |
 | skills | the `grove` plugin | no |
 | — | `grove`, `grove-llm` (binaries) | — |
 
-One workspace, one release version, one changelog. A module is a crate so that
-*testable through its own interface without the other four* stops being a
-discipline held by review and becomes a fact the compiler enforces.
+One workspace, one release version, one changelog, one tag. A module is a crate
+so that *testable through its own interface without the other four* is not a
+discipline held by review but a fact the compiler enforces: the three domain-free
+crates take no path dependency on any of the other five, and each carries its own
+suites.
 
 The skills module has **no crate**: its artifact is markdown that ships by an
 entirely different path, and its half of that guarantee is met by its own
@@ -63,8 +47,10 @@ conformance runner instead.
 
 The two binaries are separate crates rather than binary targets inside
 `grove-loop`, for the same reason: a binary target can reach its own library's
-private items, so *the binary is thin* stops being compiler-enforced the moment
-it is a target rather than a crate.
+private items, so *the binary is thin* would stop being compiler-enforced the
+moment it were a target rather than a crate. A crate boundary is also a
+reachability boundary, which is what lets `dead_code` report an item whose only
+callers are another package's tests.
 
 `jj-workspace` is fully domain-free, not partly. Its whole surface is *resolve a
 jj workspace, refuse a tree that is not one, take a path-scoped commit*, and the
@@ -76,16 +62,15 @@ what a consumer names, supervision is what sits behind it. Its vocabulary is
 deliberately avoids **session**, which would add a fourth row to the collision
 table in [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md).
 
-### 2 — The tree store: what is added
+### 2 — The tree store's surface
 
-Present and unchanged: the read and write guards, `append`, `append_many`,
-`insert`, `promote`, `rewrite`, `Snapshot`, `Walk`, `Entry`, `Refusal`, and the
-conformance kit that holds a consumer to the round-trip law. The name seam is
-untouched — [`entry-name-is-the-only-seam`](../adr/entry-name-is-the-only-seam.md)
-becomes more load-bearing under this design, not less.
+The read and write guards, `append`, `append_many`, `insert`, `promote`,
+`rewrite`, `Snapshot`, `Walk`, `Entry`, `Refusal`, and the conformance kit that
+holds a consumer to the round-trip law. The name seam is one method —
+[`entry-name-is-the-only-seam`](../adr/entry-name-is-the-only-seam.md) is more
+load-bearing under this design than before it, not less.
 
-Four operations are added, and `exists?` is added **as a shape rather than as a
-predicate**:
+`exists?` is a **shape rather than a predicate**:
 
 ```rust
 pub fn read<N: EntryName>(root: &Path)  -> Result<Reading<N>, Error<N>>;
@@ -125,33 +110,31 @@ pub struct Removed { pub root: PathBuf, pub entries: Vec<PathBuf> }
 ```
 
 A separate `exists` predicate would be a check-then-act split, and check-then-act
-over a locked tree is the disease the consumer's current two-phase
-classify-then-settle dance exists to paper over. One lock acquisition instead,
-and the answer hands back the only operation that is valid for it: initializing
-over a live tree and deleting a vacancy are not expressible. Something at the
-root that is neither a tree nor nothing — a regular file, a symlink — is an
-`Error` carrying what was found, not a third variant.
+over a locked tree is the disease a two-phase classify-then-settle dance exists to
+paper over. One lock acquisition instead, and the answer hands back the only
+operation that is valid for it: initializing over a live tree and deleting a
+vacancy are not expressible. Something at the root that is neither a tree nor
+nothing — a regular file, a symlink — is an `Error` carrying what was found, not a
+third variant.
 
 Neither operation widens the name seam. `initialize` takes bytes and a name the
-trait already supplies, exactly as promotion does, so
-[`entry-name-is-the-only-seam`](../adr/entry-name-is-the-only-seam.md) holds with
-no new trait method — which matters, because without the distinguished input the
-consumer would have to write the charter itself, outside the lock and outside the
-store, and the whole *the store is the only thing that touches the task tree*
-guarantee would fail at the first operation of every fresh grove.
+trait already supplies, exactly as promotion does, which matters: without the
+distinguished input the consumer would have to write the charter itself, outside
+the lock and outside the store, and the whole *the store is the only thing that
+touches the task tree* guarantee would fail at the first operation of every fresh
+grove.
 
 **Deletion reports paths, where every other mutation reports names, and the
-asymmetry is the operation's and not an oversight.** The existing report has a
-created bucket and a renamed bucket, both keyed by `N`, because every other
-mutation acts on entries the domain named. Deletion acts on the *root* and
-therefore on everything beneath it — including the entries the domain
-deliberately declines to parse as `N`, which the walk already skips and which the
-report has no `N` to name. A third bucket of `N` would still be unable to say
-what it removed. `Removed` is the honest postcondition: the paths that are gone,
-which is exactly what a caller needs to say what it destroyed and is the whole of
-what the operation knows.
+asymmetry is the operation's and not an oversight.** The report has a created
+bucket and a renamed bucket, both keyed by `N`, because every other mutation acts
+on entries the domain named. Deletion acts on the *root* and therefore on
+everything beneath it — including the entries the domain deliberately declines to
+parse as `N`, which the walk skips and which the report has no `N` to name. A
+third bucket of `N` would still be unable to say what it removed. `Removed` is
+the honest postcondition: the paths that are gone, which is exactly what a caller
+needs to say what it destroyed and is the whole of what the operation knows.
 
-The fourth operation is a **word for a search that matched nothing**:
+A search that matched nothing has a **word of its own**:
 
 ```rust
 /// A search's answer. Not a refusal: nothing was asked to change, and nothing
@@ -165,57 +148,43 @@ impl<N: EntryName> Snapshot<N> {
 ```
 
 Every one of `Refusal`'s variants is a refusal to *mutate*. A store whose only
-other negative answer is `None` forces each consumer to invent a word for
-*found nothing* in its own vocabulary, which is exactly what the loop's current
-optional-selection type is. `Sought` is that word, in the store's vocabulary, and
-it replaces the whole optional search surface so there is one word for one
-concept.
+other negative answer were `None` would force each consumer to invent a word for
+*found nothing* in its own vocabulary. `Sought` is that word, in the store's
+vocabulary, and it is the whole optional search surface, so there is one word for
+one concept.
 
-**This obliges one clause of
-[`entries-are-never-removed`](../adr/entries-are-never-removed.md).** Its argument
-is untouched — removing an *entry* lowers the visible key maximum and the next
-allocation re-issues a live key — but its opening sentence says the library
-offers no removal operation, and `delete` removes the **root**. The two are
-different operations and only the second is on the table. The leaf that lands
-`delete` adds the distinguishing clause.
+Removing an **entry** and deleting the **root** are different operations and only
+the second exists
+([`entries-are-never-removed`](../adr/entries-are-never-removed.md), whose
+distinguishing clause is what keeps its argument about key allocation intact).
+Root creation and destruction are both the store's
+([`root-lifecycle-belongs-to-the-store`](../adr/root-lifecycle-belongs-to-the-store.md));
+they leave a repository-aware mutation path just as ruled out as before
+([`grove-does-not-stage-its-own-renames`](../adr/grove-does-not-stage-its-own-renames.md)),
+and they leave a subtree prune exactly as non-atomic as it was
+([`bulk-marks-are-not-atomic`](../adr/bulk-marks-are-not-atomic.md)).
 
-`initialize` and `delete` also settle
-[`grove-does-not-stage-its-own-renames`](../adr/grove-does-not-stage-its-own-renames.md)
-and [`bulk-marks-are-not-atomic`](../adr/bulk-marks-are-not-atomic.md) against a
-store that now owns root creation and deletion; both are to be re-checked, not
-assumed.
-
-### 3 — The filename grammar gains a separator
-
-Once the session kind is an open token, today's grammar has no single parse.
-`design-decomposition` in the middle of a name reads as kind `design` with slug
-`decomposition` **and** as kind `design-decomposition` with an empty slug, and a
-three-word kind makes the ambiguity four ways deep. Today only matching against
-the closed set resolves it — the very thing decision 6 removes. The store's
-canonicality obligation forbids two filenames naming one entry; this is one
-filename naming two entries, which is worse, because what differs between the
-readings is the **handle**, the identity that crosses every module boundary.
+### 3 — The filename grammar carries a separator
 
     NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md      a leaf
     NN-<slug>-k<key>                                    a node directory
 
 The middle splits at the **first** `--`; neither the kind nor the slug may
-contain one. Round-tripping holds, the permanent key stays the terminal token,
-node names are untouched, and the kind token stays byte-identical to the skill
-suffix — which is the property decision 6 exists for.
+contain one, which one shared token validator enforces for both. Round-tripping
+holds, the permanent key is the terminal token, node names carry no kind and
+never had the ambiguity, and the kind token is byte-identical to the skill
+suffix — which is the property decision 5 needs.
 
-Rejected: spelling multi-word kinds with an inner underscore, because the
-filename token and the skill name would then differ by a rule, reintroducing the
-second source decision 6 deletes; moving the kind after the key, which unseats
-the terminal-key rule that resolution and the glossary both lean on and only
-relocates the delimiter problem; and forbidding hyphens in slugs, which renames
-just as much for a worse read.
-
-This obliges
-[`task-names-are-canonical`](../adr/task-names-are-canonical.md), and it renames
-every live leaf by one character. **A grove whose subject is the grove machinery
-runs against the installed binary**, so the rename and the reinstall are one
-step and no session may run between them.
+With an open kind set, a single `-` between kind and slug would leave one
+filename naming **two** entries: `design-decomposition` in the middle of a name
+reads as kind `design` with slug `decomposition` *and* as kind
+`design-decomposition` with an empty slug, four ways deep for a three-word kind.
+What differs between the readings is the **handle**, the identity that crosses
+every module boundary, which is why this is worse than the two-filenames-one-entry
+case canonicality already forbids. The separator *is* the boundary, so a name has
+exactly one reading with no set consulted
+([`task-names-are-canonical`](../adr/task-names-are-canonical.md), which carries
+the three rejected alternatives and what the cutover cost).
 
 ### 4 — One type owns the name, and the handle renders through it
 
@@ -250,16 +219,17 @@ between the filename and the handle is not expressible. That is also what the
 separator buys — it leaves the handle a contiguous terminal substring of every
 name that has one.
 
-`Kind` keeps its place in the parsed parts and its rendering, and loses only the
-closed set. Its constructor validates the token's *shape* — non-empty, lowercase
-ASCII letters, digits and single hyphens, no separator, not a reserved word — and
-nothing else. What replaces an unknown-kind refusal is a shape refusal naming the
-character it refused. Every name refusal continues to carry both what is on disk
-and what it should be; that is the model the rest of this design's errors follow.
+`Kind` has a place in the parsed parts and a rendering, and no set. Its
+constructor validates the token's *shape* — non-empty, lowercase ASCII letters,
+digits and single hyphens, no separator, not a reserved word — and nothing else,
+so an unrecognised kind meets a shape refusal naming the character it refused.
+Every name refusal carries both what is on disk and what it should be; that is the
+model the rest of this design's errors follow.
 
 ### 5 — Grove names a kind only where grove writes the leaf
 
-Two tokens, and no manifest of kinds anywhere in the machinery.
+Two tokens, and no manifest of kinds anywhere in the machinery
+([`a-kind-is-an-open-token`](../adr/a-kind-is-an-open-token.md)).
 
 The loop reads the tree once per iteration and mutates it only where no session
 exists to delegate to: root scaffolding before the first session, and the finish
@@ -269,88 +239,46 @@ kinds it may name — `requirements` for the first, `finish` for the second. Eve
 other kind is an opaque string that grove substitutes into a skill name and a
 configuration key and interprets in neither.
 
-That rule also resolves the three surviving places a kind was matched: `finish`
-sorting last in selection, `finish` being refused to the grow verbs, and
-`requirements` being root-init's default. All three are grove recognising the
-leaf it wrote itself, not grove interpreting the methodology. Root-init takes a
-kind option, so the second token is a default rather than a constant.
+That rule also covers the places a kind is asked about: `finish` sorting last in
+selection, `finish` being refused to the grow verbs, and teardown. All of them go
+through one predicate rather than carrying a token, and all of them are grove
+recognising the leaf it wrote itself. `root-init` writes a `requirements` leaf and
+takes no kind option; the rule holds either way, since grove authors that leaf.
 
-The other two matched places do not survive: the mapping from kind to a
-reference file, and the mapping from kind to a session-ending file, both go with
-decision 6.
+**No verb carries a list of kinds, and neither does a default.** The ordinary add
+takes an *ordered list* of kinds and appends them as one unit, at consecutive
+ordinals with consecutive keys, so `leaf-add <parent> <stem> --kind research-a
+--kind research-b --kind combine-research` is the research pair, spelled by the
+methodology that owns those three tokens, and a one-kind list is the ordinary
+add. Twelve verbs, not thirteen. `--kind` is **required** on the add and insert
+verbs: a default is a literal under a friendlier name, and `impl` was the one kind
+literal that would silently produce a *wrong* leaf rather than an error.
 
-**Two further sites carry a kind literal, and both are removed rather than
-resolved.** Neither is a `match`, which is why counting `match` arms undercounts.
+### 6 — Configuration completeness is per-kind and just-in-time
 
-- **The research-pair verb** appends three flat siblings as one unit, and the
-  three kinds it gives them are a constant in the machinery — a fourth token
-  beside the two grove may name, naming three kinds grove has no business
-  knowing. The atomicity is real and worth keeping: three separate appends are
-  three snapshots and three chances to stop half way, and a live prefix of a pair
-  is indistinguishable from a deliberately hand-cut partial one. So the verb is
-  not deleted but **generalised** — the ordinary add takes an ordered list of
-  kinds and appends them as one unit, at consecutive ordinals with consecutive
-  keys. `leaf-add <parent> <stem> --kind research-a --kind research-b --kind
-  combine-research` is then the pair, spelled by the methodology that owns those
-  three tokens; a one-kind list is the ordinary add. Twelve verbs, not thirteen,
-  and no list of kinds anywhere in the machinery.
-- **The add and insert verbs default `--kind` to `impl`.** A default is a literal
-  under a friendlier name, and it is the one kind literal that would silently
-  produce a *wrong* leaf rather than an error. `--kind` becomes required on both.
-  Root scaffolding keeps its default because `requirements` is one of the two
-  leaves grove authors; a verb a session invokes has a session to name the kind.
-
-The rule stands after both: grove names a kind only where grove writes the leaf,
-and the two tokens are the whole of it.
-
-### 6 — Configuration completeness becomes per-kind and just-in-time
-
-[`complete-session-configuration`](../adr/complete-session-configuration.md)
-requires the personal configuration to declare all nineteen kinds, validated in
-full before every tree mutation and every launch, and that completeness is what
-makes a partial second source safe. Grove can no longer check it: it holds no set
-of kinds, writes no skill directory and keeps no registry, so it cannot enumerate
-what the methodology declares.
-
-Only the **quantifier** moves. The whole document is still validated eagerly —
-before every tree mutation and again before every launch — for syntax,
+The whole of the personal document — and of any second source — is validated
+eagerly, before every tree mutation and again before every launch, for syntax,
 duplicates, node shape, and every template rule, so a malformed entry for a kind
-this iteration will not reach still fails before anything is spawned. What
-becomes just-in-time is *presence*: before writing a leaf of kind K, and before
+this iteration will not reach fails before anything is spawned. What is asked at
+the moment of use is *presence*: before writing a leaf of kind K, and before
 launching kind K, K must resolve to exactly one complete template read whole out
 of one file.
 
-The record's load-bearing property is preserved — nothing is merged within a
-kind, one author per launch, and a source that does not mention a kind cannot
-supply it. What is lost is only the early warning *for a kind
-not yet reached*: a stale personal configuration now fails at the first
-`leaf-add` of that kind rather than at the next tree mutation of any kind. What is bought back is that adding a kind no
-longer wedges every operation in every stale configuration until each owner edits
-their file.
+The quantifier is per-kind because grove can no longer state a set: it holds no
+set of kinds, writes no skill directory and keeps no registry, so it cannot
+enumerate what the methodology declares.
 
-**The overlay overrides and never supplies, and this is the per-kind restatement
-of what completeness was for.** The all-nineteen rule is what made the second
-source safe: a partial delta could only ever override a kind the complete
-personal file already declared, so a project-supplied file could never introduce
-a kind — and therefore a program to execute — that the operator had not already
-chosen for themselves. Delete the quantifier and that argument goes with it,
-because nothing else in the old rule says the primary must mention the key at
-all. So it is restated one kind at a time: **a key resolves only if the primary
-file declares it**; where the overlay also declares it, the overlay's template is
-the one used, whole; where only the overlay declares it, the key does not
-resolve, and the refusal names the key and the primary file that must declare it.
-That is the same property the completeness rule bought, checked at the moment the
-kind is used rather than over a set nobody can enumerate, and it is enforceable
-without either source knowing what a kind is.
-
-Both records move.
-[`complete-session-configuration`](../adr/complete-session-configuration.md) is
-amended for the quantifier, and
-[`untracked-configuration-delta`](../adr/untracked-configuration-delta.md) is
-amended for its own safety argument, which currently rests on the sentence *that
-record's completeness rule still binds the personal file whatever a delta says*.
-It does not, after this; the primary-declares rule is what binds instead, and the
-record states that as its own property rather than borrowing one.
+**The overlay overrides and never supplies**, one kind at a time: a key resolves
+only if the primary file declares it; where the overlay also declares it, the
+overlay's template is the one used, whole; where only the overlay declares it, the
+key does not resolve, and the refusal names the key and the primary file that must
+declare it. That is what stands between a file a project could hand you and a
+program its operator never chose, and it is enforceable without either source
+knowing what a kind is
+([`complete-session-configuration`](../adr/complete-session-configuration.md) for
+what a template must be,
+[`untracked-configuration-delta`](../adr/untracked-configuration-delta.md) for the
+second document and the safety property it now states as its own).
 
 ### 7 — The runner
 
@@ -442,19 +370,21 @@ The runner spawns the expanded argv directly, with no shell. The child's
 environment is the caller's, minus the scrubbed control values, plus the fresh
 channel path under the caller's chosen variable name. Escalation runs grace →
 SIGTERM → kill-grace → SIGKILL, because a child that returns to an interactive
-prompt is never reaped on its own.
+prompt is never reaped on its own; it is addressed to the child's **process
+group**, so a command the session itself launched is reaped with it, and the
+runner hands the terminal to the child and takes it back
+([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)).
 
-**The vocabulary is an input to `load` and not to `expand`, and that is what
-keeps decision 6's *document-eager* half true.** The template rules the current
-implementation enforces are all rules about slot *names* — that a substitution is
-a whole word and not embedded in one, that it names a declared slot, that the
-required slot appears exactly once, that an optional one appears at most once.
-None of them is checkable by a loader that will not learn the slot names until
-expansion, so a vocabulary supplied per-call would make every one of them
-just-in-time and reduce decision 6's amendment from *presence* to *everything*.
-Supplied at load, the whole of both documents is checked before anything is
-spawned, and expansion is left with one obligation: that the values offered fill
-the slots the vocabulary declared.
+**The vocabulary is an input to `load` and not to `expand`, and that is what keeps
+decision 6's *document-eager* half true.** Every template rule the runner enforces
+is a rule about slot *names* — that a substitution is a whole word and not
+embedded in one, that it names a declared slot, that a required slot appears
+exactly once, that an optional one appears at most once. None is checkable by a
+loader that will not learn the slot names until expansion, so a vocabulary
+supplied per call would make every one of them just-in-time and reduce decision 6
+from *presence* to *everything*. Supplied at load, the whole of both documents is
+checked before anything is spawned, and expansion is left with one obligation:
+that the values offered fill the slots the vocabulary declared.
 
 ### 8 — The VCS seam
 
@@ -481,29 +411,28 @@ impl Workspace {
 pub struct Commit { pub change_id: String }
 ```
 
-The namespace parameter is what makes the crate domain-free at this method
-rather than only in the sentence claiming it is. The implementation being moved
-reaches its answer by hard-coding a grove-named directory inside jj's
-administrative one, and *where a lease file may live* is a postcondition that
-cannot be stated without naming the consumer. Returning the administrative
-directory raw would not fix it either — it would put the consumer's generic
-filenames directly into a namespace the version control system owns and may
-extend. Naming the consumer is what makes the guarantee sayable in the crate's
-own vocabulary: this directory is yours, it is inside the workspace, and nothing
-tracks it.
+The namespace parameter is what makes the crate domain-free at this method rather
+than only in the sentence claiming it is. *Where a lease file may live* is a
+postcondition that cannot be stated without naming the consumer, and returning the
+administrative directory raw would put the consumer's generic filenames directly
+into a namespace the version control system owns and may extend. Naming the
+consumer makes the guarantee sayable in the crate's own vocabulary: this directory
+is yours, it is inside the workspace, and nothing tracks it.
 
 Grove takes commits and implements no transaction: no witness, no manifest, no
 rollback proof, no index image, no quarantine, no recovery path. jj snapshots the
-working copy before every command and its operation log is the transaction
-record, so a failed teardown is recovered by `jj undo` — which is what the
-refusal says. This supersedes `task-tree-transactions-fail-closed`
-outright: not by the reopen condition that record names — a durable finish
-receipt — but because the version control system owns the transaction. It also
-retires `supported-workspace-layouts`, whose whole subject is the same-device
-rename the quarantine needed.
+working copy before every command and its operation log is the transaction record,
+so a failed teardown is recovered by the operation-log command the refusal names.
+Every child that speaks to the version control system is spawned inside this
+crate, which removes the ambient repository selectors from each one, so choosing
+the right repository is the seam's guarantee and no call site can be written
+without it.
 
-Dropping the plain-git lane is what makes this true on every lane rather than
-one. A non-jj working tree is refused before any mutation.
+**jj is the only lane** ([`jj-is-the-only-lane`](../adr/jj-is-the-only-lane.md)),
+and that is what makes the paragraph above true on every lane rather than one. A
+non-jj working tree is refused before any mutation, by this one gate; nothing
+downstream branches on which version control owns the tree, because nothing else
+can own it.
 
 ### 9 — The loop
 
@@ -547,9 +476,9 @@ pub enum LoopOutcome { Finished, Stopped }
 pub struct Error;
 
 pub mod verbs {
-    /// Scaffold a fresh grove: the charter brief and the first leaf. `kind`
-    /// defaults to `requirements` at the CLI — one of the two leaves grove
-    /// authors — and is the only kind default that survives anywhere.
+    /// Scaffold a fresh grove: the charter brief and the first leaf. `kind` is
+    /// `requirements` at the CLI — one of the two leaves grove authors — and is
+    /// the only kind default that survives anywhere.
     pub fn root_init(vacancy: Vacancy, slug: &Slug, kind: &Kind)
         -> Result<Initialized, Error>;
     pub struct Initialized { pub brief: PathBuf, pub first_leaf: PathBuf }
@@ -615,8 +544,8 @@ pub mod verbs {
 }
 ```
 
-The verbs live here rather than with the store because ten of the twelve touch
-the tree and every one is stated in grove's vocabulary — brief chains, kinds,
+The verbs live here rather than with the store because ten of the twelve touch the
+tree and every one is stated in grove's vocabulary — brief chains, kinds,
 outcomes, handles, finishing — none of which the store has a word for.
 Co-locating them gives the handle grammar one owner and puts the driver and the
 verbs on one definition of a kind. The two that reach outward reach the runner
@@ -631,62 +560,61 @@ loop that reintroduced `Option` here would have moved the problem rather than
 solved it. And every verb returns the paths it wrote, because its caller is a
 session that has to name them in a commit message it writes by hand.
 
+`TreeWrite` is a caller's **right to be the writer**, not one guard: it hands out
+the guard it opened with before reopening for the next verb, and relinquishes it
+before a second opening is taken, so no verb holds two
+([`bulk-marks-are-not-atomic`](../adr/bulk-marks-are-not-atomic.md) carries the
+window that leaves open, and why re-running the verb is the repair).
+
 The prompt is three driver-authored parts and carries no methodology: an
 imperative naming `grove-<kind>`; the runtime facts — the selected handle, the
 stated version control, and grove's published version; and grove's own signalling
 contract. Its first part reproduces the element measured as load-bearing in
 [the wording micro-test](../research/wording-micro-test.md) — one imperative
 naming one target, so the session performs no selection and has nothing to defer.
-The list of provisioned skill directories is dropped with provisioning, and the
-gap is recorded there rather than argued away: a harness with a skill-loading
-affordance is unaffected, one without loses its fallback, and the reopen
-condition is a session that cannot reach the methodology by the affordance alone.
+There is no list of provisioned skill directories, and the gap that leaves is
+recorded rather than argued away: a harness with a skill-loading affordance is
+unaffected, one without has no fallback, and the reopen condition is a session
+that cannot reach the methodology by the affordance alone.
 
-**The signalling contract's own gap, recorded at the leaf that landed it.** One
-contract for nineteen kinds replaces two per-kind signal files whose split
-existed so that a `finish` prompt never carried *run `grove-llm complete`* — the
-ending that, taken by the one session that may have just deleted the task tree,
-relaunches the loop onto a torn-down grove, and whose stated precondition a
-completed teardown satisfies exactly. The contract answers that by making the
-kind's own ending the sentence's object and the ordinary verb subordinate to it,
-so no prompt ends on a bare imperative for the wrong action. What is not answered
-is the compound with decision 10's accepted residue: a `finish` session whose
-`grove-finish` skill is missing or unread meets the ordinary default and nothing
-contradicting it, where the old prompt alone was fail-safe for that kind whatever
-was installed. The reopen condition is a `finish` session observed signalling
-`complete` after a teardown.
+**The signalling contract's own gap.** One contract for every kind replaces two
+per-kind signal files whose split existed so that a `finish` prompt never carried
+*run `grove-llm complete`* — the ending that, taken by the one session that may
+have just deleted the task tree, relaunches the loop onto a torn-down grove, and
+whose stated precondition a completed teardown satisfies exactly. The contract
+answers that by making the kind's own ending the sentence's object and the
+ordinary verb subordinate to it, so no prompt ends on a bare imperative for the
+wrong action. What is not answered is the compound with decision 10's accepted
+residue: a `finish` session whose `grove-finish` skill is missing or unread meets
+the ordinary default and nothing contradicting it, where the old prompt alone was
+fail-safe for that kind whatever was installed. The reopen condition is a `finish`
+session observed signalling `complete` after a teardown.
 
 ### 10 — Grove publishes its version in the prompt
 
-The compatibility check inverts: the machinery states what it is, and the
-methodology decides whether that is good enough and what to do when it is not.
+The machinery states what it is, and the methodology decides whether that is good
+enough and what to do when it is not.
 
 The published value is the workspace's single release version, and it rides in
 the prompt's runtime facts beside the handle and the stated version control. A
 verb would need the CLI on `PATH` and would fire only if the session thought to
 run it, which is the deferred read the micro-test measured; a value in the prompt
-needs no command to succeed and cannot fail. The version-flag output of the
-verb binary remains as a fallback, not as the mechanism.
+needs no command to succeed and cannot fail. The version-flag output of the verb
+binary remains as a fallback, not as the mechanism. There is no methodology
+content hash and no build-pairing report: a release version orders and means
+something to a human, which a content hash never did.
 
-The methodology's content hash, the build-pairing report and the content-hash
-flag go with this. A release version orders and means something to a human, which
-a content hash never did. This retires
-`one-build-owns-a-session` — there is no build pairing once no build writes a
-skill directory — and `skill-delivers-the-methodology`, whose delivery path
-ceases to exist. Both are deleted as of `delete-provisioning-k19`, which is why
-this section names them rather than linking to them.
-
-**The cost is the one that record existed to prevent:** grove no longer
-guarantees the methodology is present, so a session can be launched pointing at a
+**The cost is the one a build-pairing report existed to prevent:** grove does not
+guarantee the methodology is present, so a session can be launched pointing at a
 skill that is not installed. That is a message, not machinery — grove states the
-version it is and names the install command, and stops.
+version it is and names the install route, and stops.
 
 ### 11 — The methodology ships as a plugin, and how fat each skill is
 
 Grove writes no skill directory. The methodology installs the way this repo's
-other skill plugins already do — a marketplace entry, and a symlink farm
-elsewhere, where a skill declares its own harness eligibility rather than a
-registry deciding for it. A kind exists **iff** a skill of that name exists.
+other skill plugins do — a marketplace entry, and a symlink farm elsewhere, where
+a skill declares its own harness eligibility rather than a registry deciding for
+it. A kind exists **iff** a skill of that name exists.
 
 The plugin ships one `grove-<kind>` skill per kind over a shared `grove` spine.
 The fatness rule:
@@ -696,19 +624,21 @@ The fatness rule:
   whether it passes the done flag when it signals.
 - **In the shared spine**: every rule shared across families — the seven
   constraints, the bootstrap, execution, decomposition, retirement and commit
-  procedures, and the four format documents.
+  procedures, and the format documents.
 - **Nowhere twice.**
   [`corpus-rules-have-one-owner`](../adr/corpus-rules-have-one-owner.md) and
   [`restatement-declares-its-class`](../adr/restatement-declares-its-class.md)
   bind unchanged and are what make this checkable.
 
 Where a rule belongs to a *family* rather than one kind — the five reviews, the
-two research halves — the family's text is one file in the spine, and each
-member's skill directs a load of it by name in its opening imperative. A directed
-load is not a selection.
+five integrations, the two research halves — the family's text is one file in the
+spine, and each member's skill directs a load of it by name in its opening
+imperative. A directed load is not a selection. A skill that cites a skill from
+another plugin states what binds in its absence
+([`a-skill-states-what-binds-without-its-dependencies`](../adr/a-skill-states-what-binds-without-its-dependencies.md)).
 
-**One gap, recorded rather than claimed closed.** The micro-test measured one
-hop, from a prompt naming two targets. Nothing measures the second hop, from
+**One gap, recorded rather than claimed closed.** The micro-test measured one hop,
+from a prompt naming two targets. Nothing measures the second hop, from
 `grove-<kind>` to the spine. What is inline is unaffected; what is in the spine
 loses its guarantee; the reopen condition is a session observed acting without a
 spine rule.
@@ -773,86 +703,53 @@ rollback or recovery path.
 - **THEN** the refusal names the operation-log command that restores the working
   copy, and no grove-authored recovery runs
 
-## ADR reconciliation
-
-No record is rewritten by this spec, for the reason stated at the top: the set
-describes the design's current state, and a record rewritten to describe unbuilt
-code would make it lie. What follows is the target set and who lands each change,
-so that decomposition can schedule the rework rather than discover it. **Every
-record in `docs/adr/` is accounted for below**, because a record this design
-makes false and nobody listed is a record that quietly stops being true.
-
-| record | disposition | landed by |
-|---|---|---|
-| `task-tree-transactions-fail-closed` | **retired** — the VCS owns the transaction (decision 8), and the tree-access lock it also specifies goes with the store owning `initialize` and `delete` | the leaf that deletes the finish transaction |
-| `supported-workspace-layouts` | **retired** — its whole subject is the same-device rename the quarantine needed | the same leaf |
-| `skill-delivers-the-methodology` | **retired, done** — the provisioned-skill delivery path ceased to exist | `delete-provisioning-k19` |
-| `one-build-owns-a-session` | **retired, done** — no build writes a skill directory, so there is no pairing to report | the same leaf |
-| [`one-live-driver-per-working-tree`](../adr/one-live-driver-per-working-tree.md) | **reworked** — the lease survives; independent provisioning, the Git lane, the Git-or-jj control-directory derivation, the same-device gate and the Git-or-jj lost-result path do not. The control directory becomes the namespace the VCS seam hands back | the leaf that extracts the VCS seam |
-| [`a-skill-states-what-binds-without-its-dependencies`](../adr/a-skill-states-what-binds-without-its-dependencies.md) | **reworked at `plugin-kind-skills-k17`** — it was `grove-binds-without-the-plugin`, opening on the binary sweeping its own `content/` into every harness's skill directory. The methodology *is* a plugin now, so the record's subject is what binds when a skill's own dependencies are absent | the leaf that ships the plugin |
-| [`complete-session-configuration`](../adr/complete-session-configuration.md) | **amended** — the quantifier becomes per-kind and just-in-time (decision 6) | the leaf that lands the configuration change |
-| [`untracked-configuration-delta`](../adr/untracked-configuration-delta.md) | **amended** — its safety argument currently borrows the completeness rule; it states the primary-declares rule as its own property instead (decision 6) | the same leaf |
-| [`task-names-are-canonical`](../adr/task-names-are-canonical.md) | **amended** — the separator (decision 3); its migration clauses go with migration | the leaf that lands the grammar |
-| [`entries-are-never-removed`](../adr/entries-are-never-removed.md) | **amended** — one clause distinguishing removing an *entry* from deleting the *root* (decision 2) | the leaf that lands `delete` |
-| [`behavioural-coverage-asserts-delivery`](../adr/behavioural-coverage-asserts-delivery.md) | **amended** — the rule survives, the instrument moves to the plugin's shell runner, and two of the four things its walk covers no longer exist in the binary | the leaf that ships the plugin |
-| [`corpus-rules-have-one-owner`](../adr/corpus-rules-have-one-owner.md) | **amended** — the filing rule survives unchanged; its register is the plugin's spine rather than an embedded `content/`, its reachability edge is the composed loaded path rather than a prompt module, and its all-nineteen mapping loses the set it quantified over | the same leaf |
-| [`restatement-declares-its-class`](../adr/restatement-declares-its-class.md) | **amended** — the class distinction survives; the condition register relocates from the embedded corpus to the plugin spine | the same leaf |
-| [`grove-does-not-stage-its-own-renames`](../adr/grove-does-not-stage-its-own-renames.md) | **amended** — the decision survives and gets simpler; its Git-lane consequences and its migration references go | the leaf that drops the Git lane |
-| [`bulk-marks-are-not-atomic`](../adr/bulk-marks-are-not-atomic.md) | **re-checked, expected unchanged** — a subtree prune is still *N* rewrites under *N* guards. Its implementation pointer moves into the loop crate | the leaf that extracts the loop |
-| [`entry-name-is-the-only-seam`](../adr/entry-name-is-the-only-seam.md) | **unchanged**, and more load-bearing. `initialize`'s distinguished input adds no trait method | — |
-| [`grove-owns-escalated-review`](../adr/grove-owns-escalated-review.md) | **unchanged** — a methodology rule, whose text moves into the spine without its decision moving | — |
-| **`jj-is-the-only-lane`** | **added** — dropping plain Git is hard to reverse, surprising without the safety principle behind it, and a real trade-off with a rejected alternative (narrowing the principle to *where the version control system can*, which keeps the finish transaction alive on one lane). Once this spec is rewritten to current state there is no other record saying why | the leaf that drops the Git lane |
-| **`a-kind-is-an-open-token`** | **added** — the compiled enum going open is hard to reverse (it forces the filename grammar), surprising, and a real trade-off with two rejected alternatives (a kind manifest, and enumeration by reading the installed skill set); what it costs is a typo'd kind failing at `leaf-add` rather than at compile time | the leaf that opens `Kind` |
-
-**This spec is not one of the retirements.** Its `## Problem` and its
-*what changes* framing are transient, but what it describes — how the module
-boundaries work — is a spec's own grain, and four artifacts already link into
-this area. The leaf that lands the last decision rewrites it to current state
-rather than deleting it. The two records added above are the decisions that carry
-a trade-off of their own and would otherwise be recorded nowhere once that
-rewrite drops the argument.
-
 ## Test seams
 
-Four, replacing a suite that today has effectively one.
+Four.
 
 1. **Each crate's public interface**, exercised without the other three. This is
-   the primary seam and the done-when made mechanical; the pattern already exists
-   for the tree store.
-2. **One composed-loop seam** — the loop driving a fake harness binary end to
-   end. Today's driver, completion and lease suites, much shrunk.
-3. **Conformance kits as the cross-crate seam.** The store already ships one that
-   holds a consumer to the round-trip law; the runner ships the equivalent for a
-   template configuration. This is what keeps *reusable outside grove* true
-   without a second repository, and it is why extraction can stay deferred
-   without weakening the claim.
-4. **The methodology's delivery assertion, in the plugin.**
-   [`behavioural-coverage-asserts-delivery`](../adr/behavioural-coverage-asserts-delivery.md)'s
-   rule survives and its instrument moves. Two of the four things its walk covers
-   no longer exist in the binary, so the assertion cannot run in the Rust suite at
-   all. The plugin ships a dependency-free shell conformance runner — the shape
-   the skills context already uses to test its own installer — asserting that
-   every behavioural rule is present on the composed loaded path of every kind
-   that binds it, that no rule has two owners, and that every file a skill names
-   by path exists. It asserts nothing about how many kinds there are.
+   the primary seam and the done-when made mechanical: every crate carries its own
+   suites, and the three domain-free ones compile and run with none of the rest of
+   the workspace on their dependency list.
+2. **One composed-loop seam** — the loop driving a fake harness binary end to end.
+   The driver, completion and lease suites.
+3. **Conformance kits as the cross-crate seam.** The store ships one that holds a
+   consumer to the round-trip law; the runner ships the equivalent for a template
+   configuration. This is what keeps *reusable outside grove* true without a
+   second repository, and it is why extraction can stay deferred without weakening
+   the claim.
+4. **The methodology's delivery assertion, in the plugin.** A dependency-free
+   shell conformance runner over the files a harness installs asserts that every
+   behavioural rule is present on the composed loaded path of every kind that
+   binds it, that no rule has two owners, and that every file a skill names by
+   path exists. It asserts nothing about how many kinds there are, and it cannot
+   run in the Rust suite at all, because two of the four things its walk used to
+   cover do not exist in the binary
+   ([`behavioural-coverage-asserts-delivery`](../adr/behavioural-coverage-asserts-delivery.md)).
 
 ## Out of scope
 
-- **Migration.** Deleted rather than preserved: no legacy tree needs it. A legacy
-  tree now fails on its names, through a refusal that already carries what is on
-  disk and what it should be.
-- **The plain-git lane.** Dropped. Narrowing the safety principle to *where the
-  version control system can* would have kept the finish transaction alive on one
-  lane and left the VCS seam the largest of the five modules.
+- **Migration.** There is none: no legacy tree needs it, and a legacy tree fails
+  on its names, through a refusal that carries what is on disk and what it should
+  be.
+- **A plain-git lane.** There is none
+  ([`jj-is-the-only-lane`](../adr/jj-is-the-only-lane.md)). Narrowing the safety
+  principle to *where the version control system can* would have kept a finish
+  transaction alive on one lane and left the VCS seam the largest of the five
+  modules.
 - **Extracting the tree store to its own repository.** Deferred; its documents
-  stay where four artifacts already link to them. The manifest exclusion that
-  kept it out of the release cut is removed, because one release process answers
-  *is this crate published on its own* deliberately rather than by accident.
-- **Serving the methodology over MCP.** Rejected: it would not remove
-  provisioning but change what is provisioned, and it appears nowhere in this
-  repo today.
-- **A harness registry row for a further harness.** The question is answered by
-  deletion — there is no registry left to hold a row.
-- **Invoking a harness plugin.** A command template expresses this today; if more
-  is meant it is a new runner capability, belonging to the runner's contract and
-  not to any registry.
+  stay where four artifacts already link to them. What is **not** deferred is the
+  question that exclusion was standing in for: `ordinal-fs-tree` is not published
+  on its own. One workspace, one release version, one changelog, one tag — the
+  crate ships inside grove's cut and wears grove's version, and no library member
+  has a release lane of its own ([`RELEASING.md`](../RELEASING.md) carries the
+  answer and what a second lane would cost).
+- **Serving the methodology over MCP.** Rejected: it would not remove delivery
+  machinery, only change what is served, and it puts a running server between a
+  session and prose it can read off disk.
+- **A harness registry row for a further harness.** Answered by deletion — there
+  is no registry to hold a row. A row was only ever *a place to write files*, so a
+  further harness is answered by that harness's own skill-install route.
+- **Invoking a harness plugin.** A command template expresses this; if more is
+  meant it is a new runner capability, belonging to decision 7's contract and not
+  to any registry.

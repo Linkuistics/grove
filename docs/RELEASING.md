@@ -33,6 +33,35 @@ git -C "${GROVE_TAP_DIR:-$HOME/Development/homebrew-taps}" status --short --bran
 The doctor checks the pinned Rust toolchain, all release targets, Zig,
 `cargo-zigbuild`, and GitHub authentication. It installs nothing.
 
+## One release, six packages, one tag
+
+Every member of the workspace takes `version.workspace = true`, so a cut rewrites
+one field and moves all six versions together — one workspace, one release
+version, one changelog, one tag
+(`docs/specs/module-decomposition.md`, decision 1). Only `crates/grove` is
+*released*: it is the human's binary and the thing the tag names. The other five
+carry `[package.metadata.release] release = false`.
+
+**That line is the answer to a question, not a deferral of one.** `release =
+false` means no tag, no changelog section and no publish of its own — it does
+**not** mean a frozen version. The question it settles is whether an extracted
+crate, `ordinal-fs-tree` most of all, is ever published on its own: it is not.
+The library crates ship inside grove's cut, wearing grove's version, and none has
+a release lane of its own. A crate published separately would owe consumers a
+version they can pin and a changelog they can read; consumed in-tree, a second
+lane is ceremony.
+
+Removing the line from a member is therefore not a way of *opening* the question
+— it corrupts the cut. Measured against cargo-release 1.1.2 in a throwaway
+workspace fixture, dropping it from `crates/ordinal-fs-tree` makes the cut
+release two packages, run `pre-release-replacements` **twice** against the one
+repository-wide `CHANGELOG.md` — leaving two `## v<version>` headings, the first
+of them empty and the release's actual entries under the second — and attempt the
+same `v<version>` tag twice. The `exactly = 1` guard does not catch it, because
+each replacement sees a freshly re-seeded `## Unreleased`. Giving a library crate
+its own lane means giving it its own tag shape and its own changelog first, which
+is what *published on its own* would actually cost.
+
 ## 1. Prepare the release
 
 Record the shipped behavior under `## Unreleased` in
@@ -156,7 +185,7 @@ It is the `grove` plugin under `plugins/grove/`, versioned by this repository's
 commit SHA for Claude Code and by the checkout for `plugins/install.sh`, so it
 reaches users when this commit does rather than when an archive is built. A
 release that changes a `grove-llm` verb the methodology instructs therefore has
-to land both halves in the same commit — which `tests/instructed_verbs.rs`
+to land both halves in the same commit — which `crates/grove-llm/tests/instructed_verbs.rs`
 asserts — and users on an older plugin can still reach a verb skew. Say so in the
 changelog when a release moves the verb surface.
 

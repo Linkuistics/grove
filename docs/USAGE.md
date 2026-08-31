@@ -169,9 +169,11 @@ it autonomously.
 
 The runtime methodology is the **`grove` plugin**, whose spine is
 [`plugins/grove/skills/grove/SKILL.md`](../plugins/grove/skills/grove/SKILL.md)
-and whose nineteen `grove-<kind>` skills carry one session kind each. A launch
-prompt names the one skill this session's kind needs, and the session loads it
-through its harness's own skill-loading affordance.
+and which ships one `grove-<kind>` skill per session kind. A launch prompt names
+the one skill this session's kind needs, and the session loads it through its
+harness's own skill-loading affordance. **A kind exists iff a skill of that name
+exists** — adding one is authoring a skill and declaring a template for it, never
+editing or rebuilding a binary.
 
 **Grove does not install it, and does not check that it is there.** The binary
 used to carry the methodology as an embedded `content/` tree and sweep it into

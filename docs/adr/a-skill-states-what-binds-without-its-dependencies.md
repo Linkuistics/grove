@@ -61,7 +61,7 @@ corpus carried an OR-form paraphrase of the plugin's AND test for as long as
 nothing local contradicted it. A cited test is no test.
 
 The enumeration of citations and their per-row decisions is
-`tests/plugin_fallback.rs`'s own registry, which asserts both halves over the
+`crates/grove/tests/plugin_fallback.rs`'s own registry, which asserts both halves over the
 shipped skill set — that each citation states what binds, and that the
 enumeration is exhaustive, so a citation added later without a binding sentence
 fails before it reaches a session.

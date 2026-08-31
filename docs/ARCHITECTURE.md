@@ -9,7 +9,8 @@ launch one configured agent session, and continue until the tree is complete.
 Grove does not know what it launches. One personal file maps each session kind
 to one complete command template, and the driver executes the expanded argv
 directly. Everything below is what remains once launch policy leaves the binary:
-process ownership, a task-tree data model, and three fail-closed transactions.
+process ownership, a task-tree data model, and a loop that composes five
+modules. There are no transactions: the version control system owns them.
 
 ## Documentation ownership
 
@@ -97,8 +98,8 @@ human: grove
              ├─ revalidate the lease
              ├─ load and fully validate ~/.config/grove/config.kdl, then
              │    resolve any untracked .grove.kdl delta over it
-             ├─ reap orphaned finish quarantine, then recover or perform the one
-             │    lifecycle transition (root-init or nothing)
+             ├─ perform the one lifecycle transition, if any (root-init, or
+             │    nothing)
              ├─ one authoritative pick — or materialize the finish leaf
              ├─ reload configuration and expand the selected kind's template
              ├─ allocate a fresh signal channel and activate the session epoch
@@ -145,7 +146,7 @@ guard. This split keeps a discoverable human API without forcing the agent to
 reproduce filesystem mutations from prose.
 
 The surface is **flat**: a verb name is a whole invocable command, with no
-nesting. That is what lets `tests/instructed_verbs.rs` compare the verbs the
+nesting. That is what lets `crates/grove-llm/tests/instructed_verbs.rs` compare the verbs the
 shipped methodology instructs against the verbs the CLI exposes by name, and it
 is pinned there rather than merely observed.
 
@@ -243,13 +244,16 @@ teardown commit.
 A working tree has at most one live driver. Before configuration validation or
 any `.grove/` observation, bare `grove` acquires a
 **driver lease**: a nonblocking exclusive advisory lock on a fixed file in a
-control directory derived from the closest on-disk `.jj/` marker for that exact
-workspace — `<workspace>/.jj/grove/`, for native, secondary, and colocated
-Jujutsu alike. The resolver invokes no repository discovery and ignores `GIT_DIR`
-and its relatives, so controls live in the exact workspace's administration area
-rather than the tracked working copy or an ambient temporary directory. Symlink
-and relative-path aliases contend on one lease; separate workspaces stay
-independent.
+control directory grove does not derive. It asks the resolved workspace for one
+under the namespace `grove` and the VCS seam answers `<workspace>/.jj/grove/`,
+for native, secondary, and colocated Jujutsu alike — guaranteed inside that exact
+workspace, untracked, shared with no other namespace, and created if absent.
+Grove supplies the one word the seam cannot know, because *where a lease file may
+live* is not sayable without naming whose lease it is. The seam invokes no
+repository discovery and ignores `GIT_DIR` and its relatives, so controls live in
+the exact workspace's administration area rather than the tracked working copy or
+an ambient temporary directory. Symlink and relative-path aliases contend on one
+lease; separate workspaces stay independent.
 
 Acquisition creates that control directory. It used to prove one thing more —
 that the directory sits on the working tree's own filesystem — because teardown
@@ -402,7 +406,7 @@ used to sit beside it holding Grove's own guard, is itself withdrawn:
 `collapse-tree-access-k13` deleted the second lock layer once all three of its
 recorded reasons had dissolved.
 
-**The deletion is checked rather than asserted**, in `tests/removed_surface.rs`,
+**The deletion is checked rather than asserted**, in `crates/grove-llm/tests/removed_surface.rs`,
 by the method that file already used for the removed launch environment:
 enumerate every module-shaped token under every package's `src/` and `tests/`,
 and under `testing/` — prose included,
@@ -535,10 +539,8 @@ adopting the library's would be clause 3 broken in the opposite direction.
 
 #### Which verbs reach the algebra at all
 
-Nine of thirteen, plus the driver's own `materialize-finish`, and the refusals
-they reach need a tree at the edge of the keyspace or the ordinal space — or, for
-the one verb the migrate stage has yet to move, one a hand edit or a failed
-rollback has damaged.
+Nine of twelve, plus the driver's own `materialize-finish`, and the refusals
+they reach need a tree at the edge of the keyspace or the ordinal space.
 
 | verb | library operation | `Refusal`s it can reach |
 |---|---|---|
@@ -547,9 +549,9 @@ rollback has damaged.
 | `leaf-insert` | `insert` | `KeysExhausted`, `OrdinalsExhausted` — not `TargetNotNode`, because the target passed is the resolved entry's **container**, a node by construction; and not `DestinationOccupied`, per the row below |
 | `leaf-decompose` | `promote` | `KeysExhausted` alone, from the **first child** — a promotion allocates no key for the node, the entity being unchanged; and no ordinal at all, since the node takes the leaf's own and the child takes the first. `promotion-k34` corrected the `DestinationOccupied` this row predicted |
 | `leaf-retire`, `leaf-prune` | `rewrite` | **none**, and the row below says why the `DestinationOccupied` this table first predicted is unreachable |
-| `root-init` | `append` into a tree it has just created | **none** — the root is not an entry and the level is empty. `lifecycle-k35` transcribed this row and it was **right**, which is the first time that has happened |
+| `root-init` | `Vacancy::initialize` — the root, its charter and the first leaf as one operation under the lock that found the vacancy | **none** — the root is not an entry and the level is empty. `lifecycle-k35` transcribed this row against `append` and it was **right**; `root-lifecycle-belongs-to-the-store` moved the creation without moving the answer |
 | `materialize-finish` (the driver's, not an operator verb) | `append` at the root level | `KeysExhausted`, `OrdinalsExhausted` — the same two `leaf-add` reaches, and from no argument at all, because the verb takes none |
-| `finish-commit` | none of the algebra — it selects off the guard's snapshot, then deletes `.grove/` under Grove's own transaction | **none**. Since `lifecycle-k35` its guard is the library's, so a `FINISHING-*` or `PREPARING-FINISH-*` name halts it as `Error::Reserved` — a *parse* refusal in Grove's own words, not a `Refusal` |
+| `finish-commit` | `WriteGuard::delete` — it selects off the guard's snapshot, then consumes that guard to remove the root | **none**. `delete` refuses a root spelled through a link, which this verb has already refused unfollowed for its own reason (below), and reports the paths that went |
 | `complete` | none — it touches no tree | **none** |
 
 #### Which refusals Grove's verbs can reach
@@ -840,10 +842,10 @@ That guarantee covers the error return path and nothing else. **Process death
 mid-run is not recovered**: the interpreter unwinds only when control returns
 through the `Err` branch, so a `SIGKILL` after the first pair leaf lands leaves a
 partial shape a reader cannot distinguish from a deliberately hand-cut one.
-Finish teardown remains the only operation that promises process-interruption
-recovery, which is why it alone carries a witness.
-The residue is a hand-editable file in a directory tree, and recovering it is
-deleting it.
+**No operation promises process-interruption recovery**, teardown included: it
+is a delete and a commit, and what puts a half-finished one back is the operation
+log. The residue of a partial add is a hand-editable file in a directory tree,
+and recovering it is deleting it.
 
 #### One lock, and it is the library's
 
@@ -1072,17 +1074,26 @@ one: the store skips a name the domain disclaims and reports nothing about it, s
 naming them in a refusal means listing the directory — under the store's own
 lock, which is the whole difference from the arrangement this replaced.
 
-`finish-commit` is the fourth verb and the only one whose guard changed what it
-refuses. It now opens the tree through `task_tree::write`, so a `FINISHING-*` or
-`PREPARING-FINISH-*` name in the root halts it at the guard, in the domain's own
-`TaskNameError` words, rather than reaching `finish_transaction::preflight_root`'s
-*reserved finish transaction path*. That is one condition with one wording again
-([clause 3](#library-refusals)). The preflight check stays as defence against a
-writer that ignored the lock, and it re-reads the root through its own
-`O_NOFOLLOW` descriptor rather than by path — which is also why the verb still
-classifies `.grove` itself before opening the tree: a symbolic link to a directory
-elsewhere is a root the library would follow and read, and a no-follow teardown
-must refuse it unfollowed.
+`finish-commit` is the fourth verb, and what it stopped needing is the more
+interesting half. It used to run a preflight of its own — `preflight_root`, which
+re-read the root through an `O_NOFOLLOW` descriptor and refused a *reserved finish
+transaction path*, the in-tree `FINISHING-*` witness the transaction wrote and
+every other command refused while one existed. `delete-finish-transaction-k8`
+deleted the transaction, so nothing Grove writes can produce that name and there
+is no second condition for a second wording to disagree with: a stray
+`FINISHING-*` is a **foreign** entry every reader walks past, which is the same
+answer `delete-migration-k6` reached for a stray `.grove/FORMAT`, and
+`crates/grove-llm/tests/session_kind_tree.rs` asserts it rather than assuming it.
+
+What survives the preflight's deletion is the one check the guard cannot make.
+The verb classifies `.grove` itself, unfollowed, *before* opening the tree,
+because a symbolic link to a directory elsewhere is a root the library would
+follow and read, and a teardown may not delete a directory elsewhere as if it
+were its own. Past that gate the guard is the authority, and the removal is the
+store's: `WriteGuard::delete` consumes the guard — so the lock is held right up to
+the unlink and released with nothing left to guard — refuses a linked root on its
+own account, and reports the paths that went, which is what lets the session name
+them in the commit message it writes by hand.
 
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>
@@ -1103,16 +1114,16 @@ one of them, so a missing or malformed `config.kdl` — or an invalid or tracked
 
 A fresh grove creates a first *leaf*, not just a brief, because `pick` skips
 briefs: a brief-only tree would report "no live leaves" and be indistinguishable
-from a finished one. Creation is working-tree only; the first session's focused
-commit folds in the scaffold. A partial scaffold is recognized as an exact
-subset and completed before any missing-witness classification.
+from a finished one. The charter, the leaf and the root itself are one store
+operation under one lock, so there is no window between deciding a tree is absent
+and creating it, and no partial scaffold to recognise. Creation is working-tree
+only; the first session's focused commit folds in the scaffold.
 
-Task-root absence is the complete fresh-tree discriminator, and that inference
-is only sound because the finish transaction below never exposes it before its
-deletion commit is proven. Grove consults no VCS history, abandoned signal
-channel, or unlocked lease bytes to decide that a missing tree used to be a
-finished one: a teardown commit proves that Grove deleted an earlier tree but
-not whether the present invocation means "recover that" or "start another".
+Task-root absence is the complete fresh-tree discriminator. Grove consults no VCS
+history, abandoned signal channel, or unlocked lease bytes to decide that a
+missing tree used to be a finished one: a teardown commit proves that Grove
+deleted an earlier tree but not whether the present invocation means "recover
+that" or "start another".
 
 The loop launches one foreground session at a time and watches it: poll the
 child alongside the completion-signal file, and once the file appears apply
@@ -1203,7 +1214,9 @@ one exclusive tree lock held across the whole teardown:
    refused with the command that tracks it rather than deleted into a state
    nothing could undo. This is a precondition, not a surviving piece of the
    transaction: it promises nothing and repairs nothing.
-4. **Delete `.grove/`, then commit it.** `fs::remove_dir_all`, then
+4. **Delete `.grove/`, then commit it.** The removal is the store's —
+   `WriteGuard::delete`, which consumes the guard, follows no link and reports
+   the paths that went — and then
    `jj commit -m "<handle>: remove completed grove task tree" root:.grove`. The
    fileset scope is what keeps unrelated working-copy changes uncommitted — jj
    snapshots everything and commits only those paths.
@@ -1273,8 +1286,8 @@ The line carries identity and root only. Which commands a session uses stays in
 the methodology's Commit step, so there is one source of truth rather than two.
 
 The finish commit is fileset-scoped so unrelated user work survives: Grove
-commits a `.grove/` fileset excluding the live witness, leaving unrelated
-working-copy changes in the successor commit.
+commits a `.grove/` fileset and nothing else, leaving unrelated working-copy
+changes in the successor commit.
 
 The user owns topology. Grove reads no branch or bookmark, creates no working
 tree, and performs no integration or teardown. The working-tree basename is
@@ -1330,7 +1343,7 @@ question and to drive the skew between skill and CLI to zero by construction;
 that guarantee is now weaker, and it is stated rather than pretended away.
 
 **What still holds the two in step is one test rather than one artifact.**
-`tests/instructed_verbs.rs` asserts that the shipped methodology instructs no
+`crates/grove-llm/tests/instructed_verbs.rs` asserts that the shipped methodology instructs no
 `grove-llm` verb the CLI lacks — reading the skill set as markdown, file by file,
 so a verb invented in prose or dropped from the CLI fails without anyone
 remembering to add it. It is load-bearing precisely because the skill set is the
@@ -1436,7 +1449,7 @@ purpose — a kind exists iff a skill of that name exists.
 and reachable loaded path — the path composed out of `content/SKILL.md`,
 `reference_file(kind)` and that kind's signal file. `prompt-names-the-kind-k18`
 deleted the composition and `delete-provisioning-k19` deleted the corpus, so
-their subject is gone; `tests/prompt.rs`'s 4 KiB ceiling on each kind's
+their subject is gone; `crates/grove-loop/tests/prompt.rs`'s 4 KiB ceiling on each kind's
 `${prompt}` is the one that remains, because the prompt is still composed. The
 arguments the budgets were built on are worth keeping and are recorded below,
 because the next person to reach for a size measure over prose will need them.
@@ -1584,7 +1597,7 @@ methodology and the binaries now have separate lifetimes and separate install
 routes, and a user who upgrades one and not the other can reach either row above.
 
 **What replaces the guarantee is a test and a repository boundary.**
-`tests/instructed_verbs.rs` asserts that this checkout's skill set instructs no
+`crates/grove-llm/tests/instructed_verbs.rs` asserts that this checkout's skill set instructs no
 `grove-llm` verb this checkout's CLI lacks — the internally-consistent claim, made
 over the pair that ships together in one commit rather than over one linked
 artifact. No test can inspect a future build, so "the installed skill is current"
@@ -1671,10 +1684,17 @@ cargo fmt --all --check
 cargo test --locked --workspace
 cargo clippy --workspace --all-targets
 bash plugins/install.test.sh
+bash plugins/grove/conformance.sh
+bash plugins/grove/conformance.test.sh
 ```
 
-Integration tests drive the real bare `grove` process in temporary Git, native
-jj, and colocated jj worktrees, with isolated home directories, a real
+The last two are the methodology's own, and they are shell rather than Rust
+because the thing they assert about — the composed loaded path of an installed
+skill set — has no counterpart in the binary
+([`behavioural-coverage-asserts-delivery`](adr/behavioural-coverage-asserts-delivery.md)).
+
+Integration tests drive the real bare `grove` process in native jj and colocated
+jj worktrees, with isolated home directories, a real
 `config.kdl`, executable fake commands that record argv/cwd/environment/prompt,
 and the real `grove-llm` binary. Clocks, wait policy, lock backends, and kill
 graces are injected through internal module seams, never through supported

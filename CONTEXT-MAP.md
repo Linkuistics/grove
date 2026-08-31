@@ -6,8 +6,9 @@ happen to answer together, since each also ships by its own path and they change
 in lockstep, which is why they live together (see
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#skills-monorepo)). The third,
 `ordinal-fs-tree`, is declared on vocabulary alone: it has a glossary whose terms
-mean something else in grove's, and its crate ships by no path of its own —
-`release.toml` excludes it from grove's cut.
+mean something else in grove's, and its crate ships by no path of its own — it
+rides inside grove's cut, wearing grove's version, and is not published
+separately (`docs/RELEASING.md`, *One release, six packages, one tag*).
 
 ## Contexts
 
@@ -21,8 +22,8 @@ mean something else in grove's, and its crate ships by no path of its own —
   ordered-tree library extracted from grove's tree modules: entries, ordinals,
   keys, and the algebra over them. Its glossary sits beside
   [its architecture](./docs/ordinal-fs-tree/ARCHITECTURE.md). The crate lands at
-  `crates/ordinal-fs-tree/`, a member of a workspace whose root package stays
-  `grove`; the glossary, the architecture, the models and
+  `crates/ordinal-fs-tree/`, a member of a workspace whose root is no package at
+  all; the glossary, the architecture, the models and
   [the CLI document](./docs/ordinal-fs-tree/CLI.md) **stay** under
   `docs/ordinal-fs-tree/` while the crate lives in this repo, because
   `docs/adr/` is flat and repo-wide and four artifacts link into that path. They
@@ -59,25 +60,45 @@ for the second document, and
 what the child inherits, what the escalation reaps, and who owns the terminal
 while it runs.
 
-**`crates/grove-loop` and `crates/grove-llm` are two more crates and, unlike the
-three above, not even candidate contexts — they *are* the grove context.** The
-other extractions each had to argue their way out of declaring one, because each
-took a vocabulary with it; these took grove's own. `grove-loop` is where *kind*,
-*handle*, *brief chain*, *outcome*, *selection* and *finishing* live, and
-[`CONTEXT.md`](./CONTEXT.md) is already their glossary; `grove-llm` is the verb
-surface over it. A context is a language boundary, and moving a module across a
-crate boundary inside one language is not one.
+**`crates/grove-loop`, `crates/grove` and `crates/grove-llm` are three more
+crates and, unlike the two above, not even candidate contexts — they *are* the
+grove context.** The other extractions each had to argue their way out of
+declaring one, because each took a vocabulary with it; these took grove's own.
+`grove-loop` is where *kind*, *handle*, *brief chain*, *outcome*, *selection* and
+*finishing* live, and [`CONTEXT.md`](./CONTEXT.md) is already their glossary;
+`crates/grove` is the human's entry point onto the loop and `crates/grove-llm`
+the session's verb surface over it, and neither adds a word. A context is a
+language boundary, and moving a module across a crate boundary inside one
+language is not one.
 
 What the split does buy is the **collision table's** enforcement rather than its
-contents. Four crates now compile separately, so a word that meant two things
+contents. Six packages now compile separately, so a word that meant two things
 across them would have to be spelled twice to compile at all — and two of the
-four rows the table keeps apart, *entry* and *key*, are exactly the words
+rows the table keeps apart, *entry* and *key*, are exactly the words
 `ordinal-fs-tree` and `grove-loop` both use. Nothing in `grove-loop` re-declares
 either; it takes the store's `Key` and the store's `Entry` and adds grove's own
 `Kind`, `Handle` and `Outcome` beside them, which is the shape the table asks
 for. Its decisions are the grove context's, as ever:
 [decision 1](./docs/specs/module-decomposition.md) for the crate split and
 [decision 9](./docs/specs/module-decomposition.md) for the loop's own surface.
+
+**Where every term lives, one line per module.** Four crates carry vocabulary and
+the plugin carries a fifth, and no word is owned twice:
+
+| module | owns | glossary |
+|---|---|---|
+| `ordinal-fs-tree` | *entry*, *leaf*, *node*, *ordinal*, *key*, *distinguished child*, *snapshot*, *guard*, *refusal*, *sought*, *promote* | [`docs/ordinal-fs-tree/CONTEXT.md`](./docs/ordinal-fs-tree/CONTEXT.md) |
+| `keyed-launch` | *key*, *template*, *slot*, *argv*, *launch*, *channel*, *token*, *escalation*, *overlay* | none — its words are its own interface's, and none of them collides |
+| `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
+| `grove-loop`, with `grove` and `grove-llm` over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
+| the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
+
+The two middle rows are the ones that had to be *bought*: `keyed-launch` avoids
+**session** and `jj-workspace` refuses to name its consumer, and each is a naming
+decision argued above rather than an accident of scope. The store's *key* and the
+runner's *key* are the one word two domain-free crates share, and they never
+meet — the store's is an integer the tree allocates, the runner's is the string a
+consumer names, and no call site passes one where the other is expected.
 
 ## Relationships
 
@@ -97,7 +118,7 @@ for. Its decisions are the grove context's, as ever:
   checkout without the plugin runs an ordinary task end to end, and absence
   changes how *well* these artifacts are written, never *what* is obliged.
   Decision: `docs/adr/a-skill-states-what-binds-without-its-dependencies.md`;
-  enforcement: `tests/plugin_fallback.rs`.
+  enforcement: `crates/grove/tests/plugin_fallback.rs`.
 
 - **Shared target: the personal skill directory — and only one writer now.**
   `plugins/install.sh` symlinks every eligible bundled skill into
@@ -223,17 +244,21 @@ for. Its decisions are the grove context's, as ever:
   it specified is being dismantled, `docs/ARCHITECTURE.md` is where the
   current-state description belongs.
 
-  The third is the exception the rule below anticipates, and it carries its own
-  **retirement condition** rather than a claim to outlive its increment.
-  `module-decomposition` describes a target that does not exist yet: it is the
-  agreement point a whole chain of leaves builds against, across many sessions
-  and three bounded contexts, and while the design is unbuilt no other artifact
-  can hold it — `docs/ARCHITECTURE.md` describes what *is*, and an ADR records
-  one decision rather than how an area works. Once the crates exist and the
-  architecture describes them, the spec describes nothing new and is **deleted**,
-  which is what `plugins/grove/skills/grove/SPEC-FORMAT.md`'s current-state rule says to do with a
-  spec that no longer describes anything. Whoever lands the last of its
-  decisions deletes it and removes this paragraph with it.
+  The third earns its place on the grain rule rather than on novelty.
+  `module-decomposition` was written as the agreement point a whole chain of
+  leaves built against, across many sessions and three bounded contexts; it
+  carried a retirement condition — *delete it once the crates exist* — and
+  `spec-to-current-state-k23` reached that condition and did not exercise it.
+  What it describes is **how the module boundaries work**, which is a spec's own
+  grain and not `docs/ARCHITECTURE.md`'s: the architecture describes the runtime
+  a reader is operating, an ADR records one decision and its trade-off, and
+  neither states the five interfaces as a set a consumer builds against. Four
+  artifacts link into it, and its decisions are cited *by number* from source
+  comments, `Cargo.toml` headers and tests across all six packages, so the
+  numbering is part of the contract. It was rewritten to current state instead,
+  losing its `## Problem`, its *what changes* framing and its ADR-reconciliation
+  table — the transient halves — and keeping the decisions, the requirements and
+  the test seams.
 
   A spec that only ever described one shipped increment of Grove's own runtime is
   not a durable record; it is `docs/ARCHITECTURE.md`'s subject written twice.

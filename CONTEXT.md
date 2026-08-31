@@ -111,54 +111,54 @@ a default `finish` overrides, is recorded at `crates/grove-loop/src/prompt.rs`.
 _Avoid_: reading its 4 KiB assertion as a budget the design was fitted to — it is
 an alarm on the test, and nothing legitimate approaches it.
 
-**Kind reference file**:
-The one file of the provisioned skill's flat `references/` directory carrying a
-[[Session kind]]'s own discipline. Ten files serve nineteen kinds, because the
-set was **recovered from the narrowed marker scopes** of the retired
-classification rather than invented — the five `review-*` kinds already shared
-one, as did the five `integrate-review-*` and the two research producers. The
-[[Guaranteed core]] used to name that file by path, through an exhaustive match
-over the kind set in the driver; `prompt-names-the-kind-k18` deleted the match
-along with the rest of the driver's content dependency, so the map is now what
-the file names themselves say — a kind's family is read off its own label. The
-files were
-`content/references/{requirements,design,planning,prototype,impl,review,
-integrate-review,research,combine-research,finish}.md`, one level deep and flat;
-`plugin-kind-skills-k17` moved the seven single-kind ones inline into their
-[[Kind skill]]s and left the three family files in the spine's `references/`.
-_Avoid_: counting eleven. `skill-signal` is an eleventh narrowed scope and is not
-a family — it is the session ending, which the [[Guaranteed core]] carries, and
-the two signal files that carried it were deliberately **not** under
-`references/`, and are now driver prose plus one inline table in
-`grove-finish/SKILL.md`.
-_Avoid_: reading the pointer as the reasoning cost a [[Mandate slice]] was built
-to remove. The driver resolved the kind before the session existed, so the
-session performs no selection — it is handed a filename.
-_Avoid_: one file per kind label. Fifteen of nineteen would be near-duplicates of
-four, and duplicated prose is the drift risk one level down from the one being
+**Family reference file**:
+The one file in the spine's `references/` carrying the discipline a **family** of
+[[Session kind]]s shares — `review.md` for the five `review-*` kinds,
+`integrate-review.md` for the five `integrate-review-*`, and `research.md` for
+the two research halves. Each member's [[Kind skill]] directs a load of its
+family's file **by name**, in its opening imperative; a directed load is not a
+selection.
+Three files, not ten. The set was recovered from the narrowed marker scopes of
+the retired classification rather than invented, and
+`plugin-kind-skills-k17` moved the seven single-kind ones **inline** into their
+own [[Kind skill]]s, which is where a rule owned by one kind belongs
+(`docs/adr/corpus-rules-have-one-owner.md`, rule 2). What is left in the spine
+is exactly the case a kind skill cannot own: text that binds several kinds.
+_Avoid_: the older name **kind reference file**, and the mapping it named. The
+[[Guaranteed core]] used to name a per-kind file by path, through an exhaustive
+match over a closed kind set in the driver; `prompt-names-the-kind-k18` deleted
+the match, and `open-kind-k20` deleted the set. A kind's family is now read off
+its own label, by the skill that already carries the label.
+_Avoid_: counting a fourth family for the session ending. That is the
+[[Guaranteed core]]'s contract plus one inline table in `grove-finish/SKILL.md` —
+a rule one kind owns, not a family.
+_Avoid_: one file per kind label. Fifteen of twenty would be near-duplicates of
+five, and duplicated prose is the drift risk one level down from the one being
 removed.
 
 **Loop-step reference file**:
-The other species in the same flat `references/` directory: a file carrying the
-**universal** procedures that one step of the loop needs, which no [[Session
-kind]] selects and which the spine's `SKILL.md` conditions reach by naming it.
-The seam is the loop itself — `bootstrap`, `execute`, `decompose`, `retire`,
-`commit` — with `grove` (what a grove is, the spine, the durable artifacts) and
-`driver` (how a session was launched and picked) either side of it, and `finish`
-doubling as the `finish` kind's own [[Kind reference file]]. Every file here carries procedure only, which is what
-keeps `SKILL.md` a page of conditions rather than an abridged methodology.
-_Avoid_: reading it as a [[Kind reference file]]. The per-kind ten are chosen by
-the driver from the leaf's kind and are named in that kind's [[Guaranteed
-core]]; these are chosen by the *session*, when a condition it has just read
-sends it to one.
-_Avoid_: growing the set per rule. It is bounded at roughly eight beside the ten,
+The other species in the spine's `references/`: a file carrying the **universal**
+procedures that one step of the loop needs, which no [[Session kind]] selects and
+which the spine's `SKILL.md` conditions reach by naming it. The seam is the loop
+itself — `bootstrap`, `execute`, `decompose`, `retire`, `commit` — with `grove`
+(what a grove is, the durable artifacts, what binds without the `linkuistics`
+plugin) and `driver` (how a session was launched and picked) either side of it.
+Seven, beside the three [[Family reference file]]s. Every file here carries
+procedure only, which is what keeps `SKILL.md` a page of conditions rather than
+an abridged methodology.
+_Avoid_: reading it as a [[Family reference file]]. A family file is reached by
+a *kind*, through that kind's own skill; these are reached by the **session**,
+when a condition it has just read sends it to one.
+_Avoid_: expecting a `finish.md`. The `finish` kind's discipline is inline in
+`grove-finish/SKILL.md`, where a rule one kind owns belongs.
+_Avoid_: growing the set per rule. It is bounded at roughly ten in the directory,
 because a directory a session cannot hold in mind stops being disclosure and
 starts being a second corpus to search.
 
 **Condition** / **procedure** (the `if` / `then` split):
 The split the progressive-disclosure skill is cut along: the spine's `SKILL.md`
-states **conditions**, and each names the [[Kind reference file]] or
-[[Loop-step reference file]] its **procedure** lives in. Every rule in the
+states **conditions**, and each names the [[Loop-step reference file]] — or, for
+a family, the [[Family reference file]] — its **procedure** lives in. Every rule in the
 methodology is a conditional. Its **condition** — *that a situation exists
 calling for something other than what this session is doing* — is what a session
 has to be **holding**, because it cannot look up a rule it does not know applies.
@@ -241,19 +241,21 @@ notion of what a session reads drifts from the real one and then lies, which is
 the failure mode the measurement exists to avoid rather than reproduce.
 
 **Loaded path**:
-The bytes one session actually **reads** on its normal path for its kind — the
-provisioned `SKILL.md`, that kind's [[Kind reference file]], that kind's signal
-file, and whatever a condition it meets sends it to. It is the
-unit the corpus is measured and budgeted in, and it is per-kind: nineteen kinds
-share ten reference files, so nineteen paths run through one corpus.
+The bytes one session actually **reads** on its normal path for its kind — that
+kind's [[Kind skill]], the [[Spine skill]] it is told to load, the
+[[Family reference file]] its own skill names if it has one, and whatever a
+condition it meets sends it to. It is the unit the corpus is measured and
+budgeted in, and it is per-kind: every kind runs its own path through one skill
+set.
 **It has a static half and a conditional half**, and only the static half is
-computable: `SKILL.md`, that kind's reference file and that kind's signal file
-are fixed by the corpus's own naming rule, while everything else is on the path
-because a condition fired. That is also what files a rule, though **not by
-narrowness alone**: exactly three files are ever static — `SKILL.md`,
-`reference_file(kind)`, and the **signal file** (`SIGNAL.md` for eighteen kinds,
-`SIGNAL-FINISH.md` for `finish`) — so "the narrowest file every bound session already opens" would send every
-all-nineteen rule to `SKILL.md`. What decides is the pair `Bound` and `Occasion` under an ordered
+computable: a kind's own `grove-<kind>/SKILL.md` and the spine's `SKILL.md` are
+fixed — the first by the kind's label, the second by the imperative every kind
+skill opens with — while everything else is on the path because a condition
+fired, the [[Family reference file]] included, since a directed load is still a
+sentence a session has to read. That is also what files a rule, though **not by
+narrowness alone**: only those two files are ever static, so "the narrowest file
+every bound session already opens" would send every every-kind rule to the
+spine's `SKILL.md`. What decides is the pair `Bound` and `Occasion` under an ordered
 first-match rule (ADR *corpus-rules-have-one-owner*), where `Occasion` is a **set**
 of moments so a rule that crosses steps records all of them and the earliest wins.
 Reachability is an **edge**, not a loadable file: the triggering file must actually
@@ -336,7 +338,7 @@ commands run as descendants of the very session driving them, so they inherit
 that session's control environment and can act on it. Read it as a
 *test-environment* category, not a privilege level: a meta-grove gets no extra
 authority, it merely has descendants that can spend the authority the session
-already holds (`tests/env_hygiene.rs` exists for exactly this). Its second
+already holds (`crates/grove/tests/env_hygiene.rs` exists for exactly this). Its second
 distinguishing property is that it edits the very artifacts driving it, across
 an install boundary: a meta-grove session runs against the *installed* `grove`
 and reads the *installed* skills, so the `grove-llm` verbs and driver behaviour
@@ -658,9 +660,9 @@ stays tracked after a `.gitignore` line is added.
 How the self-driving loop launches the [[Leaf]] selected by one authoritative
 driver-side [[Pick]]. The driver reads the session kind from that leaf's
 filename, obtains its complete session target from [[Grove configuration]],
-composes that kind's [[Guaranteed core]] into `${prompt}` — including its
-[[Kind reference file]] by path — and embeds the selected stable handle there as
-the launched session's mandate, alongside the [[Stated VCS]]. The session first validates its [[Session epoch]], then resolves that
+composes the [[Guaranteed core]] into `${prompt}` — which names that kind's
+[[Kind skill]] and no file by path — and embeds the selected stable handle there
+as the launched session's mandate, alongside the [[Stated VCS]]. The session first validates its [[Session epoch]], then resolves that
 handle to its current path, rejects an unavailable or non-live result,
 Bootstraps the resolved leaf, and does not pick again. A session started outside bare
 `grove` has no mandate and is not a Grove loop session; Grove executes the
@@ -874,20 +876,24 @@ with the catalogue is the vocabulary that only ever described the checking
 apparatus itself.
 
 
-**Partial scaffold** (`PartialScaffold`):
+**Taskless root** (`Taskless`):
 A task root that exists and holds **nothing but its charter, if even that** — no
-entry the grammar owns. It is what [[root-init]] leaves behind when it is
-interrupted between its two phases, and bare `grove` completes it by appending
-the first `requirements` leaf. Nothing else produces the shape: entries are
-marked and never removed, so a tree that has ever held a leaf still holds one.
+entry the grammar owns. It is **refused**, naming what is missing, and nothing
+grove does produces it: [[root-init]] is one store operation that writes the
+root, its charter and the first leaf under one lock and takes the root back down
+if it fails, and entries are marked and never removed, so a tree that has ever
+held a leaf still holds one. What reaches here is a tree something emptied by
+hand.
+_Avoid_: the older name **partial scaffold**, and the repair that went with it.
+While root creation was two phases under two different locks, the window between
+them was a real shape and bare `grove` completed it by appending the first
+`requirements` leaf; `collapse-tree-access-k13` closed the window, and the last
+of roughly twenty-five auto-repair functions went with the anomaly it repaired.
 _Avoid_: defining it by a missing format witness. There is no witness — it went
 with migration — and every root is witnessless now, so absence discriminates
 nothing. The question is what the root **holds**.
-_Avoid_: calling it a transient — an interrupted scaffold is a **stable** state
-an ordinary invocation meets and acts on.
 _Avoid_: treating the charter as proof the root is Grove's. Its bytes derive from
-the working-tree name and every earlier format wrote the same ones, so completion
-appends beside it and never rewrites it
+the working-tree name and every earlier format wrote the same ones
 (`docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md`).
 
 **Unrecognised root** (`Unrecognised`):
@@ -901,15 +907,14 @@ as an empty grove and take the driver's `finish` sentinel.
 _Avoid_: expecting the refusal to name *which* withdrawn layout it met. That
 per-layout classifier was migration's and went with it; the operator needs the
 grammar and the offending names, not the layout's history.
-_Avoid_: confusing it with a [[Partial scaffold]]. A scaffold holds nothing;
-this holds something Grove cannot account for, and the two get opposite
-treatment.
+_Avoid_: confusing it with a [[Taskless root]]. A taskless root holds nothing;
+this holds something Grove cannot account for. Both are refused, and the refusals
+say different things.
 
 **Lifecycle transition**:
 In the lifecycle claims, a step that advances the grove's own lifecycle
-**stage**: `initialise-root` and the append that completes an interrupted
-scaffold, `allocate-finish-leaf`, `recover`, and the driver's own advance of the
-task tree between sessions. It is what `SY-04`'s two obligations are quantified
+**stage**: `initialise-root`, `allocate-finish-leaf`, and the driver's own
+advance of the task tree between sessions. It is what `SY-04`'s two obligations are quantified
 over.
 _Avoid_: reading it as the semantic contract's §*Actions* **Lifecycle group**
 (`acquire-lease`, `layout-preflight`, `validate-config`, `open-epoch`, `launch`,
@@ -922,9 +927,9 @@ byte-identical* — which a gate in front of `close-epoch` or `release-lease` bu
 nothing, because neither writes a tree.
 _Avoid_: reading a **refused** attempt as one. Nothing transitioned, and the
 iteration is still free to take its one.
-_Avoid_: counting a step of the finish **transaction** as one. Those belong to
-the finish leaf's own session; what an iteration does with a transaction is
-enter it and recover an interrupted one.
+_Avoid_: counting a step of the finish **teardown** as one. Those belong to the
+finish leaf's own session, which deletes the tree and takes one commit; the
+iteration's part is allocating the sentinel and reading the signal that follows.
 
 **Admitted action**:
 In the lifecycle claims, an action Grove itself may take — the Observation, Tree

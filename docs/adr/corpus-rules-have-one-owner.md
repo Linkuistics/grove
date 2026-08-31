@@ -184,13 +184,13 @@ placeable by writing a dishonest one. Nothing detects that, and nothing pretends
   judgement per rule, made again by every future session, with no way to check
   the answer. Reopen never — a hand-maintained owner list is what the inventory
   would degrade into if the function were dropped.
-- **Let the specs under `docs/` hold the normative statements and have
-  `content/` cite them.** Rejected because it deletes the rules rather than
-  rehoming them: `docs/` is not provisioned, so a session on any other repository
-  cannot open the citation. This is the failure mode the embedding constraint
+- **Let the specs under `docs/` hold the normative statements and have the skill
+  set cite them.** Rejected because it deletes the rules rather than rehoming
+  them: `docs/` is not installed anywhere, so a session on any other repository
+  cannot open the citation. This is the failure mode the delivery constraint
   exists to name, and the placement function makes it unreachable by
-  construction. Reopen only if `docs/` ever ships inside the embed, which would
-  make it a second `content/` and raise a different question.
+  construction. Reopen only if `docs/` ever ships inside the plugin, which would
+  make it a second register and raise a different question.
 - **Split the corpus by audience — one tree for sessions, one for
   contributors — and drop the four separations.** Rejected as the same decision
   under a coarser name: sessions and contributors are what a non-empty and an

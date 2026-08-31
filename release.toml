@@ -104,6 +104,12 @@ pre-release-commit-message = "chore: release v{{version}}"
 # versions together (`docs/specs/module-decomposition.md`, decision 1: one
 # workspace, one release version); what `release = false` buys those members is
 # no tag, no changelog section and no publish of their own, not a frozen version.
+#
+# That line is settled rather than provisional, and removing it from a member is
+# not a way of reopening the question — it makes the cut release two packages,
+# run `pre-release-replacements` twice against the one `CHANGELOG.md`, and
+# attempt one tag name twice. Measured on cargo-release 1.1.2 in a throwaway
+# fixture; `docs/RELEASING.md`, *One release, six packages, one tag*, carries it.
 consolidate-commits = false
 
 # Close `CHANGELOG.md`'s standing `## Unreleased` heading as part of the cut, and

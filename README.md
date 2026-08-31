@@ -31,8 +31,10 @@ methodology, so a session whose harness cannot load that skill has nothing to
 read.
 
 Grove needs one personal configuration file, `~/.config/grove/config.kdl`, giving
-each of its nineteen session kinds a complete command template. Grove will not
-start without it — see [Configuration](docs/CONFIGURATION.md).
+each session kind you use a complete command template. Grove holds no list of
+kinds and enforces no schema: it asks whether a kind is declared at the moment it
+needs one. It will not start without the file at all — see
+[Configuration](docs/CONFIGURATION.md).
 
 Grove's methodology uses two Linkuistics skills: `decision-records` for ADR
 discipline and `codebase-design` for testable module seams. Install the
@@ -70,8 +72,8 @@ installation behavior.
 
 - [Usage](docs/USAGE.md) — the bare `grove` lifecycle and the start-to-finish
   workflow.
-- [Configuration](docs/CONFIGURATION.md) — the personal KDL file, its nineteen
-  session kinds, command-template grammar, and diagnostics.
+- [Configuration](docs/CONFIGURATION.md) — the personal KDL file, the
+  command-template grammar, the configuration delta, and the diagnostics.
 - [Architecture](docs/ARCHITECTURE.md) — runtime flow, task-tree model, module
   seams, VCS behavior, and current design constraints.
 - [Releasing](docs/RELEASING.md) — cutting a version, publishing release

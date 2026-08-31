@@ -32,7 +32,7 @@ unfalsifiable by their own standard.
 
 So the line is drawn at citation, not at size or at subject matter: an artifact
 goes if nothing outside the campaign cites it, and stays if something does. That
-is checkable rather than a matter of taste, and `tests/reference_navigation.rs`
+is checkable rather than a matter of taste, and `crates/grove/tests/reference_navigation.rs`
 checks the half of it that is mechanical.
 
 ## The alternative, and why it was rejected

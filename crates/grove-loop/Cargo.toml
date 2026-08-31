@@ -45,9 +45,15 @@ workspace = true
 
 # `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures
 # that cut. `release = false` here means no tag, no changelog section and no
-# publish of its own. It does **not** mean a frozen version: since
-# `loop-crate-driver-k22` this crate takes `version.workspace = true`, so a cut
-# moves it with every other member — one workspace, one release version
-# (`docs/specs/module-decomposition.md`, decision 1).
+# publish of its own. It does **not** mean a frozen version: this crate takes
+# `version.workspace = true`, so a cut moves it with every other member — one
+# workspace, one release version (`docs/specs/module-decomposition.md`,
+# decision 1).
+#
+# **This crate is not published on its own, and that is settled**
+# (`docs/RELEASING.md`, *One release, six packages, one tag*): it ships inside
+# grove's cut, wearing grove's version, and no library member has a release lane
+# of its own. Removing this line does not reopen the question — it corrupts the
+# cut, which was measured rather than assumed.
 [package.metadata.release]
 release = false

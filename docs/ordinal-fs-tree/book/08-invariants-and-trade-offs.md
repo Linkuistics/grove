@@ -4,10 +4,11 @@
 
 `ordinal-fs-tree` stores an ordered tree directly in filesystem names. A
 consumer supplies the name grammar; the library supplies traversal, stable-key
-lookup, pure mutation decisions, and one filesystem interpreter. The design has
-no sidecar index, journal, or private metadata format. Its guarantees therefore
-depend on a small set of name laws, an advisory lock shared by cooperating
-processes, and explicit recovery boundaries.
+lookup, pure planned-mutation decisions, one plan interpreter, and a separate
+root-removal walk. The design has no sidecar index, journal, or private metadata
+format. Its guarantees therefore depend on a small set of name laws, an
+advisory lock shared by cooperating processes, and explicit recovery
+boundaries.
 
 This final chapter combines the properties that cross the preceding source
 layers. It owns no production fragments. The [source index](source-index.md)
@@ -24,10 +25,10 @@ lock descriptor alive for the same lifetime. The caller reads borrowed entry
 and level views from the snapshot; the filesystem is not consulted again
 through that guard.
 
-A mutation takes the corresponding exclusive lock and captures the same kind
-of snapshot. Every public mutation consumes its `WriteGuard`, so one snapshot
-can authorize one decision only. The operation then crosses four internal
-stages:
+A planned mutation takes the corresponding exclusive lock and captures the
+same kind of snapshot. Every live-tree mutation consumes its `WriteGuard`, so
+one snapshot can authorize one operation only. Append, append-many, insert,
+promote, and rewrite cross four internal stages:
 
 | Stage | Input and output | Property established at the stage |
 |---|---|---|
@@ -39,6 +40,15 @@ stages:
 The `Report` describes effects that actually landed. It is the public mutation
 result; `Plan` remains internal. This boundary prevents a consumer from applying
 a plan after the snapshot on which it was based has become stale.
+
+Root lifecycle operations use the same lock but have different boundaries. A
+`Vacancy` retains the exclusive lock that established the root's absence and
+initializes a root from a guarded plan. `WriteGuard::delete` consumes a live
+guard but bypasses the name-based algebra and interpreter: it removes the root,
+recognised entries, and foreign entries through a children-first filesystem
+walk, returns path-based `Removed`, and offers no rollback. The direct-root
+spelling check runs before deletion; once removal starts, `RemovalStopped`
+reports the failed step and every path already removed.
 
 The root is a level but not an entry, so operations that add children accept
 `Target::Root` or a stable key. Operations that transform an existing entry
@@ -72,7 +82,7 @@ termination or a writer that ignores the lock can expose them.
 | species agreement | a leaf name denotes a regular file, a node name denotes a directory, and a distinguished name denotes a regular file | `EntryName::parse` receives the observed filesystem species and must refuse contradictions |
 | subtree preservation under insert | shifting changes only affected siblings' ordinals; keys, parts, bytes, and descendants stay unchanged | the plan proves that no descendant effect exists; the filesystem guarantee that a directory rename carries its subtree is below the model boundary |
 | identity preservation under promotion | the promoted entry retains its ordinal and key while its bytes move into the distinguished child | the path and filesystem object change; stable identity is the key, not either of those |
-| plan atomicity for reported failures | after a mutation reports a forward error, either every effect landed or reverse unwind restored the captured tree | process termination is outside the guarantee; an unwind failure returns a separate partial-rollback error and leaves repair work |
+| planned-mutation atomicity for reported failures | after a planned mutation reports a forward error, reverse unwind restored the captured tree | process termination is outside the guarantee; an unwind failure returns a separate partial-rollback error and leaves repair work; deletion has no rollback |
 
 Highest-first sibling shifting connects ordinal distinctness to the interpreter.
 Each rename vacates the next destination before that destination is needed. An
@@ -108,10 +118,12 @@ The distinction determines both the state of the tree and the next action.
 
 | Outcome class | Representative causes | Tree state | Appropriate response |
 |---|---|---|---|
-| snapshot or lock error | no containing directory for the root, lock or read I/O failure, non-UTF-8 filename, malformed or reserved name, species contradiction, rendered name with more than one path component | no mutation plan has run | correct the path, permissions, filesystem entry, or consumer name implementation, then read again |
+| opening, snapshot, or preflight boundary error | no containing directory for the root, lock or read I/O failure, non-UTF-8 filename, malformed or reserved name, species contradiction, rendered name with more than one path component | no filesystem effect has run | correct the path, permissions, filesystem entry, or consumer name implementation, then open again |
 | algebra refusal | target key missing, target not a node, insert ordinal unoccupied, promotion target already a node, no distinguished name, promotion parts not a node, rewrite species change, content supplied for a node, exhausted key or ordinal, destination occupied | unchanged | change the request or repair the pre-existing tree condition named by the refusal |
 | clean apply failure | an effect returns I/O failure and every applied effect unwinds successfully | restored to the captured snapshot | inspect the reported filesystem cause; retry is safe with respect to this run after the cause is resolved |
 | partial rollback | a forward effect fails and a reverse effect also fails | neither the captured state nor the intended state | inspect and repair the paths named by both failures before another mutation |
+| deletion spelling error | the root is spelled through a symbolic link or descends into itself and returns through `..` | unchanged; the direct-root check precedes removal | name the root object directly before retrying |
+| stopped deletion | an unlink, directory listing, or final root removal fails after deletion starts | some paths may already be gone; `RemovalStopped` lists them and makes no rollback claim | inspect the failed step and removed paths; repair or repeat `delete` only after inspecting the remaining tree |
 | process termination | the process stops between effects or during unwind | an intermediate state may remain and no library result classifies it | inspect the tree before retrying any non-idempotent operation |
 | uncooperative concurrent write | another process ignores the advisory lock and changes a destination after the snapshot | the interpreter refuses the occupied destination or reports an I/O failure; rollback may then succeed or fail | coordinate writers, inspect the resulting error class, and repair before retry when rollback was partial |
 
@@ -189,12 +201,12 @@ Rust boundary.
 | names are the only persistent representation | a tree remains legible and editable with ordinary filesystem tools; there is no index to synchronize | every walk parses names, a malformed reached name has whole-tree blast radius, and hand edits can violate assumptions; a sidecar database was not added |
 | ordinal and key are separate | insertion can change order without invalidating durable references | filenames carry two coordinates and insertion renames later siblings; one position value cannot serve both purposes |
 | one `EntryName` seam owns vocabulary | the algebra stays domain-independent and works only with ordinal, key, parts, species, and verdicts | consumers must satisfy canonical grammar laws; adding label lookup or a generic parts parser would expose domain concepts to the library |
-| snapshot to decision to plan to interpreter | the algebra is pure, effect order is inspectable, and all mutations share one rollback implementation | every mutation reads a snapshot first and a plan remains internal; read-transform-diff would add a second algorithm whose ordering also needed proof |
+| snapshot to decision to plan to interpreter | the algebra is pure, effect order is inspectable, and all five planned live-tree mutations share one rollback implementation | each planned mutation reads a snapshot first and its plan remains internal; whole-tree deletion needs a separate path-based walk because it also removes foreign entries that have no parsed name |
 | whole-tree snapshot | key allocation and lookup observe the complete tree, and malformed reached names stop the operation consistently | one broken reached name freezes every mutation and large trees cost a complete traversal; narrowing the snapshot is possible only if those visible properties remain unchanged |
 | advisory lock on the containing directory | cooperating readers and writers share one protocol that also covers root creation and removal | the library cannot stop other processes from ignoring the lock, and the protocol supplies neither crash recovery nor a journal |
 | highest-first shifts | ordinal distinctness holds throughout an insert and corrupted duplicate-key trees avoid one collision class | the report order is constrained by safety rather than presentation; lowest-first is simpler to describe but produces unsafe intermediate states |
 | one-way promotion | a leaf can become a node without changing its key, and its bytes become explicit node content | the operation necessarily has a transient duplicate ordinal and key; demotion is absent because the library cannot decide what to do with children |
-| no removal operation | `max key + 1` remains a durable allocation rule without persistent history | retirement must be encoded in consumer-owned attributes and applied with rewrite; deletion would require a separate non-reissue mechanism |
+| no entry-removal operation | `max key + 1` remains a durable allocation rule without persistent history | retirement must be encoded in consumer-owned attributes and applied with rewrite; whole-tree deletion is a separate destructive lifecycle operation because no surviving tree remains to reissue a key |
 | no generic production CLI | the demonstration uses honest syllabus parts and verbs without widening the library seam | other consumers must build their own interface; accepting complete filenames or adding a second parts grammar would duplicate or distort the existing name contract |
 
 These choices keep the library's interface small and the on-disk representation
@@ -205,7 +217,7 @@ rollback requires human inspection.
 <a id="final-verification"></a>
 ## Final verification
 
-The source ledger contains fifteen roots and 6,976 owned source lines. Every
+The source ledger contains seventeen roots and 8,720 owned source lines. Every
 top-level ownership block is `resolved`, every early-use row is `explained`, and
 no `defer` directive remains. Recursive expansion of each source root is checked
 byte for byte against its production file; Markdown validation separately

@@ -4,7 +4,8 @@
 This book explains `ordinal-fs-tree` to readers who already know Rust, common
 crates, and operating-system filesystem APIs. It covers the library and its
 `syllabus` demonstration consumer: their vocabulary, public seam, read and
-mutation flows, filesystem boundary, concurrency, recovery limits, errors, and
+mutation flows, root initialization and whole-tree deletion, filesystem
+boundary, concurrency, recovery limits, errors, terminal stream contract, and
 trade-offs. It does not teach Rust or filesystem basics, reproduce standalone
 tests or formal models, or present the syllabus vocabulary as a library default.
 
@@ -12,7 +13,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and `source-index.md` records how those fragments
 reconstruct each in-scope file. During authoring, a scoped check
 proves the completed prefix and identifies later-owned ranges as deferred. Only
-the final check proves complete reconstruction of all fifteen files.
+the final check proves complete reconstruction of all seventeen files.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

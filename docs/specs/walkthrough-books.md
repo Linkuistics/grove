@@ -1319,9 +1319,13 @@ Assurance is machine-held wherever it can be.
   never been observed red against a book deliberately withheld is
   indistinguishable from a check that finds nothing.
 
-The three obligations above are `book-assurance-surface-k39`'s to implement; they
-are stated here because they are properties of the book system rather than of any
-one book.
+The first of those landed with `validator-fragments-k22`, which is where the
+corpus rule became per-book data and `scripts/check.sh` grew the discovery loop;
+its own proof was a deliberately broken second book root, seen to fail the
+script, and an empty book tree, seen to fail it too. The remaining two — the
+curated surface and the ownership table, both by discovery and both seen to fail
+first — are `book-assurance-surface-k39`'s to implement. All three are stated
+here because they are properties of the book system rather than of any one book.
 
 ## Test seams
 

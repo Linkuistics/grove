@@ -427,6 +427,7 @@ fn materialize(snapshot: &BookSnapshot, repository: &std::path::Path) {
     let manifest = repository.join(snapshot.manifest.manifest_path());
     std::fs::create_dir_all(manifest.parent().unwrap()).unwrap();
     std::fs::write(manifest, support::manifest_text()).unwrap();
+    support::materialize_corpus_exceptions(repository);
 }
 
 #[test]

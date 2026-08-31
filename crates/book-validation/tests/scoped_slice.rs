@@ -8,6 +8,7 @@ use book_validation::{validate, BookSnapshot, Check, Request};
 fn core_scope_accepts_only_the_typed_scoped_domain() {
     let report = validate(
         &BookSnapshot {
+            derived_corpus: support::derived_corpus(),
             manifest: support::manifest(),
             book_files: BTreeMap::new(),
             source_files: BTreeMap::new(),

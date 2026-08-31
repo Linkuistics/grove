@@ -6,6 +6,43 @@ use std::{collections::BTreeMap, fs, path::PathBuf};
 
 use book_validation::{BookSnapshot, Manifest, Scope};
 
+/// The fixture book's corpus exceptions, which are the relocated book's own.
+///
+/// The fixture cannot omit them. Its derived corpus is produced by walking the
+/// real `crates/ordinal-fs-tree/`, so a fixture that declared the bare rule
+/// would derive the four inline test modules and the test-support module and
+/// then report five `F006`s against itself — which is the corpus control
+/// working, on a manifest that lied.
+const CORPUS_ADD: &[(&str, &str)] = &[(
+    "crates/ordinal-fs-tree/bin/syllabus.rs",
+    "production-outside-src",
+)];
+
+const CORPUS_EXCLUDE: &[(&str, &str)] = &[
+    ("crates/ordinal-fs-tree/src/fixtures.rs", "test-support"),
+    (
+        "crates/ordinal-fs-tree/src/fs/apply/tests.rs",
+        "inline-test-module",
+    ),
+    (
+        "crates/ordinal-fs-tree/src/ops/tests.rs",
+        "inline-test-module",
+    ),
+    (
+        "crates/ordinal-fs-tree/src/plan/tests.rs",
+        "inline-test-module",
+    ),
+    (
+        "crates/ordinal-fs-tree/src/snapshot/tests.rs",
+        "inline-test-module",
+    ),
+];
+
+/// The repository root, from this crate's manifest directory.
+pub fn repository() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
 /// The fixture book's repository-relative directory.
 pub const BOOK_ROOT: &str = "docs/walkthroughs/ordinal-fs-tree";
 
@@ -403,6 +440,16 @@ pub fn manifest_text() -> String {
     let mut out = String::from(
         "schema = 1\n\n[book]\nid = \"ordinal-fs-tree\"\ntitle = \"Ordinal filesystem tree\"\nsubject = \"crates/ordinal-fs-tree\"\n\n[corpus]\ninclude = [\"crates/ordinal-fs-tree/Cargo.toml\", \"crates/ordinal-fs-tree/src/**/*.rs\"]\n\n",
     );
+    for (path, class) in CORPUS_ADD {
+        out.push_str(&format!(
+            "[[corpus.add]]\npath = \"{path}\"\nclass = \"{class}\"\nreason = \"fixture\"\n\n"
+        ));
+    }
+    for (path, class) in CORPUS_EXCLUDE {
+        out.push_str(&format!(
+            "[[corpus.exclude]]\npath = \"{path}\"\nclass = \"{class}\"\nreason = \"fixture\"\n\n"
+        ));
+    }
     out.push_str("[[page]]\nfile = \"README.md\"\nid = \"contents\"\ntitle = \"Ordinal filesystem tree\"\nrole = \"contents\"\n\n");
     for (slice, id, title, order) in PAGES {
         let (file, _, _, _) = page(slice);
@@ -440,8 +487,37 @@ pub fn manifest_text() -> String {
     out
 }
 
+/// Write the files this book's corpus exceptions name, so a temporary
+/// repository derives the same corpus the real one does.
+///
+/// A `[[corpus.exclude]]` naming a path that is not there is `U002`: a stale
+/// exception is a failure rather than a silent no-op, and a fixture repository
+/// that omitted the excluded files would be exercising that refusal instead of
+/// the book. The contents do not matter — the exclusion removes them before
+/// anything reads them — only that the rule reaches a real file to exclude.
+pub fn materialize_corpus_exceptions(repository: &std::path::Path) {
+    for (path, _) in CORPUS_EXCLUDE.iter().chain(CORPUS_ADD) {
+        let destination = repository.join(path);
+        fs::create_dir_all(destination.parent().expect("exception path has a parent")).unwrap();
+        if !destination.exists() {
+            fs::write(destination, b"").unwrap();
+        }
+    }
+}
+
 pub fn manifest() -> Manifest {
     Manifest::load(BOOK_ROOT, &manifest_text()).expect("fixture manifest is schema-valid")
+}
+
+/// The fixture book's corpus, derived from the real repository.
+///
+/// Derived rather than restated even in the small synthetic snapshots: a
+/// hand-written set would agree with the manifest by construction, and the
+/// whole point of the derived set is that it is the one input the book's author
+/// did not write.
+pub fn derived_corpus() -> std::collections::BTreeSet<String> {
+    book_validation::derive_corpus(&manifest(), &repository())
+        .expect("the fixture book's corpus rule evaluates against the real repository")
 }
 
 /// A `--through` scope over the fixture book.
@@ -454,7 +530,7 @@ pub fn through(slice: &str) -> Scope {
 }
 
 pub fn corpus(final_: bool) -> BookSnapshot {
-    let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let repository = repository();
     let mut source_files = BTreeMap::new();
     let mut source_index = String::from(
         "# Source index\n<!-- book-page id=\"source-index\" role=\"lookup\" -->\n\n## Source roots\n\n| Root ID | Source path | Lines |\n|---|---|---|\n",
@@ -574,8 +650,11 @@ pub fn corpus(final_: bool) -> BookSnapshot {
     let manifest = manifest();
     let mut book_entries: std::collections::BTreeSet<String> = book_files.keys().cloned().collect();
     book_entries.insert(manifest.manifest_path());
+    let derived_corpus = book_validation::derive_corpus(&manifest, &repository)
+        .expect("the fixture book's corpus rule evaluates against the real repository");
     BookSnapshot {
         manifest,
+        derived_corpus,
         book_files,
         source_files,
         book_entries,

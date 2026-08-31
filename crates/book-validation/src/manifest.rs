@@ -1,10 +1,20 @@
 //! The book manifest — `walkthrough.toml`, loaded as data.
 //!
-//! Everything this module exposes was a compiled-in constant naming one book
-//! until `validator-structure-k21`: the page inventory, the page-to-slice
-//! mapping, the canonical slice order and the accepted `--through` tokens. The
-//! validator now learns all of it from the book directory named by `--book`,
-//! which is what lets a second book be checked by the same binary.
+//! Everything this module exposes was a compiled-in constant naming one book:
+//! the page inventory, the page-to-slice mapping, the canonical slice order and
+//! the accepted `--through` tokens until `validator-structure-k21`, and the
+//! source roots, ownership blocks and mandatory early-use rows until
+//! `validator-fragments-k22`. The validator now learns all of it from the book
+//! directory named by `--book`, which is what lets a second book be checked by
+//! the same binary.
+//!
+//! **A manifest is the book's own account of itself, so the schema is where the
+//! parts of the corpus rule an author must not choose are held.** The two base
+//! `include` patterns are derived from `[book].subject` rather than declared,
+//! and the exception classes are a closed list with a checkable form. Those
+//! rules are not tidiness: `crate::corpus` compares the declared roots against
+//! the tree the *patterns* reach, so an author free to narrow the rule would be
+//! free to narrow its own witness with it.
 //!
 //! What is *not* book-specific stays here as spec vocabulary: the three page
 //! roles, `README.md` as the contents file, and `source-index` /
@@ -127,14 +137,210 @@ impl ScopedSlice {
     }
 }
 
+/// One declared source root: a file whose every byte the book reconstructs.
+///
+/// Named `SourceRoot` rather than `Root` because [`crate::parser::Root`] is the
+/// *directive* read off `source-index.md`. The two are the pair a check
+/// compares: the manifest declares, the page claims, and `F006` is what they
+/// disagree through.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceRoot {
+    id: String,
+    path: String,
+    lines: usize,
+}
+
+impl SourceRoot {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// The file's exact line count. This is the number the campaign's source
+    /// freeze exists to protect: an inline source fix shifts every line below
+    /// it and silently breaks a page a finished session already proved.
+    pub fn lines(&self) -> usize {
+        self.lines
+    }
+}
+
+/// One top-level ownership block: a contiguous line range of one root, owned by
+/// one chapter's slice.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OwnershipBlock {
+    id: String,
+    root: String,
+    owner: String,
+    first: usize,
+    last: usize,
+}
+
+impl OwnershipBlock {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn root(&self) -> &str {
+        &self.root
+    }
+
+    pub fn owner(&self) -> &str {
+        &self.owner
+    }
+
+    pub fn first(&self) -> usize {
+        self.first
+    }
+
+    pub fn last(&self) -> usize {
+        self.last
+    }
+}
+
+/// One mandatory early-use row: a symbol family a book may not use before it has
+/// said the minimum about it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EarlyUse {
+    symbols: String,
+    first_use: String,
+    owner: String,
+    statement: String,
+}
+
+impl EarlyUse {
+    pub fn symbols(&self) -> &str {
+        &self.symbols
+    }
+
+    pub fn first_use(&self) -> &str {
+        &self.first_use
+    }
+
+    pub fn owner(&self) -> &str {
+        &self.owner
+    }
+
+    pub fn statement(&self) -> &str {
+        &self.statement
+    }
+}
+
+/// One accepted `[corpus] include` pattern.
+///
+/// Two forms and no others, because a pattern a reader cannot evaluate by
+/// inspection is a corpus boundary nobody checks
+/// (`docs/specs/walkthrough-books.md`, *Rejected alternatives*).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Pattern {
+    /// An exact repository-relative file path.
+    Exact(String),
+    /// `<directory>/**/*.<extension>` — every file at any depth under
+    /// `directory` whose name ends `.extension`.
+    Recursive {
+        directory: String,
+        extension: String,
+    },
+}
+
+impl Pattern {
+    /// Whether `path` — a normalized repository-relative file path — matches.
+    pub fn matches(&self, path: &str) -> bool {
+        match self {
+            Self::Exact(exact) => exact == path,
+            Self::Recursive {
+                directory,
+                extension,
+            } => path
+                .strip_prefix(directory)
+                .and_then(|tail| tail.strip_prefix('/'))
+                .is_some_and(|tail| tail.ends_with(&format!(".{extension}"))),
+        }
+    }
+}
+
+/// The closed set of corpus exception classes.
+///
+/// Closed on purpose: a book needing another class is describing something the
+/// specification has not seen, which is an amendment there rather than a field
+/// the book fills in freely. `reason` stays free prose precisely because
+/// `class` carries the constraint.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Class {
+    InlineTestModule,
+    TestSupport,
+    ProductionOutsideSrc,
+}
+
+impl Class {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::InlineTestModule => "inline-test-module",
+            Self::TestSupport => "test-support",
+            Self::ProductionOutsideSrc => "production-outside-src",
+        }
+    }
+}
+
+/// One `[[corpus.add]]` or `[[corpus.exclude]]` entry.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Exception {
+    path: String,
+    class: Class,
+    reason: String,
+}
+
+impl Exception {
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    pub fn class(&self) -> Class {
+        self.class
+    }
+
+    pub fn reason(&self) -> &str {
+        &self.reason
+    }
+}
+
+/// The book's corpus rule: what the include patterns reach, minus every
+/// exclusion, plus every addition.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Corpus {
+    include: Vec<Pattern>,
+    add: Vec<Exception>,
+    exclude: Vec<Exception>,
+}
+
+impl Corpus {
+    pub fn include(&self) -> &[Pattern] {
+        &self.include
+    }
+
+    pub fn add(&self) -> &[Exception] {
+        &self.add
+    }
+
+    pub fn exclude(&self) -> &[Exception] {
+        &self.exclude
+    }
+}
+
 /// One book's structure, loaded from its `walkthrough.toml`.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Manifest {
     root: String,
     id: String,
+    corpus: Corpus,
     pages: Vec<Page>,
     scoped: Vec<String>,
     root_paths: Vec<String>,
+    roots: Vec<SourceRoot>,
+    blocks: Vec<OwnershipBlock>,
+    early_uses: Vec<EarlyUse>,
 }
 
 impl Manifest {
@@ -164,6 +370,40 @@ impl Manifest {
 
     pub fn book_id(&self) -> &str {
         &self.id
+    }
+
+    pub fn corpus(&self) -> &Corpus {
+        &self.corpus
+    }
+
+    /// The declared source roots, in the order they appear in
+    /// `source-index.md`. That order is diagnostic sort key 1, so it is data
+    /// the report's shape depends on and not merely a listing.
+    pub fn roots(&self) -> &[SourceRoot] {
+        &self.roots
+    }
+
+    /// The declared top-level ownership blocks, in manifest order. The blocks
+    /// of one root partition that root exactly, which the schema checks at
+    /// load, so a reader may rely on the partition without re-deriving it.
+    pub fn blocks(&self) -> &[OwnershipBlock] {
+        &self.blocks
+    }
+
+    /// The blocks of one root, in manifest order.
+    pub fn blocks_of<'a>(&'a self, root: &'a str) -> impl Iterator<Item = &'a OwnershipBlock> {
+        self.blocks.iter().filter(move |block| block.root == root)
+    }
+
+    /// Position of `root` in the declared root order, which is the first key
+    /// the diagnostic total order sorts on.
+    pub fn root_order(&self, root: &str) -> Option<usize> {
+        self.roots.iter().position(|candidate| candidate.id == root)
+    }
+
+    /// The rows a book may not omit from its early-use ledger.
+    pub fn early_uses(&self) -> &[EarlyUse] {
+        &self.early_uses
     }
 
     /// The repository-relative path of `file` inside the book directory.
@@ -291,14 +531,17 @@ fn flatten(error: &toml::de::Error) -> String {
 // and a declared chapter's slice. Those are the identities and references the
 // page-structure code and the derived scoped domain reason about.
 //
-// NOT checked, and belonging to `validator-fragments-k22` with `ROOTS`,
-// `BLOCKS` and `EARLY_USES`: the corpus rule itself — the base patterns
-// anchored to `[book].subject`, the two accepted pattern forms, the closed
-// exception classes, the `tests.rs` form of an `inline-test-module` exclusion,
-// the `N-M` range grammar, and the block partition. A manifest breaking one of
-// those loads clean today. That is a stated gap, not an oversight: those rules
-// are the corpus rule, and the leaf that implements them is the leaf that
-// starts reading the data they govern.
+// Also checked, since `validator-fragments-k22`: the corpus rule itself — the
+// two accepted pattern forms, the base patterns anchored to `[book].subject`,
+// the closed exception classes, the `tests.rs` form of an `inline-test-module`
+// exclusion, the `N-M` range grammar, and the block partition.
+//
+// The first two of those are what make derivation an *external* witness rather
+// than a self-declaration. Derivation compares the declared roots against the
+// tree the patterns reach, so an author who narrows the rule narrows the
+// witness with it; anchoring the floor to `[book].subject` takes that choice
+// away. The closed classes do the same for exceptions, which derivation
+// provably cannot judge at all.
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
@@ -362,9 +605,6 @@ struct RawPage {
 struct RawRoot {
     id: String,
     path: String,
-    // Read by `validator-fragments-k22`, which replaces `ROOTS` with these
-    // rows; this leaf validates only that the field is present and typed.
-    #[expect(dead_code, reason = "corpus data belongs to validator-fragments-k22")]
     lines: usize,
 }
 
@@ -374,9 +614,8 @@ struct RawBlock {
     id: String,
     root: String,
     owner: String,
-    // As `RawRoot::lines`: the partition this expresses is checked by
-    // `validator-fragments-k22`, which owns `BLOCKS`.
-    #[expect(dead_code, reason = "corpus data belongs to validator-fragments-k22")]
+    /// `N-M`, checked against the `N-M` grammar and the root's partition by
+    /// [`build_blocks`].
     lines: String,
 }
 
@@ -435,7 +674,7 @@ impl RawManifest {
             ));
         }
         check_guide(&self.guide)?;
-        check_corpus(&self.corpus)?;
+        let corpus = check_corpus(&self.corpus, &self.book.subject)?;
         check_early_uses(&self.early_use)?;
         check_glossary(&self.glossary)?;
         let pages = build_pages(self.page)?;
@@ -493,12 +732,35 @@ impl RawManifest {
             .filter(|slice| self.block.iter().any(|block| block.owner == **slice))
             .map(|slice| (*slice).to_owned())
             .collect();
+        let roots: Vec<SourceRoot> = self
+            .root
+            .iter()
+            .map(|root| SourceRoot {
+                id: root.id.clone(),
+                path: root.path.clone(),
+                lines: root.lines,
+            })
+            .collect();
+        let blocks = build_blocks(&self.block, &roots)?;
         Ok(Manifest {
             root: book_root.trim_end_matches('/').to_owned(),
             id: self.book.id,
+            corpus,
             pages,
             scoped,
-            root_paths: self.root.iter().map(|root| root.path.clone()).collect(),
+            root_paths: roots.iter().map(|root| root.path.clone()).collect(),
+            roots,
+            blocks,
+            early_uses: self
+                .early_use
+                .into_iter()
+                .map(|entry| EarlyUse {
+                    symbols: entry.symbols,
+                    first_use: entry.first_use,
+                    owner: entry.owner,
+                    statement: entry.statement,
+                })
+                .collect(),
         })
     }
 }
@@ -662,20 +924,203 @@ fn check_glossary(entries: &[RawGlossary]) -> Result<(), ManifestError> {
     Ok(())
 }
 
-fn check_corpus(corpus: &RawCorpus) -> Result<(), ManifestError> {
+/// The two base patterns every book's `include` must contain, anchored to
+/// `[book].subject`.
+///
+/// **The rule's floor is not the author's to choose.** Without this a manifest
+/// could `include` one file, declare that one root, and satisfy every other
+/// check in the specification while proving nothing — derivation compares the
+/// declared roots against the tree the *patterns* reach, so a narrowed rule
+/// narrows its own witness. See `docs/specs/walkthrough-books.md`, *Groups*.
+fn base_patterns(subject: &str) -> [String; 2] {
+    [
+        format!("{subject}/Cargo.toml"),
+        format!("{subject}/src/**/*.rs"),
+    ]
+}
+
+fn check_corpus(corpus: &RawCorpus, subject: &str) -> Result<Corpus, ManifestError> {
     if corpus.include.is_empty() {
         return Err(ManifestError::new(
             "`[corpus] include` is a non-empty array of patterns",
         ));
     }
-    for exception in corpus.add.iter().chain(&corpus.exclude) {
+    for base in base_patterns(subject) {
+        if !corpus.include.contains(&base) {
+            return Err(ManifestError::new(format!(
+                "`[corpus] include` must contain the base pattern `{base}` derived from `[book] subject` `{subject}`"
+            )));
+        }
+    }
+    let mut include = Vec::with_capacity(corpus.include.len());
+    for pattern in &corpus.include {
+        include.push(parse_pattern(pattern)?);
+    }
+    let add = collect_exceptions(
+        &corpus.add,
+        "[[corpus.add]]",
+        &[Class::ProductionOutsideSrc],
+    )?;
+    let exclude = collect_exceptions(
+        &corpus.exclude,
+        "[[corpus.exclude]]",
+        &[Class::InlineTestModule, Class::TestSupport],
+    )?;
+    Ok(Corpus {
+        include,
+        add,
+        exclude,
+    })
+}
+
+/// The two accepted `include` forms, and nothing else.
+///
+/// A richer glob language is deliberately refused: two forms cover every book
+/// in this repository, they are implementable without a dependency, and a
+/// pattern a reader cannot evaluate by inspection is a corpus boundary nobody
+/// checks.
+fn parse_pattern(pattern: &str) -> Result<Pattern, ManifestError> {
+    let malformed = || {
+        ManifestError::new(format!(
+            "`[corpus] include` pattern `{pattern}` is neither an exact repository-relative file path nor `<dir>/**/*.<ext>`"
+        ))
+    };
+    if let Some((directory, extension)) = pattern.split_once("/**/*.") {
+        if directory.is_empty()
+            || extension.is_empty()
+            || directory.contains('*')
+            || extension.contains('*')
+            || extension.contains('/')
+            || extension.contains('.')
+        {
+            return Err(malformed());
+        }
+        return Ok(Pattern::Recursive {
+            directory: directory.to_owned(),
+            extension: extension.to_owned(),
+        });
+    }
+    if pattern.is_empty()
+        || pattern.contains('*')
+        || pattern.contains('?')
+        || pattern.starts_with('/')
+        || pattern
+            .split('/')
+            .any(|component| component.is_empty() || component == "." || component == "..")
+    {
+        return Err(malformed());
+    }
+    Ok(Pattern::Exact(pattern.to_owned()))
+}
+
+fn collect_exceptions(
+    raw: &[RawException],
+    group: &str,
+    accepted: &[Class],
+) -> Result<Vec<Exception>, ManifestError> {
+    let mut exceptions = Vec::with_capacity(raw.len());
+    for exception in raw {
         if exception.path.is_empty() || exception.class.is_empty() || exception.reason.is_empty() {
             return Err(ManifestError::new(
                 "every corpus exception carries a non-empty `path`, `class` and `reason`",
             ));
         }
+        let Some(class) = accepted
+            .iter()
+            .copied()
+            .find(|candidate| candidate.as_str() == exception.class)
+        else {
+            let accepted = accepted
+                .iter()
+                .map(|class| format!("`{}`", class.as_str()))
+                .collect::<Vec<_>>()
+                .join(" or ");
+            return Err(ManifestError::new(format!(
+                "`{group} class` `{}` is not accepted; `{group} class` is {accepted}",
+                exception.class
+            )));
+        };
+        // Where a class has a mechanically checkable form, the class claim is
+        // checked rather than believed. `reason` stays free prose because it
+        // carries the argument; `class` carries the constraint.
+        if class == Class::InlineTestModule
+            && exception
+                .path
+                .rsplit('/')
+                .next()
+                .is_none_or(|file| file != "tests.rs")
+        {
+            return Err(ManifestError::new(format!(
+                "`{group}` `{}` is classed `inline-test-module`, whose path's file name must be `tests.rs`",
+                exception.path
+            )));
+        }
+        exceptions.push(Exception {
+            path: exception.path.clone(),
+            class,
+            reason: exception.reason.clone(),
+        });
     }
-    Ok(())
+    Ok(exceptions)
+}
+
+/// Parse every `[[block]] lines` and require the blocks of one root to
+/// partition that root exactly: ordered, adjacent, non-overlapping, and
+/// covering `1` to the root's declared line count.
+///
+/// The partition is checked here, once, so every reader downstream may treat
+/// the blocks of a root as a partition rather than re-deriving it — and so a
+/// manifest that cannot describe a whole file is refused at load rather than
+/// reported as a fragment finding somewhere in the book.
+fn build_blocks(
+    raw: &[RawBlock],
+    roots: &[SourceRoot],
+) -> Result<Vec<OwnershipBlock>, ManifestError> {
+    let mut blocks = Vec::with_capacity(raw.len());
+    for block in raw {
+        let Some((first, last)) = block
+            .lines
+            .split_once('-')
+            .and_then(|(first, last)| Some((first.parse::<usize>().ok()?, last.parse().ok()?)))
+            .filter(|(first, last)| *first >= 1 && first <= last)
+        else {
+            return Err(ManifestError::new(format!(
+                "`[[block]]` `{}` declares `lines = \"{}\"`, which is not `N-M` with `1 <= N <= M`",
+                block.id, block.lines
+            )));
+        };
+        blocks.push(OwnershipBlock {
+            id: block.id.clone(),
+            root: block.root.clone(),
+            owner: block.owner.clone(),
+            first,
+            last,
+        });
+    }
+    for root in roots {
+        let mut next = 1;
+        for block in blocks.iter().filter(|block| block.root == root.id) {
+            if block.first != next {
+                return Err(ManifestError::new(format!(
+                    "`[[block]]` `{}` starts at line {} but root `{}` is covered through line {}; the blocks of one root partition it in array order",
+                    block.id,
+                    block.first,
+                    root.id,
+                    next - 1
+                )));
+            }
+            next = block.last + 1;
+        }
+        if next != root.lines + 1 {
+            return Err(ManifestError::new(format!(
+                "root `{}` declares {} lines; its `[[block]]` entries cover {}",
+                root.id,
+                root.lines,
+                next - 1
+            )));
+        }
+    }
+    Ok(blocks)
 }
 
 fn check_early_uses(entries: &[RawEarlyUse]) -> Result<(), ManifestError> {

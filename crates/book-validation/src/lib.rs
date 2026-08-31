@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod corpus;
 mod ledger;
 pub mod manifest;
 mod markdown;
@@ -9,7 +10,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-pub use manifest::{Manifest, ManifestError, Page, Role, ScopedSlice};
+pub use corpus::{derive as derive_corpus, CorpusError};
+pub use manifest::{
+    Class, Corpus, EarlyUse, Exception, Manifest, ManifestError, OwnershipBlock, Page, Pattern,
+    Role, ScopedSlice, SourceRoot,
+};
 pub use markdown::{scan_markdown_links, MarkdownLink};
 pub use validator::validate;
 
@@ -19,6 +24,12 @@ pub struct BookSnapshot {
     /// performs no discovery of its own: everything it knows about which pages
     /// exist, what they are called and which slice owns which, it reads here.
     pub manifest: Manifest,
+    /// The repository-relative paths the book's corpus rule reaches, derived
+    /// from the real directory by [`corpus::derive`]. The core requires this to
+    /// equal the set of declared `[[root]]` paths and reports `F006` in either
+    /// direction; it is the one thing in the snapshot that is *not* the book's
+    /// own account of itself.
+    pub derived_corpus: BTreeSet<String>,
     pub book_files: BTreeMap<String, Vec<u8>>,
     pub source_files: BTreeMap<String, Vec<u8>>,
     pub book_entries: BTreeSet<String>,

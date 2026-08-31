@@ -56,6 +56,15 @@ the externality that derivation cannot:
   restated in `docs/specs/walkthrough-books.md` and compared against every
   manifest by a repository test.
 
+**The floor's own anchor is the next question, and stating it here is part of
+being honest about the control.** `include` is pinned to `[book].subject`, and
+nothing yet pins `subject`. A manifest that points it at a subdirectory of its
+own crate narrows the base patterns with it, can then drop every root outside
+that subdirectory and every page that reconstructed them, and validates green
+while covering a fraction of what it claims. The remedy is the mechanism already
+here — declare it twice — applied to one more field; until it is, the externality
+above holds against a careless author and not against a determined one.
+
 What scales with the corpus — every root, every block — is derived and per-book;
 only the handful of exceptions, which are exactly what derivation cannot check,
 are written down twice. That is not the one-book design repeated: six rows in one

@@ -59,6 +59,43 @@ run_check() {
   fi
 }
 
+# **Every book root under `docs/walkthroughs/`, by discovery.** A sixth book is
+# gated by existing — there is no list here to forget to add it to, which is the
+# whole point: a script naming one book is a script that silently stops covering
+# the campaign the moment it grows.
+#
+# Final validation, not a scoped prefix. A `--through` run proves a canonical
+# prefix and deliberately leaves later blocks deferred; only `--final` asserts
+# that every byte of the book's declared corpus is reconstructed, which is the
+# claim `docs/walkthroughs/` exists to make.
+book_check() {
+  local books=0 broken=0 book
+  # Directories, not manifests. Globbing `*/walkthrough.toml` would let a book
+  # whose manifest was deleted leave the gate without a word — the one failure
+  # a discovery loop exists to make impossible. A directory under
+  # `docs/walkthroughs/` is a book root, and a book root with no manifest is a
+  # failure `book-check` itself reports as `U002`.
+  for book in docs/walkthroughs/*/; do
+    # The literal glob comes back when the directory is empty. Nothing to check
+    # is not the same as everything checked, so it is reported as a failure —
+    # a silent pass here would read exactly like a green campaign.
+    [[ -d "$book" ]] || continue
+    book="${book%/}"
+    books=$((books + 1))
+    echo "  book-check $book"
+    if ! cargo run --quiet -p book-validation --bin book-check -- \
+      --repo . --book "$book" --final --check all; then
+      broken=$((broken + 1))
+    fi
+  done
+  if ((books == 0)); then
+    echo "  no book roots found under docs/walkthroughs/" >&2
+    return 1
+  fi
+  echo "  $books book(s) checked, $broken failing"
+  ((broken == 0))
+}
+
 echo "check: cargo    $(command -v cargo || echo '(not found)')"
 echo "check: rustfmt  $(command -v rustfmt || echo '(not found)') — $(rustfmt --version 2>/dev/null || echo unknown)"
 
@@ -72,11 +109,12 @@ run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
 run_check "cargo test" cargo test --locked --workspace
+run_check "book-check" book_check
 
 echo
 if ((${#failed[@]} > 0)); then
-  echo "check: FAILED — ${#failed[@]} of 7"
+  echo "check: FAILED — ${#failed[@]} of 8"
   printf 'check:   ✗ %s\n' "${failed[@]}"
   exit 1
 fi
-echo "check: all 7 principal checks pass"
+echo "check: all 8 principal checks pass"

@@ -69,6 +69,7 @@ fn valid_book() -> BookSnapshot {
     let mut book_entries: std::collections::BTreeSet<String> = book_files.keys().cloned().collect();
     book_entries.insert(manifest.manifest_path());
     BookSnapshot {
+        derived_corpus: support::derived_corpus(),
         manifest,
         book_files,
         source_files: BTreeMap::new(),

@@ -7,6 +7,7 @@ use book_validation::{validate, BookSnapshot, Check, Request};
 fn codes(bytes: &[u8]) -> Vec<String> {
     validate(
         &BookSnapshot {
+            derived_corpus: support::derived_corpus(),
             manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
@@ -102,6 +103,7 @@ fn a_misclosed_literal_recovers_to_a_later_root() {
     );
     let report = validate(
         &BookSnapshot {
+            derived_corpus: support::derived_corpus(),
             manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
@@ -134,6 +136,7 @@ fn an_unclosed_literal_recovers_to_a_later_root() {
     );
     let report = validate(
         &BookSnapshot {
+            derived_corpus: support::derived_corpus(),
             manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
@@ -191,6 +194,7 @@ fn invalid_utf8_reports_its_first_byte_and_recovers_after_the_line() {
         b"<!-- insert \xc2\xabfirst\xc2\xbb -->\n\xff\n<!-- insert \xc2\xabsecond\xc2\xbb -->\n";
     let report = validate(
         &BookSnapshot {
+            derived_corpus: support::derived_corpus(),
             manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),

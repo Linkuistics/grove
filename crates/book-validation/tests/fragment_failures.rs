@@ -6,6 +6,7 @@ use book_validation::{validate, BookSnapshot, Check, Request};
 
 fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
     BookSnapshot {
+        derived_corpus: support::derived_corpus(),
         manifest: support::manifest(),
         book_files: BTreeMap::from([(
             "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),

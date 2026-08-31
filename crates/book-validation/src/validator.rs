@@ -1,328 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::manifest::Manifest;
+use crate::manifest::{Manifest, OwnershipBlock};
 use crate::parser::{self, Child, Fragment, FragmentBody, LineRange, ParsedBook, Root};
 use crate::{
     BookSnapshot, Coverage, Diagnostic, RelatedLocation, ReportStatus, Request, Scope,
     SourceLocation, ValidationReport,
 };
-
-pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
-    (
-        "source-crate-manifest",
-        "crates/ordinal-fs-tree/Cargo.toml",
-        112,
-    ),
-    (
-        "source-syllabus-cli",
-        "crates/ordinal-fs-tree/bin/syllabus.rs",
-        1_738,
-    ),
-    ("source-library", "crates/ordinal-fs-tree/src/lib.rs", 103),
-    (
-        "source-conformance",
-        "crates/ordinal-fs-tree/src/conformance.rs",
-        667,
-    ),
-    ("source-error", "crates/ordinal-fs-tree/src/error.rs", 510),
-    ("source-name", "crates/ordinal-fs-tree/src/name.rs", 717),
-    (
-        "source-operations",
-        "crates/ordinal-fs-tree/src/ops.rs",
-        634,
-    ),
-    ("source-plan", "crates/ordinal-fs-tree/src/plan.rs", 597),
-    (
-        "source-reference",
-        "crates/ordinal-fs-tree/src/reference.rs",
-        559,
-    ),
-    ("source-report", "crates/ordinal-fs-tree/src/report.rs", 186),
-    (
-        "source-snapshot",
-        "crates/ordinal-fs-tree/src/snapshot.rs",
-        677,
-    ),
-    ("source-sought", "crates/ordinal-fs-tree/src/sought.rs", 132),
-    (
-        "source-filesystem-module",
-        "crates/ordinal-fs-tree/src/fs/mod.rs",
-        827,
-    ),
-    (
-        "source-filesystem-read",
-        "crates/ordinal-fs-tree/src/fs/read.rs",
-        407,
-    ),
-    (
-        "source-filesystem-apply",
-        "crates/ordinal-fs-tree/src/fs/apply.rs",
-        488,
-    ),
-    (
-        "source-filesystem-remove",
-        "crates/ordinal-fs-tree/src/fs/remove.rs",
-        275,
-    ),
-    (
-        "source-filesystem-lock",
-        "crates/ordinal-fs-tree/src/fs/lock.rs",
-        91,
-    ),
-];
-
-#[derive(Clone, Copy)]
-pub(crate) struct Block {
-    pub(crate) id: &'static str,
-    pub(crate) root: &'static str,
-    pub(crate) owner: &'static str,
-    pub(crate) first: usize,
-    pub(crate) last: usize,
-}
-
-pub(crate) const BLOCKS: &[Block] = &[
-    block(
-        "manifest-package-and-library-dependency",
-        "source-crate-manifest",
-        "orientation-k11",
-        1,
-        42,
-    ),
-    block(
-        "manifest-cli-feature",
-        "source-crate-manifest",
-        "syllabus-cli-k17",
-        43,
-        45,
-    ),
-    block(
-        "manifest-library-cli-boundary",
-        "source-crate-manifest",
-        "orientation-k11",
-        46,
-        61,
-    ),
-    block(
-        "manifest-cli-binary",
-        "source-crate-manifest",
-        "syllabus-cli-k17",
-        62,
-        65,
-    ),
-    block(
-        "manifest-development-and-release",
-        "source-crate-manifest",
-        "orientation-k11",
-        66,
-        112,
-    ),
-    block(
-        "syllabus-cli-source",
-        "source-syllabus-cli",
-        "syllabus-cli-k17",
-        1,
-        1_738,
-    ),
-    block(
-        "library-crate-surface",
-        "source-library",
-        "orientation-k11",
-        1,
-        103,
-    ),
-    block(
-        "reference-conformance-source",
-        "source-conformance",
-        "reference-domain-k13",
-        1,
-        667,
-    ),
-    block(
-        "filesystem-error-source",
-        "source-error",
-        "filesystem-interpreter-k16",
-        1,
-        510,
-    ),
-    block("name-seam-source", "source-name", "name-seam-k12", 1, 717),
-    block(
-        "mutation-operations-source",
-        "source-operations",
-        "mutation-algebra-k15",
-        1,
-        634,
-    ),
-    block(
-        "mutation-plan-source",
-        "source-plan",
-        "mutation-algebra-k15",
-        1,
-        597,
-    ),
-    block(
-        "reference-domain-source",
-        "source-reference",
-        "reference-domain-k13",
-        1,
-        559,
-    ),
-    block(
-        "mutation-report-source",
-        "source-report",
-        "mutation-algebra-k15",
-        1,
-        186,
-    ),
-    block(
-        "read-snapshot-source",
-        "source-snapshot",
-        "read-path-k14",
-        1,
-        677,
-    ),
-    block(
-        "sought-object-answer",
-        "source-sought",
-        "name-seam-k12",
-        1,
-        132,
-    ),
-    block(
-        "filesystem-read-opening",
-        "source-filesystem-module",
-        "read-path-k14",
-        1,
-        128,
-    ),
-    block(
-        "filesystem-write-acquire",
-        "source-filesystem-module",
-        "filesystem-interpreter-k16",
-        129,
-        155,
-    ),
-    block(
-        "filesystem-read-acquire-and-guard",
-        "source-filesystem-module",
-        "read-path-k14",
-        156,
-        202,
-    ),
-    block(
-        "filesystem-writing-shape",
-        "source-filesystem-module",
-        "filesystem-interpreter-k16",
-        203,
-        215,
-    ),
-    block(
-        "filesystem-reading-api",
-        "source-filesystem-module",
-        "read-path-k14",
-        216,
-        248,
-    ),
-    block(
-        "filesystem-writing-api",
-        "source-filesystem-module",
-        "filesystem-interpreter-k16",
-        249,
-        290,
-    ),
-    block(
-        "filesystem-read-guard",
-        "source-filesystem-module",
-        "read-path-k14",
-        291,
-        304,
-    ),
-    block(
-        "filesystem-write-guard",
-        "source-filesystem-module",
-        "filesystem-interpreter-k16",
-        305,
-        388,
-    ),
-    block(
-        "filesystem-vacancy-api",
-        "source-filesystem-module",
-        "filesystem-interpreter-k16",
-        389,
-        520,
-    ),
-    block(
-        "filesystem-read-guard-api",
-        "source-filesystem-module",
-        "read-path-k14",
-        521,
-        534,
-    ),
-    block(
-        "filesystem-write-guard-api",
-        "source-filesystem-module",
-        "filesystem-interpreter-k16",
-        535,
-        812,
-    ),
-    block(
-        "filesystem-read-deref",
-        "source-filesystem-module",
-        "read-path-k14",
-        813,
-        820,
-    ),
-    block(
-        "filesystem-write-deref",
-        "source-filesystem-module",
-        "filesystem-interpreter-k16",
-        821,
-        827,
-    ),
-    block(
-        "read-filesystem-source",
-        "source-filesystem-read",
-        "read-path-k14",
-        1,
-        407,
-    ),
-    block(
-        "filesystem-interpreter-source",
-        "source-filesystem-apply",
-        "filesystem-interpreter-k16",
-        1,
-        488,
-    ),
-    block(
-        "filesystem-removal-source",
-        "source-filesystem-remove",
-        "filesystem-interpreter-k16",
-        1,
-        275,
-    ),
-    block(
-        "filesystem-lock-source",
-        "source-filesystem-lock",
-        "filesystem-interpreter-k16",
-        1,
-        91,
-    ),
-];
-
-const fn block(
-    id: &'static str,
-    root: &'static str,
-    owner: &'static str,
-    first: usize,
-    last: usize,
-) -> Block {
-    Block {
-        id,
-        root,
-        owner,
-        first,
-        last,
-    }
-}
 
 pub fn validate(snapshot: &BookSnapshot, request: Request) -> ValidationReport {
     let parsed = parser::parse(snapshot);
@@ -374,18 +57,20 @@ fn check_inventory(
     parsed: &ParsedBook,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    for (id, source, lines) in ROOTS {
-        match snapshot.source_files.get(*source) {
-            Some(bytes) if source_line_count(bytes) == *lines => {}
+    let manifest = &snapshot.manifest;
+    for root in manifest.roots() {
+        let (id, source, lines) = (root.id(), root.path(), root.lines());
+        match snapshot.source_files.get(source) {
+            Some(bytes) if source_line_count(bytes) == lines => {}
             Some(bytes) => diagnostics.push(Diagnostic::new(
                 "F006",
                 "inventory",
                 format!(
-                    "authoritative source `{source}` has {} lines; fixed inventory requires {lines}",
+                    "authoritative source `{source}` has {} lines; the manifest declares {lines}",
                     source_line_count(bytes)
                 ),
                 crate::Location {
-                    path: (*source).into(),
+                    path: source.into(),
                     byte: 0,
                     line: 1,
                     column: 1,
@@ -398,7 +83,7 @@ fn check_inventory(
                 "inventory",
                 format!("required authoritative source `{source}` is missing"),
                 crate::Location {
-                    path: (*source).into(),
+                    path: source.into(),
                     byte: 0,
                     line: 1,
                     column: 1,
@@ -407,19 +92,21 @@ fn check_inventory(
                 Some(id),
             )),
         }
-        match parsed.roots.get(*id) {
+        match parsed.roots.get(id) {
             Some(roots)
                 if roots.len() == 1
-                    && roots[0].source == *source
+                    && roots[0].source == source
                     && roots[0].range
                         == (LineRange {
                             first: 1,
-                            last: *lines,
+                            last: lines,
                         }) => {}
             Some(roots) => diagnostics.push(Diagnostic::new(
                 "F006",
                 "inventory",
-                format!("source root `{id}` is duplicated or disagrees with the fixed inventory"),
+                format!(
+                    "source root `{id}` is duplicated or disagrees with the declared inventory"
+                ),
                 roots[0].location.clone(),
                 None,
                 Some(id),
@@ -429,7 +116,7 @@ fn check_inventory(
                 "inventory",
                 format!("required source root `{id}` is missing"),
                 crate::Location {
-                    path: snapshot.manifest.source_index_path(),
+                    path: manifest.source_index_path(),
                     byte: 0,
                     line: 1,
                     column: 1,
@@ -440,11 +127,11 @@ fn check_inventory(
         }
     }
     for (id, roots) in &parsed.roots {
-        if !ROOTS.iter().any(|(expected, _, _)| expected == id) {
+        if manifest.root_order(id).is_none() {
             diagnostics.push(Diagnostic::new(
                 "F006",
                 "inventory",
-                format!("source root `{id}` is not in the fixed inventory"),
+                format!("source root `{id}` is not in the declared inventory"),
                 roots[0].location.clone(),
                 None,
                 Some(id),
@@ -452,11 +139,11 @@ fn check_inventory(
         }
     }
     for path in snapshot.source_files.keys() {
-        if !ROOTS.iter().any(|(_, expected, _)| expected == path) {
+        if !manifest.roots().iter().any(|root| root.path() == path) {
             diagnostics.push(Diagnostic::new(
                 "F006",
                 "inventory",
-                format!("authoritative source `{path}` is outside the fixed corpus"),
+                format!("authoritative source `{path}` is outside the declared corpus"),
                 crate::Location {
                     path: path.clone(),
                     byte: 0,
@@ -465,6 +152,69 @@ fn check_inventory(
                 },
                 None,
                 None,
+            ));
+        }
+    }
+    check_derived_corpus(snapshot, diagnostics);
+}
+
+/// The declared roots against the set the corpus rule derives from the real
+/// directory.
+///
+/// **This is the book's only external witness, and it is the reason the
+/// compiled-in corpus could be deleted.** Every other check in this file reads
+/// the manifest and the pages — two artifacts the same author wrote in the same
+/// commit — so a file left out of both is invisible to all of them. The derived
+/// set is produced by walking the crate, so a production file added to the
+/// source and forgotten by the book is a finding rather than a silence.
+///
+/// It is not a complete witness on its own: derivation proves the declared
+/// patterns matched, never that the author declared the right ones, and it
+/// cannot judge an exception. The manifest schema fixes the pattern floor to
+/// `[book].subject` and closes the exception classes, and a repository test
+/// compares every book's exceptions against the specification's inventory.
+/// Those three together are the control; this function is one of them.
+fn check_derived_corpus(snapshot: &BookSnapshot, diagnostics: &mut Vec<Diagnostic>) {
+    let manifest = &snapshot.manifest;
+    let declared: BTreeSet<&str> = manifest.roots().iter().map(|root| root.path()).collect();
+    for path in &snapshot.derived_corpus {
+        if !declared.contains(path.as_str()) {
+            diagnostics.push(Diagnostic::new(
+                "F006",
+                "inventory",
+                format!(
+                    "`{path}` is reached by the corpus rule of book `{}` and is declared by no `[[root]]`",
+                    manifest.book_id()
+                ),
+                crate::Location {
+                    path: manifest.manifest_path(),
+                    byte: 0,
+                    line: 1,
+                    column: 1,
+                },
+                None,
+                None,
+            ));
+        }
+    }
+    for root in manifest.roots() {
+        if !snapshot.derived_corpus.contains(root.path()) {
+            diagnostics.push(Diagnostic::new(
+                "F006",
+                "inventory",
+                format!(
+                    "declared root `{}` at `{}` is reached by no `[corpus] include` pattern and accounted for by no `[[corpus.add]]`",
+                    root.id(),
+                    root.path()
+                ),
+                crate::Location {
+                    path: manifest.manifest_path(),
+                    byte: 0,
+                    line: 1,
+                    column: 1,
+                },
+                None,
+                Some(root.id()),
             ));
         }
     }
@@ -591,10 +341,7 @@ fn check_ownership(
     let through = prefix_end(manifest, scope);
     for roots in parsed.roots.values().filter(|roots| roots.len() == 1) {
         let root = &roots[0];
-        let expected: Vec<&Block> = BLOCKS
-            .iter()
-            .filter(|block| block.root == root.id)
-            .collect();
+        let expected: Vec<&OwnershipBlock> = manifest.blocks_of(&root.id).collect();
         for (position, child) in root.children.iter().enumerate() {
             let (id, owner, range, is_defer, location) = match child {
                 Child::Defer {
@@ -632,17 +379,17 @@ fn check_ownership(
                 ));
                 continue;
             };
-            let owner_order = manifest.slice_order(block.owner);
+            let owner_order = manifest.slice_order(block.owner());
             let should_defer = !matches!(scope, Scope::Final)
                 && through
                     .zip(owner_order)
                     .is_some_and(|(now, owner)| owner > now);
-            if id != block.id
-                || owner != block.owner
+            if id != block.id()
+                || owner != block.owner()
                 || range
                     != (LineRange {
-                        first: block.first,
-                        last: block.last,
+                        first: block.first(),
+                        last: block.last(),
                     })
                 || is_defer != should_defer
             {
@@ -1420,7 +1167,9 @@ fn compare_diagnostics(
 ) -> std::cmp::Ordering {
     phase_order(&left.phase)
         .cmp(&phase_order(&right.phase))
-        .then_with(|| nullable(root_index(left)).cmp(&nullable(root_index(right))))
+        .then_with(|| {
+            nullable(root_index(manifest, left)).cmp(&nullable(root_index(manifest, right)))
+        })
         .then_with(|| {
             nullable(left.source.as_ref().map(|source| source.byte))
                 .cmp(&nullable(right.source.as_ref().map(|source| source.byte)))
@@ -1433,11 +1182,11 @@ fn compare_diagnostics(
         .then_with(|| left.message.cmp(&right.message))
 }
 
-fn root_index(diagnostic: &Diagnostic) -> Option<usize> {
+fn root_index(manifest: &Manifest, diagnostic: &Diagnostic) -> Option<usize> {
     diagnostic
         .root_id
         .as_deref()
-        .and_then(|id| ROOTS.iter().position(|(candidate, _, _)| *candidate == id))
+        .and_then(|id| manifest.root_order(id))
 }
 
 fn nullable<T: Ord>(value: Option<T>) -> (bool, Option<T>) {
@@ -1474,7 +1223,7 @@ fn page_key<'a>(manifest: &Manifest, path: &'a str) -> (bool, usize, &'a str) {
 mod tests {
     use std::cmp::Ordering;
 
-    use super::{compare_diagnostics, BLOCKS, ROOTS};
+    use super::compare_diagnostics;
     use crate::manifest::Manifest;
     use crate::{Diagnostic, Location, RelatedLocation, SourceLocation};
 
@@ -1488,26 +1237,42 @@ mod tests {
         .expect("the relocated book's manifest is schema-valid")
     }
 
-    fn diagnostic() -> Diagnostic {
+    /// A synthetic diagnostic whose book-specific parts are read off the
+    /// manifest rather than spelled here.
+    ///
+    /// Naming a root id or a source path in this file would put back, in a
+    /// test, exactly the compiled-in knowledge of one book that
+    /// `validator-fragments-k22` removed from the production path: the
+    /// comparator sorts by *position in the declared root order*, so the fixture
+    /// only has to be two roots apart, not two particular roots.
+    fn diagnostic(manifest: &Manifest) -> Diagnostic {
+        let later_root = manifest.roots()[1].id();
+        let page = manifest.path(
+            manifest
+                .lookup_pages()
+                .last()
+                .expect("a lookup page")
+                .file(),
+        );
         Diagnostic {
             code: "F007".into(),
             phase: "coverage".into(),
             message: "message".into(),
             primary: Location {
-                path: "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
+                path: page.clone(),
                 byte: 20,
                 line: 2,
                 column: 1,
             },
             fragment_id: Some("fragment-b".into()),
-            root_id: Some("source-report".into()),
+            root_id: Some(later_root.to_owned()),
             source: Some(SourceLocation {
-                path: "crates/ordinal-fs-tree/src/report.rs".into(),
+                path: manifest.roots()[1].path().to_owned(),
                 byte: 20,
                 line: 2,
             }),
             related: vec![RelatedLocation {
-                path: "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
+                path: page,
                 byte: 30,
                 line: 3,
                 column: 1,
@@ -1517,160 +1282,10 @@ mod tests {
         }
     }
 
-    /// The corpus control, in its interim form.
-    ///
-    /// It used to compare these constants against normative tables in
-    /// `docs/specs/ordinal-fs-tree-book.md` — two independently authored
-    /// statements of one corpus, which is what made *complete reconstruction* a
-    /// claim about an externally stated corpus rather than a self-declaration.
-    /// `walkthrough-books-spec-k20` replaced that one-book specification with
-    /// `docs/specs/walkthrough-books.md`, which carries no book's tables, so the
-    /// comparison is re-pointed at the book's own ledger — the same rows, in the
-    /// artifact that now holds them.
-    ///
-    /// **This is a bridge and it is deliberately weaker than what it replaces**:
-    /// both sides are the same book's account of itself, so it catches drift
-    /// between the constants and the ledger and cannot catch a file left out of
-    /// both. `validator-fragments-k22` deletes it, and the corpus-derivation
-    /// check in `docs/specs/walkthrough-books.md` — the declared root set against
-    /// the set the corpus rule derives from the real directory — is what restores
-    /// the external witness. That check must be seen to fail against a manifest
-    /// missing a real root before this test is removed.
-    #[test]
-    fn compiled_corpus_copy_matches_the_book_ledger_tables() {
-        let specification =
-            include_str!("../../../docs/walkthroughs/ordinal-fs-tree/source-index.md");
-        let source_rows = table_rows(specification, "## Source roots", "| Root ID |");
-        let ownership_rows: Vec<String> =
-            table_rows(specification, "## Ownership blocks", "| Block ID |")
-                .iter()
-                .map(|row| without_state(row))
-                .collect();
-
-        let expected_sources: Vec<String> = ROOTS
-            .iter()
-            .map(|(id, path, lines)| format!("| `{id}` | `{path}` | {} |", grouped(*lines)))
-            .collect();
-        let expected_ownership: Vec<String> = BLOCKS
-            .iter()
-            .map(|block| {
-                let count = block.last - block.first + 1;
-                format!(
-                    "| `{}` | `{}` | `{}` | `{}-{}` | {} |",
-                    block.id,
-                    block.root,
-                    block.owner,
-                    block.first,
-                    block.last,
-                    grouped(count)
-                )
-            })
-            .collect();
-
-        assert_eq!(source_rows, expected_sources);
-        assert_eq!(ownership_rows, expected_ownership);
-    }
-
-    /// The ledger's State column is dropped before comparison: it is the book's
-    /// own progress record — `deferred` until the owning slice lands, `resolved`
-    /// after — while `BLOCKS` carries only the corpus. Comparing it would tie a
-    /// corpus check to how far the book had been authored, which is what the
-    /// superseded specification's frozen "state after the first slice" table did.
-    fn without_state(row: &str) -> String {
-        let cells: Vec<&str> = row.trim_matches('|').split('|').collect();
-        let kept: Vec<&str> = cells[..cells.len() - 1].to_vec();
-        format!("|{}|", kept.join("|"))
-    }
-
-    fn table_rows(specification: &str, heading: &str, header: &str) -> Vec<String> {
-        specification
-            .split_once(heading)
-            .unwrap()
-            .1
-            .split("\n\n")
-            .find(|block| block.starts_with(header))
-            .unwrap()
-            .lines()
-            .skip(2)
-            .map(str::to_owned)
-            .collect()
-    }
-
-    fn grouped(value: usize) -> String {
-        let digits = value.to_string();
-        let mut result = String::new();
-        for (index, digit) in digits.chars().enumerate() {
-            if index > 0 && (digits.len() - index) % 3 == 0 {
-                result.push(',');
-            }
-            result.push(digit);
-        }
-        result
-    }
-
-    /// The interim manifest bridge.
-    ///
-    /// `validator-structure-k21` moved the book's *structure* into
-    /// `walkthrough.toml` and deliberately left `ROOTS` and `BLOCKS` compiled
-    /// in for `validator-fragments-k22`. For the length of that interval one
-    /// corpus is stated twice, and nothing else compares the two statements:
-    /// the manifest's rows are parsed but only its root paths are read, so a
-    /// divergence would sit undetected until k22 switched the readers over and
-    /// inherited a silent regression.
-    ///
-    /// The manifest was generated from these constants, so this starts as an
-    /// identity and stays one until somebody edits one side. **k22 deletes this
-    /// test with the constants it defends.**
-    #[test]
-    fn the_manifest_restates_the_compiled_corpus_exactly() {
-        let manifest = include_str!("../../../docs/walkthroughs/ordinal-fs-tree/walkthrough.toml");
-
-        // Order is compared, not only membership: the manifest's root array is
-        // diagnostic sort key 1 ("manifest root index"), and the blocks of one
-        // root must partition it in array order, so a reordered manifest is a
-        // different artifact even with the same rows.
-        let roots: Vec<String> = ROOTS
-            .iter()
-            .map(|(id, path, lines)| {
-                format!("[[root]]\nid    = \"{id}\"\npath  = \"{path}\"\nlines = {lines}\n")
-            })
-            .collect();
-        let blocks: Vec<String> = BLOCKS
-            .iter()
-            .map(|block| {
-                format!(
-                    "[[block]]\nid    = \"{}\"\nroot  = \"{}\"\nowner = \"{}\"\nlines = \"{}-{}\"\n",
-                    block.id, block.root, block.owner, block.first, block.last
-                )
-            })
-            .collect();
-
-        assert_eq!(in_order(manifest, &roots), Ok(()));
-        assert_eq!(manifest.matches("[[root]]").count(), ROOTS.len());
-        assert_eq!(in_order(manifest, &blocks), Ok(()));
-        assert_eq!(manifest.matches("[[block]]").count(), BLOCKS.len());
-    }
-
-    /// Every stanza occurs in `text`, at strictly increasing offsets.
-    fn in_order(text: &str, stanzas: &[String]) -> Result<(), String> {
-        let mut cursor = 0;
-        for stanza in stanzas {
-            match text[cursor..].find(stanza.as_str()) {
-                Some(offset) => cursor += offset + stanza.len(),
-                None => {
-                    return Err(format!(
-                        "manifest is missing this stanza, or has it out of order:\n{stanza}"
-                    ))
-                }
-            }
-        }
-        Ok(())
-    }
-
     #[test]
     fn diagnostic_comparison_uses_every_total_order_key_with_nulls_last() {
         let manifest = manifest();
-        let base = diagnostic();
+        let base = diagnostic(&manifest);
 
         let mut earlier = base.clone();
         earlier.phase = "graph".into();
@@ -1680,7 +1295,7 @@ mod tests {
         );
 
         let mut earlier = base.clone();
-        earlier.root_id = Some("source-library".into());
+        earlier.root_id = Some(manifest.roots()[0].id().to_owned());
         assert_eq!(
             compare_diagnostics(&manifest, &earlier, &base),
             Ordering::Less
@@ -1706,7 +1321,13 @@ mod tests {
         );
 
         let mut earlier = base.clone();
-        earlier.primary.path = "docs/walkthroughs/ordinal-fs-tree/01-orientation.md".into();
+        earlier.primary.path = manifest.path(
+            manifest
+                .chapters()
+                .next()
+                .expect("the book has a first chapter")
+                .file(),
+        );
         assert_eq!(
             compare_diagnostics(&manifest, &earlier, &base),
             Ordering::Less

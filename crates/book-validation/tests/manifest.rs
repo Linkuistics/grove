@@ -250,3 +250,143 @@ fn a_malformed_manifest_reports_the_parse_reason() {
 
     assert!(!reason.is_empty());
 }
+
+// ---------------------------------------------------------------------------
+// The corpus rule.
+//
+// These are the schema half of the control that replaced the compiled-in
+// corpus. Filesystem derivation proves the declared patterns matched; it can
+// prove neither that the author declared the right patterns nor that an
+// exception is honest. The rules below take both of those out of the author's
+// hands, which is what makes the corpus external rather than self-declared.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn an_include_missing_a_base_pattern_names_the_missing_one() {
+    for base in [
+        "crates/ordinal-fs-tree/Cargo.toml",
+        "crates/ordinal-fs-tree/src/**/*.rs",
+    ] {
+        let text = edited(
+            &format!("\"{base}\""),
+            "\"crates/ordinal-fs-tree/src/lib.rs\"",
+        );
+
+        let reason = reason(&text);
+        assert!(
+            reason.contains(base) && reason.contains("base pattern"),
+            "{reason}"
+        );
+    }
+}
+
+/// The failure the base-pattern rule exists to prevent, stated as a test:
+/// a manifest that includes one file, declares that one root, and would
+/// otherwise satisfy every check while proving nothing.
+#[test]
+fn an_include_narrowed_to_a_single_file_is_refused() {
+    let text = edited(
+        "include = [\"crates/ordinal-fs-tree/Cargo.toml\", \"crates/ordinal-fs-tree/src/**/*.rs\"]",
+        "include = [\"crates/ordinal-fs-tree/src/lib.rs\"]",
+    );
+
+    assert!(reason(&text).contains("base pattern"), "{}", reason(&text));
+}
+
+#[test]
+fn an_include_pattern_in_neither_accepted_form_is_refused() {
+    for pattern in [
+        "crates/ordinal-fs-tree/src/*.rs",
+        "crates/**/src/**/*.rs",
+        "crates/ordinal-fs-tree/src/**/*",
+    ] {
+        let text = edited(
+            "include = [\"crates/ordinal-fs-tree/Cargo.toml\"",
+            &format!("include = [\"{pattern}\", \"crates/ordinal-fs-tree/Cargo.toml\""),
+        );
+
+        let reason = reason(&text);
+        assert!(reason.contains(pattern), "{reason}");
+    }
+}
+
+#[test]
+fn a_corpus_exception_class_outside_the_closed_list_is_refused() {
+    let text = edited("class = \"test-support\"", "class = \"generated\"");
+
+    let reason = reason(&text);
+    assert!(
+        reason.contains("generated") && reason.contains("test-support"),
+        "{reason}"
+    );
+}
+
+/// An exclusion classed `production-outside-src` is refused for the same
+/// reason: each side of the rule has its own closed list, and a class that
+/// crosses over is describing something the specification has not seen.
+#[test]
+fn an_exclusion_carrying_an_addition_class_is_refused() {
+    let text = edited(
+        "class = \"test-support\"",
+        "class = \"production-outside-src\"",
+    );
+
+    assert!(
+        reason(&text).contains("production-outside-src"),
+        "{}",
+        reason(&text)
+    );
+}
+
+/// Where a class has a mechanically checkable form, the class claim is checked
+/// rather than believed. `reason` stays free prose because it carries the
+/// argument; `class` carries the constraint.
+#[test]
+fn an_inline_test_module_exclusion_whose_file_is_not_tests_rs_is_refused() {
+    let text = edited(
+        "path = \"crates/ordinal-fs-tree/src/ops/tests.rs\"",
+        "path = \"crates/ordinal-fs-tree/src/ops/helpers.rs\"",
+    );
+
+    let reason = reason(&text);
+    assert!(
+        reason.contains("tests.rs") && reason.contains("helpers.rs"),
+        "{reason}"
+    );
+}
+
+#[test]
+fn a_block_range_outside_the_n_dash_m_grammar_is_refused() {
+    for range in ["0-3", "5-4", "3", "1-", "one-two"] {
+        let text = edited("lines = \"1-42\"", &format!("lines = \"{range}\""));
+
+        let reason = reason(&text);
+        assert!(
+            reason.contains(range) && reason.contains("1 <= N <= M"),
+            "{reason}"
+        );
+    }
+}
+
+/// The blocks of one root partition it exactly: ordered, adjacent,
+/// non-overlapping, and covering `1` to the declared line count. A manifest
+/// that cannot describe a whole file is refused at load rather than reported as
+/// a fragment finding somewhere in the book.
+#[test]
+fn blocks_that_leave_a_gap_in_their_root_are_refused() {
+    let text = edited("lines = \"43-45\"", "lines = \"44-45\"");
+
+    let reason = reason(&text);
+    assert!(reason.contains("manifest-cli-feature"), "{reason}");
+}
+
+#[test]
+fn blocks_that_do_not_reach_their_roots_last_line_are_refused() {
+    let text = edited("lines = \"66-112\"", "lines = \"66-111\"");
+
+    let reason = reason(&text);
+    assert!(
+        reason.contains("source-crate-manifest") && reason.contains("112"),
+        "{reason}"
+    );
+}

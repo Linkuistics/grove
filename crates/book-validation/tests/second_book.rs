@@ -8,10 +8,12 @@
 //! lines, the H1 titles, the navigation labels, the contents links and the
 //! accepted `--through` domain — is read from its own `walkthrough.toml`.
 //!
-//! It runs `--check markdown`. The fragment path still reads the compiled
-//! corpus constants (`ROOTS`, `BLOCKS`, `EARLY_USES`), which
-//! `validator-fragments-k22` turns into per-book data; when it does, this
-//! fixture grows a corpus and the assertions below move to `--check all`.
+//! It runs `--check all`. Since `validator-fragments-k22` the fragment path is
+//! per-book data too, so this fixture carries a corpus of its own: a source
+//! root, two ownership blocks, an inline test module it excludes, and literal
+//! fragments on its chapters that reconstruct the file byte for byte. That is
+//! what makes the suite evidence about the *validator* rather than about the
+//! one book whose corpus it used to be compiled with.
 
 use std::path::Path;
 
@@ -28,6 +30,11 @@ subject = "crates/widget"
 
 [corpus]
 include = ["crates/widget/Cargo.toml", "crates/widget/src/**/*.rs"]
+
+[[corpus.exclude]]
+path   = "crates/widget/src/tests.rs"
+class  = "inline-test-module"
+reason = "inline test module: evidence, not production source"
 
 [[page]]
 file  = "README.md"
@@ -85,9 +92,126 @@ root  = "source-widget"
 owner = "inner-workings-w2"
 lines = "4-6"
 
+[[early-use]]
+symbols   = "`Widget`"
+first-use = "01-first-look.md#vocabulary"
+owner     = "inner-workings-w2"
+statement = "A widget is the fixture's one value and its constructor is explained later."
+
 [guide]
 omitted = "the widget guide is a fixture and cites no user guide"
 "#;
+
+/// The fixture crate's one source file, and the only bytes the book
+/// reconstructs. Six lines, partitioned `1-3` and `4-6` by the two blocks.
+const WIDGET_SOURCE: &str =
+    "pub struct Widget;\n\nimpl Widget {\n    pub fn new() -> Self {\n        Self\n    }\n";
+
+/// `(block id, owner slice, first line, last line)`, in manifest order.
+const BLOCKS: [(&str, &str, usize, usize); 2] = [
+    ("widget-opening", "first-look-w1", 1, 3),
+    ("widget-body", "inner-workings-w2", 4, 6),
+];
+
+const ROOT_ID: &str = "source-widget";
+const ROOT_PATH: &str = "crates/widget/src/lib.rs";
+const ROOT_LINES: usize = 6;
+
+fn source_lines(first: usize, last: usize) -> String {
+    WIDGET_SOURCE
+        .split_inclusive('\n')
+        .skip(first - 1)
+        .take(last - first + 1)
+        .collect()
+}
+
+/// The chapter index a slice sits at, which is what decides whether a block is
+/// resolved or deferred under a given prefix.
+fn slice_index(slice: &str) -> usize {
+    SLICES
+        .iter()
+        .position(|candidate| *candidate == slice)
+        .expect("every block owner is a declared chapter slice")
+}
+
+/// The book's `source-index.md`: the four ledger tables and the source-root
+/// directive block, with every block resolved or deferred according to how many
+/// chapters have landed.
+fn source_index(chapters: usize) -> String {
+    let resolved = |owner: &str| slice_index(owner) < chapters;
+    let mut text = String::from(
+        "# Source index\n<!-- book-page id=\"source-index\" role=\"lookup\" -->\n[Contents](README.md)\n\n## Source roots\n\n| Root ID | Source path | Lines |\n|---|---|---|\n",
+    );
+    text.push_str(&format!(
+        "| `{ROOT_ID}` | `{ROOT_PATH}` | {ROOT_LINES} |\n\n"
+    ));
+    text.push_str(&format!(
+        "<!-- source-root «{ROOT_ID}» source=\"{ROOT_PATH}\" lines=\"1-{ROOT_LINES}\" -->\n"
+    ));
+    for (id, owner, first, last) in BLOCKS {
+        if resolved(owner) {
+            text.push_str(&format!("<!-- insert «{id}» -->\n"));
+        } else {
+            text.push_str(&format!(
+                "<!-- defer «{id}» owner=\"{owner}\" lines=\"{first}-{last}\" -->\n"
+            ));
+        }
+    }
+    text.push_str("<!-- /source-root -->\n");
+
+    text.push_str("\n## Ownership blocks\n\n| Block ID | Root ID | Owner | Source lines | Count | State |\n|---|---|---|---|---|---|\n");
+    for (id, owner, first, last) in BLOCKS {
+        let state = if resolved(owner) {
+            "resolved"
+        } else {
+            "deferred"
+        };
+        text.push_str(&format!(
+            "| `{id}` | `{ROOT_ID}` | `{owner}` | `{first}-{last}` | {} | `{state}` |\n",
+            last - first + 1
+        ));
+    }
+
+    text.push_str("\n## Fragment index\n\n| Fragment ID | Page ID | Root ID | Kind | Owner | Source lines | Parent ID | Child IDs |\n|---|---|---|---|---|---|---|---|\n");
+    let children = BLOCKS
+        .iter()
+        .map(|(id, ..)| format!("`{id}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    text.push_str(&format!(
+        "| `{ROOT_ID}` | `source-index` | `{ROOT_ID}` | `root` | `—` | `1-{ROOT_LINES}` | `—` | {children} |\n"
+    ));
+    for (id, owner, first, last) in BLOCKS.iter().filter(|(_, owner, ..)| resolved(owner)) {
+        let (_, page_id, _) = CHAPTERS[slice_index(owner)];
+        text.push_str(&format!(
+            "| `{id}` | `{page_id}` | `{ROOT_ID}` | `literal` | `{owner}` | `{first}-{last}` | `{ROOT_ID}` | `—` |\n"
+        ));
+    }
+
+    text.push_str("\n## Early uses\n\n| Symbol family | First use | Owner | Minimum local statement | Status |\n|---|---|---|---|---|\n");
+    let status = if resolved("inner-workings-w2") {
+        "explained"
+    } else {
+        "pending"
+    };
+    text.push_str(&format!(
+        "| `Widget` | `01-first-look.md#vocabulary` | `inner-workings-w2` | A widget is the fixture's one value and its constructor is explained later. | `{status}` |\n"
+    ));
+    text
+}
+
+/// The literal fragments a chapter carries, each introduced by the prose
+/// paragraph `M105` requires.
+fn chapter_fragments(slice: &str) -> String {
+    let mut text = String::new();
+    for (id, owner, first, last) in BLOCKS.iter().filter(|(_, owner, ..)| *owner == slice) {
+        text.push_str(&format!(
+            "\nThe fragment below is lines {first} to {last} of the fixture crate.\n\n<!-- fragment «{id}» owner=\"{owner}\" source=\"{ROOT_PATH}\" lines=\"{first}-{last}\" parent=\"{ROOT_ID}\" -->\n````rust\n{}````\n<!-- /fragment -->\n",
+            source_lines(*first, *last)
+        ));
+    }
+    text
+}
 
 const CHAPTERS: [(&str, &str, &str); 3] = [
     ("01-first-look.md", "first-look", "First look"),
@@ -102,9 +226,13 @@ const SLICES: [&str; 3] = ["first-look-w1", "inner-workings-w2", "afterword-w3"]
 fn materialize(repository: &Path, chapters: usize) {
     let source = repository.join("crates/widget/src");
     std::fs::create_dir_all(&source).unwrap();
+    std::fs::write(source.join("lib.rs"), WIDGET_SOURCE).unwrap();
+    // The excluded inline test module has to exist: an exclusion that excludes
+    // nothing is `U002`, so a fixture that skipped this file would be
+    // exercising that refusal rather than the book.
     std::fs::write(
-        source.join("lib.rs"),
-        "pub struct Widget;\n\nimpl Widget {\n    pub fn new() -> Self {\n        Self\n    }\n",
+        source.join("tests.rs"),
+        "// evidence, not production source\n",
     )
     .unwrap();
     let book = repository.join(BOOK);
@@ -134,13 +262,19 @@ fn materialize(repository: &Path, chapters: usize) {
             parts.push(format!("[Next: {next_title}]({next})"));
         }
         let navigation = parts.join(" | ");
+        let anchor = if index == 0 {
+            "<a id=\"vocabulary\"></a>\n## Vocabulary\n\nA widget is the fixture's one value.\n"
+        } else {
+            ""
+        };
         write(
             &book,
             file,
             &format!(
-                "# {title}\n<!-- book-page id=\"{id}\" slice=\"{}\" order=\"{}\" -->\n{navigation}\n\nThis chapter carries prose and no source fragments.\n\n{navigation}\n",
+                "# {title}\n<!-- book-page id=\"{id}\" slice=\"{}\" order=\"{}\" -->\n{navigation}\n\nThis chapter opens the fixture crate.\n\n{anchor}{}\n{navigation}\n",
                 SLICES[index],
-                index + 1
+                index + 1,
+                chapter_fragments(SLICES[index])
             ),
         );
     }
@@ -149,11 +283,7 @@ fn materialize(repository: &Path, chapters: usize) {
         "concept-index.md",
         "# Concept index\n<!-- book-page id=\"concept-index\" role=\"lookup\" -->\n\n[Contents](README.md)\n",
     );
-    write(
-        &book,
-        "source-index.md",
-        "# Source index\n<!-- book-page id=\"source-index\" role=\"lookup\" -->\n\n[Contents](README.md)\n",
-    );
+    write(&book, "source-index.md", &source_index(chapters));
 }
 
 fn write(book: &Path, file: &str, text: &str) {
@@ -169,7 +299,7 @@ fn check(repository: &Path, scope: &[&str]) -> book_validation::cli::RunOutput {
         BOOK.to_owned(),
     ];
     arguments.extend(scope.iter().map(|value| (*value).to_owned()));
-    arguments.extend(["--check".to_owned(), "markdown".to_owned()]);
+    arguments.extend(["--check".to_owned(), "all".to_owned()]);
     run_from(arguments)
 }
 
@@ -290,4 +420,127 @@ fn a_book_directory_without_a_manifest_is_a_u002_load_failure() {
         "{}",
         output.stderr
     );
+}
+
+/// The control for every assertion above.
+///
+/// `--check all` is only evidence about the fragment path if the fragment path
+/// can fail here, and a validator that had kept any compiled knowledge of the
+/// relocated book would pass this fixture by never reading its bytes at all.
+/// One byte of the fixture crate changes, and the book that reproduces the old
+/// bytes is wrong about the source.
+#[test]
+fn a_source_byte_the_book_does_not_reproduce_is_an_f008() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    std::fs::write(
+        repository.path().join(ROOT_PATH),
+        WIDGET_SOURCE.replace("pub struct Widget;", "pub struct Gadget;"),
+    )
+    .unwrap();
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(output.stdout.contains("F008"), "{}", output.stdout);
+}
+
+/// The corpus rule's external half, in the direction the compiled ledger could
+/// never see: a production file added to the crate and forgotten by the book.
+///
+/// Nothing the author wrote mentions `extra.rs`. The manifest does not declare
+/// it, no page reconstructs it, and every other check in the validator reads
+/// only those two artifacts — so before derivation this file was invisible to
+/// the whole suite and the book still claimed complete reconstruction.
+#[test]
+fn a_file_the_corpus_rule_reaches_and_the_manifest_does_not_declare_is_an_f006() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    std::fs::write(
+        repository.path().join("crates/widget/src/extra.rs"),
+        "pub const EXTRA: u8 = 1;\n",
+    )
+    .unwrap();
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(
+        output.stdout.contains("F006") && output.stdout.contains("crates/widget/src/extra.rs"),
+        "{}",
+        output.stdout
+    );
+}
+
+/// And the other direction: a declared root the rule does not reach, which no
+/// `[[corpus.add]]` accounts for. This is the shape a book takes when its
+/// author narrows the rule to fit the roots rather than the other way round.
+#[test]
+fn a_declared_root_the_corpus_rule_does_not_reach_is_an_f006() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    std::fs::write(
+        repository.path().join("crates/widget/outside.rs"),
+        WIDGET_SOURCE,
+    )
+    .unwrap();
+    edit_manifest(repository.path(), ROOT_PATH, "crates/widget/outside.rs");
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 1, "{}{}", output.stdout, output.stderr);
+    assert!(
+        output.stdout.contains("F006") && output.stdout.contains("crates/widget/outside.rs"),
+        "{}",
+        output.stdout
+    );
+}
+
+/// A stale exception is a failure rather than a silent no-op: the excluded file
+/// is gone, so the exclusion now describes a rule that has moved.
+#[test]
+fn a_corpus_exception_naming_a_missing_file_is_a_u002() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    std::fs::remove_file(repository.path().join("crates/widget/src/tests.rs")).unwrap();
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 2);
+    assert!(
+        output.stderr.contains("U002") && output.stderr.contains("crates/widget/src/tests.rs"),
+        "{}",
+        output.stderr
+    );
+}
+
+/// An exclusion the include patterns never matched excludes nothing. It is
+/// either a typo or a rule that has moved, and both are worth a refusal — a
+/// silent no-op would let the boundary rot in place while the book reads green.
+#[test]
+fn an_exclusion_the_include_patterns_never_matched_is_a_u002() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(repository.path(), 3);
+    std::fs::write(repository.path().join("crates/widget/tests.rs"), "\n").unwrap();
+    edit_manifest(
+        repository.path(),
+        "crates/widget/src/tests.rs",
+        "crates/widget/tests.rs",
+    );
+
+    let output = check(repository.path(), &["--final"]);
+
+    assert_eq!(output.exit, 2);
+    assert!(
+        output.stderr.contains("U002") && output.stderr.contains("excludes nothing"),
+        "{}",
+        output.stderr
+    );
+}
+
+fn edit_manifest(repository: &Path, from: &str, to: &str) {
+    let manifest = repository.join(BOOK).join("walkthrough.toml");
+    let text = std::fs::read_to_string(&manifest).unwrap();
+    assert!(text.contains(from), "fixture manifest lacks `{from}`");
+    std::fs::write(&manifest, text.replacen(from, to, 1)).unwrap();
 }

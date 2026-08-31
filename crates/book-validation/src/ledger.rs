@@ -2,65 +2,7 @@ use std::collections::BTreeSet;
 
 use crate::manifest::{Manifest, Page};
 use crate::parser::{Child, Fragment, FragmentBody, ParsedBook, Root};
-use crate::validator::{BLOCKS, ROOTS};
 use crate::{BookSnapshot, Diagnostic, Location, Scope};
-
-const EARLY_USES: &[(&str, &str, &str, &str)] = &[
-    (
-        "`Ordinal`, `Key`, `Found`, `Verdict`, `Species`, `EntryName`",
-        "01-orientation.md#working-vocabulary",
-        "name-seam-k12",
-        "Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam.",
-    ),
-    (
-        "`manifest-cli-binary`",
-        "01-orientation.md#package-contract",
-        "syllabus-cli-k17",
-        "The binary declaration is CLI-owned and deferred; it maps the demonstration executable to its external consumer source and requires the CLI feature.",
-    ),
-    (
-        "`manifest-cli-feature`",
-        "01-orientation.md#package-contract",
-        "syllabus-cli-k17",
-        "The optional parser dependency is activated by a later CLI-owned feature range, enabled by default while library consumers may disable default features.",
-    ),
-    (
-        "`Sought`",
-        "01-orientation.md#public-surface",
-        "name-seam-k12",
-        "Sought distinguishes a search match from a completed search that matched nothing; nothing is neither a mutation refusal nor an error, while accessors retain Option.",
-    ),
-    (
-        "`Label`, `Status`, `reference::Parts`, `SyllabusName`",
-        "01-orientation.md#insert-tour",
-        "reference-domain-k13",
-        "These values are the syllabus consumer's vocabulary and seam implementation, not library defaults.",
-    ),
-    (
-        "`Snapshot`, `Entry`, `ReadGuard`",
-        "01-orientation.md#insert-tour",
-        "read-path-k14",
-        "A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot.",
-    ),
-    (
-        "`Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report`",
-        "01-orientation.md#insert-tour",
-        "mutation-algebra-k15",
-        "Target names the root or a stable key, new entry carries opaque parts and bytes that may be empty, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders.",
-    ),
-    (
-        "`WriteGuard`, `Error`, `apply::Faults`, `apply::Run`",
-        "01-orientation.md#insert-tour",
-        "filesystem-interpreter-k16",
-        "A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state.",
-    ),
-    (
-        "`Cli`, `Verb`, `Streams`, `Failure`",
-        "01-orientation.md#insert-tour",
-        "syllabus-cli-k17",
-        "Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category.",
-    ),
-];
 
 #[derive(Clone)]
 struct LedgerRow {
@@ -99,8 +41,8 @@ pub(crate) fn check(
             &table,
             "| Root ID | Source path | Lines |\n",
             "|---|---|---|\n",
-            &fixed_source_rows(),
-            "Source roots ledger disagrees with the fixed corpus",
+            &declared_source_rows(manifest),
+            "Source roots ledger disagrees with the declared corpus",
             diagnostics,
         );
         check_exact_rows(
@@ -116,8 +58,8 @@ pub(crate) fn check(
             &table,
             "| Block ID | Root ID | Owner | Source lines | Count | State |\n",
             "|---|---|---|---|---|---|\n",
-            &fixed_ownership_rows(manifest, scope),
-            "Ownership blocks ledger disagrees with the fixed ownership contract",
+            &declared_ownership_rows(manifest, scope),
+            "Ownership blocks ledger disagrees with the declared ownership contract",
             diagnostics,
         );
         check_exact_rows(
@@ -143,7 +85,7 @@ pub(crate) fn check(
         check_early_uses(snapshot, &table, scope, diagnostics);
     }
 
-    check_root_locations(&index_path, source_index, parsed, diagnostics);
+    check_root_locations(manifest, &index_path, source_index, parsed, diagnostics);
     check_fragment_locations(manifest, parsed, diagnostics);
 }
 
@@ -295,10 +237,18 @@ fn first_difference(table: &LedgerTable, expected: &[String]) -> Location {
         .unwrap_or_else(|| table.location.clone())
 }
 
-fn fixed_source_rows() -> Vec<String> {
-    ROOTS
+fn declared_source_rows(manifest: &Manifest) -> Vec<String> {
+    manifest
+        .roots()
         .iter()
-        .map(|(id, source, lines)| format!("| `{id}` | `{source}` | {} |\n", grouped(*lines)))
+        .map(|root| {
+            format!(
+                "| `{}` | `{}` | {} |\n",
+                root.id(),
+                root.path(),
+                grouped(root.lines())
+            )
+        })
         .collect()
 }
 
@@ -316,17 +266,18 @@ fn directive_source_rows(index_path: &str, parsed: &ParsedBook) -> Vec<String> {
         .collect()
 }
 
-fn fixed_ownership_rows(manifest: &Manifest, scope: &Scope) -> Vec<String> {
-    BLOCKS
+fn declared_ownership_rows(manifest: &Manifest, scope: &Scope) -> Vec<String> {
+    manifest
+        .blocks()
         .iter()
         .map(|block| {
             ownership_row(
-                block.id,
-                block.root,
-                block.owner,
-                block.first,
-                block.last,
-                if owner_is_complete(manifest, scope, block.owner) {
+                block.id(),
+                block.root(),
+                block.owner(),
+                block.first(),
+                block.last(),
+                if owner_is_complete(manifest, scope, block.owner()) {
                     "resolved"
                 } else {
                     "deferred"
@@ -483,15 +434,22 @@ fn check_early_uses(
         return;
     }
 
-    let required: Vec<String> = EARLY_USES
+    let required: Vec<String> = manifest
+        .early_uses()
         .iter()
-        .map(|(symbols, first_use, owner, statement)| {
-            let status = if owner_is_complete(manifest, scope, owner) {
+        .map(|entry| {
+            let status = if owner_is_complete(manifest, scope, entry.owner()) {
                 "explained"
             } else {
                 "pending"
             };
-            format!("| {symbols} | `{first_use}` | `{owner}` | {statement} | `{status}` |\n")
+            format!(
+                "| {} | `{}` | `{}` | {} | `{status}` |\n",
+                entry.symbols(),
+                entry.first_use(),
+                entry.owner(),
+                entry.statement()
+            )
         })
         .collect();
     if required
@@ -640,6 +598,7 @@ fn unquote(cell: &str) -> Option<&str> {
 }
 
 fn check_root_locations(
+    manifest: &Manifest,
     index_path: &str,
     source_index: Option<&str>,
     parsed: &ParsedBook,
@@ -647,7 +606,7 @@ fn check_root_locations(
 ) {
     let roots = roots_in_source_index(index_path, parsed);
     let observed: Vec<&str> = roots.iter().map(|root| root.id.as_str()).collect();
-    let expected: Vec<&str> = ROOTS.iter().map(|(id, _, _)| *id).collect();
+    let expected: Vec<&str> = manifest.roots().iter().map(|root| root.id()).collect();
     let outside = parsed
         .roots
         .values()
@@ -798,31 +757,4 @@ fn line_location(index_path: &str, text: &str, byte: usize) -> Location {
 
 fn f009(message: impl Into<String>, location: Location) -> Diagnostic {
     Diagnostic::new("F009", "inventory", message, location, None, None)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::EARLY_USES;
-
-    /// The interim manifest bridge for the early-use ledger; the companion of
-    /// `the_manifest_restates_the_compiled_corpus_exactly` in `validator.rs`,
-    /// and deleted with `EARLY_USES` by `validator-fragments-k22`.
-    #[test]
-    fn the_manifest_restates_the_compiled_early_uses_exactly() {
-        let manifest = include_str!("../../../docs/walkthroughs/ordinal-fs-tree/walkthrough.toml");
-
-        let mut cursor = 0;
-        for (symbols, first_use, owner, statement) in EARLY_USES {
-            let stanza = format!(
-                "[[early-use]]\nsymbols   = \"{symbols}\"\nfirst-use = \"{first_use}\"\nowner     = \"{owner}\"\nstatement = \"{statement}\"\n"
-            );
-            let offset = manifest[cursor..].find(stanza.as_str());
-            assert!(
-                offset.is_some(),
-                "manifest is missing this early use, or has it out of order:\n{stanza}"
-            );
-            cursor += offset.unwrap() + stanza.len();
-        }
-        assert_eq!(manifest.matches("[[early-use]]").count(), EARLY_USES.len());
-    }
 }

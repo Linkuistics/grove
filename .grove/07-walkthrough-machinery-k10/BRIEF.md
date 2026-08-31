@@ -42,10 +42,16 @@ Ordered by what each leaf makes possible for the next.
 5. `validator-structure-k21` — the structural half of the ledger becomes data.
 6. `validator-fragments-k22` — the fragment half becomes data, and the check
    script gates every book.
-7. `book-assurance-surface-k39` — the curated user surface and the ownership
+7. `corpus-subject-anchor-k50` — pin `[book].subject` to an artifact the book
+   does not own. `leaf-insert`ed by leaf 6, which implemented the base-pattern
+   rule and then found the rule's own anchor unpinned: a manifest may point
+   `subject` at a subdirectory of its crate, narrowing the base patterns with it,
+   and drop every root outside. Ahead of the five unwritten books so they are
+   authored against the rule rather than retrofitted to it.
+8. `book-assurance-surface-k39` — the curated user surface and the ownership
    table discover book roots, and both checks are seen to fail first.
 
-The last leaf was added by `walkthroughs-k38` against `walkthroughs-k9`'s F3: decision 8
+`book-assurance-surface-k39` was added by `walkthroughs-k38` against `walkthroughs-k9`'s F3: decision 8
 of `plan-k1` had settled both obligations and no leaf in the subtree carried
 either, so the campaign could have closed green in breach of a settled
 requirement. It sits in this node because it is book-*system* assurance, and last
@@ -70,19 +76,27 @@ two constant sets are disjoint, not that their readers are — and each leaf owe
   `ordinal-fs-tree-book.md` in place. It settles the sidecar question leaf 2
   reopened: per-book data lives in a `walkthrough.toml` manifest beside each
   book, the fragment graph stays in Markdown, and
-  `docs/adr/a-book-cannot-witness-its-own-corpus.md` records why. Leaves 3 and 4
-  implement against its *The manifest* and *The corpus rule and its witness*
-  sections.
-- `crates/book-validation/` holds the validator. The compiled-in ledger is
-  `SLICE_ORDER`, `ROOTS` and `BLOCKS` in `src/validator.rs` and `SOURCE_INDEX`,
-  `PAGE_BY_OWNER` and `EARLY_USES` in `src/ledger.rs`; `src/cli.rs` additionally
-  hard-codes the slice tokens as a `value_parser` list and names one book in its
-  `about` and `after_help` text.
-- Test seams: the crate's own seven test files; `book-check` itself, which proves
-  structure and reconstruction; `every_repository_markdown_reference_resolves`
+  `docs/adr/a-book-cannot-witness-its-own-corpus.md` records why.
+  `validator-structure-k21` and `validator-fragments-k22` implemented against its
+  *The manifest* and *The corpus rule and its witness* sections; later leaves in
+  this node read the same two sections.
+- `crates/book-validation/` holds the validator. **The compiled-in ledger is
+  gone**: `SLICE_ORDER`, `PAGE_BY_OWNER` and `SOURCE_INDEX` left with
+  `validator-structure-k21`, and `ROOTS`, `BLOCKS` and `EARLY_USES` with
+  `validator-fragments-k22`. `src/manifest.rs` is the schema, `src/corpus.rs`
+  evaluates the corpus rule against the real repository, and no string literal in
+  `src/` names a root, a block, a slice or a source path of any book.
+- Test seams: the crate's own test files; `book-check` itself, which proves
+  structure and reconstruction; `tests/second_book.rs`, a synthetic book sharing
+  nothing with the relocated one and validated on `--check all`, which is what
+  keeps the suite evidence about the validator rather than about one book;
+  `crates/grove/tests/corpus_exception_inventory.rs`, which holds every book's
+  corpus exceptions to the specification's normative table;
+  `every_repository_markdown_reference_resolves`
   (`crates/grove/tests/reference_navigation.rs`), which sweeps every Markdown
   file in the repository and so covers a moved book for free; `scripts/check.sh`
-  as the umbrella.
+  as the umbrella, which now runs `book-check --final --check all` over every
+  book *directory* under `docs/walkthroughs/` by discovery.
 - `docs/adr/entries-are-never-removed.md` is cited from the existing book and
   from `CONTEXT-MAP.md`; the relocation must not break either citation.
 

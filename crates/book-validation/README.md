@@ -3,8 +3,21 @@
 `book-check` validates a walkthrough book's fragment graph, Markdown structure,
 and local navigation without changing the book or production source. It knows
 nothing about any particular book: the page inventory, the page-to-slice
-mapping, the canonical slice order and the accepted `--through` values all come
-from the `walkthrough.toml` manifest in the directory named by `--book`.
+mapping, the canonical slice order, the accepted `--through` values, the source
+roots with their exact line counts, the ownership blocks and the mandatory
+early-use rows all come from the `walkthrough.toml` manifest in the directory
+named by `--book`.
+
+One input is deliberately not the book's own account of itself. The CLI
+evaluates the book's `[corpus]` rule against the real repository — the include
+patterns, minus every `[[corpus.exclude]]`, plus every `[[corpus.add]]` — and
+the core requires that derived set to equal the declared `[[root]]` paths. A
+production file added to the crate and forgotten by the book is an `F006`
+rather than a silence. Derivation cannot judge whether the author declared the
+*right* patterns, so the schema fixes the two base patterns to `[book].subject`
+and closes the exception classes, and a repository test compares every book's
+exceptions against the normative inventory in
+`docs/specs/walkthrough-books.md`.
 
 During authoring, validate the canonical prefix through the current
 source-owning slice — `--through` takes one of the slices the named book's

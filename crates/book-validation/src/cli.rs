@@ -9,6 +9,7 @@ use std::sync::Mutex;
 use clap::{error::ErrorKind, Parser, ValueEnum};
 use serde_json::json;
 
+use crate::corpus::CorpusError;
 use crate::manifest::{Manifest, ManifestError, MANIFEST_FILE};
 use crate::{validate, BookSnapshot, Check, Request, Scope};
 
@@ -227,6 +228,12 @@ fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFai
             book_files.insert(relative, bytes);
         }
     }
+    // The corpus rule is evaluated against the real repository, not against the
+    // book. It is the one input here the book's author did not write, which is
+    // what makes *complete reconstruction* a claim about the crate rather than a
+    // claim the manifest makes about itself.
+    let derived_corpus = crate::corpus::derive(&manifest, &canonical_repository)
+        .map_err(|error| LoadFailure::corpus(&manifest_relative, "book corpus rule", &error))?;
     let mut source_files = BTreeMap::new();
     for relative in manifest.root_paths() {
         let bytes = read_confined(repository, &canonical_repository, relative, "ledger source")?;
@@ -242,6 +249,7 @@ fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFai
     )?;
     Ok(BookSnapshot {
         manifest,
+        derived_corpus,
         book_files,
         source_files,
         book_entries,
@@ -410,6 +418,17 @@ impl LoadFailure {
     }
 
     fn schema(path: impl AsRef<Path>, subject: &'static str, error: &ManifestError) -> Self {
+        Self {
+            path: path.as_ref().to_string_lossy().replace('\\', "/"),
+            subject,
+            category: Category::Schema(error.reason().to_owned()),
+        }
+    }
+
+    /// A corpus rule that could not be evaluated reports as a schema failure
+    /// and for the same reason: both are the book's own declaration failing
+    /// before any validation runs, so both are `U002` naming the rule broken.
+    fn corpus(path: impl AsRef<Path>, subject: &'static str, error: &CorpusError) -> Self {
         Self {
             path: path.as_ref().to_string_lossy().replace('\\', "/"),
             subject,

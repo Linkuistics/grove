@@ -6,6 +6,7 @@ use book_validation::{validate, BookSnapshot, Check, Request, Scope};
 
 fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
     BookSnapshot {
+        derived_corpus: support::derived_corpus(),
         manifest: support::manifest(),
         book_files: BTreeMap::from([(
             "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
@@ -146,6 +147,7 @@ fn a_deep_graph_is_processed_without_recursion() {
 
     let report = validate(
         &BookSnapshot {
+            derived_corpus: support::derived_corpus(),
             manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/01-orientation.md".into(),
@@ -231,6 +233,7 @@ fn an_invalid_root_suppresses_only_its_byte_cascade() {
     );
     let report = validate(
         &BookSnapshot {
+            derived_corpus: support::derived_corpus(),
             manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
@@ -315,6 +318,7 @@ fn branching_invalid_graphs_do_not_expand_exponentially() {
     }
     let report = validate(
         &BookSnapshot {
+            derived_corpus: support::derived_corpus(),
             manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/01-orientation.md".into(),

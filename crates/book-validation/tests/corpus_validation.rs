@@ -13,9 +13,33 @@ fn the_frozen_fifteen_file_corpus_expands_byte_for_byte() {
     );
 
     assert_eq!(report.coverage.files, 15);
-    assert_eq!(report.coverage.resolved_lines, 6_976);
+    assert_eq!(report.coverage.resolved_lines, 6_981);
     assert_eq!(report.coverage.deferred_lines, 0);
     assert!(report.valid, "{:#?}", report.diagnostics);
+}
+
+#[test]
+fn the_refreshed_public_seam_matches_the_fixed_inventory() {
+    let report = validate(
+        &support::corpus(true),
+        Request {
+            scope: Scope::Final,
+            check: Check::Fragments,
+        },
+    );
+
+    let public_seam_roots = ["source-crate-manifest", "source-library"];
+    assert!(
+        report.diagnostics.iter().all(|diagnostic| {
+            diagnostic.code != "F006"
+                || diagnostic
+                    .root_id
+                    .as_deref()
+                    .is_none_or(|root| !public_seam_roots.contains(&root))
+        }),
+        "{:#?}",
+        report.diagnostics
+    );
 }
 
 #[test]
@@ -38,7 +62,7 @@ fn source_growth_beyond_the_frozen_range_is_an_inventory_failure() {
     assert!(report.diagnostics.iter().any(|diagnostic| {
         diagnostic.code == "F006"
             && diagnostic.root_id.as_deref() == Some("source-library")
-            && diagnostic.message.contains("95 lines")
+            && diagnostic.message.contains("104 lines")
     }));
 }
 
@@ -56,7 +80,7 @@ fn orientation_scope_reports_resolved_and_deferred_bytes_separately() {
         report.coverage,
         book_validation::Coverage {
             files: 15,
-            resolved_lines: 203,
+            resolved_lines: 208,
             deferred_lines: 6_773,
             final_: false,
         }

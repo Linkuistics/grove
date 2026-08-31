@@ -21,14 +21,14 @@ pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
     (
         "source-crate-manifest",
         "crates/ordinal-fs-tree/Cargo.toml",
-        116,
+        112,
     ),
     (
         "source-syllabus-cli",
         "crates/ordinal-fs-tree/bin/syllabus.rs",
         1_439,
     ),
-    ("source-library", "crates/ordinal-fs-tree/src/lib.rs", 94),
+    ("source-library", "crates/ordinal-fs-tree/src/lib.rs", 103),
     (
         "source-conformance",
         "crates/ordinal-fs-tree/src/conformance.rs",
@@ -118,7 +118,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         "source-crate-manifest",
         "orientation-k11",
         66,
-        116,
+        112,
     ),
     block(
         "syllabus-cli-source",
@@ -132,7 +132,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         "source-library",
         "orientation-k11",
         1,
-        94,
+        103,
     ),
     block(
         "reference-conformance-source",

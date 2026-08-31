@@ -8,9 +8,9 @@
 
 | Root ID | Source path | Lines |
 |---|---|---|
-| `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 116 |
+| `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 112 |
 | `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,439 |
-| `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 94 |
+| `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 103 |
 | `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 667 |
 | `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 342 |
 | `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 716 |
@@ -24,7 +24,7 @@
 | `source-filesystem-apply` | `crates/ordinal-fs-tree/src/fs/apply.rs` | 471 |
 | `source-filesystem-lock` | `crates/ordinal-fs-tree/src/fs/lock.rs` | 91 |
 
-<!-- source-root «source-crate-manifest» source="crates/ordinal-fs-tree/Cargo.toml" lines="1-116" -->
+<!-- source-root «source-crate-manifest» source="crates/ordinal-fs-tree/Cargo.toml" lines="1-112" -->
 <!-- insert «manifest-package-and-library-dependency» -->
 <!-- insert «manifest-cli-feature» -->
 <!-- insert «manifest-library-cli-boundary» -->
@@ -34,7 +34,7 @@
 <!-- source-root «source-syllabus-cli» source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1439" -->
 <!-- insert «syllabus-cli-source» -->
 <!-- /source-root -->
-<!-- source-root «source-library» source="crates/ordinal-fs-tree/src/lib.rs" lines="1-94" -->
+<!-- source-root «source-library» source="crates/ordinal-fs-tree/src/lib.rs" lines="1-103" -->
 <!-- insert «library-crate-surface» -->
 <!-- /source-root -->
 <!-- source-root «source-conformance» source="crates/ordinal-fs-tree/src/conformance.rs" lines="1-667" -->
@@ -90,9 +90,9 @@
 | `manifest-cli-feature` | `source-crate-manifest` | `syllabus-cli-k17` | `43-45` | 3 | `resolved` |
 | `manifest-library-cli-boundary` | `source-crate-manifest` | `orientation-k11` | `46-61` | 16 | `resolved` |
 | `manifest-cli-binary` | `source-crate-manifest` | `syllabus-cli-k17` | `62-65` | 4 | `resolved` |
-| `manifest-development-and-release` | `source-crate-manifest` | `orientation-k11` | `66-116` | 51 | `resolved` |
+| `manifest-development-and-release` | `source-crate-manifest` | `orientation-k11` | `66-112` | 47 | `resolved` |
 | `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1439` | 1,439 | `resolved` |
-| `library-crate-surface` | `source-library` | `orientation-k11` | `1-94` | 94 | `resolved` |
+| `library-crate-surface` | `source-library` | `orientation-k11` | `1-103` | 103 | `resolved` |
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-667` | 667 | `resolved` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `resolved` |
 | `name-seam-source` | `source-name` | `name-seam-k12` | `1-716` | 716 | `resolved` |
@@ -118,12 +118,12 @@
 
 | Fragment ID | Page ID | Root ID | Kind | Owner | Source lines | Parent ID | Child IDs |
 |---|---|---|---|---|---|---|---|
-| `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-116` | `—` | `manifest-package-and-library-dependency`, `manifest-cli-feature`, `manifest-library-cli-boundary`, `manifest-cli-binary`, `manifest-development-and-release` |
+| `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-112` | `—` | `manifest-package-and-library-dependency`, `manifest-cli-feature`, `manifest-library-cli-boundary`, `manifest-cli-binary`, `manifest-development-and-release` |
 | `manifest-package-and-library-dependency` | `orientation` | `source-crate-manifest` | `literal` | `orientation-k11` | `1-42` | `source-crate-manifest` | `—` |
 | `manifest-cli-feature` | `syllabus-cli` | `source-crate-manifest` | `literal` | `syllabus-cli-k17` | `43-45` | `source-crate-manifest` | `—` |
 | `manifest-library-cli-boundary` | `orientation` | `source-crate-manifest` | `literal` | `orientation-k11` | `46-61` | `source-crate-manifest` | `—` |
 | `manifest-cli-binary` | `syllabus-cli` | `source-crate-manifest` | `literal` | `syllabus-cli-k17` | `62-65` | `source-crate-manifest` | `—` |
-| `manifest-development-and-release` | `orientation` | `source-crate-manifest` | `literal` | `orientation-k11` | `66-116` | `source-crate-manifest` | `—` |
+| `manifest-development-and-release` | `orientation` | `source-crate-manifest` | `literal` | `orientation-k11` | `66-112` | `source-crate-manifest` | `—` |
 | `source-syllabus-cli` | `source-index` | `source-syllabus-cli` | `root` | `—` | `1-1439` | `—` | `syllabus-cli-source` |
 | `cli-command-line` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1-488` | `syllabus-cli-source` | `—` |
 | `syllabus-cli-source` | `syllabus-cli` | `source-syllabus-cli` | `composite` | `syllabus-cli-k17` | `1-1439` | `source-syllabus-cli` | `cli-command-line`, `cli-parsing-and-failure`, `cli-streams-and-paths`, `cli-mutation-output`, `cli-main-dispatch`, `cli-reading`, `cli-mutations`, `cli-stream-contract-tests` |
@@ -134,8 +134,8 @@
 | `cli-reading` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `998-1136` | `syllabus-cli-source` | `—` |
 | `cli-mutations` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1137-1259` | `syllabus-cli-source` | `—` |
 | `cli-stream-contract-tests` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1260-1439` | `syllabus-cli-source` | `—` |
-| `source-library` | `source-index` | `source-library` | `root` | `—` | `1-94` | `—` | `library-crate-surface` |
-| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-94` | `source-library` | `—` |
+| `source-library` | `source-index` | `source-library` | `root` | `—` | `1-103` | `—` | `library-crate-surface` |
+| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-103` | `source-library` | `—` |
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-667` | `—` | `reference-conformance-source` |
 | `conformance-obligations` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `1-208` | `reference-conformance-source` | `—` |
 | `reference-conformance-source` | `reference-domain` | `source-conformance` | `composite` | `reference-domain-k13` | `1-667` | `source-conformance` | `conformance-obligations`, `conformance-report`, `conformance-compose-and-canonical`, `conformance-component-and-distinguished`, `conformance-found-agreement` |

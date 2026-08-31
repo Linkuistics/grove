@@ -79,8 +79,8 @@ fn malformed_source_root_row_is_rejected() {
     let mut snapshot = support::corpus(true);
     edit_source_index(&mut snapshot, |text| {
         text.replacen(
-            "| `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 94 |",
-            "|`source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 94 |",
+            "| `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 103 |",
+            "|`source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 103 |",
             1,
         )
     });
@@ -92,7 +92,7 @@ fn malformed_source_root_row_is_rejected() {
 fn reordered_source_root_rows_are_rejected() {
     let mut snapshot = support::corpus(true);
     edit_source_index(&mut snapshot, |text| {
-        let first = "| `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 116 |\n";
+        let first = "| `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 112 |\n";
         let second =
             "| `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,439 |\n";
         text.replacen(&format!("{first}{second}"), &format!("{second}{first}"), 1)
@@ -105,7 +105,7 @@ fn reordered_source_root_rows_are_rejected() {
 fn duplicated_ownership_row_is_rejected() {
     let mut snapshot = support::corpus(true);
     edit_source_index(&mut snapshot, |text| {
-        let row = "| `library-crate-surface` | `source-library` | `orientation-k11` | `1-94` | 94 | `resolved` |\n";
+        let row = "| `library-crate-surface` | `source-library` | `orientation-k11` | `1-103` | 103 | `resolved` |\n";
         text.replacen(row, &format!("{row}{row}"), 1)
     });
 
@@ -143,8 +143,8 @@ fn fragment_index_relationships_must_match_directives() {
     let mut snapshot = support::corpus(true);
     edit_source_index(&mut snapshot, |text| {
         text.replacen(
-            "| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-94` | `source-library` | `—` |",
-            "| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-94` | `source-name` | `—` |",
+            "| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-103` | `source-library` | `—` |",
+            "| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-103` | `source-name` | `—` |",
             1,
         )
     });

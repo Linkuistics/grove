@@ -57,7 +57,8 @@ parts.
 ## Package contract
 
 The package identifies the reusable crate, fixes the workspace-compatible Rust
-version, and keeps its library dependency boundary explicit. `libc` is the only
+version through inherited package fields, and keeps its library dependency
+boundary explicit. `libc` is the only
 unconditional runtime dependency because the filesystem layer needs platform
 `flock` constants that `std` does not supply. `clap` is declared optional
 for the demonstration binary; its feature activation is a CLI-owned range
@@ -67,16 +68,16 @@ dependency inputs used by the library and by the insert tour.
 ````toml
 [package]
 name = "ordinal-fs-tree"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "An ordered tree of entries stored as a directory tree, where each entry's position, identity and metadata live in its filename"
-license = "Apache-2.0"
-repository = "https://github.com/Linkuistics/grove"
+license.workspace = true
+repository.workspace = true
 # Inherited from the workspace root, whose comment carries the evidence: the
 # locked dependency graph cannot be parsed by a cargo below 1.85. This crate has
 # no dependencies of its own and would build far lower, but a member that
 # promises more than the workspace can deliver promises nothing.
-rust-version = "1.85"
+rust-version.workspace = true
 
 # One dependency, and the bar it had to clear is that `std` cannot do the job at
 # all. The library is published for reuse, so every dependency it takes it
@@ -137,11 +138,12 @@ boundary is structural and why the binary is named for the syllabus it drives.
 
 Development dependencies support filesystem isolation, binary contract tests,
 and the lexer-based algebra boundary check without becoming consumer
-dependencies. Workspace lints apply, while release metadata excludes this crate
-from Grove's release lane until separate publication is deliberately settled.
+dependencies. Workspace lints apply. Release metadata keeps this library inside
+Grove's single workspace release: it takes the workspace version but has no
+independent tag, changelog section, or publication lane.
 This fragment completes the orientation-owned manifest ranges without including
 the CLI feature or binary declaration.
-<!-- fragment «manifest-development-and-release» owner="orientation-k11" source="crates/ordinal-fs-tree/Cargo.toml" lines="66-116" parent="source-crate-manifest" -->
+<!-- fragment «manifest-development-and-release» owner="orientation-k11" source="crates/ordinal-fs-tree/Cargo.toml" lines="66-112" parent="source-crate-manifest" -->
 ````toml
 
 # `tempfile` is a *dev*-dependency, so no consumer inherits it. The filesystem
@@ -176,22 +178,18 @@ proc-macro2 = { version = "1.0", features = ["span-locations"] }
 [lints]
 workspace = true
 
-# `cargo release` drives the workspace, and `release.toml` configures a cut of
-# *grove*. Excluding this member keeps that cut byte-identical to what it was
-# before the workspace existed: no version bump here, no tag, no changelog
-# section.
+# `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures
+# that cut. `release = false` here means no tag, no changelog section and no
+# publish of its own. It does **not** mean a frozen version: this crate takes
+# `version.workspace = true`, so a cut moves it with every other member — one
+# workspace, one release version (`docs/specs/module-decomposition.md`,
+# decision 1).
 #
-# **Whether this crate wants its own `CHANGELOG`, version and release lane is
-# still open**, and it is open because it depends on an answer nothing has yet
-# had to give: is `ordinal-fs-tree` ever published on its own, or is it only
-# ever consumed in-tree by grove? Published separately, it owes consumers a
-# version they can pin and a changelog they can read; consumed in-tree only, a
-# second release lane is ceremony over a crate that ships inside grove's tag
-# anyway. Answering it **by accident**, at grove's next release, is the outcome
-# this line prevents — `publish = false` is repo-wide in `release.toml`, so
-# without this exclusion the member would simply be swept along by a `cargo
-# release` cut of grove and the question would be settled by a version bump
-# nobody decided on.
+# **This crate is not published on its own, and that is settled**
+# (`docs/RELEASING.md`, *One release, six packages, one tag*): it ships inside
+# grove's cut, wearing grove's version, and no library member has a release lane
+# of its own. Removing this line does not reopen the question — it corrupts the
+# cut, which was measured rather than assumed.
 [package.metadata.release]
 release = false
 ````
@@ -203,11 +201,14 @@ release = false
 The crate root states the storage proposition and keeps filesystem access in
 `fs`. Its public surface exposes the conformance kit and reference domain,
 `fs::read` and `fs::write`, the `EntryName` seam and name vocabulary,
-mutation inputs and refusals, reports, and immutable snapshot views. The private
-`ops`, `plan`, and internal support modules keep algebraic implementation
-details behind those values. This fragment is the complete crate root and is the
-source-level map used by every later page.
-<!-- fragment «library-crate-surface» owner="orientation-k11" source="crates/ordinal-fs-tree/src/lib.rs" lines="1-94" parent="source-library" -->
+mutation inputs and refusals, reports including removals, sought-object
+resolution, and immutable snapshot views. The private `ops`, `plan`, and
+internal support modules keep algebraic implementation details behind those
+values. The crate-level documentation also states why whole-tree deletion is
+outside both formal models: its behavior depends on filesystem facts below
+their abstraction boundary. This fragment is the complete crate root and is
+the source-level map used by every later page.
+<!-- fragment «library-crate-surface» owner="orientation-k11" source="crates/ordinal-fs-tree/src/lib.rs" lines="1-103" parent="source-library" -->
 ````rust
 //! An ordered tree of entries stored as a directory tree, where each entry's
 //! position, identity and metadata live in its **filename**.
@@ -238,6 +239,13 @@ source-level map used by every later page.
 //! first, re-run its runner, and only then the code — and record the
 //! disagreement in `docs/formalism-findings.md`, because the catalogue of them
 //! is a deliverable in its own right.
+//!
+//! **Where they do not reach, that is stated rather than left as a gap.**
+//! [`fs::WriteGuard::delete`] is in neither model, because everything that makes
+//! it what it is — a directory removable only once it is empty, a symbolic link
+//! unlinked rather than followed, foreign entries reported by path — lives below
+//! the abstraction boundary both models stop at. `ARCHITECTURE.md`'s *The
+//! models* carries the argument, and each model file carries its own half.
 //!
 //! # Where the filesystem lives
 //!
@@ -293,6 +301,7 @@ mod plan;
 pub mod reference;
 mod report;
 mod snapshot;
+mod sought;
 
 pub use error::Error;
 pub use name::{
@@ -301,8 +310,9 @@ pub use name::{
 };
 pub use ops::{NewEntry, Target};
 pub use plan::Refusal;
-pub use report::{Created, Renamed, Report};
+pub use report::{Created, Removed, Renamed, Report};
 pub use snapshot::{Container, Entry, Snapshot, Walk};
+pub use sought::Sought;
 ````
 <!-- /fragment -->
 

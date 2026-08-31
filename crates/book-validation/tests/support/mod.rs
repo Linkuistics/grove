@@ -22,7 +22,7 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-crate-manifest",
         path: "crates/ordinal-fs-tree/Cargo.toml",
-        lines: 116,
+        lines: 112,
         blocks: &[
             BlockSpec {
                 id: "manifest-package-and-library-dependency",
@@ -52,7 +52,7 @@ const ROOTS: &[RootSpec] = &[
                 id: "manifest-development-and-release",
                 owner: "orientation-k11",
                 first: 66,
-                last: 116,
+                last: 112,
             },
         ],
     },
@@ -70,12 +70,12 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-library",
         path: "crates/ordinal-fs-tree/src/lib.rs",
-        lines: 94,
+        lines: 103,
         blocks: &[BlockSpec {
             id: "library-crate-surface",
             owner: "orientation-k11",
             first: 1,
-            last: 94,
+            last: 103,
         }],
     },
     RootSpec {

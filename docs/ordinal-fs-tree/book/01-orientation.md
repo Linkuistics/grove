@@ -349,7 +349,7 @@ The CLI helper constructs `NewEntry::empty(parts)` and passes it to
 `WriteGuard::insert`. The guard method passes its captured snapshot, the target,
 the ordinal, and the new entry to `ops::insert`. `Target`
 names either the root or a stable key. `NewEntry` carries opaque parts and
-optional bytes. The pure operation returns a total `Decision`: either a
+bytes that may be empty. The pure operation returns a total `Decision`: either a
 `Refusal`, which changes nothing, or a `Plan` of ordered `Effect` values.
 For this tree the target resolves to the module level, ordinal 2 is occupied,
 and the greatest key is 6.

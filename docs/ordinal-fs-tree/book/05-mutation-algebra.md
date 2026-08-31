@@ -3,29 +3,34 @@
 [Previous: Read path](04-read-path.md) | [Contents](README.md) | [Next: Filesystem interpreter](06-filesystem-interpreter.md)
 
 A mutation begins from the immutable `Snapshot` described on the previous page.
-The algebra receives that snapshot and the operation's arguments, and returns a
-total `Decision`: either a guarded `Plan` or a `Refusal`. It cannot read or alter
-the filesystem. A plan is an ordered value made from `Create` and `MoveTo`
-effects; the next page explains the single interpreter that applies those
-effects and produces a `Report`.
+For initialization, `Vacancy::initialize` constructs the same algebraic view as
+an empty snapshot. The algebra receives that snapshot and the operation's
+arguments, and returns a total `Decision`: either a guarded `Plan` or a
+`Refusal`. It cannot read or alter the filesystem. A plan is an ordered value
+made from `Create` and `MoveTo` effects; the next page explains the single
+interpreter that applies those effects and produces a `Report`. Whole-tree
+deletion is the deliberate exception: it acts on the root and on foreign
+entries that no snapshot names, so it bypasses this name-based plan algebra and
+returns `Removed` paths.
 
-<!-- fragment «mutation-operations-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="1-543" parent="source-operations" -->
+<!-- fragment «mutation-operations-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="1-634" parent="source-operations" -->
 <!-- insert «ops-surface-and-inputs» -->
 <!-- insert «ops-append» -->
+<!-- insert «ops-initialize» -->
 <!-- insert «ops-insert» -->
 <!-- insert «ops-promote» -->
 <!-- insert «ops-rewrite» -->
 <!-- insert «ops-resolution-and-allocation» -->
 <!-- /fragment -->
 
-<!-- fragment «mutation-plan-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="1-568" parent="source-plan" -->
+<!-- fragment «mutation-plan-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="1-597" parent="source-plan" -->
 <!-- insert «plan-effects» -->
 <!-- insert «plan-guarded» -->
 <!-- insert «plan-decision-and-refusals» -->
 <!-- insert «plan-refusal-messages» -->
 <!-- /fragment -->
 
-<!-- fragment «mutation-report-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/report.rs" lines="1-152" parent="source-report" -->
+<!-- fragment «mutation-report-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/report.rs" lines="1-186" parent="source-report" -->
 <!-- insert «report-structure-and-order» -->
 <!-- insert «report-debug» -->
 <!-- /fragment -->
@@ -34,7 +39,7 @@ effects and produces a `Report`.
 ## Operation inputs
 
 `Target` names a level: either the root or the node carrying a stable key.
-`NewEntry` carries consumer-owned parts and optional leaf bytes. Its species is
+`NewEntry` carries consumer-owned parts and leaf bytes, which may be empty. Its species is
 not an independent input; `EntryName::positioned_species` derives leaf or node
 from the parts. These types and the module boundary establish the page's input:
 one snapshot plus values, with no path or filesystem handle available to the
@@ -45,7 +50,7 @@ fragment takes parsed names and opaque parts as inputs, establishes key-only
 targeting and parts-derived species, and supplies the values used by the worked
 insert without introducing any filesystem capability.
 
-<!-- fragment «ops-surface-and-inputs» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="1-68" parent="mutation-operations-source" -->
+<!-- fragment «ops-surface-and-inputs» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="1-70" parent="mutation-operations-source" -->
 ````rust
 //! The operations' algebra: one planning function per operation, each a pure
 //! function of a [`Snapshot`].
@@ -65,7 +70,9 @@ insert without introducing any filesystem capability.
 //! plan shape exists for: five operations, one interpreter, one rollback.
 
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
-use crate::{Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot, Species};
+use crate::{
+    Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot, Sought, Species,
+};
 
 /// Which entry an operation is aimed at.
 ///
@@ -313,7 +320,7 @@ turns the worked snapshot and request into the three effects above while
 preserving every shifted key and part and refusing before a plan exists when an
 input condition fails.
 
-<!-- fragment «ops-insert» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="145-251" parent="mutation-operations-source" -->
+<!-- fragment «ops-insert» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="184-290" parent="mutation-operations-source" -->
 ````rust
 
 /// **`insert`**: add a child at an occupied ordinal, shifting the occupant and
@@ -600,12 +607,21 @@ create in `paths()`. The separate `Landing` sequence records each landed create
 or move in complete effect order because two species-specific vectors cannot
 reconstruct an interleaving such as promotion's create, move, create.
 
-The report module owns the consumer-visible record written during application.
-This fragment turns landed creates and moves into names and caller-spelled paths,
-preserves both per-species order and complete effect order, and makes the worked
-insert's highest-first shift observable after the internal plan is gone.
+Whole-tree deletion cannot use those name-bearing buckets. It removes the root,
+including foreign entries the consumer declined to parse, so no `EntryName`
+could describe everything that went. `Removed` instead carries the
+caller-spelled root and every path beneath it in removal order. Descendants
+precede the directory that held them, the root goes last, and the value exists
+only after root removal succeeds. A stopped deletion is an error rather than a
+partial success value; the filesystem lifecycle page owns that failure path.
 
-<!-- fragment «report-structure-and-order» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/report.rs" lines="1-119" parent="mutation-report-source" -->
+The report module owns both consumer-visible records. This fragment turns
+landed creates and moves into names and caller-spelled paths, preserves both
+per-species order and complete effect order, makes the worked insert's
+highest-first shift observable after the internal plan is gone, and represents
+whole-tree deletion without pretending foreign paths have consumer names.
+
+<!-- fragment «report-structure-and-order» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/report.rs" lines="1-153" parent="mutation-report-source" -->
 ````rust
 //! What a mutating operation tells the consumer it did.
 //!
@@ -642,6 +658,40 @@ pub struct Renamed<N> {
     pub from: PathBuf,
     /// Where it is now.
     pub to: PathBuf,
+}
+
+/// What a root deletion removed: paths, in the order they went.
+///
+/// # Why paths, where every other mutation reports names
+///
+/// The two buckets above are keyed by `N` because every other mutation acts on
+/// entries the domain *named*. Deletion acts on the **root**, and therefore on
+/// everything beneath it — including the entries the domain deliberately
+/// declines to parse as `N`, which a walk already skips and which no `N` can
+/// describe. A third bucket of names would still be unable to say what was
+/// removed, so this is the honest postcondition: the paths that are gone, which
+/// is the whole of what the operation knows and exactly what a caller needs to
+/// say what it destroyed.
+///
+/// Not generic over `N` for the same reason. Nothing here came from the domain's
+/// grammar, so nothing here needs the domain's type.
+#[derive(Clone, Debug)]
+pub struct Removed {
+    /// The tree root, in the caller's own spelling. It went **last**, because
+    /// nothing else could go after it, and this value exists only on the path
+    /// where its own removal returned `Ok` — a stopped removal reports through
+    /// [`Error::RemovalStopped`](crate::Error::RemovalStopped) instead, which
+    /// makes no claim about the root at all.
+    ///
+    /// The caller's spelling is the root itself and not an alias for it: a
+    /// deletion refuses a root spelled through a symbolic link, so what is named
+    /// here is what was removed.
+    pub root: PathBuf,
+    /// Everything that was beneath the root, **in the order it went**: children
+    /// before the level holding them, and within a level in the listing's own
+    /// sorted order. Foreign entries are here too — they were removed, so
+    /// leaving them out would be a report that undercounts the damage.
+    pub entries: Vec<PathBuf>,
 }
 
 /// What a mutating operation did.
@@ -753,7 +803,7 @@ fragment turns one resolved level and a vector of new entries into consecutive
 create effects, preserves pre-existing gaps, and supplies no effects at all for
 the empty-run case used to explain a successful no-op.
 
-<!-- fragment «ops-append» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="69-144" parent="mutation-operations-source" -->
+<!-- fragment «ops-append» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="71-119" parent="mutation-operations-source" -->
 ````rust
 
 /// **`append`**: add a child at the end of a level — the next free ordinal, a
@@ -792,43 +842,107 @@ pub(crate) fn append_many<N: EntryName>(
         Ok(resolved) => resolved,
         Err(refusal) => return Decision::Refuse(refusal),
     };
-    // Both counters come from this one snapshot, and both are read before any
-    // effect is built: `maxOrdIn(f, d)` and `freshKey(f)` in the model, taken
-    // once and walked forward. The ordinal is the level's, the key is the whole
-    // tree's — the names *are* the counter, and there is no file recording the
-    // next value because such a file is a second source of truth a hand edit
-    // can desynchronise.
-    let mut ordinal = last_ordinal(&container);
-    let mut key = greatest_key(snapshot);
-    let mut effects = Vec::with_capacity(entries.len());
-    for entry in entries {
-        if N::positioned_species(&entry.parts) == PositionedSpecies::Node
-            && !entry.content.is_empty()
-        {
-            return Decision::Refuse(Refusal::ContentForANode);
-        }
-        let (Some(next_ordinal), Some(next_key)) = (ordinal.checked_add(1), key.checked_add(1))
-        else {
-            return Decision::Refuse(if key.checked_add(1).is_none() {
-                Refusal::KeysExhausted
-            } else {
-                Refusal::OrdinalsExhausted
-            });
-        };
-        ordinal = next_ordinal;
-        key = next_key;
-        effects.push(Effect::Create {
-            at: level,
-            name: N::compose(Ordinal::new(ordinal), Key::new(key), entry.parts),
-            content: entry.content,
-        });
-    }
+    let effects = match creations(snapshot, level, &container, entries) {
+        Ok(effects) => effects,
+        Err(refusal) => return Decision::Refuse(refusal),
+    };
     // Guarded like every other plan, though nothing an `append` builds can
     // reach the refusal: every name it composes carries a key no entry in the
     // tree has, so no destination it computes can be taken. The guard is here
     // because it belongs to *plans*, not to operations — `insert` and `promote`
     // are what make it live — and because leaving it off here would make this
     // the one operation whose plan is unchecked.
+    Plan::of(effects).guarded(snapshot)
+}
+````
+<!-- /fragment -->
+
+<a id="initialization"></a>
+## Initialization
+
+Initialization is planned against `Snapshot::empty()`, the algebraic view of a
+locked vacancy. Its root entry run therefore uses the same `creations` helper as
+append-many: the greatest root ordinal and whole-tree key are both zero, so the
+first positioned name receives ordinal 1 and key 1 without a special allocation
+branch.
+
+An optional distinguished-child payload becomes the first `Create` at
+`Level::Root`. It is separate from the positioned run because a distinguished
+child has neither ordinal nor key and is named by `EntryName::distinguished`
+rather than `EntryName::compose`. If the domain supplies no distinguished name,
+bytes intended for it produce `NoDistinguishedChild { promoting: None }` before
+the positioned entries are examined. The root directory itself is not an
+entry, so it is neither a plan effect nor a report row; the filesystem lifecycle
+creates it under the vacancy's existing lock.
+
+The initialization planner owns the algebraic half of the root's creation. This
+fragment turns optional root content and the first positioned run into one
+guarded ordered plan while reusing the ordinary creation arithmetic.
+
+<!-- fragment «ops-initialize» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="120-183" parent="mutation-operations-source" -->
+````rust
+
+/// **`initialize`**: the first names a tree ever holds — a distinguished child
+/// carrying the root's own content, and a run of first entries at the root
+/// level.
+///
+/// Planned against an **empty** snapshot, because that is exactly what a vacancy
+/// is: a tree with no names, which is also what the arithmetic wants. The run
+/// starts at [`Ordinal::FIRST`] with key 1 because [`creations`] reads the
+/// level's greatest ordinal and the tree's greatest key off a snapshot holding
+/// neither, so no branch anywhere says *this is the first one*.
+///
+/// # The distinguished child is an ordinary effect
+///
+/// It has to be, and that it can be is the reason this operation needs no new
+/// trait method. A distinguished child carries no ordinal and no key, so
+/// [`NewEntry`] cannot describe it and [`EntryName::compose`] cannot build one —
+/// but [`EntryName::distinguished`] names it, and the library already places one
+/// that way when a promotion moves a leaf's bytes into a new node. So the same
+/// [`Effect::Create`] does it here, at [`Level::Root`], and
+/// `docs/adr/entry-name-is-the-only-seam.md` is untouched.
+///
+/// Bytes are `Option<Vec<u8>>` and not `Vec<u8>` because *no distinguished
+/// child* and *an empty one* are different trees, and a domain that has one
+/// should still be able to make a root without it.
+///
+/// # There is no root effect here
+///
+/// The root directory itself is not an entry: it has no name, so no effect can
+/// place it and no [`Report`](crate::Report) row can describe it. Creating it is
+/// the filesystem layer's, immediately before this plan is applied and under the
+/// lock the vacancy already holds — see [`Vacancy::initialize`].
+///
+/// [`Vacancy::initialize`]: crate::fs::Vacancy::initialize
+pub(crate) fn initialize<N: EntryName>(
+    snapshot: &Snapshot<N>,
+    distinguished: Option<Vec<u8>>,
+    entries: Vec<NewEntry<N::Parts>>,
+) -> Decision<N> {
+    let mut effects = Vec::with_capacity(entries.len() + 1);
+    if let Some(content) = distinguished {
+        // The same refusal a promotion gives, for the same reason: this domain
+        // has no distinguished child and these bytes have nowhere to go. Asked
+        // before the entries are looked at, exactly as `promote` asks before it
+        // looks at the parts — the answer is about the *domain*, so complaining
+        // about the rest of a call that could not have worked is less useful.
+        let Some(name) = N::distinguished() else {
+            return Decision::Refuse(Refusal::NoDistinguishedChild { promoting: None });
+        };
+        effects.push(Effect::Create {
+            at: Level::Root,
+            name,
+            content,
+        });
+    }
+    match creations(snapshot, Level::Root, &snapshot.root(), entries) {
+        Ok(created) => effects.extend(created),
+        Err(refusal) => return Decision::Refuse(refusal),
+    }
+    // Guarded like every other plan, and like `append`'s nothing it builds can
+    // reach the refusal: the level is empty, every composed name carries a
+    // distinct fresh key, and a distinguished child is never `same_name` as a
+    // positioned one. The guard is here because it belongs to plans.
     Plan::of(effects).guarded(snapshot)
 }
 ````
@@ -861,7 +975,7 @@ identity into create-then-move, optionally adds a first child, preserves the
 promoted key and ordinal, and exposes the unavoidable transient duplication in
 the plan's written order.
 
-<!-- fragment «ops-promote» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="252-396" parent="mutation-operations-source" -->
+<!-- fragment «ops-promote» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="291-437" parent="mutation-operations-source" -->
 ````rust
 
 /// **`promote`**: turn a leaf into a node, with the node's parts supplied by the
@@ -916,7 +1030,7 @@ pub(crate) fn promote<N: EntryName>(
     // node. The order is observable — a promotion of a *node* in a domain with
     // no distinguished child has two true refusals and reports the first — so it
     // is transcribed rather than reinvented.
-    let Some(leaf) = snapshot.by_key(key) else {
+    let Sought::Match(leaf) = snapshot.by_key(key) else {
         return Decision::Refuse(Refusal::TargetMissing { key });
     };
     if leaf.species() != Species::Leaf {
@@ -930,7 +1044,9 @@ pub(crate) fn promote<N: EntryName>(
     // never promote anything, and saying so is more useful than complaining
     // about the parts of a call that could not have worked.
     let Some(distinguished) = N::distinguished() else {
-        return Decision::Refuse(Refusal::PromoteNoDistinguished { key });
+        return Decision::Refuse(Refusal::NoDistinguishedChild {
+            promoting: Some(key),
+        });
     };
     if N::positioned_species(&parts) != PositionedSpecies::Node {
         return Decision::Refuse(Refusal::PromotePartsNotNode { key });
@@ -1031,7 +1147,7 @@ attribute changes. This fragment turns a keyed entry and replacement parts into
 one same-level move, preserves ordinal and key by construction, and keeps the
 same-parts request in the successful half of the total decision.
 
-<!-- fragment «ops-rewrite» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="397-476" parent="mutation-operations-source" -->
+<!-- fragment «ops-rewrite» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="438-517" parent="mutation-operations-source" -->
 ````rust
 
 /// **`rewrite`**: replace an entry's parts, keeping its ordinal, its key and its
@@ -1041,8 +1157,8 @@ same-parts request in the successful half of the total decision.
 /// `planRewrite` in the model, which builds `MoveTo(i, parentOf(f, i),
 /// compose(ordOf(n), keyOf(n), p))` and guards it. This is how an attribute
 /// changes, and `docs/adr/entries-are-never-removed.md` is why the operation
-/// matters more than its size: with no removal, a domain retires an entry by
-/// rewriting an attribute.
+/// matters more than its size: with no way to remove an entry, a domain retires
+/// one by rewriting an attribute.
 ///
 /// # The library neither knows nor cares what changed
 ///
@@ -1087,7 +1203,7 @@ pub(crate) fn rewrite<N: EntryName>(
     // first, then the species. `by_key` answers with positioned entries only, so
     // the distinguished child cannot be named here at all — the same fact that
     // makes `promote`'s *not a leaf* refusal reachable in one direction only.
-    let Some(entry) = snapshot.by_key(key) else {
+    let Sought::Match(entry) = snapshot.by_key(key) else {
         return Decision::Refuse(Refusal::TargetMissing { key });
     };
     let Some(triple) = entry.triple() else {
@@ -1122,8 +1238,57 @@ the whole snapshot as input, preserves the distinction between per-level
 ordinals and tree-wide keys, and keeps every operation on the same resolution
 and allocation rules used by the worked insert.
 
-<!-- fragment «ops-resolution-and-allocation» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="477-543" parent="mutation-operations-source" -->
+<!-- fragment «ops-resolution-and-allocation» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="518-634" parent="mutation-operations-source" -->
 ````rust
+
+/// A run of creations at the end of one level: consecutive ordinals over the
+/// level's greatest, consecutive keys over the whole tree's.
+///
+/// The arithmetic of [`append_many`], extracted because [`initialize`] places
+/// its first entries by exactly the same rule — into a root that holds nothing,
+/// so the run starts at [`Ordinal::FIRST`] and at key 1 without either function
+/// having to say so. Two spellings of one rule are two things to keep in step,
+/// and the model has one: `planAppendMany`.
+///
+/// Both counters come from the one snapshot, and both are read before any effect
+/// is built: `maxOrdIn(f, d)` and `freshKey(f)` in the model, taken once and
+/// walked forward. The ordinal is the level's, the key is the whole tree's — the
+/// names *are* the counter, and there is no file recording the next value
+/// because such a file is a second source of truth a hand edit can
+/// desynchronise.
+fn creations<N: EntryName>(
+    snapshot: &Snapshot<N>,
+    level: Level,
+    container: &Container<'_, N>,
+    entries: Vec<NewEntry<N::Parts>>,
+) -> Result<Vec<Effect<N>>, Refusal> {
+    let mut ordinal = last_ordinal(container);
+    let mut key = greatest_key(snapshot);
+    let mut effects = Vec::with_capacity(entries.len());
+    for entry in entries {
+        if N::positioned_species(&entry.parts) == PositionedSpecies::Node
+            && !entry.content.is_empty()
+        {
+            return Err(Refusal::ContentForANode);
+        }
+        let (Some(next_ordinal), Some(next_key)) = (ordinal.checked_add(1), key.checked_add(1))
+        else {
+            return Err(if key.checked_add(1).is_none() {
+                Refusal::KeysExhausted
+            } else {
+                Refusal::OrdinalsExhausted
+            });
+        };
+        ordinal = next_ordinal;
+        key = next_key;
+        effects.push(Effect::Create {
+            at: level,
+            name: N::compose(Ordinal::new(ordinal), Key::new(key), entry.parts),
+            content: entry.content,
+        });
+    }
+    Ok(effects)
+}
 
 /// The level a container is, as a plan names it.
 fn level_of<N: EntryName>(container: &Container<'_, N>) -> Level {
@@ -1145,7 +1310,7 @@ fn resolve<N: EntryName>(
             // `by_key` answers with positioned entries only — a distinguished
             // child has no key — so the refusal below is about a leaf, and a
             // distinguished child cannot be named here at all.
-            let Some(entry) = snapshot.by_key(key) else {
+            let Sought::Match(entry) = snapshot.by_key(key) else {
                 return Err(Refusal::TargetMissing { key });
             };
             let Some(container) = entry.contents() else {
@@ -1177,9 +1342,10 @@ fn last_ordinal<N: EntryName>(container: &Container<'_, N>) -> u32 {
 /// The greatest key in the **whole tree**, or `0` for a tree holding none.
 ///
 /// Whole-tree and not per-level: a key is unique tree-wide, so `max + 1` has to
-/// see every name there is. This is also the reason there is no removal
-/// operation — deleting an entry lowers this maximum, and the next allocation
-/// re-issues a key that other entries may still reference.
+/// see every name there is. This is also the reason no operation removes an
+/// entry — doing so lowers this maximum, and the next allocation re-issues a key
+/// that other entries may still reference. Deleting the **root** does not reach
+/// this function at all: there is no next allocation once the tree is gone.
 fn greatest_key<N: EntryName>(snapshot: &Snapshot<N>) -> u32 {
     snapshot
         .walk()
@@ -1210,11 +1376,12 @@ interpreter is called. It therefore changes nothing.
   an empty level, a hole at or below the greatest ordinal, and a request past the
   last sibling; the carried least/greatest span lets the message distinguish
   those states without inventing a lower neighbour.
-- `ContentForANode` comes from every operation path that creates a new entry
+- `ContentForANode` comes from every operation path that creates a positioned entry
   when node-implying parts are paired with bytes.
-- `PromoteNotLeaf`, `PromoteNoDistinguished`, and
-  `PromotePartsNotNode` are checked by promotion in that order. The order is
-  observable when several conditions are false at once.
+- `PromoteNotLeaf`, `NoDistinguishedChild`, and `PromotePartsNotNode` are
+  checked by promotion in that order. Initialization shares
+  `NoDistinguishedChild`; its `promoting` field is `None` because the root is not
+  an entry and has no key. Promotion supplies `Some(key)`.
 - `RewriteSpeciesChange` comes from rewrite when replacement parts imply the
   opposite positioned species.
 - `KeysExhausted` comes from any path allocating `greatest key + 1` when the
@@ -1230,7 +1397,7 @@ into an explicit value, establishes that refusal is the no-effects branch, and
 keeps exhaustion cases visible even though the unbounded formal model cannot
 pose them.
 
-<!-- fragment «plan-decision-and-refusals» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="230-419" parent="mutation-plan-source" -->
+<!-- fragment «plan-decision-and-refusals» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="230-433" parent="mutation-plan-source" -->
 ````rust
 
 /// What the algebra returns for every input: a plan to apply, or a refusal.
@@ -1353,18 +1520,32 @@ pub enum Refusal {
         /// What it turned out to be.
         species: Species,
     },
-    /// `promote` was called in a domain whose [`EntryName::distinguished`] is
-    /// `None`. `operations.qnt`'s `RefusedPromoteNoDistinguished`, and the whole
-    /// content of its `no_distinguished` instance.
+    /// Bytes were supplied for a distinguished child in a domain whose
+    /// [`EntryName::distinguished`] is `None`. `operations.qnt`'s
+    /// `RefusedNoDistinguishedChild`, and the whole content of its
+    /// `no_distinguished` instance.
     ///
-    /// Refused outright rather than guessed at: promotion moves the leaf's
-    /// content into the new node's distinguished child, and a domain with no
-    /// distinguished child gives that content nowhere to go. The alternatives
-    /// are discarding it silently and inventing a name the domain never
-    /// declared, and neither is one.
-    PromoteNoDistinguished {
-        /// The key of the leaf that would have been promoted.
-        key: Key,
+    /// Refused outright rather than guessed at: the alternatives are discarding
+    /// the bytes silently and inventing a name the domain never declared, and
+    /// neither is one.
+    ///
+    /// # Two operations, one refusal
+    ///
+    /// [`promote`] moves a leaf's content into the new node's distinguished
+    /// child, and [`Vacancy::initialize`] writes a fresh root's. Both are the
+    /// same condition — *this domain has no distinguished child, and these
+    /// bytes have nowhere to go* — so they answer with the same refusal rather
+    /// than with two that would have to be kept in step. What distinguishes
+    /// them is `promoting`, which is the key of the leaf on the one path that
+    /// has a key at all: a root initialization names no entry, because the tree
+    /// root is not one.
+    ///
+    /// [`promote`]: crate::fs::WriteGuard::promote
+    /// [`Vacancy::initialize`]: crate::fs::Vacancy::initialize
+    NoDistinguishedChild {
+        /// The key of the leaf that would have been promoted, or `None` when a
+        /// root initialization asked for one.
+        promoting: Option<Key>,
     },
     /// The parts `promote` was given do not imply species `Node`.
     /// `operations.qnt`'s `RefusedPromotePartsNotNode` — the same check
@@ -1436,7 +1617,7 @@ fragment turns carried keys, species, ordinals, and spans into precise recovery
 text, preserves the distinctions made at each decision site, and gives the
 worked insert's refusal alternatives meaning without requiring filesystem work.
 
-<!-- fragment «plan-refusal-messages» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="420-568" parent="mutation-plan-source" -->
+<!-- fragment «plan-refusal-messages» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="434-597" parent="mutation-plan-source" -->
 ````rust
 
 impl core::fmt::Display for Refusal {
@@ -1522,15 +1703,30 @@ impl core::fmt::Display for Refusal {
                  leaf into a node. A node is already one; name a leaf, or add \
                  children to this node directly."
             ),
-            Self::PromoteNoDistinguished { key } => write!(
-                f,
-                "this domain has no distinguished child, so promoting the leaf \
-                 with key {key} would leave its content nowhere to go. Promotion \
-                 moves a leaf's bytes verbatim into the new node's distinguished \
-                 child; give the domain one by implementing \
-                 `EntryName::distinguished`, or create the node and move the \
-                 content yourself."
-            ),
+            // One condition, two operations, and the advice differs by which
+            // asked: a promotion has a leaf to name and a fallback that keeps
+            // its content, and an initialization has neither.
+            Self::NoDistinguishedChild { promoting } => {
+                f.write_str(
+                    "this domain has no distinguished child, so the content supplied \
+                     for one has nowhere to go. ",
+                )?;
+                match promoting {
+                    Some(key) => write!(
+                        f,
+                        "Promotion moves the bytes of the leaf with key {key} verbatim \
+                         into the new node's distinguished child; give the domain one \
+                         by implementing `EntryName::distinguished`, or create the node \
+                         and move the content yourself."
+                    ),
+                    None => f.write_str(
+                        "A root initialization writes those bytes into the new root's \
+                         distinguished child; give the domain one by implementing \
+                         `EntryName::distinguished`, or initialize the tree without a \
+                         distinguished child.",
+                    ),
+                }
+            }
             Self::PromotePartsNotNode { key } => write!(
                 f,
                 "the parts supplied for promoting the leaf with key {key} make a \
@@ -1566,7 +1762,7 @@ impl core::fmt::Display for Refusal {
                     PositionedSpecies::Node => f.write_str(
                         "Supply parts that make a node. Nothing turns a node \
                          back into a leaf: its children would have nowhere to \
-                         go, and entries are never removed.",
+                         go, and no operation removes an entry.",
                     ),
                 }
             }
@@ -1596,7 +1792,7 @@ allowed to use. This fragment turns reports into diagnostic structures without
 widening the `EntryName` contract and completes the exact report source owned by
 this page.
 
-<!-- fragment «report-debug» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/report.rs" lines="120-152" parent="mutation-report-source" -->
+<!-- fragment «report-debug» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/report.rs" lines="154-186" parent="mutation-report-source" -->
 ````rust
 
 // `Debug` by hand rather than by derive, for the reason `Triple` and `Entry`
@@ -1634,10 +1830,12 @@ impl<N: EntryName> fmt::Debug for Report<N> {
 ````
 <!-- /fragment -->
 
-The algebraic seam is now complete. Append, append-many, insert, promote, and
-rewrite all consume one immutable snapshot and return either a guarded ordered
-plan or a refusal. The plan records what must happen; the filesystem interpreter
-on the next page determines whether those effects land and records what actually
-happened in a report.
+The algebraic seam is now complete. Initialization, append, append-many, insert,
+promote, and rewrite consume one immutable snapshot and return either a guarded
+ordered plan or a refusal. The plan records what must happen; the filesystem
+interpreter on the next page determines whether those effects land and records
+what actually happened in a report. Whole-tree deletion stands outside that
+algebra because it removes the root and unnamed foreign entries; its pure result
+is the path-based `Removed` value defined here.
 
 [Previous: Read path](04-read-path.md) | [Contents](README.md) | [Next: Filesystem interpreter](06-filesystem-interpreter.md)

@@ -13,7 +13,7 @@ cargo run --quiet -p book-validation --bin book-check -- \
   --check all
 ```
 
-Final assembly requires all sixteen source roots, all 7,118 source lines, and
+Final assembly requires all sixteen source roots, all 7,527 source lines, and
 no deferred ranges:
 
 ```console

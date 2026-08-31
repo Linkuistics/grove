@@ -114,23 +114,23 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-operations",
         path: "crates/ordinal-fs-tree/src/ops.rs",
-        lines: 543,
+        lines: 634,
         blocks: &[BlockSpec {
             id: "mutation-operations-source",
             owner: "mutation-algebra-k15",
             first: 1,
-            last: 543,
+            last: 634,
         }],
     },
     RootSpec {
         id: "source-plan",
         path: "crates/ordinal-fs-tree/src/plan.rs",
-        lines: 568,
+        lines: 597,
         blocks: &[BlockSpec {
             id: "mutation-plan-source",
             owner: "mutation-algebra-k15",
             first: 1,
-            last: 568,
+            last: 597,
         }],
     },
     RootSpec {
@@ -147,12 +147,12 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-report",
         path: "crates/ordinal-fs-tree/src/report.rs",
-        lines: 152,
+        lines: 186,
         blocks: &[BlockSpec {
             id: "mutation-report-source",
             owner: "mutation-algebra-k15",
             first: 1,
-            last: 152,
+            last: 186,
         }],
     },
     RootSpec {
@@ -333,7 +333,7 @@ const EARLY_USES: &[(&str, &str, &str, &str)] = &[
         "`Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report`",
         "01-orientation.md#insert-tour",
         "mutation-algebra-k15",
-        "Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders.",
+        "Target names the root or a stable key, new entry carries opaque parts and bytes that may be empty, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders.",
     ),
     (
         "`WriteGuard`, `Error`, `apply::Faults`, `apply::Run`",

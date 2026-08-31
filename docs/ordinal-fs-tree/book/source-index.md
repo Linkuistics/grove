@@ -14,10 +14,10 @@
 | `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 667 |
 | `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 342 |
 | `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 717 |
-| `source-operations` | `crates/ordinal-fs-tree/src/ops.rs` | 543 |
-| `source-plan` | `crates/ordinal-fs-tree/src/plan.rs` | 568 |
+| `source-operations` | `crates/ordinal-fs-tree/src/ops.rs` | 634 |
+| `source-plan` | `crates/ordinal-fs-tree/src/plan.rs` | 597 |
 | `source-reference` | `crates/ordinal-fs-tree/src/reference.rs` | 559 |
-| `source-report` | `crates/ordinal-fs-tree/src/report.rs` | 152 |
+| `source-report` | `crates/ordinal-fs-tree/src/report.rs` | 186 |
 | `source-snapshot` | `crates/ordinal-fs-tree/src/snapshot.rs` | 677 |
 | `source-sought` | `crates/ordinal-fs-tree/src/sought.rs` | 132 |
 | `source-filesystem-module` | `crates/ordinal-fs-tree/src/fs/mod.rs` | 393 |
@@ -47,16 +47,16 @@
 <!-- source-root «source-name» source="crates/ordinal-fs-tree/src/name.rs" lines="1-717" -->
 <!-- insert «name-seam-source» -->
 <!-- /source-root -->
-<!-- source-root «source-operations» source="crates/ordinal-fs-tree/src/ops.rs" lines="1-543" -->
+<!-- source-root «source-operations» source="crates/ordinal-fs-tree/src/ops.rs" lines="1-634" -->
 <!-- insert «mutation-operations-source» -->
 <!-- /source-root -->
-<!-- source-root «source-plan» source="crates/ordinal-fs-tree/src/plan.rs" lines="1-568" -->
+<!-- source-root «source-plan» source="crates/ordinal-fs-tree/src/plan.rs" lines="1-597" -->
 <!-- insert «mutation-plan-source» -->
 <!-- /source-root -->
 <!-- source-root «source-reference» source="crates/ordinal-fs-tree/src/reference.rs" lines="1-559" -->
 <!-- insert «reference-domain-source» -->
 <!-- /source-root -->
-<!-- source-root «source-report» source="crates/ordinal-fs-tree/src/report.rs" lines="1-152" -->
+<!-- source-root «source-report» source="crates/ordinal-fs-tree/src/report.rs" lines="1-186" -->
 <!-- insert «mutation-report-source» -->
 <!-- /source-root -->
 <!-- source-root «source-snapshot» source="crates/ordinal-fs-tree/src/snapshot.rs" lines="1-677" -->
@@ -100,10 +100,10 @@
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-667` | 667 | `resolved` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `resolved` |
 | `name-seam-source` | `source-name` | `name-seam-k12` | `1-717` | 717 | `resolved` |
-| `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-543` | 543 | `resolved` |
-| `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `resolved` |
+| `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-634` | 634 | `resolved` |
+| `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-597` | 597 | `resolved` |
 | `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-559` | 559 | `resolved` |
-| `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-152` | 152 | `resolved` |
+| `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-186` | 186 | `resolved` |
 | `read-snapshot-source` | `source-snapshot` | `read-path-k14` | `1-677` | 677 | `resolved` |
 | `sought-object-answer` | `source-sought` | `name-seam-k12` | `1-132` | 132 | `resolved` |
 | `filesystem-read-opening` | `source-filesystem-module` | `read-path-k14` | `1-86` | 86 | `resolved` |
@@ -163,20 +163,21 @@
 | `entry-name-trait` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `347-616` | `name-seam-source` | `—` |
 | `entry-name-derived-readings` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `617-691` | `name-seam-source` | `—` |
 | `name-component-check` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `692-717` | `name-seam-source` | `—` |
-| `source-operations` | `source-index` | `source-operations` | `root` | `—` | `1-543` | `—` | `mutation-operations-source` |
-| `ops-surface-and-inputs` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `1-68` | `mutation-operations-source` | `—` |
-| `mutation-operations-source` | `mutation-algebra` | `source-operations` | `composite` | `mutation-algebra-k15` | `1-543` | `source-operations` | `ops-surface-and-inputs`, `ops-append`, `ops-insert`, `ops-promote`, `ops-rewrite`, `ops-resolution-and-allocation` |
-| `ops-append` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `69-144` | `mutation-operations-source` | `—` |
-| `ops-insert` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `145-251` | `mutation-operations-source` | `—` |
-| `ops-promote` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `252-396` | `mutation-operations-source` | `—` |
-| `ops-rewrite` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `397-476` | `mutation-operations-source` | `—` |
-| `ops-resolution-and-allocation` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `477-543` | `mutation-operations-source` | `—` |
-| `source-plan` | `source-index` | `source-plan` | `root` | `—` | `1-568` | `—` | `mutation-plan-source` |
+| `source-operations` | `source-index` | `source-operations` | `root` | `—` | `1-634` | `—` | `mutation-operations-source` |
+| `ops-surface-and-inputs` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `1-70` | `mutation-operations-source` | `—` |
+| `mutation-operations-source` | `mutation-algebra` | `source-operations` | `composite` | `mutation-algebra-k15` | `1-634` | `source-operations` | `ops-surface-and-inputs`, `ops-append`, `ops-initialize`, `ops-insert`, `ops-promote`, `ops-rewrite`, `ops-resolution-and-allocation` |
+| `ops-append` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `71-119` | `mutation-operations-source` | `—` |
+| `ops-initialize` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `120-183` | `mutation-operations-source` | `—` |
+| `ops-insert` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `184-290` | `mutation-operations-source` | `—` |
+| `ops-promote` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `291-437` | `mutation-operations-source` | `—` |
+| `ops-rewrite` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `438-517` | `mutation-operations-source` | `—` |
+| `ops-resolution-and-allocation` | `mutation-algebra` | `source-operations` | `literal` | `mutation-algebra-k15` | `518-634` | `mutation-operations-source` | `—` |
+| `source-plan` | `source-index` | `source-plan` | `root` | `—` | `1-597` | `—` | `mutation-plan-source` |
 | `plan-effects` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `1-118` | `mutation-plan-source` | `—` |
-| `mutation-plan-source` | `mutation-algebra` | `source-plan` | `composite` | `mutation-algebra-k15` | `1-568` | `source-plan` | `plan-effects`, `plan-guarded`, `plan-decision-and-refusals`, `plan-refusal-messages` |
+| `mutation-plan-source` | `mutation-algebra` | `source-plan` | `composite` | `mutation-algebra-k15` | `1-597` | `source-plan` | `plan-effects`, `plan-guarded`, `plan-decision-and-refusals`, `plan-refusal-messages` |
 | `plan-guarded` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `119-229` | `mutation-plan-source` | `—` |
-| `plan-decision-and-refusals` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `230-419` | `mutation-plan-source` | `—` |
-| `plan-refusal-messages` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `420-568` | `mutation-plan-source` | `—` |
+| `plan-decision-and-refusals` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `230-433` | `mutation-plan-source` | `—` |
+| `plan-refusal-messages` | `mutation-algebra` | `source-plan` | `literal` | `mutation-algebra-k15` | `434-597` | `mutation-plan-source` | `—` |
 | `source-reference` | `source-index` | `source-reference` | `root` | `—` | `1-559` | `—` | `reference-domain-source` |
 | `reference-vocabulary` | `reference-domain` | `source-reference` | `literal` | `reference-domain-k13` | `1-214` | `reference-domain-source` | `—` |
 | `reference-domain-source` | `reference-domain` | `source-reference` | `composite` | `reference-domain-k13` | `1-559` | `source-reference` | `reference-vocabulary`, `reference-name-and-errors`, `reference-parser`, `reference-seam-methods`, `reference-parser-helpers` |
@@ -184,10 +185,10 @@
 | `reference-parser` | `reference-domain` | `source-reference` | `literal` | `reference-domain-k13` | `356-477` | `reference-domain-source` | `—` |
 | `reference-seam-methods` | `reference-domain` | `source-reference` | `literal` | `reference-domain-k13` | `478-509` | `reference-domain-source` | `—` |
 | `reference-parser-helpers` | `reference-domain` | `source-reference` | `literal` | `reference-domain-k13` | `510-559` | `reference-domain-source` | `—` |
-| `source-report` | `source-index` | `source-report` | `root` | `—` | `1-152` | `—` | `mutation-report-source` |
-| `report-structure-and-order` | `mutation-algebra` | `source-report` | `literal` | `mutation-algebra-k15` | `1-119` | `mutation-report-source` | `—` |
-| `mutation-report-source` | `mutation-algebra` | `source-report` | `composite` | `mutation-algebra-k15` | `1-152` | `source-report` | `report-structure-and-order`, `report-debug` |
-| `report-debug` | `mutation-algebra` | `source-report` | `literal` | `mutation-algebra-k15` | `120-152` | `mutation-report-source` | `—` |
+| `source-report` | `source-index` | `source-report` | `root` | `—` | `1-186` | `—` | `mutation-report-source` |
+| `report-structure-and-order` | `mutation-algebra` | `source-report` | `literal` | `mutation-algebra-k15` | `1-153` | `mutation-report-source` | `—` |
+| `mutation-report-source` | `mutation-algebra` | `source-report` | `composite` | `mutation-algebra-k15` | `1-186` | `source-report` | `report-structure-and-order`, `report-debug` |
+| `report-debug` | `mutation-algebra` | `source-report` | `literal` | `mutation-algebra-k15` | `154-186` | `mutation-report-source` | `—` |
 | `source-snapshot` | `source-index` | `source-snapshot` | `root` | `—` | `1-677` | `—` | `read-snapshot-source` |
 | `snapshot-storage` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `1-104` | `read-snapshot-source` | `—` |
 | `read-snapshot-source` | `read-path` | `source-snapshot` | `composite` | `read-path-k14` | `1-677` | `source-snapshot` | `snapshot-storage`, `snapshot-builder`, `snapshot-entry-views`, `snapshot-containers`, `snapshot-queries` |
@@ -244,7 +245,7 @@
 | `Sought` | `01-orientation.md#public-surface` | `name-seam-k12` | Sought distinguishes a search match from a completed search that matched nothing; nothing is neither a mutation refusal nor an error, while accessors retain Option. | `explained` |
 | `Label`, `Status`, `reference::Parts`, `SyllabusName` | `01-orientation.md#insert-tour` | `reference-domain-k13` | These values are the syllabus consumer's vocabulary and seam implementation, not library defaults. | `explained` |
 | `Snapshot`, `Entry`, `ReadGuard` | `01-orientation.md#insert-tour` | `read-path-k14` | A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot. | `explained` |
-| `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `explained` |
+| `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and bytes that may be empty, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `explained` |
 | `WriteGuard`, `Error`, `apply::Faults`, `apply::Run` | `01-orientation.md#insert-tour` | `filesystem-interpreter-k16` | A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state. | `explained` |
 | `Cli`, `Verb`, `Streams`, `Failure` | `01-orientation.md#insert-tour` | `syllabus-cli-k17` | Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category. | `explained` |
 | `conformance` | `02-name-seam.md#entry-name-contract` | `reference-domain-k13` | The reusable conformance kit samples five semantic `EntryName` obligations and publishes the two type-shape constraints with their remaining deterministic-call assumptions; the reference-domain chapter defines its scope and limits. | `explained` |

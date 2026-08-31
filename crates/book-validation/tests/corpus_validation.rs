@@ -13,7 +13,7 @@ fn the_frozen_sixteen_file_corpus_expands_byte_for_byte() {
     );
 
     assert_eq!(report.coverage.files, 16);
-    assert_eq!(report.coverage.resolved_lines, 7_118);
+    assert_eq!(report.coverage.resolved_lines, 7_527);
     assert_eq!(report.coverage.deferred_lines, 0);
     assert!(report.valid, "{:#?}", report.diagnostics);
 }

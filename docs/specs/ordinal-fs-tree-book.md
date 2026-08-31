@@ -520,10 +520,10 @@ visible in the root row and ownership table.
 | `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 667 |
 | `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 342 |
 | `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 717 |
-| `source-operations` | `crates/ordinal-fs-tree/src/ops.rs` | 543 |
-| `source-plan` | `crates/ordinal-fs-tree/src/plan.rs` | 568 |
+| `source-operations` | `crates/ordinal-fs-tree/src/ops.rs` | 634 |
+| `source-plan` | `crates/ordinal-fs-tree/src/plan.rs` | 597 |
 | `source-reference` | `crates/ordinal-fs-tree/src/reference.rs` | 559 |
-| `source-report` | `crates/ordinal-fs-tree/src/report.rs` | 152 |
+| `source-report` | `crates/ordinal-fs-tree/src/report.rs` | 186 |
 | `source-snapshot` | `crates/ordinal-fs-tree/src/snapshot.rs` | 677 |
 | `source-sought` | `crates/ordinal-fs-tree/src/sought.rs` | 132 |
 | `source-filesystem-module` | `crates/ordinal-fs-tree/src/fs/mod.rs` | 393 |
@@ -549,10 +549,10 @@ the matching defer with an insert and adds the definition.
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-667` | 667 | `deferred` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `deferred` |
 | `name-seam-source` | `source-name` | `name-seam-k12` | `1-717` | 717 | `deferred` |
-| `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-543` | 543 | `deferred` |
-| `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `deferred` |
+| `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-634` | 634 | `deferred` |
+| `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-597` | 597 | `deferred` |
 | `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-559` | 559 | `deferred` |
-| `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-152` | 152 | `deferred` |
+| `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-186` | 186 | `deferred` |
 | `read-snapshot-source` | `source-snapshot` | `read-path-k14` | `1-677` | 677 | `deferred` |
 | `sought-object-answer` | `source-sought` | `name-seam-k12` | `1-132` | 132 | `deferred` |
 | `filesystem-read-opening` | `source-filesystem-module` | `read-path-k14` | `1-86` | 86 | `deferred` |
@@ -579,11 +579,11 @@ shown above. Every other root contains one full-file top-level block.
 | `name-seam-k12` | `02-name-seam.md` | 849 |
 | `reference-domain-k13` | `03-reference-domain.md` | 1,226 |
 | `read-path-k14` | `04-read-path.md` | 1,218 |
-| `mutation-algebra-k15` | `05-mutation-algebra.md` | 1,263 |
+| `mutation-algebra-k15` | `05-mutation-algebra.md` | 1,417 |
 | `filesystem-interpreter-k16` | `06-filesystem-interpreter.md` | 1,163 |
 | `syllabus-cli-k17` | `07-syllabus-cli.md` | 1,446 |
 | `book-assembly-k18` | `08-invariants-and-trade-offs.md` | 0 |
-| **Total** | 16 source roots | **7,373** |
+| **Total** | 16 source roots | **7,527** |
 
 The totals count each source line once at its top-level block and do not count
 composite ancestors or lookup prose. A scoped report prints completed lines,
@@ -612,7 +612,7 @@ The initial ledger has this exact schema and these minimum rows:
 | `Sought` | `01-orientation.md#public-surface` | `name-seam-k12` | Sought distinguishes a search match from a completed search that matched nothing; nothing is neither a mutation refusal nor an error, while accessors retain Option. | `pending` |
 | `Label`, `Status`, `reference::Parts`, `SyllabusName` | `01-orientation.md#insert-tour` | `reference-domain-k13` | These values are the syllabus consumer's vocabulary and seam implementation, not library defaults. | `pending` |
 | `Snapshot`, `Entry`, `ReadGuard` | `01-orientation.md#insert-tour` | `read-path-k14` | A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot. | `pending` |
-| `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `pending` |
+| `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and bytes that may be empty, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `pending` |
 | `WriteGuard`, `Error`, `apply::Faults`, `apply::Run` | `01-orientation.md#insert-tour` | `filesystem-interpreter-k16` | A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state. | `pending` |
 | `Cli`, `Verb`, `Streams`, `Failure` | `01-orientation.md#insert-tour` | `syllabus-cli-k17` | Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category. | `pending` |
 
@@ -762,7 +762,7 @@ Final mode requires exactly the sixteen source roots and source paths in this
 specification, no extras, every top-level block resolved, no defer directives,
 one reachable definition per ID, gapless non-overlapping coverage, and byte-for-
 byte equality for every recursively expanded root. The final report must state
-16 files, 7,118 lines, zero deferred ranges, and final=true.
+16 files, 7,527 lines, zero deferred ranges, and final=true.
 
 ### Deterministic diagnostics
 

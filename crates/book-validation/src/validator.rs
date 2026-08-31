@@ -39,15 +39,15 @@ pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
     (
         "source-operations",
         "crates/ordinal-fs-tree/src/ops.rs",
-        543,
+        634,
     ),
-    ("source-plan", "crates/ordinal-fs-tree/src/plan.rs", 568),
+    ("source-plan", "crates/ordinal-fs-tree/src/plan.rs", 597),
     (
         "source-reference",
         "crates/ordinal-fs-tree/src/reference.rs",
         559,
     ),
-    ("source-report", "crates/ordinal-fs-tree/src/report.rs", 152),
+    ("source-report", "crates/ordinal-fs-tree/src/report.rs", 186),
     (
         "source-snapshot",
         "crates/ordinal-fs-tree/src/snapshot.rs",
@@ -155,14 +155,14 @@ pub(crate) const BLOCKS: &[Block] = &[
         "source-operations",
         "mutation-algebra-k15",
         1,
-        543,
+        634,
     ),
     block(
         "mutation-plan-source",
         "source-plan",
         "mutation-algebra-k15",
         1,
-        568,
+        597,
     ),
     block(
         "reference-domain-source",
@@ -176,7 +176,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         "source-report",
         "mutation-algebra-k15",
         1,
-        152,
+        186,
     ),
     block(
         "read-snapshot-source",

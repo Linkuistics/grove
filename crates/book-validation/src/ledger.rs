@@ -78,7 +78,7 @@ const EARLY_USES: &[(&str, &str, &str, &str)] = &[
         "`Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report`",
         "01-orientation.md#insert-tour",
         "mutation-algebra-k15",
-        "Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders.",
+        "Target names the root or a stable key, new entry carries opaque parts and bytes that may be empty, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders.",
     ),
     (
         "`WriteGuard`, `Error`, `apply::Faults`, `apply::Run`",

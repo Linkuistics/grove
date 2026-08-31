@@ -16,6 +16,11 @@ coverage, and the reason the validator sits on the campaign's critical path.
   `BLOCKS` (34 top-level ownership ranges) and `EARLY_USES` in
   `crates/book-validation/src/`. Their per-book form is whatever
   `walkthrough-books-spec-k20` settled.
+- `validator-structure-k21` has already moved the structure metadata —
+  `SLICE_ORDER`, `PAGE_BY_OWNER`, `SOURCE_INDEX` — to per-book data, *including*
+  its readers inside `src/ledger.rs`. The line between the two leaves is which
+  constants each owns, not `book-check`'s `--check` modes: both sets are read on
+  the fragment path, and both leaves must leave `--check all` green.
 - `scripts/check.sh` today gates the book only through `cargo test --locked
   --workspace`, which runs `tests/corpus_validation.rs` against the one
   compiled-in book. "Gates every book" means enumerating the book roots that

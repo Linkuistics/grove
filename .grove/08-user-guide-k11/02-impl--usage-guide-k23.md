@@ -36,7 +36,10 @@ Bring `docs/USAGE.md` to complete coverage of every row of the inventory
 **The root brief says an adversarial read against the inventory is what closes
 this.** Cut `review-impl` as your last act unless you can say concretely why the
 guide does not need one — the inventory makes a reviewer's job mechanical, which
-is most of the argument for paying for it.
+is most of the argument for paying for it. This leaf is the last entry in its
+own directory, so a plain `leaf-add` already places the review, and any
+integration it cuts, ahead of everything that follows; no `leaf-insert` is
+needed here.
 
 **Watch the summary layer.** A guide is a document with an overview, a table of
 contents and section bodies; a correction to one section does not reach the

@@ -50,6 +50,14 @@ book *system* whose per-book ledgers are data.
 - The specification states the per-book corpus format precisely enough that
   `validator-structure-k21` and `validator-fragments-k22` can implement against
   it without a second design conversation.
+- The specification states the **guide-link contract**: that every book links
+  into `docs/USAGE.md` as the reader's entry point (decision 7 of `plan-k1`),
+  which page of a book carries the link, and which guide anchors a book may cite.
+  Without it, `walkthroughs-k3` decision 5's whole reason for writing the guide
+  before the books — that books would otherwise inherit unstable anchors — is
+  asserted by nothing and checked by nothing. Say also whether the relocated
+  `ordinal-fs-tree` book is brought into conformance; if it is, cut the leaf that
+  does it as your last act and place it ahead of the pilot.
 - Every artifact that links into the old spec still resolves, and
   `bash scripts/check.sh` passes.
 
@@ -59,6 +67,15 @@ book *system* whose per-book ledgers are data.
 books and an overview are authored against whatever this settles, and no session
 after this one has a human present. Cut `review-design` as your last act if the
 decision is anything other than "the rejection stands unchanged".
+
+**Place that review ahead of its consumers, not at this directory's end.**
+`validator-structure-k21` and `validator-fragments-k22` both implement against
+this spec and both sit later in this directory, so a plain `leaf-add` puts the
+review behind the work it exists to redirect — which `walkthroughs-k3`
+decision 10 says is worth nothing. Cut it as
+`grove-llm leaf-insert <validator-structure-k21> <stem> --kind review-design`,
+and tell that review to place any `integrate-review-design` it cuts the same
+way.
 
 **Do not specify the art phase here.** Figures, assets and what the validator
 should know about them are deliberately deferred until the pilot has run the art

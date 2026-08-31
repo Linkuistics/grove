@@ -20,6 +20,11 @@ pipeline `publishing-pipeline-k13` extracted — and move
 - The repository-wide link sweep and the architecture-anchor resolver are both
   green over the moved anchors, in Markdown **and** in Rust sources.
 - `scripts/check.sh` gates every book.
+- Each new book is inside the curated user-documentation surface and has its row
+  in `docs/ARCHITECTURE.md`'s *Documentation ownership* table.
+  `book-assurance-surface-k39` made both checks discover book roots, so a book
+  that satisfies them needs no edit here — but a book that does not will turn
+  them red, and the fix is the row and the link, never the check.
 
 ## Decomposition
 

@@ -31,6 +31,9 @@ settled, passing final validation.
 - It is uniform with the other books' page conventions, navigation and prose
   contract, and it is gated by `scripts/check.sh` through the book discovery
   rather than a hand-added line.
+- Its links into `docs/USAGE.md` resolve, per the shared specification's
+  guide-link contract, and `every_repository_markdown_reference_resolves` is what
+  proves it.
 - `bash scripts/check.sh` passes.
 
 ## Notes

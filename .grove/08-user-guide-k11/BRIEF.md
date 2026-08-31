@@ -54,5 +54,14 @@ books already cite. The cost is that the campaign's critical path — the valida
 — finishes one node earlier, which is the trade recorded at `walkthroughs-k3`
 decision 5.
 
+**The link that justifies that placement is a stated contract, not an
+expectation.** As `walkthroughs-k3` cut it, no book and no spec required a link
+into the guide at all, so two sessions sat on the critical path for an
+anchor-stability property nothing checked. `walkthrough-books-spec-k20` now
+carries the guide-link contract and every book's `Done when` requires its links
+to resolve — so the anchors `usage-guide-k23` leaves behind are a published
+surface, and the placement is earned. If that contract is ever dropped, this node
+has no reason to sit ahead of the pilot and should move.
+
 **The guide is one document, expanded in place.** Decision 2 of `plan-k1`: a
 second document on the same subject would violate the ownership table.

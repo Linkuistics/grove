@@ -13,7 +13,8 @@ dropped. Record the answer as an ADR.
   diagrams, no figures and no captions anywhere, and the fragment validator has
   no concept of an asset. Format, convention and validation are all unbuilt
   (decision 11 of `plan-k1`).
-- `pilot-measure-k26`'s report is the evidence, and it is the whole reason this
+- `measurement-report-k45`'s report, under the `pilot-measure-k26` node, is the
+  evidence, and it is the whole reason this
   leaf comes after the pilot rather than before it. The root brief's *Notes*:
   expensive machinery ordered ahead of the measurement that would justify it
   cannot answer whether it was needed.

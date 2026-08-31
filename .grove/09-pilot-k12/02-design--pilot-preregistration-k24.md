@@ -60,4 +60,9 @@ them, or the art stage is unmeasurable by construction and the decision rule
 drops it for the wrong reason.
 
 **This is a load-bearing artifact with no human present downstream.** Consider
-`review-design` as your last act.
+`review-design` as your last act — and if you cut one, `leaf-insert` it at
+`jj-workspace-book-k25` rather than appending it. Appending puts it after the
+drafting and the measurement this document exists to constrain, which makes it a
+report on the experiment rather than a guard on it; of every review in this
+campaign, this is the one where arriving late costs most. Any
+`integrate-review-design` that review cuts is placed the same way.

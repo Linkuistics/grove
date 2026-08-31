@@ -18,8 +18,20 @@ token set all come from the book directory named by `--book`.
   path and must stop doing so.
 - Out of scope, and left exactly as they are for the next leaf: `ROOTS`,
   `BLOCKS`, `EARLY_USES`.
-- The `--check markdown` / `--check fragments` seam is the split. This leaf owns
-  the Markdown side; `validator-fragments-k22` owns the other.
+- **The split is by data, and `walkthroughs-k3` decision 4 is wrong about
+  where.** It claimed the compiled-in ledger divides along `book-check`'s own
+  `--check markdown` / `--check fragments` seam. It does not:
+  `crate::ledger::check` runs only under `Fragments` or `All`
+  (`crates/book-validation/src/validator.rs`), and it is `src/ledger.rs` that
+  defines `PAGE_BY_OWNER` and `SOURCE_INDEX` and imports `SLICE_ORDER`;
+  `src/markdown.rs` reads `SLICE_ORDER` as well. Every constant this leaf touches
+  is read on the fragment path too. The real seam is **shared structure
+  metadata** — this leaf — against **per-book corpus data** —
+  `validator-fragments-k22`. What lets each land independently is that the two
+  constant sets have disjoint *definitions*, not disjoint readers.
+- **So `--check fragments` is this leaf's problem as much as `--check
+  markdown`.** Re-derive the consumer set rather than trusting this note; a leaf
+  that proved only the Markdown mode has proved half of what it changed.
 
 ## Done when
 

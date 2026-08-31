@@ -46,6 +46,11 @@ the rest exist because it cannot be reached without them.
   it does (see *Notes*).
 - The fragment validator takes a per-book corpus rather than one compiled-in
   ledger, and `scripts/check.sh` gates every book.
+- Decision 8 of `plan-k1` holds for books mechanically: every book root under
+  `docs/walkthroughs/` is inside the curated user-documentation surface and has a
+  tested row in `docs/ARCHITECTURE.md`'s *Documentation ownership* table, both by
+  discovery, so a sixth book joins with no edit. Assigned to
+  `book-assurance-surface-k39` after `walkthroughs-k9` found it assigned nowhere.
 - The publishing pipeline exists as installed `grove-<kind>` skills, derived
   from what the pilot measured rather than asserted in advance — against a
   measure **preregistered before the pilot runs**: a judged outcome, a stated
@@ -82,6 +87,10 @@ Three arms, ordered so the documentation is never blocked on unbuilt machinery.
   it retrofitting as it lands. So the remaining books wait on the pilot and the
   pipeline extraction — both inside this arm — and never on
   `loop-construct-k7`.
+  Reviewed by `walkthroughs-k9`, which reported five findings; `walkthroughs-k38`
+  integrated all five — adding one leaf, turning the pilot's measurement leaf into
+  a six-child node, and correcting the recorded reasoning behind the validator
+  split and the guide-first ordering.
 - **`specification-capture-k4/k5/k6`** — P4. A vendor pair, because the
   question is load-bearing enough to pay for two corpora and one survey's blind
   spots would decide it.

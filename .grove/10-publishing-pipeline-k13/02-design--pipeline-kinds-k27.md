@@ -9,7 +9,7 @@ discipline, its deliverable, its HITL/AFK mark and how it hands off to the next.
 ## Context
 
 - The decision rule is `pilot-preregistration-k24`'s and the evidence is
-  `pilot-measure-k26`'s. Apply the rule; do not re-derive a better one. A stage
+  `measurement-report-k45`'s, under the `pilot-measure-k26` node. Apply the rule; do not re-derive a better one. A stage
   the report leaves genuinely undetermined is not evidence for keeping it.
 - The candidate stages: draft, developmental edit, technical edit, copy edit,
   art, proof (decision 11 of `plan-k1`). The alternative they had to beat: draft
@@ -56,4 +56,6 @@ saying exactly how is part of this leaf's deliverable, not an implementation
 detail for the skills leaf to improvise.
 
 **This decides how five books get written and no human is downstream of it.**
-Consider `review-design` as your last act.
+Consider `review-design` as your last act — and `leaf-insert` it at
+`pipeline-skills-k28` rather than appending it, so the walk reaches the review,
+and any integration it cuts, before the leaf that implements this design.

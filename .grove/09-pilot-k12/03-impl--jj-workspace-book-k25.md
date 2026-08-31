@@ -29,6 +29,9 @@ book.
 
 - `docs/walkthroughs/jj-workspace/` holds the book, and final validation over it
   passes with no deferred holes.
+- Its links into `docs/USAGE.md` resolve, per the shared specification's
+  guide-link contract, and `every_repository_markdown_reference_resolves` is what
+  proves it.
 - `bash scripts/check.sh` passes, with the new book gated by the discovery
   `validator-fragments-k22` built rather than by a hand-added line.
 - The draft stage's record exists in the form the preregistration's attribution
@@ -37,7 +40,7 @@ book.
 ## Notes
 
 **This is the draft stage only.** Developmental edit, technical edit, copy edit,
-art and proof are `pilot-measure-k26`'s, one commit each. A draft that has been
+art and proof are the `pilot-measure-k26` node's — one leaf and one commit each. A draft that has been
 quietly polished destroys the attribution rule's ability to credit anything,
 because there is then no unedited baseline for the later stages to be measured
 against.

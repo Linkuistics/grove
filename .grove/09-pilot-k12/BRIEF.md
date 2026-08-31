@@ -15,6 +15,8 @@ campaign currently distinguishes six editorial stages from two.
   things: the judged outcome, the alternative the six stages must beat, the
   attribution rule saying how a change is credited to a stage, and the decision
   rule mapping evidence to keep / merge / drop per stage.
+- Each remaining stage has its own commit, so what it changed is recoverable from
+  a single diff.
 - A measurement report exists, evaluated against that preregistration, saying per
   stage whether it paid — including any stage the evidence says to drop.
 - A human-authored structure brief for the book exists as a committed input
@@ -28,12 +30,20 @@ Four leaves, and the first two must both precede the third.
 2. `pilot-preregistration-k24` — the measure, written and committed before any
    drafting.
 3. `jj-workspace-book-k25` — the draft, taken to green final validation.
-4. `pilot-measure-k26` — the remaining stages run one commit each, and the report.
+4. `pilot-measure-k26` — a **node**: one leaf per remaining editorial stage, then
+   the measurement report.
 
 Drafting and editing are separate leaves because a session that must both write a
 source-exact book and run five editorial passes over it will run long and produce
 a poor measurement. A validated draft is independently useful on its own: it is a
 real book, and the campaign's first new one.
+
+The fourth entry was cut as a single leaf and became a node at `walkthroughs-k38`,
+against `walkthroughs-k9`'s F2: one leaf requiring five stage commits and a
+committed report is not one focused commit, and the sequence was already known
+rather than merely suspected. Its brief carries the six children and why the
+per-stage commit boundary is the attribution rule's instrument rather than
+bookkeeping.
 
 ## Pointers
 

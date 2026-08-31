@@ -19,6 +19,10 @@ lands, which is why it sits first in the walk.
   from the book directory named by `--book`.
 - `scripts/check.sh` gates every book root under `docs/walkthroughs/`, not one
   named book.
+- Decision 8 of `plan-k1` holds for books and holds mechanically: every book root
+  under `docs/walkthroughs/` is inside the curated user-documentation surface and
+  has a tested row in `docs/ARCHITECTURE.md`'s *Documentation ownership* table,
+  both by discovery, so a sixth book joins with no edit.
 
 ## Decomposition
 
@@ -31,11 +35,26 @@ Ordered by what each leaf makes possible for the next.
 3. `validator-structure-k21` — the structural half of the ledger becomes data.
 4. `validator-fragments-k22` — the fragment half becomes data, and the check
    script gates every book.
+5. `book-assurance-surface-k39` — the curated user surface and the ownership
+   table discover book roots, and both checks are seen to fail first.
 
-The two validator leaves split along `book-check`'s own `--check markdown` /
-`--check fragments` seam, which is also where the compiled-in ledger divides.
-That is what lets each land with the validator green over the relocated book
-rather than as one unlandable rewrite.
+Leaf 5 was added by `walkthroughs-k38` against `walkthroughs-k9`'s F3: decision 8
+of `plan-k1` had settled both obligations and no leaf in the subtree carried
+either, so the campaign could have closed green in breach of a settled
+requirement. It sits in this node because it is book-*system* assurance, and last
+because it needs `docs/walkthroughs/` to exist and nothing else in the node needs
+it.
+
+The two validator leaves split by **which constants each owns** — structure
+metadata (`SLICE_ORDER`, `PAGE_BY_OWNER`, `SOURCE_INDEX`) against corpus data
+(`ROOTS`, `BLOCKS`, `EARLY_USES`) — and *not* along `book-check`'s `--check
+markdown` / `--check fragments` modes. `walkthroughs-k3` decision 4 asserted the
+latter and was wrong: `ledger::check` runs only under `--check fragments`, yet
+`src/ledger.rs` is where `PAGE_BY_OWNER` and `SOURCE_INDEX` are defined and where
+`SLICE_ORDER` is imported, so both halves are read on the fragment path. What
+lets each leaf land with the validator green over the relocated book is that the
+two constant sets are disjoint, not that their readers are — and each leaf owes
+`--check all`, not one mode.
 
 ## Pointers
 

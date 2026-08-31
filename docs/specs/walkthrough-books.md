@@ -65,18 +65,24 @@ The system has five deliberate properties.
    source root or a top-level ownership block, and declares no parent or child
    edge. A reader holding the book and the crate recovers every source byte with
    no tooling.
-4. **What a book owes is stated outside it, and checked against the tree.** The
-   manifest declares the corpus as a rule with named additions and exclusions,
-   and the validator requires the declared root set to equal the set derived from
-   the real directory. A book cannot pass by proving itself complete over a
-   corpus it chose.
+4. **What a book owes is stated outside it, and checked in two directions.** The
+   manifest declares the corpus as a rule whose base patterns are fixed by the
+   book's declared subject rather than chosen, with named additions and
+   exclusions drawn from a closed class, and the validator requires the declared
+   root set to equal the set derived from the real directory. Derivation alone
+   would not make the corpus external — it proves that the declared patterns
+   matched, never that the author declared the right patterns — so every
+   exception is also restated in this specification and cross-checked against the
+   manifests. A book cannot narrow the corpus it proves.
 5. Scoped checks prove one authoring increment without confusing a named future
    hole with an accidental unresolved reference; final checks prove the whole
    corpus with no holes.
 
 Properties 3 and 4 are the pair, and neither is safe alone. A later change that
 gives expansion a manifest field breaks 3; a later change that lets a book
-enumerate its own roots with nothing to check them against breaks 4.
+enumerate its own roots with nothing to check them against — or choose its own
+base patterns, or take an exception nothing outside the book agreed to — breaks
+4.
 
 ## What a book is
 
@@ -132,10 +138,12 @@ include = [
 
 [[corpus.add]]
 path   = "crates/ordinal-fs-tree/bin/syllabus.rs"
+class  = "production-outside-src"
 reason = "the demonstration consumer is production source and lives outside src/"
 
 [[corpus.exclude]]
 path   = "crates/ordinal-fs-tree/src/fixtures.rs"
+class  = "test-support"
 reason = "test-support module: evidence, not production source"
 
 [[page]]
@@ -195,8 +203,8 @@ diagnostic can name what the book is about without inferring it from a path.
 
 **`[corpus]`** carries `include`, an ordered non-empty array of patterns, and any
 number of `[[corpus.add]]` and `[[corpus.exclude]]` entries. Each `add` and
-`exclude` carries `path` and a non-empty `reason`. Two pattern forms are
-accepted and no others:
+`exclude` carries `path`, a `class` from the closed list below, and a non-empty
+`reason`. Two pattern forms are accepted and no others:
 
 - an exact repository-relative file path; and
 - `<dir>/**/*.<ext>` — every file at any depth under `<dir>` whose name ends
@@ -206,6 +214,25 @@ A richer glob language is deliberately not accepted. Two forms cover every book
 in this repository, they are implementable without a dependency, and a pattern a
 reader cannot evaluate by inspection is a corpus boundary nobody checks. A
 pattern in any other form is a `U002` load failure.
+
+**`include` is anchored to `[book].subject`, not chosen.** It must contain both
+base patterns — the exact path `<subject>/Cargo.toml` and the pattern
+`<subject>/src/**/*.rs` — and a manifest omitting either is a `U002` load
+failure naming the missing pattern. A book may declare further patterns; it may
+not declare fewer. Without this, a manifest could `include` one file, declare
+that one root, and satisfy every check in this specification while proving
+nothing: derivation compares the declared roots against the tree *the patterns
+reach*, so a rule the author narrows narrows the witness with it.
+
+**The exception classes are closed.** `[[corpus.exclude]] class` is
+`inline-test-module` or `test-support`; `[[corpus.add]] class` is
+`production-outside-src`. Any other value is a `U002` load failure, and a book
+needing one is describing something this specification has not seen — an
+amendment here, not a field the book fills in freely. An `inline-test-module`
+exclusion whose path's file name is not `tests.rs` is also `U002`: where a class
+has a mechanically checkable form, the class claim is checked rather than
+believed. `reason` remains free prose and is never validated, which is why it
+carries the argument and `class` carries the constraint.
 
 **`[[page]]`** entries are the final page inventory, in canonical order.
 `README.md` must be first with `role = "contents"`; chapters follow in ascending
@@ -225,15 +252,28 @@ ID, `root` names a declared root, `owner` names a declared slice, and `lines` is
 that root's declared line count exactly: ordered, adjacent, non-overlapping, and
 covering `1` to `lines`.
 
+**Identities are unique, and the schema says so.** Within one manifest, no two
+`[[page]]` entries share a `file` or an `id`; no two chapters share a `slice`; no
+two `[[root]]` entries share an `id` or a `path`; and no two `[[block]]` entries
+share an `id`. A duplicate in any of those is a `U002` load failure naming the
+repeated value. Chapter slice uniqueness is the load-bearing one: the scoped
+domain below is derived from those values, a `[[block]]` names one of them as its
+`owner`, and `F010` reports a fragment defined outside its owner's chapter — so a
+slice naming two chapters would make the accepted `--through` list carry a
+duplicate and would leave `F010` with no single required page to name. Every
+`[[block]] owner` must be the `slice` of a declared chapter, and every
+`[[block]] root` a declared root `id`; a reference to neither is `U002`.
+
 **`[[early-use]]`** entries are the minimum required early-use rows: the symbol
 family, the first-use page and anchor, the owning slice, and the minimum local
 statement. Authors add further rows to the book's own ledger; the manifest states
 the ones a book may not omit.
 
-**`[guide]`** is required, and is exactly one of two shapes: `path` plus
-`anchors`, or `omitted` with a non-empty reason. **`[[glossary]]`** entries are
-optional and carry `path` plus `anchors`. Both are the subject of *Outbound
-links* below.
+**`[guide]`** is required, and is exactly one of two shapes: `path` plus a
+**non-empty** `anchors` array, or `omitted` with a non-empty reason. A `[guide]`
+carrying `path` with no anchors is a `U002` load failure. **`[[glossary]]`**
+entries are optional and carry `path` plus `anchors`. Both are the subject of
+*Outbound links* below.
 
 ### The scoped-slice domain is derived
 
@@ -283,9 +323,53 @@ An `exclude` whose path the include patterns never matched is also `U002`: an
 exception that excludes nothing is either a typo or a rule that has moved, and
 both are worth a refusal.
 
-This replaces the two-hand-written-lists cross-check the compiled constants
-carried. It is stronger, because a list checked against the tree it describes
-cannot be wrong in the same direction as the tree.
+**What derivation is stronger at, and what it cannot do.** It replaces the
+two-hand-written-lists cross-check the compiled constants carried, and in one
+direction it is stronger: a list checked against the tree it describes cannot be
+wrong in the same direction as the tree, so a production file added to the crate
+and forgotten by the book is a failure rather than a silence. In another
+direction it is weaker, and saying otherwise would misdescribe the control.
+Derivation proves that the declared patterns matched. It cannot prove the author
+declared the right patterns, and it cannot judge an exception: a `reason` is
+prose, and one manifest edit could otherwise move both the asserted rule and the
+roots checked against it. Two of this specification's rules exist to close that,
+and they are what make the corpus external rather than self-declared:
+
+1. the base patterns are fixed by `[book].subject` (*Groups*), so the rule's
+   floor is not the author's to choose; and
+2. every exception is declared twice — in the manifest, and in the normative
+   inventory below — so an addition or exclusion is an agreement between the book
+   and this specification rather than an assertion the book makes about itself.
+
+**The corpus exception inventory.** These are the complete `[[corpus.add]]` and
+`[[corpus.exclude]]` entries every book in this repository may carry. The
+five campaign deliverables that appear in no row declare none.
+
+| Book | Kind | Path | Class |
+|---|---|---|---|
+| `ordinal-fs-tree` | `add` | `crates/ordinal-fs-tree/bin/syllabus.rs` | `production-outside-src` |
+| `ordinal-fs-tree` | `exclude` | `crates/ordinal-fs-tree/src/fixtures.rs` | `test-support` |
+| `ordinal-fs-tree` | `exclude` | `crates/ordinal-fs-tree/src/fs/apply/tests.rs` | `inline-test-module` |
+| `ordinal-fs-tree` | `exclude` | `crates/ordinal-fs-tree/src/ops/tests.rs` | `inline-test-module` |
+| `ordinal-fs-tree` | `exclude` | `crates/ordinal-fs-tree/src/plan/tests.rs` | `inline-test-module` |
+| `ordinal-fs-tree` | `exclude` | `crates/ordinal-fs-tree/src/snapshot/tests.rs` | `inline-test-module` |
+| `grove-loop` | `exclude` | `crates/grove-loop/src/task_grow/tests.rs` | `inline-test-module` |
+
+A repository test compares this table against the `[[corpus.add]]` and
+`[[corpus.exclude]]` entries of every manifest under `docs/walkthroughs/` and
+requires the two sets to be equal, per book, path for path and class for class.
+That test is the successor to the interim
+`compiled_corpus_copy_matches_the_book_ledger_tables` bridge, and it must exist
+and have been seen to fail — against a manifest carrying an exception this table
+does not — before that bridge is deleted. It is a **repository** test rather than
+a `book-check` diagnostic on purpose: `book-check` runs against one book
+directory and would be reading the book's own account of itself again, whereas
+this comparison is with a document the book does not own.
+
+Six rows is not the six sets of per-book tables the compiled design would have
+needed. The obligation that scales with the corpus — every root, every block —
+stays derived and per-book; only the exceptions, which derivation provably
+cannot check, are restated here, and they are few because the rule is good.
 
 **The rule is per-book data because books differ.** The relocated
 `ordinal-fs-tree` book adds a consumer outside `src/` and excludes a
@@ -293,9 +377,7 @@ test-support module and four inline test modules; the campaign's five
 deliverables take the bare rule with one exclusion between them. Every exclusion
 in both cases is an inline test module or a test-support module — evidence rather
 than production source, which is the classification
-`linkuistics:writing-code-walkthroughs` asks for at intake. A book that needs an
-exclusion outside that class is describing something this specification has not
-seen, and the `reason` field is where it says so.
+`linkuistics:writing-code-walkthroughs` asks for at intake.
 
 ## Navigation
 
@@ -691,8 +773,14 @@ the first use of a term it does not own.
 
 ### Anchors are declared, and the declaration is what is checked
 
-A citation with no anchor — `[the user guide](../../USAGE.md)` — is always
-permitted. A citation naming an anchor is permitted only when **both** hold:
+A citation with no anchor — `[the user guide](../../USAGE.md)` — is permitted
+anywhere except the one place the contract binds: a book declaring a `[guide]`
+`path` must cite one of its declared guide anchors from its `README.md` reader
+contract, and a `README.md` whose guide link carries no anchor is `M201`. That
+single obligation is what the guide-first ordering buys, and without it the
+ordering buys nothing — see *The link contract*'s note below. Everywhere else,
+and for every other target, a citation naming an anchor is permitted only when
+**both** hold:
 
 1. the anchor is listed in that book's `[guide]` or `[[glossary]]` `anchors`
    array; and
@@ -711,12 +799,25 @@ anchor does not. `walkthroughs-k3` decision 5 ordered the guide ahead of the boo
 so books would not inherit unstable anchors, and this is the check that makes
 that ordering mean something rather than merely happen.
 
-**Two obligations follow from this and are not discharged here.**
-`docs/USAGE.md` and `CONTEXT.md` carry **no** explicit anchors today. Every
-anchor a book reserves must be added to the target as an explicit anchor before
-that book can be validated — an obligation on the leaf that writes the guide for
-`docs/USAGE.md`, and on the first book that cites the glossary for `CONTEXT.md`.
-Adding one is additive and breaks nothing that exists.
+**Two obligations follow from this, are not discharged here, and are placed
+rather than noted.** `docs/USAGE.md` and `CONTEXT.md` carry **no** explicit
+anchors today, and a book cannot be validated until every anchor it reserves
+exists in its target in the explicit form. Because a book must now cite at least
+one guide anchor, these are not contingent on a future author's taste:
+
+- **`docs/USAGE.md`.** The leaf that writes the guide publishes an explicit
+  `<a id="…"></a>` anchor for every entry point its coverage inventory names as
+  stable, and that anchor set is what books reserve from. Anchors are added
+  before the books, which is the whole content of the guide-before-books
+  ordering.
+- **`CONTEXT.md`.** The first book that cites the glossary adds the explicit
+  anchors it reserves, and each later book adds any it needs. Adding one is
+  additive and breaks nothing that exists.
+
+Neither obligation is discharged by a book linking the file with no anchor. That
+is the outcome this contract exists to exclude, because it satisfies a link check
+while leaving the anchor-stability property — the reason two sessions sit ahead of
+the pilot — asserted by nothing.
 
 ### The link contract
 
@@ -776,6 +877,22 @@ The brief's chapter sequence and ownership mapping are what the manifest's
 `[[page]]` and `[[block]]` groups record; the brief is the human decision and the
 manifest is its machine-readable form. A book without a structure brief has a
 conceptual order nobody chose.
+
+**A structure brief is a durable artifact, not a session input that expires.**
+It lives at `docs/specs/<book-id>-book-structure.md` — outside the book
+directory, which holds nothing but the manifest and the book's own pages, and
+under `docs/specs/` because it specifies the book's shape. It is the document a
+later edit or review of that book is read against: the finished Markdown shows
+what was written, never which responsibilities were binding, so a book whose
+brief exists only in a session transcript or in version-control history cannot be
+reviewed against its own design.
+
+**Every book has one, the relocated `ordinal-fs-tree` book included.** Its
+responsibilities were chosen and written down — they were the page-by-page
+concept and worked-example sections of the one-book specification this document
+replaced — and rewriting that specification for six books moved them out without
+putting them anywhere. Recovering them into the form above is work this
+specification requires and does not perform.
 
 ## Authoring workflow and scoped proof
 
@@ -1262,11 +1379,22 @@ which representation to trust when they drift, and ends the property that raw
 Markdown alone reconstructs the code. That rejection stands, and property 3
 states it positively.
 
-**What changed** is that the *authoring contract* — the corpus boundary, the
-ownership plan, the page inventory and the slice order — was never in Markdown to
-be duplicated; it was compiled into `validator.rs`, and one book could leave the
-question of where it belonged unasked. `walkthrough.toml` is where it belongs
-for six. The reasoning is
+**What changed** is the *authoring contract* — the corpus boundary, the ownership
+plan, the page inventory and the slice order — and it changed in two different
+ways, which the earlier account of this reversal ran together. The corpus
+boundary, the page inventory and the slice order were never in Markdown to be
+duplicated: they were compiled into `validator.rs`, and one book could leave the
+question of where they belonged unasked. The **top-level ownership plan is
+different** — its blocks and ranges were visible in Markdown then and are visible
+now, in the Ownership blocks table, so the manifest genuinely duplicates them and
+the old clause genuinely reaches them. That duplication is accepted here and
+nowhere else, under the trust order *Source and ownership ledger* states: the
+manifest is the contract, the directives are the execution, the tables are the
+derived index, and a disagreement in either direction is `F009`. The old
+rejection's force was that drift would leave an unanswerable question about which
+copy is right; the answer is now written down and checked, which is what makes
+the reversal safe rather than merely convenient. `walkthrough.toml` is where the
+contract belongs for six books. The reasoning is
 [`a-book-cannot-witness-its-own-corpus`](../adr/a-book-cannot-witness-its-own-corpus.md);
 the TOML spelling the earlier rejection named is deliberately kept, because
 changing the format to avoid the appearance of a reversal would misdescribe what

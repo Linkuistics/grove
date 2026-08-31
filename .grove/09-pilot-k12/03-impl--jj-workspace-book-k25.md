@@ -29,9 +29,19 @@ book.
 
 - `docs/walkthroughs/jj-workspace/` holds the book, and final validation over it
   passes with no deferred holes.
-- Its links into `docs/USAGE.md` resolve, per the shared specification's
-  guide-link contract, and `every_repository_markdown_reference_resolves` is what
-  proves it.
+- Its `README.md` reader contract cites `docs/USAGE.md` **by a declared anchor**,
+  that anchor is listed in the book's `[guide] anchors`, and it exists in the
+  guide as an explicit `<a id="…"></a>`. An anchorless file link does not
+  discharge this: the specification makes the anchor citation the one place the
+  guide contract binds, because it is the only thing the guide-before-books
+  ordering actually buys.
+- This is the **first book to cite the glossary**, so it owns the other half of
+  that contract: every `CONTEXT.md` anchor it reserves is added to `CONTEXT.md`
+  as an explicit anchor in this commit. `CONTEXT.md` carries none today; adding
+  them is additive and breaks nothing.
+- `every_repository_markdown_reference_resolves` passes, and the book's own
+  `M201` checks pass — the sweep accepts a heading slug and is not evidence for
+  either obligation above on its own.
 - `bash scripts/check.sh` passes, with the new book gated by the discovery
   `validator-fragments-k22` built rather than by a hand-added line.
 - The draft stage's record exists in the form the preregistration's attribution

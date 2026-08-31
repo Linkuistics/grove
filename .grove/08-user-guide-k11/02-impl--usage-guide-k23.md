@@ -28,6 +28,13 @@ Bring `docs/USAGE.md` to complete coverage of every row of the inventory
 - Every inventory row is covered, and the coverage is checkable row by row rather
   than asserted in aggregate.
 - Every command in the guide carries a worked invocation.
+- Every stable entry point the inventory names carries an explicit
+  `<a id="…"></a>` line immediately preceding its heading. This is the anchor
+  set walkthrough books reserve from, and the walkthrough specification requires
+  each book to cite one from its `README.md`, so an anchorless guide leaves the
+  next five books unable to conform. A renderer-generated heading slug does not
+  satisfy it: the explicit form is the whole mechanism, because a slug changes
+  silently when a heading is retitled.
 - `bash scripts/check.sh` passes, `user_documentation_references_resolve` and
   `every_repository_markdown_reference_resolves` included.
 

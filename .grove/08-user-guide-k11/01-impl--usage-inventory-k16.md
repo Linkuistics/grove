@@ -38,6 +38,13 @@ scaffolding a grove to teardown. Do not edit the guide in this session.
   covered command appears.
 - Every journey row names its start state and its end state.
 - The inventory says what it deliberately excludes, and why.
+- The inventory names the guide's **stable entry points** — the rows a
+  walkthrough book may cite by anchor — as an explicit set. Every walkthrough
+  book must cite one guide anchor from its `README.md` reader contract
+  (`docs/specs/walkthrough-books.md`, *Outbound links*), and the anchors it may
+  reserve come from this set. Naming it here rather than in the guide is the same
+  argument as the rest of this leaf: an anchor set chosen while writing the guide
+  describes what was written.
 - `bash scripts/check.sh` passes and no link is left dangling.
 
 ## Notes

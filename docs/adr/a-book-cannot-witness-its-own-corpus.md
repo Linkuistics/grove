@@ -34,12 +34,32 @@ blocks against a **plan**, and a plan is a statement about artifacts that do not
 yet exist, so it cannot be derived from them.
 
 The manifest keeps the obligation outside the book and replaces the lost
-cross-check with a stronger one. Rather than comparing two hand-written lists —
-which can be wrong together — the manifest declares the corpus **rule**: include
-globs, explicit additions, and explicit exclusions each carrying a reason. The
-validator enumerates the real directory and requires the declared root set to
-equal the derived set. A forgotten file is a finding; an addition or exclusion is
-legible and argued at the point it is taken.
+cross-check with **derivation plus a much smaller second statement**. Rather than
+comparing two hand-written lists — which can be wrong together — the manifest
+declares the corpus **rule**: include patterns, explicit additions, and explicit
+exclusions. The validator enumerates the real directory and requires the declared
+root set to equal the derived set, so a production file added to the crate and
+forgotten by the book is a finding rather than a silence.
+
+Derivation on its own is not an external witness, and calling it one was the
+mistake worth recording here. It proves that the declared patterns matched; it
+cannot prove the author declared the right patterns, and it cannot judge an
+exception, since a `reason` is prose. A manifest free to choose its own patterns
+could include one file, declare that one root, and pass. So two constraints carry
+the externality that derivation cannot:
+
+- **the rule's floor is not the book's to choose** — `include` must contain the
+  base patterns derived from `[book].subject`, `<subject>/Cargo.toml` and
+  `<subject>/src/**/*.rs`; and
+- **every exception is declared twice** — each addition and exclusion carries a
+  `class` from a closed list, and the complete set of them across all books is
+  restated in `docs/specs/walkthrough-books.md` and compared against every
+  manifest by a repository test.
+
+What scales with the corpus — every root, every block — is derived and per-book;
+only the handful of exceptions, which are exactly what derivation cannot check,
+are written down twice. That is not the one-book design repeated: six rows in one
+table is not six sets of root and ownership tables.
 
 The rule was checked against the frozen corpus before being adopted.
 `<crate>/Cargo.toml` plus `<crate>/src/**/*.rs` reproduces each campaign
@@ -57,18 +77,31 @@ on three grounds: it duplicates parents, children, ownership and ranges already
 visible in Markdown; drift would force a choice about which representation to
 trust; and raw Markdown would no longer be sufficient to reconstruct the code.
 
-All three hold, and all three are about the **fragment graph**. None of them
-reaches the obligation, and the obligation was never in Markdown to be
-duplicated — it was in `validator.rs`. The rejection read as complete because one
-book could compile its answer into Rust and never have to say where it lived.
+The three grounds do not all survive intact, and the honest account matters more
+here than a preserved verdict.
 
-So the graph clauses are kept, and are now stated positively rather than as the
-by-product of a rejection: the manifest may name a source root and a top-level
-ownership block, and nothing below them. Fragment parents, children, insertion
-order and literal bytes stay in Markdown, expansion stays Markdown-only, and the
-`source-index.md` tables remain derived indexes reconciled against both the
-manifest and the directives — so drift is a finding under a stated trust order
-rather than an unanswerable question about which copy is right.
+**Two of them are about the fragment graph and are kept.** Parents, children,
+insertion order and ranges below a top-level block stay in Markdown and nowhere
+else, expansion stays Markdown-only, and raw Markdown alone still reconstructs
+the code. The manifest may name a source root and a top-level ownership block,
+and nothing below them.
+
+**One of them is reversed, deliberately, and under a new trust order.** "Ownership
+and ranges already visible in Markdown" reached the top-level ownership blocks:
+they were visible then and are visible now, in `source-index.md`'s Ownership
+blocks table, and the manifest carries the same rows. That is duplication, and
+the old rejection was right that duplication forces a choice about which copy to
+trust when they drift. What changed is that the choice is now made in advance
+and checked, rather than left open: the manifest is the contract, the directives
+are the execution, and the tables are the derived index reconciled against both,
+with any disagreement reported as `F009`. A duplicate under a stated trust order
+and a bidirectional check is a different object from a duplicate under neither.
+
+The part of the obligation that was genuinely nowhere in Markdown is the rest of
+it — the corpus boundary, the page inventory and the slice order — which was
+compiled into `validator.rs`, where one book could leave the question of where it
+belonged unasked. The rejection read as complete because of that, not because
+every clause of it missed.
 
 The format the old text named is deliberately kept. Adopting the same
 serialization under a different extension to avoid the appearance of a reversal
@@ -83,6 +116,9 @@ is what moved.
 - A book whose corpus no rule can describe, so that its manifest degenerates into
   a hand-listed root set with no derivation to check it against. The witness, not
   the file, is what this record is for.
+- An exception class the two named here cannot express, or an exception inventory
+  long enough that maintaining it costs more than the self-declaration it
+  prevents. Both mean the corpus rule has stopped fitting the repository.
 - The fragment validator moving to the `writing-code-walkthroughs` skill, where a
   book need not sit in a Cargo workspace at all and the include-glob rule may not
   be expressible.

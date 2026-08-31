@@ -40,9 +40,31 @@ coverage, and the reason the validator sits on the campaign's critical path.
   `docs/walkthroughs/` and would pick up a new one with no edit to the script.
   Prove the discovery, not just the pass: a deliberately broken second book root
   must make the script fail, seen to fail, before a green run counts as evidence.
+- The corpus control has a **successor**, not just a deletion. The specification's
+  *The corpus rule and its witness* now carries a normative corpus exception
+  inventory and requires a repository test comparing it against the
+  `[[corpus.add]]` and `[[corpus.exclude]]` entries of every manifest under
+  `docs/walkthroughs/`, per book, path for path and class for class. That test
+  exists and has been **seen to fail** — against a manifest carrying an exception
+  the table does not — before `compiled_corpus_copy_matches_the_book_ledger_tables`
+  is deleted. So has the corpus-derivation check, against a manifest missing a
+  real root, which is what that bridge's doc comment already promises.
+- The two schema rules that make derivation an external witness are implemented
+  and each seen to fail: `[corpus] include` must contain both base patterns
+  derived from `[book].subject`, and every `add`/`exclude` `class` is one of the
+  closed values, with an `inline-test-module` path whose file name is not
+  `tests.rs` refused. Both are `U002`.
 - `bash scripts/check.sh` passes.
 
 ## Notes
+
+**Deleting the bridge is the whole reason this leaf is dangerous.**
+`walkthrough-books-spec-k47` accepted a review finding that filesystem
+derivation alone is *not* an external corpus witness — it proves the declared
+patterns matched, never that the author declared the right ones, and it cannot
+judge an exception. The successor control is the pair above, and a session that
+deletes the bridge without both leaves the campaign's completeness claim resting
+on each book's own account of itself.
 
 **This leaf is the campaign's gate.** Every book after it is proved by what lands
 here, and a validator that is green over one book because it still knows that

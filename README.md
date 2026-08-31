@@ -70,8 +70,8 @@ installation behavior.
 
 ## Documentation
 
-- [Usage](docs/USAGE.md) — the bare `grove` lifecycle and the start-to-finish
-  workflow.
+- [Usage](docs/USAGE.md) — the bare `grove` lifecycle, the `grove-llm` verbs
+  over the task tree, and the start-to-finish workflow.
 - [Configuration](docs/CONFIGURATION.md) — the personal KDL file, the
   command-template grammar, the configuration delta, and the diagnostics.
 - [Architecture](docs/ARCHITECTURE.md) — runtime flow, task-tree model, module

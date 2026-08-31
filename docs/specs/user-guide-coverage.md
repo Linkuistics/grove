@@ -90,13 +90,35 @@ binary itself. Twelve verbs; `help` is clap's own and is covered by the row for
 | L4 | `kind` | `[LEAF_PATH]` | Named, as a diagnostic. Defaults to `pick`'s leaf. |
 | L5 | `resolve` | `<REFERENCE>` — `[n]`, `n`, `[n]-slug`, `<slug>-k<key>`, or a bare slug | Worked. Searches live, `DONE` and `ABANDONED` alike; a node resolves to its directory; ambiguity lists the keys; exits zero either way. |
 | L6 | `leaf-add` | `<PARENT>` `<SLUG>`, `--kind <KIND>` (required, repeatable) | Worked. `.` for the root; one leaf per `--kind` in order, as one unit; appends at the end; `finish` is refused; no commit. |
-| L7 | `leaf-insert` | `<TARGET>` `<SLUG>`, `--kind <KIND>` (required, repeatable) | Worked. Shifts the target and later siblings up one; subtrees and keys ride along; no file contents are rewritten; no commit. |
+| L7 | `leaf-insert` | `<TARGET>` `<SLUG>`, `--kind <KIND>` (required, **not** repeatable — one leaf per call) | Worked. Shifts the target and later siblings up one; subtrees and keys ride along; no file contents are rewritten; no commit. |
 | L8 | `leaf-decompose` | `<LEAF_PATH>` `<FIRST_CHILD_SLUG>`, `--kind <KIND>` (optional) | Worked. Leaf becomes a node directory with the key preserved, body becomes `BRIEF.md`, first child inherits the kind unless overridden; no commit. |
 | L9 | `leaf-retire` | `<LEAF_PATH>` | Worked. Adds the `DONE` infix in place; refuses a brief, a `DONE` leaf and an `ABANDONED` leaf; no commit. |
 | L10 | `leaf-prune` | `<PATH>` — a live leaf **or** a node directory | Worked. HITL: only after explicit human confirmation. On a node it marks every live leaf in the subtree and leaves `DONE` ones alone; refuses the grove root; no commit. |
 | L11 | `finish-commit` | `<FINISH_HANDLE>` | Worked. Revalidates the finish leaf and the absence of ordinary work, then deletes and commits only `.grove/`; does not stand in for the human confirmation. |
 | L12 | `complete` | `--done`, `--signal-file <SIGNAL_FILE>` (default `$GROVE_SIGNAL_FILE`) | Worked. The last step of a task, after commit and retire; `--done` ends the whole grove instead of relaunching. |
 | L13 | `-h`/`--help`, `-V`/`--version`, `help [COMMAND]` | — | Named once, with the note that every verb carries its own `--help` and that the help text is the authority on what exists. |
+
+**Two rows were corrected by `usage-guide-k23`, against the binary.** The
+inventory claims traceability to grove 20.1.0, so a row the binary contradicts is
+a defect in the standard rather than licence for the guide to cover something
+else.
+
+- **L7's `--kind` is not repeatable.** Only `leaf-add` takes an ordered list;
+  `grove-llm leaf-insert 3 spike --kind a --kind b` is refused by clap with
+  `error: the argument '--kind <KIND>' cannot be used multiple times`. That
+  asymmetry is load-bearing — it is why the research triple is spelled through
+  `leaf-add` — so the row now states it.
+- **J14 was a journey the binary no longer has.** It described a startup refusal
+  for a working tree on a different filesystem from its `.jj/`, justified by a
+  teardown that moved `.grove/` into `.jj/grove/` in one atomic rename.
+  `tree_lifecycle::finish_commit` performs no such rename — it deletes `.grove/`
+  and commits the deletion — and `jj_workspace::Refusal` carries no cross-device
+  case at all; the `unsupported workspace layout` message survives only in
+  `docs/preservation-baseline.md`, the historical ledger of a Git-worktree-era
+  binary. The live refusal at that boundary is the control directory's
+  (`the control directory … is not usable`), so J14 now names that one and the
+  `usage-workspace-layouts` entry point keeps its anchor with its subject
+  restated.
 
 **Flag completeness is the checkable part.** Rows L1–L12 name every positional
 argument and every flag each verb accepts; a verb gaining one is a change to
@@ -123,7 +145,7 @@ lifecycle; the guide's subject is the human's path through it.
 | J11 | Prune abandoned work | Live work that should no longer be done | `ABANDONED` in place, after explicit human confirmation; the whole reviewed path pruned, not just the producer |
 | J12 | Recover a mistake | A grove started in the wrong workspace, or a bad commit | `jj op restore` / `jj undo` back to the prior state |
 | J13 | Resolve a second-driver refusal | Two `grove` processes in one working tree | The second exits naming the canonical tree; the first stays owner |
-| J14 | Fix an unsupported layout | `.jj/` on a different filesystem from the working tree | Layout moved; `grove` starts |
+| J14 | Fix an unusable control directory | `.jj/grove/` cannot be created or written | Permissions fixed; `grove` starts |
 | J15 | Finish | No live leaves left | Knowledge promoted, `.grove/` torn down and committed, loop stopped cleanly |
 | J16 | Integrate after finishing | A torn-down grove | Branch or bookmark integration done by the human, after teardown |
 
@@ -145,7 +167,7 @@ change silently when a heading is retitled; these do not.
 | `usage-tree-verbs` | The `grove-llm` verbs over the tree | A reader tracing what a session does to the tree |
 | `usage-review-composition` | Review composition and escalation | A reader following how review chains are built |
 | `usage-driver-lease` | One driver per working tree | A reader on ownership, leases and concurrent drivers |
-| `usage-workspace-layouts` | Supported workspace layouts | A reader on jj workspaces and the same-filesystem rule |
+| `usage-workspace-layouts` | Supported workspace layouts | A reader on jj workspaces, the control directory, and one grove per workspace |
 | `usage-finish` | The complete finish cycle | A reader on teardown and its guarantees |
 
 The `usage-` prefix is deliberate: these anchors are cited from other documents
@@ -179,11 +201,14 @@ Named here so that "complete" does not silently mean "everything".
   transcribing it would create a second source that goes stale.
 - **Cutting a release.** `RELEASING.md` owns it.
 
-## Gaps in the guide today
+## Gaps in the guide as `usage-inventory-k16` found it
 
 Measured against the tables above, not against the guide's own structure. This
-is the work list for the leaf that edits the guide; it is a finding, not an
-instruction about wording.
+was the work list for the leaf that edits the guide; it is a finding, not an
+instruction about wording. **All fourteen were closed by `usage-guide-k23`**, and
+the list is kept as the record of what the standard caught — the live statement
+of coverage is the guide's own coverage map, which
+`crates/grove/tests/user_guide_coverage.rs` compares against the tables above.
 
 | Gap | Row | What is missing |
 |---|---|---|
@@ -204,6 +229,13 @@ instruction about wording.
 
 ## Test seams
 
+- `crates/grove/tests/user_guide_coverage.rs` — the row-by-row check. It reads
+  every `G`/`L`/`J` row id and every stable-entry-point anchor out of *this*
+  file, and requires the guide's coverage map to name each row exactly once, the
+  guide to carry each anchor in the explicit `<a id="…"></a>`-before-a-heading
+  form, and every anchor the map points at to exist. Two documents, one written
+  by the standard and one by the guide, have to agree; a row added here and
+  forgotten there is a failure rather than a silence.
 - `user_documentation_references_resolve` and
   `every_repository_markdown_reference_resolves`
   (`crates/grove/tests/reference_navigation.rs`) — the guide is inside the

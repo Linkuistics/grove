@@ -51,6 +51,32 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`docs/USAGE.md` covers the whole installed command surface, against a
+  standard rather than a judgement.** The guide had the `grove` lifecycle and
+  named three `grove-llm` verbs in passing; it now documents all twelve — what
+  each does to the tree, what it prints, whether it commits — each with a worked
+  invocation quoted from a real run, plus the sixteen journeys from scaffolding a
+  grove to teardown. Completeness is checkable row by row: the obligations were
+  written and committed first as `docs/specs/user-guide-coverage.md`, the guide
+  ends with a coverage map answering each row, and
+  `crates/grove/tests/user_guide_coverage.rs` makes the two documents agree — a
+  row added to the standard and forgotten in the guide is a failure rather than a
+  silence. The eight stable entry points now carry explicit `<a id="…"></a>`
+  anchors, which is the set a walkthrough book's manifest reserves from.
+
+- **Two of that inventory's rows were wrong about the binary, and are fixed.**
+  `leaf-insert --kind` was recorded as repeatable; only `leaf-add` takes an
+  ordered kind list, which is the asymmetry the research triple depends on. And
+  the *unsupported workspace layout* journey described a startup refusal for a
+  working tree on a different filesystem from its `.jj/`, justified by a teardown
+  that renamed `.grove/` into `.jj/grove/`. `finish_commit` deletes and commits
+  rather than renaming, and `jj_workspace::Refusal` has no cross-device case; the
+  message survives only in `docs/preservation-baseline.md`, which records a
+  Git-worktree-era binary. The guide's *Supported workspace layouts* section
+  keeps its anchor and now covers what is live: native, colocated and secondary
+  jj workspaces, one independent grove per workspace, and the control-directory
+  refusal.
+
 ## v20.1.0
 
 ## v20.0.0

@@ -392,8 +392,8 @@ fn final_fragment_command_loads_only_the_explicit_repository() {
 
     assert_eq!(output.exit, 0, "{}{}", output.stdout, output.stderr);
     assert_eq!(value["status"], "valid");
-    assert_eq!(value["coverage"]["files"], 16);
-    assert_eq!(value["coverage"]["resolved_lines"], 7_527);
+    assert_eq!(value["coverage"]["files"], 17);
+    assert_eq!(value["coverage"]["resolved_lines"], 8_720);
 }
 
 fn materialize(snapshot: &BookSnapshot, repository: &std::path::Path) {

@@ -64,7 +64,7 @@ file under this consumer preserves the invariant that none of those concerns
 becomes a second library seam, and the fragments resolve the insert tour at the
 source boundary.
 
-<!-- fragment «syllabus-cli-source» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1439" parent="source-syllabus-cli" -->
+<!-- fragment «syllabus-cli-source» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1738" parent="source-syllabus-cli" -->
 <!-- insert «cli-command-line» -->
 <!-- insert «cli-parsing-and-failure» -->
 <!-- insert «cli-streams-and-paths» -->
@@ -182,13 +182,13 @@ occupied slot. The consumer chooses a lesson or module through the verb and
 constructs the corresponding parts; the generic library continues to derive
 file-versus-directory species from those parts.
 
-The binary owns its argument contract, help, and twelve-command grammar. This
+The binary owns its argument contract, help, and fourteen-command grammar. This
 fragment turns argv into typed `Cli` and `Verb` values, preserves the separation
 between stable target identity and mutable position, and supplies the exact
 inputs that initiate the worked insert without restating clap mechanics in
 prose.
 
-<!-- fragment «cli-command-line» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-488" parent="syllabus-cli-source" -->
+<!-- fragment «cli-command-line» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-570" parent="syllabus-cli-source" -->
 ````rust
 //! `syllabus` — the CLI `ordinal-fs-tree` ships, driving a course syllabus.
 //!
@@ -230,7 +230,8 @@ use clap::{Parser, Subcommand};
 
 use ordinal_fs_tree::reference::{Label, Parts, Status, SyllabusName};
 use ordinal_fs_tree::{
-    fs, Container, Entry, EntryNameExt, Error, Key, NewEntry, Ordinal, Refusal, Report, Target,
+    fs, Container, Entry, EntryNameExt, Error, Key, NewEntry, Ordinal, Refusal, Removed, Report,
+    Sought, Target,
 };
 
 // ---------------------------------------------------------------------------
@@ -244,7 +245,7 @@ use ordinal_fs_tree::{
     version,
     about = "Drive a course syllabus stored as a directory tree.",
     long_about = LONG_ABOUT,
-    // Twelve verbs, flat and hyphenated, so one `syllabus --help` enumerates
+    // Fourteen verbs, flat and hyphenated, so one `syllabus --help` enumerates
     // all of them: a caller that has lost its bearings recovers in one call.
     subcommand_required = true,
     arg_required_else_help = true
@@ -313,10 +314,11 @@ EXIT CODES
      it names the remedy
   5  this tree cannot be read as a syllabus — a human fixes a filename, and
      no retry helps
-  6  the mutation failed and was rolled back: THE TREE IS AS IT WAS FOUND,
-     so retrying is safe
-  7  the mutation failed and the rollback failed too: DO NOT RETRY — the
-     message says how to resolve it
+  6  the mutation failed and the tree is AS IT WAS FOUND, so retrying is safe
+     — it was rolled back, or (for `delete`) it had removed nothing yet
+  7  the tree is in NEITHER STATE: a rollback failed, or a `delete` stopped
+     partway and a removal has nothing to put back. Read the message; it says
+     how far it got and what resolves it
 
   A terminal-I/O exit 1 can occur after a mutation landed. Inspect the tree
   before retrying a non-idempotent add, insert or promote.
@@ -327,32 +329,111 @@ IDEMPOTENCY
   promote verbs are NOT — running an add twice creates two entries. After exit
   6 a retry is safe because nothing landed; after the process is KILLED it is
   not, because what landed is unknowable.
+  `delete` is not idempotent either: a second one finds no tree and is refused.
+  One that stopped partway can be run again to finish, and what has already
+  gone does not come back.
 
-THERE IS NO REMOVAL
-  Keys are allocated as max+1 over the names in the tree, so deleting an entry
-  lowers the maximum and the next add re-issues a key other entries may still
-  reference. Retire a lesson with `unpublish`, which is what an attribute is
-  for. Removing a file by hand damages key allocation for every later add.
+REMOVAL: THE WHOLE TREE OR NOTHING
+  There is no verb that removes an ENTRY. Keys are allocated as max+1 over the
+  names in the tree, so deleting one lowers the maximum and the next add
+  re-issues a key other entries may still reference. Retire a lesson with
+  `unpublish`, which is what an attribute is for; removing a file by hand
+  damages key allocation for every later add.
+  `delete` removes the ROOT, and with it everything beneath — which is a
+  different operation, and the only destructive one here. It needs `--yes`,
+  there is no undo, and it follows no symbolic link: a link inside the tree is
+  unlinked and whatever it named is left alone.
 
 OTHER THINGS WORTH KNOWING
-  There is no `init`: an empty directory IS an empty tree, so `mkdir` is the
-  whole of it. There is no `--dry-run`: a plan is internal by design. There are
+  `init` creates the tree, and it is the only verb that does — every other one
+  refuses a root holding no tree rather than creating one on the way past. It
+  takes the lock before deciding the root is empty and still holds it while
+  creating it, so two racing `init`s cannot both succeed. `delete` is its
+  opposite and takes the same lock, so the root's whole lifetime is covered by
+  the one lock every ordinary verb takes.
+  There is no `--dry-run`: a plan is internal by design. There are
   no lock flags: every verb takes an advisory lock on the directory containing
   the root and BLOCKS until the tree is free — a hang is a lock and not a bug.
   Nothing is staged in version control; a rename is rename(2).
 
 EXAMPLES
-  mkdir syllabus
+  syllabus --root syllabus init --overview 'An introduction.'
   syllabus --root syllabus module-add . linear-algebra
   syllabus --root syllabus lesson-add 1 vectors matrices
   syllabus --root syllabus list
   syllabus --root syllabus publish 2
+  syllabus --root syllabus delete --yes
 
 SEE ALSO
   `syllabus <verb> --help` for any verb below.";
 
 #[derive(Subcommand)]
 enum Verb {
+    /// Create the tree: the root directory, its OVERVIEW, and any first lessons.
+    ///
+    /// The one verb that runs against a root holding no tree, and the only one
+    /// that creates one. It takes the exclusive lock *before* deciding the tree
+    /// is absent and still holds it while creating it, so two `init`s racing on
+    /// one root cannot both succeed — the loser finds a tree and is refused.
+    ///
+    /// NOT idempotent, and deliberately not: a second `init` is refused rather
+    /// than being a no-op, because the call that thinks it is creating a course
+    /// and the call that finds one already there want different answers.
+    #[command(after_help = "\
+EXAMPLES
+  syllabus --root course init
+  syllabus --root course init --overview 'An introduction.'
+  syllabus --root course init orientation prerequisites
+
+SEE ALSO
+  lesson-add, module-add")]
+    Init {
+        /// The course's own content, written into the root's OVERVIEW.md.
+        ///
+        /// Omit it and the root has no OVERVIEW at all, which is a different
+        /// tree from one whose OVERVIEW is empty — pass `--overview ''` for
+        /// that.
+        #[arg(long, value_name = "TEXT")]
+        overview: Option<String>,
+
+        /// Labels for the first lessons, in the order they should appear.
+        #[arg(num_args = 0.., value_name = "LABEL", value_parser = parse_label)]
+        labels: Vec<Label>,
+
+        /// The status every lesson in this run starts at.
+        #[arg(long, value_name = "STATUS", default_value = "draft", value_parser = parse_status)]
+        status: Status,
+    },
+
+    /// Delete the whole course: the tree root, and everything beneath it.
+    ///
+    /// The one destructive verb, and the only one that can lose work. It removes
+    /// what the library recognises and what it does not alike, because it
+    /// removes the root — a stray file someone left in the tree goes with it.
+    /// It follows no symbolic link: a link inside the tree is unlinked, and
+    /// whatever it named is untouched.
+    ///
+    /// There is no undo. `--yes` is required for that reason and is not a
+    /// formality: a prompt would be unanswerable by the contract tests and
+    /// scripts that drive this binary, so the confirmation is a flag instead.
+    ///
+    /// Not idempotent in the useful direction: a second `delete` finds no tree
+    /// and is refused. A `delete` that stopped partway CAN be run again to
+    /// finish, and the message says so — but nothing brings back what went.
+    #[command(after_help = "\
+EXAMPLES
+  syllabus --root course list
+  syllabus --root course delete --yes
+  syllabus --root course delete --yes --quiet
+
+SEE ALSO
+  unpublish, which retires a lesson without removing anything")]
+    Delete {
+        /// Confirm the removal. Required, because there is no undo.
+        #[arg(long)]
+        yes: bool,
+    },
+
     /// List entries in walk order.
     ///
     /// Depth-first, pre-order: within a level the OVERVIEW comes first, then
@@ -658,10 +739,11 @@ SEE ALSO
 
     /// Mark a lesson draft — and how a lesson is retired here.
     ///
-    /// There is no removal in this tree, deliberately: keys are allocated as
-    /// max+1, so deleting an entry lowers the maximum and the next add re-issues
-    /// a key other entries may still reference. Taking a lesson out of
-    /// circulation is an attribute change, which is what this is.
+    /// No verb removes an entry, deliberately: keys are allocated as max+1, so
+    /// deleting one lowers the maximum and the next add re-issues a key other
+    /// entries may still reference. Taking a lesson out of circulation is an
+    /// attribute change, which is what this is. (`delete` removes the *root*,
+    /// which ends the tree and therefore ends the allocation this is about.)
     ///
     /// Idempotent: unpublishing a draft lesson succeeds and changes nothing.
     #[command(after_help = "\
@@ -686,18 +768,19 @@ SEE ALSO
 
 `main` parses once, locks both terminal handles, creates `Streams`, and delegates
 to `run`. `settle` turns the result into a process code and attempts to report a
-failure through the same stderr seam; an stderr refusal becomes exit 1. `run` is
-the complete mapping from the twelve domain verbs to four read helpers and five
+failure through the same stderr seam; a stderr refusal becomes exit 1. `run` is
+the complete mapping from fourteen domain verbs to four read helpers and seven
 mutation helpers. It constructs `Parts` only for commands where the operator
-chooses a species. `publish` and `unpublish` are domain spellings of `rewrite`;
-both add commands use `append_many`, including for one label.
+chooses a species. `init` and `delete` own the tree's lifetime; `publish` and
+`unpublish` are domain spellings of `rewrite`; both add commands use
+`append_many`, including for one label.
 
 The binary owns domain dispatch and construction of consumer parts. This
 fragment turns each typed verb into one helper call, uses exhaustive enum
 matching to route every command exactly once, and carries the worked
 `LessonInsert` into its helper without exposing a plan to the operator.
 
-<!-- fragment «cli-main-dispatch» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="905-997" parent="syllabus-cli-source" -->
+<!-- fragment «cli-main-dispatch» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1034-1132" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // main
@@ -734,6 +817,12 @@ fn settle(outcome: Result<(), Failure>, streams: &mut Streams<'_>) -> u8 {
 
 fn run(cli: &Cli, streams: &mut Streams<'_>) -> Result<(), Failure> {
     match &cli.verb {
+        Verb::Init {
+            overview,
+            labels,
+            status,
+        } => init(cli, streams, overview.as_deref(), labels, *status),
+        Verb::Delete { yes } => delete(cli, streams, *yes),
         Verb::List {
             under,
             status,
@@ -799,7 +888,7 @@ The read verbs and their output are:
 
 | Verb | Library query | Result records |
 |---|---|---|
-| `list [--under KEY] [--status STATUS] [--label LABEL] [--first]` | `walk`, or short-circuiting `find` with `--first` | Matching entries in walk order |
+| `list [--under KEY] [--status STATUS] [--label LABEL] [--first]` | `walk`, or short-circuiting `seek` with `--first` | Matching entries in walk order |
 | `show KEY` | `by_key` | One entry |
 | `ancestors KEY` | `ancestors` | Containing levels, root-first |
 | `overview-chain KEY` | `distinguished_chain` | Existing overviews in containing levels, root-first |
@@ -812,13 +901,56 @@ entry, while stdout remains empty. A missing key instead constructs the public
 `Refusal::TargetMissing` so all read verbs use the library's established
 message and exit category.
 
+All four read helpers open through `reading`. A vacant root is not an empty
+tree: it is a CLI refusal naming `init`, so a mistyped `--root` cannot silently
+produce an empty answer. `list --first` passes its consumer predicate to
+short-circuiting `seek`; an unmatched search and an unmatched full walk remain
+successful empty results.
+
 The consumer owns filtering and path rendering around generic snapshot queries.
 This fragment turns a locked snapshot into ordered records or one explicit
 missing-target refusal, keeps filters within the library's name seam, and
 supplies the read half of the same consumer exercised by the insert example.
 
-<!-- fragment «cli-reading» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="998-1136" parent="syllabus-cli-source" -->
+<!-- fragment «cli-reading» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1133-1313" parent="syllabus-cli-source" -->
 ````rust
+// ---------------------------------------------------------------------------
+// Opening: a tree, or the advice that there is none
+// ---------------------------------------------------------------------------
+
+/// The tree under a shared lock, or this CLI's refusal to invent one.
+///
+/// The library answers *is there a tree here* with a shape rather than a
+/// predicate, so every verb below meets the vacancy in the same place and says
+/// the same thing about it. Which is: nothing here creates a tree except `init`.
+/// A read verb that silently printed an empty listing would be reporting a tree
+/// that does not exist, and a mutation that created the tree on the way past
+/// would make `mkdir` and a typo indistinguishable.
+fn reading(cli: &Cli) -> Result<fs::ReadGuard<SyllabusName>, Failure> {
+    match fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))? {
+        fs::Reading::Tree(tree) => Ok(tree),
+        fs::Reading::Vacant => Err(Failure::own(no_tree(&cli.root))),
+    }
+}
+
+/// The tree under an exclusive lock, or the same refusal.
+fn writing(cli: &Cli) -> Result<fs::WriteGuard<SyllabusName>, Failure> {
+    match fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))? {
+        fs::Writing::Tree(tree) => Ok(tree),
+        fs::Writing::Vacancy(_) => Err(Failure::own(no_tree(&cli.root))),
+    }
+}
+
+fn no_tree(root: &Path) -> String {
+    format!(
+        "there is no tree at {}. `syllabus --root {} init` creates one; no other \
+         verb does, because creating a syllabus is a decision and not a fallback \
+         for a mistyped --root.",
+        root.display(),
+        root.display()
+    )
+}
+
 // ---------------------------------------------------------------------------
 // Reading
 // ---------------------------------------------------------------------------
@@ -831,12 +963,12 @@ fn list(
     label: Option<&Label>,
     first: bool,
 ) -> Result<(), Failure> {
-    let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = reading(cli)?;
 
     // A `--under` naming nothing is the same condition `show` meets, and gets
     // the same refusal rather than an empty listing that looks like an answer.
     if let Some(key) = under {
-        if tree.by_key(key).is_none() {
+        if tree.by_key(key).is_nothing() {
             return Err(Failure::refused(&Refusal::TargetMissing { key }));
         }
     }
@@ -873,12 +1005,17 @@ fn list(
         }
     };
 
-    // `--first` decides whether the predicate goes to `find`, which
+    // `--first` decides whether the predicate goes to `seek`, which
     // short-circuits, or filters a full `walk`. That is the architecture's *a
-    // predicate passed to `find` answers them without the library ever learning
+    // predicate passed to `seek` answers them without the library ever learning
     // what it asked*, spelled as a flag.
+    //
+    // A search matching nothing is not a refusal here either: `--first` over a
+    // tree where nothing matches is the same empty listing as a full `walk` where
+    // nothing matches, and gets the same note below.
     let records: Vec<Record> = if first {
-        tree.find(matches)
+        tree.seek(matches)
+            .into_option()
             .iter()
             .map(|entry| record_of(&cli.root, entry))
             .collect()
@@ -916,18 +1053,18 @@ fn empty_note(tree_is_empty: bool, filtered: bool, root: &Path) -> String {
 }
 
 fn show(cli: &Cli, streams: &mut Streams<'_>, key: Key) -> Result<(), Failure> {
-    let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
-    let entry = tree
-        .by_key(key)
-        .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))?;
+    let tree = reading(cli)?;
+    let Sought::Match(entry) = tree.by_key(key) else {
+        return Err(Failure::refused(&Refusal::TargetMissing { key }));
+    };
     streams.records(&[record_of(&cli.root, &entry)])
 }
 
 fn ancestors(cli: &Cli, streams: &mut Streams<'_>, key: Key) -> Result<(), Failure> {
-    let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
-    let entry = tree
-        .by_key(key)
-        .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))?;
+    let tree = reading(cli)?;
+    let Sought::Match(entry) = tree.by_key(key) else {
+        return Err(Failure::refused(&Refusal::TargetMissing { key }));
+    };
     let records: Vec<Record> = entry
         .ancestors()
         .iter()
@@ -940,10 +1077,10 @@ fn ancestors(cli: &Cli, streams: &mut Streams<'_>, key: Key) -> Result<(), Failu
 }
 
 fn overview_chain(cli: &Cli, streams: &mut Streams<'_>, key: Key) -> Result<(), Failure> {
-    let tree = fs::read::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
-    let entry = tree
-        .by_key(key)
-        .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))?;
+    let tree = reading(cli)?;
+    let Sought::Match(entry) = tree.by_key(key) else {
+        return Err(Failure::refused(&Refusal::TargetMissing { key }));
+    };
     let records: Vec<Record> = entry
         .distinguished_chain()
         .iter()
@@ -965,6 +1102,7 @@ The mutation verbs and their effects are:
 
 | Verb | Library operation | Idempotent | stdout subject |
 |---|---|---|---|
+| `init [--overview TEXT] [LABEL…] [--status STATUS]` | `initialize` on a vacancy | No | Optional overview, then created lessons |
 | `lesson-add PARENT LABEL… [--status STATUS]` | `append_many` | No | Created lessons |
 | `module-add PARENT LABEL…` | `append_many` | No | Created modules |
 | `lesson-insert PARENT AT LABEL [--status STATUS]` | `insert` | No | Created lesson |
@@ -973,6 +1111,7 @@ The mutation verbs and their effects are:
 | `relabel KEY LABEL` | `rewrite` | Yes | Renamed entry |
 | `publish KEY` | `rewrite` | Yes | Renamed or unchanged lesson |
 | `unpublish KEY` | `rewrite` | Yes | Renamed or unchanged lesson |
+| `delete --yes` | `delete` | No | The root, keyed `.` |
 
 `relabel`, `publish`, and `unpublish` read existing parts from the same write
 guard they consume. Relabel preserves the existing lesson/module variant;
@@ -982,13 +1121,29 @@ so the three rewrite-based commands remain idempotent and still report their
 subject. Add, insert, and promote allocate or change structure and are not
 idempotent.
 
+`init` is the only verb that accepts a vacancy. It keeps the exclusive lock
+returned by `fs::write` while `initialize` creates the root, optional overview,
+and initial lessons as one operation. A second `init` meets a tree and is
+refused rather than treated as a no-op. Every other verb opens through
+`reading` or `writing` and refuses a vacancy.
+
+`delete` is the only destructive verb and removes the whole root rather than an
+entry. It takes the ordinary exclusive lock before checking `--yes`, follows no
+symbolic link, and removes recognised and foreign descendants alike. A root
+spelled through a symbolic link or ending in `.` or `..` is refused before
+removal; consequently the default `--root .` cannot delete the current
+directory. Success writes one `.`-keyed root record to stdout. The removed
+descendants and then the root appear only in the optional stderr trace, in
+removal order. There is no undo, and a second successful `delete` finds no tree
+and is refused.
+
 The consumer owns construction of domain parts around public mutation calls.
 This fragment turns one exclusive guard and its snapshot into one `Report` or
 categorized `Failure`, uses same-guard inspection to preserve the rewrite
 species invariant, and provides the worked operation's final
 consumer-to-library handoff in the local `insert` function.
 
-<!-- fragment «cli-mutations» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1137-1259" parent="syllabus-cli-source" -->
+<!-- fragment «cli-mutations» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1314-1498" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // Mutating
@@ -1006,6 +1161,66 @@ fn report_out(
     streams.trace(verb, report)
 }
 
+/// `init`: the tree, from nothing, under one lock.
+///
+/// The whole shape of the leaf, in eight lines: `write` answers with a
+/// [`Writing`](fs::Writing), the vacancy arm *is* the permission to create, and
+/// there is no moment between the two in which another writer fits. The tree arm
+/// is refused here rather than by the library, because *there is already a tree*
+/// is not a refusal the library states — it is a call the type system does not
+/// let the library be asked.
+fn init(
+    cli: &Cli,
+    streams: &mut Streams<'_>,
+    overview: Option<&str>,
+    labels: &[Label],
+    status: Status,
+) -> Result<(), Failure> {
+    let opened = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let fs::Writing::Vacancy(vacancy) = opened else {
+        return Err(Failure::own(format!(
+            "there is already a tree at {}, and `init` creates one. Add to it with \
+             `lesson-add` or `module-add`, or name a root that holds no tree.",
+            cli.root.display()
+        )));
+    };
+    let entries = labels
+        .iter()
+        .map(|label| NewEntry::empty(Parts::lesson(status, label.clone())))
+        .collect();
+    let report = vacancy
+        .initialize(overview.map(|text| text.as_bytes().to_vec()), entries)
+        .map_err(|e| Failure::library(&e))?;
+    report_out(streams, "init", &report)
+}
+
+/// `delete`: the whole tree, under the same lock every other verb takes.
+///
+/// stdout is **one** record — `.` and the root — because the root is the subject
+/// and everything under it is the consequence, which is the same split
+/// `lesson-insert` makes between the entry it created and the siblings it
+/// shifted. The entries go to stderr as a landing trace, in the order they went.
+fn delete(cli: &Cli, streams: &mut Streams<'_>, yes: bool) -> Result<(), Failure> {
+    let tree = writing(cli)?;
+    // Refused after the lock is taken and before anything is removed, so a
+    // forgotten `--yes` costs an operator a message and never a race.
+    if !yes {
+        return Err(Failure::own(format!(
+            "`delete` removes the tree at {} and everything beneath it, and there is \
+             no undo. Re-run it as `syllabus --root {} delete --yes` if that is what \
+             you meant. To retire one lesson instead, use `unpublish`.",
+            cli.root.display(),
+            cli.root.display()
+        )));
+    }
+    let removed = tree.delete().map_err(|e| Failure::library(&e))?;
+    streams.records(&[Record {
+        target: ".".to_string(),
+        path: removed.root.clone(),
+    }])?;
+    streams.removal(&removed)
+}
+
 fn add(
     cli: &Cli,
     streams: &mut Streams<'_>,
@@ -1013,7 +1228,7 @@ fn add(
     parent: Target,
     parts: Vec<Parts>,
 ) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     // Both add verbs are variadic and both call `append_many`, including for a
     // single label: the library defines `append` as one `append_many` of one
     // entry, so a CLI branch on the count would be the same arithmetic spelled
@@ -1034,7 +1249,7 @@ fn insert(
     at: Ordinal,
     parts: Parts,
 ) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     let report = tree
         .insert(parent, at, NewEntry::empty(parts))
         .map_err(|e| Failure::library(&e))?;
@@ -1048,7 +1263,7 @@ fn promote(
     label: Label,
     first_lesson: Option<&Label>,
 ) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     // `--first-lesson` starts as a draft, and there is no flag for its status: a
     // lesson that starts published is one `publish` away, and a second flag
     // would be a second place the default lives.
@@ -1061,7 +1276,7 @@ fn promote(
 }
 
 fn relabel(cli: &Cli, streams: &mut Streams<'_>, key: Key, label: Label) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     // Read then mutate on the *same* guard: one lock, one snapshot. A relabel
     // keeps the variant it read, which is why `RewriteSpeciesChange` is
     // unreachable from this verb.
@@ -1080,7 +1295,7 @@ fn set_status(
     key: Key,
     status: Status,
 ) -> Result<(), Failure> {
-    let tree = fs::write::<SyllabusName>(&cli.root).map_err(|e| Failure::library(&e))?;
+    let tree = writing(cli)?;
     let parts = match parts_of(&tree, key)? {
         Parts::Lesson { label, .. } => Parts::lesson(status, label),
         // Refused by the CLI rather than by the library: modules carry no
@@ -1106,10 +1321,12 @@ fn set_status(
 /// surface borrows it, and every mutation takes it by value.
 fn parts_of(tree: &fs::WriteGuard<SyllabusName>, key: Key) -> Result<Parts, Failure> {
     tree.by_key(key)
+        .into_option()
         .and_then(|entry| entry.triple())
         .map(|triple| triple.parts.clone())
         // An entry with a key always has a triple, so the `and_then` above
-        // narrows nothing; both `None`s are the same condition.
+        // narrows nothing; `Sought::Nothing` and a missing triple are the same
+        // condition.
         .ok_or_else(|| Failure::refused(&Refusal::TargetMissing { key }))
 }
 
@@ -1129,27 +1346,32 @@ Library errors are rendered with `Display` verbatim. The binary adds only the
 `syllabus: ` prefix in `main`; returning `Result` from `main` would use the
 library error's diagnostic `Debug` representation and discard its recovery
 advice. Read helpers construct `Refusal::TargetMissing` when an `Option` is
-empty. Changing a module's publication status is the one consumer refusal: the
-consumer has no module status parts to pass to `rewrite`, so both `publish` and
-`unpublish` report that domain condition before the library call.
+empty. The CLI also owns refusals for a vacant root, `init` over an existing
+tree, `delete` without `--yes`, and publication changes on a module. Each is a
+condition for which no library operation should be attempted.
 
 | Exit | Category | Recovery meaning |
 |---|---|---|
 | `0` | Success, including empty reads and idempotent rewrites | No recovery |
-| `1` | I/O or no containing directory | Fix path or permissions |
+| `1` | I/O or no containing directory | Fix path, permissions, or redirection |
 | `2` | Argument parsing or usage | Fix argv |
 | `3` | `TargetMissing` | List and choose an existing key |
-| `4` | Every other refusal, including the CLI's module-status refusal | Follow the stated remedy; no effect landed |
-| `5` | Malformed, reserved, non-UTF-8, or multi-component name | Repair the filename or domain rendering |
-| `6` | Forward failure with complete unwind | The tree was restored; retry is safe |
-| `7` | Forward failure with incomplete unwind | Repair from the reported intermediate state; do not retry |
+| `4` | Every other refusal, the CLI-owned refusals, or a root not spelled directly | Follow the stated remedy; no effect landed |
+| `5` | Malformed, reserved, non-UTF-8, or multi-component name, or a non-tree at the root | Repair the filename, domain rendering, or root obstruction |
+| `6` | Forward failure with complete unwind, or removal stopped before deleting anything | The tree is as found; retry is safe |
+| `7` | Forward failure with incomplete unwind, or removal stopped after deleting something | Repair from the reported intermediate state; do not retry blindly |
+
+`RemovalStopped` spans exits 6 and 7 because removal has no rollback. An empty
+removed-path list means the tree is unchanged; a non-empty list means the tree
+is in neither its original nor fully removed state. Re-running `delete --yes`
+can finish a partial removal, but nothing restores what already went.
 
 The binary owns usage validation and process categories. This fragment turns
 strings into domain or library values or an operator-facing `Failure`, preserves
 the library's distinctions without rewording them, and determines the worked
 insert's pre-dispatch and error exits.
 
-<!-- fragment «cli-parsing-and-failure» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="489-632" parent="syllabus-cli-source" -->
+<!-- fragment «cli-parsing-and-failure» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="571-729" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // Argument parsing: the four things argv carries
@@ -1243,11 +1465,12 @@ impl Failure {
 
     /// A refusal this CLI constructs rather than receives.
     ///
-    /// `by_key` answers with an `Option`, so the read verbs are handed no
-    /// refusal at all. They build one instead of wording the condition a second
-    /// time: `Refusal` is a public enum with public fields and its message is
-    /// already right. `docs/formalism-findings.md` entry 017 is where a second
-    /// wording of one condition was measured going wrong.
+    /// A search answers with a `Sought`, which is deliberately *not* a refusal —
+    /// nothing was asked to change — so the read verbs are handed no refusal at
+    /// all. They build one instead of wording the condition a second time:
+    /// `Refusal` is a public enum with public fields and its message is already
+    /// right. `docs/formalism-findings.md` entry 017 is where a second wording of
+    /// one condition was measured going wrong.
     fn refused(refusal: &Refusal) -> Self {
         Self {
             code: refusal_code(refusal),
@@ -1273,6 +1496,9 @@ impl Failure {
 fn exit_code(error: &Error<SyllabusName>) -> u8 {
     match error {
         Error::Io { .. } | Error::NoContainingDirectory { .. } => 1,
+        // A human moves whatever is sitting on the root out of the way; no
+        // retry helps, and this library will not clear it away.
+        Error::RootIsNotATree { .. } => 5,
         Error::Refused(refusal) => refusal_code(refusal),
         // A human fixes a filename; no retry helps.
         Error::Malformed { .. }
@@ -1283,6 +1509,17 @@ fn exit_code(error: &Error<SyllabusName>) -> u8 {
         // `1` would throw it away.
         Error::Failed { .. } => 6,
         Error::FailedPartiallyRolledBack { .. } => 7,
+        // Nothing changed and the message names the remedy — rename the root, or
+        // name the directory rather than a link to it — which is row 4's own
+        // definition, so it goes there rather than earning a code of its own.
+        Error::RootIsNotSpelledDirectly { .. } => 4,
+        // A removal has nothing to roll back, so the distinction those two rows
+        // draw is read off *how far it got* rather than off the variant: nothing
+        // removed and the tree is as it was found, anything removed and it is in
+        // neither state. Same two answers, and no eighth code for a third
+        // question nobody is asking.
+        Error::RemovalStopped { removed, .. } if removed.is_empty() => 6,
+        Error::RemovalStopped { .. } => 7,
     }
 }
 
@@ -1330,12 +1567,18 @@ constructed from the root spelling, ancestor module names, and the entry name;
 every name admitted to the snapshot has already passed one-component
 validation, so this consumer-side join remains inside the tree.
 
+Deletion has no `Report`, names, or species after the root is removed, so it
+uses a separate advisory trace over `Removed::entries` followed by the root.
+`--quiet` suppresses that trace but not the stdout root record or any failure.
+As with other mutations, output begins only after the filesystem operation has
+landed; terminal exit 1 therefore does not imply that deletion was undone.
+
 The consumer owns terminal I/O and reconstruction of paths absent from
 algebraic entries. This fragment turns snapshots and reports into stable records
 or optional advice, uses validated name components to preserve tree confinement,
 and produces the stdout and stderr values observed in the worked insert.
 
-<!-- fragment «cli-streams-and-paths» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="633-859" parent="syllabus-cli-source" -->
+<!-- fragment «cli-streams-and-paths» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="730-988" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // The two streams
@@ -1437,6 +1680,38 @@ impl<'a> Streams<'a> {
             return Ok(());
         }
         writeln!(self.stderr, "{message}").map_err(|error| Failure::stream("stderr", error))?;
+        self.stderr
+            .flush()
+            .map_err(|error| Failure::stream("stderr", error))
+    }
+
+    /// The removal trace: what went, **in the order it went**.
+    ///
+    /// A separate method from [`Streams::trace`] because a removal has no
+    /// report: there are no names to label a path with and no species to tell
+    /// apart, only paths and the order. That is the whole of what `Removed`
+    /// carries, and printing it any other way would be inventing detail.
+    fn removal(&mut self, removed: &Removed) -> Result<(), Failure> {
+        if self.quiet {
+            return Ok(());
+        }
+        let count = removed.entries.len();
+        writeln!(
+            self.stderr,
+            "delete: {count} entr{} beneath the root, in the order they went:",
+            if count == 1 { "y" } else { "ies" }
+        )
+        .map_err(|error| Failure::stream("stderr", error))?;
+        for path in &removed.entries {
+            writeln!(self.stderr, "  removed  {}", path.display())
+                .map_err(|error| Failure::stream("stderr", error))?;
+        }
+        writeln!(
+            self.stderr,
+            "  removed  {} (the root)",
+            removed.root.display()
+        )
+        .map_err(|error| Failure::stream("stderr", error))?;
         self.stderr
             .flush()
             .map_err(|error| Failure::stream("stderr", error))
@@ -1580,7 +1855,7 @@ ordered trace, relies on exclusive destination claims for unambiguous
 correlation, and lets `lesson-insert` print key 7 while still showing both
 highest-first shifts.
 
-<!-- fragment «cli-mutation-output» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="860-904" parent="syllabus-cli-source" -->
+<!-- fragment «cli-mutation-output» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="989-1033" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // What a mutation prints
@@ -1637,12 +1912,13 @@ The in-file contract tests inject writers that fail on write or flush. Their
 inputs include parser output, one record, or one stderr message; their outputs
 are the settled exit code and categorized `Failure`. The tests distinguish a
 closed stdout pipe from other stdout refusals for both help and records, cover
-usage, stderr advice, and unreportable failures, and hold the invariant that all
-terminal failures stay inside the documented taxonomy.
+usage, landing and removal trace failures, stderr advice, and unreportable
+failures, and hold the invariant that all terminal failures stay inside the
+documented taxonomy.
 This range is included because those branches cannot be driven portably through
 a real terminal without substituting the writers at the private seam.
 
-<!-- fragment «cli-stream-contract-tests» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1260-1439" parent="syllabus-cli-source" -->
+<!-- fragment «cli-stream-contract-tests» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1499-1738" parent="syllabus-cli-source" -->
 ````rust
 #[cfg(test)]
 mod stream_contract_tests {
@@ -1679,6 +1955,30 @@ mod stream_contract_tests {
         Record {
             target: "1".to_string(),
             path: PathBuf::from("course/01-introduction-i1"),
+        }
+    }
+
+    fn report() -> Report<SyllabusName> {
+        let temporary = tempfile::tempdir().expect("a temporary directory");
+        let root = temporary.path().join("course");
+        let opened = fs::write::<SyllabusName>(&root).expect("opening an absent tree");
+        let fs::Writing::Vacancy(vacancy) = opened else {
+            panic!("a fresh path must be vacant");
+        };
+        vacancy
+            .initialize(
+                None,
+                vec![NewEntry::empty(Parts::module(
+                    parse_label("introduction").expect("a valid label"),
+                ))],
+            )
+            .expect("initializing a report fixture")
+    }
+
+    fn removed() -> Removed {
+        Removed {
+            root: PathBuf::from("course"),
+            entries: vec![PathBuf::from("course/01-introduction-i1")],
         }
     }
 
@@ -1810,6 +2110,42 @@ mod stream_contract_tests {
     }
 
     #[test]
+    fn mutation_trace_failures_are_environment_failures() {
+        let report = report();
+        for point in [RefusalPoint::Write, RefusalPoint::Flush] {
+            let mut stdout = Vec::new();
+            let mut stderr = RefusingWriter {
+                point,
+                kind: io::ErrorKind::BrokenPipe,
+            };
+            let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+
+            let failure = streams
+                .trace("module-add", &report)
+                .expect_err("stderr refused");
+            assert_eq!(failure.code, 1);
+            assert!(failure.message.contains("stderr"));
+        }
+    }
+
+    #[test]
+    fn removal_trace_failures_are_environment_failures() {
+        let removed = removed();
+        for point in [RefusalPoint::Write, RefusalPoint::Flush] {
+            let mut stdout = Vec::new();
+            let mut stderr = RefusingWriter {
+                point,
+                kind: io::ErrorKind::BrokenPipe,
+            };
+            let mut streams = Streams::new(&mut stdout, &mut stderr, false);
+
+            let failure = streams.removal(&removed).expect_err("stderr refused");
+            assert_eq!(failure.code, 1);
+            assert!(failure.message.contains("stderr"));
+        }
+    }
+
+    #[test]
     fn an_unreportable_failure_exits_as_an_environment_failure() {
         let mut stdout = Vec::new();
         let mut stderr = RefusingWriter {
@@ -1830,10 +2166,13 @@ mod stream_contract_tests {
 <a id="omitted-features"></a>
 ## Deliberate omissions and retry limits
 
-The binary has no removal command. Keys are allocated as tree-wide maximum plus
-one, so deleting the maximum can reissue an identity still held by an external
-reference. `unpublish` expresses retirement as an attribute rewrite. An empty
-directory is already an empty tree, so initialization requires only `mkdir`.
+The binary has no command that removes one entry. Keys are allocated as
+tree-wide maximum plus one, so deleting the maximum can reissue an identity
+still held by an external reference. `unpublish` expresses retirement as an
+attribute rewrite. Whole-tree `delete` is a different lifecycle operation: it
+ends the allocation domain by removing the root, requires `--yes`, and has no
+`rm` alias. `init` is its opposite and is the only command that creates the
+root, optional `OVERVIEW.md`, and first lessons under one lock.
 
 There is no dry-run because a plan is internal and the public mutation surface
 returns only a report. There are no lock options because lock scope and blocking
@@ -1841,15 +2180,18 @@ belong to the filesystem boundary rather than the consumer seam. There is no
 label lookup in the library; `--label` is a predicate over a walk. There is no
 version-control integration, migration, colour, pager, prompt, JSON mode, or
 pagination. The demonstration has a bounded tree result, a tab-separated output
-shape with a lossless same-platform path encoding and explicit terminal-failure
-taxonomy, no destructive verb, and no second persistent representation that
-would require those features.
+shape with a lossless same-platform path encoding, an explicit terminal-failure
+taxonomy, one deliberately explicit destructive verb, and no second persistent
+representation that would require those features.
 
-Exit 6 is safe to retry because complete unwind restored the captured tree.
-Exit 7 is not safe to retry because some effects remain. Termination by signal
+Exit 6 is safe to retry because complete unwind restored the captured tree or a
+removal stopped before deleting anything. Exit 7 is not safe to retry blindly
+because some effects remain. A partial `delete` may be repeated to finish, but
+it cannot restore removed paths. Termination by signal
 has no exit-category guarantee: without a journal, the operator must inspect
-the tree before deciding whether a non-idempotent add, insert, or promote can be
-repeated. The advisory lock coordinates cooperating processes but does not hide
-intermediate states from uncooperative writers or survive process termination.
+the tree before deciding whether a non-idempotent `init`, `delete`, add, insert,
+or promote can be repeated. The advisory lock coordinates cooperating processes
+but does not hide intermediate states from uncooperative writers or survive
+process termination.
 
 [Previous: Filesystem interpreter](06-filesystem-interpreter.md) | [Contents](README.md) | [Next: Invariants and trade-offs](08-invariants-and-trade-offs.md)

@@ -9,7 +9,7 @@
 | Root ID | Source path | Lines |
 |---|---|---|
 | `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 112 |
-| `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,439 |
+| `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,738 |
 | `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 103 |
 | `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 667 |
 | `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 510 |
@@ -33,7 +33,7 @@
 <!-- insert «manifest-cli-binary» -->
 <!-- insert «manifest-development-and-release» -->
 <!-- /source-root -->
-<!-- source-root «source-syllabus-cli» source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1439" -->
+<!-- source-root «source-syllabus-cli» source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1738" -->
 <!-- insert «syllabus-cli-source» -->
 <!-- /source-root -->
 <!-- source-root «source-library» source="crates/ordinal-fs-tree/src/lib.rs" lines="1-103" -->
@@ -104,7 +104,7 @@
 | `manifest-library-cli-boundary` | `source-crate-manifest` | `orientation-k11` | `46-61` | 16 | `resolved` |
 | `manifest-cli-binary` | `source-crate-manifest` | `syllabus-cli-k17` | `62-65` | 4 | `resolved` |
 | `manifest-development-and-release` | `source-crate-manifest` | `orientation-k11` | `66-112` | 47 | `resolved` |
-| `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1439` | 1,439 | `resolved` |
+| `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1738` | 1,738 | `resolved` |
 | `library-crate-surface` | `source-library` | `orientation-k11` | `1-103` | 103 | `resolved` |
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-667` | 667 | `resolved` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-510` | 510 | `resolved` |
@@ -144,16 +144,16 @@
 | `manifest-library-cli-boundary` | `orientation` | `source-crate-manifest` | `literal` | `orientation-k11` | `46-61` | `source-crate-manifest` | `—` |
 | `manifest-cli-binary` | `syllabus-cli` | `source-crate-manifest` | `literal` | `syllabus-cli-k17` | `62-65` | `source-crate-manifest` | `—` |
 | `manifest-development-and-release` | `orientation` | `source-crate-manifest` | `literal` | `orientation-k11` | `66-112` | `source-crate-manifest` | `—` |
-| `source-syllabus-cli` | `source-index` | `source-syllabus-cli` | `root` | `—` | `1-1439` | `—` | `syllabus-cli-source` |
-| `cli-command-line` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1-488` | `syllabus-cli-source` | `—` |
-| `syllabus-cli-source` | `syllabus-cli` | `source-syllabus-cli` | `composite` | `syllabus-cli-k17` | `1-1439` | `source-syllabus-cli` | `cli-command-line`, `cli-parsing-and-failure`, `cli-streams-and-paths`, `cli-mutation-output`, `cli-main-dispatch`, `cli-reading`, `cli-mutations`, `cli-stream-contract-tests` |
-| `cli-parsing-and-failure` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `489-632` | `syllabus-cli-source` | `—` |
-| `cli-streams-and-paths` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `633-859` | `syllabus-cli-source` | `—` |
-| `cli-mutation-output` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `860-904` | `syllabus-cli-source` | `—` |
-| `cli-main-dispatch` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `905-997` | `syllabus-cli-source` | `—` |
-| `cli-reading` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `998-1136` | `syllabus-cli-source` | `—` |
-| `cli-mutations` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1137-1259` | `syllabus-cli-source` | `—` |
-| `cli-stream-contract-tests` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1260-1439` | `syllabus-cli-source` | `—` |
+| `source-syllabus-cli` | `source-index` | `source-syllabus-cli` | `root` | `—` | `1-1738` | `—` | `syllabus-cli-source` |
+| `cli-command-line` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1-570` | `syllabus-cli-source` | `—` |
+| `syllabus-cli-source` | `syllabus-cli` | `source-syllabus-cli` | `composite` | `syllabus-cli-k17` | `1-1738` | `source-syllabus-cli` | `cli-command-line`, `cli-parsing-and-failure`, `cli-streams-and-paths`, `cli-mutation-output`, `cli-main-dispatch`, `cli-reading`, `cli-mutations`, `cli-stream-contract-tests` |
+| `cli-parsing-and-failure` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `571-729` | `syllabus-cli-source` | `—` |
+| `cli-streams-and-paths` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `730-988` | `syllabus-cli-source` | `—` |
+| `cli-mutation-output` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `989-1033` | `syllabus-cli-source` | `—` |
+| `cli-main-dispatch` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1034-1132` | `syllabus-cli-source` | `—` |
+| `cli-reading` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1133-1313` | `syllabus-cli-source` | `—` |
+| `cli-mutations` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1314-1498` | `syllabus-cli-source` | `—` |
+| `cli-stream-contract-tests` | `syllabus-cli` | `source-syllabus-cli` | `literal` | `syllabus-cli-k17` | `1499-1738` | `syllabus-cli-source` | `—` |
 | `source-library` | `source-index` | `source-library` | `root` | `—` | `1-103` | `—` | `library-crate-surface` |
 | `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-103` | `source-library` | `—` |
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-667` | `—` | `reference-conformance-source` |

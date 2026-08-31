@@ -517,7 +517,7 @@ visible in the root row and ownership table.
 | Root ID | Source path | Lines |
 |---|---|---:|
 | `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 112 |
-| `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,439 |
+| `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,738 |
 | `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 103 |
 | `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 667 |
 | `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 510 |
@@ -547,7 +547,7 @@ the matching defer with an insert and adds the definition.
 | `manifest-library-cli-boundary` | `source-crate-manifest` | `orientation-k11` | `46-61` | 16 | `resolved` |
 | `manifest-cli-binary` | `source-crate-manifest` | `syllabus-cli-k17` | `62-65` | 4 | `deferred` |
 | `manifest-development-and-release` | `source-crate-manifest` | `orientation-k11` | `66-112` | 47 | `resolved` |
-| `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1439` | 1,439 | `deferred` |
+| `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1738` | 1,738 | `deferred` |
 | `library-crate-surface` | `source-library` | `orientation-k11` | `1-103` | 103 | `resolved` |
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-667` | 667 | `deferred` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-510` | 510 | `deferred` |

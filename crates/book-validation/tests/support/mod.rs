@@ -59,12 +59,12 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-syllabus-cli",
         path: "crates/ordinal-fs-tree/bin/syllabus.rs",
-        lines: 1_439,
+        lines: 1_738,
         blocks: &[BlockSpec {
             id: "syllabus-cli-source",
             owner: "syllabus-cli-k17",
             first: 1,
-            last: 1_439,
+            last: 1_738,
         }],
     },
     RootSpec {

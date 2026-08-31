@@ -201,7 +201,7 @@ dependencies = [
 
 [[package]]
 name = "grove"
-version = "20.0.0"
+version = "20.1.0"
 dependencies = [
  "anyhow",
  "book-validation",
@@ -213,7 +213,7 @@ dependencies = [
 
 [[package]]
 name = "grove-llm"
-version = "20.0.0"
+version = "20.1.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -228,7 +228,7 @@ dependencies = [
 
 [[package]]
 name = "grove-loop"
-version = "20.0.0"
+version = "20.1.0"
 dependencies = [
  "anyhow",
  "jj-workspace",
@@ -291,7 +291,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "jj-workspace"
-version = "20.0.0"
+version = "20.1.0"
 dependencies = [
  "tempfile",
 ]
@@ -309,7 +309,7 @@ dependencies = [
 
 [[package]]
 name = "keyed-launch"
-version = "20.0.0"
+version = "20.1.0"
 dependencies = [
  "kdl",
  "libc",
@@ -400,7 +400,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "ordinal-fs-tree"
-version = "20.0.0"
+version = "20.1.0"
 dependencies = [
  "assert_cmd",
  "clap",

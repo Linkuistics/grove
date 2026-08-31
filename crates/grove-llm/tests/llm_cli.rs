@@ -60,8 +60,9 @@ fn the_two_binaries_report_one_version() {
         human.trim().strip_prefix("grove "),
         "the two binaries must publish one version: {llm:?} vs {human:?}"
     );
-    assert!(
-        !llm.contains("0.1.0"),
+    assert_ne!(
+        llm.trim().strip_prefix("grove-llm "),
+        Some("0.1.0"),
         "grove-llm is answering with its own package version: {llm:?}"
     );
 }

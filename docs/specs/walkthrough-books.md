@@ -891,8 +891,10 @@ reviewed against its own design.
 responsibilities were chosen and written down — they were the page-by-page
 concept and worked-example sections of the one-book specification this document
 replaced — and rewriting that specification for six books moved them out without
-putting them anywhere. Recovering them into the form above is work this
-specification requires and does not perform.
+putting them anywhere. They have since been recovered from that deleted text
+into [`ordinal-fs-tree-book-structure.md`](ordinal-fs-tree-book-structure.md),
+which is the first brief written to this section and the location every later
+one follows.
 
 ## Authoring workflow and scoped proof
 

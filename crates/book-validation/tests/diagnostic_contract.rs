@@ -1,9 +1,12 @@
+mod support;
+
 use std::collections::{BTreeMap, BTreeSet};
 
-use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice};
+use book_validation::{validate, BookSnapshot, Check, Request, Scope};
 
 fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
     BookSnapshot {
+        manifest: support::manifest(),
         book_files: BTreeMap::from([(
             "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
             markdown.as_bytes().to_vec(),
@@ -21,7 +24,7 @@ fn orientation(markdown: &str, source: &str) -> book_validation::ValidationRepor
     validate(
         &snapshot(markdown, source),
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     )
@@ -143,6 +146,7 @@ fn a_deep_graph_is_processed_without_recursion() {
 
     let report = validate(
         &BookSnapshot {
+            manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/01-orientation.md".into(),
                 markdown.into_bytes(),
@@ -155,7 +159,7 @@ fn a_deep_graph_is_processed_without_recursion() {
             non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     );
@@ -227,6 +231,7 @@ fn an_invalid_root_suppresses_only_its_byte_cascade() {
     );
     let report = validate(
         &BookSnapshot {
+            manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 markdown.as_bytes().to_vec(),
@@ -310,6 +315,7 @@ fn branching_invalid_graphs_do_not_expand_exponentially() {
     }
     let report = validate(
         &BookSnapshot {
+            manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/01-orientation.md".into(),
                 markdown.into_bytes(),
@@ -322,7 +328,7 @@ fn branching_invalid_graphs_do_not_expand_exponentially() {
             non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     );

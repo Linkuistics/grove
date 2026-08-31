@@ -1,6 +1,13 @@
+// Every test binary compiles this module and uses a different subset of it, so
+// an item unused by one binary is not an unused item.
+#![allow(dead_code)]
+
 use std::{collections::BTreeMap, fs, path::PathBuf};
 
-use book_validation::BookSnapshot;
+use book_validation::{BookSnapshot, Manifest, Scope};
+
+/// The fixture book's repository-relative directory.
+pub const BOOK_ROOT: &str = "docs/walkthroughs/ordinal-fs-tree";
 
 #[derive(Clone, Copy)]
 struct RootSpec {
@@ -390,6 +397,62 @@ const EARLY_USES: &[(&str, &str, &str, &str)] = &[
     ),
 ];
 
+/// The fixture book's `walkthrough.toml`, built from the same specs the pages
+/// and ledger are built from, so the fixture cannot disagree with itself.
+pub fn manifest_text() -> String {
+    let mut out = String::from(
+        "schema = 1\n\n[book]\nid = \"ordinal-fs-tree\"\ntitle = \"Ordinal filesystem tree\"\nsubject = \"crates/ordinal-fs-tree\"\n\n[corpus]\ninclude = [\"crates/ordinal-fs-tree/Cargo.toml\", \"crates/ordinal-fs-tree/src/**/*.rs\"]\n\n",
+    );
+    out.push_str("[[page]]\nfile = \"README.md\"\nid = \"contents\"\ntitle = \"Ordinal filesystem tree\"\nrole = \"contents\"\n\n");
+    for (slice, id, title, order) in PAGES {
+        let (file, _, _, _) = page(slice);
+        let _ = order;
+        out.push_str(&format!(
+            "[[page]]\nfile = \"{file}\"\nid = \"{id}\"\ntitle = \"{title}\"\nrole = \"chapter\"\nslice = \"{slice}\"\n\n"
+        ));
+    }
+    for (file, id, title) in [
+        ("concept-index.md", "concept-index", "Concept index"),
+        ("source-index.md", "source-index", "Source index"),
+    ] {
+        out.push_str(&format!(
+            "[[page]]\nfile = \"{file}\"\nid = \"{id}\"\ntitle = \"{title}\"\nrole = \"lookup\"\n\n"
+        ));
+    }
+    for root in ROOTS {
+        out.push_str(&format!(
+            "[[root]]\nid = \"{}\"\npath = \"{}\"\nlines = {}\n\n",
+            root.id, root.path, root.lines
+        ));
+        for block in root.blocks {
+            out.push_str(&format!(
+                "[[block]]\nid = \"{}\"\nroot = \"{}\"\nowner = \"{}\"\nlines = \"{}-{}\"\n\n",
+                block.id, root.id, block.owner, block.first, block.last
+            ));
+        }
+    }
+    for (symbols, first_use, owner, statement) in EARLY_USES {
+        out.push_str(&format!(
+            "[[early-use]]\nsymbols = \"{symbols}\"\nfirst-use = \"{first_use}\"\nowner = \"{owner}\"\nstatement = \"{statement}\"\n\n"
+        ));
+    }
+    out.push_str("[guide]\nomitted = \"the fixture book is self-contained\"\n");
+    out
+}
+
+pub fn manifest() -> Manifest {
+    Manifest::load(BOOK_ROOT, &manifest_text()).expect("fixture manifest is schema-valid")
+}
+
+/// A `--through` scope over the fixture book.
+pub fn through(slice: &str) -> Scope {
+    Scope::Through(
+        manifest()
+            .resolve_scoped(slice)
+            .expect("fixture slice is in the book's scoped domain"),
+    )
+}
+
 pub fn corpus(final_: bool) -> BookSnapshot {
     let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut source_files = BTreeMap::new();
@@ -508,8 +571,11 @@ pub fn corpus(final_: bool) -> BookSnapshot {
             contents.into_bytes(),
         )
     }));
-    let book_entries = book_files.keys().cloned().collect();
+    let manifest = manifest();
+    let mut book_entries: std::collections::BTreeSet<String> = book_files.keys().cloned().collect();
+    book_entries.insert(manifest.manifest_path());
     BookSnapshot {
+        manifest,
         book_files,
         source_files,
         book_entries,

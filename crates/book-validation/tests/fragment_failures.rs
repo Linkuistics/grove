@@ -1,9 +1,12 @@
+mod support;
+
 use std::collections::{BTreeMap, BTreeSet};
 
-use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice};
+use book_validation::{validate, BookSnapshot, Check, Request};
 
 fn snapshot(markdown: &str, source: &str) -> BookSnapshot {
     BookSnapshot {
+        manifest: support::manifest(),
         book_files: BTreeMap::from([(
             "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
             markdown.as_bytes().to_vec(),
@@ -21,7 +24,7 @@ fn scoped(markdown: &str, source: &str) -> Vec<String> {
     validate(
         &snapshot(markdown, source),
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     )
@@ -57,7 +60,7 @@ fn duplicate_top_level_fragments_do_not_contribute_resolved_coverage() {
     let report = validate(
         &snapshot(markdown, "first\n"),
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     );
@@ -97,7 +100,7 @@ fn recursive_insertions_report_a_cycle() {
     let report = validate(
         &snapshot(markdown, "line\n"),
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     );
@@ -174,7 +177,7 @@ fn a_named_later_slice_that_arrives_without_filling_its_hole_is_overdue_not_unre
     let report = validate(
         &snapshot(markdown, "line\n"),
         Request {
-            scope: Scope::Through(ScopedSlice::NameSeam),
+            scope: support::through("name-seam-k12"),
             check: Check::Fragments,
         },
     );
@@ -204,7 +207,7 @@ fn literal_newline_and_whitespace_drift_is_byte_failure() {
     let source = format!("line\n{}", "line\n".repeat(102));
     let snapshot = snapshot(&markdown, &source);
     let request = Request {
-        scope: Scope::Through(ScopedSlice::Orientation),
+        scope: support::through("orientation-k11"),
         check: Check::Fragments,
     };
     let first = validate(&snapshot, request.clone());
@@ -309,7 +312,7 @@ fn a_missing_authoritative_source_is_an_inventory_failure() {
     let report = validate(
         &snapshot,
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     );

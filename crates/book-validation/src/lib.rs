@@ -1,5 +1,6 @@
 pub mod cli;
 mod ledger;
+pub mod manifest;
 mod markdown;
 mod parser;
 mod validator;
@@ -8,11 +9,16 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+pub use manifest::{Manifest, ManifestError, Page, Role, ScopedSlice};
 pub use markdown::{scan_markdown_links, MarkdownLink};
 pub use validator::validate;
 
 #[derive(Clone, Debug, Default)]
 pub struct BookSnapshot {
+    /// The book's own structure, loaded from its `walkthrough.toml`. The core
+    /// performs no discovery of its own: everything it knows about which pages
+    /// exist, what they are called and which slice owns which, it reads here.
+    pub manifest: Manifest,
     pub book_files: BTreeMap<String, Vec<u8>>,
     pub source_files: BTreeMap<String, Vec<u8>>,
     pub book_entries: BTreeSet<String>,
@@ -29,44 +35,6 @@ pub struct Request {
 pub enum Scope {
     Through(ScopedSlice),
     Final,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ScopedSlice {
-    Orientation,
-    NameSeam,
-    ReferenceDomain,
-    ReadPath,
-    MutationAlgebra,
-    FilesystemInterpreter,
-    SyllabusCli,
-}
-
-impl ScopedSlice {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Orientation => "orientation-k11",
-            Self::NameSeam => "name-seam-k12",
-            Self::ReferenceDomain => "reference-domain-k13",
-            Self::ReadPath => "read-path-k14",
-            Self::MutationAlgebra => "mutation-algebra-k15",
-            Self::FilesystemInterpreter => "filesystem-interpreter-k16",
-            Self::SyllabusCli => "syllabus-cli-k17",
-        }
-    }
-
-    pub fn parse(value: &str) -> Option<Self> {
-        Some(match value {
-            "orientation-k11" => Self::Orientation,
-            "name-seam-k12" => Self::NameSeam,
-            "reference-domain-k13" => Self::ReferenceDomain,
-            "read-path-k14" => Self::ReadPath,
-            "mutation-algebra-k15" => Self::MutationAlgebra,
-            "filesystem-interpreter-k16" => Self::FilesystemInterpreter,
-            "syllabus-cli-k17" => Self::SyllabusCli,
-            _ => return None,
-        })
-    }
 }
 
 impl Serialize for Scope {
@@ -87,26 +55,6 @@ impl Serialize for Scope {
         map.end()
     }
 }
-
-pub const SOURCE_PATHS: &[&str] = &[
-    "crates/ordinal-fs-tree/Cargo.toml",
-    "crates/ordinal-fs-tree/bin/syllabus.rs",
-    "crates/ordinal-fs-tree/src/lib.rs",
-    "crates/ordinal-fs-tree/src/conformance.rs",
-    "crates/ordinal-fs-tree/src/error.rs",
-    "crates/ordinal-fs-tree/src/name.rs",
-    "crates/ordinal-fs-tree/src/ops.rs",
-    "crates/ordinal-fs-tree/src/plan.rs",
-    "crates/ordinal-fs-tree/src/reference.rs",
-    "crates/ordinal-fs-tree/src/report.rs",
-    "crates/ordinal-fs-tree/src/snapshot.rs",
-    "crates/ordinal-fs-tree/src/sought.rs",
-    "crates/ordinal-fs-tree/src/fs/mod.rs",
-    "crates/ordinal-fs-tree/src/fs/read.rs",
-    "crates/ordinal-fs-tree/src/fs/apply.rs",
-    "crates/ordinal-fs-tree/src/fs/remove.rs",
-    "crates/ordinal-fs-tree/src/fs/lock.rs",
-];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Check {

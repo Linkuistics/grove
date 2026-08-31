@@ -1,10 +1,13 @@
+mod support;
+
 use std::collections::{BTreeMap, BTreeSet};
 
-use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice};
+use book_validation::{validate, BookSnapshot, Check, Request};
 
 fn codes(bytes: &[u8]) -> Vec<String> {
     validate(
         &BookSnapshot {
+            manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 bytes.to_vec(),
@@ -14,7 +17,7 @@ fn codes(bytes: &[u8]) -> Vec<String> {
             non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     )
@@ -99,6 +102,7 @@ fn a_misclosed_literal_recovers_to_a_later_root() {
     );
     let report = validate(
         &BookSnapshot {
+            manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 markdown.as_bytes().to_vec(),
@@ -108,7 +112,7 @@ fn a_misclosed_literal_recovers_to_a_later_root() {
             non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     );
@@ -130,6 +134,7 @@ fn an_unclosed_literal_recovers_to_a_later_root() {
     );
     let report = validate(
         &BookSnapshot {
+            manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 markdown.as_bytes().to_vec(),
@@ -139,7 +144,7 @@ fn an_unclosed_literal_recovers_to_a_later_root() {
             non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     );
@@ -186,6 +191,7 @@ fn invalid_utf8_reports_its_first_byte_and_recovers_after_the_line() {
         b"<!-- insert \xc2\xabfirst\xc2\xbb -->\n\xff\n<!-- insert \xc2\xabsecond\xc2\xbb -->\n";
     let report = validate(
         &BookSnapshot {
+            manifest: support::manifest(),
             book_files: BTreeMap::from([(
                 "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
                 bytes.to_vec(),
@@ -195,7 +201,7 @@ fn invalid_utf8_reports_its_first_byte_and_recovers_after_the_line() {
             non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     );

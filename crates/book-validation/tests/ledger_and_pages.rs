@@ -1,6 +1,6 @@
 mod support;
 
-use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice};
+use book_validation::{validate, BookSnapshot, Check, Request, Scope};
 
 const SOURCE_INDEX: &str = "docs/walkthroughs/ordinal-fs-tree/source-index.md";
 
@@ -18,7 +18,7 @@ fn validate_orientation(snapshot: &BookSnapshot) -> book_validation::ValidationR
     validate(
         snapshot,
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::Fragments,
         },
     )

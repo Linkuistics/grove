@@ -13,7 +13,7 @@ coverage, and the reason the validator sits on the campaign's critical path.
 ## Context
 
 - The constants in scope: `ROOTS` (17 source paths with exact line counts),
-  `BLOCKS` (34 top-level ownership ranges) and `EARLY_USES` in
+  `BLOCKS` (33 top-level ownership ranges) and `EARLY_USES` in
   `crates/book-validation/src/`. Their per-book form is whatever
   `walkthrough-books-spec-k20` settled.
 - `validator-structure-k21` has already moved the structure metadata —

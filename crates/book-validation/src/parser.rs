@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::ops::Range;
 
+use crate::manifest::Manifest;
 use crate::{BookSnapshot, Diagnostic, Location};
 
 #[derive(Clone, Debug)]
@@ -84,6 +85,7 @@ enum Active {
 }
 
 pub(crate) fn parse(snapshot: &BookSnapshot) -> ParsedBook {
+    let manifest = &snapshot.manifest;
     let mut parsed = ParsedBook {
         roots: BTreeMap::new(),
         fragments: BTreeMap::new(),
@@ -91,12 +93,12 @@ pub(crate) fn parse(snapshot: &BookSnapshot) -> ParsedBook {
         diagnostics: Vec::new(),
     };
     for (path, bytes) in &snapshot.book_files {
-        parse_file(path, bytes, &mut parsed);
+        parse_file(manifest, path, bytes, &mut parsed);
     }
     parsed
 }
 
-fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
+fn parse_file(manifest: &Manifest, path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
     let recovered;
     let text = match std::str::from_utf8(bytes) {
         Ok(text) => text,
@@ -199,7 +201,7 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
                 None => {}
             }
         }
-        if valid_book_page(line) {
+        if valid_book_page(manifest, line) {
             if active.is_some() {
                 invalid_context(parsed, here, "book-page directive is inside a construct");
             } else {
@@ -227,7 +229,7 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
             index += 1;
             continue;
         }
-        if let Some((id, owner, source, range, parent)) = parse_fragment(line) {
+        if let Some((id, owner, source, range, parent)) = parse_fragment(manifest, line) {
             if active.is_some() {
                 invalid_context(parsed, here, "fragment cannot nest");
                 index += 1;
@@ -299,7 +301,7 @@ fn parse_file(path: &str, bytes: &[u8], parsed: &mut ParsedBook) {
             index += 1;
             continue;
         }
-        if let Some((id, owner, range)) = parse_defer(line) {
+        if let Some((id, owner, range)) = parse_defer(manifest, line) {
             let child = Child::Defer {
                 id,
                 owner,
@@ -430,13 +432,16 @@ fn parse_root(line: &str) -> Option<(String, String, LineRange)> {
     ))
 }
 
-fn parse_fragment(line: &str) -> Option<(String, String, String, LineRange, String)> {
+fn parse_fragment(
+    manifest: &Manifest,
+    line: &str,
+) -> Option<(String, String, String, LineRange, String)> {
     let body = line.strip_prefix("<!-- fragment «")?.strip_suffix(" -->")?;
     let (id, tail) = body.split_once("» owner=\"")?;
     let (owner, tail) = tail.split_once("\" source=\"")?;
     let (source, tail) = tail.split_once("\" lines=\"")?;
     let (range, parent) = tail.split_once("\" parent=\"")?;
-    if !valid_id(id) || !valid_id(parent.strip_suffix('"')?) || !valid_slice(owner) {
+    if !valid_id(id) || !valid_id(parent.strip_suffix('"')?) || !valid_slice(manifest, owner) {
         return None;
     }
     Some((
@@ -453,11 +458,11 @@ fn parse_insert(line: &str) -> Option<String> {
     valid_id(id).then(|| id.into())
 }
 
-fn parse_defer(line: &str) -> Option<(String, String, LineRange)> {
+fn parse_defer(manifest: &Manifest, line: &str) -> Option<(String, String, LineRange)> {
     let body = line.strip_prefix("<!-- defer «")?.strip_suffix(" -->")?;
     let (id, tail) = body.split_once("» owner=\"")?;
     let (owner, range) = tail.split_once("\" lines=\"")?;
-    if !valid_id(id) || !valid_slice(owner) {
+    if !valid_id(id) || !valid_slice(manifest, owner) {
         return None;
     }
     Some((
@@ -527,35 +532,17 @@ fn valid_id(id: &str) -> bool {
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
-fn valid_book_page(line: &str) -> bool {
-    [
-        "<!-- book-page id=\"contents\" role=\"contents\" -->",
-        "<!-- book-page id=\"concept-index\" role=\"lookup\" -->",
-        "<!-- book-page id=\"source-index\" role=\"lookup\" -->",
-        "<!-- book-page id=\"orientation\" slice=\"orientation-k11\" order=\"1\" -->",
-        "<!-- book-page id=\"name-seam\" slice=\"name-seam-k12\" order=\"2\" -->",
-        "<!-- book-page id=\"reference-domain\" slice=\"reference-domain-k13\" order=\"3\" -->",
-        "<!-- book-page id=\"read-path\" slice=\"read-path-k14\" order=\"4\" -->",
-        "<!-- book-page id=\"mutation-algebra\" slice=\"mutation-algebra-k15\" order=\"5\" -->",
-        "<!-- book-page id=\"filesystem-interpreter\" slice=\"filesystem-interpreter-k16\" order=\"6\" -->",
-        "<!-- book-page id=\"syllabus-cli\" slice=\"syllabus-cli-k17\" order=\"7\" -->",
-        "<!-- book-page id=\"invariants-and-trade-offs\" slice=\"book-assembly-k18\" order=\"8\" -->",
-    ]
-    .contains(&line)
+/// The one identity line the named book declares for this page. The accepted
+/// set is the manifest's page inventory: a page the book does not declare has
+/// no canonical identity, and its directive is not a recognized one.
+fn valid_book_page(manifest: &Manifest, line: &str) -> bool {
+    manifest.pages().iter().any(|page| page.identity() == line)
 }
 
-fn valid_slice(slice: &str) -> bool {
-    [
-        "orientation-k11",
-        "name-seam-k12",
-        "reference-domain-k13",
-        "read-path-k14",
-        "mutation-algebra-k15",
-        "filesystem-interpreter-k16",
-        "syllabus-cli-k17",
-        "book-assembly-k18",
-    ]
-    .contains(&slice)
+/// A slice this book declares. Both the fragment and defer directives name an
+/// owner, and an owner outside the book's own slices is not a valid directive.
+fn valid_slice(manifest: &Manifest, slice: &str) -> bool {
+    manifest.slice_order(slice).is_some()
 }
 
 fn reserved_prefix(line: &str) -> bool {

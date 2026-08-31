@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use book_validation::{
-    validate, BookSnapshot, Check, Request, Scope, ScopedSlice, ValidationReport,
-};
+mod support;
+
+use book_validation::{validate, BookSnapshot, Check, Request, ValidationReport};
 
 const ROOT: &str = "docs/walkthroughs/ordinal-fs-tree/";
 
@@ -65,8 +65,11 @@ fn valid_book() -> BookSnapshot {
             .to_vec(),
         ),
     ]);
-    let book_entries = book_files.keys().cloned().collect();
+    let manifest = support::manifest();
+    let mut book_entries: std::collections::BTreeSet<String> = book_files.keys().cloned().collect();
+    book_entries.insert(manifest.manifest_path());
     BookSnapshot {
+        manifest,
         book_files,
         source_files: BTreeMap::new(),
         book_entries,
@@ -98,7 +101,7 @@ fn validate_through(snapshot: &BookSnapshot, slice: &str) -> ValidationReport {
     validate(
         snapshot,
         Request {
-            scope: Scope::Through(ScopedSlice::parse(slice).unwrap()),
+            scope: support::through(slice),
             check: Check::Markdown,
         },
     )
@@ -385,7 +388,7 @@ fn all_selection_runs_fragment_and_markdown_checks() {
     let report = validate(
         &snapshot,
         Request {
-            scope: Scope::Through(ScopedSlice::Orientation),
+            scope: support::through("orientation-k11"),
             check: Check::All,
         },
     );

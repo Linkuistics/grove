@@ -1,0 +1,456 @@
+schema = 1
+
+[book]
+id      = "ordinal-fs-tree"
+title   = "Ordinal filesystem tree"
+subject = "crates/ordinal-fs-tree"
+
+[corpus]
+include = [
+  "crates/ordinal-fs-tree/Cargo.toml",
+  "crates/ordinal-fs-tree/src/**/*.rs",
+]
+
+[[corpus.add]]
+path   = "crates/ordinal-fs-tree/bin/syllabus.rs"
+class  = "production-outside-src"
+reason = "the demonstration consumer is production source and lives outside src/"
+
+[[corpus.exclude]]
+path   = "crates/ordinal-fs-tree/src/fixtures.rs"
+class  = "test-support"
+reason = "test-support module: evidence, not production source"
+
+[[corpus.exclude]]
+path   = "crates/ordinal-fs-tree/src/fs/apply/tests.rs"
+class  = "inline-test-module"
+reason = "inline test module: evidence, not production source"
+
+[[corpus.exclude]]
+path   = "crates/ordinal-fs-tree/src/ops/tests.rs"
+class  = "inline-test-module"
+reason = "inline test module: evidence, not production source"
+
+[[corpus.exclude]]
+path   = "crates/ordinal-fs-tree/src/plan/tests.rs"
+class  = "inline-test-module"
+reason = "inline test module: evidence, not production source"
+
+[[corpus.exclude]]
+path   = "crates/ordinal-fs-tree/src/snapshot/tests.rs"
+class  = "inline-test-module"
+reason = "inline test module: evidence, not production source"
+
+[[page]]
+file  = "README.md"
+id    = "contents"
+title = "Ordinal filesystem tree"
+role  = "contents"
+
+[[page]]
+file  = "01-orientation.md"
+id    = "orientation"
+title = "Orientation"
+role  = "chapter"
+slice = "orientation-k11"
+
+[[page]]
+file  = "02-name-seam.md"
+id    = "name-seam"
+title = "Name seam"
+role  = "chapter"
+slice = "name-seam-k12"
+
+[[page]]
+file  = "03-reference-domain.md"
+id    = "reference-domain"
+title = "Reference domain"
+role  = "chapter"
+slice = "reference-domain-k13"
+
+[[page]]
+file  = "04-read-path.md"
+id    = "read-path"
+title = "Read path"
+role  = "chapter"
+slice = "read-path-k14"
+
+[[page]]
+file  = "05-mutation-algebra.md"
+id    = "mutation-algebra"
+title = "Mutation algebra"
+role  = "chapter"
+slice = "mutation-algebra-k15"
+
+[[page]]
+file  = "06-filesystem-interpreter.md"
+id    = "filesystem-interpreter"
+title = "Filesystem interpreter"
+role  = "chapter"
+slice = "filesystem-interpreter-k16"
+
+[[page]]
+file  = "07-syllabus-cli.md"
+id    = "syllabus-cli"
+title = "Syllabus CLI"
+role  = "chapter"
+slice = "syllabus-cli-k17"
+
+[[page]]
+file  = "08-invariants-and-trade-offs.md"
+id    = "invariants-and-trade-offs"
+title = "Invariants and trade-offs"
+role  = "chapter"
+slice = "book-assembly-k18"
+
+[[page]]
+file  = "concept-index.md"
+id    = "concept-index"
+title = "Concept index"
+role  = "lookup"
+
+[[page]]
+file  = "source-index.md"
+id    = "source-index"
+title = "Source index"
+role  = "lookup"
+
+[[root]]
+id    = "source-crate-manifest"
+path  = "crates/ordinal-fs-tree/Cargo.toml"
+lines = 112
+
+[[root]]
+id    = "source-syllabus-cli"
+path  = "crates/ordinal-fs-tree/bin/syllabus.rs"
+lines = 1738
+
+[[root]]
+id    = "source-library"
+path  = "crates/ordinal-fs-tree/src/lib.rs"
+lines = 103
+
+[[root]]
+id    = "source-conformance"
+path  = "crates/ordinal-fs-tree/src/conformance.rs"
+lines = 667
+
+[[root]]
+id    = "source-error"
+path  = "crates/ordinal-fs-tree/src/error.rs"
+lines = 510
+
+[[root]]
+id    = "source-name"
+path  = "crates/ordinal-fs-tree/src/name.rs"
+lines = 717
+
+[[root]]
+id    = "source-operations"
+path  = "crates/ordinal-fs-tree/src/ops.rs"
+lines = 634
+
+[[root]]
+id    = "source-plan"
+path  = "crates/ordinal-fs-tree/src/plan.rs"
+lines = 597
+
+[[root]]
+id    = "source-reference"
+path  = "crates/ordinal-fs-tree/src/reference.rs"
+lines = 559
+
+[[root]]
+id    = "source-report"
+path  = "crates/ordinal-fs-tree/src/report.rs"
+lines = 186
+
+[[root]]
+id    = "source-snapshot"
+path  = "crates/ordinal-fs-tree/src/snapshot.rs"
+lines = 677
+
+[[root]]
+id    = "source-sought"
+path  = "crates/ordinal-fs-tree/src/sought.rs"
+lines = 132
+
+[[root]]
+id    = "source-filesystem-module"
+path  = "crates/ordinal-fs-tree/src/fs/mod.rs"
+lines = 827
+
+[[root]]
+id    = "source-filesystem-read"
+path  = "crates/ordinal-fs-tree/src/fs/read.rs"
+lines = 407
+
+[[root]]
+id    = "source-filesystem-apply"
+path  = "crates/ordinal-fs-tree/src/fs/apply.rs"
+lines = 488
+
+[[root]]
+id    = "source-filesystem-remove"
+path  = "crates/ordinal-fs-tree/src/fs/remove.rs"
+lines = 275
+
+[[root]]
+id    = "source-filesystem-lock"
+path  = "crates/ordinal-fs-tree/src/fs/lock.rs"
+lines = 91
+
+[[block]]
+id    = "manifest-package-and-library-dependency"
+root  = "source-crate-manifest"
+owner = "orientation-k11"
+lines = "1-42"
+
+[[block]]
+id    = "manifest-cli-feature"
+root  = "source-crate-manifest"
+owner = "syllabus-cli-k17"
+lines = "43-45"
+
+[[block]]
+id    = "manifest-library-cli-boundary"
+root  = "source-crate-manifest"
+owner = "orientation-k11"
+lines = "46-61"
+
+[[block]]
+id    = "manifest-cli-binary"
+root  = "source-crate-manifest"
+owner = "syllabus-cli-k17"
+lines = "62-65"
+
+[[block]]
+id    = "manifest-development-and-release"
+root  = "source-crate-manifest"
+owner = "orientation-k11"
+lines = "66-112"
+
+[[block]]
+id    = "syllabus-cli-source"
+root  = "source-syllabus-cli"
+owner = "syllabus-cli-k17"
+lines = "1-1738"
+
+[[block]]
+id    = "library-crate-surface"
+root  = "source-library"
+owner = "orientation-k11"
+lines = "1-103"
+
+[[block]]
+id    = "reference-conformance-source"
+root  = "source-conformance"
+owner = "reference-domain-k13"
+lines = "1-667"
+
+[[block]]
+id    = "filesystem-error-source"
+root  = "source-error"
+owner = "filesystem-interpreter-k16"
+lines = "1-510"
+
+[[block]]
+id    = "name-seam-source"
+root  = "source-name"
+owner = "name-seam-k12"
+lines = "1-717"
+
+[[block]]
+id    = "mutation-operations-source"
+root  = "source-operations"
+owner = "mutation-algebra-k15"
+lines = "1-634"
+
+[[block]]
+id    = "mutation-plan-source"
+root  = "source-plan"
+owner = "mutation-algebra-k15"
+lines = "1-597"
+
+[[block]]
+id    = "reference-domain-source"
+root  = "source-reference"
+owner = "reference-domain-k13"
+lines = "1-559"
+
+[[block]]
+id    = "mutation-report-source"
+root  = "source-report"
+owner = "mutation-algebra-k15"
+lines = "1-186"
+
+[[block]]
+id    = "read-snapshot-source"
+root  = "source-snapshot"
+owner = "read-path-k14"
+lines = "1-677"
+
+[[block]]
+id    = "sought-object-answer"
+root  = "source-sought"
+owner = "name-seam-k12"
+lines = "1-132"
+
+[[block]]
+id    = "filesystem-read-opening"
+root  = "source-filesystem-module"
+owner = "read-path-k14"
+lines = "1-128"
+
+[[block]]
+id    = "filesystem-write-acquire"
+root  = "source-filesystem-module"
+owner = "filesystem-interpreter-k16"
+lines = "129-155"
+
+[[block]]
+id    = "filesystem-read-acquire-and-guard"
+root  = "source-filesystem-module"
+owner = "read-path-k14"
+lines = "156-202"
+
+[[block]]
+id    = "filesystem-writing-shape"
+root  = "source-filesystem-module"
+owner = "filesystem-interpreter-k16"
+lines = "203-215"
+
+[[block]]
+id    = "filesystem-reading-api"
+root  = "source-filesystem-module"
+owner = "read-path-k14"
+lines = "216-248"
+
+[[block]]
+id    = "filesystem-writing-api"
+root  = "source-filesystem-module"
+owner = "filesystem-interpreter-k16"
+lines = "249-290"
+
+[[block]]
+id    = "filesystem-read-guard"
+root  = "source-filesystem-module"
+owner = "read-path-k14"
+lines = "291-304"
+
+[[block]]
+id    = "filesystem-write-guard"
+root  = "source-filesystem-module"
+owner = "filesystem-interpreter-k16"
+lines = "305-388"
+
+[[block]]
+id    = "filesystem-vacancy-api"
+root  = "source-filesystem-module"
+owner = "filesystem-interpreter-k16"
+lines = "389-520"
+
+[[block]]
+id    = "filesystem-read-guard-api"
+root  = "source-filesystem-module"
+owner = "read-path-k14"
+lines = "521-534"
+
+[[block]]
+id    = "filesystem-write-guard-api"
+root  = "source-filesystem-module"
+owner = "filesystem-interpreter-k16"
+lines = "535-812"
+
+[[block]]
+id    = "filesystem-read-deref"
+root  = "source-filesystem-module"
+owner = "read-path-k14"
+lines = "813-820"
+
+[[block]]
+id    = "filesystem-write-deref"
+root  = "source-filesystem-module"
+owner = "filesystem-interpreter-k16"
+lines = "821-827"
+
+[[block]]
+id    = "read-filesystem-source"
+root  = "source-filesystem-read"
+owner = "read-path-k14"
+lines = "1-407"
+
+[[block]]
+id    = "filesystem-interpreter-source"
+root  = "source-filesystem-apply"
+owner = "filesystem-interpreter-k16"
+lines = "1-488"
+
+[[block]]
+id    = "filesystem-removal-source"
+root  = "source-filesystem-remove"
+owner = "filesystem-interpreter-k16"
+lines = "1-275"
+
+[[block]]
+id    = "filesystem-lock-source"
+root  = "source-filesystem-lock"
+owner = "filesystem-interpreter-k16"
+lines = "1-91"
+
+[[early-use]]
+symbols   = "`Ordinal`, `Key`, `Found`, `Verdict`, `Species`, `EntryName`"
+first-use = "01-orientation.md#working-vocabulary"
+owner     = "name-seam-k12"
+statement = "Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam."
+
+[[early-use]]
+symbols   = "`manifest-cli-binary`"
+first-use = "01-orientation.md#package-contract"
+owner     = "syllabus-cli-k17"
+statement = "The binary declaration is CLI-owned and deferred; it maps the demonstration executable to its external consumer source and requires the CLI feature."
+
+[[early-use]]
+symbols   = "`manifest-cli-feature`"
+first-use = "01-orientation.md#package-contract"
+owner     = "syllabus-cli-k17"
+statement = "The optional parser dependency is activated by a later CLI-owned feature range, enabled by default while library consumers may disable default features."
+
+[[early-use]]
+symbols   = "`Sought`"
+first-use = "01-orientation.md#public-surface"
+owner     = "name-seam-k12"
+statement = "Sought distinguishes a search match from a completed search that matched nothing; nothing is neither a mutation refusal nor an error, while accessors retain Option."
+
+[[early-use]]
+symbols   = "`Label`, `Status`, `reference::Parts`, `SyllabusName`"
+first-use = "01-orientation.md#insert-tour"
+owner     = "reference-domain-k13"
+statement = "These values are the syllabus consumer's vocabulary and seam implementation, not library defaults."
+
+[[early-use]]
+symbols   = "`Snapshot`, `Entry`, `ReadGuard`"
+first-use = "01-orientation.md#insert-tour"
+owner     = "read-path-k14"
+statement = "A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot."
+
+[[early-use]]
+symbols   = "`Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report`"
+first-use = "01-orientation.md#insert-tour"
+owner     = "mutation-algebra-k15"
+statement = "Target names the root or a stable key, new entry carries opaque parts and bytes that may be empty, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders."
+
+[[early-use]]
+symbols   = "`WriteGuard`, `Error`, `apply::Faults`, `apply::Run`"
+first-use = "01-orientation.md#insert-tour"
+owner     = "filesystem-interpreter-k16"
+statement = "A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state."
+
+[[early-use]]
+symbols   = "`Cli`, `Verb`, `Streams`, `Failure`"
+first-use = "01-orientation.md#insert-tour"
+owner     = "syllabus-cli-k17"
+statement = "Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category."
+
+[guide]
+omitted = "ordinal-fs-tree is a bounded context of its own (CONTEXT-MAP.md); its walkthrough is self-contained and its reader need not have driven a grove."

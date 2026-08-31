@@ -9,15 +9,16 @@ use std::sync::Mutex;
 use clap::{error::ErrorKind, Parser, ValueEnum};
 use serde_json::json;
 
-use crate::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice, SOURCE_PATHS};
+use crate::manifest::{Manifest, ManifestError, MANIFEST_FILE};
+use crate::{validate, BookSnapshot, Check, Request, Scope};
 
-const AFTER_HELP: &str = "Exit status:\n  0  valid\n  1  deterministic findings\n  2  invalid invocation or input load failure\n  3  internal validator failure\n\nJSON output uses a versioned envelope with status, scope, coverage, and diagnostics.\n\nExamples:\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/walkthroughs/ordinal-fs-tree --through read-path-k14 --check all\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/walkthroughs/ordinal-fs-tree --final --check all";
+const AFTER_HELP: &str = "Exit status:\n  0  valid\n  1  deterministic findings\n  2  invalid invocation or input load failure\n  3  internal validator failure\n\nJSON output uses a versioned envelope with status, scope, coverage, and diagnostics.\n\nThe accepted --through values come from the named book\'s walkthrough.toml; an\nunrecognized value lists them. Substitute one for <slice> below.\n\nExamples:\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/walkthroughs/<book> --through <slice> --check all\n  cargo run --quiet -p book-validation --bin book-check -- --repo . --book docs/walkthroughs/<book> --final --check all";
 
 #[derive(Debug, Parser)]
 #[command(
     name = "book-check",
-    about = "Validate the ordinal-fs-tree walkthrough book",
-    long_about = "Validate the ordinal-fs-tree walkthrough book without modifying the book or production source. The command is read-only and never fetches network resources.",
+    about = "Validate a walkthrough book against its manifest",
+    long_about = "Validate the walkthrough book in the directory named by --book, against the walkthrough.toml manifest it contains, without modifying the book or production source. The command is read-only and never fetches network resources.",
     after_help = AFTER_HELP,
     group = clap::ArgGroup::new("scope").required(true).multiple(false).args(["through", "final_"])
 )]
@@ -28,18 +29,14 @@ struct Cli {
     /// Normalized repository-relative book directory.
     #[arg(long)]
     book: PathBuf,
-    /// Validate the canonical prefix through this source-owning slice.
-    #[arg(long, value_parser = [
-        "orientation-k11",
-        "name-seam-k12",
-        "reference-domain-k13",
-        "read-path-k14",
-        "mutation-algebra-k15",
-        "filesystem-interpreter-k16",
-        "syllabus-cli-k17",
-    ])]
+    /// Validate the canonical prefix through this source-owning slice, named
+    /// by the book's manifest. The accepted values cannot be a compile-time
+    /// list: they are not known until --book has been resolved and its
+    /// manifest loaded, so an unrecognized value is reported after the load
+    /// and lists what the named book accepts.
+    #[arg(long)]
     through: Option<String>,
-    /// Validate the complete seventeen-file corpus with no deferred holes.
+    /// Validate the book's complete declared corpus with no deferred holes.
     #[arg(long = "final")]
     final_: bool,
     /// Select fragment checks, Markdown/link checks, or both.
@@ -146,15 +143,24 @@ fn run_arguments(arguments: Vec<OsString>, wants_json: bool) -> RunOutput {
         Ok(snapshot) => snapshot,
         Err(error) => return input_error(error, cli.output == OutputArg::Json),
     };
-    let request = Request {
-        scope: cli.through.map_or(Scope::Final, |slice| {
-            Scope::Through(
-                ScopedSlice::parse(&slice)
-                    .expect("clap restricts --through to the typed scoped domain"),
-            )
-        }),
-        check,
+    let scope = match &cli.through {
+        None => Scope::Final,
+        Some(token) => match snapshot.manifest.resolve_scoped(token) {
+            Some(slice) => Scope::Through(slice),
+            None => {
+                return command_error(
+                    "U001",
+                    &format!(
+                        "--through value `{token}` is not a scoped slice of book `{}`; accepted values are {}",
+                        snapshot.manifest.book_id(),
+                        accepted_values(&snapshot.manifest)
+                    ),
+                    cli.output == OutputArg::Json,
+                );
+            }
+        },
     };
+    let request = Request { scope, check };
     let report = validate(&snapshot, request);
     let exit = if report.valid { 0 } else { 1 };
     let stdout = match cli.output {
@@ -186,6 +192,18 @@ fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFai
     if !canonical_book_root.starts_with(&canonical_repository) {
         return Err(LoadFailure::outside(book, "book directory"));
     }
+    let book_relative = book.to_string_lossy().replace('\\', "/");
+    let manifest_relative = format!("{}/{MANIFEST_FILE}", book_relative.trim_end_matches('/'));
+    let manifest_bytes = read_confined(
+        repository,
+        &canonical_repository,
+        &manifest_relative,
+        "book manifest",
+    )?;
+    let manifest_text = std::str::from_utf8(&manifest_bytes)
+        .map_err(|_| LoadFailure::unsupported(&manifest_relative, "book manifest"))?;
+    let manifest = Manifest::load(book_relative.trim_end_matches('/'), manifest_text)
+        .map_err(|error| LoadFailure::schema(&manifest_relative, "book manifest", &error))?;
     let entries = fs::read_dir(&canonical_book_root)
         .map_err(|error| LoadFailure::new(book, "book directory", &error))?;
     let mut paths = Vec::new();
@@ -210,9 +228,9 @@ fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFai
         }
     }
     let mut source_files = BTreeMap::new();
-    for relative in SOURCE_PATHS {
+    for relative in manifest.root_paths() {
         let bytes = read_confined(repository, &canonical_repository, relative, "ledger source")?;
-        source_files.insert((*relative).into(), bytes);
+        source_files.insert(relative.clone(), bytes);
     }
     let mut book_entries = BTreeSet::new();
     let mut non_regular_book_entries = BTreeSet::new();
@@ -223,6 +241,7 @@ fn load_snapshot(repository: &Path, book: &Path) -> Result<BookSnapshot, LoadFai
         &mut non_regular_book_entries,
     )?;
     Ok(BookSnapshot {
+        manifest,
         book_files,
         source_files,
         book_entries,
@@ -288,6 +307,15 @@ fn read_confined(
     fs::read(canonical).map_err(|error| LoadFailure::new(relative, subject, &error))
 }
 
+fn accepted_values(manifest: &Manifest) -> String {
+    manifest
+        .scoped_slices()
+        .iter()
+        .map(|slice| format!("`{slice}`"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn normalized_relative(path: &Path) -> bool {
     !path.as_os_str().is_empty()
         && !path.is_absolute()
@@ -344,7 +372,24 @@ fn command_error(code: &str, message: &str, json_output: bool) -> RunOutput {
 struct LoadFailure {
     path: String,
     subject: &'static str,
-    category: &'static str,
+    category: Category,
+}
+
+/// Why an input could not be used: an operating-system error category, or —
+/// for the manifest — the schema rule it broke.
+#[derive(Debug)]
+enum Category {
+    Io(&'static str),
+    Schema(String),
+}
+
+impl std::fmt::Display for Category {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Io(category) => formatter.write_str(category),
+            Self::Schema(reason) => formatter.write_str(reason),
+        }
+    }
 }
 
 impl LoadFailure {
@@ -352,7 +397,7 @@ impl LoadFailure {
         Self {
             path: path.as_ref().to_string_lossy().replace('\\', "/"),
             subject,
-            category: io_category(error.kind()),
+            category: Category::Io(io_category(error.kind())),
         }
     }
 
@@ -360,7 +405,15 @@ impl LoadFailure {
         Self {
             path: path.as_ref().to_string_lossy().replace('\\', "/"),
             subject,
-            category: "outside-explicit-repository",
+            category: Category::Io("outside-explicit-repository"),
+        }
+    }
+
+    fn schema(path: impl AsRef<Path>, subject: &'static str, error: &ManifestError) -> Self {
+        Self {
+            path: path.as_ref().to_string_lossy().replace('\\', "/"),
+            subject,
+            category: Category::Schema(error.reason().to_owned()),
         }
     }
 
@@ -368,7 +421,7 @@ impl LoadFailure {
         Self {
             path: path.as_ref().to_string_lossy().replace('\\', "/"),
             subject,
-            category: "not-a-regular-file",
+            category: Category::Io("not-a-regular-file"),
         }
     }
 

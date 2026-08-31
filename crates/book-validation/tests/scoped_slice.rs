@@ -1,18 +1,21 @@
+mod support;
+
 use std::collections::{BTreeMap, BTreeSet};
 
-use book_validation::{validate, BookSnapshot, Check, Request, Scope, ScopedSlice};
+use book_validation::{validate, BookSnapshot, Check, Request};
 
 #[test]
 fn core_scope_accepts_only_the_typed_scoped_domain() {
     let report = validate(
         &BookSnapshot {
+            manifest: support::manifest(),
             book_files: BTreeMap::new(),
             source_files: BTreeMap::new(),
             book_entries: BTreeSet::new(),
             non_regular_book_entries: BTreeSet::new(),
         },
         Request {
-            scope: Scope::Through(ScopedSlice::ReadPath),
+            scope: support::through("read-path-k14"),
             check: Check::Fragments,
         },
     );

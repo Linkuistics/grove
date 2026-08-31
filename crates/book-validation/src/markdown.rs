@@ -1,10 +1,9 @@
 use std::collections::BTreeSet;
 use std::ops::Range;
 
+use crate::manifest::{Manifest, Page, Role};
 use crate::parser::{ParsedBook, ParsedDocument};
 use crate::{BookSnapshot, Diagnostic, Location, Scope};
-
-const ROOT: &str = "docs/walkthroughs/ordinal-fs-tree/";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MarkdownLink {
@@ -16,63 +15,23 @@ pub struct MarkdownLink {
     pub valid_syntax: bool,
 }
 
-struct Page {
-    file: &'static str,
-    id: &'static str,
-    title: &'static str,
-    identity: &'static str,
-}
-
-const CHAPTERS: &[Page] = &[
-    Page { file: "01-orientation.md", id: "orientation", title: "Orientation", identity: "<!-- book-page id=\"orientation\" slice=\"orientation-k11\" order=\"1\" -->" },
-    Page { file: "02-name-seam.md", id: "name-seam", title: "Name seam", identity: "<!-- book-page id=\"name-seam\" slice=\"name-seam-k12\" order=\"2\" -->" },
-    Page { file: "03-reference-domain.md", id: "reference-domain", title: "Reference domain", identity: "<!-- book-page id=\"reference-domain\" slice=\"reference-domain-k13\" order=\"3\" -->" },
-    Page { file: "04-read-path.md", id: "read-path", title: "Read path", identity: "<!-- book-page id=\"read-path\" slice=\"read-path-k14\" order=\"4\" -->" },
-    Page { file: "05-mutation-algebra.md", id: "mutation-algebra", title: "Mutation algebra", identity: "<!-- book-page id=\"mutation-algebra\" slice=\"mutation-algebra-k15\" order=\"5\" -->" },
-    Page { file: "06-filesystem-interpreter.md", id: "filesystem-interpreter", title: "Filesystem interpreter", identity: "<!-- book-page id=\"filesystem-interpreter\" slice=\"filesystem-interpreter-k16\" order=\"6\" -->" },
-    Page { file: "07-syllabus-cli.md", id: "syllabus-cli", title: "Syllabus CLI", identity: "<!-- book-page id=\"syllabus-cli\" slice=\"syllabus-cli-k17\" order=\"7\" -->" },
-    Page { file: "08-invariants-and-trade-offs.md", id: "invariants-and-trade-offs", title: "Invariants and trade-offs", identity: "<!-- book-page id=\"invariants-and-trade-offs\" slice=\"book-assembly-k18\" order=\"8\" -->" },
-];
-
-const FIXED: &[Page] = &[
-    Page {
-        file: "README.md",
-        id: "contents",
-        title: "Ordinal filesystem tree",
-        identity: "<!-- book-page id=\"contents\" role=\"contents\" -->",
-    },
-    Page {
-        file: "concept-index.md",
-        id: "concept-index",
-        title: "Concept index",
-        identity: "<!-- book-page id=\"concept-index\" role=\"lookup\" -->",
-    },
-    Page {
-        file: "source-index.md",
-        id: "source-index",
-        title: "Source index",
-        identity: "<!-- book-page id=\"source-index\" role=\"lookup\" -->",
-    },
-];
-
 pub(crate) fn check(
     snapshot: &BookSnapshot,
     parsed: &ParsedBook,
     scope: &Scope,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
+    let manifest = &snapshot.manifest;
     let chapter_count = match scope {
-        Scope::Final => CHAPTERS.len(),
-        Scope::Through(slice) => crate::validator::SLICE_ORDER
-            .iter()
-            .position(|candidate| *candidate == slice.as_str())
-            .map_or(0, |index| index + 1),
+        Scope::Final => manifest.chapter_count(),
+        Scope::Through(slice) => slice.chapter_index() + 1,
     };
-    let expected: BTreeSet<String> = FIXED
+    let in_scope: Vec<&Page> = pages_in_scope(manifest, chapter_count).collect();
+    let mut expected: BTreeSet<String> = in_scope
         .iter()
-        .chain(CHAPTERS[..chapter_count].iter())
-        .map(|page| format!("{ROOT}{}", page.file))
+        .map(|page| manifest.path(page.file()))
         .collect();
+    expected.insert(manifest.manifest_path());
     let actual = snapshot.book_entries.clone();
     for path in expected.difference(&actual) {
         diagnostics.push(markdown_diagnostic(
@@ -96,42 +55,63 @@ pub(crate) fn check(
         ));
     }
 
-    for page in FIXED.iter().chain(CHAPTERS[..chapter_count].iter()) {
-        let path = format!("{ROOT}{}", page.file);
+    for page in &in_scope {
+        let path = manifest.path(page.file());
         let Some(document) = parsed.documents.get(&path) else {
             continue;
         };
-        check_identity(page, document, diagnostics);
-        check_headings(page, document, diagnostics);
+        check_identity(manifest, page, document, diagnostics);
+        check_headings(manifest, page, document, diagnostics);
         check_fences(document, diagnostics);
         check_fragment_introductions(parsed, document, diagnostics);
         check_links(snapshot, parsed, document, diagnostics);
     }
-    for (index, page) in CHAPTERS[..chapter_count].iter().enumerate() {
-        let path = format!("{ROOT}{}", page.file);
+    for (index, page) in manifest.chapters().take(chapter_count).enumerate() {
+        let path = manifest.path(page.file());
         if let Some(document) = parsed.documents.get(&path) {
-            check_navigation(index, chapter_count, document, diagnostics);
+            check_navigation(manifest, index, chapter_count, document, diagnostics);
         }
     }
-    check_contents(parsed, chapter_count, diagnostics);
+    check_contents(manifest, parsed, chapter_count, diagnostics);
 }
 
-fn check_identity(page: &Page, document: &ParsedDocument, diagnostics: &mut Vec<Diagnostic>) {
+/// The contents page, the chapters of the requested prefix, and both lookup
+/// pages. Both indexes exist from the first slice and grow with the prefix.
+fn pages_in_scope(manifest: &Manifest, chapter_count: usize) -> impl Iterator<Item = &Page> {
+    manifest
+        .pages()
+        .iter()
+        .filter(move |page| match page.role() {
+            Role::Contents | Role::Lookup => true,
+            Role::Chapter => manifest
+                .slice_order(page.slice().unwrap_or_default())
+                .is_some_and(|order| order < chapter_count),
+        })
+}
+
+fn check_identity(
+    manifest: &Manifest,
+    page: &Page,
+    document: &ParsedDocument,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let identity = page.identity();
     let matching: Vec<_> = document
         .page_directives
         .iter()
-        .filter(|directive| directive.raw == page.identity)
+        .filter(|directive| directive.raw == identity)
         .collect();
     if document.page_directives.len() != 1 || matching.len() != 1 {
         let location = document.page_directives.first().map_or_else(
-            || command_location(&format!("{ROOT}{}", page.file)),
+            || command_location(&manifest.path(page.file())),
             |value| value.location.clone(),
         );
         diagnostics.push(markdown_diagnostic(
             "M101",
             format!(
                 "page `{}` must declare exactly one canonical identity `{}`",
-                page.file, page.id
+                page.file(),
+                page.id()
             ),
             location,
         ));
@@ -139,15 +119,15 @@ fn check_identity(page: &Page, document: &ParsedDocument, diagnostics: &mut Vec<
     let mut lines = document.text.split_inclusive('\n');
     let first = lines.next().unwrap_or_default().trim_end_matches('\n');
     let second = lines.next().unwrap_or_default().trim_end_matches('\n');
-    if first != format!("# {}", page.title) || second != page.identity {
+    if first != format!("# {}", page.title()) || second != identity {
         diagnostics.push(markdown_diagnostic(
             "M101",
             format!(
                 "page `{}` must begin with its canonical H1 and identity",
-                page.file
+                page.file()
             ),
             Location {
-                path: format!("{ROOT}{}", page.file),
+                path: manifest.path(page.file()),
                 byte: 0,
                 line: 1,
                 column: 1,
@@ -156,7 +136,13 @@ fn check_identity(page: &Page, document: &ParsedDocument, diagnostics: &mut Vec<
     }
 }
 
-fn check_headings(page: &Page, document: &ParsedDocument, diagnostics: &mut Vec<Diagnostic>) {
+fn check_headings(
+    manifest: &Manifest,
+    page: &Page,
+    document: &ParsedDocument,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let path = manifest.path(page.file());
     let mut previous = 0;
     let mut h1_count = 0;
     let mut anchors = BTreeSet::new();
@@ -170,7 +156,7 @@ fn check_headings(page: &Page, document: &ParsedDocument, diagnostics: &mut Vec<
                 diagnostics.push(markdown_diagnostic(
                     "M102",
                     "heading level skips over an intermediate level",
-                    line_location(&format!("{ROOT}{}", page.file), &document.text, *byte),
+                    line_location(&path, &document.text, *byte),
                 ));
             }
             previous = level;
@@ -180,7 +166,7 @@ fn check_headings(page: &Page, document: &ParsedDocument, diagnostics: &mut Vec<
                 diagnostics.push(markdown_diagnostic(
                     "M102",
                     format!("explicit anchor `{anchor}` is invalid or duplicated"),
-                    line_location(&format!("{ROOT}{}", page.file), &document.text, *byte),
+                    line_location(&path, &document.text, *byte),
                 ));
             }
             if lines
@@ -191,7 +177,7 @@ fn check_headings(page: &Page, document: &ParsedDocument, diagnostics: &mut Vec<
                 diagnostics.push(markdown_diagnostic(
                     "M102",
                     format!("explicit anchor `{anchor}` must immediately precede a heading"),
-                    line_location(&format!("{ROOT}{}", page.file), &document.text, *byte),
+                    line_location(&path, &document.text, *byte),
                 ));
             }
         }
@@ -201,20 +187,21 @@ fn check_headings(page: &Page, document: &ParsedDocument, diagnostics: &mut Vec<
             "M102",
             format!(
                 "page `{}` has {h1_count} H1 headings; expected one",
-                page.file
+                page.file()
             ),
-            command_location(&format!("{ROOT}{}", page.file)),
+            command_location(&path),
         ));
     }
 }
 
 fn check_navigation(
+    manifest: &Manifest,
     index: usize,
     count: usize,
     document: &ParsedDocument,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let expected = navigation(index, count);
+    let expected = navigation(manifest, index, count);
     let lines: Vec<&str> = document.text.lines().collect();
     let top = lines.get(2).copied().unwrap_or_default();
     let bottom = lines
@@ -232,22 +219,24 @@ fn check_navigation(
     }
 }
 
-fn navigation(index: usize, count: usize) -> String {
+fn navigation(manifest: &Manifest, index: usize, count: usize) -> String {
     let mut parts = Vec::new();
-    if index > 0 {
+    if let Some(previous) = index
+        .checked_sub(1)
+        .and_then(|index| manifest.chapter(index))
+    {
         parts.push(format!(
             "[Previous: {}]({})",
-            CHAPTERS[index - 1].title,
-            CHAPTERS[index - 1].file
+            previous.title(),
+            previous.file()
         ));
     }
-    parts.push("[Contents](README.md)".into());
-    if index + 1 < count {
-        parts.push(format!(
-            "[Next: {}]({})",
-            CHAPTERS[index + 1].title,
-            CHAPTERS[index + 1].file
-        ));
+    let contents = manifest
+        .contents_page()
+        .map_or_else(String::new, |page| format!("[Contents]({})", page.file()));
+    parts.push(contents);
+    if let Some(next) = manifest.chapter(index + 1).filter(|_| index + 1 < count) {
+        parts.push(format!("[Next: {}]({})", next.title(), next.file()));
     }
     parts.join(" | ")
 }
@@ -388,22 +377,31 @@ fn check_links(
     }
 }
 
-fn check_contents(parsed: &ParsedBook, chapter_count: usize, diagnostics: &mut Vec<Diagnostic>) {
-    let readme_path = format!("{ROOT}README.md");
+fn check_contents(
+    manifest: &Manifest,
+    parsed: &ParsedBook,
+    chapter_count: usize,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let Some(contents_page) = manifest.contents_page() else {
+        return;
+    };
+    let readme_path = manifest.path(contents_page.file());
     if let Some(readme) = parsed.documents.get(&readme_path) {
         let destinations: Vec<String> = scan_links(&readme.text, &readme.opaque_ranges)
             .into_iter()
             .filter(|link| link.valid_syntax)
             .map(|link| link.destination)
             .collect();
-        let expected_chapters: Vec<&str> = CHAPTERS[..chapter_count]
-            .iter()
-            .map(|page| page.file)
+        let expected_chapters: Vec<&str> = manifest
+            .chapters()
+            .take(chapter_count)
+            .map(Page::file)
             .collect();
         let chapter_destinations: Vec<&str> = destinations
             .iter()
             .map(String::as_str)
-            .filter(|destination| CHAPTERS.iter().any(|page| page.file == *destination))
+            .filter(|destination| manifest.chapters().any(|page| page.file() == *destination))
             .collect();
         if chapter_destinations != expected_chapters {
             diagnostics.push(markdown_diagnostic(
@@ -412,31 +410,38 @@ fn check_contents(parsed: &ParsedBook, chapter_count: usize, diagnostics: &mut V
                 command_location(&readme_path),
             ));
         }
-        for file in ["concept-index.md", "source-index.md"] {
+        for page in manifest.lookup_pages() {
             if destinations
                 .iter()
-                .filter(|value| value.as_str() == file)
+                .filter(|value| value.as_str() == page.file())
                 .count()
                 != 1
             {
                 diagnostics.push(markdown_diagnostic(
                     "M103",
-                    format!("README contents must link canonical page `{file}` exactly once"),
+                    format!(
+                        "README contents must link canonical page `{}` exactly once",
+                        page.file()
+                    ),
                     command_location(&readme_path),
                 ));
             }
         }
     }
-    for file in ["concept-index.md", "source-index.md"] {
-        let path = format!("{ROOT}{file}");
+    for page in manifest.lookup_pages() {
+        let path = manifest.path(page.file());
         if let Some(document) = parsed.documents.get(&path) {
             let has_contents = scan_links(&document.text, &document.opaque_ranges)
                 .iter()
-                .any(|link| link.valid_syntax && link.destination == "README.md");
+                .any(|link| link.valid_syntax && link.destination == contents_page.file());
             if !has_contents {
                 diagnostics.push(markdown_diagnostic(
                     "M103",
-                    format!("lookup page `{file}` must link back to README.md"),
+                    format!(
+                        "lookup page `{}` must link back to {}",
+                        page.file(),
+                        contents_page.file()
+                    ),
                     command_location(&path),
                 ));
             }

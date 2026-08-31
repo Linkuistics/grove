@@ -1,21 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::manifest::Manifest;
 use crate::parser::{self, Child, Fragment, FragmentBody, LineRange, ParsedBook, Root};
 use crate::{
     BookSnapshot, Coverage, Diagnostic, RelatedLocation, ReportStatus, Request, Scope,
     SourceLocation, ValidationReport,
 };
-
-pub(crate) const SLICE_ORDER: &[&str] = &[
-    "orientation-k11",
-    "name-seam-k12",
-    "reference-domain-k13",
-    "read-path-k14",
-    "mutation-algebra-k15",
-    "filesystem-interpreter-k16",
-    "syllabus-cli-k17",
-    "book-assembly-k18",
-];
 
 pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
     (
@@ -339,9 +329,19 @@ pub fn validate(snapshot: &BookSnapshot, request: Request) -> ValidationReport {
     let mut diagnostics = parsed.diagnostics.clone();
     if matches!(request.check, crate::Check::Fragments | crate::Check::All) {
         check_inventory(snapshot, &parsed, &mut diagnostics);
-        check_identities(&parsed, &mut diagnostics);
-        check_references(&parsed, &request.scope, &mut diagnostics);
-        check_ownership(&parsed, &request.scope, &mut diagnostics);
+        check_identities(&snapshot.manifest, &parsed, &mut diagnostics);
+        check_references(
+            &snapshot.manifest,
+            &parsed,
+            &request.scope,
+            &mut diagnostics,
+        );
+        check_ownership(
+            &snapshot.manifest,
+            &parsed,
+            &request.scope,
+            &mut diagnostics,
+        );
         crate::ledger::check(snapshot, &parsed, &request.scope, &mut diagnostics);
         check_graph(&parsed, &mut diagnostics);
         check_coverage(&parsed, &mut diagnostics);
@@ -351,7 +351,7 @@ pub fn validate(snapshot: &BookSnapshot, request: Request) -> ValidationReport {
     if matches!(request.check, crate::Check::Markdown | crate::Check::All) {
         crate::markdown::check(snapshot, &parsed, &request.scope, &mut diagnostics);
     }
-    diagnostics.sort_by(compare_diagnostics);
+    diagnostics.sort_by(|left, right| compare_diagnostics(&snapshot.manifest, left, right));
     diagnostics.dedup();
     let coverage = coverage(&parsed, matches!(request.scope, Scope::Final));
     let valid = diagnostics.is_empty();
@@ -429,7 +429,7 @@ fn check_inventory(
                 "inventory",
                 format!("required source root `{id}` is missing"),
                 crate::Location {
-                    path: "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
+                    path: snapshot.manifest.source_index_path(),
                     byte: 0,
                     line: 1,
                     column: 1,
@@ -470,7 +470,7 @@ fn check_inventory(
     }
 }
 
-fn check_identities(parsed: &ParsedBook, diagnostics: &mut Vec<Diagnostic>) {
+fn check_identities(manifest: &Manifest, parsed: &ParsedBook, diagnostics: &mut Vec<Diagnostic>) {
     let mut locations: BTreeMap<&str, Vec<_>> = BTreeMap::new();
     for roots in parsed.roots.values() {
         for root in roots {
@@ -487,7 +487,7 @@ fn check_identities(parsed: &ParsedBook, diagnostics: &mut Vec<Diagnostic>) {
     }
     for (id, mut occurrences) in locations {
         if occurrences.len() > 1 {
-            occurrences.sort_by(|left, right| compare_locations(left, right));
+            occurrences.sort_by(|left, right| compare_locations(manifest, left, right));
             let root_id = parsed.roots.contains_key(id).then_some(id);
             let related = occurrences[1..]
                 .iter()
@@ -508,13 +508,22 @@ fn check_identities(parsed: &ParsedBook, diagnostics: &mut Vec<Diagnostic>) {
     }
 }
 
-fn check_references(parsed: &ParsedBook, scope: &Scope, diagnostics: &mut Vec<Diagnostic>) {
-    let through = match scope {
-        Scope::Through(slice) => SLICE_ORDER
-            .iter()
-            .position(|candidate| *candidate == slice.as_str()),
-        Scope::Final => Some(SLICE_ORDER.len()),
-    };
+/// The last chapter position the requested scope covers, in the book's own
+/// slice order. `Final` covers every chapter, so it sits one past the last.
+fn prefix_end(manifest: &Manifest, scope: &Scope) -> Option<usize> {
+    match scope {
+        Scope::Through(slice) => Some(slice.chapter_index()),
+        Scope::Final => Some(manifest.chapter_count()),
+    }
+}
+
+fn check_references(
+    manifest: &Manifest,
+    parsed: &ParsedBook,
+    scope: &Scope,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let through = prefix_end(manifest, scope);
     let declared_roots = declared_roots(parsed);
     for (parent, root_id, children) in all_children(parsed, &declared_roots) {
         for child in children {
@@ -539,7 +548,7 @@ fn check_references(parsed: &ParsedBook, scope: &Scope, diagnostics: &mut Vec<Di
                     location,
                     ..
                 } => {
-                    let owner_order = SLICE_ORDER.iter().position(|candidate| *candidate == owner);
+                    let owner_order = manifest.slice_order(owner);
                     let invalid = matches!(scope, Scope::Final)
                         || owner_order.is_none()
                         || through
@@ -573,13 +582,13 @@ fn check_references(parsed: &ParsedBook, scope: &Scope, diagnostics: &mut Vec<Di
     }
 }
 
-fn check_ownership(parsed: &ParsedBook, scope: &Scope, diagnostics: &mut Vec<Diagnostic>) {
-    let through = match scope {
-        Scope::Through(slice) => SLICE_ORDER
-            .iter()
-            .position(|candidate| *candidate == slice.as_str()),
-        Scope::Final => Some(SLICE_ORDER.len()),
-    };
+fn check_ownership(
+    manifest: &Manifest,
+    parsed: &ParsedBook,
+    scope: &Scope,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let through = prefix_end(manifest, scope);
     for roots in parsed.roots.values().filter(|roots| roots.len() == 1) {
         let root = &roots[0];
         let expected: Vec<&Block> = BLOCKS
@@ -623,9 +632,7 @@ fn check_ownership(parsed: &ParsedBook, scope: &Scope, diagnostics: &mut Vec<Dia
                 ));
                 continue;
             };
-            let owner_order = SLICE_ORDER
-                .iter()
-                .position(|candidate| *candidate == block.owner);
+            let owner_order = manifest.slice_order(block.owner);
             let should_defer = !matches!(scope, Scope::Final)
                 && through
                     .zip(owner_order)
@@ -1406,7 +1413,11 @@ fn phase_order(phase: &str) -> usize {
     .unwrap_or(usize::MAX)
 }
 
-fn compare_diagnostics(left: &Diagnostic, right: &Diagnostic) -> std::cmp::Ordering {
+fn compare_diagnostics(
+    manifest: &Manifest,
+    left: &Diagnostic,
+    right: &Diagnostic,
+) -> std::cmp::Ordering {
     phase_order(&left.phase)
         .cmp(&phase_order(&right.phase))
         .then_with(|| nullable(root_index(left)).cmp(&nullable(root_index(right))))
@@ -1414,7 +1425,7 @@ fn compare_diagnostics(left: &Diagnostic, right: &Diagnostic) -> std::cmp::Order
             nullable(left.source.as_ref().map(|source| source.byte))
                 .cmp(&nullable(right.source.as_ref().map(|source| source.byte)))
         })
-        .then_with(|| compare_locations(&left.primary, &right.primary))
+        .then_with(|| compare_locations(manifest, &left.primary, &right.primary))
         .then_with(|| left.code.cmp(&right.code))
         .then_with(|| compare_optional_text(&left.fragment_id, &right.fragment_id))
         .then_with(|| compare_optional_text(&left.root_id, &right.root_id))
@@ -1437,29 +1448,25 @@ fn compare_optional_text(left: &Option<String>, right: &Option<String>) -> std::
     nullable(left.as_deref()).cmp(&nullable(right.as_deref()))
 }
 
-fn compare_locations(left: &crate::Location, right: &crate::Location) -> std::cmp::Ordering {
-    page_key(&left.path)
-        .cmp(&page_key(&right.path))
+fn compare_locations(
+    manifest: &Manifest,
+    left: &crate::Location,
+    right: &crate::Location,
+) -> std::cmp::Ordering {
+    page_key(manifest, &left.path)
+        .cmp(&page_key(manifest, &right.path))
         .then_with(|| left.byte.cmp(&right.byte))
 }
 
-fn page_key(path: &str) -> (bool, usize, &str) {
-    const PAGES: &[&str] = &[
-        "docs/walkthroughs/ordinal-fs-tree/README.md",
-        "docs/walkthroughs/ordinal-fs-tree/01-orientation.md",
-        "docs/walkthroughs/ordinal-fs-tree/02-name-seam.md",
-        "docs/walkthroughs/ordinal-fs-tree/03-reference-domain.md",
-        "docs/walkthroughs/ordinal-fs-tree/04-read-path.md",
-        "docs/walkthroughs/ordinal-fs-tree/05-mutation-algebra.md",
-        "docs/walkthroughs/ordinal-fs-tree/06-filesystem-interpreter.md",
-        "docs/walkthroughs/ordinal-fs-tree/07-syllabus-cli.md",
-        "docs/walkthroughs/ordinal-fs-tree/08-invariants-and-trade-offs.md",
-        "docs/walkthroughs/ordinal-fs-tree/concept-index.md",
-        "docs/walkthroughs/ordinal-fs-tree/source-index.md",
-    ];
-    PAGES
-        .iter()
-        .position(|candidate| *candidate == path)
+/// A book page sorts by its position in the manifest's page inventory; every
+/// other path sorts after them all, lexically.
+fn page_key<'a>(manifest: &Manifest, path: &'a str) -> (bool, usize, &'a str) {
+    // This runs inside a sort comparator, so it compares the path's tail
+    // against each page's file name rather than building a joined path per
+    // page per comparison.
+    path.strip_prefix(manifest.book_root())
+        .and_then(|tail| tail.strip_prefix('/'))
+        .and_then(|file| manifest.pages().iter().position(|page| page.file() == file))
         .map_or((true, usize::MAX, path), |index| (false, index, ""))
 }
 
@@ -1468,7 +1475,18 @@ mod tests {
     use std::cmp::Ordering;
 
     use super::{compare_diagnostics, BLOCKS, ROOTS};
+    use crate::manifest::Manifest;
     use crate::{Diagnostic, Location, RelatedLocation, SourceLocation};
+
+    const BOOK_ROOT: &str = "docs/walkthroughs/ordinal-fs-tree";
+
+    fn manifest() -> Manifest {
+        Manifest::load(
+            BOOK_ROOT,
+            include_str!("../../../docs/walkthroughs/ordinal-fs-tree/walkthrough.toml"),
+        )
+        .expect("the relocated book's manifest is schema-valid")
+    }
 
     fn diagnostic() -> Diagnostic {
         Diagnostic {
@@ -1590,50 +1608,146 @@ mod tests {
         result
     }
 
+    /// The interim manifest bridge.
+    ///
+    /// `validator-structure-k21` moved the book's *structure* into
+    /// `walkthrough.toml` and deliberately left `ROOTS` and `BLOCKS` compiled
+    /// in for `validator-fragments-k22`. For the length of that interval one
+    /// corpus is stated twice, and nothing else compares the two statements:
+    /// the manifest's rows are parsed but only its root paths are read, so a
+    /// divergence would sit undetected until k22 switched the readers over and
+    /// inherited a silent regression.
+    ///
+    /// The manifest was generated from these constants, so this starts as an
+    /// identity and stays one until somebody edits one side. **k22 deletes this
+    /// test with the constants it defends.**
+    #[test]
+    fn the_manifest_restates_the_compiled_corpus_exactly() {
+        let manifest = include_str!("../../../docs/walkthroughs/ordinal-fs-tree/walkthrough.toml");
+
+        // Order is compared, not only membership: the manifest's root array is
+        // diagnostic sort key 1 ("manifest root index"), and the blocks of one
+        // root must partition it in array order, so a reordered manifest is a
+        // different artifact even with the same rows.
+        let roots: Vec<String> = ROOTS
+            .iter()
+            .map(|(id, path, lines)| {
+                format!("[[root]]\nid    = \"{id}\"\npath  = \"{path}\"\nlines = {lines}\n")
+            })
+            .collect();
+        let blocks: Vec<String> = BLOCKS
+            .iter()
+            .map(|block| {
+                format!(
+                    "[[block]]\nid    = \"{}\"\nroot  = \"{}\"\nowner = \"{}\"\nlines = \"{}-{}\"\n",
+                    block.id, block.root, block.owner, block.first, block.last
+                )
+            })
+            .collect();
+
+        assert_eq!(in_order(manifest, &roots), Ok(()));
+        assert_eq!(manifest.matches("[[root]]").count(), ROOTS.len());
+        assert_eq!(in_order(manifest, &blocks), Ok(()));
+        assert_eq!(manifest.matches("[[block]]").count(), BLOCKS.len());
+    }
+
+    /// Every stanza occurs in `text`, at strictly increasing offsets.
+    fn in_order(text: &str, stanzas: &[String]) -> Result<(), String> {
+        let mut cursor = 0;
+        for stanza in stanzas {
+            match text[cursor..].find(stanza.as_str()) {
+                Some(offset) => cursor += offset + stanza.len(),
+                None => {
+                    return Err(format!(
+                        "manifest is missing this stanza, or has it out of order:\n{stanza}"
+                    ))
+                }
+            }
+        }
+        Ok(())
+    }
+
     #[test]
     fn diagnostic_comparison_uses_every_total_order_key_with_nulls_last() {
+        let manifest = manifest();
         let base = diagnostic();
 
         let mut earlier = base.clone();
         earlier.phase = "graph".into();
-        assert_eq!(compare_diagnostics(&earlier, &base), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &earlier, &base),
+            Ordering::Less
+        );
 
         let mut earlier = base.clone();
         earlier.root_id = Some("source-library".into());
-        assert_eq!(compare_diagnostics(&earlier, &base), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &earlier, &base),
+            Ordering::Less
+        );
         let mut later = base.clone();
         later.root_id = None;
-        assert_eq!(compare_diagnostics(&base, &later), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &base, &later),
+            Ordering::Less
+        );
 
         let mut earlier = base.clone();
         earlier.source.as_mut().unwrap().byte = 10;
-        assert_eq!(compare_diagnostics(&earlier, &base), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &earlier, &base),
+            Ordering::Less
+        );
         let mut later = base.clone();
         later.source = None;
-        assert_eq!(compare_diagnostics(&base, &later), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &base, &later),
+            Ordering::Less
+        );
 
         let mut earlier = base.clone();
         earlier.primary.path = "docs/walkthroughs/ordinal-fs-tree/01-orientation.md".into();
-        assert_eq!(compare_diagnostics(&earlier, &base), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &earlier, &base),
+            Ordering::Less
+        );
         let mut earlier = base.clone();
         earlier.primary.byte = 10;
-        assert_eq!(compare_diagnostics(&earlier, &base), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &earlier, &base),
+            Ordering::Less
+        );
 
         let mut earlier = base.clone();
         earlier.code = "F006".into();
-        assert_eq!(compare_diagnostics(&earlier, &base), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &earlier, &base),
+            Ordering::Less
+        );
         let mut earlier = base.clone();
         earlier.fragment_id = Some("fragment-a".into());
-        assert_eq!(compare_diagnostics(&earlier, &base), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &earlier, &base),
+            Ordering::Less
+        );
         let mut later = base.clone();
         later.fragment_id = None;
-        assert_eq!(compare_diagnostics(&base, &later), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &base, &later),
+            Ordering::Less
+        );
 
         let mut earlier = base.clone();
         earlier.related[0].label = "related-a".into();
-        assert_eq!(compare_diagnostics(&earlier, &base), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &earlier, &base),
+            Ordering::Less
+        );
         let mut later = base.clone();
         later.message = "z-message".into();
-        assert_eq!(compare_diagnostics(&base, &later), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&manifest, &base, &later),
+            Ordering::Less
+        );
     }
 }

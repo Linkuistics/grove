@@ -1,41 +1,9 @@
 use std::collections::BTreeSet;
 
+use crate::manifest::{Manifest, Page};
 use crate::parser::{Child, Fragment, FragmentBody, ParsedBook, Root};
-use crate::validator::{BLOCKS, ROOTS, SLICE_ORDER};
+use crate::validator::{BLOCKS, ROOTS};
 use crate::{BookSnapshot, Diagnostic, Location, Scope};
-
-const SOURCE_INDEX: &str = "docs/walkthroughs/ordinal-fs-tree/source-index.md";
-
-const PAGE_BY_OWNER: &[(&str, &str, &str, usize)] = &[
-    ("orientation-k11", "orientation", "01-orientation.md", 1),
-    ("name-seam-k12", "name-seam", "02-name-seam.md", 2),
-    (
-        "reference-domain-k13",
-        "reference-domain",
-        "03-reference-domain.md",
-        3,
-    ),
-    ("read-path-k14", "read-path", "04-read-path.md", 4),
-    (
-        "mutation-algebra-k15",
-        "mutation-algebra",
-        "05-mutation-algebra.md",
-        5,
-    ),
-    (
-        "filesystem-interpreter-k16",
-        "filesystem-interpreter",
-        "06-filesystem-interpreter.md",
-        6,
-    ),
-    ("syllabus-cli-k17", "syllabus-cli", "07-syllabus-cli.md", 7),
-    (
-        "book-assembly-k18",
-        "invariants-and-trade-offs",
-        "08-invariants-and-trade-offs.md",
-        8,
-    ),
-];
 
 const EARLY_USES: &[(&str, &str, &str, &str)] = &[
     (
@@ -113,15 +81,18 @@ pub(crate) fn check(
     scope: &Scope,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
+    let manifest = &snapshot.manifest;
+    let index_path = manifest.source_index_path();
     let source_index = snapshot
         .book_files
-        .get(SOURCE_INDEX)
+        .get(&index_path)
         .and_then(|bytes| std::str::from_utf8(bytes).ok());
 
-    let source_tables = required_table(source_index, "Source roots", diagnostics);
-    let ownership_tables = required_table(source_index, "Ownership blocks", diagnostics);
-    let fragment_tables = required_table(source_index, "Fragment index", diagnostics);
-    let early_tables = required_table(source_index, "Early uses", diagnostics);
+    let source_tables = required_table(&index_path, source_index, "Source roots", diagnostics);
+    let ownership_tables =
+        required_table(&index_path, source_index, "Ownership blocks", diagnostics);
+    let fragment_tables = required_table(&index_path, source_index, "Fragment index", diagnostics);
+    let early_tables = required_table(&index_path, source_index, "Early uses", diagnostics);
 
     if let Some(table) = source_tables {
         check_exact_table(
@@ -134,7 +105,7 @@ pub(crate) fn check(
         );
         check_exact_rows(
             &table,
-            &directive_source_rows(parsed),
+            &directive_source_rows(&index_path, parsed),
             "Source roots ledger disagrees with source-root directives",
             diagnostics,
         );
@@ -145,13 +116,13 @@ pub(crate) fn check(
             &table,
             "| Block ID | Root ID | Owner | Source lines | Count | State |\n",
             "|---|---|---|---|---|---|\n",
-            &fixed_ownership_rows(scope),
+            &fixed_ownership_rows(manifest, scope),
             "Ownership blocks ledger disagrees with the fixed ownership contract",
             diagnostics,
         );
         check_exact_rows(
             &table,
-            &directive_ownership_rows(parsed),
+            &directive_ownership_rows(&index_path, parsed),
             "Ownership blocks ledger disagrees with root directives",
             diagnostics,
         );
@@ -162,7 +133,7 @@ pub(crate) fn check(
             &table,
             "| Fragment ID | Page ID | Root ID | Kind | Owner | Source lines | Parent ID | Child IDs |\n",
             "|---|---|---|---|---|---|---|---|\n",
-            &directive_fragment_rows(parsed),
+            &directive_fragment_rows(manifest, &index_path, parsed),
             "Fragment index disagrees with fragment directives",
             diagnostics,
         );
@@ -172,16 +143,17 @@ pub(crate) fn check(
         check_early_uses(snapshot, &table, scope, diagnostics);
     }
 
-    check_root_locations(source_index, parsed, diagnostics);
-    check_fragment_locations(parsed, diagnostics);
+    check_root_locations(&index_path, source_index, parsed, diagnostics);
+    check_fragment_locations(manifest, parsed, diagnostics);
 }
 
 fn required_table(
+    index_path: &str,
     source_index: Option<&str>,
     heading: &str,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<LedgerTable> {
-    let tables = source_index.map_or_else(Vec::new, |text| find_tables(text, heading));
+    let tables = source_index.map_or_else(Vec::new, |text| find_tables(index_path, text, heading));
     if tables.len() == 1 {
         return tables.into_iter().next();
     }
@@ -191,7 +163,7 @@ fn required_table(
             tables.len()
         ),
         Location {
-            path: SOURCE_INDEX.into(),
+            path: index_path.into(),
             byte: 0,
             line: 1,
             column: 1,
@@ -200,7 +172,7 @@ fn required_table(
     None
 }
 
-fn find_tables(text: &str, heading: &str) -> Vec<LedgerTable> {
+fn find_tables(index_path: &str, text: &str, heading: &str) -> Vec<LedgerTable> {
     let lines: Vec<&str> = text.split_inclusive('\n').collect();
     let mut offsets = Vec::with_capacity(lines.len());
     let mut offset = 0;
@@ -239,12 +211,12 @@ fn find_tables(text: &str, heading: &str) -> Vec<LedgerTable> {
         while let Some(line) = lines.get(cursor).filter(|line| line.starts_with('|')) {
             rows.push(LedgerRow {
                 raw: (*line).to_owned(),
-                location: line_location(text, offsets[cursor]),
+                location: line_location(index_path, text, offsets[cursor]),
             });
             cursor += 1;
         }
         let mut table = LedgerTable {
-            location: line_location(text, offsets[index]),
+            location: line_location(index_path, text, offsets[index]),
             header,
             separator,
             rows,
@@ -330,8 +302,8 @@ fn fixed_source_rows() -> Vec<String> {
         .collect()
 }
 
-fn directive_source_rows(parsed: &ParsedBook) -> Vec<String> {
-    roots_in_source_index(parsed)
+fn directive_source_rows(index_path: &str, parsed: &ParsedBook) -> Vec<String> {
+    roots_in_source_index(index_path, parsed)
         .into_iter()
         .map(|root| {
             format!(
@@ -344,7 +316,7 @@ fn directive_source_rows(parsed: &ParsedBook) -> Vec<String> {
         .collect()
 }
 
-fn fixed_ownership_rows(scope: &Scope) -> Vec<String> {
+fn fixed_ownership_rows(manifest: &Manifest, scope: &Scope) -> Vec<String> {
     BLOCKS
         .iter()
         .map(|block| {
@@ -354,7 +326,7 @@ fn fixed_ownership_rows(scope: &Scope) -> Vec<String> {
                 block.owner,
                 block.first,
                 block.last,
-                if owner_is_complete(scope, block.owner) {
+                if owner_is_complete(manifest, scope, block.owner) {
                     "resolved"
                 } else {
                     "deferred"
@@ -364,9 +336,9 @@ fn fixed_ownership_rows(scope: &Scope) -> Vec<String> {
         .collect()
 }
 
-fn directive_ownership_rows(parsed: &ParsedBook) -> Vec<String> {
+fn directive_ownership_rows(index_path: &str, parsed: &ParsedBook) -> Vec<String> {
     let mut rows = Vec::new();
-    for root in roots_in_source_index(parsed) {
+    for root in roots_in_source_index(index_path, parsed) {
         for child in &root.children {
             match child {
                 Child::Defer {
@@ -416,11 +388,15 @@ fn ownership_row(
     )
 }
 
-fn directive_fragment_rows(parsed: &ParsedBook) -> Vec<String> {
-    let roots = roots_in_source_index(parsed);
+fn directive_fragment_rows(
+    manifest: &Manifest,
+    index_path: &str,
+    parsed: &ParsedBook,
+) -> Vec<String> {
+    let roots = roots_in_source_index(index_path, parsed);
     let mut rows = Vec::new();
     for root in roots {
-        rows.push(root_fragment_row(root));
+        rows.push(root_fragment_row(manifest, root));
         let mut fragments: Vec<&Fragment> = parsed
             .fragments
             .values()
@@ -444,7 +420,7 @@ fn directive_fragment_rows(parsed: &ParsedBook) -> Vec<String> {
             format!(
                 "| `{}` | `{}` | `{}` | `{kind}` | `{}` | `{}-{}` | `{}` | {} |\n",
                 fragment.id,
-                page_id_for_path(&fragment.location.path).unwrap_or("—"),
+                page_id_for_path(manifest, &fragment.location.path).unwrap_or("—"),
                 root.id,
                 fragment.owner,
                 fragment.range.first,
@@ -457,11 +433,16 @@ fn directive_fragment_rows(parsed: &ParsedBook) -> Vec<String> {
     rows
 }
 
-fn root_fragment_row(root: &Root) -> String {
+fn root_fragment_row(manifest: &Manifest, root: &Root) -> String {
     let children = child_ids(&root.children);
     format!(
-        "| `{}` | `source-index` | `{}` | `root` | `—` | `{}-{}` | `—` | {} |\n",
-        root.id, root.id, root.range.first, root.range.last, children
+        "| `{}` | `{}` | `{}` | `root` | `—` | `{}-{}` | `—` | {} |\n",
+        root.id,
+        manifest.source_index_id(),
+        root.id,
+        root.range.first,
+        root.range.last,
+        children
     )
 }
 
@@ -491,6 +472,7 @@ fn check_early_uses(
     scope: &Scope,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
+    let manifest = &snapshot.manifest;
     let header = "| Symbol family | First use | Owner | Minimum local statement | Status |\n";
     let separator = "|---|---|---|---|---|\n";
     if table.header.as_deref() != Some(header) || table.separator.as_deref() != Some(separator) {
@@ -504,7 +486,7 @@ fn check_early_uses(
     let required: Vec<String> = EARLY_USES
         .iter()
         .map(|(symbols, first_use, owner, statement)| {
-            let status = if owner_is_complete(scope, owner) {
+            let status = if owner_is_complete(manifest, scope, owner) {
                 "explained"
             } else {
                 "pending"
@@ -567,33 +549,36 @@ fn check_early_uses(
             ));
             continue;
         };
-        let Some(first_order) = page_order_for_filename(filename) else {
+        let Some(first_number) = chapter_number(manifest, filename) else {
             diagnostics.push(f009(
                 "Early use location names a noncanonical numbered page",
                 row.location.clone(),
             ));
             continue;
         };
-        let Some(owner_order) = slice_order(owner) else {
+        let Some(owner_order) = manifest.slice_order(owner) else {
             diagnostics.push(f009(
                 "Early use owner is not a canonical slice",
                 row.location.clone(),
             ));
             continue;
         };
-        let page_path = format!("docs/walkthroughs/ordinal-fs-tree/{filename}");
+        let page_path = manifest.path(filename);
         let anchor_line = format!("<a id=\"{anchor}\"></a>\n");
         let anchor_byte = snapshot
             .book_files
             .get(&page_path)
             .and_then(|bytes| std::str::from_utf8(bytes).ok())
             .and_then(|text| text.find(&anchor_line));
-        let expected_status = if owner_is_complete(scope, owner) {
+        let expected_status = if owner_is_complete(manifest, scope, owner) {
             "explained"
         } else {
             "pending"
         };
-        if first_order > owner_order
+        // `first_number` counts chapters from one and `owner_order` from zero,
+        // so this is "the first use is not on a page strictly before the page
+        // that explains it" — which is the whole point of an early-use row.
+        if first_number > owner_order
             || anchor_byte.is_none()
             || status != expected_status
             || cells[3].is_empty()
@@ -604,7 +589,7 @@ fn check_early_uses(
             ));
         }
         let key = (
-            first_order,
+            first_number,
             anchor_byte.unwrap_or(usize::MAX),
             owner_order,
             cells[0].to_owned(),
@@ -655,18 +640,19 @@ fn unquote(cell: &str) -> Option<&str> {
 }
 
 fn check_root_locations(
+    index_path: &str,
     source_index: Option<&str>,
     parsed: &ParsedBook,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let roots = roots_in_source_index(parsed);
+    let roots = roots_in_source_index(index_path, parsed);
     let observed: Vec<&str> = roots.iter().map(|root| root.id.as_str()).collect();
     let expected: Vec<&str> = ROOTS.iter().map(|(id, _, _)| *id).collect();
     let outside = parsed
         .roots
         .values()
         .flatten()
-        .find(|root| root.location.path != SOURCE_INDEX);
+        .find(|root| root.location.path != index_path);
     let section = source_index.and_then(|text| {
         Some((
             text.find("## Source roots\n")?,
@@ -684,27 +670,31 @@ fn check_root_locations(
             .map(|root| root.location.clone())
             .or_else(|| outside_section.map(|root| root.location.clone()))
             .unwrap_or_else(|| Location {
-                path: SOURCE_INDEX.into(),
+                path: index_path.into(),
                 byte: 0,
                 line: 1,
                 column: 1,
             });
         diagnostics.push(f009(
-            "source roots must occur only in source-index.md and in fixed order",
+            format!(
+                "source roots must occur only in `{}` and in fixed order",
+                index_path.rsplit('/').next().unwrap_or(index_path)
+            ),
             location,
         ));
     }
 }
 
-fn check_fragment_locations(parsed: &ParsedBook, diagnostics: &mut Vec<Diagnostic>) {
+fn check_fragment_locations(
+    manifest: &Manifest,
+    parsed: &ParsedBook,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     for fragment in parsed.fragments.values().flatten() {
-        let Some((_, _, filename, _)) = PAGE_BY_OWNER
-            .iter()
-            .find(|(owner, _, _, _)| *owner == fragment.owner)
-        else {
+        let Some(page) = manifest.page_of_slice(&fragment.owner) else {
             continue;
         };
-        let required = format!("docs/walkthroughs/ordinal-fs-tree/{filename}");
+        let required = manifest.path(page.file());
         if fragment.location.path != required {
             diagnostics.push(Diagnostic::new(
                 "F010",
@@ -721,12 +711,12 @@ fn check_fragment_locations(parsed: &ParsedBook, diagnostics: &mut Vec<Diagnosti
     }
 }
 
-fn roots_in_source_index(parsed: &ParsedBook) -> Vec<&Root> {
+fn roots_in_source_index<'a>(index_path: &str, parsed: &'a ParsedBook) -> Vec<&'a Root> {
     let mut roots: Vec<&Root> = parsed
         .roots
         .values()
         .flatten()
-        .filter(|root| root.location.path == SOURCE_INDEX)
+        .filter(|root| root.location.path == index_path)
         .collect();
     roots.sort_by_key(|root| root.location.byte);
     roots
@@ -753,29 +743,35 @@ fn root_for_fragment<'a>(parsed: &'a ParsedBook, fragment: &'a Fragment) -> Opti
     None
 }
 
-fn owner_is_complete(scope: &Scope, owner: &str) -> bool {
+fn owner_is_complete(manifest: &Manifest, scope: &Scope, owner: &str) -> bool {
     match scope {
         Scope::Final => true,
-        Scope::Through(slice) => slice_order(owner)
-            .zip(slice_order(slice.as_str()))
-            .is_some_and(|(owner, through)| owner <= through),
+        Scope::Through(slice) => manifest
+            .slice_order(owner)
+            .is_some_and(|owner| owner <= slice.chapter_index()),
     }
 }
 
-fn slice_order(slice: &str) -> Option<usize> {
-    SLICE_ORDER.iter().position(|candidate| *candidate == slice)
+/// The chapter page identifier a fragment definition sits on.
+///
+/// Chapters only: a fragment defined on the contents or on either lookup page
+/// has no owning chapter, and the fragment-index row records `—` for it. The
+/// compiled `PAGE_BY_OWNER` table this replaces held the chapters and nothing
+/// else, and widening it to every page would silently change the expected
+/// `F009` row for any book that defines a non-root fragment off a chapter.
+fn page_id_for_path<'a>(manifest: &'a Manifest, path: &str) -> Option<&'a str> {
+    manifest
+        .chapters()
+        .find(|page| manifest.path(page.file()) == path)
+        .map(Page::id)
 }
 
-fn page_id_for_path(path: &str) -> Option<&'static str> {
-    PAGE_BY_OWNER.iter().find_map(|(_, id, filename, _)| {
-        (path == format!("docs/walkthroughs/ordinal-fs-tree/{filename}")).then_some(*id)
-    })
-}
-
-fn page_order_for_filename(filename: &str) -> Option<usize> {
-    PAGE_BY_OWNER
-        .iter()
-        .find_map(|(_, _, candidate, order)| (*candidate == filename).then_some(*order))
+/// The 1-based position of `filename` among the book's chapters.
+fn chapter_number(manifest: &Manifest, filename: &str) -> Option<usize> {
+    manifest
+        .chapters()
+        .position(|page| page.file() == filename)
+        .map(|index| index + 1)
 }
 
 fn grouped(value: usize) -> String {
@@ -786,10 +782,10 @@ fn grouped(value: usize) -> String {
     }
 }
 
-fn line_location(text: &str, byte: usize) -> Location {
+fn line_location(index_path: &str, text: &str, byte: usize) -> Location {
     let prefix = &text[..byte];
     Location {
-        path: SOURCE_INDEX.into(),
+        path: index_path.into(),
         byte,
         line: prefix
             .bytes()
@@ -802,4 +798,31 @@ fn line_location(text: &str, byte: usize) -> Location {
 
 fn f009(message: impl Into<String>, location: Location) -> Diagnostic {
     Diagnostic::new("F009", "inventory", message, location, None, None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EARLY_USES;
+
+    /// The interim manifest bridge for the early-use ledger; the companion of
+    /// `the_manifest_restates_the_compiled_corpus_exactly` in `validator.rs`,
+    /// and deleted with `EARLY_USES` by `validator-fragments-k22`.
+    #[test]
+    fn the_manifest_restates_the_compiled_early_uses_exactly() {
+        let manifest = include_str!("../../../docs/walkthroughs/ordinal-fs-tree/walkthrough.toml");
+
+        let mut cursor = 0;
+        for (symbols, first_use, owner, statement) in EARLY_USES {
+            let stanza = format!(
+                "[[early-use]]\nsymbols   = \"{symbols}\"\nfirst-use = \"{first_use}\"\nowner     = \"{owner}\"\nstatement = \"{statement}\"\n"
+            );
+            let offset = manifest[cursor..].find(stanza.as_str());
+            assert!(
+                offset.is_some(),
+                "manifest is missing this early use, or has it out of order:\n{stanza}"
+            );
+            cursor += offset.unwrap() + stanza.len();
+        }
+        assert_eq!(manifest.matches("[[early-use]]").count(), EARLY_USES.len());
+    }
 }

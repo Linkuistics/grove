@@ -8,13 +8,33 @@ fn help_documents_scoped_and_final_read_only_workflows() {
     let output = run_from(["book-check", "--help"]);
 
     assert_eq!(output.exit, 0);
-    assert!(output.stdout.contains("--through read-path-k14"));
+    assert!(output.stdout.contains("--through"));
+    assert!(output.stdout.contains("walkthrough.toml"));
     assert!(output.stdout.contains("--final"));
     assert!(output.stdout.contains("read-only"));
     assert!(output.stdout.contains("Exit status"));
     assert!(output.stdout.contains("JSON"));
     assert!(output.stdout.contains("--check all"));
     assert!(output.stdout.contains("markdown"));
+}
+
+#[test]
+fn help_names_no_particular_book_page_or_slice() {
+    let output = run_from(["book-check", "--help"]);
+
+    for token in [
+        "ordinal",
+        "orientation-k11",
+        "read-path-k14",
+        "01-orientation.md",
+        "source-index.md",
+    ] {
+        assert!(
+            !output.stdout.contains(token),
+            "help must not name `{token}`: {}",
+            output.stdout
+        );
+    }
 }
 
 #[test]
@@ -309,14 +329,16 @@ fn fragment_only_check_does_not_load_markdown_link_targets() {
 
 #[test]
 fn invalid_scope_is_exit_two_and_uses_json_when_requested() {
+    let repository = tempfile::tempdir().unwrap();
+    materialize(&support::corpus(false), repository.path());
     let output = run_from([
         "book-check",
         "--repo",
-        ".",
+        repository.path().to_str().unwrap(),
         "--book",
-        "docs/walkthroughs/ordinal-fs-tree",
+        support::BOOK_ROOT,
         "--through",
-        "book-assembly-k18",
+        "no-such-slice-k99",
         "--output",
         "json",
     ]);
@@ -402,6 +424,9 @@ fn materialize(snapshot: &BookSnapshot, repository: &std::path::Path) {
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
         std::fs::write(destination, bytes).unwrap();
     }
+    let manifest = repository.join(snapshot.manifest.manifest_path());
+    std::fs::create_dir_all(manifest.parent().unwrap()).unwrap();
+    std::fs::write(manifest, support::manifest_text()).unwrap();
 }
 
 #[test]

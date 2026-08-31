@@ -19,6 +19,7 @@
 - [Parts, Triple, and NameView](02-name-seam.md#triple-and-view)
 - [Derived name readings](02-name-seam.md#derived-readings)
 - [Filename boundary enforcement](02-name-seam.md#surrounding-flow)
+- [Search results and mutation refusals](02-name-seam.md#sought-object-resolution)
 - [Syllabus vocabulary](03-reference-domain.md#syllabus-vocabulary)
 - [One reference name through the seam](03-reference-domain.md#worked-reference-name)
 - [Reference-domain classification](03-reference-domain.md#classification-walkthrough)

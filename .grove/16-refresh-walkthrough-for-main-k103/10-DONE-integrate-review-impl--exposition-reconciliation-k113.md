@@ -41,3 +41,11 @@ the post-fix verification the review was forbidden to run.
 The review found no technical error, so the expected shape of this session is
 small and navigational rather than a re-authoring pass. Resist widening it:
 work that does not serve this leaf's goal goes to the tree as its own leaf.
+
+## Decisions (running log)
+
+F1 is a real editorial navigation defect. The current public `Sought<T>` enum
+and its dedicated `sought-object-resolution` section establish the omitted
+concept, while the concept index has no link to it. Add one direct index entry;
+the visible `OrdinalsExhausted` compression remains the review's accepted
+trade-off and requires no change.

@@ -204,10 +204,12 @@ The crate root states the storage proposition and keeps filesystem access in
 mutation inputs and refusals, reports including removals, sought-object
 resolution, and immutable snapshot views. The private `ops`, `plan`, and
 internal support modules keep algebraic implementation details behind those
-values. The crate-level documentation also states why whole-tree deletion is
-outside both formal models: its behavior depends on filesystem facts below
-their abstraction boundary. This fragment is the complete crate root and is
-the source-level map used by every later page.
+values. `Sought` distinguishes a search match from a completed search that
+matched nothing; `Nothing` is neither a mutation refusal nor an error, while
+accessors retain `Option`. The crate-level documentation also states why
+whole-tree deletion is outside both formal models: its behavior depends on
+filesystem facts below their abstraction boundary. This fragment is the
+complete crate root and is the source-level map used by every later page.
 <!-- fragment «library-crate-surface» owner="orientation-k11" source="crates/ordinal-fs-tree/src/lib.rs" lines="1-103" parent="source-library" -->
 ````rust
 //! An ordered tree of entries stored as a directory tree, where each entry's

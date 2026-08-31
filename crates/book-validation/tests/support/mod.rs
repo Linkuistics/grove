@@ -103,12 +103,12 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-name",
         path: "crates/ordinal-fs-tree/src/name.rs",
-        lines: 716,
+        lines: 717,
         blocks: &[BlockSpec {
             id: "name-seam-source",
             owner: "name-seam-k12",
             first: 1,
-            last: 716,
+            last: 717,
         }],
     },
     RootSpec {
@@ -136,12 +136,12 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-reference",
         path: "crates/ordinal-fs-tree/src/reference.rs",
-        lines: 555,
+        lines: 559,
         blocks: &[BlockSpec {
             id: "reference-domain-source",
             owner: "reference-domain-k13",
             first: 1,
-            last: 555,
+            last: 559,
         }],
     },
     RootSpec {
@@ -164,6 +164,17 @@ const ROOTS: &[RootSpec] = &[
             owner: "read-path-k14",
             first: 1,
             last: 650,
+        }],
+    },
+    RootSpec {
+        id: "source-sought",
+        path: "crates/ordinal-fs-tree/src/sought.rs",
+        lines: 132,
+        blocks: &[BlockSpec {
+            id: "sought-object-answer",
+            owner: "name-seam-k12",
+            first: 1,
+            last: 132,
         }],
     },
     RootSpec {
@@ -299,6 +310,12 @@ const EARLY_USES: &[(&str, &str, &str, &str)] = &[
         "01-orientation.md#package-contract",
         "syllabus-cli-k17",
         "The optional parser dependency is activated by a later CLI-owned feature range, enabled by default while library consumers may disable default features.",
+    ),
+    (
+        "`Sought`",
+        "01-orientation.md#public-surface",
+        "name-seam-k12",
+        "Sought distinguishes a search match from a completed search that matched nothing; nothing is neither a mutation refusal nor an error, while accessors retain Option.",
     ),
     (
         "`Label`, `Status`, `reference::Parts`, `SyllabusName`",
@@ -441,7 +458,7 @@ pub fn corpus(final_: bool) -> BookSnapshot {
         );
         if owner == "orientation-k11" {
             contents.push_str(
-                "<a id=\"working-vocabulary\"></a>\n## Working vocabulary\n<a id=\"package-contract\"></a>\n## Package contract\n<a id=\"insert-tour\"></a>\n## Insert tour\n",
+                "<a id=\"working-vocabulary\"></a>\n## Working vocabulary\n<a id=\"package-contract\"></a>\n## Package contract\n<a id=\"public-surface\"></a>\n## Public surface\n<a id=\"insert-tour\"></a>\n## Insert tour\n",
             );
         }
         contents.push_str(&body);

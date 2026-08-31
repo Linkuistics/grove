@@ -10,9 +10,10 @@ composition mutually consistent.
 
 The complete `src/name.rs` source is the composition below. Its six children
 follow the conceptual order of this page and expand without gaps into lines
-1–700.
+1–717. The page also reproduces `src/sought.rs` as one literal fragment after
+the filename seam, where the search-result vocabulary can be read as a whole.
 
-<!-- fragment «name-seam-source» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-716" parent="source-name" -->
+<!-- fragment «name-seam-source» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-717" parent="source-name" -->
 <!-- insert «name-identifiers» -->
 <!-- insert «name-classification» -->
 <!-- insert «name-representation» -->
@@ -39,16 +40,17 @@ resolves to it. `Ordinal` and `Key` wrap `u32` without imposing a filename
 format; their `Display` implementations exist for diagnostics.
 
 Fresh keys are calculated as the greatest key visible anywhere in the snapshot
-plus one. The names therefore hold the allocation counter. Removal is absent
-because deleting the greatest-keyed entry would lower that counter and permit a
-later allocation to reissue an identity that another entry still references. A
-consumer represents retirement in its opaque parts instead of deleting the
-entry.
+plus one. The names therefore hold the allocation counter. Entry removal is
+absent because deleting the greatest-keyed entry would lower that counter and
+permit a later allocation to reissue an identity that another entry still
+references. Whole-tree deletion is different: it leaves no tree in which a
+later key can be allocated. A consumer represents retirement of one entry in
+its opaque parts instead of deleting that entry.
 
 This fragment defines the module boundary and the two numeric types. The
 consumer formats their values, while the algebra compares them and preserves
 the distinction used by every later example on this page.
-<!-- fragment «name-identifiers» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-91" parent="name-seam-source" -->
+<!-- fragment «name-identifiers» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-92" parent="name-seam-source" -->
 ````rust
 //! The seam: what a name is, and the one trait a consumer implements.
 //!
@@ -115,8 +117,9 @@ impl fmt::Display for Ordinal {
 /// cross-reference — and the one handle every operation takes.
 ///
 /// A fresh key is `max(key over the whole tree) + 1`: the names *are* the
-/// counter. That is why there is no removal operation, and the reasoning is
-/// [`docs/adr/entries-are-never-removed.md`].
+/// counter. That is why no operation removes an *entry*, and the reasoning is
+/// [`docs/adr/entries-are-never-removed.md`] — which also carries why deleting
+/// the **root** is a different operation and is offered.
 ///
 /// [`docs/adr/entries-are-never-removed.md`]: https://github.com/Linkuistics/grove/blob/main/docs/adr/entries-are-never-removed.md
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -184,7 +187,7 @@ consumer can construct the domain-specific error that explains recovery.
 This fragment turns an unfollowed filesystem observation into the shape and
 classification values used by `parse`. The consumer supplies the verdict and
 error; the reader uses the variant to admit, skip, or halt without guessing.
-<!-- fragment «name-classification» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="92-246" parent="name-seam-source" -->
+<!-- fragment «name-classification» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="93-247" parent="name-seam-source" -->
 ````rust
 
 /// Which of the three kinds of thing a name names.
@@ -367,7 +370,7 @@ distinguished spelling, when this consumer defines one, produces
 This fragment defines the values passed from the consumer boundary into the
 algebra. Parsing produces a name whose view supplies the triple; later mutation
 code reuses that triple when it composes a shifted or rewritten name.
-<!-- fragment «name-representation» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="247-345" parent="name-seam-source" -->
+<!-- fragment «name-representation» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="248-346" parent="name-seam-source" -->
 ````rust
 
 /// The `(ordinal, key, parts)` a positioned name is isomorphic to.
@@ -519,7 +522,7 @@ the parsing and rendering round trips constrain that separate boundary.
 This fragment is present at the seam itself. A consumer implements these inputs
 and transformations; snapshot reads and mutation planning depend on the stated
 round trips, species rule, and one-component rendering contract.
-<!-- fragment «entry-name-trait» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="346-615" parent="name-seam-source" -->
+<!-- fragment «entry-name-trait» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="347-616" parent="name-seam-source" -->
 ````rust
 /// The one trait. All genericity lives here: there are no callbacks, no hooks,
 /// no registration and no configuration objects, and there is no `Domain` type.
@@ -816,7 +819,7 @@ This fragment derives the readings used throughout snapshots, operations,
 plans, and consumers. Sealing keeps the algebra's identity and species rules
 uniform even though the underlying parts and their equality belong to the
 consumer.
-<!-- fragment «entry-name-derived-readings» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="616-690" parent="name-seam-source" -->
+<!-- fragment «entry-name-derived-readings» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="617-691" parent="name-seam-source" -->
 ````rust
 
 mod sealed {
@@ -922,7 +925,7 @@ partial plan needs rollback for this boundary error.
 This fragment implements that shared boundary predicate. The reader and
 interpreter supply rendered names, and the result either certifies one Unix
 filename component or gives the stable reason carried by the error.
-<!-- fragment «name-component-check» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="691-716" parent="name-seam-source" -->
+<!-- fragment «name-component-check» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="692-717" parent="name-seam-source" -->
 ````rust
 /// Why a rendering is not one filename, or `None` when it is one.
 ///
@@ -949,6 +952,170 @@ pub(crate) fn not_one_component(rendered: &str) -> Option<&'static str> {
         return Some("holds a NUL byte, which no filename may");
     }
     None
+}
+````
+<!-- /fragment -->
+
+<a id="sought-object-resolution"></a>
+## Search results are not mutation refusals
+
+`Sought<T>` is the public answer type for snapshot searches. `Match(T)` carries
+the first entry selected by `Snapshot::seek` or `Snapshot::by_key`; `Nothing`
+states that the scan completed without a match. Neither result describes a
+mutation, so `Nothing` is distinct from every `Refusal` variant and does not
+indicate a damaged tree.
+
+The distinction is based on the operation, not the implementation. An accessor
+such as `Entry::key`, `Entry::contents`, or `Container::distinguished` describes
+one value already in hand and therefore retains `Option`. A search accepts a
+criterion and scans a set. `seek` accepts a consumer predicate and `by_key`
+supplies its key predicate; both return `Sought` even though `seek` delegates to
+the walk iterator's `find`, whose language-defined result is `Option`.
+
+The enum exposes only the operations that preserve or deliberately leave this
+vocabulary. `is_match` and `is_nothing` inspect the result, `map` transforms a
+match while preserving `Nothing`, and `into_option` crosses explicitly into an
+optional chain. The reciprocal `From` implementations support typed
+conversions. A bare `.into()` targeting an inferred `Option<_>` can be
+ambiguous because the standard library also implements `From<T> for Option<T>`;
+`into_option` avoids that inference boundary. `expect` is reserved for callers
+that have already established the match and otherwise panics with their stated
+assumption.
+
+This fragment is the complete search-result module.
+<!-- fragment «sought-object-answer» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/sought.rs" lines="1-132" parent="source-sought" -->
+````rust
+//! The word for a search that matched nothing.
+//!
+//! The library already has one negative answer — [`Refusal`](crate::Refusal) —
+//! and every one of its variants is a refusal to *mutate*. A search is not a
+//! mutation: nothing was asked to change, so nothing can have been refused, and
+//! nothing is wrong with the tree either. Answering a search with `None` leaves
+//! that distinction unsaid, and a consumer then invents a word for it in its own
+//! vocabulary — which is how the same concept ends up with one name per caller.
+//!
+//! [`Sought`] is that word, in the library's vocabulary, and it is the answer to
+//! *every* search on the public surface: `ARCHITECTURE.md`'s *Reading* table has
+//! two rows that can match nothing, [`Snapshot::seek`](crate::Snapshot::seek)
+//! and [`Snapshot::by_key`](crate::Snapshot::by_key), and both answer with this.
+//!
+//! # What is not a search
+//!
+//! An accessor that reads an attribute off something already in hand is not one,
+//! and it keeps its `Option`: [`Entry::key`](crate::Entry::key) is absent for the
+//! distinguished child because that name carries no key, and
+//! [`Entry::contents`](crate::Entry::contents) is absent for a leaf because a
+//! leaf holds nothing. Neither scanned anything. The test is whether a criterion
+//! was supplied and a set was scanned for it — `Sought` says *that scan
+//! completed and matched nothing*, which is a fact about the search, where
+//! `None` on an accessor is a fact about the entry.
+//!
+//! # `Option` is a door, not a return type
+//!
+//! What a consumer *does* about a search that matched nothing is the consumer's
+//! own, and this library states no policy over it. The reference CLI is both
+//! answers at once: `show` turns it into a
+//! [`Refusal::TargetMissing`](crate::Refusal::TargetMissing) it constructs
+//! itself, and `list --first` renders the identical answer as an empty listing.
+//! Most of that is a `match` or a `let … else`, and wants nothing from this
+//! module. [`Sought::into_option`] and the two [`From`]
+//! impls beside it are for the rest — a caller already mid-chain in `Option`'s
+//! combinators, which the language has and this crate is not about to reproduce.
+//! What the door does *not* do is put `Option` back in a signature the library
+//! owns.
+
+/// A search's answer: what it matched, or nothing.
+///
+/// **Not a refusal.** Nothing was asked to change, and nothing is wrong with the
+/// tree — see this module's header for the distinction and for what is not a
+/// search.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[must_use]
+pub enum Sought<T> {
+    /// The search matched, and this is what it matched.
+    Match(T),
+    /// The search completed and matched nothing.
+    Nothing,
+}
+
+impl<T> Sought<T> {
+    /// Whether the search matched.
+    #[must_use]
+    pub const fn is_match(&self) -> bool {
+        matches!(self, Self::Match(_))
+    }
+
+    /// Whether the search matched nothing.
+    #[must_use]
+    pub const fn is_nothing(&self) -> bool {
+        matches!(self, Self::Nothing)
+    }
+
+    /// The match, or `None`.
+    ///
+    /// The deliberate door out of this vocabulary and into the caller's own —
+    /// see this module's header. [`Option::from`] is the same conversion for a
+    /// caller who prefers it that way round; this spelling exists because the
+    /// other one reads badly mid-chain.
+    #[must_use]
+    pub fn into_option(self) -> Option<T> {
+        match self {
+            Self::Match(found) => Some(found),
+            Self::Nothing => None,
+        }
+    }
+
+    /// Apply a function to the match, keeping the answer a search's answer.
+    ///
+    /// The one combinator here, and it earns its place by being the one that
+    /// does *not* leave: mapping through [`Sought::into_option`] would answer a
+    /// search in `Option`'s vocabulary for no reason but the shape of the
+    /// function applied.
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Sought<U> {
+        match self {
+            Self::Match(found) => Sought::Match(f(found)),
+            Self::Nothing => Sought::Nothing,
+        }
+    }
+
+    /// The match, panicking with `message` when the search matched nothing.
+    ///
+    /// For a caller that has already established the match exists — a test over
+    /// a tree it built itself, most of all. A caller that has not should be
+    /// matching on the two variants, which is why there is no `unwrap` beside
+    /// this one: an unwrap has no room to say what it was relying on.
+    ///
+    /// # Panics
+    ///
+    /// When the search matched nothing.
+    #[must_use]
+    pub fn expect(self, message: &str) -> T {
+        match self {
+            Self::Match(found) => found,
+            Self::Nothing => panic!("{message}"),
+        }
+    }
+}
+
+/// **`.into()` needs a concrete target here.** `core` already has
+/// `impl<T> From<T> for Option<T>` — the blanket that makes `x.into()` produce
+/// `Some(x)` — so against an inferred `Option<_>` both impls apply and the call
+/// is ambiguous. Against a spelled-out `Option<Entry<'_, N>>` only this one can
+/// match, and it resolves. [`Sought::into_option`] never has the problem, which
+/// is the other half of why it exists.
+impl<T> From<Sought<T>> for Option<T> {
+    fn from(sought: Sought<T>) -> Self {
+        sought.into_option()
+    }
+}
+
+impl<T> From<Option<T>> for Sought<T> {
+    fn from(option: Option<T>) -> Self {
+        match option {
+            Some(found) => Self::Match(found),
+            None => Self::Nothing,
+        }
+    }
 }
 ````
 <!-- /fragment -->

@@ -13,7 +13,7 @@ cargo run --quiet -p book-validation --bin book-check -- \
   --check all
 ```
 
-Final assembly requires all fifteen source roots, all 6,976 source lines, and
+Final assembly requires all sixteen source roots, all 7,118 source lines, and
 no deferred ranges:
 
 ```console
@@ -29,7 +29,7 @@ the default is `--check all`. Markdown validation checks the canonical regular
 file inventory (without following symlinks), identities, heading and
 explicit-anchor shape, navigation, local files and anchors, literal-fragment
 introductions, and external URL syntax. Relative links may target only the book
-or the fifteen frozen source files. The validator never fetches an external
+or the sixteen frozen source files. The validator never fetches an external
 URL.
 
 Use `--output json` for the versioned machine-readable envelope. Exit status

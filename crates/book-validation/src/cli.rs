@@ -39,7 +39,7 @@ struct Cli {
         "syllabus-cli-k17",
     ])]
     through: Option<String>,
-    /// Validate the complete fifteen-file corpus with no deferred holes.
+    /// Validate the complete sixteen-file corpus with no deferred holes.
     #[arg(long = "final")]
     final_: bool,
     /// Select fragment checks, Markdown/link checks, or both.

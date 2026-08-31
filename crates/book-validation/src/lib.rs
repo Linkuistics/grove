@@ -100,6 +100,7 @@ pub const SOURCE_PATHS: &[&str] = &[
     "crates/ordinal-fs-tree/src/reference.rs",
     "crates/ordinal-fs-tree/src/report.rs",
     "crates/ordinal-fs-tree/src/snapshot.rs",
+    "crates/ordinal-fs-tree/src/sought.rs",
     "crates/ordinal-fs-tree/src/fs/mod.rs",
     "crates/ordinal-fs-tree/src/fs/read.rs",
     "crates/ordinal-fs-tree/src/fs/apply.rs",

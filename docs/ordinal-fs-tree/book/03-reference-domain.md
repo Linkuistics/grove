@@ -11,7 +11,7 @@ The two source roots on this page expand into `src/reference.rs` and
 `src/conformance.rs`. The first defines the syllabus grammar. The second turns
 the seam's semantic assumptions into a reusable test kit.
 
-<!-- fragment «reference-domain-source» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="1-555" parent="source-reference" -->
+<!-- fragment «reference-domain-source» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="1-559" parent="source-reference" -->
 <!-- insert «reference-vocabulary» -->
 <!-- insert «reference-name-and-errors» -->
 <!-- insert «reference-parser» -->
@@ -65,7 +65,7 @@ key. A lesson inserts its status before the label and ends in `.md`; a module
 omits both. `OVERVIEW.md` has neither ordinal nor key because it is a level's own
 content rather than an ordered child.
 
-<!-- fragment «reference-vocabulary» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="1-210" parent="reference-domain-source" -->
+<!-- fragment «reference-vocabulary» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="1-214" parent="reference-domain-source" -->
 ````rust
 //! The reference domain: the course syllabus the architecture document uses for
 //! all of its examples.
@@ -91,10 +91,14 @@ content rather than an ordered child.
 //! on — a domain implements [`EntryName`] and this module is only what one
 //! looks like.
 //!
-//! **The grammar is strict where grove's own is lenient**, and the difference is
-//! the canonicity obligation. `src/tree_id.rs` accepts a hand-typed `5-…` and
-//! renders `05-…`, so two filenames name one entry there. Here `5-…` is
-//! [`Verdict::Malformed`] with the canonical spelling in the message.
+//! **The grammar is strict, and so is grove's** — this paragraph used to say
+//! otherwise, citing a `src/tree_id.rs` that accepted a hand-typed `5-…` and
+//! rendered `05-…`, so that two filenames named one entry there. That model was
+//! withdrawn: grove's `task_name` refuses a lenient position by rendering what
+//! it parsed and comparing, and `docs/adr/task-names-are-canonical.md` carries
+//! why. Here too, `5-…` is [`Verdict::Malformed`] with the canonical spelling in
+//! the message — no longer a contrast with its first consumer, just the
+//! obligation both meet.
 
 use core::fmt;
 
@@ -322,7 +326,7 @@ Unknown status and bad-label errors identify the token to repair.
 `PublishInterrupted` tells the operator to wait, or to remove the witness only
 after confirming that no publishing run remains live.
 
-<!-- fragment «reference-name-and-errors» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="211-351" parent="reference-domain-source" -->
+<!-- fragment «reference-name-and-errors» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="215-355" parent="reference-domain-source" -->
 ````rust
 
 /// A syllabus entry's name.
@@ -500,7 +504,7 @@ The key separator is the terminal `-i` followed by digits. Therefore
 name, renders it, and requires byte equality with the input. This single final
 comparison rejects alternate padding and any future noncanonical spelling.
 
-<!-- fragment «reference-parser» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="352-473" parent="reference-domain-source" -->
+<!-- fragment «reference-parser» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="356-477" parent="reference-domain-source" -->
 ````rust
 
 impl EntryName for SyllabusName {
@@ -641,7 +645,7 @@ key and parts read from `02-draft-matrices-i6.md` produces
 `03-draft-matrices-i6.md`: only the ordinal changes. Later mutation chapters use
 this same lesson and module vocabulary without redefining it.
 
-<!-- fragment «reference-seam-methods» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="474-505" parent="reference-domain-source" -->
+<!-- fragment «reference-seam-methods» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="478-509" parent="reference-domain-source" -->
 ````rust
 
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
@@ -682,7 +686,7 @@ The helpers centralize species agreement, canonical advice, and ownership-shape
 splitting. `split_shape` deliberately returns an empty middle as an owned shape;
 `parse` then reports the missing label instead of silently disclaiming it.
 
-<!-- fragment «reference-parser-helpers» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="506-555" parent="reference-domain-source" -->
+<!-- fragment «reference-parser-helpers» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="510-559" parent="reference-domain-source" -->
 ````rust
 
 /// `Some(error)` when what the listing found contradicts what the name declares.

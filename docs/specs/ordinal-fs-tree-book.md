@@ -11,7 +11,7 @@ The in-scope source corpus is frozen while the book node is active. An accepted
 source change requires the affected ownership ranges and fragments to change,
 followed by final validation against the new bytes.
 The repository's default test run performs final validation of the committed
-book against the committed fifteen-file corpus, so a source edit cannot bypass
+book against the committed sixteen-file corpus, so a source edit cannot bypass
 that comparison by changing only a fixture or an isolated command.
 
 ## Intended outcome
@@ -260,7 +260,7 @@ Fragment and source-root IDs match:
 ```
 
 IDs are globally unique across the whole book. Source paths are repository-
-relative, use `/`, and must name one of the fifteen ledger paths. A source root
+relative, use `/`, and must name one of the sixteen ledger paths. A source root
 has an ID in the same namespace as ordinary fragments.
 
 Line ranges are 1-based and inclusive. Every boundary is a source-line
@@ -299,7 +299,7 @@ attribute is permitted:
 
 `ID` uses the fragment-ID grammar above for fragment directives and the page
 IDs in the page table for `book-page`. `SLICE` is one of the eight enumerated
-slice IDs in the page table. `PATH` is one of the fifteen exact source paths in
+slice IDs in the page table. `PATH` is one of the sixteen exact source paths in
 the source-root table. `N` and `M` are positive canonical decimal integers and
 `N <= M`. The page `order` is the canonical positive decimal integer from the
 page table.
@@ -460,7 +460,7 @@ refinement cannot change slice ownership totals.
 
 `source-index.md` contains, from the orientation slice onward:
 
-1. the fifteen source-root definitions in the fixed order below;
+1. the sixteen source-root definitions in the fixed order below;
 2. a table of every top-level ownership block, owner, range, line count, and
    current `deferred` or `resolved` state;
 3. a fragment index with ID, page, source, range, owner, parent, and direct
@@ -483,7 +483,7 @@ range, then fragment ID; the early-use order is defined with that table. A
 missing, extra, reordered, or malformed column is `F009`.
 
 The source-root and top-level ownership tables in this specification are the
-design authority for the fixed corpus and its 26 ownership blocks. The
+design authority for the fixed corpus and its 27 ownership blocks. The
 validator's `ROOTS` and `BLOCKS` constants are a checked compiled copy: the
 repository test suite parses these normative tables and compares every field
 with the constants. The source-index directives are the authority for the
@@ -514,17 +514,18 @@ visible in the root row and ownership table.
 
 | Root ID | Source path | Lines |
 |---|---|---:|
-| `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 116 |
+| `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 112 |
 | `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,439 |
-| `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 94 |
+| `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 103 |
 | `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 667 |
 | `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 342 |
-| `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 716 |
+| `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 717 |
 | `source-operations` | `crates/ordinal-fs-tree/src/ops.rs` | 543 |
 | `source-plan` | `crates/ordinal-fs-tree/src/plan.rs` | 568 |
-| `source-reference` | `crates/ordinal-fs-tree/src/reference.rs` | 555 |
+| `source-reference` | `crates/ordinal-fs-tree/src/reference.rs` | 559 |
 | `source-report` | `crates/ordinal-fs-tree/src/report.rs` | 152 |
 | `source-snapshot` | `crates/ordinal-fs-tree/src/snapshot.rs` | 650 |
+| `source-sought` | `crates/ordinal-fs-tree/src/sought.rs` | 132 |
 | `source-filesystem-module` | `crates/ordinal-fs-tree/src/fs/mod.rs` | 393 |
 | `source-filesystem-read` | `crates/ordinal-fs-tree/src/fs/read.rs` | 179 |
 | `source-filesystem-apply` | `crates/ordinal-fs-tree/src/fs/apply.rs` | 471 |
@@ -542,17 +543,18 @@ the matching defer with an insert and adds the definition.
 | `manifest-cli-feature` | `source-crate-manifest` | `syllabus-cli-k17` | `43-45` | 3 | `deferred` |
 | `manifest-library-cli-boundary` | `source-crate-manifest` | `orientation-k11` | `46-61` | 16 | `resolved` |
 | `manifest-cli-binary` | `source-crate-manifest` | `syllabus-cli-k17` | `62-65` | 4 | `deferred` |
-| `manifest-development-and-release` | `source-crate-manifest` | `orientation-k11` | `66-116` | 51 | `resolved` |
+| `manifest-development-and-release` | `source-crate-manifest` | `orientation-k11` | `66-112` | 47 | `resolved` |
 | `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1439` | 1,439 | `deferred` |
-| `library-crate-surface` | `source-library` | `orientation-k11` | `1-94` | 94 | `resolved` |
+| `library-crate-surface` | `source-library` | `orientation-k11` | `1-103` | 103 | `resolved` |
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-667` | 667 | `deferred` |
 | `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `deferred` |
-| `name-seam-source` | `source-name` | `name-seam-k12` | `1-716` | 716 | `deferred` |
+| `name-seam-source` | `source-name` | `name-seam-k12` | `1-717` | 717 | `deferred` |
 | `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-543` | 543 | `deferred` |
 | `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-568` | 568 | `deferred` |
-| `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-555` | 555 | `deferred` |
+| `reference-domain-source` | `source-reference` | `reference-domain-k13` | `1-559` | 559 | `deferred` |
 | `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-152` | 152 | `deferred` |
 | `read-snapshot-source` | `source-snapshot` | `read-path-k14` | `1-650` | 650 | `deferred` |
+| `sought-object-answer` | `source-sought` | `name-seam-k12` | `1-132` | 132 | `deferred` |
 | `filesystem-read-opening` | `source-filesystem-module` | `read-path-k14` | `1-86` | 86 | `deferred` |
 | `filesystem-write-acquire` | `source-filesystem-module` | `filesystem-interpreter-k16` | `87-105` | 19 | `deferred` |
 | `filesystem-read-acquire-and-guard` | `source-filesystem-module` | `read-path-k14` | `106-131` | 26 | `deferred` |
@@ -573,15 +575,15 @@ shown above. Every other root contains one full-file top-level block.
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `orientation-k11` | `01-orientation.md` | 203 |
-| `name-seam-k12` | `02-name-seam.md` | 716 |
-| `reference-domain-k13` | `03-reference-domain.md` | 1,222 |
+| `orientation-k11` | `01-orientation.md` | 208 |
+| `name-seam-k12` | `02-name-seam.md` | 849 |
+| `reference-domain-k13` | `03-reference-domain.md` | 1,226 |
 | `read-path-k14` | `04-read-path.md` | 963 |
 | `mutation-algebra-k15` | `05-mutation-algebra.md` | 1,263 |
 | `filesystem-interpreter-k16` | `06-filesystem-interpreter.md` | 1,163 |
 | `syllabus-cli-k17` | `07-syllabus-cli.md` | 1,446 |
 | `book-assembly-k18` | `08-invariants-and-trade-offs.md` | 0 |
-| **Total** | 15 source roots | **6,976** |
+| **Total** | 16 source roots | **7,118** |
 
 The totals count each source line once at its top-level block and do not count
 composite ancestors or lookup prose. A scoped report prints completed lines,
@@ -607,6 +609,7 @@ The initial ledger has this exact schema and these minimum rows:
 | `Ordinal`, `Key`, `Found`, `Verdict`, `Species`, `EntryName` | `01-orientation.md#working-vocabulary` | `name-seam-k12` | Ordinal is mutable sibling position, key is stable tree identity, observed file kind is not followed, verdict separates foreign, accepted, and refused names, species controls file versus directory shape, and EntryName is the consumer parsing and composition seam. | `pending` |
 | `manifest-cli-binary` | `01-orientation.md#package-contract` | `syllabus-cli-k17` | The binary declaration is CLI-owned and deferred; it maps the demonstration executable to its external consumer source and requires the CLI feature. | `pending` |
 | `manifest-cli-feature` | `01-orientation.md#package-contract` | `syllabus-cli-k17` | The optional parser dependency is activated by a later CLI-owned feature range, enabled by default while library consumers may disable default features. | `pending` |
+| `Sought` | `01-orientation.md#public-surface` | `name-seam-k12` | Sought distinguishes a search match from a completed search that matched nothing; nothing is neither a mutation refusal nor an error, while accessors retain Option. | `pending` |
 | `Label`, `Status`, `reference::Parts`, `SyllabusName` | `01-orientation.md#insert-tour` | `reference-domain-k13` | These values are the syllabus consumer's vocabulary and seam implementation, not library defaults. | `pending` |
 | `Snapshot`, `Entry`, `ReadGuard` | `01-orientation.md#insert-tour` | `read-path-k14` | A snapshot is the immutable parsed tree captured under a guard, entries are borrowed views, and a read guard couples a shared lock, caller-spelled root, and snapshot. | `pending` |
 | `Target`, `NewEntry`, `Decision`, `Refusal`, `Plan`, `Effect`, `Report` | `01-orientation.md#insert-tour` | `mutation-algebra-k15` | Target names the root or a stable key, new entry carries opaque parts and optional bytes, every input yields refusal or a guarded ordered plan, and the report records landed effects in its documented orders. | `pending` |
@@ -626,7 +629,7 @@ and sufficient; keyword matching is not a substitute for that judgment.
 ## Authoring workflow and scoped proof
 
 The orientation slice creates `README.md`, both lookup indexes, the first
-numbered page, all fifteen source roots, the complete top-level ownership
+numbered page, all sixteen source roots, the complete top-level ownership
 ledger, its owned fragment definitions, and defers for every later-owned block.
 The committed validator fixture may demonstrate the same grammar, but
 orientation is the first check against real book content.
@@ -740,7 +743,7 @@ mode.
 `Through(slice)` means the complete canonical prefix ending in that slice. It
 requires:
 
-- all fifteen source roots and all top-level ledger rows;
+- all sixteen source roots and all top-level ledger rows;
 - exact definitions and byte comparison for every block owned by the prefix;
 - an explicit defer, with the ledger's exact ID, owner, and range, for every
   later-owned block;
@@ -755,11 +758,11 @@ successful source coverage. An unresolved insert is an error in every scope.
 
 ### Final fragment checks
 
-Final mode requires exactly the fifteen source roots and source paths in this
+Final mode requires exactly the sixteen source roots and source paths in this
 specification, no extras, every top-level block resolved, no defer directives,
 one reachable definition per ID, gapless non-overlapping coverage, and byte-for-
 byte equality for every recursively expanded root. The final report must state
-15 files, 6,976 lines, zero deferred ranges, and final=true.
+16 files, 7,118 lines, zero deferred ranges, and final=true.
 
 ### Deterministic diagnostics
 
@@ -905,7 +908,7 @@ bytes. It checks:
 - every relative file and page link, including its explicit Markdown anchor;
 - the prohibition on untracked `rust` or `toml` fences reported by the shared
   lexer; and
-- paths remaining inside the eleven book files or the fifteen frozen source
+- paths remaining inside the eleven book files or the sixteen frozen source
   paths. Other repository artifacts are not permitted link targets.
 
 Outside code fences and inline code, local Markdown links use the simple form

@@ -57,6 +57,12 @@ const EARLY_USES: &[(&str, &str, &str, &str)] = &[
         "The optional parser dependency is activated by a later CLI-owned feature range, enabled by default while library consumers may disable default features.",
     ),
     (
+        "`Sought`",
+        "01-orientation.md#public-surface",
+        "name-seam-k12",
+        "Sought distinguishes a search match from a completed search that matched nothing; nothing is neither a mutation refusal nor an error, while accessors retain Option.",
+    ),
+    (
         "`Label`, `Status`, `reference::Parts`, `SyllabusName`",
         "01-orientation.md#insert-tour",
         "reference-domain-k13",

@@ -35,7 +35,7 @@ pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
         667,
     ),
     ("source-error", "crates/ordinal-fs-tree/src/error.rs", 342),
-    ("source-name", "crates/ordinal-fs-tree/src/name.rs", 716),
+    ("source-name", "crates/ordinal-fs-tree/src/name.rs", 717),
     (
         "source-operations",
         "crates/ordinal-fs-tree/src/ops.rs",
@@ -45,7 +45,7 @@ pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
     (
         "source-reference",
         "crates/ordinal-fs-tree/src/reference.rs",
-        555,
+        559,
     ),
     ("source-report", "crates/ordinal-fs-tree/src/report.rs", 152),
     (
@@ -53,6 +53,7 @@ pub(crate) const ROOTS: &[(&str, &str, usize)] = &[
         "crates/ordinal-fs-tree/src/snapshot.rs",
         650,
     ),
+    ("source-sought", "crates/ordinal-fs-tree/src/sought.rs", 132),
     (
         "source-filesystem-module",
         "crates/ordinal-fs-tree/src/fs/mod.rs",
@@ -148,7 +149,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         1,
         342,
     ),
-    block("name-seam-source", "source-name", "name-seam-k12", 1, 716),
+    block("name-seam-source", "source-name", "name-seam-k12", 1, 717),
     block(
         "mutation-operations-source",
         "source-operations",
@@ -168,7 +169,7 @@ pub(crate) const BLOCKS: &[Block] = &[
         "source-reference",
         "reference-domain-k13",
         1,
-        555,
+        559,
     ),
     block(
         "mutation-report-source",
@@ -183,6 +184,13 @@ pub(crate) const BLOCKS: &[Block] = &[
         "read-path-k14",
         1,
         650,
+    ),
+    block(
+        "sought-object-answer",
+        "source-sought",
+        "name-seam-k12",
+        1,
+        132,
     ),
     block(
         "filesystem-read-opening",

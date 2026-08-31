@@ -489,10 +489,9 @@ fn the_skill_set_claim_fails_on_a_kind_the_plugin_does_not_ship() {
 /// for the entry to describe this plugin at all.
 #[test]
 fn the_namespace_is_the_shipped_plugin_entrys_declared_name() {
-    let manifest = std::fs::read_to_string(
-        support::repo_root().join(".claude-plugin/marketplace.json"),
-    )
-    .expect("the marketplace manifest must be readable");
+    let manifest =
+        std::fs::read_to_string(support::repo_root().join(".claude-plugin/marketplace.json"))
+            .expect("the marketplace manifest must be readable");
     let entry = manifest
         .split("{")
         .find(|block| block.contains(&format!("\"source\": \"./plugins/{}\"", prompt::PLUGIN)))

@@ -693,7 +693,10 @@ fn normal_owner_exit_releases_the_lease_without_cleanup() {
 
     holder.release_normally();
 
-    DriverLease::acquire(&workspace_at(&root)).unwrap().revalidate().unwrap();
+    DriverLease::acquire(&workspace_at(&root))
+        .unwrap()
+        .revalidate()
+        .unwrap();
 }
 
 #[test]
@@ -705,7 +708,10 @@ fn forced_owner_exit_releases_the_lease_without_pid_cleanup() {
 
     holder.kill();
 
-    DriverLease::acquire(&workspace_at(&root)).unwrap().revalidate().unwrap();
+    DriverLease::acquire(&workspace_at(&root))
+        .unwrap()
+        .revalidate()
+        .unwrap();
 }
 
 #[test]
@@ -730,7 +736,10 @@ fn owner_panic_releases_the_lease_during_unwind() {
     support::wait_for_ready(&ready, &mut child, None);
 
     assert!(!child.wait().unwrap().success());
-    DriverLease::acquire(&workspace_at(&root)).unwrap().revalidate().unwrap();
+    DriverLease::acquire(&workspace_at(&root))
+        .unwrap()
+        .revalidate()
+        .unwrap();
 }
 
 #[test]
@@ -866,7 +875,10 @@ fn an_execed_descendant_does_not_inherit_driver_ownership() {
     support::wait_for_ready(&exec_ready, &mut child, None);
     support::wait_for_ready(&released, &mut child, None);
 
-    DriverLease::acquire(&workspace_at(&root)).unwrap().revalidate().unwrap();
+    DriverLease::acquire(&workspace_at(&root))
+        .unwrap()
+        .revalidate()
+        .unwrap();
 
     drop(child.stdin.take());
     assert!(child.wait().unwrap().success());

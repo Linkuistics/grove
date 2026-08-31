@@ -456,10 +456,7 @@ fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
     Ok(())
 }
 
-fn cmd_complete(
-    args: &CompleteArgs,
-    session_epoch: Option<&SessionEpochGuard>,
-) -> Result<()> {
+fn cmd_complete(args: &CompleteArgs, session_epoch: Option<&SessionEpochGuard>) -> Result<()> {
     // **Asked before the write, which is why the channel is resolved here.** The
     // lease admits this session against the channel it is about to signal, and
     // an answer that came back with the signal would come back too late.

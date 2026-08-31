@@ -2,7 +2,8 @@ const GROVE_SKILL: &str = include_str!("../../../plugins/grove/skills/grove/SKIL
 /// The Retire step's procedures — harvesting, pruning, and the node close's four
 /// steps — which the conditions on the loop page defer to. That pruning is HITL
 /// is a condition and stays in `SKILL.md`; the verb it gates is a procedure.
-const RETIRE_REFERENCE: &str = include_str!("../../../plugins/grove/skills/grove/references/retire.md");
+const RETIRE_REFERENCE: &str =
+    include_str!("../../../plugins/grove/skills/grove/references/retire.md");
 /// The `finish` kind's own skill. Its narrowed rules sat at the tail of
 /// `SKILL.md`, then in a kind reference file; since `plugin-kind-skills-k17`
 /// they are one shipped skill, and `delete-provisioning-k19` deleted the corpus

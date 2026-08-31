@@ -125,6 +125,13 @@ k21/k22 split one crate in two, k16/k17/k19 are the plugin's expand and contract
 
 ## Standing notes for every leaf below
 
+**Verify with `bash scripts/check.sh`, not with a remembered pair of commands.**
+Every leaf's `## Done when` named `cargo test` and `cargo clippy --all-targets`
+and none named `cargo fmt`, which is exactly how a documented principal check
+drifted red across four leaves of the crate split with nothing to report it
+(`restore-fmt-clean-k33`). The seven principal checks are one script now; a leaf
+that names its own two is re-opening the hole.
+
 **This repo is a meta-grove.** A session here runs against the **installed**
 binaries, which on this machine are Homebrew's at `/opt/homebrew/bin/`. So a leaf
 that makes a **tree-visible** change the installed build cannot read must see the

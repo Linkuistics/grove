@@ -230,27 +230,30 @@ impl SessionConfig {
     /// As [`Self::require`], plus a slot the template spells that grove's
     /// vocabulary does not supply.
     pub fn expand(&self, kind: &str, context: &ExpansionContext<'_>) -> Result<Argv, crate::Error> {
-        let argv = self.templates.expand(
-            kind,
-            &[
-                Slot {
-                    name: "prompt",
-                    value: context.prompt.as_ref(),
-                },
-                Slot {
-                    name: "session_name",
-                    value: context.session_name.as_ref(),
-                },
-                Slot {
-                    name: "worktree",
-                    value: context.worktree.as_os_str(),
-                },
-                Slot {
-                    name: "repo",
-                    value: context.repository.as_os_str(),
-                },
-            ],
-        ).map_err(anyhow::Error::from)?;
+        let argv = self
+            .templates
+            .expand(
+                kind,
+                &[
+                    Slot {
+                        name: "prompt",
+                        value: context.prompt.as_ref(),
+                    },
+                    Slot {
+                        name: "session_name",
+                        value: context.session_name.as_ref(),
+                    },
+                    Slot {
+                        name: "worktree",
+                        value: context.worktree.as_os_str(),
+                    },
+                    Slot {
+                        name: "repo",
+                        value: context.repository.as_os_str(),
+                    },
+                ],
+            )
+            .map_err(anyhow::Error::from)?;
         Ok(argv)
     }
 }

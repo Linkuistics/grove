@@ -7,7 +7,8 @@ const GROVE_SKILL: &str = include_str!("../../../plugins/grove/skills/grove/SKIL
 /// path; `one-focused-commit` and `name-by-handle` are this file's
 /// (`plugins/grove/conformance/rules.tsv`). Left pointed at `SKILL.md`, the three
 /// claims below would have asserted that the router had re-grown a procedure.
-const COMMIT_REFERENCE: &str = include_str!("../../../plugins/grove/skills/grove/references/commit.md");
+const COMMIT_REFERENCE: &str =
+    include_str!("../../../plugins/grove/skills/grove/references/commit.md");
 
 fn normalized(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")

@@ -1677,21 +1677,33 @@ is a second thing the split bought besides the one decision 1 argues for.
 
 ## Verification
 
-The principal checks are:
+The principal checks are one command:
 
 ```sh
-cargo fmt --all --check
-cargo test --locked --workspace
-cargo clippy --workspace --all-targets
-bash plugins/install.test.sh
-bash plugins/grove/conformance.sh
-bash plugins/grove/conformance.test.sh
+bash scripts/check.sh
 ```
 
-The last two are the methodology's own, and they are shell rather than Rust
-because the thing they assert about — the composed loaded path of an installed
-skill set — has no counterpart in the binary
+It runs seven — `cargo fmt --all --check`, `shellcheck`, `cargo clippy
+--workspace --all-targets`, `bash plugins/install.test.sh`, the two conformance
+scripts, and `cargo test --locked --workspace` — announces the `cargo` and
+`rustfmt` its PATH resolved, and ends on a punch list of whichever failed.
+`--workspace` on both cargo lines because this root is *also* a package: a bare
+invocation tests and lints `grove` alone and leaves the other five crates unread.
+
+The two conformance scripts are the methodology's own, and they are shell rather
+than Rust because the thing they assert about — the composed loaded path of an
+installed skill set — has no counterpart in the binary
 ([`behavioural-coverage-asserts-delivery`](adr/behavioural-coverage-asserts-delivery.md)).
+
+**Nothing gates these checks.** There is no CI in this repository, and the
+script does not add one: it is run by a person or a session, and a release runs
+it because it *is* [step 1 of the release](RELEASING.md#1-prepare-the-release).
+That is a weaker claim than a server that refuses a push, and it is stated
+rather than implied — while the list lived as prose in two documents, `cargo fmt
+--all --check` was named in no leaf's `## Done when` and drifted red across four
+leaves of the crate split with nothing to report it. The script exists so the
+list is retyped by nobody; it does not make a green tree a guarded one. The
+script's own header carries why it pins no toolchain.
 
 Integration tests drive the real bare `grove` process in native jj and colocated
 jj worktrees, with isolated home directories, a real

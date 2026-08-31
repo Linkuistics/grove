@@ -72,20 +72,17 @@ so an added kind does not break every configuration on upgrade — it stops the
 first task of that kind, in the middle of a workstream, and the release note is
 what lets an owner get ahead of it.
 
-Then run the normal checks. For the complete repository suite — `--workspace` on
-both cargo lines, because this root is *also* a package and a bare invocation
-tests and lints `grove` alone, leaving `grove-loop` and `grove-llm` unread:
+Then run the normal checks — all seven, as one command:
 
 ```sh
-cargo fmt --all --check
-cargo test --locked --workspace
-cargo clippy --workspace --all-targets
-bash plugins/install.test.sh
-bash plugins/grove/conformance.sh
-bash plugins/grove/conformance.test.sh
-shellcheck plugins/install.sh plugins/install.test.sh \
-  plugins/grove/conformance.sh plugins/grove/conformance.test.sh
+bash scripts/check.sh
 ```
+
+The list lives in the script and nowhere else. It used to be spelled out here
+*and* in [`ARCHITECTURE.md`](ARCHITECTURE.md#verification), and the two copies
+had already diverged: only this one ran `shellcheck`. A check that has to be
+retyped is a check that gets partially retyped, which is how `cargo fmt --all
+--check` came to sit in both lists while drifting red.
 
 Describe the finished change and move `main` to it. A change already based
 directly on `main` needs no merge commit:

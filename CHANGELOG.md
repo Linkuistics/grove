@@ -51,6 +51,18 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **The principal checks are one runnable command, `scripts/check.sh`.** They
+  were prose in `docs/ARCHITECTURE.md` and `docs/RELEASING.md`, and the two
+  copies had diverged — only the release list ran `shellcheck`. `cargo fmt --all
+  --check` sat in both and in no leaf's `## Done when`, so it drifted red across
+  four leaves of the crate split with nothing to report it; the tree is
+  reformatted and the list now lives in one file that both documents point at.
+  No `rust-toolchain.toml` and no toolchain pin: the cargo that wins PATH here
+  is Homebrew's, which ignores that file, and rustfmt 1.9.0 and 1.8.0-stable
+  were measured to agree on this tree. The script announces the toolchain it
+  resolved instead. It does not gate — this repository has no CI, and
+  `ARCHITECTURE.md` now says so plainly rather than implying otherwise.
+
 - **`docs/specs/module-decomposition.md` describes the design's current state.**
   The spec was written as the agreement point a twenty-leaf run built against and
   carried a retirement condition — *delete it once the crates exist*. Reaching

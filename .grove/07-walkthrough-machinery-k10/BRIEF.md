@@ -37,10 +37,12 @@ Ordered by what each leaf makes possible for the next.
    did not leave the sidecar rejection standing unchanged: it split it, kept the
    fragment-graph half, and moved the authoring contract into a per-book
    `walkthrough.toml`.
-4. `validator-structure-k21` — the structural half of the ledger becomes data.
-5. `validator-fragments-k22` — the fragment half becomes data, and the check
+4. `walkthrough-books-spec-k47` — triage leaf 3's findings and rework the
+   agreement point before either validator implements against it.
+5. `validator-structure-k21` — the structural half of the ledger becomes data.
+6. `validator-fragments-k22` — the fragment half becomes data, and the check
    script gates every book.
-6. `book-assurance-surface-k39` — the curated user surface and the ownership
+7. `book-assurance-surface-k39` — the curated user surface and the ownership
    table discover book roots, and both checks are seen to fail first.
 
 The last leaf was added by `walkthroughs-k38` against `walkthroughs-k9`'s F3: decision 8

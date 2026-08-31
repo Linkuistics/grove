@@ -1101,7 +1101,7 @@ snapshot under it, establishing that the lock token and immutable names cross
 the API boundary together. The example's `s` spelling therefore remains
 available beside the exact snapshot used by its public walk.
 
-<!-- fragment «filesystem-read-opening» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="1-86" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-opening» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="1-128" parent="source-filesystem-module" -->
 ````rust
 //! The filesystem, and the only module in this crate that may name it.
 //!
@@ -1121,10 +1121,42 @@ available beside the exact snapshot used by its public walk.
 //!
 //! ```no_run
 //! # use std::path::Path;
+//! # use ordinal_fs_tree::fs::Reading;
 //! # use ordinal_fs_tree::reference::SyllabusName;
-//! let tree = ordinal_fs_tree::fs::read::<SyllabusName>(Path::new("syllabus"))?;
+//! let opened = ordinal_fs_tree::fs::read::<SyllabusName>(Path::new("syllabus"))?;
+//! let Reading::Tree(tree) = opened else { return Ok(()) };
 //! for entry in tree.walk() {
 //!     println!("{:indent$}{}", "", entry.name(), indent = (entry.depth() - 1) * 2);
+//! }
+//! # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
+//! ```
+//!
+//! # *Is there a tree here* is a shape, not a predicate
+//!
+//! [`read`] and [`write`] do not answer *yes*; they answer with the tree, with a
+//! vacancy, or with an error saying what is at the root instead. There is no
+//! `exists`, and that absence is the design: a predicate beside an opening is a
+//! check-then-act split, and the act it splits from is creating a tree — so
+//! between the check and the create another writer fits. One lock acquisition
+//! answers the question and hands back the only operation valid for the answer.
+//!
+//! What that buys is a whole class of call the type system refuses to spell.
+//! [`Vacancy::initialize`] exists on a vacancy and nowhere else, so initializing
+//! over a live tree does not typecheck; and the [`WriteGuard`] mutations exist on
+//! a guard and nowhere else, so mutating a tree that is not there does not
+//! either. Neither needs a run-time refusal, and neither has one.
+//!
+//! ```no_run
+//! # use std::path::Path;
+//! # use ordinal_fs_tree::fs::Writing;
+//! # use ordinal_fs_tree::reference::SyllabusName;
+//! match ordinal_fs_tree::fs::write::<SyllabusName>(Path::new("syllabus"))? {
+//!     Writing::Tree(tree) => println!("{} entries", tree.walk().count()),
+//!     // Still under the exclusive lock: nothing can create the tree between
+//!     // learning it is absent and creating it here.
+//!     Writing::Vacancy(vacancy) => {
+//!         vacancy.initialize(Some(b"the course".to_vec()), Vec::new())?;
+//!     }
 //! }
 //! # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
 //! ```
@@ -1155,17 +1187,20 @@ available beside the exact snapshot used by its public walk.
 //! lexical parent insufficient.
 
 use std::fs::File;
+use std::io;
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
 use crate::ops::{self, NewEntry, Target};
 use crate::plan::Decision;
-use crate::report::Report;
+use crate::report::{Removed, Report};
 use crate::snapshot::Snapshot;
 use crate::{EntryName, Error, Key, Ordinal};
 
 mod apply;
 mod lock;
 mod read;
+mod remove;
 
 /// Read a tree under a **shared** lock: other readers may hold it at the same
 /// time, no writer may.
@@ -1173,22 +1208,29 @@ mod read;
 /// Blocks until the tree is free. Halts — rather than skipping anything — on a
 /// name the consumer recognises and cannot parse, wherever in the tree it sits.
 ///
+/// Answers with a shape and not a predicate; see this module's header. A
+/// [`Reading::Vacant`] carries no guard, because a reader of a tree that is not
+/// there has nothing to hold a lock against — the lock is released before this
+/// returns.
+///
 /// # Errors
 ///
-/// [`Error::Malformed`] or [`Error::Reserved`] for a name the consumer owns and
-/// refuses, carrying the consumer's own recovery advice; [`Error::NonUtf8Name`]
-/// for a filename that cannot be classified at all; [`Error::Io`] for a
-/// filesystem refusal; [`Error::NoContainingDirectory`] for a root with nothing
-/// to lock.
-pub fn read<N: EntryName>(root: &Path) -> Result<ReadGuard<N>, Error<N>> {
-    let (guard, snapshot) = acquire(root, lock::Mode::Shared)?;
-    Ok(ReadGuard {
-        _guard: guard,
-        root: root.to_path_buf(),
-        snapshot,
-    })
+/// [`Error::RootIsNotATree`] when something that is not a directory is at the
+/// root; [`Error::Malformed`] or [`Error::Reserved`] for a name the consumer
+/// owns and refuses, carrying the consumer's own recovery advice;
+/// [`Error::NonUtf8Name`] for a filename that cannot be classified at all;
+/// [`Error::Io`] for a filesystem refusal; [`Error::NoContainingDirectory`] for
+/// a root with nothing to lock.
+pub fn read<N: EntryName>(root: &Path) -> Result<Reading<N>, Error<N>> {
+    match acquire(root, lock::Mode::Shared)? {
+        Opened::Tree(guard, snapshot) => Ok(Reading::Tree(ReadGuard {
+            _guard: guard,
+            root: root.to_path_buf(),
+            snapshot,
+        })),
+        Opened::Vacant(_) => Ok(Reading::Vacant),
+    }
 }
-
 ````
 <!-- /fragment -->
 
@@ -1199,25 +1241,114 @@ create, replace, or remove the root use the same lock identity. Advisory locks
 do not prevent an uncooperating process from changing files; the guarantee is
 the synchronization contract among processes using this library.
 
-`acquire` owns the lock-and-capture transition. Given a root and lock mode, it
-returns the open lock descriptor and finished snapshot, with the invariant that
-snapshot discovery begins only after the descriptor is held. `fs::read` selects
-shared mode for the example and stores both outputs in its `ReadGuard`.
+`acquire` owns the lock-and-opening transition. Given a root and lock mode, it
+returns `Opened::Tree` with the descriptor and completed snapshot, or
+`Opened::Vacant` with the descriptor alone. Presence and snapshot discovery
+both occur only after the descriptor is held. `fs::read` selects shared mode;
+it stores both tree outputs in `ReadGuard`, but releases the descriptor before
+returning `Reading::Vacant` because a read-only caller has no operation to
+perform on an absent tree.
 
-<!-- fragment «filesystem-read-acquire-and-guard» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="106-131" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-acquire-and-guard» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="156-202" parent="source-filesystem-module" -->
 ````rust
-fn acquire<N: EntryName>(root: &Path, mode: lock::Mode) -> Result<(File, Snapshot<N>), Error<N>> {
+/// What an opening found, before it is dressed as a [`Reading`] or a
+/// [`Writing`].
+///
+/// One function answers both modes because the sequence is the same either way
+/// and it is the sequence that matters: find the directory to lock, lock it,
+/// *then* look at the root. Only the third step can see a vacancy, and it sees
+/// it under the lock.
+enum Opened<N> {
+    Tree(File, Snapshot<N>),
+    Vacant(File),
+}
+
+fn acquire<N: EntryName>(root: &Path, mode: lock::Mode) -> Result<Opened<N>, Error<N>> {
     let directory = read::containing_directory::<N>(root)?;
     let guard = lock::take(&directory, mode).map_err(|source| Error::Io {
         path: directory.clone(),
         doing: "locking the directory containing the tree",
         source,
     })?;
-    // Under the lock, and only under it: a snapshot read outside one could be
-    // stale before the caller saw it.
-    let snapshot = read::snapshot(root)?;
-    Ok((guard, snapshot))
+    // Under the lock, and only under it. For a tree that is a snapshot which
+    // could otherwise be stale before the caller saw it; for a vacancy it is the
+    // absence itself, which could otherwise be false before the caller acted on
+    // it.
+    match read::presence::<N>(root)? {
+        read::Presence::Vacant => Ok(Opened::Vacant(guard)),
+        read::Presence::NotATree(found) => Err(Error::RootIsNotATree {
+            root: root.to_path_buf(),
+            found,
+        }),
+        read::Presence::Tree => Ok(Opened::Tree(guard, read::snapshot(root)?)),
+    }
 }
+
+/// What [`read`] found: the tree, or no tree.
+///
+/// Two variants and no third — something at the root that is not a tree is an
+/// [`Error::RootIsNotATree`] rather than a variant here, because it is not an
+/// answer a reader can do anything with and the library will not clear it away.
+#[must_use]
+pub enum Reading<N> {
+    /// A tree, read under a shared lock this guard holds.
+    Tree(ReadGuard<N>),
+    /// No tree. Nothing is held: a reader of an absent tree has nothing to
+    /// exclude.
+    Vacant,
+}
+
+````
+<!-- /fragment -->
+
+`acquire` takes the descriptor before classifying presence. A tree is then
+snapshotted under that same lock, a vacancy becomes a typed opening result, and
+a non-directory becomes `RootIsNotATree` without being moved or replaced.
+
+<!-- fragment «filesystem-reading-api» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="216-248" parent="source-filesystem-module" -->
+````rust
+impl<N> Reading<N> {
+    /// Whether a tree was there.
+    #[must_use]
+    pub const fn is_tree(&self) -> bool {
+        matches!(self, Self::Tree(_))
+    }
+
+    /// Whether nothing was there.
+    #[must_use]
+    pub const fn is_vacant(&self) -> bool {
+        matches!(self, Self::Vacant)
+    }
+
+    /// The guard, panicking with `message` when the tree was not there.
+    ///
+    /// For a caller that has already established the tree exists — a test over
+    /// a tree it built itself, most of all. [`Sought::expect`] is the same
+    /// affordance for the same reason, and there is no `unwrap` beside either:
+    /// an unwrap has no room to say what it was relying on.
+    ///
+    /// # Panics
+    ///
+    /// When there was no tree.
+    ///
+    /// [`Sought::expect`]: crate::Sought::expect
+    #[must_use]
+    pub fn expect_tree(self, message: &str) -> ReadGuard<N> {
+        match self {
+            Self::Tree(guard) => guard,
+            Self::Vacant => panic!("{message}"),
+        }
+    }
+}
+````
+<!-- /fragment -->
+
+`ReadGuard` is the tree branch's storage: the open descriptor owns the shared
+lock, the root preserves the caller's spelling, and the snapshot supplies every
+borrowed read view.
+
+<!-- fragment «filesystem-read-guard» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="291-304" parent="source-filesystem-module" -->
+````rust
 
 /// A tree read under a shared lock.
 ///
@@ -1235,8 +1366,7 @@ pub struct ReadGuard<N> {
 ````
 <!-- /fragment -->
 
-`acquire` takes the descriptor before calling `read::snapshot`. The descriptor
-and snapshot are returned together, and `ReadGuard` stores both. `_guard` is
+The descriptor and snapshot are returned together, and `ReadGuard` stores both. `_guard` is
 never read: the open descriptor is the lock token, and dropping the guard
 closes it. The caller's root spelling is copied separately rather than
 canonicalized.
@@ -1246,7 +1376,7 @@ guard into the caller-spelled root or the exact immutable snapshot captured
 under its lock, without copying either, so every returned snapshot borrow stays
 bounded by the guard. The worked walk starts from that `snapshot` result.
 
-<!-- fragment «filesystem-read-guard-api» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="155-168" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-guard-api» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="521-534" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> ReadGuard<N> {
     /// The tree root, in the caller's own spelling.
@@ -1270,7 +1400,7 @@ The `Deref` implementation owns the ergonomic forwarding step. It turns
 so direct calls cannot bypass the captured names or their borrow lifetime. This
 is why the example can spell its public query as `guard.walk()`.
 
-<!-- fragment «filesystem-read-deref» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="379-386" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-deref» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="813-820" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> core::ops::Deref for ReadGuard<N> {
     type Target = Snapshot<N>;

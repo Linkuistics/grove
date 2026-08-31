@@ -12,7 +12,7 @@
 | `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,439 |
 | `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 103 |
 | `source-conformance` | `crates/ordinal-fs-tree/src/conformance.rs` | 667 |
-| `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 342 |
+| `source-error` | `crates/ordinal-fs-tree/src/error.rs` | 510 |
 | `source-name` | `crates/ordinal-fs-tree/src/name.rs` | 717 |
 | `source-operations` | `crates/ordinal-fs-tree/src/ops.rs` | 634 |
 | `source-plan` | `crates/ordinal-fs-tree/src/plan.rs` | 597 |
@@ -20,9 +20,10 @@
 | `source-report` | `crates/ordinal-fs-tree/src/report.rs` | 186 |
 | `source-snapshot` | `crates/ordinal-fs-tree/src/snapshot.rs` | 677 |
 | `source-sought` | `crates/ordinal-fs-tree/src/sought.rs` | 132 |
-| `source-filesystem-module` | `crates/ordinal-fs-tree/src/fs/mod.rs` | 393 |
+| `source-filesystem-module` | `crates/ordinal-fs-tree/src/fs/mod.rs` | 827 |
 | `source-filesystem-read` | `crates/ordinal-fs-tree/src/fs/read.rs` | 407 |
-| `source-filesystem-apply` | `crates/ordinal-fs-tree/src/fs/apply.rs` | 471 |
+| `source-filesystem-apply` | `crates/ordinal-fs-tree/src/fs/apply.rs` | 488 |
+| `source-filesystem-remove` | `crates/ordinal-fs-tree/src/fs/remove.rs` | 275 |
 | `source-filesystem-lock` | `crates/ordinal-fs-tree/src/fs/lock.rs` | 91 |
 
 <!-- source-root «source-crate-manifest» source="crates/ordinal-fs-tree/Cargo.toml" lines="1-112" -->
@@ -41,7 +42,7 @@
 <!-- source-root «source-conformance» source="crates/ordinal-fs-tree/src/conformance.rs" lines="1-667" -->
 <!-- insert «reference-conformance-source» -->
 <!-- /source-root -->
-<!-- source-root «source-error» source="crates/ordinal-fs-tree/src/error.rs" lines="1-342" -->
+<!-- source-root «source-error» source="crates/ordinal-fs-tree/src/error.rs" lines="1-510" -->
 <!-- insert «filesystem-error-source» -->
 <!-- /source-root -->
 <!-- source-root «source-name» source="crates/ordinal-fs-tree/src/name.rs" lines="1-717" -->
@@ -65,11 +66,16 @@
 <!-- source-root «source-sought» source="crates/ordinal-fs-tree/src/sought.rs" lines="1-132" -->
 <!-- insert «sought-object-answer» -->
 <!-- /source-root -->
-<!-- source-root «source-filesystem-module» source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="1-393" -->
+<!-- source-root «source-filesystem-module» source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="1-827" -->
 <!-- insert «filesystem-read-opening» -->
 <!-- insert «filesystem-write-acquire» -->
 <!-- insert «filesystem-read-acquire-and-guard» -->
+<!-- insert «filesystem-writing-shape» -->
+<!-- insert «filesystem-reading-api» -->
+<!-- insert «filesystem-writing-api» -->
+<!-- insert «filesystem-read-guard» -->
 <!-- insert «filesystem-write-guard» -->
+<!-- insert «filesystem-vacancy-api» -->
 <!-- insert «filesystem-read-guard-api» -->
 <!-- insert «filesystem-write-guard-api» -->
 <!-- insert «filesystem-read-deref» -->
@@ -78,8 +84,11 @@
 <!-- source-root «source-filesystem-read» source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-407" -->
 <!-- insert «read-filesystem-source» -->
 <!-- /source-root -->
-<!-- source-root «source-filesystem-apply» source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="1-471" -->
+<!-- source-root «source-filesystem-apply» source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="1-488" -->
 <!-- insert «filesystem-interpreter-source» -->
+<!-- /source-root -->
+<!-- source-root «source-filesystem-remove» source="crates/ordinal-fs-tree/src/fs/remove.rs" lines="1-275" -->
+<!-- insert «filesystem-removal-source» -->
 <!-- /source-root -->
 <!-- source-root «source-filesystem-lock» source="crates/ordinal-fs-tree/src/fs/lock.rs" lines="1-91" -->
 <!-- insert «filesystem-lock-source» -->
@@ -98,7 +107,7 @@
 | `syllabus-cli-source` | `source-syllabus-cli` | `syllabus-cli-k17` | `1-1439` | 1,439 | `resolved` |
 | `library-crate-surface` | `source-library` | `orientation-k11` | `1-103` | 103 | `resolved` |
 | `reference-conformance-source` | `source-conformance` | `reference-domain-k13` | `1-667` | 667 | `resolved` |
-| `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-342` | 342 | `resolved` |
+| `filesystem-error-source` | `source-error` | `filesystem-interpreter-k16` | `1-510` | 510 | `resolved` |
 | `name-seam-source` | `source-name` | `name-seam-k12` | `1-717` | 717 | `resolved` |
 | `mutation-operations-source` | `source-operations` | `mutation-algebra-k15` | `1-634` | 634 | `resolved` |
 | `mutation-plan-source` | `source-plan` | `mutation-algebra-k15` | `1-597` | 597 | `resolved` |
@@ -106,16 +115,22 @@
 | `mutation-report-source` | `source-report` | `mutation-algebra-k15` | `1-186` | 186 | `resolved` |
 | `read-snapshot-source` | `source-snapshot` | `read-path-k14` | `1-677` | 677 | `resolved` |
 | `sought-object-answer` | `source-sought` | `name-seam-k12` | `1-132` | 132 | `resolved` |
-| `filesystem-read-opening` | `source-filesystem-module` | `read-path-k14` | `1-86` | 86 | `resolved` |
-| `filesystem-write-acquire` | `source-filesystem-module` | `filesystem-interpreter-k16` | `87-105` | 19 | `resolved` |
-| `filesystem-read-acquire-and-guard` | `source-filesystem-module` | `read-path-k14` | `106-131` | 26 | `resolved` |
-| `filesystem-write-guard` | `source-filesystem-module` | `filesystem-interpreter-k16` | `132-154` | 23 | `resolved` |
-| `filesystem-read-guard-api` | `source-filesystem-module` | `read-path-k14` | `155-168` | 14 | `resolved` |
-| `filesystem-write-guard-api` | `source-filesystem-module` | `filesystem-interpreter-k16` | `169-378` | 210 | `resolved` |
-| `filesystem-read-deref` | `source-filesystem-module` | `read-path-k14` | `379-386` | 8 | `resolved` |
-| `filesystem-write-deref` | `source-filesystem-module` | `filesystem-interpreter-k16` | `387-393` | 7 | `resolved` |
+| `filesystem-read-opening` | `source-filesystem-module` | `read-path-k14` | `1-128` | 128 | `resolved` |
+| `filesystem-write-acquire` | `source-filesystem-module` | `filesystem-interpreter-k16` | `129-155` | 27 | `resolved` |
+| `filesystem-read-acquire-and-guard` | `source-filesystem-module` | `read-path-k14` | `156-202` | 47 | `resolved` |
+| `filesystem-writing-shape` | `source-filesystem-module` | `filesystem-interpreter-k16` | `203-215` | 13 | `resolved` |
+| `filesystem-reading-api` | `source-filesystem-module` | `read-path-k14` | `216-248` | 33 | `resolved` |
+| `filesystem-writing-api` | `source-filesystem-module` | `filesystem-interpreter-k16` | `249-290` | 42 | `resolved` |
+| `filesystem-read-guard` | `source-filesystem-module` | `read-path-k14` | `291-304` | 14 | `resolved` |
+| `filesystem-write-guard` | `source-filesystem-module` | `filesystem-interpreter-k16` | `305-388` | 84 | `resolved` |
+| `filesystem-vacancy-api` | `source-filesystem-module` | `filesystem-interpreter-k16` | `389-520` | 132 | `resolved` |
+| `filesystem-read-guard-api` | `source-filesystem-module` | `read-path-k14` | `521-534` | 14 | `resolved` |
+| `filesystem-write-guard-api` | `source-filesystem-module` | `filesystem-interpreter-k16` | `535-812` | 278 | `resolved` |
+| `filesystem-read-deref` | `source-filesystem-module` | `read-path-k14` | `813-820` | 8 | `resolved` |
+| `filesystem-write-deref` | `source-filesystem-module` | `filesystem-interpreter-k16` | `821-827` | 7 | `resolved` |
 | `read-filesystem-source` | `source-filesystem-read` | `read-path-k14` | `1-407` | 407 | `resolved` |
-| `filesystem-interpreter-source` | `source-filesystem-apply` | `filesystem-interpreter-k16` | `1-471` | 471 | `resolved` |
+| `filesystem-interpreter-source` | `source-filesystem-apply` | `filesystem-interpreter-k16` | `1-488` | 488 | `resolved` |
+| `filesystem-removal-source` | `source-filesystem-remove` | `filesystem-interpreter-k16` | `1-275` | 275 | `resolved` |
 | `filesystem-lock-source` | `source-filesystem-lock` | `filesystem-interpreter-k16` | `1-91` | 91 | `resolved` |
 
 <a id="fragment-index"></a>
@@ -148,13 +163,13 @@
 | `conformance-compose-and-canonical` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `314-473` | `reference-conformance-source` | `—` |
 | `conformance-component-and-distinguished` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `474-572` | `reference-conformance-source` | `—` |
 | `conformance-found-agreement` | `reference-domain` | `source-conformance` | `literal` | `reference-domain-k13` | `573-667` | `reference-conformance-source` | `—` |
-| `source-error` | `source-index` | `source-error` | `root` | `—` | `1-342` | `—` | `filesystem-error-source` |
+| `source-error` | `source-index` | `source-error` | `root` | `—` | `1-510` | `—` | `filesystem-error-source` |
 | `error-boundary` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `1-23` | `filesystem-error-source` | `—` |
-| `filesystem-error-source` | `filesystem-interpreter` | `source-error` | `composite` | `filesystem-interpreter-k16` | `1-342` | `source-error` | `error-boundary`, `error-taxonomy`, `error-debug`, `error-display`, `error-sources` |
-| `error-taxonomy` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `24-163` | `filesystem-error-source` | `—` |
-| `error-debug` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `164-238` | `filesystem-error-source` | `—` |
-| `error-display` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `239-322` | `filesystem-error-source` | `—` |
-| `error-sources` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `323-342` | `filesystem-error-source` | `—` |
+| `filesystem-error-source` | `filesystem-interpreter` | `source-error` | `composite` | `filesystem-interpreter-k16` | `1-510` | `source-error` | `error-boundary`, `error-taxonomy`, `error-debug`, `error-display`, `error-sources` |
+| `error-taxonomy` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `24-259` | `filesystem-error-source` | `—` |
+| `error-debug` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `260-354` | `filesystem-error-source` | `—` |
+| `error-display` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `355-489` | `filesystem-error-source` | `—` |
+| `error-sources` | `filesystem-interpreter` | `source-error` | `literal` | `filesystem-interpreter-k16` | `490-510` | `filesystem-error-source` | `—` |
 | `source-name` | `source-index` | `source-name` | `root` | `—` | `1-717` | `—` | `name-seam-source` |
 | `name-identifiers` | `name-seam` | `source-name` | `literal` | `name-seam-k12` | `1-92` | `name-seam-source` | `—` |
 | `name-seam-source` | `name-seam` | `source-name` | `composite` | `name-seam-k12` | `1-717` | `source-name` | `name-identifiers`, `name-classification`, `name-representation`, `entry-name-trait`, `entry-name-derived-readings`, `name-component-check` |
@@ -198,36 +213,48 @@
 | `snapshot-queries` | `read-path` | `source-snapshot` | `literal` | `read-path-k14` | `541-677` | `read-snapshot-source` | `—` |
 | `source-sought` | `source-index` | `source-sought` | `root` | `—` | `1-132` | `—` | `sought-object-answer` |
 | `sought-object-answer` | `name-seam` | `source-sought` | `literal` | `name-seam-k12` | `1-132` | `source-sought` | `—` |
-| `source-filesystem-module` | `source-index` | `source-filesystem-module` | `root` | `—` | `1-393` | `—` | `filesystem-read-opening`, `filesystem-write-acquire`, `filesystem-read-acquire-and-guard`, `filesystem-write-guard`, `filesystem-read-guard-api`, `filesystem-write-guard-api`, `filesystem-read-deref`, `filesystem-write-deref` |
-| `filesystem-read-opening` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `1-86` | `source-filesystem-module` | `—` |
-| `filesystem-write-acquire` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `87-105` | `source-filesystem-module` | `—` |
-| `filesystem-read-acquire-and-guard` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `106-131` | `source-filesystem-module` | `—` |
-| `filesystem-write-guard` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `132-154` | `source-filesystem-module` | `—` |
-| `filesystem-read-guard-api` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `155-168` | `source-filesystem-module` | `—` |
-| `write-guard-accessors` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `169-181` | `filesystem-write-guard-api` | `—` |
-| `filesystem-write-guard-api` | `filesystem-interpreter` | `source-filesystem-module` | `composite` | `filesystem-interpreter-k16` | `169-378` | `source-filesystem-module` | `write-guard-accessors`, `write-guard-append`, `write-guard-insert`, `write-guard-promote`, `write-guard-rewrite`, `write-guard-dispatch` |
-| `write-guard-append` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `182-220` | `filesystem-write-guard-api` | `—` |
-| `write-guard-insert` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `221-255` | `filesystem-write-guard-api` | `—` |
-| `write-guard-promote` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `256-318` | `filesystem-write-guard-api` | `—` |
-| `write-guard-rewrite` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `319-364` | `filesystem-write-guard-api` | `—` |
-| `write-guard-dispatch` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `365-378` | `filesystem-write-guard-api` | `—` |
-| `filesystem-read-deref` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `379-386` | `source-filesystem-module` | `—` |
-| `filesystem-write-deref` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `387-393` | `source-filesystem-module` | `—` |
+| `source-filesystem-module` | `source-index` | `source-filesystem-module` | `root` | `—` | `1-827` | `—` | `filesystem-read-opening`, `filesystem-write-acquire`, `filesystem-read-acquire-and-guard`, `filesystem-writing-shape`, `filesystem-reading-api`, `filesystem-writing-api`, `filesystem-read-guard`, `filesystem-write-guard`, `filesystem-vacancy-api`, `filesystem-read-guard-api`, `filesystem-write-guard-api`, `filesystem-read-deref`, `filesystem-write-deref` |
+| `filesystem-read-opening` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `1-128` | `source-filesystem-module` | `—` |
+| `filesystem-write-acquire` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `129-155` | `source-filesystem-module` | `—` |
+| `filesystem-read-acquire-and-guard` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `156-202` | `source-filesystem-module` | `—` |
+| `filesystem-writing-shape` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `203-215` | `source-filesystem-module` | `—` |
+| `filesystem-reading-api` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `216-248` | `source-filesystem-module` | `—` |
+| `filesystem-writing-api` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `249-290` | `source-filesystem-module` | `—` |
+| `filesystem-read-guard` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `291-304` | `source-filesystem-module` | `—` |
+| `filesystem-write-guard` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `305-388` | `source-filesystem-module` | `—` |
+| `filesystem-vacancy-api` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `389-520` | `source-filesystem-module` | `—` |
+| `filesystem-read-guard-api` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `521-534` | `source-filesystem-module` | `—` |
+| `write-guard-accessors` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `535-547` | `filesystem-write-guard-api` | `—` |
+| `filesystem-write-guard-api` | `filesystem-interpreter` | `source-filesystem-module` | `composite` | `filesystem-interpreter-k16` | `535-812` | `source-filesystem-module` | `write-guard-accessors`, `write-guard-append`, `write-guard-insert`, `write-guard-promote`, `write-guard-rewrite`, `write-guard-delete`, `write-guard-dispatch` |
+| `write-guard-append` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `548-586` | `filesystem-write-guard-api` | `—` |
+| `write-guard-insert` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `587-621` | `filesystem-write-guard-api` | `—` |
+| `write-guard-promote` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `622-684` | `filesystem-write-guard-api` | `—` |
+| `write-guard-rewrite` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `685-730` | `filesystem-write-guard-api` | `—` |
+| `write-guard-delete` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `731-798` | `filesystem-write-guard-api` | `—` |
+| `write-guard-dispatch` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `799-812` | `filesystem-write-guard-api` | `—` |
+| `filesystem-read-deref` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `813-820` | `source-filesystem-module` | `—` |
+| `filesystem-write-deref` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `821-827` | `source-filesystem-module` | `—` |
 | `source-filesystem-read` | `source-index` | `source-filesystem-read` | `root` | `—` | `1-407` | `—` | `read-filesystem-source` |
 | `read-tree-discovery` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `1-81` | `read-filesystem-source` | `—` |
 | `read-filesystem-source` | `read-path` | `source-filesystem-read` | `composite` | `read-path-k14` | `1-407` | `source-filesystem-read` | `read-tree-discovery`, `read-directory-listing`, `read-lock-location` |
 | `read-directory-listing` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `82-155` | `read-filesystem-source` | `—` |
 | `read-lock-location` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `156-407` | `read-filesystem-source` | `—` |
-| `source-filesystem-apply` | `source-index` | `source-filesystem-apply` | `root` | `—` | `1-471` | `—` | `filesystem-interpreter-source` |
+| `source-filesystem-apply` | `source-index` | `source-filesystem-apply` | `root` | `—` | `1-488` | `—` | `filesystem-interpreter-source` |
 | `apply-contract` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `1-49` | `filesystem-interpreter-source` | `—` |
-| `filesystem-interpreter-source` | `filesystem-interpreter` | `source-filesystem-apply` | `composite` | `filesystem-interpreter-k16` | `1-471` | `source-filesystem-apply` | `apply-contract`, `apply-plan`, `apply-run-state`, `apply-effect-step`, `apply-unwind-and-paths`, `apply-undo`, `apply-destination-claim`, `apply-fault-seam` |
-| `apply-plan` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `50-87` | `filesystem-interpreter-source` | `—` |
-| `apply-run-state` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `88-105` | `filesystem-interpreter-source` | `—` |
-| `apply-effect-step` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `106-211` | `filesystem-interpreter-source` | `—` |
-| `apply-unwind-and-paths` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `212-270` | `filesystem-interpreter-source` | `—` |
-| `apply-undo` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `271-330` | `filesystem-interpreter-source` | `—` |
-| `apply-destination-claim` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `331-371` | `filesystem-interpreter-source` | `—` |
-| `apply-fault-seam` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `372-471` | `filesystem-interpreter-source` | `—` |
+| `filesystem-interpreter-source` | `filesystem-interpreter` | `source-filesystem-apply` | `composite` | `filesystem-interpreter-k16` | `1-488` | `source-filesystem-apply` | `apply-contract`, `apply-plan`, `apply-run-state`, `apply-effect-step`, `apply-unwind-and-paths`, `apply-undo`, `apply-destination-claim`, `apply-fault-seam` |
+| `apply-plan` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `50-105` | `filesystem-interpreter-source` | `—` |
+| `apply-run-state` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `106-123` | `filesystem-interpreter-source` | `—` |
+| `apply-effect-step` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `124-228` | `filesystem-interpreter-source` | `—` |
+| `apply-unwind-and-paths` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `229-288` | `filesystem-interpreter-source` | `—` |
+| `apply-undo` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `289-348` | `filesystem-interpreter-source` | `—` |
+| `apply-destination-claim` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `349-382` | `filesystem-interpreter-source` | `—` |
+| `apply-fault-seam` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `383-488` | `filesystem-interpreter-source` | `—` |
+| `source-filesystem-remove` | `source-index` | `source-filesystem-remove` | `root` | `—` | `1-275` | `—` | `filesystem-removal-source` |
+| `remove-contract` | `filesystem-interpreter` | `source-filesystem-remove` | `literal` | `filesystem-interpreter-k16` | `1-64` | `filesystem-removal-source` | `—` |
+| `filesystem-removal-source` | `filesystem-interpreter` | `source-filesystem-remove` | `composite` | `filesystem-interpreter-k16` | `1-275` | `source-filesystem-remove` | `remove-contract`, `remove-tree`, `remove-spelling-guard`, `remove-worklist-and-failure` |
+| `remove-tree` | `filesystem-interpreter` | `source-filesystem-remove` | `literal` | `filesystem-interpreter-k16` | `65-106` | `filesystem-removal-source` | `—` |
+| `remove-spelling-guard` | `filesystem-interpreter` | `source-filesystem-remove` | `literal` | `filesystem-interpreter-k16` | `107-188` | `filesystem-removal-source` | `—` |
+| `remove-worklist-and-failure` | `filesystem-interpreter` | `source-filesystem-remove` | `literal` | `filesystem-interpreter-k16` | `189-275` | `filesystem-removal-source` | `—` |
 | `source-filesystem-lock` | `source-index` | `source-filesystem-lock` | `root` | `—` | `1-91` | `—` | `filesystem-lock-source` |
 | `lock-contract` | `filesystem-interpreter` | `source-filesystem-lock` | `literal` | `filesystem-interpreter-k16` | `1-40` | `filesystem-lock-source` | `—` |
 | `filesystem-lock-source` | `filesystem-interpreter` | `source-filesystem-lock` | `composite` | `filesystem-interpreter-k16` | `1-91` | `source-filesystem-lock` | `lock-contract`, `lock-modes`, `lock-take` |

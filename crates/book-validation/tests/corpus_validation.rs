@@ -3,7 +3,7 @@ mod support;
 use book_validation::{validate, Check, Request, Scope, ScopedSlice};
 
 #[test]
-fn the_frozen_sixteen_file_corpus_expands_byte_for_byte() {
+fn the_frozen_seventeen_file_corpus_expands_byte_for_byte() {
     let report = validate(
         &support::corpus(true),
         Request {
@@ -12,8 +12,8 @@ fn the_frozen_sixteen_file_corpus_expands_byte_for_byte() {
         },
     );
 
-    assert_eq!(report.coverage.files, 16);
-    assert_eq!(report.coverage.resolved_lines, 7_527);
+    assert_eq!(report.coverage.files, 17);
+    assert_eq!(report.coverage.resolved_lines, 8_421);
     assert_eq!(report.coverage.deferred_lines, 0);
     assert!(report.valid, "{:#?}", report.diagnostics);
 }
@@ -53,6 +53,35 @@ fn the_refreshed_name_and_reference_slice_matches_the_fixed_inventory() {
     );
 
     let refreshed_roots = ["source-name", "source-sought", "source-reference"];
+    assert!(
+        report.diagnostics.iter().all(|diagnostic| {
+            diagnostic.code != "F006"
+                || diagnostic
+                    .root_id
+                    .as_deref()
+                    .is_none_or(|root| !refreshed_roots.contains(&root))
+        }),
+        "{:#?}",
+        report.diagnostics
+    );
+}
+
+#[test]
+fn the_refreshed_filesystem_lifecycle_matches_the_fixed_inventory() {
+    let report = validate(
+        &support::corpus(true),
+        Request {
+            scope: Scope::Final,
+            check: Check::Fragments,
+        },
+    );
+
+    let refreshed_roots = [
+        "source-error",
+        "source-filesystem-module",
+        "source-filesystem-apply",
+        "source-filesystem-remove",
+    ];
     assert!(
         report.diagnostics.iter().all(|diagnostic| {
             diagnostic.code != "F006"
@@ -127,9 +156,9 @@ fn orientation_scope_reports_resolved_and_deferred_bytes_separately() {
     assert_eq!(
         report.coverage,
         book_validation::Coverage {
-            files: 16,
+            files: 17,
             resolved_lines: 208,
-            deferred_lines: 6_910,
+            deferred_lines: 8_213,
             final_: false,
         }
     );

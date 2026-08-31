@@ -2,14 +2,13 @@
 <!-- book-page id="filesystem-interpreter" slice="filesystem-interpreter-k16" order="6" -->
 [Previous: Mutation algebra](05-mutation-algebra.md) | [Contents](README.md) | [Next: Syllabus CLI](07-syllabus-cli.md)
 
-The pure algebra produces an ordered `Plan`; the filesystem layer interprets
-that value while holding the exclusive lock captured with its source
-`Snapshot`. Every public mutation follows the same path: a consuming
-`WriteGuard` asks the algebra for a `Decision`, converts a refusal into
-`Error::Refused`, or sends the plan through one interpreter. The interpreter
-validates every rendered destination, applies effects in order, records a
-`Report`, and unwinds landed effects in reverse after a reported forward
-failure.
+The filesystem layer owns both halves of a tree's lifetime. A `Vacancy`
+initializes an absent root while retaining the exclusive lock that established
+its absence. A live `WriteGuard` either sends an algebraic `Plan` through the
+shared interpreter or deletes the whole root through the removal walk. Planned
+mutations validate rendered destinations, apply effects in order, record a
+`Report`, and unwind landed effects in reverse after a reported forward
+failure. Deletion reports removed paths and has no rollback.
 
 The guarantee is bounded. A completed unwind undoes every effect this run
 landed; when no process writes outside the locking protocol, that restores the
@@ -19,7 +18,7 @@ there is no journal or restart recovery. The advisory lock hides those
 intermediate states only from processes that use this library's locking
 protocol.
 
-<!-- fragment «filesystem-error-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="1-342" parent="source-error" -->
+<!-- fragment «filesystem-error-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="1-510" parent="source-error" -->
 <!-- insert «error-boundary» -->
 <!-- insert «error-taxonomy» -->
 <!-- insert «error-debug» -->
@@ -27,16 +26,17 @@ protocol.
 <!-- insert «error-sources» -->
 <!-- /fragment -->
 
-<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="169-378" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="535-812" parent="source-filesystem-module" -->
 <!-- insert «write-guard-accessors» -->
 <!-- insert «write-guard-append» -->
 <!-- insert «write-guard-insert» -->
 <!-- insert «write-guard-promote» -->
 <!-- insert «write-guard-rewrite» -->
+<!-- insert «write-guard-delete» -->
 <!-- insert «write-guard-dispatch» -->
 <!-- /fragment -->
 
-<!-- fragment «filesystem-interpreter-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="1-471" parent="source-filesystem-apply" -->
+<!-- fragment «filesystem-interpreter-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="1-488" parent="source-filesystem-apply" -->
 <!-- insert «apply-contract» -->
 <!-- insert «apply-plan» -->
 <!-- insert «apply-run-state» -->
@@ -45,6 +45,13 @@ protocol.
 <!-- insert «apply-undo» -->
 <!-- insert «apply-destination-claim» -->
 <!-- insert «apply-fault-seam» -->
+<!-- /fragment -->
+
+<!-- fragment «filesystem-removal-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/remove.rs" lines="1-275" parent="source-filesystem-remove" -->
+<!-- insert «remove-contract» -->
+<!-- insert «remove-tree» -->
+<!-- insert «remove-spelling-guard» -->
+<!-- insert «remove-worklist-and-failure» -->
 <!-- /fragment -->
 
 <!-- fragment «filesystem-lock-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/lock.rs" lines="1-91" parent="source-filesystem-lock" -->
@@ -72,28 +79,38 @@ but a process that edits the directory without taking this lock remains able to
 race the operation.
 
 The write constructor and shared acquisition function establish the timing.
-The snapshot and lock descriptor enter `WriteGuard` together; no consumer can
-receive a snapshot taken before the exclusive lock.
+For a live tree, the snapshot and lock descriptor enter `WriteGuard` together;
+no consumer can receive a snapshot taken before the exclusive lock. For an
+absent root, the descriptor enters `Vacancy` without a snapshot, retaining the
+same lock across the decision to initialize.
 
-<!-- fragment «filesystem-write-acquire» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="87-105" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-acquire» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="129-155" parent="source-filesystem-module" -->
 ````rust
+
 /// Read a tree under an **exclusive** lock: nothing else holds it while this
 /// guard lives.
 ///
-/// This is the lock every mutation runs under. It reads the tree exactly as
-/// [`read`] does, because a mutation is a snapshot, a decision and a plan before
-/// it is an effect.
+/// This is the lock every mutation runs under, and the lock a
+/// [`Vacancy`] holds while it is deciding whether to create the tree. It reads
+/// the tree exactly as [`read`] does, because a mutation is a snapshot, a
+/// decision and a plan before it is an effect.
 ///
 /// # Errors
 ///
 /// The same as [`read`].
-pub fn write<N: EntryName>(root: &Path) -> Result<WriteGuard<N>, Error<N>> {
-    let (guard, snapshot) = acquire(root, lock::Mode::Exclusive)?;
-    Ok(WriteGuard {
-        _guard: guard,
-        root: root.to_path_buf(),
-        snapshot,
-    })
+pub fn write<N: EntryName>(root: &Path) -> Result<Writing<N>, Error<N>> {
+    match acquire(root, lock::Mode::Exclusive)? {
+        Opened::Tree(guard, snapshot) => Ok(Writing::Tree(WriteGuard {
+            _guard: guard,
+            root: root.to_path_buf(),
+            snapshot,
+        })),
+        Opened::Vacant(guard) => Ok(Writing::Vacancy(Vacancy {
+            _guard: guard,
+            root: root.to_path_buf(),
+            name: PhantomData,
+        })),
+    }
 }
 
 ````
@@ -247,7 +264,7 @@ keys. Consuming the guard makes one acquisition correspond to one decision and
 one interpreter run. `append_many` is the supported way to place several
 entries under one snapshot and one rollback boundary.
 
-<!-- fragment «filesystem-write-guard» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="132-154" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-guard» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="305-388" parent="source-filesystem-module" -->
 ````rust
 /// A tree read under an exclusive lock, and the surface every mutation is on.
 ///
@@ -272,6 +289,67 @@ pub struct WriteGuard<N> {
     snapshot: Snapshot<N>,
 }
 
+/// The exclusive lock on a tree root that holds no tree, and the one operation
+/// valid for it.
+///
+/// A guard, exactly as [`WriteGuard`] is one, and for the same reason: it holds
+/// the lock for as long as it lives, so nothing can create the tree between
+/// [`write`] answering *there is none* and [`initialize`](Vacancy::initialize)
+/// making one. There is no snapshot, because there are no names to read.
+///
+/// # The ill-formed calls are the ones that do not exist
+///
+/// This type has `initialize` and no mutations; [`WriteGuard`] has the mutations
+/// and no `initialize`. So *initialize over a live tree* and *append to a tree
+/// that is not there* are not refusals this library states — they are programs
+/// that do not compile:
+///
+/// ```compile_fail
+/// # use std::path::Path;
+/// # use ordinal_fs_tree::fs::Writing;
+/// # use ordinal_fs_tree::reference::SyllabusName;
+/// let Writing::Tree(tree) = ordinal_fs_tree::fs::write::<SyllabusName>(Path::new("s"))?
+/// else { unreachable!() };
+/// // `initialize` is on `Vacancy`, and a live tree is not one.
+/// tree.initialize(None, Vec::new())?;
+/// # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
+/// ```
+///
+/// ```compile_fail
+/// # use std::path::Path;
+/// # use ordinal_fs_tree::fs::Writing;
+/// # use ordinal_fs_tree::reference::SyllabusName;
+/// # use ordinal_fs_tree::{NewEntry, Target};
+/// let Writing::Vacancy(vacancy) = ordinal_fs_tree::fs::write::<SyllabusName>(Path::new("s"))?
+/// else { unreachable!() };
+/// // `append` is on `WriteGuard`, and a vacancy is not one.
+/// vacancy.append(Target::Root, NewEntry::empty(todo!()))?;
+/// # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
+/// ```
+///
+/// ```compile_fail
+/// # use std::path::Path;
+/// # use ordinal_fs_tree::fs::Writing;
+/// # use ordinal_fs_tree::reference::SyllabusName;
+/// let Writing::Vacancy(vacancy) = ordinal_fs_tree::fs::write::<SyllabusName>(Path::new("s"))?
+/// else { unreachable!() };
+/// // `delete` is on `WriteGuard` too. Deleting a tree that is not there is not
+/// // a refusal this library states — there is nothing to delete and nothing to
+/// // report having deleted, so the call does not exist.
+/// vacancy.delete()?;
+/// # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
+/// ```
+pub struct Vacancy<N> {
+    _guard: File,
+    root: PathBuf,
+    /// The domain this vacancy will be initialized in, which nothing on disk
+    /// carries yet: a vacancy holds no names, so `N` appears in no field.
+    ///
+    /// `fn() -> N` rather than `N`, so that the marker imposes none of `N`'s
+    /// variance, auto-traits or drop behaviour on a type that only ever
+    /// *produces* names.
+    name: PhantomData<fn() -> N>,
+}
 ````
 <!-- /fragment -->
 
@@ -280,7 +358,7 @@ fragment turns shared borrows of the guard into references to those unchanged
 inputs, preserving the invariant that the worked insert plans from the snapshot
 taken after its exclusive lock was acquired.
 
-<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="169-181" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="535-547" parent="filesystem-write-guard-api" -->
 ````rust
 impl<N: EntryName> WriteGuard<N> {
     /// The tree root, in the caller's own spelling.
@@ -298,10 +376,237 @@ impl<N: EntryName> WriteGuard<N> {
 ````
 <!-- /fragment -->
 
-The write guard also dereferences to the snapshot. This is read-only access;
-the only methods that alter the tree consume the guard.
+<a id="opening-lifecycle"></a>
+## Opening and initialization lifecycle
 
-<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="387-393" parent="source-filesystem-module" -->
+`Reading` and `Writing` make presence part of the opening result. A reader gets
+either a shared `ReadGuard` or an unguarded `Reading::Vacant`. A writer gets
+either an exclusive `WriteGuard` or a `Vacancy` that still owns the exclusive
+descriptor. `expect_tree` and `expect_vacancy` are explicit assertion helpers;
+the ordinary control flow is exhaustive matching on these shapes.
+
+<!-- fragment «filesystem-writing-shape» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="203-215" parent="source-filesystem-module" -->
+````rust
+/// What [`write`] found: the tree, or a vacancy that can become one.
+///
+/// The write-side twin of [`Reading`], and the difference between them is the
+/// whole point of this shape. [`Writing::Vacancy`] **holds the exclusive lock**,
+/// so there is no window between learning that a tree is absent and creating it.
+#[must_use]
+pub enum Writing<N> {
+    /// A tree, read under an exclusive lock this guard holds.
+    Tree(WriteGuard<N>),
+    /// No tree, and the exclusive lock under which one may be created.
+    Vacancy(Vacancy<N>),
+}
+
+````
+<!-- /fragment -->
+
+`Writing` retains whichever exclusive capability the opening established: a
+live-tree guard or the vacancy that may create the root.
+
+<!-- fragment «filesystem-writing-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="249-290" parent="source-filesystem-module" -->
+````rust
+
+impl<N> Writing<N> {
+    /// Whether a tree was there.
+    #[must_use]
+    pub const fn is_tree(&self) -> bool {
+        matches!(self, Self::Tree(_))
+    }
+
+    /// Whether nothing was there.
+    #[must_use]
+    pub const fn is_vacant(&self) -> bool {
+        matches!(self, Self::Vacancy(_))
+    }
+
+    /// The guard, panicking with `message` when the tree was not there.
+    ///
+    /// See [`Reading::expect_tree`].
+    ///
+    /// # Panics
+    ///
+    /// When there was no tree.
+    #[must_use]
+    pub fn expect_tree(self, message: &str) -> WriteGuard<N> {
+        match self {
+            Self::Tree(guard) => guard,
+            Self::Vacancy(_) => panic!("{message}"),
+        }
+    }
+
+    /// The vacancy, panicking with `message` when a tree was there.
+    ///
+    /// # Panics
+    ///
+    /// When a tree was there.
+    #[must_use]
+    pub fn expect_vacancy(self, message: &str) -> Vacancy<N> {
+        match self {
+            Self::Vacancy(vacancy) => vacancy,
+            Self::Tree(_) => panic!("{message}"),
+        }
+    }
+}
+````
+<!-- /fragment -->
+
+The vacancy API consumes that exclusive capability exactly once. Its plan uses
+the ordinary initialization algebra, while its filesystem wrapper owns the
+extra root create and root unwind that no named effect can represent.
+
+<!-- fragment «filesystem-vacancy-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="389-520" parent="source-filesystem-module" -->
+````rust
+
+impl<N: EntryName> Vacancy<N> {
+    /// The tree root that is not there, in the caller's own spelling.
+    #[must_use]
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    /// **`initialize`**: create the tree — the root directory, its distinguished
+    /// child, and a first run of entries — under the lock this vacancy already
+    /// holds.
+    ///
+    /// `distinguished` is the bytes of the root's own distinguished child, or
+    /// `None` for a root without one; the two are different trees, so the
+    /// choice is the caller's. `entries` are placed at the root level by exactly
+    /// the rule [`append_many`](WriteGuard::append_many) uses, which over an
+    /// empty tree means [`Ordinal::FIRST`] onward with keys from 1.
+    ///
+    /// # Why the bytes and not a [`NewEntry`]
+    ///
+    /// [`NewEntry`] describes a *positioned* entry — parts, from which an
+    /// ordinal and a key are composed — and the distinguished child is the one
+    /// entry that cannot be described that way: it carries no parts, and its
+    /// name is [`EntryName::distinguished`]. The library already writes one like
+    /// this when a promotion moves a leaf's bytes into a new node, so the seam
+    /// stays exactly one trait and gains no method
+    /// (`docs/adr/entry-name-is-the-only-seam.md`).
+    ///
+    /// Without it, the consumer would write the root's own content itself —
+    /// outside the lock and outside the store — at the first operation of every
+    /// fresh tree.
+    ///
+    /// # The root itself is not in the report
+    ///
+    /// It has no name: the root is a level, not an entry, so there is no
+    /// [`Created`](crate::Created) row that could describe it.
+    /// [`Report::created`](crate::Report::created) holds every *named* thing this
+    /// call placed, distinguished child first.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Refused`] when bytes were supplied for a distinguished child in
+    /// a domain that has none — [`Refusal::NoDistinguishedChild`], the same
+    /// refusal a promotion gives for the same reason — or when bytes were
+    /// supplied for an entry whose parts make a node; [`Error::Failed`] when the
+    /// filesystem refused, in which case **this call left nothing behind** —
+    /// not even the root, which it removes again;
+    /// [`Error::FailedPartiallyRolledBack`] when undoing that failed too.
+    ///
+    /// *Left nothing behind* is a claim about this call and not about the state
+    /// of the root, and the difference is observable: a writer that ignores the
+    /// advisory lock can create the root between the vacancy being handed out
+    /// and `create_dir`, which fails as [`Error::Failed`] with an
+    /// [`std::io::ErrorKind::AlreadyExists`] source. Nothing this call did
+    /// survives, and there is now a tree — which is the same distinction
+    /// `claim_vacant` draws for every other operation, and the same neighbour it
+    /// draws it against.
+    ///
+    /// [`Refusal::NoDistinguishedChild`]: crate::Refusal::NoDistinguishedChild
+    pub fn initialize(
+        self,
+        distinguished: Option<Vec<u8>>,
+        entries: Vec<NewEntry<N::Parts>>,
+    ) -> Result<Report<N>, Error<N>> {
+        // A vacancy holds no names, so the snapshot the plan is checked against
+        // is the empty one — and the arithmetic over it is the ordinary
+        // arithmetic rather than a first-entry special case.
+        let snapshot = Snapshot::empty();
+        let plan = match ops::initialize(&snapshot, distinguished, entries) {
+            Decision::Refuse(refusal) => return Err(Error::Refused(refusal)),
+            Decision::Proceed(plan) => plan,
+        };
+        // Both checks that can refuse a plan before it runs, run before the root
+        // is created: the algebra's, above, and the seventh obligation's, here.
+        // Otherwise a domain that renders a name badly would leave behind an
+        // empty root directory while reporting an error whose whole promise is
+        // that nothing changed.
+        apply::names_are_one_component(&self.root, &plan)?;
+        // The root is not an effect — it has no name for one to place — so this
+        // is the one create the interpreter does not do. It is still under the
+        // lock: the lock is on the directory *containing* the root, which is
+        // what makes a tree's creation coverable at all.
+        std::fs::create_dir(&self.root).map_err(|source| Error::Failed {
+            path: self.root.clone(),
+            doing: "creating the tree root",
+            source,
+        })?;
+        match apply::apply(&self.root, &snapshot, &plan, apply::Faults::none()) {
+            Ok(report) => Ok(report),
+            // Plan atomicity says the tree is as the *plan* found it, which here
+            // means a root directory holding nothing — so removing it is the
+            // last step of the same unwind, and `remove_dir` refusing a
+            // non-empty one is a check rather than an obstacle.
+            Err(Error::Failed {
+                path,
+                doing,
+                source,
+            }) => Err(match std::fs::remove_dir(&self.root) {
+                Ok(()) => Error::Failed {
+                    path,
+                    doing,
+                    source,
+                },
+                // The unwind's goal was that no root be left, and there is none.
+                // Reporting `FailedPartiallyRolledBack` — *the tree is in
+                // neither state* — for a removal that found its work already
+                // done would send a consumer looking for damage that is not
+                // there, and that variant's whole value is that it is rare and
+                // means what it says.
+                Err(unwind_source) if unwind_source.kind() == io::ErrorKind::NotFound => {
+                    Error::Failed {
+                        path,
+                        doing,
+                        source,
+                    }
+                }
+                Err(unwind_source) => Error::FailedPartiallyRolledBack {
+                    path,
+                    doing,
+                    source,
+                    unwinding: self.root.clone(),
+                    undoing: "removing the tree root this operation had created at",
+                    unwind_source,
+                },
+            }),
+            // The interpreter's own rollback already failed, so the root is not
+            // known to be empty and removing it is not this call's to attempt.
+            Err(error) => Err(error),
+        }
+    }
+}
+
+````
+<!-- /fragment -->
+
+`Vacancy::initialize` constructs its algebraic plan against `Snapshot::empty`
+and validates every rendered name before creating the root. The root itself is
+not a plan effect because it is a level rather than a named entry. If applying
+the initial contents fails and unwinds cleanly, initialization removes the
+empty root too. A failed root removal becomes
+`FailedPartiallyRolledBack`; a concurrent outsider that already removed it is
+treated as a completed unwind. The successful `Report` contains the optional
+distinguished child and positioned entries, but no row for the unnamed root.
+
+The write guard also dereferences to the snapshot. This is read-only access;
+the methods that alter the tree consume the guard.
+
+<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="821-827" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> core::ops::Deref for WriteGuard<N> {
     type Target = Snapshot<N>;
@@ -316,9 +621,9 @@ impl<N: EntryName> core::ops::Deref for WriteGuard<N> {
 <a id="mutation-dispatch"></a>
 ## Public mutation to interpreter
 
-The five public operations differ only in the algebra function they call and
-its inputs. Each computes a `Decision` from `self.snapshot`, then calls the
-private `run`. Before returning `Decision::Proceed`, the algebra passes its
+The five planned public operations differ only in the algebra function they
+call and its inputs. Each computes a `Decision` from `self.snapshot`, then calls
+the private `run`. Before returning `Decision::Proceed`, the algebra passes its
 constructed plan through `Plan::guarded`, which folds the effects through a
 simulated state in order and refuses any destination occupied by the snapshot
 or an earlier effect. A refusal crosses the filesystem boundary as
@@ -326,7 +631,8 @@ or an earlier effect. A refusal crosses the filesystem boundary as
 reaches `apply` while `self` still owns the exclusive lock. Dropping the
 consumed guard releases the lock after `run` returns. This sequential plan
 guard is distinct from `apply`'s later pre-effect check that every rendered name
-is one path component.
+is one path component. `delete` is the sixth live-tree mutation, but it does not
+enter this dispatch because it has no algebraic plan.
 
 `WriteGuard` owns the public append dispatch. This fragment turns a consumed
 guard, target, and one or many new entries into one algebraic `Decision` and
@@ -334,7 +640,7 @@ then one `Report` or `Error`; guard consumption keeps one captured snapshot
 behind one decision, while `append_many` supplies the page's multi-entry form
 under a single rollback boundary alongside the worked insert.
 
-<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="182-220" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="548-586" parent="filesystem-write-guard-api" -->
 ````rust
 
 impl<N: EntryName> WriteGuard<N> {
@@ -382,7 +688,7 @@ The worked insert from the previous page plans its two highest-first moves and
 one create from the captured snapshot, then applies that plan with production
 fault injection disabled.
 
-<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="221-255" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="587-621" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`insert`**: add a child at an occupied ordinal, shifting the occupant
     /// and every later sibling up by one.
@@ -425,7 +731,7 @@ fault injection disabled.
 Promotion documents the exceptional intermediate state at the public seam: the
 new node and old leaf coexist between its create and move effects.
 
-<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="256-318" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="622-684" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`promote`**: turn the leaf with this key into a node, moving its bytes
     /// verbatim into the new node's distinguished child.
@@ -497,7 +803,7 @@ Rewrite uses the same interpreter even when its source and destination path are
 equal. The interpreter treats that move as a successful no-op and still records
 the report entry.
 
-<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="319-364" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="685-730" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`rewrite`**: replace the parts of the entry with this key, keeping its
     /// ordinal, its key and its species.
@@ -508,7 +814,7 @@ the report entry.
     /// with it untouched.
     ///
     /// It is the general form of every *mark this entry* operation a consumer
-    /// might want, and with no removal operation
+    /// might want, and with no operation that removes an *entry*
     /// (`docs/adr/entries-are-never-removed.md`) it is also how a domain retires
     /// one: rewrite an attribute.
     ///
@@ -548,13 +854,90 @@ the report entry.
 ````
 <!-- /fragment -->
 
+Deletion is the lifecycle operation on a live guard. It bypasses the algebraic
+plan because it removes foreign entries as well as parsed names, but it remains
+under the guard's exclusive lock.
+
+<!-- fragment «write-guard-delete» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="731-798" parent="filesystem-write-guard-api" -->
+````rust
+    /// **`delete`**: remove the tree root and everything beneath it, following
+    /// no symbolic link, and report the paths that went.
+    ///
+    /// The one mutation that is not planned from the snapshot. A plan is a list
+    /// of effects over *names*, and a deletion acts on the root — so it acts on
+    /// everything that is there, including the entries the domain declined to
+    /// parse as its own, which are in no snapshot and have no name for a plan to
+    /// carry. [`Removed`] therefore reports **paths**, and reports the foreign
+    /// ones too: a report that left them out would undercount what was
+    /// destroyed.
+    ///
+    /// The root goes last and everything beneath it goes children-first, in each
+    /// level's sorted listing order. That order is for reproducibility and buys
+    /// no property — unlike the highest-first shift, whose order decides what an
+    /// interruption leaves. There is no order in which an interrupted deletion
+    /// leaves a shape this design admits.
+    ///
+    /// # Following no link is a security property
+    ///
+    /// Descent is decided by the same unfollowed look a snapshot is read
+    /// through, so a symbolic link — even one naming a directory, even one
+    /// naming a directory **outside** the root — is unlinked as a link and its
+    /// target is untouched. The bound on that is stated in this module's
+    /// `remove` submodule: the look and the descent are two syscalls, and the
+    /// writer who could exploit the gap between them is the writer who ignores
+    /// the advisory lock, which is already outside what this library defends
+    /// against.
+    ///
+    /// # The root's own spelling must name the root
+    ///
+    /// This is the one operation with a precondition on how the root was
+    /// *spelled*, and it is the only one that acts on the root as an **object**
+    /// rather than as the directory things are in. So a spelling whose last
+    /// component is a symbolic link is refused rather than followed — a link and
+    /// what it names are two things, and this library will not choose between
+    /// them — and so is one that descends into the tree and comes back out
+    /// through `..`, whose own components the removal would take away.
+    /// [`Error::RootIsNotSpelledDirectly`] carries which, and nothing is removed.
+    /// Every other operation accepts both spellings, deliberately.
+    ///
+    /// # This is not an escape from a tree the domain cannot read
+    ///
+    /// Deletion begins where every operation begins — at an opening — so a
+    /// [`Malformed`](Error::Malformed) or [`Reserved`](Error::Reserved) name
+    /// halts it before this method is reachable at all. That is deliberate: the
+    /// library will not destroy a tree it was refused permission to understand.
+    /// Whoever meets that halt has the domain's own recovery advice, and the
+    /// shell.
+    ///
+    /// # There is no rollback, and no recovery path
+    ///
+    /// An unlinked file is gone. A removal that could be undone would be one
+    /// that copied the tree aside first, and staging a rollback for a
+    /// destruction is exactly the machinery a version control system already
+    /// provides — the library's part is to be honest about what it did.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::RootIsNotSpelledDirectly`] before anything is removed, for the
+    /// two spellings above. [`Error::RemovalStopped`] once the removal has
+    /// begun: it carries the step that failed and the paths that had already
+    /// gone, and its message distinguishes a removal that got nowhere from one
+    /// that got partway. No refusal is reachable — the algebra is not consulted,
+    /// because there is nothing for it to decide.
+    pub fn delete(self) -> Result<Removed, Error<N>> {
+        remove::tree(&self.root)
+    }
+
+````
+<!-- /fragment -->
+
 The private `WriteGuard::run` dispatch owns the boundary between pure algebra
 and filesystem interpretation. This fragment turns `Decision::Refuse` into
 `Error::Refused` or applies a guarded plan to produce `Report` or an application
 `Error`, preserving total algebra without exposing a plan and carrying the
 worked insert into its ordered effect trace.
 
-<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="365-378" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="799-812" parent="filesystem-write-guard-api" -->
 ````rust
     /// Turn a decision into an outcome: refuse, or apply under the lock this
     /// guard holds.
@@ -664,7 +1047,7 @@ unwind. The preflight loop preserves the no-partial-application invariant for a
 bad rendered name, while the effect loop preserves plan order for the two moves
 and final create.
 
-<!-- fragment «apply-plan» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="50-87" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-plan» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="50-105" parent="filesystem-interpreter-source" -->
 ````rust
 /// Apply a plan under the exclusive lock, or leave the tree as it was found.
 pub(super) fn apply<N: EntryName>(
@@ -673,21 +1056,7 @@ pub(super) fn apply<N: EntryName>(
     plan: &Plan<N>,
     faults: Faults,
 ) -> Result<Report<N>, Error<N>> {
-    // The seventh obligation, at the second of the two boundaries where a name
-    // becomes a path — and **before any effect runs**, so a plan carrying one
-    // bad name changes nothing rather than landing what it can and unwinding.
-    // The snapshot's own names were checked when it was read, so between the two
-    // checks every rendering this function will join is one path component.
-    for effect in plan.effects() {
-        let rendered = effect.name().to_string();
-        if let Some(reason) = crate::name::not_one_component(&rendered) {
-            return Err(Error::NameIsNotOneComponent {
-                root: root.to_path_buf(),
-                rendered,
-                reason,
-            });
-        }
-    }
+    names_are_one_component(root, plan)?;
     let mut run = Run {
         root,
         snapshot,
@@ -704,6 +1073,38 @@ pub(super) fn apply<N: EntryName>(
     }
     Ok(run.report)
 }
+
+/// The seventh obligation, at the second of the two boundaries where a name
+/// becomes a path.
+///
+/// Run **before any effect does**, so a plan carrying one bad name changes
+/// nothing rather than landing what it can and unwinding. The snapshot's own
+/// names were checked when it was read, so between the two checks every
+/// rendering [`apply`] will join is one path component.
+///
+/// Separate from [`apply`] — which still calls it, and is the only path most
+/// operations take — because [`Vacancy::initialize`] creates the tree root
+/// before applying anything, and a plan refused after that would leave an empty
+/// root behind while reporting an error that promises nothing changed.
+///
+/// [`Vacancy::initialize`]: super::Vacancy::initialize
+pub(super) fn names_are_one_component<N: EntryName>(
+    root: &Path,
+    plan: &Plan<N>,
+) -> Result<(), Error<N>> {
+    for effect in plan.effects() {
+        let rendered = effect.name().to_string();
+        if let Some(reason) = crate::name::not_one_component(&rendered) {
+            return Err(Error::NameIsNotOneComponent {
+                root: root.to_path_buf(),
+                rendered,
+                reason,
+            });
+        }
+    }
+    Ok(())
+}
+
 ````
 <!-- /fragment -->
 
@@ -714,9 +1115,8 @@ steps. Those collections turn the plan and snapshot into forward progress that
 can be unwound in reverse without consulting a changed directory, which is the
 state needed for both the page's successful insert and its failure trace.
 
-<!-- fragment «apply-run-state» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="88-105" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-run-state» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="106-123" parent="filesystem-interpreter-source" -->
 ````rust
-
 /// One application of one plan.
 struct Run<'a, N> {
     root: &'a Path,
@@ -734,6 +1134,7 @@ struct Run<'a, N> {
     undo: Vec<Undo>,
     report: Report<N>,
 }
+
 ````
 <!-- /fragment -->
 
@@ -799,9 +1200,8 @@ A move whose current path equals its destination is the rewrite no-op. It
 claims nothing and registers no undo because no filesystem change occurred,
 but it updates the run's current-path table and the public report.
 
-<!-- fragment «apply-effect-step» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="106-211" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-effect-step» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="124-228" parent="filesystem-interpreter-source" -->
 ````rust
-
 impl<N: EntryName> Run<'_, N> {
     /// Apply one effect, recording how to undo it the moment its destination is
     /// claimed.
@@ -915,7 +1315,7 @@ paths, `moved` supplies the most recent path of a moved entry, and `landed`
 supplies paths for levels created earlier in the plan. This is how promotion's
 second effect can address the directory created by its first.
 
-<!-- fragment «apply-unwind-and-paths» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="212-270" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-unwind-and-paths» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="229-288" parent="filesystem-interpreter-source" -->
 ````rust
 
     /// Undo what landed, in reverse, and say which of the two failures this was.
@@ -976,6 +1376,7 @@ second effect can address the directory created by its first.
         path
     }
 }
+
 ````
 <!-- /fragment -->
 
@@ -986,8 +1387,10 @@ Every landed create records `Undo::Remove`; every landed non-no-op move records
 `Undo::Restore`. `Run::unwind` consumes that list in reverse. Reverse order is
 required because later effects may depend on earlier ones. Promotion, for
 example, restores the moved leaf out of the new node before removing that node.
-Removal can target only a path created by this run, which makes the absence of a
-public remove operation structural in the interpreter as well as the algebra.
+Interpreter rollback can remove only a path created by this run. There is no
+public mutation operation for removing one entry from an existing tree; the
+separate `delete` boundary removes the whole tree without entering the
+plan/effect algebra.
 
 The insert trace can be failed at effect index 2, immediately before the final
 create. At that point both highest-first moves have landed:
@@ -1009,9 +1412,8 @@ tree is therefore present. The error identifies the create destination and
 forward action that failed, and its message states that every landed effect was
 undone.
 
-<!-- fragment «apply-undo» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="271-330" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-undo» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="289-348" parent="filesystem-interpreter-source" -->
 ````rust
-
 /// How to undo one effect that landed.
 ///
 /// Two variants, and the first is the only removal this library ever performs.
@@ -1071,6 +1473,7 @@ impl Undo {
         }
     }
 }
+
 ````
 <!-- /fragment -->
 
@@ -1078,9 +1481,8 @@ The vacancy check is used both before a forward rename and before a restoring
 rename. A failed restore therefore becomes a distinct partial-rollback outcome
 instead of overwriting a path that appeared during the run.
 
-<!-- fragment «apply-destination-claim» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="331-371" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-destination-claim» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="349-382" parent="filesystem-interpreter-source" -->
 ````rust
-
 /// Refuse a destination that is occupied by anything at all, deciding it
 /// **without following links**.
 ///
@@ -1115,12 +1517,6 @@ fn claim_vacant(path: &Path, doing: &'static str) -> Result<(), Failure> {
     }
 }
 
-/// One effect, or one undo, that did not happen.
-struct Failure {
-    path: PathBuf,
-    doing: &'static str,
-    source: io::Error,
-}
 ````
 <!-- /fragment -->
 
@@ -1153,8 +1549,14 @@ consumer must not retry blindly because key lookup on the damaged tree is
 ambiguous and a later plan can be refused by a destination the wreckage already
 occupies. One half must be removed before another mutation is attempted.
 
-<!-- fragment «apply-fault-seam» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="372-471" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-fault-seam» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="383-488" parent="filesystem-interpreter-source" -->
 ````rust
+/// One effect, or one undo, that did not happen.
+struct Failure {
+    path: PathBuf,
+    doing: &'static str,
+    source: io::Error,
+}
 
 /// The seam that makes an effect fail on demand.
 ///
@@ -1258,6 +1660,339 @@ mod tests;
 ````
 <!-- /fragment -->
 
+<a id="whole-tree-deletion"></a>
+## Whole-tree deletion
+
+Deletion traverses the filesystem rather than the snapshot because it removes
+everything under the root, including foreign entries that have no `EntryName`.
+It first refuses an indirect root spelling: the final component must be a real
+name rather than a symbolic link, `.` or a separator, and no `..` may cancel a
+preceding name. These checks run before the first unlink, so
+`RootIsNotSpelledDirectly` means nothing was removed.
+
+The removal uses an explicit worklist. It schedules children in reverse sorted
+order so popping restores deterministic listing order, removes each level only
+after its children, and removes the root last. Symbolic links encountered
+inside the tree are unlinked and never descended into. The look and descent are
+separate syscalls, so a writer that ignores the advisory lock can still replace
+a directory in that interval; this is the same external-writer boundary as the
+interpreter's pre-rename vacancy check.
+
+<!-- fragment «remove-contract» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/remove.rs" lines="1-64" parent="filesystem-removal-source" -->
+````rust
+//! Removing a tree root and everything beneath it.
+//!
+//! The one mutation that is not a [`Plan`](crate::plan::Plan), and the reason is
+//! that a plan is a list of effects over *names* — values the domain produced
+//! and the algebra can reason about. A deletion acts on the root, so it acts on
+//! everything that is there, including the entries the domain declined to parse
+//! as its own. Those have no name in the algebra's sense and never appear in a
+//! [`Snapshot`](crate::Snapshot), so the removal reads the directories itself.
+//!
+//! # There is nothing to unwind
+//!
+//! Every other operation's failure path is *put back what this run did*. A
+//! removal has nothing to put back: an unlinked file is gone, and a library that
+//! wanted one back would have had to copy it aside first — which is the staging
+//! machinery this design does not have and does not want. So the failure is
+//! reported as [`Error::RemovalStopped`], which claims neither of the two things
+//! [`Error::Failed`] and [`Error::FailedPartiallyRolledBack`] claim: it says how
+//! far the removal got, and stops.
+//!
+//! # Following no link is the security property
+//!
+//! Descent is decided by [`read::listing`](super::read::listing), whose
+//! `Found` comes from `DirEntry::file_type` — `symlink_metadata`, not
+//! `metadata`. A symbolic link naming a directory is therefore [`Found::Other`]
+//! and is *unlinked*, never descended into, so a link pointing outside the tree
+//! costs its target nothing. Nothing here follows a link **inside the tree** —
+//! and the qualifier is load-bearing, not hedging: the root's own last component
+//! is named by the caller rather than found by the walk, and it is the next
+//! paragraph's subject.
+//!
+//! **The root's own last component is the exception, and it is refused rather
+//! than followed.** Everything above is about the entries *inside* the tree; the
+//! root itself is named by the caller, and every other operation lets the kernel
+//! resolve that name — a link naming a directory is an accepted spelling of the
+//! tree. A deletion cannot accept it, because it acts on the root as an object
+//! rather than as a container. See [`spelled_directly`].
+//!
+//! **The bound on the no-link claim, stated rather than hidden.** The look and
+//! the descent are two syscalls, so a hand that replaces a directory with a link
+//! *between* them is not defeated by this — the same window
+//! [`claim_vacant`](super::apply) already names, and the same neighbour: a
+//! writer that ignores the advisory lock. `std::fs::remove_dir_all` closes it
+//! with `openat`-based descent and reports nothing about what it removed, which
+//! is the whole of what this operation is for; a consumer that wants the race
+//! closed and no report has the standard library's own call.
+
+use std::fs;
+use std::path::{Component, Path, PathBuf};
+
+use super::read;
+use crate::{EntryName, Error, Found, Removed};
+
+/// Remove everything beneath the root, then the root.
+///
+/// Post-order: a level goes only after everything it holds, because a directory
+/// cannot be removed while anything is in it. Within a level the order is the
+/// listing's own — sorted — for determinism and for nothing else.
+///
+/// **No order here buys a property, and that is worth saying beside the shift
+/// rule, which does.** A sibling shift runs highest-first so that an interrupted
+/// run leaves a merely *gapped* level, a shape this design admits everywhere. An
+/// interrupted removal leaves a tree with entries missing and its key maximum
+/// lowered, which is not a shape this design admits in any order — so the order
+/// is chosen to be reproducible rather than to be safe.
+````
+<!-- /fragment -->
+
+The removal entry point validates the caller's root spelling, executes the
+post-order worklist, and accumulates each removed child path before deleting
+the root itself.
+
+<!-- fragment «remove-tree» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/remove.rs" lines="65-106" parent="filesystem-removal-source" -->
+````rust
+pub(super) fn tree<N: EntryName>(root: &Path) -> Result<Removed, Error<N>> {
+    // Before anything goes, so a refused spelling removes nothing at all.
+    spelled_directly(root)?;
+    let mut entries: Vec<PathBuf> = Vec::new();
+    // An explicit worklist rather than recursion, for the reason
+    // `read::snapshot` gives: the depth of a tree on disk is the operator's to
+    // choose, and a stack overflow is not a refusal any consumer can handle.
+    let mut pending = Vec::new();
+    // The root's own children, and not `descend` — the root's removal is the
+    // last line of this function rather than a step on the worklist, because it
+    // is reported on its own field.
+    if let Err(stopped) = children(root, &mut pending) {
+        return Err(stopped.error(root, entries));
+    }
+    while let Some(step) = pending.pop() {
+        let outcome = match &step {
+            Step::Descend(directory) => descend(directory, &mut pending),
+            Step::Unlink(path) => unlink(path),
+            Step::RemoveLevel(path) => remove_level(path),
+        };
+        if let Err(stopped) = outcome {
+            return Err(stopped.error(root, entries));
+        }
+        match step {
+            // Descending removes nothing; what it found is on the worklist.
+            Step::Descend(_) => {}
+            Step::Unlink(path) | Step::RemoveLevel(path) => entries.push(path),
+        }
+    }
+    // The root is not one of the entries — it is the level they were in, and it
+    // has no name the domain ever parsed. It goes last because nothing else
+    // could go after it, and it is reported on its own field for the same
+    // reason `initialize` puts no row in the report for creating it.
+    if let Err(stopped) = remove_level(root) {
+        return Err(stopped.error(root, entries));
+    }
+    Ok(Removed {
+        root: root.to_path_buf(),
+        entries,
+    })
+}
+
+````
+<!-- /fragment -->
+
+`spelled_directly` bounds deletion to a stable, directly named root object. It
+rejects ambiguous or self-invalidating spellings before the worklist starts.
+
+<!-- fragment «remove-spelling-guard» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/remove.rs" lines="107-188" parent="filesystem-removal-source" -->
+````rust
+/// The one precondition a deletion has that no other operation does: the root's
+/// spelling must **name the root**, and must stay resolvable while the root is
+/// being taken apart.
+///
+/// # Why this operation and no other
+///
+/// Everywhere else the root is a **container**, and the kernel resolving its
+/// last component is exactly right — `read::containing_directory` goes to some
+/// trouble to make a symbolic link naming a directory, and a spelling ending in
+/// `..`, reach the same tree and take the same lock as the direct spelling.
+/// This is the one operation that acts on the root as an **object**, and there
+/// the last component decides *which* object. A link and what it names are two
+/// things, and destroying the second while leaving the first is not what either
+/// answer would have been.
+///
+/// It is also the one operation that removes the components a path is built
+/// from. `syllabus/topic/..` names the tree perfectly well until the walk
+/// removes `topic`, after which every path built on that spelling stops
+/// resolving — with the tree half destroyed and nothing left that can finish
+/// the job.
+///
+/// # The two conditions, and why they are between them complete
+///
+/// **No `..` may cancel a name.** With that rule, every component before the
+/// last resolves to a strict *ancestor* of the root, and the walk removes only
+/// what is at or below the root — so no component of the spelling is one the
+/// removal can take away. A **leading** `..` cancels nothing and is fine:
+/// `../course` is an ordinary spelling and is accepted.
+///
+/// The rule is **coarser than the danger, deliberately**. A `..` cancelling a
+/// component *above* the tree — `/a/../b/course` — is harmless, and is refused
+/// with the rest of the class. Telling the two apart means resolving the path to
+/// learn which components lie inside the tree, and this module resolves nothing;
+/// the cost of the coarse rule is one message asking for a direct spelling, and
+/// the cost of the precise one is a resolution step on the destructive path.
+///
+/// **The last component must be a name, and must not be a symbolic link.** That
+/// leaves exactly one object it can mean. `.` and a bare separator name no
+/// object to remove at all — `rmdir(".")` is `EINVAL`, and refusing it with a
+/// sentence beats passing that through.
+///
+/// Both are decided on a path rebuilt from its own components, because a
+/// trailing separator makes `symlink_metadata` resolve the final link — which
+/// is how `link/` would otherwise slip past the very check that exists to catch
+/// `link`.
+fn spelled_directly<N: EntryName>(root: &Path) -> Result<(), Error<N>> {
+    let mut previous_was_a_name = false;
+    for component in root.components() {
+        if previous_was_a_name && component == Component::ParentDir {
+            return Err(Error::RootIsNotSpelledDirectly {
+                root: root.to_path_buf(),
+                reason: "descends into a name and comes back out through `..`, so one of its \
+                         own components is something this removal would take \
+                         away — after which nothing else under the root \
+                         resolves, and the tree is left half gone with no \
+                         spelling that can finish it",
+            });
+        }
+        previous_was_a_name = matches!(component, Component::Normal(_));
+    }
+    let direct: PathBuf = root.components().collect();
+    if !matches!(direct.components().next_back(), Some(Component::Normal(_))) {
+        return Err(Error::RootIsNotSpelledDirectly {
+            root: root.to_path_buf(),
+            reason: "does not end in a name, so its last component names no object \
+                     this operation could remove",
+        });
+    }
+    let here = fs::symlink_metadata(&direct).map_err(|source| Error::Io {
+        path: root.to_path_buf(),
+        doing: "looking at the tree root",
+        source,
+    })?;
+    if here.file_type().is_symlink() {
+        return Err(Error::RootIsNotSpelledDirectly {
+            root: root.to_path_buf(),
+            reason: "is a symbolic link, and a link is not the tree it names",
+        });
+    }
+    Ok(())
+}
+
+````
+<!-- /fragment -->
+
+The worklist distinguishes descent, unlinking, and empty-directory removal.
+Each failure becomes a `Stopped` value that is reframed with the root and the
+already removed paths as `Error::RemovalStopped`.
+
+<!-- fragment «remove-worklist-and-failure» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/remove.rs" lines="189-275" parent="filesystem-removal-source" -->
+````rust
+/// One thing left to do.
+enum Step {
+    /// List this directory and schedule what is in it, then remove it.
+    Descend(PathBuf),
+    /// Remove something that is not a directory — a file, a socket, or a
+    /// symbolic link **as a link**.
+    Unlink(PathBuf),
+    /// Remove a directory this walk has already emptied.
+    RemoveLevel(PathBuf),
+}
+
+/// Schedule a directory's own removal, and then its contents.
+///
+/// Pushing the level's removal **first** is what makes the worklist post-order:
+/// everything pushed after it pops before it.
+fn descend(directory: &Path, pending: &mut Vec<Step>) -> Result<(), Stopped> {
+    pending.push(Step::RemoveLevel(directory.to_path_buf()));
+    children(directory, pending)
+}
+
+/// Schedule what is in a directory, in the listing's own sorted order.
+///
+/// The children go on in *reverse* of that order so that popping restores it,
+/// which is the same trick — and the same reason — as `read::snapshot`'s.
+fn children(directory: &Path, pending: &mut Vec<Step>) -> Result<(), Stopped> {
+    let found = read::listing(directory).map_err(Stopped::from_unlistable)?;
+    for (name, found) in found.into_iter().rev() {
+        let path = directory.join(name);
+        pending.push(match found {
+            Found::Dir => Step::Descend(path),
+            // A symbolic link — even one naming a directory — is `Found::Other`,
+            // because the listing did not follow it. Unlinking is what removes
+            // the link and leaves whatever it named alone.
+            Found::File | Found::Other => Step::Unlink(path),
+        });
+    }
+    Ok(())
+}
+
+fn unlink(path: &Path) -> Result<(), Stopped> {
+    fs::remove_file(path).map_err(|source| Stopped {
+        path: path.to_path_buf(),
+        doing: "removing",
+        source,
+    })
+}
+
+fn remove_level(path: &Path) -> Result<(), Stopped> {
+    // `remove_dir` and never `remove_dir_all`: this walk has already emptied the
+    // directory, so a refusal here is a check — something arrived under it while
+    // the removal was running — rather than an obstacle to route around.
+    fs::remove_dir(path).map_err(|source| Stopped {
+        path: path.to_path_buf(),
+        doing: "removing the directory",
+        source,
+    })
+}
+
+/// One removal, or one listing, that did not happen.
+struct Stopped {
+    path: PathBuf,
+    doing: &'static str,
+    source: std::io::Error,
+}
+
+impl Stopped {
+    fn from_unlistable(unlistable: read::Unlistable) -> Self {
+        Self {
+            path: unlistable.path,
+            doing: unlistable.doing,
+            source: unlistable.source,
+        }
+    }
+
+    /// The removal's framing of a failure: what stopped it, and how far it had
+    /// got. `removed` is moved in rather than counted, because a caller that has
+    /// to say what it destroyed needs the paths and not the number.
+    fn error<N: EntryName>(self, root: &Path, removed: Vec<PathBuf>) -> Error<N> {
+        Error::RemovalStopped {
+            root: root.to_path_buf(),
+            path: self.path,
+            doing: self.doing,
+            source: self.source,
+            removed,
+        }
+    }
+}
+````
+<!-- /fragment -->
+
+`Removed` separates the caller-spelled root from the child paths and records
+children before their containing levels. The order is reproducible, not a
+safety guarantee. If a listing, unlink, or directory removal fails,
+`RemovalStopped` carries the failing path and operation plus every path already
+removed. An empty list proves the tree is unchanged; a non-empty list means the
+tree is in neither its initial nor fully deleted state. No undo is attempted,
+because unlinked bytes were not staged anywhere from which they could be
+restored.
+
 <a id="intermediate-states"></a>
 ## Intermediate states and concurrency limits
 
@@ -1270,6 +2005,11 @@ lock is held, cooperating library calls cannot observe these states:
 - promotion between create and move contains a leaf and node with the same
   ordinal and key;
 - unwind may have restored only a suffix of the landed effects.
+
+Deletion has a different intermediate-state contract: every successful unlink
+is permanent, and `RemovalStopped` reports the completed prefix instead of
+claiming rollback. Cooperating calls cannot observe the prefix while the guard
+lives, but a process failure or ignored lock can expose it.
 
 The report-error guarantee covers the last observable state after a function
 returns. `Error::Failed` means unwind completed and every effect this run landed
@@ -1299,6 +2039,10 @@ infer about tree state:
   `NameIsNotOneComponent` reject names at the read or render boundary.
 - `NoContainingDirectory` rejects a root for which the lock object cannot be
   defined.
+- `RootIsNotATree` reports a non-directory occupying the root and leaves it in
+  place.
+- `RootIsNotSpelledDirectly` refuses an unsafe deletion spelling before any
+  removal.
 - `Io` reports a filesystem failure outside an interpreter run, such as locking
   or snapshot reading.
 - `Failed` reports a forward interpreter failure followed by a complete unwind.
@@ -1306,6 +2050,8 @@ infer about tree state:
   is as the snapshot found it.
 - `FailedPartiallyRolledBack` reports both the forward failure and the failed
   undo. The tree requires inspection and repair before retry.
+- `RemovalStopped` reports a deletion failure and the paths already removed. It
+  promises no rollback; an empty path list is the only unchanged case.
 
 Every public mutation consumes its `WriteGuard`, whatever outcome it returns.
 A retry therefore starts by acquiring a new guard and reading a fresh snapshot.
@@ -1357,7 +2103,7 @@ separation preserves the invariant that a cleanly rolled-back worked failure is
 distinguishable from a partially rolled-back tree, while keeping domain-owned
 advice in `N::Err`.
 
-<!-- fragment «error-taxonomy» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="24-163" parent="filesystem-error-source" -->
+<!-- fragment «error-taxonomy» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="24-259" parent="filesystem-error-source" -->
 ````rust
 pub enum Error<N: EntryName> {
     /// The filesystem refused. `doing` is the step, in the imperative, for a
@@ -1441,6 +2187,63 @@ pub enum Error<N: EntryName> {
         /// What the filesystem said about that.
         unwind_source: std::io::Error,
     },
+    /// A removal stopped partway, and **nothing was put back**.
+    ///
+    /// The third of the three failure shapes, and the one a deletion needs
+    /// because neither of the other two is honest about it. [`Error::Failed`]
+    /// promises *the tree is as it was found — every effect this operation had
+    /// applied was undone*, and a removal has nothing to undo: an unlinked file
+    /// is gone, and putting it back would mean having copied it aside first,
+    /// which is staging machinery this library does not have.
+    /// [`Error::FailedPartiallyRolledBack`] is wrong in the other direction —
+    /// it reports an unwind that failed, and here no unwind was ever attempted.
+    ///
+    /// So this variant claims nothing and reports: what stopped it, and the
+    /// paths that had already gone. `removed` is **empty** exactly when the
+    /// failure came before anything was removed, which is the difference
+    /// between a tree that is as it was found and one that is in neither state;
+    /// the `Display` below says which.
+    ///
+    /// *Neither model can pose this*: both hold trees, and neither models a
+    /// root that ceases to exist.
+    RemovalStopped {
+        /// The tree root the removal was asked for, in the caller's spelling.
+        root: PathBuf,
+        /// What the failing step was acting on.
+        path: PathBuf,
+        /// The step that failed, in the imperative.
+        doing: &'static str,
+        /// What the filesystem said.
+        source: std::io::Error,
+        /// What had already been removed, in the order it went. Paths and not
+        /// names, for the reason [`Removed`](crate::Removed) gives.
+        removed: Vec<PathBuf>,
+    },
+    /// A root spelled a way a deletion cannot act on.
+    ///
+    /// Every other operation uses the root as a **container**, so the kernel
+    /// resolving its last component is exactly right: a symbolic link naming a
+    /// directory is an accepted spelling of the tree it names, and
+    /// `read::containing_directory` goes out of its way to make every spelling
+    /// of one tree take one lock.
+    ///
+    /// A deletion is the one operation that acts on the root as an **object**,
+    /// and there the last component decides *which* object — a link and what it
+    /// names are two, and only one of them is the tree. It is also the one
+    /// operation that removes the very components a path is built from, so a
+    /// spelling that descends into the tree and comes back out through `..`
+    /// stops resolving partway through its own removal.
+    ///
+    /// Both are refused before anything is removed, and refused rather than
+    /// guessed at: this library will not decide on a caller's behalf whether a
+    /// link or its target was meant. `reason` says which spelling it was, so
+    /// the message can name the fix.
+    RootIsNotSpelledDirectly {
+        /// The root as the caller spelled it.
+        root: PathBuf,
+        /// What is wrong with that spelling, as a clause.
+        reason: &'static str,
+    },
     /// A filename that is not UTF-8, which halts.
     ///
     /// [`EntryName::parse`] takes a `&str`, so the library cannot ask the
@@ -1483,6 +2286,40 @@ pub enum Error<N: EntryName> {
         /// Why that is not a filename.
         reason: &'static str,
     },
+    /// Something is at the tree root that a tree cannot be: a regular file, a
+    /// socket, a symbolic link naming one of those, or a dangling one.
+    ///
+    /// The **third** answer to *is there a tree here*, and the reason that
+    /// question is a trichotomy rather than a pair. [`fs::read`] and
+    /// [`fs::write`] answer the other two as shapes — a tree, or a vacancy the
+    /// caller may initialize — and neither of those is honest about a root
+    /// occupied by something else: reporting it as a vacancy would send
+    /// `initialize` at a name that is already taken, and reporting it as a tree
+    /// would ask the listing for a directory that is not one.
+    ///
+    /// It is an error and not a variant of either shape for the reason every
+    /// halt in this module is one: nothing here can know whether the thing
+    /// sitting there is precious, so removing it is not the library's to
+    /// choose. `found` is what it turned out to be, so the message can say.
+    ///
+    /// Decided by **following** symbolic links, because a link naming a
+    /// directory is an accepted spelling of a root — see
+    /// `fs::read::containing_directory`. A link naming nothing is therefore
+    /// [`Found::Other`]: it is not a directory, and it is not nothing either,
+    /// since it occupies the name.
+    ///
+    /// *Neither model can pose this*: both hold trees, and a root that is not a
+    /// directory is not a tree for them to hold.
+    ///
+    /// [`fs::read`]: crate::fs::read
+    /// [`fs::write`]: crate::fs::write
+    /// [`Found::Other`]: crate::Found::Other
+    RootIsNotATree {
+        /// The root as the caller spelled it.
+        root: PathBuf,
+        /// What is there instead of a tree.
+        found: crate::Found,
+    },
     /// The tree root has no containing directory, so there is nothing to lock.
     ///
     /// The advisory lock is taken on the directory *containing* the root — it
@@ -1499,6 +2336,11 @@ pub enum Error<N: EntryName> {
         root: PathBuf,
     },
 }
+
+// Debug by hand rather than by derive: a derive would bound `N: Debug`, and this
+// type mentions `N` only through `N::Err` — which is already `Debug`, since
+// `std::error::Error` requires it. The same spurious-bound avoidance `Triple`
+// and `Entry` make.
 ````
 <!-- /fragment -->
 
@@ -1508,13 +2350,8 @@ borrowed `Error<N>` into variant-specific debug fields without imposing
 failure's path, action, and causes inspectable and completing that representation
 for the taxonomy.
 
-<!-- fragment «error-debug» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="164-238" parent="filesystem-error-source" -->
+<!-- fragment «error-debug» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="260-354" parent="filesystem-error-source" -->
 ````rust
-
-// Debug by hand rather than by derive: a derive would bound `N: Debug`, and this
-// type mentions `N` only through `N::Err` — which is already `Debug`, since
-// `std::error::Error` requires it. The same spurious-bound avoidance `Triple`
-// and `Entry` make.
 impl<N: EntryName> fmt::Debug for Error<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -1565,6 +2402,25 @@ impl<N: EntryName> fmt::Debug for Error<N> {
                 .field("undoing", undoing)
                 .field("unwind_source", unwind_source)
                 .finish(),
+            Self::RemovalStopped {
+                root,
+                path,
+                doing,
+                source,
+                removed,
+            } => f
+                .debug_struct("RemovalStopped")
+                .field("root", root)
+                .field("path", path)
+                .field("doing", doing)
+                .field("source", source)
+                .field("removed", removed)
+                .finish(),
+            Self::RootIsNotSpelledDirectly { root, reason } => f
+                .debug_struct("RootIsNotSpelledDirectly")
+                .field("root", root)
+                .field("reason", reason)
+                .finish(),
             Self::NonUtf8Name { path } => {
                 f.debug_struct("NonUtf8Name").field("path", path).finish()
             }
@@ -1578,6 +2434,11 @@ impl<N: EntryName> fmt::Debug for Error<N> {
                 .field("rendered", rendered)
                 .field("reason", reason)
                 .finish(),
+            Self::RootIsNotATree { root, found } => f
+                .debug_struct("RootIsNotATree")
+                .field("root", root)
+                .field("found", found)
+                .finish(),
             Self::NoContainingDirectory { root } => f
                 .debug_struct("NoContainingDirectory")
                 .field("root", root)
@@ -1585,6 +2446,7 @@ impl<N: EntryName> fmt::Debug for Error<N> {
         }
     }
 }
+
 ````
 <!-- /fragment -->
 
@@ -1594,9 +2456,8 @@ render their own advice. `Failed` states that nothing changed;
 describes interrupted-promotion repair. Name and root errors state the action
 needed before another attempt.
 
-<!-- fragment «error-display» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="239-322" parent="filesystem-error-source" -->
+<!-- fragment «error-display» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="355-489" parent="filesystem-error-source" -->
 ````rust
-
 impl<N: EntryName> fmt::Display for Error<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -1646,6 +2507,49 @@ impl<N: EntryName> fmt::Display for Error<N> {
                 path.display(),
                 unwinding.display()
             ),
+            // Two sentences and not one, because the two cases want different
+            // next steps: a removal that got nowhere left a tree a consumer can
+            // still use, and one that got partway left a tree it cannot.
+            Self::RemovalStopped {
+                root,
+                path,
+                doing,
+                source,
+                removed,
+            } if removed.is_empty() => write!(
+                f,
+                "{doing} {}: {source}. Nothing was removed, so the tree {} is as it \
+                 was found.",
+                path.display(),
+                root.display()
+            ),
+            Self::RemovalStopped {
+                path,
+                doing,
+                source,
+                removed,
+                root,
+            } => write!(
+                f,
+                "{doing} {}: {source}. {} path{} beneath the tree root {} had already \
+                 been removed, and a removal has nothing to put back \u{2014} so this \
+                 tree is now in neither the state the operation found nor the one it \
+                 intended, and it needs a human. Deleting again removes what is left; \
+                 nothing here restores what has gone.",
+                path.display(),
+                removed.len(),
+                if removed.len() == 1 { "" } else { "s" },
+                root.display()
+            ),
+            Self::RootIsNotSpelledDirectly { root, reason } => write!(
+                f,
+                "the tree root {} {reason}. Nothing was removed. Every other operation \
+                 accepts this spelling, because it uses the root as the directory \
+                 things are in; a deletion acts on the root itself, so its last \
+                 component decides what gets destroyed and this library will not guess \
+                 which you meant. Name the directory itself and delete that.",
+                root.display()
+            ),
             Self::NonUtf8Name { path } => write!(
                 f,
                 "the filename {} is not valid UTF-8, so it cannot be classified: \
@@ -1670,6 +2574,14 @@ impl<N: EntryName> fmt::Display for Error<N> {
                  before there is a tree.",
                 root.display()
             ),
+            Self::RootIsNotATree { root, found } => write!(
+                f,
+                "the tree root {} is {found}, and a tree is a directory. Nothing was \
+                 changed: this library will not move aside or replace something it \
+                 did not put there, because it cannot know what it is. Move it out \
+                 of the way yourself, or name a different root.",
+                root.display()
+            ),
             Self::NoContainingDirectory { root } => write!(
                 f,
                 "the tree root {} has no containing directory to lock. \
@@ -1680,6 +2592,7 @@ impl<N: EntryName> fmt::Display for Error<N> {
         }
     }
 }
+
 ````
 <!-- /fragment -->
 
@@ -1687,9 +2600,8 @@ The standard error source is the forward cause. A partial rollback retains the
 unwind cause in its fields and display text, while `source()` returns the
 forward failure that caused unwind to begin.
 
-<!-- fragment «error-sources» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="323-342" parent="filesystem-error-source" -->
+<!-- fragment «error-sources» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="490-510" parent="filesystem-error-source" -->
 ````rust
-
 impl<N: EntryName> std::error::Error for Error<N> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
@@ -1699,12 +2611,14 @@ impl<N: EntryName> std::error::Error for Error<N> {
             // of causes and the effect is what caused the unwind to be needed.
             // The unwind's own error is in the `Display`, where a consumer
             // reading the message meets both.
-            Self::Failed { source, .. } | Self::FailedPartiallyRolledBack { source, .. } => {
-                Some(source)
-            }
+            Self::Failed { source, .. }
+            | Self::FailedPartiallyRolledBack { source, .. }
+            | Self::RemovalStopped { source, .. } => Some(source),
             Self::Refused(_)
+            | Self::RootIsNotSpelledDirectly { .. }
             | Self::NonUtf8Name { .. }
             | Self::NameIsNotOneComponent { .. }
+            | Self::RootIsNotATree { .. }
             | Self::NoContainingDirectory { .. } => None,
         }
     }
@@ -1712,11 +2626,14 @@ impl<N: EntryName> std::error::Error for Error<N> {
 ````
 <!-- /fragment -->
 
-The filesystem boundary is now complete. One guard owns one locked snapshot and
-one mutation. Every proceeding decision reaches the same ordered interpreter;
-every reported forward failure reaches the same reverse unwind. The result type
-distinguishes no-effects refusal, clean restoration, partial restoration, and
-pre-apply boundary failures without describing a multi-effect operation as
+The filesystem boundary is now complete. A read or write guard owns one locked
+snapshot; a vacancy retains the exclusive lock without inventing a snapshot.
+Accepted mutations of an existing tree reach the ordered interpreter.
+Initialization first creates the root and can still fail before application;
+once application begins, its forward failures use the same reverse unwind as
+other mutations, followed by root removal when restoration succeeds. The result
+type distinguishes no-effects refusal, clean restoration, partial restoration,
+and pre-apply boundary failures without describing a multi-effect operation as
 atomic against process termination.
 
 [Previous: Mutation algebra](05-mutation-algebra.md) | [Contents](README.md) | [Next: Syllabus CLI](07-syllabus-cli.md)

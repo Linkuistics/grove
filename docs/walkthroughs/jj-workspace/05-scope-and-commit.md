@@ -451,14 +451,15 @@ the third is the distinction this chapter has to make precisely, because a
 consumer that gets it wrong loses work or duplicates it.
 
 **Two refusals can come out of this function and they say different things about
-the world.** The refusal from the commit itself means *there is no commit*: the
-working copy still holds everything the caller prepared, and the repair is jj's
-operation log. The refusal from reading the change id afterwards means *the
-commit landed and could not be named*: the work is committed, the tree is sealed,
-and what the caller lost is the identifier — retrying the whole operation would
-commit nothing, because the fileset the caller named is already in a commit. The
-comment says exactly that, in two sentences, and the code distinguishes them by
-wrapping one and not the other.
+the world.**
+
+| Refusal | What it means | What is true of the tree | What a retry of the whole operation does |
+|---|---|---|---|
+| from the commit itself, wrapped as `CommitNotRecorded` | there is no commit | the working copy still holds everything the caller prepared, and the repair is jj's operation log | the work is still there to commit |
+| from reading the change id afterwards, propagated unwrapped | the commit landed and could not be named | the work is committed and the tree is sealed; what the caller lost is the identifier | commits nothing, because the fileset the caller named is already in a commit |
+
+The comment says exactly that, in two sentences, and the code distinguishes them
+by wrapping one and not the other.
 
 <!-- fragment «commit-scope-guard» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="178-186" parent="scope-tracking-and-commit" -->
 ````rust

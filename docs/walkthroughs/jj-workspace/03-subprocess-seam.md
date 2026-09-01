@@ -347,10 +347,15 @@ doc comment defines the category rather than listing membership — the variable
 that answer "which repository?" *ahead of the working directory* — which is the
 test a fifth name would have to meet to belong here.
 
-The four are Git's, and each answers that question in its own way: `GIT_DIR` names
-the repository directory outright, `GIT_WORK_TREE` names the tree it belongs to,
-`GIT_COMMON_DIR` redirects the shared part of a repository split across
-worktrees, and `GIT_INDEX_FILE` names the index a command stages through.
+The four are Git's, and each answers that question in its own way:
+
+| Variable | What it redirects, ahead of the working directory |
+|---|---|
+| `GIT_DIR` | the repository directory, named outright |
+| `GIT_WORK_TREE` | the tree that repository belongs to |
+| `GIT_COMMON_DIR` | the shared part of a repository split across worktrees |
+| `GIT_INDEX_FILE` | the index a command stages through |
+
 `GIT_INDEX_FILE` is the one that looks out of place, because an index is not a
 repository — it is in the list because a Git-aware child that is otherwise
 correctly pointed can still be made to read and write a foreign staging area,

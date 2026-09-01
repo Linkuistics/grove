@@ -310,10 +310,17 @@ const JJ_OWNED_NAMES: [&str; 2] = ["repo", "working_copy"];
 `[&str; 2]` rather than `&[&str]`, so the count is in the type. It is the same
 choice the seam makes for its four environment variables
 ([*The subprocess seam*](03-subprocess-seam.md#the-selectors)), and the two lists
-are worth reading together because they are lists of opposite things: that one
-holds names **Git reads**, and this one holds names **jj owns**. A reader who
-merges them in memory will mis-remember both. The crate has exactly two pieces of
-hardcoded knowledge about software it does not contain, and they are these.
+are worth reading together because they are lists of opposite things. A reader
+who merges them in memory will mis-remember both, so they are set side by side
+here:
+
+| Constant | Declared in | Holds names that | What the crate does with them |
+|---|---|---|---|
+| `REPOSITORY_SELECTORS` | `jj.rs` | **Git reads**, ahead of the working directory | removes them from every child it starts |
+| `JJ_OWNED_NAMES` | `lib.rs` | **jj owns**, inside `.jj/` | refuses them as a consumer's namespace |
+
+Those are the crate's only two pieces of hardcoded knowledge about software it
+does not contain.
 
 <a id="the-reservation"></a>
 ## The reservation, and the four clauses it promises
@@ -637,10 +644,22 @@ as what is.** There is no length limit, no character-set restriction, no
 lower-casing, no rejection of leading dots, and no reservation of names this crate
 or its consumers might want later. Each of those would be the crate having an
 opinion about a word whose meaning belongs to the caller, and the four that
-remain are exactly the ones that would break a clause of the postcondition:
-empty and `.` reach the administrative directory, `..` reaches the tracked tree,
-a separator escapes the component, and a jj-owned name collides with the system
-the whole crate is a seam onto.
+remain are exactly the ones that would break a clause of the postcondition. Read
+in the order they run, each guard is one name the `join` would otherwise have
+resolved to something that already means something:
+
+| # | Guard | A name it refuses | What the `join` would have produced instead | Evidence |
+|---:|---|---|---|---|
+| 1 | empty | `""` | `/work/atlas/.jj/` — jj's whole administrative area | verified on jj 0.44.0; `a_namespace_that_is_a_path_is_refused` covers `""` |
+| 2 | contains `/`, `\` or `\0` | `nested/deeper`, `../elsewhere` | a path under or outside `.jj/` rather than one component | `a_namespace_that_is_a_path_is_refused`, through `/` only; `\` and `\0` checked directly on jj 0.44.0 |
+| 3 | `.` or `..` | `..` | `/work/atlas/.jj/..` — the tracked working copy | verified on jj 0.44.0; `a_namespace_that_is_a_path_is_refused` covers `".."` |
+| 4 | in `JJ_OWNED_NAMES` | `repo` | `/work/atlas/.jj/repo` — a directory jj owns | `a_namespace_jujutsu_owns_is_refused` |
+
+Nothing downstream catches any of the four. `create_dir_all` succeeds on every
+path in the fourth column — three of them already exist and the remaining one it
+would create — so the guards are the whole of the check, and their position ahead
+of the `join` is what the worked example's two refusal tests make observable from
+outside.
 
 <a id="what-this-chapter-settled"></a>
 ## What this chapter settled

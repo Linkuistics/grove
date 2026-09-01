@@ -104,6 +104,11 @@ failure will cost, which is what decides whether it is worth fixing now.
 <a id="applying-the-test"></a>
 ## The test applied to all six
 
+Both clauses, run over every row of the assembly table. This is the verdict and
+not the argument: each row is taken on its own below, in order, and the six
+sections that follow are where the two clause columns are shown rather than
+asserted.
+
 | # | Guarantee the consumer needs | Where the guarantee comes from | Strong enough? | Checkable? | Verdict |
 |---:|---|---|---|---|---|
 | 1 | Start a child process with a controlled environment; read and create a directory | `std::process`, `std::fs`, `std::error::Error` | Yes — these are the operations, not approximations of them | Yes, by the compiler: an empty `[dependencies]` table cannot silently acquire an entry | Justified |

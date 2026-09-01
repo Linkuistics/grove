@@ -348,6 +348,29 @@ read each one with the constructor that builds it and the `Display` arm that
 renders it, because those three lines are one decision split across three
 implementations, and reading them apart is what turns a design into a catalogue.
 
+What no single group's section shows is the shape of the whole case analysis — which kinds carry
+a cause, and which shape of remedy each message ends on — so it is set out once
+here and argued in place below:
+
+| Kind | Group | Carries | `source()` | The remedy its message names |
+|---|---|---|---|---|
+| `NotAWorkspace` | gate | `searched_from` | none | `jj git init --colocate` and `jj git init`, both, unconditionally |
+| `UnresolvablePath` | gate | `path`, `io::Error` | the `io::Error` | a diagnosis and no command: a broken symlink, or a directory removed underneath the process |
+| `Namespace` | namespace | `namespace`, `reason` | none | fixed text: a namespace is one plain directory name |
+| `ControlDir` | namespace | `path`, `io::Error` | the `io::Error` | check the permissions on the workspace's `.jj` directory |
+| `OutsideWorkspace` | scope | `path`, `root` | none | resolve the workspace that contains the path and ask that one |
+| `NotScoped` | scope | `reason` | none | name the paths the operation is about |
+| `NotRunnable` | seam | `command`, `io::Error` | the `io::Error` | install jj, at a hard-coded URL |
+| `CommandFailed` | seam | `command`, `directory`, `stderr` | none | none: everything after the colon is jj's own stderr |
+| `OutputNotText` | seam | `command` | none | none: there is no action a person takes |
+| `CommitNotRecorded` | commit | `root`, `Box<Refusal>` | the boxed `Refusal` | `jj undo` and `jj op log`, followed by a disclaimer |
+
+The fourth column is read again under [*What `source()` gives a consumer in place
+of variants*](#the-cause-chain), where its four causes and six absences are one
+exhaustive `match` written out rather than defaulted. The fifth is where this
+chapter's thesis is checkable row by row: every entry in it is a statement about
+jj's offer, and none is a statement about a consumer's policy.
+
 <a id="the-gates-two"></a>
 ## The gate's two, and a remedy stated unconditionally
 

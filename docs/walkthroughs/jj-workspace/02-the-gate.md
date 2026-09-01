@@ -170,6 +170,20 @@ environment, and separates failure to *start* from failure to *succeed*. Here it
 is `jj::output`; *The subprocess seam* owns both and shows how an invocation is
 assembled.
 
+The three endings differ in one thing the ancestor walk never sees — the shape of
+`.jj/repo` — and that is what decides whether resolution costs a child process at
+all:
+
+| Ending | `.jj/` found | `.jj/repo` | jj spawned | Result |
+|---|---|---|---|---|
+| the tree as it is | at `/work/atlas`, four ancestors up | a directory | no | `Workspace { root: "/work/atlas", main_repo: "/work/atlas" }` |
+| no `.jj/` anywhere | nowhere, up to `/` | — | no | `Refusal::not_a_workspace("/work/atlas/crates/gateway/src")` |
+| a secondary workspace | at `/work/atlas-review`, the path itself | a pointer file | once: `jj workspace root --name default --ignore-working-copy` | `Workspace { root: "/work/atlas-review", main_repo: "/work/atlas" }` |
+
+The third row is the only one in which the two stored paths differ, and it is the
+only one in which anything is spawned. Those two facts are the same fact: a
+borrowed repository is the one case the filesystem cannot answer for.
+
 <a id="the-value-and-the-gate"></a>
 ## The value, and the gate that constructs it
 

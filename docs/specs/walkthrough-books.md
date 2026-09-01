@@ -1329,6 +1329,41 @@ establish or use? What role does it have in the page's current example? One
 paragraph may answer the questions in several sentences; an unanswered question
 is an editorial finding.
 
+### Figures
+
+A **figure** is a table, a diagram, or any other non-fragment fenced block that
+carries a relation rather than continuous prose. Literal and composite fragments
+are not figures; *Source-fragment introductions* above governs those.
+
+A figure's medium is the page's own Markdown and nothing else. A book directory
+carries no image and no diagram file, and the validator has no concept of an
+asset ([`a-book-carries-no-asset`](../adr/a-book-carries-no-asset.md)).
+Box-drawing diagrams inside a `text` fence are in scope and in use; what is out
+of scope is a file beside the page.
+
+Two rules, applied by author and reviewer:
+
+- **A relation the reader would otherwise hold in their head is drawn.** A
+  sequence, a partition, a comparison or a mapping over a set of members, carried
+  only by running prose where a table, a list figure or a diagram would carry it,
+  is an editorial finding. The test is whether the reader must reassemble the
+  relation from separate sentences before they can use it, not whether those
+  sentences are correct.
+- **Every figure states its role.** Adjacent to each figure is a sentence saying
+  what it does in the page's argument — what the reader is to take from it, not
+  merely what its subject is. The statement may lead in or follow. A figure with
+  neither is an editorial finding.
+
+Two placement consequences follow from rules stated elsewhere, and are collected
+here because together they decide where a figure may go. A table may not be the
+nearest preceding nonblank block before a literal fragment's opening directive,
+so a figure near a fragment sits at its section's end, or above the paragraph
+that runs into the directive (*Source-fragment introductions*). And the four
+`source-index.md` tables take no lead-in at all: their header is the next line
+after the heading, and a paragraph there is `F009` (*Source and ownership
+ledger*). Those four are machine-reconciled derived indexes on a lookup page
+outside the reading order, and the role rule does not reach them.
+
 ### Worked examples
 
 Every chapter carries one complete worked example under a named explicit anchor.
@@ -1402,13 +1437,17 @@ test is removed.
 
 ## Out of scope
 
-**Figures and assets.** No manifest group describes a figure, a diagram, an image
-or any asset, and the omission is deliberate rather than pending. The publishing
-pipeline's art stage runs by hand in the pilot and its measure says whether art
-paid; `figure-contract-k18` produces either the contract or a recorded rejection
-afterwards. A group defined now would be machinery ordered ahead of the
-measurement meant to justify it. Until that leaf reports, a book uses what
-Markdown already gives it and the validator knows nothing about assets.
+**Assets.** No manifest group describes an image, a diagram file or any other
+asset, no book directory carries one at any depth, and the validator has no
+concept of one. The omission is **settled rather than pending**: the editorial
+pilot's art stage drew every figure it drew as bytes in the book's own Markdown,
+recorded no figure it was unable to draw for want of a medium, and paid for
+itself with no machinery behind it.
+[`a-book-carries-no-asset`](../adr/a-book-carries-no-asset.md) holds the
+trade-off, the alternatives it rejects — asset machinery, and a text-native
+diagram notation — and what would reopen it. Figures themselves are **not** out
+of scope: they are the page's own Markdown, and *Figures* under the prose
+contract is the convention they are held to.
 
 **Cross-book fragment reuse.** Two books documenting adjacent crates may explain
 the same seam; neither may insert the other's fragments. Fragment IDs are unique

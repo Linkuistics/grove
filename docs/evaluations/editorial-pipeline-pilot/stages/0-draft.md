@@ -23,6 +23,7 @@ whole range is diffed against: change id `pmyytxvyxmzzsmrxmovzuyxqqnxxurzr`,
 | # | Child | Change id | Book-directory digest after | Scope proved |
 |---:|---|---|---|---|
 | 1 | `orientation-k55` | `wnnkykqxxnotnpltmvnvnmkqtsuxzkqs` | `523b02550a3aef5fcb0d1161ae5ad5adeaaed352450d0f72e36e84f4b4b33d4d` | `--through no-dependencies` |
+| 2 | `the-gate-k56` | `kvyvvxzyyvxtrynswrnqzqyloznzlovx` | `2f6288f285cabb89ab4cfbc0ced592e8cdd2efe813b2177b385fc1904a84dd9c` | `--through one-lane` |
 
 The book-directory digest **before** child 1 has no value: the directory did not
 exist. Digests follow the preregistration's recipe —
@@ -60,6 +61,12 @@ sealing*, *Driver lease* and *Stated VCS* — each gained one `<a id="…"></a>`
 and had their bold lead-in promoted to a `###` heading. No definition, `_Avoid_`
 line or retirement note was altered, and no other entry was touched.
 
+**Re-checked at the start of child 2, and unchanged.** All four corpus files
+carry the digests child 1 recorded, and `CONTEXT.md` is unmoved from the
+post-child-1 value above: chapter 2 cites `CONTEXT.md#stated-vcs`, which child 1
+had already created, so this child adds no glossary anchor and touches no file
+outside the book directory except this record and `.grove/`.
+
 The promotion to a heading is not decoration. `docs/specs/walkthrough-books.md`
 requires a cited anchor to exist as an explicit anchor line **immediately
 preceding a heading**, and `book-validation`'s `explicit_anchors`
@@ -74,37 +81,38 @@ nothing.
 The draft has no before-state to cite, so this section stands where an editorial
 stage carries `## Claims`. It is completed by the last child of the range.
 
-**Page inventory, as of child 1.** Five of the book's ten declared files exist;
+**Page inventory, as of child 2.** Six of the book's ten declared files exist;
 the manifest declares all ten from the start, because a plan authored
 incrementally cannot be compared against a prefix.
 
 | File | Role | Slice | State |
 |---|---|---|---|
 | `walkthrough.toml` | manifest | — | complete: all 7 chapters, 4 roots, 11 blocks, 5 early uses, guide and glossary groups |
-| `README.md` | contents | — | present; chapter 1 linked, chapters 2–7 listed as plain text |
+| `README.md` | contents | — | present; chapters 1–2 linked, chapters 3–7 listed as plain text |
 | `01-orientation.md` | chapter | `no-dependencies` | written |
+| `02-the-gate.md` | chapter | `one-lane` | written |
 | `concept-index.md` | lookup | — | present, curated for the prefix |
-| `source-index.md` | lookup | — | present; 4 roots, 11 ownership rows, 16 fragment rows, 5 early-use rows |
-| `02-the-gate.md` | chapter | `one-lane` | not written; 2 blocks deferred |
+| `source-index.md` | lookup | — | present; 4 roots, 11 ownership rows, 26 fragment rows, 7 early-use rows |
 | `03-subprocess-seam.md` | chapter | `nothing-ambient` | not written; 1 block deferred |
 | `04-namespace.md` | chapter | `no-consumer-vocabulary` | not written; 3 blocks deferred |
 | `05-scope-and-commit.md` | chapter | `no-transactions` | not written; 2 blocks deferred |
 | `06-refusal.md` | chapter | `no-remedy-of-its-own` | not written; 1 block deferred |
 | `07-what-jj-owns.md` | chapter | `assembly` | not written; owns no source, final-only |
 
-**Validation, as of child 1.** Scoped, not final:
+**Validation, as of child 2.** Scoped, not final:
 
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/jj-workspace \
-    --through no-dependencies --check all
-valid: 4 files, 98 resolved lines, 600 deferred lines, final=false
+    --through one-lane --check all
+valid: 4 files, 190 resolved lines, 508 deferred lines, final=false
 ```
 
-98 + 600 = 698, the corpus line count the root brief froze. `bash scripts/check.sh`
-is red on `book-check` alone for every child of the range but the last, because
-the script runs `--final` over every book root by discovery and a prefix
-deliberately leaves later blocks deferred. The final result belongs in this
+190 + 508 = 698, the corpus line count the root brief froze; child 1 stood at
+98 + 600, and chapter 2's two ownership blocks are the 92 lines that moved.
+`bash scripts/check.sh` is red on `book-check` alone for every child of the range
+but the last, because the script runs `--final` over every book root by discovery
+and a prefix deliberately leaves later blocks deferred. The final result belongs in this
 section and is written by `what-jj-owns-k61`.
 
 <a id="out-of-charter"></a>
@@ -134,6 +142,21 @@ that touches book prose or an allowlisted file outside the book. As of child 1:
   children, the children's task files, and two leaves cut for defects this
   session found. Allowlisted, and it changes no book prose.
 
+As of child 2:
+
+- **`02-the-gate.md` (new).** Chapter 2 entire: the one-lane thesis, the
+  pointer-file premise, the three-ending worked resolution, and the two ownership
+  blocks resolved into eight literal fragments. Baseline prose, unedited.
+- **`source-index.md`, `README.md`, `01-orientation.md`, `concept-index.md`.**
+  The ledger and navigation this slice is required to move: two defers replaced
+  by inserts, two ownership rows turned `resolved`, ten fragment rows added, the
+  `Workspace` early-use row turned `explained` and two rows added, chapter 2
+  linked from the contents, chapter 1's two navigation lines given their `Next`,
+  and eight concept-index entries. Mechanical and validator-driven; no prose on a
+  page an earlier slice owns was touched.
+- **`.grove/` bookkeeping.** This child's `DONE` rename and one leaf cut for a
+  defect found while drafting. It changes no book prose.
+
 <a id="findings-not-fixed"></a>
 ## Findings not fixed
 
@@ -157,3 +180,17 @@ draft's commit range, which the preregistration's *Validity* rules out.
    sixty-one term entries now carry explicit anchors and fifty-seven do not. Cut
    as `glossary-anchors-k62`, placed after every crate book so the full reserved
    anchor set is known when the generalisation is made.
+
+As of child 2, one more:
+
+3. **The one external URL in production source names a documentation host that
+   now redirects.** `crates/jj-workspace/src/refusal.rs:184` prints
+   `https://jj-vcs.github.io/jj/latest/install-and-setup/` in the `NotRunnable`
+   remedy, and that host answers `301 Moved Permanently` to `docs.jj-vcs.dev`.
+   Not fixed here: the corpus is frozen, and the root brief requires a source
+   change to land in one commit with every affected ledger, page and validator
+   run — which is not this child's charter and would put a non-book change inside
+   the draft's commit range. Chapter 2 links jj's glossary at the current host
+   rather than propagating the stale one. Cut as `jj-docs-url-k64`, placed after
+   every crate book so the pages that quote `refusal.rs` exist and can be
+   re-proved in the same commit.

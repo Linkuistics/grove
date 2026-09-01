@@ -1,6 +1,6 @@
 # Orientation
 <!-- book-page id="orientation" slice="no-dependencies" order="1" -->
-[Contents](README.md)
+[Contents](README.md) | [Next: The gate](02-the-gate.md)
 
 <a id="what-it-declines"></a>
 ## A crate defined by what it declines
@@ -449,4 +449,4 @@ table, a dev-dependency no consumer inherits, an error type that leaks no error
 crate, and a module surface whose only `use` lines are `std`. The remaining five
 are argued at the sites that create them, beginning with the gate.
 
-[Contents](README.md)
+[Contents](README.md) | [Next: The gate](02-the-gate.md)

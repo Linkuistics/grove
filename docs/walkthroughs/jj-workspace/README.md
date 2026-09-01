@@ -48,10 +48,10 @@ source.
 ## Contents
 
 1. [Orientation](01-orientation.md)
+2. [The gate](02-the-gate.md)
 
 Planned, and not yet written:
 
-2. The gate
 3. The subprocess seam
 4. The namespace it will not name
 5. Scope and commit

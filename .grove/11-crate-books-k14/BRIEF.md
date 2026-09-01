@@ -83,11 +83,25 @@ verifiable: the overview is proved by the validator, the move by the link suites
 **Each book leaf here is a placeholder for the pipeline's own decomposition.**
 The books are to be authored through the extracted kinds, and those kinds did not
 exist when this subtree was cut — grove refuses a kind no launch template
-declares, so their leaves could not be written in advance. A picked book leaf
-whose pipeline kinds are installed should `leaf-decompose` itself into one leaf
-per stage and do only the first. A book leaf picked when they are not installed
-should say so and stop, not quietly author the book by hand: the point of the
-pilot was to earn a pipeline, and bypassing it wastes that.
+declares, so their leaves could not be written in advance. A book leaf picked when
+they are not installed should say so and stop, not quietly author the book by
+hand: the point of the pilot was to earn a pipeline, and bypassing it wastes that.
+
+**The pipeline is four stages, in this order: `draft`, `copy-edit`, `art`,
+`proof`** (`pipeline-kinds-k27`; `docs/adr/the-editorial-pipeline-is-four-kinds.md`
+carries which stages earned a kind and why two did not). A picked book leaf whose
+kinds are installed opens the node itself and does only the draft:
+
+    grove-llm leaf-decompose <this leaf> <book stem> --kind draft
+
+The `--kind` is required here: the verb grows exactly **one** first child and
+inherits the decomposed leaf's own kind — `impl` — unless overridden. The other
+three stages are cut lazily, each as the last act of the stage before it, and
+every stage leaf carries the book's bare stem as its whole slug. A stage that
+must send work back to an earlier one cuts a re-run leaf of that stage *before*
+cutting the next stage
+(`docs/adr/a-feedback-edge-is-forward-tree-growth.md`); the stage skills carry the
+rest.
 
 **`grove-loop` is 72% of the remaining corpus and will decompose.** 13 roots and
 10,533 lines, with `tree_lifecycle.rs` at 2,725 and `task_tree.rs` at 2,023.

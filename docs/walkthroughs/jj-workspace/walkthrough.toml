@@ -1,0 +1,209 @@
+schema = 1
+
+[book]
+id      = "jj-workspace"
+title   = "jj-workspace"
+subject = "crates/jj-workspace"
+
+# The bare rule, with no exceptions at all: the crate's own manifest and every
+# Rust file under `src/`. There is no `bin/`, no test-support module and no
+# inline `tests.rs`, so this book carries no `[[corpus.add]]` and no
+# `[[corpus.exclude]]` — and the normative inventory in
+# `docs/specs/walkthrough-books.md` records that emptiness rather than omitting
+# the book.
+[corpus]
+include = [
+  "crates/jj-workspace/Cargo.toml",
+  "crates/jj-workspace/src/**/*.rs",
+]
+
+[[page]]
+file  = "README.md"
+id    = "contents"
+title = "jj-workspace"
+role  = "contents"
+
+[[page]]
+file  = "01-orientation.md"
+id    = "orientation"
+title = "Orientation"
+role  = "chapter"
+slice = "no-dependencies"
+
+[[page]]
+file  = "02-the-gate.md"
+id    = "the-gate"
+title = "The gate"
+role  = "chapter"
+slice = "one-lane"
+
+[[page]]
+file  = "03-subprocess-seam.md"
+id    = "subprocess-seam"
+title = "The subprocess seam"
+role  = "chapter"
+slice = "nothing-ambient"
+
+[[page]]
+file  = "04-namespace.md"
+id    = "namespace"
+title = "The namespace it will not name"
+role  = "chapter"
+slice = "no-consumer-vocabulary"
+
+[[page]]
+file  = "05-scope-and-commit.md"
+id    = "scope-and-commit"
+title = "Scope and commit"
+role  = "chapter"
+slice = "no-transactions"
+
+[[page]]
+file  = "06-refusal.md"
+id    = "refusal"
+title = "Refusal"
+role  = "chapter"
+slice = "no-remedy-of-its-own"
+
+[[page]]
+file  = "07-what-jj-owns.md"
+id    = "what-jj-owns"
+title = "What jj owns"
+role  = "chapter"
+slice = "assembly"
+
+[[page]]
+file  = "concept-index.md"
+id    = "concept-index"
+title = "Concept index"
+role  = "lookup"
+
+[[page]]
+file  = "source-index.md"
+id    = "source-index"
+title = "Source index"
+role  = "lookup"
+
+[[root]]
+id    = "source-crate-manifest"
+path  = "crates/jj-workspace/Cargo.toml"
+lines = 44
+
+[[root]]
+id    = "source-library"
+path  = "crates/jj-workspace/src/lib.rs"
+lines = 343
+
+[[root]]
+id    = "source-subprocess"
+path  = "crates/jj-workspace/src/jj.rs"
+lines = 81
+
+[[root]]
+id    = "source-refusal"
+path  = "crates/jj-workspace/src/refusal.rs"
+lines = 230
+
+[[block]]
+id    = "manifest-no-dependencies"
+root  = "source-crate-manifest"
+owner = "no-dependencies"
+lines = "1-44"
+
+[[block]]
+id    = "library-crate-thesis"
+root  = "source-library"
+owner = "no-dependencies"
+lines = "1-54"
+
+[[block]]
+id    = "namespace-reserved-names"
+root  = "source-library"
+owner = "no-consumer-vocabulary"
+lines = "55-61"
+
+[[block]]
+id    = "commit-identity"
+root  = "source-library"
+owner = "no-transactions"
+lines = "62-71"
+
+[[block]]
+id    = "workspace-value-and-gate"
+root  = "source-library"
+owner = "one-lane"
+lines = "72-118"
+
+[[block]]
+id    = "namespace-control-dir"
+root  = "source-library"
+owner = "no-consumer-vocabulary"
+lines = "119-145"
+
+[[block]]
+id    = "scope-tracking-and-commit"
+root  = "source-library"
+owner = "no-transactions"
+lines = "146-274"
+
+[[block]]
+id    = "gate-main-repo-and-canonical"
+root  = "source-library"
+owner = "one-lane"
+lines = "275-319"
+
+[[block]]
+id    = "namespace-validation"
+root  = "source-library"
+owner = "no-consumer-vocabulary"
+lines = "320-343"
+
+[[block]]
+id    = "subprocess-seam-source"
+root  = "source-subprocess"
+owner = "nothing-ambient"
+lines = "1-81"
+
+[[block]]
+id    = "refusal-source"
+root  = "source-refusal"
+owner = "no-remedy-of-its-own"
+lines = "1-230"
+
+[[early-use]]
+symbols   = "`Workspace`"
+first-use = "01-orientation.md#public-surface"
+owner     = "one-lane"
+statement = "A resolved workspace is a value whose existence is the proof that the precondition passed; it carries the workspace root and the root of the workspace that holds the repository."
+
+[[early-use]]
+symbols   = "`Refusal`"
+first-use = "01-orientation.md#public-surface"
+owner     = "no-remedy-of-its-own"
+statement = "The one error type: an opaque value carrying what is wrong, where, and the jj command that fixes it, with no matchable variants because every case is a stop."
+
+[[early-use]]
+symbols   = "`Commit`"
+first-use = "01-orientation.md#commit-tour"
+owner     = "no-transactions"
+statement = "What a taken commit returns: a change id rather than a commit id, because a change id still names the work after a rewrite."
+
+[[early-use]]
+symbols   = "`control_dir`"
+first-use = "01-orientation.md#commit-tour"
+owner     = "no-consumer-vocabulary"
+statement = "A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent."
+
+[[early-use]]
+symbols   = "`is_tracked`"
+first-use = "01-orientation.md#the-six-refusals"
+owner     = "no-transactions"
+statement = "The one probe whose answer depends on the working copy, and so the one that lets jj snapshot before answering."
+
+[guide]
+path    = "docs/USAGE.md"
+anchors = ["usage-workspace-layouts", "usage-driver-lease", "undoing-a-mistake"]
+
+[[glossary]]
+path    = "CONTEXT.md"
+anchors = ["stated-vcs", "driver-lease", "loop-control-channel", "task-commit-boundary"]

@@ -350,7 +350,9 @@ _Avoid_: "nested grove" — that is `grove` launched from inside another grove's
 _Avoid_: treating a meta-grove as self-hosting in the strong sense — it develops
 the next build's methodology while being driven by the last one's.
 
-**Loop control channel** (`GROVE_SIGNAL_FILE`):
+<a id="loop-control-channel"></a>
+### Loop control channel (`GROVE_SIGNAL_FILE`)
+
 The collision-resistant per-launch path the loop driver watches while its
 harness child runs; its **appearance alone** ends the session, with content read
 only to tell `Relaunch` from `Done` (self-driving-loop). The exact path also
@@ -381,7 +383,9 @@ the leaf it must select before the agent exists.
 **Bootstrap**:
 The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
 
-**Task commit boundary** / **sealing**:
+<a id="task-commit-boundary"></a>
+### Task commit boundary / sealing
+
 Where one session's focused commit closes. That commit covers the session's
 whole task — the artifact, whatever the grow verbs wrote, the [[DONE infix]]
 rename, and whatever the parent-chain close promoted or added — and names it by
@@ -397,7 +401,9 @@ and a file both tasks touched cannot be separated afterwards by
 _Avoid_: the **Commit → Retire** order any prose or diagram may still show. It is
 the exact cross-task contamination sealing exists to stop.
 
-**Driver lease**:
+<a id="driver-lease"></a>
+### Driver lease
+
 The exclusive, process-scoped ownership of one working tree by one bare `grove`
 driver: a nonblocking advisory lock on a control file in that exact workspace's
 VCS-administration area, held with the open working-tree root through the whole
@@ -678,7 +684,9 @@ naming the selected leaf identifies only a handle whose slug is `finish`
 label. Anything needing to know which kind ran asks the per-kind configured
 template, which is where the routing decision was actually made.
 
-**Stated VCS**:
+<a id="stated-vcs"></a>
+### Stated VCS
+
 The version-control fact the driver resolves *before* a session exists and
 states in that session's mandate: that the working tree is jj-enabled, and the
 workspace root it resolved. It rides beside the handle in [[Kind routing]]'s

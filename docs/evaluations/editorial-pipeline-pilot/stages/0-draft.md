@@ -1,0 +1,159 @@
+# draft — stage record
+
+The draft is **not a scored stage**. There is no book without it and no
+alternative to it, so no marginality is computable for it; this record exists to
+fix the baseline the five editorial stages are measured against, and to account
+for everything the draft's commits touched.
+
+It is also the one stage the
+[preregistration](../preregistration.md) permits a **commit range**: `jj-workspace-book-k25`
+decomposed into one child per slice of the book's own sequence, so the draft is
+every commit from the first drafting commit to the last inclusive, and its
+baseline is the commit before the first of them. This record is appended to by
+each child; `## Provenance` lists every commit in the range.
+
+<a id="provenance"></a>
+## Provenance
+
+**Stage:** draft (stage 0).
+**Baseline commit** — the parent of the first drafting commit, and the state the
+whole range is diffed against: change id `pmyytxvyxmzzsmrxmovzuyxqqnxxurzr`,
+`pilot-preregistration-k54: integrate all seven preregistration review findings`.
+
+| # | Child | Change id | Book-directory digest after | Scope proved |
+|---:|---|---|---|---|
+| 1 | `orientation-k55` | `wnnkykqxxnotnpltmvnvnmkqtsuxzkqs` | `523b02550a3aef5fcb0d1161ae5ad5adeaaed352450d0f72e36e84f4b4b33d4d` | `--through no-dependencies` |
+
+The book-directory digest **before** child 1 has no value: the directory did not
+exist. Digests follow the preregistration's recipe —
+`find <dir> -type f \( -name '*.md' -o -name '*.toml' \) | LC_ALL=C sort | xargs
+shasum -a 256 | shasum -a 256`.
+
+**Preregistration read by this session:** SHA-256
+`b9ee9f8e48b69170c7ecd9787b9373dfc42242895e91d37d8a181af6f09a694e`.
+
+<a id="frozen-inputs"></a>
+## Frozen inputs, re-checked
+
+Every input the preregistration digested was re-computed at the start of child 1.
+All matched except one, and the exception was mandated rather than accidental.
+
+| Input | Verdict |
+|---|---|
+| `crates/jj-workspace/Cargo.toml`, `src/lib.rs`, `src/jj.rs`, `src/refusal.rs` | all four unmoved; the corpus was not touched |
+| `docs/specs/walkthrough-books.md` | unmoved |
+| `docs/specs/jj-workspace-book-structure.md` | unmoved |
+| `docs/USAGE.md` | unmoved |
+| `docs/walkthroughs/ordinal-fs-tree/` | unmoved |
+| `CONTEXT.md` | **moved**, by mandate — see below |
+
+**`CONTEXT.md` moved from `c7dde4d628a0f4cd8556b7c5238e1abe80d482b724f27efdcca4c9071e190e52`
+to `c0d4698440f2d925f6c67563487add708100cd8188be025267039be09b733822`, and the
+move was required by the task this stage executes.** The preregistration's
+*Frozen inputs* lists `CONTEXT.md` as a standard the stages are judged against,
+while its *Validity* section's allowlist explicitly permits the draft — and only
+the draft — to touch `CONTEXT.md` anchors. Those two statements cannot both hold
+once a book cites the glossary, and `jj-workspace` is the first book that does.
+The change is recorded here rather than argued away so the report can classify it
+by inspection: four term entries — *Loop control channel*, *Task commit boundary /
+sealing*, *Driver lease* and *Stated VCS* — each gained one `<a id="…"></a>` line
+and had their bold lead-in promoted to a `###` heading. No definition, `_Avoid_`
+line or retirement note was altered, and no other entry was touched.
+
+The promotion to a heading is not decoration. `docs/specs/walkthrough-books.md`
+requires a cited anchor to exist as an explicit anchor line **immediately
+preceding a heading**, and `book-validation`'s `explicit_anchors`
+(`crates/book-validation/src/markdown.rs`) implements exactly that: an anchor line
+whose next line is not a heading is not an anchor and is reported as `M201`
+against the manifest. An anchor before a bold paragraph would have discharged
+nothing.
+
+<a id="baseline"></a>
+## Baseline
+
+The draft has no before-state to cite, so this section stands where an editorial
+stage carries `## Claims`. It is completed by the last child of the range.
+
+**Page inventory, as of child 1.** Five of the book's ten declared files exist;
+the manifest declares all ten from the start, because a plan authored
+incrementally cannot be compared against a prefix.
+
+| File | Role | Slice | State |
+|---|---|---|---|
+| `walkthrough.toml` | manifest | — | complete: all 7 chapters, 4 roots, 11 blocks, 5 early uses, guide and glossary groups |
+| `README.md` | contents | — | present; chapter 1 linked, chapters 2–7 listed as plain text |
+| `01-orientation.md` | chapter | `no-dependencies` | written |
+| `concept-index.md` | lookup | — | present, curated for the prefix |
+| `source-index.md` | lookup | — | present; 4 roots, 11 ownership rows, 16 fragment rows, 5 early-use rows |
+| `02-the-gate.md` | chapter | `one-lane` | not written; 2 blocks deferred |
+| `03-subprocess-seam.md` | chapter | `nothing-ambient` | not written; 1 block deferred |
+| `04-namespace.md` | chapter | `no-consumer-vocabulary` | not written; 3 blocks deferred |
+| `05-scope-and-commit.md` | chapter | `no-transactions` | not written; 2 blocks deferred |
+| `06-refusal.md` | chapter | `no-remedy-of-its-own` | not written; 1 block deferred |
+| `07-what-jj-owns.md` | chapter | `assembly` | not written; owns no source, final-only |
+
+**Validation, as of child 1.** Scoped, not final:
+
+```console
+$ cargo run --quiet -p book-validation --bin book-check -- \
+    --repo . --book docs/walkthroughs/jj-workspace \
+    --through no-dependencies --check all
+valid: 4 files, 98 resolved lines, 600 deferred lines, final=false
+```
+
+98 + 600 = 698, the corpus line count the root brief froze. `bash scripts/check.sh`
+is red on `book-check` alone for every child of the range but the last, because
+the script runs `--final` over every book root by discovery and a prefix
+deliberately leaves later blocks deferred. The final result belongs in this
+section and is written by `what-jj-owns-k61`.
+
+<a id="out-of-charter"></a>
+## Out of charter
+
+None. The draft owns no taxonomy class, so no claim it makes can be out of
+charter; the section is present because the record's shape requires it.
+
+<a id="unclaimed-changes"></a>
+## Unclaimed changes
+
+The draft makes no claims, so this section accounts for every hunk of its diff
+that touches book prose or an allowlisted file outside the book. As of child 1:
+
+- **`docs/walkthroughs/jj-workspace/` (five new files).** The whole of the book
+  as it stands. This is the baseline; none of it closes a taxonomy defect,
+  because there is no before-state for it to close one against.
+- **`CONTEXT.md` (four anchored headings).** Mandated by the task's `Done when`
+  and by the book contract's *Outbound links*. Reader-facing but deliberately not
+  claimed: it is a precondition for the book validating at all, not an
+  improvement to the book.
+- **`docs/ARCHITECTURE.md` (one ownership row).** Mandated: every book root under
+  `docs/walkthroughs/` owes a row in the *Documentation ownership* table, and a
+  repository test in `crates/grove/tests/reference_navigation.rs` fails the book
+  without one.
+- **`.grove/` bookkeeping.** The leaf's decomposition into a node with seven
+  children, the children's task files, and two leaves cut for defects this
+  session found. Allowlisted, and it changes no book prose.
+
+<a id="findings-not-fixed"></a>
+## Findings not fixed
+
+Two defects were found while drafting and neither was fixed here. Both are
+outside the draft's charter and both would have put a non-book change inside the
+draft's commit range, which the preregistration's *Validity* rules out.
+
+1. **The book system's `[[early-use]]` group is unsatisfiable in scoped mode when
+   a required row's first use is on a later chapter.** `check_early_uses`
+   (`crates/book-validation/src/ledger.rs`) requires every manifest
+   `[[early-use]]` row to appear in the ledger *and* requires each ledger row's
+   first-use anchor to be found in a page present in the snapshot — but scoped
+   mode forbids later pages from existing. `docs/specs/walkthrough-books.md` says
+   the manifest is complete from the start, so the two rules disagree for any
+   book whose second chapter forces an early use. Worked around here by declaring
+   only the five rows whose first use is in chapter 1 and leaving the structure
+   brief's other two to be added to the ledger by `the-gate-k56`, which is what
+   the specification's "authors add further rows to the book's own ledger" already
+   permits. Cut as `early-use-scope-k63`.
+2. **`CONTEXT.md`'s glossary is not uniformly addressable.** Four of its
+   sixty-one term entries now carry explicit anchors and fifty-seven do not. Cut
+   as `glossary-anchors-k62`, placed after every crate book so the full reserved
+   anchor set is known when the generalisation is made.

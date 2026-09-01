@@ -160,6 +160,20 @@ Three arms, ordered so the documentation is never blocked on unbuilt machinery.
   anchor set books reserve from, `CONTEXT.md` gains the glossary anchors the
   first citing book reserves, and no book validates before the anchors it
   reserves exist in the explicit form.
+- **The pilot has reported, and its result is `N = 4`.**
+  `docs/evaluations/editorial-pipeline-pilot/README.md` is the measurement,
+  evaluated against the preregistration committed before the book it judges.
+  The surviving pipeline is **draft, copy edit, art, proof**: the copy edit and
+  the art stage each cleared the preregistered threshold (five and six marginal
+  reader-facing defects the simulated two-stage arm did not reach), and the
+  developmental and technical edits reached two each and are **`Merge`d into the
+  draft** — no kind, their charters folded in. No stage is `Undetermined` and
+  none is `Drop`, so `pipeline-kinds-k27` extracts two kinds rather than four and
+  is not entitled to more. Neither the six-stage design nor the two-stage
+  fallback is upheld; the middle outcome is the one the evidence supports. **The
+  merge target is the draft, and it is only safe while each book keeps getting a
+  human structure brief** — that brief is what pre-empts the two merged charters,
+  and the report names this as its most important limit.
 - **Ownership**: `docs/ARCHITECTURE.md`, *Documentation ownership* — one
   canonical source per subject, and the rule bounding what may sit directly
   under `docs/`.

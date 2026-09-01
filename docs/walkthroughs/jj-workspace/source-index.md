@@ -30,7 +30,7 @@
 <!-- insert «subprocess-seam-source» -->
 <!-- /source-root -->
 <!-- source-root «source-refusal» source="crates/jj-workspace/src/refusal.rs" lines="1-230" -->
-<!-- defer «refusal-source» owner="no-remedy-of-its-own" lines="1-230" -->
+<!-- insert «refusal-source» -->
 <!-- /source-root -->
 
 <a id="ownership-blocks"></a>
@@ -48,7 +48,7 @@
 | `gate-main-repo-and-canonical` | `source-library` | `one-lane` | `275-319` | 45 | `resolved` |
 | `namespace-validation` | `source-library` | `no-consumer-vocabulary` | `320-343` | 24 | `resolved` |
 | `subprocess-seam-source` | `source-subprocess` | `nothing-ambient` | `1-81` | 81 | `resolved` |
-| `refusal-source` | `source-refusal` | `no-remedy-of-its-own` | `1-230` | 230 | `deferred` |
+| `refusal-source` | `source-refusal` | `no-remedy-of-its-own` | `1-230` | 230 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -125,6 +125,29 @@
 | `subprocess-raw-output-endings` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `58-69` | `subprocess-seam-source` | `—` |
 | `subprocess-rendered` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `70-81` | `subprocess-seam-source` | `—` |
 | `source-refusal` | `source-index` | `source-refusal` | `root` | `—` | `1-230` | `—` | `refusal-source` |
+| `refusal-module-thesis` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `1-13` | `refusal-source` | `—` |
+| `refusal-source` | `refusal` | `source-refusal` | `composite` | `no-remedy-of-its-own` | `1-230` | `source-refusal` | `refusal-module-thesis`, `refusal-imports`, `refusal-opaque-type`, `refusal-kind-open`, `refusal-kind-gate`, `refusal-kind-namespace`, `refusal-kind-scope`, `refusal-kind-seam`, `refusal-kind-commit`, `refusal-constructors-gate`, `refusal-constructors-namespace`, `refusal-constructors-scope`, `refusal-constructors-seam`, `refusal-constructors-commit`, `refusal-display-open`, `refusal-display-gate`, `refusal-display-namespace`, `refusal-display-scope`, `refusal-display-seam`, `refusal-display-commit`, `refusal-error-source-caused`, `refusal-error-source-uncaused` |
+| `refusal-imports` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `14-18` | `refusal-source` | `—` |
+| `refusal-opaque-type` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `19-29` | `refusal-source` | `—` |
+| `refusal-kind-open` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `30-31` | `refusal-source` | `—` |
+| `refusal-kind-gate` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `32-35` | `refusal-source` | `—` |
+| `refusal-kind-namespace` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `36-39` | `refusal-source` | `—` |
+| `refusal-kind-scope` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `40-43` | `refusal-source` | `—` |
+| `refusal-kind-seam` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `44-53` | `refusal-source` | `—` |
+| `refusal-kind-commit` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `54-57` | `refusal-source` | `—` |
+| `refusal-constructors-gate` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `58-70` | `refusal-source` | `—` |
+| `refusal-constructors-namespace` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `71-84` | `refusal-source` | `—` |
+| `refusal-constructors-scope` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `85-97` | `refusal-source` | `—` |
+| `refusal-constructors-seam` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `98-118` | `refusal-source` | `—` |
+| `refusal-constructors-commit` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `119-127` | `refusal-source` | `—` |
+| `refusal-display-open` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `128-130` | `refusal-source` | `—` |
+| `refusal-display-gate` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `131-152` | `refusal-source` | `—` |
+| `refusal-display-namespace` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `153-165` | `refusal-source` | `—` |
+| `refusal-display-scope` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `166-179` | `refusal-source` | `—` |
+| `refusal-display-seam` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `180-194` | `refusal-source` | `—` |
+| `refusal-display-commit` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `195-214` | `refusal-source` | `—` |
+| `refusal-error-source-caused` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `215-221` | `refusal-source` | `—` |
+| `refusal-error-source-uncaused` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `222-230` | `refusal-source` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -132,15 +155,15 @@
 | Symbol family | First use | Owner | Minimum local statement | Status |
 |---|---|---|---|---|
 | `Workspace` | `01-orientation.md#public-surface` | `one-lane` | A resolved workspace is a value whose existence is the proof that the precondition passed; it carries the workspace root and the root of the workspace that holds the repository. | `explained` |
-| `Refusal` | `01-orientation.md#public-surface` | `no-remedy-of-its-own` | The one error type: an opaque value carrying what is wrong, where, and the jj command that fixes it, with no matchable variants because every case is a stop. | `pending` |
+| `Refusal` | `01-orientation.md#public-surface` | `no-remedy-of-its-own` | The one error type: an opaque value carrying what is wrong, where, and the jj command that fixes it, with no matchable variants because every case is a stop. | `explained` |
 | `control_dir` | `01-orientation.md#commit-tour` | `no-consumer-vocabulary` | A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent. | `explained` |
 | `Commit` | `01-orientation.md#commit-tour` | `no-transactions` | What a taken commit returns: a change id rather than a commit id, because a change id still names the work after a rewrite. | `explained` |
 | `is_tracked` | `01-orientation.md#the-six-refusals` | `no-transactions` | The one probe whose answer depends on the working copy, and so the one that lets jj snapshot before answering. | `explained` |
 | `jj::output`, `jj::produced_output` | `02-the-gate.md#worked-resolution` | `nothing-ambient` | Every jj invocation the crate makes is built at one seam that fixes the working directory, removes the repository selectors, and separates failure to start from failure to succeed. | `explained` |
-| `Refusal::not_a_workspace`, `Refusal::unresolvable_path` | `02-the-gate.md#worked-resolution` | `no-remedy-of-its-own` | Refusal constructors are crate-internal; the gate's refusal names jj's two initialisation commands and states that nothing was created or changed. | `pending` |
-| `Refusal::not_runnable`, `Refusal::command_failed`, `Refusal::output_not_text` | `03-subprocess-seam.md#worked-invocation` | `no-remedy-of-its-own` | The seam's three refusals: jj could not be started and the remedy is installation; jj started and declined, and the remedy is the stderr it printed; or its output was not text and its answer cannot be read. | `pending` |
-| `Refusal::namespace`, `Refusal::control_dir` | `04-namespace.md#worked-reservation` | `no-remedy-of-its-own` | The namespace's two refusals: a name the crate will not reserve, carrying the name and one short reason with a fixed remedy paragraph; and a directory the filesystem would not create, carrying the path and keeping the `io::Error` as the refusal's `source()`. | `pending` |
-| `Refusal::not_scoped`, `Refusal::outside_workspace`, `Refusal::commit_not_recorded` | `05-scope-and-commit.md#worked-commit` | `no-remedy-of-its-own` | Scope and commit's three refusals: a path-scoped operation given no scope; a path the workspace does not answer for, naming the root it was compared against; and the one refusal about state rather than about a command, which means the commit is absent and names jj's operation-log repair while keeping the seam's own refusal as its cause. | `pending` |
+| `Refusal::not_a_workspace`, `Refusal::unresolvable_path` | `02-the-gate.md#worked-resolution` | `no-remedy-of-its-own` | Refusal constructors are crate-internal; the gate's refusal names jj's two initialisation commands and states that nothing was created or changed. | `explained` |
+| `Refusal::not_runnable`, `Refusal::command_failed`, `Refusal::output_not_text` | `03-subprocess-seam.md#worked-invocation` | `no-remedy-of-its-own` | The seam's three refusals: jj could not be started and the remedy is installation; jj started and declined, and the remedy is the stderr it printed; or its output was not text and its answer cannot be read. | `explained` |
+| `Refusal::namespace`, `Refusal::control_dir` | `04-namespace.md#worked-reservation` | `no-remedy-of-its-own` | The namespace's two refusals: a name the crate will not reserve, carrying the name and one short reason with a fixed remedy paragraph; and a directory the filesystem would not create, carrying the path and keeping the `io::Error` as the refusal's `source()`. | `explained` |
+| `Refusal::not_scoped`, `Refusal::outside_workspace`, `Refusal::commit_not_recorded` | `05-scope-and-commit.md#worked-commit` | `no-remedy-of-its-own` | Scope and commit's three refusals: a path-scoped operation given no scope; a path the workspace does not answer for, naming the root it was compared against; and the one refusal about state rather than about a command, which means the commit is absent and names jj's operation-log repair while keeping the seam's own refusal as its cause. | `explained` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

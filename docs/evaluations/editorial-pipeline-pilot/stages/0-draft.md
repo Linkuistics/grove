@@ -27,6 +27,7 @@ whole range is diffed against: change id `pmyytxvyxmzzsmrxmovzuyxqqnxxurzr`,
 | 3 | `subprocess-seam-k57` | `qyxstotksvmrnzqtwouvtsxxxtzskqxn` | `3a333b9028ab5d3971a6daa068cf199e89d65a6bf1f7a0c2376f8766ddad9975` | `--through nothing-ambient` |
 | 4 | `namespace-k58` | `vuottxtuuktvwmqlzozukwoztnmrvvmo` | `d8beca1b843585d75b6a134b08e4411585eec292cbe1af03d6c0d424af9b49b5` | `--through no-consumer-vocabulary` |
 | 5 | `scope-and-commit-k59` | `wqvkoozswvlxymwwsqmtxosrlqnzntko` | `1d16f02ef3d62c3c536e52b73000408464b92e99dc3f51bdd5d2873e9e11d13b` | `--through no-transactions` |
+| 6 | `refusal-k60` | `roqrulokolzxnopklllmvrtxxtntuskv` | `bdf693dd2254b4ac487de0e55762e1749651f8b63263cc8ee2bd13267c203bc6` | `--through no-remedy-of-its-own` |
 
 The book-directory digest **before** child 1 has no value: the directory did not
 exist. Digests follow the preregistration's recipe —
@@ -63,6 +64,17 @@ by inspection: four term entries — *Loop control channel*, *Task commit bounda
 sealing*, *Driver lease* and *Stated VCS* — each gained one `<a id="…"></a>` line
 and had their bold lead-in promoted to a `###` heading. No definition, `_Avoid_`
 line or retirement note was altered, and no other entry was touched.
+
+**Re-checked at the start of child 6, and unchanged.** All four corpus files, all
+three specification and guide inputs, the `ordinal-fs-tree` precedent directory
+and `CONTEXT.md` carry exactly the digests above — `CONTEXT.md` still at its
+post-child-1 value, because chapter 6 reserves `docs/USAGE.md#undoing-a-mistake`,
+which is a guide anchor and already existed in the required explicit form, and it
+reserves no glossary anchor. The book directory was at child 5's recorded digest
+`1d16f02ef3d62c3c536e52b73000408464b92e99dc3f51bdd5d2873e9e11d13b` before this
+child touched it. This child touches no file outside the book directory except
+this record and `.grove/`. The preregistration read by this child hashes to the
+same `b9ee9f8e48b69170c7ecd9787b9373dfc42242895e91d37d8a181af6f09a694e`.
 
 **Re-checked at the start of child 5, and unchanged.** All four corpus files, all
 three specification and guide inputs, the `ordinal-fs-tree` precedent directory
@@ -110,44 +122,45 @@ nothing.
 The draft has no before-state to cite, so this section stands where an editorial
 stage carries `## Claims`. It is completed by the last child of the range.
 
-**Page inventory, as of child 5.** Nine of the book's ten declared files exist;
+**Page inventory, as of child 6.** Nine of the book's ten declared files exist;
 the manifest declares all ten from the start, because a plan authored
 incrementally cannot be compared against a prefix.
 
 | File | Role | Slice | State |
 |---|---|---|---|
 | `walkthrough.toml` | manifest | — | complete: all 7 chapters, 4 roots, 11 blocks, 5 early uses, guide and glossary groups |
-| `README.md` | contents | — | present; chapters 1–5 linked, chapters 6–7 listed as plain text |
+| `README.md` | contents | — | present; chapters 1–6 linked, chapter 7 listed as plain text |
 | `01-orientation.md` | chapter | `no-dependencies` | written |
 | `02-the-gate.md` | chapter | `one-lane` | written |
 | `03-subprocess-seam.md` | chapter | `nothing-ambient` | written |
 | `04-namespace.md` | chapter | `no-consumer-vocabulary` | written |
 | `concept-index.md` | lookup | — | present, curated for the prefix |
-| `source-index.md` | lookup | — | present; 4 roots, 11 ownership rows, 69 fragment rows, 10 early-use rows |
+| `source-index.md` | lookup | — | present; 4 roots, 11 ownership rows, 93 fragment rows, 10 early-use rows |
 | `05-scope-and-commit.md` | chapter | `no-transactions` | written |
-| `06-refusal.md` | chapter | `no-remedy-of-its-own` | not written; 1 block deferred |
+| `06-refusal.md` | chapter | `no-remedy-of-its-own` | written |
 | `07-what-jj-owns.md` | chapter | `assembly` | not written; owns no source, final-only |
 
-**Validation, as of child 5.** Scoped, not final:
+**Validation, as of child 6.** Scoped, not final:
 
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/jj-workspace \
-    --through no-transactions --check all
-valid: 4 files, 468 resolved lines, 230 deferred lines, final=false
+    --through no-remedy-of-its-own --check all
+valid: 4 files, 698 resolved lines, 0 deferred lines, final=false
 ```
 
-468 + 230 = 698, the corpus line count the root brief froze; child 1 stood at
-98 + 600, child 2 at 190 + 508, child 3 at 271 + 427 and child 4 at 329 + 369,
-and chapter 5's two ownership blocks are the 139 lines that moved. The 230 lines
-still deferred are `refusal.rs` entire, and they are the last block in the book.
-`bash scripts/check.sh` reports 1 of 8 failing, and the failure is `book-check`
-alone. Its thirteen diagnostics were read rather than summarised: two `F003` on
-the one defer still outstanding, seven `F009` — one on the ownership ledger, one
-on the early-use ledger, and one on each of its five `pending` rows — two `M103`
-on the contents and on chapter 5's navigation lacking a `Next`, and two `M101` on
-the two unwritten pages. `cargo test --locked --workspace`, `cargo clippy` and
-`cargo fmt --all --check` are green.
+698 + 0 = 698, the corpus line count the root brief froze; child 1 stood at
+98 + 600, child 2 at 190 + 508, child 3 at 271 + 427, child 4 at 329 + 369 and
+child 5 at 468 + 230, and chapter 6's single ownership block is the 230 lines
+that moved. **No deferred lines remain**, and no source-owning slice is left: the
+book's whole corpus is now reconstructed by its fragment graph, and the seventh
+chapter owns none of it. `bash scripts/check.sh` reports 1 of 8 failing, and the
+failure is `book-check` alone. Its three diagnostics were read rather than
+summarised, and all three are the missing seventh chapter: one `M103` on the
+contents, one `M103` on chapter 6's navigation lacking a `Next`, and one `M101`
+on the unwritten page. Every `F003` and `F009` from child 5 is gone.
+`cargo test --locked --workspace`, `cargo clippy` and `cargo fmt --all --check`
+are green.
 `bash scripts/check.sh` is red on `book-check` alone for every child of the range
 but the last, because the script runs `--final` over every book root by discovery
 and a prefix deliberately leaves later blocks deferred. The final result belongs in this
@@ -254,6 +267,30 @@ As of child 5:
   a defect found while drafting, and this child's `DONE` rename. It changes no
   book prose.
 
+As of child 6:
+
+- **`06-refusal.md` (new).** Chapter 6 entire: the no-remedy-of-its-own thesis and
+  the offer/policy distinction it is checked against, the two-part premise
+  (`Error::source` as the standard library's cause chain, and jj's operation log
+  as a repair a person runs), the worked refusal — the identical attempt chapter 5
+  traced, declining — with its measured `source()` walk and its measured
+  double-rendered cause, the ten kinds walked at the five sites that create them
+  with variant, constructor and `Display` arm read together, the cause-chain
+  implementation, and the four `use` lines that close chapter 1's empty dependency
+  table. The single 230-line ownership block is resolved into twenty-two literal
+  fragments under one composite. Baseline prose, unedited.
+- **`source-index.md`, `README.md`, `05-scope-and-commit.md`, `concept-index.md`.**
+  The ledger and navigation this slice is required to move: the last defer
+  replaced by an insert, the last ownership row turned `resolved`, twenty-three
+  fragment rows added (twenty-two literals and one composite), all five
+  `no-remedy-of-its-own` early-use rows turned
+  `explained`, chapter 6 linked from the contents, chapter 5's two navigation
+  lines given their `Next`, and nineteen concept-index entries. Mechanical and
+  validator-driven; no prose on a page an earlier slice owns was touched.
+- **`.grove/` bookkeeping.** This child's running decision log, one leaf cut for a
+  defect found while drafting, and this child's `DONE` rename. It changes no book
+  prose.
+
 <a id="findings-not-fixed"></a>
 ## Findings not fixed
 
@@ -338,3 +375,25 @@ As of child 5, one more:
    `a_deletion_is_committable_after_the_path_is_gone` passes a relative path and
    takes the textual `strip_prefix` branch instead.
 
+As of child 6, one more:
+
+6. **Four refusal kinds interpolate a cause they also return from `source()`, so
+   a consumer that renders the chain renders it twice.** `UnresolvablePath`,
+   `ControlDir` and `NotRunnable` interpolate their `io::Error` and return it from
+   `Error::source`; `CommitNotRecorded` interpolates its boxed `Refusal` and
+   returns that (`crates/jj-workspace/src/refusal.rs:145-152`, `159-165`,
+   `180-185`, `199-210`, `215-221`). Measured on jj 0.44.0 by driving a real
+   `Workspace::commit` failure through the crate — an unreadable directory in the
+   working copy, the fixture
+   `a_commit_that_cannot_land_names_the_operation_log_repair` already uses — and
+   formatting the result: `anyhow`'s `{:#}` appends the whole `CommandFailed`
+   message after the remedy paragraph's final full stop, and its `{:?}` repeats it
+   under `Caused by:`. It is reachable from grove rather than hypothetical:
+   `crates/grove-llm/src/main.rs:1` is `fn main() -> anyhow::Result<()>`, so a
+   refusal reaching the top is printed with that `Debug`. Not fixed here: the
+   corpus is frozen, and the fix moves line boundaries inside four of chapter 6's
+   fragments, so it must land in one commit with the page that quotes them.
+   Chapter 6 states it in its worked example, with the measurement, and again
+   where it reads `Error::source`. Cut as `duplicated-cause-k67`, placed beside
+   `jj-docs-url-k64`, `jj-owned-names-k65` and `lossy-path-rendering-k66` after
+   every crate book for the same reason.

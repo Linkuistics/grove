@@ -1,6 +1,6 @@
 # Scope and commit
 <!-- book-page id="scope-and-commit" slice="no-transactions" order="5" -->
-[Previous: The namespace it will not name](04-namespace.md) | [Contents](README.md)
+[Previous: The namespace it will not name](04-namespace.md) | [Contents](README.md) | [Next: Refusal](06-refusal.md)
 
 <a id="no-transactions"></a>
 ## It takes commits; it does not implement transactions
@@ -843,4 +843,4 @@ this chapter returns `Result<_, Refusal>`, and the refusals have been quoted her
 by their messages without the type behind them being read. The next chapter reads
 it, and finds that the crate has no remedy of its own to offer.
 
-[Previous: The namespace it will not name](04-namespace.md) | [Contents](README.md)
+[Previous: The namespace it will not name](04-namespace.md) | [Contents](README.md) | [Next: Refusal](06-refusal.md)

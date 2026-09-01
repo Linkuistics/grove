@@ -52,10 +52,10 @@ source.
 3. [The subprocess seam](03-subprocess-seam.md)
 4. [The namespace it will not name](04-namespace.md)
 5. [Scope and commit](05-scope-and-commit.md)
+6. [Refusal](06-refusal.md)
 
 Planned, and not yet written:
 
-6. Refusal
 7. What jj owns
 
 Optional lookup:

@@ -183,3 +183,74 @@ exposed: `relative`'s canonicalise-the-parent branch is reached by no test in th
 crate's suite, because the crate's own deletion test passes a relative path and
 takes the textual branch instead.
 
+
+**5 · `refusal.rs` is partitioned by *site* rather than by *implementation*, so
+each of the ten kinds is read once as three lines in three `impl` blocks.** The
+obvious partition of a 230-line file with one enum and two trait impls is four
+fragments — module, type, `Display`, `Error` — and it was rejected because it
+produces exactly the catalogue the structure brief placed this chapter sixth to
+avoid: a reader would meet ten variants, then ten constructors, then ten messages,
+three times through the same list. The partition taken is twenty-two fragments
+grouped into five sites — the gate's two kinds, the namespace's two, scope's two,
+the seam's three and the commit's one — with each site's `Kind` variants, its
+constructors and its `Display` arm read together in one section. This is possible
+only because the file's own order is nearly that order already (gate, namespace,
+scope, seam, commit in the enum), so no fragment crosses a site boundary and the
+gapless-partition rule is satisfied without contortion. Three fragments carry the
+structural openers that belong to no site — `refusal-kind-open` (30-31),
+`refusal-display-open` (128-130) and the two `Error::source` arms — and the
+`refusal-imports` fragment (14-18) is deliberately read **last**, in the section
+that closes chapter 1's empty dependency table, because the four `use` lines are
+the evidence for that claim rather than an introduction to the file. Definition
+order in the Markdown has no expansion meaning
+([`walkthrough-books.md`](../../../docs/specs/walkthrough-books.md), *Composite
+fragments*), so this costs the graph nothing.
+
+**6 · The worked example's rendered message and `source()` chain were *measured*
+through the real crate rather than reconstructed from the `Display` arms.** A
+throwaway binary outside the repository took `jj-workspace` as a path dependency,
+resolved a scratch workspace, and called `Workspace::commit` against a working
+copy containing an unreadable directory — the same failure shape
+`a_commit_that_cannot_land_names_the_operation_log_repair` builds. Nothing in the
+repository was touched. It was worth doing rather than reasoning: reading the two
+`Display` arms would have produced the right message text, and would have missed
+both of the chapter's non-obvious findings. **The `source()` chain is one link
+deep, not three** — jj's own `Caused by: 1: … 2: …` lines are inside the `stderr`
+string `CommandFailed` carries and are text rather than `Error` values, so a
+consumer walking the chain reaches `None` after the wrapped refusal. **And the
+cause is rendered twice** under `anyhow`'s `{:#}` and `{:?}`, because four kinds
+interpolate a cause they also return from `source()`. Neither is visible in the
+source without running it. Cut as `duplicated-cause-k67` (decision 7).
+
+**7 · The double-rendered cause is recorded on the page and cut as a leaf placed
+after every crate book, on the same grounds as decisions 3 and 4.** It is
+reachable from grove rather than hypothetical: `crates/grove-llm/src/main.rs:1` is
+`fn main() -> anyhow::Result<()>`, so a refusal reaching the top is printed with
+`anyhow`'s `Debug` — the message, then `Caused by:`, then a chain whose one link
+is text the message already contains. Rejected: leaving it out — chapter 6's own
+argument is that a refusal says what is wrong, where, and what jj offers, and a
+page making that claim while omitting that grove's operator sees the *why* twice
+is unfalsifiable, exactly as in decisions 3 and 4. Rejected: fixing it here, which
+the corpus freeze forbids and which would put a non-book change inside the draft's
+commit range. Rejected: presenting it purely as a defensible trade — the trade
+*is* real (a consumer printing `{}` alone must still be told why, and deleting the
+interpolation would take that away), and the page states it as one, but the
+`{:#}` join puts a colon after a full stop and repeats a paragraph, which no
+reading makes deliberate. Cut as `duplicated-cause-k67`, beside `jj-docs-url-k64`,
+`jj-owned-names-k65` and `lossy-path-rendering-k66`, because the fix moves line
+boundaries inside four of this chapter's fragments and must land in one commit
+with the page that quotes them.
+
+**8 · `docs/ARCHITECTURE.md` is cited by path rather than linked, because the
+book's outbound-link contract permits only its declared targets.** Found by the
+validator rather than by inspection: the first draft linked
+`../../ARCHITECTURE.md#library-refusals` beside the `ordinal_fs_tree::Refusal`
+contrast, and `book-check` reported `M201 … resolves to missing repository file`
+although the file exists. `check_markdown` resolves a link only against the
+snapshot's book files, corpus files and **declared** outbound files
+(`crates/book-validation/src/markdown.rs:344-348`), and the manifest's `[guide]`
+and `[glossary]` groups are the whole declaration. Rejected: declaring
+`docs/ARCHITECTURE.md` as a third outbound target — the structure brief fixes the
+outbound set and adding to it is a contract change, not a chapter's. The citation
+is now a backticked path and a section name, which is the form the book already
+uses for tests and for consumer source.

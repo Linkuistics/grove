@@ -6,17 +6,30 @@ no cycles — `pick` is a depth-first pre-order walk over positions, it cannot s
 a live leaf and cannot re-enter a retired one.
 
 **So a stage never goes back. It cuts a re-run leaf of the stage that owns the
-work, and orders it ahead of the stage that runs next.** The edge points backward
-in the pipeline and forward in the walk, and those are the same move.
+work, and orders it — with every stage that must read the changed material after
+it — ahead of the stage that would have run next.** The edge points backward in
+the pipeline and forward in the walk, and those are the same move.
 
-Three rules complete it:
+Four rules complete it:
 
-- **The chain is lazy.** A book leaf `leaf-decompose`s with `--kind draft`, and
-  each stage's last act is `leaf-add`ing the next. Nothing is queued behind a
-  running stage, so ordering a re-run before the next stage is just call order:
-  cut the re-run leaf, then cut the next stage. `leaf-insert` is needed only where
-  a later sibling entry already holds live work, which is the condition
-  `references/decompose.md` already states for an integrate step.
+- **The chain is lazy, and a stage cuts only what is not already queued.** A book
+  leaf `leaf-decompose`s with `--kind draft`, and each stage's last act is
+  `leaf-add`ing the stage that runs next — **unless a live later sibling under the
+  node already holds it**. Nothing is queued behind a running stage in the
+  ordinary case, so ordering a re-run before the next stage is just call order.
+  `leaf-insert` is needed only where a later sibling entry already holds live
+  work, which is the condition `references/decompose.md` already states for an
+  integrate step.
+- **Sending work back cuts one contiguous run, not one leaf.** The changed
+  material is read again by every stage after the one that owns it, so a stage
+  that sends work back cuts, in pipeline order, a run beginning at the owning
+  stage and ending at `proof`. That run always contains the stage that would
+  otherwise have run next, and it **replaces** the finding stage's ordinary last
+  act rather than being cut beside it. A stage between the owning stage and the
+  finder is omitted only where the changed material cannot reach its charter, and
+  the run's first body says why. Every leaf in the run then meets the condition
+  above and cuts nothing, which is what makes the correction terminate instead of
+  regrowing the tail at every hop.
 - **A defect a *later* stage owns is handed forward through the book node's
   `BRIEF.md`**, under a running `## Handed forward` list naming the owning stage
   and the location. Every stage reads it, because the brief chain is root-to-leaf;
@@ -24,7 +37,9 @@ Three rules complete it:
   and not a log. An entry that survives `proof` is promoted at node close, to an
   ADR, a defect leaf, or the owner of the document's structure brief.
 - **A second re-run of the same stage against the same book is an escalation, not
-  a third leaf.** The session stops and says so.
+  a third leaf.** The session stops and says so. This is also what bounds the
+  runs: one re-run per stage per document caps how many runs a document can grow,
+  and a run that would start a second one for the same stage stops instead.
 
 ## The trade-off
 
@@ -39,10 +54,13 @@ measurement unreadable.
 
 **What it buys is that the tree stays the whole state.** No leaf gains a status
 word, no task file gains a dependency field, and `pick` gains no knowledge of
-pipelines. Constraint 1 holds — the shape is the state — and constraint 6 holds:
-a reader with grove deleted sees the stage leaves in position order, a retired
-`draft` first and a second live `draft` sitting between the art stage and the
-proof stage, and reads the whole history off the filenames.
+pipelines. The condition that stops a queued stage cutting again is read off the
+node's live entries rather than off a field, so constraint 1 holds — the shape is
+the state — and constraint 6 holds: a reader with grove deleted sees the stage
+leaves in position order, and reads the whole history off the filenames. An `art`
+stage that sends work back to the draft leaves a retired `draft`, `copy-edit` and
+`art`, then a live `draft`, `copy-edit`, `art` and `proof` — the run `art` cut,
+each of whose successors was already standing when it was picked.
 **The number of leaves of a kind under a document's node is the honest record of
 how many times that stage ran**, which no edge annotation would give and which is
 exactly the signal a later measurement needs.
@@ -92,6 +110,19 @@ looping.
   the second stage's empty count unreadable. It also concentrates the whole
   pipeline in whichever stage is least disciplined. Reopen never — this is the
   failure the stage charters exist to prevent.
+- **Cut the owning stage's re-run and then the normal next stage, and no more.**
+  The recipe this record first carried, and the cheapest reading of "order the
+  re-run ahead of the stage that runs next". Rejected because it lets the tail of
+  the pipeline run over material no intervening charter re-read: an `art` stage
+  sending work back to the draft would queue `draft` and then `proof`, and the
+  book reaches its final read with no copy edit or art pass over the rewritten
+  draft. Cutting the re-run *and* the stages that must re-read, while leaving each
+  stage's own last act unconditional, fails in the other direction — every leaf in
+  the queue cuts its successor again and the tail regrows at every hop, with no
+  rule to stop it. Making the last act conditional on the tree is what closes
+  both. Reopen if a pipeline ever has a stage whose charter is genuinely
+  unaffected by any earlier stage's rewrite, which would make a sparse run the
+  common case rather than the exception.
 - **Record the edge as data — a `Blocked on:` or `Sends back to:` field in the
   task file.** Rejected because it is a second state beside the tree, and grove
   validates no cross-leaf grammar, so nothing would keep the field and the tree

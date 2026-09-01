@@ -74,6 +74,14 @@ binding: the `draft` kind states the two folded charters as its own obligations
 rather than assuming the brief discharges them, and a `draft` session with no
 structure brief stops and says so rather than drafting anyway.
 
+**And "has a structure brief" is an interface, not an existence check.** A grove
+node acquires a `BRIEF.md` automatically when a leaf decomposes, and every
+bootstrap reads it, so a session asking only whether *some* brief exists answers
+yes in precisely the case that must stop. The `draft` kind therefore tests three
+things it can cite from a named artifact — the audience, the ordered section plan
+and what deserves emphasis — because those are what the sources do not contain
+and what the two folded charters were pre-empted by.
+
 **What the decision buys.** Two skills and two sessions per book, across the four
 books that follow, against the six-stage design; and fifteen marginal defects
 across a seven-chapter book, against the two-stage fallback — including every one
@@ -120,13 +128,16 @@ directions at once.
   hypothetical.
 - **Give the family review chains, as the five producer kinds have.** Rejected
   because nothing measured them: eight more kinds on no evidence is this
-  campaign's governing rule broken one level up. It is also redundant by
-  construction — each later stage is a fresh-context read of the whole book
-  against its own charter, so every stage but `proof` has its adversarial read
-  scheduled, and `book-check --final --check all` decides the mechanical half that
-  a review could not. Reopen if a stage is ever found producing defects the
-  following stage's charter does not own, which is the case a review would have
-  caught and this pipeline cannot.
+  campaign's governing rule broken one level up, and `book-check --final --check
+  all` decides the mechanical half a review could not. **What it costs is not
+  hidden here.** The next stage is not the missing review: it is a fresh-context
+  read of the whole book against a *different* charter, and it may not repair its
+  predecessor's class, so it neither looks for nor may act on the defects a
+  `review-draft` would report. Every stage is therefore a plain producer with the
+  ordinary in-session review allowance `references/execute.md` gives one, `proof`
+  included, and the family claims no exemption from it. Reopen if a stage is ever
+  found producing defects the following stage's charter does not own, which is the
+  case a review would have caught and this pipeline cannot.
 - **Extract nothing and keep authoring books by hand.** Rejected: it discards a
   positive result. The pilot did not fail to find a pipeline; it found a smaller
   one than the campaign came in holding, and two of the four stages it kept are

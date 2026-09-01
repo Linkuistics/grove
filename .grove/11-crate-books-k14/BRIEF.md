@@ -96,10 +96,11 @@ kinds are installed opens the node itself and does only the draft:
 
 The `--kind` is required here: the verb grows exactly **one** first child and
 inherits the decomposed leaf's own kind — `impl` — unless overridden. The other
-three stages are cut lazily, each as the last act of the stage before it, and
-every stage leaf carries the book's bare stem as its whole slug. A stage that
-must send work back to an earlier one cuts a re-run leaf of that stage *before*
-cutting the next stage
+three stages are cut lazily, each as the last act of the stage before it — unless
+a live later sibling already holds that stage — and every stage leaf carries the
+book's bare stem as its whole slug. A stage that must send work back to an earlier
+one cuts one contiguous run in pipeline order, from the stage that owns the defect
+through to `proof`, in place of its ordinary last act
 (`docs/adr/a-feedback-edge-is-forward-tree-growth.md`); the stage skills carry the
 rest.
 

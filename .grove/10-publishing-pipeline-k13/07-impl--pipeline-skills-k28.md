@@ -68,7 +68,7 @@ the index, not a second statement of any of them.
 | **reads** | structure brief, sources, document contract | the drafted document, prose contract, glossary, named precedent | the document, the contract's figure rules | the whole document, and the node brief's `## Handed forward` |
 | **deliverable** | the document, green | the same document, green | the same document, green | the same document, green, and an empty hand-forward list |
 | **charter boundary** | structure and technical truth, both folded in | does **not** restructure | figures only, in the contract's medium | none — every class is in charter |
-| **cuts next** | `copy-edit` | `art` | `proof` | nothing |
+| **cuts next** | `copy-edit` | `art` | `proof` | nothing, a correction run aside |
 
 **Verdict provenance, since it bounds what a skill may claim for itself.** `draft`
 is in the pipeline by construction and was never scored. `copy-edit` cleared the
@@ -100,13 +100,20 @@ What it owns, all of it bound to all four:
   *pre-empted*.
 - **The chain is lazy, and its membership is not optional.** A document's leaf
   becomes a node with `grove-llm leaf-decompose <leaf> <slug> --kind draft`, and
-  each stage's **last act** is `grove-llm leaf-add <node> <stem> --kind <next>`.
-  `proof` cuts nothing. Cutting late is what lets the cutting session write the
-  next stage's body with the specific case it has just met. **Do not skip a stage
-  because you judge it will find nothing** — which stages exist was measured, and
-  a skipped stage is this session re-grading a stage that measurement already
-  graded. That is the one place this family differs from a review chain, where the
-  producer genuinely decides whether the next step is warranted.
+  each stage's **last act** is `grove-llm leaf-add <node> <stem> --kind <next>` —
+  **unless a live later sibling under this node already holds that stage**, in
+  which case you cut nothing, because an earlier stage's correction run has
+  already queued it. That condition is read off the node's live entries; there is
+  no flag and no field, and a stage that cuts unconditionally regrows the tail of
+  the pipeline at every hop. `proof` cuts nothing in the ordinary case. Cutting
+  late is what lets the cutting session write the next stage's body with the
+  specific case it has just met. **Do not skip a stage because you judge it will
+  find nothing** — which stages exist was measured, and a skipped stage is this
+  session re-grading a stage that measurement already graded. That is the one
+  place this family differs from a review chain, where the producer genuinely
+  decides whether the next step is warranted. Skipping and *finding it already
+  queued* are different: in the second the stage is already standing ahead of you
+  in the walk, and will run in its turn.
 - **Every stage leaf under a document's node carries the document's bare stem as
   its whole slug** — no stage word, no suffix. The kind field beside it is the
   canonical statement of which stage this is, and a slug restating it would be a
@@ -117,23 +124,41 @@ What it owns, all of it bound to all four:
   chain is root-to-leaf — which the next leaf's body cannot do for a stage two
   hops away. A stage **clears** the entries it closes: a brief is current-state
   context, not a log.
-- **Sending work back is forward tree growth.** `pick` is a depth-first pre-order
-  walk; it cannot re-enter a retired leaf, and there is no leaf state that means
-  *reopened*. A defect an **earlier** stage's charter owns, that you may not fix,
-  becomes a **re-run leaf of that stage**, ordered ahead of the stage that runs
-  next: cut the re-run leaf first, then cut the next stage, both with `leaf-add`
-  — the chain is lazy, so nothing is queued behind you and call order is walk
-  order. Use `leaf-insert` only where a later sibling entry already holds live
-  work. Write the specific defect into the re-run leaf's body, and name in it
-  which later stages must re-read the changed material; cut those too, in order.
+- **Sending work back is forward tree growth, and it is one ordered run.** `pick`
+  is a depth-first pre-order walk; it cannot re-enter a retired leaf, and there is
+  no leaf state that means *reopened*. A defect an **earlier** stage's charter
+  owns, that you may not fix, becomes a **re-run leaf of that stage** — and one
+  leaf is never enough, because the material it changes is read again by every
+  stage after it. Cut, with `leaf-add` and in pipeline order, a **contiguous run**
+  that begins at the owning stage and ends at `proof`:
+  - the run always contains the stage that would otherwise have run next after
+    you, and always ends at `proof`;
+  - omit a stage lying between the owning stage and you only where the changed
+    material cannot reach its charter, and say why in the run's first body;
+  - the run **replaces** your ordinary last act. Do not cut your normal successor
+    a second time beside it.
+
+  The chain is lazy, so nothing is queued behind you and call order is walk order;
+  use `leaf-insert` only where a later sibling entry already holds live work.
+  Write the specific defect into the re-run leaf's body. Every leaf in the run
+  then finds its own successor already standing and cuts nothing, which is what
+  makes the correction terminate rather than regrow itself.
 - **A second re-run of one stage against one document is an escalation, not a
   third leaf.** Stop and say so. An unbounded re-run rule in an unattended arm is
   an oscillation that spends sessions without terminating.
-- **Your adversarial read is the next stage.** Every stage but `proof` is a
-  producer that already has its fresh-context read scheduled — the next stage
-  reads the whole document against its own charter — so `references/execute.md`'s
-  leaf-wide allowance applies under its *already has a review beside it* case, and
-  spends none. `proof` is last and keeps the ordinary one-reviewer allowance.
+- **Your review allowance is the ordinary producer's.** No stage takes a
+  `review-*` leaf, so no stage is `references/execute.md`'s *already has a review
+  beside it* case: every stage, `proof` included, is a plain producer with the
+  ordinary leaf-wide allowance of at most one in-session reviewer, spent under
+  that procedure's four-step pass. **The next stage is not that review.** It reads
+  the whole document against a *different* charter and may not repair your class,
+  so it neither looks for nor may act on the defects an adversarial read of your
+  own obligations would report. Where a **second** need appears, the escalation
+  the execute procedure names — cut a `review-<producer>` leaf — has no kind in
+  this family. Finish to a coherent boundary and route the doubt through the
+  machinery that exists: the next stage's body if it is that stage's class, the
+  node brief's `## Handed forward` if a later stage owns it, a correction run if
+  an earlier stage does.
 - **Leave it green.** A stage ends with the document passing whatever gate the
   repository runs over it, in one focused commit like any other task.
 
@@ -147,10 +172,26 @@ Inline, bound to `draft` alone:
 
 - **A structure brief is a precondition, not an input you can proceed without.**
   Audience, conceptual order and what deserves emphasis are nowhere in the
-  sources. **If no structure brief exists for this document, stop and say so** —
-  do not draft from the sources alone. This is not tidiness: two editorial stages
-  were folded into this one on the evidence of a document drafted from such a
-  brief, and without the brief the fold has no basis under it.
+  sources. **If this document has no structure brief, stop and say so** — do not
+  draft from the sources alone. This is not tidiness: two editorial stages were
+  folded into this one on the evidence of a document drafted from such a brief,
+  and without the brief the fold has no basis under it.
+- **How to tell whether you have one — three things you can cite, from a named
+  artifact.** The document declares its structure brief the way it declares the
+  rest of its contract: **this leaf's body or the document node's brief names it
+  by path**, and that artifact itself states
+  - **who the reader is** and what they should be able to do afterwards,
+  - **the ordered section plan** — the sequence, and what each section is for,
+  - **what deserves emphasis**, and what the document does not cover.
+
+  All three, in the artifact, quotable. **The existence of a `BRIEF.md` is not the
+  test.** `leaf-decompose` gives every node one automatically and bootstrap reads
+  it, so an existence check answers yes for every draft — including exactly the
+  no-human-structure case that must stop. If the only candidate is the node's own
+  brief and it does not state all three, you do not have a structure brief: stop,
+  and name which of the three is missing. Do not infer one from a filename or from
+  a neighbouring leaf's slug; those are one repository's convention and this kind
+  installs everywhere.
 - **Two folded charters, owned explicitly.** Because structure and technical truth
   are not separate stages, the draft owns both, and owns them as obligations to
   discharge rather than as things the brief has already handled:
@@ -165,7 +206,8 @@ Inline, bound to `draft` alone:
   - A drafting session that treats these as discharged by the brief has left two
     stages of the pipeline undone. Whether they survive the fold was never
     measured, so nothing licenses assuming they do.
-- **Last act:** `leaf-add` the `copy-edit` leaf.
+- **Last act:** `leaf-add` the `copy-edit` leaf, under the family file's rule — which
+  is conditional, and which a correction run discharges for you.
 
 ### `grove-copy-edit/SKILL.md`
 
@@ -184,7 +226,8 @@ Inline, bound to `copy-edit` alone:
   replaced by the mechanism it stood for; a claim the reader cannot check replaced
   by one they can; and where the contract fixes a set of questions a passage must
   answer, **all** of them answered rather than one.
-- **Last act:** `leaf-add` the `art` leaf.
+- **Last act:** `leaf-add` the `art` leaf, under the family file's rule — which
+  is conditional, and which a correction run discharges for you.
 
 ### `grove-art/SKILL.md`
 
@@ -209,7 +252,8 @@ Inline, bound to `art` alone:
   only one that is evidence about the medium itself. Name it as such when it is
   true, and do not reach for it when the real reason is one of the other two — a
   contract's medium is reopened by that record and by nothing else.
-- **Last act:** `leaf-add` the `proof` leaf.
+- **Last act:** `leaf-add` the `proof` leaf, under the family file's rule — which
+  is conditional, and which a correction run discharges for you.
 
 ### `grove-proof/SKILL.md`
 
@@ -229,8 +273,11 @@ Inline, bound to `proof` alone:
   stage that owns it, or state at node close that it survived and why, so it is
   promoted rather than lost. An entry left in the list when this stage retires is
   a defect nobody owns.
-- **You cut no next stage.** When you retire, the document's node has no live leaf
-  and closes.
+- **You cut no next stage — unless you send work back.** In the ordinary case you
+  are last: when you retire, the document's node has no live leaf and closes. A
+  correction run you cut is the exception and is what keeps the node open by
+  construction; the node closes when a `proof` retires having sent nothing back
+  and cleared the hand-forward list.
 - **This stage is in the pipeline as the stated fallback, not on measured
   evidence.** It appears in both arms of any comparison that would test it, so
   nothing has established what it contributes. Two things follow: a proof session

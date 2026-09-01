@@ -512,3 +512,30 @@ from an invention.
   a native workspace, a `.grove/` task file, a caller in a subdirectory — but the
   concrete names, paths and change id are the orientation slice's to fix, and
   chapters 5 and 6 then reuse them unchanged.
+
+## An open conflict, for whoever next revises this brief
+
+**Chapter 1's public-surface enumeration and the catalogue rule cannot both be
+satisfied, and this brief is where the conflict is owned.** The chapter
+description above requires the enumeration of `Workspace`, `Commit`, `Refusal`
+and the four operations, and fixes `01-orientation.md#public-surface` as the
+First-use anchor of two ownership-ledger rows. [`walkthrough-books.md`](walkthrough-books.md)
+requires that no section earlier than its chapter's worked example primarily
+enumerates three or more public operations. Both standards bind, and the book as
+published satisfies the first at the cost of the second.
+
+The editorial-pipeline pilot recorded it at every stage that met it — the
+developmental edit, the copy edit and proof each declined to act, correctly,
+because a stage may not revise the standard it is judged against — and the
+proof-only probe found it independently at that exact anchor, which is as strong
+a confirmation as that pilot could produce that it is reader-visible rather than a
+scruple. The evidence is
+[the pilot report](../evaluations/editorial-pipeline-pilot/README.md), which is
+frozen and is not edited by this or any later session.
+
+**It is recorded here because this brief is the artifact a correction has to move
+through.** Two ways it can go, and neither is settled: move chapter 1's
+enumeration behind the chapter's worked example and re-point the two ledger rows,
+or state an explicit exception in `walkthrough-books.md` for an orientation
+chapter whose subject *is* the public surface. A revision that changes chapter 1
+without answering this has closed the section and left the conflict.

@@ -900,8 +900,8 @@ Four kinds have a cause and the `match` groups them by what that cause is. Three
 hold an `io::Error` and return it directly; `CommitNotRecorded` holds a boxed
 `Refusal` and returns `cause.as_ref()`, which is where a consumer walking the
 chain crosses from this crate's error into this crate's error again. That is the
-only two-link chain the crate produces, and the worked example measured its depth:
-one link, then `None`.
+only chain the crate produces with a `Refusal` at both ends, and the worked
+example measured its depth: one link, then `None`.
 
 The remaining six return `None`, and the exhaustive list is what makes that a
 decision rather than a default.
@@ -929,8 +929,8 @@ non-negotiable review question.
 `CommandFailed` is in this list, and it is the one whose absence from the chain is
 worth stating plainly. jj's own `Caused by: 1: … 2: …` lines are in the message,
 as the worked example showed, and they are text. A consumer walking `source()`
-from a failed commit gets two links and stops; the third and fourth causes exist
-only as bytes in a string. Nothing here is lossy — the text is complete — but a
+from a failed commit takes one link, reaches the `CommandFailed` refusal, and
+stops; jj's own two causes below it exist only as bytes in a string. Nothing here is lossy — the text is complete — but a
 consumer that wanted to classify the underlying `io::ErrorKind` of jj's own
 failure cannot, because the process boundary already turned it into a message.
 That is a consequence of the subprocess seam rather than of this file, and it is
@@ -991,7 +991,8 @@ because its refusals distinguish cases a caller could act on rather than stops.
 What a consumer gets instead was measured rather than described. `Display` gives
 the message, and the messages are structured the same way throughout: what is
 wrong, where, a blank line, and what jj offers — with the remedy paragraph absent
-in exactly the arm that has nothing to add. `Error::source` gives a chain that is
+in exactly the two arms that have nothing to add, `CommandFailed`, whose remedy is
+jj's own stderr, and `OutputNotText`, which has none. `Error::source` gives a chain that is
 one link deep at its deepest, and the worked example walked it to `None`. The
 cause is in the message as well as in the chain, so a consumer that prints the
 chain prints it twice; that redundancy is the measured price of serving the

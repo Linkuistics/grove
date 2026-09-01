@@ -92,4 +92,5 @@
 - [The reserved list as a fork of jj's layout](07-what-jj-owns.md#the-uncomfortable-one)
 - [Four questions for a boundary of your own](07-what-jj-owns.md#taking-the-test-away)
 - [The closed ownership and early-use ledgers](07-what-jj-owns.md#the-closed-ledgers)
+- [What the book argues that no test holds](07-what-jj-owns.md#the-closed-ledgers)
 - [Final validation, and what each command proves](07-what-jj-owns.md#final-verification)

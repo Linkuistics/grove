@@ -280,19 +280,17 @@ it owns. The answer is a two-element array, `["repo", "working_copy"]`, compiled
 into this crate, and that array is a fork of jj's on-disk layout that no longer
 tracks it.
 
-It is not a hypothetical fork. On jj 0.44.0 a colocated workspace holds
-`.jj/.gitignore`, and colocation is what a stock `jj git init` produces, because
-`git.colocate` defaults to `true`. Chapter 4 recorded the consequence in its
-worked example rather than describing it: `control_dir(".gitignore")` passes
-`validated_namespace`, reaches `fs::create_dir_all`, and comes back as a
-`ControlDir` refusal telling the caller to check permissions on a path — instead
-of the `Namespace` refusal that names Jujutsu and tells them to pick another word.
-The collision is refused, but by `create_dir_all` failing on an entry that
-already exists rather than by the check meant to catch it; the guarantee the
-consumer was given does not hold, because the refusal it gets is about the wrong
-thing and its remedy is useless. In a workspace that is *not* colocated the same
-call succeeds, which is worse rather than better: the consumer is handed a
-directory sitting on the name jj will want the moment that tree is colocated.
+It is not a hypothetical fork. On jj 0.44.0 the array is one name short of what a
+stock `jj git init` produces, and
+[*Reserving `grove`*](04-namespace.md#worked-reservation) traced both endings that
+gap has: a refusal about the wrong thing in a colocated workspace, and, in one
+that is not, a call that succeeds and hands the consumer a directory sitting on a
+name jj will want later. What matters at this row is only which check produced
+them. Neither ending comes from the guard that exists to catch a name jj owns —
+one comes from the filesystem refusing an entry that is already there, and the
+other from nothing at all. In both endings it is the array that was asked and not
+jj, which is the second clause failing stated as an outcome rather than as a
+worry.
 
 What makes this the least comfortable row is not that a list is out of date. Lists
 go out of date. It is that **the fourth refusal is the one `CONTEXT-MAP.md` uses
@@ -378,7 +376,8 @@ someone stands where this chapter stands and asks the question directly.
 ## The closed ledgers
 
 The book's two ledgers are complete, and the closure is mechanical rather than a
-claim this chapter makes.
+claim this chapter makes. A third account closes here too, and it is the one the
+validator does not keep.
 
 **Ownership.** Eleven top-level blocks over four source roots, every one of them
 `resolved`. Chapter 1 created the whole ownership table at the start, with its own
@@ -410,6 +409,43 @@ later chapter. `early-use-scope-k63` carries the defect.
 and 0 for this one. The seventh row of that table exists to be zero: a chapter
 that owns no source is the shape the structure brief chose for the assembly, and
 the total is the same 698 the root brief froze.
+
+**Evidence.** Nine claims in this book are held by no test, and each chapter said
+so where it made one — *stated here as unasserted rather than left for a reader to
+assume covered*. What no chapter could do is say how many there are, because each
+saw only its own. This is the third question of the test above turned on the book
+itself: what in it would go red if the crate's behaviour moved?
+
+| # | The claim | Where it is stated | What holds it instead of a test |
+|---:|---|---|---|
+| 1 | jj is absent, and `NotRunnable` is the refusal | [ch. 3](03-subprocess-seam.md#worked-invocation) | nothing: a fixture that removed `jj` from `PATH` could not build its own tree |
+| 2 | jj's output is not text, and `OutputNotText` is the refusal | [ch. 3](03-subprocess-seam.md#worked-invocation) | nothing: no jj command can be asked to emit non-UTF-8 on stdout |
+| 3 | `GIT_INDEX_FILE` is removed from every child | [ch. 3](03-subprocess-seam.md#the-selectors) | one builder and one loop: the test sets the other three, and the fourth is removed by the same line |
+| 4 | `\` and `\0` are refused as namespaces | [ch. 4](04-namespace.md#the-validation) | measured on jj 0.44.0; the suite reaches that guard through `/` only |
+| 5 | `control_dir(".gitignore")` collides in a colocated tree and succeeds in a native one | [ch. 4](04-namespace.md#worked-reservation) | measured on jj 0.44.0, in both shapes |
+| 6 | A path containing `"` or `\` survives into the fileset unchanged | [ch. 5](05-scope-and-commit.md#the-path-algebra) | jj's documented string-literal syntax, and reading the loop |
+| 7 | A canonicalised parent that *does* strip resolves a deleted path | [ch. 5](05-scope-and-commit.md#the-path-algebra) | measured here on jj 0.44.0, through a symlinked ancestor |
+| 8 | A non-UTF-8 path becomes a fileset matching nothing, with no refusal | [ch. 5](05-scope-and-commit.md#the-path-algebra) | inspection: `jj file list` and `jj commit` over a non-matching fileset were measured, the end-to-end case was not constructed |
+| 9 | The workspace root is refused as a scope inside itself | [ch. 5](05-scope-and-commit.md#the-path-algebra) | a reading of the code, and nothing else — the weakest row in the table |
+
+The fourth column is the one to read down, because the rows are not equally weak.
+Rows 4, 5 and 7 rest on a measurement taken against jj 0.44.0 and written into the
+page beside the code, which is a check a later reader can repeat against a later
+jj. Row 6 rests on jj's published syntax, and row 3 on the seam's one builder —
+the property [chapter 3](03-subprocess-seam.md#nothing-ambient) argues is
+inherited by construction rather than tested per call site. Row 8 is half of each:
+what jj does with a fileset matching nothing was measured, and that the lossy
+rendering can produce one was reasoned about. Rows 1, 2 and 9 rest on nothing
+repeatable at all.
+
+Three of the nine already have leaves against them — row 5 is
+`jj-owned-names-k65`, and rows 7 and 8 are both `lossy-path-rendering-k66`, whose
+leaf carries the untested branch alongside the rendering that runs through it. The
+other six stand. That is the honest total: this book proves 698 lines byte for
+byte, and argues nine claims that nothing goes red on. Chapter 1's row of the
+verdict table set the ceiling — a check the compiler performs — and every row here
+falls short of it. Saying by how much is what the assembly owed a reader who has
+just been taught to ask.
 
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces, and neither is part of the reading order. The source

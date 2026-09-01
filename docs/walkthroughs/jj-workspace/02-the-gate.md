@@ -93,9 +93,15 @@ Workspace::resolve("/work/atlas/crates/gateway/src")
 
 Nothing in that trace consults jj, and nothing in it writes. The walk is the
 filesystem's, so no environment variable and no shared repository store can
-redirect it, which is asserted directly by
+redirect it — the claim `resolve`'s own doc comment makes, read in full below.
+One half of it is asserted:
 `resolution_ignores_repository_selection_and_temporary_directory_environment`
-(`crates/jj-workspace/tests/environment.rs`).
+(`crates/jj-workspace/tests/environment.rs`) sets three of the four
+repository-selection variables to a foreign colocated repository and requires the
+intended workspace to come back. The other half is not, because no test constructs a shared
+repository store; [*The subprocess seam*](03-subprocess-seam.md#the-selectors)
+states that test's scope exactly, and this page's claim is the doc comment's
+rather than that test's.
 
 **Second ending: the same tree with no `.jj/`.** The walk reaches the filesystem
 root without finding one, and returns instead of falling back.

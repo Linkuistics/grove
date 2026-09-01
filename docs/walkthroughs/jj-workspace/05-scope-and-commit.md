@@ -651,8 +651,8 @@ and this is a crate with no dependencies to borrow an escaper from.
 argument above rests on jj's documented literal syntax and on reading the loop,
 and not on anything that goes red. It is stated rather than left to be assumed,
 because it is the one place in this chapter where a claim about correctness has
-no assertion behind it: every path the twenty-eight interface tests name is
-ordinary.
+no assertion behind it: every path the suite's twenty-nine interface tests name
+is ordinary.
 
 <!-- fragment «relative-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="231-238" parent="scope-tracking-and-commit" -->
 ````rust

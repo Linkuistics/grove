@@ -183,16 +183,22 @@ owner     = "no-remedy-of-its-own"
 statement = "The one error type: an opaque value carrying what is wrong, where, and the jj command that fixes it, with no matchable variants because every case is a stop."
 
 [[early-use]]
+symbols   = "`control_dir`"
+first-use = "01-orientation.md#public-surface"
+owner     = "no-consumer-vocabulary"
+statement = "A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent."
+
+[[early-use]]
 symbols   = "`Commit`"
-first-use = "01-orientation.md#commit-tour"
+first-use = "01-orientation.md#public-surface"
 owner     = "no-transactions"
 statement = "What a taken commit returns: a change id rather than a commit id, because a change id still names the work after a rewrite."
 
 [[early-use]]
-symbols   = "`control_dir`"
+symbols   = "`main_repo_of`"
 first-use = "01-orientation.md#commit-tour"
-owner     = "no-consumer-vocabulary"
-statement = "A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent."
+owner     = "one-lane"
+statement = "The step in resolution that decides which workspace holds the repository: `.jj/repo` is a directory in a workspace that holds its own and a pointer file in one that borrows another's, and only the borrowed case is followed."
 
 [[early-use]]
 symbols   = "`is_tracked`"

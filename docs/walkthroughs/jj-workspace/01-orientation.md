@@ -9,6 +9,13 @@
 one, and takes a path-scoped commit. That is the whole crate: four operations, a
 value, and one error type, over roughly seven hundred lines with no dependencies.
 
+The first of those refusals is this chapter's, and it is declared rather than
+argued: **no dependencies**. `std` owns what was subtracted — it spawns the child
+process, it reads the directory, and it supplies the `Error` trait the crate's one
+error type implements — so nothing else is taken, and nothing is imposed on a
+consumer that takes this crate. The manifest is where that refusal is written
+down, and it is read first below.
+
 A crate that small is normally explained by listing what it does. This book
 explains it by listing what it does **not** do, because that is where its
 decisions are. Version control is a domain with a large surface — transactions,
@@ -402,6 +409,13 @@ Workspace::commit(
     -> vrxqnwzomtklpsuvyzqrnwmtkxlpsoun
   -> Commit { change_id: "vrxqnwzomtklpsuvyzqrnwmtkxlpsoun" }
 ```
+
+`main_repo_of` is the one step in that trace that could have spawned jj and did
+not, and it is named here because the reader meets it two chapters before the page
+that owns it. It decides which workspace holds the repository: `.jj/repo` is a
+directory in a workspace that holds its own and a pointer file in one that borrows
+another's, so only the borrowed case has a pointer to follow — and following it is
+jj's job rather than this crate's. *The gate* owns it.
 
 Argument lists are shown rather than command lines because the boundaries
 matter: the message is one argument however many spaces it contains, and the

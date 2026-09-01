@@ -379,16 +379,18 @@ directive remains anywhere in the book, and none may: `F003` reports any defer a
 all in final mode, so *"every deferral has become an insertion"* is a statement the
 validator refuses to let be false rather than one this page asserts.
 
-**Early use.** Ten rows, every one `explained`. The structure brief fixed seven of
-them in advance as the minimum ledger: five forced by chapter 1 tracing the
+**Early use.** Eleven rows, every one `explained`. The structure brief fixed seven
+of them in advance as the minimum ledger: five forced by chapter 1 tracing the
 carried operation through every layer before any of those layers had been read —
 `Workspace`, `Refusal`, `Commit`, `control_dir` and `is_tracked` — and two forced
-by the narrative order putting the gate ahead of the seam it calls. Three more
-were added by the chapters that first name a refusal constructor they do not own,
-which is the addition the specification's ledger explicitly permits. Each row
-turned `explained` in its owner's slice and in no other.
+by the narrative order putting the gate ahead of the seam it calls. Four more were
+added under the clause that requires a row before any additional later-owned name
+is introduced: three for the chapters that first name a refusal constructor they do
+not own, and one for `main_repo_of`, which chapter 1's trace names two chapters
+before the gate explains it. Each row turned `explained` in its owner's slice and
+in no other.
 
-The manifest declares only the five whose first use is in chapter 1, and the other
+The manifest declares only the six whose first use is in chapter 1, and the other
 five live in the book's own ledger rather than in the manifest. That is a
 workaround rather than a preference: a manifest `[[early-use]]` row must appear in
 the ledger *and* its first-use anchor must be found in a page present in the

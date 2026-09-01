@@ -1,6 +1,6 @@
 # The namespace it will not name
 <!-- book-page id="namespace" slice="no-consumer-vocabulary" order="4" -->
-[Previous: The subprocess seam](03-subprocess-seam.md) | [Contents](README.md)
+[Previous: The subprocess seam](03-subprocess-seam.md) | [Contents](README.md) | [Next: Scope and commit](05-scope-and-commit.md)
 
 <a id="no-consumer-vocabulary"></a>
 ## The crate has no vocabulary for its consumer
@@ -634,4 +634,4 @@ Everything so far has been the crate declining to decide, and this chapter was
 the crate adding one thing without deciding what it means. The next chapter is
 the crate declining to build something jj already has: a transaction.
 
-[Previous: The subprocess seam](03-subprocess-seam.md) | [Contents](README.md)
+[Previous: The subprocess seam](03-subprocess-seam.md) | [Contents](README.md) | [Next: Scope and commit](05-scope-and-commit.md)

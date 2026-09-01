@@ -161,3 +161,25 @@ reader can check it. Cut as `jj-owned-names-k65`, placed beside
 `jj-docs-url-k64` after every crate book for the same reason: the fix moves a
 line boundary inside `namespace-owned-names-list`, so it must land in one commit
 with the page that quotes it.
+
+**4 · The lossy path rendering in `relative` is recorded on the page and cut as a
+leaf placed after every crate book, on the same grounds as decision 3.** Found by
+inspection while writing the path algebra, and the consequence measured on jj
+0.44.0 rather than assumed: a fileset that matches nothing makes `jj file list`
+print nothing and exit 0, and makes `jj commit` take an **empty** commit and exit
+0. So a path whose bytes are not valid UTF-8 is rendered with replacement
+characters and reaches a caller as `is_tracked` answering `false` about a tracked
+file, or as a `Commit` naming an empty change — with no refusal anywhere, which
+is the one shape this crate refuses everywhere else. Rejected: leaving it out —
+the chapter's own argument is that the crate refuses rather than quietly
+reinterprets, and a page making that claim while omitting the function that
+quietly reinterprets is unfalsifiable, exactly as in decision 3. Rejected: fixing
+it here, which the corpus freeze forbids and which would put a non-book change
+inside the draft's commit range. Cut as `lossy-path-rendering-k66`, beside
+`jj-docs-url-k64` and `jj-owned-names-k65`, because the fix moves line boundaries
+inside four of this chapter's fragments and must land in one commit with the page
+that quotes them. The leaf also carries the adjacent gap the same measurement
+exposed: `relative`'s canonicalise-the-parent branch is reached by no test in the
+crate's suite, because the crate's own deletion test passes a relative path and
+takes the textual branch instead.
+

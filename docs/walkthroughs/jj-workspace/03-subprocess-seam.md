@@ -552,9 +552,10 @@ chain it builds.
 <a id="a-command-a-reader-could-type"></a>
 ## The command as a reader would type it
 
-The last function in the file is the one both refusals depend on. Its doc comment
-makes a claim about safety, and the claim is worth more scrutiny than its eleven
-lines suggest.
+The last function in the file is the one every refusal this file constructs
+depends on: both endings above quote it, and so does the UTF-8 check in `output`
+two sections back. Its doc comment makes a claim about safety, and the claim is
+worth more scrutiny than its eleven lines suggest.
 
 <!-- fragment «subprocess-rendered» owner="nothing-ambient" source="crates/jj-workspace/src/jj.rs" lines="70-81" parent="subprocess-seam-source" -->
 ````rust

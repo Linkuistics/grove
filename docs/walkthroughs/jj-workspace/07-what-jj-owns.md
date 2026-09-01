@@ -109,7 +109,7 @@ failure will cost, which is what decides whether it is worth fixing now.
 | 1 | Start a child process with a controlled environment; read and create a directory | `std::process`, `std::fs`, `std::error::Error` | Yes — these are the operations, not approximations of them | Yes, by the compiler: an empty `[dependencies]` table cannot silently acquire an entry | Justified |
 | 2 | This tree is a jj workspace, and here are its root and its main repo | jj's own on-disk shape, and `jj workspace root` | Yes for shape; the gate deliberately does not promise health | Yes — the shape is jj's documented one, and the resolution tests exercise it against native, colocated, nested-Git, symlinked and secondary trees | Justified, with the boundary stated |
 | 3 | The repository is chosen by the directory, not by what the calling process inherited | jj's documented selection rule, with four Git variables removed | Yes, *given* the four names are the four that matter | Partly — the mechanism is proved by a test; the completeness of the list is not | Justified, on the same unchecked list as row 4 |
-| 4 | The reserved directory is not one Jujutsu owns | A two-element array in this crate | Yes if the array is right | **No** — the array is a copy of jj's contents, and on jj 0.44.0 it is one name short | **Abdication, by the second clause** |
+| 4 | The reserved directory is not one Jujutsu owns | A two-element array in this crate | Yes if the array is right | **No** — the array is a copy of jj's contents, and on jj 0.44.0 it is one name short of a colocated workspace's | **Abdication, by the second clause** |
 | 5 | The work is durably recorded, and recoverable if the wrong thing lands | jj's snapshot and operation log | Yes, and it is the one row settled by a measurement rather than an argument | Yes for the delegation; **no** at the interface into it | Justified, with a hole at the call |
 | 6 | A stop that says what is wrong and names a repair that exists | jj's `undo`, `op log` and `git init` commands | Yes — the named repairs are jj's, and they do repair | Weakly: the remedies are static strings, and one URL in them has already moved | Justified, and the weakest check of the five |
 
@@ -275,15 +275,19 @@ it owns. The answer is a two-element array, `["repo", "working_copy"]`, compiled
 into this crate, and that array is a fork of jj's on-disk layout that no longer
 tracks it.
 
-It is not a hypothetical fork. On jj 0.44.0, both `jj git init` and
-`jj git init --colocate` create `.jj/.gitignore`. Chapter 4 recorded the
-consequence in its worked example rather than describing it: `control_dir(".gitignore")`
-passes `validated_namespace`, reaches `fs::create_dir_all`, and comes back as a
+It is not a hypothetical fork. On jj 0.44.0 a colocated workspace holds
+`.jj/.gitignore`, and colocation is what a stock `jj git init` produces, because
+`git.colocate` defaults to `true`. Chapter 4 recorded the consequence in its
+worked example rather than describing it: `control_dir(".gitignore")` passes
+`validated_namespace`, reaches `fs::create_dir_all`, and comes back as a
 `ControlDir` refusal telling the caller to check permissions on a path — instead
 of the `Namespace` refusal that names Jujutsu and tells them to pick another word.
 The guarantee holds by luck, in the sense that the collision is refused; the
 guarantee the consumer was given does not hold, because the refusal it gets is
-about the wrong thing and its remedy is useless.
+about the wrong thing and its remedy is useless. In a workspace that is *not*
+colocated the same call succeeds, which is worse rather than better: the consumer
+is handed a directory sitting on the name jj will want the moment that tree is
+colocated.
 
 What makes this the least comfortable row is not that a list is out of date. Lists
 go out of date. It is that **the fourth refusal is the one `CONTEXT-MAP.md` uses

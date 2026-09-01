@@ -82,7 +82,6 @@ The values are the same because the point is the ending, not the scenario.
 ├── .jj/
 │   ├── repo/
 │   ├── working_copy/
-│   ├── .gitignore
 │   └── grove/                                  reserved in chapter 4
 ├── .grove/
 │   ├── BRIEF.md
@@ -302,16 +301,20 @@ offers none.
 
 The rejected alternative is not hypothetical, and it is in this repository.
 `ordinal_fs_tree::Refusal` (`crates/ordinal-fs-tree/src/plan.rs:255`) is a public
-enum with named variants carrying domain values, and `grove-loop` matches on it —
-`Refusal::KeysExhausted` and `Refusal::DestinationOccupied` are named in
-`task_grow.rs` and `tree_lifecycle.rs`, and `docs/ARCHITECTURE.md` carries a
-whole section, *How an `ordinal-fs-tree` refusal reaches an operator*, about
-which of that library's variants may reach a person unaltered. Two crates in one workspace, opposite choices, and the difference is
-the one this comment states. That library's refusals are *algebraic*: a caller
-learns that a key is exhausted and picks a different key, which is a branch. This
-crate's are stops. Copying the enum here would have bought a consumer nothing to
-do and cost this crate the freedom to split `Namespace` from `ControlDir`, or to
-add an eleventh case, without a version bump.
+enum whose named variants carry the library's own values — a key, an ordinal —
+and `grove-loop` names two of them, `Refusal::KeysExhausted` and
+`Refusal::DestinationOccupied`, in `task_grow.rs` and `tree_lifecycle.rs`. It
+names them in doc comments and in a test's assertion message rather than in a
+`match`, and `docs/ARCHITECTURE.md`'s *How an `ordinal-fs-tree` refusal reaches an
+operator* is why: grove resolves and classifies its target *before* it calls the
+library, so a refusal that arrives has already been ruled out upstream, and the
+section is about which of the library's variants may reach a person unaltered.
+Two crates in one workspace, opposite choices, and the difference is the one this
+comment states. That library's refusals are *algebraic*: they distinguish cases a
+caller could act on, which is what makes publishing them worth a version-bump
+cost. This crate's are stops. Copying the enum here would have bought a consumer
+nothing to do and cost this crate the freedom to split `Namespace` from
+`ControlDir`, or to add an eleventh case, without a version bump.
 
 What the consumer gets instead is stated in the last sentence of the comment and
 is exactly two things: the message, from `Display`, and the cause chain, from
@@ -481,7 +484,7 @@ four reservations and created one directory. Two variants carry all of it.
 `Namespace` carries the name and a `reason: String`, and that `String` is the one
 piece of message text in this file assembled somewhere else — `validated_namespace`
 in `lib.rs` supplies *it is empty*, *it is a path rather than one directory name*,
-*it refers to the workspace itself* or *Jujutsu owns that name inside `.jj`*.
+*it names a directory other than itself* or *Jujutsu owns that name inside `.jj`*.
 `ControlDir` carries the path and an `io::Error`, and is the second of the four
 kinds with a `source()`.
 
@@ -545,9 +548,9 @@ rule is*, and only the middle third is computed.
 **`ControlDir`'s remedy names permissions, and chapter 4 recorded the case where
 that is the wrong thing to say.** `control_dir(".gitignore")` reaches this arm
 rather than the one above it, because `.gitignore` is a name jj writes inside
-`.jj/` and the crate's reserved list does not hold it, so the refusal a consumer
-sees suggests checking permissions on a directory that already exists — measured
-on jj 0.44.0 and recorded in
+`.jj/` of a colocated workspace and the crate's reserved list does not hold it,
+so the refusal a consumer sees suggests checking permissions on a directory that
+already exists — measured on jj 0.44.0 and recorded in
 [*The reserved list*](04-namespace.md#the-reserved-list). The message is not wrong
 about what it observed; `create_dir_all` did refuse. It is wrong about what to do,
 and that is the shape of defect this arm can have: the remedy is chosen by which
@@ -956,8 +959,8 @@ Two hundred and thirty lines, and about a hundred and thirty of them are text a
 person reads. The type is one field wide and publishes nothing: ten kinds behind a
 newtype, every one of them a stop, so a consumer branches on none of them and
 loses nothing by it. The alternative is in this repository and is the right choice
-there — `ordinal_fs_tree::Refusal` is a public enum grove matches on, because its
-refusals are decisions a caller can act on rather than stops.
+there — `ordinal_fs_tree::Refusal` is a public enum whose variants grove names,
+because its refusals distinguish cases a caller could act on rather than stops.
 
 What a consumer gets instead was measured rather than described. `Display` gives
 the message, and the messages are structured the same way throughout: what is

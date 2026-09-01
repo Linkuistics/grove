@@ -84,7 +84,6 @@ has just renamed and one unrelated edit in the working copy that must stay there
 ├── .jj/
 │   ├── repo/
 │   ├── working_copy/
-│   ├── .gitignore
 │   └── grove/                                  reserved in the previous chapter
 ├── .grove/
 │   ├── BRIEF.md
@@ -647,6 +646,13 @@ re-escapes nothing, but doing it in the other order doubles the backslash the
 first pass introduced. One pass over the characters cannot have an order bug,
 and this is a crate with no dependencies to borrow an escaper from.
 
+**No test in the suite passes a path containing either character**, so the
+argument above rests on jj's documented literal syntax and on reading the loop,
+and not on anything that goes red. It is stated rather than left to be assumed,
+because it is the one place in this chapter where a claim about correctness has
+no assertion behind it: every path the twenty-eight interface tests name is
+ordinary.
+
 <!-- fragment «relative-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="231-238" parent="scope-tracking-and-commit" -->
 ````rust
     /// `path` expressed relative to the workspace root, with `/` separators.
@@ -738,10 +744,16 @@ draw — the parent is what locates the name, and a name with nowhere to be is n
 a scope — but it is a line worth knowing, because the refusal a caller then sees
 is `UnresolvablePath`, which talks about broken symlinks rather than about a
 directory the caller has just removed. The crate's own suite reaches this
-fallback only through `a_deletion_is_committable_after_the_path_is_gone`, which
-passes a *relative* path and therefore takes the textual branch; the
-symlink-and-deletion combination above is covered by measurement here and by no
-test.
+fallback in one place and by its refusing end:
+`a_path_outside_the_workspace_is_refused_rather_than_answered` hands the
+workspace an absolute path in the temporary directory *above* the root, so
+`strip_prefix` fails, the parent is canonicalised, and the canonical parent is
+still not under the root — the third `outside_workspace` of the three. Its
+succeeding end is untested. `a_deletion_is_committable_after_the_path_is_gone`,
+the test that covers a path that no longer exists, passes a *relative* path and
+therefore never leaves the textual branch, so nothing in the suite exercises a
+canonicalised parent that does strip; the symlink-and-deletion combination above
+is covered by measurement here and by no test.
 
 `Refusal::outside_workspace` is returned three times in this branch, for three
 different failures — no parent, no file name, and a canonical parent that is
@@ -766,7 +778,10 @@ in the workspace, so accepting it would let a caller widen a path-scoped commit
 to the whole working copy by naming the root — the refusal `commit` already makes
 explicit, arriving by a second route. The reason string is written for the
 condition rather than for the caller's mistake: *the workspace root is not a
-scope inside itself*.
+scope inside itself*. This guard is unasserted too: no test names the root as a
+scope, so the second route is argued from the code and closed by no assertion,
+while the first route — the empty slice — is held by
+`a_commit_with_no_paths_is_refused_rather_than_widened`.
 
 <!-- fragment «relative-render» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="265-274" parent="scope-tracking-and-commit" -->
 ````rust

@@ -16,6 +16,24 @@ measurement report. It is not quietly replaced with a better rule; a rule chosen
 after seeing the data is not a preregistered one, and the whole value of this
 artifact is that it precedes what it judges.
 
+**One correction point precedes the freeze taking effect, and it has passed.**
+This document was reviewed adversarially by `pilot-preregistration-k53` and
+corrected by `pilot-preregistration-k54`, both **before** any page of the book was
+drafted and both recorded here because `.grove/` does not outlive the campaign.
+Seven defects were repaired: the non-independent probe fallback licensed the same
+verdicts as a blind probe (*Part 2*, *Part 4*); diff verification proved the
+recorded claims true but never complete (*Part 3*); de-duplication was optional
+and so let a stage select its own claim count (*Part 1*); `Undetermined` licensed
+the extraction it exists to forbid (*Part 4*); a partial probe left the
+stage-level arithmetic undefined (*Validity*); five taxonomy classes were weaker
+than the frozen standards they derive from (*Part 1*); and the comparator's bias
+tally was arithmetically wrong (*Part 2*).
+
+**That correction point is closed.** Every part below now stands as the frozen
+instrument, and the paragraph above is the whole of what changed and when. A rule
+that still proves unworkable is a protocol breach to report, exactly as stated —
+not a licence for a stage or the report to substitute a better one.
+
 The precedent this follows is
 [`writing-code-walkthroughs`](../writing-code-walkthroughs/README.md) — a frozen
 [rubric](../writing-code-walkthroughs/baseline/rubric.md) with its digest
@@ -185,18 +203,18 @@ them was written with this measurement in view.
 | Code | Class | Observable test — a defect exists when… | Charter owner |
 |---|---|---|---|
 | `D1` | Order | a concept is used before the page that owns it establishes it and no early-use row covers that use, or a section's position contradicts the structure brief's chapter sequence | developmental |
-| `D2` | Catalogue before example | a section earlier than its chapter's worked example primarily enumerates three or more public operations, refusal kinds, environment variables or validation rules | developmental |
-| `D3` | Chapter purpose | a chapter does not open on the refusal its row in the spine table names, or states no thesis | developmental |
+| `D2` | Catalogue before example | a section earlier than its chapter's worked example primarily enumerates three or more public queries, operations, verbs, refusal kinds, error variants, environment variables, validation rules or conformance obligations — the union of the two standards' enumerations, both of which bind | developmental |
+| `D3` | Chapter purpose | a chapter does not open on the refusal its row in the spine table names, does not name who owns that responsibility instead, or states no thesis | developmental |
 | `D4` | Stated outcome | the closing chapter does not state the transferable test, or does not apply it to all six refusals | developmental |
 | `D5` | Self-containedness | one of the contract's four chapter questions cannot be answered from the page alone, or an early-use row's minimum local statement is absent at its First-use anchor | developmental |
-| `T1` | Unadjudicated claim | an argued claim names neither the jj behaviour it rests on, nor the test that proves it, nor the rejected alternative and its cost | technical |
+| `T1` | Unadjudicated claim | an argued claim fails to name **any one** of the three its source standard requires of every argued claim: the jj behaviour it rests on, the test that proves it, and the alternative rejected with what it would have cost | technical |
 | `T2` | False or stale claim | a statement about the corpus, about jj, or about a test is contradicted by the frozen source or by the cited test | technical |
 | `T3` | Broken through-line | a decision explicable only by a decision in another file is presented without that connection | technical |
 | `T4` | Consumer's half | a passage saying what a call is *for* is missing where the reader needs it, or is present but not set apart from the crate's own vocabulary | technical |
 | `C1` | Terminology | a term drifts from jj's usage, from the glossary, or from the book's own earlier usage; or a grove term is re-taught rather than linked | copy |
-| `C2` | Style | a rhetorical question, narrative suspense, metaphor, idiom, emotive or persuasive framing; or an actor, input, result or invariant left unnamed where the distinction matters | copy |
+| `C2` | Style | a rhetorical question, narrative suspense, metaphor, idiom, emotive or persuasive framing; or an actor, input, behaviour, result or invariant left unnamed where the distinction matters | copy |
 | `C3` | Failure categories | modelled refusal, environmental failure, rollback failure and implementation defect are not labelled as different categories where the text distinguishes them | copy |
-| `C4` | Links and repetition | a link label does not name its destination and purpose; a paragraph stops being intelligible when its link is removed; or repeated context meets none of the contract's five conditions | copy |
+| `C4` | Links and repetition | a link label `M201` accepts still does not name its destination and purpose; a paragraph stops being intelligible when its link is removed; repeated context meets none of the contract's five conditions; or repetition meeting one of them exceeds the minimum semantic contract by restating a full earlier explanation | copy |
 | `C5` | Fragment introduction | a literal fragment's introducing paragraph leaves one of the contract's five editorial questions unanswered | copy |
 | `A1` | Undrawn relation | a relation, sequence, partition or comparison the reader must otherwise hold in their head is carried only by running prose, where a Markdown table, list figure or diagram would carry it | art |
 | `A2` | Unplaced figure | a table, diagram or non-fragment code block has no adjacent statement of its role in the page's argument | art |
@@ -205,6 +223,22 @@ them was written with this measurement in view.
 `P1` is proof's own class and no other stage's charter contains it. Every other
 class is **also** in proof's charter, because proof is a final read over the whole
 book; proof cannot commit a charter breach.
+
+**Each derived class has been reconciled clause by clause with the standard it
+comes from**, and five were corrected against their sources before the draft
+began. A derived class weaker than the obligation it derives from would let a
+passage pass the taxonomy while breaching the standard the stages are actually
+held to, and the taxonomy is not extendable once a stage has run — so this is the
+last point at which the derivation can be made faithful. The corrections: `T1`
+now fails on **any one** missing element rather than on all three, because the
+structure brief requires an argued claim to name all three; `D3` now tests the
+spine table's *Who owns it instead* column, which its source sentence states
+coequally with the refusal; `D2` takes the union of the brief's enumeration and
+the book contract's, since both bind this book; `C2` restores *behaviour* to the
+contract's list of what a sentence identifies; and `C4` is scoped past `M201`,
+because a non-descriptive label is already mechanical and mechanical properties
+score nothing here. `A1` and `A2` are the two classes derived from no frozen
+standard — art has none — and they are stated, not reconciled.
 
 ### Who judges, and how
 
@@ -236,8 +270,24 @@ and its absence is an observation rather than a gap in the protocol.
 > the named fragment, early-use row or worked-example anchor the defect is about.
 
 A defect of one class recurring at three or more anchored subjects across the
-book may be recorded as a single claim with the subject `book-wide`, listing its
-instances. A stage may not record the same class at the same subject twice.
+book **is** recorded as a single claim with the subject `book-wide`, listing its
+instances. This is mandatory rather than permitted, and the equivalence that
+triggers it is checkable: instances belong to one recurring family when **a single
+sentence stating the correction applies to all of them without naming any
+subject** — one term replaced by another throughout, one construction rewritten
+the same way, one missing element supplied in the same form. Instances needing
+different corrective sentences are different defects and stay separate claims.
+
+**The report re-applies this collapse before counting and does not take a stage's
+partition on trust.** Left optional, the threshold in *Part 4* would count
+whichever subject partition a stage chose rather than three distinct defects. One
+terminology drift fixed under three headings can be recorded as three `C1` claims
+sharing no anchored subject; all three then survive pairwise de-duplication and
+reach `Keep`, where the same family recorded as its one `book-wide` claim reaches
+`Merge`. A count a stage can select by how it writes its record is not a
+measurement.
+
+A stage may not record the same class at the same subject twice.
 
 The unit is a claim rather than a diff hunk deliberately. A copy edit correcting
 one terminology drift in forty places would otherwise outscore a developmental
@@ -324,6 +374,22 @@ undetermined direction. The trigger is mechanical and outcome-independent;
 choosing the fallback because the probe's content is unwelcome is a protocol
 breach.
 
+**The annotation is not the only consequence, and cannot be.** A fallback probe
+comes from a context that had read this document — the hypothesis, the threshold
+and the decision rule — so its recall error is not merely unknown but
+*interested*, and under-listing is the direction that manufactures marginality.
+Under the fallback the comparator therefore **licenses no `Keep`**: a stage whose
+arithmetic reaches the threshold is Undetermined instead, by the fallback clause
+of the verdict table in *Part 4*. `Merge` and `Drop` stand, because those are the
+directions in which a compromised comparator cannot buy machinery — the negative
+result this campaign calls a success stays reachable, and the expensive verdict
+does not.
+
+The asymmetry is the point. A fallback that changed a verdict's epistemic status
+without changing what that verdict licenses is not a fallback; it is an escape
+hatch, and failing to obtain the capability the comparator requires would cost
+nothing.
+
 ### Matching a probe entry to a stage claim
 
 A probe entry `P` **reaches** a stage claim `S` when both hold:
@@ -352,10 +418,24 @@ it, so the stage that made it is not credited with it.
 - **The probe is one context, unreplicated.** Its recall is unknown and there is
   no second probe to estimate it against. Direction unknown; reported as a limit.
 
-Three of the four run against the pipeline the campaign built. That is the right
-direction for an instrument whose sponsor already wrote six stages into a brief,
-and a six-stage result surviving it is stronger evidence than the same result
-under a neutral comparator.
+**Two of the four run against the pipeline the campaign built, one runs for it,
+and one has no established direction.** A six-stage result surviving this
+comparator is therefore some evidence beyond a neutral comparison — but the
+instrument claims no net conservatism, because it has not established one, and a
+count of three would be arithmetic the list above does not support.
+
+**Unknown recall is not a conservative unknown, and it is why *Part 4* is
+asymmetric.** A defect the probe misses is a defect the two-stage arm never gets
+credited with, so the matching stage claim reads marginal and the stage moves
+*toward* `Keep`. Probe recall error therefore pushes in the expensive direction —
+extracting a stage and paying a session per book for four books — while the two
+biases that run against the pipeline push in the cheap one. Wherever probe
+reliability is itself in question the instrument withholds `Keep` and leaves
+`Merge` and `Drop` standing, rather than the reverse: that is the rule for the
+non-independent fallback above. Where the doubt is about *coverage* rather than
+about the producer, the partial-probe interval under *Validity* applies the same
+instinct in the form that fits it, resolving a stage only where the missing
+coverage cannot change its row.
 
 ## Part 3 — The attribution rule
 
@@ -400,6 +480,13 @@ and after, and the SHA-256 of the preregistration this session read.
 Claims above whose class this stage's charter does not own, listed by number,
 each with why it was made here anyway.
 
+## Unclaimed changes
+Every remaining hunk of this stage's diff that touches book prose, by page and
+anchored subject, each with why it closes no taxonomy defect — mechanical or
+validator-driven, formatting with no reader-facing effect, or reader-facing but
+deliberately not claimed. The claim table and this section together account for
+**every** prose hunk in the diff, and a stage with none says so.
+
 ## Findings not fixed
 Defects seen and deliberately not fixed — out of charter, blocked by the corpus
 freeze, or belonging to a later stage — as class plus anchored subject, with no
@@ -434,6 +521,21 @@ range.
   taxonomy defect, evidenced the same way in reverse, counts against the stage
   that made it. Regressions are found by the report from the diffs, not only from
   self-report, and a stage does not certify its own innocence.
+- **The record accounts for the whole diff, and the report checks that it does.**
+  A prose hunk appearing in neither the claim table nor `## Unclaimed changes` is
+  **unaccounted**. The report classifies every unaccounted hunk itself under the
+  taxonomy and credits it to the stage whose commit contains it — in particular as
+  an out-of-charter claim where its class belongs to another stage's charter.
+
+  This is what makes verification of the record a verification of *completeness*
+  rather than only of truth. Checking each reported claim against the diff proves
+  that what a stage said it did, it did; nothing in that check rejects a
+  substantive hunk carrying no claim. Without this rule a developmental edit could
+  record its one `D1` fix, silently make three `C1` fixes, and leave the copy edit
+  reading as `Drop` — its work already done and its emptiness scored as
+  worthlessness — because `b(S)` was never set for work the stage chose not to
+  report. A stage's silence about its own out-of-charter work would otherwise
+  delete the pre-empted stage's verdict.
 
 ### Art, which has no machinery behind it
 
@@ -471,6 +573,9 @@ For each stage `S`, computed by the report from the verified claim set:
 | `b(S)` | claims in `v(S)` whose class `S`'s charter does not own |
 | `net(S)` | `m(S) − r(S)` |
 
+Where the probe is partial, `net(S)` is not a scalar and the interval
+`[net_lo(S), net_hi(S)]` defined under *Validity* is what the table below reads.
+
 ### Per-stage verdict
 
 Applied to the four middle stages — developmental edit, technical edit, copy edit
@@ -478,7 +583,7 @@ and art — and to no others. First matching row wins.
 
 | Verdict | Condition |
 |---|---|
-| **Undetermined** | the probe is missing; **or** `S`'s record is absent, or does not distinguish *ran and found nothing* from *did not run*; **or** `S`'s commit is invalid under *Validity* below; **or** `S` was **pre-empted** — `net(S) ≤ 0` and some **earlier** stage made a marginal out-of-charter claim in a class `S`'s charter owns |
+| **Undetermined** | the probe is missing; **or** the probe was produced under *Part 2*'s fallback and `S`'s arithmetic reaches `Keep`; **or** the probe is partial and `net_lo(S)` and `net_hi(S)` select different rows of this table, as *Validity* defines them; **or** `S`'s record is absent, or does not distinguish *ran and found nothing* from *did not run*; **or** `S`'s commit is invalid under *Validity* below; **or** `S` was **pre-empted** — `net(S) ≤ 0` and some **earlier** stage made a marginal out-of-charter claim in a class `S`'s charter owns |
 | **Drop** | `net(S) ≤ 0` |
 | **Merge** | `1 ≤ net(S) ≤ 2` |
 | **Keep** | `net(S) ≥ 3` |
@@ -538,6 +643,13 @@ stages are unresolved and why. An Undetermined stage is never silently counted a
 kept, and never silently counted as dropped. Where `N_min = N_max`, that value is
 `N` and the table below reads directly.
 
+**`N_max` measures unresolvedness; it licenses nothing.** It is how much of the
+pipeline this pilot failed to decide, and the extraction table below is what
+governs what may be built — where an Undetermined stage authorises no extraction
+whatever the range's upper end reads. A report whose range is wide has said the
+measurement did not resolve those stages, which is a different statement from
+having kept them.
+
 | Outcome | Reading |
 |---|---|
 | `N = 6` | the six-stage pipeline is upheld in full |
@@ -571,12 +683,20 @@ of nothing.
 `pipeline-kinds-k27` reads the report and extracts kinds. What it may do with each
 verdict is fixed here, because there is no human between the two.
 
+**No row licenses extraction on an absence.** The root brief's governing rule is
+that a stage which cannot be shown to have paid for itself is not extracted into a
+kind, and the pilot brief repeats it. An `Undetermined` stage has not been shown to
+have paid; letting the extraction leaf state its own basis and call that basis
+"not this pilot's evidence" would satisfy the rule's words while producing exactly
+the pipeline it forbids — six stages derived after the fact, which is the failure
+this whole leaf was ordered to prevent.
+
 | Verdict | What `pipeline-kinds-k27` may do |
 |---|---|
 | **Keep** | extract the stage as its own `grove-<kind>` skill |
 | **Merge** | fold the stage's charter into its merge target's skill; do not give it a kind |
 | **Drop** | do not extract it, and do not fold it in |
-| **Undetermined** | **this measurement licenses nothing.** Extract it only on a basis stated in that leaf and named as not being this pilot's evidence, or leave it out |
+| **Undetermined** | **this measurement licenses nothing, and nothing in this campaign licenses it instead.** The stage is not extracted and not folded in. A genuinely new basis for it is a new preregistered measurement, not an assertion in the extraction leaf |
 
 ## Validity
 
@@ -595,6 +715,11 @@ verdict is fixed here, because there is no human between the two.
   `book-check --final --check all`, by way of `bash scripts/check.sh`.
 - The stages ran out of pipeline order.
 - Its record is absent, or its claims cannot be located in its diff.
+- Its record leaves a prose hunk of its diff unaccounted — in neither the claim
+  table nor `## Unclaimed changes` — and the report's own classification of that
+  hunk finds a taxonomy defect closed or opened by it. The stage is Undetermined;
+  the hunk is still credited under *Part 3*, so a stage that hid its own
+  out-of-charter work cannot thereby drop the stage it pre-empted.
 
 ### What makes the reading invalid
 
@@ -627,8 +752,22 @@ Stated in advance, so no arithmetic hole is filled at reading time.
   set out to measure.
 - **A partial probe** — one that terminated early or covers only some pages —
   licenses marginality only for claims whose anchored subject lies inside the
-  pages the probe covered. Claims outside them are Undetermined, and a stage all
-  of whose claims fall outside is Undetermined.
+  pages the probe covered. Claims outside them are Undetermined, and the stage's
+  arithmetic is then an interval rather than a scalar: `net_lo(S)` counts every
+  uncovered claim as reached by the probe and so contributing nothing,
+  `net_hi(S)` counts every uncovered claim as marginal, and both subtract `r(S)`,
+  which does not depend on the probe.
+
+  **The verdict is read from the interval.** If `net_lo(S)` and `net_hi(S)`
+  select the same row of the per-stage table, that verdict stands and the report
+  names the unresolved claims anyway. If they select different rows the uncovered
+  claims are load-bearing, the probe did not cover them, and the stage is
+  Undetermined. A stage all of whose claims fall outside coverage is the limiting
+  case of the same rule. Stating the propagation here is what stops a later
+  session choosing, once the counts are visible, between dropping the unknown
+  claims and propagating them — a stage with one covered marginal claim and two
+  uncovered ones would otherwise read as `Merge` or as Undetermined at the
+  reader's discretion.
 - **A charter breach** is reported for both stages: the making stage keeps the
   credit, and the pre-empted stage takes the Undetermined verdict its row above
   specifies.
@@ -653,12 +792,16 @@ These bound what `pipeline-kinds-k27` may conclude, and the report restates them
   structure brief.
 - **The probe is a simulated arm.** It establishes what a proof pass would
   *identify*, not what it would successfully *repair*, and it is one context's
-  output with unknown recall.
+  output with unknown recall. Two of its four stated biases run against the
+  six-stage hypothesis, one runs for it, and one has no established direction; no
+  net conservatism is claimed.
 - **Proof is untested**, for the reason given in *Part 4*.
 - **Self-report is the first source of claims.** The report verifies every claim
-  against the diff and finds regressions independently, but it cannot see a defect
-  no stage recorded and the probe did not list. The rule moves that hazard to
-  where a session can act on it; it does not remove it.
+  against the diff, accounts for every prose hunk, and finds regressions
+  independently, so work a stage *did* and chose not to report is still
+  recovered. What remains invisible is narrower and real: a defect **nobody
+  fixed** and the probe did not list. The rule moves that hazard to where a
+  session can act on it; it does not remove it.
 - **The measure is of the artifact, not of readers.** No reader is asked anything.
   Like its precedent, this campaign measures returned artifacts, not comprehension.
 

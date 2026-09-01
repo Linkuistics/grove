@@ -766,6 +766,8 @@ root row and ownership table.
 
 `source-index.md` also carries an owned-source totals table — slice, page, and
 owned lines, with a total row naming the root count and the corpus line count.
+It is outside the four-table exemption and takes an adjacent statement of its
+role like any other figure (*Figures*).
 The totals count each source line once at its top-level block and do not count
 composite ancestors or lookup prose. A scoped report prints completed lines,
 deferred lines, and `final=false`; it never presents a prefix as exhaustive.
@@ -1331,9 +1333,14 @@ is an editorial finding.
 
 ### Figures
 
-A **figure** is a table, a diagram, or any other non-fragment fenced block that
-carries a relation rather than continuous prose. Literal and composite fragments
-are not figures; *Source-fragment introductions* above governs those.
+A **figure** is a table, a diagram, or any other non-fragment fenced block —
+`text`, `console` or any other language — whether or not what it holds is a
+relation. Literal and composite fragments are not figures; *Source-fragment
+introductions* above governs those. The class is deliberately as wide as the
+measurement that produced these rules, which surveyed every table, every diagram
+and all forty-five non-fragment fenced blocks of the pilot book; narrowing it to
+blocks that carry a relation would drop console and plain-text output back out of
+the obligation the art stage was actually held to.
 
 A figure's medium is the page's own Markdown and nothing else. A book directory
 carries no image and no diagram file, and the validator has no concept of an
@@ -1363,6 +1370,13 @@ that runs into the directive (*Source-fragment introductions*). And the four
 after the heading, and a paragraph there is `F009` (*Source and ownership
 ledger*). Those four are machine-reconciled derived indexes on a lookup page
 outside the reading order, and the role rule does not reach them.
+
+**The exemption is those four tables and nothing else.** `source-index.md`'s
+owned-source totals table is a fifth table on the same page and is not one of
+them: the validator requests exactly the four fixed headings, nothing reconciles
+the totals against the manifest, and `F009`'s no-lead-in rule names only the
+four. It is an editorial table, it is where a reader looks to see how the corpus
+divides across the book, and it states its role like any other figure.
 
 ### Worked examples
 
@@ -1442,7 +1456,9 @@ asset, no book directory carries one at any depth, and the validator has no
 concept of one. The omission is **settled rather than pending**: the editorial
 pilot's art stage drew every figure it drew as bytes in the book's own Markdown,
 recorded no figure it was unable to draw for want of a medium, and paid for
-itself with no machinery behind it.
+itself with no machinery behind it. That last observation is weak on its own —
+the stage's own production boundary was Markdown — and the record below says so
+and rests the decision on reversibility instead.
 [`a-book-carries-no-asset`](../adr/a-book-carries-no-asset.md) holds the
 trade-off, the alternatives it rejects — asset machinery, and a text-native
 diagram notation — and what would reopen it. Figures themselves are **not** out

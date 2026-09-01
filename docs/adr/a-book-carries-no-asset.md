@@ -17,8 +17,8 @@ reviewer like every other rule there.
 The publishing pipeline the editorial pilot measured has an art stage, and that
 stage was kept. The obvious reading of "keep the art stage" is that art needs a
 medium — a figure format, an asset convention, a validator that knows what an
-asset is. The evidence says the opposite, and it says so specifically enough to
-be worth recording rather than left as an omission.
+asset is. The evidence points the other way, and specifically enough that the
+omission is worth recording as a decision rather than left as a gap.
 
 **Art paid for itself with nothing but Markdown.** The stage produced seven
 claims over six pages of the `jj-workspace` book: six relations the pages had been
@@ -29,55 +29,84 @@ preregistered threshold. No asset was created, no manifest group was added, and
 the validator's ignorance of figures was unchanged. Whatever the art stage is
 worth, it is worth that with no machinery behind it.
 
-**The absence of assets is not by itself evidence, and the argument does not rest
-on it.** The pilot's stage table chartered art as *whatever figures, diagrams or
-tables plain Markdown can carry, and nothing else*, so a stage that produced no
-asset produced none because it was forbidden to. The measurable question is
-narrower: did the stage ever record a relation it declined to draw **because
-Markdown could not carry it**? It has a surface for exactly that — the stage
-record's `## Findings not fixed` — and it used it four times. Three are editorial
-declinations, each with a reason that no medium would change: a catalogue left
-undrawn because compressing it risked a defect in another stage's class, a route
-table that would have restated code the page already walks in order, and a
-whole-book relation handed forward to the proof stage because whole-book
-coherence is proof's class. The fourth is a defect the stage was **forbidden** to
-fix, by a rule in the book contract itself. So the surface demonstrably records
-blocked cases and demonstrably distinguishes *declined on judgement* from
-*forbidden* — and across a seven-chapter book read twice over expressly hunting
-for undrawn relations, **not one declination was ceiling-bound**. That is what
-turns the absence into a reading.
+**The absence of assets is weak evidence, and the argument is built so that it
+does not have to be strong.** The pilot's stage table chartered art as *whatever
+figures, diagrams or tables plain Markdown can carry, and nothing else*, so a
+stage that produced no asset produced none because it was forbidden to. The
+narrower question — did the stage ever record a relation it declined to draw
+**because Markdown could not carry it**? — is not answered by a positive control
+either, and it is worth being exact about why.
+
+Both of the art stage's survey classes are themselves defined in Markdown's
+terms. `A1` fires only where *a Markdown table, list figure or diagram would
+carry* the relation, and `A2` reaches figures that already exist. A relation no
+arrangement of text could carry is outside both, and outside the stage task's own
+production boundary. The stage record's `## Findings not fixed` is used four
+times, and none of the four is that case: three are editorial declinations whose
+reasons no medium would change — a catalogue left undrawn because compressing it
+risked a defect in another stage's class, a route table that would have restated
+code the page already walks in order, and a whole-book relation handed forward
+because whole-book coherence is proof's class — and the fourth is an in-taxonomy
+`A2` the book contract **forbade** the stage to fix. That fourth shows the
+surface records a blocked case and distinguishes *declined on judgement* from
+*forbidden*. It does not show that a ceiling-bound relation would have surfaced,
+because a blocked fix inside the taxonomy is not the same event as a defect
+outside it.
+
+The only obligation that reaches the outside case at all is the
+preregistration's own admission that its taxonomy is incomplete: a stage that
+*meets* a reader-facing defect neither frozen standard names records it in
+`## Findings not fixed` with the class it would need. That is a duty to record
+what is met, not a duty to go looking. So the result the pilot actually supports
+is the weaker one — **no ceiling-bound demand was observed by a
+Markdown-bounded, single-book pass** — and the weight is carried instead by the
+asymmetry below and by a reopening trigger written as a recordable event.
 
 **The Markdown ceiling is higher than "tables".** Ten pages across the two
 existing books already carry box-drawing tree diagrams inside `text` fences, and
 they read identically as raw text and as rendered Markdown. The books have
 figures; what they had no name for was the convention governing them.
 
-**The machinery is not incremental, and that is the cost worth naming.** An asset
-would be the first thing in a book directory that is not the manifest and not a
-page, and the specification's final mode requires that directory to contain
-*exactly* `walkthrough.toml` and the declared pages as regular files, with no
-other file, directory, symlink or special entry at any depth. That closed-world
-rule is what makes `M101` a **complete** inventory check rather than a check
-against a list. Admitting assets replaces it with "the declared pages plus
-whatever the manifest declares as assets", after which the inventory is only as
-complete as the declarations — and the manifest would need a new group, the
-snapshot a new input class, `M201`'s permitted-target set a new member, and the
-diagnostic contract new codes for a missing asset, an asset no page references,
-and a reference to an asset no manifest declares. The book contract exists to
-make *complete reconstruction* a claim about an externally stated corpus; a check
-whose completeness depends on the author's own declaration is the thing it was
-built to avoid.
+**The cost is interface, and it is not incremental.** An asset would be the first
+thing in a book directory that is not the manifest and not a page, and the
+specification's final mode requires that directory to contain *exactly*
+`walkthrough.toml` and the declared pages as regular files, with no other file,
+directory, symlink or special entry at any depth.
+
+**Inventory completeness is not what admitting assets would cost, and this record
+does not claim it is.** `M101` already builds its expected set from the
+manifest's own authored `[[page]]` list plus `walkthrough.toml`, then compares
+that set against every entry found on disk in **both** directions
+(`crates/book-validation/src/markdown.rs`). Pages are an author declaration
+today. An `[[asset]]` group added to that expected set would keep the closed
+world exactly as it is: an undeclared file would still be reported as outside the
+inventory, a declared-but-missing one still as missing, and the recursive rule
+would still admit nothing else. The obvious argument against assets — that they
+turn a complete inventory into a check against a list — is simply false of this
+implementation, and a decision resting on it would not survive the first reader
+who opened the validator.
+
+What assets would really cost is surface, paid by every book and every check for
+a demand never observed. The manifest gains a group and a schema bump; the
+snapshot gains an input class that is not UTF-8 text; `M201`'s permitted-target
+set gains a member; and the diagnostic contract gains at least three codes — a
+missing asset, an asset no page references, and a reference to an asset no
+manifest declares. Each is a rule an author has to learn and a reviewer has to
+apply. And it introduces a second kind of byte into a book: a page is text a
+reader can read where the file lies, and an asset is not — which is the property
+the *Rendering* exclusion exists to protect.
 
 **The asymmetry runs toward waiting.** Building later is additive and needs no
 migration: a book written under the closed-directory rule simply has no asset,
 and `schema` is an integer in the manifest precisely so a format change is a
 refusal rather than a misreading. Building now imposes the cost on every book and
-every check for a demand that has never been observed once.
+every check for a demand no session has yet recorded. This asymmetry, not the
+strength of the pilot's silence, is what decides the question.
 
 **What this closes off, plainly.** A contributor who drops an image into a book
 directory gets a hard final-mode failure and no escape hatch — not a warning, not
-an ignored file. That is deliberate. The failure is loud, and a loud failure at
-the boundary is the price of an inventory check that is complete by construction.
+an ignored file. That is deliberate: the only way to add one is to reopen this
+record, which is where the argument belongs.
 
 ## The alternatives that were rejected
 
@@ -91,8 +120,8 @@ Generalising *tables sufficed* from the first to the second is a real
 extrapolation, and it is the strongest case for building the machinery in
 advance.
 
-It is rejected on two grounds. The demand it forecasts has never been observed,
-and the whole reason this decision comes after the pilot rather than before it is
+It is rejected on two grounds. The demand it forecasts has not been observed —
+once, weakly, under the limits stated above — and the whole reason this decision comes after the pilot rather than before it is
 that machinery ordered ahead of the measurement meant to justify it cannot answer
 whether it was needed. And the extrapolation is narrower than it looks: a
 transition table and a box-drawing state diagram are both inside the ceiling, and

@@ -169,6 +169,10 @@
 <a id="owned-source-totals"></a>
 ## Owned source totals
 
+Every line of the four source roots is credited once, to the slice whose page
+owns it; the table shows how the 698 lines divide across the seven chapters, and
+its total is what a completed book must account for.
+
 | Slice | Page | Owned lines |
 |---|---|---:|
 | `no-dependencies` | `01-orientation.md` | 98 |

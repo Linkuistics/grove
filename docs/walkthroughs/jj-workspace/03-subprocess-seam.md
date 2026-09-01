@@ -1,6 +1,6 @@
 # The subprocess seam
 <!-- book-page id="subprocess-seam" slice="nothing-ambient" order="3" -->
-[Previous: The gate](02-the-gate.md) | [Contents](README.md)
+[Previous: The gate](02-the-gate.md) | [Contents](README.md) | [Next: The namespace it will not name](04-namespace.md)
 
 <a id="nothing-ambient"></a>
 ## Nothing ambient chooses the repository
@@ -615,4 +615,4 @@ Everything so far has been about what the crate refuses to decide for its
 consumer. The next chapter is about the one thing it adds — and about the fact
 that it still refuses to name it.
 
-[Previous: The gate](02-the-gate.md) | [Contents](README.md)
+[Previous: The gate](02-the-gate.md) | [Contents](README.md) | [Next: The namespace it will not name](04-namespace.md)

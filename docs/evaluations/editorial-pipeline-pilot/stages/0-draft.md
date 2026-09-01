@@ -25,6 +25,7 @@ whole range is diffed against: change id `pmyytxvyxmzzsmrxmovzuyxqqnxxurzr`,
 | 1 | `orientation-k55` | `wnnkykqxxnotnpltmvnvnmkqtsuxzkqs` | `523b02550a3aef5fcb0d1161ae5ad5adeaaed352450d0f72e36e84f4b4b33d4d` | `--through no-dependencies` |
 | 2 | `the-gate-k56` | `kvyvvxzyyvxtrynswrnqzqyloznzlovx` | `2f6288f285cabb89ab4cfbc0ced592e8cdd2efe813b2177b385fc1904a84dd9c` | `--through one-lane` |
 | 3 | `subprocess-seam-k57` | `qyxstotksvmrnzqtwouvtsxxxtzskqxn` | `3a333b9028ab5d3971a6daa068cf199e89d65a6bf1f7a0c2376f8766ddad9975` | `--through nothing-ambient` |
+| 4 | `namespace-k58` | `vuottxtuuktvwmqlzozukwoztnmrvvmo` | `d8beca1b843585d75b6a134b08e4411585eec292cbe1af03d6c0d424af9b49b5` | `--through no-consumer-vocabulary` |
 
 The book-directory digest **before** child 1 has no value: the directory did not
 exist. Digests follow the preregistration's recipe —
@@ -62,6 +63,15 @@ sealing*, *Driver lease* and *Stated VCS* — each gained one `<a id="…"></a>`
 and had their bold lead-in promoted to a `###` heading. No definition, `_Avoid_`
 line or retirement note was altered, and no other entry was touched.
 
+**Re-checked at the start of child 4, and unchanged.** All four corpus files,
+all three specification and guide inputs, the `ordinal-fs-tree` precedent
+directory and `CONTEXT.md` carry exactly the digests above — `CONTEXT.md` still
+at its post-child-1 value, because chapter 4 reserves
+`CONTEXT.md#driver-lease` and `CONTEXT.md#loop-control-channel`, and child 1
+created both. This child touches no file outside the book directory except this
+record and `.grove/`. The preregistration read by this child hashes to the same
+`b9ee9f8e48b69170c7ecd9787b9373dfc42242895e91d37d8a181af6f09a694e`.
+
 **Re-checked at the start of child 3, and unchanged.** All four corpus files, all
 three specification and guide inputs, the `ordinal-fs-tree` precedent directory
 and `CONTEXT.md` carry exactly the digests above — `CONTEXT.md` still at its
@@ -91,39 +101,41 @@ nothing.
 The draft has no before-state to cite, so this section stands where an editorial
 stage carries `## Claims`. It is completed by the last child of the range.
 
-**Page inventory, as of child 3.** Seven of the book's ten declared files exist;
+**Page inventory, as of child 4.** Eight of the book's ten declared files exist;
 the manifest declares all ten from the start, because a plan authored
 incrementally cannot be compared against a prefix.
 
 | File | Role | Slice | State |
 |---|---|---|---|
 | `walkthrough.toml` | manifest | — | complete: all 7 chapters, 4 roots, 11 blocks, 5 early uses, guide and glossary groups |
-| `README.md` | contents | — | present; chapters 1–2 linked, chapters 3–7 listed as plain text |
+| `README.md` | contents | — | present; chapters 1–4 linked, chapters 5–7 listed as plain text |
 | `01-orientation.md` | chapter | `no-dependencies` | written |
 | `02-the-gate.md` | chapter | `one-lane` | written |
 | `03-subprocess-seam.md` | chapter | `nothing-ambient` | written |
+| `04-namespace.md` | chapter | `no-consumer-vocabulary` | written |
 | `concept-index.md` | lookup | — | present, curated for the prefix |
-| `source-index.md` | lookup | — | present; 4 roots, 11 ownership rows, 37 fragment rows, 8 early-use rows |
-| `04-namespace.md` | chapter | `no-consumer-vocabulary` | not written; 3 blocks deferred |
+| `source-index.md` | lookup | — | present; 4 roots, 11 ownership rows, 52 fragment rows, 9 early-use rows |
 | `05-scope-and-commit.md` | chapter | `no-transactions` | not written; 2 blocks deferred |
 | `06-refusal.md` | chapter | `no-remedy-of-its-own` | not written; 1 block deferred |
 | `07-what-jj-owns.md` | chapter | `assembly` | not written; owns no source, final-only |
 
-**Validation, as of child 3.** Scoped, not final:
+**Validation, as of child 4.** Scoped, not final:
 
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/jj-workspace \
-    --through nothing-ambient --check all
-valid: 4 files, 271 resolved lines, 427 deferred lines, final=false
+    --through no-consumer-vocabulary --check all
+valid: 4 files, 329 resolved lines, 369 deferred lines, final=false
 ```
 
-271 + 427 = 698, the corpus line count the root brief froze; child 1 stood at
-98 + 600 and child 2 at 190 + 508, and chapter 3's single ownership block is the
-81 lines that moved. `bash scripts/check.sh` reports 1 of 8 failing, and the
-failure is `book-check` alone — `M104` on the four defers still outstanding,
-`M103` on the contents and on chapter 3's navigation lacking a `Next`, and `M101`
-on the four unwritten pages. `cargo test --locked --workspace`, `cargo clippy`
+329 + 369 = 698, the corpus line count the root brief froze; child 1 stood at
+98 + 600, child 2 at 190 + 508 and child 3 at 271 + 427, and chapter 4's three
+ownership blocks are the 58 lines that moved. `bash scripts/check.sh` reports 1 of 8 failing, and the
+failure is `book-check` alone. Its nineteen diagnostics were read rather than
+summarised: six `F003` on the three defers still outstanding, eight `F009` — one on
+the ownership ledger, one on the early-use ledger, and one on each of its six
+`pending` rows — two `M103` on the contents and on chapter 4's navigation lacking
+a `Next`, and three `M101` on the unwritten pages. `cargo test --locked --workspace`, `cargo clippy`
 and `cargo fmt --all --check` are green.
 `bash scripts/check.sh` is red on `book-check` alone for every child of the range
 but the last, because the script runs `--final` over every book root by discovery
@@ -190,6 +202,27 @@ As of child 3:
 - **`.grove/` bookkeeping.** This child's running decision log and its `DONE`
   rename. It changes no book prose.
 
+As of child 4:
+
+- **`04-namespace.md` (new).** Chapter 4 entire: the no-consumer-vocabulary
+  thesis and the argument against an enum of consumers, the premise that `.jj/`
+  is the repository in jj's own vocabulary and that jj snapshots the working
+  copy, the worked reservation of `grove` with its second call and its four
+  refusals, and the three ownership blocks resolved into twelve literal fragments
+  under three composites. Baseline prose, unedited.
+- **`source-index.md`, `README.md`, `03-subprocess-seam.md`, `concept-index.md`.**
+  The ledger and navigation this slice is required to move: three defers replaced
+  by inserts, three ownership rows turned `resolved`, fifteen fragment rows added
+  and the fragment index re-sorted into its required root, ascending-range, ID
+  order, the `control_dir` early-use row turned `explained` and one row added for
+  the namespace's two refusal constructors, chapter 4 linked from the contents,
+  chapter 3's two navigation lines given their `Next`, and twelve concept-index
+  entries. Mechanical and validator-driven; no prose on a page an earlier slice
+  owns was touched.
+- **`.grove/` bookkeeping.** This child's running decision log, one leaf cut for
+  a defect found while drafting, and this child's `DONE` rename. It changes no
+  book prose.
+
 <a id="findings-not-fixed"></a>
 ## Findings not fixed
 
@@ -232,3 +265,21 @@ As of child 3, none beyond the three above. Chapter 3 quotes the stale
 `install-and-setup` URL inside the `NotRunnable` message it reproduces, which is
 finding 3 showing through to a reader rather than a new defect; `jj-docs-url-k64`
 already owns it and already has to re-prove this page when it lands.
+
+As of child 4, one more:
+
+4. **`JJ_OWNED_NAMES` is one name short of what jj writes inside `.jj/`.** On jj
+   0.44.0 a workspace created by `jj git init` and one created by
+   `jj git init --colocate` both contain `.jj/.gitignore`, and the crate's
+   reserved list holds only `repo` and `working_copy`. `control_dir(".gitignore")`
+   therefore passes `validated_namespace` and is refused by `fs::create_dir_all`
+   with `AlreadyExists`, which reaches the consumer as a `ControlDir` refusal
+   telling it to check permissions rather than as the `Namespace` refusal naming
+   Jujutsu. Observed against this crate rather than inferred. Not fixed here: the
+   corpus is frozen, and the fix moves a line boundary inside the
+   `namespace-owned-names-list` fragment, so it must land in one commit with the
+   page that quotes it. Chapter 4 states the gap as an outstanding observable in
+   both its worked example and its account of the reserved list — the list's own
+   one-directional cost argument coming due, rather than a claim the book leaves
+   unchecked. Cut as `jj-owned-names-k65`, placed beside `jj-docs-url-k64` after
+   every crate book for the same reason.

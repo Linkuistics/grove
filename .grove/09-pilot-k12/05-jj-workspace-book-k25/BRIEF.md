@@ -144,3 +144,20 @@ specification does permit everywhere except the `README.md` guide citation —
 decision 7 of `jj-workspace-structure-k17` reserved these four by name and the
 task file's `Done when` requires them, so it is not this session's to reopen. The
 inconsistency four-of-sixty-one leaves is real and is `glossary-anchors-k62`'s.
+
+**3 · The `.jj/.gitignore` collision is recorded on the page and cut as a leaf
+placed after every crate book, rather than fixed or footnoted.** Found by
+inspection while writing chapter 4's premise, not assumed: on jj 0.44.0 both
+`jj git init` and `jj git init --colocate` create `.jj/.gitignore`, and
+`control_dir(".gitignore")` is therefore refused by `create_dir_all` with a
+permissions remedy instead of by `validated_namespace` with the remedy that
+names Jujutsu. The corpus freeze forbids fixing it here, so the only choice was
+what the book says. Rejected: leaving it out — the chapter's whole argument is
+that the reserved list is *cheaply wrong in one direction*, and a book that
+states that argument while omitting the live instance of it in the tree the
+reader is standing in is making an unfalsifiable claim. Rejected: stating it as
+a hypothetical — it is observable today, and the worked example is the place a
+reader can check it. Cut as `jj-owned-names-k65`, placed beside
+`jj-docs-url-k64` after every crate book for the same reason: the fix moves a
+line boundary inside `namespace-owned-names-list`, so it must land in one commit
+with the page that quotes it.

@@ -50,10 +50,10 @@ source.
 1. [Orientation](01-orientation.md)
 2. [The gate](02-the-gate.md)
 3. [The subprocess seam](03-subprocess-seam.md)
+4. [The namespace it will not name](04-namespace.md)
 
 Planned, and not yet written:
 
-4. The namespace it will not name
 5. Scope and commit
 6. Refusal
 7. What jj owns

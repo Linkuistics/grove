@@ -18,13 +18,13 @@
 <!-- /source-root -->
 <!-- source-root «source-library» source="crates/jj-workspace/src/lib.rs" lines="1-343" -->
 <!-- insert «library-crate-thesis» -->
-<!-- defer «namespace-reserved-names» owner="no-consumer-vocabulary" lines="55-61" -->
+<!-- insert «namespace-reserved-names» -->
 <!-- defer «commit-identity» owner="no-transactions" lines="62-71" -->
 <!-- insert «workspace-value-and-gate» -->
-<!-- defer «namespace-control-dir» owner="no-consumer-vocabulary" lines="119-145" -->
+<!-- insert «namespace-control-dir» -->
 <!-- defer «scope-tracking-and-commit» owner="no-transactions" lines="146-274" -->
 <!-- insert «gate-main-repo-and-canonical» -->
-<!-- defer «namespace-validation» owner="no-consumer-vocabulary" lines="320-343" -->
+<!-- insert «namespace-validation» -->
 <!-- /source-root -->
 <!-- source-root «source-subprocess» source="crates/jj-workspace/src/jj.rs" lines="1-81" -->
 <!-- insert «subprocess-seam-source» -->
@@ -40,13 +40,13 @@
 |---|---|---|---|---|---|
 | `manifest-no-dependencies` | `source-crate-manifest` | `no-dependencies` | `1-44` | 44 | `resolved` |
 | `library-crate-thesis` | `source-library` | `no-dependencies` | `1-54` | 54 | `resolved` |
-| `namespace-reserved-names` | `source-library` | `no-consumer-vocabulary` | `55-61` | 7 | `deferred` |
+| `namespace-reserved-names` | `source-library` | `no-consumer-vocabulary` | `55-61` | 7 | `resolved` |
 | `commit-identity` | `source-library` | `no-transactions` | `62-71` | 10 | `deferred` |
 | `workspace-value-and-gate` | `source-library` | `one-lane` | `72-118` | 47 | `resolved` |
-| `namespace-control-dir` | `source-library` | `no-consumer-vocabulary` | `119-145` | 27 | `deferred` |
+| `namespace-control-dir` | `source-library` | `no-consumer-vocabulary` | `119-145` | 27 | `resolved` |
 | `scope-tracking-and-commit` | `source-library` | `no-transactions` | `146-274` | 129 | `deferred` |
 | `gate-main-repo-and-canonical` | `source-library` | `one-lane` | `275-319` | 45 | `resolved` |
-| `namespace-validation` | `source-library` | `no-consumer-vocabulary` | `320-343` | 24 | `deferred` |
+| `namespace-validation` | `source-library` | `no-consumer-vocabulary` | `320-343` | 24 | `resolved` |
 | `subprocess-seam-source` | `source-subprocess` | `nothing-ambient` | `1-81` | 81 | `resolved` |
 | `refusal-source` | `source-refusal` | `no-remedy-of-its-own` | `1-230` | 230 | `deferred` |
 
@@ -69,16 +69,31 @@
 | `library-thesis-no-transactions` | `orientation` | `source-library` | `literal` | `no-dependencies` | `21-30` | `library-crate-thesis` | `—` |
 | `library-thesis-reads-add-no-history` | `orientation` | `source-library` | `literal` | `no-dependencies` | `31-45` | `library-crate-thesis` | `—` |
 | `library-module-surface` | `orientation` | `source-library` | `literal` | `no-dependencies` | `46-54` | `library-crate-thesis` | `—` |
+| `namespace-owned-names-argument` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `55-59` | `namespace-reserved-names` | `—` |
+| `namespace-reserved-names` | `namespace` | `source-library` | `composite` | `no-consumer-vocabulary` | `55-61` | `source-library` | `namespace-owned-names-argument`, `namespace-owned-names-list` |
+| `namespace-owned-names-list` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `60-61` | `namespace-reserved-names` | `—` |
 | `gate-workspace-value` | `the-gate` | `source-library` | `literal` | `one-lane` | `72-81` | `workspace-value-and-gate` | `—` |
 | `workspace-value-and-gate` | `the-gate` | `source-library` | `composite` | `one-lane` | `72-118` | `source-library` | `gate-workspace-value`, `gate-resolve-contract`, `gate-resolve-walk`, `gate-root-accessor`, `gate-main-repo-accessor` |
 | `gate-resolve-contract` | `the-gate` | `source-library` | `literal` | `one-lane` | `82-96` | `workspace-value-and-gate` | `—` |
 | `gate-resolve-walk` | `the-gate` | `source-library` | `literal` | `one-lane` | `97-105` | `workspace-value-and-gate` | `—` |
 | `gate-root-accessor` | `the-gate` | `source-library` | `literal` | `one-lane` | `106-111` | `workspace-value-and-gate` | `—` |
 | `gate-main-repo-accessor` | `the-gate` | `source-library` | `literal` | `one-lane` | `112-118` | `workspace-value-and-gate` | `—` |
+| `namespace-postcondition` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `119-123` | `namespace-control-dir` | `—` |
+| `namespace-control-dir` | `namespace` | `source-library` | `composite` | `no-consumer-vocabulary` | `119-145` | `source-library` | `namespace-postcondition`, `namespace-placement`, `namespace-shape`, `namespace-no-probe`, `namespace-control-dir-body` |
+| `namespace-placement` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `124-129` | `namespace-control-dir` | `—` |
+| `namespace-shape` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `130-134` | `namespace-control-dir` | `—` |
+| `namespace-no-probe` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `135-138` | `namespace-control-dir` | `—` |
+| `namespace-control-dir-body` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `139-145` | `namespace-control-dir` | `—` |
 | `gate-main-repo-premise` | `the-gate` | `source-library` | `literal` | `one-lane` | `275-297` | `gate-main-repo-and-canonical` | `—` |
 | `gate-main-repo-and-canonical` | `the-gate` | `source-library` | `composite` | `one-lane` | `275-319` | `source-library` | `gate-main-repo-premise`, `gate-main-repo-probe`, `gate-canonical` |
 | `gate-main-repo-probe` | `the-gate` | `source-library` | `literal` | `one-lane` | `298-313` | `gate-main-repo-and-canonical` | `—` |
 | `gate-canonical` | `the-gate` | `source-library` | `literal` | `one-lane` | `314-319` | `gate-main-repo-and-canonical` | `—` |
+| `namespace-validation-empty` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `320-323` | `namespace-validation` | `—` |
+| `namespace-validation` | `namespace` | `source-library` | `composite` | `no-consumer-vocabulary` | `320-343` | `source-library` | `namespace-validation-empty`, `namespace-validation-path`, `namespace-validation-self-reference`, `namespace-validation-owned`, `namespace-validation-accept` |
+| `namespace-validation-path` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `324-329` | `namespace-validation` | `—` |
+| `namespace-validation-self-reference` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `330-335` | `namespace-validation` | `—` |
+| `namespace-validation-owned` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `336-341` | `namespace-validation` | `—` |
+| `namespace-validation-accept` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `342-343` | `namespace-validation` | `—` |
 | `source-subprocess` | `source-index` | `source-subprocess` | `root` | `—` | `1-81` | `—` | `subprocess-seam-source` |
 | `subprocess-seam-purpose` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `1-6` | `subprocess-seam-source` | `—` |
 | `subprocess-seam-source` | `subprocess-seam` | `source-subprocess` | `composite` | `nothing-ambient` | `1-81` | `source-subprocess` | `subprocess-seam-purpose`, `subprocess-nothing-ambient`, `subprocess-consumer-environment`, `subprocess-imports`, `subprocess-selectors`, `subprocess-output`, `subprocess-produced-output`, `subprocess-raw-output-build`, `subprocess-raw-output-endings`, `subprocess-rendered` |
@@ -100,12 +115,13 @@
 |---|---|---|---|---|
 | `Workspace` | `01-orientation.md#public-surface` | `one-lane` | A resolved workspace is a value whose existence is the proof that the precondition passed; it carries the workspace root and the root of the workspace that holds the repository. | `explained` |
 | `Refusal` | `01-orientation.md#public-surface` | `no-remedy-of-its-own` | The one error type: an opaque value carrying what is wrong, where, and the jj command that fixes it, with no matchable variants because every case is a stop. | `pending` |
-| `control_dir` | `01-orientation.md#commit-tour` | `no-consumer-vocabulary` | A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent. | `pending` |
+| `control_dir` | `01-orientation.md#commit-tour` | `no-consumer-vocabulary` | A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent. | `explained` |
 | `Commit` | `01-orientation.md#commit-tour` | `no-transactions` | What a taken commit returns: a change id rather than a commit id, because a change id still names the work after a rewrite. | `pending` |
 | `is_tracked` | `01-orientation.md#the-six-refusals` | `no-transactions` | The one probe whose answer depends on the working copy, and so the one that lets jj snapshot before answering. | `pending` |
 | `jj::output`, `jj::produced_output` | `02-the-gate.md#worked-resolution` | `nothing-ambient` | Every jj invocation the crate makes is built at one seam that fixes the working directory, removes the repository selectors, and separates failure to start from failure to succeed. | `explained` |
 | `Refusal::not_a_workspace`, `Refusal::unresolvable_path` | `02-the-gate.md#worked-resolution` | `no-remedy-of-its-own` | Refusal constructors are crate-internal; the gate's refusal names jj's two initialisation commands and states that nothing was created or changed. | `pending` |
 | `Refusal::not_runnable`, `Refusal::command_failed`, `Refusal::output_not_text` | `03-subprocess-seam.md#worked-invocation` | `no-remedy-of-its-own` | The seam's three refusals: jj could not be started and the remedy is installation; jj started and declined, and the remedy is the stderr it printed; or its output was not text and its answer cannot be read. | `pending` |
+| `Refusal::namespace`, `Refusal::control_dir` | `04-namespace.md#worked-reservation` | `no-remedy-of-its-own` | The namespace's two refusals: a name the crate will not reserve, carrying the name and one short reason with a fixed remedy paragraph; and a directory the filesystem would not create, carrying the path and keeping the `io::Error` as the refusal's `source()`. | `pending` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

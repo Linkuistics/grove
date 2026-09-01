@@ -49,10 +49,10 @@ source.
 
 1. [Orientation](01-orientation.md)
 2. [The gate](02-the-gate.md)
+3. [The subprocess seam](03-subprocess-seam.md)
 
 Planned, and not yet written:
 
-3. The subprocess seam
 4. The namespace it will not name
 5. Scope and commit
 6. Refusal

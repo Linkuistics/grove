@@ -1,6 +1,6 @@
 # The gate
 <!-- book-page id="the-gate" slice="one-lane" order="2" -->
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: The subprocess seam](03-subprocess-seam.md)
 
 <a id="one-lane"></a>
 ## There is no second lane
@@ -410,4 +410,4 @@ tree, because nothing else can own it. The next chapter opens the seam that prob
 was spawned through, and shows why its hygiene is a property of the crate rather
 than a habit at each call site.
 
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: The subprocess seam](03-subprocess-seam.md)

@@ -24,6 +24,7 @@ whole range is diffed against: change id `pmyytxvyxmzzsmrxmovzuyxqqnxxurzr`,
 |---:|---|---|---|---|
 | 1 | `orientation-k55` | `wnnkykqxxnotnpltmvnvnmkqtsuxzkqs` | `523b02550a3aef5fcb0d1161ae5ad5adeaaed352450d0f72e36e84f4b4b33d4d` | `--through no-dependencies` |
 | 2 | `the-gate-k56` | `kvyvvxzyyvxtrynswrnqzqyloznzlovx` | `2f6288f285cabb89ab4cfbc0ced592e8cdd2efe813b2177b385fc1904a84dd9c` | `--through one-lane` |
+| 3 | `subprocess-seam-k57` | `qyxstotksvmrnzqtwouvtsxxxtzskqxn` | `3a333b9028ab5d3971a6daa068cf199e89d65a6bf1f7a0c2376f8766ddad9975` | `--through nothing-ambient` |
 
 The book-directory digest **before** child 1 has no value: the directory did not
 exist. Digests follow the preregistration's recipe —
@@ -61,6 +62,15 @@ sealing*, *Driver lease* and *Stated VCS* — each gained one `<a id="…"></a>`
 and had their bold lead-in promoted to a `###` heading. No definition, `_Avoid_`
 line or retirement note was altered, and no other entry was touched.
 
+**Re-checked at the start of child 3, and unchanged.** All four corpus files, all
+three specification and guide inputs, the `ordinal-fs-tree` precedent directory
+and `CONTEXT.md` carry exactly the digests above — `CONTEXT.md` still at its
+post-child-1 value, because chapter 3 reserves no glossary anchor and cites
+neither the guide nor the glossary. This child touches no file outside the book
+directory except this record and `.grove/`. The preregistration read by this
+child hashes to the same
+`b9ee9f8e48b69170c7ecd9787b9373dfc42242895e91d37d8a181af6f09a694e`.
+
 **Re-checked at the start of child 2, and unchanged.** All four corpus files
 carry the digests child 1 recorded, and `CONTEXT.md` is unmoved from the
 post-child-1 value above: chapter 2 cites `CONTEXT.md#stated-vcs`, which child 1
@@ -81,7 +91,7 @@ nothing.
 The draft has no before-state to cite, so this section stands where an editorial
 stage carries `## Claims`. It is completed by the last child of the range.
 
-**Page inventory, as of child 2.** Six of the book's ten declared files exist;
+**Page inventory, as of child 3.** Seven of the book's ten declared files exist;
 the manifest declares all ten from the start, because a plan authored
 incrementally cannot be compared against a prefix.
 
@@ -91,25 +101,30 @@ incrementally cannot be compared against a prefix.
 | `README.md` | contents | — | present; chapters 1–2 linked, chapters 3–7 listed as plain text |
 | `01-orientation.md` | chapter | `no-dependencies` | written |
 | `02-the-gate.md` | chapter | `one-lane` | written |
+| `03-subprocess-seam.md` | chapter | `nothing-ambient` | written |
 | `concept-index.md` | lookup | — | present, curated for the prefix |
-| `source-index.md` | lookup | — | present; 4 roots, 11 ownership rows, 26 fragment rows, 7 early-use rows |
-| `03-subprocess-seam.md` | chapter | `nothing-ambient` | not written; 1 block deferred |
+| `source-index.md` | lookup | — | present; 4 roots, 11 ownership rows, 37 fragment rows, 8 early-use rows |
 | `04-namespace.md` | chapter | `no-consumer-vocabulary` | not written; 3 blocks deferred |
 | `05-scope-and-commit.md` | chapter | `no-transactions` | not written; 2 blocks deferred |
 | `06-refusal.md` | chapter | `no-remedy-of-its-own` | not written; 1 block deferred |
 | `07-what-jj-owns.md` | chapter | `assembly` | not written; owns no source, final-only |
 
-**Validation, as of child 2.** Scoped, not final:
+**Validation, as of child 3.** Scoped, not final:
 
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/jj-workspace \
-    --through one-lane --check all
-valid: 4 files, 190 resolved lines, 508 deferred lines, final=false
+    --through nothing-ambient --check all
+valid: 4 files, 271 resolved lines, 427 deferred lines, final=false
 ```
 
-190 + 508 = 698, the corpus line count the root brief froze; child 1 stood at
-98 + 600, and chapter 2's two ownership blocks are the 92 lines that moved.
+271 + 427 = 698, the corpus line count the root brief froze; child 1 stood at
+98 + 600 and child 2 at 190 + 508, and chapter 3's single ownership block is the
+81 lines that moved. `bash scripts/check.sh` reports 1 of 8 failing, and the
+failure is `book-check` alone — `M104` on the four defers still outstanding,
+`M103` on the contents and on chapter 3's navigation lacking a `Next`, and `M101`
+on the four unwritten pages. `cargo test --locked --workspace`, `cargo clippy`
+and `cargo fmt --all --check` are green.
 `bash scripts/check.sh` is red on `book-check` alone for every child of the range
 but the last, because the script runs `--final` over every book root by discovery
 and a prefix deliberately leaves later blocks deferred. The final result belongs in this
@@ -157,6 +172,24 @@ As of child 2:
 - **`.grove/` bookkeeping.** This child's `DONE` rename and one leaf cut for a
   defect found while drafting. It changes no book prose.
 
+As of child 3:
+
+- **`03-subprocess-seam.md` (new).** Chapter 3 entire: the nothing-ambient
+  thesis, the premise about how jj selects a repository and why there is no
+  `JJ_*` counterpart to strip, the three-ending worked invocation, and the single
+  81-line ownership block resolved into ten literal fragments. Baseline prose,
+  unedited.
+- **`source-index.md`, `README.md`, `02-the-gate.md`, `concept-index.md`.** The
+  ledger and navigation this slice is required to move: one defer replaced by an
+  insert, one ownership row turned `resolved`, eleven fragment rows added, the
+  `jj::output` / `jj::produced_output` early-use row turned `explained` and one
+  row added for the seam's three refusal constructors, chapter 3 linked from the
+  contents, chapter 2's two navigation lines given their `Next`, and ten
+  concept-index entries. Mechanical and validator-driven; no prose on a page an
+  earlier slice owns was touched.
+- **`.grove/` bookkeeping.** This child's running decision log and its `DONE`
+  rename. It changes no book prose.
+
 <a id="findings-not-fixed"></a>
 ## Findings not fixed
 
@@ -194,3 +227,8 @@ As of child 2, one more:
    rather than propagating the stale one. Cut as `jj-docs-url-k64`, placed after
    every crate book so the pages that quote `refusal.rs` exist and can be
    re-proved in the same commit.
+
+As of child 3, none beyond the three above. Chapter 3 quotes the stale
+`install-and-setup` URL inside the `NotRunnable` message it reproduces, which is
+finding 3 showing through to a reader rather than a new defect; `jj-docs-url-k64`
+already owns it and already has to re-prove this page when it lands.

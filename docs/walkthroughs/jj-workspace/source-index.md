@@ -27,7 +27,7 @@
 <!-- defer «namespace-validation» owner="no-consumer-vocabulary" lines="320-343" -->
 <!-- /source-root -->
 <!-- source-root «source-subprocess» source="crates/jj-workspace/src/jj.rs" lines="1-81" -->
-<!-- defer «subprocess-seam-source» owner="nothing-ambient" lines="1-81" -->
+<!-- insert «subprocess-seam-source» -->
 <!-- /source-root -->
 <!-- source-root «source-refusal» source="crates/jj-workspace/src/refusal.rs" lines="1-230" -->
 <!-- defer «refusal-source» owner="no-remedy-of-its-own" lines="1-230" -->
@@ -47,7 +47,7 @@
 | `scope-tracking-and-commit` | `source-library` | `no-transactions` | `146-274` | 129 | `deferred` |
 | `gate-main-repo-and-canonical` | `source-library` | `one-lane` | `275-319` | 45 | `resolved` |
 | `namespace-validation` | `source-library` | `no-consumer-vocabulary` | `320-343` | 24 | `deferred` |
-| `subprocess-seam-source` | `source-subprocess` | `nothing-ambient` | `1-81` | 81 | `deferred` |
+| `subprocess-seam-source` | `source-subprocess` | `nothing-ambient` | `1-81` | 81 | `resolved` |
 | `refusal-source` | `source-refusal` | `no-remedy-of-its-own` | `1-230` | 230 | `deferred` |
 
 <a id="fragment-index"></a>
@@ -80,6 +80,17 @@
 | `gate-main-repo-probe` | `the-gate` | `source-library` | `literal` | `one-lane` | `298-313` | `gate-main-repo-and-canonical` | `—` |
 | `gate-canonical` | `the-gate` | `source-library` | `literal` | `one-lane` | `314-319` | `gate-main-repo-and-canonical` | `—` |
 | `source-subprocess` | `source-index` | `source-subprocess` | `root` | `—` | `1-81` | `—` | `subprocess-seam-source` |
+| `subprocess-seam-purpose` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `1-6` | `subprocess-seam-source` | `—` |
+| `subprocess-seam-source` | `subprocess-seam` | `source-subprocess` | `composite` | `nothing-ambient` | `1-81` | `source-subprocess` | `subprocess-seam-purpose`, `subprocess-nothing-ambient`, `subprocess-consumer-environment`, `subprocess-imports`, `subprocess-selectors`, `subprocess-output`, `subprocess-produced-output`, `subprocess-raw-output-build`, `subprocess-raw-output-endings`, `subprocess-rendered` |
+| `subprocess-nothing-ambient` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `7-15` | `subprocess-seam-source` | `—` |
+| `subprocess-consumer-environment` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `16-20` | `subprocess-seam-source` | `—` |
+| `subprocess-imports` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `21-24` | `subprocess-seam-source` | `—` |
+| `subprocess-selectors` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `25-33` | `subprocess-seam-source` | `—` |
+| `subprocess-output` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `34-43` | `subprocess-seam-source` | `—` |
+| `subprocess-produced-output` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `44-49` | `subprocess-seam-source` | `—` |
+| `subprocess-raw-output-build` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `50-57` | `subprocess-seam-source` | `—` |
+| `subprocess-raw-output-endings` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `58-69` | `subprocess-seam-source` | `—` |
+| `subprocess-rendered` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `70-81` | `subprocess-seam-source` | `—` |
 | `source-refusal` | `source-index` | `source-refusal` | `root` | `—` | `1-230` | `—` | `refusal-source` |
 
 <a id="early-uses"></a>
@@ -92,8 +103,9 @@
 | `control_dir` | `01-orientation.md#commit-tour` | `no-consumer-vocabulary` | A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent. | `pending` |
 | `Commit` | `01-orientation.md#commit-tour` | `no-transactions` | What a taken commit returns: a change id rather than a commit id, because a change id still names the work after a rewrite. | `pending` |
 | `is_tracked` | `01-orientation.md#the-six-refusals` | `no-transactions` | The one probe whose answer depends on the working copy, and so the one that lets jj snapshot before answering. | `pending` |
-| `jj::output`, `jj::produced_output` | `02-the-gate.md#worked-resolution` | `nothing-ambient` | Every jj invocation the crate makes is built at one seam that fixes the working directory, removes the repository selectors, and separates failure to start from failure to succeed. | `pending` |
+| `jj::output`, `jj::produced_output` | `02-the-gate.md#worked-resolution` | `nothing-ambient` | Every jj invocation the crate makes is built at one seam that fixes the working directory, removes the repository selectors, and separates failure to start from failure to succeed. | `explained` |
 | `Refusal::not_a_workspace`, `Refusal::unresolvable_path` | `02-the-gate.md#worked-resolution` | `no-remedy-of-its-own` | Refusal constructors are crate-internal; the gate's refusal names jj's two initialisation commands and states that nothing was created or changed. | `pending` |
+| `Refusal::not_runnable`, `Refusal::command_failed`, `Refusal::output_not_text` | `03-subprocess-seam.md#worked-invocation` | `no-remedy-of-its-own` | The seam's three refusals: jj could not be started and the remedy is installation; jj started and declined, and the remedy is the stderr it printed; or its output was not text and its answer cannot be read. | `pending` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

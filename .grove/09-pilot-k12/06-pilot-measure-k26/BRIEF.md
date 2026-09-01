@@ -51,8 +51,23 @@ the whole pilot exists to gather.
   attribution rule and the decision rule are fixed there and are **not reopenable
   in this node**. A part that turns out to be unworkable is reported as a protocol
   breach, not quietly replaced.
-- The draft is `jj-workspace-book-k25`'s commit, and it is the unedited baseline
-  every later stage is measured against.
+- The draft is `jj-workspace-book-k25`'s **commit range**, not one commit, and it
+  is the unedited baseline every later stage is measured against. The leaf
+  decomposed into one child per slice of the book's own sequence — seven commits,
+  `orientation-k55` through `what-jj-owns-k61` — which the preregistration's
+  *Part 3* admits as the draft's one exception: the stage is every commit from the
+  first drafting commit to the last inclusive, its baseline is the commit before
+  the first of them, and the draft is not scored, so a range costs the measurement
+  nothing. **Diff against the range, never against its last commit** — child 7 is
+  the synthesis chapter alone and is a seventh of the baseline.
+  `docs/evaluations/editorial-pipeline-pilot/stages/0-draft.md` is authoritative
+  for the whole of it: `## Provenance` lists all seven change ids with the
+  book-directory digest after each, and `## Baseline` carries the final page
+  inventory, the final digest
+  `0e9d3f1e7d356c33509327dfe4df584ffa6ca531e531049098cdcf6b923aca14`, and the
+  green final validation. That record also carries `## Findings not fixed` — seven
+  defects the draft found and did not fix, six of them with leaves under
+  `crate-books-k14` — so a later stage does not re-report them as its own.
 - The stage list is decision 11 of `plan-k1`: draft, developmental edit,
   technical edit, copy edit, art, proof. The alternative they must beat is draft
   plus proof alone.

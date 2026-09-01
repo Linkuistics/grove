@@ -53,10 +53,7 @@ source.
 4. [The namespace it will not name](04-namespace.md)
 5. [Scope and commit](05-scope-and-commit.md)
 6. [Refusal](06-refusal.md)
-
-Planned, and not yet written:
-
-7. What jj owns
+7. [What jj owns](07-what-jj-owns.md)
 
 Optional lookup:
 

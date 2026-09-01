@@ -1,6 +1,6 @@
 # Refusal
 <!-- book-page id="refusal" slice="no-remedy-of-its-own" order="6" -->
-[Previous: Scope and commit](05-scope-and-commit.md) | [Contents](README.md)
+[Previous: Scope and commit](05-scope-and-commit.md) | [Contents](README.md) | [Next: What jj owns](07-what-jj-owns.md)
 
 <a id="no-remedy-of-its-own"></a>
 ## It speaks for jj, and never for you
@@ -988,4 +988,4 @@ subtractions into one table, states the test that separates a justified subtract
 from an abdication, and applies it to all six — including the one where the answer
 is least comfortable.
 
-[Previous: Scope and commit](05-scope-and-commit.md) | [Contents](README.md)
+[Previous: Scope and commit](05-scope-and-commit.md) | [Contents](README.md) | [Next: What jj owns](07-what-jj-owns.md)

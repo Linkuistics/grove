@@ -25,8 +25,8 @@ directly in a namespace jj owns and may extend, and *never shared* would be
 false the moment a second consumer wrote a file called `lease` beside the first
 one's. That is the alternative the repository's module-decomposition
 specification rejected in its eighth decision, and the sentence it rejected it
-with is the one this chapter is an expansion of: naming the consumer is what makes the guarantee sayable in the
-crate's own vocabulary.
+with is the one this chapter is an expansion of: naming the consumer is what
+makes the guarantee sayable in the crate's own vocabulary.
 
 The parameter is also what keeps the crate out of a bounded context of its own.
 The repository's context map records `jj-workspace` as
@@ -41,7 +41,8 @@ jj workspace inside a crate whose entire subject is jj, make every new consumer
 a change to this crate and a new release of it, and give the crate a word — the
 name of a consumer — that means nothing to jj at all. The `&str` costs a
 validation function, which is the last section of this chapter. The enum would
-have cost the spine.
+have cost the fourth refusal itself: a crate holding the list of who may
+coordinate through a jj workspace has a vocabulary for its consumers.
 
 **What the reader should be able to check by the end of this chapter is that the
 crate never learns what the name means.** The worked example passes the literal
@@ -264,7 +265,7 @@ argument. The argument is that the list does not have to be right, only
 *cheaply wrong in one direction*, and it is worth reading as the general shape it
 is: a crate that must model a foreign system's private namespace can either track
 it exactly or bound the damage of being out of date, and only the second is
-achievable without a interface the foreign system does not offer.
+achievable without an interface the foreign system does not offer.
 
 <!-- fragment «namespace-owned-names-argument» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="55-59" parent="namespace-reserved-names" -->
 ````rust
@@ -438,7 +439,12 @@ be unusable is not hidden — `Refusal::control_dir` exists precisely for the
 creation failing — it is only that the crate does not manufacture an occasion for
 it.
 
-The body is four lines, and their order is the whole of what they do.
+The body is four lines, and their order is the whole of what they do:
+`control_dir` turns the caller's namespace string into a path under the
+workspace's `.jj/` that exists by the time it is returned, validating before it
+joins and joining before it creates, which is what keeps a refused name from
+reaching the filesystem at all. It is the first call of the worked example
+above, at the resolution the trace showed.
 
 <!-- fragment «namespace-control-dir-body» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="139-145" parent="namespace-control-dir" -->
 ````rust

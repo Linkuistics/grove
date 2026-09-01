@@ -14,13 +14,13 @@ back are removed from the child before it starts.
 The interesting word is *seam*. There are four places in this crate where jj is
 spawned — one in the gate, and three in the operations *Scope and commit* owns —
 and none of them builds a `Command`. All four call one of two functions in this
-file, and those two share a single private builder. That is what makes the hygiene a **property of the
-crate** rather than a habit each call site has to remember. A rule enforced at
-call sites is enforced only at the call sites that exist: it is discharged by
-review, it is re-discharged every time a fifth spawn is added, and the test that
-proves it can only be written against the call sites someone remembered to
-audit. A rule enforced at a seam is discharged once, by construction, and a
-fifth call site inherits it by having nowhere else to go.
+file, and those two share a single private builder. That is what makes the
+hygiene a **property of the crate** rather than a habit each call site has to
+remember. A rule enforced at call sites is enforced only at the call sites that
+exist: it is discharged by review, it is re-discharged every time a fifth spawn
+is added, and the test that proves it can only be written against the call sites
+someone remembered to audit. A rule enforced at a seam is discharged once, by
+construction, and a fifth call site inherits it by having nowhere else to go.
 
 The alternative was to build each `Command` where it is needed and keep the
 environment scrub as a checklist. It would have cost four copies of five lines,
@@ -214,7 +214,7 @@ needs to set itself up, and non-UTF-8 stdout is not something a jj command can b
 asked to produce. Both are stated here as unasserted rather than left for a reader
 to assume covered.
 
-> **The consumer's half.** Grove runs its sessions under a harness that sets
+> **The consumer's half.** grove runs its sessions under a harness that sets
 > variables of its own — `GROVE_SIGNAL_FILE`, `GROVE_HARNESS`, `GROVE_SKILL_DIR`
 > and a dozen more — and a grove session's working directory is wherever that
 > harness started it, which is routinely a subdirectory rather than the workspace
@@ -265,11 +265,11 @@ each answer a different objection. That repository selectors are *process-global
 overrides* is why `current_dir` is not sufficient on its own. That a colocated
 workspace has a real Git backend is why the hazard is real rather than
 theoretical — an inherited `GIT_DIR` in a tree with no `.git` points at nothing,
-and in a colocated tree it points at a repository a Git-aware child will happily
-use. That they are removed rather than left unset is a distinction the next
-section takes on its own. And the last three lines are the argued absence: the
-premise above, written down at the site where a reader would otherwise ask why
-the list has no `JJ_*` in it.
+and in a colocated tree it points at a repository a Git-aware child will use in
+place of the intended one. That they are removed rather than left unset is a
+distinction the next section takes on its own. And the last three lines are the
+argued absence: the premise above, written down at the site where a reader would
+otherwise ask why the list has no `JJ_*` in it.
 
 <!-- fragment «subprocess-nothing-ambient» owner="nothing-ambient" source="crates/jj-workspace/src/jj.rs" lines="7-15" parent="subprocess-seam-source" -->
 ````rust

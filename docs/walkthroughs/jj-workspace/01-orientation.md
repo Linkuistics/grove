@@ -25,7 +25,7 @@ opens on something this crate declines to own and names who owns it instead, and
 the last chapter turns the six refusals into a test a reader can apply to a
 boundary of their own.
 
-The crate has exactly one consumer, and it is not in this crate. Grove's loop
+The crate has exactly one consumer, and it is not in this crate. grove's loop
 driver reserves a control namespace through it and grove's task sessions commit
 through it. That consumer is named on every page, because the argument that the
 crate has no vocabulary for its consumer is only checkable if you can watch the
@@ -33,7 +33,7 @@ consumer's name being passed **in** as an ordinary string. To keep the boundary
 visible while doing that, every passage that speaks for the consumer rather than
 for the crate is marked, like this:
 
-> **The consumer's half.** Grove calls `control_dir("grove")` once per loop and
+> **The consumer's half.** grove calls `control_dir("grove")` once per loop and
 > keeps a lock file and a signal file in the directory it gets back. The crate
 > cannot say any of that: it does not know what a loop is, and `"grove"` reaches
 > it as four characters with no meaning attached.
@@ -213,12 +213,12 @@ The second refusal is the one `CONTEXT-MAP.md` builds its argument on: the crate
 has no vocabulary for its consumer, so the consumer supplies the name. Two
 alternatives are rejected in a single sentence here, and they fail differently.
 Handing back a grove-shaped directory would put this crate's name inside a crate
-that refuses to know its consumer. Handing back jj's administrative directory raw
-would put a consumer's generic filenames straight into a namespace jj owns and
-may extend, which is a collision waiting for a jj release. Naming the consumer is
-what makes the postcondition sayable at all: *this directory is yours, it is
-inside the workspace, and nothing tracks it.* *The namespace it will not name*
-owns that argument.
+that refuses to know its consumer. Handing back jj's administrative directory
+raw would put a consumer's generic filenames straight into a namespace jj owns
+and may extend, which is a collision the next jj release can create. Naming the
+consumer is what makes the postcondition sayable at all: *this directory is
+yours, it is inside the workspace, and nothing tracks it.* *The namespace it
+will not name* owns that argument.
 
 <!-- fragment «library-thesis-no-consumer» owner="no-dependencies" source="crates/jj-workspace/src/lib.rs" lines="10-20" parent="library-crate-thesis" -->
 ````rust
@@ -355,8 +355,9 @@ return value, and in *Refusal* as the identical attempt ending in a refusal
 instead of a commit. The tree, the paths and the change id below are fixed here
 and reused unchanged by both.
 
-The starting tree is a native jj workspace — one that holds its own repository
-rather than borrowing another's — with a grove task tree inside it:
+The starting tree is a native jj workspace — one that is not colocated with Git
+and holds its own repository rather than borrowing another's — with a grove task
+tree inside it:
 
 ```text
 /work/atlas/
@@ -421,7 +422,9 @@ Argument lists are shown rather than command lines because the boundaries
 matter: the message is one argument however many spaces it contains, and the
 fileset is one argument however it is quoted. *The subprocess seam* shows where
 those lists are turned into a process, and *Scope and commit* shows where the
-fileset string is built. Five things in that trace are the whole book. The walk is the **filesystem's**,
+fileset string is built.
+
+Five things in that trace are the whole book. The walk is the **filesystem's**,
 not jj's, so nothing in the environment can redirect it — *The gate*. The second
 spawn passes `--ignore-working-copy` and the first does not, and the difference
 is not an oversight — *Scope and commit*. Both spawns are built at one seam that
@@ -431,11 +434,13 @@ looks at what it means — *The namespace it will not name*. And every arrow in
 that trace has a second ending in which a `Refusal` is returned instead —
 *Refusal*.
 
-> **The consumer's half.** The commit above is a task commit boundary: one
-> session's whole task, sealed in one commit named by its work-item handle. The
-> reserved directory `.jj/grove` holds the driver lease and the loop control
-> channel. None of those three words exists in this crate; all three are what its
-> one consumer does with what it returns.
+> **The consumer's half.** The commit above is a
+> [task commit boundary](../../../CONTEXT.md#task-commit-boundary), and the
+> reserved directory `.jj/grove` holds the
+> [driver lease](../../../CONTEXT.md#driver-lease) and the
+> [loop control channel](../../../CONTEXT.md#loop-control-channel). None of those
+> three terms exists in this crate; all three are what its one consumer does with
+> what it returns.
 
 <a id="the-six-refusals"></a>
 ## The six refusals

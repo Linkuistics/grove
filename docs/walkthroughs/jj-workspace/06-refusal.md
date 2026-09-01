@@ -340,7 +340,10 @@ Ten variants follow, and their order in the file is close to the order this book
 met them: the gate's two, the namespace's two, scope's two, the seam's three, and
 the commit's one. That is not a coincidence and it is not a plan either — it is
 the order the crate's own `lib.rs` introduces the operations, and this file was
-written alongside it. The five sections below take the variants in that order and
+written alongside it. The one displacement is the seam's three, which the reader
+met in chapter 3 and the file lists fourth of the five groups: the enum follows
+`lib.rs`'s operations, and the seam is the file those operations call rather
+than one of them. The five sections below take the variants in that order and
 read each one with the constructor that builds it and the `Display` arm that
 renders it, because those three lines are one decision split across three
 implementations, and reading them apart is what turns a design into a catalogue.
@@ -455,7 +458,7 @@ rather than about the message, and chapter 2 already showed the test that proves
 it —`a_refused_tree_is_left_exactly_as_it_was` compares the tree's entries either
 side of the refusal. It is repeated in this file because a person reading the
 message has no access to that test, and a gate that says nothing about its own
-effects invites the reader to check by hand.
+effects leaves the reader to check the tree by hand.
 
 `UnresolvablePath`'s arm, immediately below, is the file's shortest remedy and
 the only one that is a diagnosis rather than a command: *check the path for a

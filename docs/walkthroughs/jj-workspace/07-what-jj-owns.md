@@ -226,7 +226,7 @@ a reason to widen the test — it is the reason to apply it twice. **A delegatio
 only as strong as the argument you pass into it**, and the argument is code you
 wrote rather than a guarantee the tool made.
 
-> **The consumer's half.** Grove commits at a
+> **The consumer's half.** grove commits at a
 > [task commit boundary](../../../CONTEXT.md#task-commit-boundary): one task is one
 > focused commit, and sealing it is what makes the next session start from a clean
 > change. That is the whole of what the path-scoped commit is *for*, and none of it
@@ -282,12 +282,12 @@ worked example rather than describing it: `control_dir(".gitignore")` passes
 `validated_namespace`, reaches `fs::create_dir_all`, and comes back as a
 `ControlDir` refusal telling the caller to check permissions on a path — instead
 of the `Namespace` refusal that names Jujutsu and tells them to pick another word.
-The guarantee holds by luck, in the sense that the collision is refused; the
-guarantee the consumer was given does not hold, because the refusal it gets is
-about the wrong thing and its remedy is useless. In a workspace that is *not*
-colocated the same call succeeds, which is worse rather than better: the consumer
-is handed a directory sitting on the name jj will want the moment that tree is
-colocated.
+The collision is refused, but by `create_dir_all` failing on an entry that
+already exists rather than by the check meant to catch it; the guarantee the
+consumer was given does not hold, because the refusal it gets is about the wrong
+thing and its remedy is useless. In a workspace that is *not* colocated the same
+call succeeds, which is worse rather than better: the consumer is handed a
+directory sitting on the name jj will want the moment that tree is colocated.
 
 What makes this the least comfortable row is not that a list is out of date. Lists
 go out of date. It is that **the fourth refusal is the one `CONTEXT-MAP.md` uses
@@ -464,10 +464,12 @@ test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 The crate's own suite, which is the evidence this book cites and does not
 reproduce. Twenty-nine tests, all of them integration tests: the crate carries no
-unit tests and no documentation tests, because its public surface is fourteen
-lines and every claim worth making about it is a claim about a real workspace on
-disk. It is outside the corpus by design — chapter 1 said so — and every claim in
-the six chapters that names a test names one that runs here.
+unit tests and no documentation tests, because its public surface is the three
+types and six functions [*Orientation*](01-orientation.md#public-surface) listed
+— `Workspace`, `Commit` and `Refusal`, with `resolve` the only constructor — and
+every claim worth making about it is a claim about a real workspace on disk. It
+is outside the corpus by design — chapter 1 said so — and every claim in the six
+chapters that names a test names one that runs here.
 
 The book is complete: four roots, 698 lines, seven chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that six refusals are one design, and what

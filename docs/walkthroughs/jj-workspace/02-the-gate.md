@@ -27,7 +27,7 @@ for free through its automatic snapshot and its operation log. Removing the
 second lane removed that machinery, and it is why absence is a stop here rather
 than a branch.
 
-> **The consumer's half.** Grove resolves the [stated VCS](../../../CONTEXT.md#stated-vcs)
+> **The consumer's half.** grove resolves the [stated VCS](../../../CONTEXT.md#stated-vcs)
 > before a session exists and states it in that session's mandate, which is
 > definitive: a session is told the working tree is jj-enabled and where its
 > workspace root is, and does not re-derive it. This crate is the whole
@@ -60,8 +60,8 @@ by name in the one place resolution may spawn a subprocess.
 ## Worked example: one tree, three resolutions
 
 The tree is the one *Orientation* fixed, and this chapter follows its resolution
-step closely. It is a native workspace at `/work/atlas` holding its own
-repository, with a caller four directories down:
+step closely. It is a native workspace at `/work/atlas` — not colocated with Git,
+and holding its own repository — with a caller four directories down:
 
 ```text
 /work/atlas/

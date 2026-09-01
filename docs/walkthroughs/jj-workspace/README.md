@@ -2,7 +2,7 @@
 <!-- book-page id="contents" role="contents" -->
 
 This book explains the `jj-workspace` crate to a reader who knows Rust and
-Jujutsu and has driven a grove. Grove's own vocabulary is linked to the glossary
+Jujutsu and has driven a grove. grove's own vocabulary is linked to the glossary
 rather than re-taught, and the entry point to the system this crate serves is the
 [user guide's account of workspace layouts](../../USAGE.md#usage-workspace-layouts),
 whose three cases — native, colocated and secondary — are exactly the ones this

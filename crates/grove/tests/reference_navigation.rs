@@ -132,22 +132,46 @@ fn markdown_headings(markdown: &str) -> Vec<String> {
     headings
 }
 
-/// Every explicit `<a id="…"></a>` anchor in a document.
+/// Every explicit `<a id="…"></a>` anchor a document publishes.
 ///
 /// `docs/ARCHITECTURE.md` keeps the former decision-record slugs as explicit
 /// anchors precisely so a retitled section does not break the citations that
 /// name them, so resolving only generated heading anchors would reject exactly
 /// the links that were designed to be stable.
+///
+/// The namespace is what a browser resolves, so it follows the renderer, not
+/// the bytes: an anchor inside a fenced block is literal text with no `id`
+/// and is skipped, by the same fence rule [`markdown_headings`] applies; and
+/// `<a id='…'>` is the same anchor as `<a id="…">`, so both quote spellings
+/// are read. `<a name="…">` is deliberately not read: it is legacy HTML, and
+/// nothing in this repository is allowed to write it (see the *Documentation
+/// ownership* section of `docs/ARCHITECTURE.md`).
 fn explicit_anchors(markdown: &str) -> HashSet<String> {
+    let mut open_fence = None;
     let mut anchors = HashSet::new();
-    for fragment in markdown.split("<a id=").skip(1) {
-        let Some(rest) = fragment.strip_prefix('"') else {
+
+    for line in markdown.lines() {
+        if open_fence.is_some_and(|fence| closes_fence(line, fence)) {
+            open_fence = None;
             continue;
-        };
-        if let Some((anchor, _)) = rest.split_once('"') {
-            anchors.insert(anchor.to_owned());
+        }
+        if open_fence.is_some() {
+            continue;
+        }
+        if let Some(fence) = fence_start(line) {
+            open_fence = Some(fence);
+            continue;
+        }
+        for fragment in line.split("<a id=").skip(1) {
+            let Some(quote) = fragment.chars().next().filter(|c| matches!(c, '"' | '\'')) else {
+                continue;
+            };
+            if let Some((anchor, _)) = fragment[1..].split_once(quote) {
+                anchors.insert(anchor.to_owned());
+            }
         }
     }
+
     anchors
 }
 
@@ -367,6 +391,34 @@ fn relative_link_scan_ignores_fenced_examples_and_absolute_urls() {
         relative_link_targets(markdown),
         [("docs/USAGE.md".to_owned(), 1)]
     );
+}
+
+#[test]
+fn explicit_anchor_scan_skips_fences_and_accepts_both_quote_spellings() {
+    // What a renderer publishes: an anchor written inside a fence is literal
+    // text with no `id`, and the single-quoted spelling is the same anchor as
+    // the double-quoted one. The two on one line show the scan reads a whole
+    // line, not just its first anchor.
+    let markdown = concat!(
+        "<a id=\"double\"></a>\n",
+        "## Section\n",
+        "```markdown\n",
+        "<a id=\"fenced\"></a>\n",
+        "```\n",
+        "<a id='single'></a>\n",
+        "~~~\n",
+        "<a id='tilde-fenced'></a>\n",
+        "~~~\n",
+        "<a id=\"first\"></a> and <a id='second'></a>\n",
+        "<a name=\"legacy\"></a>\n",
+    );
+
+    let anchors = explicit_anchors(markdown);
+    let expected: HashSet<String> = ["double", "single", "first", "second"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(anchors, expected);
 }
 
 #[test]

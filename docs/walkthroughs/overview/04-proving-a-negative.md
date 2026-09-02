@@ -71,9 +71,10 @@ module is compiled only under `cargo test`, it is a child of `cli`, and it
 names two things: `Cli` from its parent, and `CommandFactory`, the `clap` trait
 the derive at line 8 implemented for `Cli` and whose `command()` method hands
 back the model. `use super::Cli` is the line that could not be written outside
-this binary target. *Orientation* read the manifest's third comment — there is no `[lib]`, so
-`cli.rs` is a module of one binary target and its clap model is reachable only
-from inside that target — and this is the consequence: the tests that hold the
+this binary target. *Orientation* read the manifest's third comment — there is
+no `[lib]`, so `cli.rs` is a module of one binary target and its clap model is
+reachable only from inside that target — and this is the consequence: the
+tests that hold the
 grammar closed are a `mod tests` at the bottom of the file that declares it,
 not a file under `tests/`, because an integration test would need a library to
 import `Cli` from and the package deliberately has none. In the invocation the
@@ -95,14 +96,15 @@ mod tests {
 
 The second test in the file is read first, because it is the mechanism the
 chapter is named for. Its doc comment states the choice: the assertion is a
-closure property — *the human CLI has nothing to select* — rather than a list
-of rejected verbs. The five names it says the property subsumes were the
-human binary's own surface once. `grove do`, `grove migrate` and
+closure property — *the human CLI has nothing to select* — rather than
+a list of rejected verbs. The five names it says the property subsumes
+were the human binary's own surface once. `grove do`, `grove migrate` and
 `grove retire` were subcommands, `--harness` and `--no-launch` were flags of
-the first and third of them, and all five were removed in one release, `17.0.0`,
-with the launch routing that `--harness` selected. A test written as their rejection would be
-five argument vectors, each asserted to fail, and it would say nothing about
-the sixth. The property says the same thing about every vector at once and
+the first and third of them, and all five were removed in one release,
+`17.0.0`, with the launch routing that `--harness` selected. A test written as
+their rejection would be five argument vectors, each asserted to fail, and it
+would say nothing about the sixth. The property says the same thing about
+every vector at once and
 names none of them, which is the sense in which it *fails on the next flag
 too*: a flag added tomorrow is inside the assertion's scope on the day it is
 added, with no edit to the test. In the worked example below this paragraph's
@@ -123,8 +125,9 @@ the test fails on it anyway.
 The body asserts the property in two halves, subcommands first. `Cli::command()`
 is the model; `get_subcommands()` iterates the subcommands declared on it, and
 the test collects their names and asserts the list is empty. The message names
-what a subcommand would contradict — bare `grove` is the whole human lifecycle,
-start, resume and finish — and prints the offending names, so a failure reads
+what a subcommand would contradict — bare `grove` is the whole human
+lifecycle, start, resume and finish — and prints the offending names, so a
+failure reads
 as a sentence rather than as a boolean. Nothing in this half filters anything,
 and the reason is asymmetric with the second half: clap adds a `help`
 subcommand of its own only to a command that already has subcommands, so a
@@ -150,13 +153,15 @@ the field that declares it — and drops the two ids `help` and `version` before
 asserting that nothing remains. Those two are the ids clap gives the `--help`
 and `--version` flags it adds to a command it builds — the second only when
 the command has a version to print, which this one does — and *The surface*
-gave the reason for the filter: the flags are the parser's, and the property is
-about what this crate declared. The doc comment does not state one difference
-between the declared and built models. The model `Cli::command()` returns is
-the *declared* model, and clap adds its two flags only when that model is built
+gave the reason for the filter: the flags are the parser's, and the property
+is about what this crate declared. The doc comment does not state one
+difference between the declared and built models. The model
+`Cli::command()` returns is the *declared* model, and clap adds its two flags
+only when that model is built
 — which `parse` and the paths that render help do. This test never asks for a
 built model. At this checkout the filter therefore removes nothing: the
-unbuilt model of an empty struct lists no argument at all, and the assertion holds on an empty
+unbuilt model of an empty struct lists no argument at all, and the assertion
+holds on an empty
 list. The filter makes the assertion mean the same thing whether
 or not the model has been built before it is inspected; the worked example
 measures both. The assertion's panic message states the book's central rule —
@@ -225,10 +230,11 @@ was on, and it was found by a human running every help surface and reading
 them. The handle in parentheses is a grove task handle, and the other copy adds
 a second beside the sentence about the discovery; the changelog's entry for
 release `16.3.0` records the description being written, and the two test
-files are the only places the handles appear. The subcommand and the flag are gone
-now, so at this checkout the convention test guards a surface that lists
-nothing and passes with an empty list; it becomes non-vacuous when a flag is added,
-and the worked example shows it.
+files are the only places the handles appear. The subcommand and the flag
+are gone now, so at this checkout the convention test guards a surface
+that lists nothing and passes with an empty list; it becomes non-vacuous when
+a flag
+is added, and the worked example shows it.
 
 <!-- fragment «describes-test-doc» owner="closure-proved" source="crates/grove/src/cli.rs" lines="96-101" parent="surface-closure-tests" -->
 ````rust
@@ -246,8 +252,9 @@ path prefix `grove` and the list to `undescribed`, and asserts the list came
 back empty. The path is a string rather than a `Command` because the walk
 prefixes every finding with the command path it was found under — `grove`, or
 `grove retire` in the shape that failed — so that a finding names a row a
-reader can locate in generated help. The message says what a non-empty list means on
-the surface a human sees: *these render as blank rows in a generated help
+reader can locate in generated help. The message says what a non-empty
+list means on the surface a human sees: *these render as blank rows in a
+generated help
 surface*, then one finding per line, indented. In the worked example this
 is the assertion whose message names the grown flag.
 
@@ -352,12 +359,14 @@ argues about a duplication the reader can verify. The same twenty-one-line
 function, with the same signature and the same two loops, is in
 `crates/grove-llm/tests/help_surfaces.rs`, where it walks the agent binary's
 twelve verbs; the two bodies differ in the names of two closure parameters and
-in one level of indentation, and in nothing else. The doc comments differ, since
-only this copy carries the paragraph read below. The comment explains why the
-first mechanism causes the helper to be duplicated. A clap model is reachable
-only from the package that declares it. This package is a binary target with no
+in one level of indentation, and in nothing else. The doc comments differ,
+since only this copy carries the paragraph read below. The comment explains
+why the first mechanism causes the helper to be duplicated. A clap model
+is reachable only from the package that declares it. This package is a binary
+target with no
 library, so the copy over there cannot import this `Cli` and the copy here
-cannot be imported by anything. Each package therefore carries its own model walk.
+cannot be imported by anything. Each package therefore carries its own model
+walk.
 
 The comment names the two alternatives and what each would have cost, and the
 table holds them beside the choice that was made so the trade can be read as
@@ -372,8 +381,9 @@ one relation rather than three sentences.
 That last cell states the same package-boundary decision from the test's side.
 *Orientation* read the manifest's refusal of a `[lib]` and said it was *why* the
 closure tests are a `mod tests` inside the binary; this comment is the same
-decision seen from the test's side, choosing a duplicated function over the library that would have
-removed the duplication. The decision record the comment cites is evidence for
+decision seen from the test's side, choosing a duplicated function over the
+library that would have removed the duplication. The decision record the
+comment cites is evidence for
 the author — the fact the reader needs is on the page, and it is that the
 walk is duplicated because the boundary is real. The fragment is prose and
 changes no value; its role in the worked example is that the copy the example
@@ -398,9 +408,9 @@ separately to see the same flag on the other binary.
 <a id="an-empty-description"></a>
 ## An empty description is a missing one
 
-The third paragraph is about one line of the walk — `.trim().is_empty()` — and
-it is where an argument rests on a detail of what clap stores rather than on
-this crate's code. An argument can be given a description
+The third paragraph is about one line of the walk — `.trim().is_empty()`
+— and it is where an argument rests on a detail of what clap stores
+rather than on this crate's code. An argument can be given a description
 explicitly, with `#[arg(help = "")]`, and clap stores what it is given: an
 empty string is present, `get_help()` returns it, and a walk that tested only
 for presence would count the argument as described. What the renderer does
@@ -426,8 +436,8 @@ The invocation the book carries is `grove` typed bare in
 `/work/atlas/crates/gateway/src/`, and this chapter's example is what guards
 it: the argv can never grow, and the
 tests are what say so. To show them saying it, the grammar is given one flag —
-`--harness`, the same name *The surface* showed as refused — and both tests are
-run against it. Everything below was measured by copying the crate to a
+`--harness`, the same name *The surface* showed as refused — and both tests
+are run against it. Everything below was measured by copying the crate to a
 scratch directory outside the repository, editing line 19 there, and running
 `cargo test`; the assertion output is quoted as printed, and the repository's
 own bytes were not touched. The struct that replaced the empty one is the
@@ -491,11 +501,12 @@ The filter changes nothing in the first row and removes exactly two ids in the
 second, and the assertion fails identically on both. That is what the filter is
 for: the property is about what the crate declared, and it reads the same
 whether or not clap has added its own two flags to the model yet. The two
-built-in flags also carry descriptions — `Print help` and `Print version` — so
-the convention test would pass them on a built model too.
+built-in flags also carry descriptions — `Print help` and `Print version`
+— so the convention test would pass them on a built model too.
 
 The blank row the convention test talks about is not visible in a test run, so
-the grown binary was built and asked for its help. This is the row shape `--no-launch`
+the grown binary was built and asked for its help. This is the row shape
+`--no-launch`
 once rendered under `grove retire`, reproduced under `grove` with a different
 name and with a value placeholder that a boolean flag does not carry; the
 trailing spaces after the placeholder are in the output.
@@ -521,9 +532,9 @@ that column. `--help` and `--version` are described, because clap describes
 what it adds.
 
 The same flag was then measured in the two other shapes the chapter has
-argued about — with an explicitly empty description, and with a doc comment —
-and the table holds the three results together, because the point of running
-three is the relation between them and not any one row.
+argued about — with an explicitly empty description, and with a doc
+comment — and the table holds the three results together, because the
+point of running three is the relation between them and not any one row.
 
 | The flag, as declared | `describes_every_option` | `nothing_left_to_select` | `--help` renders |
 |---|---|---|---|
@@ -539,9 +550,10 @@ mechanisms shown independent. A described flag satisfies the convention and
 still violates the property, and the property is the one that matters for the
 outcome: a described `--harness` duplicates the configuration file's ownership
 of launch policy just as an undescribed one does. Mechanism 3 checks that what
-the surface lists is described; mechanism 2 checks that it lists nothing. On this
-binary the second makes the first vacuous, and the first is kept anyway,
-because deliberately relaxing the second to admit a flag makes a blank row
+the surface lists is described; mechanism 2 checks that it lists nothing.
+On this binary the second makes the first vacuous, and the first is kept
+anyway, because deliberately relaxing the second to admit a flag makes a
+blank row
 possible again.
 
 <a id="three-mechanisms-complete"></a>

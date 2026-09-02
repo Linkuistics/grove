@@ -35,9 +35,9 @@ their own, which of the three holds it thin, or whether none does.
 ## Two products, and which one `grove` enters
 
 The repository that holds this crate ships two products, and the manifest's own
-phrase — *the package that is grove-the-product*, at line 41 below — needs the
-distinction stated before it is read. The table names both so that phrase has a
-referent.
+phrase — *the package that is grove-the-product*, at line 41 below —
+needs the distinction stated before it is read. The table names both so
+that phrase has a referent.
 
 | Product | Source | What installs it |
 |---|---|---|
@@ -76,9 +76,9 @@ page: `version`. Every crate on the path from this binary to the loop takes
 `version.workspace = true`, so there is one release version, and *The surface*
 reads it as the constant both binaries report — the input is a `cargo release`
 cut, the output is one number in every crate an operator installs, and the
-invariant is that `grove --version` and `grove-llm --version` cannot disagree. In the invocation this chapter carries,
-that number is what a reader sees first if they type `grove --version` before
-typing `grove`.
+invariant is that `grove --version` and `grove-llm --version` cannot disagree.
+In the invocation this chapter carries, that number is what a reader sees first
+if they type `grove --version` before typing `grove`.
 
 <!-- fragment «manifest-package-identity» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-8" parent="manifest-thin-by-construction" -->
 ````toml
@@ -98,14 +98,16 @@ rust-version.workspace = true
 
 The first comment states the crate's shape in one sentence, and it is read here
 rather than paraphrased because every later page is a longer reading of one
-clause of it. Bare `grove` parses no argument that selects anything, acquires the
-driver lease, and calls `grove_loop::run`. That call is the loop's single entry
+clause of it. Bare `grove` parses no argument that selects anything,
+acquires the driver lease, and calls `grove_loop::run`. That call is the
+loop's single entry
 point, and everything the binary does after its three steps is behind it — the
 loop's own pages are another book's, and this page names the call so the reader
 can see where the book stops. The comment cites decision 9 of
 `docs/specs/module-decomposition.md`, which is the design record that put the
 whole loop behind one function; that record is evidence for the author, and the
-fact the reader needs is on the page — one call, nothing before it that chooses.
+fact the reader needs is on the page — one call, nothing before it that
+chooses.
 
 <!-- fragment «manifest-human-binary» owner="compiler-held" source="crates/grove/Cargo.toml" lines="9-13" parent="manifest-thin-by-construction" -->
 ````toml
@@ -133,9 +135,10 @@ test that keeps it empty.
 ## A crate, not a `[[bin]]` target
 
 The second comment is the chapter's argument, and it names the alternative it
-rejects: a `[[bin]]` target declared inside `grove-loop`'s own manifest, with the
-same thirteen-line `main` at `src/bin/grove.rs`. Cargo would accept that, and
-the binary would be one file shorter to describe. What it would cost is the
+rejects: a `[[bin]]` target declared inside `grove-loop`'s own manifest,
+with the same thirteen-line `main` at `src/bin/grove.rs`. Cargo would
+accept that, and the binary would be one file shorter to describe. What it
+would cost is the
 thesis, and the comment's clause about private items holds for one of the two
 shapes such a target can take. Rust privacy is drawn at the crate. A binary
 target that lists the library's modules as its own — `mod driver_lease;`
@@ -208,16 +211,18 @@ as a printed error and a non-zero exit. `clap` with `derive` supplies the
 grammar, which *The surface* reads. `grove-loop`, by path, is the only grove
 dependency, and the comment says why the binary is short: the loop is behind
 it. Three other workspace crates are reached from here — the VCS seam that
-resolves the working tree, the runner that spawns the session, the tree store —
-and none is named in this manifest: what the binary takes from two of them
-arrives as a `grove-loop` re-export, and it takes nothing from the third. The type that `cli.rs` calls `Workspace` is the VCS
-seam's own type, published through the loop's root; *Three steps* reads that
-line.
+resolves the working tree, the runner that spawns the session, the tree
+store — and none is named in this manifest: what the binary takes from two
+of them arrives as a `grove-loop` re-export, and it takes nothing from the
+third. The
+type that `cli.rs` calls `Workspace` is the VCS seam's own type, published
+through the loop's root; *Three steps* reads that line.
 
 One number in the comment is inconsistent with the source. *The reason it is
-three functions long* — outside the test module the crate defines two functions,
-`main` and `run`; counting the test helper `undescribed` makes three, and
-counting the two tests makes five. No reading a reader will take first yields
+three functions long* — outside the test module the crate defines two
+functions, `main` and `run`; counting the test helper `undescribed` makes
+three, and counting the two tests makes five. No reading a reader will take
+first yields
 three, and the page states the structural fact instead: two production
 functions, one of which is a one-line call to the other. The comment is part of
 the frozen corpus and is reproduced as written.
@@ -258,8 +263,8 @@ with no library can offer them.
 
 The directory holds nine files today and the comment names four; the other
 five are later repository-surface tests and the two fixture files, and every
-one of them is evidence for this book rather than corpus — `tests/` directories
-are cited and never reproduced.
+one of them is evidence for this book rather than corpus — `tests/`
+directories are cited and never reproduced.
 
 <!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="34-45" parent="manifest-thin-by-construction" -->
 ````toml
@@ -282,11 +287,12 @@ The dev-dependencies are the three the tests above need and no consumer
 inherits, since nothing depends on a binary. `book-validation` is this book's
 own validator, read as a library by the two tests that check the walkthroughs
 against the repository. `libc` is for `kill(2)`: the loop fixture sends the
-driver `SIGTERM` to drive its interrupt path — the handler catches `SIGHUP` too,
-and no fixture sends it — and `std::process::Child::kill` sends only `SIGKILL`,
-which is exactly the signal the driver cannot answer. That path — the driver dying of the signal it was
-sent — is *Three steps*' second ending, and this line is the first trace of it
-in the corpus. `tempfile` supplies the temporary trees.
+driver `SIGTERM` to drive its interrupt path — the handler catches `SIGHUP`
+too, and no fixture sends it — and `std::process::Child::kill` sends
+only `SIGKILL`, which is exactly the signal the driver cannot answer. That
+path — the driver dying of the signal it was sent — is *Three steps*' second
+ending, and this line is the first trace of it in the corpus. `tempfile`
+supplies the temporary trees.
 
 <!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="46-51" parent="manifest-thin-by-construction" -->
 ````toml

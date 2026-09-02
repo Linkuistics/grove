@@ -60,3 +60,17 @@ A proof session that finds nothing has still done its job. A run of defects
 concentrated in one earlier stage's class is evidence about that stage, and
 belongs in the body of the re-run leaf cut for it; a second re-run of one stage
 against this document is an escalation, not a third leaf.
+
+## Decisions (running log)
+
+**1 · The whole-document proof found no defect requiring a correction run.**
+The chapter 3 status and refusal figures agree with chapter 2 and their nearby
+transcripts; the iteration list agrees with the prose's step reference; and
+chapter 5's comparison and evidence-class tables agree with the prose and
+partition all ten evidence rows. The handed-forward editorial defect was real
+and proof-owned: ordinary prose in the contents page and all five chapters is
+now wrapped at no more than 80 columns, excluding tables, directives,
+navigation, and literal source. The same fence-aware enumeration remained dirty
+against `docs/specs/overview-book-structure.md`, its cross-tree control. Final
+validation reports 3 files, 204 resolved lines, 0 deferred lines and
+`final=true`; `bash scripts/check.sh` passes all eight principal checks.

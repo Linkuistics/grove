@@ -21,9 +21,10 @@ vector the shell hands to `grove`; its output is either a `Cli` value that
 carries nothing, on which *Three steps* then performs resolve, lease and run, or
 an exit before any of those steps. The invariant it establishes is the one the
 doc comment at line 4 states: there is nothing left for an argument to select.
-The page reads the grammar in the order the file declares it — two imports, the
-doc comment, the clap attributes that declare the surface, and the empty struct
-they decorate — then runs the carried invocation's argument vector through it
+The page reads the grammar in the order the file declares it — two imports,
+the doc comment, the clap attributes that declare the surface, and the
+empty struct they decorate — then runs the carried invocation's argument
+vector through it
 beside the two arguments that stop before the flow and one that is refused, and
 only after that catalogues the agent grammar. One constant is owned on this page
 and nowhere else in the book: the version both binaries report.
@@ -34,9 +35,10 @@ and nowhere else in the book: the version both binaries report.
 Lines 1 to 19 of `crates/grove/src/cli.rs` are this chapter's block, and the
 composite below is the whole of it: the imports, the doc comment, the attribute
 block and the struct, each a literal fragment in file order. The boundary at
-line 19 is structural — the struct's closing brace ends the grammar, and line 20
-is the blank line before the doc comment of the function that uses it — and the
-boundary at line 1 has one accepted consequence, which the next section reads
+line 19 is structural — the struct's closing brace ends the grammar, and line
+20 is the blank line before the doc comment of the function that uses it —
+and the boundary at line 1 has one accepted consequence, which the next
+section reads
 first.
 
 <!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-19" parent="source-command-surface" -->
@@ -104,16 +106,18 @@ The table is the argument for the empty grammar in three rows: each thing a
 command line could select has a source on disk already, and an argument that
 selected it would be a second source for a fact that has one. The third row is
 the one a reader may not expect. The working directory is an input, and it is
-the only one — `grove` typed in one Jujutsu workspace starts or resumes the grove
-there and not in a sibling — but it is not an argument, and the grammar stays
+the only one — `grove` typed in one Jujutsu workspace starts or resumes
+the grove there and not in a sibling — but it is not an argument, and the
+grammar stays
 empty because of that distinction rather than in spite of it.
 
 The phrase *clap's own* is precise, and the two are clap's in slightly
 different ways. Neither is a field of the struct, and neither is spelled
 anywhere in this file: `clap` adds `--help` to every command it builds, and it
-adds `--version` to a command that has a version to print — which this one does
-because line 16 supplies one. The spellings, the short forms `-h` and `-V`, the
-rendering and the early exit are all the parser's; what this file contributes
+adds `--version` to a command that has a version to print — which this one
+does because line 16 supplies one. The spellings, the short forms `-h` and
+`-V`, the rendering and the early exit are all the parser's; what this file
+contributes
 is three values the two outputs carry — the name at line 10, the version at
 line 16 and the description at line 17. That is also why the closure test in
 *Proving a negative* filters the two argument ids `help` and `version` out
@@ -150,16 +154,18 @@ The constant is not this crate's. `grove-loop`'s crate root declares
 version, captured at compile time — and both binaries' clap models read it:
 this line, and the matching attribute in `crates/grove-llm/src/cli.rs`. So
 `grove --version` and `grove-llm --version` print one number, and the number
-is the workspace's release: the loop's manifest takes `version.workspace = true`,
+is the workspace's release: the loop's manifest takes
+`version.workspace = true`,
 as this crate's does at line 4 of the manifest *Orientation* read, and the
 workspace root's `[workspace.package]` carries the value. At the corpus this
 book is frozen against that value is `20.1.0`, which is what both commands print
 in the worked example.
 
 The comment says *every member* takes the workspace version, and the manifests
-do not bear that out as written. Six of the seven members do — the two binaries
-and the four libraries an operator's install is built from — and the seventh,
-`book-validation`, is the authoring tool behind this book and carries a
+do not bear that out as written. Six of the seven members do — the two
+binaries and the four libraries an operator's install is built from — and
+the seventh, `book-validation`, is the authoring tool behind this book and
+carries a
 `0.1.0` of its own; nothing an operator installs reads it. The claim the comment
 needs is the narrower one, that every crate on the path from `grove` to
 `grove-loop` inherits one version, and that one holds. The comment is part of
@@ -292,8 +298,9 @@ Three exit statuses meet at this boundary, and they belong to three actors. `0`
 after `--help` or `--version` is `clap`'s early exit. `2` after an unknown
 argument is `clap`'s usage error. `1` after bare `grove` in the wrong directory
 is `main` returning an error from one of the three steps, which *Three steps*
-owns — and the fourth, `128 + N`, is the driver dying of the signal it was sent,
-which that chapter owns too. The grammar itself decides only the first two.
+owns — and the fourth, `128 + N`, is the driver dying of the signal it was
+sent, which that chapter owns too. The grammar itself decides only the first
+two.
 
 <a id="the-agent-surface"></a>
 ## The other binary: twelve verbs, flat
@@ -305,8 +312,8 @@ is one of the twelve verbs below. `grove-llm`'s source is
 `crates/grove-llm/src/cli.rs`, another book's corpus, and no byte of it is
 reproduced here; the verbs are named, grouped by what they do to the tree, and
 described in one line each, condensed from the binary's help text and the
-guide. The
-[user guide's account of the tree verbs](../../USAGE.md#usage-tree-verbs) is
+guide. The [user guide's account of the tree
+verbs](../../USAGE.md#usage-tree-verbs) is
 where each is shown running.
 
 | Verb | Group | What it does to the tree |

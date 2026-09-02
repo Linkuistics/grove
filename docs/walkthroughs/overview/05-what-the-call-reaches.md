@@ -31,17 +31,19 @@ not a package. `loop-crate-driver-k22` moved the last of the root's own source
 into `crates/grove-loop` and left the root holding the member list, the one
 release version six of the members read, and the lint gate they inherit. Those
 six are the product an operator installs — the two binaries and the four
-libraries beneath them — and `docs/RELEASING.md` cuts them as one release under
-one tag. The seventh, `book-validation`, is the authoring tool behind this book
-and carries a version of its own, as *The surface* recorded: it is a member,
+libraries beneath them — and `docs/RELEASING.md` cuts them as one release
+under one tag. The seventh, `book-validation`, is the authoring tool
+behind this book and carries a version of its own, as *The surface* recorded:
+it is a member,
 `scripts/check.sh` runs it with `cargo run`, and *Orientation* read the one line
 of this crate's manifest that names it, a dev-dependency of the tests.
 
 The table is the map, read from the seven package manifests and from
 `grove-loop`'s crate root. The third column is each package's `[dependencies]`
-inside the workspace — dev-dependencies, which a binary does not link, are left
-out of it; the fourth is what `crates/grove`'s two Rust files name from it.
-What the reader is to take from it is the difference between those two columns
+inside the workspace — dev-dependencies, which a binary does not link, are
+left out of it; the fourth is what `crates/grove`'s two Rust files name
+from it. What the reader is to take from it is the difference between those
+two columns
 for the binary: `grove` depends on one package, names items from three, and is
 linked against four, and the first mechanism is the reason those three numbers
 differ.
@@ -71,8 +73,9 @@ runner's function; both arrive through `grove-loop`'s crate root, which
 re-exports them at the lines the next table gives. *Orientation* counted three
 crates reached from the manifest and none named in it. The exact form of that
 claim is the map's: the seam and the runner are named through the loop's root,
-and the store — the tree library the task tree is kept in — is named by no line
-of this crate. It is reached by the loop's own tree modules, behind the call.
+and the store — the tree library the task tree is kept in — is named by no
+line of this crate. It is reached by the loop's own tree modules, behind the
+call.
 
 **The two binaries do not meet.** `grove-llm` takes two workspace dependencies,
 the loop and the seam; `grove` takes the loop alone; and neither names the
@@ -146,9 +149,11 @@ this crate names an item from one of the four and from two of the seven
 private ones. The rest of the loop is reached by the call and by nothing else
 in these 204 lines.
 
-What each of those modules is responsible for — which one holds the reading and
-growing verbs, which one the lifecycle and the finish sentinel, which one the
-completion channel, which one the prompt — is the account `docs/ARCHITECTURE.md`
+What each of those modules is responsible for — which one holds the
+reading and growing verbs, which one the lifecycle and the finish sentinel,
+which one the
+completion channel, which one the prompt — is the account
+`docs/ARCHITECTURE.md`
 carries under *Main module seams*, and this page names the four modules the
 binary's names come from and stops. The one module of the map this book has
 explained is `grove`'s own `cli`, in the three chapters that read its 137
@@ -160,9 +165,10 @@ lines.
 **Everything behind `grove_loop::run` is named in this book and explained
 nowhere in it.** That sentence is the boundary, and it is stated here once
 rather than beside each thing the four chapters named. A page could not be
-followed without naming the loop's parts — *Three steps* cannot read the `match`
-without the outcome, the completion signal and the runner's handler — so each
-page named what it needed and gave the minimum a reader must hold. None of them
+followed without naming the loop's parts — *Three steps* cannot read the
+`match` without the outcome, the completion signal and the runner's
+handler — so each page named what it needed and gave the minimum a reader
+must hold. None of them
 explained the thing named, and this page does not either.
 
 The table is the boundary as a list. Its first column is what was named, its
@@ -198,9 +204,10 @@ book, and *Orientation* named it as one of two products and stopped.
 
 The outcome the book promised is a test a reader applies to an entry point of
 their own: ask what is left for an argument to select, and then ask which of
-three mechanisms holds the answer — a package boundary the compiler enforces, a
-closure property a test asserts, or a convention a test checks. *Proving a
-negative* closed the three with what each holds and where each is proved. The
+three mechanisms holds the answer — a package boundary the compiler
+enforces, a closure property a test asserts, or a convention a test
+checks. *Proving a negative* closed the three with what each holds and where
+each is proved. The
 table lacked the criterion that makes a mechanism checkable rather than
 believed: **for each mechanism, name the change that breaks it and the compiler
 check or test that then fails.** The table answers it for each mechanism, and
@@ -323,8 +330,9 @@ not.
 
 The result is five claims about this binary's observable behaviour held only by
 measurements written on the page. Mechanism 1's row of the table under *The
-test, applied back* is the strongest form — a check the compiler performs — and
-every row here falls short of it; saying by how much is what the assembly owed
+test, applied back* is the strongest form — a check the compiler performs
+— and every row here falls short of it; saying by how much is what the
+assembly owed
 a reader who has just been taught to ask.
 
 The [concept index](concept-index.md) and the [source index](source-index.md)
@@ -374,7 +382,8 @@ The second command is the repository-wide gate. It runs
 this book has been inside the gate since *Orientation* created its directory
 and why every drafting session but this one left the script red on
 `book-check` alone. It also runs the repository's own tests, and three of those
-cover this book without naming it: `every_repository_markdown_reference_resolves`
+cover this book without naming it:
+`every_repository_markdown_reference_resolves`
 sweeps every Markdown file in the repository;
 `every_book_root_has_a_documentation_ownership_row` fails a book root with no
 row in the *Documentation ownership* table of `docs/ARCHITECTURE.md`; and the
@@ -421,7 +430,8 @@ The third command runs the crate's own suite, whose tests supply evidence this
 book cites and does not reproduce. The per-test `ok` lines and the blank lines
 between blocks are elided; one line a fixture's `jj` printed while the loop
 tests ran is elided with them. The two unit tests are the closure and convention
-tests *Proving a negative* read, and they are the only tests inside the corpus; the sixty-seven
+tests *Proving a negative* read, and they are the only tests inside the corpus;
+the sixty-seven
 integration tests under `tests/` are outside it by design — *Orientation* read
 the manifest's reason for their being here — and every claim in the four
 chapters that names a test names one that runs in this suite, or in the crate
@@ -431,6 +441,7 @@ The book is complete: three roots, 204 lines, five chapters, two lookup
 surfaces, zero deferred ranges. What it argued is that one binary is thin and
 that three different mechanisms hold it so, and what it leaves the reader with
 is the criterion that distinguishes a mechanism from a belief — which check
-fails — applied to the binary, the other binary beside it, and the book itself.
+fails — applied to the binary, the other binary beside it, and the book
+itself.
 
 [Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md)

@@ -15,8 +15,8 @@ point onto grove, and this book is the system's overview rather than a fourth
 crate's account because that crate is where the system is entered and nothing
 else is decided. Each chapter opens at one of the binary's own steps — the
 package it is, the grammar it accepts, the three calls it makes, the tests that
-hold the grammar closed, and the modules the call reaches — and the description
-of what the system does at that step is that chapter's body.
+hold the grammar closed, and the modules the call reaches — and the
+description of what the system does at that step is that chapter's body.
 
 **The intended outcome is the thin-entry-point test, not a reference card.** At
 the end you should be able to take an entry point in your own code, ask what is
@@ -28,8 +28,9 @@ lines.
 
 **The book's boundary is the call.** It explains one module, `grove::cli`, and
 names the rest. Everything behind `grove_loop::run` — the loop, the task tree,
-the kinds, the lifecycle and the session epoch — is named where a page cannot be
-followed without it and explained nowhere here; the last chapter says so in one
+the kinds, the lifecycle and the session epoch — is named where a page
+cannot be followed without it and explained nowhere here; the last chapter
+says so in one
 place rather than apologising per row.
 
 It does not teach Rust, `clap`, or operating-system signal semantics from first

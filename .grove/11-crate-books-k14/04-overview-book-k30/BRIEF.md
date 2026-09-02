@@ -125,18 +125,7 @@ The editorial pipeline's chain, under this node, in the shape
 
 ## Handed forward
 
-- **proof** — prose lines left well past the pages' 80-column wrap, most from
-  the copy edit's in-place sentence rewrites: `01-orientation.md` under *The
-  package, and what it inherits* (the `cargo release` sentence), *One grove
-  dependency* (the re-export sentence) and *Where the repository-surface tests
-  live* (the `SIGKILL` sentence); `03-three-steps.md` under *The three steps,
-  statement by statement* (the *not a Jujutsu working tree*, *another Grove
-  driver*, and delta-configuration sentences) and *A driver that was killed*
-  (the `Stopped` and between-sessions sentences, and the `grove_loop::run`
-  lead); `04-proving-a-negative.md` under *A test module inside the binary*,
-  *A property, not a list*, the `help`/`version` filter paragraph, and *The
-  walk exists twice*. Wrapping is not the art charter's; the whole-document
-  read is the stage to reflow them, and `book-check` is indifferent to it.
+None.
 
 ## Decisions (running log)
 

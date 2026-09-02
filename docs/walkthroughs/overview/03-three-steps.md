@@ -8,8 +8,9 @@
 The grammar has been read and it selects nothing, so what `run` does with the
 `Cli` it parses is the whole of the binary's behaviour, and it is the parse,
 four more statements, and a `match`. This chapter owns the forty-seven lines
-that perform them: the thirteen-line entry point, whose module documentation is the
-chapter's condensed argument, and lines 20 to 53 of `crates/grove/src/cli.rs`,
+that perform them: the thirteen-line entry point, whose module
+documentation is the chapter's condensed argument, and lines 20 to 53 of
+`crates/grove/src/cli.rs`,
 where the working tree is resolved, the lease is taken, the loop is called, and
 the loop's answer is turned into an exit. The thesis is `main.rs`'s own: each
 step before the call is something the loop cannot do for itself. The loop must
@@ -148,13 +149,14 @@ The first paragraph of `run`'s documentation is about a seam, and the seam is
 the reason the function has the shape it has. The working tree is resolved
 **here**, once, and the resolved value is passed to two consumers: the lease,
 which needs the tree's root to lock it, and the loop, which takes the tree root
-back from the lease it is handed and needs the workspace for the rest — the main
-repository that `${repo}` expands to, and the version control it states in the
+back from the lease it is handed and needs the workspace for the rest —
+the main repository that `${repo}` expands to, and the version control it
+states in the
 mandate it composes. The comment names what this replaced. Before
 `loop-crate-driver-k22`, the task that moved the driver into the loop crate, the
-lease resolved a path of its own and held the answer, so a caller that also needed
-the workspace derived the same fact a second time and had no way to see whether
-the two derivations agreed. The design record is
+lease resolved a path of its own and held the answer, so a caller that also
+needed the workspace derived the same fact a second time and had no way
+to see whether the two derivations agreed. The design record is
 `docs/adr/one-live-driver-per-working-tree.md`, which states the rule as *the
 lease is handed a resolved workspace; it does not resolve one*, and the loop's
 own module documentation says the same from its side: its first line, owning
@@ -216,23 +218,26 @@ or a relative alias of one workspace resolves to the same value. The value also
 carries the main repository — the root itself for a native or colocated
 checkout, and for a secondary workspace the default workspace's root, which the
 seam asks `jj` for rather than reading the link itself, so a `jj` missing from
-`PATH` is a refusal at this line too. A directory with no `.jj` anywhere above it is refused with *not a Jujutsu working
-tree*, the path the walk started from, and the two `jj git init` commands that
-would fix it; nothing has been created or changed when that is printed. This is
+`PATH` is a refusal at this line too. A directory with no `.jj` anywhere above
+it is refused with *not a Jujutsu working tree*, the path the walk started
+from, and the two `jj git init` commands that would fix it; nothing has been
+created or changed when that is printed. This is
 the [stated VCS](../../../CONTEXT.md#stated-vcs): the working tree's version
 control is resolved here, before any session exists, and the loop states the
 result in each mandate rather than letting a session guess it from a `.git`.
 
-**`DriverLease::acquire`** at line 46 is the lease, and `DriverLease` is the type
-held as *the one-driver-per-working-tree claim, taken for the life of the
-process*. It takes the resolved workspace and asks it for grove's control
+**`DriverLease::acquire`** at line 46 is the lease, and `DriverLease` is
+the type held as *the one-driver-per-working-tree claim, taken for the
+life of the process*. It takes the resolved workspace and asks it for grove's
+control
 directory — `.jj/grove/` inside that exact workspace, untracked, created if
 absent — and opens `driver.lease` there with an exclusive, non-blocking
 advisory lock. The lease also opens and holds the working tree root's own
 descriptor, so that before each transition and each launch it can check that
 the tree it owns is still the one it locked; and a second `grove` in the same
-tree fails at once with *another Grove driver already owns* the canonical root; it does not
-queue, because two drivers would issue two mandates for the same leaf. The
+tree fails at once with *another Grove driver already owns* the canonical
+root. It does not queue, because two drivers would issue two mandates for the
+same leaf. The
 lease also writes a fresh random nonce and an inactive session epoch, which are
 the loop's business and not this page's. What this page needs is the lifetime:
 the lock is the kernel's, so it is released on return, on panic and on process
@@ -252,8 +257,9 @@ iteration, and it reads it twice: once before the tree's lifecycle transition,
 which validates the personal file in full before anything is mutated and is the
 document the loop asks whether `finish` is configured against when no live leaf
 is left and it must write that leaf itself, and once after selecting the leaf,
-to expand the selected kind's template from the document as it stands. Each read lays at most one untracked `.grove.kdl` delta
-over the personal file. A loaded configuration handed in once could express
+to expand the selected kind's template from the document as it stands. Each
+read lays at most one untracked `.grove.kdl` delta over the personal file. A
+loaded configuration handed in once could express
 neither read, which is why the argument is a source rather than a snapshot. The
 early-use ledger's statement for this type now reads *twice, before and after
 the tree transition*; *The surface* stated it without a count, and the count is
@@ -319,35 +325,37 @@ this process exits 0 or dies of a signal*. **`LoopOutcome`** has three variants,
 and the `match` groups them two and one. `Finished` is the grove completing: a
 session signalled `complete --done` — the teardown session's last act, after
 it has committed the deletion of `.grove/` — and the loop printed *grove
-finished — loop complete*. `Stopped` is a session ending without
-a completion signal — the human typed `/exit` or Ctrl-C into the session, or it
-crashed — and the loop printed that it stopped, with a second line naming the
-kind, the command and the configuration file when the session's status was not
-success; a later `grove` in the same tree
-resumes, because the loop holds no state and re-derives its position from the
-task tree. Both are outcomes the loop was designed to reach, both are mapped to
+finished — loop complete*. `Stopped` is a session ending without a completion
+signal — the human typed `/exit` or Ctrl-C into the session, or it crashed —
+and the loop printed that it stopped, with a second line naming the kind, the
+command and the configuration file when the session's status was not success;
+a later `grove` in the same tree resumes, because the loop holds no state and
+re-derives its position from the task tree. Both are outcomes the loop was
+designed to reach, both are mapped to
 `Ok(())`, and the process exits `0`. `Interrupted` carries a signal number, and
 it is the driver itself having been sent `SIGTERM` or `SIGHUP`: the runner
 inside the loop installs a handler for exactly those two, forwards the signal
 it was sent to the session's whole process group, escalates to `SIGKILL` if the
-session ignores it, reaps it, and reports the launch as interrupted; a signal that arrives between sessions, with no
-launch to report against, is collected at the top of the next iteration
-instead, so the driver stops rather than starting a session it is about to
-kill. The completion signal the first two variants are read from is the
+session ignores it, reaps it, and reports the launch as interrupted. A signal
+that arrives between sessions, with no launch to report against, is collected
+at the top of the next iteration instead, so the driver stops rather than
+starting a session it is about to kill. The completion signal the first two
+variants are read from is the
 [loop control channel](../../../CONTEXT.md#loop-control-channel): a per-launch
 file the driver watches while the session runs, whose appearance ends the
 session and whose content says relaunch or done.
 
-**`grove_loop::run`** is the call, and it is the symbol *Orientation* held as *the loop's single entry point; everything the binary does after its three
+**`grove_loop::run`** is the call, and it is the symbol *Orientation* held as
+*the loop's single entry point; everything the binary does after its three
 steps is behind this call*. Its three arguments are the three values this page
 has produced, and the loop's own documentation says of them that they are the
 three things a loop cannot derive for itself. It returns a `Result` whose error
 is the loop's one opaque error type and whose success is the outcome above.
 Its first act is to ignore `SIGINT` in the driver, so that a Ctrl-C typed while
 the driver is between sessions — transitioning the tree, selecting a leaf,
-expanding a template — does not kill the loop; while a session runs it owns the
-terminal in its own right and Ctrl-C reaches the session, never the driver.
-The
+expanding a template — does not kill the loop; while a session runs it
+owns the terminal in its own right and Ctrl-C reaches the session, never
+the driver. The
 [user guide's account of what happens in a session](../../USAGE.md#usage-session-lifecycle)
 is the reader's view of one iteration from outside; what one iteration does is
 the last section of this page.
@@ -405,9 +413,10 @@ that can express it.
 ## Worked example: one invocation, at full resolution
 
 The invocation is the one *Orientation* carries at low resolution and *The
-surface* ran as an argument vector: a Jujutsu workspace at `/work/atlas/` holding
-a grove with one live leaf, `01-impl--rate-limit-k3.md`, and `grove` typed in
-`crates/gateway/src/`, with `~/.config/grove/config.kdl` mapping `impl` to
+surface* ran as an argument vector: a Jujutsu workspace at `/work/atlas/`
+holding a grove with one live leaf, `01-impl--rate-limit-k3.md`, and
+`grove` typed in `crates/gateway/src/`, with
+`~/.config/grove/config.kdl` mapping `impl` to
 `claude --add-dir ${repo} ${prompt}`. This section runs it through the five
 statements and the `match` above, with the value each produces, and follows it
 to both endings. The values on the left are the binary's; the lines indented
@@ -486,9 +495,10 @@ asserts. The guide's transcript under *Stopping the loop* shows the `143` case
 against a different leaf and is the same measurement. The same measurement
 also fixes what *the driver, not the session* means in the second row: a
 `SIGTERM` sent to the session's process rather than the driver's is a session
-ending without a completion signal, and the driver reports it as such — *status
-signal: 15 (SIGTERM)*, then the second line naming the failed kind — returns
-`Stopped`, and exits `0`, because nothing was taken away from the loop.
+ending without a completion signal, and the driver reports it as such —
+*status signal: 15 (SIGTERM)*, then the second line naming the failed
+kind — returns `Stopped`, and exits `0`, because nothing was taken away from
+the loop.
 
 The two error endings `run`'s documentation names are this trace stopping
 earlier, and each names the actor that stopped it. Typed in a directory with no

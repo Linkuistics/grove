@@ -86,18 +86,24 @@ before the call chooses, and nothing after it is this crate's.
 
 The first fragment is the documentation. Its count is worth holding against
 the other two counts this corpus offers, because the three disagree and the
-page should say so rather than pick one. This comment's three are parse,
-resolve and lease. `run`'s own title, read below, is *resolve, lease, run* —
-the call counted, the parse not. And the body of `run` has five statements
-before its `match`: the parse, `current_dir`, the resolve, the lease, and
-`TemplateSource::from_env`, which neither comment counts. The structural fact
-is that four things happen before the loop is entered and one of them, locating
-the configuration, is handed to the loop as a value rather than performed
-there: the loop takes a `TemplateSource` so that the location is its caller's to
-name, and this binary names `$HOME`'s — the fixtures that drive it as a process
-set `$HOME` to a temporary directory. In the invocation this page carries, the
-three steps the comment names are the first three lines of the trace below the
-call. The comment is part of the frozen corpus and is reproduced as written.
+page should say so rather than pick one. The table sets the three counts side
+by side, and the reader is to take from it which statements each count
+includes and which it leaves out.
+
+| Where the count is stated | Count | What it counts |
+|---|---|---|
+| The module documentation, `main.rs` lines 3 to 5 | three | parse, resolve, lease |
+| `run`'s own title, `cli.rs` line 21, read below | three | resolve, lease, the call — the parse not counted |
+| `run`'s body before its `match`, lines 43 to 47 | five | the parse, `current_dir`, resolve, lease, `TemplateSource::from_env` — `current_dir` and `from_env` counted by neither comment |
+
+The structural fact is that four things happen before the loop is entered and
+one of them, locating the configuration, is handed to the loop as a value
+rather than performed there: the loop takes a `TemplateSource` so that the
+location is its caller's to name, and this binary names `$HOME`'s — the
+fixtures that drive it as a process set `$HOME` to a temporary directory. In
+the invocation this page carries, the three steps the comment names are the
+first three lines of the trace below the call. The comment is part of the
+frozen corpus and is reproduced as written.
 
 <!-- fragment «entry-point-module-doc» owner="one-call" source="crates/grove/src/main.rs" lines="1-7" parent="entry-point-three-steps" -->
 ````rust
@@ -382,12 +388,18 @@ example below shows it measured.
 ````
 <!-- /fragment -->
 
-Three actors decide the exit, and the `match` is where they meet. `clap` decides
-`0` for `--help` and `--version` and `2` for an unknown argument, before this
-function's second statement. `main` decides `1` for an `Err` from any of the
-five statements or from the loop. And `reraise` decides `128 + N`, after the
-loop has returned. The `match` itself decides nothing: it routes the loop's
-verdict to the actor that can express it.
+Three actors decide the exit, and the `match` is where they meet. The table
+maps each status the parent can read to the actor that decides it and the
+point in `run` at which it is decided; the reader is to take from it that the
+`match` itself decides nothing, and only routes the loop's verdict to the actor
+that can express it.
+
+| What the parent reads | Decided by | When | Read in |
+|---|---|---|---|
+| `0` | `clap`, for `--help` and `--version`; `main`, returning `Ok(())` for `Finished` and `Stopped` | before the second statement; after the loop has returned | *The surface*; this page |
+| `2` | `clap`, for an unknown argument | before the second statement | *The surface* |
+| `1` | `main`, for an `Err` from any of the five statements or from the loop | at whichever statement refused | this page, the two refusals below |
+| `128 + N` | `reraise`, dying of the signal the driver was sent | after the loop has returned `Interrupted` | this page, the second ending below |
 
 <a id="worked-run"></a>
 ## Worked example: one invocation, at full resolution
@@ -524,15 +536,25 @@ the two refusals just shown and then everything else in one clause. That
 clause defines where this crate stops: *anything the loop refuses* is
 every error the loop's own documentation lists, and this page names the class
 and explains none of it. The list is not all refusals, and the page labels
-what the comment does not: a configuration that does not load or does not cover
-the selected kind is a refusal, with a precondition the human can make true; a
-working tree replaced underneath the lease it holds, or a session that could
-not be spawned, is an environmental failure that no edit to the tree or the
-configuration would have prevented. Each reaches `main` as the same `Err`,
-prints the same way, and exits `1`; what distinguishes them is the message,
-and the messages are the loop's. The
-fragment is the section as written, and it ends at line 41, the line before the
-signature.
+what the comment does not. The table partitions every `Err` this page has met
+into the two categories, by the statement that returns it; the reader is to
+take from it that the category is not visible at the exit — each reaches
+`main` as the same `Err`, prints the same way, and exits `1` — and is visible
+only in the message, which is the loop's for both rows past line 47.
+
+| Statement that returns the `Err` | Cause | Category | What the message names |
+|---|---|---|---|
+| `current_dir`, line 44 | The working directory has been removed or cannot be read | environmental failure | the standard library's error; no grove type produces it |
+| `Workspace::resolve`, line 45 | No `.jj` directory at or above the working directory | refusal | *not a Jujutsu working tree*, the path the walk started from, and the two `jj git init` commands that would fix it |
+| `DriverLease::acquire`, line 46 | Another driver holds the lease on this tree | refusal | *another Grove driver already owns* the canonical root; the existing driver must stop |
+| `TemplateSource::from_env`, line 47 | `$HOME` is unset | environmental failure | the file it could not locate, and the login shell that would set `$HOME` |
+| `grove_loop::run`, line 48 | The configuration does not load, or does not cover the selected kind | refusal | the loop's message, with a precondition the human can make true |
+| `grove_loop::run`, line 48 | The working tree was replaced underneath the held lease, or a session could not be spawned | environmental failure | the loop's message; no edit to the tree or the configuration would have prevented it |
+
+A refusal is a precondition checked and found false, with nothing created or
+changed; an environmental failure is a condition no edit to the tree or the
+configuration would have prevented. The fragment is the section as written, and
+it ends at line 41, the line before the signature.
 
 <!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="38-41" parent="surface-resolve-lease-run" -->
 ````rust
@@ -554,17 +576,25 @@ arguments and the returned outcome are the whole of the loop's contract with
 this crate, and the shape is what makes the two endings above intelligible as
 one loop rather than two behaviours.
 
-An iteration begins by collecting any signal that arrived while no session was
-running, revalidating the lease, and reading the configuration; it performs the
-one lifecycle transition a tree may need and selects the next live leaf, or
-materialises the finish leaf when none is left; it reads the configuration
-again and expands the selected kind's template; it revalidates the lease once
-more, allocates a fresh completion channel, activates the session epoch, spawns
-the template's argument vector directly as a foreground child, and watches both
-the child and the channel; and when the child has been reaped it invalidates
-the epoch, reads the channel and decides — relaunch, and the loop continues
-with fresh context; done, and it returns `Finished`; absent, and it returns
-`Stopped`. A signal to the driver during the session is what turns the reap
+The list is one iteration in order, as the caller can see it; the reader is to
+take from it where the three arguments are used and where the returned outcome
+is decided, and that the configuration is read at steps 1 and 3 — the two
+reads `TemplateSource::from_env` handed the loop a location for.
+
+1. Collect any signal that arrived while no session was running, revalidate
+   the lease, and read the configuration.
+2. Perform the one lifecycle transition the tree may need, and select the next
+   live leaf — or materialise the `finish` leaf when none is left.
+3. Read the configuration again, and expand the selected kind's template.
+4. Revalidate the lease once more, allocate a fresh completion channel, and
+   activate the session epoch.
+5. Spawn the template's argument vector directly as a foreground child, and
+   watch both the child and the channel.
+6. When the child has been reaped, invalidate the epoch, read the channel, and
+   decide: relaunch, and the loop continues with fresh context; done, and it
+   returns `Finished`; absent, and it returns `Stopped`.
+
+A signal to the driver during the session is what turns the reap at step 6
 into `Interrupted`. The only durable writes of the driver's own are the two the
 transition and the selection can make — a root brief and a first
 `requirements` leaf on a tree with no `.grove/`, and the `finish` leaf when no

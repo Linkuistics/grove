@@ -225,25 +225,25 @@ holds, the surface lists nothing, and a convention over an empty list is
 vacuous. It can fail only after mechanism 2 is deliberately relaxed.
 
 The test transfers, and the map shows the nearest entry point to take it to.
-`grove-llm` is the other binary in the same workspace, over the same loop, and
-its three answers differ from this crate's in two places. Its package carries a
-library target beside the binary, and its crate root says why: a clap command
-tree is not something a spawned process can be asked about, so the verb surface
-lives in the library where the crate's own tests can inspect it, and the root
-states that this costs the guarantee nothing, because the code the binary must
-not reimplement is in a different crate either way. Mechanism 1 therefore holds
-at that package's edges to the two libraries it depends on — the loop and, as
-the map shows, the seam — rather than at the binary target; what the compiler
-holds is that the binary and its library together reach only what those two
-publish. It has twelve things to select, so no closure property can be asserted;
-what stands in that
-mechanism's place is the flatness *The surface* named —
-`the_grove_llm_verb_surface_is_flat`, asserting that no verb has subcommands of
-its own — and the ten instructed verbs pinned as a complete set in the same
-test file. Mechanism 3 uses the same walk as this crate, in
-`crates/grove-llm/tests/help_surfaces.rs`, and *Proving a negative* read why
-the walk exists twice. The two different answers on the second subject show
-that the test transfers rather than merely describing this binary.
+`grove-llm` is the other binary in the same workspace, over the same loop. The
+table sets its three answers beside this crate's; the reader is to take from it
+that they differ in two places and agree in the third, which is what shows the
+test transfers rather than merely describing this binary.
+
+| # | Mechanism | On `grove` | On `grove-llm` |
+|---:|---|---|---|
+| 1 | Where the package boundary holds | At the binary target's one edge, to the loop | At the package's edges to the two libraries it depends on — the loop and, as the map shows, the seam: the binary and its library together reach only what those two publish |
+| 2 | What is asserted about the surface | A closure property: nothing to select | No closure property, since there are twelve things to select; in its place, flatness — `the_grove_llm_verb_surface_is_flat`, asserting that no verb has subcommands of its own — and the ten instructed verbs pinned as a complete set in the same test file |
+| 3 | What checks the described-option convention | The walk in `cli.rs`'s test module | The same walk, in `crates/grove-llm/tests/help_surfaces.rs` |
+
+The first difference is the library target. `grove-llm`'s crate root says why it
+has one: a clap command tree is not something a spawned process can be asked
+about, so the verb surface lives in the library where the crate's own tests can
+inspect it, and the root states that this costs the guarantee nothing, because
+the code the binary must not reimplement is in a different crate either way.
+The second is the flatness *The surface* named, standing where a closure
+property cannot be asserted. The third is the same answer on both, and *Proving
+a negative* read why the walk exists twice.
 
 Applied to an entry point outside this workspace, the test has three steps, in
 this order.
@@ -311,20 +311,21 @@ to read down, because the rows are not equally weak.
 | 9 | One flag on `Cli` fails both tests with the messages quoted, renders the padded blank row, and reads the same before and after `build()` | [ch. 4](04-proving-a-negative.md#worked-assertion) | measured on a scratch copy outside the repository; by construction no test in the repository can hold it, since the flag does not exist |
 | 10 | The two `undescribed` bodies differ only in two parameter names and one level of indentation | [ch. 4](04-proving-a-negative.md#twice) | a `diff` after dedenting; no check detects divergence between the copies |
 
-Rows 6 and 7 rest on a test that holds the substance in another crate and
-leaves the binary's rendering of it to a measurement, which is the shape the
-first mechanism produces: the refusal is the seam's or the loop's, the `Error:`
-prefix and the status `1` are the standard library's handling of the `Err` that
-`main` returns, as *Three steps* read, and this crate adds nothing. Rows 1, 9
-and 10 rest on measurements no test could take, because each concerns a shape
-the repository does not contain — a `[[bin]]` inside the loop, a `Cli` with a
-field, or two copies that have drifted. Rows 2, 3, 4, 5 and 8 rest on
-measurements a test *could* take and none does, and no leaf in the tree is
-against any of the five. The result is five claims about this binary's
-observable behaviour held only by measurements written on the page.
-Mechanism 1's row of the table above is the strongest form — a check the
-compiler performs — and every row here falls short of it; saying by
-how much is what the assembly owed a reader who has just been taught to ask.
+The ten rows fall into three classes, and the table partitions them; the
+reader is to take from it which class is a gap a test could close and which is
+not.
+
+| Rows | What holds the substance | Why no test in the repository holds the claim |
+|---|---|---|
+| 6, 7 | A test in another crate — the seam's, the loop's | The refusal is the seam's or the loop's; the `Error:` prefix and the status `1` are the standard library's handling of the `Err` that `main` returns, as *Three steps* read, and this crate adds nothing. This is the shape the first mechanism produces |
+| 1, 9, 10 | A measurement on a shape the repository does not contain | A `[[bin]]` inside the loop, a `Cli` with a field, or two copies that have drifted: no test could take the measurement |
+| 2, 3, 4, 5, 8 | A measurement written on the page | A test *could* take each measurement and none does, and no leaf in the tree is against any of the five |
+
+The result is five claims about this binary's observable behaviour held only by
+measurements written on the page. Mechanism 1's row of the table under *The
+test, applied back* is the strongest form — a check the compiler performs — and
+every row here falls short of it; saying by how much is what the assembly owed
+a reader who has just been taught to ask.
 
 The [concept index](concept-index.md) and the [source index](source-index.md)
 are the two lookup surfaces, and neither is part of the reading order. The

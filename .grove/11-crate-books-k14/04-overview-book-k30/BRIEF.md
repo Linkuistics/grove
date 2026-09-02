@@ -123,7 +123,28 @@ The editorial pipeline's chain, under this node, in the shape
   labels reuse it (draft decision 2). A heading or anchor change on those is a
   manifest change, not a copy edit.
 
+## Handed forward
+
+- **proof** — prose lines left well past the pages' 80-column wrap, most from
+  the copy edit's in-place sentence rewrites: `01-orientation.md` under *The
+  package, and what it inherits* (the `cargo release` sentence), *One grove
+  dependency* (the re-export sentence) and *Where the repository-surface tests
+  live* (the `SIGKILL` sentence); `03-three-steps.md` under *The three steps,
+  statement by statement* (the *not a Jujutsu working tree*, *another Grove
+  driver*, and delta-configuration sentences) and *A driver that was killed*
+  (the `Stopped` and between-sessions sentences, and the `grove_loop::run`
+  lead); `04-proving-a-negative.md` under *A test module inside the binary*,
+  *A property, not a list*, the `help`/`version` filter paragraph, and *The
+  walk exists twice*. Wrapping is not the art charter's; the whole-document
+  read is the stage to reflow them, and `book-check` is indifferent to it.
+
 ## Decisions (running log)
+
+**4 · The art stage is done; `proof` is cut as `overview-k90`.** Six figures
+drawn, all in chapters 3 and 5, none in chapters 1, 2 or 4 or the indexes;
+every figure in the book states its role, so the role rule found nothing to
+fix. Declined figures and the reason each was declined are in the art leaf's
+running log. One item is handed forward, above.
 
 **3 · The draft is complete and `overview-k76` is closed.** Its fifth child
 took the book to `final=true` (3 files, 204 lines, 0 deferred) and a green

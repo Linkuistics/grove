@@ -521,13 +521,24 @@ fn check_early_uses(
             ));
             continue;
         };
+        // The manifest is complete from the start, so a mandatory row may name
+        // a first use on a chapter the prefix has not reached. Its page is not
+        // in the snapshot, and Markdown validation independently forbids it
+        // from being — so outside the prefix the anchor is a promise, checked
+        // for structure here and against bytes at the scope that has them
+        // (`docs/specs/walkthrough-books.md`, *Early-use ledger*).
+        let in_prefix = chapter_in_prefix(scope, first_number);
         let page_path = manifest.path(filename);
         let anchor_line = format!("<a id=\"{anchor}\"></a>\n");
-        let anchor_byte = snapshot
-            .book_files
-            .get(&page_path)
-            .and_then(|bytes| std::str::from_utf8(bytes).ok())
-            .and_then(|text| text.find(&anchor_line));
+        let anchor_byte = in_prefix
+            .then(|| {
+                snapshot
+                    .book_files
+                    .get(&page_path)
+                    .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                    .and_then(|text| text.find(&anchor_line))
+            })
+            .flatten();
         let expected_status = if owner_is_complete(manifest, scope, owner) {
             "explained"
         } else {
@@ -537,7 +548,7 @@ fn check_early_uses(
         // so this is "the first use is not on a page strictly before the page
         // that explains it" — which is the whole point of an early-use row.
         if first_number > owner_order
-            || anchor_byte.is_none()
+            || (in_prefix && anchor_byte.is_none())
             || status != expected_status
             || cells[3].is_empty()
         {
@@ -546,22 +557,62 @@ fn check_early_uses(
                 row.location.clone(),
             ));
         }
-        let key = (
-            first_number,
-            anchor_byte.unwrap_or(usize::MAX),
-            owner_order,
-            cells[0].to_owned(),
-        );
+        let key = EarlyUseKey {
+            chapter: first_number,
+            anchor: anchor_byte,
+            owner: owner_order,
+            symbols: cells[0].to_owned(),
+        };
         if !seen.insert(key.clone()) {
             diagnostics.push(f009("Early use row is duplicated", row.location.clone()));
         }
         keys.push((key, row.location.clone()));
     }
-    if keys.windows(2).any(|pair| pair[0].0 > pair[1].0) {
+    if keys.windows(2).any(|pair| pair[0].0.follows(&pair[1].0)) {
         diagnostics.push(f009(
             "Early uses ledger rows are not in canonical order",
             table.location.clone(),
         ));
+    }
+}
+
+/// The canonical sort position of one early-use ledger row.
+///
+/// `anchor` is the byte offset of the row's explicit anchor in its first-use
+/// page, and is `None` when that page is outside the proved prefix: the page
+/// does not exist yet, so its anchor occurrence is unobservable rather than
+/// wrong.
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+struct EarlyUseKey {
+    chapter: usize,
+    anchor: Option<usize>,
+    owner: usize,
+    symbols: String,
+}
+
+impl EarlyUseKey {
+    /// Whether this row sorts *after* the row written below it.
+    ///
+    /// Two rows sharing an out-of-prefix first-use page are unordered here:
+    /// their canonical order is anchor occurrence in a page nobody can read, so
+    /// any order the prefix imposed would be one the final ledger might have to
+    /// contradict. Sharing a page means sharing a prefix state, so a pair is
+    /// never half-known.
+    fn follows(&self, next: &Self) -> bool {
+        match self.chapter.cmp(&next.chapter) {
+            std::cmp::Ordering::Greater => true,
+            std::cmp::Ordering::Less => false,
+            std::cmp::Ordering::Equal => self.anchor.is_some() && self > next,
+        }
+    }
+}
+
+/// Whether the chapter at 1-based position `number` is inside the proved
+/// prefix. [`crate::manifest::ScopedSlice::chapter_index`] counts from zero.
+fn chapter_in_prefix(scope: &Scope, number: usize) -> bool {
+    match scope {
+        Scope::Final => true,
+        Scope::Through(slice) => number <= slice.chapter_index() + 1,
     }
 }
 

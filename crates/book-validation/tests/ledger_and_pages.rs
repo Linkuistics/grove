@@ -277,3 +277,116 @@ fn edit_out_root(snapshot: &mut BookSnapshot, root: &str, next_root: &str) -> St
     *source_index = format!("{}{}", &text[..start], &text[end..]).into_bytes();
     block
 }
+
+/// One further mandatory early use, first used on the book's *second* chapter
+/// and owned by a chapter after that: symbols, first use, owner, statement.
+///
+/// The fixture's own rows are all first used on chapter one, which is the shape
+/// that hid the disagreement. A manifest is complete from the start, so it may
+/// name a first use on a chapter the prefix being proved has not reached.
+const LATER: (&str, &str, &str, &str) = (
+    "`Refusal`",
+    "02-name-seam.md#worked-refusal",
+    "read-path-k14",
+    "A refusal rejects a foreign name before any mutation is planned.",
+);
+
+/// Two further mandatory early uses sharing an out-of-prefix first-use page,
+/// in canonical order: anchor occurrence in that page, which is the reverse of
+/// their owner order.
+const LATER_PAIR: [(&str, &str, &str, &str); 2] = [
+    (
+        "`Alpha`",
+        "02-name-seam.md#alpha-first",
+        "read-path-k14",
+        "Alpha is named before the read path explains it.",
+    ),
+    (
+        "`Beta`",
+        "02-name-seam.md#beta-second",
+        "reference-domain-k13",
+        "Beta is named before the reference domain explains it.",
+    ),
+];
+
+/// The fixture snapshot with `entries` declared in the manifest *and* present
+/// in the ledger, which is what the specification requires of a mandatory row.
+fn corpus_with_early_uses(final_: bool, entries: &[(&str, &str, &str, &str)]) -> BookSnapshot {
+    let mut snapshot = support::corpus(final_);
+    let declarations: String = entries
+        .iter()
+        .map(|(symbols, first_use, owner, statement)| {
+            format!("[[early-use]]\nsymbols = \"{symbols}\"\nfirst-use = \"{first_use}\"\nowner = \"{owner}\"\nstatement = \"{statement}\"\n\n")
+        })
+        .collect();
+    let text = support::manifest_text().replace("[guide]\n", &format!("{declarations}[guide]\n"));
+    snapshot.manifest = book_validation::Manifest::load(support::BOOK_ROOT, &text)
+        .expect("the extended fixture manifest is schema-valid");
+    let status = if final_ { "explained" } else { "pending" };
+    let rows: String = entries
+        .iter()
+        .map(|(symbols, first_use, owner, statement)| {
+            format!("| {symbols} | `{first_use}` | `{owner}` | {statement} | `{status}` |\n")
+        })
+        .collect();
+    edit_source_index(&mut snapshot, |text| format!("{text}{rows}"));
+    snapshot
+}
+
+/// Give the second chapter the anchors `entries` reserve from it, in the order
+/// they are listed.
+fn add_anchors(snapshot: &mut BookSnapshot, entries: &[(&str, &str, &str, &str)]) {
+    let page = snapshot
+        .book_files
+        .get_mut("docs/walkthroughs/ordinal-fs-tree/02-name-seam.md")
+        .unwrap();
+    for (_, first_use, _, _) in entries {
+        let anchor = first_use.split_once('#').unwrap().1;
+        page.extend_from_slice(format!("<a id=\"{anchor}\"></a>\n## {anchor}\n").as_bytes());
+    }
+}
+
+fn assert_no_f009(report: &book_validation::ValidationReport) {
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code != "F009"),
+        "{:#?}",
+        report.diagnostics
+    );
+}
+
+#[test]
+fn early_use_first_used_beyond_the_prefix_keeps_its_row() {
+    assert_no_f009(&validate_orientation(&corpus_with_early_uses(
+        false,
+        &[LATER],
+    )));
+}
+
+#[test]
+fn early_use_first_used_beyond_the_prefix_is_anchor_checked_at_final() {
+    assert_f009(&validate_final(&corpus_with_early_uses(true, &[LATER])));
+}
+
+#[test]
+fn early_use_first_used_beyond_the_prefix_resolves_once_its_page_exists() {
+    let mut snapshot = corpus_with_early_uses(true, &[LATER]);
+    add_anchors(&mut snapshot, &[LATER]);
+
+    assert_no_f009(&validate_final(&snapshot));
+}
+
+#[test]
+fn early_uses_sharing_an_out_of_prefix_page_are_ordered_only_at_final() {
+    assert_no_f009(&validate_orientation(&corpus_with_early_uses(
+        false,
+        &LATER_PAIR,
+    )));
+
+    let mut snapshot = corpus_with_early_uses(true, &LATER_PAIR);
+    add_anchors(&mut snapshot, &LATER_PAIR);
+
+    assert_no_f009(&validate_final(&snapshot));
+}

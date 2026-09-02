@@ -206,6 +206,18 @@ first-use = "01-orientation.md#the-six-refusals"
 owner     = "no-transactions"
 statement = "The one probe whose answer depends on the working copy, and so the one that lets jj snapshot before answering."
 
+[[early-use]]
+symbols   = "`jj::output`, `jj::produced_output`"
+first-use = "02-the-gate.md#worked-resolution"
+owner     = "nothing-ambient"
+statement = "Every jj invocation the crate makes is built at one seam that fixes the working directory, removes the repository selectors, and separates failure to start from failure to succeed."
+
+[[early-use]]
+symbols   = "`Refusal::not_a_workspace`, `Refusal::unresolvable_path`"
+first-use = "02-the-gate.md#worked-resolution"
+owner     = "no-remedy-of-its-own"
+statement = "Refusal constructors are crate-internal; the gate's refusal names jj's two initialisation commands and states that nothing was created or changed."
+
 [guide]
 path    = "docs/USAGE.md"
 anchors = ["usage-workspace-layouts", "usage-driver-lease", "undoing-a-mistake"]

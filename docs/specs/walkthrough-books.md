@@ -804,6 +804,29 @@ of every manifest-required row, and resolution status. Technical review checks
 that the local statement is present and sufficient; keyword matching is not a
 substitute for that judgment.
 
+### A row's first use may be ahead of the prefix
+
+The manifest is complete from the start (*Authoring workflow and scoped proof*),
+so a mandatory row may name a first use on a chapter the prefix being proved has
+not reached. **Anchor existence is therefore checked at the scope that can see
+it**: when the first-use page is inside the prefix the anchor must exist in it as
+an explicit `<a id="…"></a>` line, and when it is outside the prefix the location
+is checked for structure only — a canonical numbered chapter, an explicit anchor,
+and an owner whose chapter is later than the first-use chapter. `--final` sees every page, so at final
+scope every row's anchor is checked against bytes.
+
+Two consequences. Row order outside the prefix is settled only as far as
+first-use page: anchor occurrence is a fact about a page that does not exist yet,
+so rows sharing an out-of-prefix first-use page are unordered relative to each
+other and are ordered by the rule above from the increment that adds their page
+onward. And the ledger carries the row from the first slice, `pending`, rather
+than the book's brief carrying the obligation alone.
+
+The rejected reading is that `[[early-use]]` carries only rows provable at every
+scope. It is simpler, and it makes the manifest a weaker plan than this
+specification claims for it: a first use two chapters ahead would be an
+obligation nothing mechanical holds the book to until the page arrives.
+
 ## Outbound links: the guide and the glossary
 
 A book is self-contained for its *claims* — every fact needed to understand it is

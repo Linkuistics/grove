@@ -200,30 +200,29 @@ The outcome the book promised is a test a reader applies to an entry point of
 their own: ask what is left for an argument to select, and then ask which of
 three mechanisms holds the answer — a package boundary the compiler enforces, a
 closure property a test asserts, or a convention a test checks. *Proving a
-negative* closed the three with what each holds and where each is proved. What
-that table did not carry is the question that makes a mechanism checkable
-rather than believed: **what in these 204 lines goes red when the entry point
-stops being thin?** The table answers it for each mechanism, and the reader is
-to take from it that all three have an answer, and that the answers are not
-equally strong.
+negative* closed the three with what each holds and where each is proved. The
+table lacked the criterion that makes a mechanism checkable rather than
+believed: **for each mechanism, name the change that breaks it and the compiler
+check or test that then fails.** The table answers it for each mechanism, and
+the reader is to take from it that all three have an answer, and that the
+answers are not equally strong.
 
-| # | Mechanism | The change that breaks it | What goes red | Where that was measured |
+| # | Mechanism | The change that breaks it | What fails | Where that was measured |
 |---:|---|---|---|---|
 | 1 | The entry point reaches only what the library publishes | A `use` of an item the loop did not re-export | The build: `E0603`, before any test runs | This page, *Seven names, one check* |
 | 2 | The human surface has nothing left to select | One field on `Cli` | `the_human_command_surface_has_nothing_left_to_select`, printing the field's id | *Proving a negative*, the worked example |
 | 3 | Everything the surface lists is described | A field with no doc comment, or with an empty one | `the_human_facing_binary_describes_every_option_it_lists`, printing the command path and the id | The same example, all three rows of its last table |
 
-The three answers sit on the scale every chapter has used. A compile error is
-the strongest: it cannot be skipped, and nothing has to be run to see it.
-A failing test is the next, and it has the blind spot *Proving a negative*
+The three answers differ in strength. A compile error is the strongest: it
+cannot be skipped, and nothing has to be run to see it.
+A failing test is the next, and it has the limitation *Proving a negative*
 named — a commit that deletes the test compiles — and one more the map makes
 visible: the test reads the model this crate declares, so a selection that
 arrived by any other route would pass it. There is no such route today, because
 the compiler holds the only edge. Mechanism 3 is the weakest of the three on
 this binary, and the reason is not its check but its subject: while mechanism 2
 holds, the surface lists nothing, and a convention over an empty list is
-vacuous. It goes red the day mechanism 2 is deliberately relaxed, and not
-before.
+vacuous. It can fail only after mechanism 2 is deliberately relaxed.
 
 The test transfers, and the map shows the nearest entry point to take it to.
 `grove-llm` is the other binary in the same workspace, over the same loop, and
@@ -236,28 +235,27 @@ not reimplement is in a different crate either way. Mechanism 1 therefore holds
 at that package's edges to the two libraries it depends on — the loop and, as
 the map shows, the seam — rather than at the binary target; what the compiler
 holds is that the binary and its library together reach only what those two
-publish. It has twelve
-things to select, so no closure property can be asserted; what stands in that
+publish. It has twelve things to select, so no closure property can be asserted;
+what stands in that
 mechanism's place is the flatness *The surface* named —
 `the_grove_llm_verb_surface_is_flat`, asserting that no verb has subcommands of
 its own — and the ten instructed verbs pinned as a complete set in the same
-test file. Mechanism 3 is the twin of this crate's walk, in
+test file. Mechanism 3 uses the same walk as this crate, in
 `crates/grove-llm/tests/help_surfaces.rs`, and *Proving a negative* read why
-the walk exists twice. Three answers, two of them different, is what a
-transferable test produces on a second subject; a test that returned the same
-answer for every binary would be a description of this one.
+the walk exists twice. The two different answers on the second subject show
+that the test transfers rather than merely describing this binary.
 
-Applied to an entry point outside this workspace, the test is three questions,
-in this order.
+Applied to an entry point outside this workspace, the test has three steps, in
+this order.
 
 1. **Name each thing the command line selects, and name the place on disk that
    already holds that fact.** *The surface*'s three-row table is the form. An
    argument with no such place is a selection the binary genuinely owns; one
    with such a place is a second source for one fact.
-2. **For each mechanism, name what goes red.** A compile error, a failing test,
-   a measurement written beside the code, or a reading of it — and *nothing*
-   is an answer, which means the entry point is thin by review.
-3. **Say which mechanism is vacuous today, and what would make it load-bearing.**
+2. **For each mechanism, name the check that fails.** A compile error, a
+   failing test, a measurement written beside the code, or a reading of it —
+   and *nothing* is an answer, which means the entry point is thin by review.
+3. **Say which mechanism is vacuous today, and what would make it non-vacuous.**
    On this binary that is mechanism 3, and the answer is a relaxed mechanism 2.
    An answer of that shape is what keeps a check that currently passes on an
    empty list from being read as a check that has found nothing.
@@ -295,8 +293,8 @@ is the 204 the root brief froze.
 **Evidence.** Ten claims in this book are held by no test in the repository,
 and each chapter said so where it made one — as *measured*, or as a reading.
 What no chapter could do is say how many there are, because each saw only its
-own. This is the second question of the test above turned on the book itself:
-what in it would go red if the binary's behaviour moved? The table lists the
+own. Applied to the book itself, the second part of the test identifies which
+checks would fail if the binary's behaviour changed. The table lists the
 claims; the fourth column is what holds each one instead, and it is the column
 to read down, because the rows are not equally weak.
 
@@ -311,7 +309,7 @@ to read down, because the rows are not equally weak.
 | 7 | A second `grove` in the same tree is refused with *another Grove driver already owns* and exits `1` | [ch. 3](03-three-steps.md#worked-run) | `a_second_driver_refuses_before_tree_access_or_launch` in `crates/grove-loop/tests/driver_lease.rs` spawns a second driver against a held lease and asserts a failed status carrying *existing Grove driver must stop*; the `Error:` prefix and the status `1` are the binary's and are measured |
 | 8 | `$HOME` unset stops at `TemplateSource::from_env` with a message naming the file it could not locate and a login shell | [ch. 3](03-three-steps.md#the-three-steps) | a reading of `crates/grove-loop/src/session_config.rs`; no fixture runs the binary or the loop with `$HOME` removed |
 | 9 | One flag on `Cli` fails both tests with the messages quoted, renders the padded blank row, and reads the same before and after `build()` | [ch. 4](04-proving-a-negative.md#worked-assertion) | measured on a scratch copy outside the repository; by construction no test in the repository can hold it, since the flag does not exist |
-| 10 | The two `undescribed` bodies differ only in two parameter names and one level of indentation | [ch. 4](04-proving-a-negative.md#twice) | a `diff` after dedenting; nothing goes red if the copies diverge |
+| 10 | The two `undescribed` bodies differ only in two parameter names and one level of indentation | [ch. 4](04-proving-a-negative.md#twice) | a `diff` after dedenting; no check detects divergence between the copies |
 
 Rows 6 and 7 rest on a test that holds the substance in another crate and
 leaves the binary's rendering of it to a measurement, which is the shape the
@@ -322,10 +320,10 @@ and 10 rest on measurements no test could take, because each concerns a shape
 the repository does not contain — a `[[bin]]` inside the loop, a `Cli` with a
 field, or two copies that have drifted. Rows 2, 3, 4, 5 and 8 rest on
 measurements a test *could* take and none does, and no leaf in the tree is
-against any of the five, so the honest total is that five claims about this
-binary's observable behaviour are held by a measurement written on the page and
-by nothing that runs. Mechanism 1's row of the table above set the ceiling — a
-check the compiler performs — and every row here falls short of it; saying by
+against any of the five. The result is five claims about this binary's
+observable behaviour held only by measurements written on the page.
+Mechanism 1's row of the table above is the strongest form — a check the
+compiler performs — and every row here falls short of it; saying by
 how much is what the assembly owed a reader who has just been taught to ask.
 
 The [concept index](concept-index.md) and the [source index](source-index.md)
@@ -369,8 +367,9 @@ valid: 3 files, 204 resolved lines, 0 deferred lines, final=true
 check: all 8 principal checks pass
 ```
 
-The umbrella. It runs `book-check --final --check all` over every book root
-under `docs/walkthroughs/` by discovery rather than from a list, which is why
+The second command is the repository-wide gate. It runs
+`book-check --final --check all` over every book root under
+`docs/walkthroughs/` by discovery rather than from a list, which is why
 this book has been inside the gate since *Orientation* created its directory
 and why every drafting session but this one left the script red on
 `book-check` alone. It also runs the repository's own tests, and three of those
@@ -417,11 +416,11 @@ running 4 tests
 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
-The crate's own suite, which is the evidence this book cites and does not
-reproduce. The per-test `ok` lines and the blank lines between blocks are
-elided; one line a fixture's `jj` printed while the loop tests ran is elided
-with them. The two unit tests are the closure and convention tests *Proving a
-negative* read, and they are the only tests inside the corpus; the sixty-seven
+The third command runs the crate's own suite, whose tests supply evidence this
+book cites and does not reproduce. The per-test `ok` lines and the blank lines
+between blocks are elided; one line a fixture's `jj` printed while the loop
+tests ran is elided with them. The two unit tests are the closure and convention
+tests *Proving a negative* read, and they are the only tests inside the corpus; the sixty-seven
 integration tests under `tests/` are outside it by design — *Orientation* read
 the manifest's reason for their being here — and every claim in the four
 chapters that names a test names one that runs in this suite, or in the crate
@@ -430,7 +429,7 @@ the evidence table says it runs in.
 The book is complete: three roots, 204 lines, five chapters, two lookup
 surfaces, zero deferred ranges. What it argued is that one binary is thin and
 that three different mechanisms hold it so, and what it leaves the reader with
-is the question that tells a mechanism from a belief — what goes red — asked of
-the binary, of the other binary beside it, and of the book itself.
+is the criterion that distinguishes a mechanism from a belief — which check
+fails — applied to the binary, the other binary beside it, and the book itself.
 
 [Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md)

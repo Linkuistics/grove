@@ -10,11 +10,11 @@ those facts are now read. What holds them is the question this chapter answers,
 and the answer is a test module: the 84 lines from `#[cfg(test)]` at line 54 to
 the closing brace of `crates/grove/src/cli.rs` at line 137, 41% of the corpus,
 which is the largest block in the book and the one a reader who wanted the
-system rather than the technique will skip. The chapter earns its place through
-the outcome the book promised. Of the three mechanisms that can hold an entry
-point thin, *Orientation* read the one the compiler holds; the other two are a
-property a test asserts and a convention a test checks, and both are asserted
-here, in the file the grammar lives in.
+system rather than the technique can skip. This chapter supplies two of the
+three mechanisms in the book's promised outcome. Of the three mechanisms that
+can hold an entry point thin, *Orientation* read the one the compiler holds;
+the other two are a property a test asserts and a convention a test checks,
+and both are asserted here, in the file the grammar lives in.
 
 The actor on this page is the test module. Its input is the clap model of `Cli`
 — the `Command` value the derive's `command()` factory hands back, not the
@@ -151,15 +151,15 @@ asserting that nothing remains. Those two are the ids clap gives the `--help`
 and `--version` flags it adds to a command it builds — the second only when
 the command has a version to print, which this one does — and *The surface*
 gave the reason for the filter: the flags are the parser's, and the property is
-about what this crate declared. One fact about the filter is worth holding
-exactly, because the doc comment does not state it and a reader would assume
-the opposite. The model `Cli::command()` returns is the *declared* model, and
-clap adds its two flags to a model only when the model is built — which
-`parse` does, and the paths that render help do, and this test never asks for. So at this checkout the filter removes nothing: the unbuilt model of
-an empty struct lists no argument at all, and the assertion holds on an empty
-list. What the filter buys is that the assertion means the same thing whether
+about what this crate declared. The doc comment does not state one difference
+between the declared and built models. The model `Cli::command()` returns is
+the *declared* model, and clap adds its two flags only when that model is built
+— which `parse` and the paths that render help do. This test never asks for a
+built model. At this checkout the filter therefore removes nothing: the
+unbuilt model of an empty struct lists no argument at all, and the assertion holds on an empty
+list. The filter makes the assertion mean the same thing whether
 or not the model has been built before it is inspected; the worked example
-measures both. The message is the thesis of the whole book stated as a panic —
+measures both. The assertion's panic message states the book's central rule —
 *launch policy has one home and it is not the command line* — followed by the
 ids that contradict it. The two closing braces end the test and the module.
 
@@ -191,14 +191,13 @@ has no way to hold what `Cli` declares.
 ## The model, not the text
 
 Both tests read the model and neither reads what `--help` prints, and the
-reason is the same for both. The obvious way to check that every option is
-described is to run the binary with `--help` and scan the output for an option
-row with nothing after it. That scanner has to reproduce clap's rendering: two
+reason is the same for both. A help-output check would run the binary with
+`--help` and scan the output for an option row with nothing after it. That
+scanner has to reproduce clap's rendering: two
 layouts, a short row and the long-help layout that one multi-paragraph
 description switches the whole command into, plus the wrapping of each. A
 parser that reproduces a renderer is more likely to be wrong than the thing it
-checks, and wrong in the direction that manufactures a false clean — an
-option the scanner fails to see is an option the scanner reports as fine.
+checks, and can report a clean result when it fails to recognise an option.
 Walking the `Command` asks the same question where it is a fact rather than a
 rendering: an argument either has a help string or it does not. The closure
 test has the same choice and makes it for the same reason. Scraping the usage
@@ -228,7 +227,7 @@ a second beside the sentence about the discovery; the changelog's entry for
 release `16.3.0` records the description being written, and the two test
 files are the only places the handles appear. The subcommand and the flag are gone
 now, so at this checkout the convention test guards a surface that lists
-nothing and passes with an empty list; its work begins when a flag is added,
+nothing and passes with an empty list; it becomes non-vacuous when a flag is added,
 and the worked example shows it.
 
 <!-- fragment «describes-test-doc» owner="closure-proved" source="crates/grove/src/cli.rs" lines="96-101" parent="surface-closure-tests" -->
@@ -247,7 +246,7 @@ path prefix `grove` and the list to `undescribed`, and asserts the list came
 back empty. The path is a string rather than a `Command` because the walk
 prefixes every finding with the command path it was found under — `grove`, or
 `grove retire` in the shape that failed — so that a finding names a row a
-reader could go and look at. The message says what a non-empty list means on
+reader can locate in generated help. The message says what a non-empty list means on
 the surface a human sees: *these render as blank rows in a generated help
 surface*, then one finding per line, indented. In the worked example this
 is the assertion whose message names the grown flag.
@@ -354,11 +353,11 @@ function, with the same signature and the same two loops, is in
 `crates/grove-llm/tests/help_surfaces.rs`, where it walks the agent binary's
 twelve verbs; the two bodies differ in the names of two closure parameters and
 in one level of indentation, and in nothing else. The doc comments differ, since
-only this copy carries the paragraph read below. The comment says why, and the reason is the first
-mechanism paid for a second time. A clap model is reachable only from the
-package that declares it, and this package is a binary target with no library,
-so the copy over there cannot import this `Cli` and the copy here cannot be
-imported by anything. Two packages, two models, two walks.
+only this copy carries the paragraph read below. The comment explains why the
+first mechanism causes the helper to be duplicated. A clap model is reachable
+only from the package that declares it. This package is a binary target with no
+library, so the copy over there cannot import this `Cli` and the copy here
+cannot be imported by anything. Each package therefore carries its own model walk.
 
 The comment names the two alternatives and what each would have cost, and the
 table holds them beside the choice that was made so the trade can be read as
@@ -366,14 +365,14 @@ one relation rather than three sentences.
 
 | Where the walk could live | What it would cost | Why that cost was refused |
 |---|---|---|
-| A shared test crate, depended on by both binaries' tests | A package whose whole content is this walk and the assertion around it — the comment's *thirty lines* is a round figure; the other copy's walk and its ten-line assertion helper are thirty-one | A crate for one function is a boundary with nothing behind it |
+| A shared test crate, depended on by both binaries' tests | A package whose whole content is this walk and the assertion around it — the comment's *thirty lines* is a round figure; the other copy's walk and its ten-line assertion helper are thirty-one | A separate package for one helper has no additional responsibility |
 | A `[lib]` on this package, so an integration test could reach `Cli` | The package would contain a library of its own, and *the binary is thin* would become a claim about that library's contents as well as `main.rs`'s | That is the property `docs/specs/module-decomposition.md`'s decision 1 made this a crate to keep, and *Orientation* read what it does and does not hold: a package with one binary target and no library has no place inside its own boundary for logic to accumulate |
-| **One copy per package** (chosen) | Twenty-one lines twice, and a fix to one copy that must be made to the other by hand | The duplication is visible and the comment names its twin by path; neither alternative's cost is visible anywhere |
+| **One copy per package** (chosen) | Twenty-one lines twice, and a fix to one copy that must be made to the other by hand | The duplication is visible and the comment names the other copy by path; neither alternative's cost is visible anywhere |
 
-That last cell is the through-line the book carries. *Orientation* read the
-manifest's refusal of a `[lib]` and said it was *why* the closure tests are a
-`mod tests` inside the binary; this comment is the same decision seen from the
-test's side, choosing a duplicated function over the library that would have
+That last cell states the same package-boundary decision from the test's side.
+*Orientation* read the manifest's refusal of a `[lib]` and said it was *why* the
+closure tests are a `mod tests` inside the binary; this comment is the same
+decision seen from the test's side, choosing a duplicated function over the library that would have
 removed the duplication. The decision record the comment cites is evidence for
 the author — the fact the reader needs is on the page, and it is that the
 walk is duplicated because the boundary is real. The fragment is prose and
@@ -427,7 +426,7 @@ The invocation the book carries is `grove` typed bare in
 `/work/atlas/crates/gateway/src/`, and this chapter's example is what guards
 it: the argv can never grow, and the
 tests are what say so. To show them saying it, the grammar is given one flag —
-`--harness`, the very name *The surface* showed refused — and both tests are
+`--harness`, the same name *The surface* showed as refused — and both tests are
 run against it. Everything below was measured by copying the crate to a
 scratch directory outside the repository, editing line 19 there, and running
 `cargo test`; the assertion output is quoted as printed, and the repository's
@@ -538,12 +537,12 @@ message, the exit, and the rendered row — which is what `.trim().is_empty()`
 buys and what a presence check would have missed. The third row is the two
 mechanisms shown independent. A described flag satisfies the convention and
 still violates the property, and the property is the one that matters for the
-outcome: a `--harness` with a good doc comment is exactly as much a second
-home for launch policy as one without. Mechanism 3 checks that what the
-surface lists is described; mechanism 2 checks that it lists nothing. On this
+outcome: a described `--harness` duplicates the configuration file's ownership
+of launch policy just as an undescribed one does. Mechanism 3 checks that what
+the surface lists is described; mechanism 2 checks that it lists nothing. On this
 binary the second makes the first vacuous, and the first is kept anyway,
-because the day the second is deliberately relaxed — a flag someone decides
-`grove` should take — is the day a blank row becomes possible again.
+because deliberately relaxing the second to admit a flag makes a blank row
+possible again.
 
 <a id="three-mechanisms-complete"></a>
 ## Three mechanisms, complete

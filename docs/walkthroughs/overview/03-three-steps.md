@@ -7,9 +7,9 @@
 
 The grammar has been read and it selects nothing, so what `run` does with the
 `Cli` it parses is the whole of the binary's behaviour, and it is the parse,
-four more statements, and a `match`. This chapter owns the forty-seven lines that perform
-them: the thirteen-line entry point, whose module documentation is the
-chapter's argument in miniature, and lines 20 to 53 of `crates/grove/src/cli.rs`,
+four more statements, and a `match`. This chapter owns the forty-seven lines
+that perform them: the thirteen-line entry point, whose module documentation is the
+chapter's condensed argument, and lines 20 to 53 of `crates/grove/src/cli.rs`,
 where the working tree is resolved, the lease is taken, the loop is called, and
 the loop's answer is turned into an exit. The thesis is `main.rs`'s own: each
 step before the call is something the loop cannot do for itself. The loop must
@@ -24,9 +24,8 @@ process is sent while it runs. Its output is a process exit, and the invariant
 it establishes is that the exit says truthfully how the loop ended: every
 ending the loop was designed to reach exits `0`, a refusal by any step exits
 `1` with the refusal printed, and a driver that was killed dies of the signal it
-was sent. That last case is the chapter's centre of gravity. It is the most
-argued claim in the corpus, a reader would not guess it, and it is what the
-`match` at the end of `run` exists for.
+was sent. That last case is the chapter's main concern. It is the most detailed
+claim in the corpus, and it is what the `match` at the end of `run` exists for.
 
 **One premise, stated here and not derived again.** A process that is killed
 by a signal has no exit code. Its parent's wait status records the signal
@@ -67,7 +66,7 @@ exception: the block boundary is fixed at 53, so that blank line closes the last
 fragment here rather than opening the test module.
 
 <a id="the-entry-point"></a>
-## The entry point, and the argument in miniature
+## The entry point, and the condensed argument
 
 `crates/grove/src/main.rs` is thirteen lines and is owned here rather than in
 *Orientation* because seven of them are the module documentation, and that
@@ -162,9 +161,8 @@ passed, and every consumer that takes a `&Workspace` never re-asks. The lease
 asks the resolved workspace for grove's control directory inside its `.jj/`;
 the loop takes the lease's root and the workspace's main repository, and the
 two paths a launch template expands to are therefore the very paths the delta
-configuration was searched at. This is the through-line the book carries: a
-decision in `cli.rs`, resolving once, is what makes a property in the loop
-hold.
+configuration was searched at. This is the cross-file dependency the book
+tracks: resolving once in `cli.rs` makes a property in the loop hold.
 
 <!-- fragment «run-seam-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="20-28" parent="surface-resolve-lease-run" -->
 ````rust
@@ -289,8 +287,8 @@ wait status is to die of the same signal after the cleanup. Whoever started
 — then reads `128 + N` instead of success, and can tell an interrupted grove
 from a finished one.
 
-The alternative the comment rejects is the one every process that catches
-`SIGTERM` is tempted by: clean up, then exit `0`. A driver that did that would
+The alternative the comment rejects is common for a process that catches
+`SIGTERM`: clean up, then exit `0`. A driver that did that would
 tell its own parent that a grove finished, and a unit that restarts on failure
 would not restart it. The cost of the alternative is not visible at the driver;
 it is visible one process up, which is why the comment addresses that process.
@@ -523,7 +521,7 @@ run `grove` from a login shell.
 
 The last paragraph of the documentation is the `# Errors` section, and it names
 the two refusals just shown and then everything else in one clause. That
-clause is honest about where this crate stops: *anything the loop refuses* is
+clause defines where this crate stops: *anything the loop refuses* is
 every error the loop's own documentation lists, and this page names the class
 and explains none of it. The list is not all refusals, and the page labels
 what the comment does not: a configuration that does not load or does not cover

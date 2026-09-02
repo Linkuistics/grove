@@ -117,7 +117,7 @@ fact the reader needs is on the page — one call, nothing before it that choose
 ````
 <!-- /fragment -->
 
-The clause to weigh is *parses no argument that selects anything*. A launcher
+The relevant clause is *parses no argument that selects anything*. A launcher
 ordinarily selects at least two things on its command line: what to run, and
 how to run it. Here both were moved out of the binary before the binary was
 written. What to run is read from the
@@ -173,8 +173,8 @@ naming the shape it holds for; both are reproduced as written.
 ````
 <!-- /fragment -->
 
-The third comment is the consequence the second one forces, and it is the
-through-line to *Proving a negative*. A package with a `[lib]` beside its
+The third comment is the consequence the second one forces, and it connects the
+package boundary to *Proving a negative*. A package with a `[lib]` beside its
 `[[bin]]` can be imported by an integration test under `tests/`, so a test that
 inspects the clap model could live there. This package has no `[lib]`: it is one
 binary target, `cli.rs` is a module of that target, and a clap model declared
@@ -214,8 +214,8 @@ arrives as a `grove-loop` re-export, and it takes nothing from the third. The ty
 seam's own type, published through the loop's root; *Three steps* reads that
 line.
 
-One number in the comment does not survive a count. *The reason it is three
-functions long* — outside the test module the crate defines two functions,
+One number in the comment is inconsistent with the source. *The reason it is
+three functions long* — outside the test module the crate defines two functions,
 `main` and `run`; counting the test helper `undescribed` makes three, and
 counting the two tests makes five. No reading a reader will take first yields
 three, and the page states the structural fact instead: two production

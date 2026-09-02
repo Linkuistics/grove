@@ -74,7 +74,9 @@ remove a branch on what happened *during* the session, which no driver can
 resolve; withholding one of those yields an unasked question rather than a
 saving.
 
-**Guaranteed core** / **the too-late test**:
+<a id="guaranteed-core"></a>
+### Guaranteed core / the too-late test
+
 The whole of a session's `${prompt}`: a forceful instruction to load this kind's
 [[Kind skill]], named in both the bare and the plugin-namespaced spelling of that
 one target; the runtime facts the driver resolved (the selected [[Work-item
@@ -762,6 +764,7 @@ _Avoid_: "a planning task writes the spec" — pre-taxonomy, from when `planning
 covered grilling and design both. `design` is the producer whose deliverable is a
 spec, an ADR set, or both; `planning` consumes it and cuts the leaves.
 
+<a id="task-tree-scheme"></a>
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 
 **Node directory** / **node**:

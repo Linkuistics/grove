@@ -1,0 +1,155 @@
+schema = 1
+
+[book]
+id      = "overview"
+title   = "System overview"
+subject = "crates/grove"
+
+# The bare rule, with no exceptions at all: the crate's own manifest and every
+# Rust file under `src/`. `cli.rs` ends in a `#[cfg(test)] mod tests`, and that
+# module is inside a root and is reconstructed — the `inline-test-module`
+# exclusion class applies to a whole file named `tests.rs`, which this is not —
+# so this book carries no `[[corpus.add]]` and no `[[corpus.exclude]]`, and the
+# normative inventory in `docs/specs/walkthrough-books.md` records that
+# emptiness by giving the book no row.
+[corpus]
+include = [
+  "crates/grove/Cargo.toml",
+  "crates/grove/src/**/*.rs",
+]
+
+[[page]]
+file  = "README.md"
+id    = "contents"
+title = "System overview"
+role  = "contents"
+
+[[page]]
+file  = "01-orientation.md"
+id    = "orientation"
+title = "Orientation"
+role  = "chapter"
+slice = "compiler-held"
+
+[[page]]
+file  = "02-the-surface.md"
+id    = "the-surface"
+title = "The surface"
+role  = "chapter"
+slice = "no-arguments"
+
+[[page]]
+file  = "03-three-steps.md"
+id    = "three-steps"
+title = "Three steps"
+role  = "chapter"
+slice = "one-call"
+
+[[page]]
+file  = "04-proving-a-negative.md"
+id    = "proving-a-negative"
+title = "Proving a negative"
+role  = "chapter"
+slice = "closure-proved"
+
+[[page]]
+file  = "05-what-the-call-reaches.md"
+id    = "what-the-call-reaches"
+title = "What the call reaches"
+role  = "chapter"
+slice = "assembly"
+
+[[page]]
+file  = "concept-index.md"
+id    = "concept-index"
+title = "Concept index"
+role  = "lookup"
+
+[[page]]
+file  = "source-index.md"
+id    = "source-index"
+title = "Source index"
+role  = "lookup"
+
+[[root]]
+id    = "source-crate-manifest"
+path  = "crates/grove/Cargo.toml"
+lines = 54
+
+[[root]]
+id    = "source-entry-point"
+path  = "crates/grove/src/main.rs"
+lines = 13
+
+[[root]]
+id    = "source-command-surface"
+path  = "crates/grove/src/cli.rs"
+lines = 137
+
+[[block]]
+id    = "manifest-thin-by-construction"
+root  = "source-crate-manifest"
+owner = "compiler-held"
+lines = "1-54"
+
+[[block]]
+id    = "entry-point-three-steps"
+root  = "source-entry-point"
+owner = "one-call"
+lines = "1-13"
+
+[[block]]
+id    = "surface-grammar"
+root  = "source-command-surface"
+owner = "no-arguments"
+lines = "1-19"
+
+[[block]]
+id    = "surface-resolve-lease-run"
+root  = "source-command-surface"
+owner = "one-call"
+lines = "20-53"
+
+[[block]]
+id    = "surface-closure-tests"
+root  = "source-command-surface"
+owner = "closure-proved"
+lines = "54-137"
+
+[[early-use]]
+symbols   = "`grove_loop::run`"
+first-use = "01-orientation.md#the-binary"
+owner     = "one-call"
+statement = "The loop's single entry point; everything the binary does after its three steps is behind this call."
+
+[[early-use]]
+symbols   = "`DriverLease`"
+first-use = "02-the-surface.md#the-imports"
+owner     = "one-call"
+statement = "The one-driver-per-working-tree claim, taken for the life of the process."
+
+[[early-use]]
+symbols   = "`LoopOutcome`"
+first-use = "02-the-surface.md#the-imports"
+owner     = "one-call"
+statement = "Why the loop stopped — the value that decides whether this process exits 0 or dies of a signal."
+
+[[early-use]]
+symbols   = "`TemplateSource`"
+first-use = "02-the-surface.md#the-imports"
+owner     = "one-call"
+statement = "Where launch policy is read from; the loop re-reads it once per iteration."
+
+[[early-use]]
+symbols   = "`Workspace`"
+first-use = "02-the-surface.md#the-imports"
+owner     = "one-call"
+statement = "A resolved jj working tree, produced once here and handed to both the lease and the loop."
+
+[guide]
+path    = "docs/USAGE.md"
+anchors = ["usage-running-grove", "usage-tree-verbs", "usage-driver-lease", "usage-session-lifecycle"]
+
+[[glossary]]
+path    = "CONTEXT.md"
+anchors = ["driver-lease", "stated-vcs", "loop-control-channel", "guaranteed-core", "task-tree-scheme"]

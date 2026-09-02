@@ -173,3 +173,48 @@ and 426 are its own measurement, and the overview's *97 comment lines* was
 wrong by five; a count is a claim the source does not carry and the page
 reproduces no figure it cannot make the reader check in one command. The page
 says *most of the file is comment* and points at the header instead.
+
+**9 · Chapter 2 adjudicates the `0.1.0` comment as a stale fact with a live
+reason, and names no leaf on the page.** `Cargo.toml` line 3 inherits the
+workspace version, so a bare `version` attribute would also answer `20.1.0`
+today; the comment describes the crate as created at `loop-crate-verbs-k21`.
+The page states the manifest fact beside the fragment and cites
+`the_two_binaries_report_one_version`; the rewrite stays with
+`grove-llm-version-comment-k83`.
+
+**10 · The wrong working tree has two endings, and chapter 2 shows both.**
+Under the driver's channel a session one working tree off is refused at
+admission — *wrong working tree for grove-llm resolve* — before any handler
+runs; without the channel it is a manual command and reaches `absent`'s
+*grove root not found … Scaffold one with `grove-llm root-init`*. Both were
+measured against the built binary, the first under a live `grove` driver.
+Later chapters that show a refusal from an opening should say which of the
+two environments the trace assumes.
+
+**11 · `worktree`'s comment holds for calls and not for text, and the page
+says so.** The module joins `.grove` three times for display — `readable`'s
+refusal (chapter 2), `resolve`'s root answer (chapter 3) and `root-init`'s
+already-exists refusal (chapter 4) — and passes the working-tree root to every
+loop call. Chapters 3 and 4 should state their spelling as display rather
+than as a second source of the root. Under a driver the working tree is also
+resolved twice per verb, by admission and by `worktree`, from the same
+directory; the refusal's *command resolved* clause reports the first.
+
+**12 · Every measurement of the binary's streams so far agrees with clap's
+documented behaviour, and two are worth reusing.** A bare `grove-llm` prints
+the short help on stderr with exit `2`; `--help` prints the long form on
+stdout with exit `0`. Chapter 7's stream table can take those rows from
+chapter 2 rather than re-measuring.
+
+**13 · `readable`'s comment gives the driver's scaffold as the reason the
+loop answers vacancy on the read side, and that reason was checked against
+the driver.** The driver scaffolds through the exclusive opening's vacancy
+(`task_tree::write_or_vacancy`), and its one `read` call treats *vacant* as
+nothing to pick; the read-side value is the library's shape. Chapter 2 states
+that beside the fragment; chapter 4, which reads `root-init` taking the same
+vacancy, should not repeat the read-side gloss as the mechanism.
+
+**14 · The structure brief's section 2 says clap answers `--version`
+*before `run` is entered*; the source has `Cli::parse()` as `run`'s first
+statement.** The page states the position, not the brief's phrase. A copy of
+the brief's wording is a defect in the brief, not the book, and is left there.

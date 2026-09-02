@@ -71,7 +71,7 @@ source.
 ## Contents
 
 1. [Orientation](01-orientation.md)
-2. The grammar and the openings
+2. [The grammar and the openings](02-the-grammar.md)
 3. Reading the tree
 4. Growing the tree
 5. Ending work

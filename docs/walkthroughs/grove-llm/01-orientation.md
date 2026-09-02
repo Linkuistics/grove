@@ -1,6 +1,6 @@
 # Orientation
 <!-- book-page id="orientation" slice="one-call-plus-rendering" order="1" -->
-[Contents](README.md)
+[Contents](README.md) | [Next: The grammar and the openings](02-the-grammar.md)
 
 <a id="one-call-plus-rendering"></a>
 ## One call plus rendering
@@ -626,4 +626,4 @@ header that states thin as the compiler's fact and names what is left. The
 three orders are stated on three later pages, and the grammar every verb
 passes through before it reaches any of them is read next.
 
-[Contents](README.md)
+[Contents](README.md) | [Next: The grammar and the openings](02-the-grammar.md)

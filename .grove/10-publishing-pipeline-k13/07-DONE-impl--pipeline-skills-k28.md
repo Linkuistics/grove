@@ -405,3 +405,87 @@ in the same loop to behave differently.
 the evidence supports and no more. A stage's skill that grows an extra
 responsibility because it reads thin has re-created a merged stage under another
 name, which is the outcome the whole pilot was ordered to prevent.
+
+## Decisions (running log)
+
+1. **`static(19)` became `static(23)`, and the runner's case arms moved with
+   it.** The token is a label the runner maps to *all shipped kinds*, not a
+   computation, so leaving it would have parked a stale count inside the
+   instrument that exists to catch stale counts. `static(18)` — *all but
+   `finish`*, unused by any row and kept for the deleted spec's sake — became
+   `static(22)` for the same reason. The comment paragraph comparing this
+   file's predicate to that spec's was deleted rather than renumbered: the spec
+   went with `content/`, and the comparison had no second side left.
+
+2. **The pinned wording of `kind-set-belongs-to-the-methodology` was made
+   count-free.** It read *a twentieth is authored, not compiled* and would have
+   had to move to *a twenty-fourth*; it now reads *the next one is authored, not
+   compiled*, which is the structural fact and never moves again. This is
+   `execute.md`'s no-self-invalidating-count rule applied to a rule's own
+   canonical phrase.
+
+3. **`editorial.md` is listed in the spine's `SKILL.md` beside the other three
+   family files.** The alternative — leaving it off so its only incoming edge
+   was the four opening imperatives — was tried and rejected on reading the
+   existing bytes: `review.md`, `integrate-review.md` and `research.md` are
+   *already* named there, so every family file is on every kind's composed
+   loaded path today, and omitting the fourth would have made the spine's own
+   family list wrong without buying the property. `CONTEXT.md`'s
+   *Family reference file* entry now states that directly, because a first draft
+   of it claimed the exclusivity that does not hold.
+
+4. **`TASK-FORMAT.md` names no path for the family file.** Naming
+   `grove/references/editorial.md` there would have added a *second* incoming
+   edge from a file every kind reads — harmless to the assertions, but it makes
+   the taxonomy's home a router. The sentence states the relationship instead.
+
+5. **`docs/ARCHITECTURE.md` gained a second table rather than four more rows.**
+   The producer table's columns are *Review* and *Integration*; four rows of
+   `— | —` inside it read as *not yet authored*. A separate *Editorial stage*
+   table with a stated legend says the dash positively, which is the structural
+   defect `pipeline-kinds-k72` named.
+
+6. **`plugins/grove/README.md`'s fat/thin split gained a third category.** The
+   four stages are neither: each directs a load of its family's file *and*
+   carries its own charter inline. Recorded as a hybrid rather than forced into
+   one of the two existing counts.
+
+7. **Every `nineteen` and every `combine-research` occurrence in the repository
+   was enumerated and classified**, rather than a file list swept. Historical
+   narration stays: `CHANGELOG.md`, `docs/preservation-baseline.md` (a frozen
+   v19.3.0 measurement), the deleted-enum comments in `task_name.rs`, `leaf.rs`,
+   `kind.rs`, `cli.rs` and the three ADRs that narrate what the binary used to
+   hold, and `plugins/CONTEXT.md`/`plugins/README.md`'s past-tense *twenty
+   skills declared `[claude-code]`*. Current-state statements were rewritten,
+   and where the count was incidental (`prompt.rs`'s *nineteen kinds, one
+   ending*, `grove/README.md`'s *links all twenty*) it was replaced by the
+   quantifier rather than by a bigger number.
+
+8. **Both conformance controls were watched to fail before the clean read was
+   credited.** Mutating `editorial.md`'s pinned *a producer, not a reviewer*
+   failed `editorial-stage-is-a-producer`; removing `grove-art`'s named load of
+   the family file failed thirteen rows. A runner that had only ever read clean
+   over the new rows would have been indistinguishable from one that never
+   reached them.
+
+9. **The four kinds are the extracted set and no more.** No stage's skill grew a
+   responsibility to fill a thin page; `draft` carries the two folded charters
+   explicitly because the pilot folded them, not because it had room.
+
+10. **The launch templates were handed over as a choice, and the human took the
+    cross-vendor split.** `draft` and `art` run on `claude/opus` (they write and
+    draw); `copy-edit` and `proof` run on `codex/sol-high` — the two
+    whole-document reads get a reader that did not write the draft, which is the
+    same argument the existing `review-*` keys already make. The block was
+    appended to `~/.config/grove/config.kdl` — the human's own file, outside
+    anything this leaf commits — beside a header comment whose *Nineteen session
+    kinds* had gone stale for the same reason every other count here did.
+
+11. **The gate was closed by observation, not by assertion.** In a scratch jj
+    repo, the installed `grove-llm leaf-add . book --kind draft --kind copy-edit
+    --kind art --kind proof` wrote all four leaves, and the same verb with an
+    undeclared kind was refused with *key … does not resolve: no template for
+    it* — the exact refusal that would otherwise have stopped the first
+    `crate-books-k14` session with no human present. The negative control firing
+    is what makes the positive read evidence rather than a green that any
+    configuration would have produced.

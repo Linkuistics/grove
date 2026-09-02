@@ -36,7 +36,7 @@
 # Two rows in the manifest are owned by `${prompt}` — the driver inlines their
 # bytes into the launch prompt and no skill carries them. They are reported and
 # asserted nowhere; a runner over a skill set cannot read a prompt, and saying so
-# is better than a check that quietly covers eighteen kinds and not the rule.
+# is better than a check that quietly covers every kind but one and not the rule.
 #
 # Usage: ./plugins/grove/conformance.sh [--verbose] [--skills <dir>] [--rules <file>]
 #
@@ -94,7 +94,7 @@ while (($#)); do
 done
 
 # A memo directory. The closure of a kind's loaded path and the normalised form
-# of a skill file are both read many times per run — nineteen kinds against a
+# of a skill file are both read many times per run — twenty-three kinds against a
 # 146-row manifest — and recomputing them turns a second into minutes. Cached in
 # files rather than an associative array, because macOS ships bash 3.2.
 cache_dir="$(mktemp -d "${TMPDIR:-/tmp}/grove-conformance-cache.XXXXXX")"
@@ -306,7 +306,7 @@ check_references() {
 # kind's own skill and one reached in the spine are the same rule to a session.
 
 # print_loaded_path <kind>: the closure, one skill-relative path per line.
-# Memoised: every behavioural row asks for the same nineteen closures.
+# Memoised: every behavioural row asks for the same twenty-three closures.
 print_loaded_path() {
   local key="${cache_dir}/path.$1"
   [[ -f "${key}" ]] || print_loaded_path_uncached "$1" >"${key}"
@@ -409,12 +409,15 @@ print_bound_kinds() {
     set="${load#static(}"
     set="${set%)}"
     case "${set}" in
-      19) printf '%s\n' ${shipped_kinds[@]+"${shipped_kinds[@]}"} ;;
-      18) for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
+      23) printf '%s\n' ${shipped_kinds[@]+"${shipped_kinds[@]}"} ;;
+      22) for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
         [[ "${kind}" == "finish" ]] || printf '%s\n' "${kind}"
       done ;;
       research) for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
         case "${kind}" in research-a | research-b) printf '%s\n' "${kind}" ;; esac
+      done ;;
+      editorial) for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
+        case "${kind}" in draft | copy-edit | art | proof) printf '%s\n' "${kind}" ;; esac
       done ;;
       review-\*) for kind in ${shipped_kinds[@]+"${shipped_kinds[@]}"}; do
         case "${kind}" in integrate-review-*) ;; review-*) printf '%s\n' "${kind}" ;; esac

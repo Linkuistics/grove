@@ -360,7 +360,7 @@ pub fn fixture_home() -> &'static Path {
     home.path()
 }
 
-/// The nineteen kinds this repository's own methodology ships, enumerated
+/// The kinds this repository's own methodology ships, enumerated
 /// **here** rather than in the binary: grove no longer holds a set of kinds to
 /// validate a configuration against, so a fixture that wants a template for
 /// every kind a test might write has to say which those are.
@@ -383,6 +383,10 @@ pub const EVERY_SESSION_KIND: &[&str] = &[
     "research-a",
     "research-b",
     "combine-research",
+    "draft",
+    "copy-edit",
+    "art",
+    "proof",
     "finish",
 ];
 

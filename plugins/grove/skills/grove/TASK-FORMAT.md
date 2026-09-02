@@ -44,21 +44,22 @@ than degrading to `impl`. No kind label plus `-` prefixes another, so a name
 always separates unambiguously and round-trips without touching the slug. Foreign
 non-task files in the tree stay ignored.
 
-## The nineteen kinds
+## The twenty-three kinds
 
-The set is **parameterised, not flat**: five producers, each with its own
-`review-` and `integrate-review-` step, plus a research pair and one
-driver-owned step.
+The set is **partly parameterised, and no longer uniform**: five producers, each
+with its own `review-` and `integrate-review-` step; a research pair unioned by
+one combine step; a four-stage editorial pipeline whose stages take neither; and
+one driver-owned step.
 
 **It is this methodology's set, not grove's.** Grove holds no list of kinds and
 no count of them: a kind is any well-formed token — lowercase ASCII letters,
 digits and single dashes, no `--` — and the kinds that exist are the
 `grove-<kind>` skills installed. A kind exists **iff** a skill of that name
-exists, and a twentieth is authored, not compiled. Grove spells exactly two
+exists, and the next one is authored, not compiled. Grove spells exactly two
 tokens itself, at the two places it writes a leaf with no session to delegate to:
 `requirements` for root scaffolding and `finish` for the teardown sentinel.
 
-| kind | review | integrate |
+| kind(s) | its review step | its integration step |
 |---|---|---|
 | `requirements` | `review-requirements` | `integrate-review-requirements` |
 | `design` | `review-design` | `integrate-review-design` |
@@ -66,19 +67,35 @@ tokens itself, at the two places it writes a leaf with no session to delegate to
 | `prototype` | `review-prototype` | `integrate-review-prototype` |
 | `impl` | `review-impl` | `integrate-review-impl` |
 | `research-a` + `research-b` | — | `combine-research` |
+| `draft` → `copy-edit` → `art` → `proof` | — | — |
 | `finish` — driver-reserved | — | — |
 
-Five producer rows of three, the research row's three, and one driver-owned step:
-**nineteen**. Each kind's own file under `references/` carries the discipline it
-runs under, and its HITL/AFK mark is on the skill page.
+**A `—` says the kind takes no step of that species at all** — not that one is
+still to be authored, and not that review is skipped by convention. Reading it
+the other way is what a two-column-plus-producer table invited, and it is why the
+column headings are possessive: the cell answers *what is this kind's review
+step*, and for three of these rows the answer is that it has none.
+
+Five producer rows of three, the research row's three, the editorial row's four,
+and one driver-owned step: **twenty-three**. Each kind's own `grove-<kind>` skill
+carries the discipline it runs under, inline or by directing a load of its
+family's file in the spine, and its HITL/AFK mark is on that page.
 
 The research row holds **two** kinds rather than one kind run twice: `research-a`
 and `research-b` share a discipline but are separate configuration keys, which is
 what makes "two independent corpora" a fact in the tree instead of a forecast
-about routing policy. `finish` is the driver's own complete-finish-cycle
-sentinel: the grow verbs refuse to create one, retire, prune and decompose refuse
-it as an operand, and `leaf-insert` may target it only to put ordinary work
-*before* teardown.
+about routing policy.
+
+The editorial row holds **four**, and its arrow is pipeline order rather than a
+chain of reviews. Each stage is a producer that reads the whole document and
+*fixes* within its own charter, so the stage after it is not a review of it and
+takes no `review-`/`integrate-review-` pair; the stages are also mandatory rather
+than lazy, because which of them exist was measured. The four share one family
+file in the spine, which each of their skills directs a load of by name.
+
+`finish` is the driver's own complete-finish-cycle sentinel: the grow verbs
+refuse to create one, retire, prune and decompose refuse it as an operand, and
+`leaf-insert` may target it only to put ordinary work *before* teardown.
 
 ## Suggested shape
 

@@ -75,7 +75,7 @@ const TASK_FORMAT: &str = include_str!("../../../plugins/grove/skills/grove/TASK
 // no count of them, and `shipped_markdown()` reaches it for every claim that is
 // about the corpus as a whole rather than about the taxonomy's home.
 /// The Execute step's procedure. `SKILL.md` states the *condition* — the kind is
-/// in the filename, from a closed set of nineteen — and the enumeration of the
+/// in the filename, from the set the plugin ships — and the enumeration of the
 /// kinds a summarising surface must spell out rather than derive lives in the
 /// file that condition routes to.
 const EXECUTE_REFERENCE: &str =
@@ -219,7 +219,7 @@ fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
     // three that replaced one `research` kind plus one `**Harness:**` line, and
     // the driver-reserved one no session may create. The producers and their two
     // step families are stated generatively in prose ("each with its own
-    // `review-` and `integrate-review-` step"), so requiring all nineteen of a
+    // `review-` and `integrate-review-` step"), so requiring every kind of a
     // summary would demand a table it deliberately does not carry.
     for (surface, text, expected) in [
         (

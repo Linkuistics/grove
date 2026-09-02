@@ -4,7 +4,7 @@
 # which was the design this file began as an assertion over. **That spec went
 # with `content/` at `delete-provisioning-k19`**, so this file is no longer a
 # copy of an inventory — it is the inventory, and a row changes here alone.
-# One row per rule a session could violate; 146 rows.
+# One row per rule a session could violate; 169 rows.
 #
 # Five tab-separated columns:
 #
@@ -22,7 +22,7 @@
 #
 #           `${prompt}` is the owner of a rule the **driver** delivers, stated in
 #           the launch prompt rather than carried by any skill. One row has it,
-#           `signal-is-the-last-action`, and it binds all nineteen kinds:
+#           `signal-is-the-last-action`, and it binds every kind:
 #           `prompt-names-the-kind-k18` replaced the two inlined signal files
 #           with one driver-authored signalling contract, so the mechanism is
 #           stated once for every kind and `finish-three-endings` — the ending
@@ -31,13 +31,6 @@
 #           reach a prompt, so that row is reported as prompt-delivered and
 #           asserted nowhere; calling it *pending* would promise a later leaf
 #           that ships it, and no leaf will.
-#
-#           **Its `load` reads `static(19)` here and `static(18)` in the spec, and
-#           that is a difference of subject rather than drift.** The spec tabulates
-#           that row under `content/SIGNAL.md`, which is the corpus file eighteen
-#           kinds read; this file tabulates it under `${prompt}`, which every kind
-#           receives. Both are true of what they describe, and both die together
-#           at `delete-provisioning-k19` when the corpus does.
 #   class   the inventory's test column: B (behavioural), S (structural), B+S.
 #           `B*` is `B★` and `B (k5)` is the row landed by a later leaf; both
 #           are behavioural.
@@ -72,15 +65,15 @@ context-map-when-multiple	grove/CONTEXT-FORMAT.md	B	on(the repo has a context ma
 glossary-is-only-a-glossary	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
 glossary-is-the-forcing-function	grove/CONTEXT-FORMAT.md	B+S	on(a term is resolved) @ grove/SKILL.md	Never batch a session's terms for the end
 terms-are-context-specific	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
-signal-is-the-last-action	${prompt}	B*	static(19)	
-bootstrap-order	grove/SKILL.md	B	static(19)	
-hitl-afk-mark-predicts	grove/SKILL.md	B	static(19)	
-kind-routing-table	grove/SKILL.md	B	static(19)	
-mandate-is-authoritative	grove/SKILL.md	B*	static(19)	
-no-second-pick	grove/SKILL.md	B*	static(19)	
-one-task-is-one-session	grove/SKILL.md	B+S	static(19)	
-spine-seven-constraints	grove/SKILL.md	B+S	static(19)	
-stated-vcs-is-definitive	grove/SKILL.md	B*	static(19)	
+signal-is-the-last-action	${prompt}	B*	static(23)	
+bootstrap-order	grove/SKILL.md	B	static(23)	
+hitl-afk-mark-predicts	grove/SKILL.md	B	static(23)	
+kind-routing-table	grove/SKILL.md	B	static(23)	
+mandate-is-authoritative	grove/SKILL.md	B*	static(23)	
+no-second-pick	grove/SKILL.md	B*	static(23)	
+one-task-is-one-session	grove/SKILL.md	B+S	static(23)	
+spine-seven-constraints	grove/SKILL.md	B+S	static(23)	
+stated-vcs-is-definitive	grove/SKILL.md	B*	static(23)	
 spec-at-an-agreement-point	grove/SPEC-FORMAT.md	B	on(the increment may be an agreement point) @ grove/SKILL.md	
 spec-grain-rule	grove/SPEC-FORMAT.md	B+S	on(writing a spec) @ grove/SPEC-FORMAT.md	
 spec-is-behavioural-not-procedural	grove/SPEC-FORMAT.md	B	on(writing a spec) @ grove/SPEC-FORMAT.md	
@@ -92,12 +85,15 @@ body-carries-no-launch-metadata	grove/TASK-FORMAT.md	B	on(writing a task body) @
 convention-not-grammar	grove/TASK-FORMAT.md	B+S	on(cutting a step) @ grove/references/decompose.md	What is convention rather than grammar
 handle-is-slug-key	grove/TASK-FORMAT.md	B	on(naming a work item) @ grove/references/decompose.md	
 header-is-position-free	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	
-kind-set-belongs-to-the-methodology	grove/TASK-FORMAT.md	B	on(cutting a leaf) @ grove/references/decompose.md	a twentieth is authored, not compiled
+kind-set-belongs-to-the-methodology	grove/TASK-FORMAT.md	B	on(cutting a leaf) @ grove/references/decompose.md	the next one is authored, not compiled
 leaf-name-grammar	grove/TASK-FORMAT.md	B+S	on(cutting or reading a leaf) @ grove/references/decompose.md	Five fields, all parsed
 suggested-body-shape	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	A sixth section appears when a session is keeping one
 grilling-procedure	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	
 no-writes-before-shared-understanding	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	
 probe-with-concrete-scenarios	grove-requirements/grilling.md	B	on(the grilling threshold is met) @ grove-requirements/SKILL.md	stress-test them with specific scenarios
+art-works-in-the-contracts-medium	grove-art/SKILL.md	B	static({art})	Do not introduce a medium the contract does not name
+figure-carries-the-relation-and-states-its-role	grove-art/SKILL.md	B	static({art})	Every figure states its role
+declined-figure-names-one-of-three-reasons	grove-art/SKILL.md	B	static({art})	a contract's medium is reopened by that record and by nothing else
 brief-chain-tolerates-gaps	grove/references/bootstrap.md	B	on(reading the brief chain) @ grove/references/bootstrap.md	A level with no brief is skipped silently
 stale-launch-stops	grove/references/bootstrap.md	B*	on(the handle does not resolve to a live leaf) @ grove/SKILL.md	is a stale or hand-edited launch — not work to redo
 agreement-without-independent-primary-sourcing-is-a-red-flag	grove-combine-research/SKILL.md	B+S	static({combine-research})	
@@ -106,6 +102,8 @@ jj-seal	grove/references/commit.md	B	on(the stated VCS is jj) @ grove/references
 name-by-handle	grove/references/commit.md	B	on(the leaf is retired) @ grove/SKILL.md	Name each node the cascade closed the same way
 no-kind-prefix-in-commit-subject	grove/references/commit.md	B	on(writing the commit subject) @ grove/references/commit.md	Do not compensate for the bare stem with a subject convention
 one-focused-commit	grove/references/commit.md	B*	on(the leaf is retired) @ grove/SKILL.md	One task is **one focused commit**
+copy-edit-does-not-restructure	grove-copy-edit/SKILL.md	B	static({copy-edit})	a structural finding is sent back as a `draft` re-run leaf, never fixed here
+copy-edit-operative-tests	grove-copy-edit/SKILL.md	B	static({copy-edit})	A figure of speech replaced by the mechanism it stood for
 bigger-than-brief-decomposes	grove/references/decompose.md	B*	on(the leaf is bigger than its brief) @ grove/SKILL.md	doing **only the first child** this session
 chain-is-lazy	grove/references/decompose.md	B	on(an artifact may need review) @ grove/references/decompose.md	only if it has findings worth acting on
 creating-session-writes-the-body	grove/references/decompose.md	B	on(cutting a step) @ grove/references/decompose.md	The creating session writes the new leaf's body
@@ -128,6 +126,9 @@ vertical-slice	grove/references/decompose.md	B	on(cutting children) @ grove/refe
 wide-refactor-expand-contract	grove/references/decompose.md	B	on(cutting children) @ grove/references/decompose.md	Sequence it **expand → migrate → contract** instead, one leaf per stage
 design-deliverable	grove-design/SKILL.md	B	static({design})	
 design-does-not-cut-impl-leaves	grove-design/SKILL.md	B	static({design})	
+draft-requires-a-structure-brief	grove-draft/SKILL.md	B+S	static({draft})	If this document has no structure brief, stop and say so
+structure-brief-is-three-citable-things	grove-draft/SKILL.md	B	static({draft})	The existence of a `BRIEF.md` is not the test
+draft-owns-structure-and-technical-truth	grove-draft/SKILL.md	B	static({draft})	every claim about the subject is checked against the subject
 config-edit-lands-next-session	grove/references/driver.md	B	on(the configuration is wrong or edited) @ grove/references/driver.md	
 migration-is-the-drivers	grove/references/driver.md	B	on(the tree looks legacy) @ grove/references/driver.md	Neither conversion is yours to perform by hand
 one-configuration	grove/references/driver.md	S	on(how this session was launched matters) @ grove/SKILL.md	**Nothing else routes a session**
@@ -135,6 +136,17 @@ pick-walk-order	grove/references/driver.md	B	on(how this session was launched ma
 restart-equals-continuation	grove/references/driver.md	B	on(resuming) @ grove/references/driver.md	**restart ≡ continuation**
 scaffold-is-the-drivers	grove/references/driver.md	B	on(the tree was just created) @ grove/references/driver.md	a session **never scaffolds the tree itself**
 session-name-suggested-once	grove/references/driver.md	B	on(the session name does not match) @ grove/references/driver.md	suggest `/rename
+editorial-stage-is-a-producer	grove/references/editorial.md	B	static(editorial)	a **producer, not a reviewer**
+whole-document-one-charter	grove/references/editorial.md	B	static(editorial)	changes only what its own charter owns
+charter-overflow-is-passed-not-absorbed	grove/references/editorial.md	B	static(editorial)	recorded and passed on, **never absorbed**
+editorial-chain-is-lazy-and-mandatory	grove/references/editorial.md	B	static(editorial)	unless a live later sibling under this node already holds that stage
+no-stage-is-skipped-on-judgement	grove/references/editorial.md	B+S	static(editorial)	Do not skip a stage because you judge it will find nothing
+stage-leaf-carries-the-documents-stem	grove/references/editorial.md	B	static(editorial)	carries the document's bare stem as its whole slug
+handed-forward-list-is-in-the-node-brief	grove/references/editorial.md	B	static(editorial)	under a running `## Handed forward` list naming the owning stage
+send-back-is-a-contiguous-run	grove/references/editorial.md	B+S	static(editorial)	a **contiguous run** that begins at the owning stage and ends at `proof`
+second-re-run-is-an-escalation	grove/references/editorial.md	B	static(editorial)	A second re-run of one stage against one document is an escalation, not a third leaf
+stage-review-allowance-is-the-producers	grove/references/editorial.md	B	static(editorial)	The next stage is not that review
+stage-leaves-it-green	grove/references/editorial.md	B	static(editorial)	passing whatever gate the repository runs over it
 check-the-rescued-clause	grove/references/execute.md	B	on(deleting prose) @ grove/references/execute.md	A clause rescued by its neighbour is not correct
 control-must-be-seen-to-fail	grove/references/execute.md	B+S	on(making a repo-wide claim) @ grove/references/execute.md	A control that has never been seen to fail is not a control
 decisions-land-as-they-settle	grove/references/execute.md	B	on(a decision settles) @ grove/SKILL.md	Never reconstruct a session's decisions at the end of it
@@ -173,6 +185,10 @@ what-each-integration-may-change	grove/references/integrate-review.md	B	static(i
 planning-grows-generatively	grove-planning/SKILL.md	B	static({planning})	
 planning-writes-the-briefs	grove-planning/SKILL.md	B	static({planning})	
 working-increments-before-slices	grove-planning/SKILL.md	B+S	static({planning})	
+proof-reads-for-whole-document-coherence	grove-proof/SKILL.md	B	static({proof})	coherence across the whole document
+proof-clears-the-hand-forward-list	grove-proof/SKILL.md	B	static({proof})	An entry left in the list when this stage retires is a defect nobody owns
+proof-cuts-nothing-unless-it-sends-work-back	grove-proof/SKILL.md	B	static({proof})	the node closes when a `proof` retires having sent nothing back
+proof-is-the-stated-fallback	grove-proof/SKILL.md	B	static({proof})	a proof session that finds nothing has still done its job
 prototype-is-throwaway	grove-prototype/SKILL.md	B	static({prototype})	
 agree-the-seams-during-grilling	grove-requirements/SKILL.md	B	static({requirements})	
 grilling-threshold	grove-requirements/SKILL.md	B*	static({requirements})	

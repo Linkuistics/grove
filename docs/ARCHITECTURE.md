@@ -703,9 +703,9 @@ configuration key. **Grove holds no set of them**
 ([`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md)): a kind is any
 well-formed token — lowercase ASCII letters, digits and single hyphens, no `--` —
 and the kinds that *exist* are the `grove-<kind>` skills the installed
-methodology ships. The table below is the methodology's current set of nineteen,
-not the binary's; adding a twentieth is authoring a skill and declaring a
-template for it, never editing this repository's Rust.
+methodology ships. The table below is the methodology's current set of twenty-three,
+not the binary's; adding another is authoring a skill and declaring a template
+for it, never editing this repository's Rust.
 
 Grove spells exactly two kind tokens, and only where it writes the leaf itself
 with no session to delegate to: `requirements`, for the leaf `root-init` lays
@@ -720,10 +720,27 @@ down, and `finish`, for the teardown sentinel.
 | `impl` | Produce shippable code, docs, or tests. | `review-impl` | `integrate-review-impl` |
 | `research-a` | Produce a primary-source survey. | `research-b`, the independent second survey | `combine-research` |
 
-The nineteenth kind, `finish`, is driver-reserved: only the lifecycle creates a
-finish leaf, and the grow and terminal verbs refuse it as a kind or operand.
-That refusal is grove recognising a leaf it wrote itself, which is the licence
-for naming the token at all.
+Four more kinds are **not** producers in that sense, and the empty cells below
+say so positively: a `—` means the kind takes no step of that species at all,
+never that one is still to be authored.
+
+| Editorial stage | Purpose | Review | Integration |
+|---|---|---|---|
+| `draft` | Produce a document from its sources and its human-authored structure brief, owning structure and technical truth. | — | — |
+| `copy-edit` | Sentences, terminology and consistency with the document's prose contract; no restructuring. | — | — |
+| `art` | The document's figures, in the medium its contract admits. | — | — |
+| `proof` | The final whole-document read; every class in charter. | — | — |
+
+Each editorial stage is itself a producer that reads the whole document and
+*fixes* within one charter, so the stage after it is not an adversarial read of
+it and buys it no `review-`/`integrate-review-` pair. Which stages exist was
+measured rather than asserted
+([`the-editorial-pipeline-is-four-kinds`](adr/the-editorial-pipeline-is-four-kinds.md)).
+
+`finish` is driver-reserved: only the lifecycle creates a finish leaf, and the
+grow and terminal verbs refuse it as a kind or operand. That refusal is grove
+recognising a leaf it wrote itself, which is the licence for naming the token at
+all.
 
 Reviews are fresh-context adversarial reads that produce findings rather than
 fixes. Integrations verify each finding, then fix the contract, fix the
@@ -731,17 +748,31 @@ artifact, accept a visible trade-off, or reject noise. `requirements` and
 `prototype` are human-in-the-loop because human words or reactions are their
 essential input; any other kind may still stop and ask.
 
-Two documented composition shapes exist, both as **flat siblings** named off a
-shared stem — neither gets a node directory:
+Three documented composition shapes exist, all as **flat siblings** named off a
+shared stem:
 
 - Review chain: `X → review-X → integrate-review-X`
 - Research pair: `research-a → research-b → combine-research`
+- Editorial chain: `draft → copy-edit → art → proof`
 
-Neither shape is known to the machinery. A chain is three separate `leaf-add`
-calls; a pair is one `leaf-add` given three kinds, which lands them as one unit
-at consecutive positions with consecutive keys. The three tokens are spelled on
-the command line by the session that owns them, which is what took the last list
-of kinds out of grove's source.
+None of the three is known to the machinery. A review chain is three separate
+`leaf-add` calls; a pair is one `leaf-add` given three kinds, which lands them as
+one unit at consecutive positions with consecutive keys; an editorial chain is
+four `leaf-add` calls, each the last act of the stage before it. The tokens are
+spelled on the command line by the session that owns them, which is what took the
+last list of kinds out of grove's source.
+
+No shape gets a node directory *of its own*. The editorial chain nonetheless
+always runs inside one, because a document's leaf becomes a node the moment it is
+decomposed into stages — an ordinary node, carrying an ordinary `BRIEF.md`, which
+is where the running `## Handed forward` list lives and whose live entries a stage
+reads to decide whether its successor is already queued. It differs from a review chain in two further ways, and both are
+deliberate: **membership is mandatory** — a stage is never skipped on a judgement
+that it would find nothing, because which stages exist was measured — and there
+is **no integrate step**, because each stage fixes rather than reports. A defect
+an earlier stage owns is sent back as forward tree growth: a contiguous run of
+re-run leaves from the owning stage through `proof`
+([`a-feedback-edge-is-forward-tree-growth`](adr/a-feedback-edge-is-forward-tree-growth.md)).
 
 Every step carries that stem as its **whole slug**, so a shape's leaves differ
 only by kind and key. The kind field is the canonical statement of a step's role

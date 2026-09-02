@@ -36,14 +36,15 @@
 #               integrate-review-requirements integrate-review-design \
 #               integrate-review-planning integrate-review-prototype \
 #               integrate-review-impl \
-#               research-a research-b combine-research finish; do
+#               research-a research-b combine-research \
+#               draft copy-edit art proof finish; do
 #     printf '%s "%s/fake \x27${prompt}\x27"\n' "$kind" "$scratch"
 #   done > "$scratch/home/.config/grove/config.kdl"
 #   env -u GROVE_SIGNAL_FILE HOME="$scratch/home" grove
 #
 # The isolated `HOME` is what makes this a *test* rather than a run of your own
-# launch policy: a complete personal config is mandatory, all nineteen kinds,
-# and the fake stands in for every one of them. It exits 0 without signalling,
+# launch policy: a complete personal config is mandatory, every kind the
+# methodology ships, and the fake stands in for every one of them. It exits 0 without signalling,
 # so the nested loop stops itself after one iteration.
 #
 # What that shows: the configured argv reaching the real foreground child and a

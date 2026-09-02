@@ -19,7 +19,7 @@
     {
       "name": "grove",
       "source": "./plugins/grove",
-      "description": "Grove's methodology spine: the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the review and research family files, and the five format documents."
+      "description": "Grove's methodology spine: the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the review, integration, research and editorial family files, and the five format documents."
     }
   ]
 }

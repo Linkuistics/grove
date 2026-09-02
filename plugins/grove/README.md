@@ -19,8 +19,8 @@ machinery holding it.
 
 **The fatness rule.** A rule shared across families is in the spine. A rule owned
 by one kind is inline in that kind's own `grove-<kind>` skill. A rule owned by a
-*family* — the five reviews, the five integrations, the two research halves — is
-**one file in the spine**, and each member's skill directs a load of it by name.
+*family* — the five reviews, the five integrations, the two research halves, the
+four editorial stages — is **one file in the spine**, and each member's skill directs a load of it by name.
 **Nowhere twice**, which is what
 [`corpus-rules-have-one-owner`](../../docs/adr/corpus-rules-have-one-owner.md)
 and
@@ -28,7 +28,7 @@ and
 make checkable.
 
 So the spine carries `SKILL.md`, the five format documents, the seven shared
-loop-step references, and the three family files. It carries no kind reference
+loop-step references, and the four family files. It carries no kind reference
 and no list of kinds: **a kind exists iff a skill of that name exists.**
 
 **What "inline" means, concretely.** A single-kind rule is in the body of that
@@ -39,7 +39,11 @@ by a second one. Seven kinds are fat this way (`requirements`, `design`,
 `planning`, `prototype`, `impl`, `combine-research`, `finish`) and twelve are
 thin: the five `review-*`, the five `integrate-review-*` and the two research
 halves each state their identity and direct one load, because everything else
-they obey belongs to their family and the family's text is the spine's.
+they obey belongs to their family and the family's text is the spine's. The four
+editorial stages (`draft`, `copy-edit`, `art`, `proof`) are the one hybrid: each
+directs a load of its family's file *and* carries its own charter inline, because
+what the four share is the pipeline's mechanics and what divides them is the
+whole point of having four.
 
 Two files ride inside a kind's skill rather than in its `SKILL.md` body, and both
 are that kind's alone: `grove-requirements/grilling.md`, a procedure reached on a
@@ -106,8 +110,8 @@ name*) — so the spine is `grove:grove` there, and a kind's skill is
 ./plugins/install.sh
 ```
 
-Every skill here declares `harnesses: [any]`, so the script links all twenty
-into `~/.codex/skills/`, `~/.gemini/skills/` and `~/.pi/agent/skills/` — one
+Every skill here declares `harnesses: [any]`, so the script links every one of
+them into `~/.codex/skills/`, `~/.gemini/skills/` and `~/.pi/agent/skills/` — one
 directory per skill, named exactly as the skill is.
 
 **That declaration was `[claude-code]` for three leaves, and the reason it was

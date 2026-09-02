@@ -100,7 +100,7 @@ _Avoid_: reading the core as an abridged methodology a session may work from. It
 is three facts and one instruction, and it teaches nothing.
 _Avoid_: reading the third part as an instruction. It is a **mechanism** — the
 driver is watching a named file, writing it ends the session, not writing it
-stops the loop — and one text serves all nineteen kinds because of that. Which
+stops the loop — and one text serves every kind because of that. Which
 of the three endings a kind takes is a rule about that kind, and the shipped
 spine assigns it to that kind's own skill. Two embedded files used to carry the
 split, and `finish` needed the second: a fixed instruction would relaunch the
@@ -114,11 +114,14 @@ an alarm on the test, and nothing legitimate approaches it.
 **Family reference file**:
 The one file in the spine's `references/` carrying the discipline a **family** of
 [[Session kind]]s shares — `review.md` for the five `review-*` kinds,
-`integrate-review.md` for the five `integrate-review-*`, and `research.md` for
-the two research halves. Each member's [[Kind skill]] directs a load of its
-family's file **by name**, in its opening imperative; a directed load is not a
-selection.
-Three files, not ten. The set was recovered from the narrowed marker scopes of
+`integrate-review.md` for the five `integrate-review-*`, `research.md` for the
+two research halves, and `editorial.md` for the four publishing-pipeline stages.
+Each member's [[Kind skill]] directs a load of its family's file **by name**, in
+its opening imperative; a directed load is not a selection. The spine's `SKILL.md`
+also lists the four, so a family file is *reachable* from every kind's
+[[Composed loaded path]]; what makes it a family's is that only its members are
+told to read it.
+Four files, not fourteen. The set was recovered from the narrowed marker scopes of
 the retired classification rather than invented, and
 `plugin-kind-skills-k17` moved the seven single-kind ones **inline** into their
 own [[Kind skill]]s, which is where a rule owned by one kind belongs
@@ -132,9 +135,9 @@ its own label, by the skill that already carries the label.
 _Avoid_: counting a fourth family for the session ending. That is the
 [[Guaranteed core]]'s contract plus one inline table in `grove-finish/SKILL.md` —
 a rule one kind owns, not a family.
-_Avoid_: one file per kind label. Fifteen of twenty would be near-duplicates of
-five, and duplicated prose is the drift risk one level down from the one being
-removed.
+_Avoid_: one file per kind label. The reviews, the integrations, the research
+halves and the editorial stages would each be near-duplicates of one text, and
+duplicated prose is the drift risk one level down from the one being removed.
 
 **Loop-step reference file**:
 The other species in the spine's `references/`: a file carrying the **universal**
@@ -143,7 +146,7 @@ which the spine's `SKILL.md` conditions reach by naming it. The seam is the loop
 itself — `bootstrap`, `execute`, `decompose`, `retire`, `commit` — with `grove`
 (what a grove is, the durable artifacts, what binds without the `linkuistics`
 plugin) and `driver` (how a session was launched and picked) either side of it.
-Seven, beside the three [[Family reference file]]s. Every file here carries
+Seven, beside the four [[Family reference file]]s. Every file here carries
 procedure only, which is what keeps `SKILL.md` a page of conditions rather than
 an abridged methodology.
 _Avoid_: reading it as a [[Family reference file]]. A family file is reached by
@@ -214,8 +217,9 @@ The two species the corpus becomes once the methodology ships as a skill plugin
 rather than as bytes the binary provisions ([`plugins/CONTEXT.md`](./plugins/CONTEXT.md)
 owns that delivery vocabulary). The **spine** is one skill, `grove`,
 carrying every rule shared across families — the numbered constraints, the
-[[Loop-step reference file]] set, the format documents, and the three *family*
-files (the five reviews, the five integrations, the two research halves). A
+[[Loop-step reference file]] set, the format documents, and the four *family*
+files (the five reviews, the five integrations, the two research halves, the four
+editorial stages). A
 **kind skill** is `grove-<kind>`, carrying inline what that kind alone owns, and
 directing a load of a family file **by name** where its family owns the rule. A
 kind exists **iff** a skill of that name exists, so nothing enumerates them.
@@ -435,9 +439,10 @@ metadata, not identity: the stable [[Work-item handle]] remains `<slug>-k<key>`.
 — non-empty, lowercase ASCII letters, digits and single dashes, no `--`, not a
 reserved marker — and grove holds no enumeration of them. Which kinds *exist* is
 which `grove-<kind>` [[Kind skill]]s are installed; the methodology's current set
-is nineteen, five producers (`requirements`, `design`, `planning`, `prototype`,
-`impl`) each with its `review-` and `integrate-review-` kind, plus `research-a`,
-`research-b`, `combine-research`, and the driver-reserved `finish`. Grove spells
+is twenty-three, five producers (`requirements`, `design`, `planning`,
+`prototype`, `impl`) each with its `review-` and `integrate-review-` kind, plus
+`research-a`, `research-b`, `combine-research`, the four editorial stages
+(`draft`, `copy-edit`, `art`, `proof`), and the driver-reserved `finish`. Grove spells
 two of those tokens and no others, at the two places it writes a leaf itself:
 `requirements` for root scaffolding and `finish` for the teardown sentinel.
 Before it writes or launches a kind, that kind must resolve one complete target
@@ -471,7 +476,8 @@ classifier was migration's and went with it; the operator does not need it in
 order to act.
 
 **Review chain** / **vendor pair**:
-The two composition patterns over the [[Session kind]] set. The **review chain**
+Two of the three composition patterns over the [[Session kind]] set; the third
+is the [[Editorial chain]]. The **review chain**
 is `X` → `review-X` → `integrate-review-X`: sequential, **adversarial** (the
 reviewer's job is to find fault), and each step a *different kind*, so per-kind
 routing alone expresses it. The **vendor pair** is `research-a` → `research-b` →
@@ -569,6 +575,31 @@ discipline is that **agreement without independent primary sourcing is a red
 flag, not a confirmation**. None of a pair's three leaves runs an in-session
 doubt reviewer: the two producers already supply independent corpora and the
 combiner already supplies the adversarial move.
+
+**Editorial chain**:
+The third composition pattern over the [[Session kind]] set, and the one no
+`review-*` kind appears in: `draft` → `copy-edit` → `art` → `proof`, the four
+stages of a document's publishing pipeline. Every stage is a **producer** — it
+reads the whole document as its predecessor left it and *fixes*, within one
+charter — so the stage after it is not an adversarial read of it and buys it no
+`review-`/`integrate-review-` pair. Like a [[Review chain]] it is cut **lazily**,
+each stage's last act adding the next; unlike one its **membership is not
+optional**, because which stages exist was measured
+(`docs/evaluations/editorial-pipeline-pilot/`) rather than judged per document.
+The stages are flat siblings under the document's own [[Node directory]], which
+is where the running `## Handed forward` list of defects a later stage owns
+lives.
+_Avoid_: reading the laziness as a licence to skip. A stage cuts nothing only
+where a live later sibling **already holds** that stage; deciding a stage would
+find nothing is this session re-grading what the pilot graded.
+_Avoid_: an integrate step, or any backward edge. A defect an earlier stage owns
+becomes forward tree growth — a contiguous run of re-run leaves from that stage
+through `proof` — because [[Pick]] cannot re-enter a retired leaf and there is no
+[[Leaf]] state meaning *reopened*.
+_Avoid_: a stage word in a stage's slug. Every stage leaf carries the document's
+bare stem, for the reason a [[Review chain]]'s steps do.
+_Avoid_: reading `art` as a licence to add files beside the page. A stage works
+only in the medium the document's own contract admits.
 
 **HITL** / **AFK**:
 Whether a [[Session kind]] resolves through live exchange with a human who

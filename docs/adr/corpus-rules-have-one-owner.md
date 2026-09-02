@@ -15,9 +15,9 @@ which it applies, drawn from `orientation`, `launch`, `context`,
 1. `Bound(R) = ∅` or `Occasion(R) = {none}` → not normative; leaves the skill
    set.
 2. `Bound(R)` is one kind → that kind's own `grove-<kind>` skill. One family —
-   the five reviews, the five integrations, the two research halves — → the
-   family's single file in the spine, which each member's skill directs a load
-   of by name.
+   the five reviews, the five integrations, the two research halves, the four
+   editorial stages — → the family's single file in the spine, which each
+   member's skill directs a load of by name.
 3. `artifact:A ∈ Occasion(R)` → A's format file.
 4. `launch ∈ Occasion(R)` → `references/driver.md`.
 5. `context ∈ Occasion(R)` → `references/grove.md`.

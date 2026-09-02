@@ -77,6 +77,40 @@ stood at the graft — a closed record, not part of the versioned sequence above
   jj workspaces, one independent grove per workspace, and the control-directory
   refusal.
 
+- **The editorial pipeline ships as four session kinds, and the methodology's set
+  is twenty-three.** `draft`, `copy-edit`, `art` and `proof` are installed
+  `grove-<kind>` skills over one new family reference file,
+  `grove/references/editorial.md`. Every stage is a **producer**: it reads the
+  whole document as its predecessor left it and *fixes* within one charter, so
+  the stage after it is not an adversarial read of it and none of the four takes
+  a `review-`/`integrate-review-` pair. Which four they are was measured rather
+  than asserted — the developmental and technical edits reached the pilot's
+  threshold on neither arm and are folded into `draft`, which is why that skill's
+  charter names structure and technical truth as obligations to discharge rather
+  than as things a brief has handled (ADR
+  *the-editorial-pipeline-is-four-kinds*). The chain is cut lazily, each stage's
+  last act adding the next, but **membership is not optional** — a stage skipped
+  on a judgement that it would find nothing is a session re-grading what the
+  pilot graded. There is no backward edge: a defect an earlier stage owns becomes
+  a contiguous run of re-run leaves from that stage through `proof` (ADR
+  *a-feedback-edge-is-forward-tree-growth*).
+
+- **Four kinds could not be added by bumping a count.** The taxonomy's premise —
+  *five producers, each with its own `review-` and `integrate-review-` step* — no
+  longer covers the set, and its table had no way to say *this kind has no review
+  step*. `TASK-FORMAT.md`'s section, `docs/ARCHITECTURE.md`'s *Task kinds and
+  composition* and `CONTEXT.md`'s *Session kind* entry are rewritten rather than
+  renumbered: the columns are possessive, a `—` positively means *no step of that
+  species exists*, and a third composition shape — the editorial chain, lazy like
+  a review chain but mandatory and with no integrate step — is documented beside
+  the review chain and the vendor pair. `docs/CONFIGURATION.md`'s example and
+  kind list, `plugins/grove/README.md`'s fatness split, the conformance manifest's
+  `static(19)` predicate and its row count, and `CONTEXT.md`'s family-file count
+  all move with them. **A new kind cannot run until the human declares its launch
+  template**: `~/.config/grove/config.kdl` needs a `draft`, `copy-edit`, `art` and
+  `proof` key, or `leaf-decompose … --kind draft` is refused before the tree is
+  mutated.
+
 ## v20.1.0
 
 ## v20.0.0

@@ -57,6 +57,11 @@ research-a "grove-claude --session ${session_name} ${prompt}"
 research-b "grove-codex-research ${worktree} ${prompt}"
 combine-research "grove-claude --session ${session_name} ${prompt}"
 
+draft "grove-claude --session ${session_name} ${prompt}"
+copy-edit "grove-codex-review ${worktree} ${prompt}"
+art "grove-claude --session ${session_name} ${prompt}"
+proof "grove-codex-review ${worktree} ${prompt}"
+
 finish "claude --model opus ${prompt}"
 ```
 
@@ -75,12 +80,20 @@ review-requirements  review-design  review-planning  review-prototype  review-im
 integrate-review-requirements  integrate-review-design
 integrate-review-planning  integrate-review-prototype  integrate-review-impl
 research-a  research-b  combine-research
+draft  copy-edit  art  proof
 finish
 ```
 
 `research-a` and `research-b` share one discipline but are separate
 configuration keys, so a research vendor pair reaches two different commands
-without any per-leaf metadata. `finish` is the driver-reserved teardown session.
+without any per-leaf metadata. `draft`, `copy-edit`, `art` and `proof` are the
+four stages of a document's editorial pipeline; they take no `review-` or
+`integrate-review-` key, because each stage fixes within its own charter rather
+than reporting on the stage before it. `copy-edit` and `proof` are the natural
+place for a second vendor on that arm — they are the two whole-document reads,
+and a reader that did not write the draft is what a fresh context buys, which is
+why the example above sends them elsewhere. `finish` is the driver-reserved
+teardown session.
 
 Grove itself holds no list of kinds — a kind is an opaque string it looks up —
 so the list above is what the *methodology* declares, not a schema the binary

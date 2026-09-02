@@ -143,7 +143,7 @@ fn the_prompt_is_three_parts_in_the_sessions_own_timeline_order() {
         // this test makes is that there is *nothing else*, and a footer appended
         // after the contract passes every other assertion in this file —
         // including the cross-kind identity check, since a footer identical for
-        // all nineteen kinds is identical for all nineteen kinds.
+        // every kind is identical for every kind.
         assert_eq!(
             rest,
             format!("{expected_facts}\n{}", signalling_contract()),
@@ -257,7 +257,7 @@ fn signalling_contract() -> String {
 /// **The signalling contract is one text, identical for every kind.**
 ///
 /// This is the deletion `prompt-names-the-kind-k18` landed, asserted as a
-/// property rather than as an absence of code: nineteen kinds, one ending. The
+/// property rather than as an absence of code: every kind, one ending. The
 /// eighteen-and-one split it replaces was the last place the driver interpreted
 /// a kind.
 #[test]
@@ -521,7 +521,7 @@ fn the_namespace_is_the_shipped_plugin_entrys_declared_name() {
 /// edited inside `grove-finish/SKILL.md` would leave every `finish` prompt
 /// naming a skill no harness has, with the sweep above still green.
 ///
-/// Asserted over the whole shipped set rather than over the nineteen the kind
+/// Asserted over the whole shipped set rather than over only the kinds the kind
 /// list reaches: the spine is subject to the same rule, and a set-wide claim
 /// cannot be satisfied by the one skill someone remembered.
 #[test]

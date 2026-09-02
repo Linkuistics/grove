@@ -1,6 +1,6 @@
 ---
 name: grove
-description: Grove's shared methodology spine — the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the three review and research family files, and the five format documents. Use when a `grove-<kind>` skill directs you here; when running any session inside a grove working tree; or when starting, picking up, or continuing a task tree under .grove/.
+description: Grove's shared methodology spine — the seven constraints, the bootstrap, execution, decomposition, retirement and commit procedures, the review, integration, research and editorial family files, and the five format documents. Use when a `grove-<kind>` skill directs you here; when running any session inside a grove working tree; or when starting, picking up, or continuing a task tree under .grove/.
 harnesses: [any]
 ---
 
@@ -103,13 +103,14 @@ the `BRIEF.md` chain root→leaf, and the task file. Nothing else by reflex.
 
 ## The family files
 
-Three files in this spine belong to a **family** of kinds rather than to one,
+Four files in this spine belong to a **family** of kinds rather than to one,
 and are loaded because a member's skill directed you here **by name** — never
 because you chose between them.
 
 - `references/review.md` — the five `review-*` kinds.
 - `references/integrate-review.md` — the five `integrate-review-*` kinds.
 - `references/research.md` — `research-a` and `research-b`.
+- `references/editorial.md` — `draft`, `copy-edit`, `art` and `proof`.
 
 ## Artifacts
 

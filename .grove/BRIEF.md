@@ -56,7 +56,8 @@ the rest exist because it cannot be reached without them.
   measure **preregistered before the pilot runs**: a judged outcome, a stated
   alternative to beat, and a decision rule mapping the evidence to which stages
   are kept, merged or dropped. Without preregistration any pipeline can be
-  called derived after the fact.
+  called derived after the fact. **Delivered** at `publishing-pipeline-k13`; see
+  *The pipeline is installed* under *Pointers*.
 - The loop construct has a filesystem representation a human can read without
   grove installed.
 - P4 has reported: a research document under `docs/research/` answering
@@ -160,6 +161,30 @@ Three arms, ordered so the documentation is never blocked on unbuilt machinery.
   anchor set books reserve from, `CONTEXT.md` gains the glossary anchors the
   first citing book reserves, and no book validates before the anchors it
   reserves exist in the explicit form.
+- **The pipeline is installed, and `crate-books-k14` is no longer gated on it.**
+  `draft`, `copy-edit`, `art` and `proof` ship as `grove-<kind>` skills over one
+  new family reference file, `grove/references/editorial.md`, and the human's
+  `~/.config/grove/config.kdl` declares all four — `draft` and `art` on
+  `claude/opus`, `copy-edit` and `proof` on `codex/sol-high`, because those two
+  are the whole-document reads and a reader that did not write the draft is what
+  a fresh context buys. Verified live: `leaf-add --kind draft …` writes leaves,
+  an undeclared kind is still refused before the tree is mutated. **A book's leaf
+  becomes a node with `leaf-decompose <leaf> <slug> --kind draft`**, and each
+  stage's last act adds the next; every stage leaf carries the book's bare stem
+  as its whole slug. The chain is lazy but its **membership is not optional** — a
+  stage is never skipped on a judgement that it would find nothing — and there is
+  no integrate step and no backward edge: a defect an earlier stage owns becomes
+  a contiguous run of re-run leaves from that stage through `proof`. The four
+  charters are `docs/adr/the-editorial-pipeline-is-four-kinds.md` and
+  `docs/adr/a-feedback-edge-is-forward-tree-growth.md`; the shipped discipline is
+  the skills themselves, and no book session re-derives it from those records.
+- **Every book still needs a human structure brief, and `draft` stops without
+  one.** That is not a courtesy: the developmental and technical edits were
+  folded into `draft` on the evidence of a book drafted from such a brief, so
+  without the brief the fold has no basis under it. `grove-draft` states the
+  three things the named artifact must contain — who the reader is, the ordered
+  section plan, what deserves emphasis — and that a node's automatic `BRIEF.md`
+  is not by itself one.
 - **The pilot has reported, and its result is `N = 4`.**
   `docs/evaluations/editorial-pipeline-pilot/README.md` is the measurement,
   evaluated against the preregistration committed before the book it judges.

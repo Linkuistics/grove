@@ -218,3 +218,33 @@ vacancy, should not repeat the read-side gloss as the mechanism.
 *before `run` is entered*; the source has `Cli::parse()` as `run`'s first
 statement.** The page states the position, not the brief's phrase. A copy of
 the brief's wording is a defect in the brief, not the book, and is left there.
+
+**15 · Chapter 3 adjudicates five comment claims beside their fragments and
+names no leaf.** `no_live_leaves`'s *spelled four times* has three callers;
+`kind`'s help refuses a *missing or unknown* kind where, since
+`open-kind-k20`, only a malformed token can refuse; `label`'s *equals the
+grove name* is a convention the binary checks nothing of; `resolve`'s help
+omits `.`, which the handler answers and `resolve_dot_prints_the_grove_root`
+pins; and `Reference::parse`'s refusal offers *a path under `.grove/`*, a
+form the grow verbs' `<parent>`/`<target>` accept and `resolve` does not
+(measured: not-found). The last is `grove-loop`'s corpus and that book's to
+own, on the footing of decision 7. **Chapter 4 should say, beside its
+`<parent>` argument, that the path form is the grow verbs' and not
+`resolve`'s**, and should treat `root-init`'s `.grove` as the third display
+spelling, chapter 3 having claimed the second.
+
+**16 · Chapter 3 names every promise no test holds rather than leaving it
+implied**, and chapter 7's table should carry the same discipline: the
+finished-grove diagnostic of `brief-chain` (handler alone), `pick` skipping an
+`ABANDONED` leaf (no test in this crate), the abandoned `resolve` note (unit
+test only), `[n]-slug` as decorative, `normalize_leaf_path`'s pass-through
+branch, `render_resolution`'s root arm, and the `absent` remedy's second line
+for every verb but `pick`. Chapter 7's stream rows for the four reading
+verbs can be taken from chapter 3's absent-answer table: stderr for every
+absent answer, exit `0`; refusals exit `1`.
+
+**17 · The worked example may look forward in the carried session.**
+Chapter 3's second and third renderings use the tree as chapters 4 and 5
+leave it (`k3` retired, `k4` live), with the transcript marking the step, and
+its finished-grove transcript uses the state after the review leaf's own
+session; later chapters may do the same rather than invent values.

@@ -26,7 +26,7 @@
 <!-- insert «surface-thesis-and-imports» -->
 <!-- insert «grammar-cli-and-enum-head» -->
 <!-- defer «verb-root-init» owner="before-the-lock" lines="66-74" -->
-<!-- defer «verbs-reading» owner="information-not-error" lines="75-124" -->
+<!-- insert «verbs-reading» -->
 <!-- defer «verbs-growing» owner="before-the-lock" lines="125-216" -->
 <!-- defer «verbs-ending» owner="two-steps-remain" lines="217-247" -->
 <!-- defer «verbs-leaving» owner="admit-before-signal" lines="248-289" -->
@@ -39,12 +39,12 @@
 <!-- insert «run-admission-and-dispatch» -->
 <!-- defer «handlers-leaving» owner="admit-before-signal" lines="438-483" -->
 <!-- defer «handler-root-init» owner="before-the-lock" lines="484-513" -->
-<!-- defer «handlers-reading-and-rendering» owner="information-not-error" lines="514-636" -->
+<!-- insert «handlers-reading-and-rendering» -->
 <!-- defer «handlers-growing» owner="before-the-lock" lines="637-767" -->
 <!-- defer «handlers-ending» owner="two-steps-remain" lines="768-825" -->
 <!-- defer «presence-rule-and-slug» owner="before-the-lock" lines="826-862" -->
 <!-- insert «openings» -->
-<!-- defer «path-and-label-helpers» owner="information-not-error" lines="904-944" -->
+<!-- insert «path-and-label-helpers» -->
 <!-- /source-root -->
 
 <a id="ownership-blocks"></a>
@@ -58,7 +58,7 @@
 | `surface-thesis-and-imports` | `source-command-surface` | `one-call-plus-rendering` | `1-34` | 34 | `resolved` |
 | `grammar-cli-and-enum-head` | `source-command-surface` | `admitted-before-dispatch` | `35-65` | 31 | `resolved` |
 | `verb-root-init` | `source-command-surface` | `before-the-lock` | `66-74` | 9 | `deferred` |
-| `verbs-reading` | `source-command-surface` | `information-not-error` | `75-124` | 50 | `deferred` |
+| `verbs-reading` | `source-command-surface` | `information-not-error` | `75-124` | 50 | `resolved` |
 | `verbs-growing` | `source-command-surface` | `before-the-lock` | `125-216` | 92 | `deferred` |
 | `verbs-ending` | `source-command-surface` | `two-steps-remain` | `217-247` | 31 | `deferred` |
 | `verbs-leaving` | `source-command-surface` | `admit-before-signal` | `248-289` | 42 | `deferred` |
@@ -71,12 +71,12 @@
 | `run-admission-and-dispatch` | `source-command-surface` | `admitted-before-dispatch` | `412-437` | 26 | `resolved` |
 | `handlers-leaving` | `source-command-surface` | `admit-before-signal` | `438-483` | 46 | `deferred` |
 | `handler-root-init` | `source-command-surface` | `before-the-lock` | `484-513` | 30 | `deferred` |
-| `handlers-reading-and-rendering` | `source-command-surface` | `information-not-error` | `514-636` | 123 | `deferred` |
+| `handlers-reading-and-rendering` | `source-command-surface` | `information-not-error` | `514-636` | 123 | `resolved` |
 | `handlers-growing` | `source-command-surface` | `before-the-lock` | `637-767` | 131 | `deferred` |
 | `handlers-ending` | `source-command-surface` | `two-steps-remain` | `768-825` | 58 | `deferred` |
 | `presence-rule-and-slug` | `source-command-surface` | `before-the-lock` | `826-862` | 37 | `deferred` |
 | `openings` | `source-command-surface` | `admitted-before-dispatch` | `863-903` | 41 | `resolved` |
-| `path-and-label-helpers` | `source-command-surface` | `information-not-error` | `904-944` | 41 | `deferred` |
+| `path-and-label-helpers` | `source-command-surface` | `information-not-error` | `904-944` | 41 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -108,6 +108,11 @@
 | `grammar-cli-and-enum-head` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `35-65` | `source-command-surface` | `grammar-command-attributes`, `grammar-cli-struct`, `grammar-command-enum-head` |
 | `grammar-cli-struct` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `51-62` | `grammar-cli-and-enum-head` | `—` |
 | `grammar-command-enum-head` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `63-65` | `grammar-cli-and-enum-head` | `—` |
+| `verbs-pick-help` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `75-82` | `verbs-reading` | `—` |
+| `verbs-reading` | `reading-the-tree` | `source-command-surface` | `composite` | `information-not-error` | `75-124` | `source-command-surface` | `verbs-pick-help`, `verbs-brief-chain-help`, `verbs-kind-help`, `verbs-resolve-help` |
+| `verbs-brief-chain-help` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `83-92` | `verbs-reading` | `—` |
+| `verbs-kind-help` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `93-107` | `verbs-reading` | `—` |
+| `verbs-resolve-help` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `108-124` | `verbs-reading` | `—` |
 | `grammar-command-enum-close` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `290-291` | `enum-close-and-operation-label` | `—` |
 | `enum-close-and-operation-label` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `290-310` | `source-command-surface` | `grammar-command-enum-close`, `grammar-operation-label` |
 | `grammar-operation-label` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `292-310` | `enum-close-and-operation-label` | `—` |
@@ -115,11 +120,24 @@
 | `run-admission-and-dispatch` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `412-437` | `source-command-surface` | `run-parse-and-bare-branch`, `run-cwd-and-admission`, `run-dispatch` |
 | `run-cwd-and-admission` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `420-421` | `run-admission-and-dispatch` | `—` |
 | `run-dispatch` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `422-437` | `run-admission-and-dispatch` | `—` |
+| `handler-pick` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `514-523` | `handlers-reading-and-rendering` | `—` |
+| `handlers-reading-and-rendering` | `reading-the-tree` | `source-command-surface` | `composite` | `information-not-error` | `514-636` | `source-command-surface` | `handler-pick`, `handler-brief-chain`, `handler-kind`, `handler-leaf-in`, `handler-resolve`, `render-resolution-head`, `render-resolution-entry`, `render-resolution-absent` |
+| `handler-brief-chain` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `524-536` | `handlers-reading-and-rendering` | `—` |
+| `handler-kind` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `537-550` | `handlers-reading-and-rendering` | `—` |
+| `handler-leaf-in` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `551-561` | `handlers-reading-and-rendering` | `—` |
+| `handler-resolve` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `562-580` | `handlers-reading-and-rendering` | `—` |
+| `render-resolution-head` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `581-594` | `handlers-reading-and-rendering` | `—` |
+| `render-resolution-entry` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `595-611` | `handlers-reading-and-rendering` | `—` |
+| `render-resolution-absent` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `612-636` | `handlers-reading-and-rendering` | `—` |
 | `openings-worktree` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `863-870` | `openings` | `—` |
 | `openings` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `863-903` | `source-command-surface` | `openings-worktree`, `openings-readable`, `openings-writable`, `openings-absent` |
 | `openings-readable` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `871-884` | `openings` | `—` |
 | `openings-writable` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `885-893` | `openings` | `—` |
 | `openings-absent` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `894-903` | `openings` | `—` |
+| `helper-normalize-leaf-path` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `904-927` | `path-and-label-helpers` | `—` |
+| `path-and-label-helpers` | `reading-the-tree` | `source-command-surface` | `composite` | `information-not-error` | `904-944` | `source-command-surface` | `helper-normalize-leaf-path`, `helper-label`, `helper-no-live-leaves` |
+| `helper-label` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `928-936` | `path-and-label-helpers` | `—` |
+| `helper-no-live-leaves` | `reading-the-tree` | `source-command-surface` | `literal` | `information-not-error` | `937-944` | `path-and-label-helpers` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -129,14 +147,14 @@
 | `Reading`, `Tree`, `Writing`, `TreeWrite` | `01-orientation.md#the-imports` | `admitted-before-dispatch` | The two openings of a grove — a shared read and an exclusive write — each answering *vacant* as a value rather than an error. | `explained` |
 | `SessionEpochGuard` | `01-orientation.md#the-imports` | `admitted-before-dispatch` | The guard `run` obtains when it admits this process against a live session epoch — present under a driver, absent for a manual command — alive through the verb, and consulted only by `complete`. | `explained` |
 | `Workspace` | `01-orientation.md#the-imports` | `admitted-before-dispatch` | A resolved jj working tree; every verb but `complete` resolves it from the current directory, and the grove root is spelled from it in one place. | `explained` |
-| `Outcome` | `01-orientation.md#the-imports` | `information-not-error` | Live, retired or abandoned — the infix a filename carries, rendered as a stderr note so a dead end never looks live. | `pending` |
-| `Reference` | `01-orientation.md#the-imports` | `information-not-error` | A parsed spelling of a tree entry — key, handle or slug — read by its own type before any tree is opened. | `pending` |
-| `Sought`, `Resolution` | `01-orientation.md#the-imports` | `information-not-error` | `Sought` is a found-or-nothing answer; `Resolution` is what `resolve` found — the root, one entry, or an ambiguity. | `pending` |
+| `Outcome` | `01-orientation.md#the-imports` | `information-not-error` | Live, retired or abandoned — the infix a filename carries, rendered as a stderr note so a dead end never looks live. | `explained` |
+| `Reference` | `01-orientation.md#the-imports` | `information-not-error` | A parsed spelling of a tree entry — key, handle or slug — read by its own type before any tree is opened. | `explained` |
+| `Sought`, `Resolution` | `01-orientation.md#the-imports` | `information-not-error` | `Sought` is a found-or-nothing answer; `Resolution` is what `resolve` found — the root, one entry, or an ambiguity. | `explained` |
 | `Kind`, `Slug` | `01-orientation.md#the-imports` | `before-the-lock` | The grammar's own types for a `--kind` token and a slug; malformed text is refused by them, before any lock. | `pending` |
 | `SessionConfig` | `01-orientation.md#the-imports` | `before-the-lock` | The launch configuration, loaded whole and asked whether one kind resolves to a template. | `pending` |
 | `Handle` | `01-orientation.md#the-imports` | `admit-before-signal` | A `<slug>-k<key>` handle, parsed leniently on the key and spoken canonically thereafter. | `pending` |
 | `Signalled` | `01-orientation.md#the-imports` | `admit-before-signal` | Whether `complete` wrote the disposition to a channel or found no loop to signal. | `pending` |
-| `cmd_pick`, `cmd_brief_chain`, `cmd_kind`, `cmd_resolve` | `02-the-grammar.md#worked-dispatch` | `information-not-error` | One handler per reading verb: the shared opening, one `grove_loop::verbs` call, and rendering. | `pending` |
+| `cmd_pick`, `cmd_brief_chain`, `cmd_kind`, `cmd_resolve` | `02-the-grammar.md#worked-dispatch` | `information-not-error` | One handler per reading verb: the shared opening, one `grove_loop::verbs` call, and rendering. | `explained` |
 | `cmd_root_init`, `cmd_leaf_add`, `cmd_leaf_insert`, `cmd_leaf_decompose` | `02-the-grammar.md#worked-dispatch` | `before-the-lock` | One handler per growing verb: text parsed, presence asked, then the exclusive opening, then one call. | `pending` |
 | `cmd_leaf_retire`, `cmd_leaf_prune` | `02-the-grammar.md#worked-dispatch` | `two-steps-remain` | One handler per terminal mark: the exclusive opening, one call, the marked paths, and the two remaining steps on stderr. | `pending` |
 | `cmd_finish_commit`, `cmd_complete` | `02-the-grammar.md#worked-dispatch` | `admit-before-signal` | The two handlers that open no tree: one commits through the workspace, one writes the completion channel. | `pending` |

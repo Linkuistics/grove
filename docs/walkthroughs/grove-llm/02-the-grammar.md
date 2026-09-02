@@ -1,6 +1,6 @@
 # The grammar and the openings
 <!-- book-page id="the-grammar" slice="admitted-before-dispatch" order="2" -->
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Reading the tree](03-reading-the-tree.md)
 
 <a id="admitted-before-dispatch"></a>
 ## Admitted before dispatch
@@ -590,4 +590,4 @@ parsed by clap, labelled, admitted, dispatched. What the handlers do after the
 `match` is where the verbs differ, and the first four to read are the ones
 whose absent answer is information rather than an error.
 
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Reading the tree](03-reading-the-tree.md)

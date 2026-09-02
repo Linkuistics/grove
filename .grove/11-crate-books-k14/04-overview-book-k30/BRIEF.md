@@ -96,7 +96,40 @@ The editorial pipeline's chain, under this node, in the shape
   (`docs/adr/a-feedback-edge-is-forward-tree-growth.md`), not an edit to this
   node.
 
+- **Chapter 5 names `docs/ARCHITECTURE.md` by path in two sentences k31 must
+  revisit**: under *The modules behind the call*, that the module-by-module
+  account is the one that document *carries today* under *Main module seams*;
+  and under *Where this book stops*, that *the description a reader can open
+  today* is that document's. Both stop being true when the table lands under
+  the first of those headings, and k31 owns rewording them in the same commit.
+  The heading and its anchor, `the-modules-behind-the-call`, are the
+  destination the node brief promised.
+- **What the draft adjudicated, and no later stage may undo.** Six claims in
+  the frozen corpus or the brief do not survive a check, and each page states
+  the checkable fact beside the fragment that carries the stale one: the
+  manifest's *three functions long* (ch. 1; `manifest-function-count-k82`);
+  `grove-llm`'s *own `0.1.0`* (ch. 2; `grove-llm-version-comment-k83`); *every
+  member takes `version.workspace = true`* (ch. 1 and 2, narrowed to the path
+  from `grove` to `grove-loop`; `every-member-version-comment-k84`);
+  `TemplateSource` read *once* (ch. 3, now *twice*; manifest, ledger and brief
+  changed together; `template-source-read-count-k86`); a `[[bin]]` reaching
+  private items, which holds for one of two shapes (ch. 1 and 4;
+  `bin-target-privacy-claim-k87`); and *97 comment lines*, which is 92 (ch. 1,
+  no leaf: the number is the book's own). A copy edit that makes a page agree
+  with its comment again reintroduces a defect the draft removed.
+- **Names the manifest depends on.** `02-the-surface.md#the-imports` is the
+  first-use anchor of four early-use rows and `01-orientation.md#the-binary` of
+  the fifth; every chapter's H1 equals its manifest `title` and the navigation
+  labels reuse it (draft decision 2). A heading or anchor change on those is a
+  manifest change, not a copy edit.
+
 ## Decisions (running log)
+
+**3 · The draft is complete and `overview-k76` is closed.** Its fifth child
+took the book to `final=true` (3 files, 204 lines, 0 deferred) and a green
+`bash scripts/check.sh`, and cut `copy-edit`. Everything the draft node's brief
+settled that a later stage needs is under *Pointers* above; the rest is that
+node's running log, which stays where it is.
 
 **1 · Decomposed with `--kind draft`; the extracted kinds are installed.**
 Verified rather than assumed: `plugins/grove/skills/` holds `grove-draft`,
@@ -137,3 +170,20 @@ the rest.
   (the worked example), *exactly as much a second home* and *the day … is the
   day* (the worked example's closing paragraph), and *The obvious way* (the
   model-not-text section).
+- **copy-edit**, `05-what-the-call-reaches.md`: two questions in prose — *what
+  in these 204 lines goes red when the entry point stops being thin?* (the
+  test section) and *what in it would go red if the binary's behaviour moved?*
+  (the ledgers section); the precedent `07-what-jj-owns.md` uses the same
+  device, so decide once whether the *what goes red* question stands as the
+  book's. Figurative wording: *goes red* (throughout, the precedent's
+  vocabulary), *sit on the scale*, *blind spot*, *load-bearing* (the test
+  section), *the twin of this crate's walk* (the same), *the ceiling* (the
+  ledgers section), and two fragments — *The umbrella.* and *The crate's own
+  suite, which is the evidence this book cites and does not reproduce.* (the
+  final-verification section). Emotive or persuasive: *the honest total* (the
+  ledgers section) and *a test that returned the same answer for every binary
+  would be a description of this one* (the test section).
+- **copy-edit**, `README.md`: the draft aligned the third mechanism's wording
+  with chapters 1, 4 and 5 — *a convention a test checks, which nobody
+  otherwise would* — and the sentence may read better restated; the claim must
+  stay.

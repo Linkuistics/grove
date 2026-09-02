@@ -1,6 +1,6 @@
 # Proving a negative
 <!-- book-page id="proving-a-negative" slice="closure-proved" order="4" -->
-[Previous: Three steps](03-three-steps.md) | [Contents](README.md)
+[Previous: Three steps](03-three-steps.md) | [Contents](README.md) | [Next: What the call reaches](05-what-the-call-reaches.md)
 
 <a id="closure-proved"></a>
 ## The closure tests
@@ -571,4 +571,4 @@ today and free to stop being thin tomorrow. *What the call reaches* names the
 modules behind `grove_loop::run` and applies this test back across the map,
 and it is where the book ends.
 
-[Previous: Three steps](03-three-steps.md) | [Contents](README.md)
+[Previous: Three steps](03-three-steps.md) | [Contents](README.md) | [Next: What the call reaches](05-what-the-call-reaches.md)

@@ -9,8 +9,8 @@
 working tree, it resolves that tree, takes the one-driver lease over it, and
 calls the loop; the loop is everything else — which task runs next, which
 command launches it, and when the grove is done. The binary parses no argument
-that selects anything. Its whole source is three files and 204 lines, and 97 of
-those lines are comment prose.
+that selects anything. Its whole source is three files and 204 lines, and 92 of
+those lines are comments.
 
 This book is the system's overview, and `crates/grove` is its corpus, because
 that crate is where the system is entered and nothing else is decided. Each
@@ -209,8 +209,8 @@ grammar, which *The surface* reads. `grove-loop`, by path, is the only grove
 dependency, and the comment says why the binary is short: the loop is behind
 it. Three other workspace crates are reached from here — the VCS seam that
 resolves the working tree, the runner that spawns the session, the tree store —
-and none is named in this manifest, because each arrives only as something
-`grove-loop` re-exports. The type that `cli.rs` calls `Workspace` is the VCS
+and none is named in this manifest: what the binary takes from two of them
+arrives as a `grove-loop` re-export, and it takes nothing from the third. The type that `cli.rs` calls `Workspace` is the VCS
 seam's own type, published through the loop's root; *Three steps* reads that
 line.
 

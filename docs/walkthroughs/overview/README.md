@@ -23,7 +23,8 @@ the end you should be able to take an entry point in your own code, ask what is
 left for an argument to select, and tell a binary that is thin from one that
 merely looks thin — naming which of three mechanisms holds it: a package
 boundary the compiler enforces, a closure property a test asserts, or a
-convention nobody checks. All three are provable inside these 204 lines.
+convention a test checks, which nobody otherwise would. All three are provable
+inside these 204 lines.
 
 **The book's boundary is the call.** It explains one module, `grove::cli`, and
 names the rest. Everything behind `grove_loop::run` — the loop, the task tree,
@@ -63,7 +64,7 @@ source.
 2. [The surface](02-the-surface.md)
 3. [Three steps](03-three-steps.md)
 4. [Proving a negative](04-proving-a-negative.md)
-5. What the call reaches
+5. [What the call reaches](05-what-the-call-reaches.md)
 
 Optional lookup:
 

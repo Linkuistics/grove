@@ -87,6 +87,15 @@ verifiable: the overview is proved by the validator, the move by the link suites
   assertions in `crates/grove-llm/tests/composition_guidance.rs`, which read
   `docs/ARCHITECTURE.md` in eight places and go red on the move **by design**;
   `book-check`; `scripts/check.sh`.
+- **For `grove-llm-structure-k32`:** `crates/grove-llm/Cargo.toml`'s comment
+  says *everything this binary can reach is something `grove-loop` chose to
+  publish*, and the same manifest lists `jj-workspace` as a second workspace
+  dependency, which `src/cli.rs` names directly. The overview's chapter 5
+  states the two edges and does not adjudicate the clause; the `grove-llm`
+  book owns it, under the root brief's frozen-corpus rule. The same crate's
+  `src/lib.rs` (lines 7–8) says *something `grove-loop` or `grove` chose to
+  publish*, naming a dependency the manifest's own comment records as removed
+  at `loop-crate-driver-k22`; same owner, same rule.
 - `CONTEXT-MAP.md` argues `grove`, `grove-llm` and `grove-loop` *are* the grove
   context, and that `keyed-launch` and `jj-workspace` are deliberately not
   contexts. Each book has to respect that; `docs/walkthroughs/` was chosen as a

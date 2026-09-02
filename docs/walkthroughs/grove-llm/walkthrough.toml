@@ -1,0 +1,348 @@
+schema = 1
+
+[book]
+id      = "grove-llm"
+title   = "grove-llm"
+subject = "crates/grove-llm"
+
+# The bare rule, with no exceptions at all: the crate's own manifest and every
+# Rust file under `src/`. There is no `bin/`, no test-support module under
+# `src/` and no inline `tests.rs` — `crates/grove-llm/tests/` is nine times the
+# corpus and all of it is evidence — so this book carries no `[[corpus.add]]`
+# and no `[[corpus.exclude]]`, and the normative inventory in
+# `docs/specs/walkthrough-books.md` records that emptiness by giving the book
+# no row.
+[corpus]
+include = [
+  "crates/grove-llm/Cargo.toml",
+  "crates/grove-llm/src/**/*.rs",
+]
+
+[[page]]
+file  = "README.md"
+id    = "contents"
+title = "grove-llm"
+role  = "contents"
+
+[[page]]
+file  = "01-orientation.md"
+id    = "orientation"
+title = "Orientation"
+role  = "chapter"
+slice = "one-call-plus-rendering"
+
+[[page]]
+file  = "02-the-grammar.md"
+id    = "the-grammar"
+title = "The grammar and the openings"
+role  = "chapter"
+slice = "admitted-before-dispatch"
+
+[[page]]
+file  = "03-reading-the-tree.md"
+id    = "reading-the-tree"
+title = "Reading the tree"
+role  = "chapter"
+slice = "information-not-error"
+
+[[page]]
+file  = "04-growing-the-tree.md"
+id    = "growing-the-tree"
+title = "Growing the tree"
+role  = "chapter"
+slice = "before-the-lock"
+
+[[page]]
+file  = "05-ending-work.md"
+id    = "ending-work"
+title = "Ending work"
+role  = "chapter"
+slice = "two-steps-remain"
+
+[[page]]
+file  = "06-leaving-the-loop.md"
+id    = "leaving-the-loop"
+title = "Leaving the loop"
+role  = "chapter"
+slice = "admit-before-signal"
+
+[[page]]
+file  = "07-what-order-holds.md"
+id    = "what-order-holds"
+title = "What order holds"
+role  = "chapter"
+slice = "assembly"
+
+[[page]]
+file  = "concept-index.md"
+id    = "concept-index"
+title = "Concept index"
+role  = "lookup"
+
+[[page]]
+file  = "source-index.md"
+id    = "source-index"
+title = "Source index"
+role  = "lookup"
+
+[[root]]
+id    = "source-crate-manifest"
+path  = "crates/grove-llm/Cargo.toml"
+lines = 54
+
+[[root]]
+id    = "source-library-root"
+path  = "crates/grove-llm/src/lib.rs"
+lines = 16
+
+[[root]]
+id    = "source-entry-point"
+path  = "crates/grove-llm/src/main.rs"
+lines = 3
+
+[[root]]
+id    = "source-command-surface"
+path  = "crates/grove-llm/src/cli.rs"
+lines = 944
+
+[[block]]
+id    = "manifest-thin-by-crate"
+root  = "source-crate-manifest"
+owner = "one-call-plus-rendering"
+lines = "1-54"
+
+[[block]]
+id    = "library-root"
+root  = "source-library-root"
+owner = "one-call-plus-rendering"
+lines = "1-16"
+
+[[block]]
+id    = "entry-point"
+root  = "source-entry-point"
+owner = "one-call-plus-rendering"
+lines = "1-3"
+
+[[block]]
+id    = "surface-thesis-and-imports"
+root  = "source-command-surface"
+owner = "one-call-plus-rendering"
+lines = "1-34"
+
+[[block]]
+id    = "grammar-cli-and-enum-head"
+root  = "source-command-surface"
+owner = "admitted-before-dispatch"
+lines = "35-65"
+
+[[block]]
+id    = "verb-root-init"
+root  = "source-command-surface"
+owner = "before-the-lock"
+lines = "66-74"
+
+[[block]]
+id    = "verbs-reading"
+root  = "source-command-surface"
+owner = "information-not-error"
+lines = "75-124"
+
+[[block]]
+id    = "verbs-growing"
+root  = "source-command-surface"
+owner = "before-the-lock"
+lines = "125-216"
+
+[[block]]
+id    = "verbs-ending"
+root  = "source-command-surface"
+owner = "two-steps-remain"
+lines = "217-247"
+
+[[block]]
+id    = "verbs-leaving"
+root  = "source-command-surface"
+owner = "admit-before-signal"
+lines = "248-289"
+
+[[block]]
+id    = "enum-close-and-operation-label"
+root  = "source-command-surface"
+owner = "admitted-before-dispatch"
+lines = "290-310"
+
+[[block]]
+id    = "args-complete"
+root  = "source-command-surface"
+owner = "admit-before-signal"
+lines = "311-322"
+
+[[block]]
+id    = "args-root-init"
+root  = "source-command-surface"
+owner = "before-the-lock"
+lines = "323-330"
+
+[[block]]
+id    = "kind-help-and-parse-kind"
+root  = "source-command-surface"
+owner = "before-the-lock"
+lines = "331-358"
+
+[[block]]
+id    = "args-growing"
+root  = "source-command-surface"
+owner = "before-the-lock"
+lines = "359-399"
+
+[[block]]
+id    = "args-ending"
+root  = "source-command-surface"
+owner = "two-steps-remain"
+lines = "400-411"
+
+[[block]]
+id    = "run-admission-and-dispatch"
+root  = "source-command-surface"
+owner = "admitted-before-dispatch"
+lines = "412-437"
+
+[[block]]
+id    = "handlers-leaving"
+root  = "source-command-surface"
+owner = "admit-before-signal"
+lines = "438-483"
+
+[[block]]
+id    = "handler-root-init"
+root  = "source-command-surface"
+owner = "before-the-lock"
+lines = "484-513"
+
+[[block]]
+id    = "handlers-reading-and-rendering"
+root  = "source-command-surface"
+owner = "information-not-error"
+lines = "514-636"
+
+[[block]]
+id    = "handlers-growing"
+root  = "source-command-surface"
+owner = "before-the-lock"
+lines = "637-767"
+
+[[block]]
+id    = "handlers-ending"
+root  = "source-command-surface"
+owner = "two-steps-remain"
+lines = "768-825"
+
+[[block]]
+id    = "presence-rule-and-slug"
+root  = "source-command-surface"
+owner = "before-the-lock"
+lines = "826-862"
+
+[[block]]
+id    = "openings"
+root  = "source-command-surface"
+owner = "admitted-before-dispatch"
+lines = "863-903"
+
+[[block]]
+id    = "path-and-label-helpers"
+root  = "source-command-surface"
+owner = "information-not-error"
+lines = "904-944"
+
+[[early-use]]
+symbols   = "`Reading`, `Tree`, `Writing`, `TreeWrite`"
+first-use = "01-orientation.md#the-imports"
+owner     = "admitted-before-dispatch"
+statement = "The two openings of a grove — a shared read and an exclusive write — each answering *vacant* as a value rather than an error."
+
+[[early-use]]
+symbols   = "`SessionEpochGuard`"
+first-use = "01-orientation.md#the-imports"
+owner     = "admitted-before-dispatch"
+statement = "The guard `run` obtains when it admits this process against a live session epoch — present under a driver, absent for a manual command — alive through the verb, and consulted only by `complete`."
+
+[[early-use]]
+symbols   = "`Workspace`"
+first-use = "01-orientation.md#the-imports"
+owner     = "admitted-before-dispatch"
+statement = "A resolved jj working tree; every verb but `complete` resolves it from the current directory, and the grove root is spelled from it in one place."
+
+[[early-use]]
+symbols   = "`Outcome`"
+first-use = "01-orientation.md#the-imports"
+owner     = "information-not-error"
+statement = "Live, retired or abandoned — the infix a filename carries, rendered as a stderr note so a dead end never looks live."
+
+[[early-use]]
+symbols   = "`Reference`"
+first-use = "01-orientation.md#the-imports"
+owner     = "information-not-error"
+statement = "A parsed spelling of a tree entry — key, handle or slug — read by its own type before any tree is opened."
+
+[[early-use]]
+symbols   = "`Sought`, `Resolution`"
+first-use = "01-orientation.md#the-imports"
+owner     = "information-not-error"
+statement = "`Sought` is a found-or-nothing answer; `Resolution` is what `resolve` found — the root, one entry, or an ambiguity."
+
+[[early-use]]
+symbols   = "`Kind`, `Slug`"
+first-use = "01-orientation.md#the-imports"
+owner     = "before-the-lock"
+statement = "The grammar's own types for a `--kind` token and a slug; malformed text is refused by them, before any lock."
+
+[[early-use]]
+symbols   = "`SessionConfig`"
+first-use = "01-orientation.md#the-imports"
+owner     = "before-the-lock"
+statement = "The launch configuration, loaded whole and asked whether one kind resolves to a template."
+
+[[early-use]]
+symbols   = "`Handle`"
+first-use = "01-orientation.md#the-imports"
+owner     = "admit-before-signal"
+statement = "A `<slug>-k<key>` handle, parsed leniently on the key and spoken canonically thereafter."
+
+[[early-use]]
+symbols   = "`Signalled`"
+first-use = "01-orientation.md#the-imports"
+owner     = "admit-before-signal"
+statement = "Whether `complete` wrote the disposition to a channel or found no loop to signal."
+
+[[early-use]]
+symbols   = "`cmd_pick`, `cmd_brief_chain`, `cmd_kind`, `cmd_resolve`"
+first-use = "02-the-grammar.md#worked-dispatch"
+owner     = "information-not-error"
+statement = "One handler per reading verb: the shared opening, one `grove_loop::verbs` call, and rendering."
+
+[[early-use]]
+symbols   = "`cmd_root_init`, `cmd_leaf_add`, `cmd_leaf_insert`, `cmd_leaf_decompose`"
+first-use = "02-the-grammar.md#worked-dispatch"
+owner     = "before-the-lock"
+statement = "One handler per growing verb: text parsed, presence asked, then the exclusive opening, then one call."
+
+[[early-use]]
+symbols   = "`cmd_leaf_retire`, `cmd_leaf_prune`"
+first-use = "02-the-grammar.md#worked-dispatch"
+owner     = "two-steps-remain"
+statement = "One handler per terminal mark: the exclusive opening, one call, the marked paths, and the two remaining steps on stderr."
+
+[[early-use]]
+symbols   = "`cmd_finish_commit`, `cmd_complete`"
+first-use = "02-the-grammar.md#worked-dispatch"
+owner     = "admit-before-signal"
+statement = "The two handlers that open no tree: one commits through the workspace, one writes the completion channel."
+
+[guide]
+path    = "docs/USAGE.md"
+anchors = ["usage-tree-verbs", "usage-driver-lease", "usage-review-composition", "usage-finish"]
+
+[[glossary]]
+path    = "CONTEXT.md"
+anchors = ["driver-lease", "stated-vcs", "task-tree-scheme", "task-commit-boundary", "loop-control-channel", "session-epoch", "tree-access-lock"]

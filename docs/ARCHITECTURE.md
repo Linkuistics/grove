@@ -34,6 +34,7 @@ system owns them.
 | `ordinal-fs-tree` source, read page by page | [`walkthroughs/ordinal-fs-tree/README.md`](walkthroughs/ordinal-fs-tree/README.md) — the code walkthrough: a reader-navigable book whose fragments reconstruct every byte of the crate's frozen corpus |
 | `jj-workspace` source, read page by page | [`walkthroughs/jj-workspace/README.md`](walkthroughs/jj-workspace/README.md) — the code walkthrough: a book whose every chapter opens on something the crate declines to own, and whose fragments reconstruct every byte of the crate's frozen corpus |
 | The `grove` binary's source, read page by page, and the system description its call reaches | [`walkthroughs/overview/README.md`](walkthroughs/overview/README.md) — the system overview: a book whose every chapter opens at one of the binary's own steps, and whose fragments reconstruct every byte of `crates/grove`'s frozen corpus |
+| `grove-llm` source, read page by page | [`walkthroughs/grove-llm/README.md`](walkthroughs/grove-llm/README.md) — the code walkthrough: a book whose every chapter opens on the one thing a thin binary still has to get right, and whose fragments reconstruct every byte of the crate's frozen corpus |
 | Methodology executed by agents | [`plugins/grove/skills/grove/SKILL.md`](../plugins/grove/skills/grove/SKILL.md), its adjacent format guides, and one `grove-<kind>` skill per session kind |
 | Skill-plugin operation | [`plugins/README.md`](../plugins/README.md) |
 | Scoping notes for work not yet started | `TODO.<subject>.md` at the repository root |

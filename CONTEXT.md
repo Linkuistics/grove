@@ -421,7 +421,9 @@ passes through.
 _Avoid_: the [[Tree access lock]] — that shorter guard serializes one tree observation or mutation and must be released before foreground launch. A driver lease serializes the loop lifetime and lives on a separate control file in the VCS administration area.
 _Avoid_: waiting for a contended driver lease — a second driver would issue duplicate mandates, so it is refused immediately rather than queued as an ordinary tree operation.
 
-**Session epoch**:
+<a id="session-epoch"></a>
+### Session epoch
+
 The ephemeral launch-generation binding between one live [[Driver lease]], one
 working-tree identity, and one collision-resistant [[Loop control channel]]
 path, rewritten by the driver around every spawn. An ambient `grove-llm` tree
@@ -855,7 +857,9 @@ nowhere; write the pair, `branch-review-k14 B5`. An unscoped index is **worse** 
 bare position: a position merely fails to resolve, while a number can resolve
 *incorrectly* against an unrelated live series of the same shape (task-tree-scheme §5).
 
-**Tree access lock**:
+<a id="tree-access-lock"></a>
+### Tree access lock
+
 The process-scoped advisory lock every task-tree reader and mutator takes on an
 open descriptor for the **working-tree root** before inspecting names — shared
 for readers, exclusive for mutators. The root rather than `.grove/`, because it

@@ -73,7 +73,7 @@ source.
 1. [Orientation](01-orientation.md)
 2. [The grammar and the openings](02-the-grammar.md)
 3. [Reading the tree](03-reading-the-tree.md)
-4. Growing the tree
+4. [Growing the tree](04-growing-the-tree.md)
 5. Ending work
 6. Leaving the loop
 7. What order holds

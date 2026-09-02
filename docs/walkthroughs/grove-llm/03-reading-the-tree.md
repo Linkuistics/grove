@@ -1,6 +1,6 @@
 # Reading the tree
 <!-- book-page id="reading-the-tree" slice="information-not-error" order="3" -->
-[Previous: The grammar and the openings](02-the-grammar.md) | [Contents](README.md)
+[Previous: The grammar and the openings](02-the-grammar.md) | [Contents](README.md) | [Next: Growing the tree](04-growing-the-tree.md)
 
 <a id="information-not-error"></a>
 ## Information, not error
@@ -771,4 +771,4 @@ it was given and refuses nothing the loop did not refuse first. The next four
 write, and what a thin binary has to get right there is not what it prints but
 what it reads, and asks, before it takes the lock.
 
-[Previous: The grammar and the openings](02-the-grammar.md) | [Contents](README.md)
+[Previous: The grammar and the openings](02-the-grammar.md) | [Contents](README.md) | [Next: Growing the tree](04-growing-the-tree.md)

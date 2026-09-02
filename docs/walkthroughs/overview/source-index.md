@@ -19,7 +19,7 @@
 <!-- defer «entry-point-three-steps» owner="one-call" lines="1-13" -->
 <!-- /source-root -->
 <!-- source-root «source-command-surface» source="crates/grove/src/cli.rs" lines="1-137" -->
-<!-- defer «surface-grammar» owner="no-arguments" lines="1-19" -->
+<!-- insert «surface-grammar» -->
 <!-- defer «surface-resolve-lease-run» owner="one-call" lines="20-53" -->
 <!-- defer «surface-closure-tests» owner="closure-proved" lines="54-137" -->
 <!-- /source-root -->
@@ -31,7 +31,7 @@
 |---|---|---|---|---|---|
 | `manifest-thin-by-construction` | `source-crate-manifest` | `compiler-held` | `1-54` | 54 | `resolved` |
 | `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-13` | 13 | `deferred` |
-| `surface-grammar` | `source-command-surface` | `no-arguments` | `1-19` | 19 | `deferred` |
+| `surface-grammar` | `source-command-surface` | `no-arguments` | `1-19` | 19 | `resolved` |
 | `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `20-53` | 34 | `deferred` |
 | `surface-closure-tests` | `source-command-surface` | `closure-proved` | `54-137` | 84 | `deferred` |
 
@@ -52,6 +52,11 @@
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `52-54` | `manifest-thin-by-construction` | `—` |
 | `source-entry-point` | `source-index` | `source-entry-point` | `root` | `—` | `1-13` | `—` | `entry-point-three-steps` |
 | `source-command-surface` | `source-index` | `source-command-surface` | `root` | `—` | `1-137` | `—` | `surface-grammar`, `surface-resolve-lease-run`, `surface-closure-tests` |
+| `surface-imports` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `1-2` | `surface-grammar` | `—` |
+| `surface-grammar` | `the-surface` | `source-command-surface` | `composite` | `no-arguments` | `1-19` | `source-command-surface` | `surface-imports`, `surface-doc-comment`, `surface-clap-attributes`, `surface-empty-struct` |
+| `surface-doc-comment` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `3-7` | `surface-grammar` | `—` |
+| `surface-clap-attributes` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `8-18` | `surface-grammar` | `—` |
+| `surface-empty-struct` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `19-19` | `surface-grammar` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses

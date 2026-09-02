@@ -60,7 +60,7 @@ source.
 ## Contents
 
 1. [Orientation](01-orientation.md)
-2. The surface
+2. [The surface](02-the-surface.md)
 3. Three steps
 4. Proving a negative
 5. What the call reaches

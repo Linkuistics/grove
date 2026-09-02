@@ -1,6 +1,6 @@
 # Orientation
 <!-- book-page id="orientation" slice="compiler-held" order="1" -->
-[Contents](README.md)
+[Contents](README.md) | [Next: The surface](02-the-surface.md)
 
 <a id="compiler-held"></a>
 ## The binary that selects nothing
@@ -72,11 +72,11 @@ else: the package is a crate, and the crate has no library.
 
 The first fragment is the package block. Five of its fields are inherited from
 the workspace root rather than stated, and one of those five matters to a later
-page: `version`. Every member of the workspace takes `version.workspace = true`,
-so there is one release version, and *The surface* reads it as the constant
-both binaries report — the input is a `cargo release` cut, the output is one
-number in every member, and the invariant is that `grove --version` and
-`grove-llm --version` cannot disagree. In the invocation this chapter carries,
+page: `version`. Every crate on the path from this binary to the loop takes
+`version.workspace = true`, so there is one release version, and *The surface*
+reads it as the constant both binaries report — the input is a `cargo release`
+cut, the output is one number in every crate an operator installs, and the
+invariant is that `grove --version` and `grove-llm --version` cannot disagree. In the invocation this chapter carries,
 that number is what a reader sees first if they type `grove --version` before
 typing `grove`.
 
@@ -385,4 +385,4 @@ each of those as a decision rather than a default. The remaining two are
 asserted by tests in the file the grammar lives in, and the grammar is read
 next.
 
-[Contents](README.md)
+[Contents](README.md) | [Next: The surface](02-the-surface.md)

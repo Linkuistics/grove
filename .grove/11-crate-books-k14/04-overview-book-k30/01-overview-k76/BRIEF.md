@@ -144,3 +144,50 @@ before the page that owns `DriverLease::acquire`.
 has its first use moved back to chapter 1. `LoopOutcome` in particular is
 avoided: the trace says *run returns `Ok(())`* and *the loop reports why it
 stopped* without naming the enum.
+
+**9 · Chapter 2 partitions its block into four literals along the file's own
+structure**: the two imports (1–2), the doc comment with its leading blank line
+(3–7), the derive and `#[command]` attributes (8–18), and the empty struct
+(19). The composite `surface-grammar` carries them in file order. Blank lines
+lead the fragment that follows them, as in chapter 1.
+
+**10 · The early-use anchor `the-imports` carries a table, not four
+sentences.** Four types with one statement each is a mapping the prose
+contract's *Figures* rule says to draw, and the table is also where the ledger's
+four `pending` statements are stated verbatim, so a reader and the validator
+read the same words.
+
+**11 · The worked example is measured, not rendered from convention**, and the
+measurement corrected one claim: `name = "grove"` fixes the `--version` line,
+not the usage line, which takes argv[0]. The page says which transcripts the
+guide also carries and which one it does not.
+
+**12 · A stale claim in the `grove-llm` corpus is adjudicated on the page and
+cut as a leaf.** The matching version attribute in `crates/grove-llm/src/cli.rs`
+says the package carries its own `0.1.0`; its manifest inherits the workspace
+version. Chapter 2 states the two mechanisms that actually hold the numbers
+equal and does not repeat the stale one. `grove-llm-version-comment-k83` sits
+beside `manifest-function-count-k82`, after every crate book, under the root
+brief's cross-book rule.
+
+**13 · The twelve-verb catalogue names and groups; it does not argue.** The
+reasons the agent surface has the members it has — *twelve, not thirteen*, the
+two retirements — are the residue `architecture-move-k31` leaves in
+`docs/ARCHITECTURE.md`, and the page names that document by path and stops.
+
+**14 · A second stale version claim sits in this book's own corpus, and the
+draft adjudicates it rather than repeating it.** `cli.rs` line 12 says *every
+member takes `version.workspace = true`*; `book-validation` does not. Chapter 2
+states the narrower invariant that holds — every crate on the path from `grove`
+to `grove-loop` inherits one version — beside the fragment, and chapter 1's
+sentence was narrowed to match in the same session, which is the draft's own
+technical-truth charter and not a later stage's. `every-member-version-comment-k84`
+is the leaf, beside k82 and k83.
+
+**15 · For `three-steps-k79`: the `TemplateSource` early-use statement says the
+loop re-reads it *once* per iteration; `crates/grove-loop/src/loop_driver.rs`
+loads it twice inside the loop body, once before the transition and once
+after.** The structure brief and the manifest carry the *once* wording, and
+chapter 2 uses a count-neutral form at the anchor. Chapter 3 owns the rows and
+the type: verify the count against the source, and if *twice* is right, amend
+the manifest statement, the ledger row and the brief's table in one commit.

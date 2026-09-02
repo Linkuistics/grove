@@ -8,9 +8,26 @@ human's structure brief settled, passing final validation.
 
 ## Context
 
-- Inputs: this book's structure brief, the shared specification from
+- Inputs: **the structure brief at `docs/specs/grove-llm-book-structure.md`**
+  (elicited at `grove-llm-structure-k32`, whose decision log carries every
+  rejected alternative), the shared specification from
   `walkthrough-books-spec-k20`, and the pipeline `publishing-pipeline-k13`
-  extracted.
+  extracted. The brief states the reader and the outcome, the ordered chapter
+  plan with each chapter's responsibilities, and what deserves emphasis and what
+  the book does not cover — the three things `grove-draft` requires of a named
+  artifact — and its chapter sequence and twenty-five ownership blocks are what
+  `docs/walkthroughs/grove-llm/walkthrough.toml` records.
+- **Two obligations outside the book, owed here before the book validates**
+  (brief, *Outbound links* and *The book's row*): promote *Session epoch* and
+  *Tree access lock* in `CONTEXT.md` from bold paragraphs to `###` headings with
+  explicit anchors `session-epoch` and `tree-access-lock`, keeping each phrase
+  as the heading text, as `overview-book-k30` did for `guaranteed-core`; and add
+  the book's row to `docs/ARCHITECTURE.md`'s *Documentation ownership* table.
+- **Three stale claims in the corpus are known in advance** (brief, *Known in
+  advance*): the manifest's reachability claim beside the direct `jj-workspace`
+  dependency, `lib.rs`'s *or `grove`*, and the `0.1.0` comment already leafed as
+  `grove-llm-version-comment-k83`. Each page states the checkable fact beside
+  the fragment; none is fixed from inside the book.
 - The corpus, exactly: every `crates/grove-llm/src/**/*.rs` plus
   `crates/grove-llm/Cargo.toml` — 4 roots, 1,017 lines. Every byte belongs to a
   fragment graph; `tests/` is evidence, not a root.

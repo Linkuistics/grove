@@ -18,7 +18,8 @@ two endings in *Three steps*, and the guard on its argument vector was measured
 in *Proving a negative*; nothing on this page changes a value in that trace.
 The page's figures are maps. The first is the workspace the binary is built in
 and what the binary names from each part of it; the second is the seven names
-that cross the boundary, one line each; the third is the boundary itself, as a
+that cross the boundary, one line each; the third is the modules behind the
+call and what each is responsible for; the fourth is the boundary itself, as a
 list of what the four chapters named and did not explain. The test is then
 applied to the three mechanisms in turn and to the other entry point the map
 shows, the two ledgers are closed, and the final validation is recorded.
@@ -149,15 +150,36 @@ this crate names an item from one of the four and from two of the seven
 private ones. The rest of the loop is reached by the call and by nothing else
 in these 204 lines.
 
-What each of those modules is responsible for — which one holds the
-reading and growing verbs, which one the lifecycle and the finish sentinel,
-which one the
-completion channel, which one the prompt — is the account
-`docs/ARCHITECTURE.md`
-carries under *Main module seams*, and this page names the four modules the
-binary's names come from and stops. The one module of the map this book has
-explained is `grove`'s own `cli`, in the three chapters that read its 137
-lines.
+The table is the map of those modules, and of the one module each binary
+has: the package, the module, and what it is responsible for. The reader is to
+take from it which module the call reaches for each thing the four chapters
+named — the task tree and its grammar, the lifecycle and the finish sentinel,
+the completion channel, the lease and the epoch, the prompt, the configuration
+— and that the map names each responsibility without explaining it. The one
+row this book has explained is `grove`'s own `cli`, in the three chapters that
+read its 137 lines; every other row is named here and explained in its own
+crate's book.
+
+| Package | Module | Responsibility |
+|---|---|---|
+| `grove-loop` | *the crate root* | The opening — `read`, `write`, `Reading`, `Writing` — which mirrors the store's one level up, so a caller can neither scaffold over a live grove nor read one that is not there. Plus `Reference`, `Selection`, and the crate's one opaque `Error`. |
+| `grove-loop` | `verbs` | The twelve verbs a session invokes. A verb that reads takes a `Tree` and one that writes takes a `TreeWrite`, so the lock it needs is in its signature; a search that matched nothing answers the store's `Sought`; and every one returns the paths it wrote, because its caller writes the commit message by hand. |
+| `grove-loop` | `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has, handle included (`Slug`, `Kind`, `Outcome`, `Handle`, `Parts`, `TaskName`). |
+| `grove-loop` | `task_tree`, `task_grow` | The reading and growing verbs expressed through the library: one snapshot per command, path construction, key prediction, and the cross-reference lint. |
+| `grove-loop` | `tree_lifecycle` | The grove-only lifecycle around the tree: the terminal outcomes, the finish sentinel, and the grove's own creation through the store's vacancy. |
+| `grove-loop` | `complete`, `driver` | The completion channel's token — written by one verb, read back by the loop — and the two tree operations the loop performs that no verb exposes. |
+| `grove-loop` | `loop_driver` | **The loop**: `run(workspace, lease, templates)`, and `LoopOutcome`. Foreground iteration and selection; names the child-environment scrub list and the escalation's two graces and hands both to `keyed-launch`, which owns the spawn, the supervision and the kill. |
+| `grove-loop` | `driver_lease` | Driver lease, session epoch, and ambient-session validation. Takes a resolved workspace and asks the seam for grove's namespace inside it; supplies the control directory each launch's channel is allocated in, the channel itself being `keyed-launch`'s. |
+| `grove-loop` | `prompt` | The guaranteed core: the whole of `${prompt}` — the `grove-<kind>` load instruction, the runtime facts, grove's signalling contract — and the too-late test its contents are admitted by. Reads nothing and depends on no corpus. |
+| `grove-loop` | `session_config` | Grove's side of launch configuration: the personal file's path, the four slots grove's templates are written against, the `TemplateSource` the loop re-reads on every iteration — twice, before and after the tree transition — and the delta: where it is searched, which candidate wins, and the refusal of a tracked one. The grammar, the validation and the expansion are `keyed-launch`'s. Asks the VCS seam whether a delta candidate is tracked; nothing else leaves the filesystem. |
+| `grove` | `cli` | The human command surface, which selects nothing: parse, resolve the workspace, take the lease, call `grove_loop::run`. |
+| `grove-llm` | `cli` | The deterministic agent command surface: argument parsing, the just-in-time presence rule, and rendering. Every verb is one `grove_loop::verbs::` call plus output. |
+
+Two rows are the binaries, and they are the same shape: a clap surface plus a
+call. The other ten are the loop, which is the whole of grove behind the call.
+The three packages the loop depends on are not rows, because none of them has a
+module grove reaches by name: each is a crate with an architecture of its own
+and is named in the package map above by what it is.
 
 <a id="the-boundary"></a>
 ## Where this book stops
@@ -193,11 +215,15 @@ structure brief put it; *Orientation* carries the first.
 
 Each row is a subject of the crate that owns it, and the account of each is
 that crate's own book. Three of those books do not exist at the corpus this
-book is frozen against, and the description a reader can open today is
-`docs/ARCHITECTURE.md`'s — named here by path because the book's link contract
-admits two documents outside it, the guide and the glossary, and that document
-is neither. The same holds for the plugin: it is in no crate and therefore in no
-book, and *Orientation* named it as one of two products and stopped.
+book is frozen against, and until each lands the description of that crate's
+internals stays in `docs/ARCHITECTURE.md`, beside the decisions it records —
+named here by path because the book's link contract admits two documents
+outside it, the guide and the glossary, and that document is neither. What that
+document no longer describes is the entry point, the two surfaces and the
+module map: those are this book's, and each of its stripped sections opens with
+a pointer to the page here that carries the description. The same holds for the
+plugin: it is in no crate and therefore in no book, and *Orientation* named it
+as one of two products and stopped.
 
 <a id="the-test-applied-back"></a>
 ## The test, applied back

@@ -2,9 +2,9 @@
 
 The grove CLI and methodology. This glossary holds terms specific to this codebase; general programming concepts are excluded by design.
 
-Definitions only. How a seam works belongs to `docs/ARCHITECTURE.md` and the
-specs under `docs/specs/`; this glossary names those seams rather than restating
-them.
+Definitions only. How a seam works belongs to `docs/ARCHITECTURE.md`, the
+specs under `docs/specs/` and the walkthrough books under `docs/walkthroughs/`;
+this glossary names those seams rather than restating them.
 
 ## Language
 

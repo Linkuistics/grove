@@ -346,6 +346,12 @@ instructs **ten** of the twelve, pinned as a complete set in that same test:
 the two it never instructs are `root-init`, which bare `grove` performs before
 any session exists, and `kind`, a diagnostic the loop answers for itself.
 
+One fact about the list is described rather than checked. Every one of the
+twelve is admitted through the session-epoch guard before it is dispatched,
+`complete` included: run under the loop, a verb is checked against the driver's
+current launch; run by hand with no loop-control context, it keeps its ordinary
+behaviour.
+
 The flatness is the agent-side counterpart of the empty grammar. Both surfaces
 are shaped for a reader who has nothing but the binary: a human who types
 `grove` and needs to select nothing, and a session that has dropped its context

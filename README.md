@@ -74,8 +74,12 @@ installation behavior.
   over the task tree, and the start-to-finish workflow.
 - [Configuration](docs/CONFIGURATION.md) — the personal KDL file, the
   command-template grammar, the configuration delta, and the diagnostics.
-- [Architecture](docs/ARCHITECTURE.md) — runtime flow, task-tree model, module
-  seams, VCS behavior, and current design constraints.
+- [Architecture](docs/ARCHITECTURE.md) — the design decisions, constraints and
+  measurement records behind the runtime, the task tree and the VCS seam.
+- [System overview](docs/walkthroughs/overview/README.md) — the `grove` binary
+  read page by page, with the runtime flow, the two command surfaces and the
+  module map its one call reaches; the other code walkthroughs sit beside it
+  under `docs/walkthroughs/`.
 - [Releasing](docs/RELEASING.md) — cutting a version, publishing release
   archives, and updating the Homebrew tap.
 - [Grove vocabulary](CONTEXT.md) and the [context map](CONTEXT-MAP.md).

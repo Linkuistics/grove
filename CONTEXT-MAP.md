@@ -259,8 +259,8 @@ consumer names, and no call site passes one where the other is expected.
   `delete-finish-models-k30`). It went for the reason the paragraph below gives
   for `module-decomposition` in advance: a spec earns its place by describing
   something no other artifact holds, and once its checker is gone and the design
-  it specified is being dismantled, `docs/ARCHITECTURE.md` is where the
-  current-state description belongs.
+  it specified is being dismantled, `docs/ARCHITECTURE.md` was where the
+  current-state description belonged.
 
   The third earns its place on the grain rule rather than on novelty.
   `module-decomposition` was written as the agreement point a whole chain of
@@ -268,9 +268,12 @@ consumer names, and no call site passes one where the other is expected.
   carried a retirement condition — *delete it once the crates exist* — and
   `spec-to-current-state-k23` reached that condition and did not exercise it.
   What it describes is **how the module boundaries work**, which is a spec's own
-  grain and not `docs/ARCHITECTURE.md`'s: the architecture describes the runtime
-  a reader is operating, an ADR records one decision and its trade-off, and
-  neither states the five interfaces as a set a consumer builds against. Four
+  grain and not `docs/ARCHITECTURE.md`'s: the architecture records the
+  decisions, constraints and measurements behind the runtime a reader is
+  operating — its description of what that runtime does is moving into the
+  walkthrough books, the system overview first — an ADR records one decision
+  and its trade-off, and neither states the five interfaces as a set a consumer
+  builds against. Four
   artifacts link into it, and its decisions are cited *by number* from source
   comments, `Cargo.toml` headers and tests across all six packages, so the
   numbering is part of the contract. It was rewritten to current state instead,

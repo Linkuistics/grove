@@ -604,11 +604,13 @@ reads `TemplateSource::from_env` handed the loop a location for.
    decide: relaunch, and the loop continues with fresh context; done, and it
    returns `Finished`; absent, and it returns `Stopped`.
 
-A signal to the driver during the session is what turns the reap at step 6
-into `Interrupted`. The only durable writes of the driver's own are the two the
-transition and the selection can make — a root brief and a first
+The driver stays in the foreground throughout step 5 as the parent of the
+child the runner spawned for it; a signal to the driver during the session is what turns the reap at
+step 6 into `Interrupted`. The only durable writes of the driver's own are the
+two the transition and the selection can make — a root brief and a first
 `requirements` leaf on a tree with no `.grove/`, and the `finish` leaf when no
-live leaf remains; the epoch and the channel an iteration writes are
+live leaf remains. The completion signal is a temporary control message and
+never workflow state, and the epoch and the channel an iteration writes are
 coordination that means nothing once the lock behind them is released, as the
 lease the binary wrote before the loop began is.
 

@@ -8,9 +8,16 @@ launch one configured agent session, and continue until the tree is complete.
 
 Grove does not know what it launches. One personal file maps each session kind
 to one complete command template, and the driver executes the expanded argv
-directly. Everything below is what remains once launch policy leaves the binary:
-process ownership, a task-tree data model, and a loop that composes five
-modules. There are no transactions: the version control system owns them.
+directly. Everything below is what remains once launch policy leaves the binary
+— process ownership, a task-tree data model, and the loop that composes them —
+recorded as the decisions, the constraints and the measurements behind each.
+The description of what the system does at its entry point, how its two command
+surfaces are shaped and which module holds what is the
+[system overview](walkthroughs/overview/README.md)'s, and each stripped section
+below opens with a pointer to the page that carries it. The description of the
+remaining crates' internals stays here, marked, until each crate's own
+walkthrough makes it redundant. There are no transactions: the version control
+system owns them.
 
 ## Documentation ownership
 
@@ -20,7 +27,7 @@ modules. There are no transactions: the version control system owns them.
 | Human workflow and commands | [`USAGE.md`](USAGE.md) |
 | Session configuration and launch policy | [`CONFIGURATION.md`](CONFIGURATION.md) |
 | Cutting and publishing a release | [`RELEASING.md`](RELEASING.md) |
-| Runtime and repository design | this document |
+| Runtime and repository design — the decisions, the constraints, and the measurement records | this document |
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
 | Relationships between this repository's bounded contexts | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
 | `ordinal-fs-tree` design and vocabulary | [`ordinal-fs-tree/ARCHITECTURE.md`](ordinal-fs-tree/ARCHITECTURE.md) and [`ordinal-fs-tree/CONTEXT.md`](ordinal-fs-tree/CONTEXT.md) |
@@ -103,33 +110,9 @@ skill a session needs and does not check that it is there.
 
 ## Runtime flow
 
-```text
-human: grove
-        │
-        ├─ resolve the nearest jj working-tree root
-        ├─ acquire that working tree's driver lease
-        └─ foreground loop
-             │
-             ├─ revalidate the lease
-             ├─ load and fully validate ~/.config/grove/config.kdl, then
-             │    resolve any untracked .grove.kdl delta over it
-             ├─ perform the one lifecycle transition, if any (root-init, or
-             │    nothing)
-             ├─ one authoritative pick — or materialize the finish leaf
-             ├─ reload configuration and expand the selected kind's template
-             ├─ allocate a fresh signal channel and activate the session epoch
-             ├─ spawn that argv directly and watch the foreground child
-             └─ reap, invalidate the epoch, then read the completion signal
-                    ├─ relaunch → next fresh session
-                    ├─ done     → stop
-                    └─ absent   → stop safely; the next `grove` resumes
-```
-
-`grove --help` and `grove --version` stop before this flow: they discover no
-repository and acquire no lease.
-
-The driver stays in the foreground and owns its child process. Completion
-signals are temporary control messages, not durable workflow state.
+The path one invocation takes — the three steps the binary performs before the
+call, and the shape of each foreground iteration behind it — is described in the
+overview's [*Three steps*](walkthroughs/overview/03-three-steps.md#one-iteration).
 
 **Two advisory steps used to open every iteration and are gone.** The driver
 restored any skill directory another build had clobbered, and re-checked the
@@ -144,26 +127,20 @@ directly and stops on, and the methodology's delivery is the human's.
 <a id="command-surfaces"></a>
 ## Command surfaces
 
-The `grove` binary is for humans and has no subcommands and no lifecycle flags.
-Bare `grove` reads the task tree for what to do and the personal configuration
-for how to launch it, so there is nothing left for an argument to select;
-`--help` and `--version` are the only other accepted arguments.
+Both surfaces — the human grammar, which selects nothing, and the agent grammar
+of twelve flat verbs — are described in the overview's
+[*The surface*](walkthroughs/overview/02-the-surface.md#no-arguments).
 
-`grove-llm` is for deterministic operations the methodology instructs:
-`root-init`; `pick`, `brief-chain`, `kind`, and `resolve`; `leaf-add`,
-`leaf-insert`, and `leaf-decompose`; `leaf-retire` and
-`leaf-prune`; `finish-commit`; and `complete`. **Twelve**, not thirteen:
-`open-kind-k20` deleted the research-pair verb by generalising `leaf-add` to take
-an ordered list of kinds, which is what took the last list of kinds out of the
-machinery. Every one of them mutates or
-resolves a task tree, so every one of them is admitted through the session-epoch
-guard. This split keeps a discoverable human API without forcing the agent to
+`grove-llm` has **twelve** verbs, not thirteen: `open-kind-k20` deleted the
+research-pair verb by generalising `leaf-add` to take an ordered list of kinds,
+which is what took the last list of kinds out of the machinery. The split into
+two binaries keeps a discoverable human API without forcing the agent to
 reproduce filesystem mutations from prose.
 
-The surface is **flat**: a verb name is a whole invocable command, with no
-nesting. That is what lets `crates/grove-llm/tests/instructed_verbs.rs` compare the verbs the
-shipped methodology instructs against the verbs the CLI exposes by name, and it
-is pinned there rather than merely observed.
+The agent surface is flat so that `crates/grove-llm/tests/instructed_verbs.rs`
+can compare the verbs the shipped methodology instructs against the verbs the
+CLI exposes by name, and the flatness is pinned there rather than merely
+observed.
 
 Two entries are gone rather than renamed. A twelfth verb, `methodology`, served
 the embed by unit id to a session following a `defers=` marker; it went with the
@@ -174,15 +151,10 @@ report the build pairing; that flag, that identity and that report all went with
 provisioning at `delete-provisioning-k19`. There is no metadata argument left, so
 `grove-llm` takes a verb or prints help.
 
-`crates/grove/src/main.rs` and `crates/grove-llm/src/main.rs` are thin entry
-points. `crates/grove/src/cli.rs` owns the human grammar;
-`crates/grove-llm/src/cli.rs` owns the agent grammar. Since
-`loop-crate-driver-k22` **both are separate crates** over `grove-loop`, so *the
-binary is thin* is compiler-enforced rather than reviewed
+Since `loop-crate-driver-k22` **both binaries are separate crates** over
+`grove-loop`, so *the binary is thin* is compiler-enforced rather than reviewed
 (`docs/specs/module-decomposition.md`, decision 1): a binary target inside a
 library could reach that library's private items, and neither of these is one.
-The human binary is three steps — parse, resolve the workspace, take the lease —
-and then `grove_loop::run`.
 
 ## Session configuration
 
@@ -325,6 +297,15 @@ tree](adr/one-live-driver-per-working-tree.md).
 <a id="task-tree-scheme"></a>
 ## Task-tree data model
 
+<!-- residue marks. A `residue(<book>)` comment precedes a descriptive passage
+     that stays in this document only until the named walkthrough book covers
+     it; `architecture-residue-k75` deletes each once its book has landed.
+     `residue(none)` names a passage no planned crate book covers, because it
+     describes the methodology plugin rather than a crate. Where a passage is
+     mixed, the mark says which clauses it covers and which stay. A book that
+     has already landed (`jj-workspace`) makes its passages deletable now. -->
+
+<!-- residue(grove-loop): the tree grammar and its diagram -->
 The task tree is the state:
 
 ```text
@@ -336,6 +317,7 @@ The task tree is the state:
     NN-...                   # children use the same grammar
 ```
 
+<!-- residue(grove-loop): what a node is, and how a missing `BRIEF.md` is read -->
 There is **one node species**. A node means work proved bigger than one session,
 so it carries a charter; no constructor emits a charterless node, and both
 composition shapes are flat siblings. The reader nevertheless tolerates a
@@ -345,12 +327,14 @@ not a second species: a node close still checks its `Done when` and promotes
 what survives, and a charter that is merely absent is a gap to fill rather than
 a signal to skip that rollup.
 
+<!-- residue(grove-loop): positions, keys, handles and the terminal infixes -->
 `NN` is a gapless, per-directory position and may change when inserting work.
 `k<key>` is a permanent, globally unique identity and survives moves,
 decomposition, and completion; `<slug>-k<key>` is the stable handle. A node is a
 directory; a leaf is Markdown. `DONE` and `ABANDONED` are terminal filename
 infixes, so picking and rendering need not parse file contents.
 
+<!-- residue(grove-loop): the kind token and the `--` separator; the `open-kind-k20` record stays -->
 `<session-kind>` is any well-formed token, separated from the slug by `--` after
 the optional outcome infix. The **separator** is what makes a name unambiguous:
 the middle splits at the *first* `--`, and neither token may contain one, so a
@@ -360,6 +344,7 @@ set; `open-kind-k20` removed the set, and the separator is what made removing it
 safe ([`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md)). Node directory
 names stay kind-free, and kind is routing metadata rather than identity.
 
+<!-- residue(grove-loop): which names are malformed and which foreign; the ground for reaching directory names stays -->
 Every positioned, keyed name is task-shaped, and its `.md` suffix declares which
 species it is — present a leaf, absent a node directory. Such a name must parse
 completely as that species and name an entry that *is* that species on disk. A
@@ -372,6 +357,7 @@ node is legal everywhere. The rule reaches directory names because the loss is
 larger there: a skipped leaf costs one task, a skipped node costs its whole live
 subtree while picking reports the grove finished.
 
+<!-- residue(grove-loop): one classification shared by every verb; the ground for sharing it stays -->
 `task_name`'s verdict owns the species half for every tree verb, because the
 library classifies a listing once and every verb reads the same snapshot — so
 selection, resolution, growth, key allocation, and pruning share one answer about
@@ -379,6 +365,7 @@ what a sibling is, without which a subtree the reader refuses could stay
 invisible to key allocation, lowering the visible maximum key so the next
 `leaf-add` re-issues a live one.
 
+<!-- residue(grove-loop): refusal by name; the no-migration decision and the no-launch-metadata constraint stay -->
 There is no format witness and no format metadata inside the tree: **the
 filenames are the format**. A tree whose names this grammar does not spell is
 refused by name — `TaskNameError` carries what is on disk and the shape it should
@@ -386,6 +373,7 @@ have had — rather than classified and converted; Grove does not migrate an old
 layout. Task bodies carry no launch metadata at all — only the `**Reviews:**` and
 `**Integrates:**` composition relationships below.
 
+<!-- residue(grove-loop): which module owns which half of the tree; the `name-ownership-k14` record stays -->
 `task_name` parses identities **and renders them** — including the handle
 `<slug>-k<key>`, the position-free identity that crosses every module boundary.
 `Handle` is a type there, and in production code the grammar is written in
@@ -439,6 +427,7 @@ what was removed is load-bearing** — tidying the withdrawn modules out of the
 decision records and the changelog breaks the check rather than passing it, which
 is the intended direction.
 
+<!-- residue(grove-loop): the walk and the finish-reservation rule; the reserved-not-blocking argument stays -->
 Picking is a stateless depth-first pre-order walk over numeric sibling
 positions. It returns the first live leaf and skips terminal entries. The one
 eligibility rule beyond terminal filtering is the driver-owned `finish` leaf:
@@ -456,6 +445,7 @@ scheduler outside this order.
 
 ### Authoritative selection and mandate
 
+<!-- residue(grove-loop): the one pick and what it serves; `crates/grove-llm/tests/composition_guidance.rs` pins *no second tree read* here -->
 The driver performs exactly one authoritative pick per iteration, after any
 required lifecycle mutation. One guarded read copies the selected leaf's path,
 stable handle, and filename kind, and the read guard is released before the
@@ -465,6 +455,7 @@ serves readiness, the launch diagnostic line, template selection, and the
 mandate, with no second tree read. It is a fact, not a routing forecast, and it
 is not recomputed immediately before spawn.
 
+<!-- residue(grove-loop): the core's three parts -->
 `${prompt}` carries the **guaranteed core** and nothing else: an instruction to
 load this kind's `grove-<kind>` skill, given in both the bare and the
 plugin-namespaced spelling of that one target; then the three facts Grove
@@ -475,6 +466,7 @@ mechanism the session's last action drives and leaves *which* ending a kind take
 to that kind's skill. The order is the session's own timeline, and the
 methodology itself arrives as an installed plugin rather than in argv.
 
+<!-- residue(grove-loop, none): what the core reads is the loop's; what Bootstrap does with it is the methodology's; the `prompt-names-the-kind-k18` record stays -->
 The core reads nothing: all three parts are driver prose, so composition cannot
 fail and there is no per-kind content decision left in the binary. That is
 `prompt-names-the-kind-k18`'s deletion — a nineteen-to-ten reference map, a
@@ -708,9 +700,12 @@ methodology ships. The table below is the methodology's current set of twenty-th
 not the binary's; adding another is authoring a skill and declaring a template
 for it, never editing this repository's Rust.
 
+<!-- residue(grove-loop): the two kind tokens grove writes itself -->
 Grove spells exactly two kind tokens, and only where it writes the leaf itself
 with no session to delegate to: `requirements`, for the leaf `root-init` lays
 down, and `finish`, for the teardown sentinel.
+
+<!-- residue(none): the methodology's current set of kinds, in two tables and the paragraphs around them; the open-token decision above and the editorial-pipeline measurement record stay -->
 
 | Producer | Purpose | Review | Integration |
 |---|---|---|---|
@@ -738,17 +733,20 @@ it and buys it no `review-`/`integrate-review-` pair. Which stages exist was
 measured rather than asserted
 ([`the-editorial-pipeline-is-four-kinds`](adr/the-editorial-pipeline-is-four-kinds.md)).
 
+<!-- residue(grove-loop): the finish reservation -->
 `finish` is driver-reserved: only the lifecycle creates a finish leaf, and the
 grow and terminal verbs refuse it as a kind or operand. That refusal is grove
 recognising a leaf it wrote itself, which is the licence for naming the token at
 all.
 
+<!-- residue(none): what reviews and integrations are, and which kinds are HITL -->
 Reviews are fresh-context adversarial reads that produce findings rather than
 fixes. Integrations verify each finding, then fix the contract, fix the
 artifact, accept a visible trade-off, or reject noise. `requirements` and
 `prototype` are human-in-the-loop because human words or reactions are their
 essential input; any other kind may still stop and ask.
 
+<!-- residue(none): the three shapes as the methodology composes them, through *No shape gets a node directory*; the two deliberate differences and the feedback-edge record stay -->
 Three documented composition shapes exist, all as **flat siblings** named off a
 shared stem:
 
@@ -775,6 +773,7 @@ an earlier stage owns is sent back as forward tree growth: a contiguous run of
 re-run leaves from the owning stage through `proof`
 ([`a-feedback-edge-is-forward-tree-growth`](adr/a-feedback-edge-is-forward-tree-growth.md)).
 
+<!-- residue(grove-loop): `resolve` on a chained stem and the grow verbs' refusal; `composition_guidance.rs` pins *pick-style*, *exit zero* and the refusal sentence here -->
 Every step carries that stem as its **whole slug**, so a shape's leaves differ
 only by kind and key. The kind field is the canonical statement of a step's role
 and the slug names the artifact; a step marker in the slug would restate the kind
@@ -807,6 +806,7 @@ in another form: three snapshots, three chances to stop half way, and a live
 prefix of a pair that is indistinguishable from a deliberately hand-cut partial
 one.
 
+<!-- residue(none): the integration-placement rule; `composition_guidance.rs` pins *cross-leaf grammar*, *leaf-insert* and the placement condition here -->
 Grove does not validate a cross-leaf grammar, so nothing groups the steps, orders
 them, or requires that a chain be complete or contiguous. Where a step *should*
 land is therefore methodology, not mechanism, and it differs by hop: a `review-*`
@@ -825,6 +825,7 @@ how a vendor pair reaches two different commands without any per-leaf metadata;
 whether those two commands are materially independent is configuration-owner
 policy, because Grove cannot compare opaque strings.
 
+<!-- residue(none): the in-session reviewer allowance, `references/execute.md`'s -->
 Once a session has run Bootstrap and adopted its prompt mandate, a plain
 producer may spend one in-session fresh-context reviewer across the whole leaf.
 A second review need is the signal to `leaf-add` a `review-<producer>` leaf, with
@@ -837,6 +838,7 @@ Sessions outside that procedural predicate retain standalone doubt behavior. See
 [Grove owns escalated review](adr/grove-owns-escalated-review.md) and
 [doubt-grove-review-mechanics](specs/doubt-grove-review-mechanics.md).
 
+<!-- residue(none): the relationship lines; `composition_guidance.rs` pins `**Reviews:**` and `**Integrates:**` here -->
 A chain's steps declare their relationships in their bodies: the review carries
 `**Reviews:** <producer-handle>` and the integration carries `**Integrates:**
 <review-handle>`. Those lines are **written by hand by the session authoring the
@@ -846,8 +848,10 @@ task files are freeform markdown and nothing validates them. Names and positions
 likewise remain presentation and walk order, never relationship grammar, and the
 driver routes a scheduled review solely by its filename kind.
 
+<a id="tree-access-lock"></a>
 ### Tree access lock
 
+<!-- residue(grove-loop): the lock's scope and holders; the `collapse-tree-access-k13` and `bulk-marks-are-not-atomic` records stay, and `composition_guidance.rs` pins *Tree access lock* and *FINISHING-* on this document -->
 Every steady-state task-tree reader holds a shared **Tree access lock** on an
 open descriptor for the *working-tree root*; every mutator holds it exclusively
 through validation, rollback, or success output. **It is the store's lock, and
@@ -863,6 +867,7 @@ initialization and survives finish deletion, so a single seam covers creation,
 ordinary mutation, and teardown. A contended caller prints one waiting
 diagnostic and then waits.
 
+<!-- residue(grove-loop): what the lock does and does not promise; the `delete-finish-transaction-k8` record stays -->
 The lock serializes live processes and adds no crash atomicity, and **nothing in
 Grove adds any**. The one operation that used to need more — the finish teardown
 — carried an in-tree `FINISHING-*` witness that every other command refused
@@ -873,6 +878,7 @@ teardown is restored with `jj undo` rather than by a Grove-authored recovery
 process-interruption consistency between cooperating Grove processes, not
 power-loss durability and not crash atomicity.
 
+<!-- residue(grove-loop): `leaf-add`'s all-or-nothing on error; `composition_guidance.rs` pins *all-or-nothing on a reported error*, *Process death mid-run is not recovered* and *process-interruption recovery* here -->
 A multi-leaf add needs neither, and the promise it makes is correspondingly
 narrower. `leaf-add` given a list of kinds is all-or-nothing **on a reported
 error** within one exclusive lock, and since `growing-k33` that is the library's doing rather than
@@ -893,6 +899,7 @@ is a delete and a commit, and what puts a half-finished one back is the operatio
 log. The residue of a partial add is a hand-editable file in a directory tree,
 and recovering it is deleting it.
 
+<!-- residue(grove-loop): this subsection's mechanism paragraphs — the contention probe and `task_tree::restate`; the deadlock record and the two consumer-side obligations stay -->
 #### One lock, and it is the library's
 
 `reading-k31` moved `pick`, `select`, `brief-chain`, `kind` and `resolve` onto
@@ -956,6 +963,7 @@ deliberately: `is_dir` reads a dangling symbolic link at the root as *absent*,
 and the library's `RootIsNotATree` already says what is there and that a tree is
 a directory, which is more than grove's *not found* would.
 
+<!-- residue(grove-loop): what `leaf-prune` on a node does and `task_tree::addressable_key`'s refusal; the `marking-k32` record and the ADR stay -->
 #### One guard is one mutation, and a bulk mark is many
 
 `marking-k32` moved `leaf-retire` and `leaf-prune` onto the library's `rewrite`,
@@ -993,6 +1001,7 @@ changed nothing, and reported success. Every flipped verb goes through it, and
 every verb the migrate stage has yet to move should: the hazard belongs to
 *resolve a path, then call by key*, which is the shape of all of them.
 
+<!-- residue(grove-loop): the lint's second opening and how hits are returned; the `lint-lock-scope-k32` record stays -->
 #### A verb that reports on the tree it changed needs a second opening
 
 `growing-k33` moved `leaf-add` and `leaf-insert` onto `append`,
@@ -1038,6 +1047,7 @@ and a foreign `.md` a hand edit dropped into `.grove/` is no longer scanned.
 Grove writes no such file, and the alternative is a second, wider notion of
 *what is in the tree* than the reader has.
 
+<!-- residue(grove-loop): key prediction and its check; the rejected alternative stays -->
 #### The library allocates the key; the consumer's content embeds it
 
 Grove's leaf body opens with the position-free handle `# <slug>-k<key>`, and
@@ -1064,6 +1074,7 @@ exactly what the check exists to catch. An exhausted keyspace predicts nothing
 and hands the library no bytes: `Refusal::KeysExhausted` is the library's to
 state, a refusal writes nothing, and the unrenderable content is never reached.
 
+<!-- residue(grove-loop): the two calls of `root-init`, `root_shape`'s classification and `finish-commit`'s symlink gate; the `lifecycle-k35`, `open-shape-k25` and `collapse-tree-access-k13` records stay -->
 #### The grove's own creation is one store operation
 
 `lifecycle-k35` moved `root-init`, `materialize-finish`, `transition-to-current`
@@ -1146,6 +1157,7 @@ them in the commit message it writes by hand.
 <a id="fresh-grove-start-contract"></a>
 ## Lifecycle and resumption
 
+<!-- residue(grove-loop): the transition table -->
 Bare `grove` is the sole start/continue/finish entry. Each iteration performs at
 most one lifecycle transition, and full configuration validation precedes every
 one of them, so a missing or malformed `config.kdl` — or an invalid or tracked
@@ -1158,6 +1170,7 @@ one of them, so a missing or malformed `config.kdl` — or an invalid or tracked
 | Live leaves | None. |
 | No live leaf | Append, or reuse, the driver-owned finish leaf. |
 
+<!-- residue(grove-loop): the one-store-operation scaffold; the ground that a brief-only tree reads as finished stays -->
 A fresh grove creates a first *leaf*, not just a brief, because `pick` skips
 briefs: a brief-only tree would report "no live leaves" and be indistinguishable
 from a finished one. The charter, the leaf and the root itself are one store
@@ -1171,6 +1184,7 @@ missing tree used to be a finished one: a teardown commit proves that Grove
 deleted an earlier tree but not whether the present invocation means "recover
 that" or "start another".
 
+<!-- residue(grove-loop, keyed-launch): the watch and the escalation, and what the driver does without a signal; the sandbox ground and the does-not-infer-`done` decision stay -->
 The loop launches one foreground session at a time and watches it: poll the
 child alongside the completion-signal file, and once the file appears apply
 grace → SIGTERM → kill-grace → SIGKILL. **The launch, the watch and the kill are
@@ -1197,6 +1211,7 @@ no migrate command, no automatic conversion inside bare `grove`, and no format
 witness to classify a tree by. Recovery machinery is not written where a sentence
 and a human will do.
 
+<!-- residue(grove-loop): `root_shape` on a withdrawn layout; the no-migration decision above it stays -->
 One shape needs saying because it is not a name the grammar refuses. The layouts
 Grove wrote before this grammar — the original `NNN-slug/` + `done/` tree and the
 v1 flat dotted-decimal tree — are positioned but *unkeyed*, so every one of their
@@ -1221,6 +1236,7 @@ the CLI has two explicit authority boundaries:
   confirmation before the agent marks it `ABANDONED`.
 - Deleting the completed `.grove/` tree is the one routine finish confirmation.
 
+<!-- residue(grove-loop): the finish flow as the driver and `finish-commit` perform it; the two authority boundaries above, the attestation limit and the no-merge constraint stay -->
 Finishing happens inside a real, resumable session. When the tree has no live
 leaf the driver appends `NN-finish--finish-k<key>.md` at the root and launches the
 `finish` target; declining or exiting writes no signal and leaves that same leaf
@@ -1243,6 +1259,7 @@ is gone (`delete-finish-transaction-k8`), because the version control system
 already owns every guarantee it hand-built: Jujutsu snapshots the working copy
 before every command, and its operation log is the transaction record.
 
+<!-- residue(grove-loop): the four teardown steps and the two undo commands; the no-transaction decision and the jj 0.44.0 measurement stay -->
 What `finish-commit` still does is what only Grove can say, and it happens under
 one exclusive tree lock held across the whole teardown:
 
@@ -1281,6 +1298,7 @@ missing ones.
 <a id="version-control-seam"></a>
 ## Version-control seam
 
+<!-- residue(jj-workspace): what the crate resolves, refuses and answers; the domain-freedom argument stays -->
 **The seam is a crate, and grove is not in it.** `crates/jj-workspace` resolves
 a workspace, refuses a working tree that is not one, hands a consumer a
 namespaced control directory, answers what is tracked, and takes a path-scoped
@@ -1291,6 +1309,7 @@ enforced at a method rather than asserted in a sentence: `control_dir` takes the
 without naming whose lease it is. Grove supplies the one word `grove` and
 nothing else about itself.
 
+<!-- residue(jj-workspace): the walk and the colocated case; the jj-only-lane decision stays -->
 Resolution walks upward from the current directory looking for one thing: a
 `.jj/` directory. **jj is the only lane** — a tree without one is refused before
 any mutation, with `jj git init --colocate` named as the remedy
@@ -1300,6 +1319,7 @@ tree. A `.git` beside a `.jj` is a colocated repository and is jj's business:
 Grove never reads it, never spawns `git`, and makes no promise about the
 colocated index.
 
+<!-- residue(jj-workspace, grove-loop): the scrub inside the seam, and the loop's complementary list -->
 **Every child that speaks to the version control system is spawned inside the
 crate**, which removes `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR` and
 `GIT_INDEX_FILE` from each one. Choosing the right repository is the seam's
@@ -1317,6 +1337,7 @@ marked `DONE` shows up as one rename and the commit records it as one — nothin
 needs staging in between. See
 [`grove-does-not-stage-its-own-renames`](adr/grove-does-not-stage-its-own-renames.md).
 
+<!-- residue(grove-loop): the stated VCS in `${prompt}`; the ground against harness detection stays -->
 Grove resolves that marker before a session exists and **states** the result in
 `${prompt}`, which is why sessions do not probe: every launch is told that its
 working tree is jj-enabled and which workspace root Grove resolved for it.
@@ -1331,6 +1352,7 @@ loaded them commits with Git in a Jujutsu tree and bypasses the operation log.
 The line carries identity and root only. Which commands a session uses stays in
 the methodology's Commit step, so there is one source of truth rather than two.
 
+<!-- residue(jj-workspace): the path-scoped commit -->
 The finish commit is fileset-scoped so unrelated user work survives: Grove
 commits a `.grove/` fileset and nothing else, leaving unrelated working-copy
 changes in the successor commit.
@@ -1461,6 +1483,7 @@ this section records is why the corpus spends a static-path condition on it.
 <a id="corpus-shape"></a>
 ### The corpus's shape, and what is measured over it
 
+<!-- residue(none): the corpus's shape; no crate book covers the plugin -->
 The spine's `SKILL.md` states **conditions** and routes; `references/` states the
 shared **procedures**, and a kind's own rules are inline in its
 `grove-<kind>` skill. That split is the whole of what makes the methodology
@@ -1608,6 +1631,7 @@ it checkable is rejected there: enforcement is per rule, by the instrument that
 fits that rule, because whether a page of conditions is *right* was never
 gateable.
 
+<a id="the-boundary-is-a-build-not-a-commit"></a>
 ### The boundary is a build, not a commit
 
 **For the binary, and no longer for the methodology.** A running driver is the
@@ -1658,29 +1682,13 @@ plugin.
 
 ## Main module seams
 
-**Grove is six packages in one workspace, and the workspace root is not one of
-them**, so a module's package is part of its identity
-(`docs/specs/module-decomposition.md`, decision 1). Three have never heard of
-grove — `crates/ordinal-fs-tree` (the store), `crates/keyed-launch` (the runner)
-and `crates/jj-workspace` (the VCS seam) — and each has its own architecture.
-Two are binaries with nothing behind them: `crates/grove` is the human's, and
-`crates/grove-llm` is the session's, and each is a clap surface plus a call.
-What follows is `grove-loop`, which is the whole of grove, plus those two.
+The workspace map — the packages, what each is, and the responsibility of
+every `grove-loop` module — is the overview's
+[*What the call reaches*](walkthroughs/overview/05-what-the-call-reaches.md#the-package-map),
+from its package map onward.
 
-| Package | Module | Responsibility |
-|---|---|---|
-| `grove-loop` | *the crate root* | The opening — `read`, `write`, `Reading`, `Writing` — which mirrors the store's one level up, so a caller can neither scaffold over a live grove nor read one that is not there. Plus `Reference`, `Selection`, and the crate's one opaque `Error`. |
-| `grove-loop` | `verbs` | The twelve verbs a session invokes. A verb that reads takes a `Tree` and one that writes takes a `TreeWrite`, so the lock it needs is in its signature; a search that matched nothing answers the store's `Sought`; and every one returns the paths it wrote, because its caller writes the commit message by hand. |
-| `grove-loop` | `task_name` | Grove's `ordinal_fs_tree::EntryName` — the whole seam onto the tree library, and the only name grammar grove has, handle included (`Slug`, `Kind`, `Outcome`, `Handle`, `Parts`, `TaskName`). |
-| `grove-loop` | `task_tree`, `task_grow` | The reading and growing verbs expressed through the library: one snapshot per command, path construction, key prediction, and the cross-reference lint. |
-| `grove-loop` | `tree_lifecycle` | The grove-only lifecycle around the tree: the terminal outcomes, the finish sentinel, and the grove's own creation through the store's vacancy. |
-| `grove-loop` | `complete`, `driver` | The completion channel's token — written by one verb, read back by the loop — and the two tree operations the loop performs that no verb exposes. |
-| `grove-loop` | `loop_driver` | **The loop**: `run(workspace, lease, templates)`, and `LoopOutcome`. Foreground iteration and selection; names the child-environment scrub list and the escalation's two graces and hands both to `crates/keyed-launch`, which owns the spawn, the supervision and the kill. |
-| `grove-loop` | `driver_lease` | Driver lease, session epoch, and ambient-session validation. Takes a resolved workspace and asks the seam for grove's namespace inside it; supplies the control directory each launch's channel is allocated in, the channel itself being `crates/keyed-launch`'s. |
-| `grove-loop` | `prompt` | The guaranteed core: the whole of `${prompt}` — the `grove-<kind>` load instruction, the runtime facts, Grove's signalling contract — and the too-late test its contents are admitted by. Reads nothing and depends on no corpus. |
-| `grove-loop` | `session_config` | Grove's side of launch configuration: the personal file's path, the four slots grove's templates are written against, the `TemplateSource` the loop re-reads once per iteration, and the delta — where it is searched, which candidate wins, and the refusal of a tracked one. The grammar, the validation and the expansion are `crates/keyed-launch`'s. Asks the VCS seam whether a delta candidate is tracked; nothing else leaves the filesystem. |
-| `grove` | `cli` | The human command surface, which selects nothing: parse, resolve the workspace, take the lease, call `grove_loop::run`. |
-| `grove-llm` | `cli` | The deterministic agent command surface: argument parsing, the just-in-time presence rule, and rendering. Every verb is one `grove_loop::verbs::` call plus output. |
+**The workspace root is not a package**, so a module's package is part of its
+identity (`docs/specs/module-decomposition.md`, decision 1).
 
 There is no `harness`, `methodology` or `provision` module. All three were
 provisioning's — a registry of directories to sweep into, the embed and its

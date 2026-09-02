@@ -1,6 +1,6 @@
 # The surface
 <!-- book-page id="the-surface" slice="no-arguments" order="2" -->
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Three steps](03-three-steps.md)
 
 <a id="no-arguments"></a>
 ## Two binaries, one of them empty
@@ -351,4 +351,4 @@ The grammar has now been read and it selects nothing. What `run` does with the
 `Cli` it parses — the working tree resolved once, the lease taken, the call,
 and the two endings — is the next chapter.
 
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Three steps](03-three-steps.md)

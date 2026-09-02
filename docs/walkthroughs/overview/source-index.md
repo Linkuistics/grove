@@ -16,11 +16,11 @@
 <!-- insert «manifest-thin-by-construction» -->
 <!-- /source-root -->
 <!-- source-root «source-entry-point» source="crates/grove/src/main.rs" lines="1-13" -->
-<!-- defer «entry-point-three-steps» owner="one-call" lines="1-13" -->
+<!-- insert «entry-point-three-steps» -->
 <!-- /source-root -->
 <!-- source-root «source-command-surface» source="crates/grove/src/cli.rs" lines="1-137" -->
 <!-- insert «surface-grammar» -->
-<!-- defer «surface-resolve-lease-run» owner="one-call" lines="20-53" -->
+<!-- insert «surface-resolve-lease-run» -->
 <!-- defer «surface-closure-tests» owner="closure-proved" lines="54-137" -->
 <!-- /source-root -->
 
@@ -30,9 +30,9 @@
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
 | `manifest-thin-by-construction` | `source-crate-manifest` | `compiler-held` | `1-54` | 54 | `resolved` |
-| `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-13` | 13 | `deferred` |
+| `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-13` | 13 | `resolved` |
 | `surface-grammar` | `source-command-surface` | `no-arguments` | `1-19` | 19 | `resolved` |
-| `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `20-53` | 34 | `deferred` |
+| `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `20-53` | 34 | `resolved` |
 | `surface-closure-tests` | `source-command-surface` | `closure-proved` | `54-137` | 84 | `deferred` |
 
 <a id="fragment-index"></a>
@@ -51,23 +51,32 @@
 | `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `46-51` | `manifest-thin-by-construction` | `—` |
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `52-54` | `manifest-thin-by-construction` | `—` |
 | `source-entry-point` | `source-index` | `source-entry-point` | `root` | `—` | `1-13` | `—` | `entry-point-three-steps` |
+| `entry-point-module-doc` | `three-steps` | `source-entry-point` | `literal` | `one-call` | `1-7` | `entry-point-three-steps` | `—` |
+| `entry-point-three-steps` | `three-steps` | `source-entry-point` | `composite` | `one-call` | `1-13` | `source-entry-point` | `entry-point-module-doc`, `entry-point-module-and-main` |
+| `entry-point-module-and-main` | `three-steps` | `source-entry-point` | `literal` | `one-call` | `8-13` | `entry-point-three-steps` | `—` |
 | `source-command-surface` | `source-index` | `source-command-surface` | `root` | `—` | `1-137` | `—` | `surface-grammar`, `surface-resolve-lease-run`, `surface-closure-tests` |
 | `surface-imports` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `1-2` | `surface-grammar` | `—` |
 | `surface-grammar` | `the-surface` | `source-command-surface` | `composite` | `no-arguments` | `1-19` | `source-command-surface` | `surface-imports`, `surface-doc-comment`, `surface-clap-attributes`, `surface-empty-struct` |
 | `surface-doc-comment` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `3-7` | `surface-grammar` | `—` |
 | `surface-clap-attributes` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `8-18` | `surface-grammar` | `—` |
 | `surface-empty-struct` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `19-19` | `surface-grammar` | `—` |
+| `run-seam-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `20-28` | `surface-resolve-lease-run` | `—` |
+| `surface-resolve-lease-run` | `three-steps` | `source-command-surface` | `composite` | `one-call` | `20-53` | `source-command-surface` | `run-seam-doc`, `run-signal-doc`, `run-errors-doc`, `run-three-steps`, `run-call-and-endings` |
+| `run-signal-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `29-37` | `surface-resolve-lease-run` | `—` |
+| `run-errors-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `38-41` | `surface-resolve-lease-run` | `—` |
+| `run-three-steps` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `42-47` | `surface-resolve-lease-run` | `—` |
+| `run-call-and-endings` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `48-53` | `surface-resolve-lease-run` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
 
 | Symbol family | First use | Owner | Minimum local statement | Status |
 |---|---|---|---|---|
-| `grove_loop::run` | `01-orientation.md#the-binary` | `one-call` | The loop's single entry point; everything the binary does after its three steps is behind this call. | `pending` |
-| `DriverLease` | `02-the-surface.md#the-imports` | `one-call` | The one-driver-per-working-tree claim, taken for the life of the process. | `pending` |
-| `LoopOutcome` | `02-the-surface.md#the-imports` | `one-call` | Why the loop stopped — the value that decides whether this process exits 0 or dies of a signal. | `pending` |
-| `TemplateSource` | `02-the-surface.md#the-imports` | `one-call` | Where launch policy is read from; the loop re-reads it once per iteration. | `pending` |
-| `Workspace` | `02-the-surface.md#the-imports` | `one-call` | A resolved jj working tree, produced once here and handed to both the lease and the loop. | `pending` |
+| `grove_loop::run` | `01-orientation.md#the-binary` | `one-call` | The loop's single entry point; everything the binary does after its three steps is behind this call. | `explained` |
+| `DriverLease` | `02-the-surface.md#the-imports` | `one-call` | The one-driver-per-working-tree claim, taken for the life of the process. | `explained` |
+| `LoopOutcome` | `02-the-surface.md#the-imports` | `one-call` | Why the loop stopped — the value that decides whether this process exits 0 or dies of a signal. | `explained` |
+| `TemplateSource` | `02-the-surface.md#the-imports` | `one-call` | Where launch policy is read from; the loop re-reads it every iteration — twice, before and after the tree transition — rather than holding a copy. | `explained` |
+| `Workspace` | `02-the-surface.md#the-imports` | `one-call` | A resolved jj working tree, produced once here and handed to both the lease and the loop. | `explained` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

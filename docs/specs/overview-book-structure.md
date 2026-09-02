@@ -471,7 +471,7 @@ explains what the binary does with them.
 | `grove_loop::run` | ch. 1, `Cargo.toml` comment | ch. 3 | The loop's single entry point; everything the binary does after its three steps is behind this call. |
 | `Workspace` | ch. 2, `cli.rs` line 2 | ch. 3 | A resolved jj working tree, produced once here and handed to both the lease and the loop. |
 | `DriverLease` | ch. 2, `cli.rs` line 2 | ch. 3 | The one-driver-per-working-tree claim, taken for the life of the process. Linked to the glossary at `driver-lease`. |
-| `TemplateSource` | ch. 2, `cli.rs` line 2 | ch. 3 | Where launch policy is read from; the loop re-reads it once per iteration. |
+| `TemplateSource` | ch. 2, `cli.rs` line 2 | ch. 3 | Where launch policy is read from; the loop re-reads it every iteration — twice, before and after the tree transition — rather than holding a copy. |
 | `LoopOutcome` | ch. 2, `cli.rs` line 2 | ch. 3 | Why the loop stopped — the value that decides whether this process exits 0 or dies of a signal. |
 
 `grove_loop::VERSION` is named and owned in chapter 2 and is not an early use.

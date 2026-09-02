@@ -269,10 +269,10 @@ are cited and never reproduced.
 The dev-dependencies are the three the tests above need and no consumer
 inherits, since nothing depends on a binary. `book-validation` is this book's
 own validator, read as a library by the two tests that check the walkthroughs
-against the repository. `libc` is for `kill(2)`: the loop fixtures send the
-driver `SIGTERM` and `SIGHUP` to drive its interrupt path, and
-`std::process::Child::kill` sends only `SIGKILL`, which is exactly the signal
-the driver cannot answer. That path — the driver dying of the signal it was
+against the repository. `libc` is for `kill(2)`: the loop fixture sends the
+driver `SIGTERM` to drive its interrupt path — the handler catches `SIGHUP` too,
+and no fixture sends it — and `std::process::Child::kill` sends only `SIGKILL`,
+which is exactly the signal the driver cannot answer. That path — the driver dying of the signal it was
 sent — is *Three steps*' second ending, and this line is the first trace of it
 in the corpus. `tempfile` supplies the temporary trees.
 

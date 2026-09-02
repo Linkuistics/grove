@@ -138,7 +138,7 @@ statement = "Why the loop stopped — the value that decides whether this proces
 symbols   = "`TemplateSource`"
 first-use = "02-the-surface.md#the-imports"
 owner     = "one-call"
-statement = "Where launch policy is read from; the loop re-reads it once per iteration."
+statement = "Where launch policy is read from; the loop re-reads it every iteration — twice, before and after the tree transition — rather than holding a copy."
 
 [[early-use]]
 symbols   = "`Workspace`"

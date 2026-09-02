@@ -191,3 +191,20 @@ after.** The structure brief and the manifest carry the *once* wording, and
 chapter 2 uses a count-neutral form at the anchor. Chapter 3 owns the rows and
 the type: verify the count against the source, and if *twice* is right, amend
 the manifest statement, the ledger row and the brief's table in one commit.
+
+**16 · Decision 15 is resolved at `three-steps-k79`: the count is *twice*.**
+`loop_driver.rs` loads the configuration before the tree transition and again
+after selecting the leaf. The manifest statement, the ledger row and the
+structure brief's early-use table now read *the loop re-reads it every
+iteration — twice, before and after the tree transition — rather than holding
+a copy*, changed in one commit with the chapter that owns the row; chapter 2's
+count-neutral wording stands. The type's own doc comment says *once* and is
+`grove-loop`'s corpus, so `template-source-read-count-k86` sits beside k82,
+k83 and k84, ahead of `architecture-residue-k75`.
+
+**17 · One claim in `three-steps-k79`'s task file is corrected on the page and
+here: `lifecycle_cutover.rs` asserts nothing about signals.** The reraise is
+proved by `a_sigtermed_driver_stops_and_reaps_its_child` in
+`crates/grove/tests/loop_driver.rs` alone, for `SIGTERM`; the `SIGHUP` path is
+asserted by no fixture and chapter 3 shows it measured. A later child citing
+"the loop fixtures" for the reraise should cite that one test.

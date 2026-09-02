@@ -112,3 +112,14 @@ cache refreshes; the skill is in the repository either way.
 draft**, on the task file's own instruction (*do only the first*) and the
 precedent of `jj-workspace-book-k25`, decision 1. The draft node's brief carries
 the rest.
+
+## Handed forward
+
+- **copy-edit**, `03-three-steps.md`: figurative or emotive wording the prose
+  contract forbids and the draft left in place because style is not its
+  charter — *centre of gravity* (opening section; the structure brief's own
+  phrase), *is tempted by* (the signal-path section), *That clause is honest*
+  (the `# Errors` section), *through-line* (the seam section; chapter 1 uses
+  it too, from the brief's *Carry the through-line*), and *the argument in
+  miniature* (the entry-point section; also the brief's phrase). Decide once
+  whether the brief's own phrases stand as the book's vocabulary or go.

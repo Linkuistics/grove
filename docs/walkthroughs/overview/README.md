@@ -62,7 +62,7 @@ source.
 1. [Orientation](01-orientation.md)
 2. [The surface](02-the-surface.md)
 3. [Three steps](03-three-steps.md)
-4. Proving a negative
+4. [Proving a negative](04-proving-a-negative.md)
 5. What the call reaches
 
 Optional lookup:

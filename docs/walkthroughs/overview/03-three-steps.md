@@ -1,6 +1,6 @@
 # Three steps
 <!-- book-page id="three-steps" slice="one-call" order="3" -->
-[Previous: The surface](02-the-surface.md) | [Contents](README.md)
+[Previous: The surface](02-the-surface.md) | [Contents](README.md) | [Next: Proving a negative](04-proving-a-negative.md)
 
 <a id="one-call"></a>
 ## Resolve, lease, run
@@ -579,4 +579,4 @@ resolved tree, a held lease and the location of launch policy, and takes back
 one word about how it ended; the whole of the runtime flow lives behind the
 call, and *What the call reaches* names the modules it lives in.
 
-[Previous: The surface](02-the-surface.md) | [Contents](README.md)
+[Previous: The surface](02-the-surface.md) | [Contents](README.md) | [Next: Proving a negative](04-proving-a-negative.md)

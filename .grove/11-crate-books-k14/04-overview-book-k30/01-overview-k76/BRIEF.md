@@ -208,3 +208,23 @@ proved by `a_sigtermed_driver_stops_and_reaps_its_child` in
 `crates/grove/tests/loop_driver.rs` alone, for `SIGTERM`; the `SIGHUP` path is
 asserted by no fixture and chapter 3 shows it measured. A later child citing
 "the loop fixtures" for the reraise should cite that one test.
+
+**18 · At `proving-a-negative-k80`: the manifest's clause that a `[[bin]]`
+inside `grove-loop` could reach the library's private items holds for one of
+two shapes, and chapter 1 elaborated the one it does not hold for.** Measured
+on a scratch package: a binary that depends on a library beside it cannot name
+a `pub(crate)` item (`E0603`); a binary that includes the library's source as
+its own module can. Chapter 1's `pub(crate)` sentence was narrowed in that
+session's commit under the draft's technical-truth charter, chapter 4 states
+the same at its `[lib]` row, and the comment, decision 1 of
+`docs/specs/module-decomposition.md` and the `ARCHITECTURE.md` restatement
+are `bin-target-privacy-claim-k87`, cut beside k82–k86 and ahead of
+`architecture-residue-k75`.
+
+**19 · At `proving-a-negative-k80`: the model the closure tests inspect is
+unbuilt.** The derive's `command()` does not call `build()`, and clap adds its
+`help` and `version` flags only at build, so the closure test's filter removes
+nothing at this checkout and the convention test walks an empty list. Chapter
+4 states the observable and measures both views; chapter 2's sentence about
+the filter stands. A later chapter or stage should not describe the filter as
+removing clap's flags from the model the test reads.

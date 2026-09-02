@@ -21,7 +21,7 @@
 <!-- source-root «source-command-surface» source="crates/grove/src/cli.rs" lines="1-137" -->
 <!-- insert «surface-grammar» -->
 <!-- insert «surface-resolve-lease-run» -->
-<!-- defer «surface-closure-tests» owner="closure-proved" lines="54-137" -->
+<!-- insert «surface-closure-tests» -->
 <!-- /source-root -->
 
 <a id="ownership-blocks"></a>
@@ -33,7 +33,7 @@
 | `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-13` | 13 | `resolved` |
 | `surface-grammar` | `source-command-surface` | `no-arguments` | `1-19` | 19 | `resolved` |
 | `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `20-53` | 34 | `resolved` |
-| `surface-closure-tests` | `source-command-surface` | `closure-proved` | `54-137` | 84 | `deferred` |
+| `surface-closure-tests` | `source-command-surface` | `closure-proved` | `54-137` | 84 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -66,6 +66,18 @@
 | `run-errors-doc` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `38-41` | `surface-resolve-lease-run` | `—` |
 | `run-three-steps` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `42-47` | `surface-resolve-lease-run` | `—` |
 | `run-call-and-endings` | `three-steps` | `source-command-surface` | `literal` | `one-call` | `48-53` | `surface-resolve-lease-run` | `—` |
+| `tests-module-opening` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `54-57` | `surface-closure-tests` | `—` |
+| `surface-closure-tests` | `proving-a-negative` | `source-command-surface` | `composite` | `closure-proved` | `54-137` | `source-command-surface` | `tests-module-opening`, `undescribed-doc-purpose`, `undescribed-doc-twice`, `undescribed-doc-empty`, `undescribed-arguments`, `undescribed-subcommands`, `describes-test-doc`, `describes-test`, `closure-test-doc`, `closure-test-subcommands`, `closure-test-arguments` |
+| `undescribed-doc-purpose` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `58-61` | `surface-closure-tests` | `—` |
+| `undescribed-doc-twice` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `62-71` | `surface-closure-tests` | `—` |
+| `undescribed-doc-empty` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `72-74` | `surface-closure-tests` | `—` |
+| `undescribed-arguments` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `75-84` | `surface-closure-tests` | `—` |
+| `undescribed-subcommands` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `85-95` | `surface-closure-tests` | `—` |
+| `describes-test-doc` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `96-101` | `surface-closure-tests` | `—` |
+| `describes-test` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `102-111` | `surface-closure-tests` | `—` |
+| `closure-test-doc` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `112-117` | `surface-closure-tests` | `—` |
+| `closure-test-subcommands` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `118-125` | `surface-closure-tests` | `—` |
+| `closure-test-arguments` | `proving-a-negative` | `source-command-surface` | `literal` | `closure-proved` | `126-137` | `surface-closure-tests` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses

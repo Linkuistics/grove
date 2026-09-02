@@ -136,19 +136,31 @@ The second comment is the chapter's argument, and it names the alternative it
 rejects: a `[[bin]]` target declared inside `grove-loop`'s own manifest, with the
 same thirteen-line `main` at `src/bin/grove.rs`. Cargo would accept that, and
 the binary would be one file shorter to describe. What it would cost is the
-thesis. Rust privacy is drawn at the crate, so a binary target inside the
-library crate is *inside* the privacy boundary and can name any `pub(crate)`
-item the library holds — `driver_lease`'s control-directory accessor, the loop's
-child-environment scrub, the tree operations no verb exposes. Nothing would
-stop the entry point growing logic that reaches into them, and *the binary is
-thin* would be a fact about the current commit, held by whoever reviews the
-next one. As a separate crate the entry point sees exactly the items
-`crates/grove-loop/src/lib.rs` re-exports and nothing else, and a `use` of
-anything further is a compile error. That is the whole of the first mechanism:
-the boundary is the compiler's, and no test is needed to assert it, which is
-also why it is the mechanism a reader is most likely to take on trust. The
-check is one line: every `grove_loop::` path the two Rust files name is a `pub`
-re-export in that library's root.
+thesis, and the comment's clause about private items holds for one of the two
+shapes such a target can take. Rust privacy is drawn at the crate. A binary
+target that lists the library's modules as its own — `mod driver_lease;`
+beside its `main`, compiling the same files a second time — is the same crate
+as the code it includes and can name any `pub(crate)` item in it:
+`driver_lease`'s control-directory accessor, the loop's child-environment
+scrub, the tree operations no verb exposes. A binary target that instead
+depends on the library sees only what the library publishes, exactly as a
+separate crate does; a `pub(crate)` item named through the library's path is
+refused with `E0603`, measured on a scratch package with one library and one
+binary beside it, and the same item reached by including its source file as a
+module compiles. What the package boundary adds is that the entry point cannot
+take the first shape without a `#[path]` attribute pointing outside its own
+package, which the two Rust files visibly do not carry. Inside `grove-loop`'s
+package, *the binary is thin* would be a fact about which of the two shapes
+the current commit uses, held by whoever reviews the next one. As a separate
+crate the entry point sees exactly the items `crates/grove-loop/src/lib.rs`
+re-exports and nothing else, and a `use` of anything further is a compile
+error. That is the whole of the first mechanism: the boundary is the compiler's,
+and no test is needed to assert it, which is also why it is the mechanism a
+reader is most likely to take on trust. The check is one line: every
+`grove_loop::` path the two Rust files name is a `pub` re-export in that
+library's root. The comment's own sentence, and decision 1 of
+`docs/specs/module-decomposition.md` which it cites, state the clause without
+naming the shape it holds for; both are reproduced as written.
 
 <!-- fragment «manifest-crate-not-a-bin» owner="compiler-held" source="crates/grove/Cargo.toml" lines="14-19" parent="manifest-thin-by-construction" -->
 ````toml

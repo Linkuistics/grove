@@ -123,3 +123,17 @@ the rest.
   it too, from the brief's *Carry the through-line*), and *the argument in
   miniature* (the entry-point section; also the brief's phrase). Decide once
   whether the brief's own phrases stand as the book's vocabulary or go.
+- **copy-edit**, `04-proving-a-negative.md`: figurative, emotive or persuasive
+  wording the prose contract forbids, left in place because style is not the
+  draft's charter — *earns its place* and *will skip* (opening section; the
+  second is the structure brief's own *Stated limits* phrasing), *worth holding
+  exactly, because … a reader would assume the opposite* and *the thesis of the
+  whole book stated as a panic* (the closure-property section), *manufactures a
+  false clean* (the model-not-text section; the source's own wording in
+  `help_surfaces.rs`, unmarked as a quotation), *its work begins* (the
+  convention section), *a row a reader could go and look at* (the same),
+  *paid for a second time*, *Two packages, two models, two walks* and *a
+  boundary with nothing behind it* (the twice section), *the very name*
+  (the worked example), *exactly as much a second home* and *the day … is the
+  day* (the worked example's closing paragraph), and *The obvious way* (the
+  model-not-text section).

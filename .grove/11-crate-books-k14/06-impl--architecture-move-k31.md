@@ -19,26 +19,41 @@ citation of a moved anchor re-pointed and every link suite green.
   `crates/grove-llm/tests/composition_guidance.rs` read `docs/ARCHITECTURE.md` in
   eight places and **go red on this move by design**. Turning those red tests
   green is how the citations are re-pointed — not a hopeful sweep.
-- What moves and what stays is the hard part and it is not a clean section split.
-  *Runtime flow*, *Command surfaces* and *Main module seams* are descriptive
-  throughout. *Task-tree data model*, *Task kinds and composition*, *Lifecycle
-  and resumption*, *Human authority and completion*, *Version-control seam* and
-  *How the methodology reaches a session* interleave description with the
-  decisions and their trade-offs, and only the description moves. The structure
-  brief from `overview-structure-k29` is what settles the boundary.
-- Anchors are the contract. The document's own *Documentation ownership* section
-  records that the former decision-record slugs are explicit `<a id="…">`
-  anchors, that source comments and tests cite them as compact design references,
-  and that changing a section title does not change the anchor. An anchor whose
-  section moves has to keep resolving somewhere, or every citation of it has to
-  move with it — decide which, per anchor, and say so.
+- What moves and what stays is settled, and it is narrower than this leaf was
+  cut expecting. `docs/specs/overview-book-structure.md`, *What this book
+  absorbs from `ARCHITECTURE.md`*, is the charter. **Three sections are in play**
+  — *Runtime flow*, *Command surfaces*, *Main module seams* — and the six other
+  descriptive-looking sections stay whole, because they describe other crates'
+  internals and leave with those crates' books (`architecture-residue-k75`).
+  Within the three, the rule is a positive move test with the default to stay: a
+  clause moves iff it states what the system does, is shaped like, or reaches;
+  everything else, including anything not confidently classifiable, stays. None
+  of the three is "descriptive throughout" — the brief lists the residue each
+  keeps, and this leaf should expect to leave text behind in all of them.
+- Anchors are the contract, and the brief has decided them: **every anchor stays
+  above its surviving argument, and no citation is re-pointed**, in Rust or in
+  Markdown. The measurement behind that is in the brief — no real design citation
+  points at description. Each stripped section opens with exactly one forward
+  pointer into the overview page now carrying its description; that link is
+  inbound to the book, so the book contract does not bind it and
+  `every_repository_markdown_reference_resolves` checks it.
 
 ## Done when
 
-- `docs/ARCHITECTURE.md` carries decisions, constraints and measurement records
-  only, and its *Documentation ownership* table describes what is now true —
-  including the overview's own row.
-- Every citation of a moved anchor resolves, in Markdown and in Rust sources.
+- The description in *Runtime flow*, *Command surfaces* and *Main module seams*
+  has moved into the overview under the brief's rule, and each of those sections
+  opens with its forward pointer.
+- Every surviving descriptive passage in the six sections not in play is marked
+  with the book that will make it redundant, so `architecture-residue-k75`
+  inherits a list rather than a judgement. **The decisions-only end state is not
+  this leaf's; it falls due at k75.**
+- The *Documentation ownership* table's own row is narrowed to the decisions,
+  the constraints and the measurement records, in the wording the brief gives
+  under *The book's row in the ownership table*. The overview's row is
+  `overview-book-k30`'s and should already be there.
+- No anchor moves and no citation is re-pointed;
+  `every_architecture_anchor_citation_in_a_source_resolves` and
+  `every_repository_markdown_reference_resolves` are green with no source edit.
 - `bash scripts/check.sh` passes, with
   `crates/grove-llm/tests/composition_guidance.rs` green against re-pointed
   citations rather than against loosened assertions.

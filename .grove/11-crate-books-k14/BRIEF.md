@@ -14,11 +14,16 @@ pipeline `publishing-pipeline-k13` extracted — and move
   source roots under the fragment validator, alongside the pilot's
   `jj-workspace` book and the relocated `ordinal-fs-tree` one.
 - `docs/ARCHITECTURE.md` carries decisions, constraints and measurement records
-  only; its descriptive account of runtime flow, command surfaces and module
-  seams lives in the overview, with every citation of a moved anchor re-pointed
-  and the link-integrity suite green.
+  only. Its descriptive account of runtime flow, command surfaces and module
+  seams lives in the overview after `architecture-move-k31`; the description of
+  each other crate's internals stays, marked, until that crate's book makes it
+  redundant, and `architecture-residue-k75` — last in this node — deletes it.
+  **The end state falls due there, not at k31.** Anchors stay where they are
+  with a forward pointer, so no citation is re-pointed and the link-integrity
+  suite is green throughout (`overview-structure-k29`, decisions 2, 4 and 9).
 - The repository-wide link sweep and the architecture-anchor resolver are both
-  green over the moved anchors, in Markdown **and** in Rust sources.
+  green throughout the move, in Markdown **and** in Rust sources. No anchor
+  moves, so this is held by construction rather than by re-pointing.
 - `scripts/check.sh` gates every book.
 - Each new book is inside the curated user-documentation surface and has its row
   in `docs/ARCHITECTURE.md`'s *Documentation ownership* table.
@@ -28,9 +33,10 @@ pipeline `publishing-pipeline-k13` extracted — and move
 
 ## Decomposition
 
-Ten leaves. The first is a prerequisite of the fourth; after that the pattern is
-a structure brief and then its book, cheapest corpus first so the pipeline is
-exercised on small books before the largest one.
+The planned leaves, in order. The first is a prerequisite of the fourth; after
+that the pattern is a structure brief and then its book, cheapest corpus first so
+the pipeline is exercised on small books before the largest one; and the last
+runs after every book.
 
 1. `architecture-anchors-k19` — widen the link-integrity suite to resolve
    `docs/ARCHITECTURE.md#<anchor>` citations in Rust sources.
@@ -39,11 +45,17 @@ exercised on small books before the largest one.
 5–6. `grove-llm-structure-k32`, `grove-llm-book-k33` — 4 roots, 1,017 lines.
 7–8. `keyed-launch-structure-k34`, `keyed-launch-book-k35` — 9 roots, 2,073 lines.
 9–10. `grove-loop-structure-k36`, `grove-loop-book-k37` — 13 roots, 10,533 lines.
+11. `architecture-residue-k75` — after every book: delete the crate-internal
+    description each landed book has made redundant, reaching the decisions-only
+    end state. Cut at `overview-structure-k29`.
 
 The overview goes first among the books because the architecture move is on the
-campaign's *Done when* and would otherwise queue behind three books; because the
-`crates/grove` corpus is the smallest at 204 lines, so the shipped pipeline is
-exercised gently; and because the other books link into it.
+campaign's *Done when* and would otherwise queue behind three books, and because
+the `crates/grove` corpus is the smallest at 204 lines, so the shipped pipeline is
+exercised gently. A third ground — that the other books link into it — was struck
+at `overview-structure-k29`: the book link contract closes a book's local targets
+to its own pages, its own roots, the guide and the glossary, so no book can link
+into another. The overview is a book, not a hub; the ownership table is the hub.
 
 The move is a separate leaf from the overview because it is separately
 verifiable: the overview is proved by the validator, the move by the link suites.
@@ -60,8 +72,10 @@ verifiable: the overview is proved by the validator, the move by the link suites
   surfaces*, *Main module seams*, and the descriptive parts of *Task-tree data
   model*, *Task kinds and composition*, *Lifecycle and resumption*, *Human
   authority and completion*, *Version-control seam* and *How the methodology
-  reaches a session*. Which clauses of the mixed sections are description and
-  which are decisions is `architecture-move-k31`'s to settle.
+  reaches a session*. Only the first three are the overview's; the other six
+  describe `grove-loop`'s and `jj-workspace`'s internals and leave with those
+  books. The clause test k31 applies is in
+  `docs/specs/overview-book-structure.md`, *What this book absorbs*.
 - The document's stable anchors — `task-tree-scheme`, `symmetric-vcs-rule`,
   `task-kind-taxonomy` and the rest — are cited from source comments and tests as
   compact design references, and its own *Documentation ownership* section says

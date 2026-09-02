@@ -1,6 +1,6 @@
 # Growing the tree
 <!-- book-page id="growing-the-tree" slice="before-the-lock" order="4" -->
-[Previous: Reading the tree](03-reading-the-tree.md) | [Contents](README.md)
+[Previous: Reading the tree](03-reading-the-tree.md) | [Contents](README.md) | [Next: Ending work](05-ending-work.md)
 
 <a id="before-the-lock"></a>
 ## Text before lock, presence before mutation
@@ -1044,4 +1044,4 @@ changes nothing on disk. What a session runs after the tree is grown is the two
 terminal marks, and the next chapter reads them — the last grove verbs a session
 runs, which say on stderr what remains.
 
-[Previous: Reading the tree](03-reading-the-tree.md) | [Contents](README.md)
+[Previous: Reading the tree](03-reading-the-tree.md) | [Contents](README.md) | [Next: Ending work](05-ending-work.md)

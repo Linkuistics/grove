@@ -759,6 +759,198 @@ fn the_citation_check_distinguishes_a_record_kind_from_prose() {
 }
 
 // ---------------------------------------------------------------------------
+// Architecture anchors cited from a source file
+//
+// The check above reads `.rs` for one shape only — a record named by its
+// *kind*. The other shape a source file uses is the anchor link itself,
+// `docs/ARCHITECTURE.md#tree-access-lock`, written repository-relative in a
+// doc comment beside the code the anchor explains. Nothing resolved it: the
+// repository-wide sweep is Markdown-only, so an anchor could be renamed out
+// from under every citation in `src/` and the suite would stay green.
+//
+// The Markdown half of "wherever it appears" is already
+// [`every_repository_markdown_reference_resolves`], which resolves these links
+// as links. This is the other surface, and the two do not overlap: a Rust file
+// carries the citation as text rather than as a Markdown destination, so no
+// link scanner reaches it and no citation is reported twice.
+//
+// What is *not* checked here is the bare parenthetical — `(task-kind-taxonomy)`
+// — which is the repository's own compact form and carries no path to break.
+// This check is about the form that asserts where an anchor lives.
+
+/// The one path form this check resolves: the repository-relative citation
+/// every Rust source here uses.
+///
+/// A source file is not rendered, so a directory-relative form like
+/// `../ARCHITECTURE.md#…` has no directory to resolve against, and none appears
+/// in `src/`. Where one does appear — inside `book-validation`'s synthetic
+/// Markdown fixtures, whose anchors are made up — this prefix does not match
+/// it. That is a consequence of how those fixtures are spelled today rather
+/// than a guarantee about fixtures: a fixture written repository-relative would
+/// be read as a citation, and the fix then is to spell the fixture the way a
+/// fixture Markdown file actually sits, not to widen this constant.
+const ARCHITECTURE_CITATION: &str = "docs/ARCHITECTURE.md#";
+
+/// Every `docs/ARCHITECTURE.md#<anchor>` citation in a source file, as
+/// (anchor, line number).
+///
+/// The anchor runs to the first character an anchor cannot contain, so the
+/// closing backtick, bracket or sentence-ending full stop that follows a
+/// citation in prose is not read as part of it.
+fn architecture_anchor_citations(text: &str) -> Vec<(String, usize)> {
+    let mut citations = Vec::new();
+
+    for (index, line) in text.lines().enumerate() {
+        for (offset, _) in line.match_indices(ARCHITECTURE_CITATION) {
+            let anchor: String = line[offset + ARCHITECTURE_CITATION.len()..]
+                .chars()
+                .take_while(|character| {
+                    character.is_alphanumeric() || matches!(character, '-' | '_')
+                })
+                .collect();
+            // `docs/ARCHITECTURE.md#<anchor>` is how this repository writes the
+            // *shape* of a citation when it is describing the convention rather
+            // than using it. Metasyntax names no anchor, so there is nothing to
+            // resolve.
+            if !anchor.is_empty() {
+                citations.push((anchor, index + 1));
+            }
+        }
+    }
+
+    citations
+}
+
+/// Why a cited anchor does not resolve, or `None` when it does. Total and pure,
+/// so the control below can show it failing.
+fn unresolved_architecture_anchor(anchor: &str, architecture: &HashSet<String>) -> Option<String> {
+    (!architecture.contains(anchor))
+        .then(|| format!("`#{anchor}` matches no heading or explicit anchor in {ARCHITECTURE}"))
+}
+
+#[test]
+fn every_architecture_anchor_citation_in_a_source_resolves() {
+    let root = repository_root();
+    let architecture = architecture_slugs();
+
+    // This file is scanned like any other, unlike the ADR citation scan above,
+    // which must exclude it. Nothing here needs excluding: every citation the
+    // fixtures below carry names an anchor `docs/ARCHITECTURE.md` really has,
+    // and the dangling case is exercised through
+    // [`unresolved_architecture_anchor`] with a bare anchor and no path in
+    // front of it — chosen precisely so this file stays inside the sweep. A
+    // fixture that needs a citation resolving nowhere is written the same way.
+    let sources = repository_files(&[".rs"]);
+
+    // The extension list is the only narrowing this sweep has, and a sweep that
+    // stopped reaching the sources that carry these citations would read
+    // exactly like a clean tree. Name the two that carry the most.
+    for expected in [
+        "crates/grove-loop/src/tree_lifecycle.rs",
+        "crates/grove-loop/src/task_tree.rs",
+    ] {
+        assert!(
+            sources.iter().any(|source| source == expected),
+            "the source sweep must reach {expected}"
+        );
+    }
+
+    let mut cited = 0;
+    let mut unresolved = Vec::new();
+    for source in &sources {
+        let text = std::fs::read_to_string(root.join(source))
+            .unwrap_or_else(|error| panic!("{source} must be readable: {error}"));
+        for (anchor, line_number) in architecture_anchor_citations(&text) {
+            cited += 1;
+            if let Some(reason) = unresolved_architecture_anchor(&anchor, &architecture) {
+                unresolved.push(format!("{source}:{line_number}: {reason}"));
+            }
+        }
+    }
+
+    assert!(
+        cited > 0,
+        "no architecture anchor citation was found at all — the scan is not reading these sources"
+    );
+    assert!(
+        unresolved.is_empty(),
+        "architecture anchors cited from a source that resolve nowhere:\n  {}",
+        unresolved.join("\n  ")
+    );
+}
+
+#[test]
+fn the_architecture_anchor_check_reads_a_citation_and_rejects_a_dangling_one() {
+    let architecture = architecture_slugs();
+
+    // Both anchor namespaces the document publishes: an explicit `<a id="…">`
+    // that survives a retitle, and one generated from a heading that does not.
+    assert!(
+        unresolved_architecture_anchor("task-kind-taxonomy", &architecture).is_none(),
+        "an explicit `<a id=…>` anchor must resolve"
+    );
+    assert!(
+        unresolved_architecture_anchor("runtime-flow", &architecture).is_none(),
+        "a generated heading anchor must resolve"
+    );
+    // Positive control: the defect this check exists for.
+    assert!(
+        unresolved_architecture_anchor("no-such-anchor", &architecture).is_some(),
+        "an anchor the document does not carry must be reported"
+    );
+
+    // The citation is read out of a doc comment, and stops where the anchor
+    // does — not at the backtick, bracket or full stop that follows it.
+    assert_eq!(
+        architecture_anchor_citations(concat!(
+            "/// clause 2 (`docs/ARCHITECTURE.md#library-refusals`).\n",
+            "//! see docs/ARCHITECTURE.md#tree-access-lock.\n",
+            "// [the lock](docs/ARCHITECTURE.md#tree-access-lock)\n",
+        )),
+        [
+            ("library-refusals".to_owned(), 1),
+            ("tree-access-lock".to_owned(), 2),
+            ("tree-access-lock".to_owned(), 3),
+        ]
+    );
+    // The anchor is read with the same character class the heading namespace is
+    // built from, so a namespace this document could publish is never one the
+    // scanner is incapable of spelling. Truncating at the first character an
+    // anchor cannot contain is what stops the trailing full stop above; a `.`
+    // is therefore never part of an anchor here, which the explicit-anchor
+    // convention in *Documentation ownership* already holds to.
+    //
+    // The anchor is interpolated rather than written out, because this file is
+    // itself inside the sweep and `docs/ARCHITECTURE.md` publishes no non-ASCII
+    // anchor to cite: a literal here would be a real citation resolving
+    // nowhere. `{` is not an anchor character, so the `{anchor}` left in the
+    // format string names nothing and the sweep reads past it — the same rule
+    // that lets this repository write the shape `docs/ARCHITECTURE.md#<anchor>`
+    // in prose.
+    let anchor = "café-notes";
+    assert_eq!(
+        architecture_anchor_citations(&format!("/// see docs/ARCHITECTURE.md#{anchor}.\n")),
+        [(anchor.to_owned(), 1)]
+    );
+    // Two citations on one line are two citations.
+    assert_eq!(
+        architecture_anchor_citations(
+            "/// docs/ARCHITECTURE.md#pruning and docs/ARCHITECTURE.md#no-migration\n"
+        ),
+        [("pruning".to_owned(), 1), ("no-migration".to_owned(), 1)]
+    );
+    // Neither the bare parenthetical the repository uses everywhere, nor a
+    // citation of the document with no anchor, nor the metasyntax for the
+    // shape itself, names an anchor to resolve.
+    assert!(architecture_anchor_citations(concat!(
+        "/// that rule names (task-kind-taxonomy).\n",
+        "/// stated in docs/ARCHITECTURE.md, which owns it.\n",
+        "/// written docs/ARCHITECTURE.md#<anchor> when describing the form.\n",
+    ))
+    .is_empty());
+}
+
+// ---------------------------------------------------------------------------
 // The documentation-ownership table
 //
 // Decision 8 of `plan-k1` settled two obligations for books: they join the

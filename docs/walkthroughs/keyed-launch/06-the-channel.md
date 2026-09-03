@@ -16,10 +16,10 @@ which is corpus like everything else and is chapter 9's.
 What this stage must not add and must not interpret is **the ending**. The crate
 does not decide that a child is finished. It allocates a path, hands that path to
 the child, and waits for the path to exist; whether the work was done, whether it
-succeeded, and what should happen next are all read off a string this crate never
-looks at. That is the third arm of the book's outcome — a layer learning what a
-value means **on the way out**, by inferring what came back — and this is where
-the crate declines to infer it.
+succeeded, and what should happen next are all encoded in a string this crate
+reads only to return to its caller and never interprets. That is the third arm of
+the book's outcome — a layer learning what a value means **on the way out**, by
+inferring what came back — and this is where the crate declines to infer it.
 
 The reason a launch needs a channel at all is that the obvious signal is wrong
 for the child this crate exists to launch. A batch program ends by exiting, and
@@ -41,18 +41,19 @@ reading of `Relaunch` against `Done`, the scrubbing of the variable from every
 other spawn — is on grove's side of the line, and this crate has never heard of
 any of it. What follows is the same mechanism at this crate's filesystem
 boundary: a directory, a name, a file that may or may not appear, and a string
-nobody reads.
+nobody here interprets.
 
 One property makes the whole arrangement work, and it is the first thing the file
 says about itself: **allocation picks a name and writes nothing**. The channel
 file does not exist when the child starts. It comes into existence only if
-something writes to it, and the only thing holding its path is the child. So the
-file's later existence is unambiguous evidence that the child spoke — not a stale
-file from a previous launch, not a placeholder the launcher created and forgot,
-not a race between two launches sharing a directory. That is why `run` is allowed
-to treat mere *appearance* as an event, and why chapter 8's supervisor can be a
-poll on `exists()` rather than a protocol. Take the writing-nothing property away
-and appearance means nothing; every other decision on this page rests on it.
+something writes to it, and the launcher hands the path to the child as the
+writing endpoint. So the file's later existence is unambiguous evidence that the
+child spoke — not a stale file from a previous launch, not a placeholder the
+launcher created and forgot, not a race between two launches sharing a directory.
+That is why `run` is allowed to treat mere *appearance* as an event, and why
+chapter 8's supervisor can be a poll on `exists()` rather than a protocol. Take
+the writing-nothing property away and appearance means nothing; every other
+decision on this page rests on it.
 
 <a id="a-path-and-nothing-else"></a>
 ## A path, and nothing else
@@ -751,7 +752,7 @@ out, precisely what the book's third arm names. Had the crate instead refused to
 expose the content at all, the launch would have ended with no information
 crossing back, and every consumer would have needed a second channel of its own.
 The newtype preserves both requirements: the crate carries the string and does
-not read it.
+not interpret it.
 
 grove is the caller that reads it, and the division is legible in one file.
 `crates/grove-loop/src/complete.rs` imports `keyed_launch::Token`, and

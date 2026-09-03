@@ -15,9 +15,10 @@ more than one place. A key resolves to one complete command template, read whole
 out of one file. Two documents are read, and a key resolves from the primary or
 from the overlay, never from both, and only if the **primary** declares it. One
 whole template replaces one whole template, so nothing in the crate has to decide
-which *words* of a launch come from where. There is no precedence order, no base
-and override, no inheritance and no way to write *the same command with a
-different model*: the two documents are searched, and they are never merged.
+which *words* of a launch come from where. There is no word-level precedence
+order, no base template with override fragments, no inheritance and no way to
+write *the same command with a different model*: the two documents are searched,
+and they are never merged.
 
 That is the first arm of the test this book closes on. A layer learns what a
 value means **on the way in** by assembling one value out of more than one

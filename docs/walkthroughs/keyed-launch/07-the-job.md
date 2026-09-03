@@ -792,8 +792,9 @@ checked into a fact.
 
 The third paragraph belongs to chapter 8 and is reproduced here only because it is
 `run`'s contract: the three observables, and the honest statement that a child
-which finishes its work and never signals reaches none of them. Chapter 8 owns
-`watch`, where those three are polled, and owns the stall as a named failure mode.
+which finishes its interactive turn and never signals reaches none of them.
+Chapter 8 owns `watch`, where those three are polled, and owns the stall as a
+named failure mode.
 
 <a id="nothing-added"></a>
 ## Nothing added

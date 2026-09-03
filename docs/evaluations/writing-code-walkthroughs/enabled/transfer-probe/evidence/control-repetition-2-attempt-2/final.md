@@ -1,3 +1,4 @@
+~~~text
 I can state the authoritative inventory exactly, but I cannot responsibly produce the rest of the requested source-grounded plan from this run because the environment prevented any read of the supplied file. Every local inspection attempt against `bin/fzf-tmux` failed before execution with `sandbox-exec: sandbox_apply: Operation not permitted`, and no alternate workspace file-reading tool is exposed here. Under your constraints, I should not invent fragment boundaries, control flow, or a representative execution trace without actually reading the source.
 
 What I can state exactly is the full subject inventory:
@@ -16,3 +17,4 @@ If you want the full authoring plan you asked for, the next run needs a function
    - Independent review: reread the walkthrough against the file alone, checking for unsupported claims, missing branches, missing error paths, and fragment-order mistakes.
 
 Without source access, anything more specific would be guesswork, which would violate your “complete and authoritative” constraint.
+~~~

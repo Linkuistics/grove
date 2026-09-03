@@ -15,9 +15,9 @@ cannot know that the child is done; it can know only that the child *said* so.
 Everything on this page follows from that one restriction, including a
 limitation. Supervision polls three things, and they are the only
 three ways a launch ends: the child exits, the token's file appears, or the
-launcher itself is signalled. A child that finishes its work and never signals
-reaches none of them. An interactive one returns to its prompt rather than
-exiting, so the launch does not end — it **stalls**. That is a real failure mode
+launcher itself is signalled. An interactive child that finishes its turn and
+never signals reaches none of them: it returns to its prompt rather than exiting,
+so the launch does not end — it **stalls**. That is a real failure mode
 with no cheap fix here, because nothing this crate can observe distinguishes a
 child that forgot to signal from one still working, and a second completion
 observable would only trade a stall for a wrong kill. It is the caller's to
@@ -627,7 +627,7 @@ is the one with no mechanism behind it.
 | the child is gone | `child.try_wait()` | `End::Exited`, with or without a token | `a_child_that_never_signals_ends_with_no_token`, `an_unsignalled_child_runs_to_its_own_exit_untouched`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` |
 | the token's file exists | `channel.path().exists()` | `End::Signalled`, once the grace has run out | `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace` |
 | the launcher was signalled | `take_interrupt()` | `End::Interrupted { signal }` | `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other` (`tests/interrupt.rs`) |
-| **the child finished and never said so** | nowhere | **none — the launch stalls** | nothing, because there is nothing to hold |
+| **the interactive child finished its turn and never said so** | nowhere | **none — the launch stalls** | nothing, because there is nothing to hold |
 
 The closure that builds the return value is next, and it is where the first three
 rows are turned into one of them.
@@ -1005,7 +1005,7 @@ child was spawned into a job with nothing added, and a launcher waited for one o
 three things and acted on whichever came first. At no point did the crate decide
 that the child was finished. The result is an `Ended`
 naming who acted and, if the child spoke, the string it wrote — which this crate
-carried across two processes and never read.
+carried across two processes and never interpreted.
 
 Both halves are now complete, and neither has been held to a contract from
 outside. Chapter 9 is where they are: the conformance kit that checks a

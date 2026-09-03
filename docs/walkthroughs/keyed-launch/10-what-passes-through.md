@@ -96,10 +96,11 @@ document.
 read whole out of one file. `keyed-launch` reads two documents, and
 [chapter 3](03-two-documents.md#never-assembled) is where it declines to merge
 them: the primary declares, the overlay may replace a whole template with a whole
-template, and there is no precedence order, no base-and-override, and no way to
-write *the same command with a different model*. Because a template is never
-assembled, nothing in the crate has to decide which *words* of a launch came from
-where — and `Templates::source` can therefore answer, for every key that
+template, and there is no word-level precedence order, no base template with
+override fragments, and no way to write *the same command with a different
+model*. Because a template is never assembled, nothing in the crate has to
+decide which *words* of a launch came from where — and `Templates::source` can
+therefore answer, for every key that
 resolves, with exactly one path.
 
 The second document exposes this arm's asymmetry. grove's overlay is a
@@ -244,8 +245,9 @@ child wrote is read back once and handed to the caller as an opaque `Token`. The
 crate's only interest in the bytes is
 [whether there are any](06-the-channel.md#three-ways-to-have-no-token): `read`
 trims trailing framing and reports nothing for an empty file, which is a presence
-test and not a reading. `relaunch` is grove's word, and this book has carried it
-through nine chapters without the crate ever having read it *as* a word. The
+test and not a semantic interpretation. `relaunch` is grove's word, and this book
+has carried it through nine chapters without the crate ever having read it *as*
+a word. The
 string does occur once inside the corpus — `src/channel.rs` line 357, where the
 inline module writes it to a channel and reads it back — and that occurrence is
 the point rather than an exception to it: even the crate's own test uses the word
@@ -282,9 +284,9 @@ The third arm has a limitation that the first two do not.
 and [chapter 7 reproduces it inside `run`'s own doc comment](07-the-job.md#the-child-is-a-job),
 where it is part of the function's stated contract and, as that section says
 itself, a paragraph that belongs to chapter 8:
-**a child that finishes its work and never signals reaches none of the three
-observables.** An interactive child returns to its prompt rather than exiting, so
-the launch does not end. It stalls.
+**an interactive child that finishes its turn and never signals reaches none of
+the three observables.** It returns to its prompt rather than exiting, so the
+launch does not end. It stalls.
 
 The reason it cannot be fixed here is the reason the rest of the page has been
 arguing for. Nothing this crate can observe distinguishes a child that forgot to

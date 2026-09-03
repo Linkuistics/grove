@@ -41,3 +41,20 @@ whole-document read before the book stands, ending green on
 against its own charter and fixes within it. A structural finding is a `draft`
 re-run leaf; a second re-run of any one stage against this book is an escalation,
 not a third leaf.
+
+## Decisions (running log)
+
+The whole-book read found one semantic precision defect repeated across the
+overlay and channel arguments. The proof text now distinguishes whole-template
+overlay precedence from the word-level precedence it rejects, distinguishes
+reading channel bytes from interpreting their meaning, and states the
+never-signalled stall specifically for an interactive child that returns to its
+prompt. These are proof-charter corrections to the existing argument; they do
+not change the structure, examples, fragment graph, or frozen source.
+
+The full repository gate exposed three rendered evaluation answers whose live
+Markdown links named the transfer campaign's deleted temporary directory. Their
+audited `raw.jsonl` sources remain untouched; the rendered answer bytes are now
+enclosed in text fences so captured model output is opaque to the repository link
+checker. This is the narrow durable repair for a pre-existing gate failure and
+does not narrow the check.

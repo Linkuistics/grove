@@ -9,6 +9,7 @@ and [`attempt 2`](evidence/enabled-repetition-5-attempt-2/).
 
 ## Exact valid final answer
 
+~~~text
 I can only confirm the authoritative inventory as
 [`bin/fzf-tmux`](/private/tmp/grove-enabled-transfer.djF4XX/enabled-repetition-5-attempt-2/run-directory/bin/fzf-tmux).
 
@@ -29,5 +30,6 @@ contents of `bin/fzf-tmux`, and I’ll produce the full plan with:
 4. coarse worked execution,
 5. section-by-section exposition and cross-reference decisions,
 6. complete coverage and independent-review assurance checks.
+~~~
 
 Atomic scoring is not performed because the paired sample stopped incomplete.

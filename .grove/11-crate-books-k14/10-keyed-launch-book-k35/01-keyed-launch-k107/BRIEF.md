@@ -164,6 +164,33 @@ becomes its own leaf under the root brief's cross-book rule, placed ahead of
 ledger and page, and a green validator run over every book it touched, or the
 leaf is deferred behind the books it would invalidate and says so.
 
+## Found while drafting, and chapter 8 inherits one of it
+
+**`src/run.rs` states two mechanisms its code does not exercise, and
+`spawn-ordering-comments-k119` owns the fix.** Both were found at
+`the-job-k114`; the leaf is under `crate-books-k14`, ahead of
+`architecture-residue-k75`, and deferred behind this whole book because
+`src/run.rs` is a root and any byte change invalidates four fragments.
+
+- **Measured.** `run` installs a `pre_exec` closure, so `Command::spawn` returns
+  only after the child has `execve`d and the parent's `setpgid` (line 445) fails
+  `EACCES` every time — thirty of thirty, with controls. Lines 439–442 describe
+  it as a race whose loser fails harmlessly; **lines 591–592 are the same error
+  in chapter 8's block**, attributing the child's group leadership to "the
+  `setpgid` on both sides of the fork" when `command.process_group(0)` is the
+  whole of it. **Chapter 8 must not repeat that attribution**, and should point at
+  chapter 7's `#the-latch-and-the-child-away`, which carries the measurement and
+  its controls. No conclusion is affected: `-pgid` still cannot name an unrelated
+  job, and the ignored return values are still right.
+- **Unsettled.** Lines 351–353's SIGTTIN account of why a new *session* was
+  rejected is chapter 7's, and chapter 7 declines to adopt it: SIGTTIN is raised
+  for a background group **of its controlling terminal**, which a new session
+  removes. `the-job-k114` could not run the case — the session had no
+  controlling terminal — and no test covers it. k119 owes the measurement.
+
+**No book page is wrong today.** Chapter 7 reports both rather than repeating
+them, which is why this is a handed-forward note and not a correction run.
+
 ## Decisions (running log)
 
 **1 · One child per slice, and this session did the first.** The corpus is 2,073

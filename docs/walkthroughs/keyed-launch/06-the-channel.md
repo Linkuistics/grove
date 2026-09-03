@@ -1,6 +1,6 @@
 # Appearance is the event
 <!-- book-page id="the-channel" slice="appearance-is-the-event" order="6" -->
-[Previous: From a template to an argv](05-to-an-argv.md) | [Contents](README.md)
+[Previous: From a template to an argv](05-to-an-argv.md) | [Contents](README.md) | [Next: The child is a job](07-the-job.md)
 
 <a id="appearance-is-the-event"></a>
 ## Appearance is the event
@@ -989,4 +989,4 @@ other. Chapter 7 is where they do: `run` takes both, publishes the path under
 the caller's chosen variable, and spawns the child with nothing added that the
 operator did not write.
 
-[Previous: From a template to an argv](05-to-an-argv.md) | [Contents](README.md)
+[Previous: From a template to an argv](05-to-an-argv.md) | [Contents](README.md) | [Next: The child is a job](07-the-job.md)

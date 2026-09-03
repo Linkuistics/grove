@@ -48,9 +48,9 @@
 <!-- defer «channel-inline-tests» owner="checked-without-meaning" lines="272-404" -->
 <!-- /source-root -->
 <!-- source-root «source-run» source="crates/keyed-launch/src/run.rs" lines="1-607" -->
-<!-- defer «launch-shape» owner="nothing-else-added" lines="1-123" -->
+<!-- insert «launch-shape» -->
 <!-- defer «watch-and-launcher-signals» owner="the-launchers-job" lines="124-243" -->
-<!-- defer «terminal-and-spawn» owner="nothing-else-added" lines="244-448" -->
+<!-- insert «terminal-and-spawn» -->
 <!-- defer «supervise-and-escalate» owner="the-launchers-job" lines="449-607" -->
 <!-- /source-root -->
 <!-- source-root «source-conformance» source="crates/keyed-launch/src/conformance.rs" lines="1-104" -->
@@ -77,9 +77,9 @@
 | `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `resolved` |
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `resolved` |
 | `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `272-404` | 133 | `deferred` |
-| `launch-shape` | `source-run` | `nothing-else-added` | `1-123` | 123 | `deferred` |
+| `launch-shape` | `source-run` | `nothing-else-added` | `1-123` | 123 | `resolved` |
 | `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `124-243` | 120 | `deferred` |
-| `terminal-and-spawn` | `source-run` | `nothing-else-added` | `244-448` | 205 | `deferred` |
+| `terminal-and-spawn` | `source-run` | `nothing-else-added` | `244-448` | 205 | `resolved` |
 | `supervise-and-escalate` | `source-run` | `the-launchers-job` | `449-607` | 159 | `deferred` |
 | `conformance` | `source-conformance` | `checked-without-meaning` | `1-104` | 104 | `deferred` |
 
@@ -191,6 +191,27 @@
 | `channel-draw-nonce` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `248-261` | `channel-production` | `—` |
 | `channel-hex` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `262-271` | `channel-production` | `—` |
 | `source-run` | `source-index` | `source-run` | `root` | `—` | `1-607` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
+| `run-thesis` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `1-13` | `launch-shape` | `—` |
+| `launch-shape` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `1-123` | `source-run` | `run-thesis`, `run-poll-interval`, `run-escalation`, `run-launch`, `run-ended`, `run-end` |
+| `run-poll-interval` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `14-21` | `launch-shape` | `—` |
+| `run-escalation` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `22-42` | `launch-shape` | `—` |
+| `run-launch` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `43-77` | `launch-shape` | `—` |
+| `run-ended` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `78-92` | `launch-shape` | `—` |
+| `run-end` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `93-123` | `launch-shape` | `—` |
+| `run-default-dispositions` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `244-270` | `terminal-and-spawn` | `—` |
+| `terminal-and-spawn` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `244-448` | `source-run` | `run-default-dispositions`, `run-terminal-type`, `run-terminal-open`, `run-terminal-accessors`, `run-terminal-hand-to`, `run-own-group`, `run-the-child-is-a-job`, `run-command-and-environment`, `run-terminal-handover`, `run-process-group`, `run-pre-exec`, `run-clear-and-spawn`, `run-parent-group-and-supervise` |
+| `run-terminal-type` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `271-274` | `terminal-and-spawn` | `—` |
+| `run-terminal-open` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `275-299` | `terminal-and-spawn` | `—` |
+| `run-terminal-accessors` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `300-309` | `terminal-and-spawn` | `—` |
+| `run-terminal-hand-to` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `310-328` | `terminal-and-spawn` | `—` |
+| `run-own-group` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `329-334` | `terminal-and-spawn` | `—` |
+| `run-the-child-is-a-job` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `335-366` | `terminal-and-spawn` | `—` |
+| `run-command-and-environment` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `367-385` | `terminal-and-spawn` | `—` |
+| `run-terminal-handover` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `386-397` | `terminal-and-spawn` | `—` |
+| `run-process-group` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `398-403` | `terminal-and-spawn` | `—` |
+| `run-pre-exec` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `404-425` | `terminal-and-spawn` | `—` |
+| `run-clear-and-spawn` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `426-437` | `terminal-and-spawn` | `—` |
+| `run-parent-group-and-supervise` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `438-448` | `terminal-and-spawn` | `—` |
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-104` | `—` | `conformance` |
 
 <a id="early-uses"></a>
@@ -202,7 +223,7 @@
 | `Vocabulary`, `SlotRule`, `Requirement` | `01-orientation.md#the-cast` | `rules-about-names` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | `explained` |
 | `Argv`, `Slot` | `01-orientation.md#the-cast` | `whole-word-or-nothing` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | `explained` |
 | `Channel`, `Token`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | `explained` |
-| `run`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `pending` |
+| `run`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `explained` |
 | `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `pending` |
 | `conformance::check` | `01-orientation.md#the-cast` | `checked-without-meaning` | The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite. | `pending` |
 | `validate_node`, `validate_template` | `03-two-documents.md#both-documents` | `words-not-shell` | The per-node and per-template rule checks `validate_document` drives over both documents; each returns diagnostics with locations rather than stopping at the first. | `explained` |

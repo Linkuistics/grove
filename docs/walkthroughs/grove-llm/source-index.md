@@ -29,15 +29,15 @@
 <!-- insert «verbs-reading» -->
 <!-- insert «verbs-growing» -->
 <!-- insert «verbs-ending» -->
-<!-- defer «verbs-leaving» owner="admit-before-signal" lines="248-289" -->
+<!-- insert «verbs-leaving» -->
 <!-- insert «enum-close-and-operation-label» -->
-<!-- defer «args-complete» owner="admit-before-signal" lines="311-322" -->
+<!-- insert «args-complete» -->
 <!-- insert «args-root-init» -->
 <!-- insert «kind-help-and-parse-kind» -->
 <!-- insert «args-growing» -->
 <!-- insert «args-ending» -->
 <!-- insert «run-admission-and-dispatch» -->
-<!-- defer «handlers-leaving» owner="admit-before-signal" lines="438-483" -->
+<!-- insert «handlers-leaving» -->
 <!-- insert «handler-root-init» -->
 <!-- insert «handlers-reading-and-rendering» -->
 <!-- insert «handlers-growing» -->
@@ -61,15 +61,15 @@
 | `verbs-reading` | `source-command-surface` | `information-not-error` | `75-124` | 50 | `resolved` |
 | `verbs-growing` | `source-command-surface` | `before-the-lock` | `125-216` | 92 | `resolved` |
 | `verbs-ending` | `source-command-surface` | `two-steps-remain` | `217-247` | 31 | `resolved` |
-| `verbs-leaving` | `source-command-surface` | `admit-before-signal` | `248-289` | 42 | `deferred` |
+| `verbs-leaving` | `source-command-surface` | `admit-before-signal` | `248-289` | 42 | `resolved` |
 | `enum-close-and-operation-label` | `source-command-surface` | `admitted-before-dispatch` | `290-310` | 21 | `resolved` |
-| `args-complete` | `source-command-surface` | `admit-before-signal` | `311-322` | 12 | `deferred` |
+| `args-complete` | `source-command-surface` | `admit-before-signal` | `311-322` | 12 | `resolved` |
 | `args-root-init` | `source-command-surface` | `before-the-lock` | `323-330` | 8 | `resolved` |
 | `kind-help-and-parse-kind` | `source-command-surface` | `before-the-lock` | `331-358` | 28 | `resolved` |
 | `args-growing` | `source-command-surface` | `before-the-lock` | `359-399` | 41 | `resolved` |
 | `args-ending` | `source-command-surface` | `two-steps-remain` | `400-411` | 12 | `resolved` |
 | `run-admission-and-dispatch` | `source-command-surface` | `admitted-before-dispatch` | `412-437` | 26 | `resolved` |
-| `handlers-leaving` | `source-command-surface` | `admit-before-signal` | `438-483` | 46 | `deferred` |
+| `handlers-leaving` | `source-command-surface` | `admit-before-signal` | `438-483` | 46 | `resolved` |
 | `handler-root-init` | `source-command-surface` | `before-the-lock` | `484-513` | 30 | `resolved` |
 | `handlers-reading-and-rendering` | `source-command-surface` | `information-not-error` | `514-636` | 123 | `resolved` |
 | `handlers-growing` | `source-command-surface` | `before-the-lock` | `637-767` | 131 | `resolved` |
@@ -121,9 +121,13 @@
 | `verbs-leaf-retire-help` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `217-226` | `verbs-ending` | `—` |
 | `verbs-ending` | `ending-work` | `source-command-surface` | `composite` | `two-steps-remain` | `217-247` | `source-command-surface` | `verbs-leaf-retire-help`, `verbs-leaf-prune-help` |
 | `verbs-leaf-prune-help` | `ending-work` | `source-command-surface` | `literal` | `two-steps-remain` | `227-247` | `verbs-ending` | `—` |
+| `verbs-finish-commit-help` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `248-271` | `verbs-leaving` | `—` |
+| `verbs-leaving` | `leaving-the-loop` | `source-command-surface` | `composite` | `admit-before-signal` | `248-289` | `source-command-surface` | `verbs-finish-commit-help`, `verbs-complete-help` |
+| `verbs-complete-help` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `272-289` | `verbs-leaving` | `—` |
 | `grammar-command-enum-close` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `290-291` | `enum-close-and-operation-label` | `—` |
 | `enum-close-and-operation-label` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `290-310` | `source-command-surface` | `grammar-command-enum-close`, `grammar-operation-label` |
 | `grammar-operation-label` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `292-310` | `enum-close-and-operation-label` | `—` |
+| `args-complete` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `311-322` | `source-command-surface` | `—` |
 | `args-root-init` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `323-330` | `source-command-surface` | `—` |
 | `kind-help` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `331-344` | `kind-help-and-parse-kind` | `—` |
 | `kind-help-and-parse-kind` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `331-358` | `source-command-surface` | `kind-help`, `kind-override-help`, `parse-kind` |
@@ -140,6 +144,10 @@
 | `run-admission-and-dispatch` | `the-grammar` | `source-command-surface` | `composite` | `admitted-before-dispatch` | `412-437` | `source-command-surface` | `run-parse-and-bare-branch`, `run-cwd-and-admission`, `run-dispatch` |
 | `run-cwd-and-admission` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `420-421` | `run-admission-and-dispatch` | `—` |
 | `run-dispatch` | `the-grammar` | `source-command-surface` | `literal` | `admitted-before-dispatch` | `422-437` | `run-admission-and-dispatch` | `—` |
+| `handler-finish-commit` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `438-458` | `handlers-leaving` | `—` |
+| `handlers-leaving` | `leaving-the-loop` | `source-command-surface` | `composite` | `admit-before-signal` | `438-483` | `source-command-surface` | `handler-finish-commit`, `handler-complete-admit`, `handler-complete-endings` |
+| `handler-complete-admit` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `459-466` | `handlers-leaving` | `—` |
+| `handler-complete-endings` | `leaving-the-loop` | `source-command-surface` | `literal` | `admit-before-signal` | `467-483` | `handlers-leaving` | `—` |
 | `handler-root-init-text` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `484-491` | `handler-root-init` | `—` |
 | `handler-root-init` | `growing-the-tree` | `source-command-surface` | `composite` | `before-the-lock` | `484-513` | `source-command-surface` | `handler-root-init-text`, `handler-root-init-vacancy` |
 | `handler-root-init-vacancy` | `growing-the-tree` | `source-command-surface` | `literal` | `before-the-lock` | `492-513` | `handler-root-init` | `—` |
@@ -191,12 +199,12 @@
 | `Sought`, `Resolution` | `01-orientation.md#the-imports` | `information-not-error` | `Sought` is a found-or-nothing answer; `Resolution` is what `resolve` found — the root, one entry, or an ambiguity. | `explained` |
 | `Kind`, `Slug` | `01-orientation.md#the-imports` | `before-the-lock` | The grammar's own types for a `--kind` token and a slug; malformed text is refused by them, before any lock. | `explained` |
 | `SessionConfig` | `01-orientation.md#the-imports` | `before-the-lock` | The launch configuration, loaded whole and asked whether one kind resolves to a template. | `explained` |
-| `Handle` | `01-orientation.md#the-imports` | `admit-before-signal` | A `<slug>-k<key>` handle, parsed leniently on the key and spoken canonically thereafter. | `pending` |
-| `Signalled` | `01-orientation.md#the-imports` | `admit-before-signal` | Whether `complete` wrote the disposition to a channel or found no loop to signal. | `pending` |
+| `Handle` | `01-orientation.md#the-imports` | `admit-before-signal` | A `<slug>-k<key>` handle, parsed leniently on the key and spoken canonically thereafter. | `explained` |
+| `Signalled` | `01-orientation.md#the-imports` | `admit-before-signal` | Whether `complete` wrote the disposition to a channel or found no loop to signal. | `explained` |
 | `cmd_pick`, `cmd_brief_chain`, `cmd_kind`, `cmd_resolve` | `02-the-grammar.md#worked-dispatch` | `information-not-error` | One handler per reading verb: the shared opening, one `grove_loop::verbs` call, and rendering. | `explained` |
 | `cmd_root_init`, `cmd_leaf_add`, `cmd_leaf_insert`, `cmd_leaf_decompose` | `02-the-grammar.md#worked-dispatch` | `before-the-lock` | One handler per growing verb: text parsed, presence asked, then the exclusive opening, then one call. | `explained` |
 | `cmd_leaf_retire`, `cmd_leaf_prune` | `02-the-grammar.md#worked-dispatch` | `two-steps-remain` | One handler per terminal mark: the exclusive opening, one call, the marked paths, and the two remaining steps on stderr. | `explained` |
-| `cmd_finish_commit`, `cmd_complete` | `02-the-grammar.md#worked-dispatch` | `admit-before-signal` | The two handlers that open no tree: one commits through the workspace, one writes the completion channel. | `pending` |
+| `cmd_finish_commit`, `cmd_complete` | `02-the-grammar.md#worked-dispatch` | `admit-before-signal` | The two handlers that open no tree: one commits through the workspace, one writes the completion channel. | `explained` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

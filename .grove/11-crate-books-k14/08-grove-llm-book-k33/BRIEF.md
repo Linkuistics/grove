@@ -108,6 +108,14 @@ The editorial pipeline's chain, under this node, in the shape
   stands on*, *the book's map* — and the phrase *what is left* used as a noun.
   Decide once whether those stand as the book's vocabulary and apply the
   decision across every chapter rather than per occurrence.
+- **`copy-edit`, chapter 6:** three figurative or narrative phrasings an
+  adversarial read flagged that the draft left standing, because prose
+  vocabulary is the copy edit's charter and not the draft's — *everything past
+  that frame speaks in the handle a name on disk actually wore*, *would have
+  passed while the record lied* (both close to the wording of the source
+  comment and the test comment they gloss), and *mistypes the handle once
+  before getting it right*, which narrates the worked example rather than
+  stating it. Judge them with chapter 1's vocabulary decision, not separately.
 
 ## Decisions (running log)
 

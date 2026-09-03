@@ -1,6 +1,6 @@
 # Ending work
 <!-- book-page id="ending-work" slice="two-steps-remain" order="5" -->
-[Previous: Growing the tree](04-growing-the-tree.md) | [Contents](README.md)
+[Previous: Growing the tree](04-growing-the-tree.md) | [Contents](README.md) | [Next: Leaving the loop](06-leaving-the-loop.md)
 
 <a id="two-steps-remain"></a>
 ## The last tree verbs a session runs say on stderr what remains
@@ -596,4 +596,4 @@ jj's. The signal is this binary's, and it is the one verb that has to be sure
 it is talking to the loop that launched it before it writes anything; the next
 chapter reads it, and the other verb that opens no tree.
 
-[Previous: Growing the tree](04-growing-the-tree.md) | [Contents](README.md)
+[Previous: Growing the tree](04-growing-the-tree.md) | [Contents](README.md) | [Next: Leaving the loop](06-leaving-the-loop.md)

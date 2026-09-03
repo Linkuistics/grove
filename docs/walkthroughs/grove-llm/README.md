@@ -75,7 +75,7 @@ source.
 3. [Reading the tree](03-reading-the-tree.md)
 4. [Growing the tree](04-growing-the-tree.md)
 5. [Ending work](05-ending-work.md)
-6. Leaving the loop
+6. [Leaving the loop](06-leaving-the-loop.md)
 7. What order holds
 
 Optional lookup:

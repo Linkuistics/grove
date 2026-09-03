@@ -1,6 +1,6 @@
 # From a template to an argv
 <!-- book-page id="to-an-argv" slice="whole-word-or-nothing" order="5" -->
-[Previous: What a template must be](04-template-law.md) | [Contents](README.md)
+[Previous: What a template must be](04-template-law.md) | [Contents](README.md) | [Next: Appearance is the event](06-the-channel.md)
 
 <a id="whole-word-or-nothing"></a>
 ## Whole word, or nothing
@@ -829,4 +829,4 @@ allocates the path whose *appearance* will be the only thing that ends the
 launch, and chapters 7 and 8 spawn the child and watch for that appearance. The
 `Argv` this chapter built is the only thing that crosses between them.
 
-[Previous: What a template must be](04-template-law.md) | [Contents](README.md)
+[Previous: What a template must be](04-template-law.md) | [Contents](README.md) | [Next: Appearance is the event](06-the-channel.md)

@@ -86,7 +86,7 @@ source.
 3. [Two documents, neither one assembled](03-two-documents.md)
 4. [What a template must be](04-template-law.md)
 5. [From a template to an argv](05-to-an-argv.md)
-6. Appearance is the event
+6. [Appearance is the event](06-the-channel.md)
 7. The child is a job
 8. The watch and the escalation
 9. How this is checked

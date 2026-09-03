@@ -44,7 +44,7 @@
 <!-- insert «argv» -->
 <!-- /source-root -->
 <!-- source-root «source-channel» source="crates/keyed-launch/src/channel.rs" lines="1-404" -->
-<!-- defer «channel-production» owner="appearance-is-the-event" lines="1-271" -->
+<!-- insert «channel-production» -->
 <!-- defer «channel-inline-tests» owner="checked-without-meaning" lines="272-404" -->
 <!-- /source-root -->
 <!-- source-root «source-run» source="crates/keyed-launch/src/run.rs" lines="1-607" -->
@@ -75,7 +75,7 @@
 | `diagnostics` | `source-templates` | `words-not-shell` | `618-660` | 43 | `resolved` |
 | `templates-keys` | `source-templates` | `whole-word-or-nothing` | `661-670` | 10 | `resolved` |
 | `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `resolved` |
-| `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `deferred` |
+| `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `resolved` |
 | `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `272-404` | 133 | `deferred` |
 | `launch-shape` | `source-run` | `nothing-else-added` | `1-123` | 123 | `deferred` |
 | `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `124-243` | 120 | `deferred` |
@@ -173,6 +173,23 @@
 | `argv-program-and-args` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `28-37` | `argv` | `—` |
 | `argv-words` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `38-48` | `argv` | `—` |
 | `source-channel` | `source-index` | `source-channel` | `root` | `—` | `1-404` | `—` | `channel-production`, `channel-inline-tests` |
+| `channel-thesis` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `1-9` | `channel-production` | `—` |
+| `channel-production` | `the-channel` | `source-channel` | `composite` | `appearance-is-the-event` | `1-271` | `source-channel` | `channel-thesis`, `channel-prefix`, `channel-nonce-bytes`, `channel-retry-limit`, `channel-type`, `channel-allocate`, `channel-published-path`, `channel-read`, `channel-discard`, `channel-discard-abandoned`, `channel-token`, `channel-signal`, `channel-name-grammar`, `channel-remove-if-present`, `channel-draw-nonce`, `channel-hex` |
+| `channel-prefix` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `10-21` | `channel-production` | `—` |
+| `channel-nonce-bytes` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `22-25` | `channel-production` | `—` |
+| `channel-retry-limit` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `26-32` | `channel-production` | `—` |
+| `channel-type` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `33-43` | `channel-production` | `—` |
+| `channel-allocate` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `44-92` | `channel-production` | `—` |
+| `channel-published-path` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `93-99` | `channel-production` | `—` |
+| `channel-read` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `100-118` | `channel-production` | `—` |
+| `channel-discard` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `119-128` | `channel-production` | `—` |
+| `channel-discard-abandoned` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `129-184` | `channel-production` | `—` |
+| `channel-token` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `185-202` | `channel-production` | `—` |
+| `channel-signal` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `203-221` | `channel-production` | `—` |
+| `channel-name-grammar` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `222-236` | `channel-production` | `—` |
+| `channel-remove-if-present` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `237-247` | `channel-production` | `—` |
+| `channel-draw-nonce` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `248-261` | `channel-production` | `—` |
+| `channel-hex` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `262-271` | `channel-production` | `—` |
 | `source-run` | `source-index` | `source-run` | `root` | `—` | `1-607` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-104` | `—` | `conformance` |
 
@@ -184,7 +201,7 @@
 | `Templates` | `01-orientation.md#the-cast` | `rules-about-names` | One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned. | `explained` |
 | `Vocabulary`, `SlotRule`, `Requirement` | `01-orientation.md#the-cast` | `rules-about-names` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | `explained` |
 | `Argv`, `Slot` | `01-orientation.md#the-cast` | `whole-word-or-nothing` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | `explained` |
-| `Channel`, `Token`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | `pending` |
+| `Channel`, `Token`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | `explained` |
 | `run`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `pending` |
 | `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `pending` |
 | `conformance::check` | `01-orientation.md#the-cast` | `checked-without-meaning` | The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite. | `pending` |

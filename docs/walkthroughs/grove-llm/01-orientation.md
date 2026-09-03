@@ -599,6 +599,40 @@ this binary's — both are the call's — and the page names them because the
 printed path is the only thing a session sees, and a reader following the
 trace should be able to predict it.
 
+The trace above names the verbs; the figure below is the tree they leave
+behind, because three of the five later chapters read a state they do not draw.
+Two of the session's verbs mutate `.grove/`, so it has three states, and what
+the reader is to take from the figure is which chapter is standing at which one
+— *Reading the tree* opens on the first and closes on the third, which is why
+its transcript jumps.
+
+```text
+.grove/ as the driver launched it            read by chapters 2, 3 and 4
+├── BRIEF.md
+└── 01-impl--rate-limit-k3.md
+
+      $ grove-llm leaf-add . rate-limit --kind review-impl     chapter 4
+
+.grove/ after the add                        read by chapter 4
+├── BRIEF.md
+├── 01-impl--rate-limit-k3.md
+└── 02-review-impl--rate-limit-k4.md
+
+      $ grove-llm leaf-retire …/01-impl--rate-limit-k3.md      chapter 5
+
+.grove/ after the retire                     read by chapters 3 and 5
+├── BRIEF.md
+├── 01-DONE-impl--rate-limit-k3.md
+└── 02-review-impl--rate-limit-k4.md
+```
+
+`complete`, the session's last verb, writes outside `.grove/` and leaves the
+third state standing; it is the state the session commits. Two later chapters
+draw a tree of their own and both go past this one: *Ending work* adds a node
+the session never made, so that a prune has something to act on, and *Leaving
+the loop* shows the whole grove terminal with a `finish` leaf the driver
+materialised.
+
 <a id="the-map"></a>
 ## Six families, three orders, seven chapters
 

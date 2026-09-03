@@ -222,6 +222,18 @@ byte, and belongs to a defect leaf under the corpus-freeze rule, deferred behind
 this book as *Orientation*'s stale claims are — the page reproduces the comment
 as written.
 
+The table sets the comment's claim beside the compiler's behaviour, one row per
+form, and what a reader is to take from it is that the two rows swap: the
+deadlock the comment moves *away* from is the one the form it chose would have.
+
+| The form | When the comment says the value drops | When it drops | A tree read added to the failure path |
+|---|---|---|---|
+| `match`, the form the code uses | on entry to the arm, so the lock is already gone | after the enclosing `let` statement ends, so the `Writing::Tree` value and the exclusive lock it owns are alive throughout the arm | would deadlock |
+| `let … else`, the form the comment rejects | after the else block, so the lock is still held through it | before the else block runs | would not |
+
+Neither row is a defect today, because the arm reads no tree; the swap matters
+only to whoever adds the message the comment imagines.
+
 The self-deadlock the comment gestures at is not an ending this book traces,
 because the property that rules it out is stated rather than provoked, and it is
 two facts. The store's own lock is blocking, and it is the one place waiting

@@ -103,19 +103,18 @@ The editorial pipeline's chain, under this node, in the shape
 
 ## Handed forward
 
-- **`art`, the whole book:** **the draft drew no figures.** `grove-llm-k91`'s
-  brief fixed that as the draft's rule — figures where the prose contract
-  requires a relation to be drawn, and left to `art` otherwise — and no chapter
-  met that bar, so every relation in this book is a table. Three of them are
-  chapter 7's and they are the widest: the twelve-verb table is seven columns
-  with sentence-length cells, and the three-orders and boundary tables are five
-  and three columns of the same. Whether any of the three is a figure, or should
-  be split, is this stage's call and no earlier stage's.
-- **`art`, chapters 2 to 6:** the five worked examples are `console` transcripts
-  with the trace in prose beneath them. They are uniform with each other by
-  construction and no chapter drew the tree they act on, although four of them
-  mutate it. A figure of the carried tree — `/work/atlas/.grove/` before and
-  after the session — would serve five chapters at once if it earns its place.
+- **`proof`, `concept-index.md`:** the index carries no entry for chapter 7.
+  Chapters 1 to 6 have roughly twenty each; *What order holds* has none, though
+  it holds five anchored sections and the book's own takeaway test — the three
+  orders, the what-is-left test applied back, the stream contract as a
+  partition, and the boundary. `art` did not fix it: a curated navigation list
+  is not a figure under the prose contract's definition, so it is outside this
+  stage's charter, and the shared specification permits the index to be
+  non-exhaustive in terms (*curated optional navigation, not an exhaustive
+  concept registry … entry selection and reader-useful ordering remain
+  editorial*). So this is a judgement to make, not a breach to repair: either
+  curate entries for chapter 7 in the shape the other six use, or leave it and
+  let the omission stand as curation.
 
 ## Decisions (running log)
 

@@ -1,6 +1,6 @@
 # How this is checked
 <!-- book-page id="how-checked" slice="checked-without-meaning" order="9" -->
-[Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md)
+[Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md) | [Next: What passes through](10-what-passes-through.md)
 
 <a id="checked-without-meaning"></a>
 ## Checked without meaning
@@ -976,4 +976,4 @@ code. Chapter 10 owns no source and is where it is stated: where a layer learns
 what its values mean, what it costs when the answer is anywhere at all, and which
 of these nine chapters proved that here the answer is nowhere.
 
-[Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md)
+[Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md) | [Next: What passes through](10-what-passes-through.md)

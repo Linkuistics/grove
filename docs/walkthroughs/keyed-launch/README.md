@@ -90,7 +90,7 @@ source.
 7. [The child is a job](07-the-job.md)
 8. [The watch and the escalation](08-the-escalation.md)
 9. [How this is checked](09-how-checked.md)
-10. What passes through
+10. [What passes through](10-what-passes-through.md)
 
 Optional lookup:
 

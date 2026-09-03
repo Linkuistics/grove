@@ -55,6 +55,16 @@ human's structure brief settled, passing final validation.
   proves it.
 - `bash scripts/check.sh` passes.
 
+## Handed forward
+
+- **`copy-edit` — `docs/walkthroughs/keyed-launch/07-the-job.md`.** That page
+  writes its em and en dashes as the HTML entities `&mdash;` and `&ndash;` (49
+  and 4 occurrences); chapters 1-6 and 8 use the literal characters and carry
+  none. Nothing renders wrong and no validator sees it, so it is house-style
+  consistency across the whole document rather than a defect in the page —
+  `copy-edit`'s class, and invisible to a stage reading one chapter. Found at
+  `the-escalation-k115`, which followed the majority convention.
+
 ## Notes
 
 **Author it through the pipeline.** If the extracted kinds are installed,

@@ -49,9 +49,9 @@
 <!-- /source-root -->
 <!-- source-root «source-run» source="crates/keyed-launch/src/run.rs" lines="1-607" -->
 <!-- insert «launch-shape» -->
-<!-- defer «watch-and-launcher-signals» owner="the-launchers-job" lines="124-243" -->
+<!-- insert «watch-and-launcher-signals» -->
 <!-- insert «terminal-and-spawn» -->
-<!-- defer «supervise-and-escalate» owner="the-launchers-job" lines="449-607" -->
+<!-- insert «supervise-and-escalate» -->
 <!-- /source-root -->
 <!-- source-root «source-conformance» source="crates/keyed-launch/src/conformance.rs" lines="1-104" -->
 <!-- defer «conformance» owner="checked-without-meaning" lines="1-104" -->
@@ -78,9 +78,9 @@
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `resolved` |
 | `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `272-404` | 133 | `deferred` |
 | `launch-shape` | `source-run` | `nothing-else-added` | `1-123` | 123 | `resolved` |
-| `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `124-243` | 120 | `deferred` |
+| `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `124-243` | 120 | `resolved` |
 | `terminal-and-spawn` | `source-run` | `nothing-else-added` | `244-448` | 205 | `resolved` |
-| `supervise-and-escalate` | `source-run` | `the-launchers-job` | `449-607` | 159 | `deferred` |
+| `supervise-and-escalate` | `source-run` | `the-launchers-job` | `449-607` | 159 | `resolved` |
 | `conformance` | `source-conformance` | `checked-without-meaning` | `1-104` | 104 | `deferred` |
 
 <a id="fragment-index"></a>
@@ -198,6 +198,13 @@
 | `run-launch` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `43-77` | `launch-shape` | `—` |
 | `run-ended` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `78-92` | `launch-shape` | `—` |
 | `run-end` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `93-123` | `launch-shape` | `—` |
+| `run-watch-states` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `124-130` | `watch-and-launcher-signals` | `—` |
+| `watch-and-launcher-signals` | `the-escalation` | `source-run` | `composite` | `the-launchers-job` | `124-243` | `source-run` | `run-watch-states`, `run-interrupted-by`, `run-take-interrupt`, `run-reraise`, `run-on-terminate`, `run-install-termination-handler` |
+| `run-interrupted-by` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `131-149` | `watch-and-launcher-signals` | `—` |
+| `run-take-interrupt` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `150-168` | `watch-and-launcher-signals` | `—` |
+| `run-reraise` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `169-211` | `watch-and-launcher-signals` | `—` |
+| `run-on-terminate` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `212-218` | `watch-and-launcher-signals` | `—` |
+| `run-install-termination-handler` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `219-243` | `watch-and-launcher-signals` | `—` |
 | `run-default-dispositions` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `244-270` | `terminal-and-spawn` | `—` |
 | `terminal-and-spawn` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `244-448` | `source-run` | `run-default-dispositions`, `run-terminal-type`, `run-terminal-open`, `run-terminal-accessors`, `run-terminal-hand-to`, `run-own-group`, `run-the-child-is-a-job`, `run-command-and-environment`, `run-terminal-handover`, `run-process-group`, `run-pre-exec`, `run-clear-and-spawn`, `run-parent-group-and-supervise` |
 | `run-terminal-type` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `271-274` | `terminal-and-spawn` | `—` |
@@ -212,6 +219,15 @@
 | `run-pre-exec` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `404-425` | `terminal-and-spawn` | `—` |
 | `run-clear-and-spawn` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `426-437` | `terminal-and-spawn` | `—` |
 | `run-parent-group-and-supervise` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `438-448` | `terminal-and-spawn` | `—` |
+| `run-supervise` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `449-469` | `supervise-and-escalate` | `—` |
+| `supervise-and-escalate` | `the-escalation` | `source-run` | `composite` | `the-launchers-job` | `449-607` | `source-run` | `run-supervise`, `run-watch-signature`, `run-watch-ended`, `run-watch-terminal-recheck`, `run-watch-try-wait`, `run-watch-forward-interrupt`, `run-watch-escalation`, `run-kill` |
+| `run-watch-signature` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `470-481` | `supervise-and-escalate` | `—` |
+| `run-watch-ended` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `482-494` | `supervise-and-escalate` | `—` |
+| `run-watch-terminal-recheck` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `495-506` | `supervise-and-escalate` | `—` |
+| `run-watch-try-wait` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `507-532` | `supervise-and-escalate` | `—` |
+| `run-watch-forward-interrupt` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `533-553` | `supervise-and-escalate` | `—` |
+| `run-watch-escalation` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `554-580` | `supervise-and-escalate` | `—` |
+| `run-kill` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `581-607` | `supervise-and-escalate` | `—` |
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-104` | `—` | `conformance` |
 
 <a id="early-uses"></a>
@@ -224,11 +240,11 @@
 | `Argv`, `Slot` | `01-orientation.md#the-cast` | `whole-word-or-nothing` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | `explained` |
 | `Channel`, `Token`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | `explained` |
 | `run`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `explained` |
-| `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `pending` |
+| `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `explained` |
 | `conformance::check` | `01-orientation.md#the-cast` | `checked-without-meaning` | The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite. | `pending` |
 | `validate_node`, `validate_template` | `03-two-documents.md#both-documents` | `words-not-shell` | The per-node and per-template rule checks `validate_document` drives over both documents; each returns diagnostics with locations rather than stopping at the first. | `explained` |
 | `source_location`, `format_location`, `render_diagnostics` | `03-two-documents.md#parsed-then-validated` | `words-not-shell` | `source_location` turns a byte offset into a one-based line and column; `format_location` renders one as `path:line:column`; `render_diagnostics` assembles a document's path, role and diagnostics into one refusal. | `explained` |
-| `install_termination_handler`, `INTERRUPTED_BY`, `supervise` | `07-the-job.md#the-spawn` | `the-launchers-job` | `run`'s first and last acts: the handler that latches the launcher's own SIGTERM or SIGHUP into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn, and the supervisor that watches the child and takes the terminal back. | `pending` |
+| `install_termination_handler`, `INTERRUPTED_BY`, `supervise` | `07-the-job.md#the-spawn` | `the-launchers-job` | `run`'s first and last acts: the handler that latches the launcher's own SIGTERM or SIGHUP into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn, and the supervisor that watches the child and takes the terminal back. | `explained` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

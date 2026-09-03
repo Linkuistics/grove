@@ -1,6 +1,6 @@
 # The child is a job
 <!-- book-page id="the-job" slice="nothing-else-added" order="7" -->
-[Previous: Appearance is the event](06-the-channel.md) | [Contents](README.md)
+[Previous: Appearance is the event](06-the-channel.md) | [Contents](README.md) | [Next: The watch and the escalation](08-the-escalation.md)
 
 <a id="nothing-else-added"></a>
 ## Nothing else added
@@ -1034,4 +1034,4 @@ waiting for the child to say so, and for the grace to run out when it says so an
 keeps sitting there. Chapter 8 is the watch, the escalation, and the launcher's
 own signals.
 
-[Previous: Appearance is the event](06-the-channel.md) | [Contents](README.md)
+[Previous: Appearance is the event](06-the-channel.md) | [Contents](README.md) | [Next: The watch and the escalation](08-the-escalation.md)

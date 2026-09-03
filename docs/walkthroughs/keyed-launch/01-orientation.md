@@ -1,6 +1,6 @@
 # Orientation
 <!-- book-page id="orientation" slice="understands-neither" order="1" -->
-[Contents](README.md)
+[Contents](README.md) | [Next: The names a template is written against](02-the-names.md)
 
 <a id="understands-neither"></a>
 ## Understands neither
@@ -682,4 +682,4 @@ Chapter 2 takes the first step into the configuration half, and it takes it at
 the argument the library root stated in five lines: the vocabulary is an input to
 `load`, not to `expand`.
 
-[Contents](README.md)
+[Contents](README.md) | [Next: The names a template is written against](02-the-names.md)

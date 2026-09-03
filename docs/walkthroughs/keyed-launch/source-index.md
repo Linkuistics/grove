@@ -28,10 +28,10 @@
 <!-- insert «two-opaque-errors» -->
 <!-- /source-root -->
 <!-- source-root «source-vocabulary» source="crates/keyed-launch/src/vocabulary.rs" lines="1-44" -->
-<!-- defer «vocabulary» owner="rules-about-names" lines="1-44" -->
+<!-- insert «vocabulary» -->
 <!-- /source-root -->
 <!-- source-root «source-templates» source="crates/keyed-launch/src/templates.rs" lines="1-670" -->
-<!-- defer «template-shapes» owner="rules-about-names" lines="1-91" -->
+<!-- insert «template-shapes» -->
 <!-- defer «templates-load» owner="never-assembled" lines="92-145" -->
 <!-- defer «resolution-and-expansion» owner="whole-word-or-nothing" lines="146-275" -->
 <!-- defer «reading-and-whole-document-validation» owner="never-assembled" lines="276-414" -->
@@ -65,8 +65,8 @@
 | `manifest-three-dependencies` | `source-crate-manifest` | `understands-neither` | `1-47` | 47 | `resolved` |
 | `library-root` | `source-library-root` | `understands-neither` | `1-68` | 68 | `resolved` |
 | `two-opaque-errors` | `source-error-types` | `understands-neither` | `1-81` | 81 | `resolved` |
-| `vocabulary` | `source-vocabulary` | `rules-about-names` | `1-44` | 44 | `deferred` |
-| `template-shapes` | `source-templates` | `rules-about-names` | `1-91` | 91 | `deferred` |
+| `vocabulary` | `source-vocabulary` | `rules-about-names` | `1-44` | 44 | `resolved` |
+| `template-shapes` | `source-templates` | `rules-about-names` | `1-91` | 91 | `resolved` |
 | `templates-load` | `source-templates` | `never-assembled` | `92-145` | 54 | `deferred` |
 | `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `146-275` | 130 | `deferred` |
 | `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `276-414` | 139 | `deferred` |
@@ -112,7 +112,20 @@
 | `error-launch-type` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `43-66` | `two-opaque-errors` | `—` |
 | `error-launch-traits` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `67-81` | `two-opaque-errors` | `—` |
 | `source-vocabulary` | `source-index` | `source-vocabulary` | `root` | `—` | `1-44` | `—` | `vocabulary` |
+| `vocabulary-supplied-at-load` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `1-13` | `vocabulary` | `—` |
+| `vocabulary` | `the-names` | `source-vocabulary` | `composite` | `rules-about-names` | `1-44` | `source-vocabulary` | `vocabulary-supplied-at-load`, `vocabulary-slot-rule`, `vocabulary-requirement`, `vocabulary-cardinality-and-message` |
+| `vocabulary-slot-rule` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `14-20` | `vocabulary` | `—` |
+| `vocabulary-requirement` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `21-27` | `vocabulary` | `—` |
+| `vocabulary-cardinality-and-message` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `28-44` | `vocabulary` | `—` |
 | `source-templates` | `source-index` | `source-templates` | `root` | `—` | `1-670` | `—` | `template-shapes`, `templates-load`, `resolution-and-expansion`, `reading-and-whole-document-validation`, `node-and-template-rules`, `word-scanning`, `diagnostics`, `templates-keys` |
+| `template-shapes-imports` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `1-14` | `template-shapes` | `—` |
+| `template-shapes` | `the-names` | `source-templates` | `composite` | `rules-about-names` | `1-91` | `source-templates` | `template-shapes-imports`, `template-shapes-templates`, `template-shapes-slot-spec`, `template-shapes-per-key-source`, `template-shapes-word`, `template-shapes-document-role`, `template-shapes-diagnostics` |
+| `template-shapes-templates` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `15-28` | `template-shapes` | `—` |
+| `template-shapes-slot-spec` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `29-33` | `template-shapes` | `—` |
+| `template-shapes-per-key-source` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `34-45` | `template-shapes` | `—` |
+| `template-shapes-word` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `46-52` | `template-shapes` | `—` |
+| `template-shapes-document-role` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `53-73` | `template-shapes` | `—` |
+| `template-shapes-diagnostics` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `74-91` | `template-shapes` | `—` |
 | `source-argv` | `source-index` | `source-argv` | `root` | `—` | `1-48` | `—` | `argv` |
 | `source-channel` | `source-index` | `source-channel` | `root` | `—` | `1-404` | `—` | `channel-production`, `channel-inline-tests` |
 | `source-run` | `source-index` | `source-run` | `root` | `—` | `1-607` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
@@ -123,8 +136,8 @@
 
 | Symbol family | First use | Owner | Minimum local statement | Status |
 |---|---|---|---|---|
-| `Templates` | `01-orientation.md#the-cast` | `rules-about-names` | One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned. | `pending` |
-| `Vocabulary`, `SlotRule`, `Requirement` | `01-orientation.md#the-cast` | `rules-about-names` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | `pending` |
+| `Templates` | `01-orientation.md#the-cast` | `rules-about-names` | One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned. | `explained` |
+| `Vocabulary`, `SlotRule`, `Requirement` | `01-orientation.md#the-cast` | `rules-about-names` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | `explained` |
 | `Argv`, `Slot` | `01-orientation.md#the-cast` | `whole-word-or-nothing` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | `pending` |
 | `Channel`, `Token`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | `pending` |
 | `run`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `pending` |

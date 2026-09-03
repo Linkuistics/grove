@@ -45,8 +45,8 @@ reads the line that makes `Argv::new` `pub(crate)` and counts the callers it has
 This section takes step 2 of the five-call trace chapter 1 wrote, and expands it
 to full resolution. Chapter 3 added an overlay to the picture; this section sets
 it aside and loads the primary alone, because what is being traced is expansion,
-and which file a template was read from changes nothing about it. The input is the operator's personal file and the
-vocabulary its lines are written against.
+and which file a template was read from changes nothing about it. The input is
+the operator's personal file and the vocabulary its lines are written against.
 
 ```text
 ~/.config/grove/config.kdl
@@ -115,10 +115,10 @@ the chapter is one column of it read closely.
 | 2 | `Word::Literal("opus")` | the file | `opus` |
 | 3 | `Word::Slot(0)` | `offered[0]`, the value offered for `prompt` | `Fix the $(date) helper in scripts/check.sh` |
 
-Four words in, four words out. The mandate is one argument, and it is one
-argument for a structural reason rather than a careful one: the only splitting
-this crate ever does happened at load, to the template, and a value offered at
-expansion never passes through it. In `crates/keyed-launch/tests/templates.rs`,
+Four words in, four words out. The mandate is one argument by construction: the
+only splitting this crate ever does happened at load, to the template, and a
+value offered at expansion never passes through it. In
+`crates/keyed-launch/tests/templates.rs`,
 `a_slot_value_is_one_argument_whatever_it_contains` pins exactly that shape: it
 expands a template with the value `two words $(not a command)` and asserts four
 words out. Its companion `shell_metacharacters_stay_literal` pins the other
@@ -154,9 +154,10 @@ The composite below is the block as a whole, and it sits in `src/templates.rs`
 between the two halves of chapter 3's reading. Those are ownership-block
 boundaries rather than function boundaries: chapter 3's first block runs to line
 145, this one begins at 146 and runs to 275, and chapter 3's second block — which
-holds `compile_vocabulary`, the function `load` calls first — starts at 276. The interleaving is the price of ordering the book by concept, and the
-ownership ledger in the source index is where it is visible: eight blocks of one
-root, divided across four chapters.
+holds `compile_vocabulary`, the function `load` calls first — starts at 276. The
+interleaving is the cost of ordering the book by concept, and the ownership
+ledger in the source index is where it is visible: eight blocks of one root,
+divided across four chapters.
 
 <!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="146-275" parent="source-templates" -->
 <!-- insert «templates-source» -->
@@ -253,9 +254,9 @@ launches it*. Both halves of that are real calls in grove.
 `crates/grove-loop/src/session_config.rs` wraps this call as its own `require`,
 and `crates/grove-llm/src/cli.rs` calls that wrapper before it writes a leaf of a
 kind — a task tree that records a kind nothing can launch is a tree whose work
-cannot be done, and the cheapest moment to say so is before the entry exists. The
-refusal is worth more there than at the launch it would otherwise reach, because
-by the launch the operator has already committed.
+cannot be done, and the earliest moment to report that is before the entry
+exists. Reporting it only at launch would arrive after the operator had already
+committed the entry.
 
 The rest of the comment is the reason the function is not merely a `contains_key`
 a caller could write itself: *stated once, here, so the refusal's wording has one
@@ -603,9 +604,10 @@ impl Templates {
 <!-- /fragment -->
 
 The comment sits on the `impl` block rather than on the method, which is where a
-reader will notice it is describing exactly one function; there is nothing else in
-the block for it to be about. It is also the whole design. `keys` returns the keys that resolve, borrowed
-from the map, and the map is a `BTreeMap`, so *in name order* is free rather than
+reader will notice it is describing exactly one function; there is nothing else
+in the block for it to be about. It is also the whole design. `keys` returns the
+keys that resolve, borrowed from the map, and the map is a `BTreeMap`, so *in
+name order* is free rather than
 sorted — chapter 2 read the field and named this as what its ordering buys. The
 qualifier *the primary document declares* is exact: an overlay-only key is not in
 the map, so it is not in this list, which keeps `keys` consistent with `source`
@@ -811,14 +813,13 @@ word in seven places, and this crate's own `crates/keyed-launch/tests/templates.
 routes four of its expansion tests through a `words()` helper — including the two
 this chapter cited above. The code that actually spawns takes the opposite route
 on purpose. `crates/grove-loop/src/loop_driver.rs` passes the `Argv` itself into
-`keyed_launch::run`, and the comment on the call that produced it says why
-unflattened is the point: `Argv` has no constructor, so handing it through is
-what makes *nothing reaches a spawn that a template did not author* a fact rather
-than a promise. So `words` is the shape for looking at a launch, and the `Argv`
-itself is the shape for performing one.
-That the two are different types is the seam holding: the moment a caller
-flattens an `Argv` to a `Vec<OsString>`, it has a word list it could have built
-by any other means, and nothing downstream could tell the difference.
+`keyed_launch::run`, and the comment on the call that produced it explains why
+the `Argv` remains unflattened. `Argv` has no constructor, so handing it through
+makes *nothing reaches a spawn that a template did not author* a compiler-checked
+property. `words` is the shape for inspecting a launch, and the `Argv` itself is
+the shape for performing one. Once a caller flattens an `Argv` to a
+`Vec<OsString>`, it has a word list it could have built by any other means, and
+nothing downstream can distinguish its provenance.
 
 Every path from a human's file to a process has now been read. A key was declared
 in one file, a template was split into words once and checked whole, four values

@@ -265,8 +265,8 @@ its third argument. The crate learns their spelling and their cardinality, and
 nothing else; the four names are meaningful to grove and opaque here.
 
 Loaded as chapter 1 wrote them, both lines pass. Now suppose the operator edits
-the second line and drops its substitution, which is the single most likely
-mistake a template invites, because the line still reads as a complete command.
+the second line and drops its substitution, a plausible mistake because the line
+still reads as a complete command.
 
 ```text
 impl "claude --model opus ${prompt}"
@@ -406,8 +406,9 @@ pub struct Templates {
 
 Every field is private, and the type's five public methods — `load`, `source`,
 `require`, `expand` and `keys` — are chapters 3 and 5's. Read as a data model,
-the five fields answer five different questions. `primary` and `overlay` are kept so a refusal can name the files by path rather
-than describing them; `slots` is the owned table `compile_vocabulary` built, and
+the five fields answer five different questions. `primary` and `overlay` are
+kept so a refusal can name the files by path rather than describing them;
+`slots` is the owned table `compile_vocabulary` built, and
 it is the reason `Templates` needs no lifetime parameter despite being built from
 a borrowed `Vocabulary<'a>`. `templates` is the resolution result, keyed by the
 consumer's opaque strings and ordered because it is a `BTreeMap`, which is what
@@ -575,10 +576,8 @@ the entire purpose of carrying the role that far.
 <a id="what-a-diagnostic-carries"></a>
 ## What a diagnostic carries
 
-The last three types are the shape of a validation report, and they are the
-chapter's clearest case of source that states nothing and means a good deal.
-There is no comment on any of them, and what they are for is legible only from
-their fields.
+The last three types are the shape of a validation report. There is no comment
+on any of them, and what they are for is legible only from their fields.
 
 <!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="74-91" parent="template-shapes" -->
 ````rust

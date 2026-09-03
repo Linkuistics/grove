@@ -14,13 +14,14 @@ is an opaque string. A slot is a name the consumer declared. The words of a
 template are the words the file holds.
 
 That refusal is the whole of the crate's design, and it is what each of the nine
-source-owning chapters opens on; the tenth applies the test they have proved. This chapter opens on the narrowest form of it: **the crate
-understands neither half of the pair it carries.** It does not know what a key
-names, and it does not know what a template's program does. Three files declare
-that — the manifest, which buys three dependencies and no domain; the library
-root, which states the claim in its first paragraph and maps the rest of the
-crate; and the error module, whose two types exist so that neither half's caller
-has to handle the other's failures.
+source-owning chapters opens on; the tenth applies the test they have proved.
+This chapter opens on the narrowest form of it: **the crate understands neither
+half of the pair it carries.** It does not know what a key names, and it does not
+know what a template's program does. Three files declare that — the manifest,
+which buys three dependencies and no domain; the library root, which states the
+claim in its first paragraph and maps the rest of the crate; and the error
+module, whose two types exist so that neither half's caller has to handle the
+other's failures.
 
 grove is the consumer this crate was extracted from, and its mapping onto the
 crate is one sentence: **a session kind is a key.** That sentence is the
@@ -121,13 +122,13 @@ it adds exactly one rule of its own on top of each, which chapters 3 and 4 own.
 <a id="the-dev-dependency"></a>
 ## One dev-dependency, and the lints
 
-The dev-dependencies are one dependency. `tempfile` is what four of the crate's
-five test files use to build a directory of configuration documents and channel
-files per test, and it is the only thing the suite needs that the standard
+The dev-dependencies table names one dependency. `tempfile` is what four of the
+crate's five test files use to build a directory of configuration documents and
+channel files per test, and it is the only thing the suite needs that the standard
 library does not supply; the fifth, `tests/reraise.rs`, re-executes itself and
-needs no directory at all. The contrast with the crate's other siblings is worth stating once: a
-crate that spawns processes and writes files might be expected to buy a process
-harness or a fixture framework, and this one buys a temporary directory.
+needs no directory at all. Unlike the crate's other siblings, a crate that
+spawns processes and writes files might be expected to buy a process harness or
+a fixture framework, and this one buys a temporary directory.
 
 <!-- fragment «manifest-dev-dependencies» owner="understands-neither" source="crates/keyed-launch/Cargo.toml" lines="27-29" parent="manifest-three-dependencies" -->
 ````toml
@@ -285,9 +286,9 @@ some other way cannot construct one. The claim is about the code and not about
 the prose: `run.rs` does name `Templates::expand` once, in the doc comment on
 `Launch::argv`, and what that comment records is the authoring rule rather than a
 dependency — nothing in `run` compiles against `templates`, and nothing in
-`templates` compiles against `run`. This chapter states the claim; chapter 5 shows the two lines that make it
-true, and this chapter's last section reads the error module that the claim is
-also visible in.
+`templates` compiles against `run`. This chapter states the claim; chapter 5
+shows the two lines that make it true, and this chapter's last section reads the
+error module that the claim is also visible in.
 
 <!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="28-34" parent="library-root" -->
 ````rust
@@ -392,7 +393,7 @@ review-impl "codex exec --model gpt-5 ${prompt}"
 ```
 
 The consumer also supplies a vocabulary: the slot names its own templates are
-written against, each with a cardinality. Grove's is four slots, and the crate
+written against, each with a cardinality. grove's is four slots, and the crate
 learns nothing from them except their spelling and how often each may appear.
 The table states what the loader will check, not what the values will be.
 
@@ -538,10 +539,11 @@ use std::fmt;
 ````
 <!-- /fragment -->
 
-The first type is everything that can go wrong reading, validating or expanding a
-configuration, and its doc comment carries the crate's most consequential API
-decision. **Opacity is stated as a design rather than an omission**, with the cost
-of the alternative named: a variant list would be a second interface, with every
+The first type is everything that can go wrong reading, validating or expanding
+a configuration, and its doc comment carries the API decision that makes its
+opacity deliberate. **Opacity is stated as a design rather than an omission**,
+with the cost of the alternative named: a variant list would be a second
+interface, with every
 consumer matching on it and every new diagnostic a breaking change, for a value
 whose only use is being shown to the person who has to fix the file. In place of
 a taxonomy the type takes on an obligation that every message it holds must
@@ -678,8 +680,8 @@ Two types, then, and the count is the claim. One error type would have been
 shorter and would have compiled identically; what it would have cost is the
 property the next four chapters and the four after them rely on — that a reader
 can follow the configuration half without meeting a spawn, and the launch half
-without meeting a parse. The error module is the cheapest place that property is
-visible, and it is visible there before any of the code that keeps it.
+without meeting a parse. The error module shows that property before any of the
+code that keeps it.
 
 Chapter 2 takes the first step into the configuration half, and it takes it at
 the argument the library root stated in five lines: the vocabulary is an input to

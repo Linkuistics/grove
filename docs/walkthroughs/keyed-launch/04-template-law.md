@@ -8,8 +8,8 @@
 Chapter 3 read `load` and the three passes that check a document whole, and it
 named two functions it did not read. `validate_node` and `validate_template` are
 those two, and they are where every rule a template must satisfy actually binds.
-This chapter is them, the scanner one of their rules needs, and the five helpers
-that turn a finding into a sentence an operator can act on.
+This chapter follows those functions, the scanner one rule needs, and the five
+helpers that turn a finding into a sentence an operator can act on.
 
 What this stage must not add and must not interpret is a **shell**. A template is
 one string a human wrote, and a word of it is a word: the line is split by POSIX
@@ -27,8 +27,8 @@ That is where the book's second arm begins. A layer learns what a value means
 that a value with a space becomes two arguments, a `#` truncates the line, and a
 `$(…)` becomes a command. Two-thirds of that arm is chapter 5's, where a
 substituted value is protected after the fact; the third is this chapter's, and
-it is the `#`. It is the sharpest case in the crate because it is the one place
-where declining to interpret is not enough on its own. The splitter this crate
+it is the `#`. This is the one place where declining to interpret is not enough
+on its own. The splitter this crate
 depends on *does* interpret a `#`, silently, and dropping the rest of the line is
 a legal thing for it to do. So the crate scans for the character itself, before
 the split, and refuses the line rather than launching an argv that means less
@@ -312,8 +312,8 @@ behind to compare.
 <a id="the-comment-start"></a>
 ## The `#` that would truncate the line
 
-`validate_template` enforces five of the twelve rules itself and calls out for
-two more, and it is the rest of this block. It takes the string `validate_node`
+`validate_template` enforces five of the twelve rules itself and delegates two
+more, and it is the rest of this block. It takes the string `validate_node`
 extracted and returns the compiled words, and it opens with a signature that
 fixes what a rule check is allowed to do with what it finds.
 
@@ -710,16 +710,16 @@ fn parse_template_word(
 ````
 <!-- /fragment -->
 
-The two rules `validate_template` called out for are in these twenty-eight lines,
-and they are ordered as a single question asked twice. Is this word *entirely* a
-substitution? If so, and the name is declared, it is a slot reference and the
-function is done. If so and the name is not declared, the operator is told which
-substitution is unknown and the word is kept as a literal, so the rest of the
-template is still checked and the reader gets every other finding in the same
-report.
+The two rules `validate_template` delegates are in these twenty-eight lines and
+run in order. The function first checks whether the word is *entirely* a
+substitution. If it is and the name is declared, the word is a slot reference
+and the function is done. If it is and the name is not declared, the operator is
+told which substitution is unknown and the word is kept as a literal, so the
+rest of the template is still checked and the reader gets every other finding in
+the same report.
 
-The second question is the interesting one. If the word is not wholly a
-substitution but still contains `${`, it is partially one, and that is refused.
+The second rule handles a word that is not wholly a substitution but still
+contains `${`: it is partially substituted, and that is refused.
 `--prompt=${prompt}` is the shape an operator reaches for, and it is exactly what
 the crate will not do, because doing it would mean re-reading a word after it had
 already been split — building a new word out of a value the crate does not
@@ -904,7 +904,7 @@ words a meaning. `Word::Slot(0)` is an index into a table of names the consumer
 declared, and the crate still does not know what `prompt` is, what `claude` is, or
 what any of it is for. Chapter 5 takes the compiled template and a caller's
 values and produces the argv, which is where the whole-word rule this chapter
-enforced is finally cashed in — and where the two halves of the crate meet, at
+enforced determines the output — and where the two halves of the crate meet, at
 the one type no caller can construct.
 
 [Previous: Two documents, neither one assembled](03-two-documents.md) | [Contents](README.md) | [Next: From a template to an argv](05-to-an-argv.md)

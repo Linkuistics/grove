@@ -17,7 +17,7 @@ look like helpfulness. A `--yes` because the child is non-interactive. A `HOME`
 because the child seemed to want one. A working directory because none was given.
 Each is a value the operator cannot see in their own configuration file, and each
 is the third arm of the book's outcome — a layer learning what a value means **on
-the way out** — arriving as generosity rather than as inference.
+the way out** — expressed as an inferred convenience.
 `a_scrubbed_variable_is_removed_from_an_inherited_environment` and
 `arguments_reach_the_child_as_written` are where the crate is held to the claim
 from the two directions it could fail in.
@@ -27,15 +27,15 @@ this chapter and the next **by whose signal it is**. Everything done *to* the
 child is here: the shape of a launch, the dispositions it is handed, the terminal
 it is given, and the spawn that puts it in a process group of its own. Everything
 about *endings* is chapter 8's: the supervisor's state machine, the escalation,
-and the launcher's own SIGTERM. So this chapter owns lines 1&ndash;123 and
-244&ndash;448, and chapter 8 owns the 124&ndash;243 between them and the
-449&ndash;607 after &mdash; 328 lines here, the heaviest chapter in the book.
+and the launcher's own SIGTERM. So this chapter owns lines 1–123 and
+244–448, and chapter 8 owns the 124–243 between them and the
+449–607 after — 328 lines here, the heaviest chapter in the book.
 
 Read the source closely on this page. `src/run.rs` is 53% comment, and those
 comments are *argument* rather than description: the escalation, the child's
 dispositions and the terminal each carry a full case in situ, stating the
 alternative and what it would have cost. The fragments below reproduce them
-exactly, and the prose between the fragments does two things and no third &mdash;
+exactly, and the prose between the fragments does two things and no third —
 it connects an argument in one item to an argument in another, and it names the
 test that holds each claim.
 
@@ -43,13 +43,13 @@ test that holds each claim.
 ## The spawn
 
 This section takes step 4 of the five-call trace chapter 1 wrote and runs it to
-the point where a child is running. The half after that &mdash; the poll, the
-grace, the escalation and the value that comes back &mdash; is chapter 8's; this
+the point where a child is running. The half after that — the poll, the
+grace, the escalation and the value that comes back — is chapter 8's; this
 one ends with a process, not with an `Ended`.
 
 Everything the call needs already exists. The `Argv` is chapter 5's, produced by
 `templates.expand("impl", …)`; the `Channel` is chapter 6's, drawn in grove's
-control directory and written to by nobody. Grove supplies the four remaining
+control directory and written to by nobody. grove supplies the four remaining
 fields, and every one of them is grove's rather than this crate's.
 
 ```text
@@ -91,10 +91,10 @@ Two things about that environment are worth reading before the source, because
 both look wrong at first glance. `GROVE_SIGNAL_FILE` is in the scrub list and is
 nonetheless set: the list names the launch-control variables a nested launcher
 must not inherit, the channel variable is the first of them, and the grant is
-exactly the exception the scrub exists to carve out.
+exactly the exception that this ordering preserves.
 `granting_the_channel_survives_a_scrub_list_that_names_it` is what holds the two
 in that order. And nothing in the picture names the variables the child *does*
-receive &mdash; its `PATH`, its `TERM`, its locale &mdash; because they are not
+receive — its `PATH`, its `TERM`, its locale — because they are not
 granted at all; they arrive by inheritance, and *minus a list* is the only
 operation performed on them.
 `a_scrubbed_variable_is_removed_from_an_inherited_environment` is what makes that
@@ -153,10 +153,10 @@ its two forms the runner happens to produce, and every claim this chapter makes
 about it rests on the source and on the operating system rather than on this
 repository's suite. The process-group half of the
 same spawn *is* pinned, by `the_escalation_reaps_the_childs_descendants`, which
-observes the group indirectly &mdash; through what the escalation reaches &mdash;
+observes the group indirectly — through what the escalation reaches —
 and which is chapter 8's to read for that reason.
 
-The first composite is the file's opening 123 lines &mdash; the thesis, the poll
+The first composite is the file's opening 123 lines — the thesis, the poll
 interval, and the four public types this file defines.
 
 <!-- fragment «launch-shape» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="1-123" parent="source-run" -->
@@ -212,11 +212,11 @@ use crate::error::LaunchError;
 ````
 <!-- /fragment -->
 
-Eight `std` imports and two of the crate's own. What is missing from the list is
-the interesting part twice over. There is no `use libc`: every call into it below
+Eight `std` imports and two of the crate's own. Two omissions show the module
+boundary. There is no `use libc`: every call into it below
 is written out as `libc::…`, so a reader scanning the file can see each place the
 crate leaves `std` without following an import to find out. And `Argv` is absent
-too, although this file names it &mdash; it appears exactly once, fully qualified
+too, although this file names it — it appears exactly once, fully qualified
 as `crate::Argv`, in the field the next-but-one fragment declares. That is the
 seam chapter 1 stated and chapter 5 proved, visible here as an import that was
 not worth making: the launch half touches the configuration half at one field and
@@ -279,7 +279,7 @@ pub struct Escalation {
 This is the consequence of chapter 6's opening fact, arriving one chapter later
 as an obligation. Chapter 6 said that an interactive child does not end by
 exiting: it finishes its turn and returns to its prompt, so its exit is not an
-observable a launcher can wait for. The comment above takes the next step &mdash;
+observable a launcher can wait for. The comment above takes the next step —
 if the child will not end itself, somebody has to end it, and the only process
 that can is its own parent. Everything else on this page follows from that
 sentence, including the process group two sections down, because *ending it*
@@ -290,21 +290,21 @@ failures, and each has its own test. `grace` is the wait a child that did its jo
 is owed: it signalled mid-operation, and the grace lets that operation's own call
 return before anything is sent.
 `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace` is the case
-it exists for &mdash; a child that has signalled and then goes on waiting forever
-&mdash; and it ends `End::Signalled`. `kill_grace` answers a different child
+it exists for — a child that has signalled and then goes on waiting forever
+— and it ends `End::Signalled`. `kill_grace` answers a different child
 entirely, one that caught the SIGTERM and declined to act on it, and
 `a_child_that_ignores_sigterm_is_killed_after_the_kill_grace` is its case.
 
 The type is `Copy` and `Eq` and has no `Default`, which is the same restraint the
 whole of `Launch` shows below: a launcher that has not thought about how long to
-wait has not been given an answer to copy. Grove's own is two seconds and five,
+wait has not been given an answer to copy. grove's own is two seconds and five,
 and nothing in this crate knows or could check that.
 
 <a id="everything-one-launch-is"></a>
 ## Everything one launch is
 
-The struct the last two sections have been circling is next, and its comment says
-in one sentence why none of its fields has a default.
+The next struct combines the values introduced by the last two sections, and its
+comment says in one sentence why none of its fields has a default.
 
 <!-- fragment «run-launch» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="43-77" parent="launch-shape" -->
 ````rust
@@ -357,7 +357,7 @@ whole of the chapter's claim.
 
 `argv` argues about **who authored the words**. It borrows a `crate::Argv`, which
 chapter 5 showed has no public constructor, so the only thing that can reach this
-field is the output of `Templates::expand` &mdash; and the only thing that can
+field is the output of `Templates::expand` — and the only thing that can
 reach *that* is a template read whole out of a configuration file. The chain is
 enforced by the compiler rather than by this crate's own care, which is why the
 promise *no appended argument* is checkable at all rather than merely intended.
@@ -370,7 +370,7 @@ authority: allocation writes nothing, so the file's appearance is the event that
 ends a launch, and whoever holds the path can produce that appearance. An
 environment is inherited rather than addressed, so a launcher that merely
 declines to *set* its own control variable still hands a nested child whatever
-its own environment carried &mdash; and if the launcher is itself running as a
+its own environment carried — and if the launcher is itself running as a
 session, what it carried is a live path belonging to somebody else's launch.
 Removing is therefore a different operation from not-setting, and
 `a_scrubbed_variable_is_removed_from_an_inherited_environment` is written to tell
@@ -419,13 +419,13 @@ pub struct Ended {
 <!-- /fragment -->
 
 Four fields, and the one to read carefully is the relationship between the first
-and the last. `token` is `Option<Token>` &mdash; chapter 6's value, read back off
-the path &mdash; and it is *orthogonal* to `end` rather than a refinement of it.
+and the last. `token` is `Option<Token>` — chapter 6's value, read back off
+the path — and it is *orthogonal* to `end` rather than a refinement of it.
 The reason is that they answer different questions: `token` says whether the
 child spoke, and `end` says who ended the child. Both are needed because either
 one alone is ambiguous. `a_child_that_never_signals_ends_with_no_token` is the
 case where the child exits of its own accord having said nothing, and it also
-checks that the channel file does not exist &mdash; which is chapter 6's
+checks that the channel file does not exist — which is chapter 6's
 writes-nothing property observed from the far end of a real launch.
 
 <!-- fragment «run-end» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="93-123" parent="launch-shape" -->
@@ -467,10 +467,11 @@ pub enum End {
 `Signalled` is the case this chapter has to state most carefully, and the source
 states it in the comment above: it is **narrower than *a token appeared***. The
 two are easy to conflate because the escalation begins when the token appears, so
-one might expect every launch with a token to end `Signalled`. It does not, and what separates the two is only whether the child's own exit
-lands inside the grace.
+one might expect every launch with a token to end `Signalled`. It does not, and
+what separates the two is only whether the child's own exit lands inside the
+grace.
 `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` builds
-precisely that child &mdash; it writes its token, sleeps, and exits &mdash; and
+precisely that child — it writes its token, sleeps, and exits — and
 runs it under a thirty-second grace so that its own exit lands well inside;
 `End::Exited` is what comes back, with a token, and the test also asserts that
 `elapsed` is less than the grace, so a passing run cannot be one that waited the
@@ -478,15 +479,15 @@ grace out and got lucky. The complementary case,
 `an_unsignalled_child_runs_to_its_own_exit_untouched`, is the same ending reached
 with no token at all.
 
-Read the two together and the rule falls out: `End` reports **who acted**, and
+The two tests establish the rule: `End` reports **who acted**, and
 nothing else. A caller that wants *did the child say it was done* reads `token`;
 a caller that wants *did this launch complete or fall over* reads `end`; and a
 caller that conflated them would be inferring one from the other, which is
-exactly the failure this crate exists to not commit.
+exactly the failure this crate is designed to prevent.
 
 `Interrupted` is **defined here and produced only in chapter 8**. Its argument
-&mdash; that the signal is carried rather than merely noted, so a launcher can
-die of the same signal instead of exiting zero &mdash; is `reraise`'s, and
+— that the signal is carried rather than merely noted, so a launcher can
+die of the same signal instead of exiting zero — is `reraise`'s, and
 `reraise` is chapter 8's; so is the distinction the last paragraph draws between
 a signal arriving *during* a launch and one arriving between two, which is
 `take_interrupt`'s. `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other`,
@@ -496,7 +497,7 @@ that `run` can return it, because a reader meeting `Ended` needs all three arms
 to know what they are matching on.
 
 The derives split the two types along the same line. `Ended` is `Debug` and
-nothing else &mdash; it holds an `ExitStatus` and a `Token`, and it is a report
+nothing else — it holds an `ExitStatus` and a `Token`, and it is a report
 rather than a value to compare. `End` adds `Clone`, `Copy`, `PartialEq` and `Eq`, because
 comparing it is the whole of what a caller does with it, and every test above is
 an `assert_eq!` against one of its three arms.
@@ -549,8 +550,8 @@ and the handover section below is where that job appears.
 
 `an_ignored_sigint_in_the_launcher_does_not_reach_the_child` is the test, and it
 is worth naming what makes it a test rather than a demonstration. Its child
-*reports what it inherited* &mdash; `kill -INT $$` against whatever disposition
-arrived &mdash; instead of installing a handler of its own, because a child that
+*reports what it inherited* — `kill -INT $$` against whatever disposition
+arrived — instead of installing a handler of its own, because a child that
 installed one would overwrite the inherited disposition and behave identically
 whether or not the launcher had leaked anything. And it runs a positive control
 first: the same script under a plain `Command::status()`, which does inherit the
@@ -560,9 +561,9 @@ would be equally consistent with a fixture that could never see the fault at all
 Two of the seven connect forward on this page, and both connections are the same
 job-control fact seen from a different side. **SIGTTOU** is in the list, and it is
 also ignored across the `tcsetpgrp` in `Terminal::hand_to` below and again inside
-the `pre_exec` closure &mdash; three appearances, one reason, which the terminal
+the `pre_exec` closure — three appearances, one reason, which the terminal
 sections read. **SIGINT** is in the list, and it is the absence chapter 8's
-`install_termination_handler` argues for in so many words &mdash; that handler
+`install_termination_handler` argues for in so many words — that handler
 catches SIGTERM and SIGHUP, and its comment says why SIGINT is not among them.
 Those are the two halves of a single decision: a Ctrl-C the human types is delivered to
 the terminal's foreground group, which after the handover below is the child's,
@@ -623,7 +624,7 @@ what removes a configuration flag from the crate's surface. A launcher running
 under a CI job or a systemd unit opens nothing, gets `None`, and proceeds with no
 job control at all; a launcher running under a human's terminal
 opens it and gets the handover. Nothing had to be told which of the two it was,
-and there is no flag for an operator to set to the wrong value &mdash; which is
+and there is no flag for an operator to set to the wrong value — which is
 the same shape as `Escalation` having no `Default`, arrived at from the opposite
 direction: the crate refuses to guess what only the caller knows, and refuses to
 ask about what the operating system already answers.
@@ -640,7 +641,7 @@ so the handover happens while it is still open and the exec then closes it. What
 that prevents is a fourth, unnamed descriptor onto the terminal riding into the
 child and every one of its descendants. It is **not** isolation: `run` configures
 no stdio at all, so the child inherits the launcher's own standard input, output
-and error, which in the case this code exists for *are* that terminal &mdash; and
+and error, which in the case this code exists for *are* that terminal — and
 a child that holds the terminal can open `/dev/tty` for itself whenever it likes.
 The flag is descriptor hygiene. The child's ownership of the terminal comes from
 the process group and the `tcsetpgrp` below, not from which descriptors survive
@@ -665,7 +666,7 @@ the exec.
 below, which is the one place a `&Terminal` cannot go. `foreground` is the
 question every handover in this file asks before it acts: *who owns the terminal
 right now*. All three of its call sites use it as a guard
-rather than as information &mdash; once below in `run`, to decide whether this
+rather than as information — once below in `run`, to decide whether this
 launcher has a terminal it is entitled to give away, and twice in chapter 8, to
 decide whether it has one it is entitled to take back.
 
@@ -695,7 +696,7 @@ decide whether it has one it is entitled to take back.
 
 Three sites in this file hand the terminal to a process group, and this method
 exists so that two of them do not have to write the dance out. Both of those two
-are chapter 8's &mdash; the reclaim in `supervise` and the one in `watch` &mdash;
+are chapter 8's — the reclaim in `supervise` and the one in `watch` —
 which is why a chapter about spawning a child owns the method and a chapter about
 ending one owns every call to it. The third site cannot use it: it is the
 `tcsetpgrp` inside `pre_exec`, in a forked child where the only async-signal-safe
@@ -715,8 +716,8 @@ fn own_group() -> libc::pid_t {
 <!-- /fragment -->
 
 Six lines, and the reason it is a function is that `own_group()` reads as a
-question in the three guards that ask it &mdash; *is the terminal mine to give
-away*, *is it mine to take back* &mdash; where `libc::getpgrp()` would read as a
+question in the three guards that ask it — *is the terminal mine to give
+away*, *is it mine to take back* — where `libc::getpgrp()` would read as a
 system call whose result the reader has to interpret.
 
 <a id="the-child-is-a-job"></a>
@@ -765,7 +766,7 @@ thirty-one lines because three separate cases live in it.
 The first paragraph is the chapter's claim stated as a contract, and the sentence
 that makes it operable is the last one: *a child that needs one says so in its own
 template, where whoever wrote the configuration can see it.* That is where the
-promise stops being restraint and becomes a property of the system &mdash; the
+promise stops being restraint and becomes a property of the system — the
 refusal to add is what keeps the configuration file a complete account of what
 will run, and a complete account is the only thing an operator can audit.
 
@@ -773,16 +774,16 @@ The second paragraph's rejected alternative is the one to read against the
 disposition list above, and it is the one place on this page where the book
 declines to adopt the source's reasoning as its own. The **decision** is not in
 doubt and its shape is this page's to connect: the child gets a process *group*
-and not a new *session*, and SIGTTIN &mdash; the sixth entry of
-`DEFAULT_DISPOSITION_IN_CHILD` &mdash; is handed back at its default rather than
+and not a new *session*, and SIGTTIN — the sixth entry of
+`DEFAULT_DISPOSITION_IN_CHILD` — is handed back at its default rather than
 the crate relying on the child never being in a position to receive it. Those are
 two halves of one job-control decision, and neither comment mentions the other.
 
 The **mechanism** the comment offers for the rejection is a separate question,
 and this book neither repeats it as fact nor contradicts it. Whether a child in a
 fresh session is stopped by SIGTTIN on its first read turns on whether that
-terminal is still *its* controlling terminal &mdash; which is exactly what
-creating a session removes &mdash; and the competing account is that the handover
+terminal is still *its* controlling terminal — which is exactly what
+creating a session removes — and the competing account is that the handover
 becomes impossible instead, since `tcsetpgrp` cannot name a group in another
 session. Settling it needs a controlling terminal to run the case on, and nothing
 in this repository tests it. The book's obligation is to reproduce the argument
@@ -827,8 +828,8 @@ pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
 The whole of the environment the child receives is these nineteen lines, and the
 comment argues the one thing about them that is not obvious: **scrub first, grant
 second**. The order is load-bearing because the expected caller's scrub list
-*contains* its own `channel_var` &mdash; grove's does, and the variable is the
-first of the three &mdash; so a grant applied before the scrub would remove the
+*contains* its own `channel_var` — grove's does, and the variable is the
+first of the three — so a grant applied before the scrub would remove the
 path this launch had just published. What that failure looks like is the reason it
 is worth a comment: not an error, but a child that runs to completion, cannot
 signal, and a launcher that waits out its grace and escalates. An operator reads
@@ -869,9 +870,9 @@ separate questions of it before handing anything over.
 <!-- /fragment -->
 
 One guard and one duplication, and they answer different questions. The `filter`
-is a question of **entitlement**: this launcher may hand over the terminal only if it currently
-owns it, because handing over a terminal that belongs to somebody else's job is
-theft rather than job control. That is the guard `Terminal::foreground` exists
+is a question of **entitlement**: this launcher may hand over the terminal only
+if it currently owns it, because otherwise it would transfer control away from a
+different job. That is the guard `Terminal::foreground` exists
 for, and it is the same guard chapter 8's `supervise` applies in reverse before
 taking the terminal back.
 
@@ -880,7 +881,7 @@ captured into a closure at all. Either side of the handover alone leaves a windo
 the parent can reach its `tcsetpgrp` before the child's `setpgid` has created the
 group to hand to, and the child can reach its first read before the parent has
 handed anything over. Doing it from both sides closes the window from both ends,
-and the cost is that the same operation appears twice in this function &mdash;
+and the cost is that the same operation appears twice in this function —
 once here as a captured descriptor and once in `pre_exec` below.
 
 <!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="398-403" parent="terminal-and-spawn" -->
@@ -935,7 +936,7 @@ functions, all on POSIX's async-signal-safe list, no allocation, no locking, no
 Rust runtime state. What is worth connecting is the *order* of the two blocks inside the
 closure, because it is the third appearance of SIGTTOU on this page and the one
 that explains the other two. The child ignores SIGTTOU, performs the handover
-&mdash; which is precisely the operation a background group is stopped for &mdash;
+— which is precisely the operation a background group is stopped for —
 and then walks `DEFAULT_DISPOSITION_IN_CHILD`, whose SIGTTOU entry restores the
 default. `Terminal::hand_to` saves and restores the previous disposition because
 its caller is a long-lived launcher whose own policy must survive; here nothing
@@ -968,15 +969,15 @@ store.
 
 The store is chapter 8's to argue and this chapter's only to place: it happens
 **immediately before the spawn**, with the `Command` fully built and nothing left
-between the two but the call. Everything above it &mdash; opening the terminal,
-building the environment, installing the closure &mdash; is work during which a
+between the two but the call. Everything above it — opening the terminal,
+building the environment, installing the closure — is work during which a
 signal to the launcher belongs to no child, and the clear is what makes the latch
 mean *this launch* rather than *some time recently*.
 
 The spawn's refusal is the only `LaunchError` this function constructs. It names
 the program in `{:?}`, so a path with spaces or a name that is empty comes back
 legible, carries the operating system's own message, and ends by naming what to
-check &mdash; the same *say what is wrong, say where, say what fixes it* shape
+check — the same *say what is wrong, say where, say what fixes it* shape
 chapter 1 read off the error types and chapter 4 applied to the template
 diagnostics. `a_program_that_does_not_exist_names_itself_and_says_what_to_check`
 asserts on both halves: the program's name, and the word *executable*.
@@ -1002,7 +1003,7 @@ child, and the comment above it describes the two as a race whose loser fails
 harmlessly. **Measured, there is no race left to lose.** Installing a `pre_exec`
 closure takes `std` off its `posix_spawn` fast path and onto fork-and-exec, and
 that path's own synchronisation makes `Command::spawn` return only once the child
-has `execve`d &mdash; by which point the child is no longer a candidate for its
+has `execve`d — by which point the child is no longer a candidate for its
 parent's `setpgid`, and the call fails with `EACCES` every time. Thirty spawns of
 this exact shape returned `EACCES` thirty times, with the child already its own
 group leader on each; the same measurement's controls show the call can return
@@ -1027,7 +1028,7 @@ this function is finished the moment the child exists.
 That is the spawn. A program a template authored, an environment the launcher's
 own minus a list and plus one path, a working directory the caller named, seven
 dispositions handed back at their defaults, a process group of the child's own,
-and a terminal &mdash; if there was one to give. Nothing was added, and the one
+and a terminal — if there was one to give. Nothing was added, and the one
 thing that was granted was granted because the caller asked for it by name. What
 happens next is not this crate deciding the child is finished; it is this crate
 waiting for the child to say so, and for the grace to run out when it says so and

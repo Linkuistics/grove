@@ -19,7 +19,7 @@ the child, and waits for the path to exist; whether the work was done, whether i
 succeeded, and what should happen next are all read off a string this crate never
 looks at. That is the third arm of the book's outcome — a layer learning what a
 value means **on the way out**, by inferring what came back — and this is where
-the crate declines to.
+the crate declines to infer it.
 
 The reason a launch needs a channel at all is that the obvious signal is wrong
 for the child this crate exists to launch. A batch program ends by exiting, and
@@ -32,15 +32,16 @@ which is forever. So the ending has to be carried out of band — over a path th
 launcher chose before the child started, on which the child says one thing and
 then stops mattering.
 
-The word *channel* is grove's before it is this crate's. Grove's glossary already
+The word *channel* is grove's before it is this crate's. grove's glossary already
 names the mechanism, as the
 [loop control channel](../../../CONTEXT.md#loop-control-channel): the per-launch path
 the driver watches while its harness child runs, whose **appearance alone** ends
 the session. Everything else that entry says — the session epoch, the driver, the
 reading of `Relaunch` against `Done`, the scrubbing of the variable from every
 other spawn — is on grove's side of the line, and this crate has never heard of
-any of it. What follows is the same mechanism from underneath, where it is a
-directory, a name, a file that may or may not appear, and a string nobody reads.
+any of it. What follows is the same mechanism at this crate's filesystem
+boundary: a directory, a name, a file that may or may not appear, and a string
+nobody reads.
 
 One property makes the whole arrangement work, and it is the first thing the file
 says about itself: **allocation picks a name and writes nothing**. The channel
@@ -61,7 +62,7 @@ full resolution, then runs the far end of it — the token coming back — which
 chapter 1 wrote as step 5. Nothing between the two is this chapter's; the spawn
 is chapter 7's and the watch is chapter 8's.
 
-Grove's control directory for the worked example is the one chapter 1 fixed, and
+grove's control directory for the worked example is the one chapter 1 fixed, and
 it already exists — the driver made it long before any launch.
 
 ```text
@@ -289,8 +290,8 @@ finished. The bound converts the same fault into a sentence naming
 `/dev/urandom`.
 
 Eight is therefore not a probability estimate; nothing about the number eight
-follows from 128 bits. It is a number small enough that a broken source is
-reported promptly and large enough that no working source will ever reach it. The
+follows from 128 bits. The implementation treats eight occupied draws as
+evidence of a faulty randomness source and reports the failure promptly. The
 cost of the choice is that a genuinely occupied directory — one already holding
 every name the source produced, which cannot arise from randomness — fails rather
 than searching, and that is the outcome the comment argues for.
@@ -428,15 +429,15 @@ A **dangling** symlink — one whose target does not exist — is `Ok` to
 would call such a name free and return it; the launcher would publish it to the
 child, and whatever the child uses to write the token — `signal`'s `fs::write`,
 or a shell redirection, which is what this crate's own launch tests use — would
-follow the link and create the file at the target instead. The target need not be
-anywhere dramatic: a *relative* link resolves against the same directory, so the
-token can land on a neighbour the caller does keep there. Because the link is
+follow the link and create the file at the target instead. A *relative* link can
+target another entry in the same directory, so the token can land on a neighbour
+the caller does keep there. Because the link is
 dangling, the effect is creation rather than overwrite, and it fails outright if
 the target's own parent is missing.
 
 A **symlink loop**, or a target behind a directory the process cannot traverse,
-is the other way and the sharper one, because it costs a launch rather than
-misplacing a file. `symlink_metadata` returns `Ok` and the loop simply redraws.
+costs a launch rather than misplacing a file. `symlink_metadata` returns `Ok`
+and the loop simply redraws.
 `metadata` returns `FilesystemLoop` or a permission error — not `NotFound` — so it
 falls into the `Err(error)` arm below, and a name that could have been abandoned
 in favour of the next draw becomes a hard allocation failure instead. That arm is
@@ -468,9 +469,9 @@ to are the ones it drew itself.
 <a id="the-published-path"></a>
 ## The path the child is handed
 
-Three lines of body and a two-line comment, and the comment is the interesting
-part: *this is the value a launch publishes to the child under the caller's
-chosen variable name*. Two facts are deferred by that sentence rather than
+The comment states what the three-line body returns: *this is the value a launch
+publishes to the child under the caller's chosen variable name*. Two facts are
+deferred by that sentence rather than
 asserted. The publishing is chapter 7's — `run` sets the variable immediately
 before the spawn — and **the variable's name is the caller's**, so this crate
 does not know that grove calls it `GROVE_SIGNAL_FILE`. The book's worked example
@@ -490,8 +491,8 @@ lines can tell the difference.
 ````
 <!-- /fragment -->
 
-`the_channel_path_is_published_under_the_callers_chosen_variable_name` is the
-test that closes the loop through both ends of the file at once: the child script
+`the_channel_path_is_published_under_the_callers_chosen_variable_name` checks
+both ends of the file at once: the child script
 writes the value of its own channel variable *into* the channel, and the launcher
 asserts that the token it reads back equals `channel.path()`. The two agree only
 if the path this accessor returned is the path the child was handed. It is also
@@ -541,14 +542,14 @@ them is defensible only because no caller could act on the difference — a laun
 that could not deliver its token did not deliver one — and the `.ok()?` on the
 read is where the second of the three is collapsed into the first.
 
-The second paragraph is the sharper claim and it is the one the inline module
-tests hardest. An empty file is **not** an empty token. The reason is a
+The second paragraph states the rule that the inline module tests most directly.
+An empty file is **not** an empty token. The reason is a
 consequence of this chapter's own thesis reaching into chapter 8: because the
 escalation fires on *appearance*, a child killed in the window between creating
 the file and writing to it leaves a real, empty file behind. Handing that back as
-`Some("")` would be a token by the type system's lights, and a caller whose rule
+`Some("")` would be a token according to the type, and a caller whose rule
 is *anything I do not recognise means keep going* would then act on a launch that
-said nothing at all. Grove is exactly such a caller:
+said nothing at all. grove is exactly such a caller:
 `crates/grove-loop/src/complete.rs`'s `interpret` compares the token against one
 constant and treats every other present value as `Relaunch`. So `Some("")` would
 relaunch a session that had been killed mid-write, which is the one outcome a
@@ -560,10 +561,9 @@ trailing whitespace generally rather than exactly the one newline `signal` added
 so a child that writes with a trailing blank line still reads back the same
 token — the framing is undone even when the child added a little more of it than
 it needed. And it leaves the **front** of the content alone: a token with leading
-spaces comes back with them. That is the line where *framing, not interpretation*
-stops being a slogan and becomes a decision, because trimming both ends would
-have been one character shorter to write and would have meant this crate
-normalising a value it does not understand.
+spaces comes back with them. That choice makes *framing, not interpretation*
+concrete: trimming both ends would have been one character shorter to write and
+would have meant this crate normalising a value it does not understand.
 `a_signalled_channel_reads_back_the_token_without_its_framing` asserts both sides
 of it at once: the token reads back as `done`, and the file on disk still holds
 `done\n`.
@@ -677,7 +677,7 @@ The comment's first paragraph places the responsibility, and the placement is th
 argument: **the name grammar is this crate's, so recognising an abandoned channel
 has to be too.** The alternative is not that cleanup goes undone — it is that the
 consumer open-codes `signal-<32 hex>` in its own housekeeping, and one rule then
-lives in two places that must agree forever. Grove's own consumer is where that
+lives in two places that must agree forever. grove's own consumer is where that
 division is visible: `crates/grove-loop/src/driver_lease.rs` calls
 `keyed_launch::Channel::discard_abandoned(&lease.control_dir)` and its comment
 says the split in one line — *the grammar of an abandoned channel is the runner's,
@@ -687,7 +687,7 @@ consumer knows which directory and when; the crate knows which names.
 The second paragraph is a licence rather than a description, and grove takes it.
 Allocation draws fresh names and retries occupied ones, so nothing about a
 successful launch depends on the directory being clean; that is why the comment
-can say a caller unable to afford failure here may report and carry on. Grove's
+can say a caller unable to afford failure here may report and carry on. grove's
 lease does exactly that — it prints a warning naming the error and continues into
 the launch — and the reason it can is stated in this comment rather than in
 grove's.
@@ -750,9 +750,10 @@ vocabulary of endings — which is the crate learning what a value means on the 
 out, precisely what the book's third arm names. Had the crate instead refused to
 expose the content at all, the launch would have ended with no information
 crossing back, and every consumer would have needed a second channel of its own.
-Wrapping the string is the middle: the crate carries it and does not read it.
+The newtype preserves both requirements: the crate carries the string and does
+not read it.
 
-Grove is the caller that reads it, and the division is legible in one file.
+grove is the caller that reads it, and the division is legible in one file.
 `crates/grove-loop/src/complete.rs` imports `keyed_launch::Token`, and
 `interpret(token: Option<&Token>)` is eight lines: `None` stays `None`, a token
 equal to grove's `DONE_TOKEN` becomes `Done`, and anything else becomes
@@ -765,7 +766,7 @@ end: it calls `keyed_launch::signal` with grove's own word.
 The two accessors are the borrow and the move, and both are `#[must_use]` for the
 same reason as `path`. `as_str` is what a comparison wants; `into_string` is what
 a caller wants when the launch is over and the token is the only thing worth
-keeping —`the_channel_path_is_published_under_the_callers_chosen_variable_name`
+keeping — `the_channel_path_is_published_under_the_callers_chosen_variable_name`
 uses it, and so does any consumer storing the token past the `Ended` that carried
 it. The derives are `Clone, Debug, PartialEq, Eq`: equality is here because
 `Ended` holds an `Option<Token>` and callers and tests compare them —
@@ -862,24 +863,23 @@ that merely starts the same way, in a directory whose other contents belong to
 the consumer. That is not hypothetical — grove's control directory holds
 `driver.lease` and `session.epoch` beside the channels, and both are files whose
 loss would end the loop. A `starts_with("signal-")` test would be four
-characters shorter and would put every neighbour at the mercy of a naming
+characters shorter and could delete a neighbour because of a naming
 coincidence.
 
 The three conditions are prefix, length and alphabet, and each rules out one of
 the ways a name can be nearly right. The length is written as `NONCE_BYTES * 2`
-rather than as `32`, which is the coupling worth noticing: this predicate and the
+rather than as `32`, which makes the coupling explicit: this predicate and the
 `hex` function at the bottom of the file are two halves of one grammar, and both
 are derived from the same constant, so a change to the nonce width cannot leave
 the recogniser behind. The alphabet is lowercase only —
 `byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)` — which matches exactly
 what `hex`'s `{byte:02x}` produces and nothing else.
 
-That lowercase restriction is the condition the inline test is most careful
-about, and its comment explains a subtlety that is easy to get wrong when writing
-such a test: the uppercase decoy uses a *different* nonce from the real channel,
+The inline test checks that lowercase restriction with an uppercase decoy. Its
+comment explains why the decoy uses a *different* nonce from the real channel:
 because on a case-insensitive filesystem the same nonce in two cases would be one
-file and the test would assert nothing. It is the sort of detail that makes the
-difference between a test that pins the rule and a test that passes.
+file and the test would assert nothing. The distinct nonce makes the test
+exercise the case rule on case-insensitive filesystems.
 
 <a id="the-three-helpers"></a>
 ## Three helpers, and the one dependency they do not need

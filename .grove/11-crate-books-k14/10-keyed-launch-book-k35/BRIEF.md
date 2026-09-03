@@ -55,27 +55,6 @@ human's structure brief settled, passing final validation.
   proves it.
 - `bash scripts/check.sh` passes.
 
-## Handed forward
-
-- **`copy-edit` — `docs/walkthroughs/keyed-launch/07-the-job.md`.** That page
-  writes its em and en dashes as the HTML entities `&mdash;` and `&ndash;` (49
-  and 4 occurrences); chapters 1-6 and 8 use the literal characters and carry
-  none. Nothing renders wrong and no validator sees it, so it is house-style
-  consistency across the whole document rather than a defect in the page —
-  `copy-edit`'s class, and invisible to a stage reading one chapter. Found at
-  `the-escalation-k115`, which followed the majority convention.
-
-- **`copy-edit` — `docs/walkthroughs/keyed-launch/concept-index.md`.** Two
-  entries carry the byte-identical label *The vocabulary is an input to `load`,
-  not to `expand`* and point at different targets —
-  `01-orientation.md#the-map`, where the library root's own section list names the
-  rule, and `02-the-names.md#an-input-to-load`, where the chapter argues it. Both
-  entries earn their place; a reader scanning 332 curated entries cannot tell them
-  apart, and one label needs rewording to say which is the map and which is the
-  argument. Whole-document label consistency, invisible to a chapter-local read
-  and found only by enumerating the index. Found at `what-passes-through-k117`,
-  which owns neither chapter's wording.
-
 ## Carried forward from the draft
 
 `keyed-launch-k107` is closed; the book exists and validates. What its brief held

@@ -6,9 +6,9 @@
 ## Never assembled
 
 Chapter 2 put the names on the page and the shapes a loaded configuration
-compiles into. This chapter is the function that fills them: `Templates::load`,
-the crate's one entry point for a configuration, together with the reading and
-the whole-document validation it drives.
+compiles into. This chapter follows the function that fills them:
+`Templates::load`, the crate's one entry point for a configuration, together
+with the reading and the whole-document validation it drives.
 
 What this stage must not add and must not interpret is a launch that came from
 more than one place. A key resolves to one complete command template, read whole
@@ -355,7 +355,7 @@ all. `a_key_only_the_overlay_declares_does_not_resolve` asserts all three, and
 then asserts that `expand` produces the same refusal, because a key is committed
 to at two moments and one wording owns both.
 
-The property that buys is one sentence long: an untracked file a project ships
+The property this buys is one sentence long: an untracked file a project ships
 can change which program an already-chosen key runs, and it cannot introduce a
 key. Whether such a file is admissible at all — where it is searched for, and why
 it must be untracked — is the consumer's question and not this crate's. `load`
@@ -715,8 +715,8 @@ four fields, one level up. A `validate_document` that returned
 `Result<Template, ConfigError>` per node could report the first problem in each
 node and could not report the duplicate at all, because a node that failed for
 some other reason would have left no key behind to compare. Aggregating costs a
-`Vec` and a second walk; it buys every problem in both documents, with locations,
-before anything is spawned.
+`Vec` and a second walk; it reports every validation problem in the document it
+is walking, with locations, before anything is spawned.
 
 That is the whole of what a successful load has established. Both documents
 parsed, every node in both satisfied every rule the vocabulary makes checkable,

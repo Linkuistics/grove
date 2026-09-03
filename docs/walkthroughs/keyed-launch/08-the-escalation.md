@@ -12,8 +12,8 @@ launcher waits, and then acts.
 
 What this stage must not add and must not interpret is **the ending**. The crate
 cannot know that the child is done; it can know only that the child *said* so.
-Everything on this page follows from that one restriction, and so does the
-crate's largest admission. Supervision polls three things, and they are the only
+Everything on this page follows from that one restriction, including a
+limitation. Supervision polls three things, and they are the only
 three ways a launch ends: the child exits, the token's file appears, or the
 launcher itself is signalled. A child that finishes its work and never signals
 reaches none of them. An interactive one returns to its prompt rather than
@@ -86,9 +86,9 @@ token was written at `t=1.30` and observed at `t=1.50`: the grace runs from the
 grace plus up to one poll interval. That is exactly what chapter 7's
 `POLL_INTERVAL` meant by *bounding how late an escalation starts*, and it is why
 the crate's own tests, which do assert that a grace elapsed, use the *signal* to
-say which step of the escalation actually ran. And `SIGTERM` at `t=3.50` did not end the launch: the child was
-reaped by the next tick's `try_wait`, on the ordinary path, because a child that
-has been asked to die may still decline.
+say which step of the escalation actually ran. `SIGTERM` at `t=3.50` did not end
+the launch: the child was reaped by the next tick's `try_wait`, on the ordinary
+path, because a child that has been asked to die may still decline.
 
 A child that does decline takes the same trace to its second step. With
 `trap '' TERM` installed it survives `t=3.50` untouched, the five-second
@@ -118,8 +118,9 @@ the value that comes back names the number the *launcher* was sent. `token` is
 interrupt. Three fields differ between the two runs, and only one of them is the
 distinction: `end` says who acted — `Signalled` is the escalation, `Interrupted`
 is the launcher's own death arriving mid-launch — while `elapsed` and `token`
-differ only because the second launch was cut short before its child spoke. `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace`
-and `a_child_that_ignores_sigterm_is_killed_after_the_kill_grace` in
+differ only because the second launch was cut short before its child spoke.
+`a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace` and
+`a_child_that_ignores_sigterm_is_killed_after_the_kill_grace` in
 `crates/keyed-launch/tests/launch.rs` hold the first run's two steps;
 `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other` in
 `crates/keyed-launch/tests/interrupt.rs` holds the second.
@@ -340,8 +341,8 @@ default disposition and there is no process left to ask.
 ## An exit code cannot say *was signalled*
 
 The other half of a looping launcher's obligation is what it does with the number
-once it has it, and this is the crate's answer. It diverges, and its comment is
-the sharpest argument in the file.
+once it has it, and this is the crate's answer. It diverges, and its comment
+gives the argument for doing so.
 
 <!-- fragment «run-reraise» owner="the-launchers-job" source="crates/keyed-launch/src/run.rs" lines="169-211" parent="watch-and-launcher-signals" -->
 ````rust
@@ -424,11 +425,11 @@ its own signature: `-> !` is a promise, and a caller passing a signal whose
 default action does not terminate would otherwise fall through it.
 
 The comment's last paragraph draws a boundary this book has drawn in every
-chapter, and this is its sharpest form. The crate owns the *call* because the
+chapter. The crate owns the *call* because the
 crate installed the handler, and a consumer undoing a disposition it did not set
 would get it wrong for a signal `run` starts catching later. What stays the
 consumer's is *whether* to re-raise at all, because that is a statement about the
-consumer's own exit status and not about this launch. Grove takes exactly that
+consumer's own exit status and not about this launch. grove takes exactly that
 half: `crates/grove/src/cli.rs` matches its loop's interrupted outcome and calls
 `reraise` with the number, and nothing in this crate knows or could check that it
 did.
@@ -562,11 +563,11 @@ holding somebody else's terminal. Nothing in the comment says this; it is what
 call directly.
 
 The guard is chapter 7's handover guard run in reverse. That one asked *is this
-launcher the terminal's current owner*, because handing over a terminal owned by
-somebody else's job is theft; this one asks *is the child's group still the
-owner*, because taking the terminal back from a job this launch did not own is
-the same theft in the other direction. The consequence of getting it wrong is
-named in the comment and is worse than an error: a launcher that returned while
+launcher the terminal's current owner*, because otherwise it could transfer
+control away from another job; this one asks *is the child's group still the
+owner*, because otherwise it could reclaim control from another job. The
+consequence of getting it wrong is named in the comment and is worse than an
+error: a launcher that returned while
 the terminal belonged to a dead group would be a background job on that terminal,
 and its own next write — an `stty`, a diagnostic — would raise SIGTTOU and stop
 it, which no reader could diagnose from the outside.
@@ -697,7 +698,7 @@ followed by `fg` hand the terminal on to the job that is actually running under
 it, minutes after the spawn decided there was nothing to hand over. The guard is
 the spawn's own — *is this launcher the terminal's current owner* — so the loop
 can ask an unconditional question every 500ms without ever handing over a
-terminal that is not its to give. The reclaim in the last section asks the
+terminal it does not own. The reclaim in the last section asks the
 mirrored question against a different group, which is why the three sites are two
 conditions rather than one.
 
@@ -735,8 +736,8 @@ two different ways.
 ````
 <!-- /fragment -->
 
-`try_wait` failing is the crate's worst case, and the comment states why it
-cannot simply be returned. The child's state is unknown; returning would leave an
+When `try_wait` fails, the child's state is unknown; returning the error directly
+could leave an
 interactive one holding the terminal with nothing left in the process tree to
 reap it. So the launch does the last thing it can still do correctly — SIGKILL
 the group, try to reap — and only then reports. The message is built to the same
@@ -855,8 +856,7 @@ becomes a deadline and the deadline becomes a signal.
 ````
 <!-- /fragment -->
 
-The comment inside the second arm is this chapter's most consequential line, and
-it is about *placement* rather than about behaviour. `signalled` is latched
+The comment inside the second arm explains a placement decision. `signalled` is latched
 where the escalation runs, not where the token appeared. Chapter 7 stated the
 consequence as a property of the type — `End::Signalled` is narrower than *a
 token appeared* — and this is the line that keeps it. Had the latch been set in
@@ -880,8 +880,9 @@ sent and the loop **continues**, so the child is reaped by the next tick's
 `try_wait` on the ordinary path — because SIGTERM is a request and a child may
 decline it, which is precisely the case the third arm exists for. SIGKILL is sent
 and the function **blocks** on `child.wait()`, because a child cannot decline
-SIGKILL and there is nothing left to poll for. `a_child_that_ignores_sigterm_is_killed_after_the_kill_grace`
-is the test that walks both, with `trap '' TERM` in the child, and it asserts on
+SIGKILL and there is nothing left to poll for.
+`a_child_that_ignores_sigterm_is_killed_after_the_kill_grace` is the test that
+walks both, with `trap '' TERM` in the child, and it asserts on
 `status.signal() == SIGKILL` and on `elapsed >= grace + kill_grace`.
 
 `std::thread::sleep(POLL_INTERVAL)` closes the tick, and it is the constant
@@ -939,8 +940,8 @@ worth having. A grandchild the child spawned — a tool subprocess, a language
 server, an agent's own in-flight command — is a member of the child's process
 group and is reaped with its parent rather than surviving it. The comment names
 the cost of the alternative in one clause: such a grandchild can hold a lock its
-launcher's caller is about to wait on, and then the escalation's SIGKILL buys a
-stall rather than a teardown. That is the third arm of the book's outcome seen
+launcher's caller is about to wait on, and then the escalation's SIGKILL causes
+a stall rather than a teardown. That is the third arm of the book's outcome seen
 from the far end — a launcher that ended the process it could see and inferred
 that the job was over.
 
@@ -993,7 +994,7 @@ That is `src/run.rs`, and with it the launch half of the crate. A path was drawn
 and written by nobody, an argv was authored by a template and by nothing else, a
 child was spawned into a job with nothing added, and a launcher waited for one of
 three things and acted on whichever came first. At no point did the crate decide
-that the child was finished. What it has to show for the launch is an `Ended`
+that the child was finished. The result is an `Ended`
 naming who acted and, if the child spoke, the string it wrote — which this crate
 carried across two processes and never read.
 

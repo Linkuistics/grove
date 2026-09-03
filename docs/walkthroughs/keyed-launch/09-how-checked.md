@@ -106,7 +106,7 @@ That is `outcome.failures` printed the way every caller prints it, and it is the
 whole of the list. The document is well-formed KDL, declares nothing, and
 violates no rule; a kit that only reported violations would call it conforming.
 The message's second sentence is the reason the first one is a failure at all,
-and this chapter's best case for the book's spine is inside it.
+and it states the chapter's connection to the book's central claim.
 
 And the second failure. The operator drops the substitution from `impl`, leaving
 a line that still reads as a complete command:
@@ -299,8 +299,8 @@ unavailable, and one is the only threshold a counter with no domain can defend.
 ## A list of sentences, and one question over it
 
 The result type is declared before the function that builds it, and it is one
-field and one method. It exists so a caller can print what went wrong and ask one
-boolean; everything a richer type would buy is bought by the strings themselves.
+field and one method. It exposes the failure strings, and `passed()` derives its
+answer from whether that list is empty.
 
 <!-- fragment «conformance-outcome» owner="checked-without-meaning" source="crates/keyed-launch/src/conformance.rs" lines="32-43" parent="conformance" -->
 ````rust
@@ -497,8 +497,9 @@ the crate that ends in a justification. Chapter 1 read the obligation
 and the crate discharges that third clause two ways: imperatively, as in
 *create the directory* and *remove it by hand*, or by supplying what the fix
 needs, as in *declared slots: …*. This message does neither. It names what is
-wrong and where, and then argues that the failure is a failure. The difference is in who reads it. `ConfigError`'s
-messages are read by an operator looking at a file they did not expect to be
+wrong and where, and then argues that the failure is a failure. The difference is
+in who reads it. `ConfigError`'s messages are read by an operator looking at a
+file they did not expect to be
 wrong; this one is read in a test runner's output by the author of the document,
 for whom *declare a key* is not the missing information.
 
@@ -556,8 +557,8 @@ in the file.
 ````
 <!-- /fragment -->
 
-**Expansion is the only place the compiled words are walked, and that is exactly
-true.** `load` walks the words of the *source* — a `&str` split by `shell_words`,
+**Expansion is the only place the compiled words are walked.** `load` walks the
+words of the *source* — a `&str` split by `shell_words`,
 each word classified into a `Word` — and then stores the `Vec<Word>` and never
 reads it again. Nothing between the load and the spawn touches the compiled form
 except `Templates::expand`, which turns it back into `OsString`s and hands the
@@ -640,8 +641,8 @@ a compilation condition rather than at a concept. The module's *subject matter*
 is chapter 6's, since every function it exercises is above line 272; its
 *subject* is assurance, which is this chapter's. Explaining the tests here, with
 chapter 6's fragments behind the reader, costs that chapter one forward reference
-and buys a page on which the evidence for one claim sits beside the evidence for
-every other claim about the same crate.
+and puts the evidence for one claim beside the evidence for every other claim
+about the same crate.
 
 The nine tests divide by the method each exercises, which is how the four
 sections below take them. The table is the map: what each test holds, and where
@@ -718,8 +719,8 @@ and the refusal when the directory is not there.
 ````
 <!-- /fragment -->
 
-The first test is the module's centre, and its three assertions are chapter 6's
-spine in order: the path does not exist, its parent is the directory it was
+The first test states three parts of chapter 6's central claim in order: the path
+does not exist, its parent is the directory it was
 given, and its file name satisfies the grammar. The first carries the only
 assertion message in the crate that states the spine as a sentence —
 *allocation must pick a name, not create a file — appearance is the event* — and
@@ -821,15 +822,12 @@ and the third is the one that matters: it exercises `trim_end` past whitespace
 that is not a newline, and a `read` that stripped only a trailing `\n` would
 return `Some("  ")` and fail there.
 
-The third is the plainest test in the module and completes a set. Chapter 6 named
+The third test completes a set. Chapter 6 named
 three ways to have no token — nothing was written, the file cannot be read, and
 the file is there but empty — and this module reaches the first and the third.
-The middle one is reached by nothing here and by nothing under `tests/` either,
-and what goes untested is narrower than it sounds. Chapter 6 read the line that
-does it: the `.ok()?` is where an unreadable file is collapsed into an absent one,
-and this test is what exercises that arm. What no test supplies is the premise —
-a file that is there and whose read returns `Err` — rather than the crate's
-response to one.
+The unsignalled test exercises the `.ok()?` arm through `NotFound`, collapsing
+the read failure into an absent token. No test supplies the middle premise: an
+existing file whose read returns `Err`.
 
 <a id="a-post-condition"></a>
 ## A post-condition, tested from both of its sides
@@ -962,8 +960,8 @@ module's closing brace and the last byte of `src/channel.rs`.
 With it, every byte of the crate is on a page: nine roots, 2,073 lines, nine
 chapters that own source, and nothing deferred.
 
-The two halves of this chapter check in opposite directions and neither picks up
-a meaning on the way. The kit holds a consumer's document to obligations about
+The two halves of this chapter check in opposite directions and neither
+interprets a value. The kit holds a consumer's document to obligations about
 form and count — it loads, it declares something, its keys expand — and to
 nothing about what any key names. The module holds a filename to a grammar of
 prefix, length and alphabet, and to nothing about what the name refers to. In

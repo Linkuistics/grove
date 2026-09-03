@@ -15,13 +15,12 @@ Every chapter opened the same way: *what this stage must not add and must not
 interpret is X*. Read one at a time, each of those is a local argument about a
 few dozen lines — a manifest with no domain dependency, a slot table keyed by
 position, a scan for a character a splitter would otherwise have obeyed. Read
-together, they are nine answers to one question, and the question is the reason
-the crate is worth 2,073 lines of anyone's attention:
+together, they are nine answers to the question that this chapter applies:
 
 > **Where does this layer learn what the value means?**
 
-The answer this crate gives is *nowhere*, and that answer is unusual enough to be
-worth checking rather than admiring. A layer that carries a value from a human's
+The answer this crate gives is *nowhere*, and that answer must be checked rather
+than assumed. A layer that carries a value from a human's
 file to an effect in the world has three chances to learn a meaning it was never
 given, and the chapters divide across them unevenly. The table is the division,
 and the third column is the one to read down: it is where a reader looking for
@@ -39,7 +38,7 @@ the same property in their own code should expect to find it missing.
 | 8 | the watch, the escalation and the launcher's signals | whether the child is done | on the way out |
 | 9 | the conformance kit, and the channel's inline tests | what *correct* means | all three, from outside |
 
-Two rows are honest about not being arms of the test.
+Two rows are not arms of the test.
 [Chapter 1](01-orientation.md#understands-neither) states the claim and proves
 nothing: the manifest buys three dependencies and no domain, the library root
 says a key is an opaque string, and the two error types keep either half's caller
@@ -103,9 +102,9 @@ assembled, nothing in the crate has to decide which *words* of a launch came fro
 where — and `Templates::source` can therefore answer, for every key that
 resolves, with exactly one path.
 
-The second document is the interesting half, because an overlay is the shape this
-arm usually enters through. Grove's overlay is a project-local file a repository
-can ship, and the property that stands between it and *a program the operator
+The second document exposes this arm's asymmetry. grove's overlay is a
+project-local file a repository can ship, and the property that stands between
+it and *a program the operator
 never chose* is that the overlay may override a key and may not introduce one.
 [Chapter 3's second ending](03-two-documents.md#the-second-ending) is that
 refusal: a key only the overlay declares does not resolve, and the message names
@@ -141,8 +140,8 @@ glob, or passes the whole line to something that will. Each second reading is a
 grammar the value was not written in, applied by a layer that has no way to know
 whether the author meant it.
 
-**The cost.** It is the sharpest of the three, because the failures are silent
-and are wrong in the direction of doing more. A value with a space becomes two
+**The cost.** These failures are silent and execute more or less than the
+operator wrote. A value with a space becomes two
 arguments. A `#` truncates the line and the program runs with fewer arguments
 than the operator wrote. A `$(…)` becomes a command.
 
@@ -170,16 +169,16 @@ them costs. They divide the way the chapters do.
 `a_slot_value_is_one_argument_whatever_it_contains` expands
 `wrapper --flag 'a b' ${prompt}` with the prompt `two words $(not a command)` and
 asserts four words back, the last of them that string entire: the spaces did not
-split it and the `$(…)` was not run.  `shell_metacharacters_stay_literal` expands
+split it and the `$(…)` was not run. `shell_metacharacters_stay_literal` expands
 `wrapper '|' '>' ${prompt}` and asserts `|` and `>` arrive as ordinary arguments
 — nothing was handed to a shell, so a pipe is a word.
 
-The third is the one where declining to interpret was not enough on its own, and
-it is the sharpest case in the crate.
+The third is the case where a dependency adds meaning even though the crate
+declines to interpret the value itself.
 [Chapter 4's comment-start scan](04-template-law.md#the-comment-start) exists
 because `shell-words`, the splitter this crate depends on, *does* interpret an
 unquoted `#` as starting a comment and drops the rest of the line — silently, and
-legally, because that is what a shell does.  A crate that merely refrained from
+legally, because that is what a shell does. A crate that merely refrained from
 adding a meaning would have inherited that one from a dependency. So it scans the
 line for the character before the split and refuses the template rather than
 compiling an argv that means less than the operator wrote.
@@ -267,8 +266,7 @@ file, fails there.
 <a id="the-one-that-stays-open"></a>
 ## The one the crate cannot close
 
-The third arm has a case the first two do not, and it is the crate's largest
-admission rather than a gap this book found in it.
+The third arm has a limitation that the first two do not.
 [Chapter 8 states it in its second paragraph](08-the-escalation.md#the-launchers-job),
 and [chapter 7 reproduces it inside `run`'s own doc comment](07-the-job.md#the-child-is-a-job),
 where it is part of the function's stated contract and, as that section says
@@ -292,29 +290,26 @@ So it is the caller's to close, at the layer that instructs the child. That laye
 is the one that knows what it asked for, and it has instruments this one does
 not: it wrote the mandate, so it can require the child to signal as part of the
 instruction, and it can decide what an unsignalled ending means for the work it
-had in hand. Grove closes it exactly there — the instruction its sessions carry
+had in hand. grove closes it exactly there — the instruction its sessions carry
 is what makes signalling the child's last act, and the
 [user guide's account of the session lifecycle](../../USAGE.md#usage-session-lifecycle)
 is where that obligation is written down for an operator. None of that is in this
-crate, and the crate is better for it: an obligation on the child is a statement
-about what the child is for, and a layer that has never heard of sessions cannot
-make one.
+crate. Keeping the obligation outside preserves the crate's domain independence:
+an obligation on the child is a statement about what the child is for, and a
+layer that has never heard of sessions cannot make one.
 
-That is the honest shape of the answer, and it is worth stating in the general
-form, because the reader's own layer will have the same hole in a different
-place. **A layer that learns nothing cannot notice that nothing happened.** The
-property this book has been arguing for is bought, not free, and its price is
-exactly this: the places where a meaning would have let you detect a failure are
-places you must now detect it from outside. The right response is not to give the
-layer a meaning; it is to name the case, put the obligation where the meaning
+The general form applies to the reader's own layer: **a layer that learns nothing
+cannot notice that nothing happened.** The cost of preserving that independence
+is that failures detectable only through domain meaning must be detected from
+outside. The response is to name the case, put the obligation where the meaning
 already lives, and refuse to let the layer guess. Chapter 8 does the first,
 grove's instruction does the second, and the three observables do the third.
 
 <a id="taking-the-test-away"></a>
 ## Taking the test to a layer of your own
 
-The crate is 2,073 lines and it is not the point. The point is the question, and
-it is answerable about any layer that sits between a file somebody edits and
+The transferable result is the question, which applies to any layer that sits
+between a file somebody edits and
 something that happens. Four steps, and the third is where the answer usually
 turns out to be *somewhere after all*.
 
@@ -342,9 +337,8 @@ turns out to be *somewhere after all*.
    is what turns the observation into a fact; the stall above is what is left when
    even that is not enough.
 
-Run those four over `keyed-launch` and you get the table this page opened with,
-with two things worth noticing about the answers. **Almost all of it is closed at
-load**, before a process exists: the merge that never happens, the split that
+Run those four over `keyed-launch` and you get the table this page opened with.
+**Almost all of it is closed at load**, before a process exists: the merge that
 happens once, the substitution that is whole-word or nothing. Cheap checks, run
 early, over a document that is complete — which is what makes them checkable by a
 conformance kit a consumer can run in its own suite. And **the one answer above
@@ -352,13 +346,14 @@ that a type holds cannot decay**, which the others can: a rule is a line somebod
 can edit, but `Argv`'s missing constructor fails a build. The crate's own launch
 suite is that seam seen from the other side — it reaches `run` through
 `Templates::expand` because there is no other route, and its module comment says
-it does not want one. Where a property can be moved from a rule to a type, that
-is the move to make, and it is available far more often than it is taken.
+it does not want one. Where a property can be moved from a rule to a type, a
+breach becomes a compile failure rather than a condition every caller must
+remember to check.
 
-The last question the test will not answer is whether the property was worth
-buying. That is a judgement about what the layer is for, and this one has the
-easiest possible case: a crate that understands neither half of the pair it
-carries is a crate that any consumer with a different domain can use unchanged,
+The last question the test will not answer is whether the property justifies its
+cost. That is a judgement about what the layer is for. A crate that understands
+neither half of the pair it carries can serve a consumer with a different domain
+unchanged,
 and grove's entire presence in this book is one sentence — a session kind is a
 key. The corpus does name grove, in four of its nine files and in four kinds of
 place, and not one of them is a thing the code knows: the comment over the
@@ -366,8 +361,8 @@ release block, which is about how the package ships; `src/channel.rs`'s note on
 whose driver leaves files in a control directory; a shell line in an example; and
 `src/conformance.rs`'s claim to keep *reusable outside grove* true. Provenance,
 packaging and illustration — never a branch, a constant or a name the crate acts
-on. A layer that had learned what a key meant would have had to be told again
-for the next consumer, and there would not have been a next consumer.
+on. A layer that learned what a key meant would require domain-specific changes
+for consumers with different keys.
 
 <a id="the-closed-ledgers"></a>
 ## The closed ledgers
@@ -465,7 +460,7 @@ check: all 8 principal checks pass
 
 The umbrella. It runs `book-check --final --check all` over every book root under
 `docs/walkthroughs/` **by discovery** rather than from a list, which is why this
-book has been inside the gate since chapter 1 created its directory, and why
+book has been included in the gate since chapter 1 created its directory, and why
 every drafting session but this one left the script red on `book-check` alone: a
 scoped prefix deliberately leaves later blocks deferred, and the gate only ever
 runs `--final`. The script also runs the repository's own tests, and two of those
@@ -512,7 +507,8 @@ The seven tests the book's stated outcome names are all in that outer directory,
 and they divide the way the arms do: two in `tests/templates.rs` for the way in,
 three more in the same file for the way through, and two in `tests/launch.rs` for
 the way out. This page named two others from the same directory —
-`quoted_and_midword_hashes_stay_literal`, which prices the `#` rule, and
+`quoted_and_midword_hashes_stay_literal`, which covers the quoted and midword
+counter-cases to the `#` rule, and
 `arguments_reach_the_child_as_written`, which is the one trip it runs end to end
 — for nine in all.
 Nothing in the corpus holds them; they hold the corpus.

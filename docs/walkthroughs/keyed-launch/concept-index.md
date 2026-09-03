@@ -1,0 +1,41 @@
+# Concept index
+<!-- book-page id="concept-index" role="lookup" -->
+
+[Contents](README.md)
+
+<a id="concepts"></a>
+## Concepts
+
+- [Fragment notation](README.md#reading-fragments)
+- [The pass-through outcome, stated](README.md)
+- [Understands neither: a key is opaque, a template's words are the file's](01-orientation.md#understands-neither)
+- [A session kind is a key, and that is grove's whole presence](01-orientation.md#understands-neither)
+- [How this spine differs from the `jj-workspace` book's](01-orientation.md#understands-neither)
+- [Three dependencies and no domain](01-orientation.md#the-package)
+- [Five of seven package fields inherited from the workspace](01-orientation.md#the-package)
+- [Why `libc` rather than `Child::kill`](01-orientation.md#the-package)
+- [Two document formats, one rule added to each](01-orientation.md#the-package)
+- [One dev-dependency, and the lints inherited](01-orientation.md#the-dev-dependency)
+- [The vocabulary moved, and the out-of-band paragraph split](01-orientation.md#the-map)
+- [`release = false`, and the version it does not freeze](01-orientation.md#the-release-block)
+- [Publication as an answered question, and what it changes](01-orientation.md#the-release-block)
+- [The library root as the crate's own map](01-orientation.md#the-map)
+- [The spine: a launch is one string read whole out of one file](01-orientation.md#the-map)
+- [The overlay overrides and never supplies](01-orientation.md#the-map)
+- [The vocabulary is an input to `load`, not to `expand`](01-orientation.md#the-map)
+- [The two halves meet only at `Argv`, and the compiler holds it](01-orientation.md#the-map)
+- [The child is a job](01-orientation.md#the-map)
+- [A launch ends out of band](01-orientation.md#the-map)
+- [Seven sections of the library root, and the chapter that owns each](01-orientation.md#the-map)
+- [The carried example: grove's own configuration, from the crate's side](01-orientation.md#the-launch-in-outline)
+- [Two lines on disk, and the four slots they are written against](01-orientation.md#the-launch-in-outline)
+- [Five calls, every step named and none traced](01-orientation.md#the-launch-in-outline)
+- [Allocation writes nothing, so appearance is evidence](01-orientation.md#the-launch-in-outline)
+- [The token the crate never reads](01-orientation.md#the-launch-in-outline)
+- [Seven modules, one public, six re-exported names](01-orientation.md#the-cast)
+- [The cast, and the chapter that owns each name](01-orientation.md#the-cast)
+- [Two opaque errors, and why there are two](01-orientation.md#the-two-errors)
+- [Opacity as a design, not an omission](01-orientation.md#the-two-errors)
+- [Name what is wrong, name where, name what fixes it](01-orientation.md#the-two-errors)
+- [`Debug` writes the message, not the struct](01-orientation.md#the-two-errors)
+- [Two types keep the two halves usable apart](01-orientation.md#the-two-errors)

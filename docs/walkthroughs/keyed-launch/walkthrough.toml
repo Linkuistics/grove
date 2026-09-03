@@ -1,0 +1,341 @@
+schema = 1
+
+[book]
+id      = "keyed-launch"
+title   = "keyed-launch"
+subject = "crates/keyed-launch"
+
+# The bare rule, with no exceptions at all: the crate's own manifest and every
+# Rust file under `src/`. `src/channel.rs` lines 272-404 are an inline
+# `#[cfg(test)] mod tests`, and they are **not** excluded — a root is
+# `src/**/*.rs`, the exception class `inline-test-module` is checked against a
+# file named `tests.rs`, and those 133 lines are owned, reconstructed and
+# explained by chapter 9 like any other. `crates/keyed-launch/tests/` is 1,319
+# lines and all of it is evidence rather than corpus, so this book carries no
+# `[[corpus.add]]` and no `[[corpus.exclude]]`, and the normative inventory in
+# `docs/specs/walkthrough-books.md` records that emptiness by giving the book no
+# row.
+[corpus]
+include = [
+  "crates/keyed-launch/Cargo.toml",
+  "crates/keyed-launch/src/**/*.rs",
+]
+
+[[page]]
+file  = "README.md"
+id    = "contents"
+title = "keyed-launch"
+role  = "contents"
+
+[[page]]
+file  = "01-orientation.md"
+id    = "orientation"
+title = "Orientation"
+role  = "chapter"
+slice = "understands-neither"
+
+[[page]]
+file  = "02-the-names.md"
+id    = "the-names"
+title = "The names a template is written against"
+role  = "chapter"
+slice = "rules-about-names"
+
+[[page]]
+file  = "03-two-documents.md"
+id    = "two-documents"
+title = "Two documents, neither one assembled"
+role  = "chapter"
+slice = "never-assembled"
+
+[[page]]
+file  = "04-template-law.md"
+id    = "template-law"
+title = "What a template must be"
+role  = "chapter"
+slice = "words-not-shell"
+
+[[page]]
+file  = "05-to-an-argv.md"
+id    = "to-an-argv"
+title = "From a template to an argv"
+role  = "chapter"
+slice = "whole-word-or-nothing"
+
+[[page]]
+file  = "06-the-channel.md"
+id    = "the-channel"
+title = "Appearance is the event"
+role  = "chapter"
+slice = "appearance-is-the-event"
+
+[[page]]
+file  = "07-the-job.md"
+id    = "the-job"
+title = "The child is a job"
+role  = "chapter"
+slice = "nothing-else-added"
+
+[[page]]
+file  = "08-the-escalation.md"
+id    = "the-escalation"
+title = "The watch and the escalation"
+role  = "chapter"
+slice = "the-launchers-job"
+
+[[page]]
+file  = "09-how-checked.md"
+id    = "how-checked"
+title = "How this is checked"
+role  = "chapter"
+slice = "checked-without-meaning"
+
+[[page]]
+file  = "10-what-passes-through.md"
+id    = "what-passes-through"
+title = "What passes through"
+role  = "chapter"
+slice = "assembly"
+
+[[page]]
+file  = "concept-index.md"
+id    = "concept-index"
+title = "Concept index"
+role  = "lookup"
+
+[[page]]
+file  = "source-index.md"
+id    = "source-index"
+title = "Source index"
+role  = "lookup"
+
+# The roots are declared in the book's conceptual order, which is `src/lib.rs`'s
+# own section order with the vocabulary moved ahead of the two documents. Every
+# derived table — the source index, the ownership ledger, the fragment index —
+# sorts by manifest root order, so this is the order a reader meets them in.
+[[root]]
+id    = "source-crate-manifest"
+path  = "crates/keyed-launch/Cargo.toml"
+lines = 47
+
+[[root]]
+id    = "source-library-root"
+path  = "crates/keyed-launch/src/lib.rs"
+lines = 68
+
+[[root]]
+id    = "source-error-types"
+path  = "crates/keyed-launch/src/error.rs"
+lines = 81
+
+[[root]]
+id    = "source-vocabulary"
+path  = "crates/keyed-launch/src/vocabulary.rs"
+lines = 44
+
+[[root]]
+id    = "source-templates"
+path  = "crates/keyed-launch/src/templates.rs"
+lines = 670
+
+[[root]]
+id    = "source-argv"
+path  = "crates/keyed-launch/src/argv.rs"
+lines = 48
+
+[[root]]
+id    = "source-channel"
+path  = "crates/keyed-launch/src/channel.rs"
+lines = 404
+
+[[root]]
+id    = "source-run"
+path  = "crates/keyed-launch/src/run.rs"
+lines = 607
+
+[[root]]
+id    = "source-conformance"
+path  = "crates/keyed-launch/src/conformance.rs"
+lines = 104
+
+[[block]]
+id    = "manifest-three-dependencies"
+root  = "source-crate-manifest"
+owner = "understands-neither"
+lines = "1-47"
+
+[[block]]
+id    = "library-root"
+root  = "source-library-root"
+owner = "understands-neither"
+lines = "1-68"
+
+[[block]]
+id    = "two-opaque-errors"
+root  = "source-error-types"
+owner = "understands-neither"
+lines = "1-81"
+
+[[block]]
+id    = "vocabulary"
+root  = "source-vocabulary"
+owner = "rules-about-names"
+lines = "1-44"
+
+[[block]]
+id    = "template-shapes"
+root  = "source-templates"
+owner = "rules-about-names"
+lines = "1-91"
+
+[[block]]
+id    = "templates-load"
+root  = "source-templates"
+owner = "never-assembled"
+lines = "92-145"
+
+[[block]]
+id    = "resolution-and-expansion"
+root  = "source-templates"
+owner = "whole-word-or-nothing"
+lines = "146-275"
+
+[[block]]
+id    = "reading-and-whole-document-validation"
+root  = "source-templates"
+owner = "never-assembled"
+lines = "276-414"
+
+[[block]]
+id    = "node-and-template-rules"
+root  = "source-templates"
+owner = "words-not-shell"
+lines = "415-534"
+
+[[block]]
+id    = "word-scanning"
+root  = "source-templates"
+owner = "words-not-shell"
+lines = "535-617"
+
+[[block]]
+id    = "diagnostics"
+root  = "source-templates"
+owner = "words-not-shell"
+lines = "618-660"
+
+[[block]]
+id    = "templates-keys"
+root  = "source-templates"
+owner = "whole-word-or-nothing"
+lines = "661-670"
+
+[[block]]
+id    = "argv"
+root  = "source-argv"
+owner = "whole-word-or-nothing"
+lines = "1-48"
+
+[[block]]
+id    = "channel-production"
+root  = "source-channel"
+owner = "appearance-is-the-event"
+lines = "1-271"
+
+[[block]]
+id    = "channel-inline-tests"
+root  = "source-channel"
+owner = "checked-without-meaning"
+lines = "272-404"
+
+[[block]]
+id    = "launch-shape"
+root  = "source-run"
+owner = "nothing-else-added"
+lines = "1-123"
+
+[[block]]
+id    = "watch-and-launcher-signals"
+root  = "source-run"
+owner = "the-launchers-job"
+lines = "124-243"
+
+[[block]]
+id    = "terminal-and-spawn"
+root  = "source-run"
+owner = "nothing-else-added"
+lines = "244-448"
+
+[[block]]
+id    = "supervise-and-escalate"
+root  = "source-run"
+owner = "the-launchers-job"
+lines = "449-607"
+
+[[block]]
+id    = "conformance"
+root  = "source-conformance"
+owner = "checked-without-meaning"
+lines = "1-104"
+
+[[early-use]]
+symbols   = "`Vocabulary`, `SlotRule`, `Requirement`"
+first-use = "01-orientation.md#the-cast"
+owner     = "rules-about-names"
+statement = "The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name."
+
+[[early-use]]
+symbols   = "`Templates`"
+first-use = "01-orientation.md#the-cast"
+owner     = "rules-about-names"
+statement = "One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned."
+
+[[early-use]]
+symbols   = "`Argv`, `Slot`"
+first-use = "01-orientation.md#the-cast"
+owner     = "whole-word-or-nothing"
+statement = "`Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call."
+
+[[early-use]]
+symbols   = "`Channel`, `Token`, `signal`"
+first-use = "01-orientation.md#the-cast"
+owner     = "appearance-is-the-event"
+statement = "A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back."
+
+[[early-use]]
+symbols   = "`run`, `Launch`, `Ended`, `End`, `Escalation`"
+first-use = "01-orientation.md#the-cast"
+owner     = "nothing-else-added"
+statement = "`run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened."
+
+[[early-use]]
+symbols   = "`reraise`, `take_interrupt`"
+first-use = "01-orientation.md#the-cast"
+owner     = "the-launchers-job"
+statement = "The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code."
+
+[[early-use]]
+symbols   = "`conformance::check`"
+first-use = "01-orientation.md#the-cast"
+owner     = "checked-without-meaning"
+statement = "The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite."
+
+[[early-use]]
+symbols   = "`validate_node`, `validate_template`"
+first-use = "03-two-documents.md#both-documents"
+owner     = "words-not-shell"
+statement = "The per-node and per-template rule checks `validate_document` drives over both documents; each returns diagnostics with locations rather than stopping at the first."
+
+[[early-use]]
+symbols   = "`install_termination_handler`, `INTERRUPTED_BY`, `supervise`"
+first-use = "07-the-job.md#the-spawn"
+owner     = "the-launchers-job"
+statement = "`run`'s first and last acts: the handler that latches the launcher's own SIGTERM or SIGHUP into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn, and the supervisor that watches the child and takes the terminal back."
+
+[guide]
+path    = "docs/USAGE.md"
+anchors = ["usage-running-grove", "usage-session-lifecycle"]
+
+[[glossary]]
+path    = "CONTEXT.md"
+anchors = ["loop-control-channel"]

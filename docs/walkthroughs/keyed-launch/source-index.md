@@ -1,0 +1,158 @@
+# Source index
+<!-- book-page id="source-index" role="lookup" -->
+
+[Contents](README.md)
+
+<a id="source-roots"></a>
+## Source roots
+
+| Root ID | Source path | Lines |
+|---|---|---|
+| `source-crate-manifest` | `crates/keyed-launch/Cargo.toml` | 47 |
+| `source-library-root` | `crates/keyed-launch/src/lib.rs` | 68 |
+| `source-error-types` | `crates/keyed-launch/src/error.rs` | 81 |
+| `source-vocabulary` | `crates/keyed-launch/src/vocabulary.rs` | 44 |
+| `source-templates` | `crates/keyed-launch/src/templates.rs` | 670 |
+| `source-argv` | `crates/keyed-launch/src/argv.rs` | 48 |
+| `source-channel` | `crates/keyed-launch/src/channel.rs` | 404 |
+| `source-run` | `crates/keyed-launch/src/run.rs` | 607 |
+| `source-conformance` | `crates/keyed-launch/src/conformance.rs` | 104 |
+
+<!-- source-root «source-crate-manifest» source="crates/keyed-launch/Cargo.toml" lines="1-47" -->
+<!-- insert «manifest-three-dependencies» -->
+<!-- /source-root -->
+<!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-68" -->
+<!-- insert «library-root» -->
+<!-- /source-root -->
+<!-- source-root «source-error-types» source="crates/keyed-launch/src/error.rs" lines="1-81" -->
+<!-- insert «two-opaque-errors» -->
+<!-- /source-root -->
+<!-- source-root «source-vocabulary» source="crates/keyed-launch/src/vocabulary.rs" lines="1-44" -->
+<!-- defer «vocabulary» owner="rules-about-names" lines="1-44" -->
+<!-- /source-root -->
+<!-- source-root «source-templates» source="crates/keyed-launch/src/templates.rs" lines="1-670" -->
+<!-- defer «template-shapes» owner="rules-about-names" lines="1-91" -->
+<!-- defer «templates-load» owner="never-assembled" lines="92-145" -->
+<!-- defer «resolution-and-expansion» owner="whole-word-or-nothing" lines="146-275" -->
+<!-- defer «reading-and-whole-document-validation» owner="never-assembled" lines="276-414" -->
+<!-- defer «node-and-template-rules» owner="words-not-shell" lines="415-534" -->
+<!-- defer «word-scanning» owner="words-not-shell" lines="535-617" -->
+<!-- defer «diagnostics» owner="words-not-shell" lines="618-660" -->
+<!-- defer «templates-keys» owner="whole-word-or-nothing" lines="661-670" -->
+<!-- /source-root -->
+<!-- source-root «source-argv» source="crates/keyed-launch/src/argv.rs" lines="1-48" -->
+<!-- defer «argv» owner="whole-word-or-nothing" lines="1-48" -->
+<!-- /source-root -->
+<!-- source-root «source-channel» source="crates/keyed-launch/src/channel.rs" lines="1-404" -->
+<!-- defer «channel-production» owner="appearance-is-the-event" lines="1-271" -->
+<!-- defer «channel-inline-tests» owner="checked-without-meaning" lines="272-404" -->
+<!-- /source-root -->
+<!-- source-root «source-run» source="crates/keyed-launch/src/run.rs" lines="1-607" -->
+<!-- defer «launch-shape» owner="nothing-else-added" lines="1-123" -->
+<!-- defer «watch-and-launcher-signals» owner="the-launchers-job" lines="124-243" -->
+<!-- defer «terminal-and-spawn» owner="nothing-else-added" lines="244-448" -->
+<!-- defer «supervise-and-escalate» owner="the-launchers-job" lines="449-607" -->
+<!-- /source-root -->
+<!-- source-root «source-conformance» source="crates/keyed-launch/src/conformance.rs" lines="1-104" -->
+<!-- defer «conformance» owner="checked-without-meaning" lines="1-104" -->
+<!-- /source-root -->
+
+<a id="ownership-blocks"></a>
+## Ownership blocks
+
+| Block ID | Root ID | Owner | Source lines | Count | State |
+|---|---|---|---|---|---|
+| `manifest-three-dependencies` | `source-crate-manifest` | `understands-neither` | `1-47` | 47 | `resolved` |
+| `library-root` | `source-library-root` | `understands-neither` | `1-68` | 68 | `resolved` |
+| `two-opaque-errors` | `source-error-types` | `understands-neither` | `1-81` | 81 | `resolved` |
+| `vocabulary` | `source-vocabulary` | `rules-about-names` | `1-44` | 44 | `deferred` |
+| `template-shapes` | `source-templates` | `rules-about-names` | `1-91` | 91 | `deferred` |
+| `templates-load` | `source-templates` | `never-assembled` | `92-145` | 54 | `deferred` |
+| `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `146-275` | 130 | `deferred` |
+| `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `276-414` | 139 | `deferred` |
+| `node-and-template-rules` | `source-templates` | `words-not-shell` | `415-534` | 120 | `deferred` |
+| `word-scanning` | `source-templates` | `words-not-shell` | `535-617` | 83 | `deferred` |
+| `diagnostics` | `source-templates` | `words-not-shell` | `618-660` | 43 | `deferred` |
+| `templates-keys` | `source-templates` | `whole-word-or-nothing` | `661-670` | 10 | `deferred` |
+| `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `deferred` |
+| `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `deferred` |
+| `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `272-404` | 133 | `deferred` |
+| `launch-shape` | `source-run` | `nothing-else-added` | `1-123` | 123 | `deferred` |
+| `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `124-243` | 120 | `deferred` |
+| `terminal-and-spawn` | `source-run` | `nothing-else-added` | `244-448` | 205 | `deferred` |
+| `supervise-and-escalate` | `source-run` | `the-launchers-job` | `449-607` | 159 | `deferred` |
+| `conformance` | `source-conformance` | `checked-without-meaning` | `1-104` | 104 | `deferred` |
+
+<a id="fragment-index"></a>
+## Fragment index
+
+| Fragment ID | Page ID | Root ID | Kind | Owner | Source lines | Parent ID | Child IDs |
+|---|---|---|---|---|---|---|---|
+| `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-47` | `—` | `manifest-three-dependencies` |
+| `manifest-package-identity` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `1-10` | `manifest-three-dependencies` | `—` |
+| `manifest-three-dependencies` | `orientation` | `source-crate-manifest` | `composite` | `understands-neither` | `1-47` | `source-crate-manifest` | `manifest-package-identity`, `manifest-dependencies`, `manifest-dev-dependencies`, `manifest-lints`, `manifest-release` |
+| `manifest-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `11-26` | `manifest-three-dependencies` | `—` |
+| `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `27-29` | `manifest-three-dependencies` | `—` |
+| `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `30-32` | `manifest-three-dependencies` | `—` |
+| `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `33-47` | `manifest-three-dependencies` | `—` |
+| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-68` | `—` | `library-root` |
+| `library-root-thesis` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `1-9` | `library-root` | `—` |
+| `library-root` | `orientation` | `source-library-root` | `composite` | `understands-neither` | `1-68` | `source-library-root` | `library-root-thesis`, `library-root-two-documents`, `library-root-vocabulary`, `library-root-to-a-child`, `library-root-job-and-out-of-band`, `library-root-conformance`, `library-root-modules-and-exports` |
+| `library-root-two-documents` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `10-22` | `library-root` | `—` |
+| `library-root-vocabulary` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `23-27` | `library-root` | `—` |
+| `library-root-to-a-child` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `28-34` | `library-root` | `—` |
+| `library-root-job-and-out-of-band` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `35-47` | `library-root` | `—` |
+| `library-root-conformance` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `48-52` | `library-root` | `—` |
+| `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `53-68` | `library-root` | `—` |
+| `source-error-types` | `source-index` | `source-error-types` | `root` | `—` | `1-81` | `—` | `two-opaque-errors` |
+| `error-import` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `1-1` | `two-opaque-errors` | `—` |
+| `two-opaque-errors` | `orientation` | `source-error-types` | `composite` | `understands-neither` | `1-81` | `source-error-types` | `error-import`, `error-config-type`, `error-config-traits`, `error-launch-type`, `error-launch-traits` |
+| `error-config-type` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `2-25` | `two-opaque-errors` | `—` |
+| `error-config-traits` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `26-42` | `two-opaque-errors` | `—` |
+| `error-launch-type` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `43-66` | `two-opaque-errors` | `—` |
+| `error-launch-traits` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `67-81` | `two-opaque-errors` | `—` |
+| `source-vocabulary` | `source-index` | `source-vocabulary` | `root` | `—` | `1-44` | `—` | `vocabulary` |
+| `source-templates` | `source-index` | `source-templates` | `root` | `—` | `1-670` | `—` | `template-shapes`, `templates-load`, `resolution-and-expansion`, `reading-and-whole-document-validation`, `node-and-template-rules`, `word-scanning`, `diagnostics`, `templates-keys` |
+| `source-argv` | `source-index` | `source-argv` | `root` | `—` | `1-48` | `—` | `argv` |
+| `source-channel` | `source-index` | `source-channel` | `root` | `—` | `1-404` | `—` | `channel-production`, `channel-inline-tests` |
+| `source-run` | `source-index` | `source-run` | `root` | `—` | `1-607` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
+| `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-104` | `—` | `conformance` |
+
+<a id="early-uses"></a>
+## Early uses
+
+| Symbol family | First use | Owner | Minimum local statement | Status |
+|---|---|---|---|---|
+| `Templates` | `01-orientation.md#the-cast` | `rules-about-names` | One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned. | `pending` |
+| `Vocabulary`, `SlotRule`, `Requirement` | `01-orientation.md#the-cast` | `rules-about-names` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | `pending` |
+| `Argv`, `Slot` | `01-orientation.md#the-cast` | `whole-word-or-nothing` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | `pending` |
+| `Channel`, `Token`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | `pending` |
+| `run`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `pending` |
+| `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `pending` |
+| `conformance::check` | `01-orientation.md#the-cast` | `checked-without-meaning` | The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite. | `pending` |
+| `validate_node`, `validate_template` | `03-two-documents.md#both-documents` | `words-not-shell` | The per-node and per-template rule checks `validate_document` drives over both documents; each returns diagnostics with locations rather than stopping at the first. | `pending` |
+| `install_termination_handler`, `INTERRUPTED_BY`, `supervise` | `07-the-job.md#the-spawn` | `the-launchers-job` | `run`'s first and last acts: the handler that latches the launcher's own SIGTERM or SIGHUP into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn, and the supervisor that watches the child and takes the terminal back. | `pending` |
+
+<a id="owned-source-totals"></a>
+## Owned source totals
+
+Every line of the nine source roots is credited once, to the slice whose page
+owns it; the table shows how the 2,073 lines divide across the ten chapters, and
+its total is what a completed book must account for. Six of the nine roots are
+owned whole by one chapter; the three that split — `src/templates.rs` four ways,
+`src/run.rs` two ways, `src/channel.rs` at its `#[cfg(test)]` boundary — are why
+the ownership table above has twenty rows rather than nine.
+
+| Slice | Page | Owned lines |
+|---|---|---:|
+| `understands-neither` | `01-orientation.md` | 196 |
+| `rules-about-names` | `02-the-names.md` | 135 |
+| `never-assembled` | `03-two-documents.md` | 193 |
+| `words-not-shell` | `04-template-law.md` | 246 |
+| `whole-word-or-nothing` | `05-to-an-argv.md` | 188 |
+| `appearance-is-the-event` | `06-the-channel.md` | 271 |
+| `nothing-else-added` | `07-the-job.md` | 328 |
+| `the-launchers-job` | `08-the-escalation.md` | 279 |
+| `checked-without-meaning` | `09-how-checked.md` | 237 |
+| `assembly` | `10-what-passes-through.md` | 0 |
+| **Total** | 9 source roots | **2,073** |

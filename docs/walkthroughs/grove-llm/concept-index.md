@@ -8,9 +8,9 @@
 
 - [Fragment notation](README.md#reading-fragments)
 - [One call plus rendering](01-orientation.md#one-call-plus-rendering)
-- [Order is what is left: the three orders](01-orientation.md#one-call-plus-rendering)
+- [The three orders beyond rendering](01-orientation.md#one-call-plus-rendering)
 - [The what-is-left test, previewed](01-orientation.md#one-call-plus-rendering)
-- [A crate, not a bin target, as the ground the book stands on](01-orientation.md#the-package)
+- [A crate, not a bin target, as the book's premise](01-orientation.md#the-package)
 - [The reachability clause, and the second dependency](01-orientation.md#the-package)
 - [The `grove` dependency that was removed](01-orientation.md#the-package)
 - [Two workspace dependencies, one of them reached through the other](01-orientation.md#the-package)

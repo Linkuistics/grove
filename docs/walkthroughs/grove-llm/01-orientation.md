@@ -11,7 +11,7 @@ read its brief chain, grow the tree, mark its own leaf done and signal the
 driver, and each of those verbs is a call into `grove_loop::verbs` plus the
 rendering of what came back. Its whole source is four files and 1,017
 lines, and 944 of them are one module; nearly half of that module is comment,
-and the comment at its head is the book's map.
+and the comment at its head states the book's organizing claim.
 
 This book explains that module to a reader who has already run most of the
 twelve verbs and read what the guide says each does to the tree. It does not
@@ -29,8 +29,8 @@ is thin, and the compiler holds it so**: `grove-llm` is a crate rather than a
 `[[bin]]` target inside the library it calls, so everything its three Rust
 files reach is something a dependency chose to publish, and a verb that
 walked a tree or spelled a filename would fail to compile rather than fail
-review. That half is the overview's whole spine and is stated here once, as
-the ground the rest of the book stands on. The second half is this book's:
+review. That half is the overview's organizing claim and is stated here once,
+as a premise the rest of the book reuses. The second half is this book's:
 **what is left that is not rendering is order.** The header names three
 orders — the operator's text read by the type that owns it *before* a lock is
 taken, the just-in-time presence rule asked *before* the mutation, and the
@@ -213,8 +213,8 @@ Two of those rows are the evidence for the orders this book is about. The
 is how the book knows what a verb does when the tree is already locked by
 another process, which is the contention the first order is about. The
 self-deadlock itself — a verb blocking against its own earlier opening — is
-held by a different test in the same file,
-`no_production_lock_grove_takes_for_itself_ever_blocks`, which scans the
+checked by `no_production_lock_grove_takes_for_itself_ever_blocks`
+(`crates/grove-llm/tests/tree_lock.rs`), which scans the
 production source for every lock call and needs no `libc` to do it; that
 chapter names both. The `keyed-launch` row is *Leaving the loop*'s: the driver
 reads the channel back through that crate's framing, so a test of `complete`
@@ -365,7 +365,7 @@ fn main() -> anyhow::Result<()> {
 <a id="the-header"></a>
 ## The header: the audience, the thesis, the three orders
 
-The module's header comment is the book's map, and the chapter owns its
+The module's header comment states the book's organizing claim, and the chapter owns its
 thirty-four lines — the comment and the imports that follow it — in three
 fragments. The first fragment states who the verbs are for, and the decision it
 cites is the audience split this repository's `docs/ARCHITECTURE.md` records
@@ -440,9 +440,10 @@ chains, `leaf-insert` lints after it inserts, `leaf-decompose` reads a kind
 before it decomposes, `complete` resolves its channel before it writes — and
 the owning chapters name each. What holds without exception is the claim's
 substance: no handler does anything a `verbs` call does not do for it, and the
-book names those calls and explains none of them. The fourteen items are types the loop publishes and the handlers pass in
-or match on, and the block names every one of them before the chapter that
-explains what the binary does with it. The table states each family's minimum
+book names those calls and explains none of them. The fourteen items are types
+the loop publishes and the handlers pass in or match on, and the block names
+every one of them before its owning chapter explains what the binary does with
+it. The table states each family's minimum
 meaning here so this page can be read without the later one, and the ledger in
 the source index carries the same rows; the owning chapter is where each is
 read in full.
@@ -621,9 +622,9 @@ the structure the pages follow.
 The first half of the thesis is this chapter's, and it is now fully read: a
 separate crate with one binary target and a library that carries only the
 surface, two workspace dependencies of which one is reached through the other,
-and a
-header that states thin as the compiler's fact and names what is left. The
-three orders are stated on three later pages, and the grammar every verb
+and a header that states thin as the compiler's fact and names the remaining
+responsibility. The three orders are stated on three later pages, and the
+grammar every verb
 passes through before it reaches any of them is read next.
 
 [Contents](README.md) | [Next: The grammar and the openings](02-the-grammar.md)

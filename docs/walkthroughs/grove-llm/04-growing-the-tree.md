@@ -81,7 +81,7 @@ key is `k4` because a key is the maximum over the whole tree plus one; both are
 the call's rules, named in *Orientation* and not this binary's.
 
 The second invocation is the same argument vector with one word changed, and it
-is the spine's second order made visible. `prototype` is a well-formed kind
+makes the book's second order visible. `prototype` is a well-formed kind
 token, so `parse_kind` accepts it and the slug and parent parse exactly as
 before; the refusal comes from `require_declared`, which loads the
 configuration, finds no template for `prototype`, and returns the error above —

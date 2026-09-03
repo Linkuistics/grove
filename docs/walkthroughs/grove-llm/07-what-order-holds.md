@@ -7,11 +7,12 @@
 
 This chapter owns no production source. The four roots and 1,017 lines are
 already reconstructed by the fragment graph the six chapters before it built,
-and the [source index](source-index.md) records that graph in full. What is left
-is what no single chapter could state, because each read one family of verbs and
-stopped at its own rule: the twelve verbs side by side, the three orders as one
-relation rather than three pages, and whether the test this book promised its
-reader holds when it is applied back to the binary that taught it.
+and the [source index](source-index.md) records that graph in full. The
+remaining work is what no single chapter could state, because each read one
+family of verbs and stopped at its own rule: the twelve verbs side by side, the
+three orders as one relation rather than three pages, and whether the test this
+book promised its reader holds when it is applied back to the binary that taught
+it.
 
 The chapter has no worked example. The carried session ran every verb it runs to
 its ending in the five chapters that own them, and nothing here changes a value
@@ -20,8 +21,8 @@ that had to wait behind an example. The page's figures are assemblies. The first
 is the twelve verbs, one row each, in the order the `Command` enum declares them.
 The second is the three orders, with what reversing each would cost and what
 would catch it. The third is the stream contract, which is the rendering half of
-the same thesis. The fourth is the boundary, as a list of what the six chapters
-named and did not explain. The two ledgers are then closed and the final
+the same thesis. The fourth lists the boundary: what the six chapters named and
+did not explain. The two ledgers are then closed and the final
 validation is recorded.
 
 The table's six question columns are the six things this book has been asking
@@ -32,20 +33,20 @@ columns are what a caller parses and what a caller reads; and the last column is
 the evidence, which for this crate lives outside the corpus in a test directory
 nine times its size.
 
-| Verb | Text read by its own type | Opening | Asked before the mutation | stdout | stderr | Held by |
+| Verb | Text read by its own type | Opening | Asked before the mutation | stdout | stderr | Evidence |
 |---|---|---|---|---|---|---|
 | `root-init` | `Slug`; the kind is fixed at `requirements` and read from no argument | exclusive, and only over a **vacancy** — a live grove is refused by the shape, not by a check | `require_declared`, for the `requirements` leaf it mints | the charter's path, then the first leaf's | nothing; *grove root already exists* is a refusal, not an answer | `root_init_creates_root_brief_and_first_requirements_leaf`, `root_init_refuses_when_grove_already_exists`, `root_init_asks_about_the_requirements_leaf_it_mints` |
-| `pick` | none | shared | — | the next live leaf's path | the *no live leaves* line, when there is none | `picks_first_live_leaf_in_numeric_order`, `fully_retired_grove_prints_diagnostic_and_exits_zero`; the `ABANDONED` skip measured, held by no test in this crate |
-| `brief-chain` | none; the optional path is normalised, not parsed | shared | — | one absolute `BRIEF.md` path per line, root to leaf | the same *no live leaves* line, in the no-argument form | `leaf_two_levels_deep_returns_root_and_ancestor_node_briefs`, `missing_intermediate_brief_is_skipped_silently`, `missing_root_brief_yields_empty_chain`; the diagnostic by the handler alone |
+| `pick` | none | shared | — | the next live leaf's path | the *no live leaves* line, when there is none | `picks_first_live_leaf_in_numeric_order`, `fully_retired_grove_prints_diagnostic_and_exits_zero`; the `ABANDONED` skip is measured, with no test in this crate |
+| `brief-chain` | none; the optional path is normalised, not parsed | shared | — | one absolute `BRIEF.md` path per line, root to leaf | the same *no live leaves* line, in the no-argument form | `leaf_two_levels_deep_returns_root_and_ancestor_node_briefs`, `missing_intermediate_brief_is_skipped_silently`, `missing_root_brief_yields_empty_chain`; the diagnostic is established by the handler alone |
 | `kind` | none; the optional path is normalised | shared | — | the kind label, one lowercase token | the same line again | `every_shipped_kind_round_trips_through_the_verb`, `empty_grove_prints_no_live_leaves_on_stderr_and_exits_zero` |
-| `resolve` | `Reference` | shared | — | the entry's path, or the grove root for `.` | the retired or abandoned note, the not-found line, or the ambiguity listing | `resolve_by_key_bracketed_and_bare`, `resolve_not_found_exits_zero_with_diagnostic`, `resolve_ambiguous_slug_lists_keys_on_stderr`, `resolve_dot_prints_the_grove_root`; the rendering alone by the six tests of `resolve_rendering.rs`, which call `render_resolution` directly |
+| `resolve` | `Reference` | shared | — | the entry's path, or the grove root for `.` | the retired or abandoned note, the not-found line, or the ambiguity listing | `resolve_by_key_bracketed_and_bare`, `resolve_not_found_exits_zero_with_diagnostic`, `resolve_ambiguous_slug_lists_keys_on_stderr`, `resolve_dot_prints_the_grove_root`; six tests in `resolve_rendering.rs` establish the rendering directly through `render_resolution` |
 | `leaf-add` | `Kind` per `--kind`, then `Slug`, then `Reference` | exclusive | `require_declared`, over every kind of the run | each leaf's path in position order, printed after the run landed | nothing | `a_kind_list_lands_three_flat_siblings_at_consecutive_positions_and_keys`, `a_failed_run_prints_no_path_at_all`, `leaf_add_refuses_a_kind_no_template_resolves_for_and_mutates_nothing` |
 | `leaf-insert` | `Kind`, then `Slug`, then `Reference` | exclusive | `require_declared`, over the one kind | the new leaf's path | the renumber summary and then the cross-reference lint — or, with no sibling to renumber, *no siblings to renumber* alone and neither | `insert_at_start_shifts_root_siblings_up_by_one`, `insert_cascades_a_node_subtree_with_position_free_headers`, `leaf_insert_asks_the_same_question` |
 | `leaf-decompose` | `Kind` when `--kind` is given, then `Slug`; the leaf path is normalised | the exclusive one; and, when `--kind` is absent, a shared opening for the inherited kind first, released before it | `require_declared`, over the kind the first child will carry — skipped when no kind can be read, so the verb's own refusal stands | the node's `BRIEF.md`, then the first child's path | nothing | `decompose_with_no_kind_flag_gives_the_first_child_the_parent_leafs_kind`, `leaf_decompose_asks_about_the_kind_its_first_child_will_carry`, `a_verbs_own_refusal_is_not_replaced_by_a_configuration_complaint` |
 | `leaf-retire` | none; the path is normalised | exclusive | — it writes no kind | the renamed path | the two steps that remain | `retire_adds_done_infix_in_place`, `retire_names_the_remaining_steps_on_stderr`, `retiring_a_reviewed_producer_changes_only_its_own_filename` |
 | `leaf-prune` | none; the path is normalised | exclusive | — it writes no kind | every marked path, one per line | *nothing live to mark* when it marked none, the untouched `DONE` leaves when there were any — the two are independent — and the two steps last when something was marked | `pruning_a_node_marks_every_leaf_the_same_way`, `prune_of_a_node_reminds_once_for_the_whole_bulk_mark`, `prune_that_marks_nothing_stays_quiet` |
-| `finish-commit` | `Handle`, leniently on the key | none in the handler; the call takes the exclusive opening and holds it through the deletion | — | nothing | `finish-commit <handle>: committed as <change id>` | `a_lenient_key_spelling_is_accepted_and_committed_canonically`, `finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf`, `native_jj_finish_commit_records_only_the_teardown`; the stderr line itself by no test in this crate |
-| `complete` | none; a path and a flag, taken as clap gives them | none — the one verb that opens no tree and resolves no working tree of its own | `require_signal_path`, against the epoch `run` admitted, before the channel is written | nothing | *signalled*, and which of the two things the loop will do; or the no-channel line | `relaunch_signal_is_read_back_as_relaunch`, `done_signal_is_read_back_as_done`, `no_channel_at_all_is_answered_rather_than_refused`; the order itself by `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt`, in `crates/grove-loop` |
+| `finish-commit` | `Handle`, leniently on the key | none in the handler; the call takes the exclusive opening and holds it through the deletion | — | nothing | `finish-commit <handle>: committed as <change id>` | `a_lenient_key_spelling_is_accepted_and_committed_canonically`, `finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf`, `native_jj_finish_commit_records_only_the_teardown`; the stderr line is established by source alone, with no test in this crate |
+| `complete` | none; a path and a flag, taken as clap gives them | none — the one verb that opens no tree and resolves no working tree of its own | `require_signal_path`, against the epoch `run` admitted, before the channel is written | nothing | *signalled*, and which of the two things the loop will do; or the no-channel line | `relaunch_signal_is_read_back_as_relaunch`, `done_signal_is_read_back_as_done`, `no_channel_at_all_is_answered_rather_than_refused`, and `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` (`crates/grove-loop/tests/driver_lease.rs`) for the order |
 
 Five things the table says that no chapter could, because each is a statement
 about the twelve rather than about a family. They are read down the columns.
@@ -85,7 +86,8 @@ filename*, and a terminal mark writes no kind — it moves an existing name. In
 whose kind is unreadable reaches the call unchecked, deliberately, so that the
 verb's own refusal — for a brief, a retired leaf, a malformed name — is not
 replaced by a complaint about configuration, which
-`a_verbs_own_refusal_is_not_replaced_by_a_configuration_complaint` pins.
+`a_verbs_own_refusal_is_not_replaced_by_a_configuration_complaint`
+(`crates/grove-llm/tests/session_kind_presence.rs`) pins.
 `complete`'s check is the third order's and a different question altogether, which
 is why it sits in the same column reading differently.
 
@@ -134,16 +136,16 @@ how late the failure surfaces, they run 1, 2, 3, and that is the order the file
 states them in.
 
 The checks are not the same strength either. The second order has a test per
-call site and is the best held of the three. The third has one test, which drives
-this binary as a process under a real driver, and what makes it a test of the
-order rather than of the outcome is that it asserts the **absence of a file** —
-which is what would fail on the day the write moved ahead of the check, rather
-than merely an exit status that a dozen other faults also produce.
-The first is the weakest, and deliberately: half of it is held by a test that
-snapshots a tree, and the other half — the self-deadlock — is held by no test at
-all, only by an argument from `flock(2)` and the discipline of putting `writable`
-last. A test that provoked the deadlock would be a test that hangs, and the scan
-for blocking locks that sits nearest to it holds a different claim: that grove
+call site and the strongest test coverage of the three. The third has one test,
+which drives this binary as a process under a real driver. What makes it a test
+of the order rather than of the outcome is that it asserts the **absence of a
+file** — which is what would fail on the day the write moved ahead of the check,
+rather than merely an exit status that a dozen other faults also produce.
+The first has the weakest test coverage, deliberately: a tree-snapshot test
+verifies half, while no test verifies the self-deadlock half. That half relies
+on an argument from `flock(2)` and the discipline of putting `writable` last. A
+test that provoked the deadlock would hang, and the scan for blocking locks that
+sits nearest to it establishes a different claim: that grove
 adds no blocking lock of its own, not that a verb never opens the tree twice.
 
 Applied to a thin command surface of your own, the test has three steps.
@@ -158,20 +160,20 @@ Applied to a thin command surface of your own, the test has three steps.
    into a claim that can be reversed and therefore tested.
 3. **For each order, name the cost of reversing it and the check that fails.**
    A compile error, a failing test, or a measurement written beside the code —
-   and *nothing* is an answer, which says the order is held by review. Say which
-   of the three you have; they are not interchangeable, and a surface whose every
-   order is held by review is one refactor away from having none.
+   and *nothing* is an answer, which says review alone enforces the order. Say
+   which of the three you have; they are not interchangeable. A surface where
+   review alone enforces every order is one refactor away from having none.
 
 <a id="the-stream-contract"></a>
 ## The rendering half
 
-The orders are what is left after rendering, and the rendering is not nothing.
+The orders are what remains beyond rendering, and rendering is substantive.
 It has a contract of its own, stated in the reader contract as four rules —
 data on stdout, advice on stderr, exit zero for information, every refusal
 carrying its remedy — and the six chapters met each of them one verb at a time.
 The table is the contract as a partition of everything this binary writes. Its
-last column is where the class was read in full; the reader is to take from it
-that the exit status is a function of the class and never of the verb.
+last column is where the class was read in full. It shows that the exit status
+is a function of the class and never of the verb.
 
 | Class | Stream | Exit | What it is | Read in |
 |---|---|---:|---|---|
@@ -216,7 +218,7 @@ difference a script can see.
 read every line behind it. Three different things hold it, they are not equally
 strong, and the difference is the second half of what a reader takes away.
 
-**The compiler holds the boundary.** `grove-llm` is a package of its own rather
+**The compiler enforces the boundary.** `grove-llm` is a package of its own rather
 than a `[[bin]]` target declared inside `grove-loop`'s manifest, and Rust privacy
 is drawn at the crate, so no line of this module can name a `pub(crate)` item of
 either library it depends on. *Orientation* read the alternative that clause
@@ -236,17 +238,16 @@ what it costs, which is nothing, because the code the binary must not reimplemen
 is in a different crate either way. The binary target and the library beside it
 are one package, and the guarantee was never about that edge.
 
-**Order holds the three things rendering leaves behind**, and the table above is
-the whole of it. What is worth adding here is the size of what holds them: eight
-tests and one argument. Seven drive the binary as a process against a
-configuration on disk — one of the seven is also the snapshot that holds the
-first order — one drives it under a real driver, and the ninth thing is not a
-test but the `flock(2)` argument no test could replace without hanging. Taken
-together they hold less firmly than the boundary above, which the compiler
-settles, and more firmly than the conventions below, which a test can be deleted
-out of.
+**Three orders govern what remains beyond rendering**, and the table above is
+the whole of it. Eight tests and one argument support them. Seven drive the
+binary as a process against a configuration on disk — one of the seven also
+verifies the first order with a snapshot — and one drives it under a real
+driver. The ninth item is not a test but the `flock(2)` argument no test could
+replace without hanging. Together they provide weaker support than the boundary
+above, which the compiler settles, and stronger support than the conventions
+below, which a test can be deleted out of.
 
-**Tests hold three properties of the surface**, and each is a property no
+**Tests verify three properties of the surface**, and each is a property no
 compiler can state.
 
 | Property | Asserted by | The change that breaks it | What fails |
@@ -287,9 +288,8 @@ than beside each thing a chapter had to name. A page could not be followed
 otherwise — *Reading the tree* cannot read `cmd_pick` without the walk, and
 *Growing the tree* cannot read `cmd_leaf_add` without the atomic run — so each
 chapter named what it needed, gave the minimum a reader must hold, and explained
-none of it. The table is that boundary as a list; the reader is to take from it
-that every row was needed for a claim about *this* crate, and that no row is a
-claim about the loop.
+none of it. The table lists that boundary. Every row was needed for a claim
+about *this* crate, and no row is a claim about the loop.
 
 | Named as | Where it is named | What the page needed it for |
 |---|---|---|

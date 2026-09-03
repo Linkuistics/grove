@@ -103,25 +103,6 @@ The editorial pipeline's chain, under this node, in the shape
 
 ## Handed forward
 
-- **`copy-edit`, chapter 1:** the figurative vocabulary the structure brief
-  itself uses and the draft kept — *spine*, *the ground the rest of the book
-  stands on*, *the book's map* — and the phrase *what is left* used as a noun.
-  Decide once whether those stand as the book's vocabulary and apply the
-  decision across every chapter rather than per occurrence.
-- **`copy-edit`, chapter 6:** three figurative or narrative phrasings an
-  adversarial read flagged that the draft left standing, because prose
-  vocabulary is the copy edit's charter and not the draft's — *everything past
-  that frame speaks in the handle a name on disk actually wore*, *would have
-  passed while the record lied* (both close to the wording of the source
-  comment and the test comment they gloss), and *mistypes the handle once
-  before getting it right*, which narrates the worked example rather than
-  stating it. Judge them with chapter 1's vocabulary decision, not separately.
-- **`copy-edit`, chapter 7:** two idioms borrowed from the `overview` book and
-  used on that page alone — *the reader is to take from it that …* and *the … as
-  a list* — and the density of the *what X holds* construction, which is the
-  chapter's title and the structure brief's phrase and therefore stays, but is
-  thickest in one section. Also the book's inconsistent rule for naming a test in
-  running prose. `grove-llm-k103`'s body carries all four in full.
 - **`art`, the whole book:** **the draft drew no figures.** `grove-llm-k91`'s
   brief fixed that as the draft's rule — figures where the prose contract
   requires a relation to be drawn, and left to `art` otherwise — and no chapter

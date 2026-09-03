@@ -39,7 +39,8 @@ passes it to one arm and to no other.
 than order. The verb reads the operator's handle through the type that owns the
 grammar, which is deliberately lenient on the key's spelling, and it quotes
 what the operator typed exactly once, in the last frame that still has it.
-Everything past that frame speaks in the handle a name on disk actually wore.
+After that frame, every layer uses the canonical handle parsed from the
+filename.
 
 The chapter owns three blocks of `cli.rs`: the two variants (248–289),
 `CompleteArgs` (311–322), and the two handlers (438–483). It reads `complete`
@@ -147,10 +148,10 @@ one live `finish` leaf the driver materialised with the next key after `k8`.
 └── 04-finish--finish-k9.md
 ```
 
-The finish session has promoted what it needed from the briefs, has the
-human's confirmation, and mistypes the handle once before getting it right.
-Both spellings below are wrong in the same way — neither is the canonical
-`finish-k9` — and only the second is accepted.
+The finish session has promoted what it needed from the briefs and has the
+human's confirmation. It first supplies a handle for a different leaf, then
+supplies the live finish leaf's handle with a noncanonical key spelling. Neither
+spelling is the canonical `finish-k9`, and only the second identifies that leaf.
 
 ```console
 $ grove-llm finish-commit other-k007
@@ -303,10 +304,10 @@ by default, `the grove is finished — the loop will stop` with the flag. The
 `tail` binding exists so the two endings share one `eprintln!` and differ only
 in the clause the flag selects. `NoLoop` is the other variant, and its line
 carries three clauses where the first carries one: there is no channel, this
-session is not under the driver, and whoever started it has to end it. Neither arm returns
-anything: both evaluate to `()`, and the `Ok(())` after the `match` is the
-function's own, so every ending that reaches this handler exits `0`. Nothing here writes to stdout, and nothing in this
-verb ever does.
+session is not under the driver, and whoever started it has to end it. Neither
+arm returns anything: both evaluate to `()`, and the `Ok(())` after the `match`
+is the function's own, so every ending that reaches this handler exits `0`.
+Nothing here writes to stdout, and nothing in this verb ever does.
 
 What the two variants mean at the seam is worth stating once, because the
 handler's rendering is all a reader of this module sees of it. `verbs::complete`
@@ -319,8 +320,9 @@ held by `relaunch_signal_is_read_back_as_relaunch` and
 allocate a real channel and read the token back the way the driver does, rather
 than parsing a file the test wrote itself. The older token's reading has its
 own test, `unrecognised_signal_content_is_treated_as_relaunch`, which plants a
-stale binary's `complete` in the channel and requires a relaunch. `no_channel_at_all_is_answered_rather_than_refused`
-holds the `NoLoop` value. The three stderr wordings are held by the source and
+stale binary's `complete` in the channel and requires a relaunch.
+`no_channel_at_all_is_answered_rather_than_refused` holds the `NoLoop` value.
+The three stderr wordings are held by the source and
 by no test in either crate.
 
 `CompleteArgs` is the whole of the verb's argument surface, and it is read here
@@ -418,12 +420,14 @@ head of the worked example's refusal, and it is the only place the raw text
 appears after this frame. Below it the call speaks in `selection.handle`, the
 handle read off the live leaf's own filename, which is why the same refusal
 carries `other-k7` in its lower line and why the accepted teardown's commit
-message says `finish-k9`. `a_lenient_key_spelling_is_accepted_and_committed_canonically`
-in `crates/grove-llm/tests/finish_commit.rs` holds both halves against one
+message says `finish-k9`.
+`a_lenient_key_spelling_is_accepted_and_committed_canonically` in
+`crates/grove-llm/tests/finish_commit.rs` holds both halves against one
 invocation — the leniency accepted, and the commit message still canonical —
-and its own comment says why testing only the first would have passed while the
-record lied. `a_refused_handle_is_quoted_as_the_operator_wrote_it` requires the
-raw spelling in stderr, and that assertion passes because of this handler's
+and its own comment explains that testing acceptance alone would miss a
+noncanonical commit message.
+`a_refused_handle_is_quoted_as_the_operator_wrote_it` requires the raw spelling
+in stderr, and that assertion passes because of this handler's
 context line.
 
 `Workspace::resolve` here is the second resolution of the working tree in one
@@ -633,8 +637,7 @@ is the admitted one, writes a word, and names what the loop will do next.
 opens the tree it is about to delete, and prints the change id that records the
 deletion. With them the twelve verbs are all read, each as one call into
 `grove_loop::verbs` plus rendering, and the three orders the header promised
-have all been shown where they happen. What is left is to put them in one
-table and ask what the compiler holds, what order holds, and what tests hold,
-which is the next chapter.
+have all been shown where they happen. The next chapter puts them in one table
+and asks what the compiler holds, what order holds, and what tests hold.
 
 [Previous: Ending work](05-ending-work.md) | [Contents](README.md) | [Next: What order holds](07-what-order-holds.md)

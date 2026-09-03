@@ -72,3 +72,26 @@ leave it at a green `book-check --final --check all` and a green
 - **Last act**: `grove-llm leaf-add grove-llm-book-k33 grove-llm --kind art`,
   unless a live later sibling under `grove-llm-book-k33` already holds that
   stage — read that off the node's live entries.
+
+## Decisions (running log)
+
+**1 · Keep the named what-is-left test; replace the surrounding figures of
+speech with mechanisms.** The structure brief fixes the test and chapter 7's
+title, while the shared prose contract forbids metaphors and narrative phrasing.
+The edit therefore keeps the direct question *what is left here that is not
+rendering?* and replaces *spine*, *book's map*, *ground the rest of the book
+stands on*, and the handed-off chapter 6 and 7 idioms with the concrete claim,
+operation, or relation each one stood for.
+
+**2 · Running prose names a test file on first use; tables remain compact.** The
+`ordinal-fs-tree` and `jj-workspace` precedents identify the repository-relative
+test file when a test function first enters a chapter, then use the function name
+alone once that local context is established. This book follows that rule across
+all seven chapters. Test columns retain bare function names, with an explicit
+path only for evidence outside `crates/grove-llm/tests/`, as the task requires.
+
+**3 · The evidence column names evidence, including gaps, in one grammar.** The
+chapter 7 verb table now calls the column `Evidence`: test names form compact
+lists, external tests carry their repository-relative paths, and prose clauses
+state how source or measurement establishes a claim when no test does. The gaps
+remain explicit without switching mid-clause to the old *held by* construction.

@@ -116,6 +116,25 @@ The editorial pipeline's chain, under this node, in the shape
   comment and the test comment they gloss), and *mistypes the handle once
   before getting it right*, which narrates the worked example rather than
   stating it. Judge them with chapter 1's vocabulary decision, not separately.
+- **`copy-edit`, chapter 7:** two idioms borrowed from the `overview` book and
+  used on that page alone — *the reader is to take from it that …* and *the … as
+  a list* — and the density of the *what X holds* construction, which is the
+  chapter's title and the structure brief's phrase and therefore stays, but is
+  thickest in one section. Also the book's inconsistent rule for naming a test in
+  running prose. `grove-llm-k103`'s body carries all four in full.
+- **`art`, the whole book:** **the draft drew no figures.** `grove-llm-k91`'s
+  brief fixed that as the draft's rule — figures where the prose contract
+  requires a relation to be drawn, and left to `art` otherwise — and no chapter
+  met that bar, so every relation in this book is a table. Three of them are
+  chapter 7's and they are the widest: the twelve-verb table is seven columns
+  with sentence-length cells, and the three-orders and boundary tables are five
+  and three columns of the same. Whether any of the three is a figure, or should
+  be split, is this stage's call and no earlier stage's.
+- **`art`, chapters 2 to 6:** the five worked examples are `console` transcripts
+  with the trace in prose beneath them. They are uniform with each other by
+  construction and no chapter drew the tree they act on, although four of them
+  mutate it. A figure of the carried tree — `/work/atlas/.grove/` before and
+  after the session — would serve five chapters at once if it earns its place.
 
 ## Decisions (running log)
 
@@ -135,3 +154,16 @@ rest. The two obligations outside the book — the `CONTEXT.md` anchors and the
 ownership row — landed with that slice, because the manifest declares both
 anchors and `every_book_root_has_a_documentation_ownership_row` goes red the
 moment the book root exists.
+
+**3 · `grove-llm-k91` closes with its `Done when` met in full**, checked rather
+than assumed at `what-order-holds-k98`: the book is at `valid: 4 files, 1017
+resolved lines, 0 deferred lines, final=true`; `README.md` cites
+`docs/USAGE.md#usage-tree-verbs` and every anchor the manifest declares resolves
+in its target, which `book-check`'s outbound-link checks and
+`every_repository_markdown_reference_resolves` both prove; and
+`bash scripts/check.sh` passes all eight principal checks with the book gated by
+discovery. Seven children, one per slice, in canonical page order, each leaving
+the script red on `book-check` alone until this one. Nothing was promoted out of
+that node's brief beyond what this brief already points at: its decision log is
+named above as *what the draft adjudicates, and no later stage may undo*, and it
+stays where it is, in the brief chain of every stage that follows.

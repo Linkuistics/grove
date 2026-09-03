@@ -248,3 +248,70 @@ Chapter 3's second and third renderings use the tree as chapters 4 and 5
 leave it (`k3` retired, `k4` live), with the transcript marking the step, and
 its finished-grove transcript uses the state after the review leaf's own
 session; later chapters may do the same rather than invent values.
+
+**18 · Chapter 7 carries no separate evidence table; the discipline decision 16
+asked for lives in the twelve-verb table's last column.** Chapter 3 could
+enumerate its own untested promises because it owned four verbs. Applied to
+1,017 lines and six chapters it runs several times longer — a sweep of the six
+pages for *measured* and *no test* returns matches on every one of them — and an
+appendix of other chapters' caveats is a second, unvalidated copy of claims each
+page already states beside its own fragment. So the last column
+names its own gaps where it has them (`pick`'s `ABANDONED` skip,
+`brief-chain`'s finished-grove diagnostic, `finish-commit`'s change-id line) and
+the page makes no count of how many such claims the book holds. Rejected: the
+overview's ten-row evidence table, whose corpus was a fifth the size and whose
+four chapters each saw only their own.
+
+**19 · Chapter 1's two comment defects are now a leaf, and this session cut it.**
+`orientation-k92`'s decision 7 named the fix for the manifest's reachability
+sentence *as a defect leaf's* and deferred cutting one, on the ground that the
+fix would invalidate chapter 1's fragments while the book was still being
+written; `lib.rs`'s *or `grove`* was adjudicated the same way and likewise left
+uncut. Chapters 4, 5 and 6 each cut a leaf for the comment defect they found
+(`k99`, `k100`, `k101`), all placed ahead of `architecture-residue-k75`, so the
+deferral's own reason — do not edit a frozen byte mid-draft — is discharged by
+placement rather than by not cutting. With the book at green final validation the
+two findings would otherwise survive only in this log, so they are externalised
+as `grove-llm-dependency-comments-k102`, inserted at position 28 of
+`crate-books-k14` beside `k83`, `k99`, `k100` and `k101`. Chapter 7's closing
+ledger states all six comment claims, which is only true of the tree once that
+leaf exists.
+
+**20 · The leaf's one in-session reviewer was spent on chapter 7's factual
+core** — the twelve-verb table, every count on the page, and the page against
+the structure brief's section 7 clause by clause — because the table is a
+synthesis no fragment check can reach: `book-check` proves the bytes the page
+reproduces and this page reproduces none. The findings are decision 21.
+
+**21 · The reviewer returned fifteen findings; fourteen were valid and were
+fixed, one was a phrasing that invited a misread and was reworded.** None was
+noise and none was a trade-off worth defending. Each was re-verified against
+`cli.rs` and the cited test before the fix landed rather than taken on the
+reviewer's word. The one that mattered most is the first: chapter 7's
+three-orders table had named
+`no_production_lock_grove_takes_for_itself_ever_blocks` as the check that would
+catch a reversal of the first order in `leaf-decompose` — and that test scans the
+five packages grove ships for a blocking `libc::flock` call, so moving `writable`
+above `inherited_kind` adds no line it looks at and leaves it green. Chapter 4
+had already adjudicated exactly this (*that test does not prove a verb never
+opens the tree twice; what does is structural*), so the page had reversed a
+finding an earlier chapter made. The cell now says **nothing** catches that half
+and names the construction that holds it, which strengthens rather than weakens
+the page's own argument that the three orders are held unequally.
+
+The other thirteen, by class: four cells of the twelve-verb table stated
+unconditionally what the source makes conditional or independent
+(`leaf-decompose`'s shared opening and its presence check, `leaf-insert`'s
+no-siblings early return, `leaf-prune`'s two independent advisories); three
+claims about the twelve were true only of a subset and are now scoped (silence on
+stderr, `complete` resolving no working tree *of its own*, the first order's site
+list, which omitted `cmd_resolve`); three were miscounts or misdescriptions
+(admission is `run`'s fourth statement and not its second, the orders are held by
+eight distinct tests and not ten, *five chapters ago* should have been six); one
+stream-table cell contradicted chapter 3 by putting the empty chain on stderr
+when it writes to neither, and the page now carries a paragraph on it; one
+criterion — *six comments do not survive a check* — was an unstated judgement
+rather than a test, and is now stated as one; and one said *six columns* of a
+seven-column table. **Every count on the page was independently recomputed and
+all of them held**, which is the part of the artifact the fragment validator
+already made cheap to get right.

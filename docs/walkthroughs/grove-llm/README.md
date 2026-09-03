@@ -76,7 +76,7 @@ source.
 4. [Growing the tree](04-growing-the-tree.md)
 5. [Ending work](05-ending-work.md)
 6. [Leaving the loop](06-leaving-the-loop.md)
-7. What order holds
+7. [What order holds](07-what-order-holds.md)
 
 Optional lookup:
 

@@ -1,6 +1,6 @@
 # Leaving the loop
 <!-- book-page id="leaving-the-loop" slice="admit-before-signal" order="6" -->
-[Previous: Ending work](05-ending-work.md) | [Contents](README.md)
+[Previous: Ending work](05-ending-work.md) | [Contents](README.md) | [Next: What order holds](07-what-order-holds.md)
 
 <a id="admit-before-signal"></a>
 ## The channel is checked before it is written
@@ -637,4 +637,4 @@ have all been shown where they happen. What is left is to put them in one
 table and ask what the compiler holds, what order holds, and what tests hold,
 which is the next chapter.
 
-[Previous: Ending work](05-ending-work.md) | [Contents](README.md)
+[Previous: Ending work](05-ending-work.md) | [Contents](README.md) | [Next: What order holds](07-what-order-holds.md)

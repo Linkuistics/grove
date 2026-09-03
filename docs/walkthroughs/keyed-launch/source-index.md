@@ -33,15 +33,15 @@
 <!-- source-root «source-templates» source="crates/keyed-launch/src/templates.rs" lines="1-670" -->
 <!-- insert «template-shapes» -->
 <!-- insert «templates-load» -->
-<!-- defer «resolution-and-expansion» owner="whole-word-or-nothing" lines="146-275" -->
+<!-- insert «resolution-and-expansion» -->
 <!-- insert «reading-and-whole-document-validation» -->
 <!-- insert «node-and-template-rules» -->
 <!-- insert «word-scanning» -->
 <!-- insert «diagnostics» -->
-<!-- defer «templates-keys» owner="whole-word-or-nothing" lines="661-670" -->
+<!-- insert «templates-keys» -->
 <!-- /source-root -->
 <!-- source-root «source-argv» source="crates/keyed-launch/src/argv.rs" lines="1-48" -->
-<!-- defer «argv» owner="whole-word-or-nothing" lines="1-48" -->
+<!-- insert «argv» -->
 <!-- /source-root -->
 <!-- source-root «source-channel» source="crates/keyed-launch/src/channel.rs" lines="1-404" -->
 <!-- defer «channel-production» owner="appearance-is-the-event" lines="1-271" -->
@@ -68,13 +68,13 @@
 | `vocabulary` | `source-vocabulary` | `rules-about-names` | `1-44` | 44 | `resolved` |
 | `template-shapes` | `source-templates` | `rules-about-names` | `1-91` | 91 | `resolved` |
 | `templates-load` | `source-templates` | `never-assembled` | `92-145` | 54 | `resolved` |
-| `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `146-275` | 130 | `deferred` |
+| `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `146-275` | 130 | `resolved` |
 | `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `276-414` | 139 | `resolved` |
 | `node-and-template-rules` | `source-templates` | `words-not-shell` | `415-534` | 120 | `resolved` |
 | `word-scanning` | `source-templates` | `words-not-shell` | `535-617` | 83 | `resolved` |
 | `diagnostics` | `source-templates` | `words-not-shell` | `618-660` | 43 | `resolved` |
-| `templates-keys` | `source-templates` | `whole-word-or-nothing` | `661-670` | 10 | `deferred` |
-| `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `deferred` |
+| `templates-keys` | `source-templates` | `whole-word-or-nothing` | `661-670` | 10 | `resolved` |
+| `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `resolved` |
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `deferred` |
 | `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `272-404` | 133 | `deferred` |
 | `launch-shape` | `source-run` | `nothing-else-added` | `1-123` | 123 | `deferred` |
@@ -131,6 +131,13 @@
 | `templates-load-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `109-114` | `templates-load` | `—` |
 | `templates-load-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `115-135` | `templates-load` | `—` |
 | `templates-load-value` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `136-145` | `templates-load` | `—` |
+| `templates-source` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `146-154` | `resolution-and-expansion` | `—` |
+| `resolution-and-expansion` | `to-an-argv` | `source-templates` | `composite` | `whole-word-or-nothing` | `146-275` | `source-templates` | `templates-source`, `templates-require`, `templates-expand`, `match-values`, `declared-slots`, `templates-unresolved` |
+| `templates-require` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `155-167` | `resolution-and-expansion` | `—` |
+| `templates-expand` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `168-199` | `resolution-and-expansion` | `—` |
+| `match-values` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `200-243` | `resolution-and-expansion` | `—` |
+| `declared-slots` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `244-251` | `resolution-and-expansion` | `—` |
+| `templates-unresolved` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `252-275` | `resolution-and-expansion` | `—` |
 | `compile-vocabulary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `276-298` | `reading-and-whole-document-validation` | `—` |
 | `reading-and-whole-document-validation` | `two-documents` | `source-templates` | `composite` | `never-assembled` | `276-414` | `source-templates` | `compile-vocabulary`, `read-primary`, `read-overlay`, `parse-and-validate`, `validate-document-nodes`, `validate-document-duplicates`, `validate-document-report` |
 | `read-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `299-312` | `reading-and-whole-document-validation` | `—` |
@@ -157,7 +164,14 @@
 | `diagnostics` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `618-660` | `source-templates` | `diagnostic-constructors`, `render-diagnostics`, `location-rendering` |
 | `render-diagnostics` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `629-647` | `diagnostics` | `—` |
 | `location-rendering` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `648-660` | `diagnostics` | `—` |
+| `templates-keys` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `661-670` | `source-templates` | `—` |
 | `source-argv` | `source-index` | `source-argv` | `root` | `—` | `1-48` | `—` | `argv` |
+| `argv-slot` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `1-10` | `argv` | `—` |
+| `argv` | `to-an-argv` | `source-argv` | `composite` | `whole-word-or-nothing` | `1-48` | `source-argv` | `argv-slot`, `argv-authored-only-by-expand`, `argv-no-public-constructor`, `argv-program-and-args`, `argv-words` |
+| `argv-authored-only-by-expand` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `11-22` | `argv` | `—` |
+| `argv-no-public-constructor` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `23-27` | `argv` | `—` |
+| `argv-program-and-args` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `28-37` | `argv` | `—` |
+| `argv-words` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `38-48` | `argv` | `—` |
 | `source-channel` | `source-index` | `source-channel` | `root` | `—` | `1-404` | `—` | `channel-production`, `channel-inline-tests` |
 | `source-run` | `source-index` | `source-run` | `root` | `—` | `1-607` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-104` | `—` | `conformance` |
@@ -169,7 +183,7 @@
 |---|---|---|---|---|
 | `Templates` | `01-orientation.md#the-cast` | `rules-about-names` | One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned. | `explained` |
 | `Vocabulary`, `SlotRule`, `Requirement` | `01-orientation.md#the-cast` | `rules-about-names` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | `explained` |
-| `Argv`, `Slot` | `01-orientation.md#the-cast` | `whole-word-or-nothing` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | `pending` |
+| `Argv`, `Slot` | `01-orientation.md#the-cast` | `whole-word-or-nothing` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | `explained` |
 | `Channel`, `Token`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | `pending` |
 | `run`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `pending` |
 | `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `pending` |

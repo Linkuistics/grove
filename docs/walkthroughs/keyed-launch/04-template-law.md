@@ -1,6 +1,6 @@
 # What a template must be
 <!-- book-page id="template-law" slice="words-not-shell" order="4" -->
-[Previous: Two documents, neither one assembled](03-two-documents.md) | [Contents](README.md)
+[Previous: Two documents, neither one assembled](03-two-documents.md) | [Contents](README.md) | [Next: From a template to an argv](05-to-an-argv.md)
 
 <a id="words-not-shell"></a>
 ## Words, not shell
@@ -907,4 +907,4 @@ values and produces the argv, which is where the whole-word rule this chapter
 enforced is finally cashed in — and where the two halves of the crate meet, at
 the one type no caller can construct.
 
-[Previous: Two documents, neither one assembled](03-two-documents.md) | [Contents](README.md)
+[Previous: Two documents, neither one assembled](03-two-documents.md) | [Contents](README.md) | [Next: From a template to an argv](05-to-an-argv.md)

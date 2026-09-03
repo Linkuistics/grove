@@ -416,8 +416,11 @@ shows a line of the handler behind it.
      the document is read and validated whole against the vocabulary,
      then two keys resolve. The second document is chapter 3's.
 
-2  templates.expand("impl", [Slot { name: "prompt", value: <the mandate> }])
+2  templates.expand("impl", [one Slot per declared name: prompt = <the mandate>,
+                              session_name, worktree, repo])
      -> Argv ["claude", "--model", "opus", "<the mandate>"]   chapter 5
+     a value is offered for every slot the vocabulary declares, not only the
+     one this template mentions. Chapter 5 reads why.
 
 3  Channel::allocate(Path::new("/work/atlas/.jj/grove"))       chapter 6
      -> /work/atlas/.jj/grove/signal-3f9c1d4a7b2e5086c1a4f70d93b6e281

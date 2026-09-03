@@ -89,6 +89,25 @@ that the remaining three stages still need:
   six; the miscount was theirs, not the brief's. The page separately notes that it
   names nine tests in all. Do not reconcile either number downward.
 
+## Carried forward from the art stage
+
+`keyed-launch-k121` is closed. What `proof` needs from it:
+
+- **The figures are settled, and so are the declines.** Sixty-two figures were
+  enumerated across the thirteen pages and every non-exempt one carries an
+  adjacent role statement; four relations that ran only in prose were drawn
+  (chapter 8's `Watch`-against-`End` table, chapter 9's five-decoy table, and
+  chapter 10's three-arms table and its split-roots diagram). Five more were
+  declined **on editorial judgement**, each for a reason recorded in
+  `03-DONE-art--keyed-launch-k121.md`; none was declined because the medium could
+  not carry it, so nothing here reopens the contract's *Figures* medium.
+- **The four exempt tables are `source-index.md`'s reconciled four**, and its
+  fifth — the owned-source totals — is not exempt and states its role. `F009`
+  forbids a lead-in above the four; do not add one.
+- **The two chapter-10 figures replaced prose that carried the same relations.**
+  The sentences that remain beside them carry the *reasons*, not the ranges, and
+  are not stray fragments of a deleted paragraph.
+
 ## Notes
 
 **Author it through the pipeline.** If the extracted kinds are installed,

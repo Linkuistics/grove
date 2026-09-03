@@ -219,13 +219,22 @@ carry an `Instant` and `Running` carries nothing — there is no deadline until
 something has started one.
 
 Read it against `End`, which chapter 7 defined, and the pair is the crate's whole
-answer to *what is this launch doing*. `End` is public, has three cases, reports
-**who acted** and is produced once, at the end. `Watch` is private, has three
-cases, records **where the escalation is** and changes several times per launch.
-The names overlap by one word and the types share nothing, which is deliberate:
-`Watch::Signalled` says the token was seen, and `End::Signalled` says the
-escalation ran. One line in the state machine below turns the first into the
-second, and its *placement* — not its content — is the whole of the distinction.
+answer to *what is this launch doing*. The table sets the two side by side,
+because the names overlap by one word and nothing else about them does; the row
+to read is the last, which is that overlap and the only place the two can be
+mistaken for each other.
+
+| | `Watch` | `End` |
+|---|---|---|
+| Where it is visible | private, no derives, never leaves `src/run.rs` | public, and what a caller matches on |
+| What it describes | where the escalation has got to | who acted |
+| Its three cases | `Running`, `Signalled(Instant)`, `Terminated(Instant)` | `Exited`, `Signalled`, `Interrupted { signal }` |
+| How often it is written | several times per launch | once, at the end |
+| What its `Signalled` says | the token has been seen | the escalation ran |
+
+The types share nothing, which is deliberate. One line in the state machine below
+turns the first `Signalled` into the second, and its *placement* — not its
+content — is the whole of the distinction.
 
 <a id="the-latch"></a>
 ## A latch that outlives its launch

@@ -929,13 +929,24 @@ has to sort correctly; the second takes away the directory.
 <!-- /fragment -->
 
 The first is the module's largest test and the one that runs the grammar through
-its caller. Five files go into one directory: one name the grammar accepts, and
-four it must reject — a suffix in uppercase hex, a suffix of sixteen characters
-instead of thirty-two, a nonce with no prefix, and `driver.lease`, which is not a
-channel name in any respect and is the file chapter 6 named as the cost of a
-loose rule. One assertion covers the removal, and a loop asserts each of the
-four survivors in turn, every failure message naming the path that should have
-been left alone.
+its caller. Five files go into one directory: one name the grammar accepts and
+four it must reject. The table is the fixture read against
+[chapter 6's three conditions](06-the-channel.md#exactly-this-name); take from it
+that each decoy is a file a consumer could legitimately keep, and that the three
+conditions refuse one at a time — the prefix doing it twice, once for a name
+whose suffix would otherwise pass and once for a file that is not a channel name
+in any respect.
+
+| The file the fixture writes | Where it stops being a channel name | After the cleanup |
+|---|---|---|
+| `signal-0123456789abcdef0123456789abcdef` | nowhere — prefix, thirty-two characters, lowercase hex | removed |
+| `signal-FEDCBA9876543210FEDCBA9876543210` | the alphabet: `hex` emits lowercase and the predicate accepts nothing else | kept |
+| `signal-0123456789abcdef` | the length: sixteen characters where `NONCE_BYTES * 2` requires thirty-two | kept |
+| `0123456789abcdef0123456789abcdef` | the prefix, with a suffix that would otherwise pass | kept |
+| `driver.lease` | the prefix, and it is the file chapter 6 named as the cost of a loose rule | kept |
+
+One assertion covers the removal, and a loop asserts each of the four survivors
+in turn, every failure message naming the path that should have been left alone.
 
 The two-sided shape is what makes it a check rather than an observation. A
 cleanup that removed everything fails on the first survivor; a cleanup that

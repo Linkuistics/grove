@@ -263,6 +263,17 @@ status code 3, and no file on the channel path. A launcher that inferred
 completion from a clean exit, or that manufactured an empty token from an absent
 file, fails there.
 
+The three arms, collected. This is the table to carry to a layer of your own:
+the second column is the move to look for, the third is what it costs when you
+find it, and the fourth is one shape that closes the arm — and the third row is
+the one the next section qualifies.
+
+| The arm | The move | The cost | What this crate does instead |
+|---|---|---|---|
+| 1 · on the way in | one effective value assembled from a default, a file, a variable, a flag, an overlay — which needs to know which parts merge, override or concatenate | nobody can see the whole of a value in one place, and the precedence rule is a document nobody wrote | a key resolves to one complete template read whole out of one file, and the overlay replaces a whole template rather than introducing a key ([chapter 3](03-two-documents.md#never-assembled)) |
+| 2 · on the way through | the value read a second time in a grammar it was not written in — a split, a `$`, a quote, a glob, or a shell asked to do the reading | the failures are silent, and the program runs more or less than the operator wrote | split into words exactly once, at load, and never again; a substitution is a whole word or nothing, and a compiled word is an index rather than a name ([chapter 4](04-template-law.md#words-not-shell), [chapter 5](05-to-an-argv.md#whole-word-or-nothing)) |
+| 3 · on the way out | a conclusion the value did not carry — that the work is done, or that the launch wants something the operator did not write | a launcher that decides a child is done is sometimes wrong while looking exactly right, and a value not in the file cannot be changed by editing it | one variable holding one path is the whole of what is added and `Argv` has no public constructor; the appearance of a file the crate never wrote is the only completion event ([chapter 6](06-the-channel.md#the-thesis), [chapter 7](07-the-job.md#nothing-else-added), [chapter 8](08-the-escalation.md#three-observables)) |
+
 <a id="the-one-that-stays-open"></a>
 ## The one the crate cannot close
 
@@ -381,16 +392,39 @@ deferral has become an insertion* is a statement the validator refuses to let be
 false rather than one this page asserts.
 
 Twenty blocks over nine roots rather than nine is the price of reading the crate
-in its own conceptual order. Six roots are owned whole by one chapter. The other
-three split, and each split is the concept order disagreeing with the file's:
-`src/templates.rs` four ways across chapters 2, 3, 4 and 5 in eight blocks, four
-of them in two non-adjacent pairs — chapter 3 owns 92–145 and 276–414, and
-chapter 5 owns both the 146–275 lying between them and the closing 661–670;
-`src/run.rs` two ways across chapters 7 and 8 in four blocks, by whose signal it
-is, with chapter 8's first block sitting between chapter 7's two; and
-`src/channel.rs` once, at the `#[cfg(test)]` attribute on line 272, the only
-ownership boundary in the book cut at a compilation condition rather than a
-conceptual one.
+in its own conceptual order. Six roots are owned whole by one chapter; the other
+three split, and each split is the concept order disagreeing with the file's. The
+figure is those three files in file order, and what it carries that a list of
+ranges cannot is the interleaving: in two of the three, one chapter's block sits
+*inside* another chapter's pair.
+
+```text
+src/templates.rs   670 lines, 8 blocks, chapters 2 3 4 5
+      1–91    ch 2      the loaded shapes
+     92–145   ch 3   ┐  load
+    146–275   ch 5   │  resolution and expansion, inside chapter 3's pair
+    276–414   ch 3   ┘  reading and whole-document validation
+    415–534   ch 4      the node and template rules
+    535–617   ch 4      the word scan
+    618–660   ch 4      the diagnostics
+    661–670   ch 5      keys
+
+src/run.rs         607 lines, 4 blocks, chapters 7 8
+      1–123   ch 7   ┐  the launch's shape
+    124–243   ch 8   │  the watch and the latch, inside chapter 7's pair
+    244–448   ch 7   ┘  the terminal and the spawn
+    449–607   ch 8      supervise and escalate
+
+src/channel.rs     404 lines, 2 blocks, chapters 6 9
+      1–271   ch 6      the production code
+    272–404   ch 9      the inline #[cfg(test)] module
+```
+
+`src/templates.rs` divides by what a reader needs when, and `src/run.rs` divides
+by whose signal a line is about — which is why chapter 8's watch and latch sit
+between chapter 7's launch shape and its spawn. `src/channel.rs`'s single
+boundary is the `#[cfg(test)]` attribute on line 272, the only ownership boundary
+in the book cut at a compilation condition rather than a conceptual one.
 
 **Early use.** Ten rows, every one `explained`. Nine of them are the manifest's
 `[[early-use]]` entries, which are the rows the book may not omit: seven forced

@@ -35,9 +35,9 @@
 <!-- insert «templates-load» -->
 <!-- defer «resolution-and-expansion» owner="whole-word-or-nothing" lines="146-275" -->
 <!-- insert «reading-and-whole-document-validation» -->
-<!-- defer «node-and-template-rules» owner="words-not-shell" lines="415-534" -->
-<!-- defer «word-scanning» owner="words-not-shell" lines="535-617" -->
-<!-- defer «diagnostics» owner="words-not-shell" lines="618-660" -->
+<!-- insert «node-and-template-rules» -->
+<!-- insert «word-scanning» -->
+<!-- insert «diagnostics» -->
 <!-- defer «templates-keys» owner="whole-word-or-nothing" lines="661-670" -->
 <!-- /source-root -->
 <!-- source-root «source-argv» source="crates/keyed-launch/src/argv.rs" lines="1-48" -->
@@ -70,9 +70,9 @@
 | `templates-load` | `source-templates` | `never-assembled` | `92-145` | 54 | `resolved` |
 | `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `146-275` | 130 | `deferred` |
 | `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `276-414` | 139 | `resolved` |
-| `node-and-template-rules` | `source-templates` | `words-not-shell` | `415-534` | 120 | `deferred` |
-| `word-scanning` | `source-templates` | `words-not-shell` | `535-617` | 83 | `deferred` |
-| `diagnostics` | `source-templates` | `words-not-shell` | `618-660` | 43 | `deferred` |
+| `node-and-template-rules` | `source-templates` | `words-not-shell` | `415-534` | 120 | `resolved` |
+| `word-scanning` | `source-templates` | `words-not-shell` | `535-617` | 83 | `resolved` |
+| `diagnostics` | `source-templates` | `words-not-shell` | `618-660` | 43 | `resolved` |
 | `templates-keys` | `source-templates` | `whole-word-or-nothing` | `661-670` | 10 | `deferred` |
 | `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `deferred` |
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `deferred` |
@@ -139,6 +139,24 @@
 | `validate-document-nodes` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `342-361` | `reading-and-whole-document-validation` | `—` |
 | `validate-document-duplicates` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `362-389` | `reading-and-whole-document-validation` | `—` |
 | `validate-document-report` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `390-414` | `reading-and-whole-document-validation` | `—` |
+| `validate-node-shape` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `415-433` | `node-and-template-rules` | `—` |
+| `node-and-template-rules` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `415-534` | `source-templates` | `validate-node-shape`, `validate-node-one-argument`, `validate-node-result`, `validate-template-signature`, `validate-template-comment-start`, `validate-template-split`, `validate-template-word-zero`, `validate-template-cardinality` |
+| `validate-node-one-argument` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `434-460` | `node-and-template-rules` | `—` |
+| `validate-node-result` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `461-468` | `node-and-template-rules` | `—` |
+| `validate-template-signature` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `469-476` | `node-and-template-rules` | `—` |
+| `validate-template-comment-start` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `477-484` | `node-and-template-rules` | `—` |
+| `validate-template-split` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `485-496` | `node-and-template-rules` | `—` |
+| `validate-template-word-zero` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `497-521` | `node-and-template-rules` | `—` |
+| `validate-template-cardinality` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `522-534` | `node-and-template-rules` | `—` |
+| `shell-word-scan-state` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `535-545` | `word-scanning` | `—` |
+| `word-scanning` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `535-617` | `source-templates` | `shell-word-scan-state`, `contains-shell-comment-start`, `parse-template-word`, `whole-substitution` |
+| `contains-shell-comment-start` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `546-583` | `word-scanning` | `—` |
+| `parse-template-word` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `584-611` | `word-scanning` | `—` |
+| `whole-substitution` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `612-617` | `word-scanning` | `—` |
+| `diagnostic-constructors` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `618-628` | `diagnostics` | `—` |
+| `diagnostics` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `618-660` | `source-templates` | `diagnostic-constructors`, `render-diagnostics`, `location-rendering` |
+| `render-diagnostics` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `629-647` | `diagnostics` | `—` |
+| `location-rendering` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `648-660` | `diagnostics` | `—` |
 | `source-argv` | `source-index` | `source-argv` | `root` | `—` | `1-48` | `—` | `argv` |
 | `source-channel` | `source-index` | `source-channel` | `root` | `—` | `1-404` | `—` | `channel-production`, `channel-inline-tests` |
 | `source-run` | `source-index` | `source-run` | `root` | `—` | `1-607` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
@@ -156,8 +174,8 @@
 | `run`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `pending` |
 | `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `pending` |
 | `conformance::check` | `01-orientation.md#the-cast` | `checked-without-meaning` | The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite. | `pending` |
-| `validate_node`, `validate_template` | `03-two-documents.md#both-documents` | `words-not-shell` | The per-node and per-template rule checks `validate_document` drives over both documents; each returns diagnostics with locations rather than stopping at the first. | `pending` |
-| `source_location`, `format_location`, `render_diagnostics` | `03-two-documents.md#parsed-then-validated` | `words-not-shell` | `source_location` turns a byte offset into a one-based line and column; `format_location` renders one as `path:line:column`; `render_diagnostics` assembles a document's path, role and diagnostics into one refusal. | `pending` |
+| `validate_node`, `validate_template` | `03-two-documents.md#both-documents` | `words-not-shell` | The per-node and per-template rule checks `validate_document` drives over both documents; each returns diagnostics with locations rather than stopping at the first. | `explained` |
+| `source_location`, `format_location`, `render_diagnostics` | `03-two-documents.md#parsed-then-validated` | `words-not-shell` | `source_location` turns a byte offset into a one-based line and column; `format_location` renders one as `path:line:column`; `render_diagnostics` assembles a document's path, role and diagnostics into one refusal. | `explained` |
 | `install_termination_handler`, `INTERRUPTED_BY`, `supervise` | `07-the-job.md#the-spawn` | `the-launchers-job` | `run`'s first and last acts: the handler that latches the launcher's own SIGTERM or SIGHUP into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn, and the supervisor that watches the child and takes the terminal back. | `pending` |
 
 <a id="owned-source-totals"></a>

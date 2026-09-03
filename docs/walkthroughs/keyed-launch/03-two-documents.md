@@ -1,6 +1,6 @@
 # Two documents, neither one assembled
 <!-- book-page id="two-documents" slice="never-assembled" order="3" -->
-[Previous: The names a template is written against](02-the-names.md) | [Contents](README.md)
+[Previous: The names a template is written against](02-the-names.md) | [Contents](README.md) | [Next: What a template must be](04-template-law.md)
 
 <a id="never-assembled"></a>
 ## Never assembled
@@ -726,4 +726,4 @@ established is what any of those words mean. Chapter 4 reads the rules
 themselves — the node shape, the words, the `#` that would silently truncate a
 line, and the diagnostics all three of this chapter's aggregating passes carry.
 
-[Previous: The names a template is written against](02-the-names.md) | [Contents](README.md)
+[Previous: The names a template is written against](02-the-names.md) | [Contents](README.md) | [Next: What a template must be](04-template-law.md)

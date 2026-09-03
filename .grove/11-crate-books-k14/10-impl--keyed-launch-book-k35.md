@@ -8,9 +8,14 @@ human's structure brief settled, passing final validation.
 
 ## Context
 
-- Inputs: this book's structure brief, the shared specification from
+- Inputs: **`docs/specs/keyed-launch-book-structure.md`** — this book's structure
+  brief, settled at `keyed-launch-structure-k34` and named here by path because
+  `grove-draft` stops without a named artifact — the shared specification from
   `walkthrough-books-spec-k20`, and the pipeline `publishing-pipeline-k13`
-  extracted.
+  extracted. The brief settles ten pages, nine owning source; the spine *the
+  words are the words the file holds*; the pass-through test as the stated
+  outcome; and the ownership mapping the manifest's `[[page]]` and `[[block]]`
+  groups record.
 - The corpus, exactly: every `crates/keyed-launch/src/**/*.rs` plus
   `crates/keyed-launch/Cargo.toml` — 9 roots, 2,073 lines. Every byte belongs to a
   fragment graph; `tests/` is evidence, not a root.
@@ -19,6 +24,24 @@ human's structure brief settled, passing final validation.
   line — a book that explains grove's sessions has documented the wrong crate.
 - Scoped proof exists so a partial book is provable. Validate per slice as you
   go rather than discovering at the end that the graph does not close.
+- **`src/channel.rs` lines 272–404 are an inline `#[cfg(test)] mod tests` and are
+  inside the corpus.** `docs/specs/walkthrough-books.md`'s corpus exception
+  inventory carries no `keyed-launch` row, so those 133 lines are owned,
+  reconstructed and explained like any other — by chapter 9, not chapter 6. Do
+  not add an exception row to make them go away; that would be a specification
+  edit the brief did not settle.
+- **One obligation falls outside the book, and only one**:
+  `docs/ARCHITECTURE.md`'s *Documentation ownership* table has no `keyed-launch`
+  row, and `every_book_root_has_a_documentation_ownership_row` is red until it
+  does. The brief's *The book's row in the ownership table* carries the wording.
+  No glossary promotion is owed — all three reserved anchors
+  (`usage-running-grove`, `usage-session-lifecycle`, `loop-control-channel`)
+  already exist in explicit form, so `book-check`'s `M201` is green from the
+  first slice.
+- `docs/ARCHITECTURE.md` line 1188's `residue(grove-loop, keyed-launch)` marker
+  is made redundant by chapters 6–8, but the deletion is **joint** and is
+  `architecture-residue-k75`'s, only once the `grove-loop` book has also landed.
+  This leaf neither edits nor cites that document.
 
 ## Done when
 

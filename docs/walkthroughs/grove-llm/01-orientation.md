@@ -212,11 +212,14 @@ Two of those rows are the evidence for the orders this book is about. The
 `libc` row is *Growing the tree*'s: a fixture that holds the lock from outside
 is how the book knows what a verb does when the tree is already locked by
 another process, which is the contention the first order is about. The
-self-deadlock itself — a verb blocking against its own earlier opening — is
-checked by `no_production_lock_grove_takes_for_itself_ever_blocks`
-(`crates/grove-llm/tests/tree_lock.rs`), which scans the
-production source for every lock call and needs no `libc` to do it; that
-chapter names both. The `keyed-launch` row is *Leaving the loop*'s: the driver
+grove-side half of that self-deadlock risk — whether grove adds a blocking lock
+of its own — is checked by
+`no_production_lock_grove_takes_for_itself_ever_blocks`
+(`crates/grove-llm/tests/tree_lock.rs`), which scans the production source for
+every lock call and needs no `libc` to do it. It does not prove a verb never
+opens the store twice; *Growing the tree* establishes that structurally by
+reading the one handler that takes both openings. The `keyed-launch` row is
+*Leaving the loop*'s: the driver
 reads the channel back through that crate's framing, so a test of `complete`
 that invented its own framing would prove nothing about the driver.
 `ordinal-fs-tree` is taken with `default-features = false`, which drops that

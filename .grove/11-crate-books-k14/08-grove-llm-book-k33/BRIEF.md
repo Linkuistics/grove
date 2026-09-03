@@ -103,18 +103,7 @@ The editorial pipeline's chain, under this node, in the shape
 
 ## Handed forward
 
-- **`proof`, `concept-index.md`:** the index carries no entry for chapter 7.
-  Chapters 1 to 6 have roughly twenty each; *What order holds* has none, though
-  it holds five anchored sections and the book's own takeaway test — the three
-  orders, the what-is-left test applied back, the stream contract as a
-  partition, and the boundary. `art` did not fix it: a curated navigation list
-  is not a figure under the prose contract's definition, so it is outside this
-  stage's charter, and the shared specification permits the index to be
-  non-exhaustive in terms (*curated optional navigation, not an exhaustive
-  concept registry … entry selection and reader-useful ordering remain
-  editorial*). So this is a judgement to make, not a breach to repair: either
-  curate entries for chapter 7 in the shape the other six use, or leave it and
-  let the omission stand as curation.
+None.
 
 ## Decisions (running log)
 
@@ -147,3 +136,13 @@ the script red on `book-check` alone until this one. Nothing was promoted out of
 that node's brief beyond what this brief already points at: its decision log is
 named above as *what the draft adjudicates, and no later stage may undo*, and it
 stays where it is, in the brief chain of every stage that follows.
+
+**4 · Proof closed the concept-index handoff by curating chapter 7's synthesis.**
+The index is optional navigation rather than an exhaustive registry, but an
+omission of every entry from the chapter that assembles the book's twelve verbs,
+three orders, stream contract, boundary and closed ledgers was not useful
+curation. Sixteen entries now expose those arguments in the same page-order
+shape as chapters 1 to 6. The proof also corrected the index's claim that a test
+proves the self-deadlock cannot arise: chapter 4 and chapter 7 both establish
+that only grove's lack of blocking locks is scanned, while sequential openings
+are held by construction.

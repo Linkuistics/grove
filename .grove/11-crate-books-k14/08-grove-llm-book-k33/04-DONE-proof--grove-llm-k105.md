@@ -57,3 +57,22 @@ correction run is the exception, and it is what would keep the node open.
 The book contract permits tables, diagrams and other fenced Markdown figures
 inside the book directory. It permits no image or diagram asset beside the
 pages.
+
+## Decisions (running log)
+
+**1 · The chapter 7 omission was not useful curation, so the concept index now
+includes it.** The index remains non-exhaustive, but sixteen entries make the
+assembly chapter's comparative verb table, three orders, what-is-left test,
+stream partition, compiler/test boundary, external boundary, closed ledgers and
+verification surfaces discoverable in the same page-order form as chapters 1
+to 6. The node brief's hand-forward list is now empty.
+
+**2 · The final read found and fixed one cross-page technical contradiction.**
+Chapter 1 said the production lock scan proves the self-deadlock itself cannot
+arise, while chapter 4 and chapter 7 correctly delimit that evidence: the scan
+proves grove adds no blocking lock, but it cannot prove a handler never opens
+the blocking store twice. Chapter 1 and the concept-index label now agree that
+sequential openings are held by construction. The two art-stage figures, the
+carried values, per-verb tables, six source-comment leaves, five deliberately
+unchanged comments, and repeated corpus/test/ledger counts otherwise agree
+across the complete document.

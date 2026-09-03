@@ -89,7 +89,7 @@ source.
 6. [Appearance is the event](06-the-channel.md)
 7. [The child is a job](07-the-job.md)
 8. [The watch and the escalation](08-the-escalation.md)
-9. How this is checked
+9. [How this is checked](09-how-checked.md)
 10. What passes through
 
 Optional lookup:

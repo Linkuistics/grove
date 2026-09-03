@@ -1,6 +1,6 @@
 # The watch and the escalation
 <!-- book-page id="the-escalation" slice="the-launchers-job" order="8" -->
-[Previous: The child is a job](07-the-job.md) | [Contents](README.md)
+[Previous: The child is a job](07-the-job.md) | [Contents](README.md) | [Next: How this is checked](09-how-checked.md)
 
 <a id="the-launchers-job"></a>
 ## The launcher's job
@@ -1002,4 +1002,4 @@ outside. Chapter 9 is where they are: the conformance kit that checks a
 consumer's configuration without knowing what a key is for, and the nine tests
 inside `src/channel.rs` that reach a function no integration test can.
 
-[Previous: The child is a job](07-the-job.md) | [Contents](README.md)
+[Previous: The child is a job](07-the-job.md) | [Contents](README.md) | [Next: How this is checked](09-how-checked.md)

@@ -45,7 +45,7 @@
 <!-- /source-root -->
 <!-- source-root «source-channel» source="crates/keyed-launch/src/channel.rs" lines="1-404" -->
 <!-- insert «channel-production» -->
-<!-- defer «channel-inline-tests» owner="checked-without-meaning" lines="272-404" -->
+<!-- insert «channel-inline-tests» -->
 <!-- /source-root -->
 <!-- source-root «source-run» source="crates/keyed-launch/src/run.rs" lines="1-607" -->
 <!-- insert «launch-shape» -->
@@ -54,7 +54,7 @@
 <!-- insert «supervise-and-escalate» -->
 <!-- /source-root -->
 <!-- source-root «source-conformance» source="crates/keyed-launch/src/conformance.rs" lines="1-104" -->
-<!-- defer «conformance» owner="checked-without-meaning" lines="1-104" -->
+<!-- insert «conformance» -->
 <!-- /source-root -->
 
 <a id="ownership-blocks"></a>
@@ -76,12 +76,12 @@
 | `templates-keys` | `source-templates` | `whole-word-or-nothing` | `661-670` | 10 | `resolved` |
 | `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `resolved` |
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `resolved` |
-| `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `272-404` | 133 | `deferred` |
+| `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `272-404` | 133 | `resolved` |
 | `launch-shape` | `source-run` | `nothing-else-added` | `1-123` | 123 | `resolved` |
 | `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `124-243` | 120 | `resolved` |
 | `terminal-and-spawn` | `source-run` | `nothing-else-added` | `244-448` | 205 | `resolved` |
 | `supervise-and-escalate` | `source-run` | `the-launchers-job` | `449-607` | 159 | `resolved` |
-| `conformance` | `source-conformance` | `checked-without-meaning` | `1-104` | 104 | `deferred` |
+| `conformance` | `source-conformance` | `checked-without-meaning` | `1-104` | 104 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -190,6 +190,12 @@
 | `channel-remove-if-present` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `237-247` | `channel-production` | `—` |
 | `channel-draw-nonce` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `248-261` | `channel-production` | `—` |
 | `channel-hex` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `262-271` | `channel-production` | `—` |
+| `channel-tests-module` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `272-274` | `channel-inline-tests` | `—` |
+| `channel-inline-tests` | `how-checked` | `source-channel` | `composite` | `checked-without-meaning` | `272-404` | `source-channel` | `channel-tests-module`, `channel-tests-allocate`, `channel-tests-read`, `channel-tests-discard`, `channel-tests-cleanup` |
+| `channel-tests-allocate` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `275-312` | `channel-inline-tests` | `—` |
+| `channel-tests-read` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `313-351` | `channel-inline-tests` | `—` |
+| `channel-tests-discard` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `352-365` | `channel-inline-tests` | `—` |
+| `channel-tests-cleanup` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `366-404` | `channel-inline-tests` | `—` |
 | `source-run` | `source-index` | `source-run` | `root` | `—` | `1-607` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
 | `run-thesis` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `1-13` | `launch-shape` | `—` |
 | `launch-shape` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `1-123` | `source-run` | `run-thesis`, `run-poll-interval`, `run-escalation`, `run-launch`, `run-ended`, `run-end` |
@@ -229,6 +235,14 @@
 | `run-watch-escalation` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `554-580` | `supervise-and-escalate` | `—` |
 | `run-kill` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `581-607` | `supervise-and-escalate` | `—` |
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-104` | `—` | `conformance` |
+| `conformance-thesis` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `1-31` | `conformance` | `—` |
+| `conformance` | `how-checked` | `source-conformance` | `composite` | `checked-without-meaning` | `1-104` | `source-conformance` | `conformance-thesis`, `conformance-outcome`, `conformance-check-and-placeholders`, `conformance-load`, `conformance-no-keys`, `conformance-values`, `conformance-expands` |
+| `conformance-outcome` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `32-43` | `conformance` | `—` |
+| `conformance-check-and-placeholders` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `44-63` | `conformance` | `—` |
+| `conformance-load` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `64-72` | `conformance` | `—` |
+| `conformance-no-keys` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `73-82` | `conformance` | `—` |
+| `conformance-values` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `83-90` | `conformance` | `—` |
+| `conformance-expands` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `91-104` | `conformance` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -241,7 +255,7 @@
 | `Channel`, `Token`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | `explained` |
 | `run`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `explained` |
 | `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `explained` |
-| `conformance::check` | `01-orientation.md#the-cast` | `checked-without-meaning` | The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite. | `pending` |
+| `conformance::check` | `01-orientation.md#the-cast` | `checked-without-meaning` | The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite. | `explained` |
 | `validate_node`, `validate_template` | `03-two-documents.md#both-documents` | `words-not-shell` | The per-node and per-template rule checks `validate_document` drives over both documents; each returns diagnostics with locations rather than stopping at the first. | `explained` |
 | `source_location`, `format_location`, `render_diagnostics` | `03-two-documents.md#parsed-then-validated` | `words-not-shell` | `source_location` turns a byte offset into a one-based line and column; `format_location` renders one as `path:line:column`; `render_diagnostics` assembles a document's path, role and diagnostics into one refusal. | `explained` |
 | `install_termination_handler`, `INTERRUPTED_BY`, `supervise` | `07-the-job.md#the-spawn` | `the-launchers-job` | `run`'s first and last acts: the handler that latches the launcher's own SIGTERM or SIGHUP into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn, and the supervisor that watches the child and takes the terminal back. | `explained` |

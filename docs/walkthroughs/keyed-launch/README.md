@@ -83,7 +83,7 @@ source.
 
 1. [Orientation](01-orientation.md)
 2. [The names a template is written against](02-the-names.md)
-3. Two documents, neither one assembled
+3. [Two documents, neither one assembled](03-two-documents.md)
 4. What a template must be
 5. From a template to an argv
 6. Appearance is the event

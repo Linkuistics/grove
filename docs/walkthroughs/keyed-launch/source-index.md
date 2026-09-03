@@ -32,9 +32,9 @@
 <!-- /source-root -->
 <!-- source-root «source-templates» source="crates/keyed-launch/src/templates.rs" lines="1-670" -->
 <!-- insert «template-shapes» -->
-<!-- defer «templates-load» owner="never-assembled" lines="92-145" -->
+<!-- insert «templates-load» -->
 <!-- defer «resolution-and-expansion» owner="whole-word-or-nothing" lines="146-275" -->
-<!-- defer «reading-and-whole-document-validation» owner="never-assembled" lines="276-414" -->
+<!-- insert «reading-and-whole-document-validation» -->
 <!-- defer «node-and-template-rules» owner="words-not-shell" lines="415-534" -->
 <!-- defer «word-scanning» owner="words-not-shell" lines="535-617" -->
 <!-- defer «diagnostics» owner="words-not-shell" lines="618-660" -->
@@ -67,9 +67,9 @@
 | `two-opaque-errors` | `source-error-types` | `understands-neither` | `1-81` | 81 | `resolved` |
 | `vocabulary` | `source-vocabulary` | `rules-about-names` | `1-44` | 44 | `resolved` |
 | `template-shapes` | `source-templates` | `rules-about-names` | `1-91` | 91 | `resolved` |
-| `templates-load` | `source-templates` | `never-assembled` | `92-145` | 54 | `deferred` |
+| `templates-load` | `source-templates` | `never-assembled` | `92-145` | 54 | `resolved` |
 | `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `146-275` | 130 | `deferred` |
-| `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `276-414` | 139 | `deferred` |
+| `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `276-414` | 139 | `resolved` |
 | `node-and-template-rules` | `source-templates` | `words-not-shell` | `415-534` | 120 | `deferred` |
 | `word-scanning` | `source-templates` | `words-not-shell` | `535-617` | 83 | `deferred` |
 | `diagnostics` | `source-templates` | `words-not-shell` | `618-660` | 43 | `deferred` |
@@ -126,6 +126,19 @@
 | `template-shapes-word` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `46-52` | `template-shapes` | `—` |
 | `template-shapes-document-role` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `53-73` | `template-shapes` | `—` |
 | `template-shapes-diagnostics` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `74-91` | `template-shapes` | `—` |
+| `templates-load-three-promises` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `92-108` | `templates-load` | `—` |
+| `templates-load` | `two-documents` | `source-templates` | `composite` | `never-assembled` | `92-145` | `source-templates` | `templates-load-three-promises`, `templates-load-primary`, `templates-load-overlay`, `templates-load-value` |
+| `templates-load-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `109-114` | `templates-load` | `—` |
+| `templates-load-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `115-135` | `templates-load` | `—` |
+| `templates-load-value` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `136-145` | `templates-load` | `—` |
+| `compile-vocabulary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `276-298` | `reading-and-whole-document-validation` | `—` |
+| `reading-and-whole-document-validation` | `two-documents` | `source-templates` | `composite` | `never-assembled` | `276-414` | `source-templates` | `compile-vocabulary`, `read-primary`, `read-overlay`, `parse-and-validate`, `validate-document-nodes`, `validate-document-duplicates`, `validate-document-report` |
+| `read-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `299-312` | `reading-and-whole-document-validation` | `—` |
+| `read-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `313-321` | `reading-and-whole-document-validation` | `—` |
+| `parse-and-validate` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `322-341` | `reading-and-whole-document-validation` | `—` |
+| `validate-document-nodes` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `342-361` | `reading-and-whole-document-validation` | `—` |
+| `validate-document-duplicates` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `362-389` | `reading-and-whole-document-validation` | `—` |
+| `validate-document-report` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `390-414` | `reading-and-whole-document-validation` | `—` |
 | `source-argv` | `source-index` | `source-argv` | `root` | `—` | `1-48` | `—` | `argv` |
 | `source-channel` | `source-index` | `source-channel` | `root` | `—` | `1-404` | `—` | `channel-production`, `channel-inline-tests` |
 | `source-run` | `source-index` | `source-run` | `root` | `—` | `1-607` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
@@ -144,6 +157,7 @@
 | `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `pending` |
 | `conformance::check` | `01-orientation.md#the-cast` | `checked-without-meaning` | The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite. | `pending` |
 | `validate_node`, `validate_template` | `03-two-documents.md#both-documents` | `words-not-shell` | The per-node and per-template rule checks `validate_document` drives over both documents; each returns diagnostics with locations rather than stopping at the first. | `pending` |
+| `source_location`, `format_location`, `render_diagnostics` | `03-two-documents.md#parsed-then-validated` | `words-not-shell` | `source_location` turns a byte offset into a one-based line and column; `format_location` renders one as `path:line:column`; `render_diagnostics` assembles a document's path, role and diagnostics into one refusal. | `pending` |
 | `install_termination_handler`, `INTERRUPTED_BY`, `supervise` | `07-the-job.md#the-spawn` | `the-launchers-job` | `run`'s first and last acts: the handler that latches the launcher's own SIGTERM or SIGHUP into the process-global `INTERRUPTED_BY`, cleared immediately before each spawn, and the supervisor that watches the child and takes the terminal back. | `pending` |
 
 <a id="owned-source-totals"></a>

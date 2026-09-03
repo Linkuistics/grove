@@ -1,6 +1,6 @@
 # The names a template is written against
 <!-- book-page id="the-names" slice="rules-about-names" order="2" -->
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Two documents, neither one assembled](03-two-documents.md)
 
 <a id="rules-about-names"></a>
 ## Rules about names
@@ -638,4 +638,4 @@ until only indices into that table remain, a role that changes a noun and no
 rule, and a diagnostic that can say where without being asked what any of it
 meant.
 
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Two documents, neither one assembled](03-two-documents.md)

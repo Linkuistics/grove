@@ -8,15 +8,46 @@ human's structure brief settled, passing final validation.
 
 ## Context
 
-- Inputs: this book's structure brief, the shared specification from
+- Inputs: **the structure brief at
+  [`docs/specs/grove-loop-book-structure.md`](../../docs/specs/grove-loop-book-structure.md)**
+  — `grove-draft` stops without a named artifact — the shared specification from
   `walkthrough-books-spec-k20`, and the pipeline `publishing-pipeline-k13`
-  extracted.
+  extracted. The brief settles the spine, twenty-one pages with exact block
+  ranges, the carried example, the stated outcome, the per-chapter prose
+  obligation, twelve declared anchors and the slice IDs. No second interview is
+  owed.
 - The corpus, exactly: every `crates/grove-loop/src/**/*.rs` plus
   `crates/grove-loop/Cargo.toml` — 13 roots, 10,533 lines. Every byte belongs to a
   fragment graph; `tests/` is evidence, not a root.
 - This is the campaign's largest book by a wide margin and it will almost
   certainly become a node. Decompose along the chapter boundaries the structure
-  brief names, doing only the first child.
+  brief names, doing only the first child. The brief's **five parts** — 436;
+  1,714; 2,541; 2,725; 516; 2,601 lines — are the intended draft groupings.
+- **Thirty-eight per cent of the corpus is inline test code and none of it is
+  excluded.** Five roots carry a `#[cfg(test)] mod tests`: `tree_lifecycle.rs`
+  1,649 lines, `task_tree.rs` 1,008, `task_name.rs` 694, `driver_lease.rs` 564,
+  `loop_driver.rs` 69 — 3,984 in all. The manifest declares exactly **one**
+  `[[corpus.exclude]]`, `crates/grove-loop/src/task_grow/tests.rs` class
+  `inline-test-module`, matching the specification's inventory; declaring any
+  other turns
+  `every_books_corpus_exceptions_are_exactly_the_specifications_inventory` red.
+- **Two claims in the corpus are known false and are adjudicated on the page**,
+  not repeated and not corrected: `src/lib.rs` line 68 (*every member takes
+  `version.workspace = true`* — `book-validation` does not; fixed later by
+  `every-member-version-comment-k84`) and `src/session_config.rs` line 89 (*the
+  loop re-reads the configuration once per iteration* — `src/loop_driver.rs`
+  lines 241 and 260 load twice; fixed later by
+  `template-source-read-count-k86`). Both fixing leaves sit after this one, so
+  each will rewrite the adjudicating paragraph in the same commit as the comment.
+- **One edit outside the book is owed and no glossary promotion is:** the
+  `grove-loop` row in `docs/ARCHITECTURE.md`'s *Documentation ownership* table,
+  whose wording the brief gives. All twelve declared anchors exist today, so
+  `M201` is green from the first slice.
+- **This is the last book, and it unblocks `architecture-residue-k75`
+  entirely.** Thirty-one of `docs/ARCHITECTURE.md`'s forty-one residue markers
+  name this crate, including the two joint ones whose other books are written
+  (line 1189 with `keyed-launch`, line 1324 with `jj-workspace`). The brief maps
+  every marker to a chapter; that map is the coverage obligation.
 - The `ordinal-fs-tree` glossary and grove's collide on *leaf* and *node* and
   differ on *ordinal* / *position* and *key* / *permanent key*
   (`CONTEXT-MAP.md`). A page speaking of both must say which tree it means,

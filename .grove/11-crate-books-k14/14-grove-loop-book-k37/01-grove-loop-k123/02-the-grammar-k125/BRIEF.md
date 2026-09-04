@@ -27,13 +27,15 @@ prove the prefix through slice `canonical-or-nothing`.
   establishes, **and what would have to be true for it to pass while the property
   was broken**. The production halves are 42% prose and take the *do not
   restate* instruction instead.
-- **Three early-use rows close in this part, and two of them open in it.** The
-  manifest's rows for `TaskName`/`TaskNameError`/`Verdict` and the support
-  helpers (first use chapter 2) and for `TaskName::compose` and `Display` (first
-  use chapter 3) are owned by chapter 4, and their first-use anchors —
-  `02-the-tokens.md#the-four-verdicts` and
-  `03-kind-slug-handle.md#the-handle-is-the-identity` — are fixed by the manifest
-  and must exist on those pages as explicit anchors. Chapter 1's cast rows owned
+- **The manifest's rows for this part close in chapter 4 and open before it.**
+  They are the `TaskName`/`TaskNameError`/`Verdict` family with the support
+  helpers (first use chapter 2, anchor `02-the-tokens.md#the-four-verdicts`),
+  `impl Display for TaskName` (first use chapter 2, anchor
+  `02-the-tokens.md#refusals-inside-the-shape`) and `TaskName::compose` (first
+  use chapter 3, anchor `03-kind-slug-handle.md#the-handle-is-the-identity`) —
+  three rows since `display-first-use-k137` split the last two apart, two before
+  it. All are owned by chapter 4, and each anchor is fixed by the manifest and
+  must exist on its page in explicit form. Chapter 1's cast rows owned
   by `four-verdicts`, `the-handle-not-the-position` and `canonical-or-nothing`
   move from `pending` to `explained` as each chapter lands.
 - The carried example's steps for these chapters are the brief's *Worked
@@ -99,12 +101,24 @@ named first use is the *earliest* one — so nothing is red, and chapter 2 is gr
 with the row untouched. `the-tokens-k134` left the row alone and stated the
 rendering behaviour locally at `02-the-tokens.md#refusals-inside-the-shape`
 instead, so the page is self-contained either way.
-`display-first-use-k137` owns the adjudication and **runs before
+`display-first-use-k137` owned the adjudication and **ran before
 `kind-slug-handle-k135`**, because chapter 3 is the page that would otherwise
-write the anchor the row promises. Which of the two artifacts is wrong is that
-leaf's to decide and is deliberately not decided here: the brief's reasoning is
-about the *load-bearing* first use, and a reading on which chapter 2's round-trip
-assertions are incidental and the row stands is a legitimate outcome.
+write the anchor the row promises. **It settled that the manifest was wrong and
+split the row in two**: `TaskName::compose` keeps chapter 3, and `impl Display
+for TaskName` moved to `02-the-tokens.md#refusals-inside-the-shape`. The
+*load-bearing first use* reading was rejected on the specification's own wording
+— a row's fourth column is what *the earlier page* must state locally, so a row
+naming a later page leaves that obligation unrecorded. The manifest, this brief's
+parent structure brief, the ledger and chapter 2's four-name paragraph now agree.
+
+**The criterion for owing a row is now in the structure brief, and chapter 2's
+sweep is `floor-rows-chapter-two-k138`.** `display-first-use-k137` settled that a
+reproduced block owes a row for a later-owned symbol it *names or exercises*
+unless an existing row already covers it — `entry_path`'s mandatory row is the
+precedent for *names* — and wrote that into *Early uses the order forces*. It
+settled the criterion on one symbol without re-running it over chapter 2's
+blocks, so k138 does that sweep before chapter 3; chapters 3 and 4 inherit both
+the criterion and a worked example.
 
 **The ledger is a floor, and chapter 2 added three rows to it.**
 `TaskName::distinguished` (owner `canonical-or-nothing`), `Parts::leaf` (owner

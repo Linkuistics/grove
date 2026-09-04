@@ -27,13 +27,17 @@ Draft chapter 4 of the `grove-loop` book — *The name, and canonicity*,
   and the comment above it records that this was measured rather than reasoned:
   disabling the domain's canonicity check leaves the kit green without them and
   red with them.
-- **Three early-use rows close here and none open.** The manifest's rows owned by
-  `canonical-or-nothing` — the `TaskName` / `TaskNameError` / `Verdict` family
-  with the `verdict` / `entry` / `malformed` helpers, and `TaskName::compose`
-  with `Display` — plus the rows chapter 2 added for `TaskName::distinguished`
-  and for the `a_kind` / `slug` helpers, all move from `pending` to `explained`
-  when this slice lands. So does chapter 1's `TaskName` cast row. Check every row
-  in the ledger whose owner is this slice.
+- **Every row owned by `canonical-or-nothing` closes here, and none opens.**
+  Enumerate them in the ledger rather than trusting a count: as of
+  `display-first-use-k137` they are six — chapter 1's `TaskName` cast row; the
+  `TaskName` / `TaskNameError` / `Verdict` family with the `verdict` / `entry` /
+  `malformed` helpers, and `TaskName::distinguished`, both at
+  `02-the-tokens.md#the-four-verdicts`; the `a_kind` / `slug` helpers and
+  `` `impl Display for TaskName` ``, both at
+  `02-the-tokens.md#refusals-inside-the-shape`; and `` `TaskName::compose` `` at
+  `03-kind-slug-handle.md#the-handle-is-the-identity`. `compose` and `Display`
+  were one row until k137 split them, and chapter 3 may add more, so re-read the
+  ledger. All move from `pending` to `explained` when this slice lands.
 - **Prose obligation.** 430 production lines at 42% take *do not restate*; the
   270 lines of inline tests — the support block, the conformance kit, *the
   grammar* and *question 2: the grammar is canonical* — take *supply the claim*.

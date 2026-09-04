@@ -504,10 +504,16 @@ owner     = "canonical-or-nothing"
 statement = "The parsed name, its refusal type, the classification a caller reads, and the three test helpers that reach a verdict: the only way to a verdict is through the `EntryName` implementation chapter 4 owns."
 
 [[early-use]]
-symbols   = "`TaskName::compose`, `impl Display for TaskName`"
+symbols   = "`impl Display for TaskName`"
+first-use = "02-the-tokens.md#refusals-inside-the-shape"
+owner     = "canonical-or-nothing"
+statement = "The renderer that writes a parsed name back to its filename bytes, both arms ending in the handle's own renderer. The round-trip test pins each of two names to its own bytes, so the reader needs the rendering direction here."
+
+[[early-use]]
+symbols   = "`TaskName::compose`"
 first-use = "03-kind-slug-handle.md#the-handle-is-the-identity"
 owner     = "canonical-or-nothing"
-statement = "Composition builds a positioned name from a position, a kind, a slug and a key; `Display` renders one back. The handle's structural claim can only be asserted over a rendered whole name."
+statement = "Composition builds a positioned name from a position, a kind, a slug and a key, so the handle's structural claim can be asserted over names built rather than parsed."
 
 [[early-use]]
 symbols   = "`entry_path`"

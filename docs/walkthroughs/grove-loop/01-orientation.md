@@ -550,8 +550,10 @@ file and are what the four sections after this one read. The table below states 
 minimum a reader needs to follow this chapter and nothing more; each row's owning
 chapter is where the full account lives. Every row is an **early use** — a name
 this page must state a minimum for because its owner is ahead of it — and the
-source index carries these thirteen verbatim, alongside three more rows whose
-first use is on a later page.
+source index carries these thirteen verbatim. It carries further rows besides,
+each first used on a page later than this one, and every chapter may add to them
+as it reproduces blocks a still later chapter owns. The ledger is the whole set;
+this table is the part of it this page owes.
 
 | Names | Minimum statement | Chapter |
 |---|---|---:|

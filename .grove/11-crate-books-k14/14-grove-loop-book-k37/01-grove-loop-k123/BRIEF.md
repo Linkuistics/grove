@@ -136,10 +136,16 @@ them.** An early-use symbols cell is a comma-and-space separated list of single
 backticked tokens, checked by `valid_symbol_family` in
 `crates/book-validation/src/ledger.rs`, so prose inside the cell is `F009`. The
 brief's *`TaskName`, `TaskNameError`, `Verdict`, and the verdict / entry /
-malformed support helpers* and *`TaskName::compose`, and `TaskName`'s Display*
-are recorded in the manifest as the six tokens and the two tokens respectively,
-with the helpers named individually. The families are the brief's; only the
-spelling is the validator's, and chapters 2, 3 and 4 must use the manifest's
+malformed support helpers* is recorded in the manifest as those six tokens, with
+the helpers named individually. Its *`TaskName::compose`, and `TaskName`'s
+Display* was recorded as two tokens in one row until `display-first-use-k137`
+split it into two rows of one token each — `` `TaskName::compose` `` at chapter 3
+and `` `impl Display for TaskName` `` at chapter 2 — because they are two symbols
+with two first uses rather than one family, and the structure brief now carries
+them as separate rows too. **A family is the brief's and the spelling is the
+validator's, but a family whose members have different first uses is not a
+family** — splitting one is a correction to the brief, made in the brief, and not
+a leaf preferring its own wording. Chapters 2, 3 and 4 must use the manifest's
 spelling in their own ledger rows.
 
 ## Notes

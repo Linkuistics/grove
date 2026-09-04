@@ -30,14 +30,23 @@ through slice `the-handle-not-the-position`.
   reproduced test, the property and what it would still pass under.
 - The carried example's step is `plan-k1`: the name peeled to a handle that
   carries the slug and the key and not the position.
-- **Read `display-first-use-k137`'s outcome before writing the page.** That leaf
-  runs immediately before this one and settles whether the early-use row for
-  `` `TaskName::compose`, `impl Display for TaskName` `` still names
-  `03-kind-slug-handle.md#the-handle-is-the-identity` as its first use. If it
-  does, that anchor must exist on this page in explicit form.
-- **The early-use ledger is a floor.** Enumerate what this chapter's reproduced
-  bytes call that chapters 4 and later own, and add a row for each; chapter 2
-  added three beyond the manifest's.
+- **`display-first-use-k137` has settled the disputed row: it is now two.**
+  `` `TaskName::compose` `` keeps
+  `03-kind-slug-handle.md#the-handle-is-the-identity` as its first use, so that
+  anchor must still exist on this page in explicit form; `` `impl Display for
+  TaskName` `` moved to `02-the-tokens.md#refusals-inside-the-shape`, which is
+  chapter 2's and is already there. The row this page owes an anchor for is
+  therefore `compose` alone, and its statement is about composition — the
+  handle's structural claim asserted over names the test *builds* rather than
+  parses — with the rendering half no longer part of it.
+- **The early-use ledger is a floor, and the criterion is now written down.**
+  `docs/specs/grove-loop-book-structure.md`, *Early uses the order forces*, says
+  a reproduced block owes a row for a later-owned symbol it **names or
+  exercises**, unless an existing row already states the minimum a reader needs
+  there. Enumerate every candidate token in this chapter's blocks and classify
+  each; do not sweep a list. `floor-rows-chapter-two-k138` runs immediately
+  before this leaf and works the same sweep over chapter 2, so read its outcome
+  for the worked example and the row wording.
 
 ## Done when
 

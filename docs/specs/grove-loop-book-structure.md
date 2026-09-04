@@ -749,18 +749,48 @@ reaches none of the 7,436 lines before them; it is chapter 20's thesis instead.
 
 ## Early uses the order forces
 
-Three rows, all the price of concept order over file order, and all recorded in
+Four rows, all the price of concept order over file order, and all recorded in
 the book's early-use ledger.
 
 | Term | First used | Owned by | Why the order forces it |
 |---|---:|---:|---|
 | `TaskName`, `TaskNameError`, `Verdict`, and the `verdict` / `entry` / `malformed` support helpers | 2 | 4 | the classification and shape-refusal tests are *about* the four verdicts and the token rules, but the only way to reach a verdict is through the `EntryName` implementation |
-| `TaskName::compose`, and `TaskName`'s `Display` | 3 | 4 | `every_positioned_name_ends_in_its_own_handle` is the handle's structural claim and can only be asserted over a rendered whole name |
+| `TaskName`'s `Display` | 2 | 4 | the shape-refusal block's round-trip test asserts that each of two names renders back to its own bytes, which is a rendering two chapters before the renderer is read |
+| `TaskName::compose` | 3 | 4 | `every_positioned_name_ends_in_its_own_handle` is the handle's structural claim, and it is asserted over names the test *builds* rather than parses |
 | `entry_path` | 5 | 6 | `task_tree.rs`'s own module header names it as the one place paths are built, and chapter 5 reproduces that header |
 
+**`compose` and `Display` were one row, first used in chapter 3, and that was
+wrong about `Display`.** This brief and the manifest both had them as a single
+family because the reasoning was about the *load-bearing* first use — the handle's
+structural claim needs a rendered whole name. But chapter 2's `shape-refusal-tests`
+block reproduces `crates/grove-loop/src/task_name.rs` lines 1,418 and 1,455, where
+`a_multi_word_kind_beside_a_multi_word_slug_has_exactly_one_reading` calls
+`to_string()` on a `TaskName` twice; in page order the first use is chapter 2.
+The two symbols are not one family: `compose` is genuinely first reached in
+chapter 3, at lines 1,562 to 1,579. A row exists so that **the earlier page states
+the minimum locally** ([`walkthrough-books.md`](walkthrough-books.md), *Early-use
+ledger*), so naming a page later than the real first use leaves the earlier page's
+obligation unrecorded — which is what the split fixes. `check_early_uses` never
+noticed, because it checks only that a named first use is *before* its owner, never
+that it is the *earliest*; nothing was red either way.
+
+**When a reproduced block owes a row: named or exercised, and not already
+covered.** The specification's trigger has two halves — a page that *first uses*
+a later-owned symbol, **or** one that *reproduces source bytes whose referent*
+belongs to a later slice — so naming a symbol in a reproduced doc comment owes a
+row exactly as calling it does. That is why `entry_path`'s row above is anchored
+on the module header that names it rather than on the chapter that reads it. The
+exception is a symbol an existing row already states the minimum for: chapter 2
+reproduces `task_name.rs` 66–70, which says *both of `TaskName`'s renderings end
+in a call to* `Handle::render`, and that needs no row of its own because the
+chapter-1 cast row for `TaskName` already says it *renders back to the bytes it
+was parsed from*. `TaskName`'s `Display` is owed a row for the `to_string()`
+calls that follow, not for the header that describes it — which is why its anchor
+is `#refusals-inside-the-shape` and not `#the-handle-in-this-grammar`.
+
 **The ledger is a floor, not the set.** Any further block reproduced in one
-chapter that calls a function a later chapter owns takes a row of its own, and
-the authoring leaf adds it rather than treating this table as closed.
+chapter that names or calls something a later chapter owns takes a row of its
+own, and the authoring leaf adds it rather than treating this table as closed.
 
 Chapter 1 additionally names nearly every public item before its owner explains
 it — `read`, `write`, `Reading`, `Writing`, `Tree`, `TreeWrite`, `Vacancy`,

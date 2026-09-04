@@ -708,14 +708,17 @@ reading. This is the section that holds the chapter's rule, and it is where the
 second ending of the carried example lives: each refused name is one the store
 would have accepted as an entry, and grove is what declines it.
 
-**Three names this section uses before the chapter that explains them.**
+**Four names this section uses before the chapter that explains them.**
 `Parts::leaf` is the constructor for the leaf half of chapter 3's `Parts` — the
 named parts a positioned leaf name decomposes into, taking an outcome, a kind and
 a slug. `a_kind` and `slug` are two test helpers defined with the conformance kit
 in chapter 4's block: each takes a label, builds the corresponding token type,
 and panics if the label is not well-formed, so an invalid fixture is a test bug
-rather than a compile error. All three are read where chapter 4 and chapter 3
-reproduce the blocks that define them.
+rather than a compile error. And the `to_string()` calls in the round-trip test
+below are `TaskName`'s `Display`, chapter 4's renderer: it writes a parsed name
+back to its filename bytes, both of its arms ending in the call to
+`Handle::render` the module header claimed. All four are read where chapter 4 and
+chapter 3 reproduce the blocks that define them.
 
 <!-- fragment «shape-refusal-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1313-1521" parent="source-task-name" -->
 <!-- insert «name-tests-kind-not-a-token» -->
